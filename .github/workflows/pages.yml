@@ -1,0 +1,64 @@
+# Deploy demo + docs to GitHub Pages on every push to main
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+
+          # Demo pages are the site root (landing page)
+          cp -r workflow-system/human/demo/* _site/
+
+          # EN docs
+          mkdir -p _site/docs-en
+          cp workflow-system/human/en/*.md _site/docs-en/
+
+          # ZH docs
+          mkdir -p _site/docs-zh
+          cp workflow-system/human/zh/*.md _site/docs-zh/
+
+          # Design docs
+          mkdir -p _site/designs
+          cp doc/designs/*.md _site/designs/
+
+          # Downloadable skill files
+          mkdir -p _site/download
+          cp workflow-system/agent/MVP-SKILL.md _site/download/
+          cp workflow-system/agent/SKILL.md _site/download/
+
+          # Templates for architecture page
+          mkdir -p _site/templates
+          cp workflow-system/agent/templates/builtin/*.yaml _site/templates/ 2>/dev/null || true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
