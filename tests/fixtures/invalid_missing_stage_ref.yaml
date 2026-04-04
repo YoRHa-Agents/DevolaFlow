@@ -1,0 +1,19 @@
+schema_version: "1.0"
+
+metadata:
+  name: invalid-missing-ref
+  version: "0.1.0"
+  display_name: "Invalid — missing stage reference"
+  category: build
+
+stages:
+  - id: design
+    primitive: design
+    team: design
+    duration_class: long
+
+composition:
+  compose: sequence
+  stages:
+    - stage: design
+    - stage: nonexistent_stage

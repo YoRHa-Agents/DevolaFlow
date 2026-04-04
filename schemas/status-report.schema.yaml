@@ -1,0 +1,75 @@
+# -----------------------------------------------------------------------------
+# Design reference: doc/designs/design_agent_hierarchy.md §3.2
+# StatusReport — child→parent completion or progress update.
+# -----------------------------------------------------------------------------
+
+design_reference: doc/designs/design_agent_hierarchy.md §3.2
+schema_name: status-report
+instance_top_level_required:
+  - header
+  - status
+  - result
+  - issues
+
+# gate_decision is optional (typically Stage-level); omit on Task/Wave if N/A.
+instance_top_level_optional:
+  - gate_decision
+
+fields:
+  header:
+    required: true
+    children:
+      report_id: { type: string, description: UUID for this report. }
+      dispatch_id: { type: string, description: Original TaskDispatch id. }
+      task_id: { type: string }
+      layer: { type: string, description: stage | wave | task (reporting layer). }
+      timestamp: { type: string, description: ISO8601. }
+
+  status:
+    required: true
+    children:
+      state: { type: string, description: pending | in_progress | completed | failed | escalated. }
+      progress_pct: { type: int, description: 0–100. }
+      started_at: { type: string, description: ISO8601. }
+      completed_at: { type: string, optional: true, description: ISO8601 when terminal. }
+      elapsed_seconds: { type: int, description: Wall time so far. }
+
+  result:
+    required: true
+    children:
+      artifacts:
+        type: list
+        item_fields:
+          artifact_id: { type: string }
+          path: { type: string }
+          type: { type: string, description: source | test | document | report | config. }
+          summary: { type: string }
+      metrics:
+        description: Quantitative summary.
+        children:
+          tests_passed: { type: int, optional: true }
+          tests_failed: { type: int, optional: true }
+          coverage_pct: { type: number, optional: true }
+          quality_score: { type: number, optional: true }
+          findings_by_severity:
+            type: map
+            children:
+              blocker: { type: int }
+              critical: { type: int }
+              major: { type: int }
+              minor: { type: int }
+              info: { type: int }
+
+  issues:
+    required: true
+    children:
+      blockers: { type: list, description: Strings blocking completion. }
+      warnings: { type: list, description: Non-fatal concerns. }
+      deferred: { type: list, description: Explicitly postponed items. }
+
+  gate_decision:
+    optional: true
+    children:
+      verdict: { type: string, description: PASS | FAIL | ESCALATE | null. }
+      rationale: { type: string }
+      loop_back_target: { type: string, optional: true, description: On FAIL, where to resume. }

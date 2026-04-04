@@ -1,0 +1,71 @@
+# -----------------------------------------------------------------------------
+# Design reference: doc/designs/design_agent_hierarchy.md §3.1
+# TaskDispatch — parent→child dispatch message shape (all layers use same schema).
+# -----------------------------------------------------------------------------
+
+design_reference: doc/designs/design_agent_hierarchy.md §3.1
+schema_name: task-dispatch
+instance_top_level_required:
+  - header
+  - task
+  - context
+  - acceptance
+
+fields:
+  header:
+    required: true
+    description: Dispatch envelope and timing.
+    children:
+      dispatch_id: { type: string, description: UUID for this dispatch. }
+      parent_id: { type: string, description: Parent dispatch_id or logical root id. }
+      layer: { type: string, description: project | stage | wave (dispatching layer). }
+      timestamp: { type: string, description: ISO8601 dispatch time. }
+      timeout_seconds: { type: int, description: Child must finish or fail within this window. }
+
+  task:
+    required: true
+    description: Work unit identity and specification.
+    children:
+      task_id: { type: string, description: Human-readable id (e.g. S03, W02, T04). }
+      type: { type: string, description: stage | wave | code | test | review | research | design | benchmark, etc. }
+      title: { type: string, description: Short title. }
+      description: { type: string, description: What to achieve (not implementation steps). }
+
+  context:
+    required: true
+    description: Scoped inputs, artifacts, and rule loading hints.
+    children:
+      predecessor_artifacts:
+        type: list
+        description: Summaries of upstream artifacts (not full content).
+        item_fields:
+          artifact_id: { type: string }
+          path: { type: string, description: Filesystem path to artifact. }
+          summary: { type: string, description: One–two sentence summary. }
+      owned_files:
+        type: list
+        description: Paths the child may read/modify (Task layer enforces strictly).
+      applicable_rules:
+        description: Code-rules loading protocol (see guide).
+        children:
+          loading_strategy: { type: string, description: minimal | standard | full. }
+          language: { type: string, optional: true, description: Primary language hint. }
+          task_type: { type: string, optional: true, description: Task category for rule selection. }
+          quality_focus: { type: list, description: e.g. security, maintainability. }
+      shared_context:
+        type: string
+        optional: true
+        description: Small cross-cutting context (token-budgeted).
+
+  acceptance:
+    required: true
+    description: Done-when conditions and quality bar.
+    children:
+      criteria: { type: list, description: Testable completion conditions. }
+      quality_thresholds:
+        description: Numeric gates (null = not applicable).
+        children:
+          coverage_pct: { type: number, optional: true }
+          quality_score: { type: number, optional: true }
+          max_blocker_findings: { type: int, description: Usually 0 for merge-ready work. }
+      max_retry_rounds: { type: int, description: Retries on failure before escalation. }

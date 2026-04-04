@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Architecture - DevolaFlow</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
+    <h1><span>Devola</span>Flow Design Architecture</h1>
+    <p class="subtitle">Every skill file, its design source, tier, token budget, and the workflows it enables.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-overview" onclick="showTab('tab-overview')">Framework Overview</button>
+      <button class="tab-btn" data-tab="tab-skills" onclick="showTab('tab-skills')">Skill Files</button>
+      <button class="tab-btn" data-tab="tab-templates" onclick="showTab('tab-templates')">Workflow Templates</button>
+      <button class="tab-btn" data-tab="tab-adapters" onclick="showTab('tab-adapters')">Tool Adapters</button>
+      <button class="tab-btn" data-tab="tab-design" onclick="showTab('tab-design')">Design Documents</button>
+      <button class="tab-btn" data-tab="tab-budget" onclick="showTab('tab-budget')">Token Budget</button>
+    </div>
+
+    <!-- Tab: Framework Overview -->
+    <div id="tab-overview" class="tab-panel active">
+      <h2>Framework Dependency Graph</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        How design documents flow into skill files, which feed adapters that produce tool-specific outputs.
+        The Agent system is the single source of truth; the Human system is a derived projection.
+      </p>
+      <div id="framework-diagram"></div>
+    </div>
+
+    <!-- Tab: Skill Files -->
+    <div id="tab-skills" class="tab-panel">
+      <h2>Agent Skill File Inventory</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        Every file in <code>workflow-system/agent/</code> with its tier, design source, triggers, token budget, and associated workflows.
+        The 3-tier progressive disclosure model: Tier 1 is always loaded; Tier 2 loaded per-stage; Tier 3 on-demand.
+      </p>
+      <div id="skill-files"></div>
+    </div>
+
+    <!-- Tab: Templates -->
+    <div id="tab-templates" class="tab-panel">
+      <h2>11 Workflow Templates</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        Each template is a YAML composition of the 13 stage primitives. Templates define stage ordering,
+        gate types, loops, and environment-specific overrides. Every template traces to a design doc section.
+      </p>
+      <div id="template-list"></div>
+    </div>
+
+    <!-- Tab: Adapters -->
+    <div id="tab-adapters" class="tab-panel">
+      <h2>Cross-Tool Adapter Pipeline</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        <code>build-skill.py</code> reads the canonical <code>workflow-skill.yaml</code> and generates
+        tool-specific outputs through 4 adapters. Each adapter has a line/character budget from
+        the delivery architecture design.
+      </p>
+      <div id="adapter-list"></div>
+    </div>
+
+    <!-- Tab: Design Documents -->
+    <div id="tab-design" class="tab-panel">
+      <h2>Design Documents (Source of Truth)</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        14 design documents totaling ~12,700 lines. These are the authoritative specification.
+        Every implementation artifact traces back to a specific section in these documents.
+      </p>
+      <div id="design-doc-list"></div>
+    </div>
+
+    <!-- Tab: Token Budget -->
+    <div id="tab-budget" class="tab-panel">
+      <h2>Token Budget Analysis</h2>
+      <p style="color:var(--muted);margin-bottom:1rem;">
+        The skill system uses a 3-tier progressive disclosure model to manage context window budgets.
+        Only Tier 1 is always loaded; Tier 2 and 3 load on demand.
+      </p>
+      <div id="token-budget"></div>
+    </div>
+
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
+  <script src="architecture.js"></script>
+</body>
+</html>

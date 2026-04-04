@@ -1,0 +1,65 @@
+schema_version: "1.0"
+
+metadata:
+  name: spike-poc
+  version: "1.0.0"
+  display_name: "Spike / Proof of Concept"
+  description: >
+    Rapid exploration: research a hypothesis, build a minimal prototype,
+    evaluate feasibility. Optimized for speed over quality.
+  category: discover
+  applicable_scenarios:
+    - "Technology feasibility assessment"
+    - "Evaluating a new library or framework"
+    - "Prototyping a new approach before committing"
+    - "Risk reduction for uncertain technical decisions"
+  tags: [spike, poc, prototype, experiment, explore, feasibility]
+
+stages:
+  - id: research
+    primitive: research
+    alias: hypothesis
+    description: "Research the hypothesis — gather evidence, identify constraints and risks"
+    team: research
+    duration_class: medium
+    config:
+      depth: standard
+      source_types: [web, repo, docs]
+
+  - id: prototype
+    primitive: implement
+    alias: prototype
+    description: "Build a minimal prototype to test the hypothesis — throwaway code is acceptable"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: no_test
+    input_mapping:
+      tasks: "research.findings"
+
+  - id: evaluate
+    primitive: validate
+    alias: evaluate
+    description: "Evaluate the prototype against success criteria — is the approach viable?"
+    team: review
+    duration_class: medium
+    config:
+      require_all_criteria: false
+      allow_waivers: true
+
+composition:
+  compose: sequence
+  stages:
+    - stage: research
+    - stage: prototype
+    - stage: evaluate
+
+loops: []
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []

@@ -1,0 +1,95 @@
+schema_version: "1.0"
+
+metadata:
+  name: migration
+  version: "1.0.0"
+  display_name: "Migration"
+  description: >
+    Systematic migration workflow: assess current state, plan migration,
+    implement changes, validate correctness, and cut over.
+  category: build
+  applicable_scenarios:
+    - "Database migration (e.g., MySQL to PostgreSQL)"
+    - "Framework upgrade (e.g., React class to hooks)"
+    - "Infrastructure migration (e.g., on-prem to cloud)"
+    - "API version migration"
+  tags: [migrate, upgrade, transition, convert, port, legacy]
+
+stages:
+  - id: assessment
+    primitive: analyze
+    alias: assessment
+    description: "Assess current system state, dependencies, risks, and migration complexity"
+    team: research
+    duration_class: medium
+    config:
+      analysis_type: dependency
+      severity_threshold: medium
+      include_metrics: true
+
+  - id: plan
+    primitive: plan
+    description: "Create detailed migration plan with rollback strategy and cutover criteria"
+    team: design
+    duration_class: medium
+    config:
+      granularity: standard
+    input_mapping:
+      design: "assessment"
+
+  - id: implement
+    primitive: implement
+    alias: migrate
+    description: "Execute the migration — transform data, adapt code, update configurations"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: test_after
+      target_coverage: 0.70
+    input_mapping:
+      tasks: "plan.waves"
+
+  - id: validate
+    primitive: validate
+    description: "Validate migration completeness — data integrity, functionality, performance"
+    team: test
+    duration_class: medium
+    config:
+      require_all_criteria: true
+    input_mapping:
+      acceptance_criteria: "plan.acceptance_criteria"
+
+  - id: cutover
+    primitive: deploy
+    alias: cutover
+    description: "Execute cutover to the migrated system with rollback readiness"
+    team: implement
+    duration_class: medium
+    config:
+      strategy: blue_green
+      auto_rollback_on_failure: true
+
+composition:
+  compose: sequence
+  stages:
+    - stage: assessment
+    - stage: plan
+    - compose: loop
+      ref: impl_validate_loop
+    - stage: cutover
+
+loops:
+  - name: impl_validate_loop
+    body_stages: [implement, validate]
+    until: "validate.ready == true"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: plan
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: [cutover]
+  github:
+    extra_stages: []

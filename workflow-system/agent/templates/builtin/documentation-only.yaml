@@ -1,0 +1,67 @@
+schema_version: "1.0"
+
+metadata:
+  name: documentation-only
+  version: "1.0.0"
+  display_name: "Documentation Only"
+  description: >
+    Documentation workflow: survey existing state, author content,
+    review for accuracy and completeness.
+  category: deliver
+  applicable_scenarios:
+    - "Writing or updating API documentation"
+    - "Creating onboarding guides or tutorials"
+    - "Updating README and changelog"
+    - "Producing technical specification documents"
+  tags: [documentation, docs, write, review, tutorial, guide, readme]
+
+stages:
+  - id: survey
+    primitive: research
+    alias: survey
+    description: "Survey existing documentation and codebase to identify gaps and stale content"
+    team: research
+    duration_class: medium
+    config:
+      depth: standard
+      source_types: [repo, docs]
+
+  - id: author
+    primitive: implement
+    alias: author
+    description: "Write or update documentation based on survey findings"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: no_test
+    input_mapping:
+      tasks: "survey.findings"
+
+  - id: review
+    primitive: review
+    description: "Review documentation for accuracy, completeness, and clarity"
+    team: review
+    duration_class: medium
+    config:
+      review_type: documentation
+      pass_threshold: 0.80
+      require_zero_blocking: true
+    input_mapping:
+      artifacts: "author.artifacts"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: survey
+    - stage: author
+    - stage: review
+
+loops: []
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevolaFlow - Composable Workflow Meta-Framework</title>
+  <style>
+    :root {
+      --bg: #f8f9fa; --fg: #212529; --card-bg: #fff; --border: #dee2e6;
+      --accent: #0d6efd; --accent-light: #e7f1ff; --muted: #6c757d;
+      --success: #198754; --code-bg: #f1f3f5;
+    }
+    .dark {
+      --bg: #0d1117; --fg: #e6edf3; --card-bg: #161b22; --border: #30363d;
+      --accent: #58a6ff; --accent-light: #1a2332; --muted: #8b949e;
+      --success: #3fb950; --code-bg: #1c2128;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+
+    /* Header */
+    header { padding: 3rem 0 2rem; text-align: center; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 2.5rem; margin-bottom: 0.25rem; }
+    header h1 span { color: var(--accent); }
+    .tagline { font-size: 1.15rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+    .quick-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: opacity .15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-outline { border: 1px solid var(--border); color: var(--fg); background: var(--card-bg); }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--card-bg); border: 1px solid var(--border); border-radius: 50%; width: 2.5rem; height: 2.5rem; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; color: var(--fg); z-index: 10; }
+
+    /* Quick Start */
+    .quickstart { background: var(--accent-light); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem 2rem; margin: 2rem 0; }
+    .quickstart h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .quickstart pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.9rem; line-height: 1.8; }
+    .quickstart code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; }
+
+    /* Sections */
+    section { padding: 2.5rem 0; border-bottom: 1px solid var(--border); }
+    section:last-child { border-bottom: none; }
+    section h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+    section p.desc { color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; transition: border-color .15s; }
+    .card:hover { border-color: var(--accent); }
+    .card h3 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+    .card .label { display: inline-block; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 3px; background: var(--accent-light); color: var(--accent); margin-bottom: 0.5rem; font-weight: 600; }
+    .card p { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .card a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    .card a:hover { text-decoration: underline; }
+
+    /* Hierarchy diagram */
+    .hierarchy { display: flex; flex-direction: column; gap: 0.5rem; font-family: monospace; font-size: 0.9rem; background: var(--code-bg); padding: 1.25rem; border-radius: 8px; }
+    .layer { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 4px; }
+    .layer-num { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .l0 .layer-num { background: #6f42c1; } .l1 .layer-num { background: #0d6efd; }
+    .l2 .layer-num { background: #198754; } .l3 .layer-num { background: #dc3545; }
+    .layer-name { font-weight: 700; min-width: 5rem; }
+    .layer-desc { color: var(--muted); }
+    .layer-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; background: var(--accent-light); color: var(--accent); margin-left: auto; white-space: nowrap; }
+    .layer-indent { margin-left: 1.5rem; }
+    .connector { margin-left: 2rem; color: var(--muted); font-size: 0.8rem; }
+
+    /* Workflow table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; padding: 0.6rem; border-bottom: 2px solid var(--border); font-weight: 600; }
+    td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: var(--accent-light); }
+    .stages-list { font-family: monospace; font-size: 0.8rem; color: var(--muted); }
+
+    /* Footer */
+    footer { padding: 2rem 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 640px) {
+      header h1 { font-size: 1.8rem; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">&#9681;</button>
+
+  <div class="container">
+    <header>
+      <h1><span>Devola</span>Flow</h1>
+      <p class="tagline">Composable workflow meta-framework for AI-assisted software development</p>
+      <p>Define multi-stage delivery pipelines as declarative YAML. Let any AI coding tool orchestrate them through a 4-layer agent hierarchy with quality gates.</p>
+      <div class="quick-actions">
+        <a href="design-architecture/index.html" class="btn btn-primary">Design Architecture</a>
+        <a href="workflow-visualizer/index.html" class="btn btn-primary">Workflow Visualizer</a>
+        <a href="stage-explorer/index.html" class="btn btn-primary">Stage Explorer</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" class="btn btn-outline">GitHub</a>
+        <a href="docs-en/quickstart.html" class="btn btn-outline">User Guide</a>
+      </div>
+    </header>
+
+    <div class="quickstart">
+      <h2>Get started in 3 commands</h2>
+      <pre><code>git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow && pip install -e ".[dev]"
+make validate-templates    <span style="color:var(--success)"># 11 passed, 0 failed</span></code></pre>
+    </div>
+
+    <section>
+      <h2>How It Works</h2>
+      <p class="desc">Every workflow executes through a strict 4-layer hierarchy. Upper layers dispatch; only the bottom layer works.</p>
+      <div class="hierarchy">
+        <div class="layer l0"><span class="layer-num">0</span><span class="layer-name">Project</span><span class="layer-desc">picks workflow type, dispatches stages</span><span class="layer-badge">~3K ctx</span></div>
+        <div class="connector">|-- dispatches --></div>
+        <div class="layer l1 layer-indent"><span class="layer-num">1</span><span class="layer-name">Stage</span><span class="layer-desc">decomposes into waves, runs quality gates</span><span class="layer-badge">~5K ctx</span></div>
+        <div class="connector" style="margin-left:3.5rem">|-- dispatches --></div>
+        <div class="layer l2" style="margin-left:3rem"><span class="layer-num">2</span><span class="layer-name">Wave</span><span class="layer-desc">dispatches tasks in parallel, collects results</span><span class="layer-badge">~4K ctx</span></div>
+        <div class="connector" style="margin-left:5rem">|-- dispatches --></div>
+        <div class="layer l3" style="margin-left:4.5rem"><span class="layer-num">3</span><span class="layer-name">Task</span><span class="layer-desc">writes code, runs tests, reviews -- the ONLY layer that works</span><span class="layer-badge">~8K ctx</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>11 Built-in Workflow Types</h2>
+      <p class="desc">Pick the right workflow for your task. Each is a different composition of the same 13 stage primitives.</p>
+      <table>
+        <thead><tr><th>Workflow</th><th>When to use</th><th>Stages</th></tr></thead>
+        <tbody>
+          <tr><td><strong>full-pipeline</strong></td><td>New feature, greenfield project</td><td class="stages-list">design - plan - impl - review - test - refine - gate - release</td></tr>
+          <tr><td><strong>hotfix</strong></td><td>Production bug, urgent fix</td><td class="stages-list">triage - fix - test - release</td></tr>
+          <tr><td><strong>refactoring</strong></td><td>Tech debt, restructure</td><td class="stages-list">scope - plan - impl - test - review</td></tr>
+          <tr><td><strong>research-only</strong></td><td>Compare alternatives, survey</td><td class="stages-list">research - compare - report</td></tr>
+          <tr><td><strong>design-only</strong></td><td>Architecture, API design</td><td class="stages-list">research - design - review</td></tr>
+          <tr><td><strong>migration</strong></td><td>Upgrade, port systems</td><td class="stages-list">assess - plan - impl - validate - cutover</td></tr>
+          <tr><td><strong>spike-poc</strong></td><td>Prototype, experiment</td><td class="stages-list">research - prototype - evaluate</td></tr>
+          <tr><td><strong>documentation</strong></td><td>Docs, guides, API refs</td><td class="stages-list">survey - author - review</td></tr>
+          <tr><td><strong>security-audit</strong></td><td>Vulnerability scan</td><td class="stages-list">threat - scan - analyze - remediate - verify</td></tr>
+          <tr><td><strong>feature-enhancement</strong></td><td>Extend existing features</td><td class="stages-list">scope - design - plan - impl - review - test - release</td></tr>
+          <tr><td><strong>RDRR</strong></td><td>Design with research</td><td class="stages-list">research - design - review - refine (loop)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Interactive Tools</h2>
+      <p class="desc">Explore the framework, workflows, and stages visually -- no installation required.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">ARCHITECTURE</span>
+          <h3>Design Architecture</h3>
+          <p>The complete framework map: every skill file, its design document source, tier, token budget, and the workflows it enables. See how 14 design docs become a multi-tool skill system.</p>
+          <a href="design-architecture/index.html">Open Architecture Map &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">INTERACTIVE</span>
+          <h3>Workflow Visualizer</h3>
+          <p>Select any of the 11 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.</p>
+          <a href="workflow-visualizer/index.html">Open Visualizer &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">INTERACTIVE</span>
+          <h3>Stage Explorer</h3>
+          <p>Deep-dive into any of the 13 stage primitives. See input/output types, delegation chains, and context budget allocation.</p>
+          <a href="stage-explorer/index.html">Open Explorer &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">DOCS EN</span>
+          <h3>User Guide</h3>
+          <p>Step-by-step: install, configure, run your first workflow, integrate with AI tools.</p>
+          <a href="docs-en/quickstart.html">English Guide &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">DOCS ZH</span>
+          <h3>中文指南</h3>
+          <p>快速入门：安装、配置、运行第一个工作流、接入 AI 工具。</p>
+          <a href="docs-zh/quickstart.html">中文指南 &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">DOCS</span>
+          <h3>Architecture Overview</h3>
+          <p>System architecture: 4-layer hierarchy, 13 stage primitives, gate mechanism, context isolation.</p>
+          <a href="docs-en/architecture-overview.html">Read Overview &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Use with Your AI Tool</h2>
+      <p class="desc">DevolaFlow adapts to four AI coding tools from a single source. Run <code>make build-skill</code> and copy the output.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">CURSOR</span>
+          <h3>Cursor Skills</h3>
+          <p>Full SKILL.md + references + rules. Copy <code>dist/cursor/</code> to <code>.cursor/skills/workflow-orchestrator/</code></p>
+        </div>
+        <div class="card">
+          <span class="label">CODEX</span>
+          <h3>OpenAI Codex</h3>
+          <p>SKILL.md with inline rules + openai.yaml. Copy <code>dist/codex/</code> to <code>~/.codex/skills/</code></p>
+        </div>
+        <div class="card">
+          <span class="label">CLAUDE</span>
+          <h3>Claude Code</h3>
+          <p>Compressed CLAUDE.md (&lt;200 lines). Copy <code>dist/claude/CLAUDE.md</code> to project root.</p>
+        </div>
+        <div class="card">
+          <span class="label">COPILOT</span>
+          <h3>GitHub Copilot</h3>
+          <p>Copilot instructions (&lt;4K chars). Copy <code>dist/copilot/.github/</code> to your repo.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>DevolaFlow &middot; <a href="https://github.com/YoRHa-Agents/DevolaFlow">GitHub</a> &middot; MIT License</p>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,594 @@
+# workflow-skill.yaml — Canonical Source Schema
+# Single source of truth from which all tool-specific outputs are generated.
+# Design reference: design_delivery_architecture.md §4.2
+#
+# Every file in workflow-system/agent/ is referenced here.
+# Adapters read this schema to produce tool-specific output (Cursor, Codex, Claude, Copilot).
+
+identity:
+  name: "workflow-orchestrator"
+  display_name: "Workflow Orchestrator"
+  version: "1.0.0"
+  description: >
+    Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
+    with gate mechanisms, convergence loops, and context-isolated task delegation.
+    Use when the user requests implementation of a feature, bug fix, refactoring,
+    migration, or any multi-step development workflow. Triggers on: "implement",
+    "build", "create feature", "fix bug", "refactor", "migrate", "full pipeline",
+    "hotfix", "add capability".
+
+activation:
+  policy: "intent"                        # always | intent | path_match
+  trigger_terms:
+    - "implement"
+    - "build feature"
+    - "fix bug"
+    - "refactor"
+    - "migrate"
+    - "full pipeline"
+    - "hotfix"
+    - "workflow"
+    - "build from scratch"
+    - "new project"
+    - "add capability"
+    - "security audit"
+    - "spike"
+    - "prototype"
+    - "document"
+    - "research"
+
+content:
+
+  # ─────────────────────────────────────────────────────────────────
+  # Rules: Always-on constraints extracted to .cursor/rules/ or
+  # CLAUDE.md "Hard Rules" section. Sourced from design_agent_hierarchy.md §1.
+  # ─────────────────────────────────────────────────────────────────
+  rules:
+    - id: "dispatcher-no-impl"
+      severity: "hard"
+      principle: "P1"
+      text: >
+        Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly.
+        Only Task Agents execute actual work — writing code, running tests,
+        authoring documents, performing reviews.
+
+    - id: "minimal-context"
+      severity: "hard"
+      principle: "P2"
+      text: >
+        Each agent layer receives only the context it needs.
+        Project ~3K tokens, Stage ~5K, Wave ~4K, Task ~8K.
+
+    - id: "structured-messages"
+      severity: "hard"
+      principle: "P3"
+      text: >
+        All inter-layer communication uses typed YAML message schemas
+        (TaskDispatch, StatusReport, ExceptionEscalation).
+        Free-form natural language between layers is prohibited.
+
+    - id: "bounded-retry"
+      severity: "hard"
+      principle: "P4"
+      text: >
+        Every loop has a max_iterations ceiling. Every failure triggers a
+        classified response (retry / escalate / abort). No infinite loops.
+        Escalation always moves upward: Task → Wave → Stage → Project → Human.
+
+    - id: "artifacts-as-contracts"
+      severity: "hard"
+      principle: "P5"
+      text: >
+        Layers communicate through artifact files, not shared memory or
+        conversation history. Each artifact has a defined schema. The producing
+        layer writes; the consuming layer reads. No bidirectional shared state.
+
+  # ─────────────────────────────────────────────────────────────────
+  # Body: Core instruction sections composing SKILL.md
+  # These map to design_delivery_architecture.md §3.4 outline.
+  # Total: ~400 lines (within <500 line budget).
+  # ─────────────────────────────────────────────────────────────────
+  body:
+    entry_file: "SKILL.md"
+    max_lines: 500
+    sections:
+      - id: "purpose"
+        title: "Purpose & Scope"
+        content_source: "SKILL.md#purpose--scope"
+        lines: 12
+
+      - id: "quick-start"
+        title: "Quick Start — Workflow Selection"
+        content_source: "SKILL.md#quick-start--workflow-selection"
+        lines: 30
+
+      - id: "hierarchy-summary"
+        title: "4-Layer Agent Hierarchy (Summary)"
+        content_source: "SKILL.md#4-layer-agent-hierarchy-summary"
+        lines: 40
+
+      - id: "stage-index"
+        title: "Stage Primitives Index"
+        content_source: "SKILL.md#stage-primitives-index"
+        lines: 50
+
+      - id: "gate-summary"
+        title: "Gate Mechanism (Summary)"
+        content_source: "SKILL.md#gate-mechanism-summary"
+        lines: 25
+
+      - id: "team-index"
+        title: "AgentTeam Quick Reference"
+        content_source: "SKILL.md#agentteam-quick-reference"
+        lines: 30
+
+      - id: "context-summary"
+        title: "Context Isolation"
+        content_source: "SKILL.md#context-isolation"
+        lines: 20
+
+      - id: "message-summary"
+        title: "Message Protocol (Summary)"
+        content_source: "SKILL.md#message-protocol-summary"
+        lines: 25
+
+      - id: "repo-modes"
+        title: "Repo Mode Detection"
+        content_source: "SKILL.md#repo-mode-detection"
+        lines: 20
+
+      - id: "reference-nav"
+        title: "Reference Navigation Guide"
+        content_source: "SKILL.md#reference-navigation-guide"
+        lines: 40
+
+      - id: "dispatcher-rules"
+        title: "Rules for Dispatchers"
+        content_source: "SKILL.md#rules-for-dispatchers"
+        lines: 30
+
+      - id: "convergence"
+        title: "Convergence Loop (Summary)"
+        content_source: "SKILL.md#convergence-loop-summary"
+        lines: 15
+
+      - id: "template-ref"
+        title: "Template Quick-Reference"
+        content_source: "SKILL.md#template-quick-reference"
+        lines: 20
+
+  # ─────────────────────────────────────────────────────────────────
+  # References: Tier 2 domain reference files (~200-500 lines each).
+  # Loaded selectively by agent layer when the topic arises.
+  # ─────────────────────────────────────────────────────────────────
+  references:
+    - id: "agent-hierarchy"
+      file: "references/agent-hierarchy.md"
+      design_source: "design_agent_hierarchy.md"
+      load_when: "Setting up or debugging the layer hierarchy, understanding delegation rules"
+      tier: 2
+      estimated_lines: 400
+
+    - id: "meta-framework"
+      file: "references/meta-framework.md"
+      design_source: "design_meta_framework.md"
+      load_when: "Understanding stage primitives, composition operators, template schema"
+      tier: 2
+      estimated_lines: 350
+
+    - id: "decomposition-gate"
+      file: "references/decomposition-gate.md"
+      design_source: "design_decomposition_gate.md"
+      load_when: "Decomposing stages into waves/tasks, configuring gate checks"
+      tier: 2
+      estimated_lines: 400
+
+    - id: "repo-modes"
+      file: "references/repo-modes.md"
+      design_source: "design_repo_modes.md"
+      load_when: "Detecting repository structure, configuring mode-specific behavior"
+      tier: 2
+      estimated_lines: 300
+
+    - id: "execution-protocol"
+      file: "references/execution-protocol.md"
+      design_source: "design_execution_protocol.md"
+      load_when: "Pre-decision checklists, checkpoints, exception handling, human breakpoints"
+      tier: 2
+      estimated_lines: 350
+
+    - id: "message-schemas"
+      file: "references/message-schemas.md"
+      design_source: "design_agent_hierarchy.md §3"
+      load_when: "Constructing or parsing dispatch/report/escalation messages"
+      tier: 2
+      estimated_lines: 300
+
+    - id: "team-roles"
+      file: "references/team-roles.md"
+      design_source: "design_agent_hierarchy.md §4"
+      load_when: "Configuring task agents, understanding team capabilities and constraints"
+      tier: 2
+      estimated_lines: 350
+
+    - id: "context-isolation"
+      file: "references/context-isolation.md"
+      design_source: "design_agent_hierarchy.md §6"
+      load_when: "Setting up context injection templates, debugging context leaks"
+      tier: 2
+      estimated_lines: 250
+
+  # ─────────────────────────────────────────────────────────────────
+  # Examples: Tier 3 on-demand execution traces.
+  # Loaded when the agent needs a concrete delegation walkthrough.
+  # ─────────────────────────────────────────────────────────────────
+  examples:
+    - id: "full-pipeline"
+      file: "examples/full-pipeline-trace.md"
+      design_source: "design_agent_hierarchy.md §7.1"
+      description: "Complete delegation chain for a new feature implementation (18 agents, 7 stages)"
+      tier: 3
+
+    - id: "hotfix"
+      file: "examples/hotfix-trace.md"
+      design_source: "design_agent_hierarchy.md §7.2"
+      description: "Minimal 4-stage hotfix workflow trace (5 agents) with full-pipeline comparison"
+      tier: 3
+
+    - id: "convergence-loop"
+      file: "examples/convergence-loop-trace.md"
+      design_source: "design_agent_hierarchy.md Appendix C, design_decomposition_gate.md §5"
+      description: "2-round convergence loop (78→88) with gate scoring and stagnation detection"
+      tier: 3
+
+  # ─────────────────────────────────────────────────────────────────
+  # Knowledge: Tier 3 cross-cutting knowledge mapping files.
+  # Loaded when integrating with external systems or principles.
+  # ─────────────────────────────────────────────────────────────────
+  knowledge:
+    - id: "code-rules-mapping"
+      file: "knowledge/code-rules-mapping.md"
+      description: "How code-rules integrate with implement/review stages: loading strategies, quality focus, compliance checking"
+      tier: 3
+
+    - id: "principle-mapping"
+      file: "knowledge/principle-mapping.md"
+      description: "How SOLID, TDD, Clean Architecture, DDD map to gate dimensions and code-rules"
+      tier: 3
+
+  # ─────────────────────────────────────────────────────────────────
+  # Templates: Builtin workflow templates (YAML definitions).
+  # Registry + 10 builtin templates covering all workflow types.
+  # ─────────────────────────────────────────────────────────────────
+  templates:
+    registry:
+      file: "templates/registry.yaml"
+      description: "Template discovery registry with priority order: custom > derived > builtin"
+
+    builtin:
+      - id: "full-pipeline"
+        file: "templates/builtin/full-pipeline.yaml"
+        stages: ["design", "plan", "implement", "review", "test", "testgate", "release"]
+        description: "Complete lifecycle for new features and greenfield projects"
+
+      - id: "hotfix"
+        file: "templates/builtin/hotfix.yaml"
+        stages: ["triage", "fix", "test", "release"]
+        description: "Rapid bug fix with minimal ceremony"
+
+      - id: "refactoring"
+        file: "templates/builtin/refactoring.yaml"
+        stages: ["scope_analysis", "plan", "implement", "test", "review"]
+        description: "Code structure improvement with safety net"
+
+      - id: "migration"
+        file: "templates/builtin/migration.yaml"
+        stages: ["assessment", "plan", "implement", "validate", "cutover"]
+        description: "System/version migration with validation"
+
+      - id: "design-only"
+        file: "templates/builtin/design-only.yaml"
+        stages: ["research", "design", "review"]
+        description: "Architecture or API design with review"
+
+      - id: "research-only"
+        file: "templates/builtin/research-only.yaml"
+        stages: ["research"]
+        description: "Information gathering and comparison report"
+
+      - id: "spike-poc"
+        file: "templates/builtin/spike-poc.yaml"
+        stages: ["research", "prototype", "evaluate"]
+        description: "Feasibility exploration with decision gate"
+
+      - id: "documentation-only"
+        file: "templates/builtin/documentation-only.yaml"
+        stages: ["survey", "author", "review"]
+        description: "Documentation authoring and quality review"
+
+      - id: "security-audit"
+        file: "templates/builtin/security-audit.yaml"
+        stages: ["threat_model", "scan", "analyze", "remediate", "verify"]
+        description: "Security assessment and remediation cycle"
+
+      - id: "feature-enhancement"
+        file: "templates/builtin/feature-enhancement.yaml"
+        stages: ["design", "plan", "implement", "review", "test", "release"]
+        description: "Extend existing system functionality"
+
+      - id: "research-design-review-refine"
+        file: "templates/builtin/research-design-review-refine.yaml"
+        stages: ["research", "design", "review", "refine"]
+        description: "Iterative research-driven design convergence (RDRR)"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Schemas: YAML schema definitions for inter-layer messages.
+  # Referenced from references/message-schemas.md for full detail.
+  # ─────────────────────────────────────────────────────────────────
+  schemas:
+    - id: "task-dispatch"
+      file: "../../schemas/task-dispatch.schema.yaml"
+      design_source: "design_agent_hierarchy.md §3.1"
+      description: "TaskDispatch message schema (Parent → Child dispatch)"
+
+    - id: "status-report"
+      file: "../../schemas/status-report.schema.yaml"
+      design_source: "design_agent_hierarchy.md §3.2"
+      description: "StatusReport message schema (Child → Parent result)"
+
+    - id: "exception-escalation"
+      file: "../../schemas/exception-escalation.schema.yaml"
+      design_source: "design_agent_hierarchy.md §3.3"
+      description: "ExceptionEscalation message schema (Child → Parent error)"
+
+    - id: "handoff-deliverable"
+      file: "../../schemas/handoff-deliverable.schema.yaml"
+      design_source: "design_agent_hierarchy.md §5.1"
+      description: "Handoff deliverable envelope for inter-team transfers"
+
+    - id: "gate-report"
+      file: "../../schemas/gate-report.schema.yaml"
+      design_source: "design_decomposition_gate.md §5.5"
+      description: "Gate report schema with check results and convergence history"
+
+    - id: "stage-definition"
+      file: "../../schemas/stage-definition.schema.yaml"
+      design_source: "design_decomposition_gate.md §2.3"
+      description: "Stage definition schema with scope, inputs, outputs, and acceptance"
+
+    - id: "wave-definition"
+      file: "../../schemas/wave-definition.schema.yaml"
+      design_source: "design_decomposition_gate.md §3.5"
+      description: "Wave definition schema with task list and synchronization config"
+
+    - id: "task-definition"
+      file: "../../schemas/task-definition.schema.yaml"
+      design_source: "design_decomposition_gate.md §4.3"
+      description: "Task definition schema with specification, scope, and dependencies"
+
+    - id: "dependency-matrix"
+      file: "../../schemas/dependency-matrix.schema.yaml"
+      design_source: "design_decomposition_gate.md §6.2"
+      description: "Dependency matrix with adjacency, file ownership, and critical path"
+
+    - id: "pre-decision-checklist"
+      file: "../../schemas/pre-decision-checklist.schema.yaml"
+      design_source: "design_execution_protocol.md §2.3"
+      description: "Pre-decision checklist with 8 sections"
+
+    - id: "checkpoint"
+      file: "../../schemas/checkpoint.schema.yaml"
+      design_source: "design_execution_protocol.md §4.3"
+      description: "Checkpoint schema for state preservation between stages"
+
+# ═══════════════════════════════════════════════════════════════════
+# Adapters: Per-tool output configuration.
+# Each adapter reads this schema and produces tool-specific files.
+# Design reference: design_delivery_architecture.md §4.4
+# ═══════════════════════════════════════════════════════════════════
+
+adapters:
+  cursor:
+    output_dir: ".cursor/skills/workflow-orchestrator/"
+    rules_dir: ".cursor/rules/"
+    entry_file: "SKILL.md"
+    max_lines: 500
+    transforms:
+      - source: "content.rules"
+        target: ".cursor/rules/workflow-hard-rules.mdc"
+        format: "mdc_with_globs"
+      - source: "content.body"
+        target: "SKILL.md"
+        format: "yaml_frontmatter_plus_markdown"
+      - source: "content.references"
+        target: "references/"
+        format: "copy_with_load_when_header"
+      - source: "content.examples"
+        target: "examples/"
+        format: "copy_verbatim"
+      - source: "content.templates"
+        target: "templates/"
+        format: "copy_verbatim"
+
+  codex:
+    output_dir: "~/.codex/skills/workflow-orchestrator/"
+    entry_file: "SKILL.md"
+    max_lines: 500
+    transforms:
+      - source: "identity"
+        target: "SKILL.md (frontmatter) + agents/openai.yaml"
+        format: "frontmatter_plus_ui_yaml"
+      - source: "content.rules"
+        target: "SKILL.md (## Hard Rules section)"
+        format: "inline_bulleted_list"
+      - source: "content.body"
+        target: "SKILL.md (body)"
+        format: "markdown_sections"
+      - source: "content.references"
+        target: "references/"
+        format: "copy_verbatim"
+      - source: "content.templates"
+        target: "assets/"
+        format: "reclassify_as_assets"
+
+  claude:
+    output_dir: "./"
+    entry_file: "CLAUDE.md"
+    max_lines: 200
+    transforms:
+      - source: "content.rules"
+        target: "CLAUDE.md (## Hard Rules)"
+        format: "always_never_directives"
+      - source: "content.body"
+        target: "CLAUDE.md (body)"
+        format: "aggressive_summarize"
+        strategy:
+          - "Include rules section verbatim (critical)"
+          - "Include quick-start decision tree (high value)"
+          - "Include hierarchy summary as compact table"
+          - "Replace all reference links with inline 1-line summaries"
+          - "Omit examples, schemas, templates (not loadable)"
+      - source: "adapters.claude.permissions"
+        target: ".claude/settings.json"
+        format: "json_permissions"
+
+  copilot:
+    output_dir: ".github/"
+    entry_file: "copilot-instructions.md"
+    max_characters: 4000
+    transforms:
+      - source: "content.rules"
+        target: "copilot-instructions.md (## Things to Avoid)"
+        format: "prohibition_rephrasing"
+      - source: "content.body"
+        target: "copilot-instructions.md (body)"
+        format: "moderate_compress"
+      - source: "content.references"
+        target: ".github/instructions/workflow.instructions.md"
+        format: "merge_key_references"
+
+# ═══════════════════════════════════════════════════════════════════
+# File Manifest: Complete inventory of every file in the agent system.
+# Used by build-skill.py to validate completeness.
+# ═══════════════════════════════════════════════════════════════════
+
+manifest:
+  entry:
+    - path: "SKILL.md"
+      tier: 1
+      type: "entry"
+      design_source: "design_delivery_architecture.md §3.4"
+
+  source_schema:
+    - path: "workflow-skill.yaml"
+      tier: 1
+      type: "manifest"
+      design_source: "design_delivery_architecture.md §4.2"
+
+  references:
+    - path: "references/agent-hierarchy.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_agent_hierarchy.md"
+    - path: "references/meta-framework.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_meta_framework.md"
+    - path: "references/decomposition-gate.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_decomposition_gate.md"
+    - path: "references/repo-modes.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_repo_modes.md"
+    - path: "references/execution-protocol.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_execution_protocol.md"
+    - path: "references/message-schemas.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_agent_hierarchy.md §3"
+    - path: "references/team-roles.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_agent_hierarchy.md §4"
+    - path: "references/context-isolation.md"
+      tier: 2
+      type: "reference"
+      design_source: "design_agent_hierarchy.md §6"
+
+  examples:
+    - path: "examples/full-pipeline-trace.md"
+      tier: 3
+      type: "example"
+      design_source: "design_agent_hierarchy.md §7.1"
+    - path: "examples/hotfix-trace.md"
+      tier: 3
+      type: "example"
+      design_source: "design_agent_hierarchy.md §7.2"
+    - path: "examples/convergence-loop-trace.md"
+      tier: 3
+      type: "example"
+      design_source: "design_agent_hierarchy.md Appendix C"
+
+  knowledge:
+    - path: "knowledge/code-rules-mapping.md"
+      tier: 3
+      type: "knowledge"
+      design_source: "design_agent_hierarchy.md §6, code-rules guide.md"
+    - path: "knowledge/principle-mapping.md"
+      tier: 3
+      type: "knowledge"
+      design_source: "design_agent_hierarchy.md §4, design_decomposition_gate.md §5"
+
+  templates:
+    - path: "templates/registry.yaml"
+      tier: 3
+      type: "template-registry"
+      design_source: "design_meta_framework.md §5"
+    - path: "templates/builtin/full-pipeline.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/hotfix.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/refactoring.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/migration.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/design-only.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/research-only.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/spike-poc.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/documentation-only.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/security-audit.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/feature-enhancement.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/research-design-review-refine.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"

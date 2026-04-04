@@ -1,0 +1,119 @@
+schema_version: "1.0"
+
+metadata:
+  name: feature-enhancement
+  version: "1.0.0"
+  display_name: "Feature Enhancement"
+  description: >
+    Enhance an existing feature: scope the change, design, plan,
+    implement, review, test, and release.
+  category: composite
+  applicable_scenarios:
+    - "Adding functionality to an existing feature"
+    - "Extending an API endpoint"
+    - "Adding a new option or configuration"
+    - "Enhancing UI components"
+  tags: [feature, enhance, extend, add, modify, improvement]
+
+stages:
+  - id: scope
+    primitive: analyze
+    alias: scope
+    description: "Analyze the existing feature to determine change scope and impact"
+    team: research
+    duration_class: medium
+    config:
+      analysis_type: code
+      severity_threshold: low
+      include_metrics: true
+
+  - id: design
+    primitive: design
+    description: "Design the enhancement — interfaces, data changes, UI modifications"
+    team: design
+    duration_class: medium
+    config:
+      formality: standard
+      diagram_types: [mermaid]
+    input_mapping:
+      inputs: "scope.findings"
+
+  - id: plan
+    primitive: plan
+    description: "Break the enhancement into implementable tasks with ordering"
+    team: design
+    duration_class: medium
+    config:
+      granularity: standard
+    input_mapping:
+      design: "design"
+
+  - id: implement
+    primitive: implement
+    description: "Implement the enhancement with tests"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: tdd
+      target_coverage: 0.80
+    input_mapping:
+      tasks: "plan.waves"
+
+  - id: review
+    primitive: review
+    description: "Review implementation for correctness, security, and style compliance"
+    team: review
+    duration_class: medium
+    config:
+      review_type: code
+      pass_threshold: 0.80
+      require_zero_blocking: true
+    input_mapping:
+      artifacts: "implement.artifacts"
+
+  - id: test
+    primitive: test
+    description: "Run test suites to verify the enhancement and check for regressions"
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration]
+      coverage_threshold: 0.80
+      fail_fast: false
+    input_mapping:
+      code_refs: "implement.files_changed"
+
+  - id: release
+    primitive: release
+    description: "Package and release the enhanced feature"
+    team: implement
+    duration_class: quick
+    config:
+      version_strategy: semver
+      require_human_approval: false
+
+composition:
+  compose: sequence
+  stages:
+    - stage: scope
+    - stage: design
+    - stage: plan
+    - compose: loop
+      ref: impl_review_test_loop
+    - stage: release
+
+loops:
+  - name: impl_review_test_loop
+    body_stages: [implement, review, test]
+    until: "review.decision == 'pass' and test.pass_rate == 1.0"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: plan
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: [release]
+  github:
+    extra_stages: []

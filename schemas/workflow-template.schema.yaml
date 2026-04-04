@@ -1,0 +1,136 @@
+# -----------------------------------------------------------------------------
+# Design reference: doc/designs/design_meta_framework.md §4.1
+# Workflow Template — YAML instance shape (documentation schema, not a template).
+# -----------------------------------------------------------------------------
+
+design_reference: doc/designs/design_meta_framework.md §4.1
+schema_name: workflow-template
+instance_top_level_required:
+  - schema_version
+  - metadata
+  - stages
+  - composition
+  - loops
+  - gates
+  - team_overrides
+  - environment_modes
+
+fields:
+  # Declared on every template file; must be "1.0" for this revision.
+  schema_version:
+    type: string
+    required: true
+    example: "1.0"
+
+  metadata:
+    required: true
+    description: Identity and discovery metadata for the template.
+    children:
+      name: { type: string, description: Unique id (kebab-case). }
+      version: { type: string, description: Semver of this template definition. }
+      display_name: { type: string, description: Human-readable title. }
+      description: { type: string, description: What this workflow does. }
+      category: { type: string, description: discover | shape | build | deliver | composite. }
+      applicable_scenarios: { type: list, description: When to recommend this template. }
+      tags: { type: list, description: Discovery / recommendation tags. }
+
+  stages:
+    type: list
+    required: true
+    description: Stage instances bound to primitives.
+    item_fields:
+      id: { type: string, description: Unique within template. }
+      primitive: { type: string, description: One of the universal stage primitives. }
+      alias: { type: string, optional: true, description: Domain-specific label. }
+      description: { type: string, optional: true, description: Stage purpose in this workflow. }
+      team: { type: string, description: research | design | implement | test | review. }
+      duration_class: { type: string, description: quick | medium | long. }
+      config: { type: map, description: Primitive-specific settings. }
+      input_mapping: { type: map, description: Maps inputs from prior stage outputs. }
+      skip_condition: { type: string, optional: true, description: Predicate; if true, skip stage. }
+      timeout_minutes: { type: int, optional: true, description: Hard wall-clock limit. }
+
+  composition:
+    required: true
+    description: >
+      CompositionNode (recursive). Exactly one composition shape per node —
+      stage reference, sequence, parallel, choice, loop ref, or gate ref.
+    composition_shapes:
+      stage:
+        keys: [stage]
+        description: Reference a single stage id.
+      sequence:
+        keys: [compose, stages]
+        compose_value: sequence
+        description: Ordered list of child CompositionNodes.
+      parallel:
+        keys: [compose, stages, join]
+        compose_value: parallel
+        description: Concurrent branches; join is all | any | n_of(k).
+      choice:
+        keys: [compose, condition, if_true, if_false]
+        compose_value: choice
+        description: Conditional branch on predicate.
+      loop:
+        keys: [compose, ref]
+        compose_value: loop
+        description: ref names an entry in loops[].
+      gate:
+        keys: [compose, ref]
+        compose_value: gate
+        description: ref names an entry in gates[].
+
+  loops:
+    type: list
+    required: true
+    description: Named loop bodies referenced from composition.
+    item_fields:
+      name: { type: string, description: Referenced by compose.loop.ref. }
+      body_stages: { type: list, description: Stage ids in the loop body. }
+      until: { type: string, description: Exit predicate. }
+      max_iterations: { type: int, description: Hard iteration ceiling. }
+      quality_threshold: { type: float, optional: true, description: Score-based early exit. }
+      on_exhaustion: { type: string, description: escalate | abort | continue. }
+      escalation_target: { type: string, optional: true, description: Stage id after exhaustion. }
+
+  gates:
+    type: list
+    required: true
+    description: Named quality gates and wiring.
+    item_fields:
+      name: { type: string, description: Gate id / label. }
+      position: { type: string, description: after:<stage_id> or before:<stage_id>. }
+      criteria: { type: list, description: Checks against runtime state. }
+      on_pass: { type: string, description: next stage id or keyword next. }
+      on_fail:
+        type: map
+        children:
+          action: { type: string, description: loop_back | escalate | abort. }
+          target: { type: string, optional: true, description: Stage id for loop_back. }
+      require_human_override: { type: bool, description: Pause on failure for human decision. }
+      auto_insert: { type: bool, description: Apply this gate pattern automatically. }
+
+  team_overrides:
+    type: map
+    required: true
+    description: Optional map stage_id -> team enum overriding defaults (may be empty).
+
+  environment_modes:
+    required: true
+    description: Per-environment adjustments (local, github, gitlab).
+    children:
+      local:
+        description: Local / offline execution.
+        optional_keys:
+          skip_stages: { type: list, description: Stage ids to skip locally. }
+          gate_overrides: { type: map, description: Relaxed criteria for local runs. }
+      github:
+        description: GitHub-hosted repo mode.
+        optional_keys:
+          extra_stages: { type: list, description: Additional stages for GitHub. }
+          gate_overrides: { type: map, description: Overrides for CI context. }
+      gitlab:
+        description: GitLab-hosted repo mode.
+        optional_keys:
+          extra_stages: { type: list, description: Additional stages for GitLab. }
+          gate_overrides: { type: map, description: Overrides for CI context. }

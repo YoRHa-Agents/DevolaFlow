@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+metadata:
+  name: invalid-orphan
+  version: "0.1.0"
+  display_name: "Invalid — orphan stage"
+  category: build
+
+stages:
+  - id: design
+    primitive: design
+    team: design
+    duration_class: long
+  - id: plan
+    primitive: plan
+    team: design
+    duration_class: medium
+  - id: orphan_review
+    primitive: review
+    team: review
+    duration_class: medium
+
+composition:
+  compose: sequence
+  stages:
+    - stage: design
+    - stage: plan

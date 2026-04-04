@@ -1,0 +1,98 @@
+schema_version: "1.0"
+
+metadata:
+  name: refactoring
+  version: "1.0.0"
+  display_name: "Refactoring"
+  description: >
+    Systematic code improvement: analyze scope, plan changes, implement
+    refactoring, test for behavior preservation, and review.
+  category: build
+  applicable_scenarios:
+    - "Tech debt reduction"
+    - "Code restructuring for better separation of concerns"
+    - "Performance-motivated code changes"
+    - "Simplifying overly complex modules"
+  tags: [refactor, tech-debt, improve, restructure, clean-up]
+
+stages:
+  - id: scope_analysis
+    primitive: analyze
+    alias: scope-analysis
+    description: "Analyze codebase to identify refactoring scope, complexity hotspots, and impact"
+    team: research
+    duration_class: medium
+    config:
+      analysis_type: code
+      severity_threshold: medium
+      include_metrics: true
+
+  - id: plan
+    primitive: plan
+    description: "Decompose the refactoring into safe, incremental steps with ordering"
+    team: design
+    duration_class: medium
+    config:
+      granularity: standard
+    input_mapping:
+      design: "scope_analysis"
+
+  - id: implement
+    primitive: implement
+    description: "Execute the refactoring plan — restructure code while preserving behavior"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: test_after
+      target_coverage: 0.80
+    input_mapping:
+      tasks: "plan.waves"
+
+  - id: test
+    primitive: test
+    description: "Run full test suite to verify behavior preservation after refactoring"
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration]
+      coverage_threshold: 0.80
+      fail_fast: false
+    input_mapping:
+      code_refs: "implement.files_changed"
+
+  - id: review
+    primitive: review
+    description: "Review refactored code for quality, readability, and design improvements"
+    team: review
+    duration_class: medium
+    config:
+      review_type: code
+      pass_threshold: 0.80
+      require_zero_blocking: true
+    input_mapping:
+      artifacts: "implement.artifacts"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: scope_analysis
+    - stage: plan
+    - compose: loop
+      ref: impl_test_loop
+    - stage: review
+
+loops:
+  - name: impl_test_loop
+    body_stages: [implement, test]
+    until: "test.pass_rate == 1.0"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: plan
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []

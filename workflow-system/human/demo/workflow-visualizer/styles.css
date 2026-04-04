@@ -1,0 +1,20 @@
+:root { --bg: #f8f9fa; --fg: #212529; --card-bg: #fff; --border: #dee2e6; --accent: #0d6efd; --muted: #6c757d; --code-bg: #f1f3f5; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --fg: #e6edf3; --card-bg: #161b22; --border: #30363d; --accent: #58a6ff; --muted: #8b949e; --code-bg: #1c2128; }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); max-width: 1000px; margin: 0 auto; padding: 2rem; }
+h1 { margin-bottom: 0.5rem; }
+.nav { margin-bottom: 1.5rem; }
+.nav a { color: var(--accent); text-decoration: none; }
+label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+select { padding: 0.5rem 1rem; font-size: 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--fg); margin-bottom: 1.5rem; min-width: 300px; }
+.info { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+.info h3 { margin-bottom: 0.25rem; font-size: 1.2rem; }
+.info .desc { color: var(--muted); margin-bottom: 0.75rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.9rem; }
+.team-badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 3px; color: #fff; font-size: 0.75rem; font-weight: 600; }
+.loop-tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; background: var(--code-bg); font-size: 0.8rem; font-family: monospace; color: var(--muted); }
+#diagram { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; min-height: 120px; margin-bottom: 1rem; }
+.legend { font-size: 0.8rem; color: var(--muted); background: var(--code-bg); padding: 0.75rem 1rem; border-radius: 6px; }
+.legend code { background: var(--card-bg); padding: 0.1rem 0.3rem; border-radius: 2px; }

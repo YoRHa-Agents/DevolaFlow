@@ -1,0 +1,155 @@
+schema_version: "1.0"
+
+metadata:
+  name: research-design-review-refine
+  version: "1.0.0"
+  display_name: "Research → Design → Review → Refine"
+  description: >
+    Iterative knowledge-building and design-convergence loop.
+    Produces a reviewed, refined design artifact grounded in research evidence.
+    Derived from the Spiral Model's risk-driven iteration and Agile's inspect-and-adapt.
+  category: composite
+  applicable_scenarios:
+    - "Architecture Decision Record (ADR) workflow"
+    - "API design for a new microservice"
+    - "Database schema migration design"
+    - "System architecture for uncertain domains"
+    - "Any design task requiring prior research"
+  tags: [research, design, review, refine, iterate, architecture, ADR]
+
+stages:
+  - id: research
+    primitive: research
+    description: >
+      Gather information, survey prior art, analyze constraints, benchmark alternatives.
+      Produces findings, comparison matrix, risk assessment, and identifies knowledge gaps.
+    team: research
+    duration_class: long
+    config:
+      depth: comprehensive
+      source_types: [web, repo, paper, docs]
+      time_box_minutes: 60
+
+  - id: design
+    primitive: design
+    description: >
+      Synthesize research into a concrete design artifact — architecture, API, data model,
+      or system specification. Includes diagrams, interface definitions, trade-off analysis.
+    team: design
+    duration_class: long
+    config:
+      formality: standard
+      diagram_types: [mermaid, ascii]
+      design_type: architecture
+    input_mapping:
+      inputs: "research.findings"
+      constraints: "research.risk_assessment"
+
+  - id: review
+    primitive: review
+    description: >
+      Evaluate the design against quality criteria: completeness, consistency, feasibility,
+      and alignment with requirements. Produces a PASS/REVISE verdict with itemized findings.
+    team: review
+    duration_class: medium
+    config:
+      review_type: design
+      pass_threshold: 0.80
+      require_zero_blocking: true
+      reviewer_count: 1
+    input_mapping:
+      artifacts: "design"
+      checklist: "_template.review_checklist"
+
+  - id: refine
+    primitive: refine
+    description: >
+      Address review findings — fix blocking issues, incorporate suggestions, resolve
+      ambiguities, deepen under-specified areas. May identify knowledge gaps requiring
+      a loop back to research.
+    team: design
+    duration_class: medium
+    config:
+      scope: targeted
+      allow_new_features: false
+    input_mapping:
+      findings: "review.findings"
+      original_artifacts: "design"
+
+  - id: knowledge_gap_research
+    primitive: research
+    description: >
+      Secondary research triggered when refine identifies knowledge gaps that cannot
+      be resolved from existing information. Targeted and narrowly scoped.
+    team: research
+    duration_class: medium
+    config:
+      depth: standard
+      source_types: [web, docs]
+      time_box_minutes: 30
+    skip_condition: "refine.unresolved | length == 0"
+    input_mapping:
+      question: "refine.unresolved[0]"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: research
+    - compose: loop
+      ref: design_review_refine_loop
+
+loops:
+  - name: design_review_refine_loop
+    body_stages: [design, review, refine, knowledge_gap_research]
+    until: "review.decision == 'pass' and review.score >= 0.80"
+    max_iterations: 3
+    quality_threshold: 0.80
+    on_exhaustion: abort
+    escalation_target: null
+    escalation_max: null
+
+gates:
+  - name: research_completeness
+    position: "after:research"
+    criteria:
+      - field: research.findings
+        operator: "!="
+        value: []
+      - field: research.knowledge_gaps
+        operator: "exists"
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: research
+    require_human_override: false
+    auto_insert: true
+
+  - name: design_quality
+    position: "after:review"
+    criteria:
+      - field: review.decision
+        operator: "=="
+        value: "pass"
+      - field: review.blocking_count
+        operator: "=="
+        value: 0
+      - field: review.score
+        operator: ">="
+        value: 0.80
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: refine
+    require_human_override: false
+    auto_insert: true
+
+team_overrides: {}
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []
+  gitlab:
+    extra_stages: []
