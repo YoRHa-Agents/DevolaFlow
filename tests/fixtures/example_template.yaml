@@ -1,0 +1,92 @@
+# Example workflow template instance (fixture for schema tests).
+schema_version: "1.0"
+
+metadata:
+  name: full-pipeline-sample
+  version: "1.2.0"
+  display_name: Full pipeline (sample)
+  description: Research through release with a convergence implementation gate.
+  category: composite
+  applicable_scenarios:
+    - Greenfield product with formal quality gates
+    - Team wants default DevolaFlow staging
+  tags: [full, sample, fixture]
+
+stages:
+  - id: research
+    primitive: research
+    description: Gather constraints and prior art
+    team: research
+    duration_class: medium
+    config:
+      depth: standard
+      source_types: [web, repo, docs]
+    input_mapping: {}
+
+  - id: design
+    primitive: design
+    alias: architecture-pass
+    team: design
+    duration_class: long
+    config:
+      design_type: architecture
+      formality: standard
+    input_mapping:
+      brief: research.summary
+
+  - id: implement
+    primitive: implement
+    team: implement
+    duration_class: long
+    config:
+      test_first: true
+    input_mapping:
+      spec: design.specification
+    timeout_minutes: 240
+
+composition:
+  compose: sequence
+  stages:
+    - stage: research
+    - stage: design
+    - compose: loop
+      ref: impl_convergence
+    - compose: gate
+      ref: pre_release_gate
+
+loops:
+  - name: impl_convergence
+    body_stages: [implement]
+    until: gate.pre_release.passed == true
+    max_iterations: 5
+    quality_threshold: 0.85
+    on_exhaustion: escalate
+    escalation_target: design
+
+gates:
+  - name: pre_release_gate
+    position: "after:implement"
+    criteria:
+      - field: quality.composite_score
+        operator: ">="
+        value: 85
+    on_pass: next
+    on_fail:
+      action: loop_back
+      target: implement
+    require_human_override: false
+    auto_insert: true
+
+team_overrides: {}
+
+environment_modes:
+  local:
+    skip_stages: []
+    gate_overrides: {}
+  github:
+    extra_stages: []
+    gate_overrides:
+      coverage_pct: 75
+  gitlab:
+    extra_stages: []
+    gate_overrides: {}

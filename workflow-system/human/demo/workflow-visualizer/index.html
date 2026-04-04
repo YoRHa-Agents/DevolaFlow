@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Visualizer - DevolaFlow</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <h1>Workflow Visualizer</h1>
+  <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
+
+  <label for="workflow-select">Select workflow type:</label>
+  <select id="workflow-select"><option value="">Choose...</option></select>
+
+  <div class="info">
+    <h3 id="wf-name">-</h3>
+    <p id="wf-desc" class="desc">-</p>
+    <div class="meta">
+      <div><strong>Category:</strong> <span id="wf-category">-</span></div>
+      <div><strong>Stages:</strong> <span id="wf-stages">-</span></div>
+      <div><strong>Use when:</strong> <span id="wf-use">-</span></div>
+    </div>
+    <div class="meta" style="margin-top:0.5rem">
+      <div><strong>Teams:</strong> <span id="wf-teams">-</span></div>
+      <div><strong>Loops:</strong> <span id="wf-loops">-</span></div>
+    </div>
+  </div>
+
+  <div id="diagram"></div>
+
+  <div class="legend">
+    <strong>Diagram legend:</strong>
+    <code>[[ ]]</code> = convergence gate (multi-round) &nbsp;
+    <code>[ ]</code> = standard gate &nbsp;
+    <code>( )</code> = no gate (intermediate stage)
+  </div>
+
+  <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
+  <script src="visualizer.js"></script>
+</body>
+</html>

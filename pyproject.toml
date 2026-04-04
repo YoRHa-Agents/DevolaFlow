@@ -1,0 +1,53 @@
+# DevolaFlow — Workflow Meta-Framework
+# Design ref: design_dual_system.md §2.1
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "devolaflow"
+version = "0.1.0"
+description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+validate-template = "devolaflow.cli:validate_template_cmd"
+validate-gate = "devolaflow.cli:validate_gate_cmd"
+build-skill = "devolaflow.cli:build_skill_cmd"
+check-drift = "devolaflow.cli:check_drift_cmd"
+detect-repo-mode = "devolaflow.cli:detect_repo_mode_cmd"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
+
+[tool.coverage.run]
+source = ["devolaflow"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

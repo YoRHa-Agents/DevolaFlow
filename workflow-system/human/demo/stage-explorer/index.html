@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stage Explorer - DevolaFlow</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Stage Explorer</h1>
+  <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
+
+  <label for="stage-select">Select stage primitive:</label>
+  <select id="stage-select"><option value="">Choose a primitive...</option></select>
+
+  <div class="detail">
+    <h3 id="stage-name">-</h3>
+    <table>
+      <tr><th>Category</th><td id="stage-category">-</td></tr>
+      <tr><th>Default Team</th><td id="stage-team">-</td></tr>
+      <tr><th>Duration Class</th><td id="stage-duration">-</td></tr>
+      <tr><th>Purpose</th><td id="stage-purpose">-</td></tr>
+      <tr><th>Input Type</th><td id="stage-input" class="mono">-</td></tr>
+      <tr><th>Output Type</th><td id="stage-output" class="mono">-</td></tr>
+      <tr><th>Config</th><td id="stage-config" class="mono">-</td></tr>
+      <tr><th>Used In</th><td id="stage-workflows">-</td></tr>
+    </table>
+  </div>
+
+  <div class="detail">
+    <h3>Delegation Chain</h3>
+    <p class="hint">How this stage is orchestrated through the 4-layer hierarchy:</p>
+    <div id="delegation-chain"></div>
+  </div>
+
+  <div class="detail">
+    <h3>Context Budget Allocation</h3>
+    <p class="hint">How token budget is distributed across layers:</p>
+    <div id="budget-bar" class="budget-bar"></div>
+  </div>
+
+  <script src="explorer.js"></script>
+</body>
+</html>

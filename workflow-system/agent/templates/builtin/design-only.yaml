@@ -1,0 +1,66 @@
+schema_version: "1.0"
+
+metadata:
+  name: design-only
+  version: "1.0.0"
+  display_name: "Design Only"
+  description: >
+    Research, design, and review cycle — produces a reviewed design artifact
+    without proceeding to implementation.
+  category: shape
+  applicable_scenarios:
+    - "Architecture Decision Record (ADR)"
+    - "API design specification"
+    - "Database schema design"
+    - "Wireframe or interface contract"
+  tags: [design, research, review, architecture, specification]
+
+stages:
+  - id: research
+    primitive: research
+    description: "Gather information and survey prior art to inform the design"
+    team: research
+    duration_class: medium
+    config:
+      depth: standard
+      source_types: [web, repo, docs]
+
+  - id: design
+    primitive: design
+    description: "Synthesize research into a concrete design artifact"
+    team: design
+    duration_class: long
+    config:
+      formality: standard
+      diagram_types: [mermaid]
+    input_mapping:
+      inputs: "research.findings"
+
+  - id: review
+    primitive: review
+    description: "Evaluate the design for completeness, consistency, and feasibility"
+    team: review
+    duration_class: medium
+    config:
+      review_type: design
+      pass_threshold: 0.80
+      require_zero_blocking: true
+    input_mapping:
+      artifacts: "design"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: research
+    - stage: design
+    - stage: review
+
+loops: []
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []

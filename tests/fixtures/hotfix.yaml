@@ -1,0 +1,102 @@
+schema_version: "1.0"
+
+metadata:
+  name: hotfix
+  version: "1.0.0"
+  display_name: "Hotfix"
+  description: "Rapid bug triage, minimal fix, focused test, fast-track release."
+  category: build
+  applicable_scenarios:
+    - "Production bug causing user-visible impact"
+    - "Security vulnerability requiring immediate patch"
+    - "Critical dependency update (CVE)"
+  tags: [bug, fix, hotfix, patch, incident, production, urgent]
+
+stages:
+  - id: bug_triage
+    primitive: analyze
+    alias: bug-triage
+    description: "Assess severity, identify root cause, determine fix scope"
+    team: implement
+    duration_class: quick
+    config:
+      analysis_type: code
+      severity_threshold: high
+
+  - id: fix
+    primitive: implement
+    alias: fix
+    description: "Implement the minimal targeted fix"
+    team: implement
+    duration_class: medium
+    config:
+      test_strategy: test_after
+      code_style: minimal_diff
+    input_mapping:
+      tasks: "bug_triage.findings"
+
+  - id: test
+    primitive: test
+    description: "Run focused test suite"
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration]
+      fail_fast: true
+      coverage_threshold: 0.0
+    input_mapping:
+      code_refs: "fix.files_changed"
+
+  - id: release
+    primitive: release
+    description: "Fast-track deployment with rollback readiness"
+    team: implement
+    duration_class: quick
+    config:
+      version_strategy: semver
+      require_human_approval: false
+      draft_mode: false
+
+composition:
+  compose: sequence
+  stages:
+    - stage: bug_triage
+    - compose: loop
+      ref: test_fix_loop
+    - stage: release
+
+loops:
+  - name: test_fix_loop
+    body_stages: [fix, test]
+    until: "test.pass_rate == 1.0"
+    max_iterations: 3
+    on_exhaustion: abort
+    escalation_target: null
+
+gates:
+  - name: severity_gate
+    position: "after:bug_triage"
+    criteria:
+      - field: bug_triage.findings
+        operator: "exists"
+        value: true
+      - field: bug_triage.findings[0].severity
+        operator: "in"
+        value: [critical, high, medium]
+    on_pass: "next"
+    on_fail:
+      action: abort
+    require_human_override: false
+    auto_insert: false
+
+environment_modes:
+  local:
+    skip_stages: [release]
+    gate_overrides:
+      severity_gate:
+        criteria:
+          - field: bug_triage.findings
+            operator: "exists"
+            value: true
+  github:
+    extra_stages: []

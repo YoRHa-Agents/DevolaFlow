@@ -1,0 +1,47 @@
+# -----------------------------------------------------------------------------
+# Design reference: doc/designs/design_agent_hierarchy.md §3.3
+# ExceptionEscalation — child→parent when the unit cannot recover locally.
+# -----------------------------------------------------------------------------
+
+design_reference: doc/designs/design_agent_hierarchy.md §3.3
+schema_name: exception-escalation
+instance_top_level_required:
+  - header
+  - error
+  - impact
+  - suggested_action
+
+fields:
+  header:
+    children:
+      escalation_id: { type: string, description: UUID. }
+      dispatch_id: { type: string, description: Related TaskDispatch. }
+      task_id: { type: string }
+      layer: { type: string, description: stage | wave | task where error surfaced. }
+      timestamp: { type: string, description: ISO8601. }
+
+  error:
+    children:
+      error_type: { type: string, description: recoverable | blocking | fatal. }
+      category:
+        type: string
+        description: >
+          tool_failure | context_overflow | ambiguous_spec | dependency_missing |
+          quality_threshold | timeout | conflict
+      description: { type: string, description: Human-readable problem statement. }
+      evidence: { type: string, optional: true, description: Short log excerpt. }
+
+  impact:
+    children:
+      affected_tasks: { type: list, description: Task ids impacted. }
+      blocking_downstream: { type: bool }
+      data_loss_risk: { type: bool, description: Whether retry risks corruption. }
+
+  suggested_action:
+    children:
+      action:
+        type: string
+        description: >
+          retry | skip | abort | reassign | request_human_input | modify_spec
+      details: { type: string, description: Concrete recommendation. }
+      estimated_resolution: { type: string, optional: true, description: Time hint if known. }

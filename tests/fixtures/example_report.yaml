@@ -1,0 +1,47 @@
+# Example StatusReport instance (fixture).
+header:
+  report_id: "660e8400-e29b-41d4-a716-446655440010"
+  dispatch_id: "550e8400-e29b-41d4-a716-446655440001"
+  task_id: T-impl-042
+  layer: task
+  timestamp: "2026-04-04T12:25:00Z"
+
+status:
+  state: completed
+  progress_pct: 100
+  started_at: "2026-04-04T12:00:05Z"
+  completed_at: "2026-04-04T12:24:18Z"
+  elapsed_seconds: 1453
+
+result:
+  artifacts:
+    - artifact_id: auth-mw-impl
+      path: src/auth/middleware.rs
+      type: source
+      summary: JWT validation with clock skew handling
+    - artifact_id: auth-mw-tests
+      path: tests/auth_middleware.rs
+      type: test
+      summary: Happy path + expiry + bad signature cases
+  metrics:
+    tests_passed: 14
+    tests_failed: 0
+    coverage_pct: 88.5
+    quality_score: 87
+    findings_by_severity:
+      blocker: 0
+      critical: 0
+      major: 0
+      minor: 1
+      info: 2
+
+issues:
+  blockers: []
+  warnings:
+    - Consider extracting token parsing to shared util in a follow-up task
+  deferred: []
+
+gate_decision:
+  verdict: null
+  rationale: Task-level report; gate evaluated at stage boundary
+  loop_back_target: null

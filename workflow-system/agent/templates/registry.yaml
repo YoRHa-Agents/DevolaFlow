@@ -1,0 +1,80 @@
+schema_version: "1.0"
+last_updated: "2026-04-04T00:00:00Z"
+
+templates:
+  - name: research-only
+    path: builtin/research-only.yaml
+    source: builtin
+    version: "1.0.0"
+    category: discover
+    tags: [research, compare, evaluate]
+
+  - name: hotfix
+    path: builtin/hotfix.yaml
+    source: builtin
+    version: "1.0.0"
+    category: build
+    tags: [bug, fix, hotfix, patch, urgent]
+
+  - name: full-pipeline
+    path: builtin/full-pipeline.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [full, pipeline, feature, implementation, release]
+
+  - name: research-design-review-refine
+    path: builtin/research-design-review-refine.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [research, design, review, refine, iterate]
+
+  - name: design-only
+    path: builtin/design-only.yaml
+    source: builtin
+    version: "1.0.0"
+    category: shape
+    tags: [design, research, review, architecture]
+
+  - name: refactoring
+    path: builtin/refactoring.yaml
+    source: builtin
+    version: "1.0.0"
+    category: build
+    tags: [refactor, tech-debt, improve, restructure]
+
+  - name: migration
+    path: builtin/migration.yaml
+    source: builtin
+    version: "1.0.0"
+    category: build
+    tags: [migrate, upgrade, transition, port]
+
+  - name: spike-poc
+    path: builtin/spike-poc.yaml
+    source: builtin
+    version: "1.0.0"
+    category: discover
+    tags: [spike, poc, prototype, experiment]
+
+  - name: documentation-only
+    path: builtin/documentation-only.yaml
+    source: builtin
+    version: "1.0.0"
+    category: deliver
+    tags: [documentation, docs, write, review]
+
+  - name: security-audit
+    path: builtin/security-audit.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [security, audit, vulnerability, CVE, scan]
+
+  - name: feature-enhancement
+    path: builtin/feature-enhancement.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [feature, enhance, extend, modify]

@@ -1,0 +1,76 @@
+# Design ref: design_repo_modes.md section 4.2 Release workflow
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v --cov=devolaflow
+      - run: validate-template --all
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build site
+        run: |
+          mkdir -p _site
+
+          # Demo pages are the site root (landing page)
+          cp -r workflow-system/human/demo/* _site/
+
+          # EN docs as /docs-en/
+          mkdir -p _site/docs-en
+          cp workflow-system/human/en/*.md _site/docs-en/
+
+          # ZH docs as /docs-zh/
+          mkdir -p _site/docs-zh
+          cp workflow-system/human/zh/*.md _site/docs-zh/
+
+          # Design docs as /designs/
+          mkdir -p _site/designs
+          cp doc/designs/*.md _site/designs/
+
+          # Agent skill files for download
+          mkdir -p _site/download
+          cp workflow-system/agent/MVP-SKILL.md _site/download/
+          cp workflow-system/agent/SKILL.md _site/download/
+
+          # Template files for design-architecture page reference
+          mkdir -p _site/templates
+          cp workflow-system/agent/templates/builtin/*.yaml _site/templates/ 2>/dev/null || true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
