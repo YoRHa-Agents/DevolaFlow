@@ -32,13 +32,20 @@ User Request
 ### One-liner (no clone needed)
 
 ```bash
-# Auto-detect your AI tools and install DevolaFlow
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash
-
-# Or target a specific tool
+# Install for Cursor (project-local)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
+
+# Install for Cursor (user-global, shared across all projects)
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global
+
+# Other tools
+curl -fsSL ... | bash -s claude     # Claude Code (writes ./CLAUDE.md)
+curl -fsSL ... | bash -s copilot    # Copilot (writes .github/copilot-instructions.md)
+curl -fsSL ... | bash -s all        # all tools at once
+curl -fsSL ... | bash               # auto-detect which tools you have
+
+# Update to latest
+curl -fsSL ... | bash -s update     # re-downloads to all existing install locations
 ```
 
 ### pip install + init
@@ -47,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
 cd your-project/
 devola-init              # auto-detect tools and install
-devola-init cursor       # Cursor only
+devola-init cursor       # Cursor only (project-local)
 devola-init all          # all tools
 ```
 
@@ -55,12 +62,12 @@ devola-init all          # all tools
 
 Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and drop it in:
 
-| Tool | Where to put it |
-|------|----------------|
-| **Cursor** | `.cursor/skills/devola-flow/SKILL.md` |
-| **Codex** | `~/.codex/skills/devola-flow/SKILL.md` |
-| **Claude Code** | `./CLAUDE.md` (project root) |
-| **Copilot** | `.github/copilot-instructions.md` |
+| Tool | Project-local | User-global |
+|------|--------------|-------------|
+| **Cursor** | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
+| **Codex** | -- | `~/.codex/skills/devola-flow/SKILL.md` |
+| **Claude Code** | `./CLAUDE.md` | -- |
+| **Copilot** | `.github/copilot-instructions.md` | -- |
 
 ### Full Development Setup
 

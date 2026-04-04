@@ -104,14 +104,20 @@
 
     <div class="quickstart">
       <h2>Install in 1 command</h2>
-      <pre><code><span style="color:var(--muted)"># Auto-detect your AI tools and install DevolaFlow</span>
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash</code></pre>
+      <pre><code><span style="color:var(--muted)"># Cursor (project-local)</span>
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+
+<span style="color:var(--muted)"># Cursor (user-global, shared across all projects)</span>
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global
+
+<span style="color:var(--muted)"># Update existing install to latest version</span>
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update</code></pre>
       <p style="font-size:0.85rem;color:var(--muted);margin-top:0.75rem">
-        Or target a specific tool:
-        <code>... | bash -s cursor</code> &middot;
+        Also:
         <code>... | bash -s claude</code> &middot;
         <code>... | bash -s copilot</code> &middot;
-        <code>... | bash -s codex</code>
+        <code>... | bash -s all</code> &middot;
+        <code>... | bash</code> <span style="font-size:0.8rem">(auto-detect)</span>
       </p>
       <p style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem">
         Or just download <a href="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md" style="color:var(--accent)">MVP-SKILL.md</a> and drop it into your tool.
