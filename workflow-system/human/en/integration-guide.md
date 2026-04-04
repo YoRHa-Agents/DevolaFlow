@@ -13,31 +13,43 @@ DevolaFlow supports four AI coding tools and three repository modes. This guide 
 
 ## AI Tool Integration
 
-### Quick Method: Single File
-
-Copy `workflow-system/agent/MVP-SKILL.md` directly into your tool:
-
-| Tool | Copy to | Notes |
-|------|---------|-------|
-| Cursor | `.cursor/skills/devola-flow/SKILL.md` | Loaded on intent match |
-| Claude Code | `CLAUDE.md` (project root) | Always loaded at session start |
-| Copilot | `.github/copilot-instructions.md` | Loaded per request |
-| Codex | `~/.codex/skills/devola-flow/SKILL.md` | Loaded on intent match |
-
-### Full Method: Build Pipeline
+### Fastest: One Command
 
 ```bash
-make build-skill
+INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
+
+curl -fsSL $INSTALLER | bash -s cursor            # project-local
+curl -fsSL $INSTALLER | bash -s cursor --global    # user-global (~/.cursor/)
+curl -fsSL $INSTALLER | bash -s claude             # Claude Code
+curl -fsSL $INSTALLER | bash -s copilot            # Copilot
+curl -fsSL $INSTALLER | bash -s update             # update existing installs
 ```
 
-This generates optimized outputs for each tool in `dist/`:
+### Alternative: pip + devola-init
 
-- `dist/cursor/` -- SKILL.md + references + rules (.mdc)
-- `dist/codex/` -- SKILL.md + agents/openai.yaml
-- `dist/claude/` -- CLAUDE.md (<200 lines compressed)
-- `dist/copilot/` -- copilot-instructions.md (<4000 chars)
+```bash
+pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init cursor       # auto-copies skill files to .cursor/skills/devola-flow/
+```
 
-Copy the entire `dist/<tool>/` directory to the appropriate location.
+### Manual: Single File
+
+Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and copy to:
+
+| Tool | Project-local | User-global |
+|------|--------------|-------------|
+| Cursor | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
+| Claude Code | `./CLAUDE.md` | -- |
+| Copilot | `.github/copilot-instructions.md` | -- |
+| Codex | -- | `~/.codex/skills/devola-flow/SKILL.md` |
+
+### Full Build Pipeline (for contributors)
+
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git && cd DevolaFlow
+pip install -e ".[dev]"
+make build-skill    # generates dist/cursor/, dist/codex/, dist/claude/, dist/copilot/
+```
 
 ## Repository Mode Integration
 
