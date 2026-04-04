@@ -6,6 +6,7 @@ const STAGES = {
     output: "ResearchReport { findings[], comparison_matrix, risk_assessment[], knowledge_gaps[] }",
     config: "depth: shallow|standard|comprehensive, source_types: [web, repo, paper, docs]",
     workflows: "research-only, design-only, RDRR, migration, spike-poc, full-pipeline (optional)",
+    mainAgent: "Stage Agent decomposes research into waves: e.g. Wave 1 = parallel research tasks by topic, Wave 2 = synthesis task. Stage Agent never reads sources directly.",
   },
   analyze: {
     category: "Discover", team: "Research", duration: "Medium",
@@ -14,6 +15,7 @@ const STAGES = {
     output: "AnalysisReport { findings[], hotspots[], priority_ranking[] }",
     config: "analysis_type: code|performance|security|dependency, severity_threshold",
     workflows: "hotfix (as bug-triage), security-audit (as scan/analyze), refactoring (as scope)",
+    mainAgent: "Stage Agent dispatches analysis as a single-wave task. For hotfix: the Stage Agent evaluates triage severity gate before advancing to fix.",
   },
   design: {
     category: "Shape", team: "Design", duration: "Medium-Long",
@@ -22,6 +24,7 @@ const STAGES = {
     output: "DesignDocument { diagrams[], interfaces[], decisions[], specification }",
     config: "design_type: architecture|api|schema|component, formality: sketch|standard|formal",
     workflows: "design-only, RDRR, full-pipeline, feature-enhancement",
+    mainAgent: "Stage Agent splits design into waves: Wave 1 = research/requirements extraction, Wave 2 = architecture authoring, Wave 3 = interface specification. Stage Agent runs design gate after all waves.",
   },
   plan: {
     category: "Shape", team: "Design", duration: "Medium",
@@ -30,6 +33,7 @@ const STAGES = {
     output: "ImplementationPlan { waves[], dependency_matrix, risk_register[], acceptance_criteria[] }",
     config: "granularity: coarse|standard|fine, max_parallel_waves, estimate_unit",
     workflows: "full-pipeline, refactoring, migration, feature-enhancement",
+    mainAgent: "Stage Agent dispatches a single planning wave. The plan output defines the wave/task structure for the next implementation stage. Stage Agent validates the plan produces a valid DAG.",
   },
   implement: {
     category: "Build", team: "Implement", duration: "Long",
@@ -38,6 +42,7 @@ const STAGES = {
     output: "ImplResult { artifacts[], files_changed[], tests_written[], build_status }",
     config: "test_strategy: tdd|test_after|no_test, target_coverage: float",
     workflows: "full-pipeline, hotfix (as fix), refactoring, migration, feature-enhancement",
+    mainAgent: "Stage Agent is the key orchestrator here: decomposes the plan into waves (typically 3: scaffold, parallel core modules, integration). Wave Agent dispatches up to 5 parallel Task Agents with disjoint file ownership. Stage Agent runs the CONVERGENCE GATE after all waves, potentially triggering review-fix-test-fix loops (max 3 rounds).",
   },
   review: {
     category: "Verify", team: "Review", duration: "Medium",
@@ -46,6 +51,7 @@ const STAGES = {
     output: "ReviewVerdict { decision: pass|revise|reject, score, findings[], blocking_count }",
     config: "review_type: design|code|security|documentation, pass_threshold: 0.80",
     workflows: "All workflows with quality gates (most common stage)",
+    mainAgent: "Stage Agent dispatches parallel review tasks: e.g. Wave 1 = [code review, security review, architecture review] in parallel. Wave Agent collects all findings. Stage Agent computes composite quality score.",
   },
   test: {
     category: "Verify", team: "Test", duration: "Medium",
@@ -54,6 +60,7 @@ const STAGES = {
     output: "TestResult { suite_results[], pass_rate, coverage, failures[] }",
     config: "suites: [unit, integration, e2e], fail_fast: bool, timeout_per_suite",
     workflows: "full-pipeline, hotfix, refactoring, feature-enhancement, security-audit (as verify)",
+    mainAgent: "Stage Agent dispatches test execution as a wave. If tests fail, Stage Agent does NOT fix them -- it reports FAIL to the convergence loop, which dispatches a refine wave to the Implement team.",
   },
   validate: {
     category: "Verify", team: "Review", duration: "Quick",
@@ -62,6 +69,7 @@ const STAGES = {
     output: "ValidationReport { ready: bool, unmet_criteria[], gap_analysis[] }",
     config: "require_all_criteria: bool, allow_waivers: bool",
     workflows: "full-pipeline (as testgate), migration",
+    mainAgent: "Stage Agent evaluates the passthrough gate -- aggregates upstream review and test results. If ready=false, Stage Agent reports FAIL to Project Agent, which decides loop-back target.",
   },
   refine: {
     category: "Build", team: "Implement", duration: "Medium",
@@ -70,6 +78,7 @@ const STAGES = {
     output: "RefineResult { updated_artifacts[], changelog[], unresolved[] }",
     config: "scope: targeted|broad, allow_new_features: false",
     workflows: "full-pipeline, RDRR, feature-enhancement (in convergence loops)",
+    mainAgent: "Stage Agent dispatches refine as part of the convergence loop. Each refine wave receives ONLY the findings from the previous review/test, not the full codebase context. Wave Agent dispatches targeted fix tasks.",
   },
   release: {
     category: "Deliver", team: "Implement", duration: "Quick-Medium",
@@ -78,6 +87,7 @@ const STAGES = {
     output: "ReleaseRecord { version, tag, changelog, artifacts_published[] }",
     config: "version_strategy: semver|calver, require_human_approval: bool",
     workflows: "full-pipeline, hotfix, feature-enhancement",
+    mainAgent: "Stage Agent dispatches release wave ONLY after the release gate passes. For GitHub mode: Task Agent creates tag, generates changelog, pushes release. Stage Agent does NOT touch git directly.",
   },
   deploy: {
     category: "Deliver", team: "Implement", duration: "Medium",
@@ -86,6 +96,7 @@ const STAGES = {
     output: "DeployResult { status: success|failed|rolled_back, health_check }",
     config: "strategy: rolling|blue_green|canary, auto_rollback_on_failure: bool",
     workflows: "full-pipeline (optional), GitHub/GitLab mode only",
+    mainAgent: "Stage Agent dispatches deploy wave with rollback plan. If health check fails, Stage Agent evaluates whether to auto-rollback or escalate to Project Agent.",
   },
   monitor: {
     category: "Deliver", team: "Test", duration: "Long",
@@ -94,6 +105,7 @@ const STAGES = {
     output: "MonitorReport { status: stable|degraded|critical, recommendation }",
     config: "duration_minutes, check_interval_seconds, alert_on_degraded: bool",
     workflows: "full-pipeline (optional, post-deploy verification)",
+    mainAgent: "Stage Agent dispatches monitoring wave and waits for duration. If anomalies detected, Stage Agent escalates to Project Agent which may trigger a hotfix loop-back.",
   },
   gate: {
     category: "Control", team: "(Orchestrator)", duration: "Quick",
@@ -102,6 +114,7 @@ const STAGES = {
     output: "GateResult { passed: bool, criteria_results[], blocking_failures[] }",
     config: "on_fail: loop_back|escalate|block, require_human_override: bool",
     workflows: "All workflows (auto-inserted between stages by template policy)",
+    mainAgent: "Gate is evaluated BY the Stage Agent (L1), not by a Task Agent. The Stage Agent reads upstream results and computes the composite score. This is the ONE evaluation task that a Stage Agent performs directly -- it does not delegate gate evaluation.",
   },
 };
 
@@ -118,8 +131,9 @@ function renderStage(key) {
 
   document.getElementById("stage-name").textContent = key;
   document.getElementById("stage-category").textContent = s.category;
-  document.getElementById("stage-team").textContent = s.team;
-  document.getElementById("stage-team").style.color = TEAM_COLORS[s.team] || "inherit";
+  const teamEl = document.getElementById("stage-team");
+  teamEl.textContent = s.team;
+  teamEl.style.color = TEAM_COLORS[s.team] || "inherit";
   document.getElementById("stage-duration").textContent = s.duration;
   document.getElementById("stage-purpose").textContent = s.purpose;
   document.getElementById("stage-input").textContent = s.input;
@@ -127,29 +141,35 @@ function renderStage(key) {
   document.getElementById("stage-config").textContent = s.config;
   document.getElementById("stage-workflows").textContent = s.workflows;
 
+  // Main-Agent role
+  const mainAgentEl = document.getElementById("main-agent-role");
+  mainAgentEl.innerHTML = `<p>${s.mainAgent}</p>`;
+
+  // Delegation chain
   const chain = document.getElementById("delegation-chain");
   chain.innerHTML = `
     <div class="chain-layer" style="border-left:3px solid #6f42c1">
-      <strong>Project Agent</strong> <span class="budget">~3K tokens</span><br>
-      <small>dispatches stage, never reads source code</small>
+      <strong>Project Agent (L0)</strong> <span class="budget">~3K tokens</span><br>
+      <small>Dispatches stage <em>${key}</em>. Never reads source code. Evaluates inter-stage gate decisions.</small>
     </div>
-    <div class="chain-arrow">|</div>
+    <div class="chain-arrow">dispatches to &darr;</div>
     <div class="chain-layer" style="border-left:3px solid #0d6efd">
-      <strong>Stage Agent: ${key}</strong> <span class="budget">~5K tokens</span><br>
-      <small>decomposes into waves, runs quality gate</small>
+      <strong>Stage Agent (L1): ${key}</strong> <span class="budget">~5K tokens</span><br>
+      <small>${s.mainAgent.split('.')[0]}.</small>
     </div>
-    <div class="chain-arrow">|</div>
+    <div class="chain-arrow">decomposes into waves &darr;</div>
     <div class="chain-layer" style="border-left:3px solid #198754">
-      <strong>Wave Agent</strong> <span class="budget">~4K tokens</span><br>
-      <small>dispatches up to 5 tasks in parallel</small>
+      <strong>Wave Agent (L2)</strong> <span class="budget">~4K tokens</span><br>
+      <small>Dispatches up to 5 parallel Task Agents. Checks file ownership conflicts. Never executes work.</small>
     </div>
-    <div class="chain-arrow">|</div>
+    <div class="chain-arrow">dispatches to &darr;</div>
     <div class="chain-layer" style="border-left:3px solid #dc3545">
-      <strong>Task Agent (${s.team} team)</strong> <span class="budget">~8K tokens</span><br>
-      <small>executes work using tools -- the ONLY layer that acts</small>
+      <strong>Task Agent (L3) &mdash; ${s.team} team</strong> <span class="budget">~8K tokens</span><br>
+      <small>Executes actual work using tools. Owns disjoint file set. Reports StatusReport back to Wave Agent.</small>
     </div>
   `;
 
+  // Budget bar
   const budgetBar = document.getElementById("budget-bar");
   const total = Object.values(CTX_BUDGETS).reduce((a, b) => a + b, 0);
   budgetBar.innerHTML = Object.entries(CTX_BUDGETS).map(([layer, tokens]) => {

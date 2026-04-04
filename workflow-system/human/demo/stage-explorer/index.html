@@ -27,15 +27,21 @@
     </table>
   </div>
 
+  <div class="detail highlight">
+    <h3>Stage Agent Role (Main-Agent at L1)</h3>
+    <p class="hint">How the Stage Agent (Layer 1) orchestrates this stage. The Stage Agent decomposes work into waves and runs the gate -- it never does the work itself.</p>
+    <div id="main-agent-role"></div>
+  </div>
+
   <div class="detail">
-    <h3>Delegation Chain</h3>
-    <p class="hint">How this stage is orchestrated through the 4-layer hierarchy:</p>
+    <h3>4-Layer Delegation Chain</h3>
+    <p class="hint">Full dispatch path from Project Agent down to the Task Agent that executes work.</p>
     <div id="delegation-chain"></div>
   </div>
 
   <div class="detail">
     <h3>Context Budget Allocation</h3>
-    <p class="hint">How token budget is distributed across layers:</p>
+    <p class="hint">Token budget per layer. Upper layers get less context to enforce separation of concerns.</p>
     <div id="budget-bar" class="budget-bar"></div>
   </div>
 
