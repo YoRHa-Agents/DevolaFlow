@@ -15,7 +15,9 @@ def project_root():
     return _find_project_root()
 
 
-def test_build_all_creates_outputs(project_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_build_all_creates_outputs(
+    project_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.chdir(project_root)
     results = build_all(["--all"])
     assert len(results) == 4
