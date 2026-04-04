@@ -12,20 +12,18 @@
 # Flags:    --global   install to ~/.cursor/ (user-wide)
 #           --project  install to .cursor/ (repo-local, default)
 
-set -eu
+set -u
 
 REPO="YoRHa-Agents/DevolaFlow"
 BRANCH="main"
 BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 AGENT_BASE="${BASE}/workflow-system/agent"
-CT=5
-MT=15
 STAMP=".devola-flow-version"
 
 info() { printf '  \033[34m>\033[0m %s\n' "$*"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
-fail() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
+errf() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 SCOPE="project"
 TARGET="auto"
@@ -39,14 +37,41 @@ for arg in "$@"; do
 done
 
 dl() {
-  local url="$1" dest="$2" name
+  local url="$1" dest="$2" name attempt
   name=$(basename "$dest")
   mkdir -p "$(dirname "$dest")"
-  if curl -fsSL --connect-timeout "$CT" --max-time "$MT" "$url" -o "$dest" </dev/null 2>/dev/null; then
-    printf '    %-35s %s\n' "$name" "ok"
-  else
-    fail "failed: $name"
-    return 1
+
+  for attempt in 1 2 3; do
+    if curl -fsSL --connect-timeout 10 --max-time 30 --retry 2 "$url" -o "$dest" </dev/null 2>/dev/null; then
+      printf '    %-35s %s\n' "$name" "ok"
+      return 0
+    fi
+    if [ "$attempt" -lt 3 ]; then
+      sleep 1
+    fi
+  done
+
+  errf "failed: $name (after 3 attempts)"
+  return 1
+}
+
+dl_batch() {
+  local dest_dir="$1"
+  shift
+  local total=$#
+  local ok_count=0
+  local fail_count=0
+
+  for name in "$@"; do
+    if dl "${AGENT_BASE}/${name}" "${dest_dir}/${name}"; then
+      ok_count=$((ok_count + 1))
+    else
+      fail_count=$((fail_count + 1))
+    fi
+  done
+
+  if [ "$fail_count" -gt 0 ]; then
+    warn "${fail_count}/${total} files failed (${ok_count} succeeded)"
   fi
 }
 
@@ -66,23 +91,29 @@ install_cursor() {
 
   mkdir -p "$dir/references" "$dir/examples"
 
-  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md"
+  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
 
   info "references (8 files):"
-  for f in agent-hierarchy meta-framework decomposition-gate repo-modes \
-           execution-protocol message-schemas team-roles context-isolation; do
-    dl "$AGENT_BASE/references/${f}.md" "$dir/references/${f}.md"
-  done
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
 
   info "examples (3 files):"
-  for f in full-pipeline-trace hotfix-trace convergence-loop-trace; do
-    dl "$AGENT_BASE/examples/${f}.md" "$dir/examples/${f}.md"
-  done
+  dl_batch "$dir" \
+    "examples/full-pipeline-trace.md" \
+    "examples/hotfix-trace.md" \
+    "examples/convergence-loop-trace.md"
 
   local rdir
   if [ "$SCOPE" = "global" ]; then rdir="$HOME/.cursor/rules"; else rdir=".cursor/rules"; fi
   mkdir -p "$rdir"
-  dl "$BASE/.cursor/rules/workflow-rules.mdc" "$rdir/devola-flow-rules.mdc"
+  dl "$BASE/.cursor/rules/workflow-rules.mdc" "$rdir/devola-flow-rules.mdc" || true
 
   stamp "$dir"
   ok "Cursor installed (SKILL.md + 8 refs + 3 examples + rules)"
@@ -92,27 +123,27 @@ install_codex() {
   local dir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
   info "Codex -> $dir/"
   mkdir -p "$dir"
-  dl "$AGENT_BASE/MVP-SKILL.md" "$dir/SKILL.md"
+  dl "$AGENT_BASE/MVP-SKILL.md" "$dir/SKILL.md" || true
   stamp "$dir"
   ok "Codex installed"
 }
 
 install_claude() {
   info "Claude Code -> ./CLAUDE.md"
-  dl "$AGENT_BASE/MVP-SKILL.md" "CLAUDE.md"
+  dl "$AGENT_BASE/MVP-SKILL.md" "CLAUDE.md" || true
   ok "Claude installed"
 }
 
 install_copilot() {
   info "Copilot -> .github/copilot-instructions.md"
   mkdir -p ".github"
-  dl "$AGENT_BASE/MVP-SKILL.md" ".github/copilot-instructions.md"
+  dl "$AGENT_BASE/MVP-SKILL.md" ".github/copilot-instructions.md" || true
   ok "Copilot installed"
 }
 
 install_mvp() {
   info "MVP -> devola-flow-skill.md"
-  dl "$AGENT_BASE/MVP-SKILL.md" "devola-flow-skill.md"
+  dl "$AGENT_BASE/MVP-SKILL.md" "devola-flow-skill.md" || true
   ok "MVP file downloaded"
 }
 
@@ -130,10 +161,10 @@ do_update() {
   fi
   local cdir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
   if [ -f "$cdir/SKILL.md" ]; then install_codex; found=1; fi
-  if [ -f "CLAUDE.md" ] && head -5 "CLAUDE.md" | grep -q "devola-flow" 2>/dev/null; then
+  if [ -f "CLAUDE.md" ] && head -5 "CLAUDE.md" 2>/dev/null | grep -q "devola-flow"; then
     install_claude; found=1
   fi
-  if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" | grep -q "devola-flow" 2>/dev/null; then
+  if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
     install_copilot; found=1
   fi
 
@@ -153,7 +184,7 @@ auto_detect() {
   if [ -d ".github" ]; then install_copilot; found=1; fi
 
   if [ "$found" -eq 0 ]; then
-    warn "No AI tools detected. Pick one explicitly:"
+    warn "No AI tools detected. Pick one:"
     echo ""
     echo "  curl ... | bash -s cursor             project-local"
     echo "  curl ... | bash -s cursor --global    user-global"
@@ -182,8 +213,8 @@ case "$TARGET" in
   update)  do_update ;;
   all)     install_cursor; install_codex; install_claude; install_copilot ;;
   auto)    auto_detect ;;
-  *)
-    cat << 'USAGE'
+  help|--help|-h)
+    cat << USAGE
   Usage: install.sh [target] [flags]
 
   Targets:
@@ -199,12 +230,11 @@ case "$TARGET" in
   Flags:
     --project   repo-local .cursor/  (default)
     --global    user-wide ~/.cursor/
-
-  Examples:
-    curl -fsSL .../install.sh | bash -s cursor
-    curl -fsSL .../install.sh | bash -s cursor --global
-    curl -fsSL .../install.sh | bash -s update
 USAGE
+    exit 0 ;;
+  *)
+    errf "Unknown target: $TARGET"
+    echo "  Run with 'help' to see options."
     exit 1 ;;
 esac
 
