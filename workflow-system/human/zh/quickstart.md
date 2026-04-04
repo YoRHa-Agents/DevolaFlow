@@ -47,13 +47,49 @@ devola-init cursor       # 或: devola-init claude / copilot / all
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 
-## 2. 验证
+## 2. 使用
 
-向你的 AI 工具发送：
+安装后，DevolaFlow 会在你让 AI 工具做多步骤任务时自动激活。试试这些提示词：
 
-> "使用 full-pipeline 工作流实现一个新功能"
+```
+"从零实现一个用户认证系统"
+```
+Agent 选择 `full-pipeline`（8 阶段），建立 4 层层级，先通过子代理分派设计阶段。不会试图一次性完成所有工作。
 
-它应该设置 4 层层级（项目代理分派阶段代理）并选择 8 阶段的 `full-pipeline` 工作流。
+```
+"修复登录超时的 bug"
+```
+Agent 选择 `hotfix`（4 阶段：分析 - 修复 - 测试 - 发布），跳过设计和计划，直接分析 bug。
+
+```
+"调研 Rust 最好的 TUI 框架"
+```
+Agent 选择 `research-only`（3 阶段），产出结构化对比报告，不写代码。
+
+### Agent 行为变化
+
+| 没有 DevolaFlow | 有 DevolaFlow |
+|----------------|--------------|
+| 一次性大段处理 | 按阶段通过子代理逐步分派 |
+| 一次加载全部上下文 | 每个任务只注入 ~8K token 的精准上下文 |
+| 写完直接提交 | 质量门：composite >= 85，0 blocker，已评审 |
+| 发现问题手动修 | 收敛循环：评审 - 修复 - 测试 - 修复（自动，最多 3 轮） |
+| 无结构，随意改文件 | 任务拥有互斥文件集，每批次最多 5 个并行 |
+
+### 提示词对照表
+
+| 你说的话 | 选择的工作流 | 阶段 |
+|---------|------------|------|
+| "从零实现 X" | `full-pipeline` | 设计 - 计划 - 实现 - 评审 - 测试 - 质量门 - 发布 |
+| "修复 X 的 bug" | `hotfix` | 分析 - 修复 - 测试 - 发布 |
+| "重构 X" | `refactoring` | 范围 - 计划 - 实现 - 测试 - 评审 |
+| "调研 X" / "对比 X 和 Y" | `research-only` | 调研 - 对比 - 报告 |
+| "设计 X 的架构" | `RDRR` | 调研 - 设计 - 评审 - 优化（循环） |
+| "给 Y 加 X 功能" | `feature-enhancement` | 范围 - 设计 - 计划 - 实现 - 评审 - 测试 - 发布 |
+| "从 X 迁移到 Y" | `migration` | 评估 - 计划 - 实现 - 验证 - 切换 |
+| "X 可行吗？" | `spike-poc` | 调研 - 原型 - 评估 |
+| "写 X 的文档" | `documentation` | 调查 - 编写 - 评审 |
+| "X 的安全审计" | `security-audit` | 威胁建模 - 扫描 - 分析 - 修复 - 验证 |
 
 ## 3. 更新
 

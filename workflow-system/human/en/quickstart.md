@@ -48,13 +48,53 @@ Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlo
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 
-## 2. Verify it works
+## 2. Use it
 
-Ask your AI tool:
+After installing, DevolaFlow activates automatically when you ask your AI tool to do multi-step work. Try these prompts:
 
-> "Implement a new feature using the full-pipeline workflow"
+```
+"Implement a user authentication system from scratch"
+```
+The agent selects `full-pipeline` (8 stages), sets up a 4-layer hierarchy, and dispatches the Design stage first via a subagent. It will not try to code everything in one pass.
 
-It should respond by setting up a 4-layer hierarchy (Project Agent dispatching Stage Agents) and selecting the `full-pipeline` workflow with 8 stages.
+```
+"Fix the login timeout bug"
+```
+The agent selects `hotfix` (4 stages: triage - fix - test - release), skips design/plan, and goes straight to analyzing the bug.
+
+```
+"Research the best TUI framework for Rust"
+```
+The agent selects `research-only` (3 stages), produces a structured comparison report with no code.
+
+### What changes in agent behavior
+
+Without DevolaFlow, agents typically try to do everything in one long pass -- reading entire codebases, writing all files, running all tests, mixing concerns.
+
+With DevolaFlow:
+
+| Without | With DevolaFlow |
+|---------|----------------|
+| One giant pass | Stage-by-stage dispatch via subagents |
+| All context loaded at once | Each task gets ~8K tokens of focused context |
+| No quality check before shipping | Gate: composite >= 85, 0 blockers, reviewed |
+| If review finds issues, manual fix | Convergence loop: review - fix - test - fix (auto, max 3 rounds) |
+| No structure, ad-hoc file editing | Tasks own disjoint file sets, max 5 parallel per wave |
+
+### Prompt patterns
+
+| What you say | Workflow selected | Stages |
+|-------------|------------------|--------|
+| "Implement X from scratch" | `full-pipeline` | design - plan - impl - review - test - gate - release |
+| "Fix bug in X" | `hotfix` | triage - fix - test - release |
+| "Refactor X" | `refactoring` | scope - plan - impl - test - review |
+| "Research X" / "Compare X vs Y" | `research-only` | research - compare - report |
+| "Design architecture for X" | `RDRR` | research - design - review - refine (loop) |
+| "Add X to existing Y" | `feature-enhancement` | scope - design - plan - impl - review - test - release |
+| "Migrate from X to Y" | `migration` | assess - plan - impl - validate - cutover |
+| "Is X feasible?" | `spike-poc` | research - prototype - evaluate |
+| "Write docs for X" | `documentation` | survey - author - review |
+| "Security audit X" | `security-audit` | threat - scan - analyze - remediate - verify |
 
 ## 3. Update to latest
 

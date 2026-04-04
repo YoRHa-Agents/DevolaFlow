@@ -74,6 +74,67 @@ make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
 
+## Using DevolaFlow in Your Agent Tool
+
+After installing, DevolaFlow activates automatically when you ask your AI tool to do multi-step work. Here's what to expect in each tool.
+
+### Cursor
+
+DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords like "implement", "fix bug", "refactor", "full pipeline".
+
+**Try these prompts:**
+
+```
+"Implement a user authentication system from scratch"
+  -> Agent selects full-pipeline workflow (8 stages: design -> plan -> impl -> review -> test -> refine -> gate -> release)
+  -> Sets up 4-layer hierarchy: dispatches Design stage first
+
+"Fix the login timeout bug in production"
+  -> Agent selects hotfix workflow (4 stages: triage -> fix -> test -> release)
+  -> Skips design/plan, goes straight to triage
+
+"Refactor the database layer to use repository pattern"
+  -> Agent selects refactoring workflow (5 stages: scope -> plan -> impl -> test -> review)
+
+"Research the best approach for real-time notifications"
+  -> Agent selects research-only workflow (3 stages: research -> compare -> report)
+  -> Produces a report, no code
+```
+
+**What the agent does differently with DevolaFlow:**
+
+1. **Dispatches instead of diving in** -- the main agent selects a workflow and dispatches stage-by-stage via subagents, instead of trying to do everything in one pass
+2. **Uses subagents with isolated context** -- each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
+3. **Runs quality gates** -- after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
+4. **Follows convergence loops** -- if review finds issues, the agent refines and re-tests (up to 3 rounds) instead of shipping broken code
+
+### Claude Code
+
+DevolaFlow is loaded as your `CLAUDE.md` file (always active). The same prompts work. Claude Code will follow the hierarchy rules and workflow structure in every session.
+
+### GitHub Copilot
+
+DevolaFlow is loaded as `copilot-instructions.md` (applied to every request). Copilot follows the workflow selection heuristics and hierarchy constraints when generating code suggestions and chat responses.
+
+### Codex CLI
+
+DevolaFlow is loaded as a Codex Skill. It activates on the same intent keywords. Codex will use subagents for parallel task execution within waves.
+
+### Prompt patterns that work well
+
+| Prompt pattern | What it triggers |
+|---------------|-----------------|
+| "Implement X from scratch" | `full-pipeline` -- full lifecycle with design, plan, implementation, review, test, release |
+| "Fix bug in X" / "X is broken" | `hotfix` -- fast 4-stage triage-fix-test-release |
+| "Refactor X" / "Clean up X" | `refactoring` -- restructure with regression testing |
+| "Research X" / "Compare X vs Y" | `research-only` -- structured report, no code |
+| "Design the architecture for X" | `design-only` or `RDRR` -- research-backed design |
+| "Add X to existing Y" | `feature-enhancement` -- extend existing system |
+| "Migrate from X to Y" | `migration` -- assess, plan, implement, validate, cutover |
+| "Is X feasible?" / "Prototype X" | `spike-poc` -- quick experiment |
+| "Write docs for X" | `documentation` -- survey, author, review |
+| "Security audit of X" | `security-audit` -- threat model, scan, remediate, verify |
+
 ## What's Inside
 
 ### 11 Built-in Workflow Types
