@@ -1,0 +1,70 @@
+"""Tests for devola-init project initialization."""
+
+from pathlib import Path
+
+from devolaflow.init_project import _auto_detect, _find_agent_dir
+
+
+def test_find_agent_dir():
+    agent_dir = _find_agent_dir()
+    assert (agent_dir / "SKILL.md").exists() or not agent_dir.exists()
+
+
+def test_auto_detect_empty(tmp_path: Path):
+    result = _auto_detect(tmp_path)
+    assert isinstance(result, list)
+
+
+def test_auto_detect_cursor(tmp_path: Path):
+    (tmp_path / ".cursor").mkdir()
+    result = _auto_detect(tmp_path)
+    assert "cursor" in result
+
+
+def test_auto_detect_github(tmp_path: Path):
+    (tmp_path / ".github").mkdir()
+    result = _auto_detect(tmp_path)
+    assert "copilot" in result
+
+
+def test_auto_detect_claude(tmp_path: Path):
+    (tmp_path / ".claude").mkdir()
+    result = _auto_detect(tmp_path)
+    assert "claude" in result
+
+
+def test_install_cursor(tmp_path: Path, monkeypatch: Path):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_cursor
+
+    install_cursor(agent_dir, tmp_path)
+    assert (tmp_path / ".cursor" / "skills" / "devola-flow" / "SKILL.md").exists()
+    refs = list((tmp_path / ".cursor" / "skills" / "devola-flow" / "references").glob("*.md"))
+    assert len(refs) >= 7
+
+
+def test_install_claude(tmp_path: Path):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "MVP-SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_claude
+
+    install_claude(agent_dir, tmp_path)
+    assert (tmp_path / "CLAUDE.md").exists()
+    content = (tmp_path / "CLAUDE.md").read_text()
+    assert "devola-flow" in content
+
+
+def test_install_copilot(tmp_path: Path):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "MVP-SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_copilot
+
+    install_copilot(agent_dir, tmp_path)
+    assert (tmp_path / ".github" / "copilot-instructions.md").exists()
