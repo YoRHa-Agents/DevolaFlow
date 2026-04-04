@@ -175,38 +175,83 @@ function renderWorkflow(key) {
     loopsEl.textContent = "none (linear flow)";
   }
 
-  let mermaidDef = "graph LR\n";
+  // Build Mermaid diagram with Project Agent as orchestrator
+  let m = "graph TD\n";
+  m += `  PA["Project Agent\\n(dispatches stages)"] --> S0_gate{"Pre-Decision\\nGate"}\n`;
+  m += `  S0_gate --> ${wf.stages[0].id}\n`;
+
   wf.stages.forEach((s, i) => {
-    const shape = s.gate === "convergence" ? `${s.id}[["${s.label}"]]`
-                : s.gate === "standard" ? `${s.id}["${s.label}"]`
-                : `${s.id}("${s.label}")`;
-    if (i === 0) {
-      mermaidDef += `  ${shape}\n`;
-    }
+    const shape = s.gate === "convergence" ? `${s.id}[["Stage: ${s.label}\\n(${s.team} team)"]]`
+                : s.gate === "standard" ? `${s.id}["Stage: ${s.label}\\n(${s.team} team)"]`
+                : `${s.id}("Stage: ${s.label}\\n(${s.team} team)")`;
     if (i > 0) {
       const prev = wf.stages[i - 1];
-      const prevShape = prev.gate === "convergence" ? `${prev.id}[["${prev.label}"]]`
-                      : prev.gate === "standard" ? `${prev.id}["${prev.label}"]`
-                      : `${prev.id}("${prev.label}")`;
-      mermaidDef += `  ${prevShape} --> ${shape}\n`;
+      const gateId = `gate_${prev.id}`;
+      if (prev.gate) {
+        m += `  ${prev.id} --> ${gateId}{"Gate\\n${prev.gate}"}\n`;
+        m += `  ${gateId} -->|PASS| ${shape}\n`;
+      } else {
+        m += `  ${prev.id} --> ${shape}\n`;
+      }
+    } else {
+      m += `  ${shape}\n`;
     }
   });
+
+  // Final gate after last stage
+  const last = wf.stages[wf.stages.length - 1];
+  if (last.gate) {
+    m += `  ${last.id} --> gate_final{"Gate\\n${last.gate}"}\n`;
+    m += `  gate_final -->|PASS| done["Project Agent\\n(reports to Human)"]\n`;
+  } else {
+    m += `  ${last.id} --> done["Project Agent\\n(reports to Human)"]\n`;
+  }
 
   const el = document.getElementById("diagram");
   el.innerHTML = "";
   const div = document.createElement("pre");
   div.className = "mermaid";
-  div.textContent = mermaidDef;
+  div.textContent = m;
   el.appendChild(div);
   if (window.mermaid) {
     window.mermaid.run({ nodes: [div] });
   }
 
+  // Teams
   const teamList = document.getElementById("wf-teams");
   const teams = [...new Set(wf.stages.map(s => s.team))];
   teamList.innerHTML = teams.map(t =>
     `<span class="team-badge" style="background:${TEAM_COLORS[t] || '#666'}">${t}</span>`
   ).join(" ");
+
+  // Agent hierarchy for this workflow
+  const hierarchyEl = document.getElementById("wf-hierarchy");
+  hierarchyEl.innerHTML = `
+    <div class="agent-chain">
+      <div class="agent-box project">
+        <strong>Project Agent (L0)</strong>
+        <p>Selects <em>${wf.name}</em> workflow, dispatches ${wf.stages.length} stages sequentially, evaluates gates, decides loop-back vs advance.</p>
+        <span class="ctx">~3K tokens | MUST NOT: read code, write code, run tests</span>
+      </div>
+      <div class="agent-arrow">dispatches each stage to</div>
+      <div class="agent-box stage">
+        <strong>Stage Agent (L1)</strong> &mdash; one per stage
+        <p>Decomposes stage into waves (max 7), sequences wave execution, runs stage gate. For <em>${wf.name}</em>: ${wf.stages.map(s => s.label).join(" / ")}.</p>
+        <span class="ctx">~5K tokens | MUST NOT: write code, run tests, do review</span>
+      </div>
+      <div class="agent-arrow">decomposes each wave to</div>
+      <div class="agent-box wave">
+        <strong>Wave Agent (L2)</strong> &mdash; one per wave
+        <p>Dispatches up to 5 parallel tasks, collects results, checks cross-task conflicts (file ownership).</p>
+        <span class="ctx">~4K tokens | MUST NOT: execute task work, modify outputs</span>
+      </div>
+      <div class="agent-arrow">dispatches each task to</div>
+      <div class="agent-box task">
+        <strong>Task Agent (L3)</strong> &mdash; the ONLY layer that works
+        <p>Assigned to a team (${teams.join(" / ")}). Writes code, runs tests, authors documents, performs reviews. Owns a disjoint file set.</p>
+        <span class="ctx">~8K tokens | MUST NOT: spawn sub-agents, modify files outside owned set</span>
+      </div>
+    </div>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {

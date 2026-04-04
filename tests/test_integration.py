@@ -5,9 +5,10 @@ Design ref: design_agent_hierarchy.md section 7.1 (full-pipeline), section 7.2 (
 
 from pathlib import Path
 
+import pytest
 import yaml
 
-from devolaflow.gate.models import Finding, GateInput
+from devolaflow.gate.models import CheckResult, Finding, GateInput
 from devolaflow.gate.profiles import STANDARD
 from devolaflow.gate.scorer import composite_score, evaluate_gate, quality_score
 from devolaflow.template_engine.parser import parse_template
@@ -15,7 +16,9 @@ from devolaflow.template_engine.parser import parse_template
 
 def test_full_pipeline_template_loads(project_root: Path):
     """Verify the full-pipeline template parses and has expected stages."""
-    tmpl_path = project_root / "workflow-system" / "agent" / "templates" / "builtin" / "full-pipeline.yaml"
+    tmpl_path = (
+        project_root / "workflow-system" / "agent" / "templates" / "builtin" / "full-pipeline.yaml"
+    )
     if not tmpl_path.exists():
         return
     template = parse_template(tmpl_path)
@@ -55,11 +58,13 @@ def test_gate_pass_with_clean_findings():
     assert q_score == 94.0
 
     gate_input = GateInput(
-        build_status="pass",
-        test_results={"pass_rate": 1.0, "coverage": 0.85},
-        lint_status="pass",
+        build_status=CheckResult(status="pass", details={}),
+        test_results=CheckResult(status="pass", details={"pass_rate": 1.0, "coverage": 0.85}),
+        lint_status=CheckResult(status="pass", details={}),
         review_findings=findings,
-        acceptance_criteria_results=[{"criterion": "All tests pass", "met": True}],
+        acceptance_criteria_results=CheckResult(
+            status="pass", details={"results": [{"criterion": "All tests pass", "met": True}]}
+        ),
     )
     verdict = evaluate_gate(gate_input, STANDARD, round_num=1, history=[])
     assert verdict.decision == "PASS"

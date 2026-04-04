@@ -28,14 +28,21 @@
     </div>
   </div>
 
+  <h2 class="section-title">Stage Pipeline Diagram</h2>
+  <p class="section-hint">Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.</p>
   <div id="diagram"></div>
 
   <div class="legend">
     <strong>Diagram legend:</strong>
-    <code>[[ ]]</code> = convergence gate (multi-round) &nbsp;
-    <code>[ ]</code> = standard gate &nbsp;
-    <code>( )</code> = no gate (intermediate stage)
+    <code>[[ ]]</code> = convergence gate (multi-round review-fix loop) &nbsp;
+    <code>[ ]</code> = standard gate (single pass/fail) &nbsp;
+    <code>( )</code> = no gate (intermediate) &nbsp;
+    <code>{ }</code> = gate checkpoint
   </div>
+
+  <h2 class="section-title">Agent Hierarchy for This Workflow</h2>
+  <p class="section-hint">How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.</p>
+  <div id="wf-hierarchy"></div>
 
   <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
   <script src="visualizer.js"></script>
