@@ -32,7 +32,7 @@ class CodexAdapter(BaseAdapter):
 
         fm = (
             "---\n"
-            f"name: {identity.get('name', 'workflow-orchestrator')}\n"
+            f"name: {identity.get('name', 'devola-flow')}\n"
             f"description: >\n  {identity.get('description', '').strip()}\n"
             "---\n\n"
         )
@@ -45,7 +45,7 @@ class CodexAdapter(BaseAdapter):
         agents_dir = output_dir / "agents"
         agents_dir.mkdir(exist_ok=True)
         openai_yaml = {
-            "display_name": identity.get("display_name", "Workflow Orchestrator"),
+            "display_name": identity.get("display_name", "DevolaFlow"),
             "short_description": identity.get("description", "")[:200],
             "default_prompt": "Run a workflow for the user's request.",
         }

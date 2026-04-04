@@ -285,7 +285,7 @@ Tier 3: ON-DEMAND KNOWLEDGE                  Unlimited, loaded only when needed
 ### 3.3 Directory Tree (Cursor-Primary Format)
 
 ```
-workflow-orchestrator/
+devola-flow/
 ├── SKILL.md                          # Tier 1: Entry point (<500 lines)
 │
 ├── references/                       # Tier 2: Domain references
@@ -401,8 +401,8 @@ The canonical source format captures all content and metadata in a tool-agnostic
 # All tool-specific outputs are generated from this file.
 
 identity:
-  name: "workflow-orchestrator"
-  display_name: "Workflow Orchestrator"
+  name: "devola-flow"
+  display_name: "DevolaFlow Workflow Orchestrator"
   version: "1.0.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -564,10 +564,10 @@ content:
 
 adapters:
   cursor:
-    output_dir: ".cursor/skills/workflow-orchestrator/"
+    output_dir: ".cursor/skills/devola-flow/"
     rules_dir: ".cursor/rules/"
   codex:
-    output_dir: "~/.codex/skills/workflow-orchestrator/"
+    output_dir: "~/.codex/skills/devola-flow/"
   claude:
     output_dir: "./"
   copilot:
@@ -590,18 +590,18 @@ graph TB
 
     subgraph CursorOut ["Cursor Output"]
         direction TB
-        CS_SKILL[".cursor/skills/workflow-orchestrator/<br/>SKILL.md"]
-        CS_REFS[".cursor/skills/workflow-orchestrator/<br/>references/*.md"]
-        CS_EX[".cursor/skills/workflow-orchestrator/<br/>examples/*.md"]
-        CS_SCH[".cursor/skills/workflow-orchestrator/<br/>schemas/*.yaml"]
-        CS_TPL[".cursor/skills/workflow-orchestrator/<br/>templates/*"]
-        CS_SCR[".cursor/skills/workflow-orchestrator/<br/>scripts/*"]
+        CS_SKILL[".cursor/skills/devola-flow/<br/>SKILL.md"]
+        CS_REFS[".cursor/skills/devola-flow/<br/>references/*.md"]
+        CS_EX[".cursor/skills/devola-flow/<br/>examples/*.md"]
+        CS_SCH[".cursor/skills/devola-flow/<br/>schemas/*.yaml"]
+        CS_TPL[".cursor/skills/devola-flow/<br/>templates/*"]
+        CS_SCR[".cursor/skills/devola-flow/<br/>scripts/*"]
         CS_RULES[".cursor/rules/<br/>workflow-hard-rules.mdc"]
     end
 
     subgraph CodexOut ["Codex Output"]
         direction TB
-        CX_SKILL["~/.codex/skills/workflow-orchestrator/<br/>SKILL.md"]
+        CX_SKILL["~/.codex/skills/devola-flow/<br/>SKILL.md"]
         CX_UI["agents/openai.yaml"]
         CX_REFS["references/*.md"]
         CX_SCR["scripts/*"]
@@ -859,7 +859,7 @@ The MVP intentionally omits (deferred to multi-file version):
 
 ```markdown
 ---
-name: workflow-orchestrator
+name: devola-flow
 description: >
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
   (Project → Stage → Wave → Task) with gate mechanisms, convergence loops,

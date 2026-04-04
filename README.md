@@ -50,8 +50,8 @@ make build-skill    # generates outputs in dist/
 
 | Tool | Output | How to use |
 |------|--------|-----------|
-| **Cursor** | `dist/cursor/SKILL.md` + `references/` | Copy to `.cursor/skills/workflow-orchestrator/` |
-| **Codex** | `dist/codex/SKILL.md` + `agents/openai.yaml` | Copy to `~/.codex/skills/workflow-orchestrator/` |
+| **Cursor** | `dist/cursor/SKILL.md` + `references/` | Copy to `.cursor/skills/devola-flow/` |
+| **Codex** | `dist/codex/SKILL.md` + `agents/openai.yaml` | Copy to `~/.codex/skills/devola-flow/` |
 | **Claude Code** | `dist/claude/CLAUDE.md` | Copy to project root as `CLAUDE.md` |
 | **Copilot** | `dist/copilot/.github/copilot-instructions.md` | Copy to `.github/` |
 

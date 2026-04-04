@@ -25,7 +25,7 @@ class CopilotAdapter(BaseAdapter):
         gh_dir.mkdir(exist_ok=True)
 
         lines: list[str] = []
-        lines.append(f"# {identity.get('display_name', 'Workflow Orchestrator')}")
+        lines.append(f"# {identity.get('display_name', 'DevolaFlow')}")
         lines.append("")
         lines.append(identity.get("description", "").strip()[:300])
         lines.append("")

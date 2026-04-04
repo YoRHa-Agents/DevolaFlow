@@ -1,5 +1,5 @@
 ---
-name: workflow-orchestrator-mvp
+name: devola-flow-mvp
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -8,7 +8,7 @@ description: >
   Supports 11 workflow types from research-only to full-pipeline.
 ---
 
-# Workflow Orchestrator (MVP)
+# DevolaFlow (MVP)
 
 Orchestrate multi-stage software workflows using a 4-layer agent hierarchy with
 gate mechanisms, convergence loops, and context-isolated task delegation. This

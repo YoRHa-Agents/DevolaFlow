@@ -25,7 +25,7 @@ class ClaudeAdapter(BaseAdapter):
         refs = source.get("content", {}).get("references", [])
 
         out: list[str] = []
-        out.append(f"# {identity.get('display_name', 'Workflow Orchestrator')}")
+        out.append(f"# {identity.get('display_name', 'DevolaFlow')}")
         out.append("")
         desc = identity.get("description", "")
         out.append(desc.strip())

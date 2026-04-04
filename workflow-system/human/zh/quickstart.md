@@ -70,7 +70,7 @@ DevolaFlow 自动检测仓库类型并调整行为：
 
 把 `workflow-system/agent/MVP-SKILL.md` 复制到你的 AI 工具：
 
-- **Cursor**: `.cursor/skills/workflow-orchestrator/SKILL.md`
+- **Cursor**: `.cursor/skills/devola-flow/SKILL.md`
 - **Claude Code**: 项目根目录 `CLAUDE.md`
 - **Copilot**: `.github/copilot-instructions.md`
 

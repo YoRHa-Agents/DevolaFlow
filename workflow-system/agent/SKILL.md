@@ -18,7 +18,7 @@ triggers:
 tier: 1
 token_estimate: 3500
 last_updated: "2026-04-04"
-name: workflow-orchestrator
+name: devola-flow
 description: >
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
   (Project -> Stage -> Wave -> Task) with gate mechanisms, convergence loops,
@@ -27,7 +27,7 @@ description: >
   workflow.
 ---
 
-# Workflow Orchestrator
+# DevolaFlow
 
 ## Purpose & Scope
 <!-- design ref: design_delivery_architecture.md §3.4 -->

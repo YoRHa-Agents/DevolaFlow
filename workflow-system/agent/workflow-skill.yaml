@@ -6,8 +6,8 @@
 # Adapters read this schema to produce tool-specific output (Cursor, Codex, Claude, Copilot).
 
 identity:
-  name: "workflow-orchestrator"
-  display_name: "Workflow Orchestrator"
+  name: "devola-flow"
+  display_name: "DevolaFlow"
   version: "1.0.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -389,7 +389,7 @@ content:
 
 adapters:
   cursor:
-    output_dir: ".cursor/skills/workflow-orchestrator/"
+    output_dir: ".cursor/skills/devola-flow/"
     rules_dir: ".cursor/rules/"
     entry_file: "SKILL.md"
     max_lines: 500
@@ -411,7 +411,7 @@ adapters:
         format: "copy_verbatim"
 
   codex:
-    output_dir: "~/.codex/skills/workflow-orchestrator/"
+    output_dir: "~/.codex/skills/devola-flow/"
     entry_file: "SKILL.md"
     max_lines: 500
     transforms:

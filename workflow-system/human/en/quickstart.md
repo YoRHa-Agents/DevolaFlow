@@ -75,7 +75,7 @@ Task Agent     -- THE ONLY LAYER THAT DOES WORK
 
 Copy `workflow-system/agent/MVP-SKILL.md` into your AI tool's instruction location:
 
-- **Cursor**: `.cursor/skills/workflow-orchestrator/SKILL.md`
+- **Cursor**: `.cursor/skills/devola-flow/SKILL.md`
 - **Claude Code**: project root as `CLAUDE.md`
 - **Copilot**: `.github/copilot-instructions.md`
 

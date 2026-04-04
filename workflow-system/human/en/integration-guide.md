@@ -19,10 +19,10 @@ Copy `workflow-system/agent/MVP-SKILL.md` directly into your tool:
 
 | Tool | Copy to | Notes |
 |------|---------|-------|
-| Cursor | `.cursor/skills/workflow-orchestrator/SKILL.md` | Loaded on intent match |
+| Cursor | `.cursor/skills/devola-flow/SKILL.md` | Loaded on intent match |
 | Claude Code | `CLAUDE.md` (project root) | Always loaded at session start |
 | Copilot | `.github/copilot-instructions.md` | Loaded per request |
-| Codex | `~/.codex/skills/workflow-orchestrator/SKILL.md` | Loaded on intent match |
+| Codex | `~/.codex/skills/devola-flow/SKILL.md` | Loaded on intent match |
 
 ### Full Method: Build Pipeline
 
