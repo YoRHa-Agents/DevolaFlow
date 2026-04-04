@@ -33,9 +33,9 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
-# DevolaFlow runtime state
+# DevolaFlow runtime state (created at execution time, not committed)
 .workflow-state/
-.workflow/state/
+.workflow/
 
 # Generated outputs
 dist/

@@ -112,29 +112,34 @@ check-drift                      # verify human docs are in sync
 
 ```
 DevolaFlow/
-  src/devolaflow/             # Python package
+  src/devolaflow/             # Python package (engine code)
     template_engine/          #   YAML parser, 5 composition operators, validator
     pre_decision/             #   repo detection, checklist, workflow recommender
     gate/                     #   composite scorer, profiles, convergence
-    adapters/                 #   Cursor / Codex / Claude / Copilot adapters
-    build_skill.py            #   adapter pipeline
+    adapters/                 #   Cursor / Codex / Claude / Copilot output adapters
+    build_skill.py            #   adapter pipeline entry
     cli.py                    #   CLI entry points
   workflow-system/
-    agent/                    # Agent-consumed skill files
-      SKILL.md                #   entry point (<500 lines)
+    agent/                    # Agent-consumed content (md + yaml only)
+      SKILL.md                #   Tier 1 entry point (<500 lines)
       MVP-SKILL.md            #   self-contained single-file version
-      references/             #   8 domain reference files (200-500 lines each)
+      references/             #   Tier 2: 8 domain reference files (200-500 lines)
       templates/builtin/      #   11 workflow template YAMLs
-      examples/               #   3 execution trace walkthroughs
+      examples/               #   Tier 3: 3 execution trace walkthroughs
+      knowledge/              #   Tier 3: code-rules + principle mappings
       workflow-skill.yaml     #   canonical source for adapter pipeline
-    human/                    # Human-readable documentation
+    human/                    # Human-readable documentation + demo
       en/                     #   8 English docs
       zh/                     #   8 Chinese docs
       demo/                   #   interactive web demo (GitHub Pages)
-  doc/designs/                # 14 design documents (~12,700 lines total)
-  schemas/                    # 7 YAML schema definitions
+  schemas/                    # All schema definitions (system + primitives)
+    *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
+    primitives/               #   per-primitive I/O schemas (future)
+  doc/designs/                # 14 design documents (~12,700 lines)
+  scripts/                    # build/sync/detect shell helpers
   tests/                      # pytest suite
   .github/workflows/          # CI + Release + Pages
+  .cursor/rules/              # always-on hard constraints (5 rules)
 ```
 
 ## Interactive Demo
