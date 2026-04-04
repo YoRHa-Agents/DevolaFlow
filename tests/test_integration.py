@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from devolaflow.gate.models import Finding, GateInput
+from devolaflow.gate.models import CheckResult, Finding, GateInput
 from devolaflow.gate.profiles import STANDARD
 from devolaflow.gate.scorer import composite_score, evaluate_gate, quality_score
 from devolaflow.template_engine.parser import parse_template
@@ -58,11 +58,13 @@ def test_gate_pass_with_clean_findings():
     assert q_score == 94.0
 
     gate_input = GateInput(
-        build_status="pass",
-        test_results={"pass_rate": 1.0, "coverage": 0.85},
-        lint_status="pass",
+        build_status=CheckResult(status="pass", details={}),
+        test_results=CheckResult(status="pass", details={"pass_rate": 1.0, "coverage": 0.85}),
+        lint_status=CheckResult(status="pass", details={}),
         review_findings=findings,
-        acceptance_criteria_results=[{"criterion": "All tests pass", "met": True}],
+        acceptance_criteria_results=CheckResult(
+            status="pass", details={"results": [{"criterion": "All tests pass", "met": True}]}
+        ),
     )
     verdict = evaluate_gate(gate_input, STANDARD, round_num=1, history=[])
     assert verdict.decision == "PASS"
