@@ -24,6 +24,7 @@ dev = [
 ]
 
 [project.scripts]
+devola-init = "devolaflow.init_project:main"
 validate-template = "devolaflow.cli:validate_template_cmd"
 validate-gate = "devolaflow.cli:validate_gate_cmd"
 build-skill = "devolaflow.cli:build_skill_cmd"

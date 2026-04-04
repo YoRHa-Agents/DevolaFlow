@@ -27,35 +27,51 @@ User Request
  [Gate: composite >= 85, 0 blockers] -> PASS -> advance | FAIL -> refine
 ```
 
-## 30-Second Setup
+## Quick Install (Pick One)
+
+### One-liner (no clone needed)
 
 ```bash
-# Clone & install
+# Auto-detect your AI tools and install DevolaFlow
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash
+
+# Or target a specific tool
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
+```
+
+### pip install + init
+
+```bash
+pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
+cd your-project/
+devola-init              # auto-detect tools and install
+devola-init cursor       # Cursor only
+devola-init all          # all tools
+```
+
+### Manual (copy one file)
+
+Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and drop it in:
+
+| Tool | Where to put it |
+|------|----------------|
+| **Cursor** | `.cursor/skills/devola-flow/SKILL.md` |
+| **Codex** | `~/.codex/skills/devola-flow/SKILL.md` |
+| **Claude Code** | `./CLAUDE.md` (project root) |
+| **Copilot** | `.github/copilot-instructions.md` |
+
+### Full Development Setup
+
+```bash
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-
-# Verify everything works
-make test                  # run test suite
-make validate-templates    # validate all 11 workflow templates
+make test && make validate-templates   # 225 tests, 11 templates
+make build-skill                        # generate all 4 tool outputs
+devola-init all                         # install to all detected tools
 ```
-
-## Use with AI Tools
-
-DevolaFlow generates skill/instruction files for four AI coding tools from a single source:
-
-```bash
-make build-skill    # generates outputs in dist/
-```
-
-| Tool | Output | How to use |
-|------|--------|-----------|
-| **Cursor** | `dist/cursor/SKILL.md` + `references/` | Copy to `.cursor/skills/devola-flow/` |
-| **Codex** | `dist/codex/SKILL.md` + `agents/openai.yaml` | Copy to `~/.codex/skills/devola-flow/` |
-| **Claude Code** | `dist/claude/CLAUDE.md` | Copy to project root as `CLAUDE.md` |
-| **Copilot** | `dist/copilot/.github/copilot-instructions.md` | Copy to `.github/` |
-
-Or use the **MVP single-file** (`workflow-system/agent/MVP-SKILL.md`) -- drop it into any tool as a standalone instruction file.
 
 ## What's Inside
 
