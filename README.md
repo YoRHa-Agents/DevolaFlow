@@ -32,20 +32,14 @@ User Request
 ### One-liner (no clone needed)
 
 ```bash
-# Install for Cursor (project-local)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 
-# Install for Cursor (user-global, shared across all projects)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global
-
-# Other tools
-curl -fsSL ... | bash -s claude     # Claude Code (writes ./CLAUDE.md)
-curl -fsSL ... | bash -s copilot    # Copilot (writes .github/copilot-instructions.md)
-curl -fsSL ... | bash -s all        # all tools at once
-curl -fsSL ... | bash               # auto-detect which tools you have
-
-# Update to latest
-curl -fsSL ... | bash -s update     # re-downloads to all existing install locations
+curl -fsSL $INSTALLER | bash -s cursor            # Cursor (project-local)
+curl -fsSL $INSTALLER | bash -s cursor --global    # Cursor (user-global ~/.cursor/)
+curl -fsSL $INSTALLER | bash -s claude             # Claude Code (./CLAUDE.md)
+curl -fsSL $INSTALLER | bash -s copilot            # Copilot (.github/)
+curl -fsSL $INSTALLER | bash -s all                # all tools at once
+curl -fsSL $INSTALLER | bash -s update             # update existing installs
 ```
 
 ### pip install + init

@@ -1,6 +1,6 @@
 ---
 title: "集成指南"
-description: "将 DevolaFlow 与现有工具和 CI/CD 管线集成。"
+description: "将 DevolaFlow 接入 AI 工具和 CI/CD 管线。"
 source_files: ["SKILL.md"]
 auto_generated: true
 last_synced: "2026-04-04T00:00:00Z"
@@ -11,15 +11,35 @@ source_version: "1.0.0"
 
 ## AI 工具集成
 
-### 快速方法：单文件
-
-把 `workflow-system/agent/MVP-SKILL.md` 复制到对应工具的指令文件位置即可。
-
-### 完整方法：构建管线
+### 最快：一条命令
 
 ```bash
-make build-skill    # 生成 dist/cursor/, dist/codex/, dist/claude/, dist/copilot/
+INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
+
+curl -fsSL $INSTALLER | bash -s cursor            # 项目本地
+curl -fsSL $INSTALLER | bash -s cursor --global    # 用户全局 (~/.cursor/)
+curl -fsSL $INSTALLER | bash -s claude             # Claude Code
+curl -fsSL $INSTALLER | bash -s copilot            # Copilot
+curl -fsSL $INSTALLER | bash -s update             # 更新已有安装
 ```
+
+### 备选：pip + devola-init
+
+```bash
+pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init cursor       # 自动复制 skill 文件到 .cursor/skills/devola-flow/
+```
+
+### 手动：单文件
+
+下载 [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) 并复制到：
+
+| 工具 | 项目本地 | 用户全局 |
+|------|---------|---------|
+| Cursor | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
+| Claude Code | `./CLAUDE.md` | -- |
+| Copilot | `.github/copilot-instructions.md` | -- |
+| Codex | -- | `~/.codex/skills/devola-flow/SKILL.md` |
 
 ## 仓库模式
 

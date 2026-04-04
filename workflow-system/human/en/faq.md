@@ -55,7 +55,15 @@ A: Yes. Four built-in profiles: `strict` (90/85%/0 criticals), `standard` (85/80
 
 **Q: How do I start? What's the quickest path?**
 
-A: Copy `workflow-system/agent/MVP-SKILL.md` into your AI tool's instruction file. It's a self-contained single file under 500 lines that works immediately.
+A: One command: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor`. This downloads SKILL.md, 8 references, 3 examples, and rules into `.cursor/skills/devola-flow/`. Add `--global` to install user-wide. Or just download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and drop it in manually.
+
+**Q: Project-local or global install?**
+
+A: `--project` (default) installs to `.cursor/skills/` in the current repo -- the skill is committed with the project. `--global` installs to `~/.cursor/skills/` -- shared across all projects but not committed.
+
+**Q: How do I update to the latest version?**
+
+A: Run `curl -fsSL .../install.sh | bash -s update`. It finds all existing DevolaFlow installs and re-downloads the latest files.
 
 **Q: How do I create a custom workflow?**
 
@@ -63,7 +71,7 @@ A: Create a YAML file in `workflow-system/agent/templates/custom/` following the
 
 **Q: Do I need Python to use DevolaFlow?**
 
-A: Python 3.11+ is needed for the CLI tools (template validation, gate scoring, build pipeline). The SKILL.md and MVP files work with any AI tool without Python.
+A: No. The `curl` installer and manual file download work without Python. Python 3.11+ is only needed for the CLI tools (template validation, gate scoring, build pipeline).
 
 ## Troubleshooting
 
