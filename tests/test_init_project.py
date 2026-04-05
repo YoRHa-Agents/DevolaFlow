@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from devolaflow.init_project import _auto_detect, _find_agent_dir
+from devolaflow.init_project import _auto_detect, _find_agent_dir, _parse_scope
 
 
 def test_find_agent_dir():
@@ -33,6 +33,16 @@ def test_auto_detect_claude(tmp_path: Path):
     assert "claude" in result
 
 
+def test_parse_scope_defaults_to_project():
+    assert _parse_scope([]) == "project"
+
+
+def test_parse_scope_uses_last_flag():
+    assert _parse_scope(["--global"]) == "global"
+    assert _parse_scope(["--global", "--project"]) == "project"
+    assert _parse_scope(["--project", "--global"]) == "global"
+
+
 def test_install_cursor(tmp_path: Path, monkeypatch: Path):
     agent_dir = _find_agent_dir()
     if not (agent_dir / "SKILL.md").exists():
@@ -46,6 +56,19 @@ def test_install_cursor(tmp_path: Path, monkeypatch: Path):
     assert len(refs) >= 7
 
 
+def test_install_cursor_global(tmp_path: Path, monkeypatch):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_cursor
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    install_cursor(agent_dir, tmp_path / "project", scope="global")
+    assert (tmp_path / ".cursor" / "skills" / "devola-flow" / "SKILL.md").exists()
+    assert (tmp_path / ".cursor" / "rules" / "devola-flow-rules.mdc").exists()
+
+
 def test_install_claude(tmp_path: Path):
     agent_dir = _find_agent_dir()
     if not (agent_dir / "MVP-SKILL.md").exists():
@@ -56,6 +79,19 @@ def test_install_claude(tmp_path: Path):
     install_claude(agent_dir, tmp_path)
     assert (tmp_path / "CLAUDE.md").exists()
     content = (tmp_path / "CLAUDE.md").read_text()
+    assert "devola-flow" in content
+
+
+def test_install_claude_global(tmp_path: Path, monkeypatch):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "MVP-SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_claude
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    install_claude(agent_dir, tmp_path / "project", scope="global")
+    content = (tmp_path / ".claude" / "CLAUDE.md").read_text()
     assert "devola-flow" in content
 
 

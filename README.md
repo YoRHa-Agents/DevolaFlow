@@ -36,7 +36,8 @@ INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 curl -fsSL $INSTALLER | bash -s cursor            # Cursor (project-local)
 curl -fsSL $INSTALLER | bash -s cursor --global    # Cursor (user-global ~/.cursor/)
-curl -fsSL $INSTALLER | bash -s claude             # Claude Code (./CLAUDE.md)
+curl -fsSL $INSTALLER | bash -s claude             # Claude Code (project-local ./CLAUDE.md)
+curl -fsSL $INSTALLER | bash -s claude --global    # Claude Code (user-global ~/.claude/CLAUDE.md)
 curl -fsSL $INSTALLER | bash -s copilot            # Copilot (.github/)
 curl -fsSL $INSTALLER | bash -s all                # all tools at once
 curl -fsSL $INSTALLER | bash -s update             # update existing installs
@@ -49,6 +50,7 @@ pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
 cd your-project/
 devola-init              # auto-detect tools and install
 devola-init cursor       # Cursor only (project-local)
+devola-init claude --global  # Claude Code only (user-global)
 devola-init all          # all tools
 ```
 
@@ -60,7 +62,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 |------|--------------|-------------|
 | **Cursor** | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
 | **Codex** | -- | `~/.codex/skills/devola-flow/SKILL.md` |
-| **Claude Code** | `./CLAUDE.md` | -- |
+| **Claude Code** | `./CLAUDE.md` | `~/.claude/CLAUDE.md` |
 | **Copilot** | `.github/copilot-instructions.md` | -- |
 
 ### Full Development Setup

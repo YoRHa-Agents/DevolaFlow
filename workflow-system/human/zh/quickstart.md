@@ -3,7 +3,7 @@ title: "快速入门指南"
 description: "5 分钟内将 DevolaFlow 接入你的 AI 工具。"
 source_files: ["SKILL.md"]
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
+last_synced: "2026-04-05T00:00:00Z"
 source_version: "1.0.0"
 ---
 
@@ -22,8 +22,11 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 # Cursor（用户全局，所有项目共享）
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global
 
-# Claude Code
+# Claude Code（项目本地）
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
+
+# Claude Code（用户全局）
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global
 
 # Copilot
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
@@ -33,7 +36,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-devola-init cursor       # 或: devola-init claude / copilot / all
+devola-init cursor               # 或: devola-init claude / copilot / all
+devola-init claude --global      # 安装到 ~/.claude/CLAUDE.md
 ```
 
 ### 最简：下载单文件
@@ -43,7 +47,7 @@ devola-init cursor       # 或: devola-init claude / copilot / all
 | 工具 | 放置位置 |
 |------|---------|
 | Cursor | `.cursor/skills/devola-flow/SKILL.md` 或 `~/.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | 项目根目录 `./CLAUDE.md` |
+| Claude Code | 项目根目录 `./CLAUDE.md` 或用户全局 `~/.claude/CLAUDE.md` |
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 

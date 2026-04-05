@@ -3,7 +3,7 @@ title: "常见问题"
 description: "关于工作流系统的常见问题解答。"
 source_files: ["SKILL.md"]
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
+last_synced: "2026-04-05T00:00:00Z"
 source_version: "1.0.0"
 ---
 
@@ -31,7 +31,7 @@ source_version: "1.0.0"
 
 **问：项目本地还是全局安装？**
 
-答：`--project`（默认）安装到 `.cursor/skills/`，skill 随项目提交。`--global` 安装到 `~/.cursor/skills/`，所有项目共享但不提交。
+答：Cursor 两种都支持：`--project`（默认）安装到 `.cursor/skills/`，skill 随项目提交；`--global` 安装到 `~/.cursor/skills/`，所有项目共享但不提交。Claude Code 也支持两种范围：项目本地是 `./CLAUDE.md`，用户全局是 `~/.claude/CLAUDE.md`。
 
 **问：如何更新到最新版本？**
 

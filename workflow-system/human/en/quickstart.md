@@ -4,7 +4,7 @@ description: "Getting started with DevolaFlow in under 5 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
+last_synced: "2026-04-05T00:00:00Z"
 source_version: "1.0.0"
 ---
 
@@ -23,8 +23,11 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 # Cursor (user-global, shared across all projects)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global
 
-# Claude Code
+# Claude Code (project-local)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
+
+# Claude Code (user-global)
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global
 
 # Copilot
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
@@ -34,7 +37,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-devola-init cursor       # or: devola-init claude / copilot / all
+devola-init cursor               # or: devola-init claude / copilot / all
+devola-init claude --global      # install to ~/.claude/CLAUDE.md
 ```
 
 ### Simplest: one file
@@ -44,7 +48,7 @@ Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlo
 | Tool | Where to put it |
 |------|----------------|
 | Cursor | `.cursor/skills/devola-flow/SKILL.md` or `~/.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `./CLAUDE.md` (project root) |
+| Claude Code | `./CLAUDE.md` (project root) or `~/.claude/CLAUDE.md` (user-global) |
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 
