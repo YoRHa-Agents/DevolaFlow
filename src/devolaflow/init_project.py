@@ -144,7 +144,9 @@ def main() -> None:
         print(f"SKILL.md exists: {(agent_dir / 'SKILL.md').exists()}")
         return
 
-    print("\n  DevolaFlow Quick Setup\n")
+    from devolaflow import __version__
+
+    print(f"\n  DevolaFlow Quick Setup (v{__version__})\n")
 
     if not (agent_dir / "SKILL.md").exists():
         print(f"  Error: Agent source not found at {agent_dir}")
@@ -167,5 +169,6 @@ def main() -> None:
         else:
             print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, all)")
 
-    print("\n  Done! Start using DevolaFlow by asking your AI tool to")
+    print(f"\n  Now Using DevolaFlow v{__version__}")
+    print("  Start using DevolaFlow by asking your AI tool to")
     print("  'implement a feature' or 'run a full-pipeline workflow'.\n")

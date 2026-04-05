@@ -7,6 +7,13 @@ import sys
 from pathlib import Path
 
 
+def version_cmd() -> None:
+    """Print the current DevolaFlow version."""
+    from devolaflow import __version__
+
+    print(f"DevolaFlow v{__version__}")
+
+
 def validate_template_cmd() -> None:
     """Validate workflow template YAML files.
 
