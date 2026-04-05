@@ -1,9 +1,10 @@
-"""Initialize DevolaFlow skill files in the current project.
+"""Initialize DevolaFlow skill files in the current project or user scope.
 
 Usage:
   devola-init                  Auto-detect tools and install
   devola-init cursor           Install for Cursor only
   devola-init claude           Install for Claude Code only
+  devola-init claude --global  Install Claude Code globally
   devola-init copilot          Install for Copilot only
   devola-init --list           Show what would be installed
 """
@@ -54,32 +55,51 @@ def _copy_dir(src: Path, dest: Path) -> int:
     return count
 
 
-def install_cursor(agent_dir: Path, cwd: Path) -> None:
-    skill_dir = cwd / ".cursor" / "skills" / "devola-flow"
-    print(f"\n  Cursor -> {skill_dir}/")
+def _parse_scope(argv: list[str]) -> str:
+    scope = "project"
+    for arg in argv:
+        if arg == "--global":
+            scope = "global"
+        elif arg == "--project":
+            scope = "project"
+    return scope
+
+
+def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
+    skill_dir = base_dir / "skills" / "devola-flow"
+    print(f"\n  Cursor ({scope}) -> {skill_dir}/")
     _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
     refs = _copy_dir(agent_dir / "references", skill_dir / "references")
     examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
     print(f"  ({refs} references, {examples} examples)")
 
     rules_src = agent_dir.parent.parent / ".cursor" / "rules" / "workflow-rules.mdc"
-    rules_dest = cwd / ".cursor" / "rules" / "devola-flow-rules.mdc"
+    rules_dest = base_dir / "rules" / "devola-flow-rules.mdc"
     _copy_file(rules_src, rules_dest)
 
 
-def install_claude(agent_dir: Path, cwd: Path) -> None:
-    print("\n  Claude Code -> ./CLAUDE.md")
+def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     mvp = agent_dir / "MVP-SKILL.md"
-    _copy_file(mvp, cwd / "CLAUDE.md")
+    if scope == "global":
+        dest = Path.home() / ".claude" / "CLAUDE.md"
+        print(f"\n  Claude Code (global) -> {dest}")
+    else:
+        dest = cwd / "CLAUDE.md"
+        print("\n  Claude Code (project) -> ./CLAUDE.md")
+
+    _copy_file(mvp, dest)
 
 
-def install_copilot(agent_dir: Path, cwd: Path) -> None:
+def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    if scope == "global":
+        print("\n  Copilot does not support a global install. Using project-local path.")
     print("\n  Copilot -> .github/copilot-instructions.md")
     mvp = agent_dir / "MVP-SKILL.md"
     _copy_file(mvp, cwd / ".github" / "copilot-instructions.md")
 
 
-def install_codex(agent_dir: Path, cwd: Path) -> None:
+def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     import os
 
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
@@ -112,12 +132,14 @@ def _auto_detect(cwd: Path) -> list[str]:
 def main() -> None:
     cwd = Path.cwd()
     agent_dir = _find_agent_dir()
+    scope = _parse_scope(sys.argv[1:])
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
 
     if "--list" in sys.argv:
         detected = _auto_detect(cwd)
         print("Detected tools:", ", ".join(detected) if detected else "(none)")
         print("\nAvailable targets: cursor, claude, copilot, codex, all")
+        print(f"Scope: {scope}")
         print(f"Agent source: {agent_dir}")
         print(f"SKILL.md exists: {(agent_dir / 'SKILL.md').exists()}")
         return
@@ -141,7 +163,7 @@ def main() -> None:
 
     for t in targets:
         if t in TOOLS:
-            TOOLS[t](agent_dir, cwd)
+            TOOLS[t](agent_dir, cwd, scope)
         else:
             print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, all)")
 

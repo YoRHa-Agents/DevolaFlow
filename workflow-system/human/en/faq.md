@@ -3,7 +3,7 @@ title: "FAQ"
 description: "Frequently asked questions about the workflow system."
 source_files: ["SKILL.md"]
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
+last_synced: "2026-04-05T00:00:00Z"
 source_version: "1.0.0"
 ---
 
@@ -59,7 +59,7 @@ A: One command: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/Devol
 
 **Q: Project-local or global install?**
 
-A: `--project` (default) installs to `.cursor/skills/` in the current repo -- the skill is committed with the project. `--global` installs to `~/.cursor/skills/` -- shared across all projects but not committed.
+A: Cursor supports both: `--project` (default) installs to `.cursor/skills/` in the current repo, while `--global` installs to `~/.cursor/skills/`. Claude Code also supports both scopes: project-local at `./CLAUDE.md`, user-global at `~/.claude/CLAUDE.md`.
 
 **Q: How do I update to the latest version?**
 

@@ -6,11 +6,12 @@
 #   curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
 #   curl -fsSL ... | bash -s cursor --global
 #   curl -fsSL ... | bash -s claude
+#   curl -fsSL ... | bash -s claude --global
 #   curl -fsSL ... | bash -s update
 #
 # Targets:  cursor, codex, claude, copilot, mvp, all, auto (default), update
-# Flags:    --global   install to ~/.cursor/ (user-wide)
-#           --project  install to .cursor/ (repo-local, default)
+# Flags:    --global   install to the tool's user-wide location
+#           --project  install to the repo-local location (default)
 
 set -u
 
@@ -129,8 +130,16 @@ install_codex() {
 }
 
 install_claude() {
-  info "Claude Code -> ./CLAUDE.md"
-  dl "$AGENT_BASE/MVP-SKILL.md" "CLAUDE.md" || true
+  local dest
+  if [ "$SCOPE" = "global" ]; then
+    dest="$HOME/.claude/CLAUDE.md"
+    info "Claude Code (global) -> $dest"
+  else
+    dest="CLAUDE.md"
+    info "Claude Code (project) -> ./$dest"
+  fi
+
+  dl "$AGENT_BASE/MVP-SKILL.md" "$dest" || true
   ok "Claude installed"
 }
 
@@ -164,6 +173,9 @@ do_update() {
   if [ -f "CLAUDE.md" ] && head -5 "CLAUDE.md" 2>/dev/null | grep -q "devola-flow"; then
     install_claude; found=1
   fi
+  if [ -f "$HOME/.claude/CLAUDE.md" ] && head -5 "$HOME/.claude/CLAUDE.md" 2>/dev/null | grep -q "devola-flow"; then
+    SCOPE="global"; install_claude; found=1
+  fi
   if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
     install_copilot; found=1
   fi
@@ -180,7 +192,11 @@ auto_detect() {
   local found=0
   if [ -d ".cursor" ] || command -v cursor >/dev/null 2>&1; then install_cursor; found=1; fi
   if [ -d "${CODEX_HOME:-$HOME/.codex}" ]; then install_codex; found=1; fi
-  if [ -d ".claude" ] || [ -f "CLAUDE.md" ]; then install_claude; found=1; fi
+  if [ -d ".claude" ] || [ -f "CLAUDE.md" ]; then
+    SCOPE="project"; install_claude; found=1
+  elif [ -f "$HOME/.claude/CLAUDE.md" ] || [ -d "$HOME/.claude" ]; then
+    SCOPE="global"; install_claude; found=1
+  fi
   if [ -d ".github" ]; then install_copilot; found=1; fi
 
   if [ "$found" -eq 0 ]; then
@@ -188,7 +204,8 @@ auto_detect() {
     echo ""
     echo "  curl ... | bash -s cursor             project-local"
     echo "  curl ... | bash -s cursor --global    user-global"
-    echo "  curl ... | bash -s claude             Claude Code"
+    echo "  curl ... | bash -s claude             Claude Code (project-local)"
+    echo "  curl ... | bash -s claude --global    Claude Code (user-global)"
     echo "  curl ... | bash -s copilot            GitHub Copilot"
     echo "  curl ... | bash -s mvp                download standalone file"
     echo ""
@@ -220,7 +237,7 @@ case "$TARGET" in
   Targets:
     cursor    Cursor (SKILL.md + refs + examples + rules)
     codex     Codex (MVP single-file)
-    claude    Claude Code (MVP as CLAUDE.md)
+    claude    Claude Code (MVP as CLAUDE.md / ~/.claude/CLAUDE.md)
     copilot   Copilot (MVP as instructions)
     mvp       Download standalone MVP-SKILL.md
     all       All tools
@@ -228,8 +245,8 @@ case "$TARGET" in
     auto      Auto-detect (default)
 
   Flags:
-    --project   repo-local .cursor/  (default)
-    --global    user-wide ~/.cursor/
+    --project   repo-local install path (default)
+    --global    user-wide install path when supported
 USAGE
     exit 0 ;;
   *)
