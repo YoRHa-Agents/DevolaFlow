@@ -3,6 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -71,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 225 tests, 11 templates
+make test && make validate-templates   # 250 tests, 11 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -122,6 +123,18 @@ DevolaFlow is loaded as `copilot-instructions.md` (applied to every request). Co
 
 DevolaFlow is loaded as a Codex Skill. It activates on the same intent keywords. Codex will use subagents for parallel task execution within waves.
 
+### Checking for Updates
+
+DevolaFlow includes a built-in update check you can trigger from inside your AI tool. Just ask:
+
+```
+"update devola"
+"/update-devola"
+"update_devola"
+```
+
+The agent will compare your installed version against the latest on GitHub and tell you if an update is available, along with the exact command to run. This check is **manual only** -- it never runs automatically, so it won't consume context tokens unless you ask for it.
+
 ### Prompt patterns that work well
 
 | Prompt pattern | What it triggers |
@@ -136,6 +149,7 @@ DevolaFlow is loaded as a Codex Skill. It activates on the same intent keywords.
 | "Is X feasible?" / "Prototype X" | `spike-poc` -- quick experiment |
 | "Write docs for X" | `documentation` -- survey, author, review |
 | "Security audit of X" | `security-audit` -- threat model, scan, remediate, verify |
+| "update devola" | Check for newer version and get update instructions |
 
 ## What's Inside
 
@@ -177,9 +191,52 @@ FAIL: run convergence loop (review -> fix -> test -> fix), max 3 rounds
 ESCALATE: produce divergence report for human review
 ```
 
+## Versioning & Updates
+
+DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
+
+### Checking your version
+
+```bash
+devola-version                   # prints "DevolaFlow v0.2.0"
+python -c "import devolaflow; print(devolaflow.__version__)"
+```
+
+Or ask your AI agent: `"update devola"` -- it will check and report the installed version.
+
+### Updating to the latest version
+
+**From inside your AI tool** (recommended):
+
+Just type `"update devola"` or `"/update-devola"`. The agent checks GitHub for the latest version and provides the right update command for your setup.
+
+**From the terminal:**
+
+```bash
+# If installed via pip
+pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+
+# If installed via the one-liner installer
+INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
+curl -fsSL $INSTALLER | bash -s update
+
+# If installed via devola-init
+cd DevolaFlow && git pull && pip install -e ".[dev]"
+devola-init cursor --global      # re-install updated skill files
+devola-init claude --global
+```
+
+### Bumping version (for contributors)
+
+```bash
+python scripts/bump_version.py 0.3.0            # updates all 7 version locations
+python scripts/bump_version.py 0.3.0 --dry-run   # preview without writing
+```
+
 ## CLI Tools
 
 ```bash
+devola-version                   # print current version
 validate-template --all          # validate all workflow templates
 validate-template path/to.yaml  # validate a single template
 validate-gate                    # evaluate a gate checkpoint
