@@ -4,22 +4,27 @@ description: "11 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
-source_version: "1.0.0"
+last_synced: "2026-04-05T19:15:36Z"
+source_version: "0.2.0"
 ---
 
 # Workflow Types Catalog
 
+11 built-in workflow types with selection guidance.
+
+## Available Workflow Types
+
 | Type | Use When |
 |------|----------|
-| research-only | Survey, compare, evaluate alternatives |
-| design-only | Architecture, API design, schema design |
-| hotfix | Production bug, urgent fix, CVE patch |
-| refactoring | Tech debt, restructure, simplify |
-| migration | Upgrade, port, convert systems |
-| spike-poc | Prototype, experiment, feasibility |
-| documentation | Docs, README, API reference |
-| security-audit | Vulnerability scan, compliance review |
-| feature-enhancement | Extend existing functionality |
-| full-pipeline | New feature, greenfield, complete lifecycle |
-| RDRR | Design with research, ADR workflow |
+| research-only | Survey, compare, evaluate |
+| design-only | Architecture, API design |
+| hotfix | Production bug, urgent fix |
+| refactoring | Tech debt, restructure |
+| migration | Upgrade, port systems |
+| spike-poc | Prototype, experiment |
+| documentation | Docs, README |
+| security-audit | Vulnerability scan |
+| feature-enhancement | Extend functionality |
+| full-pipeline | New feature, complete lifecycle |
+| RDRR | Design with research |
+

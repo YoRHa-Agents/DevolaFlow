@@ -1,13 +1,20 @@
 ---
 title: "架构概述"
 description: "系统架构：4 层层级、阶段原语、质量门机制。"
-source_files: ["SKILL.md"]
+source_files:
+  - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
-source_version: "1.0.0"
+last_synced: "2026-04-05T19:15:36Z"
+source_version: "0.2.0"
 ---
 
 # 架构概述
+
+系统架构：4 层层级、阶段原语、质量门机制。
+
+## 系统概述
+
+DevolaFlow 使用 4 层代理层级编排复杂工作流。
 
 ## 4 层层级
 
@@ -19,4 +26,5 @@ source_version: "1.0.0"
 | 任务代理 | 执行实际工作 | ~8K tokens |
 
 ## 质量门机制
+
 阶段间的质量检查点。收敛循环确保质量达标。

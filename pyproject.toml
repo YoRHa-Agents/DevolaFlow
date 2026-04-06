@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "0.1.0"
+version = "0.2.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -25,6 +25,7 @@ dev = [
 
 [project.scripts]
 devola-init = "devolaflow.init_project:main"
+devola-version = "devolaflow.cli:version_cmd"
 validate-template = "devolaflow.cli:validate_template_cmd"
 validate-gate = "devolaflow.cli:validate_gate_cmd"
 build-skill = "devolaflow.cli:build_skill_cmd"

@@ -20,6 +20,7 @@ BRANCH="main"
 BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 AGENT_BASE="${BASE}/workflow-system/agent"
 STAMP=".devola-flow-version"
+VERSION_URL="${BASE}/src/devolaflow/__init__.py"
 
 info() { printf '  \033[34m>\033[0m %s\n' "$*"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -76,7 +77,21 @@ dl_batch() {
   fi
 }
 
-stamp() { date -u +"%Y-%m-%dT%H:%M:%SZ" > "$1/$STAMP" 2>/dev/null || true; }
+fetch_version() {
+  curl -fsSL --connect-timeout 5 "$VERSION_URL" 2>/dev/null \
+    | grep '__version__' | head -1 | sed 's/.*"\(.*\)".*/\1/'
+}
+
+stamp() {
+  local dir="$1"
+  local ver
+  ver=$(fetch_version)
+  if [ -n "$ver" ]; then
+    echo "$ver" > "$dir/$STAMP" 2>/dev/null || true
+  else
+    date -u +"%Y-%m-%dT%H:%M:%SZ" > "$dir/$STAMP" 2>/dev/null || true
+  fi
+}
 
 # ── Installers ───────────────────────────────────────────────────
 
@@ -214,12 +229,17 @@ auto_detect() {
 
 # ── Main ─────────────────────────────────────────────────────────
 
+INSTALLED_VERSION=$(fetch_version)
 cat << 'BANNER'
 
   DevolaFlow Installer
   ────────────────────
 BANNER
-printf '  scope: %s | target: %s\n\n' "$SCOPE" "$TARGET"
+if [ -n "$INSTALLED_VERSION" ]; then
+  printf '  version: %s | scope: %s | target: %s\n\n' "$INSTALLED_VERSION" "$SCOPE" "$TARGET"
+else
+  printf '  scope: %s | target: %s\n\n' "$SCOPE" "$TARGET"
+fi
 
 case "$TARGET" in
   cursor)  install_cursor ;;
@@ -256,6 +276,11 @@ USAGE
 esac
 
 echo ""
-ok "Done. To update later: curl ... | bash -s update"
-printf '  docs:  https://yorha-agents.github.io/DevolaFlow/\n'
-printf '  repo:  https://github.com/%s\n\n' "$REPO"
+if [ -n "$INSTALLED_VERSION" ]; then
+  ok "Now Using DevolaFlow v${INSTALLED_VERSION}"
+else
+  ok "Done."
+fi
+printf '  update: curl ... | bash -s update\n'
+printf '  docs:   https://yorha-agents.github.io/DevolaFlow/\n'
+printf '  repo:   https://github.com/%s\n\n' "$REPO"

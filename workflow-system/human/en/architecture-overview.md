@@ -4,15 +4,17 @@ description: "System architecture: 4-layer hierarchy, stage primitives, gate mec
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-04T00:00:00Z"
-source_version: "1.0.0"
+last_synced: "2026-04-05T19:15:36Z"
+source_version: "0.2.0"
 ---
 
 # Architecture Overview
 
+System architecture: 4-layer hierarchy, stage primitives, gate mechanism.
+
 ## System Overview
 
-DevolaFlow uses a 4-layer agent hierarchy to orchestrate complex software development workflows.
+DevolaFlow uses a 4-layer agent hierarchy to orchestrate complex workflows.
 
 ## The 4-Layer Hierarchy
 

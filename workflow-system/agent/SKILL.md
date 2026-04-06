@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "1.0.0"
+version: "0.2.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -15,9 +15,12 @@ triggers:
   - "hotfix"
   - "workflow orchestration"
   - "run workflow"
+  - "update devola"
+  - "update_devola"
+  - "/update-devola"
 tier: 1
-token_estimate: 3500
-last_updated: "2026-04-04"
+token_estimate: 3800
+last_updated: "2026-04-05"
 name: devola-flow
 description: >
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -27,7 +30,29 @@ description: >
   workflow.
 ---
 
+> **Now Using DevolaFlow v0.2.0**
+
 # DevolaFlow
+
+## Version & Update
+<!-- Manually triggered only — do NOT auto-check on every skill load -->
+
+**Current version:** 0.2.0
+
+**To check for updates** (only when user explicitly asks via "update devola", "update_devola", or "/update-devola"):
+
+1. Fetch the latest version from GitHub:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'
+   ```
+2. Compare the result with the current version shown above (0.2.0).
+3. If a newer version exists, advise the user:
+   - **pip update:** `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
+   - **Installer update:** `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
+   - **Manual update:** Download the latest SKILL.md from the [releases page](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+4. If already up to date, respond: "DevolaFlow v0.2.0 is the latest version."
+
+**IMPORTANT:** Do NOT run this check automatically. Only check when the user explicitly requests an update check. This preserves context tokens.
 
 ## Purpose & Scope
 <!-- design ref: design_delivery_architecture.md §3.4 -->
