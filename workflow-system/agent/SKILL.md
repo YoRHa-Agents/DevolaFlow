@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "0.2.0"
+version: "2.1.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -30,14 +30,14 @@ description: >
   workflow.
 ---
 
-> **Now Using DevolaFlow v0.2.0**
+> **Now Using DevolaFlow v2.1.0**
 
 # DevolaFlow
 
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 0.2.0
+**Current version:** 2.1.0
 
 **To check for updates** (only when user explicitly asks via "update devola", "update_devola", or "/update-devola"):
 
@@ -45,21 +45,34 @@ description: >
    ```bash
    curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'
    ```
-2. Compare the result with the current version shown above (0.2.0).
+2. Compare the result with the current version shown above (2.1.0).
 3. If a newer version exists, advise the user:
    - **pip update:** `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
    - **Installer update:** `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
    - **Manual update:** Download the latest SKILL.md from the [releases page](https://github.com/YoRHa-Agents/DevolaFlow/releases)
-4. If already up to date, respond: "DevolaFlow v0.2.0 is the latest version."
+4. If already up to date, respond: "DevolaFlow v2.1.0 is the latest version."
 
 **IMPORTANT:** Do NOT run this check automatically. Only check when the user explicitly requests an update check. This preserves context tokens.
+
+## Quick Action Decision
+
+Before selecting a workflow, assess task complexity:
+
+| Complexity | Signal | Action |
+|-----------|--------|--------|
+| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — no workflow needed |
+| **Simple** | 1-3 files, clear scope, < 1 hour | Use **hotfix** or **single-stage** — skip hierarchy |
+| **Standard** | 3-10 files, needs design or review | Select workflow from table below, use full hierarchy |
+| **Complex** | 10+ files, cross-cutting, multi-day | Select workflow, use strict gate profile |
+
+**Rule**: Do not over-orchestrate simple tasks. Match ceremony to complexity.
 
 ## Purpose & Scope
 <!-- design ref: design_delivery_architecture.md §3.4 -->
 
 This skill orchestrates multi-stage software development workflows. It covers:
 
-- **10 workflow types**: research-only, design-only, hotfix, refactoring, migration, spike-poc, documentation, security-audit, feature-enhancement, full-pipeline (plus RDRR composite)
+- **11 workflow types**: research-only, design-only, hotfix, refactoring, migration, spike-poc, documentation, security-audit, feature-enhancement, full-pipeline, RDRR
 - **13 stage primitives**: research, analyze, design, plan, implement, refine, review, test, validate, release, deploy, monitor, gate
 - **4-layer agent hierarchy**: Project → Stage → Wave → Task with strict context isolation
 - **Gate quality mechanism**: composite scoring with convergence loops and bounded retry
@@ -269,18 +282,35 @@ context_injection:
 
 Full context injection spec: `references/context-isolation.md`
 
-## Message Protocol (Summary)
+## Dispatch & Report Protocol
 <!-- design ref: design_agent_hierarchy.md §3 -->
 
 All inter-layer communication uses typed YAML schemas. Free-form chat between layers is prohibited.
 
-| Message | Direction | Key Fields |
-|---|---|---|
-| **TaskDispatch** | Parent → Child | dispatch_id, parent_id, task_id, type, title, description, owned_files, acceptance_criteria, timeout_seconds, applicable_rules |
-| **StatusReport** | Child → Parent | dispatch_id, task_id, state (pending/in_progress/completed/failed/escalated), artifacts, metrics (tests/coverage/findings), gate_decision |
-| **ExceptionEscalation** | Child → Parent | dispatch_id, error_type (recoverable/blocking/fatal), category, description, evidence, impact, suggested_action |
+**Dispatching a task** — include these fields:
 
-**Error types:** `recoverable` → auto-retry up to max → `blocking` → parent evaluates (modify spec, reassign, escalate) → `fatal` → halt + divergence report for human.
+- `task_id`, `type` (stage/wave/code/test/review/research), `title`, `description`
+- `predecessor_artifacts`: list of `{path, summary}` (3-5 sentence summaries only)
+- `owned_files`: files this task may create/modify (disjoint from parallel tasks)
+- `acceptance_criteria`: concrete pass conditions
+- `timeout_seconds`: max execution time (default 7200)
+
+**Reporting completion** — include these fields:
+
+- `task_id`, `state` (completed/failed/escalated), `progress_pct`
+- `artifacts`: list of `{path, type, summary}` for produced files
+- `metrics`: `tests_passed`, `coverage_pct`, `findings_by_severity`
+
+**Escalating errors** — classify and escalate upward:
+
+| Severity | Description | Action |
+|----------|-------------|--------|
+| `AUTO_RECOVER` | Network timeout, rate limit, tool crash | Retry up to 3x with exponential backoff |
+| `PAUSE` | Ambiguous spec, missing optional dep | Pause task, queue question, continue parallel work |
+| `HUMAN_INTERVENE` | Architecture decision, security change | Stop stage, present options to human |
+| `FULL_ROLLBACK` | Corrupted state, impossible requirement | Rollback to checkpoint, halt all |
+
+Escalation chain: Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 
 Full schemas with all fields: `references/message-schemas.md`
 
@@ -369,6 +399,37 @@ Round N:
 
 Defaults: min_rounds=1, max_rounds=3 (configurable per gate profile, range 1–6).
 The Stage Agent orchestrates the loop and never executes any phase directly.
+
+## Task Quality Score
+<!-- design ref: v2.1.0 — lightweight post-workflow feedback -->
+
+**After every workflow completes**, evaluate the user's original request and provide a brief quality score. This helps users learn to write better task descriptions.
+
+**Dimensions** (score each 1-5):
+
+| Dimension | 1 (Poor) | 3 (Adequate) | 5 (Excellent) |
+|-----------|----------|--------------|---------------|
+| **Clarity** | Vague, ambiguous intent | Understandable but imprecise | Unambiguous, single interpretation |
+| **Scope** | No boundaries stated | Partial boundaries | Clear in/out of scope |
+| **Success Criteria** | No criteria given | Implicit criteria inferable | Explicit, testable criteria |
+| **Context** | No background or constraints | Some context provided | Full context: stack, constraints, prior art |
+
+**Output format** (append to final workflow report):
+
+```
+📊 Task Quality Score: [total]/20
+  Clarity:          [n]/5 — [one-line tip if < 4]
+  Scope:            [n]/5 — [one-line tip if < 4]
+  Success Criteria: [n]/5 — [one-line tip if < 4]
+  Context:          [n]/5 — [one-line tip if < 4]
+💡 Tip: [single most impactful improvement suggestion]
+```
+
+**Rules**:
+- Always score, even for high-quality requests (positive reinforcement matters)
+- Keep tips actionable and specific, not generic ("specify the target file" > "be more specific")
+- Do not let scoring delay or block the workflow — score is appended after completion
+- For trivial/quick-action tasks, skip scoring (only score Standard+ complexity workflows)
 
 ## Template Quick-Reference
 <!-- design ref: design_meta_framework.md §4-7 -->

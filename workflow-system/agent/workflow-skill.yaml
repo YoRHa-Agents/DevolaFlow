@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "0.2.0"
+  version: "2.1.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -92,6 +92,11 @@ content:
     entry_file: "SKILL.md"
     max_lines: 500
     sections:
+      - id: "quick-action"
+        title: "Quick Action Decision"
+        content_source: "SKILL.md#quick-action-decision"
+        lines: 12
+
       - id: "purpose"
         title: "Purpose & Scope"
         content_source: "SKILL.md#purpose--scope"
@@ -127,10 +132,10 @@ content:
         content_source: "SKILL.md#context-isolation"
         lines: 20
 
-      - id: "message-summary"
-        title: "Message Protocol (Summary)"
-        content_source: "SKILL.md#message-protocol-summary"
-        lines: 25
+      - id: "dispatch-report"
+        title: "Dispatch & Report Protocol"
+        content_source: "SKILL.md#dispatch--report-protocol"
+        lines: 30
 
       - id: "repo-modes"
         title: "Repo Mode Detection"
@@ -151,6 +156,11 @@ content:
         title: "Convergence Loop (Summary)"
         content_source: "SKILL.md#convergence-loop-summary"
         lines: 15
+
+      - id: "task-quality-score"
+        title: "Task Quality Score"
+        content_source: "SKILL.md#task-quality-score"
+        lines: 30
 
       - id: "template-ref"
         title: "Template Quick-Reference"
