@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "0.2.0"
+version: "2.1.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 11 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v0.2.0**
+> **Now Using DevolaFlow v2.1.0**
 
 # DevolaFlow (MVP)
 
@@ -20,16 +20,29 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 0.2.0
+**Current version:** 2.1.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (0.2.0).
+2. Compare with current version (2.1.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v0.2.0 is the latest version."
+4. If current, respond: "DevolaFlow v2.1.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
+
+## Quick Action Decision
+
+Before selecting a workflow, assess task complexity:
+
+| Complexity | Signal | Action |
+|-----------|--------|--------|
+| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — no workflow needed |
+| **Simple** | 1-3 files, clear scope, < 1 hour | Use **hotfix** or **single-stage** — skip hierarchy |
+| **Standard** | 3-10 files, needs design or review | Select workflow from table below, use full hierarchy |
+| **Complex** | 10+ files, cross-cutting, multi-day | Select workflow, use strict gate profile |
+
+**Rule**: Do not over-orchestrate simple tasks. Match ceremony to complexity.
 
 ## Workflow Type Selection
 
@@ -37,17 +50,17 @@ Select the workflow type that matches the user's intent:
 
 | Type | Trigger Keywords | Stages |
 |------|-----------------|--------|
-| research-only | research, compare, evaluate, survey | research -> compare -> report |
-| design-only | design, architect, API spec, schema | research -> design -> review |
-| hotfix | fix bug, broken, crash, urgent, SEV1 | triage -> fix -> test -> release |
-| refactoring | refactor, clean up, tech debt | scope -> plan -> implement -> test -> review |
-| migration | migrate, upgrade, port, convert | assess -> plan -> implement -> validate -> cutover |
-| spike-poc | try, experiment, prototype, PoC | research -> prototype -> evaluate |
-| documentation | document, write docs, README | survey -> author -> review |
-| security-audit | security, CVE, vulnerability | threat_model -> scan -> analyze -> remediate -> verify |
-| feature-enhancement | add to existing, extend, enhance | scope -> design -> plan -> impl -> review -> test -> release |
-| full-pipeline | build from scratch, new project | design -> plan -> impl -> review -> test -> refine -> testgate -> release |
-| RDRR | design with research, ADR | research -> design -> review -> refine (loop) |
+| research-only | research, compare, evaluate, survey | research → compare → report |
+| design-only | design, architect, API spec, schema | research → design → review |
+| hotfix | fix bug, broken, crash, urgent, SEV1 | triage → fix → test → release |
+| refactoring | refactor, clean up, tech debt | scope → plan → implement → test → review |
+| migration | migrate, upgrade, port, convert | assess → plan → implement → validate → cutover |
+| spike-poc | try, experiment, prototype, PoC | research → prototype → evaluate |
+| documentation | document, write docs, README | survey → author → review |
+| security-audit | security, CVE, vulnerability | threat_model → scan → analyze → remediate → verify |
+| feature-enhancement | add to existing, extend, enhance | scope → design → plan → impl → review → test → release |
+| full-pipeline | build from scratch, new project | design → plan → impl → review → test → refine → testgate → release |
+| RDRR | design with research, ADR | research → design → review → refine (loop) |
 
 **Selection heuristic**: Match keywords from user request. If multiple match, prefer full-pipeline. If urgency signals present (urgent, ASAP), prefer hotfix.
 
@@ -87,83 +100,39 @@ Layer 0: PROJECT AGENT (Dispatcher)
 | monitor | Deliver | Post-deploy observation | Test |
 | gate | Control | Quality checkpoint blocking progression | Orchestrator |
 
-## Stage Dispatch Protocol
+## Dispatch & Report Protocol
 
-When dispatching a stage, send a TaskDispatch message:
+**Dispatching a task** — include these fields (YAML or structured text):
 
-```yaml
-task_dispatch:
-  header:
-    dispatch_id: "unique-id"
-    parent_id: "parent-dispatch-id"
-    layer: "project | stage | wave"
-    timeout_seconds: 7200
-  task:
-    task_id: "S03-impl"
-    type: "stage | wave | code | test | review | research"
-    title: "Implementation Stage"
-    description: "What to do (not how)"
-  context:
-    predecessor_artifacts:
-      - artifact_id: "design-doc-v2"
-        path: ".local/stages/S01_design/design_document.md"
-        summary: "3-5 sentence summary only"
-    owned_files: ["src/module_a.py", "tests/test_a.py"]
-    applicable_rules:
-      loading_strategy: "standard"
-      language: "python"
-  acceptance:
-    criteria: ["All tests pass", "Coverage >= 80%"]
-    quality_thresholds:
-      coverage_pct: 80
-      max_blocker_findings: 0
-```
+- `task_id`, `type` (stage/wave/code/test/review/research), `title`, `description`
+- `predecessor_artifacts`: list of `{path, summary}` (3-5 sentence summaries only)
+- `owned_files`: files this task may create/modify (disjoint from parallel tasks)
+- `acceptance_criteria`: concrete pass conditions
+- `timeout_seconds`: max execution time (default 7200)
 
-When reporting completion, send a StatusReport:
+**Reporting completion** — include these fields:
 
-```yaml
-status_report:
-  header:
-    report_id: "unique-id"
-    dispatch_id: "references-original-dispatch"
-    task_id: "S03-impl"
-  status:
-    state: "completed"
-    progress_pct: 100
-  result:
-    artifacts:
-      - path: "src/module_a.py"
-        type: "source"
-        summary: "Implemented module A"
-    metrics:
-      tests_passed: 15
-      coverage_pct: 87.5
-      findings_by_severity:
-        blocker: 0
-        critical: 0
-        major: 2
-```
+- `task_id`, `state` (completed/failed/escalated), `progress_pct`
+- `artifacts`: list of `{path, type, summary}` for produced files
+- `metrics`: `tests_passed`, `coverage_pct`, `findings_by_severity`
+
+**Escalating errors** — classify and escalate upward:
+
+- `AUTO_RECOVER`: Network timeout, rate limit → retry up to 3x with backoff
+- `PAUSE`: Ambiguous spec, missing dep → pause task, queue question, continue parallel work
+- `HUMAN_INTERVENE`: Architecture decision, security change → stop stage, present options
+- `FULL_ROLLBACK`: Corrupted state, impossible requirement → rollback to checkpoint, halt
+
+Escalation chain: Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 
 ## Gate Mechanism
 
 Every stage has a quality gate evaluated after all waves complete.
 
-**Composite Score Formula**:
-`composite = test_quality * 0.30 + code_review * 0.30 + architecture * 0.20 + benchmark * 0.20`
+**Composite Score**: `test_quality × 0.30 + code_review × 0.30 + architecture × 0.20 + benchmark × 0.20`
+**Quality Score per dimension**: `max(0, 100 - (blocker×25 + critical×15 + major×5 + minor×1))`
 
-**Quality Score per Dimension**:
-`quality_score = max(0, 100 - (blocker*25 + critical*15 + major*5 + minor*1))`
-
-**Pass Conditions** (ALL required):
-1. `composite_score >= 85` (standard profile)
-2. `blocker_findings == 0`
-3. `convergence_round >= 1` (at least one review cycle)
-
-**Fail Actions**:
-- round < max_rounds (3) -> Run convergence round: review -> fix -> test -> fix
-- round >= max_rounds -> ESCALATE to human with divergence report
-
-**Gate Profiles**:
+**Pass** when ALL hold: `composite >= threshold`, `blockers == 0`, `at least 1 review cycle completed`
 
 | Profile | Composite | Coverage | Blockers | Max Rounds |
 |---------|-----------|----------|----------|------------|
@@ -171,6 +140,8 @@ Every stage has a quality gate evaluated after all waves complete.
 | standard | >= 85 | >= 80% | 0 | 3 |
 | relaxed | >= 70 | >= 60% | 0 | 2 |
 | audit | >= 95 | >= 90% | 0 | 6 |
+
+**On FAIL**: round < max_rounds → run convergence round. Score stagnant 2+ rounds → ESCALATE.
 
 ## AgentTeam Quick Reference
 
@@ -202,73 +173,89 @@ Each Task Agent receives a context injection with these sections ONLY:
 ## Wave Decomposition Rules
 
 - Tasks within a wave MUST be independent (no shared writable files)
-- Maximum 5 tasks per wave
+- Maximum 5 tasks per wave, maximum 7 waves per stage
 - Each task owns a disjoint set of files
 - Waves execute sequentially within a stage: Wave N+1 starts after Wave N completes
-- Maximum 7 waves per stage
 
-**Task Sizing**:
-- Max 30 min (implementation) or 45 min (research/design)
-- Max 6 writable files, ~300 lines net change
-- If exceeds bounds, decompose further
+**Task Sizing**: Max 30 min (implementation) or 45 min (research/design). Max 6 writable files, ~300 lines net change. If exceeds bounds, decompose further.
 
 ## Convergence Loop
 
-When a stage gate evaluates FAIL, run a convergence round (max 3):
+When a stage gate evaluates FAIL, run a convergence round (max per profile):
 
 ```
-Phase 1: CODE REVIEW (Review Agent)
-Phase 2: FIX review findings (Implement Agent)
-Phase 3: TEST (Test Agent)
-Phase 4: FIX test failures (Implement Agent)
-Phase 5: BENCHMARK (Test Agent) -- if enabled
-Phase 6: FIX benchmark issues (Implement Agent)
-Phase 7: FINAL REVIEW (Review Agent)
-Phase 8: FIX final findings (Implement Agent)
--> RE-EVALUATE GATE
+Round N:
+  1. CODE REVIEW   (Review Agent)    → findings list
+  2. FIX findings  (Implement Agent) → patched code
+  3. TEST          (Test Agent)      → test results + coverage
+  4. FIX failures  (Implement Agent) → patched code
+  5. BENCHMARK     (Test Agent)      → perf metrics (if enabled)
+  6. FIX bench     (Implement Agent) → optimized code
+  7. FINAL REVIEW  (Review Agent)    → final findings
+  8. FIX final     (Implement Agent) → final patches
+  → RE-EVALUATE GATE
 ```
 
-**Stagnation**: If score does not improve for 2 consecutive rounds, ESCALATE.
+**Stagnation**: If score does not improve for 2 consecutive rounds, ESCALATE to human.
 
-## Fail-Forward Protocol
+## Task Quality Score
 
-| Severity | Description | Action |
-|----------|-------------|--------|
-| AUTO_RECOVER | Network timeout, rate limit, tool crash | Retry up to 3x with exponential backoff |
-| PAUSE | Ambiguous spec, missing optional dep | Pause task, queue question, continue parallel work |
-| HUMAN_INTERVENE | Architecture decision, security change | Stop stage, present options to human |
-| FULL_ROLLBACK | Corrupted state, impossible requirement | Rollback to last checkpoint, halt all |
+**After every workflow completes**, evaluate the user's original request and provide a brief quality score. This helps users learn to write better task descriptions.
 
-Escalation chain: Task -> Wave -> Stage -> Project -> Human
+**Dimensions** (score each 1-5):
+
+| Dimension | 1 (Poor) | 3 (Adequate) | 5 (Excellent) |
+|-----------|----------|--------------|---------------|
+| **Clarity** | Vague, ambiguous intent | Understandable but imprecise | Unambiguous, single interpretation |
+| **Scope** | No boundaries stated | Partial boundaries | Clear in/out of scope |
+| **Success Criteria** | No criteria given | Implicit criteria inferable | Explicit, testable criteria |
+| **Context** | No background or constraints | Some context provided | Full context: stack, constraints, prior art |
+
+**Output format** (append to final workflow report):
+
+```
+📊 Task Quality Score: [total]/20
+  Clarity:          [n]/5 — [one-line tip if < 4]
+  Scope:            [n]/5 — [one-line tip if < 4]
+  Success Criteria: [n]/5 — [one-line tip if < 4]
+  Context:          [n]/5 — [one-line tip if < 4]
+💡 Tip: [single most impactful improvement suggestion]
+```
+
+**Rules**:
+- Always score, even for high-quality requests (positive reinforcement matters)
+- Keep tips actionable and specific, not generic ("specify the target file" > "be more specific")
+- Do not let scoring delay or block the workflow — score is appended after completion
+- For trivial/quick-action tasks, skip scoring (only score Standard+ complexity workflows)
 
 ## Quick Examples
 
 ### Full Pipeline Trace (New Feature)
 ```
 T+0   L0  Project       Select workflow: full-pipeline
-T+2   L0  Project       Dispatch Stage: Design            -> StageDispatch
-      L1  Stage:Design  Decompose -> 2 waves
-      L2  Wave:D-W1     Dispatch Task: Research APIs       -> parallel
+T+2   L0  Project       Dispatch Stage: Design            → StageDispatch
+      L1  Stage:Design  Decompose → 2 waves
+      L2  Wave:D-W1     Dispatch Task: Research APIs       → parallel
       L3  Task          [WORK] Survey, produce report
-      L1  Stage:Design  Gate: PASS (score 92)              -> advance
-T+10  L0  Project       Dispatch Stage: Plan               -> StageDispatch
-      L1  Stage:Plan    Gate: PASS                         -> advance
-T+20  L0  Project       Dispatch Stage: Impl               -> StageDispatch
+      L1  Stage:Design  Gate: PASS (score 92)              → advance
+T+10  L0  Project       Dispatch Stage: Plan               → StageDispatch
+      L1  Stage:Plan    Gate: PASS                         → advance
+T+20  L0  Project       Dispatch Stage: Impl               → StageDispatch
       L1  Stage:Impl    3 waves, 9 tasks (max 4 parallel)
-      L1  Stage:Impl    Convergence: R1 score=78, R2 score=88 -> PASS
-T+50  L0  Project       Dispatch Review -> Test -> Release
-T+70  L0  Project       All PASS -> final report
+      L1  Stage:Impl    Convergence: R1 score=78, R2 score=88 → PASS
+T+50  L0  Project       Dispatch Review → Test → Release
+T+70  L0  Project       All PASS → final report + task quality score
 ```
 
 ### Hotfix Trace (Bug Fix)
 ```
 T+0   L0  Project       Select workflow: hotfix
-T+1   L0  Project       Dispatch Stage: Bug-Triage         -> StageDispatch
+T+1   L0  Project       Dispatch Stage: Bug-Triage         → StageDispatch
       L3  Task          [WORK] Analyze root cause: SEV2
-T+5   L0  Project       Dispatch Stage: Fix                -> StageDispatch
+T+5   L0  Project       Dispatch Stage: Fix                → StageDispatch
       L3  Task          [WORK] Patch + regression test (parallel)
-T+10  L0  Project       Dispatch Stage: Test -> Release
-T+14  L0  Project       All PASS -> hotfix deployed
+T+10  L0  Project       Dispatch Stage: Test → Release
+T+14  L0  Project       All PASS → hotfix deployed + task quality score
 ```
 
 ## Template Quick-Reference

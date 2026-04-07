@@ -5,6 +5,23 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-07
+
+### Added
+- **Task Quality Score**: Lightweight post-workflow scoring system that evaluates user task descriptions on 4 dimensions (Clarity, Scope, Success Criteria, Context) — scored 1-5 each with actionable improvement tips
+- **Quick Action Decision**: Complexity assessment table (Trivial/Simple/Standard/Complex) to prevent over-orchestrating simple tasks — match ceremony to complexity
+- New body section `quick-action` in workflow-skill.yaml manifest
+- New body section `task-quality-score` in workflow-skill.yaml manifest
+
+### Changed
+- **Dispatch & Report Protocol**: Streamlined from verbose YAML examples to compact field-list format, reducing token consumption by ~40% while preserving all required fields
+- **Fail-Forward Protocol**: Consolidated escalation severity table into Dispatch & Report section for single-point-of-reference
+- **Gate Mechanism**: Compressed to inline formula + compact profile table, removing redundant prose
+- **SKILL.md**: Added Quick Action Decision section, Task Quality Score section, streamlined Message Protocol into Dispatch & Report Protocol
+- **MVP-SKILL.md**: Same improvements as SKILL.md, fully self-contained
+- Workflow type count corrected from "10" to "11" (including RDRR) in Purpose & Scope
+- Version bump: 0.2.0 → 2.1.0 across all 9 version locations
+
 ## [0.1.0] - 2026-04-04
 
 ### Added

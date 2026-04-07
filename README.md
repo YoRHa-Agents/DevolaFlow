@@ -3,7 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -178,6 +178,17 @@ The agent will compare your installed version against the latest on GitHub and t
 | **Wave** | Parallel-dispatch tasks | ~4K tokens | Never executes task work |
 | **Task** | **The only layer that works** | ~8K tokens | Never spawns sub-agents |
 
+### Task Quality Score (New in v2.1.0)
+
+After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
+
+- **Clarity** — Was the intent unambiguous?
+- **Scope** — Were boundaries defined?
+- **Success Criteria** — Were pass/fail conditions stated?
+- **Context** — Was relevant background provided?
+
+The score appears at the end of the workflow report with actionable tips to improve future requests. This helps you learn which details lead to better agent output. Scoring is skipped for trivial tasks.
+
 ### Quality Gate Mechanism
 
 Every stage passes through a quality gate before advancing:
@@ -198,7 +209,7 @@ DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/_
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v0.2.0"
+devola-version                   # prints "DevolaFlow v2.1.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
