@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    AcceptanceCriterionResult,
     ConvergenceRound,
     Finding,
     GateInput,
@@ -30,6 +31,26 @@ DEFAULT_DIMENSION_WEIGHTS: dict[str, float] = {
     "code_review": 0.30,
     "architecture": 0.20,
     "benchmark": 0.20,
+}
+
+ARS_DIMENSION_WEIGHTS: dict[str, float] = {
+    "testability": 0.30,
+    "completeness": 0.25,
+    "measurability": 0.20,
+    "clarity": 0.15,
+    "independence": 0.10,
+}
+
+ARS_DIMENSION_SUGGESTIONS: dict[str, str] = {
+    "testability": (
+        "Rewrite criteria with verifiable conditions (e.g., 'All tests pass' not 'works correctly')"
+    ),
+    "completeness": "Add criteria to cover all expected outputs and edge cases",
+    "measurability": "Include quantitative thresholds (e.g., 'latency < 200ms', 'coverage >= 80%')",
+    "clarity": "Remove ambiguous terms; use precise, unambiguous language",
+    "independence": (
+        "Ensure each criterion can be verified independently without coupling to others"
+    ),
 }
 
 
@@ -61,6 +82,75 @@ def composite_score(
     return round(total, 4)
 
 
+def score_acceptance_readiness(
+    criteria_results: list[AcceptanceCriterionResult],
+    profile: GateProfile,
+) -> GateVerdict:
+    """Score acceptance criteria quality and return a gate verdict.
+
+    Evaluates criteria on five dimensions (Testability, Completeness,
+    Measurability, Clarity, Independence), computes a weighted Acceptance
+    Readiness Score (ARS), and compares against the profile threshold.
+    """
+    if not criteria_results:
+        return GateVerdict(
+            decision="FAIL",
+            rationale="No acceptance criteria provided. Cannot assess readiness.",
+            composite_score=0.0,
+            meets_threshold=False,
+            details={
+                "failing_dimensions": list(ARS_DIMENSION_WEIGHTS),
+                "suggestions": ["Define acceptance criteria before proceeding."],
+            },
+        )
+
+    n = len(criteria_results)
+    dim_avgs: dict[str, float] = {
+        "testability": sum(c.testability for c in criteria_results) / n,
+        "completeness": sum(c.completeness for c in criteria_results) / n,
+        "measurability": sum(c.measurability for c in criteria_results) / n,
+        "clarity": sum(c.clarity for c in criteria_results) / n,
+        "independence": sum(c.independence for c in criteria_results) / n,
+    }
+
+    ars = round(
+        sum(dim_avgs[d] * w for d, w in ARS_DIMENSION_WEIGHTS.items()),
+        2,
+    )
+
+    threshold = profile.acceptance_readiness_threshold
+
+    if ars >= threshold:
+        return GateVerdict(
+            decision="PASS",
+            rationale=f"Acceptance Readiness Score {ars:.1f} >= threshold {threshold}.",
+            composite_score=ars,
+            meets_threshold=True,
+            details={"dimension_scores": dim_avgs},
+        )
+
+    failing = {d: v for d, v in dim_avgs.items() if v < threshold}
+    failing_dims = sorted(failing, key=lambda d: failing[d])
+    suggestions = [
+        f"{d}: {ARS_DIMENSION_SUGGESTIONS[d]} (scored {failing[d]:.1f})" for d in failing_dims
+    ]
+
+    return GateVerdict(
+        decision="FAIL",
+        rationale=(
+            f"Acceptance Readiness Score {ars:.1f} below threshold {threshold}. "
+            f"Failing dimensions: {', '.join(failing_dims)}."
+        ),
+        composite_score=ars,
+        meets_threshold=False,
+        details={
+            "dimension_scores": dim_avgs,
+            "failing_dimensions": failing_dims,
+            "suggestions": suggestions,
+        },
+    )
+
+
 def _count_severity(findings: list[Finding], severity: str) -> int:
     return sum(1 for f in findings if f.severity == severity)
 
@@ -85,7 +175,8 @@ def evaluate_gate(
     history:
         Prior convergence rounds (empty list or ``None`` for first round).
     gate_type:
-        One of ``"standard"``, ``"convergence"``, ``"passthrough"``.
+        One of ``"standard"``, ``"convergence"``, ``"passthrough"``,
+        ``"acceptance_readiness"``.
     """
     if history is None:
         history = []
@@ -96,6 +187,12 @@ def evaluate_gate(
             rationale="Passthrough gate — forwarding stage results.",
             composite_score=None,
             meets_threshold=True,
+        )
+
+    if gate_type == "acceptance_readiness":
+        return score_acceptance_readiness(
+            gate_input.acceptance_readiness_criteria,
+            profile,
         )
 
     if gate_type == "standard":

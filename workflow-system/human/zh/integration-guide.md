@@ -4,8 +4,8 @@ description: "将 DevolaFlow 与现有工具和 CI/CD 管线集成。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-07T07:16:17Z"
-source_version: "2.1.0"
+last_synced: "2026-04-10T06:14:27Z"
+source_version: "3.0.0"
 ---
 
 # 集成指南

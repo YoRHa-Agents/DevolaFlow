@@ -280,7 +280,20 @@ LEAK PREVENTION CHECKS:
 □ No deferred items from other stages
 ```
 
-## 8. Debugging Context Issues
+## 8. Information Density Optimization (v2.2.0)
+
+Context injection now supports density-aware loading:
+
+**Task-Adaptive Profiles**: Six profiles (hotfix, research, design, refactor, review, feature) control which SKILL.md sections load per task type. Defined in `context_profiles.yaml`.
+
+**Lean Message Format**: Inter-layer messages (TaskDispatch, StatusReport) use structured compact format. Key changes:
+- `key_facts` lists replace paragraph summaries (verbatim extraction, zero hallucination)
+- Cause→effect notation for acceptance criteria (e.g., "expired → 401")
+- Abbreviated severity codes (B/C/M/m/i)
+
+**Acceptance Readiness Gate**: Pre-workflow validation of acceptance criteria quality. Prevents budget exhaustion from rework caused by vague criteria.
+
+## 9. Debugging Context Issues
 
 ### Symptom → Cause → Fix
 

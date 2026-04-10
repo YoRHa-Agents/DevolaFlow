@@ -207,6 +207,31 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
+      <h2>New in v3.0.0</h2>
+      <p class="desc">Repository rules, EvoBench benchmarks, and context optimization — shipped with 309 tests at 88% coverage.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">BENCHMARKS</span>
+          <h3>EvoBench</h3>
+          <p>Context density benchmark suite measuring section relevance, information density, and noise ratio per task type. Detects regressions against stored baselines.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context">View Benchmarks &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">RULES</span>
+          <h3>18 Repository Rules</h3>
+          <p>Enforceable guardrails codified from v2.x iteration lessons: SKILL format constraints, change process rules, and context optimization rules.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/.cursor/rules">View Rules &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">CONTEXT</span>
+          <h3>Task-Adaptive Selection</h3>
+          <p>Context profiles per task type (hotfix, feature, research, refactor, review, design). Agents receive only task-relevant SKILL.md sections with priority-based token budget allocation.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml">View Profiles &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
       <h2>Use with Your AI Tool</h2>
       <p class="desc">DevolaFlow adapts to four AI coding tools from a single source. Run <code>make build-skill</code> and copy the output.</p>
       <div class="cards">

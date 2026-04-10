@@ -1,0 +1,126 @@
+# Lean TaskDispatch Template
+# Based on: GCC ~50-token-per-entry format, LLM Scaling Paradox (compaction > summarization),
+#           Morph Methods (prevention > compression), WP-4 Rank 5 candidate
+#
+# Design principles:
+# 1. Compaction over summarization — verbatim paths, IDs, criteria (zero hallucination risk)
+# 2. ~50 tokens per entry target for structured fields
+# 3. Key-value pairs, no prose descriptions where enumeration suffices
+# 4. Factual fields never paraphrased — copied verbatim from source
+
+# --- ORIGINAL FORMAT (verbose) ---
+# Typical real instance: ~350-500 tokens
+original_example:
+  header:
+    dispatch_id: "d-20260409-001"
+    parent_id: "stage-impl-001"
+    layer: "wave"
+    timestamp: "2026-04-09T10:30:00Z"
+    timeout_seconds: 7200
+  task:
+    task_id: "T04"
+    type: "code"
+    title: "Implement user authentication middleware"
+    description: >
+      Create an Express.js middleware that validates JWT tokens from the
+      Authorization header. The middleware should extract the token, verify
+      it against the JWT_SECRET environment variable, and attach the decoded
+      user object to req.user. Handle expired tokens with a 401 response
+      and malformed tokens with a 400 response. Follow the interface defined
+      in the design document at .local/artifacts/design/auth-api.md.
+  context:
+    predecessor_artifacts:
+      - artifact_id: "a-design-001"
+        path: ".local/artifacts/design/auth-api.md"
+        summary: >
+          The authentication API design document specifies a JWT-based
+          authentication flow with access tokens (15min TTL) and refresh
+          tokens (7day TTL). The middleware should validate access tokens
+          on protected routes. Token payload includes user_id, email, and
+          role fields. The design recommends using the jsonwebtoken library
+          for token verification.
+      - artifact_id: "a-impl-002"
+        path: "src/middleware/index.ts"
+        summary: >
+          The existing middleware index file exports a requestLogger
+          middleware and an errorHandler middleware. The new auth middleware
+          should be added to the exports and follow the same pattern of
+          (req, res, next) => {} with proper error propagation via next().
+    owned_files:
+      - "src/middleware/auth.ts"
+      - "src/middleware/index.ts"
+      - "tests/middleware/auth.test.ts"
+    applicable_rules:
+      loading_strategy: "standard"
+      language: "typescript"
+      task_type: "code"
+      quality_focus:
+        - "security"
+        - "error-handling"
+    shared_context: "Project uses Express 4.x, TypeScript 5.x, Jest for testing."
+  acceptance:
+    criteria:
+      - "JWT validation middleware exported from src/middleware/auth.ts"
+      - "Handles valid tokens: attaches decoded payload to req.user"
+      - "Handles expired tokens: returns 401 with error message"
+      - "Handles malformed tokens: returns 400 with error message"
+      - "Handles missing Authorization header: returns 401"
+      - "Unit tests cover all 4 scenarios above"
+      - "Tests pass with >90% coverage on auth.ts"
+    quality_thresholds:
+      coverage_pct: 90
+      quality_score: 85
+      max_blocker_findings: 0
+    max_retry_rounds: 2
+
+# --- LEAN FORMAT ---
+# Same information, ~45-55% fewer tokens
+# Rules: verbatim paths/IDs, key:value for facts, terse criteria, no prose rewording
+lean_example:
+  hdr: { id: "d-20260409-001", parent: "stage-impl-001", layer: wave, timeout: 7200 }
+  task: { id: T04, type: code, title: "Implement user auth middleware" }
+  goal: "JWT validation middleware for Express.js — validate access tokens, attach decoded user to req.user, reject expired/malformed/missing"
+  pred:
+    - { ref: ".local/artifacts/design/auth-api.md", key_facts: ["JWT auth: access 15min, refresh 7day", "payload: user_id, email, role", "lib: jsonwebtoken"] }
+    - { ref: "src/middleware/index.ts", key_facts: ["exports: requestLogger, errorHandler", "pattern: (req,res,next)=>{}"] }
+  files: ["src/middleware/auth.ts", "src/middleware/index.ts", "tests/middleware/auth.test.ts"]
+  rules: { strategy: standard, lang: typescript, focus: [security, error-handling] }
+  shared: "Express 4.x, TS 5.x, Jest"
+  accept:
+    - "export JWT middleware from src/middleware/auth.ts"
+    - "valid token → req.user = decoded payload"
+    - "expired → 401"
+    - "malformed → 400"
+    - "missing header → 401"
+    - "unit tests cover all 5 cases, >90% coverage on auth.ts"
+  gate: { coverage: 90, quality: 85, blockers: 0, retries: 2 }
+
+# --- FORMAT SPECIFICATION ---
+lean_format_spec:
+  hdr:
+    description: "Dispatch envelope — fixed key names, no descriptions needed"
+    fields: { id: "dispatch UUID", parent: "parent dispatch id", layer: "wave|stage|project", timeout: "seconds" }
+  task:
+    description: "Work unit identity"
+    fields: { id: "human-readable task id", type: "code|test|review|research|design|benchmark", title: "≤10 words" }
+  goal:
+    description: "Single sentence — WHAT to achieve + key constraints. Replaces verbose 'description' field."
+    max_tokens: 40
+  pred:
+    description: "Predecessor artifacts as ref+key_facts pairs. Facts are verbatim extractions, NEVER paraphrased."
+    per_entry:
+      ref: "verbatim filesystem path"
+      key_facts: "list of ≤8-word factual statements extracted verbatim from source"
+    max_entries: 5
+    max_facts_per_entry: 5
+  files:
+    description: "Verbatim file paths. No descriptions — the task spec provides context."
+  rules:
+    description: "Collapsed rule hints — strategy/lang/focus only."
+  shared:
+    description: "≤15 words of cross-cutting tech context."
+  accept:
+    description: "Testable criteria. Each ≤15 words. Use → for cause/effect."
+    max_entries: 8
+  gate:
+    description: "Numeric thresholds only. No prose."

@@ -1,0 +1,133 @@
+# Lean StatusReport Template
+# Based on: GCC ~50-token-per-entry format, LLM Scaling Paradox (compaction > summarization),
+#           Morph Methods (prevention > compression), WP-4 Rank 5 candidate
+#
+# Design principles:
+# 1. Compaction over summarization — verbatim paths, errors, metrics
+# 2. Findings as structured entries, not prose paragraphs
+# 3. Decisions captured as key:value, never as narrative
+# 4. File changes as (path, action, summary) tuples
+
+# --- ORIGINAL FORMAT (verbose) ---
+# Typical real instance: ~400-600 tokens
+original_example:
+  header:
+    report_id: "r-20260409-001"
+    dispatch_id: "d-20260409-001"
+    task_id: "T04"
+    layer: "task"
+    timestamp: "2026-04-09T11:15:00Z"
+  status:
+    state: "completed"
+    progress_pct: 100
+    started_at: "2026-04-09T10:30:00Z"
+    completed_at: "2026-04-09T11:15:00Z"
+    elapsed_seconds: 2700
+  result:
+    artifacts:
+      - artifact_id: "a-impl-t04-001"
+        path: "src/middleware/auth.ts"
+        type: "source"
+        summary: >
+          JWT authentication middleware for Express.js. Validates tokens from
+          Authorization header using jsonwebtoken library. Extracts and verifies
+          JWT against JWT_SECRET env var, attaches decoded user object to req.user.
+          Handles three error cases: expired tokens (401), malformed tokens (400),
+          and missing Authorization header (401). Exports authenticateToken function.
+      - artifact_id: "a-impl-t04-002"
+        path: "src/middleware/index.ts"
+        type: "source"
+        summary: >
+          Updated middleware barrel file to export the new authenticateToken
+          middleware alongside existing requestLogger and errorHandler exports.
+      - artifact_id: "a-test-t04-001"
+        path: "tests/middleware/auth.test.ts"
+        type: "test"
+        summary: >
+          Comprehensive test suite for auth middleware with 12 test cases covering:
+          valid token extraction, expired token rejection, malformed token handling,
+          missing header handling, invalid JWT_SECRET, and edge cases for
+          Bearer prefix parsing. Uses jest.mock for jsonwebtoken.
+    metrics:
+      tests_passed: 12
+      tests_failed: 0
+      coverage_pct: 94.2
+      quality_score: 92
+      findings_by_severity:
+        blocker: 0
+        critical: 0
+        major: 0
+        minor: 2
+        info: 1
+  issues:
+    blockers: []
+    warnings:
+      - "JWT_SECRET fallback to empty string if env var not set — should throw on startup"
+      - "No rate limiting on auth failures — potential brute force vector"
+    deferred:
+      - "Refresh token rotation endpoint — not in scope for this task"
+
+# --- LEAN FORMAT ---
+# Same information, ~45-55% fewer tokens
+lean_example:
+  hdr: { id: "r-20260409-001", dispatch: "d-20260409-001", task: T04, layer: task }
+  state: { s: completed, pct: 100, elapsed: 2700 }
+  artifacts:
+    - { path: "src/middleware/auth.ts", type: source, delta: "JWT auth middleware — validates token, attaches req.user, handles 401/400" }
+    - { path: "src/middleware/index.ts", type: source, delta: "added authenticateToken export" }
+    - { path: "tests/middleware/auth.test.ts", type: test, delta: "12 tests: valid/expired/malformed/missing/edge cases" }
+  metrics: { pass: 12, fail: 0, cov: 94.2, quality: 92, findings: {B:0,C:0,M:0,m:2,i:1} }
+  issues:
+    blockers: []
+    warnings:
+      - "JWT_SECRET fallback to empty string — should throw on startup"
+      - "no rate limit on auth failures"
+    deferred: ["refresh token rotation — out of scope"]
+  decisions: []
+
+# --- FORMAT SPECIFICATION ---
+lean_format_spec:
+  hdr:
+    description: "Report envelope — fixed keys"
+    fields: { id: "report UUID", dispatch: "original dispatch id", task: "task id", layer: "task|wave|stage" }
+  state:
+    description: "Execution state — abbreviated keys"
+    fields: { s: "completed|failed|escalated", pct: "0-100", elapsed: "seconds" }
+  artifacts:
+    description: "Produced files. delta = what changed (verbatim, ≤15 words). NEVER paraphrase file paths."
+    per_entry:
+      path: "verbatim filesystem path"
+      type: "source|test|document|report|config"
+      delta: "≤15 words describing what was created/changed"
+    max_entries: 10
+  metrics:
+    description: "Numeric-only. Findings abbreviated: B=blocker, C=critical, M=major, m=minor, i=info"
+    fields: { pass: int, fail: int, cov: float, quality: float, findings: "severity:count map" }
+  issues:
+    description: "Structured issue lists. Each entry ≤15 words."
+    fields:
+      blockers: "items preventing completion"
+      warnings: "non-fatal concerns for upstream awareness"
+      deferred: "explicitly postponed items with reason"
+  decisions:
+    description: "Key decisions made during execution. Each as {what, why, alternative_considered}."
+    per_entry:
+      what: "the decision (≤10 words)"
+      why: "rationale (≤10 words)"
+      alt: "rejected alternative (≤8 words, optional)"
+    max_entries: 5
+
+# --- COMPACTION RULES ---
+compaction_rules:
+  - rule: "NEVER paraphrase file paths, error messages, metric values, or commit hashes"
+    source: "LLM Scaling Paradox — Knowledge Overwriting risk"
+  - rule: "Use → for cause/effect in delta and decision fields"
+    example: "expired token → 401"
+  - rule: "Abbreviate severity keys: B/C/M/m/i"
+    source: "GCC compact notation"
+  - rule: "Omit zero-value optional fields (don't write 'fail: 0' unless relevant)"
+  - rule: "Findings as structured entries, never prose paragraphs"
+    source: "Morph — compaction 98% accuracy vs. summarization 37% retention"
+  - rule: "Each artifact delta must name the concrete change, not describe the file's purpose"
+    good: "added authenticateToken export"
+    bad: "Updated middleware barrel file to export the new authenticateToken middleware"

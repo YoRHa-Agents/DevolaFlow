@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    AcceptanceCriterionResult,
     CheckResult,
     ConvergenceRound,
     Finding,
@@ -19,6 +20,7 @@ from devolaflow.gate.scorer import (
     composite_score,
     evaluate_gate,
     quality_score,
+    score_acceptance_readiness,
 )
 
 # ---------------------------------------------------------------------------
@@ -299,3 +301,123 @@ class TestReporter:
         assert "gate_report:" in yml
         assert "decision: FAIL" in yml
         assert "stage_id: S04" in yml
+
+
+# ---------------------------------------------------------------------------
+# 12. acceptance readiness gate
+# ---------------------------------------------------------------------------
+
+
+def _make_criterion(
+    cid: str,
+    text: str,
+    *,
+    testability: float = 85.0,
+    completeness: float = 85.0,
+    measurability: float = 85.0,
+    independence: float = 85.0,
+    clarity: float = 85.0,
+) -> AcceptanceCriterionResult:
+    return AcceptanceCriterionResult(
+        criterion_id=cid,
+        text=text,
+        testability=testability,
+        completeness=completeness,
+        measurability=measurability,
+        independence=independence,
+        clarity=clarity,
+    )
+
+
+class TestAcceptanceReadinessGate:
+    def test_acceptance_readiness_pass(self) -> None:
+        """High-quality criteria should pass the standard profile threshold."""
+        criteria = [
+            _make_criterion(
+                "AC-1",
+                "All pytest tests pass with 0 failures",
+                testability=95,
+                completeness=85,
+                measurability=90,
+                clarity=92,
+                independence=88,
+            ),
+            _make_criterion(
+                "AC-2",
+                "Code coverage >= 85%",
+                testability=90,
+                completeness=80,
+                measurability=95,
+                clarity=90,
+                independence=90,
+            ),
+        ]
+        gi = _pass_input()
+        gi.acceptance_readiness_criteria = criteria
+
+        verdict = evaluate_gate(gi, STANDARD, gate_type="acceptance_readiness")
+
+        assert verdict.decision == "PASS"
+        assert verdict.meets_threshold is True
+        assert verdict.composite_score is not None
+        assert verdict.composite_score >= STANDARD.acceptance_readiness_threshold
+
+    def test_acceptance_readiness_fail(self) -> None:
+        """Vague criteria should fail and report failing dimensions."""
+        criteria = [
+            _make_criterion(
+                "AC-1",
+                "Code should work correctly",
+                testability=15,
+                completeness=20,
+                measurability=10,
+                clarity=25,
+                independence=50,
+            ),
+        ]
+        gi = _pass_input()
+        gi.acceptance_readiness_criteria = criteria
+
+        verdict = evaluate_gate(gi, STANDARD, gate_type="acceptance_readiness")
+
+        assert verdict.decision == "FAIL"
+        assert verdict.meets_threshold is False
+        assert verdict.composite_score is not None
+        assert verdict.composite_score < STANDARD.acceptance_readiness_threshold
+        assert "failing_dimensions" in verdict.details
+        assert "suggestions" in verdict.details
+        assert len(verdict.details["suggestions"]) > 0
+
+    def test_acceptance_readiness_missing_criteria(self) -> None:
+        """Empty criteria list should fail immediately."""
+        gi = _pass_input()
+        gi.acceptance_readiness_criteria = []
+
+        verdict = evaluate_gate(gi, STANDARD, gate_type="acceptance_readiness")
+
+        assert verdict.decision == "FAIL"
+        assert verdict.composite_score == 0.0
+        assert verdict.meets_threshold is False
+        assert "No acceptance criteria" in verdict.rationale
+
+    def test_acceptance_readiness_relaxed_vs_strict(self) -> None:
+        """Same criteria should pass relaxed but fail strict profile."""
+        criteria = [
+            _make_criterion(
+                "AC-1",
+                "Function returns correct output",
+                testability=75,
+                completeness=72,
+                measurability=70,
+                clarity=78,
+                independence=80,
+            ),
+        ]
+
+        verdict_relaxed = score_acceptance_readiness(criteria, RELAXED)
+        assert verdict_relaxed.decision == "PASS"
+        assert verdict_relaxed.composite_score >= RELAXED.acceptance_readiness_threshold
+
+        verdict_strict = score_acceptance_readiness(criteria, STRICT)
+        assert verdict_strict.decision == "FAIL"
+        assert verdict_strict.composite_score < STRICT.acceptance_readiness_threshold

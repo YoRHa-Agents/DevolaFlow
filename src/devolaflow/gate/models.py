@@ -10,10 +10,27 @@ from typing import Literal
 
 Severity = Literal["blocker", "critical", "major", "minor", "info"]
 GateDecision = Literal["PASS", "FAIL", "ESCALATE"]
-GateType = Literal["standard", "convergence", "passthrough"]
+GateType = Literal["standard", "convergence", "passthrough", "acceptance_readiness"]
 ProfileName = Literal["strict", "standard", "relaxed", "audit"]
 LintPolicy = Literal["zero_warnings", "zero_errors", "advisory"]
 BenchmarkPolicy = Literal["required", "optional", "disabled", "required_with_regression_check"]
+
+
+@dataclass(frozen=True)
+class AcceptanceCriterionResult:
+    """Quality scores for a single acceptance criterion.
+
+    Each dimension is scored 0–100. Used by the acceptance_readiness gate
+    to evaluate criteria quality before work begins.
+    """
+
+    criterion_id: str
+    text: str
+    testability: float
+    completeness: float
+    measurability: float
+    independence: float
+    clarity: float
 
 
 @dataclass(frozen=True)
@@ -46,6 +63,9 @@ class GateInput:
     lint_status: CheckResult
     review_findings: list[Finding] = field(default_factory=list)
     acceptance_criteria_results: CheckResult | None = None
+    acceptance_readiness_criteria: list[AcceptanceCriterionResult] = field(
+        default_factory=list,
+    )
 
 
 @dataclass
@@ -56,6 +76,7 @@ class GateVerdict:
     rationale: str
     composite_score: float | None = None
     meets_threshold: bool = False
+    details: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -74,6 +95,7 @@ class GateProfile:
     min_rounds: int
     lint_policy: LintPolicy
     benchmark_policy: BenchmarkPolicy
+    acceptance_readiness_threshold: float = 80.0
 
 
 @dataclass

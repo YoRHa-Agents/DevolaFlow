@@ -4,8 +4,8 @@ description: "系统架构：4 层层级、阶段原语、质量门机制。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-07T07:16:17Z"
-source_version: "2.1.0"
+last_synced: "2026-04-10T06:14:27Z"
+source_version: "3.0.0"
 ---
 
 # 架构概述
@@ -25,6 +25,14 @@ DevolaFlow 使用 4 层代理层级编排复杂工作流。
 | 批次代理 | 并行分派任务 | ~4K tokens |
 | 任务代理 | 执行实际工作 | ~8K tokens |
 
+## 任务自适应上下文选择
+
+每种任务类型（热修复、功能、研究、重构、审查、设计）都有上下文配置，仅选择与任务相关的 SKILL.md 段落。配置定义在 `workflow-system/agent/context_profiles.yaml`。
+
 ## 质量门机制
 
 阶段间的质量检查点。收敛循环确保质量达标。
+
+## 仓库规则
+
+`.cursor/rules/` 中的 18 条可执行规则，涵盖：SKILL 格式约束、变更流程护栏（测试覆盖率底线、无幽灵功能）、上下文优化规则（精简消息、逐字提取、基准验证）。

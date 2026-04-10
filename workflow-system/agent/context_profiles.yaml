@@ -1,0 +1,343 @@
+# Task-Adaptive Context Selection Profiles
+# Based on: SWE-Pruner goal-hint routing, ATACompressor variable-rate allocation,
+#           ContextOS Context-Dependent Gravity, WP-4 Rank 4 candidate
+#
+# Each profile defines which SKILL.md sections to include and their priority.
+# Priority: critical (always include), important (include if budget allows),
+#           supplementary (include only with remaining budget), skip (never include).
+#
+# Token budgets are target ranges; the selector enforces hard caps.
+
+meta:
+  version: "1.0.0"
+  skill_source: "workflow-system/agent/SKILL.md"
+  default_profile: "feature"
+  budget_hard_cap_tokens: 8000
+
+# SKILL.md section registry with line ranges and base token estimates
+sections:
+  frontmatter:
+    lines: "1-31"
+    tokens_est: 180
+    content_type: metadata
+
+  version_update:
+    lines: "33-55"
+    tokens_est: 200
+    content_type: prose
+
+  quick_action_decision:
+    lines: "57-68"
+    tokens_est: 120
+    content_type: table
+
+  purpose_scope:
+    lines: "70-81"
+    tokens_est: 100
+    content_type: prose
+
+  quick_start_workflows:
+    lines: "83-109"
+    tokens_est: 350
+    content_type: table
+
+  hierarchy_table:
+    lines: "111-121"
+    tokens_est: 200
+    content_type: table
+
+  hierarchy_diagram:
+    lines: "123-142"
+    tokens_est: 150
+    content_type: diagram
+
+  wave_task_constraints:
+    lines: "144-145"
+    tokens_est: 50
+    content_type: constraints
+
+  stage_primitives:
+    lines: "147-197"
+    tokens_est: 500
+    content_type: table
+
+  gate_mechanism:
+    lines: "199-225"
+    tokens_est: 350
+    content_type: formula
+
+  agent_teams:
+    lines: "227-253"
+    tokens_est: 400
+    content_type: table
+
+  context_isolation:
+    lines: "255-283"
+    tokens_est: 350
+    content_type: spec
+
+  dispatch_report:
+    lines: "285-315"
+    tokens_est: 380
+    content_type: spec
+
+  repo_mode:
+    lines: "317-331"
+    tokens_est: 150
+    content_type: table
+
+  reference_navigation:
+    lines: "333-361"
+    tokens_est: 350
+    content_type: navigation
+
+  rules_dispatchers:
+    lines: "362-382"
+    tokens_est: 250
+    content_type: rules
+
+  convergence_loop:
+    lines: "384-401"
+    tokens_est: 250
+    content_type: diagram
+
+  task_quality_score:
+    lines: "403-433"
+    tokens_est: 400
+    content_type: spec
+
+  template_quick_ref:
+    lines: "434-450"
+    tokens_est: 220
+    content_type: table
+
+# Context profiles per task type
+profiles:
+
+  hotfix:
+    description: "Rapid bug fix — deep bug context, minimal architecture"
+    goal_hints:
+      - "fix bug"
+      - "broken"
+      - "crash"
+      - "hotfix"
+      - "SEV1"
+      - "SEV2"
+      - "production down"
+    token_budget: 4500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: skip
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: skip
+      gate_mechanism: important
+      agent_teams: supplementary
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: supplementary
+      reference_navigation: skip
+      rules_dispatchers: important
+      convergence_loop: skip
+      task_quality_score: skip
+      template_quick_ref: skip
+    extra_context:
+      - "references/message-schemas.md"
+      - "schemas/task-dispatch.yaml"
+    rationale: >
+      Hotfix tasks need fast triage→fix→test→release. No architecture overview,
+      no research primitives, no template browsing. Focus on dispatch mechanics
+      and quality gates to ensure the fix is validated.
+
+  feature:
+    description: "Feature development — architectural context, component patterns"
+    goal_hints:
+      - "implement feature"
+      - "add to existing"
+      - "extend"
+      - "enhance"
+      - "build from scratch"
+      - "new project"
+    token_budget: 6500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: critical
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: critical
+      gate_mechanism: critical
+      agent_teams: critical
+      context_isolation: critical
+      dispatch_report: important
+      repo_mode: important
+      reference_navigation: important
+      rules_dispatchers: important
+      convergence_loop: important
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/agent-hierarchy.md"
+      - "references/meta-framework.md"
+    rationale: >
+      Feature work needs the full hierarchy, stage primitives for planning,
+      gate mechanism for quality control, and team roles for task dispatch.
+      Convergence loop matters for implementation stages.
+
+  research:
+    description: "Research/investigation — broad references, comparison frameworks"
+    goal_hints:
+      - "research"
+      - "compare"
+      - "survey"
+      - "investigate"
+      - "what"
+      - "how"
+      - "which"
+      - "should we"
+    token_budget: 3500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: supplementary
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: supplementary
+      stage_primitives: supplementary
+      gate_mechanism: skip
+      agent_teams: important
+      context_isolation: important
+      dispatch_report: important
+      repo_mode: skip
+      reference_navigation: important
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: skip
+      template_quick_ref: skip
+    extra_context:
+      - "references/team-roles.md"
+    rationale: >
+      Research tasks are single-stage with minimal ceremony. No convergence
+      loops, no gate mechanism, no repo mode. Focus on dispatch/report protocol
+      and team roles for structuring research output.
+
+  refactor:
+    description: "Refactoring/migration — code structure context, safety nets"
+    goal_hints:
+      - "refactor"
+      - "clean up"
+      - "tech debt"
+      - "simplify"
+      - "migrate"
+      - "upgrade"
+      - "port"
+    token_budget: 5500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: important
+      gate_mechanism: critical
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: important
+      reference_navigation: supplementary
+      rules_dispatchers: important
+      convergence_loop: critical
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+    rationale: >
+      Refactoring needs strong convergence loops and gates to ensure no
+      regressions. Code review and test cycles are the primary quality mechanism.
+      Full hierarchy for multi-wave impl stages.
+
+  review:
+    description: "Code/design review — quality standards, finding classification"
+    goal_hints:
+      - "review"
+      - "audit"
+      - "security"
+      - "CVE"
+      - "vulnerability"
+    token_budget: 4000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: supplementary
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: supplementary
+      gate_mechanism: critical
+      agent_teams: critical
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: supplementary
+      reference_navigation: supplementary
+      rules_dispatchers: important
+      convergence_loop: supplementary
+      task_quality_score: important
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+      - "references/team-roles.md"
+    rationale: >
+      Reviews focus on quality scoring, severity classification, and gate
+      evaluation. The gate mechanism and team role specs are critical.
+      Stage primitives and workflow selection are secondary.
+
+  design:
+    description: "Architecture/design — structural decisions, interface specs"
+    goal_hints:
+      - "design"
+      - "architect"
+      - "API spec"
+      - "schema"
+      - "ADR"
+    token_budget: 5000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: critical
+      gate_mechanism: important
+      agent_teams: critical
+      context_isolation: important
+      dispatch_report: important
+      repo_mode: supplementary
+      reference_navigation: important
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/meta-framework.md"
+      - "references/team-roles.md"
+    rationale: >
+      Design tasks need stage primitives for planning the design flow,
+      team roles for structuring design output, and hierarchy for
+      understanding delegation. Convergence loops are implementation-specific.

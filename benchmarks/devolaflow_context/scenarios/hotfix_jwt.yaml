@@ -1,0 +1,30 @@
+# EvoBench Scenario: Hotfix JWT Token Expiry Bug
+# Tests that hotfix profile selects triage/fix-relevant sections and
+# excludes architecture/design noise.
+
+name: "hotfix_jwt"
+task_type: "hotfix"
+description: "Fix JWT token expiry validation bug causing 500 errors in production"
+
+expected_sections:
+  - quick_action_decision
+  - wave_task_constraints
+  - context_isolation
+  - dispatch_report
+  - hierarchy_table
+  - gate_mechanism
+  - rules_dispatchers
+
+unwanted_sections:
+  - stage_primitives
+  - convergence_loop
+  - reference_navigation
+  - template_quick_ref
+  - frontmatter
+  - version_update
+  - purpose_scope
+
+quality_thresholds:
+  min_composite: 50.0
+  max_noise_ratio: 0.3
+  min_relevance: 0.5

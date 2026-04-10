@@ -1,0 +1,32 @@
+---
+description: "Context optimization constraints for DevolaFlow — codified from v2.2.0 density optimization iteration"
+alwaysApply: true
+---
+
+## Rule CO-1 — Lean Message Format
+
+Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+
+## Rule CO-2 — Verbatim Extraction
+
+`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
+
+## Rule CO-3 — Context Token Budgets
+
+Context profiles (`workflow-system/agent/context_profiles.yaml`) must define explicit token budgets per task type. Budgets are enforced by priority-based allocation: critical sections first, then important, then supplementary.
+
+## Rule CO-4 — Relative Paths Only
+
+All paths in dispatch messages, status reports, and artifact references must be relative to the repository root. Absolute filesystem paths are prohibited. External benchmarks and tools are referenced via their GitHub URL: `https://github.com/YoRHa-Agents/DevolaFlow`.
+
+## Rule CO-5 — Benchmark Verification
+
+Context optimization changes must demonstrate improvement (or at minimum no regression) via EvoBench benchmarks. The benchmark suite lives at `benchmarks/devolaflow_context/` in this repository. Run with:
+```
+python -m pytest tests/test_benchmarks.py -v
+```
+Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/` for regression comparison.
+
+## Rule CO-6 — Section Relevance
+
+Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. A hotfix agent must not receive design-stage primitives; a research agent must not receive convergence-loop details. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.

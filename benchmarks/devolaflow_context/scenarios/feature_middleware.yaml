@@ -1,0 +1,30 @@
+# EvoBench Scenario: Feature — Add User Role Middleware
+# Tests that feature profile loads broad architectural context including
+# stage primitives, gate mechanism, and team roles.
+
+name: "feature_middleware"
+task_type: "feature"
+description: "Implement Express.js middleware for user role-based access control"
+
+expected_sections:
+  - quick_action_decision
+  - quick_start_workflows
+  - hierarchy_table
+  - wave_task_constraints
+  - stage_primitives
+  - gate_mechanism
+  - agent_teams
+  - context_isolation
+  - dispatch_report
+  - convergence_loop
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - purpose_scope
+  - template_quick_ref
+
+quality_thresholds:
+  min_composite: 55.0
+  max_noise_ratio: 0.25
+  min_relevance: 0.6
