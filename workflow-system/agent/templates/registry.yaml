@@ -106,3 +106,10 @@ templates:
     version: "1.0.0"
     category: discover
     tags: [onboarding, setup, getting-started, contributor, codebase]
+
+  - name: skill-optimization
+    path: builtin/skill-optimization.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [skill, optimize, benchmark, context, compress, iterate, density]

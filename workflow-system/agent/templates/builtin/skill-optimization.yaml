@@ -1,0 +1,123 @@
+schema_version: "1.0"
+
+metadata:
+  name: skill-optimization
+  version: "1.0.0"
+  display_name: "Skill Optimization"
+  description: "Iterative agent skill optimization with benchmarking and convergence."
+  category: composite
+  applicable_scenarios:
+    - "Optimize SKILL.md information density"
+    - "Improve context profile accuracy"
+    - "Reduce agent context noise"
+    - "Benchmark-driven skill iteration"
+  tags: [skill, optimize, benchmark, context, compress, iterate, density]
+
+stages:
+  - id: survey
+    primitive: research
+    alias: survey
+    description: "Survey current skill metrics, identify optimization targets"
+    team: research
+    duration_class: medium
+    config:
+      analysis_type: benchmark
+      output_format: report
+
+  - id: profile
+    primitive: analyze
+    alias: profile
+    description: "Run EvoBench baseline, measure per-section relevance and density"
+    team: test
+    duration_class: quick
+    config:
+      analysis_type: benchmark
+      compare_baseline: true
+    input_mapping:
+      targets: "survey.optimization_targets"
+
+  - id: optimize
+    primitive: implement
+    alias: optimize
+    description: "Apply optimization candidate to skill files, profiles, or schemas"
+    team: implement
+    duration_class: medium
+    config:
+      test_strategy: test_after
+      code_style: minimal_diff
+    input_mapping:
+      tasks: "profile.findings"
+
+  - id: benchmark
+    primitive: test
+    description: "Run EvoBench + full test suite, compare to baseline"
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration, benchmark]
+      fail_fast: false
+      coverage_threshold: 80.0
+    input_mapping:
+      code_refs: "optimize.files_changed"
+
+  - id: document
+    primitive: release
+    description: "Record optimization results, update docs and web display"
+    team: implement
+    duration_class: quick
+    config:
+      version_strategy: semver
+      require_human_approval: true
+      draft_mode: false
+
+composition:
+  compose: sequence
+  stages:
+    - stage: survey
+    - stage: profile
+    - compose: loop
+      ref: optimize_benchmark_loop
+    - stage: document
+
+loops:
+  - name: optimize_benchmark_loop
+    body_stages: [optimize, benchmark]
+    until: "benchmark.regression_count == 0 AND benchmark.composite_delta > 0"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: null
+
+gates:
+  - name: baseline_gate
+    position: "after:profile"
+    criteria:
+      - field: profile.baseline_scores
+        operator: "exists"
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: abort
+    require_human_override: false
+    auto_insert: false
+
+  - name: optimization_gate
+    position: "after:benchmark"
+    criteria:
+      - field: benchmark.regression_count
+        operator: "=="
+        value: 0
+      - field: benchmark.composite_delta
+        operator: ">"
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: retry
+    require_human_override: false
+    auto_insert: true
+
+environment_modes:
+  local:
+    skip_stages: []
+    gate_overrides: {}
+  github:
+    extra_stages: []

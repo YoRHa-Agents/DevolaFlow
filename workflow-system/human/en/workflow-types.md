@@ -4,8 +4,8 @@ description: "15 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T16:54:02Z"
-source_version: "3.1.0"
+last_synced: "2026-04-10T17:28:14Z"
+source_version: "3.2.0"
 ---
 
 # Workflow Types Catalog
@@ -37,6 +37,13 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Stages**: analyze (codebase survey) → document (onboarding docs) → setup (dev environment) → verify (smoke tests)
 **Teams**: Research, Implement, Test
 **Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
+
+#### `skill-optimization`
+**When to use**: Iteratively optimizing agent skill files, measuring context density, running EvoBench benchmarks.
+**Stages**: survey → profile → optimize → benchmark → iterate (convergence loop) → document
+**Teams**: Research, Implement (primary), Test (primary), Review
+**Key feature**: Uses an RDRR-like convergence loop on optimize→benchmark→iterate with a dedicated context profile (6000-token budget focused on gate mechanism, context isolation, and benchmarks).
+**Example prompt**: `"Optimize the SKILL.md context density using EvoBench benchmarks"`
 
 ### Shape Workflows
 
@@ -145,3 +152,4 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `performance-optimization` | slow, optimize, benchmark | 5 | standard |
 | `dependency-setup` | setup, install, configure env | 4 | relaxed |
 | `onboarding` | new to project, getting started | 4 | — |
+| `skill-optimization` | optimize skill, benchmark context | 6 | convergence |

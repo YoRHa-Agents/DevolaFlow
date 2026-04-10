@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EvoBench Results - DevolaFlow</title>
+  <style>
+    :root { --bg:#f8f9fa; --fg:#212529; --card-bg:#fff; --border:#dee2e6; --accent:#0d6efd; --accent-light:#e7f1ff; --muted:#6c757d; --success:#198754; --code-bg:#f1f3f5; --bad:#c0392b; }
+    .dark { --bg:#0d1117; --fg:#e6edf3; --card-bg:#161b22; --border:#30363d; --accent:#58a6ff; --accent-light:#1a2332; --muted:#8b949e; --success:#3fb950; --code-bg:#1c2128; --bad:#f85149; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--card-bg); border: 1px solid var(--border); border-radius: 50%; width: 2.5rem; height: 2.5rem; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; color: var(--fg); z-index: 10; }
+    header { padding: 2.5rem 0 1.5rem; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+    header h1 span { color: var(--accent); }
+    .tagline { color: var(--muted); margin-bottom: 0.75rem; }
+    .back { display: inline-block; margin-bottom: 1rem; color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    .back:hover { text-decoration: underline; }
+    section { padding: 2rem 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    section h2 { font-size: 1.35rem; margin-bottom: 0.75rem; }
+    section p.desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 0.5rem; }
+    .metric { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .metric .k { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .metric .v { font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-top: 0.25rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 0.5rem 0.45rem; border-bottom: 1px solid var(--border); text-align: left; }
+    th { font-weight: 600; border-bottom: 2px solid var(--border); }
+    tr:hover td { background: var(--accent-light); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.8rem; }
+    .delta-up { color: var(--success); font-weight: 600; }
+    .delta-down { color: var(--bad); font-weight: 600; }
+    .delta-flat { color: var(--muted); }
+    .scenario-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.15rem; margin-bottom: 1rem; }
+    .scenario-card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--fg); }
+    .dim { margin-bottom: 0.55rem; }
+    .dim label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.2rem; color: var(--muted); }
+    .bar { height: 8px; background: var(--code-bg); border-radius: 4px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+    .bar.noise > i { background: var(--bad); }
+    footer { padding: 2rem 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 640px) { header h1 { font-size: 1.6rem; } table { font-size: 0.75rem; } th, td { padding: 0.35rem 0.25rem; } }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">&#9681;</button>
+  <div class="container">
+    <header>
+      <a class="back" href="../index.html">&larr; Back to demo home</a>
+      <h1><span>EvoBench</span> Results</h1>
+      <p class="tagline">Optimization round metrics and improvement tracking</p>
+    </header>
+    <section>
+      <h2>Overview</h2>
+      <p class="desc">Aggregate stats from the embedded sample run (replace <code class="mono" style="background:var(--code-bg);padding:0 .2rem;border-radius:3px">SAMPLE_DATA</code> with real benchmark JSON).</p>
+      <div class="metrics">
+        <div class="metric"><div class="k">Total scenarios</div><div class="v" id="m-scenarios">0</div></div>
+        <div class="metric"><div class="k">Version</div><div class="v" id="m-version">0</div></div>
+        <div class="metric"><div class="k">Latest round</div><div class="v" id="m-round">0</div></div>
+      </div>
+    </section>
+    <section>
+      <h2>Round comparison</h2>
+      <p class="desc">Composite score per scenario and change vs previous round. Green: improvement; red: regression; gray: unchanged.</p>
+      <div style="overflow-x:auto"><table id="cmp-table"><thead></thead><tbody></tbody></table></div>
+    </section>
+    <section>
+      <h2>Per-scenario breakdown</h2>
+      <p class="desc">Four dimensions for the latest round (bars show raw 0&ndash;1 metrics; noise fills by noise level).</p>
+      <div id="breakdown"></div>
+    </section>
+    <footer>
+      <p>DevolaFlow &middot; <a href="https://github.com/YoRHa-Agents/DevolaFlow">GitHub</a> &middot; MIT License</p>
+    </footer>
+  </div>
+  <script>
+const SAMPLE_DATA = {
+  "version": "3.2.0",
+  "rounds": [
+    {
+      "round": 0,
+      "label": "baseline",
+      "timestamp": "2026-04-10T00:00:00Z",
+      "scenarios": {
+        "hotfix_jwt": {"composite": 85.0, "section_relevance": 0.86, "information_density": 0.58, "noise_ratio": 0.0, "budget_utilization": 0.68, "total_tokens": 3050, "budget": 4500},
+        "feature_middleware": {"composite": 82.0, "section_relevance": 0.75, "information_density": 0.60, "noise_ratio": 0.08, "budget_utilization": 0.80, "total_tokens": 5200, "budget": 6500},
+        "full_pipeline_auth": {"composite": 80.0, "section_relevance": 0.73, "information_density": 0.58, "noise_ratio": 0.10, "budget_utilization": 0.79, "total_tokens": 5135, "budget": 6500}
+      }
+    },
+    {
+      "round": 1,
+      "label": "optimization_a",
+      "timestamp": "2026-04-10T12:00:00Z",
+      "scenarios": {
+        "hotfix_jwt": {"composite": 88.5, "section_relevance": 0.88, "information_density": 0.62, "noise_ratio": 0.0, "budget_utilization": 0.72, "total_tokens": 2980, "budget": 4500},
+        "feature_middleware": {"composite": 79.5, "section_relevance": 0.72, "information_density": 0.55, "noise_ratio": 0.12, "budget_utilization": 0.78, "total_tokens": 5400, "budget": 6500},
+        "full_pipeline_auth": {"composite": 80.0, "section_relevance": 0.73, "information_density": 0.58, "noise_ratio": 0.10, "budget_utilization": 0.79, "total_tokens": 5100, "budget": 6500}
+      }
+    }
+  ]
+};
+(function () {
+  const data = SAMPLE_DATA;
+  const rounds = data.rounds.slice().sort((a, b) => a.round - b.round);
+  const scenSet = new Set();
+  rounds.forEach(function (r) { Object.keys(r.scenarios).forEach(function (k) { scenSet.add(k); }); });
+  const scenarios = Array.from(scenSet).sort();
+  const latest = rounds[rounds.length - 1];
+  document.getElementById('m-scenarios').textContent = String(scenarios.length);
+  document.getElementById('m-version').textContent = data.version;
+  document.getElementById('m-round').textContent = String(latest.round) + ' (' + latest.label + ')';
+  var thead = document.querySelector('#cmp-table thead');
+  var hrow = document.createElement('tr');
+  hrow.appendChild(document.createElement('th')).textContent = 'Scenario';
+  rounds.forEach(function (r) {
+    var th = document.createElement('th');
+    th.innerHTML = 'R' + r.round + ' <span class="mono" style="font-weight:400;color:var(--muted)">' + r.label + '</span>';
+    hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);
+  var tbody = document.querySelector('#cmp-table tbody');
+  scenarios.forEach(function (sid) {
+    var tr = document.createElement('tr');
+    tr.appendChild(document.createElement('td')).innerHTML = '<strong class="mono">' + sid + '</strong>';
+    var prev = null;
+    rounds.forEach(function (r) {
+      var td = document.createElement('td');
+      var sc = r.scenarios[sid];
+      if (!sc) { td.textContent = '—'; tr.appendChild(td); return; }
+      var comp = sc.composite;
+      var spanScore = document.createElement('span');
+      spanScore.textContent = Number(comp).toFixed(1);
+      td.appendChild(spanScore);
+      if (prev !== null) {
+        var d = comp - prev;
+        var span = document.createElement('span');
+        span.className = 'mono';
+        if (d > 0.0001) { span.className += ' delta-up'; span.textContent = ' +' + d.toFixed(1); }
+        else if (d < -0.0001) { span.className += ' delta-down'; span.textContent = ' ' + d.toFixed(1); }
+        else { span.className += ' delta-flat'; span.textContent = ' 0'; }
+        td.appendChild(document.createTextNode(' '));
+        td.appendChild(span);
+      } else {
+        td.appendChild(document.createTextNode(' '));
+        var em = document.createElement('span');
+        em.className = 'delta-flat mono';
+        em.textContent = '—';
+        td.appendChild(em);
+      }
+      prev = comp;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  var bd = document.getElementById('breakdown');
+  var cap = document.createElement('p');
+  cap.className = 'desc';
+  cap.style.marginBottom = '1rem';
+  cap.textContent = 'Latest: round ' + latest.round + ' (' + latest.label + ') · ' + latest.timestamp;
+  bd.appendChild(cap);
+  var dims = [
+    { key: 'section_relevance', label: 'section_relevance', noise: false },
+    { key: 'information_density', label: 'information_density', noise: false },
+    { key: 'noise_ratio', label: 'noise_ratio', noise: true },
+    { key: 'budget_utilization', label: 'budget_utilization', noise: false }
+  ];
+  scenarios.forEach(function (sid) {
+    var s = latest.scenarios[sid];
+    if (!s) return;
+    var card = document.createElement('div');
+    card.className = 'scenario-card';
+    card.innerHTML = '<h3 class="mono">' + sid + '</h3>';
+    dims.forEach(function (d) {
+      var v = s[d.key];
+      var pct = Math.max(0, Math.min(1, v)) * 100;
+      var row = document.createElement('div');
+      row.className = 'dim';
+      var lab = document.createElement('label');
+      lab.innerHTML = '<span>' + d.label + '</span><span class="mono">' + v.toFixed(2) + '</span>';
+      row.appendChild(lab);
+      var bar = document.createElement('div');
+      bar.className = 'bar' + (d.noise ? ' noise' : '');
+      var inner = document.createElement('i');
+      inner.style.width = pct + '%';
+      bar.appendChild(inner);
+      row.appendChild(bar);
+      card.appendChild(row);
+    });
+    bd.appendChild(card);
+  });
+})();
+  </script>
+</body>
+</html>

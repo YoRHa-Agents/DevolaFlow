@@ -5,6 +5,45 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-04-10
+
+### Added
+- **Plan Mode Hardening**: Rewrote SKILL.md Plan mode section (lines 52-100) with rigid hierarchy constraints:
+  - Per-task columns: ID, Type, Writable (<=6), Read-only, Est. time
+  - Per-wave validation: <=5 tasks, disjoint ownership
+  - Per-stage: gate_type, min/max_rounds, convergence structure, on_stagnation
+  - All 5 invariants (P1-P5) stated with enforcement notes
+  - DAG + gate-before-advance rule (D4), stable ID convention (S/W/T)
+  - Constraints checklist (7 items) for plan validation
+- **Skill Optimization Workflow**: New `skill-optimization` workflow type (16th):
+  - Stages: survey → profile → optimize → benchmark → iterate → document
+  - RDRR-like convergence loop on optimize→benchmark→iterate
+  - Template YAML at `templates/builtin/skill-optimization.yaml`
+  - Dedicated context profile with 6000-token budget
+- **3 New EvoBench Scenarios**: `skill_optimization`, `design_workflow`, `refactor_tech_debt` (6 total)
+- **EvoBench Round Tracking**: `--round N` and `--round-label` flags for multi-round optimization
+- **Benchmark History Storage**: `benchmarks/devolaflow_context/history/optimization_history.json` with per-round results and delta tracking
+- **Benchmark Results Web Page**: Interactive visualization at `demo/benchmark-results/index.html` showing per-round metrics, composite scores, and improvement tracking
+- **Claude/Copilot Plan Mode**: Both adapters now include condensed plan-mode constraint stanzas
+- **Workflow type counts updated to 16** across SKILL.md, MVP-SKILL.md, Claude adapter, Copilot adapter, README, demo page
+
+### Changed
+- SKILL.md Plan mode template: lightweight → rigid hierarchy-enforcing format
+- Context profiles section line ranges: updated to match current SKILL.md layout
+- Hotfix profile token budget: 4500 → 3500 (improves budget utilization)
+- Claude adapter workflow table: 11 → 16 types
+- Copilot adapter workflow list: 10 → 16 types
+- Demo landing page: "11 types" → "16 types", "v3.0.0" → "v3.2.0", new benchmark results card
+- Human docs (EN + ZH): workflow-types.md and customization-guide.md updated with skill-optimization workflow
+
+### Metrics
+- Tests: 309 passed (0 new failures)
+- Coverage: 88.63% (threshold: 80%)
+- EvoBench: 6/6 scenarios PASS, 0 regressions
+- EvoBench composite improvement: +6.2 avg (+7.6%) over 2 optimization rounds
+- Lint: All checks pass (ruff check + format)
+- Adapters: All 4 build within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+
 ## [3.1.0] - 2026-04-10
 
 ### Added

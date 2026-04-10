@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "3.1.0"
+version: "3.2.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 15 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v3.1.0**
+> **Now Using DevolaFlow v3.2.0**
 
 # DevolaFlow (MVP)
 
@@ -65,6 +65,7 @@ Select the workflow type that matches the user's intent:
 | performance-optimization | slow, optimize, profile, benchmark | profile → design → optimize → benchmark → validate |
 | dependency-setup | setup env, install, configure tools | research → plan → configure → verify |
 | onboarding | new to project, onboard, get started | analyze → document → setup → verify |
+| skill-optimization | optimize skill, benchmark context, density | survey → profile → optimize → benchmark → iterate → document |
 
 **Selection heuristic**: Match keywords from user request. If multiple match, prefer full-pipeline. If urgency signals present (urgent, ASAP), prefer hotfix.
 
@@ -281,3 +282,4 @@ T+14  L0  Project       All PASS → hotfix deployed + task quality score
 | performance-optimization | 5 | convergence |
 | dependency-setup | 4 | standard |
 | onboarding | 4 | standard |
+| skill-optimization | 6 | convergence |
