@@ -3,7 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-3.1.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 309 tests, 11 templates
+make test && make validate-templates   # 309+ tests, 16 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -149,25 +149,35 @@ The agent will compare your installed version against the latest on GitHub and t
 | "Is X feasible?" / "Prototype X" | `spike-poc` -- quick experiment |
 | "Write docs for X" | `documentation` -- survey, author, review |
 | "Security audit of X" | `security-audit` -- threat model, scan, remediate, verify |
+| "Build a demo of X" / "Showcase X" | `demo-showcase` -- presentation-ready demo with polished UI |
+| "X is slow" / "Optimize X" | `performance-optimization` -- profile, optimize, benchmark |
+| "Set up dev environment" / "Install X" | `dependency-setup` -- research, configure, verify |
+| "I'm new to this project" | `onboarding` -- codebase survey, docs, env setup |
+| "Optimize SKILL.md" / "EvoBench" / context density for skills | `skill-optimization` -- survey → profile → optimize → benchmark → iterate → document |
 | "update devola" | Check for newer version and get update instructions |
 
 ## What's Inside
 
-### 11 Built-in Workflow Types
+### 16 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
-| `full-pipeline` | New feature, greenfield project | design - plan - impl - review - test - refine - gate - release |
-| `hotfix` | Production bug, urgent fix | triage - fix - test - release |
-| `refactoring` | Tech debt, restructure | scope - plan - impl - test - review |
-| `research-only` | Compare alternatives, survey | research - compare - report |
-| `design-only` | Architecture, API design | research - design - review |
-| `migration` | Upgrade, port systems | assess - plan - impl - validate - cutover |
-| `spike-poc` | Prototype, experiment | research - prototype - evaluate |
-| `documentation` | Docs, guides, API refs | survey - author - review |
-| `security-audit` | Vulnerability scan, compliance | threat - scan - analyze - remediate - verify |
-| `feature-enhancement` | Extend existing features | scope - design - plan - impl - review - test - release |
-| `RDRR` | Design with research, ADR | research - design - review - refine (loop) |
+| `full-pipeline` | New feature, greenfield project | design → plan → impl → review → test → refine → gate → release |
+| `hotfix` | Production bug, urgent fix | triage → fix → test → release |
+| `refactoring` | Tech debt, restructure | scope → plan → impl → test → review |
+| `research-only` | Compare alternatives, survey | research → compare → report |
+| `design-only` | Architecture, API design | research → design → review |
+| `migration` | Upgrade, port systems | assess → plan → impl → validate → cutover |
+| `spike-poc` | Prototype, experiment | research → prototype → evaluate |
+| `documentation` | Docs, guides, API refs | survey → author → review |
+| `security-audit` | Vulnerability scan, compliance | threat → scan → analyze → remediate → verify |
+| `feature-enhancement` | Extend existing features | scope → design → plan → impl → review → test → release |
+| `RDRR` | Design with research, ADR | research → design → review → refine (loop) |
+| `demo-showcase` | Demos, presentations, showcases | research → storyboard → build → review → polish → package |
+| `performance-optimization` | Slow app, latency, profiling | profile → design → optimize → benchmark → validate |
+| `dependency-setup` | Environment setup, tooling | research → plan → configure → verify |
+| `onboarding` | New contributor, codebase intro | analyze → document → setup → verify |
+| `skill-optimization` | SKILL.md / skills, EvoBench, context density | survey → profile → optimize → benchmark → iterate → document |
 
 ### 4-Layer Agent Hierarchy
 
@@ -189,7 +199,7 @@ python -m benchmarks.devolaflow_context.runner --generate-baseline          # up
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection.
+Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Repository Development Rules (New in v3.0.0)
 
@@ -232,7 +242,7 @@ DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/_
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v3.0.0"
+devola-version                   # prints "DevolaFlow v3.1.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -295,7 +305,7 @@ DevolaFlow/
       SKILL.md                #   Tier 1 entry point (<500 lines)
       MVP-SKILL.md            #   self-contained single-file version
       references/             #   Tier 2: 8 domain reference files (200-500 lines)
-      templates/builtin/      #   11 workflow template YAMLs
+      templates/builtin/      #   16 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs
       knowledge/              #   Tier 3: code-rules + principle mappings
       workflow-skill.yaml     #   canonical source for adapter pipeline
@@ -330,21 +340,45 @@ Browse the framework architecture, workflow types, and stage primitives interact
 | Page | What it shows |
 |------|--------------|
 | [Design Architecture](https://yorha-agents.github.io/DevolaFlow/design-architecture/) | Complete framework map: every skill file, design source, tier, token budget, dependency graph |
-| [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | 11 workflow types as interactive pipeline diagrams with teams, gates, and loops |
+| [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | Built-in workflow types as interactive pipeline diagrams with teams, gates, and loops |
+| [Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/) | EvoBench scenario scores, baseline comparison, and trend-style visualization |
 | [Stage Explorer](https://yorha-agents.github.io/DevolaFlow/stage-explorer/) | 13 stage primitives with I/O types, delegation chains, and context budgets |
 
 Or open locally: `workflow-system/human/demo/index.html`
 
 ## Documentation
 
-| Doc | Language |
-|-----|----------|
-| [Quick Start](workflow-system/human/en/quickstart.md) | English |
-| [Architecture Overview](workflow-system/human/en/architecture-overview.md) | English |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | English |
-| [快速入门](workflow-system/human/zh/quickstart.md) | 中文 |
-| [架构概述](workflow-system/human/zh/architecture-overview.md) | 中文 |
-| [Design Documents](doc/designs/) | English (14 specs) |
+### User Guides (English)
+
+| Doc | Description |
+|-----|-------------|
+| [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
+| [Architecture Overview](workflow-system/human/en/architecture-overview.md) | 4-layer hierarchy, primitives, gates, context isolation |
+| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 16 workflow types with examples and selection guidance |
+| [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
+| [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
+| [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
+| [FAQ](workflow-system/human/en/faq.md) | Common questions about workflows, tools, gates, updates |
+| [Troubleshooting](workflow-system/human/en/troubleshooting.md) | Installation, workflow, test, and benchmark issues |
+
+### 用户指南（中文）
+
+| 文档 | 说明 |
+|------|------|
+| [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
+| [架构概述](workflow-system/human/zh/architecture-overview.md) | 4 层层级、原语、质量门、上下文隔离 |
+| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 16 种工作流类型，含示例和选择指南 |
+| [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
+| [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
+| [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |
+| [常见问题](workflow-system/human/zh/faq.md) | 工作流、工具、质量门、更新相关问题 |
+| [故障排查](workflow-system/human/zh/troubleshooting.md) | 安装、工作流、测试和基准测试问题 |
+
+### Design Documents
+
+| Doc | Description |
+|-----|-------------|
+| [Design Documents](doc/designs/) | 14 internal design specs (architecture, meta-framework, delivery, etc.) |
 
 ## Contributing
 

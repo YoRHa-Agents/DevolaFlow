@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "3.0.0"
+version: "3.2.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -28,13 +28,13 @@ description: >
   and context-isolated task delegation.
 ---
 
-> **Now Using DevolaFlow v3.0.0**
+> **Now Using DevolaFlow v3.2.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 3.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -51,9 +51,7 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 
 ## Mode Awareness
 
-**Before workflow selection, detect the current operating mode.**
-
-**Detection (in priority order):**
+**Detection (priority order):**
 1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
 2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
 3. User explicitly says "build a plan" / "plan this" / "design first" → **PLAN MODE**
@@ -61,40 +59,49 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 
-In Plan mode, output a **structured DevolaFlow plan** instead of orchestrating. The plan must embed the multi-layer hierarchy so the execution agent inherits the design principles.
+Output a **structured DevolaFlow plan** that enforces all hierarchy constraints. The plan is the contract the execution agent inherits.
 
 **Plan output format:**
 
 ```
 # [Plan Title]
 ## Overview
-[1-2 sentences: what and why]
-## Workflow: [type] | Gate Profile: [standard/strict/relaxed]
+[1-2 sentences] | Workflow: [type] | Gate: [standard/strict/relaxed]
+Escalation: Task → Wave → Stage → Project → Human
 
-## Stages
-### Stage N: [primitive] — [name]
-- Gate criteria: [threshold, coverage]
-- Context profile: [hotfix/research/design/refactor/review/feature]
-- Deliverables: [artifacts produced → consumed by next stage]
+## Stages (gate-before-advance: no stage starts until predecessor gate PASS)
 
-#### Wave N.1 (parallel)
-| Task | Team | Owned Files | Acceptance Criteria |
-|------|------|-------------|---------------------|
+### S01: [primitive] — [name]
+- gate_type: [standard|convergence|passthrough] | threshold: [N] | coverage: [N]%
+- max_rounds: [N] (convergence only) | on_stagnation: escalate
+- context_profile: [type] | deliverables: [artifact paths → consumed by S02]
 
-#### Wave N.2 (depends on N.1)
-...
+#### W01 (parallel | <=5 tasks | disjoint ownership)
+| ID | Type | Task | Team | Writable (<=6) | Read-only | Est. | AC |
+|----|------|------|------|----------------|-----------|------|-----|
 
-## Design Principles Embedded
-- P1: Stages dispatch only; only Tasks execute actual work
-- P2: Each task receives ≤8K tokens context (isolated, no cross-task leak)
-- P5: Stage handoffs via artifact summaries, not conversation history
+## Constraints Checklist
+- [ ] Each wave: <=5 tasks, pairwise disjoint writable files
+- [ ] Each stage: <=7 waves
+- [ ] Task limits: impl <=30min, research <=45min, <=6 writable files
+- [ ] Stage DAG: no cycles, gate-before-advance (D4)
+- [ ] Convergence stages: max_rounds + stagnation rule specified
+- [ ] Predecessors referenced by artifact path, not content copy
+
+## Invariants (ALL enforced)
+- P1: L0-L2 dispatch only; only L3 Tasks execute work
+- P2: Token budgets — L0: ~3K, L1: ~5K, L2: ~4K, L3: ~8K
+- P3: Inter-layer messages use typed YAML (TaskDispatch/StatusReport)
+- P4: Every loop has max_iterations; failures: retry/escalate/abort
+- P5: Layers communicate through artifact files, not conversation history
 ```
 
 **PLAN MODE rules:**
 - DO use read-only tools (search, read, glob) for research
 - DO use `create_plan` tool (Cursor) or write `plan.md` (Claude) for output
 - DO embed stage→wave→task decomposition with file ownership and acceptance criteria
-- DO annotate each stage's context profile and gate criteria
+- DO annotate each stage's gate_type, context profile, and convergence parameters
+- DO verify constraints checklist before finalizing the plan
 - DO NOT dispatch tasks, write code, run tests, or modify files
 - DO NOT start execution until the user explicitly approves the plan
 
@@ -119,6 +126,11 @@ Match user intent to workflow type, then load the corresponding stage template.
 | add to existing, extend, enhance | `feature-enhancement` | design → plan → impl → review → test → release |
 | build from scratch, new project, full | `full-pipeline` | design → plan → impl → review → test → testgate → release |
 | design with research, ADR, iterate design | `RDRR` | research → design → review → refine (loop) |
+| demo, showcase, presentation, pitch | `demo-showcase` | research → storyboard → build → review → polish → package |
+| slow, optimize, profile, benchmark | `performance-optimization` | profile → design → optimize → benchmark → validate |
+| setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
+| new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
+| optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
 
 **Selection heuristics:**
 
@@ -232,6 +244,11 @@ Full gate specification: `references/decomposition-gate.md`
 | security-audit | Active | — | Active | Active | Active |
 | RDRR | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
+| demo-showcase | Active | Active | **Primary** | — | Active |
+| perf-optimization | Active | Active | **Primary** | **Primary** | — |
+| dependency-setup | Active | Active | **Primary** | Active | — |
+| onboarding | **Primary** | — | Active | Active | — |
+| skill-optimization | Active | — | **Primary** | **Primary** | Active |
 
 Full team specifications: `references/team-roles.md`
 

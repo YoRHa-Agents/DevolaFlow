@@ -1,0 +1,24 @@
+# EvoBench Scenario: Design Workflow Context Selection
+# Tests that design profile correctly routes architecture-heavy sections.
+
+name: "design_workflow"
+task_type: "design"
+description: "Design new API architecture with schema definitions"
+
+expected_sections:
+  - stage_primitives
+  - gate_mechanism
+  - hierarchy_table
+  - dispatch_report
+  - context_isolation
+  - quick_start_workflows
+
+unwanted_sections:
+  - version_update
+  - template_quick_ref
+  - frontmatter
+
+quality_thresholds:
+  min_composite: 50.0
+  max_noise_ratio: 0.3
+  min_relevance: 0.5

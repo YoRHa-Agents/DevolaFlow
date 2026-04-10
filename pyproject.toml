@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "3.0.0"
+version = "3.2.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -45,6 +45,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/generate_human_docs.py" = ["E501"]
 
 [tool.coverage.run]
 source = ["devolaflow"]

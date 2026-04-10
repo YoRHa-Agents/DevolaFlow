@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T06:14:27Z"
-source_version: "3.0.0"
+last_synced: "2026-04-10T17:28:14Z"
+source_version: "3.2.0"
 ---
 
 # Quick Start Guide
@@ -16,35 +16,104 @@ Getting started with DevolaFlow in under 10 minutes.
 
 - Python 3.11+
 - pip
+- One of: Cursor, Claude Code, GitHub Copilot, or OpenAI Codex
 
-## Installation
+## Step 1: Install DevolaFlow
 
-```bash
-pip install -e ".[dev]"
-```
+Choose the method that fits your setup:
 
-## Your First Workflow
-
-1. Run `detect-repo-mode` to identify your repository type
-2. Run `validate-template --all` to verify templates are valid
-3. Choose a workflow type based on your task
-4. Follow the 4-layer hierarchy: Project dispatches Stages
-
-## Checking Your Version
+**Option A — One-liner (recommended for most users):**
 
 ```bash
-devola-version   # prints DevolaFlow vX.X.X
+INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
+
+# Install for Cursor (project-local)
+curl -fsSL $INSTALLER | bash -s cursor
+
+# Or install for all tools at once
+curl -fsSL $INSTALLER | bash -s all
 ```
 
-Or ask your AI agent: `"update devola"` to check the installed version and whether a newer release is available.
+**Option B — pip install:**
 
-## Updating DevolaFlow
+```bash
+pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
+cd your-project/
+devola-init cursor       # Cursor only
+devola-init all          # all tools
+```
 
-**From inside your AI tool** (recommended):
+**Option C — Manual (single file):**
 
-Type `"update devola"` or `"/update-devola"`. The agent checks GitHub for the latest version and provides the right command for your setup.
+Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and place it in:
 
-**From the terminal:**
+| Tool | Path |
+|------|------|
+| Cursor | `.cursor/skills/devola-flow/SKILL.md` |
+| Claude Code | `./CLAUDE.md` |
+| Copilot | `.github/copilot-instructions.md` |
+| Codex | `~/.codex/skills/devola-flow/SKILL.md` |
+
+## Step 2: Verify Installation
+
+```bash
+devola-version   # should print "DevolaFlow v3.0.0"
+```
+
+## Step 3: Try Your First Workflow
+
+Open your AI tool and try one of these prompts:
+
+### Example: Fix a Bug (Hotfix Workflow)
+
+```
+Fix the login timeout bug — users report 500 errors after 30 seconds of inactivity
+```
+
+What happens behind the scenes:
+1. DevolaFlow detects **hotfix** intent from "fix" + "bug"
+2. **Triage stage**: Agent analyzes the bug, identifies root cause
+3. **Fix stage**: Agent implements a minimal targeted fix
+4. **Test stage**: Agent runs focused tests on affected code
+5. **Release stage**: Agent prepares the patch for deployment
+
+### Example: Build a New Feature (Full Pipeline)
+
+```
+Implement a user notification system with email and in-app channels
+```
+
+What happens:
+1. DevolaFlow selects **full-pipeline** workflow (8 stages)
+2. **Design**: Architecture for notification system
+3. **Plan**: Break into waves and tasks with dependencies
+4. **Implement**: Write code with TDD (target 80% coverage)
+5. **Review → Test → Refine**: Convergence loop until quality passes
+6. **Gate**: Composite score must reach ≥85 with zero blockers
+7. **Release**: Package and tag
+
+### Example: Quick Research (No Code)
+
+```
+Research the best approach for real-time notifications — compare WebSocket vs SSE vs polling
+```
+
+What happens:
+1. DevolaFlow selects **research-only** workflow
+2. Agent produces a structured comparison report — no code written
+
+## Step 4: Explore More
+
+- See all 15 workflow types: [Workflow Types](workflow-types.md)
+- Understand the architecture: [Architecture Overview](architecture-overview.md)
+- Set up for your specific tool: [Integration Guide](integration-guide.md)
+- Customize workflows: [Customization Guide](customization-guide.md)
+
+## Checking for Updates
+
+Ask your AI agent: `"update devola"` — it checks GitHub for newer versions and provides the exact update command.
+
+Or from the terminal:
 
 ```bash
 # Installer update
@@ -53,17 +122,3 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 # pip update
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 ```
-
-## Running EvoBench Benchmarks
-
-DevolaFlow includes a context density benchmark suite (EvoBench) to verify optimization changes:
-
-```bash
-python -m benchmarks.devolaflow_context.runner --scenario all
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
-```
-
-## Next Steps
-
-- Read the [Architecture Overview](architecture-overview.md)
-- Explore [Workflow Types](workflow-types.md)

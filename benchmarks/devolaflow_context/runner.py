@@ -26,6 +26,7 @@ from benchmarks.devolaflow_context.evaluator import (
 
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 BASELINES_DIR = Path(__file__).parent / "baselines"
+HISTORY_DIR = Path(__file__).parent / "history"
 
 _selector_module = None
 
@@ -117,6 +118,54 @@ def run_all(
     return report
 
 
+def save_round(round_num: int, label: str, version: str = "3.2.0") -> dict[str, Any]:
+    """Run all scenarios and save as a numbered round in optimization history."""
+    import datetime
+
+    report = run_all()
+    round_data = {
+        "round": round_num,
+        "label": label,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "scenarios": {r["scenario_name"]: r for r in report["results"]},
+    }
+
+    history_path = HISTORY_DIR / "optimization_history.json"
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+    history: dict[str, Any] = {"version": version, "rounds": []}
+    if history_path.exists():
+        with open(history_path) as f:
+            history = json.load(f)
+
+    existing = [r for r in history["rounds"] if r["round"] != round_num]
+    existing.append(round_data)
+    existing.sort(key=lambda r: r["round"])
+    history["rounds"] = existing
+
+    if round_num > 0 and len(existing) >= 2:
+        baseline_round = existing[0]
+        deltas: dict[str, float] = {}
+        for name, current in round_data["scenarios"].items():
+            if name in baseline_round["scenarios"]:
+                base_comp = baseline_round["scenarios"][name].get("composite", 0)
+                deltas[name] = round(current.get("composite", 0) - base_comp, 2)
+        round_data["delta_vs_baseline"] = deltas
+
+        with open(history_path, "w") as f:
+            json.dump(history, f, indent=2)
+    else:
+        with open(history_path, "w") as f:
+            json.dump(history, f, indent=2)
+
+    BASELINES_DIR.mkdir(parents=True, exist_ok=True)
+    round_baseline_path = BASELINES_DIR / f"v{version}_round_{round_num}.json"
+    with open(round_baseline_path, "w") as f:
+        json.dump(round_data["scenarios"], f, indent=2)
+
+    return round_data
+
+
 def generate_baseline(name_filter: str = "all") -> Path:
     """Run all scenarios and write results as the baseline file."""
     scenario_paths = discover_scenarios(name_filter)
@@ -154,11 +203,36 @@ def main() -> None:
         help="Generate baseline from current results",
     )
     parser.add_argument("--json", action="store_true", help="Output raw JSON")
+    parser.add_argument(
+        "--round",
+        type=int,
+        default=None,
+        help="Save results as optimization round N (stored in history/)",
+    )
+    parser.add_argument(
+        "--round-label",
+        default="",
+        help="Label for this optimization round (e.g. 'plan_mode_hardening')",
+    )
     args = parser.parse_args()
 
     if args.generate_baseline:
         out = generate_baseline(args.scenario)
         print(f"Baseline written to {out}")
+        return
+
+    if args.round is not None:
+        round_data = save_round(args.round, args.round_label)
+        if args.json:
+            print(json.dumps(round_data, indent=2))
+        else:
+            print(f"Round {args.round} saved ({args.round_label})")
+            for name, data in round_data["scenarios"].items():
+                print(f"  {name}: composite={data['composite']:.1f}")
+            if "delta_vs_baseline" in round_data:
+                print("\nDeltas vs baseline:")
+                for name, delta in round_data["delta_vs_baseline"].items():
+                    print(f"  {name}: {delta:+.1f}")
         return
 
     report = run_all(args.scenario, args.compare_baseline)

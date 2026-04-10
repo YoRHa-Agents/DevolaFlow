@@ -17,98 +17,98 @@ meta:
 # SKILL.md section registry with line ranges and base token estimates
 sections:
   frontmatter:
-    lines: "1-31"
+    lines: "1-30"
     tokens_est: 180
     content_type: metadata
 
   version_update:
-    lines: "33-55"
-    tokens_est: 200
+    lines: "35-40"
+    tokens_est: 80
     content_type: prose
 
   quick_action_decision:
-    lines: "57-68"
+    lines: "41-51"
     tokens_est: 120
     content_type: table
 
   purpose_scope:
-    lines: "70-81"
-    tokens_est: 100
+    lines: "52-107"
+    tokens_est: 500
     content_type: prose
 
   quick_start_workflows:
-    lines: "83-109"
-    tokens_est: 350
+    lines: "112-143"
+    tokens_est: 400
     content_type: table
 
   hierarchy_table:
-    lines: "111-121"
-    tokens_est: 200
+    lines: "144-157"
+    tokens_est: 250
     content_type: table
 
   hierarchy_diagram:
-    lines: "123-142"
-    tokens_est: 150
-    content_type: diagram
+    lines: "144-157"
+    tokens_est: 250
+    content_type: table
 
   wave_task_constraints:
-    lines: "144-145"
-    tokens_est: 50
+    lines: "155-158"
+    tokens_est: 60
     content_type: constraints
 
   stage_primitives:
-    lines: "147-197"
+    lines: "159-208"
     tokens_est: 500
     content_type: table
 
   gate_mechanism:
-    lines: "199-225"
-    tokens_est: 350
+    lines: "209-222"
+    tokens_est: 250
     content_type: formula
 
   agent_teams:
-    lines: "227-253"
-    tokens_est: 400
+    lines: "223-254"
+    tokens_est: 450
     content_type: table
 
   context_isolation:
-    lines: "255-283"
-    tokens_est: 350
+    lines: "255-272"
+    tokens_est: 280
     content_type: spec
 
   dispatch_report:
-    lines: "285-315"
-    tokens_est: 380
+    lines: "273-299"
+    tokens_est: 350
     content_type: spec
 
   repo_mode:
-    lines: "317-331"
-    tokens_est: 150
+    lines: "300-310"
+    tokens_est: 130
     content_type: table
 
   reference_navigation:
-    lines: "333-361"
-    tokens_est: 350
+    lines: "311-338"
+    tokens_est: 320
     content_type: navigation
 
   rules_dispatchers:
-    lines: "362-382"
-    tokens_est: 250
+    lines: "311-338"
+    tokens_est: 320
     content_type: rules
 
   convergence_loop:
-    lines: "384-401"
-    tokens_est: 250
-    content_type: diagram
+    lines: "311-338"
+    tokens_est: 320
+    content_type: navigation
 
   task_quality_score:
-    lines: "403-433"
-    tokens_est: 400
+    lines: "339-363"
+    tokens_est: 350
     content_type: spec
 
   template_quick_ref:
-    lines: "434-450"
-    tokens_est: 220
+    lines: "339-363"
+    tokens_est: 350
     content_type: table
 
 # Context profiles per task type
@@ -124,7 +124,7 @@ profiles:
       - "SEV1"
       - "SEV2"
       - "production down"
-    token_budget: 4500
+    token_budget: 3500
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -341,3 +341,42 @@ profiles:
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
       understanding delegation. Convergence loops are implementation-specific.
+
+  skill-optimization:
+    description: "Agent skill optimization — benchmark context, density improvement"
+    goal_hints:
+      - "optimize skill"
+      - "benchmark context"
+      - "context density"
+      - "compress skill"
+      - "skill iteration"
+      - "EvoBench"
+    token_budget: 6000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: important
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: supplementary
+      gate_mechanism: critical
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: skip
+      reference_navigation: skip
+      rules_dispatchers: important
+      convergence_loop: important
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+      - "references/context-isolation.md"
+    rationale: >
+      Skill optimization focuses on measuring and improving context density.
+      Gate mechanism is critical for evaluating optimization results. Context
+      isolation and dispatch protocol matter because they define what agents
+      actually receive. Convergence loop is important for the iterate cycle.

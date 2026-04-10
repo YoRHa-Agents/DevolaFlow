@@ -40,7 +40,9 @@ class CopilotAdapter(BaseAdapter):
         lines.append("")
         lines.append(
             "Available: research-only, design-only, hotfix, refactoring, migration, "
-            "spike-poc, documentation, security-audit, feature-enhancement, full-pipeline"
+            "spike-poc, documentation, security-audit, feature-enhancement, full-pipeline, "
+            "RDRR, demo-showcase, perf-optimization, dependency-setup, onboarding, "
+            "skill-optimization"
         )
         lines.append("")
 
@@ -53,6 +55,12 @@ class CopilotAdapter(BaseAdapter):
         lines.append("## Gate")
         lines.append("")
         lines.append("composite = test(0.30) + review(0.30) + arch(0.20) + bench(0.20) >= 85")
+        lines.append("")
+
+        lines.append("## Plan Constraints")
+        lines.append("")
+        lines.append("Waves: <=5 tasks, disjoint files. Stages: <=7 waves, gate-before-advance.")
+        lines.append("Tasks: impl <=30min, <=6 writable files. P1-P5 enforced in all plans.")
 
         content = "\n".join(lines)
         (gh_dir / "copilot-instructions.md").write_text(content)

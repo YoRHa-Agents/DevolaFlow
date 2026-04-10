@@ -50,7 +50,12 @@ class ClaudeAdapter(BaseAdapter):
             "security-audit": "Vulnerability scan, compliance review",
             "feature-enhancement": "Extend existing functionality",
             "full-pipeline": "New feature, greenfield, complete lifecycle",
-            "research-design-review-refine": "Design with research, ADR workflow",
+            "RDRR": "Design with research, ADR workflow",
+            "demo-showcase": "Build demo, presentation, pitch",
+            "perf-optimization": "Profile, benchmark, optimize speed",
+            "dependency-setup": "Environment, install, configure tools",
+            "onboarding": "New contributor, codebase survey",
+            "skill-optimization": "Optimize agent skill, benchmark context",
         }
         out.append("| Type | Use When |")
         out.append("|------|----------|")
@@ -72,6 +77,16 @@ class ClaudeAdapter(BaseAdapter):
         out.append("")
         out.append("composite = test(0.30) + review(0.30) + arch(0.20) + bench(0.20)")
         out.append("PASS when: composite >= 85 AND blockers == 0 AND round >= 1")
+        out.append("")
+
+        out.append("## Plan Mode Constraints")
+        out.append("")
+        out.append("When in Plan mode, enforce these rigid constraints in plan output:")
+        out.append("- <=5 tasks/wave, <=7 waves/stage, disjoint writable files within wave")
+        out.append("- Task limits: impl <=30min, research <=45min, <=6 writable files")
+        out.append("- Each stage specifies gate_type (standard/convergence/passthrough)")
+        out.append("- Gates block advancement: no stage starts until predecessor PASS (D4)")
+        out.append("- P1-P5 enforced: dispatch-only layers, typed YAML, bounded retry, artifacts")
         out.append("")
 
         if refs:

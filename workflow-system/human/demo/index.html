@@ -143,7 +143,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>11 Built-in Workflow Types</h2>
+      <h2>16 Built-in Workflow Types</h2>
       <p class="desc">Pick the right workflow for your task. Each is a different composition of the same 13 stage primitives.</p>
       <table>
         <thead><tr><th>Workflow</th><th>When to use</th><th>Stages</th></tr></thead>
@@ -159,6 +159,11 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <tr><td><strong>security-audit</strong></td><td>Vulnerability scan</td><td class="stages-list">threat - scan - analyze - remediate - verify</td></tr>
           <tr><td><strong>feature-enhancement</strong></td><td>Extend existing features</td><td class="stages-list">scope - design - plan - impl - review - test - release</td></tr>
           <tr><td><strong>RDRR</strong></td><td>Design with research</td><td class="stages-list">research - design - review - refine (loop)</td></tr>
+          <tr><td><strong>demo-showcase</strong></td><td>Build demo, presentation, pitch</td><td class="stages-list">research - storyboard - build - review - polish - package</td></tr>
+          <tr><td><strong>performance-optimization</strong></td><td>Profile, benchmark, optimize speed</td><td class="stages-list">profile - design - optimize - benchmark - validate</td></tr>
+          <tr><td><strong>dependency-setup</strong></td><td>Environment, install, configure tools</td><td class="stages-list">research - plan - configure - verify</td></tr>
+          <tr><td><strong>onboarding</strong></td><td>New contributor, codebase survey</td><td class="stages-list">analyze - document - setup - verify</td></tr>
+          <tr><td><strong>skill-optimization</strong></td><td>Optimize agent skill, benchmark context</td><td class="stages-list">survey - profile - optimize - benchmark - iterate - document</td></tr>
         </tbody>
       </table>
     </section>
@@ -176,7 +181,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">INTERACTIVE</span>
           <h3>Workflow Visualizer</h3>
-          <p>Select any of the 11 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.</p>
+          <p>Select any of the 16 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.</p>
           <a href="workflow-visualizer/index.html">Open Visualizer &rarr;</a>
         </div>
         <div class="card">
@@ -207,8 +212,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>New in v3.0.0</h2>
-      <p class="desc">Repository rules, EvoBench benchmarks, and context optimization — shipped with 309 tests at 88% coverage.</p>
+      <h2>New in v3.2.0</h2>
+      <p class="desc">Plan mode hardening, skill optimization workflow, EvoBench expansion, and benchmark visualization — shipped with 16 workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label">BENCHMARKS</span>
@@ -227,6 +232,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <h3>Task-Adaptive Selection</h3>
           <p>Context profiles per task type (hotfix, feature, research, refactor, review, design). Agents receive only task-relevant SKILL.md sections with priority-based token budget allocation.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml">View Profiles &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">VISUALIZATION</span>
+          <h3>Benchmark Results</h3>
+          <p>Interactive visualization of EvoBench optimization rounds with per-scenario metrics, composite scores, and round-over-round improvement tracking.</p>
+          <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
       </div>
     </section>
