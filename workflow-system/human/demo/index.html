@@ -212,13 +212,13 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>New in v3.2.0</h2>
-      <p class="desc">Plan mode hardening, skill optimization workflow, EvoBench expansion, and benchmark visualization — shipped with 16 workflows.</p>
+      <h2>New in v3.3.0</h2>
+      <p class="desc">Full workflow coverage: 16 context profiles, 17 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite measuring section relevance, information density, and noise ratio per task type. Detects regressions against stored baselines.</p>
+          <p>Context density benchmark suite with 17 scenarios covering all 16 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context">View Benchmarks &rarr;</a>
         </div>
         <div class="card">
@@ -230,13 +230,13 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">CONTEXT</span>
           <h3>Task-Adaptive Selection</h3>
-          <p>Context profiles per task type (hotfix, feature, research, refactor, review, design). Agents receive only task-relevant SKILL.md sections with priority-based token budget allocation.</p>
+          <p>16 context profiles for all workflow types (hotfix, feature, research, refactor, review, design, migration, security-audit, documentation, spike-poc, rdrr, demo-showcase, perf-optimization, dependency-setup, onboarding, skill-optimization). Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml">View Profiles &rarr;</a>
         </div>
         <div class="card">
           <span class="label">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of EvoBench optimization rounds with per-scenario metrics, composite scores, and round-over-round improvement tracking.</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 17 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 → final 94.4).</p>
           <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
       </div>
