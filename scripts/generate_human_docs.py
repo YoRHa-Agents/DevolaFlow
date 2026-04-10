@@ -8,56 +8,78 @@ Simplified v0.1.0: generates structured docs with practical content.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 DOCS = [
-    ("quickstart", "Quick Start Guide",
-     "Getting started with DevolaFlow in under 10 minutes.",
-     "快速入门指南", "10 分钟内开始使用 DevolaFlow。"),
-    ("architecture-overview", "Architecture Overview",
-     "System architecture: 4-layer hierarchy, stage primitives, gate mechanism.",
-     "架构概述", "系统架构：4 层层级、阶段原语、质量门机制。"),
-    ("workflow-types", "Workflow Types Catalog",
-     "11 built-in workflow types with selection guidance.",
-     "工作流类型目录", "11 种内置工作流类型及选择指南。"),
-    ("agent-hierarchy-guide", "Agent Hierarchy Guide",
-     "Understanding the 4-layer delegation hierarchy.",
-     "Agent 层级指南", "理解 4 层委托层级架构。"),
-    ("customization-guide", "Customization Guide",
-     "Creating custom workflow templates and derived configurations.",
-     "自定义指南", "创建自定义工作流模板和派生配置。"),
-    ("integration-guide", "Integration Guide",
-     "Integrating DevolaFlow with existing tools and CI/CD pipelines.",
-     "集成指南", "将 DevolaFlow 与现有工具和 CI/CD 管线集成。"),
-    ("troubleshooting", "Troubleshooting",
-     "Common issues and solutions for workflow execution.",
-     "故障排查", "工作流执行中的常见问题和解决方案。"),
-    ("faq", "FAQ",
-     "Frequently asked questions about the workflow system.",
-     "常见问题", "关于工作流系统的常见问题解答。"),
+    (
+        "quickstart",
+        "Quick Start Guide",
+        "Getting started with DevolaFlow in under 10 minutes.",
+        "快速入门指南",
+        "10 分钟内开始使用 DevolaFlow。",
+    ),
+    (
+        "architecture-overview",
+        "Architecture Overview",
+        "System architecture: 4-layer hierarchy, stage primitives, gate mechanism.",
+        "架构概述",
+        "系统架构：4 层层级、阶段原语、质量门机制。",
+    ),
+    (
+        "workflow-types",
+        "Workflow Types Catalog",
+        "11 built-in workflow types with selection guidance.",
+        "工作流类型目录",
+        "11 种内置工作流类型及选择指南。",
+    ),
+    (
+        "agent-hierarchy-guide",
+        "Agent Hierarchy Guide",
+        "Understanding the 4-layer delegation hierarchy.",
+        "Agent 层级指南",
+        "理解 4 层委托层级架构。",
+    ),
+    (
+        "customization-guide",
+        "Customization Guide",
+        "Creating custom workflow templates and derived configurations.",
+        "自定义指南",
+        "创建自定义工作流模板和派生配置。",
+    ),
+    (
+        "integration-guide",
+        "Integration Guide",
+        "Integrating DevolaFlow with existing tools and CI/CD pipelines.",
+        "集成指南",
+        "将 DevolaFlow 与现有工具和 CI/CD 管线集成。",
+    ),
+    (
+        "troubleshooting",
+        "Troubleshooting",
+        "Common issues and solutions for workflow execution.",
+        "故障排查",
+        "工作流执行中的常见问题和解决方案。",
+    ),
+    (
+        "faq",
+        "FAQ",
+        "Frequently asked questions about the workflow system.",
+        "常见问题",
+        "关于工作流系统的常见问题解答。",
+    ),
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "2.1.0"
+SOURCE_VERSION = "3.0.0"
 
 
 def _gen_doc(slug: str, title: str, desc: str, lang: str, output_dir: Path) -> None:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    fm = (
-        "---\n"
-        f"title: \"{title}\"\n"
-        f"description: \"{desc}\"\n"
-        f"source_files:\n"
-    )
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fm = f'---\ntitle: "{title}"\ndescription: "{desc}"\nsource_files:\n'
     for sf in SOURCE_FILES:
-        fm += f"  - \"{sf}\"\n"
-    fm += (
-        f"auto_generated: true\n"
-        f"last_synced: \"{now}\"\n"
-        f"source_version: \"{SOURCE_VERSION}\"\n"
-        "---\n\n"
-    )
+        fm += f'  - "{sf}"\n'
+    fm += f'auto_generated: true\nlast_synced: "{now}"\nsource_version: "{SOURCE_VERSION}"\n---\n\n'
     content = fm + f"# {title}\n\n{desc}\n\n"
 
     if lang == "en":
@@ -73,7 +95,7 @@ def _gen_en_content(slug: str) -> str:
     sections = {
         "quickstart": (
             "## Prerequisites\n\n- Python 3.11+\n- pip\n\n"
-            "## Installation\n\n```bash\npip install -e \".[dev]\"\n```\n\n"
+            '## Installation\n\n```bash\npip install -e ".[dev]"\n```\n\n'
             "## Your First Workflow\n\n"
             "1. Run `detect-repo-mode` to identify your repository type\n"
             "2. Run `validate-template --all` to verify templates are valid\n"
@@ -81,11 +103,11 @@ def _gen_en_content(slug: str) -> str:
             "4. Follow the 4-layer hierarchy: Project dispatches Stages\n\n"
             "## Checking Your Version\n\n"
             "```bash\ndevola-version   # prints DevolaFlow vX.X.X\n```\n\n"
-            "Or ask your AI agent: `\"update devola\"` to check the installed version "
+            'Or ask your AI agent: `"update devola"` to check the installed version '
             "and whether a newer release is available.\n\n"
             "## Updating DevolaFlow\n\n"
             "**From inside your AI tool** (recommended):\n\n"
-            "Type `\"update devola\"` or `\"/update-devola\"`. The agent checks GitHub "
+            'Type `"update devola"` or `"/update-devola"`. The agent checks GitHub '
             "for the latest version and provides the right command for your setup.\n\n"
             "**From the terminal:**\n\n"
             "```bash\n"
@@ -140,7 +162,7 @@ def _gen_zh_content(slug: str) -> str:
     sections = {
         "quickstart": (
             "## 前置条件\n\n- Python 3.11+\n- pip\n\n"
-            "## 安装\n\n```bash\npip install -e \".[dev]\"\n```\n\n"
+            '## 安装\n\n```bash\npip install -e ".[dev]"\n```\n\n'
             "## 你的第一个工作流\n\n"
             "1. 运行 `detect-repo-mode` 识别仓库类型\n"
             "2. 运行 `validate-template --all` 验证模板有效性\n"
@@ -148,10 +170,10 @@ def _gen_zh_content(slug: str) -> str:
             "4. 遵循 4 层层级：项目代理分派阶段代理\n\n"
             "## 查看版本\n\n"
             "```bash\ndevola-version   # 输出 DevolaFlow vX.X.X\n```\n\n"
-            "或在 AI 工具中输入 `\"update devola\"` 查看已安装版本并检查是否有新版本。\n\n"
+            '或在 AI 工具中输入 `"update devola"` 查看已安装版本并检查是否有新版本。\n\n'
             "## 更新 DevolaFlow\n\n"
             "**在 AI 工具中更新**（推荐）：\n\n"
-            "输入 `\"update devola\"` 或 `\"/update-devola\"`。"
+            '输入 `"update devola"` 或 `"/update-devola"`。'
             "代理会从 GitHub 检查最新版本并提供对应的更新命令。\n\n"
             "**在终端中更新：**\n\n"
             "```bash\n"
@@ -183,8 +205,10 @@ def main() -> None:
     root = Path(__file__).resolve().parent.parent
     human_dir = root / "workflow-system" / "human"
 
-    do_en = "--all" in sys.argv or "--lang" not in sys.argv or (
-        "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "en"
+    do_en = (
+        "--all" in sys.argv
+        or "--lang" not in sys.argv
+        or ("--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "en")
     )
     do_zh = "--all" in sys.argv or (
         "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "zh"

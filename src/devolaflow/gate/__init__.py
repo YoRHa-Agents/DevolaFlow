@@ -5,6 +5,7 @@ Design ref: design_decomposition_gate.md §5
 
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    AcceptanceCriterionResult,
     CheckResult,
     ConvergenceRound,
     Finding,
@@ -15,16 +16,20 @@ from devolaflow.gate.models import (
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
 from devolaflow.gate.reporter import generate_markdown_report, generate_yaml_report
 from devolaflow.gate.scorer import (
+    ARS_DIMENSION_WEIGHTS,
     DEFAULT_DIMENSION_WEIGHTS,
     SEVERITY_WEIGHTS,
     composite_score,
     evaluate_gate,
     quality_score,
     run_gate_cli,
+    score_acceptance_readiness,
 )
 
 __all__ = [
+    "ARS_DIMENSION_WEIGHTS",
     "AUDIT",
+    "AcceptanceCriterionResult",
     "DEFAULT_DIMENSION_WEIGHTS",
     "PROFILES",
     "RELAXED",
@@ -45,4 +50,5 @@ __all__ = [
     "generate_yaml_report",
     "quality_score",
     "run_gate_cli",
+    "score_acceptance_readiness",
 ]

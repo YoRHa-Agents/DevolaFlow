@@ -15,6 +15,7 @@ STRICT = GateProfile(
     min_rounds=2,
     lint_policy="zero_warnings",
     benchmark_policy="required",
+    acceptance_readiness_threshold=90,
 )
 
 STANDARD = GateProfile(
@@ -27,6 +28,7 @@ STANDARD = GateProfile(
     min_rounds=1,
     lint_policy="zero_errors",
     benchmark_policy="optional",
+    acceptance_readiness_threshold=80,
 )
 
 RELAXED = GateProfile(
@@ -39,6 +41,7 @@ RELAXED = GateProfile(
     min_rounds=1,
     lint_policy="zero_errors",
     benchmark_policy="disabled",
+    acceptance_readiness_threshold=70,
 )
 
 AUDIT = GateProfile(
@@ -51,6 +54,7 @@ AUDIT = GateProfile(
     min_rounds=3,
     lint_policy="zero_warnings",
     benchmark_policy="required_with_regression_check",
+    acceptance_readiness_threshold=95,
 )
 
 PROFILES: dict[str, GateProfile] = {

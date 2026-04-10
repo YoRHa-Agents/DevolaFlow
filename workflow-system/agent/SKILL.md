@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "2.1.0"
+version: "3.0.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -19,44 +19,26 @@ triggers:
   - "update_devola"
   - "/update-devola"
 tier: 1
-token_estimate: 3800
-last_updated: "2026-04-05"
+token_estimate: 2800
+last_updated: "2026-04-10"
 name: devola-flow
 description: >
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
   (Project -> Stage -> Wave -> Task) with gate mechanisms, convergence loops,
-  and context-isolated task delegation. Use when implementing features,
-  fixing bugs, refactoring, migrating, or running any multi-step development
-  workflow.
+  and context-isolated task delegation.
 ---
 
-> **Now Using DevolaFlow v2.1.0**
+> **Now Using DevolaFlow v3.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-<!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 2.1.0
-
-**To check for updates** (only when user explicitly asks via "update devola", "update_devola", or "/update-devola"):
-
-1. Fetch the latest version from GitHub:
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'
-   ```
-2. Compare the result with the current version shown above (2.1.0).
-3. If a newer version exists, advise the user:
-   - **pip update:** `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
-   - **Installer update:** `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-   - **Manual update:** Download the latest SKILL.md from the [releases page](https://github.com/YoRHa-Agents/DevolaFlow/releases)
-4. If already up to date, respond: "DevolaFlow v2.1.0 is the latest version."
-
-**IMPORTANT:** Do NOT run this check automatically. Only check when the user explicitly requests an update check. This preserves context tokens.
+**Current version:** 3.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
+Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
 ## Quick Action Decision
-
-Before selecting a workflow, assess task complexity:
 
 | Complexity | Signal | Action |
 |-----------|--------|--------|
@@ -67,21 +49,60 @@ Before selecting a workflow, assess task complexity:
 
 **Rule**: Do not over-orchestrate simple tasks. Match ceremony to complexity.
 
-## Purpose & Scope
-<!-- design ref: design_delivery_architecture.md §3.4 -->
+## Mode Awareness
 
-This skill orchestrates multi-stage software development workflows. It covers:
+**Before workflow selection, detect the current operating mode.**
 
-- **11 workflow types**: research-only, design-only, hotfix, refactoring, migration, spike-poc, documentation, security-audit, feature-enhancement, full-pipeline, RDRR
-- **13 stage primitives**: research, analyze, design, plan, implement, refine, review, test, validate, release, deploy, monitor, gate
-- **4-layer agent hierarchy**: Project → Stage → Wave → Task with strict context isolation
-- **Gate quality mechanism**: composite scoring with convergence loops and bounded retry
+**Detection (in priority order):**
+1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
+2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
+3. User explicitly says "build a plan" / "plan this" / "design first" → **PLAN MODE**
+4. Otherwise → **AGENT MODE** (default, full orchestration)
 
-Use when asked to implement features, fix bugs, refactor, migrate, or run any multi-step workflow.
-Start by matching user intent to a workflow type in the Quick Start table below.
+### PLAN MODE — Design the Plan, Do NOT Execute
+
+In Plan mode, output a **structured DevolaFlow plan** instead of orchestrating. The plan must embed the multi-layer hierarchy so the execution agent inherits the design principles.
+
+**Plan output format:**
+
+```
+# [Plan Title]
+## Overview
+[1-2 sentences: what and why]
+## Workflow: [type] | Gate Profile: [standard/strict/relaxed]
+
+## Stages
+### Stage N: [primitive] — [name]
+- Gate criteria: [threshold, coverage]
+- Context profile: [hotfix/research/design/refactor/review/feature]
+- Deliverables: [artifacts produced → consumed by next stage]
+
+#### Wave N.1 (parallel)
+| Task | Team | Owned Files | Acceptance Criteria |
+|------|------|-------------|---------------------|
+
+#### Wave N.2 (depends on N.1)
+...
+
+## Design Principles Embedded
+- P1: Stages dispatch only; only Tasks execute actual work
+- P2: Each task receives ≤8K tokens context (isolated, no cross-task leak)
+- P5: Stage handoffs via artifact summaries, not conversation history
+```
+
+**PLAN MODE rules:**
+- DO use read-only tools (search, read, glob) for research
+- DO use `create_plan` tool (Cursor) or write `plan.md` (Claude) for output
+- DO embed stage→wave→task decomposition with file ownership and acceptance criteria
+- DO annotate each stage's context profile and gate criteria
+- DO NOT dispatch tasks, write code, run tests, or modify files
+- DO NOT start execution until the user explicitly approves the plan
+
+### AGENT MODE — Full Orchestration
+
+In Agent mode, proceed with standard workflow selection and 4-layer hierarchy execution (below).
 
 ## Quick Start — Workflow Selection
-<!-- design ref: design_meta_framework.md §6 -->
 
 Match user intent to workflow type, then load the corresponding stage template.
 
@@ -108,8 +129,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 - Ambiguous or multi-concern → default to `full-pipeline`
 - High confidence (≥0.8) → auto-select; Medium (0.5–0.79) → present top 2–3; Low (<0.5) → require explicit choice
 
-## 4-Layer Agent Hierarchy (Summary)
-<!-- design ref: design_agent_hierarchy.md §2 -->
+## 4-Layer Agent Hierarchy
 
 | Layer | Role | Context | Delegates To | MUST NOT |
 |---|---|---|---|---|
@@ -118,34 +138,13 @@ Match user intent to workflow type, then load the corresponding stage template.
 | **L2 Wave** | Dispatches parallel tasks, collects results, checks cross-task conflicts | ~4K tok | Task Agents | Do any task's work, modify outputs, retry >1 |
 | **L3 Task** | **Only layer that does work.** Executes single atomic task | ~8K tok | Nothing (leaf) | Spawn sub-agents, modify files outside owned set |
 
-**Invariant P1 — Dispatcher-Not-Implementer:** Layers 0–2 dispatch, monitor, and report. Only Layer 3 Task Agents execute actual work.
-
-```
-  Human
-    |
-    v
-  [L0 Project Agent]  --dispatch-->  [L1 Stage Agent]
-                                          |
-                                     dispatch
-                                          v
-                                     [L2 Wave Agent]
-                                          |
-                                     dispatch (parallel)
-                                     +----+----+
-                                     v    v    v
-                                   [L3] [L3] [L3]   <-- Task Agents (do work)
-                                     |    |    |
-                                     report report
-                                     +----+----+
-                                          v
-                               [L2] --report--> [L1] --report--> [L0]
-```
-
+**Invariant P1 — Dispatcher-Not-Implementer:** Layers 0–2 dispatch, monitor, and report. Only Layer 3 executes.
 **Wave constraints:** max 5 tasks/wave, max 7 waves/stage, disjoint file ownership within a wave.
 **Task sizing:** max 30 min (impl) / 45 min (research), max 6 writable files, ~50–300 lines changed.
+**Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
+Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
 
 ## Stage Primitives Index
-<!-- design ref: design_meta_framework.md §2.1 -->
 
 13 universal primitives across 6 categories. Every workflow is a composition of these.
 
@@ -193,39 +192,23 @@ Match user intent to workflow type, then load the corresponding stage template.
 | `gate` | Quality checkpoint blocking progression unless criteria met | (orchestrator) |
 
 **Composition operators:** `sequence` (→), `parallel` (||), `choice` (⊕), `loop` (↻), `gate` (⊣).
-Operators nest arbitrarily. Workflow-specific aliases map to primitives (e.g., `bug-triage` → `analyze`).
-Full alias table and per-workflow stage sequences: `references/stage-templates.md`
+Full alias table and per-workflow stage sequences: `references/meta-framework.md`
 
-## Gate Mechanism (Summary)
-<!-- design ref: design_decomposition_gate.md §5, design_agent_hierarchy.md Appendix A -->
+## Gate Mechanism
 
-**Composite score formula:**
-
-```
-composite = Σ(dimension_score × weight)
-  test_quality   × 0.30   (tests_passed/total × 100 or coverage_pct)
-  code_review    × 0.30   (quality_score from review findings)
-  architecture   × 0.20   (SOLID review score)
-  benchmark      × 0.20   (pass rate, or 100 if no benchmarks)
-```
-
-**Per-dimension quality score:** `max(0, 100 - Σ(severity_weight × count))`
-Severity weights: blocker=25, critical=15, major=5, minor=1, info=0.
+**Composite score:** `composite = Σ(dimension_score × weight)` — test_quality×0.30, code_review×0.30, architecture×0.20, benchmark×0.20.
+**Per-dimension:** `max(0, 100 - Σ(severity_weight × count))` — blocker=25, critical=15, major=5, minor=1, info=0.
 
 **Pass conditions (ALL required):**
-1. `composite_score >= threshold` (default 85, configurable via gate profile)
+1. `composite_score >= threshold` (default 85)
 2. Zero blocker findings AND zero MUST-priority violations
 3. `coverage >= coverage_threshold` (default 80%)
 
-**On FAIL:** round < max_rounds → run another convergence round.
-Score stagnant 2+ rounds → escalate. round >= max_rounds → escalate to Project Agent → human.
-
+**On FAIL:** round < max_rounds → next convergence round. Stagnant 2+ rounds → escalate. round >= max_rounds → escalate.
 **Gate profiles:** `relaxed` (≥70, ≥60% cov), `standard` (≥85, ≥80%), `strict` (≥90, ≥90%), `audit` (≥95, ≥90%).
-
-Full gate specification: `references/gate-mechanism.md`
+Full gate specification: `references/decomposition-gate.md`
 
 ## AgentTeam Quick Reference
-<!-- design ref: design_agent_hierarchy.md §4 -->
 
 | Team | Responsibilities | Primary Tools | Output |
 |---|---|---|---|
@@ -250,12 +233,11 @@ Full gate specification: `references/gate-mechanism.md`
 | RDRR | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
 
-Full team specifications with input/output contracts: `references/team-roles.md`
+Full team specifications: `references/team-roles.md`
 
 ## Context Isolation
-<!-- design ref: design_agent_hierarchy.md §6 -->
 
-Each Task Agent spawns with a fresh, isolated context. Injection follows this template:
+Each Task Agent spawns with a fresh, isolated context:
 
 ```
 context_injection:
@@ -267,143 +249,79 @@ context_injection:
   behavioral:  timeout, max_files, output_format, escalation   (~200 tokens)
 ```
 
-**Context budget by layer:**
-
-| Layer | Strategy | Budget | Loaded Content |
-|---|---|---|---|
-| Project | Minimal | ~3K tokens | Workflow template, project config, stage status dashboard |
-| Stage | Standard | ~5K tokens | Stage definition, predecessor summaries, wave plan |
-| Wave | Minimal | ~4K tokens | Wave task list, task status tracking |
-| Task | Standard–Full | ~8K tokens | Task spec, owned files, code-rules, design excerpt |
-
-**MUST NOT leak between sub-agents:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
-
-**IS shared (via artifact summaries):** interface contracts (signatures, types), design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
-
+**MUST NOT leak:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
+**IS shared (via artifact summaries):** interface contracts, design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
 Full context injection spec: `references/context-isolation.md`
 
 ## Dispatch & Report Protocol
-<!-- design ref: design_agent_hierarchy.md §3 -->
 
 All inter-layer communication uses typed YAML schemas. Free-form chat between layers is prohibited.
 
-**Dispatching a task** — include these fields:
-
-- `task_id`, `type` (stage/wave/code/test/review/research), `title`, `description`
+**Dispatching a task:**
+- `task_id`, `type`, `title`, `description`
 - `predecessor_artifacts`: list of `{path, summary}` (3-5 sentence summaries only)
-- `owned_files`: files this task may create/modify (disjoint from parallel tasks)
+- `owned_files`: disjoint from parallel tasks
 - `acceptance_criteria`: concrete pass conditions
 - `timeout_seconds`: max execution time (default 7200)
 
-**Reporting completion** — include these fields:
-
+**Reporting completion:**
 - `task_id`, `state` (completed/failed/escalated), `progress_pct`
-- `artifacts`: list of `{path, type, summary}` for produced files
+- `artifacts`: list of `{path, type, summary}`
 - `metrics`: `tests_passed`, `coverage_pct`, `findings_by_severity`
 
-**Escalating errors** — classify and escalate upward:
+**Escalation severity:**
 
-| Severity | Description | Action |
-|----------|-------------|--------|
-| `AUTO_RECOVER` | Network timeout, rate limit, tool crash | Retry up to 3x with exponential backoff |
-| `PAUSE` | Ambiguous spec, missing optional dep | Pause task, queue question, continue parallel work |
-| `HUMAN_INTERVENE` | Architecture decision, security change | Stop stage, present options to human |
-| `FULL_ROLLBACK` | Corrupted state, impossible requirement | Rollback to checkpoint, halt all |
+| Severity | Action |
+|----------|--------|
+| `AUTO_RECOVER` | Retry up to 3x with exponential backoff |
+| `PAUSE` | Pause task, queue question, continue parallel work |
+| `HUMAN_INTERVENE` | Stop stage, present options to human |
+| `FULL_ROLLBACK` | Rollback to checkpoint, halt all |
 
-Escalation chain: Task → Wave → Stage → Project → Human. Always upward, never skip levels.
-
-Full schemas with all fields: `references/message-schemas.md`
+Full schemas: `references/message-schemas.md`
 
 ## Repo Mode Detection
-<!-- design ref: design_repo_modes.md §3 -->
-
-Three modes, auto-detected from git remote URL during Pre-Decision Phase:
 
 | Mode | Detection Signal | Key Capabilities |
 |---|---|---|
-| **local** | No `.git` or no remote configured | Local build/test/lint only; no CI, no release, no PR flow |
-| **github** | Remote URL matches `github.com` | GitHub Actions CI, cross-platform matrix, Pages, Releases, PR flow |
-| **other-git** | Any other remote (GitLab, Gitea, Bitbucket) | Platform-native CI, MR/PR flow, variant-specific pipeline templates |
+| **local** | No `.git` or no remote | Local build/test/lint only; no CI, no release, no PR flow |
+| **github** | Remote matches `github.com` | GitHub Actions CI, cross-platform matrix, Pages, Releases, PR flow |
+| **other-git** | Any other remote | Platform-native CI, MR/PR flow, variant-specific pipeline templates |
 
-Detection: parse `git remote -v` → match URL patterns → fallback to CI config files in repo root.
-Override: set `repo_mode` in `.workflow/config.yaml`. Mode drives stage behavior (e.g., `release` skipped in local).
-
-Full detection algorithm and 20-feature toggle matrix: `references/repo-modes.md`
+Detection: parse `git remote -v` → match URL → fallback to CI config files.
+Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/repo-modes.md`
 
 ## Reference Navigation Guide
-<!-- design ref: design_delivery_architecture.md §3.2 -->
 
-**Tier 2 — Domain references** (load when the topic arises):
+**Tier 2 — Domain references** (load when topic arises):
 
-| Topic | File | Load When You Need |
-|---|---|---|
-| 4-layer hierarchy, delegation rules | `references/agent-hierarchy.md` | Layer setup, debugging delegation, per-layer contracts |
-| Gate formulas, convergence loops | `references/gate-mechanism.md` | Gate evaluation, threshold config, loop-back rules |
-| Repo mode detection, feature toggles | `references/repo-modes.md` | Repo structure detection, mode-specific behavior |
-| Workflow → stage sequences, templates | `references/stage-templates.md` | Instantiating a workflow, stage ordering rules |
-| Full message YAML schemas | `references/message-schemas.md` | Constructing or parsing dispatch/report/escalation |
-| 5 AgentTeam role specifications | `references/team-roles.md` | Task agent config, team capabilities and contracts |
-| Context injection templates | `references/context-isolation.md` | Context injection setup, debugging context leaks |
-
-**Tier 3 — On-demand** (load for specific tasks only):
-
-| Topic | File | Load When You Need |
-|---|---|---|
-| Full-pipeline delegation trace | `examples/full-pipeline-trace.md` | Complete walkthrough of a full-pipeline run |
-| Hotfix workflow trace | `examples/hotfix-trace.md` | Hotfix delegation chain example |
-| Convergence loop trace | `examples/convergence-loop-trace.md` | Review-fix-test cycle walkthrough |
-| TaskDispatch schema | `schemas/task-dispatch.yaml` | Building a TaskDispatch YAML message |
-| StatusReport schema | `schemas/status-report.yaml` | Building a StatusReport YAML message |
-| Handoff deliverable schema | `schemas/handoff-deliverable.yaml` | Building inter-team handoff envelopes |
-| Project status dashboard | `templates/project-status.yaml` | Creating the project tracking dashboard |
-| Stage README template | `templates/stage-readme.md` | Creating per-stage tracking documents |
-| Wave plan template | `templates/wave-plan.md` | Planning wave decomposition |
-
-## Rules for Dispatchers
-<!-- design ref: design_agent_hierarchy.md §2, design_decomposition_gate.md §7 -->
-
-**Per-layer MUST NOT:**
-
-| Layer | Prohibited Actions |
+| File | Load When |
 |---|---|
-| **L0 Project** | Write code, run tests/shell, read source files, author designs, skip gates, reorder stages |
-| **L1 Stage** | Write code, run tests, perform reviews, author content, dispatch >5 tasks per wave |
-| **L2 Wave** | Do any task's work, modify task outputs, retry a task more than once, wait indefinitely |
-| **L3 Task** | Spawn sub-agents, delegate work, modify files outside owned set, exceed timeout |
+| `references/agent-hierarchy.md` | Layer setup, delegation debugging, per-layer contracts |
+| `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
+| `references/repo-modes.md` | Repo detection, mode-specific behavior |
+| `references/meta-framework.md` | Workflow instantiation, stage ordering |
+| `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
+| `references/team-roles.md` | Task agent config, team capabilities |
+| `references/context-isolation.md` | Context injection setup, debugging leaks |
 
-**Fail-forward protocol:**
+**Tier 3 — On-demand** (load for specific tasks):
 
-1. **Task fails** → Wave retries once with error context → still fails → escalate to Stage
-2. **Wave fails** → Stage retries failed tasks only → still fails → escalate to Project
-3. **Stage gate fails** → Project evaluates: loop-back (max 2 retries per stage) or escalate to human
-4. **Project loop-back budget:** 3 total across all stages → exceeded → halt with divergence report
-
-**Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
-Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
-
-## Convergence Loop (Summary)
-<!-- design ref: design_decomposition_gate.md §5, design_agent_hierarchy.md Appendix C -->
-
-8-phase loop for implementation stages, each phase dispatched as a wave:
-
-```
-Round N:
-  1. CODE REVIEW        (Review Agent)     5. BENCHMARK      (Test Agent)
-  2. FIX review findings (Implement Agent)  6. FIX bench       (Implement Agent)
-  3. TEST               (Test Agent)        7. FINAL REVIEW    (Review Agent)
-  4. FIX test failures   (Implement Agent)  8. FIX final       (Implement Agent)
-  --> Gate: composite >= 85 AND 0 blockers AND round >= min --> PASS
-           score < 85 AND round < max --> NEXT ROUND
-           round >= max --> ESCALATE
-```
-
-Defaults: min_rounds=1, max_rounds=3 (configurable per gate profile, range 1–6).
-The Stage Agent orchestrates the loop and never executes any phase directly.
+| File | Load When |
+|---|---|
+| `examples/full-pipeline-trace.md` | Full-pipeline walkthrough |
+| `examples/hotfix-trace.md` | Hotfix delegation example |
+| `examples/convergence-loop-trace.md` | Review-fix-test cycle walkthrough |
+| `schemas/task-dispatch.yaml` | Building TaskDispatch YAML |
+| `schemas/status-report.yaml` | Building StatusReport YAML |
+| `schemas/handoff-deliverable.yaml` | Inter-team handoff envelopes |
+| `templates/project-status.yaml` | Project tracking dashboard |
+| `templates/stage-readme.md` | Per-stage tracking documents |
+| `templates/wave-plan.md` | Wave decomposition planning |
 
 ## Task Quality Score
-<!-- design ref: v2.1.0 — lightweight post-workflow feedback -->
 
-**After every workflow completes**, evaluate the user's original request and provide a brief quality score. This helps users learn to write better task descriptions.
+**After every Standard+ complexity workflow**, evaluate the user's original request:
 
 **Dimensions** (score each 1-5):
 
@@ -425,25 +343,4 @@ The Stage Agent orchestrates the loop and never executes any phase directly.
 💡 Tip: [single most impactful improvement suggestion]
 ```
 
-**Rules**:
-- Always score, even for high-quality requests (positive reinforcement matters)
-- Keep tips actionable and specific, not generic ("specify the target file" > "be more specific")
-- Do not let scoring delay or block the workflow — score is appended after completion
-- For trivial/quick-action tasks, skip scoring (only score Standard+ complexity workflows)
-
-## Template Quick-Reference
-<!-- design ref: design_meta_framework.md §4-7 -->
-
-| Template | Stage Sequence | Purpose |
-|---|---|---|
-| `research-only` | research | Information gathering and comparison report |
-| `design-only` | research → design → review | Architecture or API design with review |
-| `hotfix` | triage → fix → test → release | Rapid bug fix with minimal ceremony |
-| `refactoring` | scope → plan → impl → test → review | Code structure improvement with safety net |
-| `migration` | assess → plan → impl → validate → cutover | System/version migration with validation |
-| `spike-poc` | research → prototype → evaluate | Feasibility exploration with decision gate |
-| `documentation` | survey → author → review | Documentation authoring and quality review |
-| `security-audit` | threat-model → scan → analyze → remediate → verify | Security assessment and remediation cycle |
-| `feature-enhancement` | design → plan → impl → review → test → release | Extend existing system functionality |
-| `full-pipeline` | design → plan → impl → review → test → testgate → release | Complete lifecycle for new features |
-| `RDRR` | research → design → review → refine (loop) | Iterative research-driven design convergence |
+**Rules**: Always score (positive reinforcement matters). Keep tips actionable and specific. Do not let scoring delay the workflow.
