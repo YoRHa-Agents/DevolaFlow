@@ -3,7 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 250 tests, 11 templates
+make test && make validate-templates   # 309 tests, 11 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -178,6 +178,29 @@ The agent will compare your installed version against the latest on GitHub and t
 | **Wave** | Parallel-dispatch tasks | ~4K tokens | Never executes task work |
 | **Task** | **The only layer that works** | ~8K tokens | Never spawns sub-agents |
 
+### EvoBench Context Benchmarks (New in v3.0.0)
+
+DevolaFlow includes a built-in benchmark suite that measures how effectively context is routed to agents. Run it to verify optimization changes don't regress:
+
+```bash
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
+python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
+python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
+```
+
+Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection.
+
+### Repository Development Rules (New in v3.0.0)
+
+18 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+
+| Rule File | Rules | What It Enforces |
+|-----------|-------|-----------------|
+| `skill-format-rules.mdc` | SF-1 to SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
+| `change-process-rules.mdc` | CP-1 to CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
+| `context-optimization-rules.mdc` | CO-1 to CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
+
 ### Task Quality Score (New in v2.1.0)
 
 After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
@@ -209,7 +232,7 @@ DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/_
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v2.1.0"
+devola-version                   # prints "DevolaFlow v3.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -240,8 +263,8 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 0.3.0            # updates all 7 version locations
-python scripts/bump_version.py 0.3.0 --dry-run   # preview without writing
+python scripts/bump_version.py 4.0.0            # updates all 9 version locations
+python scripts/bump_version.py 4.0.0 --dry-run   # preview without writing
 ```
 
 ## CLI Tools
@@ -280,14 +303,22 @@ DevolaFlow/
       en/                     #   8 English docs
       zh/                     #   8 Chinese docs
       demo/                   #   interactive web demo (GitHub Pages)
+  benchmarks/
+    devolaflow_context/        # EvoBench context density benchmarks
+      evaluator.py             #   scoring: relevance, density, noise, utilization
+      runner.py                #   CLI runner with baseline comparison
+      scenarios/               #   3 benchmark scenarios (hotfix, feature, full-pipeline)
+      baselines/               #   stored baseline results for regression detection
   schemas/                    # All schema definitions (system + primitives)
     *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
+    lean-dispatch.yaml        #   lean TaskDispatch format spec
+    lean-report.yaml          #   lean StatusReport format spec
     primitives/               #   per-primitive I/O schemas (future)
   doc/designs/                # 14 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite
+  tests/                      # pytest suite (309 tests, 88% coverage)
   .github/workflows/          # CI + Release + Pages
-  .cursor/rules/              # always-on hard constraints (5 rules)
+  .cursor/rules/              # always-on hard constraints (5 core + 18 process rules)
 ```
 
 ## Interactive Demo
@@ -319,8 +350,8 @@ Or open locally: `workflow-system/human/demo/index.html`
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make changes following the [5 hard constraints](.cursor/rules/workflow-rules.mdc)
-4. Run `make all` to verify
+3. Make changes following the [repository rules](.cursor/rules/) (5 core + 18 process rules)
+4. Run `make all` to verify (tests, lint, templates, adapters)
 5. Submit a Pull Request (never push directly to `main`)
 
 Commit messages use conventional format: `feat:`, `fix:`, `docs:`, `test:`, `chore:`

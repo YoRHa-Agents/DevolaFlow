@@ -4,7 +4,7 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T06:02:57Z"
+last_synced: "2026-04-10T06:14:27Z"
 source_version: "3.0.0"
 ---
 
@@ -52,6 +52,15 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # pip update
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+```
+
+## Running EvoBench Benchmarks
+
+DevolaFlow includes a context density benchmark suite (EvoBench) to verify optimization changes:
+
+```bash
+python -m benchmarks.devolaflow_context.runner --scenario all
+python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
 ```
 
 ## Next Steps
