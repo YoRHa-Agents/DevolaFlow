@@ -119,6 +119,10 @@ Match user intent to workflow type, then load the corresponding stage template.
 | add to existing, extend, enhance | `feature-enhancement` | design → plan → impl → review → test → release |
 | build from scratch, new project, full | `full-pipeline` | design → plan → impl → review → test → testgate → release |
 | design with research, ADR, iterate design | `RDRR` | research → design → review → refine (loop) |
+| demo, showcase, presentation, pitch | `demo-showcase` | research → storyboard → build → review → polish → package |
+| slow, optimize, profile, benchmark | `performance-optimization` | profile → design → optimize → benchmark → validate |
+| setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
+| new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
 
 **Selection heuristics:**
 
@@ -232,6 +236,10 @@ Full gate specification: `references/decomposition-gate.md`
 | security-audit | Active | — | Active | Active | Active |
 | RDRR | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
+| demo-showcase | Active | Active | **Primary** | — | Active |
+| perf-optimization | Active | Active | **Primary** | **Primary** | — |
+| dependency-setup | Active | Active | **Primary** | Active | — |
+| onboarding | **Primary** | — | Active | Active | — |
 
 Full team specifications: `references/team-roles.md`
 

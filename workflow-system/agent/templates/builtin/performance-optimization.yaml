@@ -1,0 +1,121 @@
+schema_version: "1.0"
+
+metadata:
+  name: performance-optimization
+  version: "1.0.0"
+  display_name: "Performance Optimization"
+  description: >
+    Profile-driven performance optimization cycle. Profile the system to identify
+    bottlenecks, design targeted optimizations, implement changes, benchmark
+    before and after, and validate improvements meet targets.
+  category: build
+  applicable_scenarios:
+    - "Application running slower than acceptable thresholds"
+    - "Database query optimization"
+    - "Frontend rendering performance issues"
+    - "Memory usage reduction"
+    - "API response time improvement"
+    - "Build/CI pipeline speed optimization"
+  tags: [performance, optimize, profiling, benchmark, speed, latency, memory, throughput]
+
+stages:
+  - id: profile
+    primitive: analyze
+    alias: profile
+    description: "Profile the system — identify bottlenecks, measure baselines, rank hotspots"
+    team: research
+    duration_class: medium
+    config:
+      analysis_type: performance
+      severity_threshold: medium
+
+  - id: design
+    primitive: design
+    alias: optimization-plan
+    description: "Design targeted optimizations based on profiling data — trade-off analysis included"
+    team: design
+    duration_class: medium
+    config:
+      formality: light
+      design_type: component
+    input_mapping:
+      inputs: "profile.findings"
+      constraints: "profile.hotspots"
+
+  - id: optimize
+    primitive: implement
+    alias: optimize
+    description: "Implement optimizations — targeted changes only, no feature additions"
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: test_after
+      code_style: minimal_diff
+    input_mapping:
+      tasks: "design.specification"
+
+  - id: benchmark
+    primitive: test
+    alias: benchmark
+    description: "Run benchmarks — compare before/after metrics against improvement targets"
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration, benchmark]
+      fail_fast: false
+      coverage_threshold: 0.0
+    input_mapping:
+      code_refs: "optimize.files_changed"
+
+  - id: validate
+    primitive: validate
+    description: "Validate optimization results — confirm targets met, no regressions introduced"
+    team: review
+    duration_class: quick
+    config:
+      require_all_criteria: true
+      allow_waivers: false
+    input_mapping:
+      test_result: "benchmark"
+      quality_thresholds:
+        regression_tolerance: 0.05
+
+composition:
+  compose: sequence
+  stages:
+    - stage: profile
+    - stage: design
+    - compose: loop
+      ref: optimize_benchmark_loop
+    - stage: validate
+
+loops:
+  - name: optimize_benchmark_loop
+    body_stages: [optimize, benchmark]
+    until: "benchmark.performance_metrics.improvement >= target"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: design
+
+gates:
+  - name: improvement_gate
+    position: "after:benchmark"
+    criteria:
+      - field: benchmark.pass_rate
+        operator: ">="
+        value: 1.0
+      - field: benchmark.performance_metrics
+        operator: "exists"
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: optimize
+    require_human_override: false
+    auto_insert: false
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []

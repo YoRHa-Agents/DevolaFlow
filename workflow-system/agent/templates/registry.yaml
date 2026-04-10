@@ -78,3 +78,31 @@ templates:
     version: "1.0.0"
     category: composite
     tags: [feature, enhance, extend, modify]
+
+  - name: demo-showcase
+    path: builtin/demo-showcase.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [demo, showcase, presentation, prototype, ui, visual, pitch]
+
+  - name: performance-optimization
+    path: builtin/performance-optimization.yaml
+    source: builtin
+    version: "1.0.0"
+    category: build
+    tags: [performance, optimize, profiling, benchmark, speed, latency]
+
+  - name: dependency-setup
+    path: builtin/dependency-setup.yaml
+    source: builtin
+    version: "1.0.0"
+    category: build
+    tags: [setup, install, dependency, environment, tooling, configuration]
+
+  - name: onboarding
+    path: builtin/onboarding.yaml
+    source: builtin
+    version: "1.0.0"
+    category: discover
+    tags: [onboarding, setup, getting-started, contributor, codebase]

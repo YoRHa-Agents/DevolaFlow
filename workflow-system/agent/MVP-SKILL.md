@@ -6,7 +6,7 @@ description: >
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
   and context-isolated task delegation. Use when implementing features, fixing
   bugs, refactoring, migrating, or running any multi-step development workflow.
-  Supports 11 workflow types from research-only to full-pipeline.
+  Supports 15 workflow types from research-only to full-pipeline.
 ---
 
 > **Now Using DevolaFlow v3.0.0**
@@ -61,6 +61,10 @@ Select the workflow type that matches the user's intent:
 | feature-enhancement | add to existing, extend, enhance | scope → design → plan → impl → review → test → release |
 | full-pipeline | build from scratch, new project | design → plan → impl → review → test → refine → testgate → release |
 | RDRR | design with research, ADR | research → design → review → refine (loop) |
+| demo-showcase | demo, showcase, presentation, pitch | research → storyboard → build → review → polish → package |
+| performance-optimization | slow, optimize, profile, benchmark | profile → design → optimize → benchmark → validate |
+| dependency-setup | setup env, install, configure tools | research → plan → configure → verify |
+| onboarding | new to project, onboard, get started | analyze → document → setup → verify |
 
 **Selection heuristic**: Match keywords from user request. If multiple match, prefer full-pipeline. If urgency signals present (urgent, ASAP), prefer hotfix.
 
@@ -273,3 +277,7 @@ T+14  L0  Project       All PASS → hotfix deployed + task quality score
 | feature-enhancement | 7 | convergence |
 | full-pipeline | 8 | convergence |
 | RDRR | 4-5 | convergence |
+| demo-showcase | 6 | standard |
+| performance-optimization | 5 | convergence |
+| dependency-setup | 4 | standard |
+| onboarding | 4 | standard |

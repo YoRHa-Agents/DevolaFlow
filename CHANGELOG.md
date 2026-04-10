@@ -5,6 +5,32 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **4 New Workflow Templates**: Expanded from 11 to 15 built-in workflows:
+  - `demo-showcase`: Build presentation-ready demos with storyboard, polished UI, and packaging
+  - `performance-optimization`: Profile-driven optimization with before/after benchmarks
+  - `dependency-setup`: Environment configuration, dependency management, tooling setup
+  - `onboarding`: Codebase survey, onboarding docs, dev environment setup for new contributors
+- **Comprehensive Human Documentation**: Completely rewrote all 8 human-facing docs (EN + ZH):
+  - Quick Start: Step-by-step walkthrough with real examples for each workflow type
+  - Workflow Types Catalog: Detailed descriptions, stage breakdowns, example prompts for all 15 types
+  - Integration Guide: Per-tool setup instructions with example sessions for Cursor, Claude Code, Copilot, Codex
+  - Architecture Overview: ASCII diagrams, context isolation details, gate mechanism explanation
+  - Agent Hierarchy Guide: Layer-by-layer deep dive with escalation chain and communication protocol
+  - Customization Guide: Template structure walkthrough with custom template example
+  - FAQ: Expanded with 15+ questions covering workflows, tools, gates, updates
+  - Troubleshooting: Installation, workflow, test, and benchmark issue resolution
+- **Updated README**: Reflects 15 workflow types, expanded prompt pattern table, full bilingual documentation index
+
+### Changed
+- SKILL.md and MVP-SKILL.md workflow selection tables now include 15 types (was 11)
+- Team participation matrix updated with new workflow entries
+- Template registry updated to reference all 15 builtin templates
+- `pyproject.toml`: Added per-file-ignores for doc generator script (E501)
+- `generate_human_docs.py`: Refactored into per-section generator functions for maintainability
+
 ## [3.0.0] - 2026-04-10
 
 ### Added
