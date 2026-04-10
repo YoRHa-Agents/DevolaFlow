@@ -4,8 +4,8 @@ description: "Common issues and solutions for workflow execution."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
-source_version: "3.4.0"
+last_synced: "2026-04-10T19:03:11Z"
+source_version: "3.5.0"
 ---
 
 # Troubleshooting
@@ -60,7 +60,7 @@ The default max is 3 iterations. If the agent keeps looping:
 
 ### Tests fail after SKILL.md changes
 
-Run `python -m pytest tests/test_version.py -v` to check version consistency across all 9 locations. Use `scripts/bump_version.py` for consistent updates.
+Run `python -m pytest tests/test_version.py -v` to check version consistency. Use `scripts/bump_version.py` for consistent updates across all version locations.
 
 ### `build-skill` reports budget exceeded
 

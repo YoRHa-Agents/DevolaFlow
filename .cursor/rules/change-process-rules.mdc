@@ -16,7 +16,7 @@ python -m pytest tests/ --cov=devolaflow --cov-report=term-missing
 
 ## Rule CP-3 — Version Bump Protocol
 
-When bumping the version, update ALL 9 locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify consistency. The 9 locations are: `__init__.py`, `pyproject.toml`, `SKILL.md` (frontmatter + banner + body), `MVP-SKILL.md` (frontmatter + banner + body), `workflow-skill.yaml`, `generate_human_docs.py`.
+When bumping the version, update ALL locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify consistency. Locations include: `__init__.py`, `pyproject.toml`, `SKILL.md` (frontmatter + banner + body), `MVP-SKILL.md` (frontmatter + banner + body + update instructions), `workflow-skill.yaml`, `generate_human_docs.py`, `test_smoke.py`, `README.md` (badge + version example), and `benchmark-results/index.html`. After bumping, also re-run `make sync-human-docs` to propagate the new version into generated docs.
 
 ## Rule CP-4 — Gate Module Changes
 

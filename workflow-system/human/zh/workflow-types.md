@@ -1,16 +1,16 @@
 ---
 title: "工作流类型目录"
-description: "15 种内置工作流类型及选择指南。"
+description: "16 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
-source_version: "3.4.0"
+last_synced: "2026-04-10T19:03:11Z"
+source_version: "3.5.0"
 ---
 
 # 工作流类型目录
 
-15 种内置工作流类型及选择指南。
+16 种内置工作流类型及选择指南。
 
 ## 工作流选择
 
@@ -22,7 +22,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 15 种内置工作流类型
+## 全部 16 种内置工作流类型
 
 ### 发现类工作流
 
@@ -35,6 +35,13 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **适用场景**：新成员加入、了解陌生代码库、恢复休眠项目。
 **阶段**：analyze → document → setup → verify
 **示例**：`"我是这个项目的新人 — 帮我了解代码库并设置开发环境"`
+
+### 优化类工作流
+
+#### `skill-optimization`
+**适用场景**：优化 Agent 技能、基准测试上下文密度、改进信息路由。
+**阶段**：survey → profile → optimize → benchmark → iterate → document
+**示例**：`"优化 DevolaFlow 技能 — 基准测试上下文密度并减少噪声"`
 
 ### 塑形类工作流
 
@@ -130,3 +137,4 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `performance-optimization` | 慢, 优化, 基准测试 | 5 | standard |
 | `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
 | `onboarding` | 新加入项目, 入门 | 4 | — |
+| `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |

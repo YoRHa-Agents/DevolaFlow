@@ -4,8 +4,8 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
-source_version: "3.4.0"
+last_synced: "2026-04-10T19:03:11Z"
+source_version: "3.5.0"
 ---
 
 # 常见问题
@@ -45,12 +45,13 @@ DevolaFlow 使用提示词的 **意图匹配**：
 
 你也可以显式指定："使用 migration 工作流从 React 17 升级到 18。"
 
-### v3.0.0+ 的 4 种新工作流是什么？
+### v3.0.0+ 的 5 种新工作流是什么？
 
 - **demo-showcase**：构建展示级演示和交互式展示
 - **performance-optimization**：基于分析的性能优化，包含前后对比基准测试
 - **dependency-setup**：配置开发环境，安装依赖，设置工具链
 - **onboarding**：帮助新贡献者了解代码库并设置环境
+- **skill-optimization**：优化 Agent 技能，包括上下文分析、基准测试和迭代改进
 
 ## 质量与门控
 

@@ -5,33 +5,48 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.4.0] - 2026-04-10
+## [3.5.0] - 2026-04-10
 
 ### Added
 - **Release Workflow**: Complete end-to-end release process with tooling and documentation:
   - `scripts/build-site.sh`: Shared site builder eliminating duplication between `pages.yml` and `release.yml`
   - `bump_version.py --tag`: Creates annotated git tags alongside version bumps
   - Makefile targets: `release-preflight`, `release-dry-run`, `build-site`
-  - `.github/PULL_REQUEST_TEMPLATE.md`: PR template with quality checklist
+  - `.github/PULL_REQUEST_TEMPLATE.md`: PR template with quality checklist (adapter budgets, human docs regen, EvoBench)
   - `doc/designs/design_release_workflow.md`: Full release runbook (branch strategy, PR workflow, release cadence, CHANGELOG maintenance)
+- **Version Consistency Tests**: 4 new tests in `test_version.py` covering SKILL/MVP-SKILL body text, README badge, and benchmark-results page
 
 ### Fixed
-- **Missing CHANGELOG v3.2.0**: Added retroactive entry for Plan mode hardening, skill-optimization workflow, and EvoBench expansion
-- **Pages build duplication**: Identical 20-line inline script was copy-pasted in `pages.yml` and `release.yml`, now both use `scripts/build-site.sh`
-- **Release pipeline was dormant**: `release.yml` triggers on `v*` tags but no git tags existed; `--tag` flag now enables the full release flow
-- **Build artifacts tracked**: `_site/` added to `.gitignore`
+- **Version drift after bump** (root cause): `bump_version.py` covered only 9 locations, leaving body text, README, demo pages, and generated docs stale. Now covers 16 locations across 11 files.
+- **Copilot adapter truncated description mid-word**: Now truncates at word boundary with ellipsis
+- **Workflow visualizer only showed 11 workflows**: `visualizer.js` updated to all 16 workflow types
+- **Design architecture page said "11 Templates"**: Updated to 16 templates in both JS data and HTML
+- **`workflow-skill.yaml` manifest listed only 11 builtins**: Added 5 missing template entries
+- **Benchmark results page showed "undefined" timestamp**: Fixed conditional rendering
+- **`generate_human_docs.py` said "15 workflow types" and "v3.0.0"**: Updated all EN/ZH counts to 16, added `skill-optimization` entries, removed hardcoded version strings
+- **CI/release workflows missing `build-skill`**: Added to `ci.yml` validate job and `release.yml` test job
+- **SKILL.md Reference Navigation missing `execution-protocol.md`**: Added to Tier 2 table
+- **Rules/design doc referenced outdated location counts**: Updated CP-3, SF-3, and release runbook
+- **Missing CHANGELOG v3.2.0**: Added retroactive entry
+- **Pages build duplication**: Both `pages.yml` and `release.yml` now use shared `scripts/build-site.sh`
+- **Release pipeline was dormant**: `--tag` flag enables the full `release.yml` flow via git tags
 
 ### Changed
-- README Contributing section expanded with release process for maintainers
-- Makefile `clean` target now removes `_site/`
-- Human docs (EN + ZH) synced with README contributing changes
+- `bump_version.py` now updates 16 version locations (was 9): added SKILL/MVP-SKILL body text, README badge/example, benchmark-results, MVP-SKILL update instructions
+- PR template expanded with adapter budget, human docs regen, and EvoBench checklist items
+- `test_version.py` expanded from 12 to 16 tests covering all bump locations
+- README version badge and CLI example auto-updated by `bump_version.py`
+- Human docs (EN + ZH) fully regenerated with 16 workflow types
+- Demo landing page features v3.5.0 release highlights
+- Makefile `clean` target now removes `_site/`; `_site/` added to `.gitignore`
 
 ### Metrics
-- Tests: 312 passed
+- Tests: 316 passed (was 312)
 - Coverage: 88.49% (threshold: 80%)
 - EvoBench: 22/22 pass, 0 regressions
-- Adapters: All 4 within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+- Adapters: All 4 within budget
 - Lint: All checks pass
+- Version locations: 16 (was 9)
 
 ## [3.3.0] - 2026-04-10
 

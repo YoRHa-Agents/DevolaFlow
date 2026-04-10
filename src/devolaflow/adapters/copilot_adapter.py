@@ -27,7 +27,10 @@ class CopilotAdapter(BaseAdapter):
         lines: list[str] = []
         lines.append(f"# {identity.get('display_name', 'DevolaFlow')}")
         lines.append("")
-        lines.append(identity.get("description", "").strip()[:300])
+        desc = identity.get("description", "").strip()
+        if len(desc) > 300:
+            desc = desc[:300].rsplit(" ", 1)[0].rstrip(".,;:") + "..."
+        lines.append(desc)
         lines.append("")
 
         lines.append("## Things to Avoid")

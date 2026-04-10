@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "3.4.0"
+  version: "3.5.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -268,7 +268,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 10 builtin templates covering all workflow types.
+  # Registry + 16 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
@@ -330,6 +330,31 @@ content:
         file: "templates/builtin/research-design-review-refine.yaml"
         stages: ["research", "design", "review", "refine"]
         description: "Iterative research-driven design convergence (RDRR)"
+
+      - id: "demo-showcase"
+        file: "templates/builtin/demo-showcase.yaml"
+        stages: ["research", "storyboard", "build", "review", "polish", "package"]
+        description: "Build presentation-ready demos and interactive showcases"
+
+      - id: "performance-optimization"
+        file: "templates/builtin/performance-optimization.yaml"
+        stages: ["profile", "design", "optimize", "benchmark", "validate"]
+        description: "Profile-driven performance improvement with benchmarks"
+
+      - id: "dependency-setup"
+        file: "templates/builtin/dependency-setup.yaml"
+        stages: ["research", "plan", "configure", "verify"]
+        description: "Environment setup, dependency installation, and tooling"
+
+      - id: "onboarding"
+        file: "templates/builtin/onboarding.yaml"
+        stages: ["analyze", "document", "setup", "verify"]
+        description: "New contributor onboarding and codebase survey"
+
+      - id: "skill-optimization"
+        file: "templates/builtin/skill-optimization.yaml"
+        stages: ["survey", "profile", "optimize", "benchmark", "iterate", "document"]
+        description: "Agent skill optimization with context profiling and benchmarking"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.
@@ -599,6 +624,26 @@ manifest:
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"
     - path: "templates/builtin/research-design-review-refine.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/demo-showcase.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/performance-optimization.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/dependency-setup.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/onboarding.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/skill-optimization.yaml"
       tier: 3
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"

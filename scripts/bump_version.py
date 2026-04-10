@@ -50,6 +50,41 @@ VERSION_LOCATIONS = [
         "replacement": "> **Now Using DevolaFlow v{version}**",
     },
     {
+        "path": "workflow-system/agent/SKILL.md",
+        "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
+        "replacement": "**Current version:** {version}",
+    },
+    {
+        "path": "workflow-system/agent/MVP-SKILL.md",
+        "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
+        "replacement": "**Current version:** {version}",
+    },
+    {
+        "path": "workflow-system/agent/MVP-SKILL.md",
+        "pattern": r"Compare with current version \(\d+\.\d+\.\d+\)",
+        "replacement": "Compare with current version ({version})",
+    },
+    {
+        "path": "workflow-system/agent/MVP-SKILL.md",
+        "pattern": r'"DevolaFlow v\d+\.\d+\.\d+ is the latest version\."',
+        "replacement": '"DevolaFlow v{version} is the latest version."',
+    },
+    {
+        "path": "workflow-system/human/demo/benchmark-results/index.html",
+        "pattern": r'"version":"\d+\.\d+\.\d+"',
+        "replacement": '"version":"{version}"',
+    },
+    {
+        "path": "README.md",
+        "pattern": r"version-\d+\.\d+\.\d+-green",
+        "replacement": "version-{version}-green",
+    },
+    {
+        "path": "README.md",
+        "pattern": r'prints "DevolaFlow v\d+\.\d+\.\d+"',
+        "replacement": 'prints "DevolaFlow v{version}"',
+    },
+    {
         "path": "workflow-system/agent/workflow-skill.yaml",
         "pattern": r'version:\s*"[^"]+"',
         "replacement": 'version: "{version}"',

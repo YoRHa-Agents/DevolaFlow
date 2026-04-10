@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
-source_version: "3.4.0"
+last_synced: "2026-04-10T19:03:11Z"
+source_version: "3.5.0"
 ---
 
 # Quick Start Guide
@@ -57,7 +57,7 @@ Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlo
 ## Step 2: Verify Installation
 
 ```bash
-devola-version   # should print "DevolaFlow v3.0.0"
+devola-version   # should print current DevolaFlow version
 ```
 
 ## Step 3: Try Your First Workflow
@@ -104,7 +104,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 15 workflow types: [Workflow Types](workflow-types.md)
+- See all 16 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)

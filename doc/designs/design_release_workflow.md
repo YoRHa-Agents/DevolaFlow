@@ -47,16 +47,18 @@ This updates all 9 version locations AND creates an annotated git tag `vX.Y.Z`. 
 python scripts/bump_version.py X.Y.Z --tag --dry-run
 ```
 
-The 9 locations updated:
+Locations updated by `bump_version.py`:
 1. `src/devolaflow/__init__.py` — `__version__`
 2. `pyproject.toml` — `version`
-3. `workflow-system/agent/SKILL.md` — frontmatter `version:`
-4. `workflow-system/agent/SKILL.md` — banner line
-5. `workflow-system/agent/MVP-SKILL.md` — frontmatter `version:`
-6. `workflow-system/agent/MVP-SKILL.md` — banner line
-7. `workflow-system/agent/workflow-skill.yaml` — identity `version:`
-8. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
-9. `tests/test_smoke.py` — version assertion
+3. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:"
+4. `workflow-system/agent/MVP-SKILL.md` — frontmatter `version:`, banner, body "Current version:", update instructions
+5. `workflow-system/agent/workflow-skill.yaml` — identity `version:`
+6. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
+7. `tests/test_smoke.py` — version assertion
+8. `README.md` — badge and version example
+9. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
+
+After bumping, also run `make sync-human-docs` to propagate version into generated doc files.
 
 ### 2.3 Commit and Push
 

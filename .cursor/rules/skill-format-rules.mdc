@@ -14,15 +14,16 @@ SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, 
 ## Rule SF-3 — Version Consistency
 
 The version string must match `src/devolaflow/__init__.py` `__version__` in ALL of these locations:
-1. SKILL.md frontmatter `version:`
-2. SKILL.md banner `> **Now Using DevolaFlow vX.X.X**`
-3. SKILL.md body text in "Version & Update" section
-4. MVP-SKILL.md frontmatter, banner, and body text
-5. `workflow-skill.yaml` identity section
-6. `pyproject.toml` version field
-7. `scripts/generate_human_docs.py` SOURCE_VERSION
+1. SKILL.md frontmatter `version:`, banner, and body "Current version:" text
+2. MVP-SKILL.md frontmatter, banner, body "Current version:", update-check instructions
+3. `workflow-skill.yaml` identity section
+4. `pyproject.toml` version field
+5. `scripts/generate_human_docs.py` SOURCE_VERSION
+6. `tests/test_smoke.py` version assertion
+7. `README.md` badge and version example
+8. `workflow-system/human/demo/benchmark-results/index.html` SAMPLE_DATA version
 
-Use `scripts/bump_version.py` for consistent bumps. Run `python -m pytest tests/test_version.py -v` to verify.
+Use `scripts/bump_version.py` for consistent bumps. After bumping, run `make sync-human-docs` then `python -m pytest tests/test_version.py -v` to verify.
 
 ## Rule SF-4 — Valid Reference Links
 

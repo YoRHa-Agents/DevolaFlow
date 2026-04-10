@@ -165,6 +165,11 @@ const FRAMEWORK = {
     { id: "documentation-only", stages: 3, category: "deliver", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
     { id: "security-audit", stages: 5, category: "verify", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
     { id: "feature-enhancement", stages: 7, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "demo-showcase", stages: 6, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "performance-optimization", stages: 5, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "dependency-setup", stages: 4, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "onboarding", stages: 4, category: "discover", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "skill-optimization", stages: 5, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
   ],
 
   // ─── Adapters ──────────────────────────────────────────────────
@@ -220,7 +225,7 @@ graph TB
     refs["8 References (Tier 2)"]
     examples["3 Examples (Tier 3)"]
     knowledge["2 Knowledge (Tier 3)"]
-    templates["11 Templates (YAML)"]
+    templates["16 Templates (YAML)"]
     schemas["7 Schemas"]
   end
 

@@ -21,6 +21,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -v --cov=devolaflow
       - run: validate-template --all
+      - run: build-skill
 
   release:
     needs: test
