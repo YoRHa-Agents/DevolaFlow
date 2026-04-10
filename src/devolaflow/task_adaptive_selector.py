@@ -60,20 +60,39 @@ def estimate_tokens(text: str) -> int:
 
 
 def match_profile(task_type: str, profiles_config: dict[str, Any]) -> str:
-    """Match a task_type string to the best profile name."""
+    """Match a task_type string to the best profile name.
+
+    Ranking: exact key match > exact hint match > best substring match
+    (longest overlap wins to avoid short hints stealing specific tasks).
+    """
     profiles = profiles_config.get("profiles", {})
 
     if task_type in profiles:
         return task_type
 
     task_lower = task_type.lower()
+
+    best_match: str | None = None
+    best_score = 0
+
     for profile_name, profile in profiles.items():
         hints = profile.get("goal_hints", [])
         for hint in hints:
-            if hint.lower() in task_lower or task_lower in hint.lower():
+            hint_lower = hint.lower()
+            if hint_lower == task_lower:
                 return profile_name
+            if hint_lower in task_lower:
+                score = len(hint_lower)
+                if score > best_score:
+                    best_score = score
+                    best_match = profile_name
+            elif task_lower in hint_lower:
+                score = len(task_lower)
+                if score > best_score:
+                    best_score = score
+                    best_match = profile_name
 
-    return profiles_config.get("meta", {}).get("default_profile", "feature")
+    return best_match or profiles_config.get("meta", {}).get("default_profile", "feature")
 
 
 def select_context(

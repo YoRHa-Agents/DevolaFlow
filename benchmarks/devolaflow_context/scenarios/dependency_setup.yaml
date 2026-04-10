@@ -1,0 +1,27 @@
+# EvoBench Scenario: Dependency Setup
+# Tests that dependency-setup profile loads repo mode and minimal ceremony sections.
+
+name: "dependency_setup"
+task_type: "setup env"
+description: "Set up Python development environment with linting, testing, and CI configuration"
+
+expected_sections:
+  - quick_action_decision
+  - hierarchy_table
+  - agent_teams
+  - context_isolation
+  - dispatch_report
+  - repo_mode
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - purpose_scope
+  - template_quick_ref
+  - convergence_loop
+  - stage_primitives
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

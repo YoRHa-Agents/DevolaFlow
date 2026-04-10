@@ -1,0 +1,27 @@
+# EvoBench Scenario: Onboarding
+# Tests that onboarding profile loads analysis and documentation sections.
+
+name: "onboarding_new"
+task_type: "onboard"
+description: "Onboard new developer to the authentication service codebase"
+
+expected_sections:
+  - quick_action_decision
+  - hierarchy_table
+  - agent_teams
+  - context_isolation
+  - dispatch_report
+  - repo_mode
+  - reference_navigation
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - purpose_scope
+  - template_quick_ref
+  - convergence_loop
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

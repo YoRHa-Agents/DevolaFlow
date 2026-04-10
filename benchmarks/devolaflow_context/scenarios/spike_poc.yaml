@@ -1,0 +1,27 @@
+# EvoBench Scenario: Spike/PoC
+# Tests that spike-poc profile uses minimal ceremony — no gates, no convergence.
+
+name: "spike_poc"
+task_type: "prototype"
+description: "Prototype a WebSocket-based real-time notification system"
+
+expected_sections:
+  - quick_action_decision
+  - hierarchy_table
+  - agent_teams
+  - context_isolation
+  - dispatch_report
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - purpose_scope
+  - template_quick_ref
+  - convergence_loop
+  - gate_mechanism
+  - stage_primitives
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

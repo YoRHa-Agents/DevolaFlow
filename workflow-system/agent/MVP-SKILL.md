@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "3.2.0"
+version: "3.3.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 15 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v3.2.0**
+> **Now Using DevolaFlow v3.3.0**
 
 # DevolaFlow (MVP)
 
@@ -20,14 +20,14 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 3.1.0
+**Current version:** 3.3.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (3.1.0).
+2. Compare with current version (3.3.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v3.1.0 is the latest version."
+4. If current, respond: "DevolaFlow v3.3.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
 

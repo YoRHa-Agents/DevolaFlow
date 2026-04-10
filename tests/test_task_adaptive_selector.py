@@ -118,8 +118,26 @@ class TestMatchProfile:
         assert match_profile("implement feature for users", config) == "feature"
         assert match_profile("compare frameworks", config) == "research"
         assert match_profile("clean up legacy code", config) == "refactor"
-        assert match_profile("security audit", config) == "review"
+        assert match_profile("security audit", config) == "security-audit"
         assert match_profile("architect new API", config) == "design"
+
+    def test_new_profile_routing(self, config: dict) -> None:
+        assert match_profile("migrate", config) == "migration"
+        assert match_profile("upgrade database", config) == "migration"
+        assert match_profile("security", config) == "security-audit"
+        assert match_profile("write docs", config) == "documentation"
+        assert match_profile("prototype", config) == "spike-poc"
+        assert match_profile("RDRR", config) == "rdrr"
+        assert match_profile("demo", config) == "demo-showcase"
+        assert match_profile("optimize", config) == "perf-optimization"
+        assert match_profile("setup env", config) == "dependency-setup"
+        assert match_profile("onboard", config) == "onboarding"
+        assert match_profile("optimize skill", config) == "skill-optimization"
+
+    def test_longest_match_wins(self, config: dict) -> None:
+        """Verify the longest hint match takes priority over shorter ones."""
+        assert match_profile("optimize skill context", config) == "skill-optimization"
+        assert match_profile("benchmark context", config) == "skill-optimization"
 
     def test_fallback_to_default(self, config: dict) -> None:
         result = match_profile("completely_unknown_xyzzy", config)
@@ -161,6 +179,25 @@ class TestSelectContext:
     def test_design_profile(self) -> None:
         result = select_context("design", profiles_path=PROFILES_YAML)
         assert result["profile_name"] == "design"
+
+    def test_new_profiles_select(self) -> None:
+        for task_type, expected_profile in [
+            ("migrate", "migration"),
+            ("security", "security-audit"),
+            ("write docs", "documentation"),
+            ("prototype", "spike-poc"),
+            ("RDRR", "rdrr"),
+            ("demo", "demo-showcase"),
+            ("optimize", "perf-optimization"),
+            ("setup env", "dependency-setup"),
+            ("onboard", "onboarding"),
+        ]:
+            result = select_context(task_type, profiles_path=PROFILES_YAML)
+            assert result["profile_name"] == expected_profile, (
+                f"{task_type} → {result['profile_name']} (expected {expected_profile})"
+            )
+            assert result["total_tokens"] <= result["budget"]
+            assert len(result["selected_sections"]) > 0
 
     def test_goal_hint_routing(self) -> None:
         result = select_context("fix bug in JWT", profiles_path=PROFILES_YAML)
