@@ -148,6 +148,81 @@ const WORKFLOWS = {
     category: "composite",
     useWhen: "ADR workflow, system architecture with unknowns, design for uncertain domains",
   },
+  "demo-showcase": {
+    name: "Demo & Showcase",
+    description:
+      "Build a presentation-ready demo or showcase: audience research, storyboard, polished build, review, polish loop, and packaging for delivery.",
+    stages: [
+      { id: "research", label: "Research", team: "Research", gate: "standard" },
+      { id: "storyboard", label: "Storyboard", team: "Design", gate: "standard" },
+      { id: "build", label: "Build", team: "Implement", gate: "convergence" },
+      { id: "review", label: "Review", team: "Review", gate: null },
+      { id: "polish", label: "Polish", team: "Implement", gate: "standard" },
+      { id: "package", label: "Package", team: "Implement", gate: "standard" },
+    ],
+    loops: ["build->review->polish (max 2)"],
+    category: "composite",
+    useWhen: "Stakeholder demos, interactive showcases, conference talks, pitch-ready UI",
+  },
+  "performance-optimization": {
+    name: "Performance Optimization",
+    description:
+      "Profile-driven optimization: measure bottlenecks, design changes, implement, benchmark, validate targets — with optimize↔benchmark convergence.",
+    stages: [
+      { id: "profile", label: "Profile", team: "Research", gate: "standard" },
+      { id: "design", label: "Design", team: "Design", gate: "standard" },
+      { id: "optimize", label: "Optimize", team: "Implement", gate: "convergence" },
+      { id: "benchmark", label: "Benchmark", team: "Test", gate: "standard" },
+      { id: "validate", label: "Validate", team: "Review", gate: "standard" },
+    ],
+    loops: ["optimize->benchmark (max 3)"],
+    category: "build",
+    useWhen: "Latency, throughput, memory, build/CI speed — measure before/after and prove gains",
+  },
+  "dependency-setup": {
+    name: "Dependency & Environment Setup",
+    description:
+      "Install and validate dependencies and dev environment: research versions, plan the graph, configure, verify with smoke tests.",
+    stages: [
+      { id: "research", label: "Research", team: "Research", gate: "standard" },
+      { id: "plan", label: "Plan", team: "Design", gate: "standard" },
+      { id: "configure", label: "Configure", team: "Implement", gate: "convergence" },
+      { id: "verify", label: "Verify", team: "Test", gate: "standard" },
+    ],
+    loops: ["configure->verify (max 3)"],
+    category: "build",
+    useWhen: "New dev environment, major deps, runtime upgrades, Docker/CI tooling",
+  },
+  "onboarding": {
+    name: "Project Onboarding",
+    description:
+      "Onboard a contributor: survey the codebase, write onboarding docs, set up the environment, verify build and tests.",
+    stages: [
+      { id: "analyze", label: "Analyze", team: "Research", gate: "standard" },
+      { id: "document", label: "Document", team: "Implement", gate: "standard" },
+      { id: "setup", label: "Setup", team: "Implement", gate: "standard" },
+      { id: "verify", label: "Verify", team: "Test", gate: "standard" },
+    ],
+    loops: [],
+    category: "discover",
+    useWhen: "New hires, OSS contributors, resuming unfamiliar or dormant projects",
+  },
+  "skill-optimization": {
+    name: "Skill Optimization",
+    description:
+      "Iterative skill and context optimization: survey targets, profile with EvoBench, optimize artifacts, benchmark, iterate, then document results.",
+    stages: [
+      { id: "survey", label: "Survey", team: "Research", gate: "standard" },
+      { id: "profile", label: "Profile", team: "Test", gate: "standard" },
+      { id: "optimize", label: "Optimize", team: "Implement", gate: "convergence" },
+      { id: "benchmark", label: "Benchmark", team: "Test", gate: "standard" },
+      { id: "iterate", label: "Iterate", team: "Review", gate: "convergence" },
+      { id: "document", label: "Document", team: "Implement", gate: "standard" },
+    ],
+    loops: ["optimize->benchmark (max 3)"],
+    category: "composite",
+    useWhen: "SKILL.md density, context profiles, EvoBench-driven iteration on agent skills",
+  },
 };
 
 const TEAM_COLORS = {

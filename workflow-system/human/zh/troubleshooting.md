@@ -4,7 +4,7 @@ description: "工作流执行中的常见问题和解决方案。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
+last_synced: "2026-04-10T18:59:37Z"
 source_version: "3.4.0"
 ---
 
@@ -55,7 +55,7 @@ DevolaFlow 使用关键词匹配。让你的意图更明确：
 
 ### 修改 SKILL.md 后测试失败
 
-运行 `python -m pytest tests/test_version.py -v` 检查 9 个位置的版本一致性。使用 `scripts/bump_version.py` 进行统一更新。
+运行 `python -m pytest tests/test_version.py -v` 检查版本一致性。使用 `scripts/bump_version.py` 进行统一更新。
 
 ### `build-skill` 报告超出预算
 

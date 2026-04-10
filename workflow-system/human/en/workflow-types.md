@@ -1,16 +1,16 @@
 ---
 title: "Workflow Types Catalog"
-description: "15 built-in workflow types with selection guidance."
+description: "16 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
+last_synced: "2026-04-10T18:59:37Z"
 source_version: "3.4.0"
 ---
 
 # Workflow Types Catalog
 
-15 built-in workflow types with selection guidance.
+16 built-in workflow types with selection guidance.
 
 ## Workflow Selection
 
@@ -22,7 +22,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 15 Built-in Workflow Types
+## All 16 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -37,6 +37,14 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Stages**: analyze (codebase survey) → document (onboarding docs) → setup (dev environment) → verify (smoke tests)
 **Teams**: Research, Implement, Test
 **Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
+
+### Optimize Workflows
+
+#### `skill-optimization`
+**When to use**: Optimize agent skills, benchmark context density, improve information routing.
+**Stages**: survey → profile → optimize → benchmark → iterate → document
+**Teams**: Research, Implement, Test, Review
+**Example prompt**: `"Optimize the DevolaFlow skill — benchmark context density and reduce noise"`
 
 ### Shape Workflows
 
@@ -145,3 +153,4 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `performance-optimization` | slow, optimize, benchmark | 5 | standard |
 | `dependency-setup` | setup, install, configure env | 4 | relaxed |
 | `onboarding` | new to project, getting started | 4 | — |
+| `skill-optimization` | optimize skill, benchmark context | 6 | convergence |

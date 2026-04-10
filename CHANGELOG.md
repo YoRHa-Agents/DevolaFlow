@@ -20,18 +20,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pages build duplication**: Identical 20-line inline script was copy-pasted in `pages.yml` and `release.yml`, now both use `scripts/build-site.sh`
 - **Release pipeline was dormant**: `release.yml` triggers on `v*` tags but no git tags existed; `--tag` flag now enables the full release flow
 - **Build artifacts tracked**: `_site/` added to `.gitignore`
+- **Version drift after bump**: `bump_version.py` now covers 16 locations (was 9), including SKILL/MVP-SKILL body text, README badge/example, benchmark-results SAMPLE_DATA, and MVP-SKILL update instructions
+- **Demo landing page showed "New in v3.3.0"**: Updated `index.html` with v3.4.0 highlights section, moved v3.3.0 to history
+- **MVP-SKILL.md description said "15 workflow types"**: Corrected to 16
+- **README version badge/example stale at v3.3.0**: Now auto-updated by `bump_version.py`
+- **Copilot adapter truncated description mid-word**: `copilot_adapter.py` now truncates at word boundary with ellipsis
+- **Workflow visualizer only showed 11 workflows**: `visualizer.js` updated to all 16 workflow types
+- **Design architecture page said "11 Templates"**: Updated to 16 templates in both JS data and HTML
+- **`workflow-skill.yaml` manifest listed only 11 builtins**: Added 5 missing template entries (demo-showcase, performance-optimization, dependency-setup, onboarding, skill-optimization)
+- **Benchmark results page showed "undefined" timestamp**: Fixed conditional rendering for missing timestamp field
+- **`generate_human_docs.py` referenced "15 workflow types" and stale "v3.0.0"**: Updated all EN/ZH counts to 16, added skill-optimization entries, removed hardcoded version examples
+- **Generated human docs (EN+ZH) stale**: Regenerated all 16 doc files with correct workflow counts and version
+- **CI/release workflows missing `build-skill`**: Added `build-skill` step to `ci.yml` validate job and `release.yml` test job
+- **Design doc referenced "9 locations"**: Updated to reflect current bump_version.py coverage with post-bump sync reminder
+- **SKILL.md Reference Navigation missing `execution-protocol.md`**: Added to Tier 2 references table
+- **Rules files referenced outdated location counts**: Updated CP-3 and SF-3 to reflect actual bump_version.py coverage
 
 ### Changed
 - README Contributing section expanded with release process for maintainers
+- README version badge and CLI example now updated to v3.4.0
 - Makefile `clean` target now removes `_site/`
-- Human docs (EN + ZH) synced with README contributing changes
+- Human docs (EN + ZH) fully regenerated with 16 workflow types and current version
+- `bump_version.py` now updates 16 version locations (was 9): SKILL body, MVP-SKILL body + instructions, README badge/example, benchmark-results
+- PR template expanded with adapter budget, human docs regen, and EvoBench checklist items
+- `test_version.py` expanded from 12 to 16 tests covering all bump locations
 
 ### Metrics
-- Tests: 312 passed
+- Tests: 316 passed (was 312)
 - Coverage: 88.49% (threshold: 80%)
 - EvoBench: 22/22 pass, 0 regressions
-- Adapters: All 4 within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+- Adapters: All 4 within budget (Cursor 364/500, Codex 353/500, Claude 67/200, Copilot 1922/4000)
 - Lint: All checks pass
+- Version locations: 16 (was 9)
 
 ## [3.3.0] - 2026-04-10
 

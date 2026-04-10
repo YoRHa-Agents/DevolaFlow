@@ -23,6 +23,9 @@
 - [ ] CHANGELOG.md updated if user-visible changes
 - [ ] No absolute filesystem paths in agent-facing files
 - [ ] Version consistency verified (if version bumped): `python -m pytest tests/test_version.py -v`
+- [ ] Adapter budgets verified (if SKILL/MVP-SKILL/workflow-skill.yaml changed): `build-skill`
+- [ ] Human docs regenerated (if version bumped or generate_human_docs.py changed): `make sync-human-docs`
+- [ ] EvoBench pass (if context profiles or task_adaptive_selector changed): `python -m pytest tests/test_benchmarks.py -v`
 
 ## Release Impact
 

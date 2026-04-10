@@ -34,7 +34,7 @@ description: >
 
 ## Version & Update
 
-**Current version:** 3.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -321,6 +321,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
 | `references/team-roles.md` | Task agent config, team capabilities |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
+| `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 
 **Tier 3 — On-demand** (load for specific tasks):
 

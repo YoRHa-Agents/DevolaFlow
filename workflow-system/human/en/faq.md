@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T18:34:41Z"
+last_synced: "2026-04-10T18:59:37Z"
 source_version: "3.4.0"
 ---
 
@@ -44,7 +44,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 15 types
+- And so on for all 16 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
@@ -54,12 +54,13 @@ Yes, in two ways:
 1. **Complexity scaling**: For trivial tasks (< 20 lines, single file), DevolaFlow skips the workflow entirely
 2. **Environment modes**: In `local` mode, release stages are typically skipped
 
-### What are the 4 new workflow types in v3.0.0+?
+### What are the 5 new workflow types in v3.0.0+?
 
 - **demo-showcase**: Build presentation-ready demos and interactive showcases
 - **performance-optimization**: Profile-driven performance improvement with before/after benchmarks
 - **dependency-setup**: Configure dev environments, install dependencies, set up tooling
 - **onboarding**: Help new contributors understand a codebase and set up their environment
+- **skill-optimization**: Optimize agent skills with context profiling, benchmarking, and iterative improvement
 
 ## Quality & Gates
 

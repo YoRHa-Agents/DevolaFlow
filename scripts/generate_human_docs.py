@@ -29,9 +29,9 @@ DOCS = [
     (
         "workflow-types",
         "Workflow Types Catalog",
-        "15 built-in workflow types with selection guidance.",
+        "16 built-in workflow types with selection guidance.",
         "工作流类型目录",
-        "15 种内置工作流类型及选择指南。",
+        "16 种内置工作流类型及选择指南。",
     ),
     (
         "agent-hierarchy-guide",
@@ -171,7 +171,7 @@ Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlo
 ## Step 2: Verify Installation
 
 ```bash
-devola-version   # should print "DevolaFlow v3.0.0"
+devola-version   # should print current DevolaFlow version
 ```
 
 ## Step 3: Try Your First Workflow
@@ -218,7 +218,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 15 workflow types: [Workflow Types](workflow-types.md)
+- See all 16 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
@@ -368,7 +368,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 15 Built-in Workflow Types
+## All 16 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -383,6 +383,14 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Stages**: analyze (codebase survey) → document (onboarding docs) → setup (dev environment) → verify (smoke tests)
 **Teams**: Research, Implement, Test
 **Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
+
+### Optimize Workflows
+
+#### `skill-optimization`
+**When to use**: Optimize agent skills, benchmark context density, improve information routing.
+**Stages**: survey → profile → optimize → benchmark → iterate → document
+**Teams**: Research, Implement, Test, Review
+**Example prompt**: `"Optimize the DevolaFlow skill — benchmark context density and reduce noise"`
 
 ### Shape Workflows
 
@@ -491,6 +499,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `performance-optimization` | slow, optimize, benchmark | 5 | standard |
 | `dependency-setup` | setup, install, configure env | 4 | relaxed |
 | `onboarding` | new to project, getting started | 4 | — |
+| `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
 """
 
 
@@ -621,7 +630,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 15 types
+- And so on for all 16 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
@@ -631,12 +640,13 @@ Yes, in two ways:
 1. **Complexity scaling**: For trivial tasks (< 20 lines, single file), DevolaFlow skips the workflow entirely
 2. **Environment modes**: In `local` mode, release stages are typically skipped
 
-### What are the 4 new workflow types in v3.0.0+?
+### What are the 5 new workflow types in v3.0.0+?
 
 - **demo-showcase**: Build presentation-ready demos and interactive showcases
 - **performance-optimization**: Profile-driven performance improvement with before/after benchmarks
 - **dependency-setup**: Configure dev environments, install dependencies, set up tooling
 - **onboarding**: Help new contributors understand a codebase and set up their environment
+- **skill-optimization**: Optimize agent skills with context profiling, benchmarking, and iterative improvement
 
 ## Quality & Gates
 
@@ -1044,7 +1054,7 @@ The default max is 3 iterations. If the agent keeps looping:
 
 ### Tests fail after SKILL.md changes
 
-Run `python -m pytest tests/test_version.py -v` to check version consistency across all 9 locations. Use `scripts/bump_version.py` for consistent updates.
+Run `python -m pytest tests/test_version.py -v` to check version consistency. Use `scripts/bump_version.py` for consistent updates across all version locations.
 
 ### `build-skill` reports budget exceeded
 
@@ -1138,7 +1148,7 @@ devola-init all          # 所有工具
 ## 第二步：验证安装
 
 ```bash
-devola-version   # 应输出 "DevolaFlow v3.0.0"
+devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 ## 第三步：尝试你的第一个工作流
@@ -1185,7 +1195,7 @@ devola-version   # 应输出 "DevolaFlow v3.0.0"
 
 ## 第四步：深入探索
 
-- 查看全部 15 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 16 种工作流：[工作流类型](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)
@@ -1307,7 +1317,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 15 种内置工作流类型
+## 全部 16 种内置工作流类型
 
 ### 发现类工作流
 
@@ -1320,6 +1330,13 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **适用场景**：新成员加入、了解陌生代码库、恢复休眠项目。
 **阶段**：analyze → document → setup → verify
 **示例**：`"我是这个项目的新人 — 帮我了解代码库并设置开发环境"`
+
+### 优化类工作流
+
+#### `skill-optimization`
+**适用场景**：优化 Agent 技能、基准测试上下文密度、改进信息路由。
+**阶段**：survey → profile → optimize → benchmark → iterate → document
+**示例**：`"优化 DevolaFlow 技能 — 基准测试上下文密度并减少噪声"`
 
 ### 塑形类工作流
 
@@ -1415,6 +1432,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `performance-optimization` | 慢, 优化, 基准测试 | 5 | standard |
 | `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
 | `onboarding` | 新加入项目, 入门 | 4 | — |
+| `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
 """
 
 
@@ -1546,12 +1564,13 @@ DevolaFlow 使用提示词的 **意图匹配**：
 
 你也可以显式指定："使用 migration 工作流从 React 17 升级到 18。"
 
-### v3.0.0+ 的 4 种新工作流是什么？
+### v3.0.0+ 的 5 种新工作流是什么？
 
 - **demo-showcase**：构建展示级演示和交互式展示
 - **performance-optimization**：基于分析的性能优化，包含前后对比基准测试
 - **dependency-setup**：配置开发环境，安装依赖，设置工具链
 - **onboarding**：帮助新贡献者了解代码库并设置环境
+- **skill-optimization**：优化 Agent 技能，包括上下文分析、基准测试和迭代改进
 
 ## 质量与门控
 
@@ -1884,7 +1903,7 @@ DevolaFlow 使用关键词匹配。让你的意图更明确：
 
 ### 修改 SKILL.md 后测试失败
 
-运行 `python -m pytest tests/test_version.py -v` 检查 9 个位置的版本一致性。使用 `scripts/bump_version.py` 进行统一更新。
+运行 `python -m pytest tests/test_version.py -v` 检查版本一致性。使用 `scripts/bump_version.py` 进行统一更新。
 
 ### `build-skill` 报告超出预算
 
