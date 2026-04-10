@@ -7,6 +7,8 @@ alwaysApply: true
 
 Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews.
 
+**Tool enforcement**: L0-L2 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement — delegate to L3 Task Agents via the `Task` tool. **Trivial exception**: Single file, < 20 lines — P1 waived.
+
 ## Rule 2 — P2 Minimal Context
 
 Each agent layer receives only the context it needs. Project Agent: ~3K tokens (workflow template + status). Stage Agent: ~5K tokens (stage def + predecessor summaries). Wave Agent: ~4K tokens (task list + status). Task Agent: ~8K tokens (task spec + owned files + rules).

@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "3.5.0"
+version: "3.6.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 16 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v3.5.0**
+> **Now Using DevolaFlow v3.6.0**
 
 # DevolaFlow (MVP)
 
@@ -20,14 +20,14 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 3.5.0
+**Current version:** 3.6.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (3.5.0).
+2. Compare with current version (3.6.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v3.5.0 is the latest version."
+4. If current, respond: "DevolaFlow v3.6.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
 
@@ -37,12 +37,12 @@ Before selecting a workflow, assess task complexity:
 
 | Complexity | Signal | Action |
 |-----------|--------|--------|
-| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — no workflow needed |
-| **Simple** | 1-3 files, clear scope, < 1 hour | Use **hotfix** or **single-stage** — skip hierarchy |
-| **Standard** | 3-10 files, needs design or review | Select workflow from table below, use full hierarchy |
-| **Complex** | 10+ files, cross-cutting, multi-day | Select workflow, use strict gate profile |
+| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — P1 waived for minimal edits |
+| **Simple** | 1-3 files, clear scope, < 1 hour | Dispatch **single Task Agent** via `Task` tool — no multi-stage workflow |
+| **Standard** | 3-10 files, needs design or review | Full hierarchy: dispatch stages via `Task` tool |
+| **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy with strict gate profile |
 
-**Rule**: Do not over-orchestrate simple tasks. Match ceremony to complexity.
+**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
 
 ## Workflow Type Selection
 
@@ -86,6 +86,12 @@ Layer 0: PROJECT AGENT (Dispatcher)
 | Task | **ONLY layer that works** -- write code, run tests, review | ~8K tokens: task spec + owned files + rules + design excerpt | Spawn sub-agents, modify files outside owned_files |
 
 **INVARIANT**: Dispatcher agents (Project, Stage, Wave) MUST NOT perform work. Only Task Agents execute actual work using tools.
+
+**You are L0 (Project Agent).** Before using Write/StrReplace/Shell for code or tests — STOP. Dispatch via `Task` tool instead.
+
+**L0 Protocol:** ASSESS complexity → SELECT workflow → DECOMPOSE into tasks (disjoint files per wave) → DISPATCH via `Task` tool (include: task description, owned_files, acceptance_criteria, predecessor summary) → VERIFY outputs → GATE → REPORT.
+
+**L0 allowed tools**: Read, Glob, Grep, SemanticSearch (planning). **Delegate-only**: Write, StrReplace, Shell (code/test/build). **Trivial exception**: single file < 20 lines.
 
 ## Stage Primitives (13 Universal)
 
