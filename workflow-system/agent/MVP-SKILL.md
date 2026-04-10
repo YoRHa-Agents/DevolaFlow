@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "3.3.0"
+version: "3.4.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 15 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v3.3.0**
+> **Now Using DevolaFlow v3.4.0**
 
 # DevolaFlow (MVP)
 

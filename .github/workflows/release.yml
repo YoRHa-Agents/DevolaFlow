@@ -42,32 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build site
-        run: |
-          mkdir -p _site
-
-          # Demo pages are the site root (landing page)
-          cp -r workflow-system/human/demo/* _site/
-
-          # EN docs as /docs-en/
-          mkdir -p _site/docs-en
-          cp workflow-system/human/en/*.md _site/docs-en/
-
-          # ZH docs as /docs-zh/
-          mkdir -p _site/docs-zh
-          cp workflow-system/human/zh/*.md _site/docs-zh/
-
-          # Design docs as /designs/
-          mkdir -p _site/designs
-          cp doc/designs/*.md _site/designs/
-
-          # Agent skill files for download
-          mkdir -p _site/download
-          cp workflow-system/agent/MVP-SKILL.md _site/download/
-          cp workflow-system/agent/SKILL.md _site/download/
-
-          # Template files for design-architecture page reference
-          mkdir -p _site/templates
-          cp workflow-system/agent/templates/builtin/*.yaml _site/templates/ 2>/dev/null || true
+        run: bash scripts/build-site.sh
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -383,13 +383,28 @@ Or open locally: `workflow-system/human/demo/index.html`
 
 ## Contributing
 
+### Development Workflow
+
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make changes following the [repository rules](.cursor/rules/) (5 core + 18 process rules)
-4. Run `make all` to verify (tests, lint, templates, adapters)
-5. Submit a Pull Request (never push directly to `main`)
+4. Run `make all` to verify (tests, lint, templates, adapters, docs sync, drift check)
+5. Update `CHANGELOG.md` if your changes are user-visible
+6. Submit a Pull Request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md) (never push directly to `main`)
 
-Commit messages use conventional format: `feat:`, `fix:`, `docs:`, `test:`, `chore:`
+Commit messages use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`
+
+### Release Process (Maintainers)
+
+```bash
+make release-preflight                          # run all quality gates
+python scripts/bump_version.py X.Y.Z --dry-run  # preview version bump
+python scripts/bump_version.py X.Y.Z --tag      # bump all 9 locations + create git tag
+git add -A && git commit -m "chore: bump version to X.Y.Z"
+git push origin main --tags                      # triggers release workflow
+```
+
+Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml): test → GitHub Release → Pages deploy. See [Release Workflow Design](doc/designs/design_release_workflow.md) for full details.
 
 ## License
 

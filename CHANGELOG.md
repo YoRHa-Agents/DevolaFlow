@@ -5,6 +5,34 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-04-10
+
+### Added
+- **Release Workflow**: Complete end-to-end release process with tooling and documentation:
+  - `scripts/build-site.sh`: Shared site builder eliminating duplication between `pages.yml` and `release.yml`
+  - `bump_version.py --tag`: Creates annotated git tags alongside version bumps
+  - Makefile targets: `release-preflight`, `release-dry-run`, `build-site`
+  - `.github/PULL_REQUEST_TEMPLATE.md`: PR template with quality checklist
+  - `doc/designs/design_release_workflow.md`: Full release runbook (branch strategy, PR workflow, release cadence, CHANGELOG maintenance)
+
+### Fixed
+- **Missing CHANGELOG v3.2.0**: Added retroactive entry for Plan mode hardening, skill-optimization workflow, and EvoBench expansion
+- **Pages build duplication**: Identical 20-line inline script was copy-pasted in `pages.yml` and `release.yml`, now both use `scripts/build-site.sh`
+- **Release pipeline was dormant**: `release.yml` triggers on `v*` tags but no git tags existed; `--tag` flag now enables the full release flow
+- **Build artifacts tracked**: `_site/` added to `.gitignore`
+
+### Changed
+- README Contributing section expanded with release process for maintainers
+- Makefile `clean` target now removes `_site/`
+- Human docs (EN + ZH) synced with README contributing changes
+
+### Metrics
+- Tests: 312 passed
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 22/22 pass, 0 regressions
+- Adapters: All 4 within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+- Lint: All checks pass
+
 ## [3.3.0] - 2026-04-10
 
 ### Added
@@ -56,6 +84,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimization rounds: 6 total (baseline + 5 iterations)
 - Lint: All checks pass (ruff check + format)
 - Adapters: All 4 build within budget
+
+## [3.2.0] - 2026-04-10
+
+### Added
+- **Plan Mode Hardening**: Rewrote SKILL.md Plan mode section with rigid hierarchy constraints (P1-P5, wave/task caps, gate types, DAG rules, stable IDs, constraints checklist)
+- **Skill Optimization Workflow**: New `skill-optimization` workflow (16th type): survey → profile → optimize → benchmark → iterate → document, with RDRR-like convergence loop
+- **EvoBench Expansion**: 3 new scenarios (skill_optimization, design_workflow, refactor_tech_debt), round tracking (`--round N`, `--round-label`), history storage, benchmark results web page
+- **Claude/Copilot Plan Mode**: Both adapters now include condensed plan-mode constraint stanzas
+
+### Changed
+- Context profile line ranges updated to match current SKILL.md layout
+- Hotfix profile budget tightened (4500 → 3500)
+- Demo landing page updated (16 types, v3.2.0, benchmark card)
+- Human docs (EN + ZH) updated with skill-optimization workflow
+
+### Metrics
+- Tests: 309 passed
+- Coverage: 88.63%
+- EvoBench: +6.2 avg composite (+7.6%) over 2 optimization rounds
+- Adapters: All 4 within budget
 
 ## [3.1.0] - 2026-04-10
 
