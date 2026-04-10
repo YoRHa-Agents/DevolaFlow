@@ -57,6 +57,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lint: All checks pass (ruff check + format)
 - Adapters: All 4 build within budget
 
+## [3.2.0] - 2026-04-10
+
+### Added
+- **Plan Mode Hardening**: Rewrote SKILL.md Plan mode section with rigid hierarchy constraints (P1-P5, wave/task caps, gate types, DAG rules, stable IDs, constraints checklist)
+- **Skill Optimization Workflow**: New `skill-optimization` workflow (16th type): survey → profile → optimize → benchmark → iterate → document, with RDRR-like convergence loop
+- **EvoBench Expansion**: 3 new scenarios (skill_optimization, design_workflow, refactor_tech_debt), round tracking (`--round N`, `--round-label`), history storage, benchmark results web page
+- **Claude/Copilot Plan Mode**: Both adapters now include condensed plan-mode constraint stanzas
+
+### Changed
+- Context profile line ranges updated to match current SKILL.md layout
+- Hotfix profile budget tightened (4500 → 3500)
+- Demo landing page updated (16 types, v3.2.0, benchmark card)
+- Human docs (EN + ZH) updated with skill-optimization workflow
+
+### Metrics
+- Tests: 309 passed
+- Coverage: 88.63%
+- EvoBench: +6.2 avg composite (+7.6%) over 2 optimization rounds
+- Adapters: All 4 within budget
+
 ## [3.1.0] - 2026-04-10
 
 ### Added

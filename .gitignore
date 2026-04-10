@@ -39,6 +39,7 @@ Thumbs.db
 
 # Generated outputs
 dist/
+_site/
 
 # Node (for demo pages)
 node_modules/

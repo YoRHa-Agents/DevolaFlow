@@ -1,7 +1,8 @@
 # DevolaFlow Build System
 # Design ref: design_dual_system.md §4.5
 
-.PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install
+.PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
+       build-site release-preflight release-dry-run
 
 all: lint test validate-templates build-skill sync-human-docs check-drift
 
@@ -43,6 +44,28 @@ check-drift:
 detect-repo-mode:
 	bash scripts/detect-repo-mode.sh
 
+build-site:
+	bash scripts/build-site.sh
+
+release-preflight: lint test validate-templates build-skill sync-human-docs check-drift
+	@echo "--- Release preflight PASSED ---"
+	@echo "Next: python scripts/bump_version.py <version> --tag"
+	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"
+	@echo "Then: git push origin main --tags"
+
+release-dry-run:
+	@echo "=== Release dry-run ==="
+	@echo "1. Preflight checks..."
+	$(MAKE) lint test validate-templates build-skill
+	@echo ""
+	@echo "2. Current version:"
+	@python scripts/bump_version.py
+	@echo ""
+	@echo "3. Site build test..."
+	$(MAKE) build-site
+	@echo ""
+	@echo "=== Dry-run complete. Run 'make release-preflight' for the real check. ==="
+
 clean:
-	rm -rf dist/ build/ *.egg-info .pytest_cache htmlcov .coverage
+	rm -rf dist/ build/ *.egg-info .pytest_cache htmlcov .coverage _site/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

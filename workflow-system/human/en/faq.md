@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T17:56:30Z"
+last_synced: "2026-04-10T18:28:17Z"
 source_version: "3.3.0"
 ---
 

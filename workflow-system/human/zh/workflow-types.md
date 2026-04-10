@@ -4,7 +4,7 @@ description: "15 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-10T17:28:14Z"
+last_synced: "2026-04-10T18:28:17Z"
 source_version: "3.3.0"
 ---
 
@@ -35,12 +35,6 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **适用场景**：新成员加入、了解陌生代码库、恢复休眠项目。
 **阶段**：analyze → document → setup → verify
 **示例**：`"我是这个项目的新人 — 帮我了解代码库并设置开发环境"`
-
-#### `skill-optimization`
-**适用场景**：迭代优化 Agent 技能文件，测量上下文密度，运行 EvoBench 基准测试。
-**阶段**：调研 → 分析 → 优化 → 基准测试 → 迭代（收敛循环） → 文档
-**关键特性**：在「优化 → 基准测试 → 迭代」阶段采用类似 RDRR 的收敛循环；配有专用上下文配置，6000 token 预算。
-**示例**：`"使用 EvoBench 基准测试优化 SKILL.md 上下文密度"`
 
 ### 塑形类工作流
 
@@ -136,4 +130,3 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `performance-optimization` | 慢, 优化, 基准测试 | 5 | standard |
 | `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
 | `onboarding` | 新加入项目, 入门 | 4 | — |
-| `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
