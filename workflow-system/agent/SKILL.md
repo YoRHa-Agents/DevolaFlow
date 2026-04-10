@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "3.5.0"
+version: "3.6.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -28,13 +28,13 @@ description: >
   and context-isolated task delegation.
 ---
 
-> **Now Using DevolaFlow v3.5.0**
+> **Now Using DevolaFlow v3.6.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 3.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.6.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -42,12 +42,12 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 
 | Complexity | Signal | Action |
 |-----------|--------|--------|
-| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — no workflow needed |
-| **Simple** | 1-3 files, clear scope, < 1 hour | Use **hotfix** or **single-stage** — skip hierarchy |
-| **Standard** | 3-10 files, needs design or review | Select workflow from table below, use full hierarchy |
-| **Complex** | 10+ files, cross-cutting, multi-day | Select workflow, use strict gate profile |
+| **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — P1 waived for minimal edits |
+| **Simple** | 1-3 files, clear scope, < 1 hour | Dispatch **single Task Agent** via `Task` tool — no multi-stage workflow |
+| **Standard** | 3-10 files, needs design or review | Full hierarchy: dispatch stages via `Task` tool |
+| **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy with strict gate profile |
 
-**Rule**: Do not over-orchestrate simple tasks. Match ceremony to complexity.
+**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
 
 ## Mode Awareness
 
@@ -107,7 +107,31 @@ Escalation: Task → Wave → Stage → Project → Human
 
 ### AGENT MODE — Full Orchestration
 
-In Agent mode, proceed with standard workflow selection and 4-layer hierarchy execution (below).
+**You are the L0 Project Agent.** You orchestrate — you NEVER implement.
+
+**P1 Self-Check — Before using any tool, verify:**
+- Am I about to write/modify a source file? → DELEGATE via `Task` tool
+- Am I about to run tests or build commands? → DELEGATE via `Task` tool
+- Am I about to author a design doc or review? → DELEGATE via `Task` tool
+- Am I reading files to understand the codebase for planning? → ALLOWED
+
+**L0 Tool Permissions:**
+- **ALLOWED**: Read, Glob, Grep, SemanticSearch (understand codebase), TodoWrite (track progress)
+- **DELEGATE**: Write, StrReplace, Shell (code/test/build), EditNotebook → spawn Task Agent
+- **Trivial exception**: Single file, < 20 lines → P1 waived, execute directly
+
+**Execution Protocol:**
+1. **ASSESS** complexity → Quick Action Decision table
+2. **SELECT** workflow type → Workflow Selection table below
+3. **DECOMPOSE** into stages → waves → tasks (disjoint file ownership per wave)
+4. **DISPATCH** each task → `Task` tool (subagent_type: `generalPurpose`)
+   - Prompt includes: role, task_id, description, owned_files, read_only, acceptance_criteria, predecessor summary (3-5 sentences max)
+5. **VERIFY** task output against acceptance criteria
+6. **GATE** stage → composite score ≥ threshold, 0 blockers → advance or converge
+7. **REPORT** final results + Task Quality Score
+
+**Simple task shortcut** (1-3 files, < 1 hour):
+Skip multi-stage hierarchy. Dispatch a **single Task Agent** via `Task` tool with full context. Verify output and report.
 
 ## Quick Start — Workflow Selection
 

@@ -5,6 +5,35 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-04-10
+
+### Fixed
+- **P1 Dispatcher-Not-Implementer not enforced** (root cause: 5 gaps in SKILL.md):
+  1. Agent Mode section was vacuous — 2 lines with no enforcement mechanism
+  2. Quick Action Decision used ambiguous "Execute directly" / "skip hierarchy" phrasing
+  3. No tool-to-layer permission mapping (hierarchy table said MUST NOT "write code" but never named actual tools)
+  4. No explicit L0 role assignment — SKILL never told the reading agent "You are L0"
+  5. Agent Mode protocol absent from context profiles — lines 108-110 fell in an unregistered gap
+- **Agent Mode Execution Protocol**: Replaced 2-line vacuous section with 27-line enforcement block:
+  - Explicit L0 role assignment ("You are the L0 Project Agent")
+  - P1 Self-Check: 4-point "Am I about to..." verification before any tool use
+  - Tool permissions: ALLOWED (Read/Glob/Grep/SemanticSearch) vs DELEGATE (Write/StrReplace/Shell)
+  - 7-step execution protocol: ASSESS → SELECT → DECOMPOSE → DISPATCH → VERIFY → GATE → REPORT
+  - Simple task shortcut: dispatch single Task Agent, skip multi-stage hierarchy
+- **Quick Action Decision P1 clarity**: "Execute directly" → "P1 waived for minimal edits"; "skip hierarchy" → "Dispatch single Task Agent"
+- **workflow-rules.mdc Rule 1**: Added tool-level enforcement specifying which tools L0-L2 may vs must-not use
+- **context_profiles.yaml**: Added `agent_mode_protocol` section (lines 108-135), marked `critical` in all 16 profiles; updated all section line ranges (+24 shift)
+- **MVP-SKILL.md**: Added condensed L0 protocol (3 lines: role assignment, protocol steps, tool permissions)
+
+### Metrics
+- Tests: 316 passed (0 regressions)
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 22/22 pass, 0 regressions
+- Adapters: All 4 within budget (Cursor 388/500, Codex 377/500, Claude 67/200, Copilot 1922/4000)
+- Lint: All checks pass
+- SKILL.md: 388 lines (budget: 500)
+- MVP-SKILL.md: 291 lines (budget: 500)
+
 ## [3.5.0] - 2026-04-10
 
 ### Added
