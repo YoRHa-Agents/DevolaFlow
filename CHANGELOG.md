@@ -5,6 +5,34 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-04-10
+
+### Added
+- **Release Workflow**: Complete end-to-end release process with tooling and documentation:
+  - `scripts/build-site.sh`: Shared site builder eliminating duplication between `pages.yml` and `release.yml`
+  - `bump_version.py --tag`: Creates annotated git tags alongside version bumps
+  - Makefile targets: `release-preflight`, `release-dry-run`, `build-site`
+  - `.github/PULL_REQUEST_TEMPLATE.md`: PR template with quality checklist
+  - `doc/designs/design_release_workflow.md`: Full release runbook (branch strategy, PR workflow, release cadence, CHANGELOG maintenance)
+
+### Fixed
+- **Missing CHANGELOG v3.2.0**: Added retroactive entry for Plan mode hardening, skill-optimization workflow, and EvoBench expansion
+- **Pages build duplication**: Identical 20-line inline script was copy-pasted in `pages.yml` and `release.yml`, now both use `scripts/build-site.sh`
+- **Release pipeline was dormant**: `release.yml` triggers on `v*` tags but no git tags existed; `--tag` flag now enables the full release flow
+- **Build artifacts tracked**: `_site/` added to `.gitignore`
+
+### Changed
+- README Contributing section expanded with release process for maintainers
+- Makefile `clean` target now removes `_site/`
+- Human docs (EN + ZH) synced with README contributing changes
+
+### Metrics
+- Tests: 312 passed
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 22/22 pass, 0 regressions
+- Adapters: All 4 within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+- Lint: All checks pass
+
 ## [3.3.0] - 2026-04-10
 
 ### Added
