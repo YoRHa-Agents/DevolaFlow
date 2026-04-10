@@ -1,0 +1,27 @@
+# EvoBench Scenario: Migration/Upgrade
+# Tests that migration profile loads assessment, planning, and validation sections.
+
+name: "migration_upgrade"
+task_type: "migrate"
+description: "Migrate database layer from SQLite to PostgreSQL with zero-downtime cutover"
+
+expected_sections:
+  - quick_action_decision
+  - hierarchy_table
+  - wave_task_constraints
+  - gate_mechanism
+  - context_isolation
+  - dispatch_report
+  - convergence_loop
+  - stage_primitives
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - purpose_scope
+  - template_quick_ref
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

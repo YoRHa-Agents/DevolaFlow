@@ -5,7 +5,7 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] - 2026-04-10
+## [3.3.0] - 2026-04-10
 
 ### Added
 - **Plan Mode Hardening**: Rewrote SKILL.md Plan mode section (lines 52-100) with rigid hierarchy constraints:
@@ -19,30 +19,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Stages: survey → profile → optimize → benchmark → iterate → document
   - RDRR-like convergence loop on optimize→benchmark→iterate
   - Template YAML at `templates/builtin/skill-optimization.yaml`
-  - Dedicated context profile with 6000-token budget
-- **3 New EvoBench Scenarios**: `skill_optimization`, `design_workflow`, `refactor_tech_debt` (6 total)
+  - Dedicated context profile with 4300-token budget
+- **Full Workflow Coverage (16 profiles, 17 scenarios)**: All 16 workflow types now have dedicated context profiles and EvoBench benchmark scenarios:
+  - 9 new context profiles: migration, security-audit, documentation, spike-poc, rdrr, demo-showcase, perf-optimization, dependency-setup, onboarding
+  - 11 new benchmark scenarios: research_survey, review_code_quality, migration_upgrade, security_audit, documentation_guide, spike_poc, rdrr_design_loop, demo_showcase, perf_optimization, dependency_setup, onboarding_new
+- **Improved Profile Matching**: `match_profile()` now uses longest-match scoring instead of first-match, preventing short hints from stealing specific task types
 - **EvoBench Round Tracking**: `--round N` and `--round-label` flags for multi-round optimization
 - **Benchmark History Storage**: `benchmarks/devolaflow_context/history/optimization_history.json` with per-round results and delta tracking
-- **Benchmark Results Web Page**: Interactive visualization at `demo/benchmark-results/index.html` showing per-round metrics, composite scores, and improvement tracking
+- **Benchmark Results Web Page**: Interactive visualization at `demo/benchmark-results/index.html` with real optimization data across 3 key rounds (baseline, coverage expansion, final tuning)
 - **Claude/Copilot Plan Mode**: Both adapters now include condensed plan-mode constraint stanzas
 - **Workflow type counts updated to 16** across SKILL.md, MVP-SKILL.md, Claude adapter, Copilot adapter, README, demo page
+- **Hardened Quality Thresholds**: All 17 EvoBench scenarios now require min_composite >= 80.0, max_noise_ratio <= 0.1, min_relevance >= 0.8
 
 ### Changed
 - SKILL.md Plan mode template: lightweight → rigid hierarchy-enforcing format
 - Context profiles section line ranges: updated to match current SKILL.md layout
-- Hotfix profile token budget: 4500 → 3500 (improves budget utilization)
+- Token budgets optimized across all profiles for ~85% utilization target:
+  - hotfix: 4500 → 2600 | feature: 6500 → 4900 | refactor: 5500 → 4900
+  - design: 5000 → 4500 | skill-optimization: 6000 → 4300 | rdrr: 5500 → 4700
+  - migration: 5500 → 4900 | dependency-setup: 3500 → 3300
+- Profile hint conflicts resolved: removed "migrate/upgrade" from refactor, "security/audit/CVE" from review
 - Claude adapter workflow table: 11 → 16 types
 - Copilot adapter workflow list: 10 → 16 types
-- Demo landing page: "11 types" → "16 types", "v3.0.0" → "v3.2.0", new benchmark results card
-- Human docs (EN + ZH): workflow-types.md and customization-guide.md updated with skill-optimization workflow
+- Demo landing page: updated with real benchmark data, "v3.0.0" → "v3.2.0"
+- Human docs (EN + ZH): workflow-types.md and customization-guide.md updated with all new workflows
 
 ### Metrics
-- Tests: 309 passed (0 new failures)
-- Coverage: 88.63% (threshold: 80%)
-- EvoBench: 6/6 scenarios PASS, 0 regressions
-- EvoBench composite improvement: +6.2 avg (+7.6%) over 2 optimization rounds
+- Tests: 312 passed (+3 new tests)
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 17/17 scenarios PASS, 0 regressions
+- EvoBench avg composite: 94.4/100 (up from 80.5 baseline, +17.3%)
+- EvoBench avg budget utilization: 86.1% (up from 52.6% baseline, +63.7%)
+- EvoBench delta vs v3.1.0 baseline: +13.2 avg composite improvement
+- Section relevance: 100% across all 17 scenarios
+- Noise ratio: 0% across all 17 scenarios
+- Optimization rounds: 6 total (baseline + 5 iterations)
 - Lint: All checks pass (ruff check + format)
-- Adapters: All 4 build within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000)
+- Adapters: All 4 build within budget
 
 ## [3.1.0] - 2026-04-10
 

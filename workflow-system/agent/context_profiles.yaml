@@ -124,7 +124,7 @@ profiles:
       - "SEV1"
       - "SEV2"
       - "production down"
-    token_budget: 3500
+    token_budget: 2600
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -162,7 +162,7 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 6500
+    token_budget: 4900
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -231,16 +231,13 @@ profiles:
       and team roles for structuring research output.
 
   refactor:
-    description: "Refactoring/migration — code structure context, safety nets"
+    description: "Refactoring — code structure context, safety nets"
     goal_hints:
       - "refactor"
       - "clean up"
       - "tech debt"
       - "simplify"
-      - "migrate"
-      - "upgrade"
-      - "port"
-    token_budget: 5500
+    token_budget: 4900
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -272,10 +269,8 @@ profiles:
     description: "Code/design review — quality standards, finding classification"
     goal_hints:
       - "review"
-      - "audit"
-      - "security"
-      - "CVE"
-      - "vulnerability"
+      - "code review"
+      - "design review"
     token_budget: 4000
     section_priorities:
       frontmatter: skip
@@ -312,8 +307,7 @@ profiles:
       - "architect"
       - "API spec"
       - "schema"
-      - "ADR"
-    token_budget: 5000
+    token_budget: 4500
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -351,7 +345,8 @@ profiles:
       - "compress skill"
       - "skill iteration"
       - "EvoBench"
-    token_budget: 6000
+      - "skill-optimization"
+    token_budget: 4300
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -380,3 +375,327 @@ profiles:
       Gate mechanism is critical for evaluating optimization results. Context
       isolation and dispatch protocol matter because they define what agents
       actually receive. Convergence loop is important for the iterate cycle.
+
+  migration:
+    description: "Migration/upgrade — assessment, planning, validation heavy"
+    goal_hints:
+      - "migrate"
+      - "upgrade"
+      - "port"
+      - "convert"
+    token_budget: 4900
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: important
+      gate_mechanism: critical
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: important
+      reference_navigation: supplementary
+      rules_dispatchers: important
+      convergence_loop: important
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+      - "references/meta-framework.md"
+    rationale: >
+      Migrations need strong validation gates, convergence for iterative
+      compatibility testing, and full hierarchy for multi-wave impl.
+      Repo mode matters for CI/CD pipeline changes.
+
+  security-audit:
+    description: "Security audit — threat model, scanning, remediation"
+    goal_hints:
+      - "security"
+      - "audit"
+      - "CVE"
+      - "vulnerability"
+      - "threat model"
+      - "penetration"
+    token_budget: 5000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: important
+      gate_mechanism: critical
+      agent_teams: critical
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: supplementary
+      reference_navigation: supplementary
+      rules_dispatchers: important
+      convergence_loop: important
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+      - "references/team-roles.md"
+    rationale: >
+      Security audits require strict gate evaluation, team roles for
+      scan/analyze/remediate handoffs, and convergence for fix-verify cycles.
+
+  documentation:
+    description: "Documentation authoring — survey, content creation, review"
+    goal_hints:
+      - "document"
+      - "write docs"
+      - "README"
+      - "guide"
+      - "tutorial"
+    token_budget: 3500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: supplementary
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: skip
+      gate_mechanism: supplementary
+      agent_teams: important
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: skip
+      reference_navigation: important
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: critical
+      template_quick_ref: skip
+    extra_context:
+      - "references/team-roles.md"
+    rationale: >
+      Documentation tasks focus on survey-author-review cycle. No convergence
+      loops or deep architecture. TQS matters for quality evaluation.
+      Dispatch protocol needed for structuring authoring tasks.
+
+  spike-poc:
+    description: "Spike/PoC — rapid prototyping, experimental"
+    goal_hints:
+      - "prototype"
+      - "spike"
+      - "experiment"
+      - "PoC"
+      - "proof of concept"
+    token_budget: 3000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: skip
+      gate_mechanism: skip
+      agent_teams: important
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: skip
+      reference_navigation: skip
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: skip
+      template_quick_ref: skip
+    extra_context:
+      - "references/team-roles.md"
+    rationale: >
+      Spikes are fast and experimental. No gates, no convergence, minimal
+      ceremony. Focus on dispatch for structuring exploration tasks.
+
+  rdrr:
+    description: "Research-Design-Review-Refine loop — iterative design with convergence"
+    goal_hints:
+      - "RDRR"
+      - "design with research"
+      - "ADR"
+      - "iterate design"
+      - "design loop"
+    token_budget: 4700
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: critical
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: critical
+      gate_mechanism: critical
+      agent_teams: critical
+      context_isolation: important
+      dispatch_report: important
+      repo_mode: skip
+      reference_navigation: important
+      rules_dispatchers: important
+      convergence_loop: critical
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/meta-framework.md"
+      - "references/decomposition-gate.md"
+    rationale: >
+      RDRR is convergence-heavy with research→design→review→refine loops.
+      Stage primitives and convergence loop are critical for the iteration
+      cycle. Gate mechanism validates each design refinement round.
+
+  demo-showcase:
+    description: "Demo/showcase — build presentation-ready deliverables"
+    goal_hints:
+      - "demo"
+      - "showcase"
+      - "presentation"
+      - "pitch"
+    token_budget: 4500
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: important
+      gate_mechanism: important
+      agent_teams: critical
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: supplementary
+      reference_navigation: supplementary
+      rules_dispatchers: supplementary
+      convergence_loop: supplementary
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/team-roles.md"
+    rationale: >
+      Demo workflows need clear team roles for storyboard/build/polish
+      stages, hierarchy for multi-wave build, and dispatch for handoffs.
+
+  perf-optimization:
+    description: "Performance optimization — profile, benchmark, optimize"
+    goal_hints:
+      - "slow"
+      - "optimize"
+      - "profile"
+      - "benchmark"
+      - "performance"
+      - "latency"
+    token_budget: 5000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: critical
+      stage_primitives: important
+      gate_mechanism: critical
+      agent_teams: important
+      context_isolation: critical
+      dispatch_report: critical
+      repo_mode: supplementary
+      reference_navigation: supplementary
+      rules_dispatchers: important
+      convergence_loop: critical
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/decomposition-gate.md"
+    rationale: >
+      Performance optimization uses profile→optimize→benchmark convergence
+      loops. Gate mechanism validates benchmark improvements. Dispatch protocol
+      for structuring profiling and optimization tasks.
+
+  dependency-setup:
+    description: "Dependency/environment setup — configure, install, verify"
+    goal_hints:
+      - "setup env"
+      - "install"
+      - "configure tools"
+      - "dependency"
+      - "environment"
+    token_budget: 3300
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: important
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: skip
+      gate_mechanism: supplementary
+      agent_teams: important
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: critical
+      reference_navigation: skip
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: skip
+      template_quick_ref: skip
+    extra_context:
+      - "references/repo-modes.md"
+    rationale: >
+      Dependency setup needs repo mode for CI/CD context, dispatch for
+      structuring install/configure tasks. Minimal ceremony — no convergence
+      or deep gates.
+
+  onboarding:
+    description: "Onboarding — codebase analysis, documentation, environment setup"
+    goal_hints:
+      - "new to project"
+      - "onboard"
+      - "getting started"
+      - "codebase overview"
+    token_budget: 4000
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: critical
+      purpose_scope: skip
+      quick_start_workflows: important
+      hierarchy_table: critical
+      hierarchy_diagram: skip
+      wave_task_constraints: important
+      stage_primitives: supplementary
+      gate_mechanism: supplementary
+      agent_teams: critical
+      context_isolation: important
+      dispatch_report: critical
+      repo_mode: important
+      reference_navigation: important
+      rules_dispatchers: supplementary
+      convergence_loop: skip
+      task_quality_score: supplementary
+      template_quick_ref: skip
+    extra_context:
+      - "references/team-roles.md"
+      - "references/repo-modes.md"
+    rationale: >
+      Onboarding focuses on codebase analysis and documentation generation.
+      Team roles define analysis/documentation tasks. Repo mode provides
+      CI/CD context. No convergence loops needed.

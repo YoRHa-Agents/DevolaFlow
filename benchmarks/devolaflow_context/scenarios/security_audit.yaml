@@ -1,17 +1,14 @@
-# EvoBench Scenario: Feature — Add User Role Middleware
-# Tests that feature profile loads broad architectural context including
-# stage primitives, gate mechanism, and team roles.
+# EvoBench Scenario: Security Audit
+# Tests that security-audit profile loads threat model, scanning, and remediation sections.
 
-name: "feature_middleware"
-task_type: "feature"
-description: "Implement Express.js middleware for user role-based access control"
+name: "security_audit"
+task_type: "security"
+description: "Audit API endpoints for OWASP Top 10 vulnerabilities and remediate findings"
 
 expected_sections:
   - quick_action_decision
-  - quick_start_workflows
   - hierarchy_table
   - wave_task_constraints
-  - stage_primitives
   - gate_mechanism
   - agent_teams
   - context_isolation

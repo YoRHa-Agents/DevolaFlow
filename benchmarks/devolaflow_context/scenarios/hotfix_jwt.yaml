@@ -25,6 +25,6 @@ unwanted_sections:
   - purpose_scope
 
 quality_thresholds:
-  min_composite: 50.0
-  max_noise_ratio: 0.3
-  min_relevance: 0.5
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8
