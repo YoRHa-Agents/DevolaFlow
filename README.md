@@ -3,7 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-3.1.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-3.3.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 309+ tests, 16 templates
+make test && make validate-templates   # 312+ tests, 16 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -188,18 +188,19 @@ The agent will compare your installed version against the latest on GitHub and t
 | **Wave** | Parallel-dispatch tasks | ~4K tokens | Never executes task work |
 | **Task** | **The only layer that works** | ~8K tokens | Never spawns sub-agents |
 
-### EvoBench Context Benchmarks (New in v3.0.0)
+### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite that measures how effectively context is routed to agents. Run it to verify optimization changes don't regress:
+DevolaFlow includes a built-in benchmark suite (17 scenarios covering all 16 workflow types) that measures how effectively context is routed to agents. Run it to verify optimization changes don't regress:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 17 scenarios
 python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
 python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
+python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Current avg composite: **94.4/100** with 100% relevance and 0% noise across all 17 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Repository Development Rules (New in v3.0.0)
 
@@ -242,7 +243,7 @@ DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/_
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v3.1.0"
+devola-version                   # prints "DevolaFlow v3.3.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -317,7 +318,7 @@ DevolaFlow/
     devolaflow_context/        # EvoBench context density benchmarks
       evaluator.py             #   scoring: relevance, density, noise, utilization
       runner.py                #   CLI runner with baseline comparison
-      scenarios/               #   3 benchmark scenarios (hotfix, feature, full-pipeline)
+      scenarios/               #   17 benchmark scenarios (all 16 workflow types)
       baselines/               #   stored baseline results for regression detection
   schemas/                    # All schema definitions (system + primitives)
     *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
@@ -326,7 +327,7 @@ DevolaFlow/
     primitives/               #   per-primitive I/O schemas (future)
   doc/designs/                # 14 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (309 tests, 88% coverage)
+  tests/                      # pytest suite (312+ tests, 88% coverage)
   .github/workflows/          # CI + Release + Pages
   .cursor/rules/              # always-on hard constraints (5 core + 18 process rules)
 ```
