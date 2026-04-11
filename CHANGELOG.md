@@ -5,6 +5,30 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-04-11
+
+### Added
+- **Wave Coordination Modes**: L2 Wave auto-selects coordination mode (parallel/sequential/generator_verifier/hybrid) via O(|V|+|E|) DAG analysis before dispatch. Generator-Verifier protocol provides tight generate→evaluate→refine loops within waves, reducing stage-level convergence rounds. Based on Anthropic's multi-agent coordination patterns and AdaptOrch topology routing.
+- **Plan Mode Hierarchy Enforcement**: Plan template now embeds the 4-layer delegation model explicitly — Execution Model table (L0→L1→L2→L3), layer annotations on stage/wave/task headers, P1 enforcement items in constraints checklist, L0 identity in plan mode opening
+- **Plan Mode in MVP-SKILL.md**: Added 15-line compact plan mode section with mode detection, layer-annotated template, and P1 enforcement rules
+
+### Changed
+- context_profiles.yaml: Split `purpose_scope` into `mode_detection` + `plan_mode_template` sections for finer-grained priority control; plan template marked `critical` in 10 planning-heavy profiles
+- context_profiles.yaml: Added `wave_coordination` section with P2-P3 hybrid priority scheme (5 critical, 1 important, 4 supplementary, 6 skip)
+- context_profiles.yaml: Promoted `convergence_loop` to `critical` in refactor, rdrr, perf-optimization profiles (EvoBench optimization R1)
+- context_profiles.yaml: Tightened token budgets for 5 under-utilized profiles: dependency-setup (3300→3050), onboarding (4000→3800), research (3500→3400), review (4000→3900), design (4500→4450) (EvoBench optimization R2)
+- SKILL.md Plan Mode rules: Added "DO annotate every plan element with its delegation layer" and "DO verify constraints checklist (including P1 enforcement items)"
+
+### Metrics
+- Tests: 316 passed (0 regressions)
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 22/22 pass, avg composite 99.43 (+0.30 vs v3.6.0)
+- EvoBench optimization: 3 rounds (97.08 → 98.99 → 99.43, converged)
+- Adapters: All 4 within budget (Cursor 418/500, Codex 407/500, Claude 67/200, Copilot 1922/4000)
+- Lint: All checks pass
+- SKILL.md: 418 lines (budget: 500)
+- MVP-SKILL.md: 307 lines (budget: 500)
+
 ## [3.6.0] - 2026-04-10
 
 ### Fixed

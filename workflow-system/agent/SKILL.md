@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "3.6.0"
+version: "3.7.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -28,13 +28,13 @@ description: >
   and context-isolated task delegation.
 ---
 
-> **Now Using DevolaFlow v3.6.0**
+> **Now Using DevolaFlow v3.7.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 3.6.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.7.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -59,7 +59,7 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 
-Output a **structured DevolaFlow plan** that enforces all hierarchy constraints. The plan is the contract the execution agent inherits.
+**You are L0 (Project Agent), designing an execution plan.** The plan must be structured so that L0 can dispatch it through L1→L2→L3 without L0-L2 performing work. The plan is the delegation contract the execution agent inherits.
 
 **Plan output format:**
 
@@ -69,18 +69,31 @@ Output a **structured DevolaFlow plan** that enforces all hierarchy constraints.
 [1-2 sentences] | Workflow: [type] | Gate: [standard/strict/relaxed]
 Escalation: Task → Wave → Stage → Project → Human
 
+## Execution Model
+| Plan Element | Layer | Role |
+|---|---|---|
+| Stage dispatch | L0 Project | Selects workflow, sequences stages |
+| Stage execution | L1 Stage | Decomposes into waves, runs gate |
+| Wave dispatch | L2 Wave | Dispatches parallel tasks, checks conflicts |
+| Task execution | L3 Task | **Only layer that does work** |
+
 ## Stages (gate-before-advance: no stage starts until predecessor gate PASS)
 
-### S01: [primitive] — [name]
+### S01: [primitive] — [name] [L0 dispatches → L1 executes]
 - gate_type: [standard|convergence|passthrough] | threshold: [N] | coverage: [N]%
 - max_rounds: [N] (convergence only) | on_stagnation: escalate
 - context_profile: [type] | deliverables: [artifact paths → consumed by S02]
+- L1_receives: stage definition, predecessor gate results, token budget ~5K
 
-#### W01 (parallel | <=5 tasks | disjoint ownership)
-| ID | Type | Task | Team | Writable (<=6) | Read-only | Est. | AC |
-|----|------|------|------|----------------|-----------|------|-----|
+#### W01 (parallel | <=5 tasks | disjoint ownership) [L2 dispatches tasks]
+| ID | Layer | Type | Task | Team | Writable (<=6) | Read-only | Est. | AC |
+|----|-------|------|------|------|----------------|-----------|------|-----|
+| T01 | L3 | impl | ... | Implement | ... | ... | ... | ... |
 
 ## Constraints Checklist
+- [ ] Every task row is L3 (no L0-L2 performing work — P1 enforced)
+- [ ] Stage headers specify L1 agent constraints (MUST NOT write code)
+- [ ] Execution model section present with per-layer delegation rules
 - [ ] Each wave: <=5 tasks, pairwise disjoint writable files
 - [ ] Each stage: <=7 waves
 - [ ] Task limits: impl <=30min, research <=45min, <=6 writable files
@@ -101,7 +114,8 @@ Escalation: Task → Wave → Stage → Project → Human
 - DO use `create_plan` tool (Cursor) or write `plan.md` (Claude) for output
 - DO embed stage→wave→task decomposition with file ownership and acceptance criteria
 - DO annotate each stage's gate_type, context profile, and convergence parameters
-- DO verify constraints checklist before finalizing the plan
+- DO annotate every plan element with its delegation layer (L0/L1/L2/L3)
+- DO verify constraints checklist (including P1 enforcement items) before finalizing
 - DO NOT dispatch tasks, write code, run tests, or modify files
 - DO NOT start execution until the user explicitly approves the plan
 
@@ -179,6 +193,22 @@ Match user intent to workflow type, then load the corresponding stage template.
 **Task sizing:** max 30 min (impl) / 45 min (research), max 6 writable files, ~50–300 lines changed.
 **Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
+
+### Wave Coordination Modes
+
+L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topology_override`).
+
+| DAG Shape | Mode | Mechanism |
+|-----------|------|-----------|
+| No edges | `parallel` | Dispatch all, collect results (default) |
+| Linear chain | `sequential` | Dispatch N+1 after N completes |
+| Quality-critical + shared context | `generator_verifier` | Gen → Verify → Refine loop (below) |
+| Mixed | `hybrid` | Partition: parallel groups + sequential chains |
+
+**Gen-Verify loop** (convergence stages: review+fix, test+fix, benchmark+optimize):
+1. Wave dispatches **generator** + **verifier** (criteria from `acceptance_criteria`)
+2. Verifier evaluates → `{PASS | FAIL + feedback}`. PASS → done. FAIL → generator refines (round N+1)
+3. Terminates on: verifier PASS, `max_rounds` reached, or score stagnant 2 rounds → escalate L1
 
 ## Stage Primitives Index
 

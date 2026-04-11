@@ -28,92 +28,102 @@ sections:
 
   quick_action_decision:
     lines: "41-51"
-    tokens_est: 120
+    tokens_est: 163
     content_type: table
 
-  purpose_scope:
-    lines: "52-107"
-    tokens_est: 500
+  mode_detection:
+    lines: "52-59"
+    tokens_est: 91
     content_type: prose
 
+  plan_mode_template:
+    lines: "60-120"
+    tokens_est: 819
+    content_type: spec
+
   agent_mode_protocol:
-    lines: "108-135"
-    tokens_est: 350
+    lines: "121-148"
+    tokens_est: 398
     content_type: spec
 
   quick_start_workflows:
-    lines: "136-167"
-    tokens_est: 400
+    lines: "149-180"
+    tokens_est: 580
     content_type: table
 
   hierarchy_table:
-    lines: "168-181"
-    tokens_est: 250
+    lines: "181-194"
+    tokens_est: 310
     content_type: table
 
   hierarchy_diagram:
-    lines: "168-181"
-    tokens_est: 250
+    lines: "181-194"
+    tokens_est: 310
     content_type: table
 
   wave_task_constraints:
-    lines: "179-182"
-    tokens_est: 60
+    lines: "192-195"
+    tokens_est: 102
     content_type: constraints
 
+  wave_coordination:
+    lines: "197-211"
+    tokens_est: 226
+    content_type: table
+
   stage_primitives:
-    lines: "183-232"
-    tokens_est: 500
+    lines: "212-261"
+    tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "233-246"
-    tokens_est: 250
+    lines: "262-275"
+    tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "247-278"
-    tokens_est: 450
+    lines: "276-307"
+    tokens_est: 504
     content_type: table
 
   context_isolation:
-    lines: "279-296"
-    tokens_est: 280
+    lines: "308-325"
+    tokens_est: 204
     content_type: spec
 
   dispatch_report:
-    lines: "297-323"
-    tokens_est: 350
+    lines: "326-352"
+    tokens_est: 258
     content_type: spec
 
   repo_mode:
-    lines: "324-334"
-    tokens_est: 130
+    lines: "353-363"
+    tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "335-363"
-    tokens_est: 320
+    lines: "364-392"
+    tokens_est: 330
     content_type: navigation
 
   rules_dispatchers:
-    lines: "335-363"
-    tokens_est: 320
+    lines: "364-392"
+    tokens_est: 330
     content_type: rules
 
   convergence_loop:
-    lines: "335-363"
-    tokens_est: 320
+    lines: "364-392"
+    tokens_est: 330
     content_type: navigation
 
   task_quality_score:
-    lines: "364-388"
-    tokens_est: 350
+    lines: "393-418"
+    tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "364-388"
-    tokens_est: 350
+    lines: "393-418"
+    tokens_est: 288
     content_type: table
 
 # Context profiles per task type
@@ -134,12 +144,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: skip
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: skip
       stage_primitives: skip
       gate_mechanism: important
       agent_teams: supplementary
@@ -173,12 +185,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: critical
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: supplementary
       stage_primitives: critical
       gate_mechanism: critical
       agent_teams: critical
@@ -187,7 +201,7 @@ profiles:
       repo_mode: important
       reference_navigation: important
       rules_dispatchers: important
-      convergence_loop: important
+      convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
     extra_context:
@@ -209,17 +223,19 @@ profiles:
       - "how"
       - "which"
       - "should we"
-    token_budget: 3500
+    token_budget: 3400
     section_priorities:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: supplementary
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: supplementary
+      wave_coordination: skip
       stage_primitives: supplementary
       gate_mechanism: skip
       agent_teams: important
@@ -250,12 +266,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: critical
       stage_primitives: important
       gate_mechanism: critical
       agent_teams: important
@@ -280,17 +298,19 @@ profiles:
       - "review"
       - "code review"
       - "design review"
-    token_budget: 4000
+    token_budget: 3900
     section_priorities:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: supplementary
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: supplementary
       stage_primitives: supplementary
       gate_mechanism: critical
       agent_teams: critical
@@ -317,17 +337,19 @@ profiles:
       - "architect"
       - "API spec"
       - "schema"
-    token_budget: 4500
+    token_budget: 4450
     section_priorities:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: supplementary
       stage_primitives: critical
       gate_mechanism: important
       agent_teams: critical
@@ -362,12 +384,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: important
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: critical
       stage_primitives: supplementary
       gate_mechanism: critical
       agent_teams: important
@@ -376,7 +400,7 @@ profiles:
       repo_mode: skip
       reference_navigation: skip
       rules_dispatchers: important
-      convergence_loop: important
+      convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
     extra_context:
@@ -400,12 +424,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: important
       stage_primitives: important
       gate_mechanism: critical
       agent_teams: important
@@ -414,7 +440,7 @@ profiles:
       repo_mode: important
       reference_navigation: supplementary
       rules_dispatchers: important
-      convergence_loop: important
+      convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
     extra_context:
@@ -439,12 +465,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: critical
       stage_primitives: important
       gate_mechanism: critical
       agent_teams: critical
@@ -476,12 +504,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: supplementary
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: skip
       stage_primitives: skip
       gate_mechanism: supplementary
       agent_teams: important
@@ -513,12 +543,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: skip
       stage_primitives: skip
       gate_mechanism: skip
       agent_teams: important
@@ -549,12 +581,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: critical
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: critical
       stage_primitives: critical
       gate_mechanism: critical
       agent_teams: critical
@@ -586,12 +620,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: supplementary
       stage_primitives: important
       gate_mechanism: important
       agent_teams: critical
@@ -623,12 +659,14 @@ profiles:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: critical
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: critical
+      wave_coordination: critical
       stage_primitives: important
       gate_mechanism: critical
       agent_teams: important
@@ -655,17 +693,19 @@ profiles:
       - "configure tools"
       - "dependency"
       - "environment"
-    token_budget: 3300
+    token_budget: 3050
     section_priorities:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: important
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: skip
       stage_primitives: skip
       gate_mechanism: supplementary
       agent_teams: important
@@ -691,17 +731,19 @@ profiles:
       - "onboard"
       - "getting started"
       - "codebase overview"
-    token_budget: 4000
+    token_budget: 3800
     section_priorities:
       frontmatter: skip
       version_update: skip
       quick_action_decision: critical
-      purpose_scope: skip
+      mode_detection: supplementary
+      plan_mode_template: skip
       agent_mode_protocol: critical
       quick_start_workflows: important
       hierarchy_table: critical
       hierarchy_diagram: skip
       wave_task_constraints: important
+      wave_coordination: skip
       stage_primitives: supplementary
       gate_mechanism: supplementary
       agent_teams: critical
