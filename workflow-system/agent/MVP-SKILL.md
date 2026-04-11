@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "3.6.0"
+version: "3.7.0"
 description: >
   Self-contained workflow orchestration skill using a 4-layer agent hierarchy
   (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
@@ -9,7 +9,7 @@ description: >
   Supports 16 workflow types from research-only to full-pipeline.
 ---
 
-> **Now Using DevolaFlow v3.6.0**
+> **Now Using DevolaFlow v3.7.0**
 
 # DevolaFlow (MVP)
 
@@ -20,14 +20,14 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 3.6.0
+**Current version:** 3.7.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (3.6.0).
+2. Compare with current version (3.7.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v3.6.0 is the latest version."
+4. If current, respond: "DevolaFlow v3.7.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
 
@@ -43,6 +43,22 @@ Before selecting a workflow, assess task complexity:
 | **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy with strict gate profile |
 
 **Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
+
+## Plan Mode
+
+**Detection:** `<system_reminder>` contains "Plan mode is active" OR user says "plan this" / "design first".
+
+**You are L0 (Project Agent), designing an execution plan.** Plan must be structured for L0→L1→L2→L3 delegation without L0-L2 performing work. The plan is the delegation contract the execution agent inherits.
+
+**Plan template** (output in code fence):
+- `## Overview` — workflow type, gate profile, escalation chain
+- `## Execution Model` — table: Stage dispatch=L0, Stage execution=L1, Wave dispatch=L2, Task execution=L3 (only worker)
+- `## Stages` — each `### S0N: [primitive] — [name] [L0 dispatches → L1 executes]` with gate_type, `L1_receives:` field
+- `#### Waves` — each `[L2 dispatches tasks]`, task table includes `Layer` column (always L3)
+- `## Constraints Checklist` — must include: every task L3 (P1), stage headers specify L1 constraints, execution model present
+- `## Invariants` — P1-P5 enforced
+
+**Rules:** DO use read-only tools for research. DO annotate every plan element with its delegation layer. DO NOT dispatch tasks, write code, run tests, or modify files. DO NOT start execution until user approves.
 
 ## Workflow Type Selection
 
