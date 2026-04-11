@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "3.7.0"
+version: "3.8.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -28,13 +28,13 @@ description: >
   and context-isolated task delegation.
 ---
 
-> **Now Using DevolaFlow v3.7.0**
+> **Now Using DevolaFlow v3.8.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 3.7.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.8.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -350,6 +350,18 @@ All inter-layer communication uses typed YAML schemas. Free-form chat between la
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt all |
 
 Full schemas: `references/message-schemas.md`
+
+## Lifecycle Hooks
+
+System-level enforcement (100% compliance). Optional per-dispatch; default: none.
+
+| Hook | Event | Enforces | On Violation |
+|------|-------|----------|--------------|
+| `validate_dispatch` | Pre-dispatch | AC ≥1 testable condition | Block + escalate |
+| `check_file_ownership` | File write | File ∈ `owned_files` | Reject + log (P1) |
+| `test_on_complete` | Task stop | Tests pass, lint clean | Auto-retry ≤ P4 limit |
+
+Elevates P1 (ownership enforcement) and P4 (bounded retry) from prompt-based to deterministic.
 
 ## Repo Mode Detection
 
