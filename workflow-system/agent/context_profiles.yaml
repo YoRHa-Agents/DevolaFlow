@@ -96,33 +96,38 @@ sections:
     tokens_est: 258
     content_type: spec
 
+  lifecycle_hooks:
+    lines: "354-364"
+    tokens_est: 155
+    content_type: table
+
   repo_mode:
-    lines: "353-363"
+    lines: "365-375"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "364-392"
+    lines: "376-404"
     tokens_est: 330
     content_type: navigation
 
   rules_dispatchers:
-    lines: "364-392"
+    lines: "376-404"
     tokens_est: 330
     content_type: rules
 
   convergence_loop:
-    lines: "364-392"
+    lines: "376-404"
     tokens_est: 330
     content_type: navigation
 
   task_quality_score:
-    lines: "393-418"
+    lines: "405-430"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "393-418"
+    lines: "405-430"
     tokens_est: 288
     content_type: table
 
@@ -139,7 +144,7 @@ profiles:
       - "SEV1"
       - "SEV2"
       - "production down"
-    token_budget: 2600
+    token_budget: 2400
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -157,6 +162,7 @@ profiles:
       agent_teams: supplementary
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: important
       repo_mode: supplementary
       reference_navigation: skip
       rules_dispatchers: important
@@ -180,7 +186,7 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 4900
+    token_budget: 4700
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -198,6 +204,7 @@ profiles:
       agent_teams: critical
       context_isolation: critical
       dispatch_report: important
+      lifecycle_hooks: critical
       repo_mode: important
       reference_navigation: important
       rules_dispatchers: important
@@ -223,7 +230,7 @@ profiles:
       - "how"
       - "which"
       - "should we"
-    token_budget: 3400
+    token_budget: 3375
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -241,6 +248,7 @@ profiles:
       agent_teams: important
       context_isolation: important
       dispatch_report: important
+      lifecycle_hooks: skip
       repo_mode: skip
       reference_navigation: important
       rules_dispatchers: supplementary
@@ -261,7 +269,7 @@ profiles:
       - "clean up"
       - "tech debt"
       - "simplify"
-    token_budget: 4900
+    token_budget: 4850
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -279,6 +287,7 @@ profiles:
       agent_teams: important
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: critical
       repo_mode: important
       reference_navigation: supplementary
       rules_dispatchers: important
@@ -298,7 +307,7 @@ profiles:
       - "review"
       - "code review"
       - "design review"
-    token_budget: 3900
+    token_budget: 3850
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -316,6 +325,7 @@ profiles:
       agent_teams: critical
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: skip
       repo_mode: supplementary
       reference_navigation: supplementary
       rules_dispatchers: important
@@ -355,6 +365,7 @@ profiles:
       agent_teams: critical
       context_isolation: important
       dispatch_report: important
+      lifecycle_hooks: skip
       repo_mode: supplementary
       reference_navigation: important
       rules_dispatchers: supplementary
@@ -379,7 +390,7 @@ profiles:
       - "skill iteration"
       - "EvoBench"
       - "skill-optimization"
-    token_budget: 4300
+    token_budget: 4250
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -397,6 +408,7 @@ profiles:
       agent_teams: important
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: supplementary
       repo_mode: skip
       reference_navigation: skip
       rules_dispatchers: important
@@ -419,7 +431,7 @@ profiles:
       - "upgrade"
       - "port"
       - "convert"
-    token_budget: 4900
+    token_budget: 4850
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -437,6 +449,7 @@ profiles:
       agent_teams: important
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: critical
       repo_mode: important
       reference_navigation: supplementary
       rules_dispatchers: important
@@ -460,7 +473,7 @@ profiles:
       - "vulnerability"
       - "threat model"
       - "penetration"
-    token_budget: 5000
+    token_budget: 4950
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -478,10 +491,11 @@ profiles:
       agent_teams: critical
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: critical
       repo_mode: supplementary
       reference_navigation: supplementary
       rules_dispatchers: important
-      convergence_loop: important
+      convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
     extra_context:
@@ -517,6 +531,7 @@ profiles:
       agent_teams: important
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: skip
       repo_mode: skip
       reference_navigation: important
       rules_dispatchers: supplementary
@@ -538,7 +553,7 @@ profiles:
       - "experiment"
       - "PoC"
       - "proof of concept"
-    token_budget: 3000
+    token_budget: 2950
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -556,6 +571,7 @@ profiles:
       agent_teams: important
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: skip
       repo_mode: skip
       reference_navigation: skip
       rules_dispatchers: supplementary
@@ -576,7 +592,7 @@ profiles:
       - "ADR"
       - "iterate design"
       - "design loop"
-    token_budget: 4700
+    token_budget: 4650
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -594,6 +610,7 @@ profiles:
       agent_teams: critical
       context_isolation: important
       dispatch_report: important
+      lifecycle_hooks: supplementary
       repo_mode: skip
       reference_navigation: important
       rules_dispatchers: important
@@ -615,7 +632,7 @@ profiles:
       - "showcase"
       - "presentation"
       - "pitch"
-    token_budget: 4500
+    token_budget: 4450
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -633,6 +650,7 @@ profiles:
       agent_teams: critical
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: supplementary
       repo_mode: supplementary
       reference_navigation: supplementary
       rules_dispatchers: supplementary
@@ -654,7 +672,7 @@ profiles:
       - "benchmark"
       - "performance"
       - "latency"
-    token_budget: 5000
+    token_budget: 4950
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -672,6 +690,7 @@ profiles:
       agent_teams: important
       context_isolation: critical
       dispatch_report: critical
+      lifecycle_hooks: important
       repo_mode: supplementary
       reference_navigation: supplementary
       rules_dispatchers: important
@@ -693,7 +712,7 @@ profiles:
       - "configure tools"
       - "dependency"
       - "environment"
-    token_budget: 3050
+    token_budget: 3000
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -711,6 +730,7 @@ profiles:
       agent_teams: important
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: supplementary
       repo_mode: critical
       reference_navigation: skip
       rules_dispatchers: supplementary
@@ -731,7 +751,7 @@ profiles:
       - "onboard"
       - "getting started"
       - "codebase overview"
-    token_budget: 3800
+    token_budget: 3750
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -749,6 +769,7 @@ profiles:
       agent_teams: critical
       context_isolation: important
       dispatch_report: critical
+      lifecycle_hooks: skip
       repo_mode: important
       reference_navigation: important
       rules_dispatchers: supplementary

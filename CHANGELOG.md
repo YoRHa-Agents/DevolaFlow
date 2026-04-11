@@ -5,6 +5,26 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-04-11
+
+### Added
+- **Lifecycle Hooks**: System-level deterministic enforcement at task lifecycle events (100% compliance vs 70-90% prompt-based). Three hooks: `validate_dispatch` (AC quality gate), `check_file_ownership` (P1 file boundary enforcement), `test_on_complete` (auto-retry on test/lint failure). Elevates P1 and P4 from prompt-based to deterministic enforcement. Based on Claude Code hooks architecture and enforcement ladder research.
+
+### Changed
+- context_profiles.yaml: Added `lifecycle_hooks` section with P3 priority scheme (4 critical: feature/refactor/migration/security-audit, 2 important, 4 supplementary, 6 skip)
+- context_profiles.yaml: Promoted `convergence_loop` to `critical` for security-audit profile (EvoBench optimization R1)
+- context_profiles.yaml: Tightened token budgets across 12 profiles over 3 optimization rounds (R1-R3)
+
+### Metrics
+- Tests: 316 passed (0 regressions)
+- Coverage: 88.49% (threshold: 80%)
+- EvoBench: 22/22 pass, avg composite 99.73 (+0.30 vs v3.7.0, +0.60 vs v3.6.0)
+- EvoBench optimization: 4 rounds (converged, worst scenario 99.47)
+- Adapters: All 4 within budget
+- Lint: All checks pass
+- SKILL.md: 430 lines (budget: 500)
+- MVP-SKILL.md: 307 lines (budget: 500)
+
 ## [3.7.0] - 2026-04-11
 
 ### Added
