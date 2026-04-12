@@ -1,25 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Design Architecture - DevolaFlow</title>
+  <title data-i18n="page.architecture">Design Architecture — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/nav.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
-    <h1><span>Devola</span>Flow Design Architecture</h1>
-    <p class="subtitle">Every skill file, its design source, tier, token budget, and the workflows it enables.</p>
+    <header>
+      <h1><span class="accent">Design</span> Architecture</h1>
+      <p class="tagline" data-i18n="arch.subtitle">The complete framework map</p>
+    </header>
 
     <div class="tabs">
       <button class="tab-btn active" data-tab="tab-overview" onclick="showTab('tab-overview')">Framework Overview</button>
-      <button class="tab-btn" data-tab="tab-skills" onclick="showTab('tab-skills')">Skill Files</button>
-      <button class="tab-btn" data-tab="tab-templates" onclick="showTab('tab-templates')">Workflow Templates</button>
-      <button class="tab-btn" data-tab="tab-adapters" onclick="showTab('tab-adapters')">Tool Adapters</button>
-      <button class="tab-btn" data-tab="tab-design" onclick="showTab('tab-design')">Design Documents</button>
-      <button class="tab-btn" data-tab="tab-budget" onclick="showTab('tab-budget')">Token Budget</button>
+      <button class="tab-btn" data-tab="tab-skills" onclick="showTab('tab-skills')" data-i18n="arch.files">Skill Files</button>
+      <button class="tab-btn" data-tab="tab-templates" onclick="showTab('tab-templates')" data-i18n="arch.templates">Workflow Templates</button>
+      <button class="tab-btn" data-tab="tab-adapters" onclick="showTab('tab-adapters')" data-i18n="arch.adapters">Adapter Outputs</button>
+      <button class="tab-btn" data-tab="tab-design" onclick="showTab('tab-design')" data-i18n="arch.designDocs">Design Documents</button>
+      <button class="tab-btn" data-tab="tab-budget" onclick="showTab('tab-budget')" data-i18n="arch.tokenBudget">Token Budget</button>
     </div>
 
     <!-- Tab: Framework Overview -->
@@ -82,7 +86,6 @@
       </p>
       <div id="token-budget"></div>
     </div>
-
   </div>
 
   <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>

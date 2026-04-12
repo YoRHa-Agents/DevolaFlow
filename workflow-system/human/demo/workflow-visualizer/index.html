@@ -1,49 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workflow Visualizer - DevolaFlow</title>
+  <title data-i18n="page.visualizer">Workflow Visualizer — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-  <h1>Workflow Visualizer</h1>
-  <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
+  <div class="container">
+    <header>
+      <h1 data-i18n="viz.title">Workflow Visualizer</h1>
+      <p class="tagline" data-i18n="viz.subtitle">Select a workflow to visualize its stage pipeline</p>
+    </header>
 
-  <label for="workflow-select">Select workflow type:</label>
-  <select id="workflow-select"><option value="">Choose...</option></select>
+    <section>
+      <label for="workflow-select" data-i18n="viz.selectWorkflow">Select workflow</label>
+      <select id="workflow-select"><option value="">Choose...</option></select>
 
-  <div class="info">
-    <h3 id="wf-name">-</h3>
-    <p id="wf-desc" class="desc">-</p>
-    <div class="meta">
-      <div><strong>Category:</strong> <span id="wf-category">-</span></div>
-      <div><strong>Stages:</strong> <span id="wf-stages">-</span></div>
-      <div><strong>Use when:</strong> <span id="wf-use">-</span></div>
-    </div>
-    <div class="meta" style="margin-top:0.5rem">
-      <div><strong>Teams:</strong> <span id="wf-teams">-</span></div>
-      <div><strong>Loops:</strong> <span id="wf-loops">-</span></div>
-    </div>
+      <div class="info card">
+        <h3 id="wf-name">-</h3>
+        <p id="wf-desc" class="desc">-</p>
+        <div class="meta">
+          <div><strong data-i18n="common.category">Category</strong> <span id="wf-category">-</span></div>
+          <div><strong data-i18n="viz.stages">Stages</strong> <span id="wf-stages">-</span></div>
+          <div><strong data-i18n="viz.useWhen">Use when</strong> <span id="wf-use">-</span></div>
+        </div>
+        <div class="meta">
+          <div><strong data-i18n="viz.teams">Teams</strong> <span id="wf-teams">-</span></div>
+          <div><strong data-i18n="viz.loops">Loops</strong> <span id="wf-loops">-</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title" data-i18n="viz.pipelineDiagram">Stage Pipeline Diagram</h2>
+      <p class="section-hint" data-i18n="viz.pipelineHint">Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.</p>
+      <div id="diagram"></div>
+      <div class="legend">
+        <strong data-i18n="viz.legendTitle">Diagram legend</strong>
+        <span><code>[[ ]]</code> = <span data-i18n="viz.legendConvergence">convergence gate (multi-round review-fix loop)</span></span>
+        <span><code>[ ]</code> = <span data-i18n="viz.legendStandard">standard gate (single pass/fail)</span></span>
+        <span><code>( )</code> = <span data-i18n="viz.legendNoGate">no gate (intermediate)</span></span>
+        <span><code>{ }</code> = <span data-i18n="viz.legendCheckpoint">gate checkpoint</span></span>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title" data-i18n="viz.agentHierarchy">Agent Hierarchy for This Workflow</h2>
+      <p class="section-hint" data-i18n="viz.agentHierarchyHint">How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.</p>
+      <div id="wf-hierarchy"></div>
+    </section>
+
+    <footer>
+      <span data-i18n="footer.text">DevolaFlow</span> &middot;
+      <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+      <span data-i18n="footer.license">MIT License</span>
+    </footer>
   </div>
 
-  <h2 class="section-title">Stage Pipeline Diagram</h2>
-  <p class="section-hint">Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.</p>
-  <div id="diagram"></div>
-
-  <div class="legend">
-    <strong>Diagram legend:</strong>
-    <code>[[ ]]</code> = convergence gate (multi-round review-fix loop) &nbsp;
-    <code>[ ]</code> = standard gate (single pass/fail) &nbsp;
-    <code>( )</code> = no gate (intermediate) &nbsp;
-    <code>{ }</code> = gate checkpoint
-  </div>
-
-  <h2 class="section-title">Agent Hierarchy for This Workflow</h2>
-  <p class="section-hint">How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.</p>
-  <div id="wf-hierarchy"></div>
-
+  <script src="../shared/i18n.js"></script>
+  <script>
+    addTranslations('en', {
+      'viz.title': 'Workflow Visualizer',
+      'viz.pipelineDiagram': 'Stage Pipeline Diagram',
+      'viz.pipelineHint': 'Shows the Project Agent orchestrating stages. Each stage is dispatched by a Stage Agent and executed by Task Agents.',
+      'viz.legendTitle': 'Diagram legend',
+      'viz.agentHierarchy': 'Agent Hierarchy for This Workflow',
+      'viz.agentHierarchyHint': 'How the 4-layer delegation works for this specific workflow. Upper layers dispatch; only Layer 3 (Task Agent) does actual work.',
+      'viz.useWhen': 'Use when',
+      'viz.legendConvergence': 'convergence gate (multi-round review-fix loop)',
+      'viz.legendStandard': 'standard gate (single pass/fail)',
+      'viz.legendNoGate': 'no gate (intermediate)',
+      'viz.legendCheckpoint': 'gate checkpoint'
+    });
+    addTranslations('zh', {
+      'viz.title': '工作流可视化',
+      'viz.pipelineDiagram': '阶段流水线图',
+      'viz.pipelineHint': '展示项目代理如何编排各阶段。每个阶段由阶段代理分派，由任务代理执行。',
+      'viz.legendTitle': '图例说明',
+      'viz.agentHierarchy': '此工作流的代理层次结构',
+      'viz.agentHierarchyHint': '四层委派在此工作流中的具体运作方式。上层负责调度；只有第三层（任务代理）执行实际工作。',
+      'viz.useWhen': '适用场景',
+      'viz.legendConvergence': '收敛门控（多轮审查-修复循环）',
+      'viz.legendStandard': '标准门控（单次通过/失败）',
+      'viz.legendNoGate': '无门控（中间阶段）',
+      'viz.legendCheckpoint': '门控检查点'
+    });
+  </script>
+  <script src="../shared/nav.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
   <script src="visualizer.js"></script>
 </body>

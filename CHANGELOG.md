@@ -5,6 +5,32 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.2] - 2026-04-12
+
+### Added
+- **Shared design system**: New `workflow-system/human/demo/shared/` with unified CSS (296 lines), navigation component, and i18n system — replaces per-page duplicate styling across all 5 demo pages
+- **i18n support (EN/ZH)**: 133 `data-i18n` attributes across all demo pages with full Chinese translations (437-line i18n.js, 122+ translation keys). Language toggle in nav bar with localStorage persistence
+- **Dark/light theme toggle**: Consistent `.dark` class-based theming via nav.js across all pages (replaces inconsistent mix of manual toggle + `@media prefers-color-scheme`). Respects system preference, persists choice in localStorage
+- **Shared navigation bar**: Glassmorphism fixed nav with logo, 6 page links, theme toggle, language switcher, mobile hamburger menu. Auto-detects landing vs sub-page for correct relative paths
+- **Page-specific translations**: Visualizer (11 ZH keys) and Explorer (12 ZH keys) register page-local translations via `addTranslations()`
+
+### Changed
+- **Landing page** (`demo/index.html`): Removed 86-line inline `<style>`, redesigned with shared CSS components, 76 i18n attributes, visual hierarchy diagram as centerpiece, version progression sections (v3.3.0 → v3.9.1)
+- **Benchmark results** (`demo/benchmark-results/`): Shared CSS + 38-line page-specific styles, 12 i18n attributes, responsive 2-column scenario grid, added avg composite and budget utilization metrics
+- **Design architecture** (`demo/design-architecture/`): Removed `@media prefers-color-scheme`, page CSS uses only shared variables, 7 i18n attributes, hover effects on all cards
+- **Workflow visualizer** (`demo/workflow-visualizer/`): 21 i18n attributes, agent box hover effects, styled select with focus ring, responsive layout
+- **Stage explorer** (`demo/stage-explorer/`): 18 i18n attributes, detail cards extend shared `.card`, budget bar with shared shadow
+- All 5 pages: removed old inline theme toggle buttons, old back-links replaced by shared nav
+
+### Metrics
+- Tests: 438 passed (+4 from v3.9.1)
+- Coverage: 89.21% (threshold: 80%)
+- EvoBench: 20/20 scenarios pass
+- Lint: All checks pass
+- SKILL.md: 447 lines (budget: 500)
+- MVP-SKILL.md: 314 lines (budget: 500)
+- Demo pages: 5 HTML, 3 page CSS, 3 shared assets, 133 i18n attributes
+
 ## [3.9.1] - 2026-04-12
 
 ### Fixed

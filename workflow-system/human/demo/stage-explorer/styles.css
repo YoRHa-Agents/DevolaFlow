@@ -1,28 +1,82 @@
-:root { --bg: #f8f9fa; --fg: #212529; --card-bg: #fff; --border: #dee2e6; --accent: #0d6efd; --muted: #6c757d; --code-bg: #f1f3f5; --highlight-bg: #e7f1ff; }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0d1117; --fg: #e6edf3; --card-bg: #161b22; --border: #30363d; --accent: #58a6ff; --muted: #8b949e; --code-bg: #1c2128; --highlight-bg: #1a2332; }
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--fg); max-width: 900px; margin: 0 auto; padding: 2rem; }
-h1 { margin-bottom: 0.5rem; }
-.nav { margin-bottom: 1.5rem; }
-.nav a { color: var(--accent); text-decoration: none; }
-label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--muted); }
-select { padding: 0.5rem 1rem; font-size: 1rem; border-radius: 6px; border: 1px solid var(--border); background: var(--card-bg); color: var(--fg); margin-bottom: 1.5rem; min-width: 280px; }
-.detail { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
-.detail.highlight { background: var(--highlight-bg); border-color: var(--accent); }
-.detail h3 { margin-bottom: 0.5rem; color: var(--accent); }
-.hint { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-weight: 600; width: 120px; vertical-align: top; font-size: 0.9rem; }
-td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-td.mono { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.82rem; color: var(--muted); }
+/* Stage Explorer — page-specific styles
+   Base styles, variables, and dark mode provided by ../shared/styles.css */
 
-.chain-layer { padding: 0.6rem 0.8rem; margin-bottom: 0.25rem; border-radius: 4px; background: var(--code-bg); }
+/* --- Select --- */
+.select-section { padding-top: 1.5rem; padding-bottom: 0; border-bottom: none; }
+.select-section label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+select {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  min-width: 280px;
+  transition: border-color 0.15s;
+}
+select:focus { outline: none; border-color: var(--accent); }
+
+/* --- Detail cards (extend shared .card) --- */
+.detail-card { transition: none; }
+.detail-card:hover { transform: none; box-shadow: var(--shadow); }
+.detail-card h3 { color: var(--accent); margin-bottom: 0.5rem; }
+.detail-card.highlight {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  border-left: 3px solid var(--accent);
+}
+
+/* --- Hint text --- */
+.hint { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.5; }
+
+/* --- Table overrides --- */
+.detail-card th { width: 130px; vertical-align: top; font-size: 0.9rem; }
+.detail-card td { font-size: 0.9rem; }
+
+/* --- Delegation chain layers --- */
+.chain-layer {
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.3rem;
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  border-left: 3px solid var(--border);
+}
+.chain-layer.l0 { border-left-color: #6f42c1; }
+.chain-layer.l1 { border-left-color: #0d6efd; }
+.chain-layer.l2 { border-left-color: #198754; }
+.chain-layer.l3 { border-left-color: #dc3545; }
 .chain-layer strong { font-size: 0.95rem; }
 .chain-layer small { color: var(--muted); font-size: 0.82rem; }
-.chain-arrow { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0; }
-.budget { float: right; font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 3px; background: var(--card-bg); color: var(--muted); }
 
-.budget-bar { display: flex; height: 2rem; border-radius: 6px; overflow: hidden; margin-top: 0.5rem; }
-.budget-segment { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.75rem; font-weight: 600; transition: width 0.3s; }
+/* --- Chain arrow --- */
+.chain-arrow { text-align: center; color: var(--muted); font-size: 0.8rem; margin: 0.15rem 0; }
+
+/* --- Budget badge --- */
+.budget {
+  float: right;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--card-bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* --- Budget bar --- */
+.budget-bar {
+  display: flex;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 0.5rem;
+  box-shadow: var(--shadow);
+}
+.budget-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: width 0.3s;
+}
