@@ -7,16 +7,17 @@ const FRAMEWORK = {
     id: "SKILL.md",
     path: "workflow-system/agent/SKILL.md",
     tier: 1,
-    lines: 363,
+    lines: 447,
     tokenEstimate: 3500,
-    purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains 13 sections covering all major concepts as compact summaries with pointers to Tier-2 references.",
+    purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains 19 sections covering all major concepts as compact summaries with pointers to Tier-2 references.",
     designSource: "design_delivery_architecture.md §3.4",
     sections: [
-      "Purpose & Scope", "Quick Start — Workflow Selection", "4-Layer Agent Hierarchy",
+      "Version & Update", "Quick Action Decision", "Mode Awareness",
+      "Overview", "Execution Model", "Stages", "Constraints Checklist",
+      "Invariants", "Quick Start — Workflow Selection", "4-Layer Agent Hierarchy",
       "Stage Primitives Index", "Gate Mechanism", "AgentTeam Quick Reference",
-      "Context Isolation", "Message Protocol", "Repo Mode Detection",
-      "Reference Navigation Guide", "Rules for Dispatchers", "Convergence Loop",
-      "Template Quick-Reference"
+      "Context Isolation", "Dispatch & Report Protocol", "Lifecycle Hooks",
+      "Repo Mode Detection", "Reference Navigation Guide", "Task Quality Score"
     ],
     triggers: ["implement feature", "build from scratch", "fix bug", "refactor code", "migrate system", "full pipeline", "hotfix", "workflow orchestration"],
   },

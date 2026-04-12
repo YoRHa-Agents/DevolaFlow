@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 312+ tests, 17 templates
+make test && make validate-templates   # 423+ tests, 17 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -206,7 +206,7 @@ Scores measure **section relevance** (are the right SKILL.md sections selected?)
 
 ### Repository Development Rules (New in v3.0.0)
 
-18 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+19 enforceable rules in `.cursor/rules/` codifying iteration lessons:
 
 | Rule File | Rules | What It Enforces |
 |-----------|-------|-----------------|
@@ -287,7 +287,7 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 4.0.0            # updates all 9 version locations
+python scripts/bump_version.py 4.0.0            # updates all 16 version locations
 python scripts/bump_version.py 4.0.0 --dry-run   # preview without writing
 ```
 
@@ -338,11 +338,11 @@ DevolaFlow/
     lean-dispatch.yaml        #   lean TaskDispatch format spec
     lean-report.yaml          #   lean StatusReport format spec
     primitives/               #   per-primitive I/O schemas (future)
-  doc/designs/                # 14 design documents (~12,700 lines)
+  doc/designs/                # 15 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (312+ tests, 88% coverage)
+  tests/                      # pytest suite (423+ tests, 89% coverage)
   .github/workflows/          # CI + Release + Pages
-  .cursor/rules/              # always-on hard constraints (5 core + 18 process rules)
+  .cursor/rules/              # always-on hard constraints (5 core + 19 process rules)
 ```
 
 ## Interactive Demo
@@ -392,7 +392,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 
 | Doc | Description |
 |-----|-------------|
-| [Design Documents](doc/designs/) | 14 internal design specs (architecture, meta-framework, delivery, etc.) |
+| [Design Documents](doc/designs/) | 15 internal design specs (architecture, meta-framework, delivery, etc.) |
 
 ## Contributing
 
@@ -400,7 +400,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make changes following the [repository rules](.cursor/rules/) (5 core + 18 process rules)
+3. Make changes following the [repository rules](.cursor/rules/) (5 core + 19 process rules)
 4. Run `make all` to verify (tests, lint, templates, adapters, docs sync, drift check)
 5. Update `CHANGELOG.md` if your changes are user-visible
 6. Submit a Pull Request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md) (never push directly to `main`)
@@ -412,7 +412,7 @@ Commit messages use [Conventional Commits](https://www.conventionalcommits.org/)
 ```bash
 make release-preflight                          # run all quality gates
 python scripts/bump_version.py X.Y.Z --dry-run  # preview version bump
-python scripts/bump_version.py X.Y.Z --tag      # bump all 9 locations + create git tag
+python scripts/bump_version.py X.Y.Z --tag      # bump all 16 locations + create git tag
 git add -A && git commit -m "chore: bump version to X.Y.Z"
 git push origin main --tags                      # triggers release workflow
 ```

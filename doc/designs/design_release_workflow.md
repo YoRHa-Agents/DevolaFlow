@@ -31,7 +31,7 @@ This runs: lint → test → validate-templates → build-skill → sync-human-d
 
 Manual checks:
 - [ ] CHANGELOG.md has a section for the new version with correct date
-- [ ] All 9 version locations are consistent (use `python -m pytest tests/test_version.py -v`)
+- [ ] All 16 version locations are consistent (use `python -m pytest tests/test_version.py -v`)
 - [ ] All adapter outputs build within budget
 - [ ] EvoBench benchmarks show no regressions: `python -m pytest tests/test_benchmarks.py -v`
 
@@ -41,13 +41,13 @@ Manual checks:
 python scripts/bump_version.py X.Y.Z --tag
 ```
 
-This updates all 9 version locations AND creates an annotated git tag `vX.Y.Z`. Use `--dry-run` first to preview:
+This updates all 16 version locations AND creates an annotated git tag `vX.Y.Z`. Use `--dry-run` first to preview:
 
 ```bash
 python scripts/bump_version.py X.Y.Z --tag --dry-run
 ```
 
-Locations updated by `bump_version.py`:
+Locations updated by `bump_version.py` (16 total — see `bump_version.py` for the full list):
 1. `src/devolaflow/__init__.py` — `__version__`
 2. `pyproject.toml` — `version`
 3. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:"
@@ -57,6 +57,8 @@ Locations updated by `bump_version.py`:
 7. `tests/test_smoke.py` — version assertion
 8. `README.md` — badge and version example
 9. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
+
+See `scripts/bump_version.py` for the remaining 7 locations (additional SKILL.md/MVP-SKILL.md occurrences, generated docs, etc.).
 
 After bumping, also run `make sync-human-docs` to propagate version into generated doc files.
 
