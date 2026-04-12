@@ -20,7 +20,7 @@ fields:
       gate_id: { type: string, description: e.g. G_S04. }
       stage_id: { type: string }
       stage_name: { type: string }
-      gate_type: { type: string, description: standard | convergence | passthrough. }
+      gate_type: { type: string, description: preflight | revision | escalation | abort | passthrough | acceptance_readiness. }
       gate_profile: { type: string, description: strict | standard | relaxed | audit. }
       timestamp: { type: string, description: ISO8601. }
       round: { type: int, description: Current convergence round (1 for standard). }
@@ -32,6 +32,25 @@ fields:
       rationale: { type: string }
       composite_score: { type: number, optional: true }
       meets_threshold: { type: bool }
+      escalation_context:
+        type: string
+        optional: true
+        description: Present when a preflight or escalation gate fails. Contains context for the escalation handler.
+      advisor_recommended:
+        type: bool
+        optional: true
+        description: True when the composite score is within ±advisor_margin of the threshold (borderline). Informational flag for the orchestrating agent.
+      advisor_context:
+        type: string
+        optional: true
+        description: Present when advisor_recommended is true. Contains score context for the advisor tool.
+      abort_context:
+        optional: true
+        description: Present when an abort gate triggers. Contains post-mortem details.
+        children:
+          abort_categories_found: { type: list, item_type: string }
+          finding_count: { type: int }
+          findings: { type: list, item_type: string, description: IDs of abort-triggering findings. }
 
   check_results:
     description: Per-dimension check outcomes.

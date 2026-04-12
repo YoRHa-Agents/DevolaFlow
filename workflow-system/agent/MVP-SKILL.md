@@ -1,15 +1,14 @@
 ---
 name: devola-flow-mvp
-version: "3.8.0"
+version: "3.9.0"
 description: >
-  Self-contained workflow orchestration skill using a 4-layer agent hierarchy
-  (Project, Stage, Wave, Task) with gate quality mechanisms, convergence loops,
-  and context-isolated task delegation. Use when implementing features, fixing
-  bugs, refactoring, migrating, or running any multi-step development workflow.
-  Supports 16 workflow types from research-only to full-pipeline.
+  Use when orchestrating multi-file software tasks requiring structured dispatch,
+  quality gates, and context-isolated subagents. Activate for implementing features,
+  fixing bugs, refactoring, migrating, or running any multi-step development
+  workflow.
 ---
 
-> **Now Using DevolaFlow v3.8.0**
+> **Now Using DevolaFlow v3.9.0**
 
 # DevolaFlow (MVP)
 
@@ -20,14 +19,14 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 3.8.0
+**Current version:** 3.9.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (3.8.0).
+2. Compare with current version (3.9.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v3.8.0 is the latest version."
+4. If current, respond: "DevolaFlow v3.9.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
 
@@ -82,6 +81,7 @@ Select the workflow type that matches the user's intent:
 | dependency-setup | setup env, install, configure tools | research → plan → configure → verify |
 | onboarding | new to project, onboard, get started | analyze → document → setup → verify |
 | skill-optimization | optimize skill, benchmark context, density | survey → profile → optimize → benchmark → iterate → document |
+| self-update | update refs, self-update, check references | check-refs → research-updates → decompose → integrate → test → evaluate |
 
 **Selection heuristic**: Match keywords from user request. If multiple match, prefer full-pipeline. If urgency signals present (urgent, ASAP), prefer hotfix.
 
@@ -102,6 +102,13 @@ Layer 0: PROJECT AGENT (Dispatcher)
 | Task | **ONLY layer that works** -- write code, run tests, review | ~8K tokens: task spec + owned files + rules + design excerpt | Spawn sub-agents, modify files outside owned_files |
 
 **INVARIANT**: Dispatcher agents (Project, Stage, Wave) MUST NOT perform work. Only Task Agents execute actual work using tools.
+
+| Rationalization | Reality |
+|---|---|
+| "It's just one small file" | P1 applies. Dispatch via `Task` tool. |
+| "I'll be faster doing it myself" | Isolation matters more than speed. Delegate. |
+| "One more retry should fix it" | Check `max_iterations`. At limit → escalate. |
+| "The gate score is close enough" | Close is FAIL. Converge or escalate. |
 
 **You are L0 (Project Agent).** Before using Write/StrReplace/Shell for code or tests — STOP. Dispatch via `Task` tool instead.
 

@@ -1,0 +1,244 @@
+schema_version: "1.0"
+
+metadata:
+  name: self-update
+  version: "1.0.0"
+  display_name: "Self-Update Reference Dependencies"
+  description: >
+    Track external reference dependencies (repos, APIs, papers, blogs),
+    detect upstream changes, research deltas, decompose integration tasks,
+    implement + test changes, and evaluate go/no-go per integration.
+  category: control
+  trigger_phrases:
+    - "update devola references"
+    - "update-refs"
+    - "/update-refs"
+    - "check reference updates"
+    - "self-update"
+  applicable_scenarios:
+    - "Periodic upstream reference checking"
+    - "Integrating external best practices into DevolaFlow"
+    - "Responding to upstream API/schema changes"
+    - "Framework self-improvement cycle"
+  tags: [self-update, references, tracking, integration, meta, upstream, dependencies]
+
+stages:
+  - id: check-refs
+    primitive: analyze
+    description: >
+      Scan reference-dependencies.yaml, check each tracked source for changes
+      since last_checked. Classify changes as unchanged/minor/major/unavailable.
+    team: research
+    duration_class: quick
+    config:
+      analysis_type: dependency
+      include_metrics: true
+      output_format: change_manifest
+    input_mapping:
+      targets: "workflow-system/agent/knowledge/reference-dependencies.yaml"
+
+  - id: research-updates
+    primitive: research
+    description: >
+      For each changed reference, fetch updated content, diff against known state,
+      re-evaluate relevance score, and produce a delta research report.
+    team: research
+    duration_class: long
+    config:
+      depth: standard
+      source_types: [repo, docs, paper, blog]
+      time_box_minutes: 45
+    input_mapping:
+      scope: "check-refs.change_manifest"
+
+  - id: decompose
+    primitive: design
+    description: >
+      Filter high-relevance changes, break into concrete integration tasks with
+      file ownership, acceptance criteria, and effort estimates. Group into waves.
+    team: design
+    duration_class: medium
+    config:
+      design_type: migration_plan
+      formality: standard
+    input_mapping:
+      inputs: "research-updates.update_summary"
+      constraints: "_context.gap_classification"
+
+  - id: integrate
+    primitive: implement
+    description: >
+      Execute integration tasks per the decomposed plan. Standard impl + test
+      pattern: write code, write tests, lint check per task.
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: tdd
+      target_coverage: 0.80
+      code_style: minimal_diff
+    input_mapping:
+      tasks: "decompose.integration_plan.waves"
+      code_rules: "_context.code_rules"
+
+  - id: test
+    primitive: test
+    description: >
+      Run full test suite (pytest), EvoBench benchmarks, and linting.
+      Compare benchmark results against stored baselines for regression detection.
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration, benchmark]
+      coverage_threshold: 0.80
+      fail_fast: false
+    input_mapping:
+      code_refs: "integrate.files_changed"
+
+  - id: evaluate
+    primitive: validate
+    description: >
+      Produce per-change go/no-go verdict. Update reference-dependencies.yaml.
+      Generate changelog entries for approved changes. Present summary to human.
+    team: review
+    duration_class: medium
+    config:
+      require_all_criteria: true
+      allow_waivers: false
+    input_mapping:
+      test_result: "test"
+      review_verdict: null
+      acceptance_criteria: "decompose.integration_plan.acceptance_criteria"
+      quality_thresholds:
+        test_pass_rate: 1.0
+        code_coverage: 0.80
+        benchmark_regression_tolerance: 0.02
+
+composition:
+  compose: sequence
+  stages:
+    - stage: check-refs
+    - compose: gate
+      ref: refs_scanned_gate
+    - stage: research-updates
+    - compose: gate
+      ref: research_complete_gate
+    - stage: decompose
+    - compose: gate
+      ref: plan_approved_gate
+    - compose: loop
+      ref: integrate_test_cycle
+    - stage: evaluate
+    - compose: gate
+      ref: final_evaluation_gate
+
+loops:
+  - name: integrate_test_cycle
+    body_stages: [integrate, test]
+    until: "test.all_pass == true AND test.coverage_pct >= 80 AND test.benchmark_regressions == 0"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: decompose
+
+gates:
+  - name: refs_scanned_gate
+    position: "after:check-refs"
+    criteria:
+      - field: check-refs.change_manifest.valid
+        operator: "=="
+        value: true
+      - field: check-refs.change_manifest.active_errors
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: escalate
+    require_human_override: false
+    auto_insert: true
+
+  - name: research_complete_gate
+    position: "after:research-updates"
+    criteria:
+      - field: research-updates.update_summary.valid
+        operator: "=="
+        value: true
+      - field: research-updates.update_summary.missing_reports
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: research-updates
+    require_human_override: false
+    auto_insert: true
+
+  - name: plan_approved_gate
+    position: "after:decompose"
+    criteria:
+      - field: decompose.integration_plan.tasks
+        operator: "!="
+        value: []
+      - field: decompose.integration_plan.disjoint_ownership
+        operator: "=="
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: decompose
+    require_human_override: true
+    auto_insert: true
+
+  - name: quality_gate
+    position: "after:test"
+    criteria:
+      - field: test.all_pass
+        operator: "=="
+        value: true
+      - field: test.coverage_pct
+        operator: ">="
+        value: 80
+      - field: test.lint_clean
+        operator: "=="
+        value: true
+      - field: test.benchmark_regressions
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: integrate
+    require_human_override: false
+    auto_insert: true
+
+  - name: final_evaluation_gate
+    position: "after:evaluate"
+    criteria:
+      - field: evaluate.all_verdicts_assigned
+        operator: "=="
+        value: true
+      - field: evaluate.reference_deps_updated
+        operator: "=="
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: escalate
+    require_human_override: true
+    auto_insert: true
+
+team_overrides: {}
+
+environment_modes:
+  local:
+    skip_stages: []
+    gate_overrides:
+      quality_gate:
+        criteria:
+          - field: test.all_pass
+            operator: "=="
+            value: true
+          - field: test.coverage_pct
+            operator: ">="
+            value: 70
+  github:
+    extra_stages: []
+  other-git:
+    extra_stages: []

@@ -145,6 +145,11 @@ profiles:
       - "SEV2"
       - "production down"
     token_budget: 2400
+    model_hints:
+      default_tier: balanced
+      overrides:
+        simple_implementation: budget
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -169,6 +174,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: skip
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/message-schemas.md"
       - "schemas/task-dispatch.yaml"
@@ -186,7 +197,14 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 4700
+    token_budget: 4800
+    model_hints:
+      default_tier: balanced
+      overrides:
+        architecture_decisions: quality
+        code_review: quality
+        simple_implementation: budget
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -211,6 +229,21 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
+    advisor:
+      enabled: true
+      max_uses: 3
+      conversation_budget: 6
+      trigger_conditions:
+        - complexity_high
+        - cross_module_architecture
+        - stalled_convergence
+      cost_ceiling_usd: 0.30
     extra_context:
       - "references/agent-hierarchy.md"
       - "references/meta-framework.md"
@@ -231,6 +264,12 @@ profiles:
       - "which"
       - "should we"
     token_budget: 3375
+    model_hints:
+      default_tier: balanced
+      overrides:
+        analysis: quality
+        comparison: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -255,6 +294,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: skip
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 3
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
     rationale: >
@@ -270,6 +315,13 @@ profiles:
       - "tech debt"
       - "simplify"
     token_budget: 4850
+    model_hints:
+      default_tier: balanced
+      overrides:
+        architecture_decisions: quality
+        code_review: quality
+        simple_implementation: budget
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -294,6 +346,21 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
+    advisor:
+      enabled: true
+      max_uses: 3
+      conversation_budget: 6
+      trigger_conditions:
+        - complexity_high
+        - cross_module_architecture
+        - stalled_convergence
+      cost_ceiling_usd: 0.30
     extra_context:
       - "references/decomposition-gate.md"
     rationale: >
@@ -308,6 +375,10 @@ profiles:
       - "code review"
       - "design review"
     token_budget: 3850
+    model_hints:
+      default_tier: quality
+      overrides:
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -332,6 +403,12 @@ profiles:
       convergence_loop: supplementary
       task_quality_score: important
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
@@ -348,6 +425,11 @@ profiles:
       - "API spec"
       - "schema"
     token_budget: 4450
+    model_hints:
+      default_tier: quality
+      overrides:
+        simple_implementation: budget
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -372,6 +454,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 3
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/meta-framework.md"
       - "references/team-roles.md"
@@ -391,6 +479,12 @@ profiles:
       - "EvoBench"
       - "skill-optimization"
     token_budget: 4250
+    model_hints:
+      default_tier: balanced
+      overrides:
+        analysis: quality
+        benchmark_evaluation: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -415,6 +509,12 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
       - "references/context-isolation.md"
@@ -431,7 +531,13 @@ profiles:
       - "upgrade"
       - "port"
       - "convert"
-    token_budget: 4850
+    token_budget: 4900
+    model_hints:
+      default_tier: balanced
+      overrides:
+        architecture_decisions: quality
+        compatibility_analysis: quality
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -456,6 +562,21 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
+    advisor:
+      enabled: true
+      max_uses: 3
+      conversation_budget: 6
+      trigger_conditions:
+        - complexity_high
+        - cross_module_architecture
+        - stalled_convergence
+      cost_ceiling_usd: 0.30
     extra_context:
       - "references/decomposition-gate.md"
       - "references/meta-framework.md"
@@ -473,7 +594,11 @@ profiles:
       - "vulnerability"
       - "threat model"
       - "penetration"
-    token_budget: 4950
+    token_budget: 5000
+    model_hints:
+      default_tier: quality
+      overrides:
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -498,6 +623,21 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
+    advisor:
+      enabled: true
+      max_uses: 3
+      conversation_budget: 6
+      trigger_conditions:
+        - complexity_high
+        - cross_module_architecture
+        - stalled_convergence
+      cost_ceiling_usd: 0.30
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
@@ -514,6 +654,11 @@ profiles:
       - "guide"
       - "tutorial"
     token_budget: 3500
+    model_hints:
+      default_tier: balanced
+      overrides:
+        content_review: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -538,6 +683,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: critical
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
     rationale: >
@@ -554,6 +705,10 @@ profiles:
       - "PoC"
       - "proof of concept"
     token_budget: 2950
+    model_hints:
+      default_tier: budget
+      overrides:
+        architecture_decisions: balanced
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -578,6 +733,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: skip
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
     rationale: >
@@ -593,6 +754,11 @@ profiles:
       - "iterate design"
       - "design loop"
     token_budget: 4650
+    model_hints:
+      default_tier: quality
+      overrides:
+        simple_implementation: budget
+        test_execution: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -617,6 +783,12 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/meta-framework.md"
       - "references/decomposition-gate.md"
@@ -633,6 +805,11 @@ profiles:
       - "presentation"
       - "pitch"
     token_budget: 4450
+    model_hints:
+      default_tier: balanced
+      overrides:
+        content_review: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -657,6 +834,12 @@ profiles:
       convergence_loop: supplementary
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
     rationale: >
@@ -673,6 +856,12 @@ profiles:
       - "performance"
       - "latency"
     token_budget: 4950
+    model_hints:
+      default_tier: balanced
+      overrides:
+        analysis: quality
+        benchmark_evaluation: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -697,6 +886,12 @@ profiles:
       convergence_loop: critical
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
     rationale: >
@@ -713,6 +908,10 @@ profiles:
       - "dependency"
       - "environment"
     token_budget: 3000
+    model_hints:
+      default_tier: budget
+      overrides:
+        architecture_decisions: balanced
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -737,6 +936,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: skip
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/repo-modes.md"
     rationale: >
@@ -752,6 +957,11 @@ profiles:
       - "getting started"
       - "codebase overview"
     token_budget: 3750
+    model_hints:
+      default_tier: balanced
+      overrides:
+        analysis: quality
+        simple_implementation: budget
     section_priorities:
       frontmatter: skip
       version_update: skip
@@ -776,6 +986,12 @@ profiles:
       convergence_loop: skip
       task_quality_score: supplementary
       template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 5
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
       - "references/repo-modes.md"
@@ -783,3 +999,107 @@ profiles:
       Onboarding focuses on codebase analysis and documentation generation.
       Team roles define analysis/documentation tasks. Repo mode provides
       CI/CD context. No convergence loops needed.
+
+  self_update:
+    description: "Self-update workflow — meta-framework updates, reference tracking"
+    goal_hints:
+      - "self update"
+      - "self-update"
+      - "update skill"
+      - "update workflow"
+      - "meta update"
+    token_budget: 3500
+    model_hints:
+      default_tier: budget
+      overrides:
+        architecture_decisions: balanced
+        code_review: balanced
+    section_priorities:
+      frontmatter: critical
+      version_update: critical
+      quick_action_decision: important
+      mode_detection: skip
+      plan_mode_template: skip
+      agent_mode_protocol: critical
+      quick_start_workflows: skip
+      hierarchy_table: supplementary
+      hierarchy_diagram: skip
+      wave_task_constraints: supplementary
+      wave_coordination: skip
+      stage_primitives: skip
+      gate_mechanism: supplementary
+      agent_teams: supplementary
+      context_isolation: important
+      dispatch_report: critical
+      lifecycle_hooks: critical
+      repo_mode: skip
+      reference_navigation: critical
+      rules_dispatchers: important
+      convergence_loop: skip
+      task_quality_score: skip
+      template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 3
+      min_confidence: 0.5
+      budget_pct: 10
+      budget_max_tokens: 350
+    extra_context:
+      - "references/meta-framework.md"
+    rationale: >
+      Self-update tasks maintain the workflow system itself. Focus on
+      meta-framework understanding, reference navigation for tracking
+      what changed, and lifecycle hooks for version management. Minimal
+      ceremony — no convergence loops or deep architecture.
+
+  feedback:
+    description: "Feedback loop — gate evaluation, learnings integration"
+    goal_hints:
+      - "feedback"
+      - "feedback loop"
+      - "gate evaluation"
+      - "learnings"
+      - "retrospective"
+    token_budget: 2500
+    model_hints:
+      default_tier: budget
+      overrides:
+        analysis: balanced
+        gate_evaluation: balanced
+    section_priorities:
+      frontmatter: skip
+      version_update: skip
+      quick_action_decision: important
+      mode_detection: skip
+      plan_mode_template: skip
+      agent_mode_protocol: critical
+      quick_start_workflows: skip
+      hierarchy_table: supplementary
+      hierarchy_diagram: skip
+      wave_task_constraints: supplementary
+      wave_coordination: skip
+      stage_primitives: skip
+      gate_mechanism: critical
+      agent_teams: supplementary
+      context_isolation: important
+      dispatch_report: critical
+      lifecycle_hooks: important
+      repo_mode: skip
+      reference_navigation: supplementary
+      rules_dispatchers: supplementary
+      convergence_loop: supplementary
+      task_quality_score: critical
+      template_quick_ref: skip
+    learnings:
+      enabled: true
+      max_entries: 10
+      min_confidence: 0.3
+      budget_pct: 15
+      budget_max_tokens: 500
+    extra_context:
+      - "references/decomposition-gate.md"
+    rationale: >
+      Feedback tasks evaluate gate results and integrate learnings back
+      into the system. Gate mechanism and task quality score are critical
+      for evaluation. Higher learnings budget since this profile focuses
+      on learning from past executions.

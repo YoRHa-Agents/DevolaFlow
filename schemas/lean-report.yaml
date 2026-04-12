@@ -131,3 +131,59 @@ compaction_rules:
   - rule: "Each artifact delta must name the concrete change, not describe the file's purpose"
     good: "added authenticateToken export"
     bad: "Updated middleware barrel file to export the new authenticateToken middleware"
+
+# --- COMPRESSION RULES ---
+# Deterministic drop/preserve lists for StatusReport compaction.
+# Mirrors lean-dispatch.yaml compression_rules for consistency.
+compression_rules:
+  preserve_list:
+    - file_paths
+    - error_messages_verbatim
+    - metric_values
+    - commit_hashes
+    - finding_ids
+    - task_ids
+    - artifact_references
+    - version_strings
+    - delta_descriptions
+  drop_list:
+    - filler_phrases         # "I think", "it seems", "basically"
+    - hedging_language        # "might", "could possibly", "it appears"
+    - pleasantries            # "Great question", "Happy to help"
+    - redundant_narration     # "Let me explain", "As you can see"
+    - meta_commentary         # "I'm now going to", "The next step is"
+    - apologies               # "Sorry for the confusion"
+  intensity_tiers:
+    minimal:
+      description: "Drop only filler and pleasantries"
+      active_drops: [filler_phrases, pleasantries, apologies]
+    standard:
+      description: "Drop filler, hedging, narration"
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, apologies]
+    aggressive:
+      description: "Drop all non-essential text"
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies]
+  default_intensity: standard
+
+# --- RESULT STATUS PROTOCOL ---
+# Typed status enum for deterministic routing. Replaces free-form state interpretation.
+result_status_spec:
+  enum: [DONE, DONE_WITH_CONCERNS, NEEDS_CONTEXT, BLOCKED]
+  field_name: "rs"
+  routing_table:
+    DONE:
+      meaning: "Task completed, all AC met, no issues"
+      routing_action: "proceed"
+      p4_mapping: "N/A"
+    DONE_WITH_CONCERNS:
+      meaning: "Task completed, AC met, but non-blocking issues noted in warnings"
+      routing_action: "proceed, log warnings for upstream gate"
+      p4_mapping: "N/A"
+    NEEDS_CONTEXT:
+      meaning: "Task blocked on missing information from predecessor or environment"
+      routing_action: "provide context + retry (count against max_iterations)"
+      p4_mapping: "retry"
+    BLOCKED:
+      meaning: "Task cannot proceed — requires escalation"
+      routing_action: "escalate to L2 Wave → L1 Stage"
+      p4_mapping: "escalate"

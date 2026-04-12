@@ -124,3 +124,35 @@ lean_format_spec:
     max_entries: 8
   gate:
     description: "Numeric thresholds only. No prose."
+
+# --- COMPRESSION RULES ---
+# Deterministic drop/preserve lists for inter-layer message compaction.
+# Based on CO-1 (lean format) and CO-2 (verbatim extraction) rules.
+compression_rules:
+  preserve_list:
+    - file_paths
+    - error_messages_verbatim
+    - metric_values
+    - commit_hashes
+    - acceptance_criteria
+    - task_ids
+    - artifact_references
+    - version_strings
+  drop_list:
+    - filler_phrases         # "I think", "it seems", "basically"
+    - hedging_language        # "might", "could possibly", "it appears"
+    - pleasantries            # "Great question", "Happy to help"
+    - redundant_narration     # "Let me explain", "As you can see"
+    - meta_commentary         # "I'm now going to", "The next step is"
+    - apologies               # "Sorry for the confusion"
+  intensity_tiers:
+    minimal:
+      description: "Drop only filler and pleasantries"
+      active_drops: [filler_phrases, pleasantries, apologies]
+    standard:
+      description: "Drop filler, hedging, narration"
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, apologies]
+    aggressive:
+      description: "Drop all non-essential text"
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies]
+  default_intensity: standard

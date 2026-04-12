@@ -1,0 +1,316 @@
+"""Self-Improving Feedback Loop Module for DevolaFlow.
+
+Collects execution metrics from gate verdicts and status reports, analyzes
+patterns (recurring violations, convergence stagnation, profile mismatches),
+and generates structured improvement proposals with safeguards against
+runaway self-modification.
+
+Design ref: S02-T08-engine-infra.md §5 (Integration Point 5)
+"""
+
+from __future__ import annotations
+
+import logging
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from devolaflow.gate.models import GateVerdict
+from devolaflow.learnings import _now_iso, _read_lines
+
+logger = logging.getLogger(__name__)
+
+LOCKED_FILES = frozenset(
+    {
+        "__init__.py",
+        "pyproject.toml",
+        "feedback.py",
+    }
+)
+
+MAX_PROPOSALS_PER_WORKFLOW = 3
+CONFIDENCE_FLOOR = 0.7
+
+
+@dataclass
+class Proposal:
+    """A structured improvement proposal."""
+
+    id: str
+    type: str
+    description: str
+    confidence: float
+    target_file: str
+    suggested_change: str
+
+
+def _is_locked(target_file: str) -> bool:
+    """Return True if *target_file* is in the scope-lock set."""
+    basename = Path(target_file).name
+    if basename in LOCKED_FILES:
+        return True
+    return basename.startswith("test_")
+
+
+def _inside_devolaflow(target_file: str) -> bool:
+    """Return True if *target_file* lives within the DevolaFlow tree.
+
+    Accepts relative paths (rooted at repo), or paths containing
+    'devolaflow', 'workflow-system', 'schemas', or '.cursor/rules'.
+    """
+    allowed_prefixes = (
+        "src/devolaflow/",
+        "workflow-system/",
+        "schemas/",
+        ".cursor/rules/",
+    )
+    return any(target_file.startswith(p) or f"/{p}" in target_file for p in allowed_prefixes)
+
+
+class FeedbackCollector:
+    """Extracts structured metrics from gate verdicts and status reports."""
+
+    def collect_from_gate(self, verdict: GateVerdict) -> dict:
+        """Extract composite_score, decision, and findings_count from a GateVerdict."""
+        findings_count = 0
+        if "findings" in verdict.details:
+            raw = verdict.details["findings"]
+            findings_count = len(raw) if isinstance(raw, list) else int(raw)
+
+        return {
+            "composite_score": verdict.composite_score,
+            "decision": verdict.decision,
+            "findings_count": findings_count,
+        }
+
+    def collect_from_report(self, report_data: dict) -> dict:
+        """Extract metrics, issues, and elapsed time from a status report dict."""
+        return {
+            "metrics": report_data.get("metrics", {}),
+            "issues": report_data.get("issues", []),
+            "elapsed_seconds": report_data.get("elapsed_seconds", 0),
+        }
+
+    def collect_workflow_metrics(self, stages: list[dict]) -> dict:
+        """Aggregate workflow-level metrics across all stages.
+
+        Each stage dict is expected to have keys: rounds, composite_score, name.
+        """
+        if not stages:
+            return {
+                "total_rounds": 0,
+                "avg_composite": 0.0,
+                "bottleneck_stage": "",
+            }
+
+        total_rounds = sum(s.get("rounds", 0) for s in stages)
+        scores = [s.get("composite_score", 0.0) for s in stages]
+        avg_composite = sum(scores) / len(scores) if scores else 0.0
+
+        bottleneck = max(stages, key=lambda s: s.get("rounds", 0))
+
+        return {
+            "total_rounds": total_rounds,
+            "avg_composite": round(avg_composite, 2),
+            "bottleneck_stage": bottleneck.get("name", ""),
+        }
+
+
+class FeedbackAnalyzer:
+    """Detects patterns in execution history that suggest improvements."""
+
+    def detect_recurring_violations(
+        self,
+        learnings_path: Path,
+        min_occurrences: int = 3,
+    ) -> list[dict]:
+        """Find rule_ids that appear >= *min_occurrences* times in learnings."""
+        entries = _read_lines(learnings_path)
+        rule_counts: Counter[str] = Counter()
+        rule_examples: dict[str, list[str]] = {}
+
+        for entry in entries:
+            rid = entry.get("rule_id", "")
+            if not rid:
+                continue
+            rule_counts[rid] += 1
+            rule_examples.setdefault(rid, []).append(entry.get("insight", ""))
+
+        return [
+            {
+                "rule_id": rid,
+                "count": count,
+                "examples": rule_examples.get(rid, [])[:3],
+            }
+            for rid, count in rule_counts.items()
+            if count >= min_occurrences
+        ]
+
+    def detect_convergence_stagnation(
+        self,
+        rounds: list[dict],
+        threshold: float = 2.0,
+    ) -> bool:
+        """Return True if score improvement < *threshold* for 2+ consecutive rounds.
+
+        Each round dict must have a ``composite_score`` key.
+        """
+        if len(rounds) < 3:
+            return False
+
+        consecutive_stagnant = 0
+        for i in range(1, len(rounds)):
+            prev = rounds[i - 1].get("composite_score", 0.0)
+            curr = rounds[i].get("composite_score", 0.0)
+            improvement = curr - prev
+            if improvement < threshold:
+                consecutive_stagnant += 1
+                if consecutive_stagnant >= 2:
+                    return True
+            else:
+                consecutive_stagnant = 0
+
+        return False
+
+    def detect_profile_mismatch(
+        self,
+        task_type: str,
+        actual_metrics: dict,
+        expected_thresholds: dict,
+    ) -> list[str]:
+        """Compare actual metrics against expected thresholds.
+
+        Returns a list of human-readable mismatch descriptions.
+        """
+        mismatches: list[str] = []
+        for metric_name, expected_value in expected_thresholds.items():
+            actual_value = actual_metrics.get(metric_name)
+            if actual_value is None:
+                mismatches.append(
+                    f"{task_type}: metric '{metric_name}' missing from actual metrics"
+                )
+                continue
+            if (
+                isinstance(expected_value, (int, float))
+                and isinstance(actual_value, (int, float))
+                and actual_value < expected_value
+            ):
+                mismatches.append(
+                    f"{task_type}: '{metric_name}' is {actual_value}, expected >= {expected_value}"
+                )
+        return mismatches
+
+
+@dataclass
+class _ProposalState:
+    """Internal bookkeeping for proposal generation safeguards."""
+
+    recent_rule_ids: dict[str, str] = field(default_factory=dict)
+
+
+class ProposalGenerator:
+    """Creates structured improvement proposals from analysis results.
+
+    Safeguards enforced:
+    - Max ``MAX_PROPOSALS_PER_WORKFLOW`` (3) proposals per invocation
+    - Confidence floor ``CONFIDENCE_FLOOR`` (0.7) on source evidence
+    - Scope-lock: proposals targeting locked files are rejected
+    - DevolaFlow scope: proposals for files outside the repo are rejected
+    """
+
+    def __init__(self) -> None:
+        self._state = _ProposalState()
+
+    def generate_proposals(self, analysis: dict) -> list[dict]:
+        """Generate improvement proposals from an analysis dict.
+
+        *analysis* should contain optional keys:
+        - ``recurring_violations``: list[dict] from FeedbackAnalyzer
+        - ``stagnation_detected``: bool
+        - ``profile_mismatches``: list[str]
+        - ``confidence``: float — overall analysis confidence
+
+        Returns a list of proposal dicts, each with keys:
+        id, type, description, confidence, target_file, suggested_change.
+        """
+        confidence = float(analysis.get("confidence", 0.0))
+        if confidence < CONFIDENCE_FLOOR:
+            logger.info(
+                "Analysis confidence %.2f below floor %.2f — no proposals",
+                confidence,
+                CONFIDENCE_FLOOR,
+            )
+            return []
+
+        proposals: list[dict] = []
+
+        for violation in analysis.get("recurring_violations", []):
+            if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
+                break
+            rule_id = violation.get("rule_id", "")
+            if not rule_id:
+                continue
+            target = f".cursor/rules/{rule_id.lower().replace('-', '_')}.mdc"
+            if _is_locked(target):
+                logger.info("Skipping locked target: %s", target)
+                continue
+            proposals.append(
+                {
+                    "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
+                    "type": "rule_update",
+                    "description": (
+                        f"Rule {rule_id} violated {violation.get('count', 0)} times — "
+                        "consider clarification or threshold adjustment"
+                    ),
+                    "confidence": confidence,
+                    "target_file": target,
+                    "suggested_change": f"Review rule {rule_id} for clarity",
+                }
+            )
+
+        if analysis.get("stagnation_detected") and len(proposals) < MAX_PROPOSALS_PER_WORKFLOW:
+            target = "workflow-system/agent/context_profiles.yaml"
+            if not _is_locked(target):
+                proposals.append(
+                    {
+                        "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
+                        "type": "profile_tune",
+                        "description": (
+                            "Convergence stagnation detected — "
+                            "consider adjusting gate thresholds or max_rounds"
+                        ),
+                        "confidence": confidence,
+                        "target_file": target,
+                        "suggested_change": "Lower composite_threshold or increase max_rounds",
+                    }
+                )
+
+        for mismatch in analysis.get("profile_mismatches", []):
+            if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
+                break
+            target = "workflow-system/agent/context_profiles.yaml"
+            if _is_locked(target):
+                continue
+            proposals.append(
+                {
+                    "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
+                    "type": "profile_tune",
+                    "description": f"Profile mismatch: {mismatch}",
+                    "confidence": confidence,
+                    "target_file": target,
+                    "suggested_change": "Adjust section_priorities or token budget",
+                }
+            )
+
+        valid: list[dict] = []
+        for p in proposals:
+            tf = p.get("target_file", "")
+            if _is_locked(tf):
+                logger.info("Rejecting proposal for locked file: %s", tf)
+                continue
+            if not _inside_devolaflow(tf):
+                logger.info("Rejecting proposal for out-of-scope file: %s", tf)
+                continue
+            valid.append(p)
+
+        return valid[:MAX_PROPOSALS_PER_WORKFLOW]

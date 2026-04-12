@@ -1,0 +1,32 @@
+# EvoBench Scenario: Self-Update Reference Check
+# Tests that self_update profile selects meta-framework, reference navigation,
+# lifecycle hooks, and version management sections while excluding implementation noise.
+
+name: "self_update_reference_check"
+task_type: "self_update"
+description: "Validates context selection for the self-update workflow's check-refs stage"
+
+expected_sections:
+  - frontmatter
+  - version_update
+  - agent_mode_protocol
+  - dispatch_report
+  - lifecycle_hooks
+  - reference_navigation
+  - quick_action_decision
+  - context_isolation
+  - rules_dispatchers
+
+unwanted_sections:
+  - plan_mode_template
+  - task_quality_score
+  - template_quick_ref
+  - stage_primitives
+  - convergence_loop
+  - mode_detection
+  - quick_start_workflows
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

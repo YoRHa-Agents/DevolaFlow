@@ -14,12 +14,14 @@ import yaml
 
 from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
+    VALID_MODEL_HINTS,
     estimate_tokens,
     extract_section,
     load_profiles,
     load_skill_md,
     main,
     match_profile,
+    resolve_model_hint,
     select_context,
 )
 
@@ -133,6 +135,8 @@ class TestMatchProfile:
         assert match_profile("setup env", config) == "dependency-setup"
         assert match_profile("onboard", config) == "onboarding"
         assert match_profile("optimize skill", config) == "skill-optimization"
+        assert match_profile("self_update", config) == "self_update"
+        assert match_profile("feedback", config) == "feedback"
 
     def test_longest_match_wins(self, config: dict) -> None:
         """Verify the longest hint match takes priority over shorter ones."""
@@ -191,6 +195,8 @@ class TestSelectContext:
             ("optimize", "perf-optimization"),
             ("setup env", "dependency-setup"),
             ("onboard", "onboarding"),
+            ("self update", "self_update"),
+            ("feedback loop", "feedback"),
         ]:
             result = select_context(task_type, profiles_path=PROFILES_YAML)
             assert result["profile_name"] == expected_profile, (
@@ -232,6 +238,9 @@ class TestSelectContext:
             "skipped_sections",
             "extra_context",
             "rationale",
+            "learnings_included",
+            "model_hint",
+            "advisor_enabled",
         }
         assert set(result.keys()) == expected_keys
 
@@ -266,6 +275,93 @@ class TestSelectContext:
         ):
             result = select_context("tiny", profiles_path=p)
         assert result["total_tokens"] <= result["budget"] or len(result["skipped_sections"]) > 0
+
+
+class TestResolveModelHint:
+    def test_returns_override_when_matched(self) -> None:
+        profile_config = {
+            "model_hints": {
+                "default_tier": "balanced",
+                "overrides": {"code_review": "quality", "test_execution": "budget"},
+            }
+        }
+        assert resolve_model_hint("code_review", profile_config) == "quality"
+        assert resolve_model_hint("test_execution", profile_config) == "budget"
+
+    def test_returns_default_tier_when_no_override(self) -> None:
+        profile_config = {
+            "model_hints": {
+                "default_tier": "balanced",
+                "overrides": {"code_review": "quality"},
+            }
+        }
+        assert resolve_model_hint("unknown_task", profile_config) == "balanced"
+
+    def test_returns_inherit_when_no_model_hints(self) -> None:
+        assert resolve_model_hint("any_task", {}) == "inherit"
+
+    def test_returns_inherit_for_invalid_default(self) -> None:
+        profile_config = {"model_hints": {"default_tier": "invalid_tier"}}
+        assert resolve_model_hint("any_task", profile_config) == "inherit"
+
+    def test_returns_inherit_for_invalid_override(self) -> None:
+        profile_config = {
+            "model_hints": {
+                "default_tier": "balanced",
+                "overrides": {"code_review": "invalid_tier"},
+            }
+        }
+        assert resolve_model_hint("code_review", profile_config) == "balanced"
+
+    def test_all_valid_hints_accepted(self) -> None:
+        for hint in VALID_MODEL_HINTS:
+            config = {"model_hints": {"default_tier": hint}}
+            assert resolve_model_hint("task", config) == hint
+
+
+class TestNewProfiles:
+    def test_self_update_profile_routing(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        assert match_profile("self_update", config) == "self_update"
+        assert match_profile("self update workflow", config) == "self_update"
+        assert match_profile("update skill", config) == "self_update"
+
+    def test_feedback_profile_routing(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        assert match_profile("feedback", config) == "feedback"
+        assert match_profile("feedback loop", config) == "feedback"
+        assert match_profile("retrospective", config) == "feedback"
+
+    def test_self_update_select(self) -> None:
+        result = select_context("self_update", profiles_path=PROFILES_YAML)
+        assert result["profile_name"] == "self_update"
+        assert result["total_tokens"] <= result["budget"]
+        assert result["budget"] == 3500
+        assert len(result["selected_sections"]) > 0
+        assert result["model_hint"] in VALID_MODEL_HINTS
+
+    def test_feedback_select(self) -> None:
+        result = select_context("feedback", profiles_path=PROFILES_YAML)
+        assert result["profile_name"] == "feedback"
+        assert result["total_tokens"] <= result["budget"]
+        assert result["budget"] == 2500
+        assert len(result["selected_sections"]) > 0
+        assert result["model_hint"] in VALID_MODEL_HINTS
+
+
+class TestModelHintInSelectContext:
+    def test_model_hint_present_in_result(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert "model_hint" in result
+        assert result["model_hint"] in VALID_MODEL_HINTS
+
+    def test_all_profiles_have_valid_model_hint(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        for profile_name in config["profiles"]:
+            result = select_context(profile_name, profiles_path=PROFILES_YAML)
+            assert result["model_hint"] in VALID_MODEL_HINTS, (
+                f"Profile {profile_name} has invalid model_hint: {result['model_hint']}"
+            )
 
 
 class TestMain:
@@ -310,6 +406,65 @@ class TestMain:
             sys.argv = old_argv
         out = capsys.readouterr().out
         assert "ASSEMBLED CONTEXT" in out
+
+
+class TestAdvisorConfig:
+    def test_advisor_enabled_for_feature(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert "## Advisor Tool" in result["assembled_text"]
+        assert "Advisor enabled" in result["assembled_text"]
+
+    def test_advisor_enabled_for_refactor(self) -> None:
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert "## Advisor Tool" in result["assembled_text"]
+
+    def test_advisor_enabled_for_security_audit(self) -> None:
+        result = select_context("security", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert "## Advisor Tool" in result["assembled_text"]
+
+    def test_advisor_enabled_for_migration(self) -> None:
+        result = select_context("migrate", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert "## Advisor Tool" in result["assembled_text"]
+
+    def test_advisor_disabled_for_hotfix(self) -> None:
+        result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is False
+        assert "## Advisor Tool" not in result["assembled_text"]
+
+    def test_advisor_disabled_for_research(self) -> None:
+        result = select_context("research", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is False
+        assert "## Advisor Tool" not in result["assembled_text"]
+
+    def test_advisor_disabled_for_design(self) -> None:
+        result = select_context("design", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is False
+
+    def test_advisor_disabled_for_review(self) -> None:
+        result = select_context("review", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is False
+
+    def test_advisor_text_contains_config(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        text = result["assembled_text"]
+        assert "max 3 uses" in text
+        assert "$0.3" in text
+        assert "complexity_high" in text
+        assert "cross_module_architecture" in text
+        assert "stalled_convergence" in text
+
+    def test_advisor_key_present_in_all_profiles(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        for profile_name in config["profiles"]:
+            result = select_context(profile_name, profiles_path=PROFILES_YAML)
+            assert "advisor_enabled" in result, (
+                f"Profile {profile_name} missing advisor_enabled key"
+            )
+            assert isinstance(result["advisor_enabled"], bool)
 
 
 class TestPriorityOrder:

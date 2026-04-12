@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "3.8.0"
+version: "3.9.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -23,18 +23,19 @@ token_estimate: 2800
 last_updated: "2026-04-10"
 name: devola-flow
 description: >
-  Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
-  (Project -> Stage -> Wave -> Task) with gate mechanisms, convergence loops,
-  and context-isolated task delegation.
+  Use when orchestrating multi-file software tasks, implementing features,
+  fixing bugs, refactoring, or running any multi-step development workflow
+  that benefits from structured dispatch, quality gates, and context-isolated
+  subagents.
 ---
 
-> **Now Using DevolaFlow v3.8.0**
+> **Now Using DevolaFlow v3.9.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 3.8.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 3.9.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -169,6 +170,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
 | new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
+| update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
 
 **Selection heuristics:**
 
@@ -193,6 +195,19 @@ Match user intent to workflow type, then load the corresponding stage template.
 **Task sizing:** max 30 min (impl) / 45 min (research), max 6 writable files, ~50–300 lines changed.
 **Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
+
+### Rationalization Prevention
+
+| Rationalization | Reality |
+|---|---|
+| "It's just one small file" | P1 applies regardless of size. Dispatch via `Task` tool. |
+| "I'll be faster doing it myself" | Speed is not the goal — isolation and auditability are. |
+| "The task is too simple for a subagent" | Use the Quick Action Decision table. If Simple+, delegate. |
+| "I need to see the result before dispatching" | Read files (ALLOWED), then dispatch. Never write. |
+| "One more retry should fix it" | Check `max_iterations`. If at limit, escalate — do not increment. |
+| "The gate score is close enough" | Close is FAIL. Run convergence round or escalate. |
+| "I'll skip the gate for this stage" | Gates are mandatory. No stage advances without gate PASS. |
+| "Tests can be added later" | `test_on_complete` hook enforces. No completion without passing tests. |
 
 ### Wave Coordination Modes
 
@@ -303,6 +318,7 @@ Full gate specification: `references/decomposition-gate.md`
 | dependency-setup | Active | Active | **Primary** | Active | — |
 | onboarding | **Primary** | — | Active | Active | — |
 | skill-optimization | Active | — | **Primary** | **Primary** | Active |
+| self-update | **Primary** | Active | Active | **Primary** | Active |
 
 Full team specifications: `references/team-roles.md`
 
@@ -402,6 +418,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `templates/project-status.yaml` | Project tracking dashboard |
 | `templates/stage-readme.md` | Per-stage tracking documents |
 | `templates/wave-plan.md` | Wave decomposition planning |
+| `knowledge/index.md` | Knowledge page catalog, selective loading |
 
 ## Task Quality Score
 
