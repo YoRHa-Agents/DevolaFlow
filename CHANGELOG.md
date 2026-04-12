@@ -5,6 +5,19 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2026-04-12
+
+### Improved
+- **Compressor robustness**: Added `__all__` exports, input validation for invalid intensity tiers (raises `ValueError`), graceful handling of empty/whitespace-only messages
+- **EvoBench evaluator resilience**: Import guard for compressor module — format_compliance gracefully defaults to 0.0 if compressor unavailable
+- **Test coverage**: +9 tests for compressor edge cases (empty input, unicode, invalid intensity, whitespace-only, very long messages, unknown tier fallback)
+
+### Metrics
+- Tests: 504 passed (+9 from v4.1.0)
+- EvoBench: 23/23 scenarios PASS, avg composite 99.20
+- Format compliance: 1.00 across all 23 scenarios
+- Lint/format: All checks pass
+
 ## [4.1.0] - 2026-04-12
 
 ### Added

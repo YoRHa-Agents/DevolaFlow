@@ -12,7 +12,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from devolaflow.compressor import detect_drop_violations
+try:
+    from devolaflow.compressor import detect_drop_violations
+except ImportError:
+    detect_drop_violations = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -86,7 +89,7 @@ def evaluate_scenario(
     information_density = section_relevance * budget_utilization
 
     assembled_text = selector_result.get("assembled_text", "")
-    if assembled_text:
+    if assembled_text and detect_drop_violations is not None:
         drop_result = detect_drop_violations(assembled_text, "standard")
         format_compliance = drop_result["compliance_score"]
     else:

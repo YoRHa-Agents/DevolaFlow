@@ -208,6 +208,84 @@ class TestValidation:
         assert len(result["drops_remaining"]) > 0
 
 
+class TestEdgeCases:
+    """Edge cases: unicode, whitespace-only, very long text, pattern coverage."""
+
+    def test_unicode_cjk_preserved(self):
+        msg = "修改了 src/auth.py 版本 4.1.0"
+        result = validate_preserve_list(msg)
+        assert "file_paths" in [p[0] for p in result["present"]]
+        assert "version_strings" in [p[0] for p in result["present"]]
+
+    def test_unicode_emoji_in_message(self):
+        msg = "✅ src/auth.py passes — coverage 92%"
+        result = compress_message(msg, "standard")
+        assert "src/auth.py" in result["compressed_text"]
+        assert "92%" in result["compressed_text"]
+
+    def test_whitespace_only_input(self):
+        result_preserve = validate_preserve_list("   \t\n  ")
+        assert result_preserve["present"] == []
+        assert result_preserve["integrity_score"] == 0.0
+
+        result_compress = compress_message("   \t\n  ", "standard")
+        assert result_compress["compressed_text"] == ""
+
+        result_validate = validate_lean_format("   \t\n  ", "standard")
+        assert result_validate["score"] <= 100
+
+    def test_very_long_message(self):
+        msg = ("src/auth.py changed. " * 500) + "Basically filler at the end."
+        result = compress_message(msg, "standard")
+        assert result["compression_ratio"] > 0
+        assert "src/auth.py" in result["compressed_text"]
+
+    def test_preserve_list_items_without_patterns(self):
+        """Document that some PRESERVE_LIST items have no pattern and are skipped."""
+        from devolaflow.compressor import PRESERVE_LIST, PRESERVE_PATTERNS
+
+        items_without_patterns = [i for i in PRESERVE_LIST if i not in PRESERVE_PATTERNS]
+        assert len(items_without_patterns) > 0, "Expected some items without patterns"
+        expected_unmatched = {
+            "acceptance_criteria",
+            "artifact_references",
+            "environment_identifiers",
+            "dependency_versions",
+            "line_numbers",
+            "timing_values",
+        }
+        assert set(items_without_patterns) == expected_unmatched
+
+    def test_compress_multiline_preserves_structure(self):
+        msg = (
+            "task_id: T01\n"
+            "Basically the code works.\n"
+            "artifacts:\n"
+            "  - path: src/auth.py\n"
+            "Obviously it passes tests.\n"
+        )
+        result = compress_message(msg, "standard")
+        assert "src/auth.py" in result["compressed_text"]
+        assert "task_id: T01" in result["compressed_text"]
+
+    def test_compress_collapses_excessive_blank_lines(self):
+        msg = "line one\n\n\n\n\nline two"
+        result = compress_message(msg, "standard")
+        assert "\n\n\n" not in result["compressed_text"]
+        assert "line one" in result["compressed_text"]
+        assert "line two" in result["compressed_text"]
+
+    def test_detect_violations_empty_string(self):
+        result = detect_drop_violations("", "aggressive")
+        assert result["violation_count"] == 0
+        assert result["compliance_score"] == 1.0
+
+    def test_validate_lean_format_empty_string(self):
+        result = validate_lean_format("", "standard")
+        assert result["score"] >= 0
+        assert isinstance(result["valid"], bool)
+
+
 class TestIntensityTiers:
     def test_all_tiers_valid(self):
         for tier in ["minimal", "standard", "aggressive"]:

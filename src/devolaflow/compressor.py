@@ -14,6 +14,18 @@ import re
 
 from devolaflow.task_adaptive_selector import estimate_tokens
 
+__all__ = [
+    "PRESERVE_LIST",
+    "DROP_LIST",
+    "INTENSITY_TIERS",
+    "PRESERVE_PATTERNS",
+    "DROP_PATTERNS",
+    "validate_preserve_list",
+    "detect_drop_violations",
+    "compress_message",
+    "validate_lean_format",
+]
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
