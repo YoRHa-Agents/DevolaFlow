@@ -213,31 +213,31 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>New in v3.5.0</h2>
-      <p class="desc">Complete release workflow with shared tooling, automated version bumps with git tags, and deduplicated CI/CD pipelines.</p>
+      <h2>New in v3.9.0</h2>
+      <p class="desc">Operational learnings, self-improving feedback loop, 4-type gate taxonomy, advisor tool integration, and the 17th workflow type (self-update).</p>
       <div class="cards">
         <div class="card">
-          <span class="label">RELEASE</span>
-          <h3>Release Workflow</h3>
-          <p>End-to-end release process: <code>bump_version.py --tag</code> for version bumps with annotated git tags, shared <code>build-site.sh</code> for Pages deployment, and Makefile targets for preflight checks.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/doc/designs/design_release_workflow.md">Release Runbook &rarr;</a>
+          <span class="label">KNOWLEDGE</span>
+          <h3>Operational Learnings</h3>
+          <p>Cross-session knowledge capture: agents accumulate lessons from past runs and apply them to future workflows, reducing repeated mistakes.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md">View SKILL &rarr;</a>
         </div>
         <div class="card">
-          <span class="label">CI/CD</span>
-          <h3>Unified Site Builder</h3>
-          <p>Shared <code>scripts/build-site.sh</code> eliminates duplicated inline scripts between <code>pages.yml</code> and <code>release.yml</code>. Both workflows now use a single source of truth.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/scripts/build-site.sh">View Script &rarr;</a>
+          <span class="label">FEEDBACK</span>
+          <h3>Self-Improving Feedback Loop</h3>
+          <p>Automated feedback analysis pipeline: collects run outcomes, identifies patterns, and feeds improvements back into context profiles and gate thresholds.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md">View SKILL &rarr;</a>
         </div>
         <div class="card">
-          <span class="label">QUALITY</span>
-          <h3>PR Template</h3>
-          <p>Standardized PR template with quality checklist: test verification, lint checks, CHANGELOG updates, and adapter budget validation.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.github/PULL_REQUEST_TEMPLATE.md">View Template &rarr;</a>
+          <span class="label">GATES</span>
+          <h3>4-Type Gate Taxonomy &amp; Advisor Tool</h3>
+          <p>Gates now classified into 4 types (standard, convergence, advisory, automated). New advisor tool integration lets gates consult external validators.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/decomposition-gate.md">Gate Reference &rarr;</a>
         </div>
         <div class="card">
           <span class="label">METRICS</span>
-          <h3>312 Tests, 88.5% Coverage</h3>
-          <p>All 4 adapters within budget (Cursor 363/500, Codex 352/500, Claude 67/200, Copilot 1925/4000). EvoBench 22/22 pass with 0 regressions.</p>
+          <h3>423 Tests, 89.2% Coverage</h3>
+          <p>Self-update workflow (17th type) added. 20 EvoBench scenarios, 18 context profiles. All 4 adapters within budget.</p>
           <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
       </div>
@@ -245,12 +245,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
     <section>
       <h2>v3.3.0 Highlights</h2>
-      <p class="desc">Full workflow coverage: 17 context profiles, 17 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 18 context profiles, 20 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 17 scenarios covering all 17 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
+          <p>Context density benchmark suite with 20 scenarios covering all 17 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context">View Benchmarks &rarr;</a>
         </div>
         <div class="card">
@@ -262,13 +262,13 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">CONTEXT</span>
           <h3>Task-Adaptive Selection</h3>
-          <p>17 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
+          <p>18 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml">View Profiles &rarr;</a>
         </div>
         <div class="card">
           <span class="label">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 17 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 94.4).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 20 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 94.4).</p>
           <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
       </div>
