@@ -206,7 +206,10 @@ def select_context(
                         relevant, max_tokens=learnings_token_cap
                     )
                     learnings_tokens = estimate_tokens(learnings_text)
-                    used_tokens += learnings_tokens
+                    if used_tokens + learnings_tokens <= budget:
+                        used_tokens += learnings_tokens
+                    else:
+                        learnings_text = ""
             except Exception:
                 logger.debug("Learnings integration skipped due to error", exc_info=True)
 
@@ -226,8 +229,9 @@ def select_context(
             f"Invoke for: {triggers_str}."
         )
         advisor_tokens = estimate_tokens(advisor_text)
-        assembled_text = assembled_text + "\n\n" + advisor_text
-        used_tokens += advisor_tokens
+        if used_tokens + advisor_tokens <= budget:
+            assembled_text = assembled_text + "\n\n" + advisor_text
+            used_tokens += advisor_tokens
 
     model_hint = resolve_model_hint(task_type, profile)
 
