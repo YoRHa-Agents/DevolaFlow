@@ -1,15 +1,16 @@
-# EvoBench Scenario: Decomposition — Feature with Sub-Agent Pattern
-# Tests that feature profile with decomposition enabled loads broad
-# architectural context including all planning-relevant sections.
+# EvoBench Scenario: Decomposition — Complete Feature Profile Validation
+# Tests that the feature profile selects ALL expected sections with zero noise.
+# The feature profile is the default and largest non-security profile;
+# this scenario validates its complete section selection.
 
 name: "decomposition_feature"
 task_type: "feature"
-description: "Feature task with decomposition enabled — validates context includes decomposition-relevant sections"
+description: "Complete feature profile with decomposition context — validates all 14 selected sections with zero noise"
 
 expected_sections:
   - quick_action_decision
-  - agent_mode_protocol
   - plan_mode_template
+  - agent_mode_protocol
   - quick_start_workflows
   - hierarchy_table
   - wave_task_constraints
@@ -17,9 +18,14 @@ expected_sections:
   - stage_primitives
   - gate_mechanism
   - agent_teams
+  - context_isolation
+  - lifecycle_hooks
+  - convergence_loop
+  - dispatch_report
 
 unwanted_sections: []
 
 quality_thresholds:
-  min_composite: 85
-  min_relevance: 0.9
+  min_composite: 95
+  min_relevance: 1.0
+  max_noise_ratio: 0.05
