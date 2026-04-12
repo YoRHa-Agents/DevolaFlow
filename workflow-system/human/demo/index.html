@@ -213,7 +213,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>New in v3.9.0</h2>
+      <h2>New in v3.9.1</h2>
       <p class="desc">Operational learnings, self-improving feedback loop, 4-type gate taxonomy, advisor tool integration, and the 17th workflow type (self-update).</p>
       <div class="cards">
         <div class="card">
@@ -231,12 +231,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">GATES</span>
           <h3>4-Type Gate Taxonomy &amp; Advisor Tool</h3>
-          <p>Gates now classified into 4 types (standard, convergence, advisory, automated). New advisor tool integration lets gates consult external validators.</p>
+          <p>Gates now classified into 4 types (preflight, revision, escalation, abort) with deterministic routing. New advisor tool integration lets gates consult external validators.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/decomposition-gate.md">Gate Reference &rarr;</a>
         </div>
         <div class="card">
           <span class="label">METRICS</span>
-          <h3>423 Tests, 89.2% Coverage</h3>
+          <h3>434 Tests, 89% Coverage</h3>
           <p>Self-update workflow (17th type) added. 20 EvoBench scenarios, 18 context profiles. All 4 adapters within budget.</p>
           <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
@@ -245,17 +245,17 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
     <section>
       <h2>v3.3.0 Highlights</h2>
-      <p class="desc">Full workflow coverage: 18 context profiles, 20 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 18 context profiles, 20 benchmark scenarios, optimized budget utilization (99.51 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 20 scenarios covering all 17 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
+          <p>Context density benchmark suite with 20 scenarios covering all 17 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.51/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context">View Benchmarks &rarr;</a>
         </div>
         <div class="card">
           <span class="label">RULES</span>
-          <h3>18 Repository Rules</h3>
+          <h3>19 Repository Rules</h3>
           <p>Enforceable guardrails codified from v2.x iteration lessons: SKILL format constraints, change process rules, and context optimization rules.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/.cursor/rules">View Rules &rarr;</a>
         </div>
@@ -268,7 +268,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 20 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 94.4).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 20 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.51).</p>
           <a href="benchmark-results/index.html">View Results &rarr;</a>
         </div>
       </div>

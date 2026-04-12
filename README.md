@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 423+ tests, 17 templates
+make test && make validate-templates   # 434+ tests, 17 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -202,7 +202,7 @@ python -m benchmarks.devolaflow_context.runner --round N --round-label "descript
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Current avg composite: **94.4/100** with 100% relevance and 0% noise across all 20 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Current avg composite: **99.51/100** with 100% relevance and 0% noise across all 20 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Repository Development Rules (New in v3.0.0)
 
@@ -340,7 +340,7 @@ DevolaFlow/
     primitives/               #   per-primitive I/O schemas (future)
   doc/designs/                # 15 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (423+ tests, 89% coverage)
+  tests/                      # pytest suite (434+ tests, 89% coverage)
   .github/workflows/          # CI + Release + Pages
   .cursor/rules/              # always-on hard constraints (5 core + 19 process rules)
 ```
