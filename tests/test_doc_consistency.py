@@ -198,3 +198,76 @@ def test_bump_version_location_count(project_root: Path):
     assert locations == claimed, (
         f"bump_version.py has {locations} VERSION_LOCATIONS, README claims {claimed}"
     )
+
+
+def test_demo_index_rules_count(project_root: Path):
+    """Demo index.html 'Repository Rules' count must match actual rule IDs in .cursor/rules/."""
+    demo_index = (project_root / "workflow-system" / "human" / "demo" / "index.html").read_text()
+
+    match = re.search(r"(\d+)\s+Repository\s+Rules", demo_index)
+    assert match, "Could not find 'Repository Rules' count in demo/index.html"
+    claimed = int(match.group(1))
+
+    rules_dir = project_root / ".cursor" / "rules"
+    rule_id_pattern = re.compile(r"^## Rule ([A-Z]+-\d+)", re.MULTILINE)
+    actual_ids: set[str] = set()
+    for mdc in rules_dir.glob("*.mdc"):
+        actual_ids.update(rule_id_pattern.findall(mdc.read_text()))
+
+    assert claimed == len(actual_ids), (
+        f"demo/index.html claims {claimed} rules, "
+        f"but .cursor/rules/ contains {len(actual_ids)} rule IDs: {sorted(actual_ids)}"
+    )
+
+
+def test_demo_index_gate_types(project_root: Path):
+    """Demo index.html must reference the canonical gate types, not legacy names."""
+    demo_index = (project_root / "workflow-system" / "human" / "demo" / "index.html").read_text()
+
+    for canonical in ("preflight", "revision", "escalation", "abort"):
+        assert canonical in demo_index, f"demo/index.html missing canonical gate type '{canonical}'"
+
+    for stale in ("advisory", "automated"):
+        assert stale not in demo_index, (
+            f"demo/index.html still references stale gate type '{stale}'"
+        )
+
+
+def test_readme_evobench_composite_not_stale(project_root: Path):
+    """README composite score claim must be >= 95.0 and baselines must exist."""
+    readme = (project_root / "README.md").read_text()
+
+    match = re.search(r"avg composite:\s*\*\*(\d+(?:\.\d+)?)/100\*\*", readme)
+    assert match, "Could not find avg composite score in README"
+    claimed = float(match.group(1))
+
+    assert claimed >= 95.0, f"README claims composite {claimed}, expected >= 95.0"
+
+    baselines_dir = project_root / "benchmarks" / "devolaflow_context" / "baselines"
+    assert baselines_dir.exists(), f"Baselines directory missing: {baselines_dir}"
+    assert list(baselines_dir.iterdir()), "Baselines directory is empty"
+
+
+def test_demo_index_version_matches_package(project_root: Path):
+    """Demo index.html 'New in vX.Y.Z' version must match or be at most one patch behind."""
+    demo_index = (project_root / "workflow-system" / "human" / "demo" / "index.html").read_text()
+    init_py = (project_root / "src" / "devolaflow" / "__init__.py").read_text()
+
+    demo_match = re.search(r"New in v(\d+\.\d+\.\d+)", demo_index)
+    assert demo_match, "Could not find 'New in vX.Y.Z' heading in demo/index.html"
+    demo_version = demo_match.group(1)
+
+    pkg_match = re.search(r'__version__\s*=\s*"(\d+\.\d+\.\d+)"', init_py)
+    assert pkg_match, "Could not find __version__ in __init__.py"
+    pkg_version = pkg_match.group(1)
+
+    demo_parts = [int(x) for x in demo_version.split(".")]
+    pkg_parts = [int(x) for x in pkg_version.split(".")]
+
+    assert demo_parts[0] == pkg_parts[0] and demo_parts[1] == pkg_parts[1], (
+        f"demo version {demo_version} major.minor differs from package {pkg_version}"
+    )
+    patch_delta = pkg_parts[2] - demo_parts[2]
+    assert 0 <= patch_delta <= 1, (
+        f"demo version {demo_version} is more than 1 patch behind package {pkg_version}"
+    )
