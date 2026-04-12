@@ -26,6 +26,16 @@ fields:
         enum: [quality, balanced, budget, inherit]
         default: inherit
         description: "Host IDE interprets this hint to select appropriate model tier"
+      decomposition_mode:
+        type: string
+        enum: [single, sub_agents]
+        default: single
+        description: "L3 task execution mode. single = v3.x leaf behavior. sub_agents = coordinator dispatches budget-tier micro-tasks."
+      compression_intensity:
+        type: string
+        enum: [minimal, standard, aggressive]
+        default: standard
+        description: "Lean format compression intensity for this dispatch message."
 
   task:
     required: true

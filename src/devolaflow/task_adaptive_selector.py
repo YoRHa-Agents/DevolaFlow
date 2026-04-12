@@ -29,6 +29,37 @@ PRIORITY_ORDER = ["critical", "important", "supplementary"]
 
 VALID_MODEL_HINTS = {"quality", "balanced", "budget", "inherit"}
 
+VALID_COMPRESSION_INTENSITIES = {"minimal", "standard", "aggressive"}
+
+
+def resolve_decomposition_config(profile_config: dict[str, Any]) -> dict[str, Any]:
+    """Resolve decomposition configuration from profile.
+
+    Returns a dict with enabled, max_sub_agents, sub_agent_model_hint, etc.
+    Defaults to disabled if not configured.
+    """
+    decomp = profile_config.get("decomposition", {})
+    return {
+        "enabled": decomp.get("enabled", False),
+        "max_sub_agents": decomp.get("max_sub_agents", 4),
+        "max_nesting_depth": decomp.get("max_nesting_depth", 1),
+        "sub_agent_model_hint": decomp.get("sub_agent_model_hint", "budget"),
+        "sub_agent_context_budget": decomp.get("sub_agent_context_budget", 3000),
+        "coordinator_retains_advisor": decomp.get("coordinator_retains_advisor", True),
+        "gen_verify_mode": decomp.get("gen_verify_mode", False),
+        "gen_verify_max_rounds": decomp.get("gen_verify_max_rounds", 3),
+    }
+
+
+def resolve_compression_intensity(boundary: str, profiles_config: dict[str, Any]) -> str:
+    """Resolve compression intensity for a given layer boundary.
+
+    boundary: one of l0_to_l1, l1_to_l2, l2_to_l3, l3_to_l2, l2_to_l1, l1_to_l0
+    """
+    defaults = profiles_config.get("meta", {}).get("compression_defaults", {})
+    intensity = defaults.get(boundary, "standard")
+    return intensity if intensity in VALID_COMPRESSION_INTENSITIES else "standard"
+
 
 def resolve_model_hint(task_type: str, profile_config: dict[str, Any]) -> str:
     """Resolve the model_hint for a given task type from the profile config.
@@ -243,6 +274,7 @@ def select_context(
         used_tokens += advisor_reserve
 
     model_hint = resolve_model_hint(task_type, profile)
+    decomp_config = resolve_decomposition_config(profile)
 
     result = {
         "profile_name": profile_name,
@@ -258,6 +290,8 @@ def select_context(
         "learnings_included": bool(learnings_text),
         "model_hint": model_hint,
         "advisor_enabled": advisor_enabled,
+        "decomposition": decomp_config,
+        "compression_intensity": resolve_compression_intensity("l2_to_l3", config),
     }
 
     return result

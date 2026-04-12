@@ -5,6 +5,77 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2026-04-12
+
+### Improved
+- **Compressor robustness**: Added `__all__` exports, input validation for invalid intensity tiers (raises `ValueError`), graceful handling of empty/whitespace-only messages
+- **EvoBench evaluator resilience**: Import guard for compressor module — format_compliance gracefully defaults to 0.0 if compressor unavailable
+- **Test coverage**: +9 tests for compressor edge cases (empty input, unicode, invalid intensity, whitespace-only, very long messages, unknown tier fallback)
+
+### Metrics
+- Tests: 504 passed (+9 from v4.1.0)
+- EvoBench: 23/23 scenarios PASS, avg composite 99.20
+- Format compliance: 1.00 across all 23 scenarios
+- Lint/format: All checks pass
+
+## [4.1.0] - 2026-04-12
+
+### Added
+- **Runtime Compression Validator**: New `src/devolaflow/compressor.py` module with deterministic lean format validation and compression. Functions: `validate_lean_format()` (score 0-100), `compress_message()` (apply drop patterns by intensity tier), `validate_preserve_list()` (check preserve items present), `detect_drop_violations()` (identify remaining drop items). Closes the critical runtime enforcement gap identified in T02 caveman compression audit.
+- **Aggregation Compression Formats**: Extended `lean-report.yaml` with `wave_summary` and `stage_summary` aggregation templates. Wave summary: merge N task reports into ≤200 tokens. Stage summary: merge N wave summaries into ≤150 tokens with gate verdict. Defines deterministic aggregation rules (sum metrics, deduplicate artifacts, surface blockers only for FAIL state).
+- **EvoBench format_compliance Dimension**: New `format_compliance` field in BenchmarkScore measuring lean format adherence of assembled context text. All 23 scenarios score 1.00 (perfect compliance). Addresses EvoBench saturation by adding a new evaluation dimension.
+- **Expanded Preserve/Drop Lists**: Added environment_identifiers, dependency_versions, line_numbers, timing_values to preserve list. Added progress_narration, obvious_acknowledgments, tool_call_echoing to drop list. 12 preserve items and 9 drop items total.
+
+### Fixed
+- **Section line range alignment**: Re-aligned all 24 section line ranges in `context_profiles.yaml` to match SKILL.md 450-line layout after v4.0.1 content additions. Restored EvoBench scores: hotfix_jwt 89.37→99.78, feature_middleware 92.83→99.88, avg composite 97.33→99.20.
+- **Pre-existing lint**: Fixed `datetime.timezone.utc` → `datetime.UTC` alias in benchmark runner.
+
+### Metrics
+- Tests: 495 passed (+42 from v4.0.1)
+- EvoBench: 23/23 scenarios PASS, avg composite 99.20 (restored from 97.33)
+- Format compliance: 1.00 across all 23 scenarios (new dimension)
+- Lint/format: All checks pass
+- SKILL.md: 450 lines (budget: 500)
+
+## [4.0.1] - 2026-04-12
+
+### Fixed
+- **SKILL.md dispatch protocol**: Added model routing instruction to L2 Wave agent dispatch step — L2 now reads `model_hint` from resolved context profile and maps to platform model parameter (budget→fast on Cursor)
+- **SKILL.md L3 contract**: Added `decomposition_mode` awareness to L3 Task Agent behavioral contract with backward-compatible single mode default
+
+### Improved
+- **Test coverage**: Added edge-case tests for `resolve_decomposition_config()` (missing keys, partial config, all defaults) and `resolve_compression_intensity()` (valid boundary, invalid boundary, missing defaults) — +2 tests
+- **Schema documentation**: Enhanced `decomposition_mode` and `compression_intensity` field descriptions in task-dispatch.schema.yaml for clearer agent guidance
+
+### Metrics
+- Tests: 453 passed (+2 from v4.0.0)
+- EvoBench: 23/23 scenarios pass (zero regression from v4.0.0)
+- SKILL.md: 450 lines (budget: 500)
+- Lint/format: All checks pass
+
+## [4.0.0] - 2026-04-12
+
+### Added
+- **Platform Model Routing Infrastructure**: `platform_model_mapping` in context_profiles.yaml with per-platform hint→model mapping (Cursor: budget→fast, Codex: quality→o3/balanced→o4-mini/budget→o4-mini, Claude Code: quality→opus/balanced→sonnet/budget→haiku). Completes the model_hint pipeline end-to-end: schema → selector → profile config → platform routing.
+- **Per-Boundary Compression Intensity**: `compression_defaults` configuration in context_profiles.yaml defining compression intensity per layer boundary (l2_to_l3: minimal, l3_to_l2/l2_to_l1/l1_to_l0: aggressive, l0_to_l1/l1_to_l2: standard). New `resolve_compression_intensity()` function in task_adaptive_selector.py.
+- **L3 Decomposition Framework**: `decomposition` configuration per profile (enabled/disabled, max_sub_agents, sub_agent_model_hint, gen_verify_mode). Enabled for feature, refactor, migration, security-audit, perf-optimization, skill-optimization profiles. New `resolve_decomposition_config()` function in task_adaptive_selector.py. `decomposition_mode` (single/sub_agents) and `compression_intensity` (minimal/standard/aggressive) fields in task-dispatch schema.
+- **3 New EvoBench Scenarios**: `compression_hotfix` (composite 99.98), `decomposition_feature` (composite 94.26), `model_routing_feature` (composite 95.69) — validating compression, decomposition, and model routing capabilities.
+- **Research Reports**: T01 L3 Sub-agent Decomposition (partially viable), T02 Caveman Compression Audit (schema strong, runtime gap), T03 Advisor + Sub-agent Synergy (strong synergy, 34% cost reduction projected).
+
+### Changed
+- context_profiles.yaml: meta.version bumped to "2.0.0"; all 16 profiles now include `decomposition` configuration block
+- task_adaptive_selector.py: `select_context()` now returns `decomposition` config and `compression_intensity` in result dict
+- task-dispatch.schema.yaml: Added `decomposition_mode` and `compression_intensity` header fields (backward compatible with defaults)
+
+### Metrics
+- Tests: 451 passed (+13 from v3.9.2)
+- Coverage: 89%+ (threshold: 80%)
+- EvoBench: 23/23 scenarios pass (20 original: zero regression, 3 new)
+- Composite range: 94.26–99.98 (original 20: 99.22–99.98, unchanged)
+- Lint: All checks pass
+- SKILL.md: 447 lines (budget: 500)
+- MVP-SKILL.md: 314 lines (budget: 500)
+
 ## [3.9.2] - 2026-04-12
 
 ### Added

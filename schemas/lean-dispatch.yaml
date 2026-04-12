@@ -145,14 +145,17 @@ compression_rules:
     - redundant_narration     # "Let me explain", "As you can see"
     - meta_commentary         # "I'm now going to", "The next step is"
     - apologies               # "Sorry for the confusion"
+    - progress_narration      # "making good progress", "working on"
+    - obvious_acknowledgments # "understood", "got it", "will do"
+    - tool_call_echoing       # "I just ran the grep tool"
   intensity_tiers:
     minimal:
       description: "Drop only filler and pleasantries"
       active_drops: [filler_phrases, pleasantries, apologies]
     standard:
       description: "Drop filler, hedging, narration"
-      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, apologies]
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, apologies, progress_narration, obvious_acknowledgments]
     aggressive:
       description: "Drop all non-essential text"
-      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies]
+      active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies, progress_narration, obvious_acknowledgments, tool_call_echoing]
   default_intensity: standard

@@ -126,7 +126,7 @@ def save_round(round_num: int, label: str, version: str = "3.2.0") -> dict[str, 
     round_data = {
         "round": round_num,
         "label": label,
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         "scenarios": {r["scenario_name"]: r for r in report["results"]},
     }
 

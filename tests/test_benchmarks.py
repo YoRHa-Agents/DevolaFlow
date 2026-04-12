@@ -127,6 +127,69 @@ class TestEvaluator:
         assert d["scenario_name"] == "test"
         assert isinstance(d["composite"], float)
 
+    def test_format_compliance_field(self) -> None:
+        """New format_compliance dimension present in results."""
+        report = run_all("all")
+        for r in report["results"]:
+            assert "format_compliance" in r
+            assert 0 <= r["format_compliance"] <= 1
+
+    def test_format_compliance_with_assembled_text(self) -> None:
+        """format_compliance is computed when assembled_text is present."""
+        selector_result = {
+            "profile_name": "hotfix",
+            "selected_sections": [
+                {"name": "dispatch_report", "tokens": 100},
+            ],
+            "total_tokens": 100,
+            "budget": 400,
+            "assembled_text": "JWT auth middleware validates tokens and returns 401 on failure",
+        }
+        score = evaluate_scenario(
+            "test_compliance_clean",
+            selector_result,
+            expected_sections=["dispatch_report"],
+        )
+        assert score.format_compliance > 0.0
+
+    def test_format_compliance_dirty_text(self) -> None:
+        """format_compliance penalizes drop-list violations."""
+        selector_result = {
+            "profile_name": "hotfix",
+            "selected_sections": [
+                {"name": "dispatch_report", "tokens": 100},
+            ],
+            "total_tokens": 100,
+            "budget": 400,
+            "assembled_text": (
+                "I think basically it seems the JWT middleware might perhaps "
+                "work. Let me explain: Great question, sorry for the confusion."
+            ),
+        }
+        score = evaluate_scenario(
+            "test_compliance_dirty",
+            selector_result,
+            expected_sections=["dispatch_report"],
+        )
+        assert score.format_compliance < 1.0
+
+    def test_format_compliance_no_assembled_text(self) -> None:
+        """format_compliance is 0.0 when no assembled_text is provided."""
+        selector_result = {
+            "profile_name": "hotfix",
+            "selected_sections": [
+                {"name": "dispatch_report", "tokens": 100},
+            ],
+            "total_tokens": 100,
+            "budget": 400,
+        }
+        score = evaluate_scenario(
+            "test_compliance_none",
+            selector_result,
+            expected_sections=["dispatch_report"],
+        )
+        assert score.format_compliance == 0.0
+
 
 class TestBaselineComparison:
     def test_pass_when_no_regression(self) -> None:

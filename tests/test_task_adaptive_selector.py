@@ -14,6 +14,7 @@ import yaml
 
 from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
+    VALID_COMPRESSION_INTENSITIES,
     VALID_MODEL_HINTS,
     estimate_tokens,
     extract_section,
@@ -21,6 +22,8 @@ from devolaflow.task_adaptive_selector import (
     load_skill_md,
     main,
     match_profile,
+    resolve_compression_intensity,
+    resolve_decomposition_config,
     resolve_model_hint,
     select_context,
 )
@@ -241,6 +244,8 @@ class TestSelectContext:
             "learnings_included",
             "model_hint",
             "advisor_enabled",
+            "decomposition",
+            "compression_intensity",
         }
         assert set(result.keys()) == expected_keys
 
@@ -470,3 +475,106 @@ class TestAdvisorConfig:
 class TestPriorityOrder:
     def test_priority_order_values(self) -> None:
         assert PRIORITY_ORDER == ["critical", "important", "supplementary"]
+
+
+class TestResolveDecompositionConfig:
+    def test_enabled_profile(self) -> None:
+        profile = {
+            "decomposition": {
+                "enabled": True,
+                "max_sub_agents": 4,
+                "max_nesting_depth": 1,
+                "sub_agent_model_hint": "budget",
+                "sub_agent_context_budget": 3000,
+                "coordinator_retains_advisor": True,
+                "gen_verify_mode": True,
+                "gen_verify_max_rounds": 3,
+            }
+        }
+        result = resolve_decomposition_config(profile)
+        assert result["enabled"] is True
+        assert result["max_sub_agents"] == 4
+        assert result["gen_verify_mode"] is True
+
+    def test_disabled_profile(self) -> None:
+        profile = {"decomposition": {"enabled": False}}
+        result = resolve_decomposition_config(profile)
+        assert result["enabled"] is False
+        assert result["max_sub_agents"] == 4  # default
+
+    def test_missing_decomposition_key(self) -> None:
+        result = resolve_decomposition_config({})
+        assert result["enabled"] is False
+        assert result["max_sub_agents"] == 4
+        assert result["sub_agent_model_hint"] == "budget"
+        assert result["gen_verify_mode"] is False
+
+    def test_feature_profile_has_decomposition_enabled(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert result["decomposition"]["enabled"] is True
+
+    def test_hotfix_profile_has_decomposition_disabled(self) -> None:
+        result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        assert result["decomposition"]["enabled"] is False
+
+    def test_partial_decomposition_config_fills_defaults(self) -> None:
+        profile = {"decomposition": {"enabled": True, "max_sub_agents": 6}}
+        result = resolve_decomposition_config(profile)
+        assert result["enabled"] is True
+        assert result["max_sub_agents"] == 6
+        assert result["max_nesting_depth"] == 1
+        assert result["sub_agent_model_hint"] == "budget"
+        assert result["sub_agent_context_budget"] == 3000
+        assert result["coordinator_retains_advisor"] is True
+        assert result["gen_verify_mode"] is False
+        assert result["gen_verify_max_rounds"] == 3
+
+    def test_all_profiles_have_decomposition(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        for profile_name in config["profiles"]:
+            result = select_context(profile_name, profiles_path=PROFILES_YAML)
+            assert "decomposition" in result, f"Profile {profile_name} missing decomposition key"
+            assert isinstance(result["decomposition"], dict)
+            assert "enabled" in result["decomposition"]
+
+
+class TestResolveCompressionIntensity:
+    def test_known_boundary(self) -> None:
+        config = {"meta": {"compression_defaults": {"l2_to_l3": "minimal"}}}
+        assert resolve_compression_intensity("l2_to_l3", config) == "minimal"
+
+    def test_unknown_boundary_defaults_to_standard(self) -> None:
+        config = {"meta": {"compression_defaults": {}}}
+        assert resolve_compression_intensity("unknown", config) == "standard"
+
+    def test_missing_compression_defaults(self) -> None:
+        assert resolve_compression_intensity("l2_to_l3", {}) == "standard"
+
+    def test_invalid_value_defaults_to_standard(self) -> None:
+        config = {"meta": {"compression_defaults": {"l2_to_l3": "invalid"}}}
+        assert resolve_compression_intensity("l2_to_l3", config) == "standard"
+
+    def test_all_valid_intensities(self) -> None:
+        for intensity in VALID_COMPRESSION_INTENSITIES:
+            config = {"meta": {"compression_defaults": {"l2_to_l3": intensity}}}
+            assert resolve_compression_intensity("l2_to_l3", config) == intensity
+
+    def test_compression_intensity_in_select_context(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert "compression_intensity" in result
+        assert result["compression_intensity"] in VALID_COMPRESSION_INTENSITIES
+
+    def test_compression_intensity_matches_l2_to_l3_config(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        expected = resolve_compression_intensity("l2_to_l3", config)
+        assert result["compression_intensity"] == expected
+
+    def test_all_profiles_have_compression_intensity(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        for profile_name in config["profiles"]:
+            result = select_context(profile_name, profiles_path=PROFILES_YAML)
+            assert "compression_intensity" in result, (
+                f"Profile {profile_name} missing compression_intensity"
+            )
+            assert result["compression_intensity"] in VALID_COMPRESSION_INTENSITIES
