@@ -144,6 +144,34 @@ def select_context(
     budget = profile.get("token_budget", 6000)
     section_priorities = profile.get("section_priorities", {})
 
+    advisor_config = profile.get("advisor", {})
+    advisor_enabled = advisor_config.get("enabled", False)
+    advisor_text = ""
+    advisor_reserve = 0
+    if advisor_enabled:
+        max_uses = advisor_config.get("max_uses", 3)
+        cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
+        triggers = advisor_config.get("trigger_conditions", [])
+        triggers_str = ", ".join(triggers) if triggers else "none"
+        advisor_text = (
+            f"## Advisor Tool\n"
+            f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
+            f"Invoke for: {triggers_str}."
+        )
+        advisor_reserve = estimate_tokens(advisor_text)
+
+    learnings_config = profile.get("learnings", {})
+    learnings_reserve = 0
+    if learnings_config.get("enabled", False):
+        p = profiles_path or PROFILES_PATH
+        learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+        if learnings_path.exists() and learnings_path.stat().st_size > 0:
+            budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
+            budget_pct = learnings_config.get("budget_pct", 10)
+            learnings_reserve = min(budget_max_tokens, int(budget * budget_pct / 100))
+
+    section_budget = budget - advisor_reserve - learnings_reserve
+
     priority_buckets: dict[str, list[str]] = {p: [] for p in PRIORITY_ORDER}
     skipped = []
 
@@ -169,7 +197,7 @@ def select_context(
             text = extract_section(skill_text, line_range)
             tok = estimate_tokens(text)
 
-            if used_tokens + tok <= budget:
+            if used_tokens + tok <= section_budget:
                 selected.append((section_name, text, tok))
                 used_tokens += tok
             else:
@@ -177,22 +205,19 @@ def select_context(
                 if verbose:
                     print(
                         f"  [SKIP] {section_name} ({tok} tok) — "
-                        f"would exceed budget ({used_tokens}+{tok} > {budget})"
+                        f"would exceed budget ({used_tokens}+{tok} > {section_budget})"
                     )
 
     assembled_text = "\n\n".join(text for _, text, _ in selected)
 
     learnings_text = ""
-    learnings_config = profile.get("learnings", {})
     if learnings_config.get("enabled", False):
         p = profiles_path or PROFILES_PATH
         learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
         if learnings_path.exists():
             max_entries = learnings_config.get("max_entries", 5)
             min_confidence = learnings_config.get("min_confidence", 0.5)
-            budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
-            budget_pct = learnings_config.get("budget_pct", 10)
-            learnings_token_cap = min(budget_max_tokens, int(budget * budget_pct / 100))
+            learnings_token_cap = learnings_reserve
 
             try:
                 relevant = load_relevant_learnings(
@@ -206,32 +231,16 @@ def select_context(
                         relevant, max_tokens=learnings_token_cap
                     )
                     learnings_tokens = estimate_tokens(learnings_text)
-                    if used_tokens + learnings_tokens <= budget:
-                        used_tokens += learnings_tokens
-                    else:
-                        learnings_text = ""
+                    used_tokens += learnings_tokens
             except Exception:
                 logger.debug("Learnings integration skipped due to error", exc_info=True)
 
     if learnings_text:
         assembled_text = assembled_text + "\n\n" + learnings_text
 
-    advisor_config = profile.get("advisor", {})
-    advisor_enabled = advisor_config.get("enabled", False)
-    if advisor_enabled:
-        max_uses = advisor_config.get("max_uses", 3)
-        cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
-        triggers = advisor_config.get("trigger_conditions", [])
-        triggers_str = ", ".join(triggers) if triggers else "none"
-        advisor_text = (
-            f"## Advisor Tool\n"
-            f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
-            f"Invoke for: {triggers_str}."
-        )
-        advisor_tokens = estimate_tokens(advisor_text)
-        if used_tokens + advisor_tokens <= budget:
-            assembled_text = assembled_text + "\n\n" + advisor_text
-            used_tokens += advisor_tokens
+    if advisor_text:
+        assembled_text = assembled_text + "\n\n" + advisor_text
+        used_tokens += advisor_reserve
 
     model_hint = resolve_model_hint(task_type, profile)
 
