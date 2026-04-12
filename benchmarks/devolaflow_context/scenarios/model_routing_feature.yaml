@@ -1,22 +1,26 @@
 # EvoBench Scenario: Model Routing — Budget Override for Simple Implementation
-# Tests that simple_implementation task type routes to feature profile and
-# selects triage-relevant sections without planning noise.
+# Tests that simple_implementation task type routes to feature profile
+# with budget model_hint override from feature.model_hints.overrides.
 
 name: "model_routing_feature"
 task_type: "simple_implementation"
-description: "Feature task with model_hint budget override for simple implementation"
+description: "Simple implementation routed to feature profile — validates budget model_hint override and feature-profile section selection"
 
 expected_sections:
   - quick_action_decision
   - agent_mode_protocol
+  - plan_mode_template
   - hierarchy_table
   - context_isolation
   - dispatch_report
+  - stage_primitives
+  - convergence_loop
 
 unwanted_sections:
-  - plan_mode_template
-  - convergence_loop
-  - stage_primitives
+  - frontmatter
+  - version_update
+  - hierarchy_diagram
+  - template_quick_ref
 
 quality_thresholds:
   min_composite: 80

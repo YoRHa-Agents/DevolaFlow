@@ -5,6 +5,22 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-04-12
+
+### Fixed
+- **SKILL.md dispatch protocol**: Added model routing instruction to L2 Wave agent dispatch step — L2 now reads `model_hint` from resolved context profile and maps to platform model parameter (budget→fast on Cursor)
+- **SKILL.md L3 contract**: Added `decomposition_mode` awareness to L3 Task Agent behavioral contract with backward-compatible single mode default
+
+### Improved
+- **Test coverage**: Added edge-case tests for `resolve_decomposition_config()` (missing keys, partial config, all defaults) and `resolve_compression_intensity()` (valid boundary, invalid boundary, missing defaults) — +2 tests
+- **Schema documentation**: Enhanced `decomposition_mode` and `compression_intensity` field descriptions in task-dispatch.schema.yaml for clearer agent guidance
+
+### Metrics
+- Tests: 453 passed (+2 from v4.0.0)
+- EvoBench: 23/23 scenarios pass (zero regression from v4.0.0)
+- SKILL.md: 450 lines (budget: 500)
+- Lint/format: All checks pass
+
 ## [4.0.0] - 2026-04-12
 
 ### Added

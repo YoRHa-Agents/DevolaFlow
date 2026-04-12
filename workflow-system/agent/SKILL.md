@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "4.0.0"
+version: "4.0.1"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -20,7 +20,7 @@ triggers:
   - "/update-devola"
 tier: 1
 token_estimate: 2800
-last_updated: "2026-04-10"
+last_updated: "2026-04-12"
 name: devola-flow
 description: >
   Use when orchestrating multi-file software tasks, implementing features,
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v4.0.0**
+> **Now Using DevolaFlow v4.0.1**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 4.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 4.0.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -350,6 +350,9 @@ All inter-layer communication uses typed YAML schemas. Free-form chat between la
 - `owned_files`: disjoint from parallel tasks
 - `acceptance_criteria`: concrete pass conditions
 - `timeout_seconds`: max execution time (default 7200)
+- `model_hint`: quality | balanced | budget | inherit (default: inherit) — model tier suggestion
+- `decomposition_mode`: single | sub_agents (default: single) — L3 execution strategy
+- `compression_intensity`: minimal | standard | aggressive (default: standard) — dispatch message compression
 
 **Reporting completion:**
 - `task_id`, `state` (completed/failed/escalated), `progress_pct`

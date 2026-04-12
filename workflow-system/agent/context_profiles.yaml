@@ -120,42 +120,42 @@ sections:
     content_type: spec
 
   dispatch_report:
-    lines: "343-368"
-    tokens_est: 258
+    lines: "343-371"
+    tokens_est: 280
     content_type: spec
 
   lifecycle_hooks:
-    lines: "370-380"
+    lines: "373-383"
     tokens_est: 155
     content_type: table
 
   repo_mode:
-    lines: "382-391"
+    lines: "385-394"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "393-421"
+    lines: "396-424"
     tokens_est: 330
     content_type: navigation
 
   rules_dispatchers:
-    lines: "393-421"
+    lines: "396-424"
     tokens_est: 330
     content_type: rules
 
   convergence_loop:
-    lines: "393-421"
+    lines: "396-424"
     tokens_est: 330
     content_type: navigation
 
   task_quality_score:
-    lines: "423-447"
+    lines: "426-450"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "423-447"
+    lines: "426-450"
     tokens_est: 288
     content_type: table
 

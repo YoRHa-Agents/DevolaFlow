@@ -517,6 +517,18 @@ class TestResolveDecompositionConfig:
         result = select_context("hotfix", profiles_path=PROFILES_YAML)
         assert result["decomposition"]["enabled"] is False
 
+    def test_partial_decomposition_config_fills_defaults(self) -> None:
+        profile = {"decomposition": {"enabled": True, "max_sub_agents": 6}}
+        result = resolve_decomposition_config(profile)
+        assert result["enabled"] is True
+        assert result["max_sub_agents"] == 6
+        assert result["max_nesting_depth"] == 1
+        assert result["sub_agent_model_hint"] == "budget"
+        assert result["sub_agent_context_budget"] == 3000
+        assert result["coordinator_retains_advisor"] is True
+        assert result["gen_verify_mode"] is False
+        assert result["gen_verify_max_rounds"] == 3
+
     def test_all_profiles_have_decomposition(self) -> None:
         config = load_profiles(PROFILES_YAML)
         for profile_name in config["profiles"]:
@@ -551,6 +563,12 @@ class TestResolveCompressionIntensity:
         result = select_context("feature", profiles_path=PROFILES_YAML)
         assert "compression_intensity" in result
         assert result["compression_intensity"] in VALID_COMPRESSION_INTENSITIES
+
+    def test_compression_intensity_matches_l2_to_l3_config(self) -> None:
+        config = load_profiles(PROFILES_YAML)
+        result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        expected = resolve_compression_intensity("l2_to_l3", config)
+        assert result["compression_intensity"] == expected
 
     def test_all_profiles_have_compression_intensity(self) -> None:
         config = load_profiles(PROFILES_YAML)
