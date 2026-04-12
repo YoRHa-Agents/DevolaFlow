@@ -1,0 +1,28 @@
+# EvoBench Scenario: Compression — Hotfix with Tight Budget
+# Tests that hotfix profile with compressed dispatch utilizes budget
+# tightly and excludes planning/architecture noise.
+
+name: "compression_hotfix"
+task_type: "hotfix"
+description: "Hotfix task — validates tight budget utilization and no noise for compressed dispatch"
+
+expected_sections:
+  - quick_action_decision
+  - agent_mode_protocol
+  - wave_task_constraints
+  - context_isolation
+  - dispatch_report
+  - gate_mechanism
+  - lifecycle_hooks
+
+unwanted_sections:
+  - plan_mode_template
+  - quick_start_workflows
+  - stage_primitives
+  - wave_coordination
+  - convergence_loop
+  - task_quality_score
+
+quality_thresholds:
+  min_composite: 85
+  min_relevance: 0.9

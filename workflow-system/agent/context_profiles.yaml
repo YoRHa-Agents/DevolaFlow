@@ -9,10 +9,33 @@
 # Token budgets are target ranges; the selector enforces hard caps.
 
 meta:
-  version: "1.0.0"
+  version: "2.0.0"
   skill_source: "workflow-system/agent/SKILL.md"
   default_profile: "feature"
   budget_hard_cap_tokens: 8000
+  compression_defaults:
+    l0_to_l1: standard
+    l1_to_l2: standard
+    l2_to_l3: minimal
+    l3_to_l2: aggressive
+    l2_to_l1: aggressive
+    l1_to_l0: aggressive
+  platform_model_mapping:
+    cursor:
+      quality: inherit
+      balanced: inherit
+      budget: fast
+      inherit: inherit
+    codex:
+      quality: o3
+      balanced: o4-mini
+      budget: o4-mini
+      inherit: inherit
+    claude_code:
+      quality: opus
+      balanced: sonnet
+      budget: haiku
+      inherit: inherit
 
 # SKILL.md section registry with line ranges and base token estimates
 sections:
@@ -189,6 +212,8 @@ profiles:
     extra_context:
       - "references/message-schemas.md"
       - "schemas/task-dispatch.yaml"
+    decomposition:
+      enabled: false
     rationale: >
       Hotfix tasks need fast triage→fix→test→release. No architecture overview,
       no research primitives, no template browsing. Focus on dispatch mechanics
@@ -254,6 +279,15 @@ profiles:
     extra_context:
       - "references/agent-hierarchy.md"
       - "references/meta-framework.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Feature work needs the full hierarchy, stage primitives for planning,
       gate mechanism for quality control, and team roles for task dispatch.
@@ -310,6 +344,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Research tasks are single-stage with minimal ceremony. No convergence
       loops, no gate mechanism, no repo mode. Focus on dispatch/report protocol
@@ -372,6 +408,15 @@ profiles:
       cost_ceiling_usd: 0.30
     extra_context:
       - "references/decomposition-gate.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Refactoring needs strong convergence loops and gates to ensure no
       regressions. Code review and test cycles are the primary quality mechanism.
@@ -422,6 +467,8 @@ profiles:
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Reviews focus on quality scoring, severity classification, and gate
       evaluation. The gate mechanism and team role specs are critical.
@@ -474,6 +521,8 @@ profiles:
     extra_context:
       - "references/meta-framework.md"
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
@@ -530,6 +579,15 @@ profiles:
     extra_context:
       - "references/decomposition-gate.md"
       - "references/context-isolation.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Skill optimization focuses on measuring and improving context density.
       Gate mechanism is critical for evaluating optimization results. Context
@@ -593,6 +651,15 @@ profiles:
     extra_context:
       - "references/decomposition-gate.md"
       - "references/meta-framework.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Migrations need strong validation gates, convergence for iterative
       compatibility testing, and full hierarchy for multi-wave impl.
@@ -655,6 +722,15 @@ profiles:
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Security audits require strict gate evaluation, team roles for
       scan/analyze/remediate handoffs, and convergence for fix-verify cycles.
@@ -706,6 +782,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Documentation tasks focus on survey-author-review cycle. No convergence
       loops or deep architecture. TQS matters for quality evaluation.
@@ -757,6 +835,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Spikes are fast and experimental. No gates, no convergence, minimal
       ceremony. Focus on dispatch for structuring exploration tasks.
@@ -809,6 +889,8 @@ profiles:
     extra_context:
       - "references/meta-framework.md"
       - "references/decomposition-gate.md"
+    decomposition:
+      enabled: false
     rationale: >
       RDRR is convergence-heavy with research→design→review→refine loops.
       Stage primitives and convergence loop are critical for the iteration
@@ -860,6 +942,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
+    decomposition:
+      enabled: false
     rationale: >
       Demo workflows need clear team roles for storyboard/build/polish
       stages, hierarchy for multi-wave build, and dispatch for handoffs.
@@ -913,6 +997,15 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
+    decomposition:
+      enabled: true
+      max_sub_agents: 4
+      max_nesting_depth: 1
+      sub_agent_model_hint: budget
+      sub_agent_context_budget: 3000
+      coordinator_retains_advisor: true
+      gen_verify_mode: true
+      gen_verify_max_rounds: 3
     rationale: >
       Performance optimization uses profile→optimize→benchmark convergence
       loops. Gate mechanism validates benchmark improvements. Dispatch protocol
@@ -964,6 +1057,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/repo-modes.md"
+    decomposition:
+      enabled: false
     rationale: >
       Dependency setup needs repo mode for CI/CD context, dispatch for
       structuring install/configure tasks. Minimal ceremony — no convergence
@@ -1016,6 +1111,8 @@ profiles:
     extra_context:
       - "references/team-roles.md"
       - "references/repo-modes.md"
+    decomposition:
+      enabled: false
     rationale: >
       Onboarding focuses on codebase analysis and documentation generation.
       Team roles define analysis/documentation tasks. Repo mode provides
@@ -1068,6 +1165,8 @@ profiles:
       budget_max_tokens: 350
     extra_context:
       - "references/meta-framework.md"
+    decomposition:
+      enabled: false
     rationale: >
       Self-update tasks maintain the workflow system itself. Focus on
       meta-framework understanding, reference navigation for tracking
@@ -1121,6 +1220,8 @@ profiles:
       budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
+    decomposition:
+      enabled: false
     rationale: >
       Feedback tasks evaluate gate results and integrate learnings back
       into the system. Gate mechanism and task quality score are critical

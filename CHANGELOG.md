@@ -5,6 +5,29 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-04-12
+
+### Added
+- **Platform Model Routing Infrastructure**: `platform_model_mapping` in context_profiles.yaml with per-platform hint→model mapping (Cursor: budget→fast, Codex: quality→o3/balanced→o4-mini/budget→o4-mini, Claude Code: quality→opus/balanced→sonnet/budget→haiku). Completes the model_hint pipeline end-to-end: schema → selector → profile config → platform routing.
+- **Per-Boundary Compression Intensity**: `compression_defaults` configuration in context_profiles.yaml defining compression intensity per layer boundary (l2_to_l3: minimal, l3_to_l2/l2_to_l1/l1_to_l0: aggressive, l0_to_l1/l1_to_l2: standard). New `resolve_compression_intensity()` function in task_adaptive_selector.py.
+- **L3 Decomposition Framework**: `decomposition` configuration per profile (enabled/disabled, max_sub_agents, sub_agent_model_hint, gen_verify_mode). Enabled for feature, refactor, migration, security-audit, perf-optimization, skill-optimization profiles. New `resolve_decomposition_config()` function in task_adaptive_selector.py. `decomposition_mode` (single/sub_agents) and `compression_intensity` (minimal/standard/aggressive) fields in task-dispatch schema.
+- **3 New EvoBench Scenarios**: `compression_hotfix` (composite 99.98), `decomposition_feature` (composite 94.26), `model_routing_feature` (composite 95.69) — validating compression, decomposition, and model routing capabilities.
+- **Research Reports**: T01 L3 Sub-agent Decomposition (partially viable), T02 Caveman Compression Audit (schema strong, runtime gap), T03 Advisor + Sub-agent Synergy (strong synergy, 34% cost reduction projected).
+
+### Changed
+- context_profiles.yaml: meta.version bumped to "2.0.0"; all 16 profiles now include `decomposition` configuration block
+- task_adaptive_selector.py: `select_context()` now returns `decomposition` config and `compression_intensity` in result dict
+- task-dispatch.schema.yaml: Added `decomposition_mode` and `compression_intensity` header fields (backward compatible with defaults)
+
+### Metrics
+- Tests: 451 passed (+13 from v3.9.2)
+- Coverage: 89%+ (threshold: 80%)
+- EvoBench: 23/23 scenarios pass (20 original: zero regression, 3 new)
+- Composite range: 94.26–99.98 (original 20: 99.22–99.98, unchanged)
+- Lint: All checks pass
+- SKILL.md: 447 lines (budget: 500)
+- MVP-SKILL.md: 314 lines (budget: 500)
+
 ## [3.9.2] - 2026-04-12
 
 ### Added

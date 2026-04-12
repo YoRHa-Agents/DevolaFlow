@@ -1,0 +1,25 @@
+# EvoBench Scenario: Decomposition — Feature with Sub-Agent Pattern
+# Tests that feature profile with decomposition enabled loads broad
+# architectural context including all planning-relevant sections.
+
+name: "decomposition_feature"
+task_type: "feature"
+description: "Feature task with decomposition enabled — validates context includes decomposition-relevant sections"
+
+expected_sections:
+  - quick_action_decision
+  - agent_mode_protocol
+  - plan_mode_template
+  - quick_start_workflows
+  - hierarchy_table
+  - wave_task_constraints
+  - rationalization_prevention
+  - stage_primitives
+  - gate_mechanism
+  - agent_teams
+
+unwanted_sections: []
+
+quality_thresholds:
+  min_composite: 85
+  min_relevance: 0.9
