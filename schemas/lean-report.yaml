@@ -187,3 +187,57 @@ result_status_spec:
       meaning: "Task cannot proceed — requires escalation"
       routing_action: "escalate to L2 Wave → L1 Stage"
       p4_mapping: "escalate"
+
+# --- Aggregation Compression Formats ---
+# Used when combining multiple reports into a higher-level summary.
+
+aggregation_formats:
+
+  wave_summary:
+    description: "Compress N task reports into a single wave-level summary"
+    format: |
+      wave: {wave_id}
+      tasks: {completed}/{total}
+      state: {DONE|DONE_WITH_CONCERNS|BLOCKED}
+      artifacts:
+        - {path} → {delta}  # one line per artifact, merged from tasks
+      metrics:
+        tests: {total_passed}/{total_run}
+        coverage: {min_coverage}%
+        findings: B:{sum_blockers} C:{sum_critical} M:{sum_major}
+      issues:  # only if state != DONE
+        - {task_id}: {one-line issue summary}
+    rules:
+      - Merge artifact lists, deduplicate paths
+      - Sum numeric metrics across tasks
+      - Use minimum coverage as wave coverage
+      - Findings sum by severity across all tasks
+      - Only surface issues for non-DONE tasks
+      - "Max tokens: 200 per wave summary"
+    intensity: aggressive  # wave summaries always use aggressive compression
+
+  stage_summary:
+    description: "Compress N wave summaries into a single stage-level summary"
+    format: |
+      stage: {stage_id}
+      waves: {completed}/{total}
+      state: {PASS|FAIL|CONVERGING}
+      gate:
+        composite: {score}
+        threshold: {threshold}
+        round: {current}/{max}
+      key_artifacts:  # top 5 most significant
+        - {path} → {delta}
+      metrics:
+        tests: {total_passed}/{total_run}
+        coverage: {pct}%
+        findings: B:{n} C:{n} M:{n}
+      blockers:  # only if state == FAIL
+        - {wave_id}: {one-line blocker}
+    rules:
+      - Aggregate wave metrics into stage totals
+      - Include gate verdict with composite score
+      - Only list top 5 artifacts by significance (most changed / new files)
+      - Blockers listed only for FAIL state
+      - "Max tokens: 150 per stage summary"
+    intensity: aggressive

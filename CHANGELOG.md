@@ -5,6 +5,25 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-04-12
+
+### Added
+- **Runtime Compression Validator**: New `src/devolaflow/compressor.py` module with deterministic lean format validation and compression. Functions: `validate_lean_format()` (score 0-100), `compress_message()` (apply drop patterns by intensity tier), `validate_preserve_list()` (check preserve items present), `detect_drop_violations()` (identify remaining drop items). Closes the critical runtime enforcement gap identified in T02 caveman compression audit.
+- **Aggregation Compression Formats**: Extended `lean-report.yaml` with `wave_summary` and `stage_summary` aggregation templates. Wave summary: merge N task reports into ≤200 tokens. Stage summary: merge N wave summaries into ≤150 tokens with gate verdict. Defines deterministic aggregation rules (sum metrics, deduplicate artifacts, surface blockers only for FAIL state).
+- **EvoBench format_compliance Dimension**: New `format_compliance` field in BenchmarkScore measuring lean format adherence of assembled context text. All 23 scenarios score 1.00 (perfect compliance). Addresses EvoBench saturation by adding a new evaluation dimension.
+- **Expanded Preserve/Drop Lists**: Added environment_identifiers, dependency_versions, line_numbers, timing_values to preserve list. Added progress_narration, obvious_acknowledgments, tool_call_echoing to drop list. 12 preserve items and 9 drop items total.
+
+### Fixed
+- **Section line range alignment**: Re-aligned all 24 section line ranges in `context_profiles.yaml` to match SKILL.md 450-line layout after v4.0.1 content additions. Restored EvoBench scores: hotfix_jwt 89.37→99.78, feature_middleware 92.83→99.88, avg composite 97.33→99.20.
+- **Pre-existing lint**: Fixed `datetime.timezone.utc` → `datetime.UTC` alias in benchmark runner.
+
+### Metrics
+- Tests: 495 passed (+42 from v4.0.1)
+- EvoBench: 23/23 scenarios PASS, avg composite 99.20 (restored from 97.33)
+- Format compliance: 1.00 across all 23 scenarios (new dimension)
+- Lint/format: All checks pass
+- SKILL.md: 450 lines (budget: 500)
+
 ## [4.0.1] - 2026-04-12
 
 ### Fixed

@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from devolaflow.compressor import detect_drop_violations
+
 
 @dataclass(frozen=True)
 class BenchmarkScore:
@@ -28,6 +30,7 @@ class BenchmarkScore:
     selected_count: int
     expected_count: int
     matched_count: int
+    format_compliance: float = 0.0
 
     @property
     def composite(self) -> float:
@@ -82,6 +85,13 @@ def evaluate_scenario(
     budget_utilization = total_tokens / budget if budget > 0 else 0.0
     information_density = section_relevance * budget_utilization
 
+    assembled_text = selector_result.get("assembled_text", "")
+    if assembled_text:
+        drop_result = detect_drop_violations(assembled_text, "standard")
+        format_compliance = drop_result["compliance_score"]
+    else:
+        format_compliance = 0.0
+
     return BenchmarkScore(
         scenario_name=scenario_name,
         profile_name=selector_result["profile_name"],
@@ -94,6 +104,7 @@ def evaluate_scenario(
         selected_count=selected_count,
         expected_count=len(expected_set),
         matched_count=len(matched),
+        format_compliance=round(format_compliance, 4),
     )
 
 

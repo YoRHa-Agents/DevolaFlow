@@ -41,12 +41,12 @@ meta:
 sections:
   frontmatter:
     lines: "1-30"
-    tokens_est: 180
+    tokens_est: 231
     content_type: metadata
 
   version_update:
     lines: "36-40"
-    tokens_est: 80
+    tokens_est: 109
     content_type: prose
 
   quick_action_decision:
@@ -61,32 +61,32 @@ sections:
 
   plan_mode_template:
     lines: "61-122"
-    tokens_est: 825
+    tokens_est: 820
     content_type: spec
 
   agent_mode_protocol:
     lines: "123-149"
-    tokens_est: 398
+    tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
     lines: "151-183"
-    tokens_est: 600
+    tokens_est: 612
     content_type: table
 
   hierarchy_table:
-    lines: "184-197"
-    tokens_est: 310
+    lines: "184-194"
+    tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "184-197"
-    tokens_est: 310
+    lines: "184-194"
+    tokens_est: 255
     content_type: table
 
   wave_task_constraints:
     lines: "193-197"
-    tokens_est: 110
+    tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
@@ -121,12 +121,12 @@ sections:
 
   dispatch_report:
     lines: "343-371"
-    tokens_est: 280
+    tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
     lines: "373-383"
-    tokens_est: 155
+    tokens_est: 135
     content_type: table
 
   repo_mode:
@@ -136,17 +136,17 @@ sections:
 
   reference_navigation:
     lines: "396-424"
-    tokens_est: 330
+    tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
     lines: "396-424"
-    tokens_est: 330
+    tokens_est: 343
     content_type: rules
 
   convergence_loop:
     lines: "396-424"
-    tokens_est: 330
+    tokens_est: 343
     content_type: navigation
 
   task_quality_score:
