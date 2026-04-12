@@ -10,7 +10,7 @@ DevolaFlow uses a **trunk-based workflow** with short-lived feature branches mer
 
 ```
 Feature Branch ──PR──> main ──tag v*──> Release Workflow
-                                          ├── test (pytest + validate-template)
+                                          ├── test (human-docs, drift, EvoBench, lint, pytest, validate, build-skill)
                                           ├── release (GitHub Release with auto-generated notes)
                                           └── deploy-pages (build _site/ → GitHub Pages)
 ```
@@ -69,7 +69,7 @@ git push origin main --tags
 ```
 
 Pushing the tag triggers `.github/workflows/release.yml`:
-1. **test** — runs pytest + template validation
+1. **test** — regenerates human docs, checks drift, runs EvoBench benchmarks, runs lint, runs pytest with coverage, validates templates, and builds skill adapters
 2. **release** — creates GitHub Release with auto-generated notes (from PR titles since last tag)
 3. **deploy-pages** — builds site via `scripts/build-site.sh` and deploys to GitHub Pages
 
@@ -92,8 +92,8 @@ Triggers: push to `main`, PR to `main`.
 | Job | Steps |
 |-----|-------|
 | `check` | ruff format --check, ruff check |
-| `test` | pytest with coverage |
-| `validate` | validate-template --all |
+| `test` | pytest with coverage, EvoBench benchmarks |
+| `validate` | validate-template --all, build-skill, check-drift |
 
 ### 3.2 Release Pipeline (`.github/workflows/release.yml`)
 
@@ -101,7 +101,7 @@ Triggers: push of tags matching `v*`.
 
 | Job | Steps | Depends On |
 |-----|-------|-----------|
-| `test` | pytest + validate-template | — |
+| `test` | sync-human-docs, check-drift, EvoBench, lint, pytest, validate-template, build-skill | — |
 | `release` | GitHub Release (softprops/action-gh-release) | test |
 | `deploy-pages` | build-site.sh → upload → deploy | release |
 

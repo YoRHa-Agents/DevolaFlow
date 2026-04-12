@@ -143,7 +143,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     </section>
 
     <section>
-      <h2>16 Built-in Workflow Types</h2>
+      <h2>17 Built-in Workflow Types</h2>
       <p class="desc">Pick the right workflow for your task. Each is a different composition of the same 13 stage primitives.</p>
       <table>
         <thead><tr><th>Workflow</th><th>When to use</th><th>Stages</th></tr></thead>
@@ -164,6 +164,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <tr><td><strong>dependency-setup</strong></td><td>Environment, install, configure tools</td><td class="stages-list">research - plan - configure - verify</td></tr>
           <tr><td><strong>onboarding</strong></td><td>New contributor, codebase survey</td><td class="stages-list">analyze - document - setup - verify</td></tr>
           <tr><td><strong>skill-optimization</strong></td><td>Optimize agent skill, benchmark context</td><td class="stages-list">survey - profile - optimize - benchmark - iterate - document</td></tr>
+          <tr><td><strong>self-update</strong></td><td>Skill refresh, upstream sync</td><td class="stages-list">check-refs - research-updates - decompose - integrate - test - evaluate</td></tr>
         </tbody>
       </table>
     </section>
@@ -181,7 +182,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">INTERACTIVE</span>
           <h3>Workflow Visualizer</h3>
-          <p>Select any of the 16 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.</p>
+          <p>Select any of the 17 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.</p>
           <a href="workflow-visualizer/index.html">Open Visualizer &rarr;</a>
         </div>
         <div class="card">
@@ -244,12 +245,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
     <section>
       <h2>v3.3.0 Highlights</h2>
-      <p class="desc">Full workflow coverage: 16 context profiles, 17 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 17 context profiles, 17 benchmark scenarios, optimized budget utilization (94.4 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 17 scenarios covering all 16 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
+          <p>Context density benchmark suite with 17 scenarios covering all 17 workflow types. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 94.4/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context">View Benchmarks &rarr;</a>
         </div>
         <div class="card">
@@ -261,7 +262,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label">CONTEXT</span>
           <h3>Task-Adaptive Selection</h3>
-          <p>16 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
+          <p>17 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml">View Profiles &rarr;</a>
         </div>
         <div class="card">

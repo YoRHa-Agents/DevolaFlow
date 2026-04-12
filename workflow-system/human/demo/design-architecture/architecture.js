@@ -170,6 +170,7 @@ const FRAMEWORK = {
     { id: "dependency-setup", stages: 4, category: "build", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
     { id: "onboarding", stages: 4, category: "discover", gateType: "standard", designSource: "design_decomposition_gate.md §2.6" },
     { id: "skill-optimization", stages: 5, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
+    { id: "self-update", stages: 6, category: "composite", gateType: "convergence", designSource: "design_decomposition_gate.md §2.6" },
   ],
 
   // ─── Adapters ──────────────────────────────────────────────────
@@ -225,7 +226,7 @@ graph TB
     refs["8 References (Tier 2)"]
     examples["3 Examples (Tier 3)"]
     knowledge["2 Knowledge (Tier 3)"]
-    templates["16 Templates (YAML)"]
+    templates["17 Templates (YAML)"]
     schemas["7 Schemas"]
   end
 

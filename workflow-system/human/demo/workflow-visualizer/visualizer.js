@@ -223,6 +223,22 @@ const WORKFLOWS = {
     category: "composite",
     useWhen: "SKILL.md density, context profiles, EvoBench-driven iteration on agent skills",
   },
+  "self-update": {
+    name: "Self-Update",
+    description:
+      "Self-referential skill and workflow update: check references for staleness, research upstream changes, decompose updates, integrate, test, and evaluate the result.",
+    stages: [
+      { id: "check-refs", label: "Check Refs", team: "Research", gate: "standard" },
+      { id: "research-updates", label: "Research Updates", team: "Research", gate: "standard" },
+      { id: "decompose", label: "Decompose", team: "Design", gate: "standard" },
+      { id: "integrate", label: "Integrate", team: "Implement", gate: "convergence" },
+      { id: "test", label: "Test", team: "Test", gate: "standard" },
+      { id: "evaluate", label: "Evaluate", team: "Review", gate: "standard" },
+    ],
+    loops: ["integrate->test (max 3)"],
+    category: "composite",
+    useWhen: "Skill refresh, workflow registry updates, upstream dependency sync, self-referential maintenance",
+  },
 };
 
 const TEAM_COLORS = {
