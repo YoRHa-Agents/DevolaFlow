@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-12T04:52:25Z"
+last_synced: "2026-04-12T05:08:03Z"
 source_version: "3.9.0"
 ---
 
@@ -44,7 +44,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 16 types
+- And so on for all 17 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 

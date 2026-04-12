@@ -29,9 +29,9 @@ DOCS = [
     (
         "workflow-types",
         "Workflow Types Catalog",
-        "16 built-in workflow types with selection guidance.",
+        "17 built-in workflow types with selection guidance.",
         "工作流类型目录",
-        "16 种内置工作流类型及选择指南。",
+        "17 种内置工作流类型及选择指南。",
     ),
     (
         "agent-hierarchy-guide",
@@ -218,7 +218,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 16 workflow types: [Workflow Types](workflow-types.md)
+- See all 17 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
@@ -368,7 +368,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 16 Built-in Workflow Types
+## All 17 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -480,6 +480,12 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Research, Implement
 **Example prompt**: `"Prototype real-time collaboration using CRDTs — is it feasible for our scale?"`
 
+#### `self-update`
+**When to use**: Track external reference dependencies and integrate improvements.
+**Stages**: check-refs → research-updates → decompose → integrate → test → evaluate
+**Teams**: Research, Implement, Test
+**Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -500,6 +506,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `dependency-setup` | setup, install, configure env | 4 | relaxed |
 | `onboarding` | new to project, getting started | 4 | — |
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
+| `self-update` | update refs, self-update, check references | 6 | standard |
 """
 
 
@@ -630,7 +637,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 16 types
+- And so on for all 17 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
@@ -1195,7 +1202,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 ## 第四步：深入探索
 
-- 查看全部 16 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 17 种工作流：[工作流类型](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)
@@ -1317,7 +1324,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 16 种内置工作流类型
+## 全部 17 种内置工作流类型
 
 ### 发现类工作流
 
@@ -1413,6 +1420,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：research → prototype → evaluate
 **示例**：`"使用 CRDT 原型实现实时协作 — 在我们的规模下可行吗？"`
 
+#### `self-update`
+**适用场景**：跟踪外部参考依赖并集成改进。
+**阶段**：check-refs → research-updates → decompose → integrate → test → evaluate
+**示例**：`"update refs"`、`"self-update"`、`"check references"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -1433,6 +1445,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
 | `onboarding` | 新加入项目, 入门 | 4 | — |
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
+| `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
 """
 
 

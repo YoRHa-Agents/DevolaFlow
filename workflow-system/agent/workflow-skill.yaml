@@ -268,7 +268,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 16 builtin templates covering all workflow types.
+  # Registry + 17 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
@@ -355,6 +355,11 @@ content:
         file: "templates/builtin/skill-optimization.yaml"
         stages: ["survey", "profile", "optimize", "benchmark", "iterate", "document"]
         description: "Agent skill optimization with context profiling and benchmarking"
+
+      - id: "self-update"
+        file: "templates/builtin/self-update.yaml"
+        stages: ["check-refs", "research-updates", "decompose", "integrate", "test", "evaluate"]
+        description: "Self-referential skill and workflow update with validation"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.
@@ -644,6 +649,10 @@ manifest:
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"
     - path: "templates/builtin/skill-optimization.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/self-update.yaml"
       tier: 3
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"

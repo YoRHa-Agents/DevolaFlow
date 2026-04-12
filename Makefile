@@ -56,7 +56,7 @@ release-preflight: lint test validate-templates build-skill sync-human-docs chec
 release-dry-run:
 	@echo "=== Release dry-run ==="
 	@echo "1. Preflight checks..."
-	$(MAKE) lint test validate-templates build-skill
+	$(MAKE) lint test validate-templates build-skill sync-human-docs check-drift
 	@echo ""
 	@echo "2. Current version:"
 	@python scripts/bump_version.py

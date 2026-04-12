@@ -40,6 +40,8 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Pytest with coverage
         run: pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing
+      - name: Run EvoBench benchmarks
+        run: python -m pytest tests/test_benchmarks.py -v
 
   validate:
     needs: check
@@ -58,3 +60,5 @@ jobs:
         run: validate-template --all
       - name: Build skill adapters
         run: build-skill
+      - name: Check drift
+        run: make check-drift

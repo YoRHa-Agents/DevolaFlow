@@ -1,16 +1,16 @@
 ---
 title: "Workflow Types Catalog"
-description: "16 built-in workflow types with selection guidance."
+description: "17 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-12T04:52:25Z"
+last_synced: "2026-04-12T05:08:03Z"
 source_version: "3.9.0"
 ---
 
 # Workflow Types Catalog
 
-16 built-in workflow types with selection guidance.
+17 built-in workflow types with selection guidance.
 
 ## Workflow Selection
 
@@ -22,7 +22,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 16 Built-in Workflow Types
+## All 17 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -134,6 +134,12 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Research, Implement
 **Example prompt**: `"Prototype real-time collaboration using CRDTs — is it feasible for our scale?"`
 
+#### `self-update`
+**When to use**: Track external reference dependencies and integrate improvements.
+**Stages**: check-refs → research-updates → decompose → integrate → test → evaluate
+**Teams**: Research, Implement, Test
+**Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -154,3 +160,4 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `dependency-setup` | setup, install, configure env | 4 | relaxed |
 | `onboarding` | new to project, getting started | 4 | — |
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
+| `self-update` | update refs, self-update, check references | 6 | standard |

@@ -113,3 +113,10 @@ templates:
     version: "1.0.0"
     category: composite
     tags: [skill, optimize, benchmark, context, compress, iterate, density]
+
+  - name: self-update
+    path: builtin/self-update.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [self-update, update, upgrade, refs, validate, meta]

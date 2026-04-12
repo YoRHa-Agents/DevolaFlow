@@ -1,16 +1,16 @@
 ---
 title: "工作流类型目录"
-description: "16 种内置工作流类型及选择指南。"
+description: "17 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-12T04:52:25Z"
+last_synced: "2026-04-12T05:08:03Z"
 source_version: "3.9.0"
 ---
 
 # 工作流类型目录
 
-16 种内置工作流类型及选择指南。
+17 种内置工作流类型及选择指南。
 
 ## 工作流选择
 
@@ -22,7 +22,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 16 种内置工作流类型
+## 全部 17 种内置工作流类型
 
 ### 发现类工作流
 
@@ -118,6 +118,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：research → prototype → evaluate
 **示例**：`"使用 CRDT 原型实现实时协作 — 在我们的规模下可行吗？"`
 
+#### `self-update`
+**适用场景**：跟踪外部参考依赖并集成改进。
+**阶段**：check-refs → research-updates → decompose → integrate → test → evaluate
+**示例**：`"update refs"`、`"self-update"`、`"check references"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -138,3 +143,4 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
 | `onboarding` | 新加入项目, 入门 | 4 | — |
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
+| `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
