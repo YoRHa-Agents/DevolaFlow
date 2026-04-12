@@ -21,6 +21,11 @@ fields:
       layer: { type: string, description: project | stage | wave (dispatching layer). }
       timestamp: { type: string, description: ISO8601 dispatch time. }
       timeout_seconds: { type: int, description: Child must finish or fail within this window. }
+      model_hint:
+        type: string
+        enum: [quality, balanced, budget, inherit]
+        default: inherit
+        description: "Host IDE interprets this hint to select appropriate model tier"
 
   task:
     required: true

@@ -12,15 +12,40 @@ Based on: WP-4 Rank 4 (Task-Adaptive Context Selection via Goal-Hint Routing),
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from devolaflow.learnings import format_learnings_section, load_relevant_learnings
+
+logger = logging.getLogger(__name__)
+
 PROFILES_PATH = Path(__file__).parents[2] / "workflow-system" / "agent" / "context_profiles.yaml"
 
 PRIORITY_ORDER = ["critical", "important", "supplementary"]
+
+VALID_MODEL_HINTS = {"quality", "balanced", "budget", "inherit"}
+
+
+def resolve_model_hint(task_type: str, profile_config: dict[str, Any]) -> str:
+    """Resolve the model_hint for a given task type from the profile config.
+
+    Checks profile-level model_hints.overrides first, then falls back to
+    model_hints.default_tier, then to "inherit".
+    """
+    model_hints = profile_config.get("model_hints", {})
+    overrides = model_hints.get("overrides", {})
+
+    if task_type in overrides:
+        hint = overrides[task_type]
+        if hint in VALID_MODEL_HINTS:
+            return hint
+
+    default = model_hints.get("default_tier", "inherit")
+    return default if default in VALID_MODEL_HINTS else "inherit"
 
 
 def load_profiles(path: Path | None = None) -> dict[str, Any]:
@@ -155,17 +180,71 @@ def select_context(
                         f"would exceed budget ({used_tokens}+{tok} > {budget})"
                     )
 
+    assembled_text = "\n\n".join(text for _, text, _ in selected)
+
+    learnings_text = ""
+    learnings_config = profile.get("learnings", {})
+    if learnings_config.get("enabled", False):
+        p = profiles_path or PROFILES_PATH
+        learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+        if learnings_path.exists():
+            max_entries = learnings_config.get("max_entries", 5)
+            min_confidence = learnings_config.get("min_confidence", 0.5)
+            budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
+            budget_pct = learnings_config.get("budget_pct", 10)
+            learnings_token_cap = min(budget_max_tokens, int(budget * budget_pct / 100))
+
+            try:
+                relevant = load_relevant_learnings(
+                    task_type=profile_name,
+                    jsonl_path=learnings_path,
+                    min_confidence=min_confidence,
+                    max_entries=max_entries,
+                )
+                if relevant:
+                    learnings_text = format_learnings_section(
+                        relevant, max_tokens=learnings_token_cap
+                    )
+                    learnings_tokens = estimate_tokens(learnings_text)
+                    used_tokens += learnings_tokens
+            except Exception:
+                logger.debug("Learnings integration skipped due to error", exc_info=True)
+
+    if learnings_text:
+        assembled_text = assembled_text + "\n\n" + learnings_text
+
+    advisor_config = profile.get("advisor", {})
+    advisor_enabled = advisor_config.get("enabled", False)
+    if advisor_enabled:
+        max_uses = advisor_config.get("max_uses", 3)
+        cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
+        triggers = advisor_config.get("trigger_conditions", [])
+        triggers_str = ", ".join(triggers) if triggers else "none"
+        advisor_text = (
+            f"## Advisor Tool\n"
+            f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
+            f"Invoke for: {triggers_str}."
+        )
+        advisor_tokens = estimate_tokens(advisor_text)
+        assembled_text = assembled_text + "\n\n" + advisor_text
+        used_tokens += advisor_tokens
+
+    model_hint = resolve_model_hint(task_type, profile)
+
     result = {
         "profile_name": profile_name,
         "description": profile.get("description", ""),
         "selected_sections": [{"name": name, "tokens": tok} for name, _, tok in selected],
-        "assembled_text": "\n\n".join(text for _, text, _ in selected),
+        "assembled_text": assembled_text,
         "total_tokens": used_tokens,
         "budget": budget,
         "utilization_pct": round(used_tokens / budget * 100, 1) if budget > 0 else 0,
         "skipped_sections": skipped,
         "extra_context": profile.get("extra_context", []),
         "rationale": profile.get("rationale", "").strip(),
+        "learnings_included": bool(learnings_text),
+        "model_hint": model_hint,
+        "advisor_enabled": advisor_enabled,
     }
 
     return result
@@ -187,6 +266,7 @@ def main():
 
     print(f"Profile: {result['profile_name']}")
     print(f"Description: {result['description']}")
+    print(f"Model hint: {result['model_hint']}")
     print(f"Token budget: {result['budget']}")
     print(f"Tokens used: {result['total_tokens']} ({result['utilization_pct']}%)")
     print()
@@ -194,6 +274,9 @@ def main():
     print("Selected sections:")
     for sec in result["selected_sections"]:
         print(f"  [{sec['tokens']:>4} tok] {sec['name']}")
+
+    if result.get("learnings_included"):
+        print("  [learnings] operational learnings injected")
 
     print()
     print(f"Skipped sections: {', '.join(result['skipped_sections'])}")

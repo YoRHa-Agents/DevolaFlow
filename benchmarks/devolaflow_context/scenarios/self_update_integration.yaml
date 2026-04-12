@@ -1,0 +1,32 @@
+# EvoBench Scenario: Self-Update Integration
+# Tests that self_update profile provides adequate context for integration-decomposition
+# tasks: dispatch protocol, context isolation, and structural sections for merging changes.
+
+name: "self_update_integration"
+task_type: "self_update"
+description: "Validates context for integration-decomposition tasks within self-update workflow"
+
+expected_sections:
+  - agent_mode_protocol
+  - dispatch_report
+  - lifecycle_hooks
+  - reference_navigation
+  - context_isolation
+  - rules_dispatchers
+  - quick_action_decision
+  - frontmatter
+  - version_update
+
+unwanted_sections:
+  - plan_mode_template
+  - task_quality_score
+  - template_quick_ref
+  - convergence_loop
+  - stage_primitives
+  - mode_detection
+  - wave_coordination
+
+quality_thresholds:
+  min_composite: 80.0
+  max_noise_ratio: 0.1
+  min_relevance: 0.8

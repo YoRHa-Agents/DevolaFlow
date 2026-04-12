@@ -83,4 +83,4 @@ fi
         check=False,
     )
     assert update.returncode == 0, update.stderr
-    assert "Self-contained workflow orchestration skill" in claude_md.read_text()
+    assert "orchestrating multi-file software tasks" in claude_md.read_text()

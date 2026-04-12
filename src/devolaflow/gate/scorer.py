@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
     ConvergenceRound,
     Finding,
@@ -155,6 +156,84 @@ def _count_severity(findings: list[Finding], severity: str) -> int:
     return sum(1 for f in findings if f.severity == severity)
 
 
+def _resolve_gate_type(gate_type: str) -> str:
+    """Map legacy gate type aliases to canonical names."""
+    return GATE_TYPE_ALIASES.get(gate_type, gate_type)
+
+
+def _evaluate_preflight(gate_input: GateInput, profile: GateProfile) -> GateVerdict:
+    """Preflight gate: block if any finding belongs to an abort category."""
+    abort_findings = [
+        f for f in gate_input.review_findings if f.category in profile.abort_categories
+    ]
+
+    if abort_findings:
+        categories = sorted({f.category for f in abort_findings})
+        return GateVerdict(
+            decision="FAIL",
+            rationale=(
+                f"Preflight blocked: abort-category findings detected: {', '.join(categories)}."
+            ),
+            composite_score=None,
+            meets_threshold=False,
+            escalation_context=(
+                f"Abort categories found in preflight: {', '.join(categories)}. "
+                "Immediate escalation required."
+            ),
+        )
+
+    failures: list[str] = []
+    if gate_input.build_status.status == "fail":
+        failures.append("build")
+    if gate_input.test_results.status == "fail":
+        failures.append("test")
+    if gate_input.lint_status.status == "fail":
+        failures.append("lint")
+
+    if failures:
+        return GateVerdict(
+            decision="FAIL",
+            rationale=f"Preflight checks failed: {', '.join(failures)}.",
+            composite_score=None,
+            meets_threshold=False,
+        )
+
+    return GateVerdict(
+        decision="PASS",
+        rationale="All preflight checks passed.",
+        composite_score=None,
+        meets_threshold=True,
+    )
+
+
+def _evaluate_abort(gate_input: GateInput, profile: GateProfile) -> GateVerdict:
+    """Abort gate: escalate if any finding belongs to an abort category."""
+    abort_findings = [
+        f for f in gate_input.review_findings if f.category in profile.abort_categories
+    ]
+
+    if abort_findings:
+        categories = sorted({f.category for f in abort_findings})
+        return GateVerdict(
+            decision="ESCALATE",
+            rationale=f"Abort triggered: findings in abort categories: {', '.join(categories)}.",
+            composite_score=None,
+            meets_threshold=False,
+            post_mortem={
+                "abort_categories_found": categories,
+                "finding_count": len(abort_findings),
+                "findings": [f.finding_id for f in abort_findings],
+            },
+        )
+
+    return GateVerdict(
+        decision="PASS",
+        rationale="No abort-category findings detected.",
+        composite_score=None,
+        meets_threshold=True,
+    )
+
+
 def evaluate_gate(
     gate_input: GateInput,
     profile: GateProfile,
@@ -176,29 +255,51 @@ def evaluate_gate(
         Prior convergence rounds (empty list or ``None`` for first round).
     gate_type:
         One of ``"standard"``, ``"convergence"``, ``"passthrough"``,
-        ``"acceptance_readiness"``.
+        ``"acceptance_readiness"``, ``"preflight"``, ``"revision"``,
+        ``"escalation"``, ``"abort"``.
     """
     if history is None:
         history = []
 
-    if gate_type == "passthrough":
-        return GateVerdict(
+    resolved = _resolve_gate_type(gate_type)
+
+    if resolved == "passthrough":
+        verdict = GateVerdict(
             decision="PASS",
             rationale="Passthrough gate — forwarding stage results.",
             composite_score=None,
             meets_threshold=True,
         )
-
-    if gate_type == "acceptance_readiness":
-        return score_acceptance_readiness(
+    elif resolved == "acceptance_readiness":
+        verdict = score_acceptance_readiness(
             gate_input.acceptance_readiness_criteria,
             profile,
         )
+    elif resolved == "preflight":
+        verdict = _evaluate_preflight(gate_input, profile)
+    elif resolved == "abort":
+        verdict = _evaluate_abort(gate_input, profile)
+    elif resolved == "escalation":
+        verdict = _evaluate_standard(gate_input, profile)
+        if verdict.decision == "FAIL":
+            verdict.escalation_context = f"Escalation gate failed. {verdict.rationale}"
+    elif history:
+        verdict = _evaluate_convergence(gate_input, profile, round_num, history)
+    else:
+        verdict = _evaluate_standard(gate_input, profile)
 
-    if gate_type == "standard":
-        return _evaluate_standard(gate_input, profile)
+    # Borderline detection for advisor tool
+    if profile.advisor_margin > 0 and verdict.composite_score is not None:
+        margin = abs(verdict.composite_score - profile.composite_threshold)
+        if margin <= profile.advisor_margin:
+            verdict.advisor_recommended = True
+            verdict.advisor_context = (
+                f"Score {verdict.composite_score:.1f} is within "
+                f"±{profile.advisor_margin} of threshold "
+                f"{profile.composite_threshold}. Human review recommended."
+            )
 
-    return _evaluate_convergence(gate_input, profile, round_num, history)
+    return verdict
 
 
 def _evaluate_standard(gate_input: GateInput, profile: GateProfile) -> GateVerdict:

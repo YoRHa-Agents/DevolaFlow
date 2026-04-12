@@ -5,6 +5,49 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - 2026-04-12
+
+### Added
+- **Operational Learnings Persistence**: New `learnings.py` module for cross-session knowledge accumulation. Captures workflow execution findings (convergence patterns, recurring violations, project-specific insights) to JSONL. Auto-loaded into task agent context via configurable per-profile learnings budget (10% of token budget, max 500 tokens). Based on gstack `/learn`, Karpathy LLM Wiki, and Self-Improving System patterns.
+- **Self-Improving Feedback Loop**: New `feedback.py` module with `FeedbackCollector` (metric extraction from gates/reports), `FeedbackAnalyzer` (recurring violation detection, convergence stagnation detection, profile mismatch analysis), and `ProposalGenerator` (structured improvement proposals with safeguards: max 3 proposals/workflow, confidence floor 0.7, scope lock, cooldown). Based on Triangulum9r Self-Improving System and gstack learnings patterns.
+- **4-Type Gate Taxonomy**: Extended gate types with `preflight`, `revision`, `escalation`, `abort` — each with deterministic routing logic. Backward-compatible aliases: `standard`→`revision`, `convergence`→`revision`. Preflight gates block on abort-category findings; abort gates escalate with structured post-mortem. Based on get-shit-done gate taxonomy research.
+- **Advisor Tool Integration**: L3 Task Agent advisor config (per-profile: enabled, max_uses, cost_ceiling_usd, trigger_conditions) and L1 Gate borderline detection (advisory flag when composite score within ±5% of threshold). Context assembly surfaces advisor section for host IDE consumption. Based on Anthropic advisor tool API research.
+- **Model Profiles per Agent Role**: `model_hint` field (quality/balanced/budget/inherit) in TaskDispatch schema with per-profile tier mappings and complexity-based upgrade heuristic. Based on get-shit-done, superpowers, and PrimeLocus/Hydra model routing patterns.
+- **Typed Subagent Status Protocol**: `result_status` enum (DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED) with deterministic routing table mapping each status to P4 actions. Replaces free-form status interpretation. Based on superpowers typed status protocol.
+- **Rationalization Prevention Tables**: 8-row `| Rationalization | Reality |` table in SKILL.md pre-countering known P1/P4 bypass rationalizations (e.g., "It's just one small file" → "P1 applies regardless of size"). Compact 4-row version in MVP-SKILL.md. Based on superpowers Iron Laws and enforcement ladder research.
+- **Lean Compression Rules**: Explicit `preserve_list` and `drop_list` with 3 intensity tiers (minimal/standard/aggressive) added to both `lean-dispatch.yaml` and `lean-report.yaml`. Deterministic drop/preserve rules for inter-layer message compaction. Based on caveman compression pattern research.
+- **Self-Update Workflow**: 17th workflow type (`self-update`) with 6-stage template (check-refs → research-updates → decompose → integrate → test → evaluate), integrate→test convergence loop, and human-in-the-loop checkpoints. Includes `reference-dependencies.yaml` tracking 17 external repos/resources with staleness policy.
+- **Knowledge Index**: Central catalog (`knowledge/index.md`) for selective knowledge page loading with per-page "Load When" conditions and token estimates.
+- **CSO Skill Description Format**: Trigger-oriented `description` frontmatter ("Use when..." not "Orchestrates...") preventing agents from shortcutting SKILL.md by treating description as compressed workflow. SF-2 rule extended. Based on superpowers CSO pattern.
+- **2 New Context Profiles**: `self_update` (budget 3500) and `feedback` (budget 2500) profiles for new workflow and feedback loop task types.
+- **3 New EvoBench Scenarios**: `self_update_reference_check`, `self_update_integration`, `feedback_analysis` — all passing with min_composite >= 80.
+
+### Changed
+- context_profiles.yaml: Added `learnings`, `model_hints`, and `advisor` sections to all 18 profiles (16 existing + 2 new)
+- context_profiles.yaml: Feature profile budget 4700 → 4800 to accommodate advisor + learnings overhead
+- gate/models.py: GateType extended with 4 new types + GATE_TYPE_ALIASES mapping; GateVerdict extended with escalation_context, post_mortem, advisor_recommended, advisor_verdict, advisor_context fields; GateProfile extended with abort_categories, preflight_checks, advisor_margin fields
+- gate/scorer.py: evaluate_gate() routes through 6 gate types with alias resolution and borderline advisor detection
+- task_adaptive_selector.py: select_context() assembles learnings, model_hint, and advisor sections; new resolve_model_hint() function
+- lean-dispatch.yaml, lean-report.yaml: compression_rules with preserve/drop lists and intensity tiers
+- lean-report.yaml: result_status_spec with typed enum and routing table
+- task-dispatch.schema.yaml: model_hint field added
+- gate-report.schema.yaml: escalation_context, abort_context, advisor_recommended, advisor_context fields added
+- SKILL.md: Rationalization prevention table, self-update workflow entry, knowledge index reference, CSO description (448/500 lines)
+- MVP-SKILL.md: Compact rationalization table, self-update workflow entry, CSO description (315/500 lines)
+
+### Metrics
+- Tests: 423 passed (+107 from v3.8.0, 0 regressions)
+- Coverage: 89.21% (threshold: 80%)
+- EvoBench: 22/22 pass, no regressions
+- New EvoBench scenarios: 3 (total 20)
+- New Python modules: 2 (learnings.py, feedback.py)
+- New schemas: 1 (feedback-report.schema.yaml)
+- New templates: 1 (self-update.yaml, 17th workflow type)
+- Adapters: All 4 within budget
+- Lint: All checks pass
+- SKILL.md: 448 lines (budget: 500)
+- MVP-SKILL.md: 315 lines (budget: 500)
+
 ## [3.8.0] - 2026-04-11
 
 ### Added

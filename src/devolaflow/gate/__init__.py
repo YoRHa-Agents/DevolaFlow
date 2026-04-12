@@ -5,12 +5,14 @@ Design ref: design_decomposition_gate.md §5
 
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
     CheckResult,
     ConvergenceRound,
     Finding,
     GateInput,
     GateProfile,
+    GateType,
     GateVerdict,
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
@@ -31,6 +33,7 @@ __all__ = [
     "AUDIT",
     "AcceptanceCriterionResult",
     "DEFAULT_DIMENSION_WEIGHTS",
+    "GATE_TYPE_ALIASES",
     "PROFILES",
     "RELAXED",
     "SEVERITY_WEIGHTS",
@@ -41,6 +44,7 @@ __all__ = [
     "Finding",
     "GateInput",
     "GateProfile",
+    "GateType",
     "GateVerdict",
     "composite_score",
     "compute_trend",

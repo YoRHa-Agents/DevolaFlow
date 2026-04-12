@@ -10,7 +10,21 @@ from typing import Literal
 
 Severity = Literal["blocker", "critical", "major", "minor", "info"]
 GateDecision = Literal["PASS", "FAIL", "ESCALATE"]
-GateType = Literal["standard", "convergence", "passthrough", "acceptance_readiness"]
+GateType = Literal[
+    "standard",
+    "convergence",
+    "passthrough",
+    "acceptance_readiness",
+    "preflight",
+    "revision",
+    "escalation",
+    "abort",
+]
+
+GATE_TYPE_ALIASES: dict[str, str] = {
+    "standard": "revision",
+    "convergence": "revision",
+}
 ProfileName = Literal["strict", "standard", "relaxed", "audit"]
 LintPolicy = Literal["zero_warnings", "zero_errors", "advisory"]
 BenchmarkPolicy = Literal["required", "optional", "disabled", "required_with_regression_check"]
@@ -77,6 +91,11 @@ class GateVerdict:
     composite_score: float | None = None
     meets_threshold: bool = False
     details: dict[str, object] = field(default_factory=dict)
+    escalation_context: str = ""
+    post_mortem: dict[str, object] = field(default_factory=dict)
+    advisor_recommended: bool = False
+    advisor_verdict: str = ""
+    advisor_context: str = ""
 
 
 @dataclass(frozen=True)
@@ -96,6 +115,11 @@ class GateProfile:
     lint_policy: LintPolicy
     benchmark_policy: BenchmarkPolicy
     acceptance_readiness_threshold: float = 80.0
+    advisor_margin: float = 5.0
+    abort_categories: list[str] = field(
+        default_factory=lambda: ["security", "data_loss"],
+    )
+    preflight_checks: list[str] = field(default_factory=list)
 
 
 @dataclass

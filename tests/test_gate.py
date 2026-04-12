@@ -5,8 +5,11 @@ Design ref: design_decomposition_gate.md §5
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
+    GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
     CheckResult,
     ConvergenceRound,
@@ -17,6 +20,7 @@ from devolaflow.gate.models import (
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
 from devolaflow.gate.reporter import generate_markdown_report, generate_yaml_report
 from devolaflow.gate.scorer import (
+    _resolve_gate_type,
     composite_score,
     evaluate_gate,
     quality_score,
@@ -421,3 +425,264 @@ class TestAcceptanceReadinessGate:
         verdict_strict = score_acceptance_readiness(criteria, STRICT)
         assert verdict_strict.decision == "FAIL"
         assert verdict_strict.composite_score < STRICT.acceptance_readiness_threshold
+
+
+# ---------------------------------------------------------------------------
+# 13. gate type alias resolution
+# ---------------------------------------------------------------------------
+
+
+class TestGateTypeAliases:
+    def test_standard_resolves_to_revision(self) -> None:
+        assert _resolve_gate_type("standard") == "revision"
+
+    def test_convergence_resolves_to_revision(self) -> None:
+        assert _resolve_gate_type("convergence") == "revision"
+
+    def test_canonical_types_unchanged(self) -> None:
+        for canonical in ("preflight", "revision", "escalation", "abort", "passthrough"):
+            assert _resolve_gate_type(canonical) == canonical
+
+    def test_alias_dict_matches(self) -> None:
+        assert GATE_TYPE_ALIASES == {"standard": "revision", "convergence": "revision"}
+
+
+# ---------------------------------------------------------------------------
+# 14. preflight gate
+# ---------------------------------------------------------------------------
+
+
+def _security_finding(fid: str = "F100") -> Finding:
+    return Finding(
+        finding_id=fid,
+        severity="blocker",
+        category="security",
+        location="src/auth.py:42",
+        description="hardcoded secret",
+    )
+
+
+class TestPreflightGate:
+    def test_preflight_pass_clean(self) -> None:
+        verdict = evaluate_gate(_pass_input(), STANDARD, gate_type="preflight")
+        assert verdict.decision == "PASS"
+        assert verdict.meets_threshold is True
+
+    def test_preflight_fail_abort_category(self) -> None:
+        gi = _pass_input()
+        gi.review_findings = [_security_finding()]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="preflight")
+        assert verdict.decision == "FAIL"
+        assert "security" in verdict.rationale
+        assert verdict.escalation_context != ""
+        assert "security" in verdict.escalation_context
+
+    def test_preflight_fail_build(self) -> None:
+        gi = _pass_input()
+        gi.build_status = CheckResult(status="fail")
+        verdict = evaluate_gate(gi, STANDARD, gate_type="preflight")
+        assert verdict.decision == "FAIL"
+        assert "build" in verdict.rationale
+
+    def test_preflight_abort_category_takes_priority(self) -> None:
+        """Abort-category findings are reported even if basic checks also fail."""
+        gi = _pass_input()
+        gi.build_status = CheckResult(status="fail")
+        gi.review_findings = [_security_finding()]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="preflight")
+        assert verdict.decision == "FAIL"
+        assert verdict.escalation_context != ""
+
+
+# ---------------------------------------------------------------------------
+# 15. abort gate
+# ---------------------------------------------------------------------------
+
+
+class TestAbortGate:
+    def test_abort_escalates_on_abort_category(self) -> None:
+        gi = _pass_input()
+        gi.review_findings = [_security_finding("F200")]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="abort")
+        assert verdict.decision == "ESCALATE"
+        assert "security" in verdict.rationale
+        assert verdict.post_mortem["abort_categories_found"] == ["security"]
+        assert verdict.post_mortem["finding_count"] == 1
+        assert "F200" in verdict.post_mortem["findings"]
+
+    def test_abort_pass_no_abort_category(self) -> None:
+        gi = _pass_input()
+        gi.review_findings = [_make_finding("major")]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="abort")
+        assert verdict.decision == "PASS"
+
+    def test_abort_multiple_categories(self) -> None:
+        gi = _pass_input()
+        gi.review_findings = [
+            _security_finding("F300"),
+            Finding(
+                finding_id="F301",
+                severity="blocker",
+                category="data_loss",
+                location="src/db.py:10",
+                description="unprotected delete",
+            ),
+        ]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="abort")
+        assert verdict.decision == "ESCALATE"
+        assert set(verdict.post_mortem["abort_categories_found"]) == {"security", "data_loss"}
+        assert verdict.post_mortem["finding_count"] == 2
+
+
+# ---------------------------------------------------------------------------
+# 16. escalation gate
+# ---------------------------------------------------------------------------
+
+
+class TestEscalationGate:
+    def test_escalation_pass(self) -> None:
+        verdict = evaluate_gate(_pass_input(), STANDARD, gate_type="escalation")
+        assert verdict.decision == "PASS"
+        assert verdict.escalation_context == ""
+
+    def test_escalation_fail_adds_context(self) -> None:
+        gi = _pass_input()
+        gi.build_status = CheckResult(status="fail")
+        verdict = evaluate_gate(gi, STANDARD, gate_type="escalation")
+        assert verdict.decision == "FAIL"
+        assert verdict.escalation_context != ""
+        assert "Escalation gate failed" in verdict.escalation_context
+
+
+# ---------------------------------------------------------------------------
+# 17. backward compatibility — "standard" and "convergence" aliases
+# ---------------------------------------------------------------------------
+
+
+class TestBackwardCompat:
+    def test_standard_alias_pass(self) -> None:
+        verdict = evaluate_gate(_pass_input(), STANDARD, gate_type="standard")
+        assert verdict.decision == "PASS"
+        assert verdict.meets_threshold is True
+
+    def test_standard_alias_fail(self) -> None:
+        gi = _pass_input()
+        gi.review_findings = [_make_finding("blocker")]
+        verdict = evaluate_gate(gi, STANDARD, gate_type="standard")
+        assert verdict.decision == "FAIL"
+        assert "blockers" in verdict.rationale
+
+    def test_convergence_alias_with_history(self) -> None:
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(
+                status="pass",
+                details={"coverage_pct": 95, "tests_passed": 50, "tests_total": 50},
+            ),
+            lint_status=CheckResult(status="pass", details={"architecture_score": 90}),
+            review_findings=[],
+        )
+        history = [_round(1, 80.0)]
+        verdict = evaluate_gate(gi, STANDARD, round_num=2, history=history, gate_type="convergence")
+        assert verdict.decision == "PASS"
+        assert verdict.composite_score is not None
+
+    def test_revision_direct_no_history(self) -> None:
+        verdict = evaluate_gate(_pass_input(), STANDARD, gate_type="revision")
+        assert verdict.decision == "PASS"
+
+
+# ---------------------------------------------------------------------------
+# 18. GateVerdict default fields
+# ---------------------------------------------------------------------------
+
+
+class TestGateVerdictDefaults:
+    def test_escalation_context_default(self) -> None:
+        v = GateVerdict(decision="PASS", rationale="ok")
+        assert v.escalation_context == ""
+
+    def test_post_mortem_default(self) -> None:
+        v = GateVerdict(decision="PASS", rationale="ok")
+        assert v.post_mortem == {}
+
+    def test_advisor_fields_default(self) -> None:
+        v = GateVerdict(decision="PASS", rationale="ok")
+        assert v.advisor_recommended is False
+        assert v.advisor_verdict == ""
+        assert v.advisor_context == ""
+
+    def test_details_default(self) -> None:
+        v = GateVerdict(decision="PASS", rationale="ok")
+        assert v.details == {}
+
+
+# ---------------------------------------------------------------------------
+# 19. advisor borderline detection
+# ---------------------------------------------------------------------------
+
+
+def _convergence_input(coverage_pct: float, architecture_score: float) -> GateInput:
+    """Build a GateInput that produces a predictable composite score.
+
+    With no findings (code_review=100) and no benchmark_score (defaults to 100):
+    composite = coverage_pct * 0.30 + 100 * 0.30 + arch * 0.20 + 100 * 0.20
+    """
+    return GateInput(
+        build_status=CheckResult(status="pass"),
+        test_results=CheckResult(
+            status="pass",
+            details={"coverage_pct": coverage_pct},
+        ),
+        lint_status=CheckResult(
+            status="pass",
+            details={"architecture_score": architecture_score},
+        ),
+        review_findings=[],
+    )
+
+
+class TestAdvisorBorderlineDetection:
+    def test_borderline_score_triggers_advisor(self) -> None:
+        """Score 82 with threshold 85 → margin 3 <= 5 → advisor_recommended."""
+        gi = _convergence_input(coverage_pct=64, architecture_score=64)
+        history = [_round(1, 75.0)]
+        verdict = evaluate_gate(gi, STANDARD, round_num=2, history=history, gate_type="convergence")
+        assert verdict.composite_score is not None
+        assert abs(verdict.composite_score - 82.0) < 0.1
+        assert verdict.advisor_recommended is True
+        assert verdict.advisor_context != ""
+        assert "±5.0" in verdict.advisor_context
+
+    def test_clear_pass_no_advisor(self) -> None:
+        """Score 95 with threshold 85 → margin 10 > 5 → no advisor."""
+        gi = _convergence_input(coverage_pct=90, architecture_score=90)
+        history = [_round(1, 80.0)]
+        verdict = evaluate_gate(gi, STANDARD, round_num=2, history=history, gate_type="convergence")
+        assert verdict.decision == "PASS"
+        assert verdict.composite_score is not None
+        assert abs(verdict.composite_score - 95.0) < 0.1
+        assert verdict.advisor_recommended is False
+        assert verdict.advisor_context == ""
+
+    def test_clear_fail_no_advisor(self) -> None:
+        """Score 70 with threshold 85 → margin 15 > 5 → no advisor."""
+        gi = _convergence_input(coverage_pct=40, architecture_score=40)
+        history = [_round(1, 60.0)]
+        verdict = evaluate_gate(gi, STANDARD, round_num=2, history=history, gate_type="convergence")
+        assert verdict.decision == "FAIL"
+        assert verdict.composite_score is not None
+        assert abs(verdict.composite_score - 70.0) < 0.1
+        assert verdict.advisor_recommended is False
+        assert verdict.advisor_context == ""
+
+    def test_advisor_margin_zero_disables_detection(self) -> None:
+        """advisor_margin=0 disables borderline detection even for borderline scores."""
+        profile = replace(STANDARD, advisor_margin=0)
+        gi = _convergence_input(coverage_pct=64, architecture_score=64)
+        history = [_round(1, 75.0)]
+        verdict = evaluate_gate(gi, profile, round_num=2, history=history, gate_type="convergence")
+        assert verdict.composite_score is not None
+        assert abs(verdict.composite_score - 82.0) < 0.1
+        assert verdict.advisor_recommended is False
+        assert verdict.advisor_context == ""

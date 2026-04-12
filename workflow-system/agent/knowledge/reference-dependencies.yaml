@@ -1,0 +1,394 @@
+---
+# Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
+# Source: S01-T06 Unified Research Synthesis (2026-04-11)
+# Split: 8 active_tracking + 9 periodic_monitoring = 17 total
+# Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
+
+active_tracking:
+
+  - id: anthropic-advisor-tool
+    repo_url: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/advisor-tool
+    source_type: api_docs
+    last_checked: "2026-04-11"
+    last_known_version: "beta (advisor-tool-2026-03-01)"
+    relevance_score: 5
+    key_patterns:
+      - bottom-up escalation within single API request
+      - "Sonnet+Opus advisor pairs: executor decides when to consult"
+      - "max_uses budgeting per request, conversation_budget client-side"
+      - "cost-tiered reasoning at $0.04-0.05/call"
+      - "+2.7pp SWE-bench at -11.9% cost (Sonnet+Opus)"
+    update_triggers:
+      - "beta header version changes from advisor-tool-2026-03-01"
+      - new executor/advisor model pairs announced
+      - API parameter additions or breaking changes
+      - pricing model changes
+    devolaflow_integration_points:
+      - context_profiles.yaml (advisor section per layer)
+      - gate/scorer.py (borderline gate evaluation)
+      - SKILL.md (L3 Task Agent system prompt extension)
+    gap_ids: [H3]
+
+  - id: superpowers
+    repo_url: https://github.com/obra/superpowers
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 5
+    key_patterns:
+      - "Iron Laws: absolute non-negotiable constraints in skill content"
+      - "rationalization prevention tables (| Excuse | Reality |)"
+      - "<HARD-GATE> tags blocking specific actions"
+      - "two-stage review: spec compliance then code quality"
+      - "typed status protocol: DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED"
+      - "CSO skill descriptions: WHEN to use, never WHAT it does"
+      - "model-tiered dispatch: cheap/standard/capable by task complexity"
+    update_triggers:
+      - new SKILL.md files in skills/ directory
+      - changes to rationalization tables or iron laws
+      - new enforcement patterns or hard gate types
+    devolaflow_integration_points:
+      - SKILL.md (rationalization tables, enforcement ladder levels 3-5)
+      - MVP-SKILL.md (CSO description format)
+      - schemas/lean-report.yaml (typed status enum)
+      - SF-2 rule (description format constraint)
+    gap_ids: [H1, H4, H6, M2, M7]
+
+  - id: get-shit-done
+    repo_url: https://github.com/gsd-build/get-shit-done
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "v1.34.0"
+    relevance_score: 4
+    key_patterns:
+      - "4-type gate taxonomy: pre-flight/revision/escalation/abort"
+      - "5 model profiles: quality/balanced/budget/adaptive/inherit"
+      - "multi-layer prompt injection defense (hook + library + CI scanner)"
+      - "agent completion contracts with structured markers"
+      - "context window awareness for adaptive enrichment"
+    update_triggers:
+      - changes to references/gates.md
+      - new hooks in hooks/ directory
+      - new agent files or model profile changes
+      - security pattern updates in gsd-prompt-guard.js
+    devolaflow_integration_points:
+      - gate/scorer.py (gate type taxonomy)
+      - lifecycle hooks (prompt injection defense)
+      - context_profiles.yaml (model profiles)
+    gap_ids: [M1, M2, M8]
+
+  - id: gstack
+    repo_url: https://github.com/garrytan/gstack
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "2.0.0"
+    relevance_score: 4
+    key_patterns:
+      - "per-skill allowed-tools ACL in SKILL.md frontmatter"
+      - "operational learnings JSONL: {skill, type, key, insight, confidence}"
+      - "proactive skill suggestion via conversation-context analysis"
+      - "cross-model review (Claude + Codex consensus tables)"
+      - "benefits-from dependency tracking between skills"
+      - "sprint-sequential routing: Think→Plan→Build→Review→Test→Ship→Reflect"
+    update_triggers:
+      - changes to learn/SKILL.md
+      - new specialist skills in root directory
+      - changes to review/specialists/ checklists
+      - learnings system schema updates
+    devolaflow_integration_points:
+      - TaskDispatch schema (depends_on_artifacts field)
+      - workflow-system/agent/knowledge/learnings/ (per-project JSONL)
+      - references/team-roles.md (per-task tool ACLs)
+    gap_ids: [H5, H7, M2, M9, L8]
+
+  - id: caveman
+    repo_url: https://github.com/JuliusBrussee/caveman
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 4
+    key_patterns:
+      - "deterministic compression-by-rule: explicit drop/preserve lists"
+      - "validate-then-fix loop: compress→validate→cherry-pick fix (max 2 retries)"
+      - "intensity levels: lite/full/ultra for configurable compression"
+      - "file type detection before compression (natural_language/code/config)"
+      - "auto-clarity escape hatch for security/irreversible actions"
+    update_triggers:
+      - changes to caveman/SKILL.md or caveman-compress/SKILL.md
+      - new compression benchmarks in benchmarks/run.py
+      - new intensity levels or compression rules
+    devolaflow_integration_points:
+      - schemas/lean-dispatch.yaml (drop/preserve lists)
+      - schemas/lean-report.yaml (compression rules for StatusReport.delta)
+      - lifecycle hooks (validate-then-fix for inter-agent messages)
+    gap_ids: [H2]
+
+  - id: edict
+    repo_url: https://github.com/cft0808/edict
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "Phase 2"
+    relevance_score: 3
+    key_patterns:
+      - "mandatory pre-execution review (Menxia/门下省): approve/reject binary"
+      - "state machine enforcement with 9 states and _VALID_TRANSITIONS"
+      - "strict permission matrix via allowAgents per agent"
+      - "4-stage progressive recovery: retry→escalate L1→escalate L2→rollback"
+      - "event-driven audit trail with 3-layer activity fusion"
+    update_triggers:
+      - changes to agent hierarchy or scheduling patterns
+      - new permission matrix configurations
+      - progressive recovery system updates
+    devolaflow_integration_points:
+      - gate/scorer.py (institutional review gate type)
+      - convergence loop (progressive recovery stages)
+      - team permissions enforcement
+    gap_ids: [M3, L2, L5]
+
+  - id: karpathy-llm-wiki
+    repo_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+    source_type: gist
+    last_checked: "2026-04-11"
+    last_known_version: "latest (gist)"
+    relevance_score: 3
+    key_patterns:
+      - "persistent wiki with ingest/query/lint operations"
+      - "compounding knowledge: each interaction enriches the knowledge base"
+      - "index.md as central content catalog"
+      - "contradiction detection across knowledge pages"
+      - "schema co-evolution: human + LLM evolve structure over time"
+    update_triggers:
+      - gist updates or revisions
+      - community forks with enhanced implementations
+      - related Karpathy publications on knowledge management
+    devolaflow_integration_points:
+      - workflow-system/agent/knowledge/ (wiki layer)
+      - knowledge/index.md (central catalog)
+      - Review agent (query-back-to-wiki for recurring findings)
+    gap_ids: [H5]
+
+  - id: anthropic-coordination-blog
+    repo_url: https://www.claude.com/blog/multi-agent-coordination-patterns
+    source_type: blog
+    last_checked: "2026-04-11"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 5
+    key_patterns:
+      - "generator-verifier pattern for tight feedback loops"
+      - "orchestrator-subagent pattern with context curation"
+      - "agent teams with role specialization"
+      - "message bus for decoupled communication"
+      - "shared state for collaborative research"
+      - "context-centric decomposition principle"
+    update_triggers:
+      - Anthropic publishes new coordination patterns or best practices
+      - existing pattern recommendations revised
+      - new benchmark data for coordination approaches
+    devolaflow_integration_points:
+      - SKILL.md wave coordination modes
+      - references/execution-protocol.md
+      - wave dispatch logic (coordination mode selection)
+    gap_ids: []
+
+periodic_monitoring:
+
+  - id: google-scion
+    repo_url: https://github.com/GoogleCloudPlatform/scion
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "experimental (2026-03)"
+    relevance_score: 4
+    key_patterns:
+      - "infrastructure-level agent isolation via git worktrees + containers"
+      - "Grove concept (.scion directory) as project workspace"
+      - "multi-runtime support: Docker, Podman, Apple containers, Kubernetes"
+    update_triggers:
+      - major releases or production-readiness milestone
+      - new isolation patterns or merge reconciliation improvements
+      - documentation site updates at googlecloudplatform.github.io/scion
+    devolaflow_integration_points:
+      - Wave dispatch (git worktree provisioning per L3 task)
+      - parallel task execution isolation
+    gap_ids: [M5]
+
+  - id: skillrouter
+    repo_url: https://github.com/zhengyanzhao1997/SkillRouter
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "v3 (arXiv:2603.22455v3)"
+    relevance_score: 4
+    key_patterns:
+      - "retrieve-and-rerank skill selection with 1.2B parameter pipeline"
+      - "74.0% Hit@1 accuracy at 80K candidate skills"
+      - "full-text signal critical: hiding impl text causes -31-44pp accuracy drop"
+    update_triggers:
+      - new paper versions on arXiv
+      - model accuracy improvements or reduced model size
+      - new benchmark datasets or evaluation metrics
+    devolaflow_integration_points:
+      - src/devolaflow/task_adaptive_selector.py (match_profile augmentation)
+    gap_ids: [M4]
+
+  - id: vexp
+    repo_url: https://vexp.dev/
+    source_type: blog
+    last_checked: "2026-04-11"
+    last_known_version: "commercial (2026)"
+    relevance_score: 5
+    key_patterns:
+      - "AST dependency graph + centrality ranking for context selection"
+      - "65% fewer tokens and +14pp task success rate (FastAPI benchmark)"
+      - "tree-sitter parsing with SQLite graph storage"
+      - "30 language and 12 agent support"
+    update_triggers:
+      - open-source release or API availability
+      - new language support or benchmark results
+      - published methodology details
+    devolaflow_integration_points:
+      - context_profiles.yaml (graph-distance-based section priority)
+      - src/devolaflow/task_adaptive_selector.py
+    gap_ids: [L1]
+
+  - id: self-improving-system
+    repo_url: https://gist.github.com/Triangulum9r/5666b008b402c17cc5695b9e42bbba9b
+    source_type: gist
+    last_checked: "2026-04-11"
+    last_known_version: "latest (gist)"
+    relevance_score: 4
+    key_patterns:
+      - "six-component quality loop: Rules, Skills, Docs, Tests, Benchmarks, CI/CD"
+      - "Ralph Loop knowledge flywheel: each ticket improves the next"
+      - "post-workflow rule/skill auto-update from execution findings"
+    update_triggers:
+      - gist updates with production validation data
+      - community implementations or forks
+      - related Medium publications by author
+    devolaflow_integration_points:
+      - post-workflow hooks/stages
+      - .cursor/rules/ (automated rule updates)
+      - SKILL.md (automated skill refinement)
+    gap_ids: [H5, H7]
+
+  - id: agent-skills-security
+    repo_url: https://arxiv.org/abs/2602.12430
+    source_type: paper
+    last_checked: "2026-04-11"
+    last_known_version: "arXiv:2602.12430 (2026-02)"
+    relevance_score: 4
+    key_patterns:
+      - "four-tier trust model: first-party→verified→community→unverified"
+      - "provenance-based permissions with graduated deployment capabilities"
+      - "26.1% of community-contributed skills contain vulnerabilities"
+      - "documented ClawHavoc campaign (~1200 malicious skills)"
+    update_triggers:
+      - new security landscape data or vulnerability reports
+      - follow-up papers (e.g., arXiv:2604.02837v1 threat taxonomy)
+      - industry adoption of trust governance frameworks
+    devolaflow_integration_points:
+      - workflow-skill.yaml (trust_level field)
+      - gate mechanism (skill provenance validation)
+      - adapter build pipeline (vulnerability scanning)
+    gap_ids: [M6]
+
+  - id: primelocus-hydra
+    repo_url: https://github.com/PrimeLocus/Hydra
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "v0.1.0 (2026-03)"
+    relevance_score: 4
+    key_patterns:
+      - "strength-based model routing: Claude=architecture, Gemini=critique, Codex=impl"
+      - "multi-round deliberation: propose→critique→refine→implement"
+      - "per-agent budget tracking to prevent runaway costs"
+    update_triggers:
+      - major version releases
+      - new agent integrations beyond Claude/Gemini/Codex
+      - deliberation workflow pattern updates
+    devolaflow_integration_points:
+      - TaskDispatch schema (model_hint field)
+      - Wave dispatch logic (model-strength routing)
+    gap_ids: [M2, M9]
+
+  - id: ruflo
+    repo_url: https://github.com/ruvnet/ruflo
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "proposal (issue #1273)"
+    relevance_score: 4
+    key_patterns:
+      - "multi-stage compression pipeline targeting 95-98% compression"
+      - "swarm-aware per-agent budgets with progressive throttling"
+      - "intent-based filtering: extract only task-relevant facts"
+      - "cross-agent knowledge search via FTS5/HNSW"
+    update_triggers:
+      - implementation milestones for context compression engine
+      - compression benchmark results published
+      - production adoption reports
+    devolaflow_integration_points:
+      - context_profiles.yaml (budget_strategy option)
+      - predecessor summary compression
+    gap_ids: [L3]
+
+  - id: christophera-bootstrap-seed
+    repo_url: https://gist.github.com/ChristopherA/fd2985551e765a86f4fbb24080263a2f
+    source_type: gist
+    last_checked: "2026-04-11"
+    last_known_version: "latest (gist, 27 stars)"
+    relevance_score: 3
+    key_patterns:
+      - "emergent config via reflect→triage→cascade loop"
+      - "seeded vs emergent component separation"
+      - "~1400 token bootstrap prompt for self-improving system"
+    update_triggers:
+      - gist revisions or significant fork innovations
+      - community adoption or derivative implementations
+    devolaflow_integration_points:
+      - post-workflow stage (reflect→triage→cascade)
+      - per-project customization layer
+    gap_ids: [H7, L6]
+
+  - id: spring-ai-agent-skills
+    repo_url: https://github.com/spring-ai-community/spring-ai-agent-utils
+    source_type: github_repo
+    last_checked: "2026-04-11"
+    last_known_version: "Spring AI (2026-01)"
+    relevance_score: 3
+    key_patterns:
+      - "three-stage progressive disclosure: discovery→activation→execution"
+      - "vendor-agnostic portability across OpenAI/Anthropic/Gemini"
+    update_triggers:
+      - Spring AI major releases
+      - new agent provider integrations
+      - progressive disclosure pattern refinements
+    devolaflow_integration_points:
+      - SKILL.md (progressive section loading)
+      - adapter pipeline (vendor-agnostic validation)
+    gap_ids: [L7]
+
+tracking_policy:
+  active_tracking:
+    check_frequency: biweekly
+    staleness_threshold_days: 30
+    on_stale: "review relevance, check for archival, downgrade to periodic if inactive >3 months"
+  periodic_monitoring:
+    check_frequency: monthly
+    staleness_threshold_days: 90
+    on_stale: "mark as frozen_reference if repo archived or >6 months inactive"
+  review_protocol:
+    trigger_conditions:
+      - tracked repo releases a new major/minor version
+      - Anthropic advisor tool exits beta or changes API shape
+      - "new repo with >5K stars and relevance >=4/5 in agent orchestration space"
+      - DevolaFlow version bump changes overlap analysis (re-classify gaps)
+      - EvoBench regression detected after context profile changes
+    review_actions:
+      - read changed files/docs from tracked source
+      - re-evaluate relevance_score against current DevolaFlow version
+      - update gap classification (may move between priority tiers)
+      - create integration task if high-priority gap becomes lower-effort
+      - log review in knowledge/learnings/external-sources.jsonl (when implemented)
+  staleness_indicators:
+    already_addressed_for_2_plus_versions: remove from active tracking
+    repo_archived_or_6_months_inactive: "downgrade frequency, mark as frozen_reference"
+    new_source_supersedes_tracked: replace in tracking list and update synthesis
+    devolaflow_implements_gap: "reclassify to already-addressed with version citation"

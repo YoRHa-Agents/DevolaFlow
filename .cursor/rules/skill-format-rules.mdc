@@ -9,7 +9,7 @@ SKILL.md and MVP-SKILL.md must each stay under 500 lines. Verify with `wc -l` or
 
 ## Rule SF-2 — Required Frontmatter Keys
 
-SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. MVP-SKILL.md requires at minimum: `name`, `version`, `description`.
+SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. MVP-SKILL.md requires at minimum: `name`, `version`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does (capability summary). This prevents agents from using the description as a compressed substitute for reading the full skill content.
 
 ## Rule SF-3 — Version Consistency
 
