@@ -1,50 +1,101 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stage Explorer - DevolaFlow</title>
+  <title data-i18n="page.explorer">Stage Explorer — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Stage Explorer</h1>
-  <p class="nav"><a href="../index.html">&larr; Back to DevolaFlow</a></p>
+  <div class="container">
 
-  <label for="stage-select">Select stage primitive:</label>
-  <select id="stage-select"><option value="">Choose a primitive...</option></select>
+    <header>
+      <h1>Stage <span class="accent">Explorer</span></h1>
+      <p class="tagline" data-i18n="exp.subtitle">Deep-dive into stage primitives</p>
+    </header>
 
-  <div class="detail">
-    <h3 id="stage-name">-</h3>
-    <table>
-      <tr><th>Category</th><td id="stage-category">-</td></tr>
-      <tr><th>Default Team</th><td id="stage-team">-</td></tr>
-      <tr><th>Duration Class</th><td id="stage-duration">-</td></tr>
-      <tr><th>Purpose</th><td id="stage-purpose">-</td></tr>
-      <tr><th>Input Type</th><td id="stage-input" class="mono">-</td></tr>
-      <tr><th>Output Type</th><td id="stage-output" class="mono">-</td></tr>
-      <tr><th>Config</th><td id="stage-config" class="mono">-</td></tr>
-      <tr><th>Used In</th><td id="stage-workflows">-</td></tr>
-    </table>
+    <section class="select-section">
+      <label for="stage-select" data-i18n="exp.selectStage">Select stage</label>
+      <select id="stage-select"><option value="">Choose a primitive…</option></select>
+    </section>
+
+    <section>
+      <div class="card detail-card">
+        <h3 id="stage-name">-</h3>
+        <table>
+          <tr><th data-i18n="common.category">Category</th><td id="stage-category">-</td></tr>
+          <tr><th data-i18n="exp.defaultTeam">Default Team</th><td id="stage-team">-</td></tr>
+          <tr><th data-i18n="exp.durationClass">Duration Class</th><td id="stage-duration">-</td></tr>
+          <tr><th data-i18n="exp.purpose">Purpose</th><td id="stage-purpose">-</td></tr>
+          <tr><th data-i18n="exp.inputType">Input Type</th><td id="stage-input" class="mono">-</td></tr>
+          <tr><th data-i18n="exp.outputType">Output Type</th><td id="stage-output" class="mono">-</td></tr>
+          <tr><th data-i18n="exp.config">Config</th><td id="stage-config" class="mono">-</td></tr>
+          <tr><th data-i18n="exp.usedIn">Used In</th><td id="stage-workflows">-</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="card detail-card highlight">
+        <h3 data-i18n="exp.stageAgentRole">Stage Agent Role (Main-Agent at L1)</h3>
+        <p class="hint" data-i18n="exp.stageAgentHint">How the Stage Agent (Layer 1) orchestrates this stage. The Stage Agent decomposes work into waves and runs the gate — it never does the work itself.</p>
+        <div id="main-agent-role"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card detail-card">
+        <h3 data-i18n="exp.delegation">4-Layer Delegation Chain</h3>
+        <p class="hint" data-i18n="exp.delegationHint">Full dispatch path from Project Agent down to the Task Agent that executes work.</p>
+        <div id="delegation-chain"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card detail-card">
+        <h3 data-i18n="exp.contextBudget">Context Budget Allocation</h3>
+        <p class="hint" data-i18n="exp.budgetHint">Token budget per layer. Upper layers get less context to enforce separation of concerns.</p>
+        <div id="budget-bar" class="budget-bar"></div>
+      </div>
+    </section>
+
+    <footer>
+      <p><span data-i18n="footer.text">DevolaFlow</span> · <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> · <span data-i18n="footer.license">MIT License</span></p>
+    </footer>
+
   </div>
 
-  <div class="detail highlight">
-    <h3>Stage Agent Role (Main-Agent at L1)</h3>
-    <p class="hint">How the Stage Agent (Layer 1) orchestrates this stage. The Stage Agent decomposes work into waves and runs the gate -- it never does the work itself.</p>
-    <div id="main-agent-role"></div>
-  </div>
-
-  <div class="detail">
-    <h3>4-Layer Delegation Chain</h3>
-    <p class="hint">Full dispatch path from Project Agent down to the Task Agent that executes work.</p>
-    <div id="delegation-chain"></div>
-  </div>
-
-  <div class="detail">
-    <h3>Context Budget Allocation</h3>
-    <p class="hint">Token budget per layer. Upper layers get less context to enforce separation of concerns.</p>
-    <div id="budget-bar" class="budget-bar"></div>
-  </div>
-
+  <script src="../shared/i18n.js"></script>
+  <script>
+    addTranslations('en', {
+      'exp.defaultTeam': 'Default Team',
+      'exp.durationClass': 'Duration Class',
+      'exp.purpose': 'Purpose',
+      'exp.inputType': 'Input Type',
+      'exp.outputType': 'Output Type',
+      'exp.config': 'Config',
+      'exp.usedIn': 'Used In',
+      'exp.stageAgentRole': 'Stage Agent Role (Main-Agent at L1)',
+      'exp.stageAgentHint': 'How the Stage Agent (Layer 1) orchestrates this stage. The Stage Agent decomposes work into waves and runs the gate — it never does the work itself.',
+      'exp.delegationHint': 'Full dispatch path from Project Agent down to the Task Agent that executes work.',
+      'exp.budgetHint': 'Token budget per layer. Upper layers get less context to enforce separation of concerns.'
+    });
+    addTranslations('zh', {
+      'exp.defaultTeam': '默认团队',
+      'exp.durationClass': '时长级别',
+      'exp.purpose': '用途',
+      'exp.inputType': '输入类型',
+      'exp.outputType': '输出类型',
+      'exp.config': '配置',
+      'exp.usedIn': '所属工作流',
+      'exp.stageAgentRole': '阶段代理角色（L1 主代理）',
+      'exp.stageAgentHint': '阶段代理（第一层）如何编排此阶段。阶段代理将工作分解为波次并运行门控——它自身不执行任何工作。',
+      'exp.delegationHint': '从项目代理到执行工作的任务代理的完整分派路径。',
+      'exp.budgetHint': '每层的 Token 预算。上层获得较少的上下文以强制关注点分离。'
+    });
+  </script>
+  <script src="../shared/nav.js"></script>
   <script src="explorer.js"></script>
 </body>
 </html>
