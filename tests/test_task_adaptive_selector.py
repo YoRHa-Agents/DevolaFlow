@@ -336,7 +336,7 @@ class TestNewProfiles:
         result = select_context("self_update", profiles_path=PROFILES_YAML)
         assert result["profile_name"] == "self_update"
         assert result["total_tokens"] <= result["budget"]
-        assert result["budget"] == 3500
+        assert result["budget"] == 3125
         assert len(result["selected_sections"]) > 0
         assert result["model_hint"] in VALID_MODEL_HINTS
 
@@ -344,7 +344,7 @@ class TestNewProfiles:
         result = select_context("feedback", profiles_path=PROFILES_YAML)
         assert result["profile_name"] == "feedback"
         assert result["total_tokens"] <= result["budget"]
-        assert result["budget"] == 2500
+        assert result["budget"] == 2375
         assert len(result["selected_sections"]) > 0
         assert result["model_hint"] in VALID_MODEL_HINTS
 
