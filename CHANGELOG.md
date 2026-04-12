@@ -5,6 +5,34 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.1] - 2026-04-12
+
+### Fixed
+- **Documentation consistency**: Fixed stale numeric references across README, demo pages, and design docs (tests 312→423, coverage 88%→89%, version locations 9→16, rules count 18→19, design docs 14→15, benchmark scenarios 17→20, context profiles 17→18)
+- **Demo landing page**: Updated feature highlights from v3.5.0/v3.3.0 to v3.9.0 (operational learnings, feedback loop, gate taxonomy, advisor tool, self-update workflow)
+- **Benchmark demo page**: SAMPLE_DATA expanded from 17 to 20 scenarios (added self_update_reference_check, self_update_integration, feedback_analysis)
+- **Design architecture page**: SKILL.md line count 363→447, section count 13→19
+
+### Added
+- **Documentation drift-prevention tests**: 11 new tests in `test_doc_consistency.py` that validate README/demo numeric claims match actual repo state (workflow type count, scenario count, template count, profile count, design docs count, SKILL.md line count, version location count). Runs in CI to prevent future drift.
+- **Full surface update for v3.9.0**: Updated all 16→17 workflow type references across README, human docs (EN+ZH), demo pages, workflow-skill.yaml, templates registry, workflow visualizer
+- **Release workflow automation**: release.yml now runs sync-human-docs, check-drift, EvoBench benchmarks, and lint. CI now includes EvoBench and drift check.
+
+### Changed
+- context_profiles.yaml: 3-round EvoBench optimization (line ranges updated, rationalization_prevention section registered, budgets tightened). Avg composite 99.05→99.51, min 95.22→99.22.
+- Makefile: release-dry-run now matches release-preflight scope (includes sync-human-docs and check-drift)
+- README "New in v3.9.0" section added with 8 feature bullets
+- Demo index.html: v3.9.0 feature highlights replace v3.5.0 section
+
+### Metrics
+- Tests: 434 passed (+11 from v3.9.0)
+- Coverage: 89.21% (threshold: 80%)
+- EvoBench: 20/20 scenarios pass, avg composite 99.51, min 99.22
+- Adapters: All 4 within budget (Cursor 447/500, Codex 435/500, Claude 67/200, Copilot 1922/4000)
+- Lint: All checks pass
+- SKILL.md: 447 lines (budget: 500)
+- MVP-SKILL.md: 314 lines (budget: 500)
+
 ## [3.9.0] - 2026-04-12
 
 ### Added
