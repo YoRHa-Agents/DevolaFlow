@@ -743,7 +743,7 @@ profiles:
       - "README"
       - "guide"
       - "tutorial"
-    token_budget: 3400
+    token_budget: 3380
     model_hints:
       default_tier: balanced
       overrides:
@@ -1126,7 +1126,7 @@ profiles:
       - "update skill"
       - "update workflow"
       - "meta update"
-    token_budget: 3125
+    token_budget: 3100
     model_hints:
       default_tier: budget
       overrides:

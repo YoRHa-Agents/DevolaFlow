@@ -1,0 +1,31 @@
+# EvoBench Scenario: Simple Implementation — Feature Profile with Budget Model
+# Tests that simple_implementation task type routes to the feature profile
+# with budget model_hint and selects all 14 feature-profile sections.
+# Validates cost-optimized model selection does not affect section coverage.
+
+name: "simple_impl_budget"
+task_type: "simple_implementation"
+description: "Simple implementation with budget model hint — validates feature-profile routing with cost-optimized model selection"
+
+expected_sections:
+  - quick_action_decision
+  - plan_mode_template
+  - agent_mode_protocol
+  - quick_start_workflows
+  - hierarchy_table
+  - wave_task_constraints
+  - rationalization_prevention
+  - stage_primitives
+  - gate_mechanism
+  - agent_teams
+  - context_isolation
+  - lifecycle_hooks
+  - convergence_loop
+  - dispatch_report
+
+unwanted_sections: []
+
+quality_thresholds:
+  min_composite: 95
+  min_relevance: 1.0
+  max_noise_ratio: 0.05

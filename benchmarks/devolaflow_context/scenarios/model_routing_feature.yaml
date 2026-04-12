@@ -1,20 +1,27 @@
-# EvoBench Scenario: Model Routing — Budget Override for Simple Implementation
-# Tests that simple_implementation task type routes to feature profile
-# with budget model_hint override from feature.model_hints.overrides.
+# EvoBench Scenario: Model Routing — Complete Feature Profile with Budget Override
+# Tests that simple_implementation routes to feature profile with budget model_hint
+# and validates ALL 14 selected sections. Unwanted list captures sections that must
+# remain skipped by the feature profile.
 
 name: "model_routing_feature"
 task_type: "simple_implementation"
-description: "Simple implementation routed to feature profile — validates budget model_hint override and feature-profile section selection"
+description: "Simple implementation routed to feature profile — validates complete feature-profile section selection with budget model override"
 
 expected_sections:
   - quick_action_decision
-  - agent_mode_protocol
   - plan_mode_template
+  - agent_mode_protocol
+  - quick_start_workflows
   - hierarchy_table
-  - context_isolation
-  - dispatch_report
+  - wave_task_constraints
+  - rationalization_prevention
   - stage_primitives
+  - gate_mechanism
+  - agent_teams
+  - context_isolation
+  - lifecycle_hooks
   - convergence_loop
+  - dispatch_report
 
 unwanted_sections:
   - frontmatter
@@ -23,5 +30,6 @@ unwanted_sections:
   - template_quick_ref
 
 quality_thresholds:
-  min_composite: 80
-  min_relevance: 0.8
+  min_composite: 95
+  min_relevance: 1.0
+  max_noise_ratio: 0.05

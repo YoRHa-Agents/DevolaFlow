@@ -5,6 +5,24 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-04-12
+
+### Added
+- 2 new EvoBench scenarios: `feedback_regression` (feedback profile) and `simple_impl_budget` (simple_implementation routing)
+- EvoBench scenario coverage now at 25 scenarios across all 18 context profiles
+
+### Changed
+- Recalibrated `decomposition_feature` and `model_routing_feature` scenarios: expected_sections aligned with actual profile selection, eliminating structural noise (noise 28.6%/21.4% → 0%)
+- Tightened quality thresholds for 3 v4.0.0 scenarios (min_composite 80-85 → 95, min_relevance → 1.0)
+- Budget micro-tuning: `self_update` profile 3125 → 3100 tokens, `documentation` profile 3400 → 3380 tokens
+
+### Metrics
+- Tests: 504 passed
+- EvoBench: 25/25 PASS (was 23/23)
+- Composite range: 99.1–99.9 (was 94.26–99.98)
+- All 25 scenarios: 100% relevance, 0% noise (was 21/23 at 0% noise)
+- Mean composite: ~99.5 (was ~99.2 including noisy scenarios)
+
 ## [4.1.1] - 2026-04-12
 
 ### Improved

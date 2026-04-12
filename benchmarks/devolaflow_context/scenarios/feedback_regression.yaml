@@ -1,0 +1,27 @@
+# EvoBench Scenario: Feedback — Tight Budget Profile Regression
+# Tests that the feedback profile (one of the smallest, budget ~2375) selects
+# all expected sections without noise. Validates budget-constrained selection
+# correctly prioritizes gate evaluation and learnings-related sections.
+
+name: "feedback_regression"
+task_type: "feedback"
+description: "Feedback analysis task — validates tight budget profile selects all expected sections"
+
+expected_sections:
+  - agent_mode_protocol
+  - gate_mechanism
+  - dispatch_report
+  - task_quality_score
+  - quick_action_decision
+  - context_isolation
+  - lifecycle_hooks
+  - hierarchy_table
+  - wave_task_constraints
+  - rationalization_prevention
+
+unwanted_sections: []
+
+quality_thresholds:
+  min_composite: 95
+  min_relevance: 1.0
+  max_noise_ratio: 0.05
