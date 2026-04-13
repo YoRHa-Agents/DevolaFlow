@@ -11,10 +11,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from devolaflow.learnings import (
+    ExternalSourceReview,
     Learning,
     capture_learning,
     format_learnings_section,
     load_relevant_learnings,
+    log_external_source_review,
     prune_learnings,
 )
 
@@ -258,6 +260,75 @@ class TestFormatLearningsSection:
 
     def test_empty_list_returns_empty(self) -> None:
         assert format_learnings_section([]) == ""
+
+
+class TestExternalSourceReview:
+    def test_default_values(self) -> None:
+        r = ExternalSourceReview(
+            source_id="test-dep",
+            review_date="2026-04-13",
+            findings_summary="No changes",
+            relevance_delta=0.0,
+        )
+        assert r.source_id == "test-dep"
+        assert r.relevance_delta == 0.0
+        assert r.timestamp == ""
+
+    def test_relevance_delta_clamped(self) -> None:
+        r = ExternalSourceReview(
+            source_id="x",
+            review_date="d",
+            findings_summary="s",
+            relevance_delta=10.0,
+        )
+        assert r.relevance_delta == 5.0
+        r2 = ExternalSourceReview(
+            source_id="x",
+            review_date="d",
+            findings_summary="s",
+            relevance_delta=-10.0,
+        )
+        assert r2.relevance_delta == -5.0
+
+
+class TestLogExternalSourceReview:
+    def test_writes_jsonl(self, tmp_path: Path) -> None:
+        p = tmp_path / "ext.jsonl"
+        result = log_external_source_review(
+            source_id="superpowers",
+            review_date="2026-04-13",
+            findings_summary="New enforcement patterns added",
+            relevance_delta=0.5,
+            jsonl_path=p,
+        )
+        assert result is True
+        assert p.exists()
+        data = json.loads(p.read_text().strip())
+        assert data["source_id"] == "superpowers"
+        assert data["review_date"] == "2026-04-13"
+        assert data["findings_summary"] == "New enforcement patterns added"
+        assert data["relevance_delta"] == 0.5
+        assert data["timestamp"] != ""
+
+    def test_append_only(self, tmp_path: Path) -> None:
+        p = tmp_path / "ext.jsonl"
+        log_external_source_review("dep1", "2026-01-01", "first", 0.0, p)
+        log_external_source_review("dep2", "2026-01-02", "second", 1.0, p)
+        lines = p.read_text().strip().splitlines()
+        assert len(lines) == 2
+        assert json.loads(lines[0])["source_id"] == "dep1"
+        assert json.loads(lines[1])["source_id"] == "dep2"
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        p = tmp_path / "sub" / "dir" / "ext.jsonl"
+        log_external_source_review("dep", "d", "s", 0.0, p)
+        assert p.exists()
+
+    def test_clamps_relevance_delta(self, tmp_path: Path) -> None:
+        p = tmp_path / "ext.jsonl"
+        log_external_source_review("dep", "d", "s", 99.0, p)
+        data = json.loads(p.read_text().strip())
+        assert data["relevance_delta"] == 5.0
 
 
 class TestEdgeCases:

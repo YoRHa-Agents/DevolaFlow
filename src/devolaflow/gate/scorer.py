@@ -237,6 +237,45 @@ def _evaluate_abort(gate_input: GateInput, profile: GateProfile) -> GateVerdict:
     )
 
 
+_PASSTHROUGH_VERDICT = GateVerdict(
+    decision="PASS",
+    rationale="Passthrough gate — forwarding stage results.",
+    composite_score=None,
+    meets_threshold=True,
+)
+
+
+def _evaluate_escalation(gate_input: GateInput, profile: GateProfile) -> GateVerdict:
+    verdict = _evaluate_standard(gate_input, profile)
+    if verdict.decision == "FAIL":
+        verdict.escalation_context = f"Escalation gate failed. {verdict.rationale}"
+    return verdict
+
+
+_GATE_DISPATCH: dict[str, object] = {
+    "passthrough": lambda gi, p: _PASSTHROUGH_VERDICT,
+    "acceptance_readiness": lambda gi, p: score_acceptance_readiness(
+        gi.acceptance_readiness_criteria, p
+    ),
+    "preflight": _evaluate_preflight,
+    "abort": _evaluate_abort,
+    "escalation": _evaluate_escalation,
+}
+
+
+def _apply_advisor_detection(verdict: GateVerdict, profile: GateProfile) -> None:
+    if profile.advisor_margin <= 0 or verdict.composite_score is None:
+        return
+    margin = abs(verdict.composite_score - profile.composite_threshold)
+    if margin <= profile.advisor_margin:
+        verdict.advisor_recommended = True
+        verdict.advisor_context = (
+            f"Score {verdict.composite_score:.1f} is within "
+            f"±{profile.advisor_margin} of threshold "
+            f"{profile.composite_threshold}. Human review recommended."
+        )
+
+
 def evaluate_gate(
     gate_input: GateInput,
     profile: GateProfile,
@@ -265,43 +304,16 @@ def evaluate_gate(
         history = []
 
     resolved = _resolve_gate_type(gate_type)
+    handler = _GATE_DISPATCH.get(resolved)
 
-    if resolved == "passthrough":
-        verdict = GateVerdict(
-            decision="PASS",
-            rationale="Passthrough gate — forwarding stage results.",
-            composite_score=None,
-            meets_threshold=True,
-        )
-    elif resolved == "acceptance_readiness":
-        verdict = score_acceptance_readiness(
-            gate_input.acceptance_readiness_criteria,
-            profile,
-        )
-    elif resolved == "preflight":
-        verdict = _evaluate_preflight(gate_input, profile)
-    elif resolved == "abort":
-        verdict = _evaluate_abort(gate_input, profile)
-    elif resolved == "escalation":
-        verdict = _evaluate_standard(gate_input, profile)
-        if verdict.decision == "FAIL":
-            verdict.escalation_context = f"Escalation gate failed. {verdict.rationale}"
+    if handler is not None:
+        verdict = handler(gate_input, profile)
     elif history:
         verdict = _evaluate_convergence(gate_input, profile, round_num, history)
     else:
         verdict = _evaluate_standard(gate_input, profile)
 
-    # Borderline detection for advisor tool
-    if profile.advisor_margin > 0 and verdict.composite_score is not None:
-        margin = abs(verdict.composite_score - profile.composite_threshold)
-        if margin <= profile.advisor_margin:
-            verdict.advisor_recommended = True
-            verdict.advisor_context = (
-                f"Score {verdict.composite_score:.1f} is within "
-                f"±{profile.advisor_margin} of threshold "
-                f"{profile.composite_threshold}. Human review recommended."
-            )
-
+    _apply_advisor_detection(verdict, profile)
     return verdict
 
 
@@ -344,15 +356,8 @@ def _evaluate_standard(gate_input: GateInput, profile: GateProfile) -> GateVerdi
     )
 
 
-def _evaluate_convergence(
-    gate_input: GateInput,
-    profile: GateProfile,
-    round_num: int,
-    history: list[ConvergenceRound],
-) -> GateVerdict:
-    """Multi-round convergence gate (§5.7 flowchart)."""
-    q_score = quality_score(gate_input.review_findings)
-
+def _compute_convergence_dimensions(gate_input: GateInput, q_score: float) -> dict[str, float]:
+    """Derive dimension scores from gate input for convergence evaluation."""
     dims: dict[str, float] = {}
     test_detail = gate_input.test_results.details
     if "coverage_pct" in test_detail:
@@ -371,16 +376,26 @@ def _evaluate_convergence(
 
     bench_detail = gate_input.build_status.details.get("benchmark_score")
     dims["benchmark"] = float(bench_detail) if bench_detail is not None else 100.0
+    return dims
 
+
+def _evaluate_convergence(
+    gate_input: GateInput,
+    profile: GateProfile,
+    round_num: int,
+    history: list[ConvergenceRound],
+) -> GateVerdict:
+    """Multi-round convergence gate (§5.7 flowchart)."""
+    q_score = quality_score(gate_input.review_findings)
+    dims = _compute_convergence_dimensions(gate_input, q_score)
     score = composite_score(dims)
-
     blocker_count = _count_severity(gate_input.review_findings, "blocker")
+
     meets = (
         score >= profile.composite_threshold
         and round_num >= profile.min_rounds
         and blocker_count <= profile.max_blocker
     )
-
     if meets:
         return GateVerdict(
             decision="PASS",

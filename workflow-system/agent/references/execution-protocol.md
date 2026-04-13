@@ -121,6 +121,36 @@ From §3.4:
 | gate_profile_consistency | strict profile + coverage < 90% | warning |
 | local_no_publish | local mode + publishing targets | warning |
 
+## 1b. Verification-First Micro-Plan (L3 Tasks)
+
+Before writing code, every L3 Task Agent SHOULD state a brief verification plan
+using the **Step → Verify** pattern. This is especially important for hotfix tasks
+where fast iteration must not sacrifice correctness.
+
+**Template:**
+
+```
+Micro-Plan:
+1. [action] → verify: [observable check]
+2. [action] → verify: [observable check]
+3. Final: [integration check or acceptance criterion validation]
+```
+
+**Example (hotfix):**
+
+```
+Micro-Plan:
+1. Reproduce bug with failing test → verify: test fails with expected error
+2. Apply fix to handler → verify: failing test now passes
+3. Run full suite → verify: zero regressions, coverage unchanged
+```
+
+**Rules:**
+- Plans are 2-5 steps. Each step has an explicit verification.
+- Verifications must be observable (test output, lint result, command exit code).
+- If `explicit_assumptions` field is present in dispatch, validate assumptions before step 1.
+- Hotfix tasks: the first step MUST be reproducing the bug.
+
 ## 2. Checkpoint/Resume Mechanism
 From §4:
 

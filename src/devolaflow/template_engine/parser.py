@@ -105,6 +105,43 @@ def _parse_stage(raw: dict[str, Any]) -> StageDefinition:
     )
 
 
+def _parse_sequence(node_dict: dict[str, Any]) -> Sequence:
+    children = [parse_composition(s) for s in node_dict.get("stages", [])]
+    return Sequence(stages=children)
+
+
+def _parse_parallel(node_dict: dict[str, Any]) -> Parallel:
+    children = [parse_composition(s) for s in node_dict.get("stages", [])]
+    join = node_dict.get("join", "all")
+    n_of_count = None
+    if isinstance(join, str) and join.startswith("n_of("):
+        n_of_count = int(join[5:-1])
+        join = "n_of"
+    return Parallel(stages=children, join=join, n_of_count=n_of_count)
+
+
+def _parse_choice(node_dict: dict[str, Any]) -> Choice:
+    return Choice(
+        condition=node_dict["condition"],
+        if_true=parse_composition(node_dict["if_true"]),
+        if_false=parse_composition(node_dict["if_false"]),
+    )
+
+
+def _parse_loop_or_gate_ref(node_dict: dict[str, Any], cls: type) -> CompositionNode:
+    ref = node_dict.get("ref") or node_dict.get("name", "")
+    return cls(ref=ref)
+
+
+_COMPOSE_DISPATCH: dict[str, object] = {
+    "sequence": _parse_sequence,
+    "parallel": _parse_parallel,
+    "choice": _parse_choice,
+    "loop": lambda nd: _parse_loop_or_gate_ref(nd, LoopRef),
+    "gate": lambda nd: _parse_loop_or_gate_ref(nd, GateRef),
+}
+
+
 def parse_composition(node_dict: dict[str, Any] | str) -> CompositionNode:
     """Recursively parse a composition node from its dict representation.
 
@@ -135,37 +172,10 @@ def parse_composition(node_dict: dict[str, Any] | str) -> CompositionNode:
     if compose_type is None:
         raise TemplateParseError(f"CompositionNode missing 'compose' or 'stage': {node_dict}")
 
-    if compose_type == "sequence":
-        children = [parse_composition(s) for s in node_dict.get("stages", [])]
-        return Sequence(stages=children)
-
-    if compose_type == "parallel":
-        children = [parse_composition(s) for s in node_dict.get("stages", [])]
-        join = node_dict.get("join", "all")
-        n_of_count = None
-        if isinstance(join, str) and join.startswith("n_of("):
-            n_of_count = int(join[5:-1])
-            join = "n_of"
-        return Parallel(stages=children, join=join, n_of_count=n_of_count)
-
-    if compose_type == "choice":
-        return Choice(
-            condition=node_dict["condition"],
-            if_true=parse_composition(node_dict["if_true"]),
-            if_false=parse_composition(node_dict["if_false"]),
-        )
-
-    if compose_type == "loop":
-        if "ref" in node_dict:
-            return LoopRef(ref=node_dict["ref"])
-        return LoopRef(ref=node_dict.get("name", ""))
-
-    if compose_type == "gate":
-        if "ref" in node_dict:
-            return GateRef(ref=node_dict["ref"])
-        return GateRef(ref=node_dict.get("name", ""))
-
-    raise TemplateParseError(f"Unknown compose type: {compose_type}")
+    handler = _COMPOSE_DISPATCH.get(compose_type)
+    if handler is None:
+        raise TemplateParseError(f"Unknown compose type: {compose_type}")
+    return handler(node_dict)
 
 
 def _parse_loop(raw: dict[str, Any]) -> LoopDef:

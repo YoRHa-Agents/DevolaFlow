@@ -17,7 +17,16 @@ log = logging.getLogger(__name__)
 _VERSION_RE = re.compile(r"version\s+(\d+\.\d+\.\d+\S*)")
 _INSTALL_URL = "https://raw.githubusercontent.com/YoRHa-Agents/NineS/main/scripts/install.sh"
 _INSTALL_CMD = f"curl -fsSL {_INSTALL_URL} | bash"
-_KNOWN_SUBCOMMANDS = ("eval", "collect", "analyze", "self-eval", "iterate", "install")
+_KNOWN_SUBCOMMANDS = (
+    "eval",
+    "collect",
+    "analyze",
+    "self-eval",
+    "iterate",
+    "install",
+    "benchmark",
+    "update",
+)
 _TIMEOUT = 30
 
 

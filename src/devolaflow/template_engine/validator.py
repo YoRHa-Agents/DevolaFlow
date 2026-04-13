@@ -288,13 +288,65 @@ def _reachable_stage_ids(template: WorkflowTemplate) -> set[str]:
     return reachable
 
 
-def _expand_loops_gates(
+def _expand_stage_ref(
+    node: Any,
+    _lm: dict[str, LoopDef],
+    _gm: dict[str, GateDef],
+    reachable: set[str],
+) -> None:
+    reachable.add(node.stage)
+
+
+def _expand_container(
     node: Any,
     loop_map: dict[str, LoopDef],
     gate_map: dict[str, GateDef],
     reachable: set[str],
 ) -> None:
-    """Walk the composition tree and expand loop/gate refs into reachable stages."""
+    for child in node.stages:
+        _expand_loops_gates(child, loop_map, gate_map, reachable)
+
+
+def _expand_choice(
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
+) -> None:
+    _expand_loops_gates(node.if_true, loop_map, gate_map, reachable)
+    _expand_loops_gates(node.if_false, loop_map, gate_map, reachable)
+
+
+def _expand_loop_ref(
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    _gm: dict[str, GateDef],
+    reachable: set[str],
+) -> None:
+    loop_def = loop_map.get(node.ref)
+    if not loop_def:
+        return
+    reachable.update(loop_def.body_stages)
+    if loop_def.escalation_target:
+        reachable.add(loop_def.escalation_target)
+
+
+def _expand_gate_ref(
+    node: Any,
+    _lm: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
+) -> None:
+    gate_def = gate_map.get(node.ref)
+    if not gate_def:
+        return
+    if gate_def.on_pass and gate_def.on_pass != "next":
+        reachable.add(gate_def.on_pass)
+    if gate_def.on_fail and gate_def.on_fail.target:
+        reachable.add(gate_def.on_fail.target)
+
+
+def _get_expand_dispatch() -> dict[type, object]:
     from devolaflow.template_engine.models import (
         Choice,
         GateRef,
@@ -304,24 +356,30 @@ def _expand_loops_gates(
         StageRef,
     )
 
-    if isinstance(node, StageRef):
-        reachable.add(node.stage)
-    elif isinstance(node, (Sequence, Parallel)):
-        for child in node.stages:
-            _expand_loops_gates(child, loop_map, gate_map, reachable)
-    elif isinstance(node, Choice):
-        _expand_loops_gates(node.if_true, loop_map, gate_map, reachable)
-        _expand_loops_gates(node.if_false, loop_map, gate_map, reachable)
-    elif isinstance(node, LoopRef):
-        loop_def = loop_map.get(node.ref)
-        if loop_def:
-            reachable.update(loop_def.body_stages)
-            if loop_def.escalation_target:
-                reachable.add(loop_def.escalation_target)
-    elif isinstance(node, GateRef):
-        gate_def = gate_map.get(node.ref)
-        if gate_def:
-            if gate_def.on_pass and gate_def.on_pass != "next":
-                reachable.add(gate_def.on_pass)
-            if gate_def.on_fail and gate_def.on_fail.target:
-                reachable.add(gate_def.on_fail.target)
+    return {
+        StageRef: _expand_stage_ref,
+        Sequence: _expand_container,
+        Parallel: _expand_container,
+        Choice: _expand_choice,
+        LoopRef: _expand_loop_ref,
+        GateRef: _expand_gate_ref,
+    }
+
+
+_EXPAND_DISPATCH: dict[type, object] | None = None
+
+
+def _expand_loops_gates(
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
+) -> None:
+    """Walk the composition tree and expand loop/gate refs into reachable stages."""
+    global _EXPAND_DISPATCH
+    if _EXPAND_DISPATCH is None:
+        _EXPAND_DISPATCH = _get_expand_dispatch()
+
+    handler = _EXPAND_DISPATCH.get(type(node))
+    if handler is not None:
+        handler(node, loop_map, gate_map, reachable)

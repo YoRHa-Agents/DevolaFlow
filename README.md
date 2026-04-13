@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-4.5.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-5.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -159,12 +159,13 @@ The agent will compare your installed version against the latest on GitHub and t
 | "update refs" / "check references" | `self-update` — track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
 
-## What's New in v4.5.0
+## What's New in v5.0.0
 
-- **NieR: Automata Visual Identity** — Project branding aligned with its Devola namesake across documentation, web demo, and README
-- **CI Pipeline Hardening** — Improved GitHub Actions workflows for reliability on PRs and releases
-- **Documentation Redesign** — Human-facing docs, guides, and interactive demo refreshed with unified styling
-- **Version Consistency** — All 16 version locations kept in sync via automated bump tooling
+- **NineS v2.0.0 Integration** — Full CLI migration with self-improvement loop (self-eval → iterate → benchmark)
+- **Code Quality Improvements** — NineS-guided complexity reduction: select_context CC 23→7, findings 7→0
+- **Karpathy Behavioral Norms** — Explicit assumptions, simplicity review gates, anti-complexity checks
+- **Self-Update Workflow Enhanced** — NineS iterate/benchmark integrated into the self-update pipeline
+- **18 Reference Dependencies Tracked** — Added andrej-karpathy-skills to external reference tracking
 
 ## What's Inside
 
@@ -255,7 +256,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v4.5.0"
+devola-version                   # prints "DevolaFlow v5.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -286,8 +287,8 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 4.5.0            # updates all 16 version locations
-python scripts/bump_version.py 4.5.0 --dry-run   # preview without writing
+python scripts/bump_version.py 5.0.0            # updates all 16 version locations
+python scripts/bump_version.py 5.0.0 --dry-run   # preview without writing
 ```
 
 ## CLI Tools

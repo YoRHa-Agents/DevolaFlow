@@ -244,6 +244,53 @@ def get_learnings_stats(jsonl_path: Path) -> dict:
     }
 
 
+@dataclass
+class ExternalSourceReview:
+    """A review record for an external tracked source."""
+
+    source_id: str
+    review_date: str
+    findings_summary: str
+    relevance_delta: float
+    timestamp: str = ""
+
+    def __post_init__(self) -> None:
+        self.relevance_delta = max(-5.0, min(5.0, float(self.relevance_delta)))
+
+
+def log_external_source_review(
+    source_id: str,
+    review_date: str,
+    findings_summary: str,
+    relevance_delta: float,
+    jsonl_path: Path | None = None,
+) -> bool:
+    """Append an external source review record to a JSONL file.
+
+    Writes to *jsonl_path* (defaults to
+    ``workflow-system/agent/knowledge/learnings/external-sources.jsonl``
+    under the current working directory).
+
+    Returns *True* if the record was written.
+    """
+    if jsonl_path is None:
+        jsonl_path = Path("workflow-system/agent/knowledge/learnings/external-sources.jsonl")
+
+    review = ExternalSourceReview(
+        source_id=source_id,
+        review_date=review_date,
+        findings_summary=findings_summary,
+        relevance_delta=relevance_delta,
+        timestamp=_now_iso(),
+    )
+
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(jsonl_path, "a") as f:
+        f.write(json.dumps(asdict(review), ensure_ascii=False) + "\n")
+    logger.info("Logged external source review: %s", source_id)
+    return True
+
+
 def format_learnings_section(
     learnings: list[Learning],
     max_tokens: int = 500,

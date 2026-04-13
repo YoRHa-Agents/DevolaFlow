@@ -20,9 +20,9 @@ from devolaflow.gate.models import GateVerdict
 logger = logging.getLogger(__name__)
 
 _DEFAULT_COMMANDS: dict[str, str] = {
-    "self-eval": "nines self-eval --dimensions all --format json",
-    "review": "nines analyze review {path} --reviewers all --format json",
-    "iterate": "nines iterate --max-rounds 1 --format json",
+    "self-eval": "nines -f json self-eval",
+    "review": "nines -f json analyze --target-path {path}",
+    "iterate": "nines -f json iterate --max-rounds 1",
 }
 
 
@@ -67,18 +67,41 @@ def _run_nines_command(cmd: str, retries: int) -> dict[str, object] | None:
     return None
 
 
+_SCORE_KEYS = ("score", "overall_score", "quality_score")
+_REASONING_KEYS = ("reasoning", "summary", "details")
+_APPROVE_STATUSES = frozenset({"pass", "passed", "approve", "approved", "ok"})
+_SCORE_THRESHOLD = 70
+
+
+def _extract_score(data: dict[str, object]) -> int | float | None:
+    for key in _SCORE_KEYS:
+        val = data.get(key)
+        if isinstance(val, (int, float)):
+            return val
+    return None
+
+
+def _extract_reasoning(data: dict[str, object]) -> str:
+    for key in _REASONING_KEYS:
+        val = data.get(key)
+        if val:
+            return str(val)
+    return ""
+
+
 def _interpret_result(data: dict[str, object]) -> tuple[str, str]:
     """Derive an APPROVE/REJECT verdict and reasoning from NineS output."""
-    score = data.get("score") or data.get("overall_score") or data.get("quality_score")
-    reasoning = str(data.get("reasoning") or data.get("summary") or data.get("details", ""))
+    score = _extract_score(data)
+    reasoning = _extract_reasoning(data)
 
-    if isinstance(score, (int, float)) and score >= 70:
-        return "APPROVE", reasoning or f"NineS score {score} meets threshold"
-    if isinstance(score, (int, float)):
-        return "REJECT", reasoning or f"NineS score {score} below threshold"
+    if score is not None:
+        verdict = "APPROVE" if score >= _SCORE_THRESHOLD else "REJECT"
+        meets = "meets" if score >= _SCORE_THRESHOLD else "below"
+        fallback = f"NineS score {score} {meets} threshold"
+        return verdict, reasoning or fallback
 
     status = str(data.get("status", "")).lower()
-    if status in {"pass", "passed", "approve", "approved", "ok"}:
+    if status in _APPROVE_STATUSES:
         return "APPROVE", reasoning or "NineS status: approved"
     return "REJECT", reasoning or "NineS did not return a passing status"
 

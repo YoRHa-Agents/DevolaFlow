@@ -208,6 +208,38 @@ class _ProposalState:
     recent_rule_ids: dict[str, str] = field(default_factory=dict)
 
 
+def _make_proposal(
+    index: int,
+    ptype: str,
+    description: str,
+    confidence: float,
+    target_file: str,
+    suggested_change: str,
+) -> dict:
+    return {
+        "id": f"prop-{_now_iso()[:10]}-{index + 1:03d}",
+        "type": ptype,
+        "description": description,
+        "confidence": confidence,
+        "target_file": target_file,
+        "suggested_change": suggested_change,
+    }
+
+
+def _filter_valid_proposals(proposals: list[dict]) -> list[dict]:
+    valid: list[dict] = []
+    for p in proposals:
+        tf = p.get("target_file", "")
+        if _is_locked(tf):
+            logger.info("Rejecting proposal for locked file: %s", tf)
+            continue
+        if not _inside_devolaflow(tf):
+            logger.info("Rejecting proposal for out-of-scope file: %s", tf)
+            continue
+        valid.append(p)
+    return valid[:MAX_PROPOSALS_PER_WORKFLOW]
+
+
 class ProposalGenerator:
     """Creates structured improvement proposals from analysis results.
 
@@ -244,10 +276,20 @@ class ProposalGenerator:
             return []
 
         proposals: list[dict] = []
+        self._add_violation_proposals(analysis, confidence, proposals)
+        self._add_stagnation_proposal(analysis, confidence, proposals)
+        self._add_mismatch_proposals(analysis, confidence, proposals)
+        return _filter_valid_proposals(proposals)
 
+    def _add_violation_proposals(
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
+    ) -> None:
         for violation in analysis.get("recurring_violations", []):
             if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
-                break
+                return
             rule_id = violation.get("rule_id", "")
             if not rule_id:
                 continue
@@ -256,62 +298,65 @@ class ProposalGenerator:
                 logger.info("Skipping locked target: %s", target)
                 continue
             proposals.append(
-                {
-                    "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
-                    "type": "rule_update",
-                    "description": (
+                _make_proposal(
+                    index=len(proposals),
+                    ptype="rule_update",
+                    description=(
                         f"Rule {rule_id} violated {violation.get('count', 0)} times — "
                         "consider clarification or threshold adjustment"
                     ),
-                    "confidence": confidence,
-                    "target_file": target,
-                    "suggested_change": f"Review rule {rule_id} for clarity",
-                }
+                    confidence=confidence,
+                    target_file=target,
+                    suggested_change=f"Review rule {rule_id} for clarity",
+                )
             )
 
-        if analysis.get("stagnation_detected") and len(proposals) < MAX_PROPOSALS_PER_WORKFLOW:
-            target = "workflow-system/agent/context_profiles.yaml"
-            if not _is_locked(target):
-                proposals.append(
-                    {
-                        "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
-                        "type": "profile_tune",
-                        "description": (
-                            "Convergence stagnation detected — "
-                            "consider adjusting gate thresholds or max_rounds"
-                        ),
-                        "confidence": confidence,
-                        "target_file": target,
-                        "suggested_change": "Lower composite_threshold or increase max_rounds",
-                    }
-                )
+    def _add_stagnation_proposal(
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
+    ) -> None:
+        if not analysis.get("stagnation_detected"):
+            return
+        if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
+            return
+        target = "workflow-system/agent/context_profiles.yaml"
+        if _is_locked(target):
+            return
+        proposals.append(
+            _make_proposal(
+                index=len(proposals),
+                ptype="profile_tune",
+                description=(
+                    "Convergence stagnation detected — "
+                    "consider adjusting gate thresholds or max_rounds"
+                ),
+                confidence=confidence,
+                target_file=target,
+                suggested_change="Lower composite_threshold or increase max_rounds",
+            )
+        )
 
+    def _add_mismatch_proposals(
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
+    ) -> None:
+        target = "workflow-system/agent/context_profiles.yaml"
         for mismatch in analysis.get("profile_mismatches", []):
             if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
-                break
-            target = "workflow-system/agent/context_profiles.yaml"
+                return
             if _is_locked(target):
                 continue
             proposals.append(
-                {
-                    "id": f"prop-{_now_iso()[:10]}-{len(proposals) + 1:03d}",
-                    "type": "profile_tune",
-                    "description": f"Profile mismatch: {mismatch}",
-                    "confidence": confidence,
-                    "target_file": target,
-                    "suggested_change": "Adjust section_priorities or token budget",
-                }
+                _make_proposal(
+                    index=len(proposals),
+                    ptype="profile_tune",
+                    description=f"Profile mismatch: {mismatch}",
+                    confidence=confidence,
+                    target_file=target,
+                    suggested_change="Adjust section_priorities or token budget",
+                )
             )
-
-        valid: list[dict] = []
-        for p in proposals:
-            tf = p.get("target_file", "")
-            if _is_locked(tf):
-                logger.info("Rejecting proposal for locked file: %s", tf)
-                continue
-            if not _inside_devolaflow(tf):
-                logger.info("Rejecting proposal for out-of-scope file: %s", tf)
-                continue
-            valid.append(p)
-
-        return valid[:MAX_PROPOSALS_PER_WORKFLOW]
