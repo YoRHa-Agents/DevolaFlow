@@ -126,7 +126,8 @@ def test_skill_md_body_version_matches(project_root: Path):
     """SKILL.md body 'Current version:' must match __init__.py."""
     canonical = _read_version_from_init(project_root)
     skill = project_root / "workflow-system" / "agent" / "SKILL.md"
-    match = re.search(r"\*\*Current version:\*\*\s*(\d+\.\d+\.\d+)", skill.read_text())
+    pat = r"\*\*Current version:\*\*\s*(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)"
+    match = re.search(pat, skill.read_text())
     assert match, "Current version not found in SKILL.md body"
     assert match.group(1) == canonical, f"SKILL.md body version {match.group(1)} != {canonical}"
 
@@ -136,7 +137,7 @@ def test_mvp_skill_md_body_version_matches(project_root: Path):
     canonical = _read_version_from_init(project_root)
     mvp = project_root / "workflow-system" / "agent" / "MVP-SKILL.md"
     text = mvp.read_text()
-    match = re.search(r"\*\*Current version:\*\*\s*(\d+\.\d+\.\d+)", text)
+    match = re.search(r"\*\*Current version:\*\*\s*(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)", text)
     assert match, "Current version not found in MVP-SKILL.md body"
     assert match.group(1) == canonical, f"MVP-SKILL.md body version {match.group(1)} != {canonical}"
     assert f"Compare with current version ({canonical})" in text
@@ -147,7 +148,7 @@ def test_readme_version_badge_matches(project_root: Path):
     """README.md version badge must match __init__.py."""
     canonical = _read_version_from_init(project_root)
     readme = project_root / "README.md"
-    match = re.search(r"version-(\d+\.\d+\.\d+)-green", readme.read_text())
+    match = re.search(r"version-(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)-green", readme.read_text())
     assert match, "Version badge not found in README.md"
     assert match.group(1) == canonical, f"README badge version {match.group(1)} != {canonical}"
 
@@ -156,7 +157,7 @@ def test_benchmark_results_version_matches(project_root: Path):
     """Benchmark results page SAMPLE_DATA version must match __init__.py."""
     canonical = _read_version_from_init(project_root)
     bench = project_root / "workflow-system" / "human" / "demo" / "benchmark-results" / "index.html"
-    match = re.search(r'"version":"(\d+\.\d+\.\d+)"', bench.read_text())
+    match = re.search(r'"version":"(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)"', bench.read_text())
     assert match, "version not found in benchmark-results SAMPLE_DATA"
     assert match.group(1) == canonical, f"benchmark-results version {match.group(1)} != {canonical}"
 

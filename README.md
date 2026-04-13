@@ -3,7 +3,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-4.2.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-4.3.0-rc.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
 
@@ -72,7 +72,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 434+ tests, 17 templates
+make test && make validate-templates   # 434+ tests, 18 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -159,7 +159,7 @@ The agent will compare your installed version against the latest on GitHub and t
 
 ## What's Inside
 
-### 17 Built-in Workflow Types
+### 18 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
@@ -180,6 +180,7 @@ The agent will compare your installed version against the latest on GitHub and t
 | `onboarding` | New contributor, codebase intro | analyze → document → setup → verify |
 | `skill-optimization` | SKILL.md / skills, EvoBench, context density | survey → profile → optimize → benchmark → iterate → document |
 | `self-update` | Update references, track external changes | check-refs → research-updates → decompose → integrate → test → evaluate |
+| NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
 
 ### 4-Layer Agent Hierarchy
 
@@ -256,7 +257,7 @@ DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/_
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v4.2.0"
+devola-version                   # prints "DevolaFlow v4.3.0-rc.1"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

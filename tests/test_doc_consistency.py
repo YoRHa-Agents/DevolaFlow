@@ -26,8 +26,8 @@ def test_readme_workflow_type_count(project_root: Path):
 
     yaml_count = len(list(templates_dir.glob("*.yaml")))
 
-    assert table_rows == yaml_count == 17, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 17"
+    assert table_rows == yaml_count == 18, (
+        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 18"
     )
 
 
@@ -257,7 +257,7 @@ def test_demo_index_version_matches_package(project_root: Path):
     assert demo_match, "Could not find 'New in vX.Y.Z' heading in demo/index.html"
     demo_version = demo_match.group(1)
 
-    pkg_match = re.search(r'__version__\s*=\s*"(\d+\.\d+\.\d+)"', init_py)
+    pkg_match = re.search(r'__version__\s*=\s*"(\d+\.\d+\.\d+)(?:-[a-zA-Z0-9.]+)?"', init_py)
     assert pkg_match, "Could not find __version__ in __init__.py"
     pkg_version = pkg_match.group(1)
 

@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "4.2.0"
+  version: "4.3.0-rc.1"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -360,6 +360,10 @@ content:
         file: "templates/builtin/self-update.yaml"
         stages: ["check-refs", "research-updates", "decompose", "integrate", "test", "evaluate"]
         description: "Self-referential skill and workflow update with validation"
+
+      - id: nines-assisted
+        file: "templates/builtin/nines-assisted.yaml"
+        tags: ["nines", "research", "iteration", "skill-optimization"]
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.

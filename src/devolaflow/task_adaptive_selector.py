@@ -13,6 +13,7 @@ Based on: WP-4 Rank 4 (Task-Adaptive Context Selection via Goal-Hint Routing),
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -97,8 +98,13 @@ def load_skill_md(config: dict[str, Any]) -> str:
     return skill_path.read_text()
 
 
+_LINE_RANGE_RE = re.compile(r"^\d+-\d+$")
+
+
 def extract_section(full_text: str, line_range: str) -> str:
     """Extract lines from full_text given a range like '57-68'."""
+    if not line_range or not _LINE_RANGE_RE.match(line_range):
+        return ""
     lines = full_text.splitlines()
     start, end = map(int, line_range.split("-"))
     return "\n".join(lines[start - 1 : end])
@@ -222,7 +228,7 @@ def select_context(
 
             sec_info = sections_registry[section_name]
             line_range = sec_info.get("lines", "")
-            if not line_range:
+            if not line_range or not _LINE_RANGE_RE.match(line_range):
                 continue
 
             text = extract_section(skill_text, line_range)
