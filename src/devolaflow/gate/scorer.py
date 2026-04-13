@@ -1,10 +1,12 @@
 """Gate composite scorer and quality scorer.
 
 Design ref: design_decomposition_gate.md §5.3, §5.7
+NineS integration: §nines-integration
 """
 
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from collections.abc import Sequence
 
@@ -423,6 +425,84 @@ def _evaluate_convergence(
         composite_score=score,
         meets_threshold=False,
     )
+
+
+def evaluate_gate_with_nines(
+    gate_input: GateInput,
+    profile: GateProfile,
+    round_num: int = 1,
+    history: list[ConvergenceRound] | None = None,
+    gate_type: str = "standard",
+    nines_config: object | None = None,
+    advisor_config: object | None = None,
+    artifact_path: str = "",
+) -> GateVerdict:
+    """Evaluate a gate with optional NineS-backed scoring and advisor.
+
+    .. deprecated::
+        NineS is a research/iteration tool, not a gate scorer.  Use
+        :func:`evaluate_gate` for quality gates.  See
+        ``devolaflow.nines.researcher`` for NineS research capabilities.
+
+    Delegates to :func:`evaluate_gate` first, then — when NineS is
+    installed and *nines_config* is provided — enriches the verdict with
+    NineS dimension scores and advisor analysis.
+
+    All NineS imports are lazy so the gate package has no hard dependency
+    on the ``devolaflow.nines`` module.  When NineS is unavailable the
+    original verdict is returned unchanged.
+
+    Parameters
+    ----------
+    nines_config:
+        A ``NinesScorerConfig`` instance (from ``devolaflow.nines.scorer``).
+        ``None`` disables NineS scoring entirely.
+    advisor_config:
+        A ``NinesAdvisorConfig`` instance (from ``devolaflow.nines.advisor``).
+        ``None`` disables advisor enrichment.
+    artifact_path:
+        Filesystem path forwarded to NineS CLI commands.
+    """
+    warnings.warn(
+        "evaluate_gate_with_nines is deprecated. NineS is a research/iteration tool, "
+        "not a gate scorer. Use the standard evaluate_gate() for quality gates. "
+        "See devolaflow.nines.researcher for NineS research capabilities.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    verdict = evaluate_gate(gate_input, profile, round_num, history, gate_type)
+
+    if nines_config is None:
+        return verdict
+
+    try:
+        from devolaflow.nines.detector import detect_nines
+        from devolaflow.nines.scorer import nines_dimension_scores
+    except ImportError:
+        return verdict
+
+    status = detect_nines()
+    if not status.available:
+        return verdict
+
+    nines_scores = nines_dimension_scores(nines_config, artifact_path)
+
+    if verdict.composite_score is not None:
+        merged = composite_score(nines_scores)
+        verdict.composite_score = merged
+        verdict.meets_threshold = (
+            merged >= profile.composite_threshold and round_num >= profile.min_rounds
+        )
+        verdict.details["nines_dimension_scores"] = nines_scores
+
+    if verdict.advisor_recommended and advisor_config is not None:
+        try:
+            from devolaflow.nines.advisor import run_nines_advisor
+        except ImportError:
+            return verdict
+        verdict = run_nines_advisor(verdict, advisor_config, artifact_path)
+
+    return verdict
 
 
 def run_gate_cli(args: Sequence[str]) -> None:

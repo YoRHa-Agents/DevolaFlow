@@ -1,0 +1,93 @@
+# DevolaFlow Plugin Registry
+# Canonical definitions for external tool plugins.
+# Loaded by: devolaflow.plugins.loader.load_plugin_specs()
+
+meta:
+  version: "1.0.0"
+  description: "Plugin specifications for DevolaFlow external tool integrations"
+
+plugins:
+
+  nines:
+    description: "Multi-vertex evaluation, information collection, and knowledge analysis for agent research and skill iteration"
+    cli_binary: "nines"
+    version_command: "nines --version"
+    version_regex: 'version\s+(\d+\.\d+\.\d+\S*)'
+    install_methods:
+      pip: "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
+      script: "curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/NineS/main/scripts/install.sh | bash"
+    skill_install_command: "nines install --target cursor"
+    capabilities:
+      - research_collection     # nines collect — GitHub/arXiv search
+      - knowledge_analysis      # nines analyze — AST analysis, complexity metrics
+      - agent_evaluation        # nines eval — task-based scoring
+      - self_evaluation         # nines self-eval — 19-dimension self-assessment
+      - skill_iteration         # nines iterate — MAPIM self-improvement cycle
+    role: "research_and_iteration"
+    repo_url: "https://github.com/YoRHa-Agents/NineS"
+    min_version: "1.0.0"
+    workflows:
+      - research-only           # nines collect for research gathering
+      - skill-optimization      # nines self-eval, nines iterate for skill improvement
+      - self-update             # nines analyze for understanding upstream changes
+    stage_mapping:
+      research: "nines collect github \"{query}\" --limit {limit} --format json"
+      analyze: "nines analyze {target} --depth deep --decompose --index --format json"
+      validate: "nines self-eval --compare --report --format json"
+      monitor: "nines iterate --max-rounds 1 --format json"
+
+  ui-pro:
+    description: "Professional UI component generation, design system scaffolding, and themed presentations"
+    cli_binary: "ui-pro"
+    version_command: "ui-pro --version"
+    version_regex: '(\d+\.\d+\.\d+)'
+    install_methods:
+      npm: "npm install -g @anthropic/ui-pro"
+      pip: "pip install ui-pro"
+    capabilities:
+      - ui_generation           # Generate UI components from specifications
+      - design_system           # Scaffold design system tokens and components
+      - themed_presentation     # Create themed demo/presentation UIs
+      - component_library       # Access pre-built component library
+    role: "ui_tooling"
+    repo_url: "https://github.com/anthropic/ui-pro"
+    workflows:
+      - demo-showcase           # ui-pro for building demo UIs
+      - full-pipeline           # ui-pro when project involves frontend
+      - feature-enhancement     # ui-pro for UI-related features
+    stage_mapping:
+      implement: "ui-pro generate {component_spec} --format {format}"
+      design: "ui-pro scaffold {design_tokens} --theme {theme}"
+
+plugin_roles:
+  research_and_iteration:
+    description: "Tools for agent-facing research, analysis, and self-improvement"
+    primary_workflows:
+      - research-only
+      - skill-optimization
+      - self-update
+    stage_affinity:
+      - research
+      - analyze
+      - validate
+    invocation: "on_demand"  # Only invoked when workflow needs it
+
+  ui_tooling:
+    description: "Tools for UI generation and design system management"
+    primary_workflows:
+      - demo-showcase
+      - full-pipeline
+      - feature-enhancement
+    stage_affinity:
+      - implement
+      - design
+    invocation: "on_demand"
+
+  gate_scoring:
+    description: "Tools that provide automated quality scoring for gates"
+    primary_workflows: []   # No plugins currently assigned to gate scoring
+    stage_affinity:
+      - gate
+      - review
+      - test
+    invocation: "automatic"  # Invoked by gate mechanism when available

@@ -1,0 +1,294 @@
+schema_version: "1.0"
+
+metadata:
+  name: nines-assisted
+  version: "1.0.0"
+  display_name: "NineS-Assisted Research & Iteration Pipeline"
+  description: >
+    Research-driven workflow using NineS for information collection, analysis,
+    and skill iteration. Extends the standard full-pipeline by injecting NineS
+    collection during research, deep analysis during design, and self-evaluation
+    during validation. Standard DevolaFlow review and test stages handle quality
+    gates without NineS. Falls back to full-pipeline when NineS is unavailable.
+  category: composite
+  nines_role: research_and_iteration
+  applicable_scenarios:
+    - "Research-heavy projects needing NineS collection and analysis"
+    - "Workflows requiring deep codebase understanding via NineS analyze"
+    - "Skill iteration and self-improvement using NineS self-eval"
+    - "Full lifecycle development with NineS-assisted research stages"
+  tags: [nines, research, iteration, skill-optimization, analysis, assisted]
+  extends: full-pipeline
+  nines_required: true
+  nines_min_version: "1.0.0"
+  fallback_workflow: full-pipeline
+
+stages:
+  - id: research
+    primitive: research
+    description: >
+      Research with NineS collection capabilities. Gathers external references,
+      prior art, and codebase context using NineS GitHub collection.
+    team: research
+    duration_class: medium
+    config:
+      formality: standard
+      nines_commands:
+        - "nines collect github \"{query}\" --limit 20 --format json"
+    input_mapping: {}
+
+  - id: design
+    primitive: design
+    description: >
+      Define architecture, interfaces, data models, and technical approach.
+      Uses NineS deep analysis for decomposition and indexing.
+    team: design
+    duration_class: long
+    config:
+      formality: standard
+      diagram_types: [mermaid]
+      design_type: architecture
+      nines_commands:
+        - "nines analyze {target} --depth deep --decompose --index --format json"
+    input_mapping:
+      context: "research"
+
+  - id: plan
+    primitive: plan
+    description: >
+      Decompose the design into implementable Waves and Tasks with dependencies,
+      estimates, and acceptance criteria.
+    team: design
+    duration_class: medium
+    config:
+      granularity: standard
+      max_parallel_waves: 3
+      estimate_unit: minutes
+    input_mapping:
+      design: "design"
+
+  - id: impl
+    primitive: implement
+    description: >
+      Execute the plan — write code, create tests, build infrastructure as specified.
+      Follows TDD with target 80% coverage.
+    team: implement
+    duration_class: long
+    config:
+      test_strategy: tdd
+      target_coverage: 0.80
+    input_mapping:
+      tasks: "plan.waves"
+      code_rules: "_context.code_rules"
+
+  - id: review
+    primitive: review
+    description: >
+      Standard DevolaFlow code review — design compliance, security, and
+      style/convention adherence. Blocks progression if critical issues found.
+    team: review
+    duration_class: medium
+    config:
+      review_type: code
+      pass_threshold: 0.80
+      require_zero_blocking: true
+      reviewer_count: 1
+    input_mapping:
+      artifacts: "impl.artifacts"
+      acceptance_criteria: "plan.acceptance_criteria"
+
+  - id: test
+    primitive: test
+    description: >
+      Standard DevolaFlow test execution — automated test suites measuring
+      coverage and pass rate. Uses standard gate scoring, not NineS.
+    team: test
+    duration_class: medium
+    config:
+      suites: [unit, integration, e2e]
+      coverage_threshold: 0.80
+      fail_fast: false
+    input_mapping:
+      code_refs: "impl.files_changed"
+
+  - id: refine
+    primitive: refine
+    description: >
+      Address findings from review and/or test — fix bugs, resolve review comments.
+      Targeted scope: only touch files cited in findings.
+    team: implement
+    duration_class: medium
+    config:
+      scope: targeted
+      allow_new_features: false
+    input_mapping:
+      findings: "review.findings + test.failures"
+      original_artifacts: "impl.artifacts"
+
+  - id: validate
+    primitive: validate
+    alias: nines_validation
+    description: >
+      Validation with NineS self-assessment — runs self-eval for quality
+      introspection. Aggregates all verification results with strict thresholds.
+      Must pass ALL criteria before release. Never bypassed.
+    team: review
+    duration_class: medium
+    config:
+      require_all_criteria: true
+      allow_waivers: false
+      nines_commands:
+        - "nines self-eval --compare --report --format json"
+    input_mapping:
+      review_verdict: "review"
+      test_result: "test"
+      acceptance_criteria: "plan.acceptance_criteria"
+      quality_thresholds:
+        test_pass_rate: 1.0
+        code_coverage: 0.80
+        blocking_issues: 0
+
+  - id: release
+    primitive: release
+    description: >
+      Package, tag, deploy, and announce. Create release artifacts,
+      update changelogs, deploy to target environments.
+    team: implement
+    duration_class: medium
+    config:
+      version_strategy: semver
+      require_human_approval: true
+      draft_mode: false
+    input_mapping:
+      artifacts: "impl.artifacts"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: research
+    - compose: gate
+      ref: research_gate
+    - stage: design
+    - compose: gate
+      ref: design_gate
+    - stage: plan
+    - compose: gate
+      ref: plan_gate
+    - compose: loop
+      ref: impl_review_test_cycle
+    - stage: validate
+    - compose: gate
+      ref: release_gate
+    - stage: release
+
+loops:
+  - name: impl_review_test_cycle
+    body_stages: [impl, review, test, refine]
+    until: "review.decision == 'pass' and test.pass_rate == 1.0"
+    max_iterations: 3
+    quality_threshold: 0.80
+    on_exhaustion: escalate
+    escalation_target: plan
+    escalation_max: 1
+
+  - name: review_refine
+    body_stages: [review, refine]
+    until: "review.decision == 'pass'"
+    max_iterations: 3
+    quality_threshold: 0.80
+    on_exhaustion: escalate
+    escalation_target: plan
+
+  - name: test_fix
+    body_stages: [test, refine]
+    until: "test.pass_rate == 1.0"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: plan
+
+gates:
+  - name: research_gate
+    position: "after:research"
+    criteria:
+      - field: research.findings
+        operator: "exists"
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: research
+    require_human_override: false
+    auto_insert: true
+
+  - name: design_gate
+    position: "after:design"
+    criteria:
+      - field: design.specification
+        operator: "exists"
+        value: true
+      - field: design.decisions
+        operator: "!="
+        value: []
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: design
+    require_human_override: false
+    auto_insert: true
+
+  - name: plan_gate
+    position: "after:plan"
+    criteria:
+      - field: plan.waves
+        operator: "!="
+        value: []
+      - field: plan.acceptance_criteria
+        operator: "!="
+        value: []
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: plan
+    require_human_override: false
+    auto_insert: true
+
+  - name: release_gate
+    position: "before:release"
+    criteria:
+      - field: validate.ready
+        operator: "=="
+        value: true
+      - field: test.pass_rate
+        operator: ">="
+        value: 1.0
+      - field: test.coverage
+        operator: ">="
+        value: 0.80
+      - field: review.blocking_count
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: refine
+    require_human_override: true
+    auto_insert: true
+
+team_overrides: {}
+
+environment_modes:
+  local:
+    skip_stages: [release]
+    gate_overrides:
+      release_gate:
+        criteria:
+          - field: test.pass_rate
+            operator: ">="
+            value: 0.95
+          - field: test.coverage
+            operator: ">="
+            value: 0.70
+  github:
+    extra_stages: []
+  gitlab:
+    extra_stages: []

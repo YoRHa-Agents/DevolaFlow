@@ -5,6 +5,26 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-04-13
+
+### Added
+- **Plugin Registry System**: New `src/devolaflow/plugins/` package providing unified plugin management for external tools (NineS, ui-pro, future plugins). Features: auto-detect via `shutil.which`, auto-install with configurable methods (pip, npm, script), version checking, upgrade support, and capability/role-based queries. Canonical plugin definitions in `workflow-system/agent/plugins.yaml`.
+- **NineS Research Module**: New `src/devolaflow/nines/researcher.py` with research-focused functions: `collect_research()` for information gathering via `nines collect`, `analyze_target()` for deep codebase analysis, `run_self_evaluation()` for agent self-assessment, `run_skill_iteration()` for MAPIM self-improvement cycles.
+- **NineS Integration Module**: New `src/devolaflow/nines/` package with `detector.py` (CLI auto-detection), `scorer.py` (low-level CLI wrappers), `advisor.py` (research advice and deprecated gate advisor).
+- **NineS-Assisted Workflow Template**: New `nines-assisted.yaml` template for research-driven workflows using NineS for collection, analysis, and skill iteration.
+- **Gate NineS Bridge** (deprecated): `evaluate_gate_with_nines()` in gate scorer — backward-compatible but emits DeprecationWarning directing users to standard `evaluate_gate()` for quality gates.
+
+### Changed
+- **NineS role correction**: NineS repositioned from gate scoring tool to research/iteration tool. Removed `nines_provider` from gate advisor configs. NineS now active only in `research`, `skill-optimization`, and `self-update` workflows.
+- **Context profiles**: `nines_advisor` priority set to `critical` for research/skill-optimization profiles, `supplementary` for standard workflows, `skip` for review. Triggers changed from gate-focused to research-focused (`research_collection`, `knowledge_analysis`, `skill_iteration`, `self_evaluation`).
+- **Task adaptive selector**: `extract_section()` now handles non-numeric line ranges (e.g., `"N/A"`) gracefully instead of raising `ValueError`.
+
+### Metrics
+- Tests: 643 passed (+139 from v4.2.0)
+- Coverage: 90.45% (threshold: 80.0%)
+- New modules coverage: plugins/ 91%, nines/ 100%, researcher.py 93%
+- Lint/format: All checks pass
+
 ## [4.2.0] - 2026-04-12
 
 ### Added
