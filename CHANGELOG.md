@@ -5,7 +5,7 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.0.0-pre] — 2026-04-13
+## [5.0.0] — 2026-04-13
 
 ### Added
 - **NineS v2.0.0 CLI Migration**: Updated all 4 nines/ modules (researcher, scorer, advisor, detector) from v1.0.0-pre to v2.0.0 CLI syntax. Fixed 6 breaking CLI changes (global --format, named flags for collect/analyze/eval/self-eval/iterate). Added `run_nines_benchmark()` and `run_nines_update()` wrappers.
