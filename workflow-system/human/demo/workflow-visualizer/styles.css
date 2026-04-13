@@ -128,7 +128,7 @@ select:focus {
   display: inline-block;
   margin-top: 0.2rem;
 }
-.agent-box.project { border-left: 4px solid #6f42c1; }
+.agent-box.project { border-left: 4px solid var(--accent); }
 .agent-box.stage   { border-left: 4px solid var(--accent); margin-left: 1.5rem; }
 .agent-box.wave    { border-left: 4px solid var(--success); margin-left: 3rem; }
 .agent-box.task    { border-left: 4px solid var(--error); margin-left: 4.5rem; }

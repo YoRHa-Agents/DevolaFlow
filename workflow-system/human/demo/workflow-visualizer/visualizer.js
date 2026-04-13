@@ -242,11 +242,11 @@ const WORKFLOWS = {
 };
 
 const TEAM_COLORS = {
-  Research: "#6f42c1",
-  Design: "#0d6efd",
-  Implement: "#198754",
-  Test: "#fd7e14",
-  Review: "#dc3545",
+  Research: "#B8860B",
+  Design: "#C49A3C",
+  Implement: "#5B7553",
+  Test: "#D4A843",
+  Review: "#9B4444",
 };
 
 function renderWorkflow(key) {

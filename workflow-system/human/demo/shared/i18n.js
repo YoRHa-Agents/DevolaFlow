@@ -35,37 +35,46 @@
 
       /* -- Landing page: header -- */
       'landing.title':      'DevolaFlow',
-      'landing.tagline':    'Composable workflow meta-framework for AI-assisted software development',
-      'landing.subtitle':   'Define multi-stage delivery pipelines as declarative YAML. Let any AI coding tool orchestrate them through a 4-layer agent hierarchy with quality gates.',
+      'landing.tagline':    'A guardian\'s song for your code — orchestrating workflows so nothing is left behind.',
+      'landing.subtitle':   'Define multi-stage delivery pipelines as declarative YAML. A 4-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.',
 
       /* -- Landing: quick start -- */
       'landing.install':    'Install in 1 command',
 
       /* -- Landing: How It Works -- */
       'landing.howItWorks':        'How It Works',
-      'landing.howItWorks.desc':   'Every workflow executes through a strict 4-layer hierarchy. Upper layers dispatch; only the bottom layer works.',
+      'landing.howItWorks.desc':   'Like Devola watching over the old world, the hierarchy ensures every task is protected and guided. Upper layers dispatch; only the bottom layer works.',
       'landing.layer.project':     'Project',
-      'landing.layer.project.desc':'picks workflow type, dispatches stages',
+      'landing.layer.project.desc':'the overseer — picks workflow type, dispatches stages',
       'landing.layer.stage':       'Stage',
-      'landing.layer.stage.desc':  'decomposes into waves, runs quality gates',
+      'landing.layer.stage.desc':  'the conductor — decomposes into waves, runs quality gates',
       'landing.layer.wave':        'Wave',
-      'landing.layer.wave.desc':   'dispatches tasks in parallel, collects results',
+      'landing.layer.wave.desc':   'the coordinator — dispatches tasks in parallel, collects results',
       'landing.layer.task':        'Task',
-      'landing.layer.task.desc':   'writes code, runs tests, reviews — the ONLY layer that works',
+      'landing.layer.task.desc':   'the hands that build — writes code, runs tests, reviews. The ONLY layer that works.',
 
       /* -- Landing: Workflow Types -- */
       'landing.workflows':         '17 Built-in Workflow Types',
-      'landing.workflows.desc':    'Pick the right workflow for your task. Each is a different composition of the same 13 stage primitives.',
+      'landing.workflows.desc':    'Every task deserves the right approach. Each workflow is a different arrangement of the same 13 stage primitives.',
       'landing.workflow.col.name': 'Workflow',
       'landing.workflow.col.when': 'When to use',
       'landing.workflow.col.stages':'Stages',
 
       /* -- Landing: Interactive Tools -- */
       'landing.tools':             'Interactive Tools',
-      'landing.tools.desc':        'Explore the framework, workflows, and stages visually — no installation required.',
+      'landing.tools.desc':        'Explore the framework visually — see the architecture, trace workflows, and inspect stage primitives. No installation required.',
 
       /* -- Landing: Version highlights -- */
       'landing.whatsNew':          'What\'s New',
+      'landing.whatsNew.desc':     'Devola\'s visual identity comes home — warm parchment, gold accents, and the unmistakable presence of a guardian android watching over every workflow.',
+      'landing.whatsNew.identity':      'NieR: Automata Visual Redesign',
+      'landing.whatsNew.identity.desc': 'Full visual identity overhaul: warm parchment palette, Cinzel serif headings, gold accent borders, diamond section ornaments, corner marks on hover, and scan-flicker boot animation — all inspired by Devola\'s world.',
+      'landing.whatsNew.ci':            'Improved GitHub Actions CI',
+      'landing.whatsNew.ci.desc':       'Concurrency controls prevent duplicate runs, required status checks enforce quality gates on every PR, and the release pipeline is streamlined for faster delivery.',
+      'landing.whatsNew.docs':          'Documentation Sync Rules',
+      'landing.whatsNew.docs.desc':     'New rules ensure human-facing docs stay synchronized with agent-facing skill files. Version bumps propagate automatically across all eight sync targets.',
+      'landing.whatsNew.metrics':       '643 Tests, 90.45% Coverage',
+      'landing.whatsNew.metrics.desc':  '25 EvoBench scenarios, 18 context profiles, all 4 adapter outputs within budget. Quality gates hold the line — just as Devola would.',
       'landing.highlights':        'Highlights',
 
       /* -- Landing: AI Tool integration -- */
@@ -86,6 +95,8 @@
       'label.feedback':      'FEEDBACK',
       'label.gates':         'GATES',
       'label.metrics':       'METRICS',
+      'label.identity':      'IDENTITY',
+      'label.ci':            'CI',
       'label.cursor':        'CURSOR',
       'label.codex':         'CODEX',
       'label.claude':        'CLAUDE',
@@ -117,6 +128,7 @@
       'btn.viewProfiles':   'View Profiles',
       'btn.readOverview':   'Read Overview',
       'btn.gateReference':  'Gate Reference',
+      'btn.viewCI':         'View CI',
 
       /* -- Common labels -- */
       'common.version':     'Version',
@@ -138,7 +150,7 @@
       'common.close':       'Close',
 
       /* -- Page titles -- */
-      'page.landing':       'DevolaFlow — Composable Workflow Meta-Framework',
+      'page.landing':       'DevolaFlow — A Guardian\'s Song for Your Code',
       'page.architecture':  'Design Architecture — DevolaFlow',
       'page.visualizer':    'Workflow Visualizer — DevolaFlow',
       'page.explorer':      'Stage Explorer — DevolaFlow',
@@ -201,37 +213,46 @@
 
       /* -- 首页：头部 -- */
       'landing.title':      'DevolaFlow',
-      'landing.tagline':    '面向 AI 辅助软件开发的可组合工作流元框架',
-      'landing.subtitle':   '将多阶段交付流水线定义为声明式 YAML。让任何 AI 编程工具通过四层代理层次结构和质量门控来编排工作流。',
+      'landing.tagline':    '守护者为代码而歌——编排工作流，不让任何任务被遗忘。',
+      'landing.subtitle':   '将多阶段交付流水线定义为声明式 YAML。四层代理层次结构守护每一个任务，以质量门控确保代码万无一失。',
 
       /* -- 首页：快速开始 -- */
       'landing.install':    '一条命令安装',
 
       /* -- 首页：工作原理 -- */
       'landing.howItWorks':        '工作原理',
-      'landing.howItWorks.desc':   '每个工作流通过严格的四层层次结构执行。上层调度，只有底层执行。',
+      'landing.howItWorks.desc':   '如同 Devola 守望旧世界，层级结构确保每个任务都受到保护与引导。上层调度，只有底层执行。',
       'landing.layer.project':     '项目层',
-      'landing.layer.project.desc':'选择工作流类型，分派阶段',
+      'landing.layer.project.desc':'监督者——选择工作流类型，分派阶段',
       'landing.layer.stage':       '阶段层',
-      'landing.layer.stage.desc':  '分解为波次，运行质量门控',
+      'landing.layer.stage.desc':  '指挥者——分解为波次，运行质量门控',
       'landing.layer.wave':        '波次层',
-      'landing.layer.wave.desc':   '并行分派任务，收集结果',
+      'landing.layer.wave.desc':   '协调者——并行分派任务，收集结果',
       'landing.layer.task':        '任务层',
-      'landing.layer.task.desc':   '写代码、跑测试、做审查——唯一执行工作的层',
+      'landing.layer.task.desc':   '建造之手——写代码、跑测试、做审查。唯一执行工作的层。',
 
       /* -- 首页：工作流类型 -- */
       'landing.workflows':         '17 种内置工作流类型',
-      'landing.workflows.desc':    '为你的任务选择合适的工作流。每种工作流是 13 个阶段原语的不同组合。',
+      'landing.workflows.desc':    '每项任务都值得最合适的方案。每种工作流是 13 个阶段原语的不同编排。',
       'landing.workflow.col.name': '工作流',
       'landing.workflow.col.when': '使用场景',
       'landing.workflow.col.stages':'阶段',
 
       /* -- 首页：交互工具 -- */
       'landing.tools':             '交互工具',
-      'landing.tools.desc':        '可视化探索框架、工作流和阶段——无需安装。',
+      'landing.tools.desc':        '可视化探索框架——查看架构、追踪工作流、检视阶段原语。无需安装。',
 
       /* -- 首页：版本亮点 -- */
       'landing.whatsNew':          '最新更新',
+      'landing.whatsNew.desc':     'Devola 的视觉身份回归——温暖的羊皮纸色调、金色点缀，以及一位守护者仿生人注视着每一条工作流。',
+      'landing.whatsNew.identity':      'NieR: Automata 视觉重设计',
+      'landing.whatsNew.identity.desc': '全面视觉升级：温暖的羊皮纸色调、Cinzel 衬线标题、金色强调边框、菱形分节装饰、悬停时的角标动效，以及扫描闪烁启动动画——灵感源自 Devola 的世界。',
+      'landing.whatsNew.ci':            'GitHub Actions CI 优化',
+      'landing.whatsNew.ci.desc':       '并发控制防止重复运行，必需的状态检查在每个 PR 上强制执行质量门控，发布流水线更加精简高效。',
+      'landing.whatsNew.docs':          '文档同步规则',
+      'landing.whatsNew.docs.desc':     '新规则确保面向用户的文档与面向代理的技能文件保持同步。版本升级自动传播到全部八个同步目标。',
+      'landing.whatsNew.metrics':       '643 个测试，90.45% 覆盖率',
+      'landing.whatsNew.metrics.desc':  '25 个 EvoBench 场景，18 个上下文配置，全部 4 个适配器输出均在预算内。质量门控守住底线——一如 Devola 所愿。',
       'landing.highlights':        '亮点',
 
       /* -- 首页：AI 工具集成 -- */
@@ -252,6 +273,8 @@
       'label.feedback':      '反馈',
       'label.gates':         '门控',
       'label.metrics':       '指标',
+      'label.identity':      '视觉',
+      'label.ci':            'CI',
       'label.cursor':        'CURSOR',
       'label.codex':         'CODEX',
       'label.claude':        'CLAUDE',
@@ -283,6 +306,7 @@
       'btn.viewProfiles':   '查看配置',
       'btn.readOverview':   '阅读概览',
       'btn.gateReference':  '门控参考',
+      'btn.viewCI':         '查看 CI',
 
       /* -- 通用标签 -- */
       'common.version':     '版本',
@@ -304,7 +328,7 @@
       'common.close':       '关闭',
 
       /* -- 页面标题 -- */
-      'page.landing':       'DevolaFlow — 可组合工作流元框架',
+      'page.landing':       'DevolaFlow — 守护者为代码而歌',
       'page.architecture':  '设计架构 — DevolaFlow',
       'page.visualizer':    '工作流可视化 — DevolaFlow',
       'page.explorer':      '阶段探索器 — DevolaFlow',

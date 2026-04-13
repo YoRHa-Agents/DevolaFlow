@@ -4,8 +4,8 @@ description: "17 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-13T15:09:16Z"
-source_version: "4.4.0"
+last_synced: "2026-04-13T16:40:39Z"
+source_version: "4.5.0"
 ---
 
 # Workflow Types Catalog
