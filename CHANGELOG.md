@@ -5,7 +5,7 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.3.0-rc.1] - 2026-04-13
+## [4.3.0] - 2026-04-13
 
 ### Added
 - **Plugin Registry System**: New `src/devolaflow/plugins/` package providing unified plugin management for external tools (NineS, ui-pro, future plugins). Features: auto-detect via `shutil.which`, auto-install with configurable methods (pip, npm, script), version checking, upgrade support, and capability/role-based queries. Canonical plugin definitions in `workflow-system/agent/plugins.yaml`.
