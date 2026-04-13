@@ -1,6 +1,6 @@
 ---
 name: devola-flow-mvp
-version: "4.3.1"
+version: "4.3.0"
 description: >
   Use when orchestrating multi-file software tasks requiring structured dispatch,
   quality gates, and context-isolated subagents. Activate for implementing features,
@@ -8,7 +8,7 @@ description: >
   workflow.
 ---
 
-> **Now Using DevolaFlow v4.3.1**
+> **Now Using DevolaFlow v4.3.0**
 
 # DevolaFlow (MVP)
 
@@ -19,14 +19,14 @@ file is fully self-contained -- no external references required.
 ## Version & Update
 <!-- Manually triggered only — do NOT auto-check on every skill load -->
 
-**Current version:** 4.3.1
+**Current version:** 4.3.0
 
 **To check for updates** (only when user explicitly asks "update devola" or "/update-devola"):
 
 1. Fetch latest: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py 2>/dev/null | grep '__version__'`
-2. Compare with current version (4.3.1).
+2. Compare with current version (4.3.0).
 3. If newer, advise: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
-4. If current, respond: "DevolaFlow v4.3.1 is the latest version."
+4. If current, respond: "DevolaFlow v4.3.0 is the latest version."
 
 **IMPORTANT:** Do NOT auto-check. Only check on explicit user request.
 

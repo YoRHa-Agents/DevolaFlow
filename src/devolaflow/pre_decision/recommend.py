@@ -163,36 +163,74 @@ def _score_workflow(
     return raw, primary, secondary, negative
 
 
+def _score_all_workflows(
+    text_lower: str,
+    text_words: set[str],
+) -> tuple[dict[str, float], dict[str, list[str]]]:
+    """Score every workflow type and collect matched keywords."""
+    raw_scores: dict[str, float] = {}
+    matched_kws: dict[str, list[str]] = {}
+    for wf_type, keywords in WORKFLOW_KEYWORDS.items():
+        raw, _p, _s, _n = _score_workflow(text_lower, text_words, keywords)
+        raw_scores[wf_type] = raw
+        matched_kws[wf_type] = [
+            k
+            for group in ("primary", "secondary")
+            for k in keywords[group]
+            if _phrase_matches(k, text_words)
+        ]
+    return raw_scores, matched_kws
+
+
+# ── Heuristic boosts (§6.3) ─────────────────────────────────────────────
+
+
+def _boost_urgency(text_words: set[str], raw_scores: dict[str, float]) -> None:
+    """R1 — urgency tokens boost hotfix."""
+    if text_words & _URGENCY_TOKENS:
+        raw_scores["hotfix"] = raw_scores.get("hotfix", 0) + 0.3
+
+
+def _boost_from_scratch(text_words: set[str], raw_scores: dict[str, float]) -> None:
+    """R2 — 'from scratch' / 'new project' / 'greenfield' boost full-pipeline."""
+    for phrase in _FROM_SCRATCH_PHRASES:
+        if _phrase_matches(phrase, text_words):
+            raw_scores["full-pipeline"] = raw_scores.get("full-pipeline", 0) + 0.4
+            return
+
+
+def _boost_question_form(text_lower: str, raw_scores: dict[str, float]) -> None:
+    """R3 — question-form input boosts research-only."""
+    if any(text_lower.startswith(p) for p in _QUESTION_PREFIXES):
+        raw_scores["research-only"] = raw_scores.get("research-only", 0) + 0.2
+
+
+def _boost_multi_match(raw_scores: dict[str, float]) -> None:
+    """R4 — matching >= 3 types boosts full-pipeline."""
+    positive = sum(1 for v in raw_scores.values() if v > 0)
+    if positive >= 3:
+        raw_scores["full-pipeline"] = raw_scores.get("full-pipeline", 0) + 0.1
+
+
+def _boost_explicit_name(text_words: set[str], raw_scores: dict[str, float]) -> None:
+    """R5 — explicit workflow-type name in text gets a strong boost."""
+    for wf_name in _WORKFLOW_TYPE_NAMES:
+        name_words = set(wf_name.replace("-", " ").replace("_", " ").split())
+        if name_words.issubset(text_words):
+            raw_scores[wf_name] = raw_scores.get(wf_name, 0) + 1.0
+
+
 def _apply_heuristics(
     text_lower: str,
     text_words: set[str],
     raw_scores: dict[str, float],
 ) -> None:
     """Mutate *raw_scores* with heuristic boosts (§6.3)."""
-    # R1 — urgency → hotfix
-    if text_words & _URGENCY_TOKENS:
-        raw_scores["hotfix"] = raw_scores.get("hotfix", 0) + 0.3
-
-    # R2 — "from scratch" / "new project" / "greenfield" → full-pipeline
-    for phrase in _FROM_SCRATCH_PHRASES:
-        if _phrase_matches(phrase, text_words):
-            raw_scores["full-pipeline"] = raw_scores.get("full-pipeline", 0) + 0.4
-            break
-
-    # R3 — question-form → research-only
-    if any(text_lower.startswith(p) for p in _QUESTION_PREFIXES):
-        raw_scores["research-only"] = raw_scores.get("research-only", 0) + 0.2
-
-    # R4 — matches ≥ 3 types → full-pipeline
-    positive = sum(1 for v in raw_scores.values() if v > 0)
-    if positive >= 3:
-        raw_scores["full-pipeline"] = raw_scores.get("full-pipeline", 0) + 0.1
-
-    # R5 — explicit workflow-type name in text
-    for wf_name in _WORKFLOW_TYPE_NAMES:
-        name_words = set(wf_name.replace("-", " ").replace("_", " ").split())
-        if name_words.issubset(text_words):
-            raw_scores[wf_name] = raw_scores.get(wf_name, 0) + 1.0
+    _boost_urgency(text_words, raw_scores)
+    _boost_from_scratch(text_words, raw_scores)
+    _boost_question_form(text_lower, raw_scores)
+    _boost_multi_match(raw_scores)
+    _boost_explicit_name(text_words, raw_scores)
 
 
 def _normalise(raw: float) -> float:
@@ -218,41 +256,22 @@ def confidence_level(score: float) -> str:
 
 @dataclass
 class Recommendation:
+    """Represent a scored workflow-type recommendation with matched keywords."""
+
     workflow_type: str
     score: float  # normalised 0-1
     confidence: str  # high | medium | low | none
     matched_keywords: list[str] = field(default_factory=list)
 
 
-def recommend_workflow(
-    purpose: str,
-    context: dict[str, object] | None = None,
+# ── Candidate building ───────────────────────────────────────────────────
+
+
+def _build_candidates(
+    raw_scores: dict[str, float],
+    matched_kws: dict[str, list[str]],
 ) -> list[Recommendation]:
-    """Return top-3 workflow-type candidates sorted by score (§6.1-§6.4).
-
-    *context* is reserved for future structured signals (repo mode, language, etc.).
-    """
-    context = context or {}
-    text_lower = purpose.lower()
-    text_words = set(text_lower.split())
-
-    raw_scores: dict[str, float] = {}
-    matched_kws: dict[str, list[str]] = {}
-
-    for wf_type, keywords in WORKFLOW_KEYWORDS.items():
-        raw, p, s, n = _score_workflow(text_lower, text_words, keywords)
-        raw_scores[wf_type] = raw
-        hits: list[str] = []
-        for k in keywords["primary"]:
-            if _phrase_matches(k, text_words):
-                hits.append(k)
-        for k in keywords["secondary"]:
-            if _phrase_matches(k, text_words):
-                hits.append(k)
-        matched_kws[wf_type] = hits
-
-    _apply_heuristics(text_lower, text_words, raw_scores)
-
+    """Convert raw scores into sorted Recommendation list."""
     candidates: list[Recommendation] = []
     for wf_type, raw in raw_scores.items():
         score = _normalise(raw)
@@ -265,20 +284,44 @@ def recommend_workflow(
                     matched_keywords=matched_kws.get(wf_type, []),
                 )
             )
-
     candidates.sort(key=lambda r: r.score, reverse=True)
+    return candidates
 
-    # When confidence is low/none, inject full-pipeline as a safe fallback
+
+def _inject_fallback(candidates: list[Recommendation]) -> list[Recommendation]:
+    """When top confidence is low/none, inject full-pipeline as a safe fallback."""
     top_conf = candidates[0].confidence if candidates else "none"
-    if top_conf in ("low", "none"):
-        fp = Recommendation(
-            workflow_type="full-pipeline",
-            score=0.1,
-            confidence="low",
-            matched_keywords=[],
+    if top_conf not in ("low", "none"):
+        return candidates
+    fp_exists = any(c.workflow_type == "full-pipeline" for c in candidates)
+    if not fp_exists:
+        candidates.append(
+            Recommendation(
+                workflow_type="full-pipeline",
+                score=0.1,
+                confidence="low",
+                matched_keywords=[],
+            )
         )
-        if not any(c.workflow_type == "full-pipeline" for c in candidates):
-            candidates.append(fp)
-        candidates.sort(key=lambda r: r.score, reverse=True)
+    candidates.sort(key=lambda r: r.score, reverse=True)
+    return candidates
 
+
+def recommend_workflow(
+    purpose: str,
+    context: dict[str, object] | None = None,
+) -> list[Recommendation]:
+    """Return top-3 workflow-type candidates sorted by score (§6.1-§6.4).
+
+    *context* is reserved for future structured signals (repo mode, language, etc.).
+    """
+    if context is None:
+        context = {}
+    text_lower = purpose.lower()
+    text_words = set(text_lower.split())
+
+    raw_scores, matched_kws = _score_all_workflows(text_lower, text_words)
+    _apply_heuristics(text_lower, text_words, raw_scores)
+    candidates = _build_candidates(raw_scores, matched_kws)
+    candidates = _inject_fallback(candidates)
     return candidates[:3]

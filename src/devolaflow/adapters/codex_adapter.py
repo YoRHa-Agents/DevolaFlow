@@ -18,6 +18,7 @@ class CodexAdapter(BaseAdapter):
     MAX_LINES = 500
 
     def build(self, source: dict, agent_dir: Path, output_dir: Path) -> AdapterResult:
+        """Write Codex skill artifacts (``SKILL.md`` and ``agents/openai.yaml``)."""
         output_dir.mkdir(parents=True, exist_ok=True)
         files: list[str] = []
         identity = source.get("identity", {})

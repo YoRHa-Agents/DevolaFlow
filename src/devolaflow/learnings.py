@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Learning:
+    """A single operational learning captured from a workflow execution."""
+
     stage: str
     task_type: str
     key: str
@@ -29,14 +31,17 @@ class Learning:
     source_task_id: str = ""
 
     def __post_init__(self) -> None:
+        """Clamp confidence to the [0.0, 1.0] range."""
         self.confidence = max(0.0, min(1.0, float(self.confidence)))
 
 
 def _now_iso() -> str:
+    """Return the current UTC time as an ISO 8601 string."""
     return datetime.now(UTC).isoformat()
 
 
 def _parse_timestamp(ts: str) -> datetime:
+    """Parse an ISO 8601 timestamp string into a datetime object."""
     return datetime.fromisoformat(ts)
 
 

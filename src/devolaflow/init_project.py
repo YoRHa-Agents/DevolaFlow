@@ -36,6 +36,7 @@ def _find_agent_dir() -> Path:
 
 
 def _copy_file(src: Path, dest: Path) -> bool:
+    """Copy a single file to dest, creating parent directories as needed."""
     if not src.exists():
         print(f"  SKIP {dest} (source not found: {src})")
         return False
@@ -46,6 +47,7 @@ def _copy_file(src: Path, dest: Path) -> bool:
 
 
 def _copy_dir(src: Path, dest: Path) -> int:
+    """Copy all markdown files from src directory to dest, returning the count copied."""
     if not src.is_dir():
         return 0
     count = 0
@@ -56,6 +58,7 @@ def _copy_dir(src: Path, dest: Path) -> int:
 
 
 def _parse_scope(argv: list[str]) -> str:
+    """Parse --global/--project flags from argv to determine install scope."""
     scope = "project"
     for arg in argv:
         if arg == "--global":
@@ -66,6 +69,7 @@ def _parse_scope(argv: list[str]) -> str:
 
 
 def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow skill files and rules for Cursor IDE."""
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Cursor ({scope}) -> {skill_dir}/")
@@ -80,6 +84,7 @@ def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
 
 
 def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow MVP skill for Claude Code."""
     mvp = agent_dir / "MVP-SKILL.md"
     if scope == "global":
         dest = Path.home() / ".claude" / "CLAUDE.md"
@@ -92,6 +97,7 @@ def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
 
 
 def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow MVP skill for GitHub Copilot."""
     if scope == "global":
         print("\n  Copilot does not support a global install. Using project-local path.")
     print("\n  Copilot -> .github/copilot-instructions.md")
@@ -100,6 +106,7 @@ def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
 
 
 def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Install DevolaFlow MVP skill for Codex."""
     import os
 
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
@@ -117,6 +124,7 @@ TOOLS = {
 
 
 def _auto_detect(cwd: Path) -> list[str]:
+    """Detect which AI coding tools are present in the project directory."""
     found = []
     if (cwd / ".cursor").is_dir():
         found.append("cursor")
@@ -130,6 +138,7 @@ def _auto_detect(cwd: Path) -> list[str]:
 
 
 def main() -> None:
+    """Entry point for the devola-init CLI command."""
     cwd = Path.cwd()
     agent_dir = _find_agent_dir()
     scope = _parse_scope(sys.argv[1:])

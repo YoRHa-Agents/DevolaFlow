@@ -219,6 +219,7 @@ class ProposalGenerator:
     """
 
     def __init__(self) -> None:
+        """Initialize the proposal generator with empty internal state."""
         self._state = _ProposalState()
 
     def generate_proposals(self, analysis: dict) -> list[dict]:

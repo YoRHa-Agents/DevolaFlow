@@ -81,12 +81,14 @@ def resolve_model_hint(task_type: str, profile_config: dict[str, Any]) -> str:
 
 
 def load_profiles(path: Path | None = None) -> dict[str, Any]:
+    """Load context profiles from a YAML configuration file."""
     p = path or PROFILES_PATH
     with open(p) as f:
         return yaml.safe_load(f)
 
 
 def load_skill_md(config: dict[str, Any]) -> str:
+    """Load the SKILL.md file contents as a string."""
     skill_path = Path(__file__).parents[2] / "workflow-system" / "agent" / "SKILL.md"
     if not skill_path.exists():
         repo_root = Path(__file__).parents[2]
@@ -304,6 +306,7 @@ def select_context(
 
 
 def main():
+    """CLI entry point for the task-adaptive context selector."""
     if len(sys.argv) < 2:
         print("Usage: task_adaptive_selector.py <task_type> [--verbose] [--full]")
         print()

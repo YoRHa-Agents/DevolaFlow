@@ -50,6 +50,7 @@ _BUILTIN_SPECS: list[dict[str, Any]] = [
 
 
 def _dict_to_spec(data: dict[str, Any]) -> PluginSpec:
+    """Build a ``PluginSpec`` from a normalized plugin definition mapping."""
     return PluginSpec(
         name=data["name"],
         description=data["description"],

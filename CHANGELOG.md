@@ -5,6 +5,20 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.1] - 2026-04-13
+
+### Improved
+- **Pre-decision module complexity**: Refactored 4 files using guard clauses, helper extraction, and table-driven dispatch. Average complexity reduced from 7.86 to 2.92 (-62.9%). Max function complexity from 31 to 5.
+- **Docstring coverage**: Added 77 missing docstrings across 19 source files. Coverage 75.6% → 100%.
+- **Coverage tooling**: New `scripts/run_coverage.sh` generating Cobertura XML and JSON coverage reports for NineS consumption.
+
+### Metrics
+- Tests: 643 passed
+- Coverage: 90.45%
+- NineS analysis: avg complexity 4.59 → 3.84 (-16.3%), findings 98 → 96
+- NineS self-eval: docstring 100%, lint 100%, modules 37/37, tests 592/592
+- Lint/format: All checks pass
+
 ## [4.3.0] - 2026-04-13
 
 ### Added

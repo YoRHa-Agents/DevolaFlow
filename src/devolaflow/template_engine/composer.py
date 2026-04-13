@@ -37,6 +37,7 @@ class SequenceOp:
 
     @staticmethod
     def stage_order(node: Sequence) -> list[CompositionNode]:
+        """Return the ordered list of child nodes in the sequence."""
         return node.stages
 
 
@@ -54,6 +55,7 @@ class ParallelOp:
 
     @staticmethod
     def join_count(node: Parallel) -> int | None:
+        """Return the number of branches required to proceed from a parallel node."""
         if node.join == "all":
             return len(node.stages)
         if node.join == "any":
@@ -119,6 +121,7 @@ def collect_stage_refs(node: CompositionNode) -> set[str]:
 
 
 def _walk(node: CompositionNode, refs: set[str]) -> None:
+    """Recursively collect StageRef ids from a composition subtree."""
     if isinstance(node, StageRef):
         refs.add(node.stage)
     elif isinstance(node, (Sequence, Parallel)):

@@ -45,18 +45,24 @@ DEPENDENCY_LATTICE: dict[str, set[str]] = {
 
 
 class JoinStrategy(Enum):
+    """Enumerate parallel-join strategies (all, any, n_of)."""
+
     ALL = "all"
     ANY = "any"
     N_OF = "n_of"
 
 
 class OnExhaustion(Enum):
+    """Enumerate loop-exhaustion actions (escalate, abort, continue)."""
+
     ESCALATE = "escalate"
     ABORT = "abort"
     CONTINUE = "continue"
 
 
 class GateFailAction(Enum):
+    """Enumerate gate-failure actions (loop_back, escalate, abort)."""
+
     LOOP_BACK = "loop_back"
     ESCALATE = "escalate"
     ABORT = "abort"
@@ -67,6 +73,8 @@ class GateFailAction(Enum):
 
 @dataclass
 class StageDefinition:
+    """Represent a single stage's identity, primitive, and configuration."""
+
     id: str
     primitive: str
     alias: str | None = None
@@ -91,11 +99,15 @@ class StageRef:
 
 @dataclass
 class Sequence:
+    """Represent an ordered list of composition nodes executed sequentially."""
+
     stages: list[CompositionNode]
 
 
 @dataclass
 class Parallel:
+    """Represent composition nodes executed concurrently with a join strategy."""
+
     stages: list[CompositionNode]
     join: str = "all"
     n_of_count: int | None = None
@@ -103,6 +115,8 @@ class Parallel:
 
 @dataclass
 class Choice:
+    """Represent a conditional branch selecting one of two composition paths."""
+
     condition: str
     if_true: CompositionNode
     if_false: CompositionNode
@@ -124,7 +138,7 @@ class GateRef:
 
 @dataclass
 class Break:
-    pass
+    """Represent a loop-exit node in the composition tree."""
 
 
 CompositionNode = StageRef | Sequence | Parallel | Choice | LoopRef | GateRef | Break
@@ -135,6 +149,8 @@ CompositionNode = StageRef | Sequence | Parallel | Choice | LoopRef | GateRef | 
 
 @dataclass
 class LoopDef:
+    """Define a named convergence loop with termination conditions."""
+
     name: str
     body_stages: list[str]
     until: str
@@ -147,6 +163,8 @@ class LoopDef:
 
 @dataclass
 class GateCriterion:
+    """Represent a single field-operator-value check within a gate."""
+
     field: str
     operator: str
     value: Any
@@ -154,12 +172,16 @@ class GateCriterion:
 
 @dataclass
 class GateOnFail:
+    """Represent the action and target to execute when a gate fails."""
+
     action: str
     target: str | None = None
 
 
 @dataclass
 class GateDef:
+    """Define a named quality gate with criteria and pass/fail paths."""
+
     name: str
     position: str
     criteria: list[GateCriterion]
@@ -174,6 +196,8 @@ class GateDef:
 
 @dataclass
 class TemplateMetadata:
+    """Represent workflow template identity and catalog information."""
+
     name: str
     version: str
     display_name: str = ""
@@ -188,6 +212,8 @@ class TemplateMetadata:
 
 @dataclass
 class WorkflowTemplate:
+    """Top-level container for a complete workflow template definition."""
+
     schema_version: str
     metadata: TemplateMetadata
     stages: list[StageDefinition]
@@ -200,9 +226,11 @@ class WorkflowTemplate:
     overrides: dict[str, Any] | None = None
 
     def stage_ids(self) -> set[str]:
+        """Return the set of all stage ids defined in this template."""
         return {s.id for s in self.stages}
 
     def stage_by_id(self, stage_id: str) -> StageDefinition | None:
+        """Look up a stage definition by its id, or return None."""
         for s in self.stages:
             if s.id == stage_id:
                 return s

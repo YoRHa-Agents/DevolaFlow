@@ -16,6 +16,7 @@ from devolaflow.adapters.cursor_adapter import CursorAdapter
 
 
 def _find_project_root() -> Path:
+    """Walk up from the current file to find the project root containing pyproject.toml."""
     p = Path(__file__).resolve()
     while p != p.parent:
         if (p / "pyproject.toml").exists():

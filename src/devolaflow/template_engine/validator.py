@@ -33,14 +33,18 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class ValidationResult:
+    """Accumulate validation errors and warnings from template checks."""
+
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     @property
     def valid(self) -> bool:
+        """Return True if no errors were recorded."""
         return len(self.errors) == 0
 
     def merge(self, other: ValidationResult) -> None:
+        """Combine another ValidationResult's errors and warnings into this one."""
         self.errors.extend(other.errors)
         self.warnings.extend(other.warnings)
 
