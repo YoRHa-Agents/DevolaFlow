@@ -5,6 +5,28 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0-pre] — 2026-04-13
+
+### Added
+- **NineS v2.0.0 CLI Migration**: Updated all 4 nines/ modules (researcher, scorer, advisor, detector) from v1.0.0-pre to v2.0.0 CLI syntax. Fixed 6 breaking CLI changes (global --format, named flags for collect/analyze/eval/self-eval/iterate). Added `run_nines_benchmark()` and `run_nines_update()` wrappers.
+- **Self-Improvement Loop Infrastructure**: New `run_self_improve_loop()` orchestrating NineS self-eval → iterate → benchmark cycle. New `log_external_source_review()` for external-sources.jsonl logging (closes "when implemented" gap). New `refresh_reference_dependency()` for programmatic tracking updates.
+- **Karpathy-Inspired Behavioral Improvements**: Optional `explicit_assumptions` field in TaskDispatch schema (Think Before Coding). Simplicity/scope-creep criteria in Review rubric (team-roles.md). Verification-first micro-plan in execution-protocol.md.
+- **Reference Tracking**: Added andrej-karpathy-skills (22.7K stars, relevance: 4) to active tracking. Updated get-shit-done to v1.35.0, gstack to v0.16.3.0. Verified primelocus-hydra URL.
+
+### Changed
+- **Code Quality**: Decomposed `select_context()` from CC=23 to CC≈7 via 5 extracted helpers. Reduced 6 warning-level functions using dispatch tables, guard clauses, and helper extraction. NineS error findings: 1→0, warnings: 6→0.
+- **NineS Integration**: All CLI wrappers now use v2 syntax (global `-f json`, `--target-path`, `--source`/`--query`, `--project-root`/`--src-dir`/`--test-dir`). Detector knows `benchmark` and `update` subcommands.
+
+### Metrics
+- Tests: 681 passed (+38 from v4.5.0)
+- Coverage: 90.90% (was 90.59%, +0.31pp)
+- EvoBench: 25/25 PASS, avg 99.50 (was 99.47, +0.03)
+- NineS avg complexity: 3.64 (was 3.84, -5.2%)
+- NineS findings: 0 errors, 1 warning (was 1 error + 6 warnings)
+- NineS self-eval: 0.7405 (was 0.726, +2.0%)
+- Reference deps: 18 tracked (was 17)
+- Lint/format: All checks pass
+
 ## [4.5.0] — 2026-04-13
 
 ### Added
