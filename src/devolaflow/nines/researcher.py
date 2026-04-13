@@ -295,6 +295,7 @@ def run_nines_update(
         cmd.append("--global")
     return _run_cli(cmd, timeout)
 
+
 # ---------------------------------------------------------------------------
 # v2 self-improvement loop (C1)
 # ---------------------------------------------------------------------------
@@ -320,10 +321,16 @@ def _run_v2_self_eval(
 ) -> dict:
     """Run NineS v2 ``self-eval`` with project-scoped flags."""
     cmd = [
-        "nines", "-f", "json", "self-eval",
-        "--project-root", project_root,
-        "--src-dir", src_dir,
-        "--test-dir", test_dir,
+        "nines",
+        "-f",
+        "json",
+        "self-eval",
+        "--project-root",
+        project_root,
+        "--src-dir",
+        src_dir,
+        "--test-dir",
+        test_dir,
     ]
     return _run_cli(cmd, timeout)
 
@@ -338,12 +345,20 @@ def _run_v2_iterate(
 ) -> dict:
     """Run NineS v2 ``iterate`` with project-scoped flags."""
     cmd = [
-        "nines", "-f", "json", "iterate",
-        "--project-root", project_root,
-        "--src-dir", src_dir,
-        "--test-dir", test_dir,
-        "--max-rounds", str(max_rounds),
-        "--threshold", str(threshold),
+        "nines",
+        "-f",
+        "json",
+        "iterate",
+        "--project-root",
+        project_root,
+        "--src-dir",
+        src_dir,
+        "--test-dir",
+        test_dir,
+        "--max-rounds",
+        str(max_rounds),
+        "--threshold",
+        str(threshold),
     ]
     return _run_cli(cmd, timeout)
 
@@ -355,9 +370,14 @@ def _run_v2_benchmark(
 ) -> dict:
     """Run NineS v2 ``benchmark`` with target path and output directory."""
     cmd = [
-        "nines", "-f", "json", "benchmark",
-        "--target-path", target_path,
-        "--output-dir", output_dir,
+        "nines",
+        "-f",
+        "json",
+        "benchmark",
+        "--target-path",
+        target_path,
+        "--output-dir",
+        output_dir,
     ]
     return _run_cli(cmd, timeout)
 
@@ -401,8 +421,12 @@ def run_self_improve_loop(
     result.initial_score = float(eval_out.get("score", eval_out.get("overall_score", 0)))
 
     iterate_out = _run_v2_iterate(
-        project_root, src_dir, test_dir,
-        max_rounds=max_rounds, threshold=threshold, timeout=timeout,
+        project_root,
+        src_dir,
+        test_dir,
+        max_rounds=max_rounds,
+        threshold=threshold,
+        timeout=timeout,
     )
     if not iterate_out:
         result.error = "iterate returned empty result"
@@ -483,8 +507,10 @@ def refresh_reference_dependency(
                     entry["key_patterns"] = existing
                 entry["last_checked"] = datetime.now(UTC).strftime("%Y-%m-%d")
                 yaml_text = yaml.dump(
-                    data, default_flow_style=False,
-                    sort_keys=False, allow_unicode=True,
+                    data,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
                 )
                 path.write_text(yaml_text)
                 logger.info("Updated reference dependency: %s", dep_id)

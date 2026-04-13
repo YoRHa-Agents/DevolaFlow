@@ -305,18 +305,23 @@ def select_context(
     learnings_reserve = _compute_learnings_reserve(learnings_config, profiles_path, budget)
     section_budget = budget - advisor_reserve - learnings_reserve
 
-    priority_buckets, skipped = _build_priority_buckets(
-        profile.get("section_priorities", {})
-    )
+    priority_buckets, skipped = _build_priority_buckets(profile.get("section_priorities", {}))
     selected, overflow_skipped, used_tokens = _select_sections_within_budget(
-        priority_buckets, sections_registry, skill_text, section_budget, verbose,
+        priority_buckets,
+        sections_registry,
+        skill_text,
+        section_budget,
+        verbose,
     )
     skipped.extend(overflow_skipped)
 
     assembled_text = "\n\n".join(text for _, text, _ in selected)
 
     learnings_text = _integrate_learnings(
-        learnings_config, profile_name, profiles_path, learnings_reserve,
+        learnings_config,
+        profile_name,
+        profiles_path,
+        learnings_reserve,
     )
     if learnings_text:
         assembled_text = assembled_text + "\n\n" + learnings_text

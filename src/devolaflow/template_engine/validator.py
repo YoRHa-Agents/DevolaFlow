@@ -289,27 +289,39 @@ def _reachable_stage_ids(template: WorkflowTemplate) -> set[str]:
 
 
 def _expand_stage_ref(
-    node: Any, _lm: dict[str, LoopDef], _gm: dict[str, GateDef], reachable: set[str],
+    node: Any,
+    _lm: dict[str, LoopDef],
+    _gm: dict[str, GateDef],
+    reachable: set[str],
 ) -> None:
     reachable.add(node.stage)
 
 
 def _expand_container(
-    node: Any, loop_map: dict[str, LoopDef], gate_map: dict[str, GateDef], reachable: set[str],
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
 ) -> None:
     for child in node.stages:
         _expand_loops_gates(child, loop_map, gate_map, reachable)
 
 
 def _expand_choice(
-    node: Any, loop_map: dict[str, LoopDef], gate_map: dict[str, GateDef], reachable: set[str],
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
 ) -> None:
     _expand_loops_gates(node.if_true, loop_map, gate_map, reachable)
     _expand_loops_gates(node.if_false, loop_map, gate_map, reachable)
 
 
 def _expand_loop_ref(
-    node: Any, loop_map: dict[str, LoopDef], _gm: dict[str, GateDef], reachable: set[str],
+    node: Any,
+    loop_map: dict[str, LoopDef],
+    _gm: dict[str, GateDef],
+    reachable: set[str],
 ) -> None:
     loop_def = loop_map.get(node.ref)
     if not loop_def:
@@ -320,7 +332,10 @@ def _expand_loop_ref(
 
 
 def _expand_gate_ref(
-    node: Any, _lm: dict[str, LoopDef], gate_map: dict[str, GateDef], reachable: set[str],
+    node: Any,
+    _lm: dict[str, LoopDef],
+    gate_map: dict[str, GateDef],
+    reachable: set[str],
 ) -> None:
     gate_def = gate_map.get(node.ref)
     if not gate_def:

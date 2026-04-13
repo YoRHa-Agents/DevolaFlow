@@ -276,12 +276,16 @@ class TestExternalSourceReview:
 
     def test_relevance_delta_clamped(self) -> None:
         r = ExternalSourceReview(
-            source_id="x", review_date="d", findings_summary="s",
+            source_id="x",
+            review_date="d",
+            findings_summary="s",
             relevance_delta=10.0,
         )
         assert r.relevance_delta == 5.0
         r2 = ExternalSourceReview(
-            source_id="x", review_date="d", findings_summary="s",
+            source_id="x",
+            review_date="d",
+            findings_summary="s",
             relevance_delta=-10.0,
         )
         assert r2.relevance_delta == -5.0

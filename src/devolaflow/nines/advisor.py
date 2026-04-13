@@ -96,7 +96,8 @@ def _interpret_result(data: dict[str, object]) -> tuple[str, str]:
 
     if score is not None:
         verdict = "APPROVE" if score >= _SCORE_THRESHOLD else "REJECT"
-        fallback = f"NineS score {score} {'meets' if score >= _SCORE_THRESHOLD else 'below'} threshold"
+        meets = "meets" if score >= _SCORE_THRESHOLD else "below"
+        fallback = f"NineS score {score} {meets} threshold"
         return verdict, reasoning or fallback
 
     status = str(data.get("status", "")).lower()

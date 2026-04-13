@@ -1240,7 +1240,9 @@ class TestRunSelfImproveLoop:
         mock_bench.return_value = {"pass": True}
 
         result = run_self_improve_loop(
-            "/proj", "src", "tests",
+            "/proj",
+            "src",
+            "tests",
             benchmark_output_dir="/tmp/bench",
         )
         assert result.initial_score == 75.0
@@ -1258,9 +1260,7 @@ class TestRunSelfImproveLoop:
 
     @patch("devolaflow.nines.researcher._run_v2_iterate", return_value={})
     @patch("devolaflow.nines.researcher._run_v2_self_eval")
-    def test_iterate_failure_returns_error(
-        self, mock_eval: MagicMock, _iter: MagicMock
-    ) -> None:
+    def test_iterate_failure_returns_error(self, mock_eval: MagicMock, _iter: MagicMock) -> None:
         mock_eval.return_value = {"score": 80.0}
         result = run_self_improve_loop("/proj", "src", "tests")
         assert result.error == "iterate returned empty result"
@@ -1298,13 +1298,20 @@ class TestRefreshReferenceDependency:
 
     def test_updates_version(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [{
-                "id": "test-dep", "last_known_version": "1.0.0",
-                "key_patterns": [], "last_checked": "2025-01-01",
-            }],
-            "periodic_monitoring": [],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [
+                    {
+                        "id": "test-dep",
+                        "last_known_version": "1.0.0",
+                        "key_patterns": [],
+                        "last_checked": "2025-01-01",
+                    }
+                ],
+                "periodic_monitoring": [],
+            },
+        )
         result = refresh_reference_dependency("test-dep", str(deps_file), new_version="2.0.0")
         assert result is True
         import yaml
@@ -1314,15 +1321,24 @@ class TestRefreshReferenceDependency:
 
     def test_extends_patterns(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [{
-                "id": "test-dep", "last_known_version": "1.0.0",
-                "key_patterns": ["existing"], "last_checked": "2025-01-01",
-            }],
-            "periodic_monitoring": [],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [
+                    {
+                        "id": "test-dep",
+                        "last_known_version": "1.0.0",
+                        "key_patterns": ["existing"],
+                        "last_checked": "2025-01-01",
+                    }
+                ],
+                "periodic_monitoring": [],
+            },
+        )
         result = refresh_reference_dependency(
-            "test-dep", str(deps_file), new_patterns=["new-pattern"],
+            "test-dep",
+            str(deps_file),
+            new_patterns=["new-pattern"],
         )
         assert result is True
         import yaml
@@ -1333,12 +1349,15 @@ class TestRefreshReferenceDependency:
 
     def test_no_duplicate_patterns(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [
-                {"id": "dep1", "key_patterns": ["pat1"], "last_checked": "2025-01-01"},
-            ],
-            "periodic_monitoring": [],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [
+                    {"id": "dep1", "key_patterns": ["pat1"], "last_checked": "2025-01-01"},
+                ],
+                "periodic_monitoring": [],
+            },
+        )
         refresh_reference_dependency("dep1", str(deps_file), new_patterns=["pat1"])
         import yaml
 
@@ -1347,15 +1366,24 @@ class TestRefreshReferenceDependency:
 
     def test_finds_in_periodic_monitoring(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [],
-            "periodic_monitoring": [{
-                "id": "periodic-dep", "last_known_version": "old",
-                "key_patterns": [], "last_checked": "2025-01-01",
-            }],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [],
+                "periodic_monitoring": [
+                    {
+                        "id": "periodic-dep",
+                        "last_known_version": "old",
+                        "key_patterns": [],
+                        "last_checked": "2025-01-01",
+                    }
+                ],
+            },
+        )
         result = refresh_reference_dependency(
-            "periodic-dep", str(deps_file), new_version="new-ver",
+            "periodic-dep",
+            str(deps_file),
+            new_version="new-ver",
         )
         assert result is True
         import yaml
@@ -1365,10 +1393,13 @@ class TestRefreshReferenceDependency:
 
     def test_returns_false_for_missing_dep(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [{"id": "other"}],
-            "periodic_monitoring": [],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [{"id": "other"}],
+                "periodic_monitoring": [],
+            },
+        )
         assert refresh_reference_dependency("nonexistent", str(deps_file)) is False
 
     def test_returns_false_for_missing_file(self, tmp_path) -> None:
@@ -1376,12 +1407,15 @@ class TestRefreshReferenceDependency:
 
     def test_updates_last_checked(self, tmp_path) -> None:
         deps_file = tmp_path / "deps.yaml"
-        self._write_deps(deps_file, {
-            "active_tracking": [
-                {"id": "dep1", "last_checked": "2020-01-01", "key_patterns": []},
-            ],
-            "periodic_monitoring": [],
-        })
+        self._write_deps(
+            deps_file,
+            {
+                "active_tracking": [
+                    {"id": "dep1", "last_checked": "2020-01-01", "key_patterns": []},
+                ],
+                "periodic_monitoring": [],
+            },
+        )
         refresh_reference_dependency("dep1", str(deps_file), new_version="v3")
         from datetime import UTC, datetime
 
@@ -1390,25 +1424,3 @@ class TestRefreshReferenceDependency:
         data = yaml.safe_load(deps_file.read_text())
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         assert data["active_tracking"][0]["last_checked"] == today
-
-
-# ===========================================================================
-# Deprecation warnings
-# ===========================================================================
-
-
-class TestDeprecationWarnings:
-    def test_evaluate_gate_with_nines_warns(self) -> None:
-        with pytest.warns(DeprecationWarning, match="evaluate_gate_with_nines is deprecated"):
-            evaluate_gate_with_nines(
-                _pass_input(),
-                STANDARD,
-                gate_type="standard",
-                nines_config=None,
-            )
-
-    def test_run_nines_advisor_warns(self) -> None:
-        verdict = _make_verdict(advisor_recommended=False)
-        config = NinesAdvisorConfig(enabled=False)
-        with pytest.warns(DeprecationWarning, match="run_nines_advisor is deprecated"):
-            run_nines_advisor(verdict, config, artifact_path="artifact/")

@@ -274,9 +274,7 @@ def log_external_source_review(
     Returns *True* if the record was written.
     """
     if jsonl_path is None:
-        jsonl_path = Path(
-            "workflow-system/agent/knowledge/learnings/external-sources.jsonl"
-        )
+        jsonl_path = Path("workflow-system/agent/knowledge/learnings/external-sources.jsonl")
 
     review = ExternalSourceReview(
         source_id=source_id,

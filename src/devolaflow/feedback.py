@@ -282,7 +282,10 @@ class ProposalGenerator:
         return _filter_valid_proposals(proposals)
 
     def _add_violation_proposals(
-        self, analysis: dict, confidence: float, proposals: list[dict],
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
     ) -> None:
         for violation in analysis.get("recurring_violations", []):
             if len(proposals) >= MAX_PROPOSALS_PER_WORKFLOW:
@@ -309,7 +312,10 @@ class ProposalGenerator:
             )
 
     def _add_stagnation_proposal(
-        self, analysis: dict, confidence: float, proposals: list[dict],
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
     ) -> None:
         if not analysis.get("stagnation_detected"):
             return
@@ -333,7 +339,10 @@ class ProposalGenerator:
         )
 
     def _add_mismatch_proposals(
-        self, analysis: dict, confidence: float, proposals: list[dict],
+        self,
+        analysis: dict,
+        confidence: float,
+        proposals: list[dict],
     ) -> None:
         target = "workflow-system/agent/context_profiles.yaml"
         for mismatch in analysis.get("profile_mismatches", []):
