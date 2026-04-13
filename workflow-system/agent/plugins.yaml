@@ -36,28 +36,43 @@ plugins:
       validate: "nines self-eval --compare --report --format json"
       monitor: "nines iterate --max-rounds 1 --format json"
 
-  ui-pro:
-    description: "Professional UI component generation, design system scaffolding, and themed presentations"
-    cli_binary: "ui-pro"
-    version_command: "ui-pro --version"
-    version_regex: '(\d+\.\d+\.\d+)'
+  ui-ux-pro-max:
+    description: "AI-powered design intelligence for professional UI/UX across 15 frameworks — 67 styles, 161 palettes, 161 reasoning rules"
+    cli_binary: "uipro"
+    version_command: "uipro versions"
+    version_regex: 'v?(\d+\.\d+\.\d+)'
     install_methods:
-      npm: "npm install -g @anthropic/ui-pro"
-      pip: "pip install ui-pro"
+      npm: "npm install -g uipro-cli"
+    skill_install_command: "uipro init --ai cursor"
     capabilities:
-      - ui_generation           # Generate UI components from specifications
-      - design_system           # Scaffold design system tokens and components
-      - themed_presentation     # Create themed demo/presentation UIs
-      - component_library       # Access pre-built component library
+      - design_system_generation    # AI-powered design system from project description
+      - ui_style_recommendation     # 67 styles with BM25 ranking
+      - color_palette_selection     # 161 industry-specific palettes
+      - typography_pairing          # 57 curated font combinations
+      - landing_page_patterns       # 24 landing page structure patterns
+      - chart_recommendations       # 25 chart types for dashboards
+      - ux_guidelines               # 99 best practices and anti-patterns
+      - multi_stack_support         # React, Next.js, Vue, Svelte, SwiftUI, Flutter, etc.
     role: "ui_tooling"
-    repo_url: "https://github.com/anthropic/ui-pro"
+    repo_url: "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
+    min_version: "2.0.0"
     workflows:
-      - demo-showcase           # ui-pro for building demo UIs
-      - full-pipeline           # ui-pro when project involves frontend
-      - feature-enhancement     # ui-pro for UI-related features
+      - demo-showcase
+      - full-pipeline
+      - feature-enhancement
     stage_mapping:
-      implement: "ui-pro generate {component_spec} --format {format}"
-      design: "ui-pro scaffold {design_tokens} --theme {theme}"
+      design: "uipro init --ai cursor"
+      implement: "python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \"{query}\" --design-system"
+    platform_install:
+      cursor: "uipro init --ai cursor"
+      cursor_global: "uipro init --ai cursor --global"
+      claude: "uipro init --ai claude"
+      claude_global: "uipro init --ai claude --global"
+      copilot: "uipro init --ai copilot"
+      codex: "uipro init --ai codex"
+      all: "uipro init --ai all"
+    update_command: "uipro update"
+    uninstall_command: "uipro uninstall"
 
 plugin_roles:
   research_and_iteration:
@@ -73,7 +88,7 @@ plugin_roles:
     invocation: "on_demand"  # Only invoked when workflow needs it
 
   ui_tooling:
-    description: "Tools for UI generation and design system management"
+    description: "Design intelligence for UI/UX generation, style systems, and themed presentations"
     primary_workflows:
       - demo-showcase
       - full-pipeline
@@ -82,6 +97,7 @@ plugin_roles:
       - implement
       - design
     invocation: "on_demand"
+    provider: "ui-ux-pro-max"
 
   gate_scoring:
     description: "Tools that provide automated quality scoring for gates"
