@@ -106,6 +106,10 @@ lean_format_spec:
   goal:
     description: "Single sentence — WHAT to achieve + key constraints. Replaces verbose 'description' field."
     max_tokens: 40
+  assumptions:
+    description: "Optional. Agent's stated assumptions before coding — interfaces, data formats, constraints. ≤5 items, each ≤10 words. Forces think-before-code."
+    optional: true
+    max_entries: 5
   pred:
     description: "Predecessor artifacts as ref+key_facts pairs. Facts are verbatim extractions, NEVER paraphrased."
     per_entry:

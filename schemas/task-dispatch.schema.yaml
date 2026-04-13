@@ -45,6 +45,10 @@ fields:
       type: { type: string, description: stage | wave | code | test | review | research | design | benchmark, etc. }
       title: { type: string, description: Short title. }
       description: { type: string, description: What to achieve (not implementation steps). }
+      explicit_assumptions:
+        type: string
+        optional: true
+        description: "Assumptions the agent states before starting work. Forces think-before-code: state what you believe about interfaces, data formats, constraints, and environment before writing any code."
 
   context:
     required: true

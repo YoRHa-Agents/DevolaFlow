@@ -27,9 +27,14 @@ from devolaflow.nines.detector import (
 )
 from devolaflow.nines.researcher import (
     NinesResearchConfig,
+    SelfImproveResult,
     analyze_target,
     collect_research,
+    refresh_reference_dependency,
+    run_nines_benchmark,
+    run_nines_update,
     run_self_evaluation,
+    run_self_improve_loop,
     run_skill_iteration,
 )
 from devolaflow.nines.scorer import (
@@ -42,10 +47,15 @@ from devolaflow.nines.scorer import (
 __all__ = [
     # Research API (preferred)
     "NinesResearchConfig",
+    "SelfImproveResult",
     "analyze_target",
     "collect_research",
     "get_research_advice",
+    "refresh_reference_dependency",
+    "run_nines_benchmark",
+    "run_nines_update",
     "run_self_evaluation",
+    "run_self_improve_loop",
     "run_skill_iteration",
     # Advisor
     "NinesAdvisorConfig",

@@ -94,18 +94,44 @@ stages:
     input_mapping:
       code_refs: "integrate.files_changed"
 
+  - id: self-improve
+    primitive: validate
+    description: >
+      Run NineS v2 self-improvement loop: self-eval → iterate → benchmark.
+      Uses run_self_improve_loop() from devolaflow.nines.researcher.
+      CLI commands: nines -f json self-eval, nines -f json iterate, nines -f json benchmark.
+    team: test
+    duration_class: medium
+    config:
+      nines_v2: true
+      max_rounds: 3
+      threshold: 0.05
+      benchmark_enabled: true
+    input_mapping:
+      project_root: "_context.project_root"
+      src_dir: "_context.src_dir"
+      test_dir: "_context.test_dir"
+    nines_commands:
+      self_eval: "nines -f json self-eval --project-root {project_root} --src-dir {src_dir} --test-dir {test_dir}"
+      iterate: "nines -f json iterate --project-root {project_root} --src-dir {src_dir} --test-dir {test_dir} --max-rounds {max_rounds} --threshold {threshold}"
+      benchmark: "nines -f json benchmark --target-path {project_root} --output-dir {output_dir}"
+
   - id: evaluate
     primitive: validate
     description: >
-      Produce per-change go/no-go verdict. Update reference-dependencies.yaml.
-      Generate changelog entries for approved changes. Present summary to human.
+      Produce per-change go/no-go verdict. Update reference-dependencies.yaml
+      via refresh_reference_dependency(). Log external source reviews via
+      log_external_source_review(). Generate changelog entries for approved
+      changes. Present summary to human.
     team: review
     duration_class: medium
     config:
       require_all_criteria: true
       allow_waivers: false
+      log_external_reviews: true
     input_mapping:
       test_result: "test"
+      self_improve_result: "self-improve"
       review_verdict: null
       acceptance_criteria: "decompose.integration_plan.acceptance_criteria"
       quality_thresholds:
@@ -127,6 +153,9 @@ composition:
       ref: plan_approved_gate
     - compose: loop
       ref: integrate_test_cycle
+    - stage: self-improve
+    - compose: gate
+      ref: self_improve_gate
     - stage: evaluate
     - compose: gate
       ref: final_evaluation_gate
@@ -206,6 +235,18 @@ gates:
     on_fail:
       action: loop_back
       target: integrate
+    require_human_override: false
+    auto_insert: true
+
+  - name: self_improve_gate
+    position: "after:self-improve"
+    criteria:
+      - field: self-improve.error
+        operator: "=="
+        value: ""
+    on_pass: "next"
+    on_fail:
+      action: escalate
     require_human_override: false
     auto_insert: true
 

@@ -159,6 +159,124 @@ def match_profile(task_type: str, profiles_config: dict[str, Any]) -> str:
     return best_match or profiles_config.get("meta", {}).get("default_profile", "feature")
 
 
+def _resolve_advisor_text(profile: dict[str, Any]) -> tuple[bool, str, int]:
+    """Build advisor section text and compute its token reserve."""
+    advisor_config = profile.get("advisor", {})
+    if not advisor_config.get("enabled", False):
+        return False, "", 0
+
+    max_uses = advisor_config.get("max_uses", 3)
+    cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
+    triggers = advisor_config.get("trigger_conditions", [])
+    triggers_str = ", ".join(triggers) if triggers else "none"
+    text = (
+        f"## Advisor Tool\n"
+        f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
+        f"Invoke for: {triggers_str}."
+    )
+    return True, text, estimate_tokens(text)
+
+
+def _compute_learnings_reserve(
+    learnings_config: dict[str, Any],
+    profiles_path: Path | None,
+    budget: int,
+) -> int:
+    """Compute the token reservation for operational learnings."""
+    if not learnings_config.get("enabled", False):
+        return 0
+    p = profiles_path or PROFILES_PATH
+    learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+    if not learnings_path.exists() or learnings_path.stat().st_size == 0:
+        return 0
+    budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
+    budget_pct = learnings_config.get("budget_pct", 10)
+    return min(budget_max_tokens, int(budget * budget_pct / 100))
+
+
+def _build_priority_buckets(
+    section_priorities: dict[str, str],
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Sort section names into priority buckets and a skip list."""
+    buckets: dict[str, list[str]] = {p: [] for p in PRIORITY_ORDER}
+    skipped: list[str] = []
+    for section_name, priority in section_priorities.items():
+        if priority == "skip":
+            skipped.append(section_name)
+        elif priority in buckets:
+            buckets[priority].append(section_name)
+    return buckets, skipped
+
+
+def _select_sections_within_budget(
+    priority_buckets: dict[str, list[str]],
+    sections_registry: dict[str, Any],
+    skill_text: str,
+    section_budget: int,
+    verbose: bool,
+) -> tuple[list[tuple[str, str, int]], list[str], int]:
+    """Pick sections in priority order until the token budget is exhausted."""
+    selected: list[tuple[str, str, int]] = []
+    overflow: list[str] = []
+    used_tokens = 0
+
+    for priority in PRIORITY_ORDER:
+        for section_name in priority_buckets[priority]:
+            if section_name not in sections_registry:
+                continue
+            sec_info = sections_registry[section_name]
+            line_range = sec_info.get("lines", "")
+            if not line_range or not _LINE_RANGE_RE.match(line_range):
+                continue
+
+            text = extract_section(skill_text, line_range)
+            tok = estimate_tokens(text)
+
+            if used_tokens + tok <= section_budget:
+                selected.append((section_name, text, tok))
+                used_tokens += tok
+            else:
+                overflow.append(section_name)
+                if verbose:
+                    print(
+                        f"  [SKIP] {section_name} ({tok} tok) — "
+                        f"would exceed budget ({used_tokens}+{tok} > {section_budget})"
+                    )
+
+    return selected, overflow, used_tokens
+
+
+def _integrate_learnings(
+    learnings_config: dict[str, Any],
+    profile_name: str,
+    profiles_path: Path | None,
+    learnings_reserve: int,
+) -> str:
+    """Load and format operational learnings, returning the text (or empty)."""
+    if not learnings_config.get("enabled", False):
+        return ""
+    p = profiles_path or PROFILES_PATH
+    learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+    if not learnings_path.exists():
+        return ""
+
+    max_entries = learnings_config.get("max_entries", 5)
+    min_confidence = learnings_config.get("min_confidence", 0.5)
+    try:
+        relevant = load_relevant_learnings(
+            task_type=profile_name,
+            jsonl_path=learnings_path,
+            min_confidence=min_confidence,
+            max_entries=max_entries,
+        )
+        if not relevant:
+            return ""
+        return format_learnings_section(relevant, max_tokens=learnings_reserve)
+    except Exception:
+        logger.debug("Learnings integration skipped due to error", exc_info=True)
+        return ""
+
+
 def select_context(
     task_type: str,
     profiles_path: Path | None = None,
@@ -181,110 +299,34 @@ def select_context(
     profile_name = match_profile(task_type, config)
     profile = config["profiles"][profile_name]
     budget = profile.get("token_budget", 6000)
-    section_priorities = profile.get("section_priorities", {})
 
-    advisor_config = profile.get("advisor", {})
-    advisor_enabled = advisor_config.get("enabled", False)
-    advisor_text = ""
-    advisor_reserve = 0
-    if advisor_enabled:
-        max_uses = advisor_config.get("max_uses", 3)
-        cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
-        triggers = advisor_config.get("trigger_conditions", [])
-        triggers_str = ", ".join(triggers) if triggers else "none"
-        advisor_text = (
-            f"## Advisor Tool\n"
-            f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
-            f"Invoke for: {triggers_str}."
-        )
-        advisor_reserve = estimate_tokens(advisor_text)
-
+    advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
     learnings_config = profile.get("learnings", {})
-    learnings_reserve = 0
-    if learnings_config.get("enabled", False):
-        p = profiles_path or PROFILES_PATH
-        learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
-        if learnings_path.exists() and learnings_path.stat().st_size > 0:
-            budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
-            budget_pct = learnings_config.get("budget_pct", 10)
-            learnings_reserve = min(budget_max_tokens, int(budget * budget_pct / 100))
-
+    learnings_reserve = _compute_learnings_reserve(learnings_config, profiles_path, budget)
     section_budget = budget - advisor_reserve - learnings_reserve
 
-    priority_buckets: dict[str, list[str]] = {p: [] for p in PRIORITY_ORDER}
-    skipped = []
-
-    for section_name, priority in section_priorities.items():
-        if priority == "skip":
-            skipped.append(section_name)
-        elif priority in priority_buckets:
-            priority_buckets[priority].append(section_name)
-
-    selected: list[tuple[str, str, int]] = []
-    used_tokens = 0
-
-    for priority in PRIORITY_ORDER:
-        for section_name in priority_buckets[priority]:
-            if section_name not in sections_registry:
-                continue
-
-            sec_info = sections_registry[section_name]
-            line_range = sec_info.get("lines", "")
-            if not line_range or not _LINE_RANGE_RE.match(line_range):
-                continue
-
-            text = extract_section(skill_text, line_range)
-            tok = estimate_tokens(text)
-
-            if used_tokens + tok <= section_budget:
-                selected.append((section_name, text, tok))
-                used_tokens += tok
-            else:
-                skipped.append(section_name)
-                if verbose:
-                    print(
-                        f"  [SKIP] {section_name} ({tok} tok) — "
-                        f"would exceed budget ({used_tokens}+{tok} > {section_budget})"
-                    )
+    priority_buckets, skipped = _build_priority_buckets(
+        profile.get("section_priorities", {})
+    )
+    selected, overflow_skipped, used_tokens = _select_sections_within_budget(
+        priority_buckets, sections_registry, skill_text, section_budget, verbose,
+    )
+    skipped.extend(overflow_skipped)
 
     assembled_text = "\n\n".join(text for _, text, _ in selected)
 
-    learnings_text = ""
-    if learnings_config.get("enabled", False):
-        p = profiles_path or PROFILES_PATH
-        learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
-        if learnings_path.exists():
-            max_entries = learnings_config.get("max_entries", 5)
-            min_confidence = learnings_config.get("min_confidence", 0.5)
-            learnings_token_cap = learnings_reserve
-
-            try:
-                relevant = load_relevant_learnings(
-                    task_type=profile_name,
-                    jsonl_path=learnings_path,
-                    min_confidence=min_confidence,
-                    max_entries=max_entries,
-                )
-                if relevant:
-                    learnings_text = format_learnings_section(
-                        relevant, max_tokens=learnings_token_cap
-                    )
-                    learnings_tokens = estimate_tokens(learnings_text)
-                    used_tokens += learnings_tokens
-            except Exception:
-                logger.debug("Learnings integration skipped due to error", exc_info=True)
-
+    learnings_text = _integrate_learnings(
+        learnings_config, profile_name, profiles_path, learnings_reserve,
+    )
     if learnings_text:
         assembled_text = assembled_text + "\n\n" + learnings_text
+        used_tokens += estimate_tokens(learnings_text)
 
     if advisor_text:
         assembled_text = assembled_text + "\n\n" + advisor_text
         used_tokens += advisor_reserve
 
-    model_hint = resolve_model_hint(task_type, profile)
-    decomp_config = resolve_decomposition_config(profile)
-
-    result = {
+    return {
         "profile_name": profile_name,
         "description": profile.get("description", ""),
         "selected_sections": [{"name": name, "tokens": tok} for name, _, tok in selected],
@@ -296,13 +338,11 @@ def select_context(
         "extra_context": profile.get("extra_context", []),
         "rationale": profile.get("rationale", "").strip(),
         "learnings_included": bool(learnings_text),
-        "model_hint": model_hint,
+        "model_hint": resolve_model_hint(task_type, profile),
         "advisor_enabled": advisor_enabled,
-        "decomposition": decomp_config,
+        "decomposition": resolve_decomposition_config(profile),
         "compression_intensity": resolve_compression_intensity("l2_to_l3", config),
     }
-
-    return result
 
 
 def main():

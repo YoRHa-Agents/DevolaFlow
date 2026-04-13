@@ -297,7 +297,7 @@ Full gate specification: `references/decomposition-gate.md`
 | **Design** | Architecture, API spec, data models, ADRs, schemas | Read, Write, SemanticSearch, WebSearch | Design document, interface definitions |
 | **Implement** | Write code + unit tests, fix issues, configs | Read, Write, StrReplace, Shell, Grep, ReadLints | Source files, test files, build artifacts |
 | **Test** | Run test suites, measure coverage, gap analysis | Shell, Read, Write, Grep | Test report, coverage metrics |
-| **Review** | Code/design review, quality scoring, SOLID checks | Read, Grep, SemanticSearch, ReadLints | Severity-classified findings, quality score |
+| **Review** | Code/design review, quality scoring, SOLID + simplicity checks | Read, Grep, SemanticSearch, ReadLints | Severity-classified findings, quality score |
 
 **Team participation matrix (workflow × team):**
 

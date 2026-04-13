@@ -69,8 +69,17 @@ def run_nines_eval(
     extra_args: list[str] | None = None,
     timeout: int = 120,
 ) -> dict:
-    """Run ``nines eval <artifact_path>`` and return parsed JSON."""
-    cmd = ["nines", "eval", artifact_path, "--scorer", scorer, "--format", "json"]
+    """Run ``nines eval --tasks-path <path>`` and return parsed JSON."""
+    cmd = [
+        "nines",
+        "-f",
+        "json",
+        "eval",
+        "--tasks-path",
+        artifact_path,
+        "--scorers",
+        scorer,
+    ]
     if extra_args:
         cmd.extend(extra_args)
     return _run_cli(cmd, timeout)
@@ -82,8 +91,17 @@ def run_nines_analyze(
     extra_args: list[str] | None = None,
     timeout: int = 120,
 ) -> dict:
-    """Run ``nines analyze <target_path>`` and return parsed JSON."""
-    cmd = ["nines", "analyze", target_path, "--depth", depth, "--format", "json"]
+    """Run ``nines analyze --target-path <path>`` and return parsed JSON."""
+    cmd = [
+        "nines",
+        "-f",
+        "json",
+        "analyze",
+        "--target-path",
+        target_path,
+        "--depth",
+        depth,
+    ]
     if extra_args:
         cmd.extend(extra_args)
     return _run_cli(cmd, timeout)
@@ -145,7 +163,7 @@ def nines_dimension_scores(
         data = run_nines_eval(
             config.benchmark_suite,
             scorer="composite",
-            extra_args=["--parallel", "4", "--report", *(config.extra_eval_args or [])],
+            extra_args=config.extra_eval_args or None,
             timeout=t,
         )
         scores["benchmark"] = _score_or_fallback(data)

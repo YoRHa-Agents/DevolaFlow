@@ -391,6 +391,20 @@ Severity weights: blocker=25, critical=15, major=5, minor=1, info=0
 | Verdict consistency | Consistent with score and threshold |
 | Suggestions | Provided for critical and blocker findings |
 
+### Simplicity Check
+
+Every Review agent MUST evaluate against these scope-creep and over-engineering criteria:
+
+| Check | FAIL if |
+|-------|---------|
+| Speculative features | Code adds capability not required by task objective |
+| Unnecessary abstraction | Indirection/generalization without current use case |
+| Line traceability | Any changed line cannot be traced to a task acceptance criterion |
+| Premature optimization | Performance work without measured bottleneck evidence |
+| Gold-plating | Polish beyond acceptance criteria (extra formatting, unused config) |
+
+A finding of severity `major` is raised for each violation. This prevents scope creep at the source.
+
 ### Tools/Skills
 
 `Read`, `Grep`, `SemanticSearch`, `ReadLints`, `Write`, code-rules protocol

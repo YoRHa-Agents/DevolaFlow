@@ -1,7 +1,7 @@
 ---
 # Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
 # Source: S01-T06 Unified Research Synthesis (2026-04-11)
-# Split: 8 active_tracking + 9 periodic_monitoring = 17 total
+# Split: 9 active_tracking + 9 periodic_monitoring = 18 total
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 
 active_tracking:
@@ -57,8 +57,8 @@ active_tracking:
   - id: get-shit-done
     repo_url: https://github.com/gsd-build/get-shit-done
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "v1.34.0"
+    last_checked: "2026-04-13"
+    last_known_version: "v1.35.0"
     relevance_score: 4
     key_patterns:
       - "4-type gate taxonomy: pre-flight/revision/escalation/abort"
@@ -80,8 +80,8 @@ active_tracking:
   - id: gstack
     repo_url: https://github.com/garrytan/gstack
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "2.0.0"
+    last_checked: "2026-04-13"
+    last_known_version: "v0.16.3.0"
     relevance_score: 4
     key_patterns:
       - "per-skill allowed-tools ACL in SKILL.md frontmatter"
@@ -167,6 +167,28 @@ active_tracking:
       - Review agent (query-back-to-wiki for recurring findings)
     gap_ids: [H5]
 
+  - id: andrej-karpathy-skills
+    repo_url: https://github.com/karpathy/andrej-karpathy-skills
+    source_type: github_repo
+    last_checked: "2026-04-13"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 4
+    key_patterns:
+      - "think before you code: state assumptions explicitly before implementation"
+      - "verify every step: Step→Verify pattern with observable checks"
+      - "simplicity as a review criterion: no speculative features, no unnecessary abstraction"
+      - "scope discipline: every changed line traces to task objective"
+    update_triggers:
+      - changes to CLAUDE.md or skill guideline files
+      - new behavioral guidelines added
+      - community forks with enhanced enforcement patterns
+    devolaflow_integration_points:
+      - schemas/task-dispatch.schema.yaml (explicit_assumptions field)
+      - schemas/lean-dispatch.yaml (assumptions entry)
+      - references/team-roles.md (Simplicity Check rubric)
+      - references/execution-protocol.md (verification-first micro-plan)
+    gap_ids: []
+
   - id: anthropic-coordination-blog
     repo_url: https://www.claude.com/blog/multi-agent-coordination-patterns
     source_type: blog
@@ -189,6 +211,27 @@ active_tracking:
       - references/execution-protocol.md
       - wave dispatch logic (coordination mode selection)
     gap_ids: []
+
+  - id: andrej-karpathy-skills
+    repo_url: https://github.com/forrestchang/andrej-karpathy-skills
+    source_type: github_repo
+    last_checked: "2026-04-13"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 4
+    key_patterns:
+      - "Think Before Coding: assumption surfacing before implementation"
+      - "Simplicity First: YAGNI-driven minimal solutions"
+      - "Surgical Changes: minimal diffs, one concern per change"
+      - "Goal-Driven Execution: verify loops to confirm intent met"
+    update_triggers:
+      - changes to CLAUDE.md
+      - new guidelines added
+    devolaflow_integration_points:
+      - SKILL.md/MVP-SKILL.md (behavioral norms)
+      - references/team-roles.md (review rubric)
+      - schemas/lean-dispatch.yaml (assumptions field)
+    gap_ids: []
+    note: "complements existing karpathy-llm-wiki (gist about wiki ops, not coding norms)"
 
 periodic_monitoring:
 
@@ -293,8 +336,9 @@ periodic_monitoring:
   - id: primelocus-hydra
     repo_url: https://github.com/PrimeLocus/Hydra
     source_type: github_repo
-    last_checked: "2026-04-11"
+    last_checked: "2026-04-13"
     last_known_version: "v0.1.0 (2026-03)"
+    status: verified
     relevance_score: 4
     key_patterns:
       - "strength-based model routing: Claude=architecture, Gemini=critique, Codex=impl"

@@ -37,9 +37,17 @@ from devolaflow.nines.detector import (
 )
 from devolaflow.nines.researcher import (
     NinesResearchConfig,
+    SelfImproveResult,
+    _run_v2_benchmark,
+    _run_v2_iterate,
+    _run_v2_self_eval,
     analyze_target,
     collect_research,
+    refresh_reference_dependency,
+    run_nines_benchmark,
+    run_nines_update,
     run_self_evaluation,
+    run_self_improve_loop,
     run_skill_iteration,
 )
 from devolaflow.nines.scorer import (
@@ -365,9 +373,10 @@ class TestRunNinesEval:
         result = run_nines_eval("artifact/")
         assert result == {"score": 90.0}
         cmd = mock_cli.call_args[0][0]
-        assert cmd[:3] == ["nines", "eval", "artifact/"]
-        assert "--scorer" in cmd
-        assert "--format" in cmd
+        assert cmd[:4] == ["nines", "-f", "json", "eval"]
+        assert "--tasks-path" in cmd
+        assert cmd[cmd.index("--tasks-path") + 1] == "artifact/"
+        assert "--scorers" in cmd
 
     @patch("devolaflow.nines.scorer._run_cli", return_value={})
     def test_eval_timeout(self, mock_cli: MagicMock) -> None:
@@ -399,7 +408,9 @@ class TestRunNinesAnalyze:
         result = run_nines_analyze("src/")
         assert result == {"score": 75.0, "issues": 3}
         cmd = mock_cli.call_args[0][0]
-        assert cmd[:3] == ["nines", "analyze", "src/"]
+        assert cmd[:4] == ["nines", "-f", "json", "analyze"]
+        assert "--target-path" in cmd
+        assert cmd[cmd.index("--target-path") + 1] == "src/"
         assert "--depth" in cmd
 
     @patch("devolaflow.nines.scorer._run_cli", return_value={})
@@ -474,6 +485,9 @@ class TestNinesAdvisorConfig:
         cfg = NinesAdvisorConfig()
         assert cfg.enabled is False
         assert "self-eval" in cfg.commands
+        assert cfg.commands["self-eval"] == "nines -f json self-eval"
+        assert cfg.commands["review"] == "nines -f json analyze --target-path {path}"
+        assert cfg.commands["iterate"] == "nines -f json iterate --max-rounds 1"
         assert cfg.triggers == ["self-eval"]
         assert cfg.max_retries == 2
 
@@ -844,9 +858,13 @@ class TestCollectResearch:
         result = collect_research("agent framework", limit=10)
         assert result == payload
         cmd = mock_run.call_args[0][0]
-        assert cmd[:3] == ["nines", "collect", "github"]
-        assert "agent framework" in cmd
-        assert "--limit" in cmd
+        assert cmd[:4] == ["nines", "-f", "json", "collect"]
+        assert "--source" in cmd
+        assert cmd[cmd.index("--source") + 1] == "github"
+        assert "--query" in cmd
+        assert cmd[cmd.index("--query") + 1] == "agent framework"
+        assert "--max-results" in cmd
+        assert cmd[cmd.index("--max-results") + 1] == "10"
 
     @patch("devolaflow.nines.researcher.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
@@ -859,7 +877,8 @@ class TestCollectResearch:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"results": []}))
         collect_research("deep learning", source="arxiv")
         cmd = mock_run.call_args[0][0]
-        assert cmd[2] == "arxiv"
+        assert "--source" in cmd
+        assert cmd[cmd.index("--source") + 1] == "arxiv"
 
     @patch(
         "devolaflow.nines.researcher.subprocess.run",
@@ -884,17 +903,19 @@ class TestAnalyzeTarget:
         result = analyze_target("src/module.py")
         assert result == payload
         cmd = mock_run.call_args[0][0]
-        assert "src/module.py" in cmd
-        assert "--decompose" in cmd
-        assert "--index" in cmd
+        assert cmd[:4] == ["nines", "-f", "json", "analyze"]
+        assert "--target-path" in cmd
+        assert cmd[cmd.index("--target-path") + 1] == "src/module.py"
+        assert "--agent-impact" in cmd
+        assert "--keypoints" in cmd
 
     @patch("devolaflow.nines.researcher.subprocess.run")
     def test_without_decompose(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         analyze_target("src/", decompose=False)
         cmd = mock_run.call_args[0][0]
-        assert "--decompose" not in cmd
-        assert "--index" not in cmd
+        assert "--agent-impact" not in cmd
+        assert "--keypoints" not in cmd
 
     @patch("devolaflow.nines.researcher.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
@@ -910,16 +931,43 @@ class TestRunSelfEvaluation:
         result = run_self_evaluation()
         assert result == payload
         cmd = mock_run.call_args[0][0]
-        assert cmd[:2] == ["nines", "self-eval"]
-        assert "--dimensions" in cmd
+        assert cmd[:4] == ["nines", "-f", "json", "self-eval"]
+        assert "--dimensions" not in cmd
 
     @patch("devolaflow.nines.researcher.subprocess.run")
-    def test_custom_dimensions(self, mock_run: MagicMock) -> None:
+    def test_with_project_root(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 70}))
+        run_self_evaluation(project_root="/repo", src_dir="src/", test_dir="tests/")
+        cmd = mock_run.call_args[0][0]
+        assert "--project-root" in cmd
+        assert cmd[cmd.index("--project-root") + 1] == "/repo"
+        assert "--src-dir" in cmd
+        assert cmd[cmd.index("--src-dir") + 1] == "src/"
+        assert "--test-dir" in cmd
+        assert cmd[cmd.index("--test-dir") + 1] == "tests/"
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_capability_only(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 80}))
+        run_self_evaluation(capability_only=True)
+        cmd = mock_run.call_args[0][0]
+        assert "--capability-only" in cmd
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_baseline_version(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 90}))
+        run_self_evaluation(baseline_version="v4.5.0")
+        cmd = mock_run.call_args[0][0]
+        assert "--baseline-version" in cmd
+        assert cmd[cmd.index("--baseline-version") + 1] == "v4.5.0"
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_dimensions_param_ignored(self, mock_run: MagicMock) -> None:
+        """The v1 ``dimensions`` kwarg is accepted but ignored in v2."""
         mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 70}))
         run_self_evaluation(dimensions="clarity,coverage")
         cmd = mock_run.call_args[0][0]
-        idx = cmd.index("--dimensions")
-        assert cmd[idx + 1] == "clarity,coverage"
+        assert "--dimensions" not in cmd
 
 
 class TestRunSkillIteration:
@@ -930,7 +978,7 @@ class TestRunSkillIteration:
         result = run_skill_iteration()
         assert result == payload
         cmd = mock_run.call_args[0][0]
-        assert cmd[:2] == ["nines", "iterate"]
+        assert cmd[:4] == ["nines", "-f", "json", "iterate"]
 
     @patch("devolaflow.nines.researcher.subprocess.run")
     def test_custom_params(self, mock_run: MagicMock) -> None:
@@ -940,8 +988,113 @@ class TestRunSkillIteration:
         assert "--max-rounds" in cmd
         idx_mr = cmd.index("--max-rounds")
         assert cmd[idx_mr + 1] == "10"
-        idx_ct = cmd.index("--convergence-threshold")
+        assert "--threshold" in cmd
+        idx_ct = cmd.index("--threshold")
         assert cmd[idx_ct + 1] == "0.05"
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_with_project_dirs(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
+        run_skill_iteration(project_root="/repo", src_dir="src/", test_dir="tests/")
+        cmd = mock_run.call_args[0][0]
+        assert "--project-root" in cmd
+        assert cmd[cmd.index("--project-root") + 1] == "/repo"
+        assert "--src-dir" in cmd
+        assert "--test-dir" in cmd
+
+
+class TestRunNinesBenchmark:
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_basic(self, mock_run: MagicMock) -> None:
+        payload = {"status": "complete", "score": 91.0}
+        mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
+        result = run_nines_benchmark(".")
+        assert result == payload
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["nines", "-f", "json", "benchmark"]
+        assert "--target-path" in cmd
+        assert cmd[cmd.index("--target-path") + 1] == "."
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_all_options(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
+        run_nines_benchmark(
+            "/repo",
+            rounds=3,
+            convergence_threshold=0.01,
+            output_dir="out/",
+            suite_id="s1",
+            tasks_path="tasks/",
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "--rounds" in cmd
+        assert cmd[cmd.index("--rounds") + 1] == "3"
+        assert "--convergence-threshold" in cmd
+        assert cmd[cmd.index("--convergence-threshold") + 1] == "0.01"
+        assert "--output-dir" in cmd
+        assert cmd[cmd.index("--output-dir") + 1] == "out/"
+        assert "--suite-id" in cmd
+        assert cmd[cmd.index("--suite-id") + 1] == "s1"
+        assert "--tasks-path" in cmd
+        assert cmd[cmd.index("--tasks-path") + 1] == "tasks/"
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_failure(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(returncode=1, stderr="error")
+        assert run_nines_benchmark(".") == {}
+
+    @patch(
+        "devolaflow.nines.researcher.subprocess.run",
+        side_effect=subprocess.TimeoutExpired("nines", 300),
+    )
+    def test_timeout(self, _run: MagicMock) -> None:
+        assert run_nines_benchmark(".", timeout=300) == {}
+
+
+class TestRunNinesUpdate:
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_basic(self, mock_run: MagicMock) -> None:
+        payload = {"status": "up_to_date", "version": "2.0.0"}
+        mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
+        result = run_nines_update()
+        assert result == payload
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["nines", "-f", "json", "update"]
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_check_only(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"available": False}))
+        run_nines_update(check_only=True)
+        cmd = mock_run.call_args[0][0]
+        assert "--check" in cmd
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_all_options(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
+        run_nines_update(
+            check_only=True,
+            skip_skills=True,
+            target="cursor",
+            is_global=True,
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "--check" in cmd
+        assert "--skip-skills" in cmd
+        assert "--target" in cmd
+        assert cmd[cmd.index("--target") + 1] == "cursor"
+        assert "--global" in cmd
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_failure(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(returncode=1, stderr="error")
+        assert run_nines_update() == {}
+
+    @patch(
+        "devolaflow.nines.researcher.subprocess.run",
+        side_effect=OSError("not found"),
+    )
+    def test_oserror(self, _run: MagicMock) -> None:
+        assert run_nines_update() == {}
 
 
 class TestGetResearchAdvice:
@@ -976,6 +1129,267 @@ class TestGetResearchAdvice:
         result = get_research_advice(config, target_path="src/")
         assert result["status"] == "no_result"
         assert result["recommendations"] == []
+
+
+# ===========================================================================
+# Deprecation warnings
+# ===========================================================================
+
+
+class TestDeprecationWarnings:
+    def test_evaluate_gate_with_nines_warns(self) -> None:
+        with pytest.warns(DeprecationWarning, match="evaluate_gate_with_nines is deprecated"):
+            evaluate_gate_with_nines(
+                _pass_input(),
+                STANDARD,
+                gate_type="standard",
+                nines_config=None,
+            )
+
+    def test_run_nines_advisor_warns(self) -> None:
+        verdict = _make_verdict(advisor_recommended=False)
+        config = NinesAdvisorConfig(enabled=False)
+        with pytest.warns(DeprecationWarning, match="run_nines_advisor is deprecated"):
+            run_nines_advisor(verdict, config, artifact_path="artifact/")
+
+
+# ===========================================================================
+# researcher.py — v2 self-improvement loop (C1)
+# ===========================================================================
+
+
+class TestSelfImproveResult:
+    def test_default_values(self) -> None:
+        r = SelfImproveResult()
+        assert r.rounds_executed == 0
+        assert r.initial_score == 0.0
+        assert r.final_score == 0.0
+        assert r.converged is False
+        assert r.benchmark_output == {}
+        assert r.error == ""
+
+
+class TestRunV2SelfEval:
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_success(self, mock_run: MagicMock) -> None:
+        payload = {"score": 82.5, "dimensions": {"clarity": 85}}
+        mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
+        result = _run_v2_self_eval("/proj", "src", "tests")
+        assert result == payload
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["nines", "-f", "json", "self-eval"]
+        assert "--project-root" in cmd
+        assert "/proj" in cmd
+        assert "--src-dir" in cmd
+        assert "--test-dir" in cmd
+
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_failure(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(returncode=1, stderr="error")
+        assert _run_v2_self_eval("/proj", "src", "tests") == {}
+
+
+class TestRunV2Iterate:
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_success(self, mock_run: MagicMock) -> None:
+        payload = {"rounds": 2, "converged": True, "final_score": 90.0}
+        mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
+        result = _run_v2_iterate("/proj", "src", "tests", max_rounds=3, threshold=0.05)
+        assert result == payload
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["nines", "-f", "json", "iterate"]
+        assert "--max-rounds" in cmd
+        assert "--threshold" in cmd
+        idx_mr = cmd.index("--max-rounds")
+        assert cmd[idx_mr + 1] == "3"
+
+    @patch(
+        "devolaflow.nines.researcher.subprocess.run",
+        side_effect=subprocess.TimeoutExpired("nines", 300),
+    )
+    def test_timeout(self, _run: MagicMock) -> None:
+        assert _run_v2_iterate("/proj", "src", "tests") == {}
+
+
+class TestRunV2Benchmark:
+    @patch("devolaflow.nines.researcher.subprocess.run")
+    def test_success(self, mock_run: MagicMock) -> None:
+        payload = {"metrics": {"latency_p50": 12.5}}
+        mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
+        result = _run_v2_benchmark("/proj", "/tmp/out")
+        assert result == payload
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["nines", "-f", "json", "benchmark"]
+        assert "--target-path" in cmd
+        assert "--output-dir" in cmd
+
+    @patch("devolaflow.nines.researcher.subprocess.run", side_effect=OSError("fail"))
+    def test_oserror(self, _run: MagicMock) -> None:
+        assert _run_v2_benchmark("/proj", "/tmp/out") == {}
+
+
+class TestRunSelfImproveLoop:
+    @patch("devolaflow.nines.researcher._run_v2_benchmark")
+    @patch("devolaflow.nines.researcher._run_v2_iterate")
+    @patch("devolaflow.nines.researcher._run_v2_self_eval")
+    def test_full_loop_success(
+        self, mock_eval: MagicMock, mock_iter: MagicMock, mock_bench: MagicMock
+    ) -> None:
+        mock_eval.return_value = {"score": 75.0}
+        mock_iter.return_value = {"rounds": 2, "converged": True, "final_score": 88.0}
+        mock_bench.return_value = {"pass": True}
+
+        result = run_self_improve_loop(
+            "/proj", "src", "tests",
+            benchmark_output_dir="/tmp/bench",
+        )
+        assert result.initial_score == 75.0
+        assert result.final_score == 88.0
+        assert result.rounds_executed == 2
+        assert result.converged is True
+        assert result.benchmark_output == {"pass": True}
+        assert result.error == ""
+
+    @patch("devolaflow.nines.researcher._run_v2_self_eval", return_value={})
+    def test_eval_failure_returns_error(self, _eval: MagicMock) -> None:
+        result = run_self_improve_loop("/proj", "src", "tests")
+        assert result.error == "self-eval returned empty result"
+        assert result.initial_score == 0.0
+
+    @patch("devolaflow.nines.researcher._run_v2_iterate", return_value={})
+    @patch("devolaflow.nines.researcher._run_v2_self_eval")
+    def test_iterate_failure_returns_error(
+        self, mock_eval: MagicMock, _iter: MagicMock
+    ) -> None:
+        mock_eval.return_value = {"score": 80.0}
+        result = run_self_improve_loop("/proj", "src", "tests")
+        assert result.error == "iterate returned empty result"
+        assert result.initial_score == 80.0
+
+    @patch("devolaflow.nines.researcher._run_v2_iterate")
+    @patch("devolaflow.nines.researcher._run_v2_self_eval")
+    def test_skips_benchmark_when_no_output_dir(
+        self, mock_eval: MagicMock, mock_iter: MagicMock
+    ) -> None:
+        mock_eval.return_value = {"score": 80.0}
+        mock_iter.return_value = {"rounds": 1, "final_score": 85.0}
+        result = run_self_improve_loop("/proj", "src", "tests")
+        assert result.benchmark_output == {}
+        assert result.error == ""
+
+    @patch("devolaflow.nines.researcher._run_v2_self_eval")
+    def test_overall_score_key_fallback(self, mock_eval: MagicMock) -> None:
+        mock_eval.return_value = {"overall_score": 77.0}
+        with patch("devolaflow.nines.researcher._run_v2_iterate", return_value={}):
+            result = run_self_improve_loop("/proj", "src", "tests")
+        assert result.initial_score == 77.0
+
+
+# ===========================================================================
+# researcher.py — refresh_reference_dependency (C3)
+# ===========================================================================
+
+
+class TestRefreshReferenceDependency:
+    def _write_deps(self, path, data):
+        import yaml
+
+        path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+
+    def test_updates_version(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [{
+                "id": "test-dep", "last_known_version": "1.0.0",
+                "key_patterns": [], "last_checked": "2025-01-01",
+            }],
+            "periodic_monitoring": [],
+        })
+        result = refresh_reference_dependency("test-dep", str(deps_file), new_version="2.0.0")
+        assert result is True
+        import yaml
+
+        data = yaml.safe_load(deps_file.read_text())
+        assert data["active_tracking"][0]["last_known_version"] == "2.0.0"
+
+    def test_extends_patterns(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [{
+                "id": "test-dep", "last_known_version": "1.0.0",
+                "key_patterns": ["existing"], "last_checked": "2025-01-01",
+            }],
+            "periodic_monitoring": [],
+        })
+        result = refresh_reference_dependency(
+            "test-dep", str(deps_file), new_patterns=["new-pattern"],
+        )
+        assert result is True
+        import yaml
+
+        data = yaml.safe_load(deps_file.read_text())
+        assert "existing" in data["active_tracking"][0]["key_patterns"]
+        assert "new-pattern" in data["active_tracking"][0]["key_patterns"]
+
+    def test_no_duplicate_patterns(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [
+                {"id": "dep1", "key_patterns": ["pat1"], "last_checked": "2025-01-01"},
+            ],
+            "periodic_monitoring": [],
+        })
+        refresh_reference_dependency("dep1", str(deps_file), new_patterns=["pat1"])
+        import yaml
+
+        data = yaml.safe_load(deps_file.read_text())
+        assert data["active_tracking"][0]["key_patterns"] == ["pat1"]
+
+    def test_finds_in_periodic_monitoring(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [],
+            "periodic_monitoring": [{
+                "id": "periodic-dep", "last_known_version": "old",
+                "key_patterns": [], "last_checked": "2025-01-01",
+            }],
+        })
+        result = refresh_reference_dependency(
+            "periodic-dep", str(deps_file), new_version="new-ver",
+        )
+        assert result is True
+        import yaml
+
+        data = yaml.safe_load(deps_file.read_text())
+        assert data["periodic_monitoring"][0]["last_known_version"] == "new-ver"
+
+    def test_returns_false_for_missing_dep(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [{"id": "other"}],
+            "periodic_monitoring": [],
+        })
+        assert refresh_reference_dependency("nonexistent", str(deps_file)) is False
+
+    def test_returns_false_for_missing_file(self, tmp_path) -> None:
+        assert refresh_reference_dependency("any", str(tmp_path / "nope.yaml")) is False
+
+    def test_updates_last_checked(self, tmp_path) -> None:
+        deps_file = tmp_path / "deps.yaml"
+        self._write_deps(deps_file, {
+            "active_tracking": [
+                {"id": "dep1", "last_checked": "2020-01-01", "key_patterns": []},
+            ],
+            "periodic_monitoring": [],
+        })
+        refresh_reference_dependency("dep1", str(deps_file), new_version="v3")
+        from datetime import UTC, datetime
+
+        import yaml
+
+        data = yaml.safe_load(deps_file.read_text())
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        assert data["active_tracking"][0]["last_checked"] == today
 
 
 # ===========================================================================
