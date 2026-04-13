@@ -17,6 +17,7 @@ class CursorAdapter(BaseAdapter):
     MAX_LINES = 500
 
     def build(self, source: dict, agent_dir: Path, output_dir: Path) -> AdapterResult:
+        """Copy skill assets and emit Cursor rule files into *output_dir*."""
         output_dir.mkdir(parents=True, exist_ok=True)
         files: list[str] = []
 

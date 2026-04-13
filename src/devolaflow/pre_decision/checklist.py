@@ -43,6 +43,8 @@ _MANIFEST_MAP: dict[str, tuple[str, str]] = {
 
 @dataclass
 class ProjectSection:
+    """Represent project identity fields (name, purpose, scope)."""
+
     name: str = ""
     purpose: str = ""
     scope_keywords: list[str] = field(default_factory=list)
@@ -51,6 +53,8 @@ class ProjectSection:
 
 @dataclass
 class TechStackSection:
+    """Represent technology stack configuration (language, framework, build)."""
+
     primary_language: str = ""
     secondary_languages: list[str] = field(default_factory=list)
     framework: str = ""
@@ -63,6 +67,8 @@ class TechStackSection:
 
 @dataclass
 class RepositoryFeatures:
+    """Represent boolean feature flags for repository capabilities."""
+
     ci_cd: bool = False
     cross_platform_builds: bool = False
     github_actions: bool = False
@@ -77,6 +83,8 @@ class RepositoryFeatures:
 
 @dataclass
 class RepositorySection:
+    """Represent repository configuration (mode, branch, features)."""
+
     mode: str = ""
     remote_url: str = ""
     default_branch: str = "main"
@@ -86,6 +94,8 @@ class RepositorySection:
 
 @dataclass
 class LocalizationSection:
+    """Represent language and localization preferences."""
+
     primary_language: str = "en"
     secondary_language: str = ""
     bilingual_output: bool = False
@@ -95,6 +105,8 @@ class LocalizationSection:
 
 @dataclass
 class PlatformsSection:
+    """Represent target platform constraints (OS, architecture)."""
+
     os: list[str] = field(default_factory=lambda: ["linux"])
     architectures: list[str] = field(default_factory=lambda: ["x86_64"])
     additional_targets: list[str] = field(default_factory=list)
@@ -103,6 +115,8 @@ class PlatformsSection:
 
 @dataclass
 class QualitySection:
+    """Represent quality gate thresholds and review requirements."""
+
     coverage_target_pct: int = 80
     quality_score_threshold: int = 85
     lint_strictness: str = "strict"
@@ -115,6 +129,8 @@ class QualitySection:
 
 @dataclass
 class ReleaseSection:
+    """Represent release strategy and versioning configuration."""
+
     versioning: str = "semver"
     initial_version: str = "0.1.0"
     channels: list[str] = field(default_factory=lambda: ["release"])
@@ -125,6 +141,8 @@ class ReleaseSection:
 
 @dataclass
 class WorkflowSection:
+    """Represent workflow type selection and stage customization."""
+
     type: str = ""
     custom_stages: list[str] = field(default_factory=list)
     skip_stages: list[str] = field(default_factory=list)
@@ -213,8 +231,8 @@ def _detect_primary_language(repo_path: Path) -> str:
     """Determine the dominant source language by file-extension frequency."""
     counts: dict[str, int] = {}
     for p in repo_path.rglob("*"):
-        if p.is_file() and p.suffix in _SOURCE_EXTENSIONS:
-            lang = _SOURCE_EXTENSIONS[p.suffix]
+        lang = _SOURCE_EXTENSIONS.get(p.suffix) if p.is_file() else None
+        if lang:
             counts[lang] = counts.get(lang, 0) + 1
     if not counts:
         return ""
@@ -230,23 +248,68 @@ def _detect_build_system(repo_path: Path) -> tuple[str, str]:
 
 
 def _detect_existing_codebase(repo_path: Path) -> bool:
+    """Return True if the repository contains any recognized source files."""
     return any(p.is_file() and p.suffix in _SOURCE_EXTENSIONS for p in repo_path.rglob("*"))
 
 
-def _detect_default_branch(repo_path: Path) -> str:
+def _branch_from_head(repo_path: Path) -> str | None:
+    """Extract branch name from .git/HEAD ref pointer."""
     git_head = repo_path / ".git" / "HEAD"
-    if git_head.exists():
-        content = git_head.read_text().strip()
-        if content.startswith("ref: refs/heads/"):
-            return content.removeprefix("ref: refs/heads/")
+    if not git_head.exists():
+        return None
+    content = git_head.read_text().strip()
+    prefix = "ref: refs/heads/"
+    return content.removeprefix(prefix) if content.startswith(prefix) else None
+
+
+def _is_branch_section(section: str) -> bool:
+    """True when *section* is a ``[branch "..."]`` git-config section."""
+    return section.startswith('branch "') and section.endswith('"')
+
+
+def _branch_from_config(repo_path: Path) -> str | None:
+    """Extract the first branch name from .git/config sections."""
     git_config = repo_path / ".git" / "config"
-    if git_config.exists():
-        parser = configparser.ConfigParser()
-        parser.read(git_config)
-        for section in parser.sections():
-            if section.startswith('branch "') and section.endswith('"'):
-                return section[8:-1]
+    if not git_config.exists():
+        return None
+    parser = configparser.ConfigParser()
+    parser.read(git_config)
+    for section in parser.sections():
+        if _is_branch_section(section):
+            return section[8:-1]
+    return None
+
+
+def _detect_default_branch(repo_path: Path) -> str:
+    """Determine the default branch name from .git/HEAD or config."""
+    branch = _branch_from_head(repo_path)
+    if branch:
+        return branch
+    branch = _branch_from_config(repo_path)
+    if branch:
+        return branch
     return "main"
+
+
+_MODE_FEATURES: dict[str, dict[str, bool]] = {
+    "github": {
+        "ci_cd": True,
+        "github_actions": True,
+        "release_publishing": True,
+        "changelog": True,
+    },
+    "other-git": {
+        "ci_cd": True,
+        "merge_requests": True,
+        "changelog": True,
+    },
+}
+
+
+def _apply_mode_features(features: RepositoryFeatures, mode: str) -> None:
+    """Set repository feature flags based on the detected hosting mode."""
+    for attr, value in _MODE_FEATURES.get(mode, {}).items():
+        setattr(features, attr, value)
 
 
 def auto_detect(repo_path: Path) -> PreDecisionChecklist:
@@ -259,16 +322,7 @@ def auto_detect(repo_path: Path) -> PreDecisionChecklist:
     repo_mode = detect_repo_mode(repo_path)
     checklist.repository.mode = repo_mode.mode
     checklist.repository.remote_url = repo_mode.remote_url or ""
-
-    if repo_mode.mode == "github":
-        checklist.repository.features.ci_cd = True
-        checklist.repository.features.github_actions = True
-        checklist.repository.features.release_publishing = True
-        checklist.repository.features.changelog = True
-    elif repo_mode.mode == "other-git":
-        checklist.repository.features.ci_cd = True
-        checklist.repository.features.merge_requests = True
-        checklist.repository.features.changelog = True
+    _apply_mode_features(checklist.repository.features, repo_mode.mode)
 
     checklist.repository.default_branch = _detect_default_branch(repo_path)
 

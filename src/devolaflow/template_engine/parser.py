@@ -51,6 +51,7 @@ def parse_template_string(text: str) -> WorkflowTemplate:
 
 
 def _build_template(raw: dict[str, Any]) -> WorkflowTemplate:
+    """Construct a WorkflowTemplate from a parsed YAML dict."""
     metadata = _parse_metadata(raw.get("metadata", {}))
     stages = [_parse_stage(s) for s in raw.get("stages", [])]
     comp_raw = raw.get("composition")
@@ -73,6 +74,7 @@ def _build_template(raw: dict[str, Any]) -> WorkflowTemplate:
 
 
 def _parse_metadata(raw: dict[str, Any]) -> TemplateMetadata:
+    """Extract TemplateMetadata fields from a raw YAML mapping."""
     return TemplateMetadata(
         name=raw.get("name", ""),
         version=raw.get("version", ""),
@@ -88,6 +90,7 @@ def _parse_metadata(raw: dict[str, Any]) -> TemplateMetadata:
 
 
 def _parse_stage(raw: dict[str, Any]) -> StageDefinition:
+    """Extract a StageDefinition from a raw YAML mapping."""
     return StageDefinition(
         id=raw["id"],
         primitive=raw["primitive"],
@@ -166,6 +169,7 @@ def parse_composition(node_dict: dict[str, Any] | str) -> CompositionNode:
 
 
 def _parse_loop(raw: dict[str, Any]) -> LoopDef:
+    """Extract a LoopDef from a raw YAML mapping."""
     return LoopDef(
         name=raw["name"],
         body_stages=raw.get("body_stages", []),
@@ -179,6 +183,7 @@ def _parse_loop(raw: dict[str, Any]) -> LoopDef:
 
 
 def _parse_gate(raw: dict[str, Any]) -> GateDef:
+    """Extract a GateDef from a raw YAML mapping."""
     criteria = [
         GateCriterion(
             field=c["field"],

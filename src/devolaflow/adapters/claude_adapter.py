@@ -18,6 +18,7 @@ class ClaudeAdapter(BaseAdapter):
     MAX_LINES = 200
 
     def build(self, source: dict, agent_dir: Path, output_dir: Path) -> AdapterResult:
+        """Write Claude Code artifacts (``CLAUDE.md`` and ``.claude/settings.json``)."""
         output_dir.mkdir(parents=True, exist_ok=True)
         files: list[str] = []
         identity = source.get("identity", {})

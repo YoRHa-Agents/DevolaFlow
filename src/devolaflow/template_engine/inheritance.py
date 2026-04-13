@@ -75,6 +75,7 @@ def _apply_stage_overrides(
     template: WorkflowTemplate,
     stage_overrides: dict[str, Any],
 ) -> None:
+    """Merge per-stage override fields into the template's stage definitions."""
     for stage_id, overrides in stage_overrides.items():
         stage = template.stage_by_id(stage_id)
         if stage is None:
@@ -90,6 +91,7 @@ def _apply_gate_overrides(
     template: WorkflowTemplate,
     gate_overrides: dict[str, Any],
 ) -> None:
+    """Replace gate criteria from override definitions."""
     gate_map = {g.name: g for g in template.gates}
     for gate_name, overrides in gate_overrides.items():
         gate = gate_map.get(gate_name)
@@ -108,6 +110,7 @@ def _apply_env_overrides(
     template: WorkflowTemplate,
     env_overrides: dict[str, Any],
 ) -> None:
+    """Deep-merge environment mode overrides into the template."""
     for env_name, env_cfg in env_overrides.items():
         if env_name not in template.environment_modes:
             template.environment_modes[env_name] = {}

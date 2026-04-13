@@ -42,6 +42,7 @@ class PluginRegistry:
     """Central registry for DevolaFlow plugins."""
 
     def __init__(self) -> None:
+        """Create an empty registry with no plugin specs registered."""
         self._plugins: dict[str, PluginSpec] = {}
 
     # ── registration ────────────────────────────────────────────────
@@ -162,6 +163,7 @@ class PluginRegistry:
     # ── private helpers ─────────────────────────────────────────────
 
     def _probe_version(self, spec: PluginSpec) -> str | None:
+        """Run the plugin's version command and parse its version string, if any."""
         try:
             proc = subprocess.run(
                 spec.version_command.split(),
@@ -181,6 +183,7 @@ class PluginRegistry:
 
     @staticmethod
     def _run_shell(command: str) -> bool:
+        """Run *command* under bash; return whether it exited successfully."""
         try:
             proc = subprocess.run(
                 ["bash", "-c", command],

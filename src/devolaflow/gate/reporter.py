@@ -19,6 +19,7 @@ from devolaflow.gate.models import (
 
 
 def _check_dict(cr: CheckResult) -> dict[str, object]:
+    """Convert a CheckResult into a plain dict for YAML serialization."""
     return {"status": cr.status, **cr.details}
 
 
@@ -79,6 +80,7 @@ def generate_yaml_report(
 
 
 def _trend_arrow(history: list[ConvergenceRound], idx: int) -> str:
+    """Return a trend arrow character comparing consecutive round scores."""
     if idx == 0:
         return "—"
     delta = history[idx].composite_score - history[idx - 1].composite_score

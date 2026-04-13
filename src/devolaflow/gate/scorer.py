@@ -155,6 +155,7 @@ def score_acceptance_readiness(
 
 
 def _count_severity(findings: list[Finding], severity: str) -> int:
+    """Count findings matching the given severity level."""
     return sum(1 for f in findings if f.severity == severity)
 
 

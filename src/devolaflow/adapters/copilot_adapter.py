@@ -16,6 +16,7 @@ class CopilotAdapter(BaseAdapter):
     MAX_CHARS = 4000
 
     def build(self, source: dict, agent_dir: Path, output_dir: Path) -> AdapterResult:
+        """Write GitHub Copilot instruction files under ``.github/``."""
         output_dir.mkdir(parents=True, exist_ok=True)
         files: list[str] = []
         identity = source.get("identity", {})

@@ -30,6 +30,7 @@ class TemplateRegistry:
     """
 
     def __init__(self, templates_root: Path | None = None) -> None:
+        """Initialize the registry with a root directory for template discovery."""
         if templates_root is None:
             templates_root = Path("workflow-system/agent/templates")
         self._root = templates_root
@@ -108,12 +109,14 @@ class TemplateRegistry:
     # ── private ───────────────────────────────────────────────────
 
     def _ensure_indexed(self) -> None:
+        """Trigger directory scanning if not already indexed."""
         if self._indexed:
             return
         self._indexed = True
         self._scan_directory()
 
     def _scan_directory(self) -> None:
+        """Walk builtin/custom/derived tiers and index all parseable YAML templates."""
         for tier in ("builtin", "custom", "derived"):
             tier_dir = self._root / tier
             if not tier_dir.is_dir():
@@ -127,9 +130,12 @@ class TemplateRegistry:
 
 
 class _IndexEntry:
+    """Store metadata, file path, and tier for a discovered template."""
+
     __slots__ = ("meta", "path", "tier")
 
     def __init__(self, meta: TemplateMetadata, path: Path, tier: str) -> None:
+        """Initialize an index entry with metadata, path, and tier."""
         self.meta = meta
         self.path = path
         self.tier = tier
