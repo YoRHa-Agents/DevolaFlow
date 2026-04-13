@@ -1,11 +1,13 @@
 # DevolaFlow
 
+*From the guardians of YoRHa — a framework that watches over your code.*
+
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-4.4.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-4.5.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
-**Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates -- then let any AI coding tool orchestrate them.
+**Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
 ```
 User Request
@@ -106,10 +108,10 @@ DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords l
 
 **What the agent does differently with DevolaFlow:**
 
-1. **Dispatches instead of diving in** -- the main agent selects a workflow and dispatches stage-by-stage via subagents, instead of trying to do everything in one pass
-2. **Uses subagents with isolated context** -- each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
-3. **Runs quality gates** -- after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
-4. **Follows convergence loops** -- if review finds issues, the agent refines and re-tests (up to 3 rounds) instead of shipping broken code
+1. **Dispatches instead of diving in** — the main agent selects a workflow and dispatches stage-by-stage via subagents, instead of trying to do everything in one pass
+2. **Uses subagents with isolated context** — each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
+3. **Runs quality gates** — after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
+4. **Follows convergence loops** — if review finds issues, the agent refines and re-tests (up to 3 rounds) instead of shipping broken code
 
 ### Claude Code
 
@@ -133,29 +135,36 @@ DevolaFlow includes a built-in update check you can trigger from inside your AI 
 "update_devola"
 ```
 
-The agent will compare your installed version against the latest on GitHub and tell you if an update is available, along with the exact command to run. This check is **manual only** -- it never runs automatically, so it won't consume context tokens unless you ask for it.
+The agent will compare your installed version against the latest on GitHub and tell you if an update is available, along with the exact command to run. This check is **manual only** — it never runs automatically, so it won't consume context tokens unless you ask for it.
 
-### Prompt patterns that work well
+### Prompt Patterns
 
 | Prompt pattern | What it triggers |
 |---------------|-----------------|
-| "Implement X from scratch" | `full-pipeline` -- full lifecycle with design, plan, implementation, review, test, release |
-| "Fix bug in X" / "X is broken" | `hotfix` -- fast 4-stage triage-fix-test-release |
-| "Refactor X" / "Clean up X" | `refactoring` -- restructure with regression testing |
-| "Research X" / "Compare X vs Y" | `research-only` -- structured report, no code |
-| "Design the architecture for X" | `design-only` or `RDRR` -- research-backed design |
-| "Add X to existing Y" | `feature-enhancement` -- extend existing system |
-| "Migrate from X to Y" | `migration` -- assess, plan, implement, validate, cutover |
-| "Is X feasible?" / "Prototype X" | `spike-poc` -- quick experiment |
-| "Write docs for X" | `documentation` -- survey, author, review |
-| "Security audit of X" | `security-audit` -- threat model, scan, remediate, verify |
-| "Build a demo of X" / "Showcase X" | `demo-showcase` -- presentation-ready demo with polished UI |
-| "X is slow" / "Optimize X" | `performance-optimization` -- profile, optimize, benchmark |
-| "Set up dev environment" / "Install X" | `dependency-setup` -- research, configure, verify |
-| "I'm new to this project" | `onboarding` -- codebase survey, docs, env setup |
-| "Optimize SKILL.md" / "EvoBench" / context density for skills | `skill-optimization` -- survey → profile → optimize → benchmark → iterate → document |
-| "update refs" / "check references" | `self-update` -- track and integrate external reference changes |
+| "Implement X from scratch" | `full-pipeline` — full lifecycle with design, plan, implementation, review, test, release |
+| "Fix bug in X" / "X is broken" | `hotfix` — fast 4-stage triage-fix-test-release |
+| "Refactor X" / "Clean up X" | `refactoring` — restructure with regression testing |
+| "Research X" / "Compare X vs Y" | `research-only` — structured report, no code |
+| "Design the architecture for X" | `design-only` or `RDRR` — research-backed design |
+| "Add X to existing Y" | `feature-enhancement` — extend existing system |
+| "Migrate from X to Y" | `migration` — assess, plan, implement, validate, cutover |
+| "Is X feasible?" / "Prototype X" | `spike-poc` — quick experiment |
+| "Write docs for X" | `documentation` — survey, author, review |
+| "Security audit of X" | `security-audit` — threat model, scan, remediate, verify |
+| "Build a demo of X" / "Showcase X" | `demo-showcase` — presentation-ready demo with polished UI |
+| "X is slow" / "Optimize X" | `performance-optimization` — profile, optimize, benchmark |
+| "Set up dev environment" / "Install X" | `dependency-setup` — research, configure, verify |
+| "I'm new to this project" | `onboarding` — codebase survey, docs, env setup |
+| "Optimize SKILL.md" / "EvoBench" | `skill-optimization` — survey → profile → optimize → benchmark → iterate → document |
+| "update refs" / "check references" | `self-update` — track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
+
+## What's New in v4.5.0
+
+- **NieR: Automata Visual Identity** — Project branding aligned with its Devola namesake across documentation, web demo, and README
+- **CI Pipeline Hardening** — Improved GitHub Actions workflows for reliability on PRs and releases
+- **Documentation Redesign** — Human-facing docs, guides, and interactive demo refreshed with unified styling
+- **Version Consistency** — All 16 version locations kept in sync via automated bump tooling
 
 ## What's Inside
 
@@ -191,41 +200,6 @@ The agent will compare your installed version against the latest on GitHub and t
 | **Wave** | Parallel-dispatch tasks | ~4K tokens | Never executes task work |
 | **Task** | **The only layer that works** | ~8K tokens | Never spawns sub-agents |
 
-### EvoBench Context Benchmarks
-
-DevolaFlow includes a built-in benchmark suite (25 scenarios covering all 18 context profiles) that measures how effectively context is routed to agents. Run it to verify optimization changes don't regress:
-
-```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 25 scenarios
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
-python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
-python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
-python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
-```
-
-Scores measure **section relevance** (are the right SKILL.md sections selected?), **information density** (quality per token), and **noise ratio** (irrelevant sections included). Current avg composite: **99.51/100** with 100% relevance and 0% noise across all 25 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
-
-### Repository Development Rules (New in v3.0.0)
-
-19 enforceable rules in `.cursor/rules/` codifying iteration lessons:
-
-| Rule File | Rules | What It Enforces |
-|-----------|-------|-----------------|
-| `skill-format-rules.mdc` | SF-1 to SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
-| `change-process-rules.mdc` | CP-1 to CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
-| `context-optimization-rules.mdc` | CO-1 to CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
-
-### Task Quality Score (New in v2.1.0)
-
-After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
-
-- **Clarity** — Was the intent unambiguous?
-- **Scope** — Were boundaries defined?
-- **Success Criteria** — Were pass/fail conditions stated?
-- **Context** — Was relevant background provided?
-
-The score appears at the end of the workflow report with actionable tips to improve future requests. This helps you learn which details lead to better agent output. Scoring is skipped for trivial tasks.
-
 ### Quality Gate Mechanism
 
 Every stage passes through a quality gate before advancing:
@@ -239,29 +213,53 @@ FAIL: run convergence loop (review -> fix -> test -> fix), max 3 rounds
 ESCALATE: produce divergence report for human review
 ```
 
-### New in v3.9.0
+### EvoBench Context Benchmarks
 
-- **Operational Learnings**: Cross-session knowledge accumulation from workflow execution findings, auto-loaded into task context
-- **Self-Improving Feedback Loop**: Post-workflow pattern detection with safeguarded improvement proposals
-- **4-Type Gate Taxonomy**: Preflight, revision, escalation, and abort gates with deterministic routing
-- **Advisor Tool Integration**: L3 task advisor context + L1 borderline gate detection for complex decisions
-- **Model Profiles**: Per-task model tier hints (quality/balanced/budget) for cost-optimized execution
-- **Typed Status Protocol**: Deterministic subagent result routing (DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED)
-- **Lean Compression Rules**: Explicit preserve/drop lists for inter-layer message compaction
-- **Self-Update Workflow**: Track external reference dependencies and integrate improvements automatically
+DevolaFlow includes a built-in benchmark suite (25 scenarios covering all 18 context profiles) that measures how effectively context is routed to agents:
+
+```bash
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 25 scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
+python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
+python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
+python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
+```
+
+Current avg composite: **99.51/100** with 100% relevance and 0% noise across all 25 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+
+### Task Quality Score
+
+After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
+
+- **Clarity** — Was the intent unambiguous?
+- **Scope** — Were boundaries defined?
+- **Success Criteria** — Were pass/fail conditions stated?
+- **Context** — Was relevant background provided?
+
+The score appears at the end of the workflow report with actionable tips to improve future requests. Scoring is skipped for trivial tasks.
+
+### Repository Development Rules
+
+19 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+
+| Rule File | Rules | What It Enforces |
+|-----------|-------|-----------------|
+| `skill-format-rules.mdc` | SF-1 to SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
+| `change-process-rules.mdc` | CP-1 to CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
+| `context-optimization-rules.mdc` | CO-1 to CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
 
 ## Versioning & Updates
 
-DevolaFlow uses unified versioning -- a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
+DevolaFlow uses unified versioning — a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
 
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v4.4.0"
+devola-version                   # prints "DevolaFlow v4.5.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
-Or ask your AI agent: `"update devola"` -- it will check and report the installed version.
+Or ask your AI agent: `"update devola"` — it will check and report the installed version.
 
 ### Updating to the latest version
 
@@ -288,8 +286,8 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 4.0.0            # updates all 16 version locations
-python scripts/bump_version.py 4.0.0 --dry-run   # preview without writing
+python scripts/bump_version.py 4.5.0            # updates all 16 version locations
+python scripts/bump_version.py 4.5.0 --dry-run   # preview without writing
 ```
 
 ## CLI Tools
@@ -422,4 +420,12 @@ Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml
 
 ## License
 
-MIT
+MIT — [LICENSE](LICENSE)
+
+---
+
+<p align="center"><em>
+"...For the Glory of Mankind."
+<br>
+Named for <a href="https://nierautomata.wiki.fextralife.com/Devola">Devola</a> — who never stopped watching over others, even when the world forgot her purpose.
+</em></p>

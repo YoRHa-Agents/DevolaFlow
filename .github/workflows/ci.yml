@@ -7,6 +7,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -62,3 +69,20 @@ jobs:
         run: build-skill
       - name: Check drift
         run: make check-drift
+
+  # Single gate for branch protection: require this check; fails if any needed job fails or is cancelled.
+  ci-status:
+    name: CI status
+    if: always()
+    needs: [check, test, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all jobs succeeded
+        run: |
+          if [ "${{ needs.check.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.validate.result }}" != "success" ]; then
+            echo "check: ${{ needs.check.result }}, test: ${{ needs.test.result }}, validate: ${{ needs.validate.result }}"
+            exit 1
+          fi
+          echo "All CI jobs passed."

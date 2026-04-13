@@ -201,9 +201,9 @@ const FRAMEWORK = {
 
 // ─── Rendering ─────────────────────────────────────────────────────
 
-const TIER_COLORS = { 1: "#dc3545", 2: "#0d6efd", 3: "#198754" };
+const TIER_COLORS = { 1: "#9B4444", 2: "#B8860B", 3: "#5B7553" };
 const TIER_LABELS = { 1: "Tier 1 — Entry (always loaded)", 2: "Tier 2 — Reference (per-stage)", 3: "Tier 3 — On-Demand" };
-const CAT_COLORS = { discover: "#6f42c1", shape: "#0d6efd", build: "#198754", verify: "#fd7e14", deliver: "#dc3545", composite: "#495057", control: "#6c757d" };
+const CAT_COLORS = { discover: "#B8860B", shape: "#C49A3C", build: "#5B7553", verify: "#D4A843", deliver: "#9B4444", composite: "#495057", control: "#6c757d" };
 
 function renderFrameworkOverview() {
   const el = document.getElementById("framework-diagram");

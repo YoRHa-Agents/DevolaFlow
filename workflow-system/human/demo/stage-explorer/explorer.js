@@ -119,8 +119,8 @@ const STAGES = {
 };
 
 const TEAM_COLORS = {
-  Research: "#6f42c1", Design: "#0d6efd", Implement: "#198754",
-  Test: "#fd7e14", Review: "#dc3545", "(Orchestrator)": "#6c757d",
+  Research: "#B8860B", Design: "#C49A3C", Implement: "#5B7553",
+  Test: "#D4A843", Review: "#9B4444", "(Orchestrator)": "#6c757d",
 };
 
 const CTX_BUDGETS = { Project: 3000, Stage: 5000, Wave: 4000, Task: 8000 };
@@ -148,22 +148,22 @@ function renderStage(key) {
   // Delegation chain
   const chain = document.getElementById("delegation-chain");
   chain.innerHTML = `
-    <div class="chain-layer" style="border-left:3px solid #6f42c1">
+    <div class="chain-layer" style="border-left:3px solid #B8860B">
       <strong>Project Agent (L0)</strong> <span class="budget">~3K tokens</span><br>
       <small>Dispatches stage <em>${key}</em>. Never reads source code. Evaluates inter-stage gate decisions.</small>
     </div>
     <div class="chain-arrow">dispatches to &darr;</div>
-    <div class="chain-layer" style="border-left:3px solid #0d6efd">
+    <div class="chain-layer" style="border-left:3px solid #C49A3C">
       <strong>Stage Agent (L1): ${key}</strong> <span class="budget">~5K tokens</span><br>
       <small>${s.mainAgent.split('.')[0]}.</small>
     </div>
     <div class="chain-arrow">decomposes into waves &darr;</div>
-    <div class="chain-layer" style="border-left:3px solid #198754">
+    <div class="chain-layer" style="border-left:3px solid #5B7553">
       <strong>Wave Agent (L2)</strong> <span class="budget">~4K tokens</span><br>
       <small>Dispatches up to 5 parallel Task Agents. Checks file ownership conflicts. Never executes work.</small>
     </div>
     <div class="chain-arrow">dispatches to &darr;</div>
-    <div class="chain-layer" style="border-left:3px solid #dc3545">
+    <div class="chain-layer" style="border-left:3px solid #9B4444">
       <strong>Task Agent (L3) &mdash; ${s.team} team</strong> <span class="budget">~8K tokens</span><br>
       <small>Executes actual work using tools. Owns disjoint file set. Reports StatusReport back to Wave Agent.</small>
     </div>
@@ -174,7 +174,7 @@ function renderStage(key) {
   const total = Object.values(CTX_BUDGETS).reduce((a, b) => a + b, 0);
   budgetBar.innerHTML = Object.entries(CTX_BUDGETS).map(([layer, tokens]) => {
     const pct = (tokens / total * 100).toFixed(0);
-    const colors = { Project: "#6f42c1", Stage: "#0d6efd", Wave: "#198754", Task: "#dc3545" };
+    const colors = { Project: "#B8860B", Stage: "#C49A3C", Wave: "#5B7553", Task: "#9B4444" };
     return `<div class="budget-segment" style="width:${pct}%;background:${colors[layer]}" title="${layer}: ~${tokens} tokens">${layer}</div>`;
   }).join("");
 }

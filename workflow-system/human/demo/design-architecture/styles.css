@@ -5,13 +5,13 @@
 
 /* --- Tier colors (page-specific tokens) --- */
 :root {
-  --tier1: #dc3545;
+  --tier1: var(--secondary);
   --tier2: var(--accent);
-  --tier3: #198754;
+  --tier3: var(--success);
 }
 .dark {
-  --tier1: #f87171;
-  --tier3: #4ade80;
+  --tier1: #C76B6B;
+  --tier3: #7A9E70;
 }
 
 /* --- Tabs --- */
@@ -33,6 +33,7 @@
   margin-bottom: -2px;
   white-space: nowrap;
   font-size: .9rem;
+  font-family: var(--font-heading);
   transition: color .15s, border-color .15s;
 }
 .tab-btn:hover { color: var(--fg); }
@@ -58,6 +59,8 @@
 .file-card.tier1 { border-left: 4px solid var(--tier1); }
 .file-card.tier2 { border-left: 4px solid var(--tier2); }
 .file-card.tier3 { border-left: 4px solid var(--tier3); }
+
+.file-card h3, .template-card h3 { font-family: var(--font-heading); }
 
 .file-header {
   display: flex;

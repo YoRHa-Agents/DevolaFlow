@@ -9,10 +9,10 @@
 <body>
   <div class="container">
 
-    <header class="slide-up">
+    <header class="slide-up scan-flicker">
       <h1><span class="accent">Devola</span>Flow</h1>
-      <p class="tagline" data-i18n="landing.tagline">Composable workflow meta-framework for AI-assisted software development</p>
-      <p data-i18n="landing.subtitle">Define multi-stage delivery pipelines as declarative YAML. Let any AI coding tool orchestrate them through a 4-layer agent hierarchy with quality gates.</p>
+      <p class="tagline" data-i18n="landing.tagline">A guardian's song for your code — orchestrating workflows so nothing is left behind.</p>
+      <p data-i18n="landing.subtitle">Define multi-stage delivery pipelines as declarative YAML. A 4-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.</p>
       <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <a href="design-architecture/index.html" class="btn btn-primary" data-i18n="card.designArch">Design Architecture</a>
         <a href="workflow-visualizer/index.html" class="btn btn-primary" data-i18n="card.visualizer">Workflow Visualizer</a>
@@ -58,8 +58,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
       <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;align-items:center;">
 
-        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid #6f42c1;">
-          <span style="background:#6f42c1;color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L0</span>
+        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--accent);">
+          <span style="background:var(--accent);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L0</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.project">Project</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.project.desc">picks workflow type, dispatches stages</div>
@@ -73,8 +73,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <div style="width:2px;height:.75rem;background:var(--border);"></div>
         </div>
 
-        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid #6366f1;">
-          <span style="background:#6366f1;color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L1</span>
+        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--warning);">
+          <span style="background:var(--warning);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L1</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.stage">Stage</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.stage.desc">decomposes into waves, runs quality gates</div>
@@ -88,8 +88,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <div style="width:2px;height:.75rem;background:var(--border);"></div>
         </div>
 
-        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid #16a34a;">
-          <span style="background:#16a34a;color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L2</span>
+        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--success);">
+          <span style="background:var(--success);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L2</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.wave">Wave</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.wave.desc">dispatches tasks in parallel, collects results</div>
@@ -103,8 +103,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <div style="width:2px;height:.75rem;background:var(--border);"></div>
         </div>
 
-        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid #dc2626;">
-          <span style="background:#dc2626;color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L3</span>
+        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--secondary);">
+          <span style="background:var(--secondary);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L3</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.task">Task</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.task.desc">writes code, runs tests, reviews — the ONLY layer that works</div>
@@ -189,39 +189,39 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.docs">DOCS</span>
           <h3 data-i18n="card.archOverview">Architecture Overview</h3>
-          <p data-i18n="card.archOverview.desc">System architecture: 4-layer hierarchy, 13 stage primitives, gate mechanism, context isolation.</p>
+          <p data-i18n="card.archOverview.desc">System architecture: 4-layer hierarchy, 13 stage primitives, gate mechanism (preflight, revision, escalation, abort), context isolation.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/architecture-overview.md"><span data-i18n="btn.readOverview">Read Overview</span> &rarr;</a>
         </div>
       </div>
     </section>
 
-    <!-- What's New in v4.4.0 -->
+    <!-- What's New in v4.5.0 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v4.4.0</h2>
-      <p class="desc">UI UX Pro Max plugin (<code>uipro</code>) in the registry with detect, install, and update; <code>ui_integration</code> commands in context profiles; NineS improvement feedback; demo-showcase aligned with <code>ui-ux-pro-max</code>.</p>
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v4.5.0</h2>
+      <p class="desc" data-i18n="landing.whatsNew.desc">Devola's visual identity comes home — warm parchment, gold accents, and the unmistakable presence of a guardian android watching over every workflow.</p>
       <div class="cards">
         <div class="card">
-          <span class="label" data-i18n="label.knowledge">KNOWLEDGE</span>
-          <h3>Operational Learnings</h3>
-          <p>Cross-session knowledge capture: agents accumulate lessons from past runs and apply them to future workflows, reducing repeated mistakes.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.viewSkill">View SKILL</span> &rarr;</a>
+          <span class="label" data-i18n="label.identity">IDENTITY</span>
+          <h3 data-i18n="landing.whatsNew.identity">NieR: Automata Visual Redesign</h3>
+          <p data-i18n="landing.whatsNew.identity.desc">Full visual identity overhaul: warm parchment palette, Cinzel serif headings, gold accent borders, diamond section ornaments, corner marks on hover, and scan-flicker boot animation — all inspired by Devola's world.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow"><span data-i18n="btn.github">GitHub</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.feedback">FEEDBACK</span>
-          <h3>Self-Improving Feedback Loop</h3>
-          <p>Automated feedback analysis pipeline: collects run outcomes, identifies patterns, and feeds improvements back into context profiles and gate thresholds.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.viewSkill">View SKILL</span> &rarr;</a>
+          <span class="label" data-i18n="label.ci">CI</span>
+          <h3 data-i18n="landing.whatsNew.ci">Improved GitHub Actions CI</h3>
+          <p data-i18n="landing.whatsNew.ci.desc">Concurrency controls prevent duplicate runs, required status checks enforce quality gates on every PR, and the release pipeline is streamlined for faster delivery.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/actions"><span data-i18n="btn.viewCI">View CI</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.gates">GATES</span>
-          <h3>4-Type Gate Taxonomy &amp; Advisor Tool</h3>
-          <p>Gates now classified into 4 types (preflight, revision, escalation, abort) with deterministic routing. New advisor tool integration lets gates consult external validators.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/decomposition-gate.md"><span data-i18n="btn.gateReference">Gate Reference</span> &rarr;</a>
+          <span class="label" data-i18n="label.docs">DOCS</span>
+          <h3 data-i18n="landing.whatsNew.docs">Documentation Sync Rules</h3>
+          <p data-i18n="landing.whatsNew.docs.desc">New rules ensure human-facing docs stay synchronized with agent-facing skill files. Version bumps propagate automatically across all eight sync targets.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md"><span data-i18n="nav.userGuide">User Guide</span> &rarr;</a>
         </div>
         <div class="card">
           <span class="label" data-i18n="label.metrics">METRICS</span>
-          <h3>643 Tests, 90.45% Coverage</h3>
-          <p>Plugin registry: NineS and ui-ux-pro-max with full detect, install, and upgrade. 25 EvoBench scenarios, 18 context profiles. All 4 adapters within budget.</p>
+          <h3 data-i18n="landing.whatsNew.metrics">643 Tests, 90.45% Coverage</h3>
+          <p data-i18n="landing.whatsNew.metrics.desc">25 EvoBench scenarios, 18 context profiles, all 4 adapter outputs within budget. Quality gates hold the line — just as Devola would.</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>
@@ -240,8 +240,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
         <div class="card">
           <span class="label" data-i18n="label.rules">RULES</span>
-          <h3>19 Repository Rules</h3>
-          <p>Enforceable guardrails codified from v2.x iteration lessons: SKILL format constraints, change process rules, and context optimization rules.</p>
+          <h3>24 Repository Rules</h3>
+          <p>Enforceable guardrails codified from v2.x iteration lessons: SKILL format constraints, change process rules, context optimization rules, and documentation sync rules.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/.cursor/rules"><span data-i18n="btn.viewRules">View Rules</span> &rarr;</a>
         </div>
         <div class="card">

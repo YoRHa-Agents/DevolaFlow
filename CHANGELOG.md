@@ -5,6 +5,25 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] — 2026-04-13
+
+### Added
+- NieR: Automata / Devola visual identity for all human-facing content
+- Documentation sync rules (DS-1 through DS-5) in `.cursor/rules/documentation-sync-rules.mdc`
+- CI status summary job for branch protection
+- Concurrency groups in CI and Pages workflows
+
+### Changed
+- Complete redesign of web demo pages with NieR palette (warm parchment, gold, Devola red)
+- README.md rewritten with warm, guardian-inspired tone
+- All 8 English user guides updated with Devola-flavored professional tone
+- All 8 Chinese user guides updated with matching warm tone
+- GitHub Actions workflows improved with permissions, caching, and concurrency
+
+### Fixed
+- CI workflow now cancels outdated runs on PR updates
+- Release workflow now uses pip caching for faster builds
+
 ## [4.4.0] - 2026-04-13
 
 ### Added
