@@ -34,17 +34,30 @@ _BUILTIN_SPECS: list[dict[str, Any]] = [
         "skill_install_command": "nines install --target cursor",
     },
     {
-        "name": "ui-pro",
-        "description": "AI-powered UI component generation",
-        "cli_binary": "ui-pro",
-        "version_command": "ui-pro --version",
-        "version_regex": r"(\d+\.\d+\.\d+)",
+        "name": "ui-ux-pro-max",
+        "description": (
+            "AI-powered design intelligence for professional UI/UX across 15 frameworks"
+        ),
+        "cli_binary": "uipro",
+        "version_command": "uipro versions",
+        "version_regex": r"v?(\d+\.\d+\.\d+)",
         "install_methods": {
-            "npm": "npm install -g @devolaflow/ui-pro",
+            "npm": "npm install -g uipro-cli",
         },
-        "capabilities": ["generate", "preview", "export"],
-        "role": "ui",
-        "repo_url": "https://github.com/YoRHa-Agents/ui-pro",
+        "capabilities": [
+            "design_system_generation",
+            "ui_style_recommendation",
+            "color_palette_selection",
+            "typography_pairing",
+            "landing_page_patterns",
+            "chart_recommendations",
+            "ux_guidelines",
+            "multi_stack_support",
+        ],
+        "role": "ui_tooling",
+        "repo_url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+        "min_version": "2.0.0",
+        "skill_install_command": "uipro init --ai cursor",
     },
 ]
 
@@ -94,7 +107,7 @@ def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginReg
     If *plugins_yaml* is ``None``, the function looks for
     ``workflow-system/agent/plugins.yaml`` relative to the repo root.
     When that file is absent it falls back to hard-coded defaults
-    (NineS, ui-pro).
+    (NineS, ui-ux-pro-max).
     """
     registry = PluginRegistry()
 

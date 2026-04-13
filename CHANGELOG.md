@@ -5,6 +5,23 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-04-13
+
+### Added
+- **UI UX Pro Max plugin**: Full integration of `ui-ux-pro-max-skill` (nextlevelbuilder) into the plugin registry. CLI: `uipro` via `npm install -g uipro-cli`. Supports 67 UI styles, 161 color palettes, 57 font pairings, 161 reasoning rules, and 15 tech stacks. Auto-detect, install (`uipro init --ai cursor|claude|copilot|codex|all`), and update (`uipro update`) supported.
+- **UI integration in context profiles**: New `ui_integration` block in `context_profiles.yaml` with design system generation, style search, and palette search commands.
+- **NineS improvement feedback**: Formal feedback written to NineS workspace documenting 7 findings: CLI flag inconsistencies, self-eval scope, coverage parsing, test discovery, iterate context, benchmark task generation, and positive findings.
+
+### Changed
+- **Plugin registry**: Renamed `ui-pro` placeholder to `ui-ux-pro-max` with real CLI binary (`uipro`), version detection, npm install method, 8 capabilities, and platform-specific install commands for Cursor, Claude, Copilot, Codex.
+- **Demo-showcase template**: Updated `ui-pro` reference to `ui-ux-pro-max` in applicable scenarios.
+
+### Metrics
+- Tests: 643 passed
+- Coverage: 90.45%
+- Plugin registry: 2 plugins (NineS + ui-ux-pro-max), both with full detect/install/upgrade support
+- Lint/format: All checks pass
+
 ## [4.3.1] - 2026-04-13
 
 ### Improved

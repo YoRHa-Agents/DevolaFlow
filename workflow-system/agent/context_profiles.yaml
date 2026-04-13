@@ -52,6 +52,19 @@ meta:
       - skill_iteration
       - self_evaluation
 
+  ui_integration:
+    auto_detect: true
+    install_hint: "npm install -g uipro-cli && uipro init --ai cursor"
+    plugin_registry: "workflow-system/agent/plugins.yaml"
+    commands:
+      design_system: "python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \"{query}\" --design-system"
+      style_search: "python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \"{query}\" --domain style"
+      palette_search: "python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \"{query}\" --domain color"
+    triggers:
+      - ui_generation
+      - design_system
+      - landing_page
+
 # SKILL.md section registry with line ranges and base token estimates
 sections:
   frontmatter:

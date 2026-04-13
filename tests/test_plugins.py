@@ -400,9 +400,9 @@ class TestCreateDefaultRegistry:
         nines = reg.get("nines")
         assert nines is not None
         assert nines.cli_binary == "nines"
-        ui = reg.get("ui-pro")
+        ui = reg.get("ui-ux-pro-max")
         assert ui is not None
-        assert ui.cli_binary == "ui-pro"
+        assert ui.cli_binary == "uipro"
 
     def test_loads_from_yaml_when_present(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
@@ -420,7 +420,7 @@ class TestCreateDefaultRegistry:
         yaml_file.write_text(yaml_content)
         reg = create_default_registry(plugins_yaml=yaml_file)
         assert reg.get("nines") is not None
-        assert reg.get("ui-pro") is not None
+        assert reg.get("ui-ux-pro-max") is not None
         assert reg.get("extra-tool") is not None
 
     def test_yaml_overrides_builtin(self, tmp_path: Path) -> None:
