@@ -350,6 +350,68 @@ def select_context(
     }
 
 
+_ROUND_ESCALATION_DEFAULTS: dict[int, dict[str, Any]] = {
+    2: {
+        "section_priority_overrides": {
+            "rationalization_prevention": "critical",
+            "convergence_loop": "critical",
+        },
+        "compression_intensity": "minimal",
+    },
+    3: {
+        "section_priority_overrides": {
+            "rationalization_prevention": "critical",
+            "convergence_loop": "critical",
+            "gate_mechanism": "critical",
+        },
+        "model_hint_override": "quality",
+        "token_budget_increase_pct": 20,
+    },
+}
+
+
+def apply_round_escalation(
+    profile: dict[str, Any],
+    round_num: int,
+    escalation_config: dict[int, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Return a profile copy with round-based escalation overrides applied.
+
+    Higher convergence rounds get stricter section priorities, better
+    model hints, and increased token budgets.  Does not mutate *profile*.
+    """
+    overrides = (escalation_config or _ROUND_ESCALATION_DEFAULTS).get(round_num)
+    if overrides is None:
+        if round_num > max((escalation_config or _ROUND_ESCALATION_DEFAULTS), default=0):
+            overrides = max(
+                (escalation_config or _ROUND_ESCALATION_DEFAULTS).values(),
+                key=lambda v: v.get("token_budget_increase_pct", 0),
+                default={},
+            )
+        else:
+            return profile
+
+    result = {**profile}
+
+    prio_overrides = overrides.get("section_priority_overrides", {})
+    if prio_overrides:
+        existing = dict(result.get("section_priorities", {}))
+        existing.update(prio_overrides)
+        result["section_priorities"] = existing
+
+    if "model_hint_override" in overrides:
+        result["model_hint"] = overrides["model_hint_override"]
+
+    if "compression_intensity" in overrides:
+        result["compression_intensity"] = overrides["compression_intensity"]
+
+    increase_pct = overrides.get("token_budget_increase_pct", 0)
+    if increase_pct and "token_budget" in result:
+        result["token_budget"] = int(result["token_budget"] * (1 + increase_pct / 100))
+
+    return result
+
+
 def main():
     """CLI entry point for the task-adaptive context selector."""
     if len(sys.argv) < 2:

@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from devolaflow.nines.commands import STAGE_MAPPING as _NINES_STAGE_MAPPING
 from devolaflow.plugins.models import PluginSpec
 from devolaflow.plugins.registry import PluginRegistry
 
@@ -42,12 +43,7 @@ _BUILTIN_SPECS: list[dict[str, Any]] = [
         "repo_url": "https://github.com/YoRHa-Agents/NineS",
         "min_version": "1.0.0",
         "skill_install_command": "nines install --target cursor",
-        "stage_mapping": {
-            "research": 'nines collect github "{query}" --limit {limit} --format json',
-            "analyze": "nines analyze {target} --depth deep --decompose --index --format json",
-            "validate": "nines self-eval --compare --report --format json",
-            "monitor": "nines iterate --max-rounds 1 --format json",
-        },
+        "stage_mapping": dict(_NINES_STAGE_MAPPING),
         "workflows": ["research-only", "skill-optimization", "self-update"],
     },
     {

@@ -5,6 +5,22 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] — 2026-04-14
+
+### Added
+- **Feedback-Reinforcement Bridge (P4)**: `ProposalGenerator.generate_reinforcement()` wires `feedback.py` to `gate/reinforcement.py`. Converts gate verdict findings (as `Finding` objects or raw dicts) into `ReinforcementBlock` for next convergence round dispatch. Completes the B+E combination from the feasibility study.
+- **Round-Based Context Escalation (P8)**: `apply_round_escalation()` in `task_adaptive_selector.py`. Higher convergence rounds get stricter section priorities (rationalization_prevention→critical), better model hints (quality tier), and increased token budgets (+20%). Configurable per-round overrides.
+- **NineS Config Discovery (P2)**: `find_nines_config()` in `nines/_cli.py` searches upward for `nines.toml`. `run_nines_cli()` accepts `config_path` parameter for `-c` flag injection.
+- **Schema Validation Tests (P3)**: New `tests/test_schema_validation.py` — validates NineS v2 command compliance in YAML configs (no v1 patterns), task-dispatch schema structure (reinforcement field present), lean-dispatch format (reinforce field present), stage primitive validity.
+
+### Fixed
+- **P1: _BUILTIN_SPECS stage_mapping unified**: `loader.py` now imports `STAGE_MAPPING` from `nines/commands.py` instead of hardcoding v1-style command strings. Eliminates the triple-source command definition problem.
+
+### Metrics
+- Tests: 803 passed (+21 from v5.2.0), 0 failed
+- EvoBench: 26/26 scenarios pass, no regressions
+- Lint: ruff check + format clean
+
 ## [5.2.0] — 2026-04-14
 
 ### Added
