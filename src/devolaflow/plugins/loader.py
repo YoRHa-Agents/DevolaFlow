@@ -26,12 +26,29 @@ _BUILTIN_SPECS: list[dict[str, Any]] = [
                 " https://raw.githubusercontent.com/YoRHa-Agents/NineS"
                 "/main/scripts/install.sh | bash"
             ),
-            "pip": "pip install nines-cli",
+            "pip": "uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
         },
-        "capabilities": ["eval", "collect", "analyze", "self-eval", "iterate", "install"],
-        "role": "research",
+        "capabilities": [
+            "eval",
+            "collect",
+            "analyze",
+            "self-eval",
+            "iterate",
+            "install",
+            "benchmark",
+            "update",
+        ],
+        "role": "research_and_iteration",
         "repo_url": "https://github.com/YoRHa-Agents/NineS",
+        "min_version": "1.0.0",
         "skill_install_command": "nines install --target cursor",
+        "stage_mapping": {
+            "research": 'nines collect github "{query}" --limit {limit} --format json',
+            "analyze": "nines analyze {target} --depth deep --decompose --index --format json",
+            "validate": "nines self-eval --compare --report --format json",
+            "monitor": "nines iterate --max-rounds 1 --format json",
+        },
+        "workflows": ["research-only", "skill-optimization", "self-update"],
     },
     {
         "name": "ui-ux-pro-max",
@@ -76,6 +93,10 @@ def _dict_to_spec(data: dict[str, Any]) -> PluginSpec:
         repo_url=data.get("repo_url", ""),
         min_version=data.get("min_version"),
         skill_install_command=data.get("skill_install_command"),
+        stage_mapping=data.get("stage_mapping", {}),
+        workflows=data.get("workflows", []),
+        update_command=data.get("update_command"),
+        uninstall_command=data.get("uninstall_command"),
     )
 
 

@@ -42,10 +42,10 @@ meta:
     install_hint: "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
     plugin_registry: "workflow-system/agent/plugins.yaml"
     commands:
-      collect: "nines collect github \"{query}\" --limit {limit} --format json"
-      analyze: "nines analyze {target} --depth deep --decompose --index --format json"
-      self_eval: "nines self-eval --dimensions {dimensions} --format json"
-      iterate: "nines iterate --max-rounds {max_rounds} --convergence-threshold {threshold} --format json"
+      collect: "nines -f json collect --source github --query \"{query}\" --max-results {limit}"
+      analyze: "nines -f json analyze --target-path {target} --depth deep --agent-impact --keypoints"
+      self_eval: "nines -f json self-eval --project-root {root}"
+      iterate: "nines -f json iterate --max-rounds {max_rounds} --threshold {threshold} --project-root {root}"
     triggers:
       - research_collection
       - knowledge_analysis

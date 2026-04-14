@@ -5,6 +5,30 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0-pre] — 2026-04-14
+
+### Added
+- **Convergence Round Reinforcement**: New `gate/reinforcement.py` module implementing dispatch-level rule injection (Approach B — zero file I/O, platform-agnostic). `findings_to_reinforcement()` converts gate findings into mandates injected into `applicable_rules.reinforcement`. Prevents L3 Task Agents from repeating same mistakes across convergence rounds.
+- **ReinforcementBlock/ReinforcementRule dataclasses**: Severity-filtered, capped at 5 rules per round, with escalation notes and prior-score context.
+- **Schema extensions**: `task-dispatch.schema.yaml` and `lean-dispatch.yaml` extended with `reinforcement` field under `applicable_rules`.
+- **Shared NineS CLI helper**: New `nines/_cli.py` with `run_nines_cli()` using `shlex.split()` — eliminates duplicate `_run_cli` in scorer.py/researcher.py and fixes quoted-argument parsing bug.
+
+### Fixed
+- **Critical: NineS install command**: `_BUILTIN_SPECS` pip install corrected from `pip install nines-cli` (wrong package) to `uv pip install git+https://github.com/YoRHa-Agents/NineS.git`.
+- **Critical: CLI v1→v2 drift**: 11 NineS commands across `context_profiles.yaml`, `plugins.yaml`, and `nines-assisted.yaml` updated to v2 syntax (`-f json` global, `--max-results`, `--target-path`, `--agent-impact`, `--keypoints`).
+- **advisor.py `cmd.split()` bug**: Replaced with `shlex.split()` — quoted arguments like `--query "hello world"` now parse correctly.
+- **PluginSpec model extended**: Added `stage_mapping`, `workflows`, `update_command`, `uninstall_command` fields; `_dict_to_spec()` updated to extract new fields from YAML.
+- **NineS builtin spec alignment**: role → `research_and_iteration`, min_version → `1.0.0`, capabilities include `benchmark`/`update`.
+
+### Changed
+- **Gate exports**: `gate/__init__.py` now exports reinforcement symbols; `evaluate_gate_with_nines` marked with deprecation comment.
+- **SKILL.md/CLAUDE.md**: Added Reinforcement Rules (v5.1+) documentation to convergence sections.
+
+### Metrics
+- Tests: 704 passed (+23 from v5.0.0), 0 failed
+- Lint: ruff check + format clean
+- NineS evaluation score: 9.15/10 (version readiness: READY)
+
 ## [5.0.0] — 2026-04-13
 
 ### Added

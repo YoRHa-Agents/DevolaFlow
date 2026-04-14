@@ -8,11 +8,11 @@ workflows.  NOT for gate scoring — use the standard gate mechanism
 
 from __future__ import annotations
 
-import json
 import logging
-import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+
+from devolaflow.nines._cli import run_nines_cli as _run_cli
 
 logger = logging.getLogger(__name__)
 
@@ -27,38 +27,6 @@ class NinesResearchConfig:
     iteration_max_rounds: int = 5
     convergence_threshold: float = 0.02
     timeout: int = 120
-
-
-def _run_cli(cmd: list[str], timeout: int) -> dict:
-    """Run a CLI command and return parsed JSON, or ``{}`` on failure."""
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        logger.warning("NineS command timed out after %ds: %s", timeout, cmd)
-        return {}
-    except OSError as exc:
-        logger.warning("NineS command failed to start: %s — %s", cmd, exc)
-        return {}
-
-    if result.returncode != 0:
-        logger.warning(
-            "NineS exited %d: %s stderr=%s",
-            result.returncode,
-            cmd,
-            result.stderr.strip(),
-        )
-        return {}
-
-    try:
-        return json.loads(result.stdout)
-    except (json.JSONDecodeError, ValueError) as exc:
-        logger.warning("Failed to parse NineS JSON: %s — %s", exc, cmd)
-        return {}
 
 
 def collect_research(

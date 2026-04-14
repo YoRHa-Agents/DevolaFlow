@@ -93,6 +93,7 @@ lean_example:
     - "malformed → 400"
     - "missing header → 401"
     - "unit tests cover all 5 cases, >90% coverage on auth.ts"
+  reinforce: { round: 2, prior: 72.3, target: 85, rules: [{ id: "F-001", sev: blocker, mandate: "MUST add error handling to auth middleware", file: "src/middleware/auth.ts" }] }
   gate: { coverage: 90, quality: 85, blockers: 0, retries: 2 }
 
 # --- FORMAT SPECIFICATION ---
@@ -121,6 +122,10 @@ lean_format_spec:
     description: "Verbatim file paths. No descriptions — the task spec provides context."
   rules:
     description: "Collapsed rule hints — strategy/lang/focus only."
+    reinforce:
+      description: "Optional. Round-specific mandates from prior gate failure. ≤5 rules."
+      optional: true
+      fields: { round: int, prior: number, target: number, rules: "list of {id, sev, mandate, file?}" }
   shared:
     description: "≤15 words of cross-cutting tech context."
   accept:

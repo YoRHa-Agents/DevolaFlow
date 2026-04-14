@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "5.0.0"
+version: "5.1.0-pre"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v5.0.0**
+> **Now Using DevolaFlow v5.1.0-pre**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 5.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 5.1.0-pre — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -288,6 +288,18 @@ Full alias table and per-workflow stage sequences: `references/meta-framework.md
 **On FAIL:** round < max_rounds → next convergence round. Stagnant 2+ rounds → escalate. round >= max_rounds → escalate.
 **Gate profiles:** `relaxed` (≥70, ≥60% cov), `standard` (≥85, ≥80%), `strict` (≥90, ≥90%), `audit` (≥95, ≥90%).
 Full gate specification: `references/decomposition-gate.md`
+
+### Reinforcement Rules (v5.1+)
+
+When a stage gate evaluates FAIL, the next convergence round's dispatch includes
+`applicable_rules.reinforcement` — mandates derived from the previous round's findings.
+This prevents L3 Task Agents from repeating the same mistakes.
+
+**Flow:** Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into
+next dispatch `applicable_rules.reinforcement` → L3 MUST address before other work.
+
+**L3 obligation:** Task Agents receiving reinforcement rules MUST address ALL listed rules
+before starting new work. Failure to address reinforcement rules = automatic blocker in next gate.
 
 ## AgentTeam Quick Reference
 

@@ -7,10 +7,10 @@ gate mechanism (``devolaflow.gate.scorer.evaluate_gate``), not NineS.
 
 from __future__ import annotations
 
-import json
 import logging
-import subprocess
 from dataclasses import dataclass, field
+
+from devolaflow.nines._cli import run_nines_cli as _run_cli
 
 logger = logging.getLogger(__name__)
 
@@ -29,38 +29,6 @@ class NinesScorerConfig:
     timeout: int = 120
     extra_eval_args: list[str] = field(default_factory=list)
     extra_analyze_args: list[str] = field(default_factory=list)
-
-
-def _run_cli(cmd: list[str], timeout: int) -> dict:
-    """Run a CLI command and return parsed JSON, or ``{}`` on failure."""
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        logger.warning("NineS command timed out after %ds: %s", timeout, cmd)
-        return {}
-    except OSError as exc:
-        logger.warning("NineS command failed to start: %s — %s", cmd, exc)
-        return {}
-
-    if result.returncode != 0:
-        logger.warning(
-            "NineS exited %d: %s stderr=%s",
-            result.returncode,
-            cmd,
-            result.stderr.strip(),
-        )
-        return {}
-
-    try:
-        return json.loads(result.stdout)
-    except (json.JSONDecodeError, ValueError) as exc:
-        logger.warning("Failed to parse NineS JSON: %s — %s", exc, cmd)
-        return {}
 
 
 def run_nines_eval(

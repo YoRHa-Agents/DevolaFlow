@@ -13,6 +13,7 @@ Legacy scorer/advisor API (backward-compatible, deprecated for gates):
     :func:`nines_dimension_scores`, :func:`run_nines_advisor`.
 """
 
+from devolaflow.nines._cli import run_nines_cli
 from devolaflow.nines.advisor import (
     NinesAdvisorConfig,
     get_research_advice,
@@ -45,6 +46,8 @@ from devolaflow.nines.scorer import (
 )
 
 __all__ = [
+    # Shared CLI helper
+    "run_nines_cli",
     # Research API (preferred)
     "NinesResearchConfig",
     "SelfImproveResult",

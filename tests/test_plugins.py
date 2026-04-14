@@ -66,16 +66,28 @@ class TestPluginSpec:
         assert spec.repo_url == ""
         assert spec.min_version is None
         assert spec.skill_install_command is None
+        assert spec.stage_mapping == {}
+        assert spec.workflows == []
+        assert spec.update_command is None
+        assert spec.uninstall_command is None
 
-    def test_required_fields(self) -> None:
+    def test_optional_fields(self) -> None:
         spec = _sample_spec(
             repo_url="https://example.com",
             min_version="2.0.0",
             skill_install_command="sample install",
+            stage_mapping={"research": "sample search {query}"},
+            workflows=["research-only", "full-pipeline"],
+            update_command="sample update",
+            uninstall_command="sample uninstall",
         )
         assert spec.repo_url == "https://example.com"
         assert spec.min_version == "2.0.0"
         assert spec.skill_install_command == "sample install"
+        assert spec.stage_mapping == {"research": "sample search {query}"}
+        assert spec.workflows == ["research-only", "full-pipeline"]
+        assert spec.update_command == "sample update"
+        assert spec.uninstall_command == "sample uninstall"
 
 
 # ===========================================================================
@@ -403,6 +415,35 @@ class TestCreateDefaultRegistry:
         ui = reg.get("ui-ux-pro-max")
         assert ui is not None
         assert ui.cli_binary == "uipro"
+
+    def test_builtin_nines_pip_install_command(self) -> None:
+        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+        nines = reg.get("nines")
+        assert nines is not None
+        expected = "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
+        assert nines.install_methods["pip"] == expected
+
+    def test_builtin_nines_role_and_version(self) -> None:
+        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+        nines = reg.get("nines")
+        assert nines is not None
+        assert nines.role == "research_and_iteration"
+        assert nines.min_version == "1.0.0"
+
+    def test_builtin_nines_capabilities(self) -> None:
+        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+        nines = reg.get("nines")
+        assert nines is not None
+        assert "benchmark" in nines.capabilities
+        assert "update" in nines.capabilities
+
+    def test_builtin_nines_stage_mapping_and_workflows(self) -> None:
+        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+        nines = reg.get("nines")
+        assert nines is not None
+        assert "research" in nines.stage_mapping
+        assert "analyze" in nines.stage_mapping
+        assert nines.workflows == ["research-only", "skill-optimization", "self-update"]
 
     def test_loads_from_yaml_when_present(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
