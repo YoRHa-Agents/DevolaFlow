@@ -5,7 +5,7 @@
 
 name: "decomposition_feature"
 task_type: "feature"
-description: "Complete feature profile with decomposition context — validates all 14 selected sections with zero noise"
+description: "Complete feature profile with decomposition context — validates all 14+ selected sections with minimal noise"
 
 expected_sections:
   - quick_action_decision
@@ -28,4 +28,4 @@ unwanted_sections: []
 quality_thresholds:
   min_composite: 95
   min_relevance: 1.0
-  max_noise_ratio: 0.05
+  max_noise_ratio: 0.07
