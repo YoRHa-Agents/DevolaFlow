@@ -20,6 +20,13 @@ from devolaflow.nines.advisor import (
     run_nines_advisor,
     should_invoke_advisor,
 )
+from devolaflow.nines.commands import (
+    COMMANDS,
+    DEFAULT_PARAMS,
+    STAGE_MAPPING,
+    build_command,
+    build_stage_command,
+)
 from devolaflow.nines.detector import (
     NinesStatus,
     detect_nines,
@@ -48,6 +55,12 @@ from devolaflow.nines.scorer import (
 __all__ = [
     # Shared CLI helper
     "run_nines_cli",
+    # Command templates
+    "COMMANDS",
+    "DEFAULT_PARAMS",
+    "STAGE_MAPPING",
+    "build_command",
+    "build_stage_command",
     # Research API (preferred)
     "NinesResearchConfig",
     "SelfImproveResult",

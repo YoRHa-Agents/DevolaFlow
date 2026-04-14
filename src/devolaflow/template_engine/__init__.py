@@ -36,6 +36,11 @@ from devolaflow.template_engine.models import (
     TemplateMetadata,
     WorkflowTemplate,
 )
+from devolaflow.template_engine.nines_bridge import (
+    extract_nines_commands,
+    format_nines_context,
+    nines_commands_to_dispatch_context,
+)
 from devolaflow.template_engine.parser import (
     TemplateParseError,
     parse_composition,
@@ -79,6 +84,9 @@ __all__ = [
     "WorkflowTemplate",
     "collect_all_refs",
     "collect_stage_refs",
+    "extract_nines_commands",
+    "format_nines_context",
+    "nines_commands_to_dispatch_context",
     "parse_composition",
     "parse_template",
     "parse_template_string",

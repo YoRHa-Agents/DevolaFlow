@@ -1,0 +1,101 @@
+---
+description: "Self-improvement iteration guardrails — codified from v5.0→v5.1→v5.2 iteration learnings to enforce disciplined planning, evaluation, and learning across version cycles"
+alwaysApply: true
+---
+
+## Rule SI-1 — Iteration Planning Gate
+
+Before starting any version iteration (minor or major), produce a research/analysis artifact identifying gaps between current state and target goals. No implementation without documented gap analysis. Analysis artifacts live in `.local/research/` (e.g., `nines_integration_gap_analysis_v5.1.md`). The gap analysis must enumerate: (a) specific deficiencies found, (b) priority ranking, (c) proposed fixes with file-level scope. This gate is the entry point for SI-2 through SI-10 — skipping it invalidates the entire iteration.
+
+## Rule SI-2 — NineS-Driven Analysis
+
+For external reference analysis, run NineS deep analysis:
+```
+nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
+```
+Store raw JSON output in `.local/research/`. The NineS CLI tool is documented at `https://github.com/YoRHa-Agents/NineS`. Parse results to extract gap items feeding SI-1's planning gate. When NineS is unavailable, manual analysis following the same dimensions (code quality, architecture, tests, maintainability) is acceptable but must be explicitly noted as manual.
+
+## Rule SI-3 — Evaluation Before Release
+
+Every pre-release requires an evaluation report covering these dimensions, each scored 1-10:
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Code quality | 0.20 | Lint cleanliness, complexity metrics, error handling |
+| Architecture rationality | 0.20 | Separation of concerns, layering, coupling |
+| Test adequacy | 0.20 | Coverage ≥ 80%, edge cases, regression tests |
+| Maintainability | 0.15 | Readability, documentation, naming |
+| Compatibility | 0.10 | Cross-platform, schema backward compatibility |
+| Performance impact | 0.15 | No regressions, benchmark deltas documented |
+
+**Version readiness threshold:** weighted composite ≥ 8.5/10. Below threshold → iterate (loop back to SI-1) or escalate to human. Store evaluation reports in `.local/research/` alongside the gap analysis.
+
+## Rule SI-4 — Benchmark Regression Guard
+
+Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean message schemas (`schemas/lean-dispatch.yaml`, `schemas/lean-report.yaml`), SKILL.md sections, or gate modules (`src/devolaflow/gate/`) requires EvoBench verification. The benchmark suite lives at `benchmarks/devolaflow_context/` in this repository (canonical URL: `https://github.com/YoRHa-Agents/DevolaFlow`). Run:
+```
+python -m pytest tests/test_benchmarks.py -v
+```
+**Regression threshold:** composite score must not drop >5% below baseline per scenario. Baselines are stored in `benchmarks/devolaflow_context/baselines/`. If regression detected → fix before commit (couples with SI-10).
+
+## Rule SI-5 — Skill Format Coupling
+
+Changes to SKILL.md or MVP-SKILL.md trigger ALL of the following as a coupled unit — skipping any one is a violation:
+
+1. **Line count check:** `wc -l` confirms ≤ 500 lines each
+2. **Adapter build:** `build-skill` succeeds for all 4 adapters (Cursor, Codex, Claude, Copilot)
+3. **Benchmark run:** `python -m pytest tests/test_benchmarks.py -v` passes (SI-4)
+4. **Version consistency:** `python -m pytest tests/test_version.py -v` passes
+
+These checks are strongly coupled to prevent SKILL drift from code, benchmarks, or version state. Partial compliance is treated as full violation.
+
+## Rule SI-6 — Context Budget Enforcement
+
+Context optimizations must demonstrate improvement (or no regression) via EvoBench benchmarks. Token budgets per agent layer are hard limits:
+
+| Layer | Budget | Role |
+|-------|--------|------|
+| L0 Project | ~3K tokens | Workflow template + status |
+| L1 Stage | ~5K tokens | Stage def + predecessor summaries |
+| L2 Wave | ~4K tokens | Task list + dependency map |
+| L3 Task | ~8K tokens | Task spec + owned files + rules |
+
+Changes to `context_profiles.yaml` require running:
+```
+python -m devolaflow.task_adaptive_selector <task_type> --verbose
+```
+for all affected task types and verifying no section marked `critical` was dropped. Couples with SI-4 (benchmark verification required).
+
+## Rule SI-7 — External Reference Protocol
+
+External tools and benchmarks MUST be referenced by their remote GitHub URL:
+- **DevolaFlow / EvoBench:** `https://github.com/YoRHa-Agents/DevolaFlow`
+- **NineS:** `https://github.com/YoRHa-Agents/NineS`
+
+Local clone paths are provided by the user at runtime and MUST NOT be hardcoded in any agent-facing file (SKILL.md, MVP-SKILL.md, .mdc rules, reference docs, context profiles). All external reference dependencies are tracked in `workflow-system/agent/knowledge/reference-dependencies.yaml`. At verification stage, require the user to provide their local paths — never assume them.
+
+## Rule SI-8 — Iteration Retrospective
+
+After completing a version release, produce a retrospective artifact summarizing:
+1. **Gaps identified** — from SI-1 planning gate
+2. **What was implemented** — with file-level change list
+3. **What was deferred and why** — explicit deferral rationale
+4. **Key learnings** — process improvements for next cycle
+
+Store in `.local/research/` (e.g., `retrospective_v5.1.md`). This artifact feeds the next iteration's SI-1 planning gate, creating a continuous improvement loop. Retrospectives that skip any of the 4 sections are incomplete and must be amended.
+
+## Rule SI-9 — Convergence Round Reinforcement
+
+Multi-round convergence iterations MUST use the reinforcement mechanism (`src/devolaflow/gate/reinforcement.py`). Gate findings from round N are converted via `findings_to_reinforcement()` and injected into round N+1 dispatch under `applicable_rules.reinforcement`. L3 Task Agents MUST address all reinforcement rules before other work. Maximum 5 reinforcement rules per round, severity-filtered (blockers and criticals first). If score stagnates for 2+ rounds despite reinforcement → escalate to human per P4 bounded retry.
+
+## Rule SI-10 — Test-Then-Commit Protocol
+
+Every iteration follows this strict pre-commit sequence — all 5 must pass before any commit:
+
+1. `python -m pytest tests/ -q` — all tests pass
+2. `ruff check src/ tests/` — no lint errors
+3. `ruff format --check src/ tests/` — formatting correct
+4. `python -m pytest tests/test_version.py -v` — version consistent across all locations
+5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
+
+Commit only after all 5 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), and SI-6 (context) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.

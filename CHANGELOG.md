@@ -5,6 +5,25 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0] — 2026-04-14
+
+### Added
+- **Self-Improve Iteration Rules**: New `.cursor/rules/self-improve-iteration-rules.mdc` with 10 rules (SI-1 through SI-10) codifying the iteration process: planning gates, NineS-driven analysis, evaluation before release, benchmark regression guard, skill format coupling, context budget enforcement, external reference protocol, iteration retrospective, convergence reinforcement, and test-then-commit protocol.
+- **NineS Command Templates Module**: New `nines/commands.py` as single source of truth for all NineS CLI v2 command templates. `build_command()` and `build_stage_command()` replace scattered YAML command strings. Addresses Gap 7 (triple-source command definitions).
+- **Template NineS Bridge**: New `template_engine/nines_bridge.py` bridging template `nines_commands` declarations into task dispatch context. `extract_nines_commands()`, `format_nines_context()`, `nines_commands_to_dispatch_context()` make Gap 1 template commands consumable by agents.
+- **Understand-Anything Reference**: Added `understand-anything` (https://github.com/Lum1104/Understand-Anything) to active reference tracking. NineS v2.0.0 analysis: 22 findings, knowledge graph approach for codebase understanding.
+- **NineS Analysis Report**: Structured analysis of Understand-Anything repository with workflow optimization insights for DevolaFlow.
+
+### Changed
+- **Rule count**: Repository rules increased from 24 to 34 (10 new SI rules). Demo index updated.
+- **Reference tracking**: 10 active + 9 periodic = 19 total tracked references.
+
+### Metrics
+- Tests: 782 passed (+78 from v5.1.0-pre), 0 failed
+- EvoBench: 26/26 scenarios pass, no regressions
+- Lint: ruff check + format clean
+- New .mdc rules: 34 total (was 24)
+
 ## [5.1.0-pre] — 2026-04-14
 
 ### Added

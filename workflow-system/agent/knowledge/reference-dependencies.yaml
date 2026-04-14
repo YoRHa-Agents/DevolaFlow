@@ -1,7 +1,7 @@
 ---
 # Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
 # Source: S01-T06 Unified Research Synthesis (2026-04-11)
-# Split: 9 active_tracking + 9 periodic_monitoring = 18 total
+# Split: 10 active_tracking + 9 periodic_monitoring = 19 total
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 
 active_tracking:
@@ -232,6 +232,26 @@ active_tracking:
       - schemas/lean-dispatch.yaml (assumptions field)
     gap_ids: []
     note: "complements existing karpathy-llm-wiki (gist about wiki ops, not coding norms)"
+
+  - id: understand-anything
+    repo_url: "https://github.com/Lum1104/Understand-Anything"
+    source_type: github_repo
+    last_checked: "2026-04-14"
+    last_known_version: "1.0.0"
+    relevance_score: 4
+    key_patterns:
+      - "multi-agent codebase analysis"
+      - "knowledge graph generation"
+      - "skill-based plugin architecture"
+      - "domain/structural view decomposition"
+    update_triggers:
+      - "new analysis capabilities added"
+      - "plugin architecture changes"
+    devolaflow_integration_points:
+      - "research stage: codebase analysis methodology"
+      - "NineS analyze: complementary deep analysis"
+      - "skill format: plugin/skill architecture patterns"
+    note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings). Relevant for research and analysis workflow patterns."
 
 periodic_monitoring:
 
