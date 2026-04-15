@@ -34,7 +34,7 @@ stages:
     config:
       formality: standard
       nines_commands:
-        - "nines collect github \"{query}\" --limit 20 --format json"
+        - "nines -f json collect --source github --query \"{query}\" --max-results 20"
     input_mapping: {}
 
   - id: design
@@ -49,7 +49,7 @@ stages:
       diagram_types: [mermaid]
       design_type: architecture
       nines_commands:
-        - "nines analyze {target} --depth deep --decompose --index --format json"
+        - "nines -f json analyze --target-path {target} --depth deep --agent-impact --keypoints"
     input_mapping:
       context: "research"
 
@@ -138,7 +138,7 @@ stages:
       require_all_criteria: true
       allow_waivers: false
       nines_commands:
-        - "nines self-eval --compare --report --format json"
+        - "nines -f json self-eval --project-root {root} --compare --report"
     input_mapping:
       review_verdict: "review"
       test_result: "test"

@@ -31,10 +31,10 @@ plugins:
       - skill-optimization      # nines self-eval, nines iterate for skill improvement
       - self-update             # nines analyze for understanding upstream changes
     stage_mapping:
-      research: "nines collect github \"{query}\" --limit {limit} --format json"
-      analyze: "nines analyze {target} --depth deep --decompose --index --format json"
-      validate: "nines self-eval --compare --report --format json"
-      monitor: "nines iterate --max-rounds 1 --format json"
+      research: "nines -f json collect --source github --query \"{query}\" --max-results {limit}"
+      analyze: "nines -f json analyze --target-path {target} --depth deep --agent-impact --keypoints"
+      validate: "nines -f json self-eval --project-root {root} --compare --report"
+      monitor: "nines -f json iterate --max-rounds 1 --threshold {threshold} --project-root {root}"
 
   ui-ux-pro-max:
     description: "AI-powered design intelligence for professional UI/UX across 15 frameworks — 67 styles, 161 palettes, 161 reasoning rules"

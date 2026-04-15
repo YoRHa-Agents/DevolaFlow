@@ -9,13 +9,12 @@ enrichment (deprecated; prefer standard gate + research separation).
 
 from __future__ import annotations
 
-import json
 import logging
-import subprocess
 import warnings
 from dataclasses import dataclass, field
 
 from devolaflow.gate.models import GateVerdict
+from devolaflow.nines._cli import run_nines_cli
 
 logger = logging.getLogger(__name__)
 
@@ -41,29 +40,16 @@ def should_invoke_advisor(verdict: GateVerdict, config: NinesAdvisorConfig) -> b
     return verdict.advisor_recommended and config.enabled
 
 
-def _run_nines_command(cmd: str, retries: int) -> dict[str, object] | None:
-    """Execute a NineS CLI command and return parsed JSON, or None on failure."""
-    for attempt in range(1, retries + 1):
-        try:
-            result = subprocess.run(
-                cmd.split(),
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-            if result.returncode == 0:
-                return json.loads(result.stdout)  # type: ignore[no-any-return]
-            logger.warning(
-                "NineS command failed (attempt %d/%d, rc=%d): %s",
-                attempt,
-                retries,
-                result.returncode,
-                result.stderr.strip(),
-            )
-        except subprocess.TimeoutExpired:
-            logger.warning("NineS command timed out (attempt %d/%d): %s", attempt, retries, cmd)
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("NineS command error (attempt %d/%d): %s", attempt, retries, exc)
+def _run_nines_command(cmd: str | list[str], retries: int) -> dict[str, object] | None:
+    """Execute a NineS CLI command with retries, returning parsed JSON or *None*.
+
+    Delegates to :func:`~devolaflow.nines._cli.run_nines_cli` which uses
+    :func:`shlex.split` for string commands, correctly handling quoted arguments.
+    """
+    for _attempt in range(retries):
+        data = run_nines_cli(cmd, timeout=120)
+        if data:
+            return data
     return None
 
 

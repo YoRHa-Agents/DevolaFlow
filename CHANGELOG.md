@@ -5,6 +5,65 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] — 2026-04-14
+
+### Added
+- **Feedback-Reinforcement Bridge (P4)**: `ProposalGenerator.generate_reinforcement()` wires `feedback.py` to `gate/reinforcement.py`. Converts gate verdict findings (as `Finding` objects or raw dicts) into `ReinforcementBlock` for next convergence round dispatch. Completes the B+E combination from the feasibility study.
+- **Round-Based Context Escalation (P8)**: `apply_round_escalation()` in `task_adaptive_selector.py`. Higher convergence rounds get stricter section priorities (rationalization_prevention→critical), better model hints (quality tier), and increased token budgets (+20%). Configurable per-round overrides.
+- **NineS Config Discovery (P2)**: `find_nines_config()` in `nines/_cli.py` searches upward for `nines.toml`. `run_nines_cli()` accepts `config_path` parameter for `-c` flag injection.
+- **Schema Validation Tests (P3)**: New `tests/test_schema_validation.py` — validates NineS v2 command compliance in YAML configs (no v1 patterns), task-dispatch schema structure (reinforcement field present), lean-dispatch format (reinforce field present), stage primitive validity.
+
+### Fixed
+- **P1: _BUILTIN_SPECS stage_mapping unified**: `loader.py` now imports `STAGE_MAPPING` from `nines/commands.py` instead of hardcoding v1-style command strings. Eliminates the triple-source command definition problem.
+
+### Metrics
+- Tests: 803 passed (+21 from v5.2.0), 0 failed
+- EvoBench: 26/26 scenarios pass, no regressions
+- Lint: ruff check + format clean
+
+## [5.2.0] — 2026-04-14
+
+### Added
+- **Self-Improve Iteration Rules**: New `.cursor/rules/self-improve-iteration-rules.mdc` with 10 rules (SI-1 through SI-10) codifying the iteration process: planning gates, NineS-driven analysis, evaluation before release, benchmark regression guard, skill format coupling, context budget enforcement, external reference protocol, iteration retrospective, convergence reinforcement, and test-then-commit protocol.
+- **NineS Command Templates Module**: New `nines/commands.py` as single source of truth for all NineS CLI v2 command templates. `build_command()` and `build_stage_command()` replace scattered YAML command strings. Addresses Gap 7 (triple-source command definitions).
+- **Template NineS Bridge**: New `template_engine/nines_bridge.py` bridging template `nines_commands` declarations into task dispatch context. `extract_nines_commands()`, `format_nines_context()`, `nines_commands_to_dispatch_context()` make Gap 1 template commands consumable by agents.
+- **Understand-Anything Reference**: Added `understand-anything` (https://github.com/Lum1104/Understand-Anything) to active reference tracking. NineS v2.0.0 analysis: 22 findings, knowledge graph approach for codebase understanding.
+- **NineS Analysis Report**: Structured analysis of Understand-Anything repository with workflow optimization insights for DevolaFlow.
+
+### Changed
+- **Rule count**: Repository rules increased from 24 to 34 (10 new SI rules). Demo index updated.
+- **Reference tracking**: 10 active + 9 periodic = 19 total tracked references.
+
+### Metrics
+- Tests: 782 passed (+78 from v5.1.0-pre), 0 failed
+- EvoBench: 26/26 scenarios pass, no regressions
+- Lint: ruff check + format clean
+- New .mdc rules: 34 total (was 24)
+
+## [5.1.0-pre] — 2026-04-14
+
+### Added
+- **Convergence Round Reinforcement**: New `gate/reinforcement.py` module implementing dispatch-level rule injection (Approach B — zero file I/O, platform-agnostic). `findings_to_reinforcement()` converts gate findings into mandates injected into `applicable_rules.reinforcement`. Prevents L3 Task Agents from repeating same mistakes across convergence rounds.
+- **ReinforcementBlock/ReinforcementRule dataclasses**: Severity-filtered, capped at 5 rules per round, with escalation notes and prior-score context.
+- **Schema extensions**: `task-dispatch.schema.yaml` and `lean-dispatch.yaml` extended with `reinforcement` field under `applicable_rules`.
+- **Shared NineS CLI helper**: New `nines/_cli.py` with `run_nines_cli()` using `shlex.split()` — eliminates duplicate `_run_cli` in scorer.py/researcher.py and fixes quoted-argument parsing bug.
+
+### Fixed
+- **Critical: NineS install command**: `_BUILTIN_SPECS` pip install corrected from `pip install nines-cli` (wrong package) to `uv pip install git+https://github.com/YoRHa-Agents/NineS.git`.
+- **Critical: CLI v1→v2 drift**: 11 NineS commands across `context_profiles.yaml`, `plugins.yaml`, and `nines-assisted.yaml` updated to v2 syntax (`-f json` global, `--max-results`, `--target-path`, `--agent-impact`, `--keypoints`).
+- **advisor.py `cmd.split()` bug**: Replaced with `shlex.split()` — quoted arguments like `--query "hello world"` now parse correctly.
+- **PluginSpec model extended**: Added `stage_mapping`, `workflows`, `update_command`, `uninstall_command` fields; `_dict_to_spec()` updated to extract new fields from YAML.
+- **NineS builtin spec alignment**: role → `research_and_iteration`, min_version → `1.0.0`, capabilities include `benchmark`/`update`.
+
+### Changed
+- **Gate exports**: `gate/__init__.py` now exports reinforcement symbols; `evaluate_gate_with_nines` marked with deprecation comment.
+- **SKILL.md/CLAUDE.md**: Added Reinforcement Rules (v5.1+) documentation to convergence sections.
+
+### Metrics
+- Tests: 704 passed (+23 from v5.0.0), 0 failed
+- Lint: ruff check + format clean
+- NineS evaluation score: 9.15/10 (version readiness: READY)
+
 ## [5.0.0] — 2026-04-13
 
 ### Added

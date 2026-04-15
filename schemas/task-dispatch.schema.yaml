@@ -71,6 +71,24 @@ fields:
           language: { type: string, optional: true, description: Primary language hint. }
           task_type: { type: string, optional: true, description: Task category for rule selection. }
           quality_focus: { type: list, description: e.g. security, maintainability. }
+          reinforcement:
+            type: object
+            optional: true
+            description: "Round-specific rule injection from previous convergence failures."
+            children:
+              round: { type: int, description: "Current convergence round number." }
+              severity_floor: { type: string, description: "Minimum severity included (blocker|critical|major)." }
+              prior_score: { type: number, description: "Previous round composite score." }
+              target_score: { type: number, description: "Gate threshold to achieve." }
+              rules:
+                type: list
+                description: "Specific findings that MUST be addressed this round."
+                item_fields:
+                  id: { type: string }
+                  severity: { type: string }
+                  mandate: { type: string, description: "Imperative instruction (MUST/SHALL)." }
+                  file: { type: string, optional: true }
+              escalation_note: { type: string, optional: true, description: "Context about prior round failure." }
       shared_context:
         type: string
         optional: true

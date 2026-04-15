@@ -15,7 +15,11 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from devolaflow.gate.models import GateVerdict
+from devolaflow.gate.models import Finding, GateVerdict
+from devolaflow.gate.reinforcement import (
+    ReinforcementBlock,
+    findings_to_reinforcement,
+)
 from devolaflow.learnings import _now_iso, _read_lines
 
 logger = logging.getLogger(__name__)
@@ -360,3 +364,47 @@ class ProposalGenerator:
                     suggested_change="Adjust section_priorities or token budget",
                 )
             )
+
+    def generate_reinforcement(
+        self,
+        verdict: GateVerdict,
+        round_num: int,
+        target_score: float = 85.0,
+    ) -> ReinforcementBlock | None:
+        """Generate a :class:`ReinforcementBlock` from a gate verdict.
+
+        Bridges feedback analysis (Approach E) with the dispatch-level
+        reinforcement mechanism (Approach B).  Returns ``None`` when the
+        verdict has no actionable findings.
+        """
+        findings_raw = verdict.details.get("findings", [])
+        if not findings_raw:
+            return None
+
+        findings: list[Finding] = []
+        for i, raw in enumerate(findings_raw):
+            if isinstance(raw, Finding):
+                findings.append(raw)
+            elif isinstance(raw, dict):
+                findings.append(
+                    Finding(
+                        finding_id=raw.get("finding_id", f"F-{i:03d}"),
+                        severity=raw.get("severity", "major"),
+                        category=raw.get("category", "general"),
+                        location=raw.get("location", ""),
+                        description=raw.get("description", ""),
+                        suggestion=raw.get("suggestion", ""),
+                        rule_id=raw.get("rule_id", ""),
+                    )
+                )
+
+        if not findings:
+            return None
+
+        prior_score = verdict.composite_score or 0.0
+        return findings_to_reinforcement(
+            findings=findings,
+            round_num=round_num,
+            prior_score=prior_score,
+            target_score=target_score,
+        )

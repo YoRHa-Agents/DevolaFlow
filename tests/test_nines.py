@@ -20,6 +20,7 @@ from devolaflow.gate.models import (
 )
 from devolaflow.gate.profiles import STANDARD
 from devolaflow.gate.scorer import evaluate_gate_with_nines
+from devolaflow.nines._cli import run_nines_cli
 from devolaflow.nines.advisor import (
     NinesAdvisorConfig,
     _interpret_result,
@@ -285,6 +286,66 @@ class TestGetCapabilities:
 
 
 # ===========================================================================
+# _cli.py — shared run_nines_cli helper
+# ===========================================================================
+
+
+class TestRunNinesCli:
+    """Tests for the shared :func:`run_nines_cli` helper."""
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_string_command_parsed_with_shlex(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout='{"ok": true}')
+        result = run_nines_cli("nines -f json self-eval")
+        assert result == {"ok": True}
+        args = mock_run.call_args[0][0]
+        assert args == ["nines", "-f", "json", "self-eval"]
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_list_command_used_directly(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout='{"ok": true}')
+        result = run_nines_cli(["nines", "-f", "json", "eval"])
+        assert result == {"ok": True}
+        args = mock_run.call_args[0][0]
+        assert args == ["nines", "-f", "json", "eval"]
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_quoted_args_preserved(self, mock_run: MagicMock) -> None:
+        """Verify the cmd.split() bug (Gap 10) is fixed."""
+        mock_run.return_value = _mock_proc(stdout='{"results": []}')
+        result = run_nines_cli('nines collect --query "hello world" --source github')
+        assert result == {"results": []}
+        args = mock_run.call_args[0][0]
+        assert args == ["nines", "collect", "--query", "hello world", "--source", "github"]
+
+    @patch(
+        "devolaflow.nines._cli.subprocess.run",
+        side_effect=subprocess.TimeoutExpired("nines", 60),
+    )
+    def test_timeout_returns_empty(self, _run: MagicMock) -> None:
+        assert run_nines_cli(["nines", "eval"], timeout=60) == {}
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_json_parse_error_returns_empty(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout="not valid json {{{")
+        assert run_nines_cli(["nines", "eval"]) == {}
+
+    @patch("devolaflow.nines._cli.subprocess.run", side_effect=OSError("not found"))
+    def test_oserror_returns_empty(self, _run: MagicMock) -> None:
+        assert run_nines_cli(["nines", "eval"]) == {}
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_nonzero_exit_returns_empty(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(returncode=1, stderr="error")
+        assert run_nines_cli(["nines", "eval"]) == {}
+
+    @patch("devolaflow.nines._cli.subprocess.run")
+    def test_empty_stdout_returns_empty(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_proc(stdout="")
+        assert run_nines_cli(["nines", "eval"]) == {}
+
+
+# ===========================================================================
 # scorer.py
 # ===========================================================================
 
@@ -317,7 +378,7 @@ class TestNinesScorerConfig:
 
 
 class TestRunCli:
-    @patch("devolaflow.nines.scorer.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_run_cli_success(self, mock_run: MagicMock) -> None:
         payload = {"score": 85.0, "status": "pass"}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -325,22 +386,22 @@ class TestRunCli:
         assert result == payload
 
     @patch(
-        "devolaflow.nines.scorer.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=subprocess.TimeoutExpired("nines", 60),
     )
     def test_run_cli_timeout(self, _run: MagicMock) -> None:
         assert _run_cli(["nines", "eval", "."], timeout=60) == {}
 
-    @patch("devolaflow.nines.scorer.subprocess.run", side_effect=OSError("not found"))
+    @patch("devolaflow.nines._cli.subprocess.run", side_effect=OSError("not found"))
     def test_run_cli_oserror(self, _run: MagicMock) -> None:
         assert _run_cli(["nines", "eval", "."], timeout=60) == {}
 
-    @patch("devolaflow.nines.scorer.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_run_cli_bad_json(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout="not valid json {{{")
         assert _run_cli(["nines", "eval", "."], timeout=60) == {}
 
-    @patch("devolaflow.nines.scorer.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_run_cli_nonzero_exit(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         assert _run_cli(["nines", "eval", "."], timeout=60) == {}
@@ -526,14 +587,14 @@ class TestShouldInvokeAdvisor:
 
 
 class TestRunNinesCommand:
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"score": 85, "status": "pass"}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
         result = _run_nines_command("nines self-eval --format json", retries=2)
         assert result == payload
 
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_nonzero_exit_retries(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         result = _run_nines_command("nines self-eval", retries=2)
@@ -541,7 +602,7 @@ class TestRunNinesCommand:
         assert mock_run.call_count == 2
 
     @patch(
-        "devolaflow.nines.advisor.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=subprocess.TimeoutExpired("nines", 120),
     )
     def test_timeout_retries(self, mock_run: MagicMock) -> None:
@@ -549,20 +610,20 @@ class TestRunNinesCommand:
         assert result is None
         assert mock_run.call_count == 3
 
-    @patch("devolaflow.nines.advisor.subprocess.run", side_effect=OSError("not found"))
+    @patch("devolaflow.nines._cli.subprocess.run", side_effect=OSError("not found"))
     def test_oserror_retries(self, mock_run: MagicMock) -> None:
         result = _run_nines_command("nines self-eval", retries=2)
         assert result is None
         assert mock_run.call_count == 2
 
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_bad_json_retries(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout="not json")
         result = _run_nines_command("nines self-eval", retries=2)
         assert result is None
         assert mock_run.call_count == 2
 
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success_on_second_attempt(self, mock_run: MagicMock) -> None:
         payload = {"score": 80}
         mock_run.side_effect = [
@@ -851,7 +912,7 @@ class TestNinesResearchConfig:
 
 
 class TestCollectResearch:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"results": [{"title": "paper1"}], "count": 1}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -866,13 +927,13 @@ class TestCollectResearch:
         assert "--max-results" in cmd
         assert cmd[cmd.index("--max-results") + 1] == "10"
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         result = collect_research("query")
         assert result == {}
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_custom_source(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"results": []}))
         collect_research("deep learning", source="arxiv")
@@ -881,14 +942,14 @@ class TestCollectResearch:
         assert cmd[cmd.index("--source") + 1] == "arxiv"
 
     @patch(
-        "devolaflow.nines.researcher.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=subprocess.TimeoutExpired("nines", 120),
     )
     def test_timeout(self, _run: MagicMock) -> None:
         assert collect_research("query") == {}
 
     @patch(
-        "devolaflow.nines.researcher.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=OSError("not found"),
     )
     def test_oserror(self, _run: MagicMock) -> None:
@@ -896,7 +957,7 @@ class TestCollectResearch:
 
 
 class TestAnalyzeTarget:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"complexity": 42, "issues": []}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -909,7 +970,7 @@ class TestAnalyzeTarget:
         assert "--agent-impact" in cmd
         assert "--keypoints" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_without_decompose(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         analyze_target("src/", decompose=False)
@@ -917,14 +978,14 @@ class TestAnalyzeTarget:
         assert "--agent-impact" not in cmd
         assert "--keypoints" not in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="fail")
         assert analyze_target("src/") == {}
 
 
 class TestRunSelfEvaluation:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"score": 85.0, "dimensions": {"clarity": 90}}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -934,7 +995,7 @@ class TestRunSelfEvaluation:
         assert cmd[:4] == ["nines", "-f", "json", "self-eval"]
         assert "--dimensions" not in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_with_project_root(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 70}))
         run_self_evaluation(project_root="/repo", src_dir="src/", test_dir="tests/")
@@ -946,14 +1007,14 @@ class TestRunSelfEvaluation:
         assert "--test-dir" in cmd
         assert cmd[cmd.index("--test-dir") + 1] == "tests/"
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_capability_only(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 80}))
         run_self_evaluation(capability_only=True)
         cmd = mock_run.call_args[0][0]
         assert "--capability-only" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_baseline_version(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 90}))
         run_self_evaluation(baseline_version="v4.5.0")
@@ -961,7 +1022,7 @@ class TestRunSelfEvaluation:
         assert "--baseline-version" in cmd
         assert cmd[cmd.index("--baseline-version") + 1] == "v4.5.0"
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_dimensions_param_ignored(self, mock_run: MagicMock) -> None:
         """The v1 ``dimensions`` kwarg is accepted but ignored in v2."""
         mock_run.return_value = _mock_proc(stdout=json.dumps({"score": 70}))
@@ -971,7 +1032,7 @@ class TestRunSelfEvaluation:
 
 
 class TestRunSkillIteration:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"rounds": 3, "converged": True, "final_score": 92.0}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -980,7 +1041,7 @@ class TestRunSkillIteration:
         cmd = mock_run.call_args[0][0]
         assert cmd[:4] == ["nines", "-f", "json", "iterate"]
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_custom_params(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         run_skill_iteration(max_rounds=10, convergence_threshold=0.05)
@@ -992,7 +1053,7 @@ class TestRunSkillIteration:
         idx_ct = cmd.index("--threshold")
         assert cmd[idx_ct + 1] == "0.05"
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_with_project_dirs(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         run_skill_iteration(project_root="/repo", src_dir="src/", test_dir="tests/")
@@ -1004,7 +1065,7 @@ class TestRunSkillIteration:
 
 
 class TestRunNinesBenchmark:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_basic(self, mock_run: MagicMock) -> None:
         payload = {"status": "complete", "score": 91.0}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -1015,7 +1076,7 @@ class TestRunNinesBenchmark:
         assert "--target-path" in cmd
         assert cmd[cmd.index("--target-path") + 1] == "."
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_all_options(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         run_nines_benchmark(
@@ -1038,13 +1099,13 @@ class TestRunNinesBenchmark:
         assert "--tasks-path" in cmd
         assert cmd[cmd.index("--tasks-path") + 1] == "tasks/"
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         assert run_nines_benchmark(".") == {}
 
     @patch(
-        "devolaflow.nines.researcher.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=subprocess.TimeoutExpired("nines", 300),
     )
     def test_timeout(self, _run: MagicMock) -> None:
@@ -1052,7 +1113,7 @@ class TestRunNinesBenchmark:
 
 
 class TestRunNinesUpdate:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_basic(self, mock_run: MagicMock) -> None:
         payload = {"status": "up_to_date", "version": "2.0.0"}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -1061,14 +1122,14 @@ class TestRunNinesUpdate:
         cmd = mock_run.call_args[0][0]
         assert cmd[:4] == ["nines", "-f", "json", "update"]
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_check_only(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"available": False}))
         run_nines_update(check_only=True)
         cmd = mock_run.call_args[0][0]
         assert "--check" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_all_options(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(stdout=json.dumps({"ok": True}))
         run_nines_update(
@@ -1084,13 +1145,13 @@ class TestRunNinesUpdate:
         assert cmd[cmd.index("--target") + 1] == "cursor"
         assert "--global" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         assert run_nines_update() == {}
 
     @patch(
-        "devolaflow.nines.researcher.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=OSError("not found"),
     )
     def test_oserror(self, _run: MagicMock) -> None:
@@ -1098,7 +1159,7 @@ class TestRunNinesUpdate:
 
 
 class TestGetResearchAdvice:
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {
             "score": 85,
@@ -1112,7 +1173,7 @@ class TestGetResearchAdvice:
         assert len(result["recommendations"]) > 0
         assert "self-eval" in result["raw_outputs"]
 
-    @patch("devolaflow.nines.advisor.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure_graceful(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         config = NinesAdvisorConfig(enabled=True, triggers=["self-eval"])
@@ -1170,7 +1231,7 @@ class TestSelfImproveResult:
 
 
 class TestRunV2SelfEval:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"score": 82.5, "dimensions": {"clarity": 85}}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -1183,14 +1244,14 @@ class TestRunV2SelfEval:
         assert "--src-dir" in cmd
         assert "--test-dir" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_failure(self, mock_run: MagicMock) -> None:
         mock_run.return_value = _mock_proc(returncode=1, stderr="error")
         assert _run_v2_self_eval("/proj", "src", "tests") == {}
 
 
 class TestRunV2Iterate:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"rounds": 2, "converged": True, "final_score": 90.0}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -1204,7 +1265,7 @@ class TestRunV2Iterate:
         assert cmd[idx_mr + 1] == "3"
 
     @patch(
-        "devolaflow.nines.researcher.subprocess.run",
+        "devolaflow.nines._cli.subprocess.run",
         side_effect=subprocess.TimeoutExpired("nines", 300),
     )
     def test_timeout(self, _run: MagicMock) -> None:
@@ -1212,7 +1273,7 @@ class TestRunV2Iterate:
 
 
 class TestRunV2Benchmark:
-    @patch("devolaflow.nines.researcher.subprocess.run")
+    @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
         payload = {"metrics": {"latency_p50": 12.5}}
         mock_run.return_value = _mock_proc(stdout=json.dumps(payload))
@@ -1223,7 +1284,7 @@ class TestRunV2Benchmark:
         assert "--target-path" in cmd
         assert "--output-dir" in cmd
 
-    @patch("devolaflow.nines.researcher.subprocess.run", side_effect=OSError("fail"))
+    @patch("devolaflow.nines._cli.subprocess.run", side_effect=OSError("fail"))
     def test_oserror(self, _run: MagicMock) -> None:
         assert _run_v2_benchmark("/proj", "/tmp/out") == {}
 

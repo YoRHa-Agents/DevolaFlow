@@ -20,6 +20,10 @@ class PluginSpec:
     repo_url: str = ""
     min_version: str | None = None
     skill_install_command: str | None = None
+    stage_mapping: dict[str, str] = field(default_factory=dict)
+    workflows: list[str] = field(default_factory=list)
+    update_command: str | None = None
+    uninstall_command: str | None = None
 
 
 @dataclass

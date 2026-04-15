@@ -16,6 +16,14 @@ from devolaflow.gate.models import (
     GateVerdict,
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
+from devolaflow.gate.reinforcement import (
+    MAX_REINFORCEMENT_RULES,
+    ReinforcementBlock,
+    ReinforcementRule,
+    findings_to_reinforcement,
+    merge_reinforcement_into_dispatch,
+    reinforcement_to_dict,
+)
 from devolaflow.gate.reporter import generate_markdown_report, generate_yaml_report
 from devolaflow.gate.scorer import (
     ARS_DIMENSION_WEIGHTS,
@@ -35,8 +43,11 @@ __all__ = [
     "AcceptanceCriterionResult",
     "DEFAULT_DIMENSION_WEIGHTS",
     "GATE_TYPE_ALIASES",
+    "MAX_REINFORCEMENT_RULES",
     "PROFILES",
     "RELAXED",
+    "ReinforcementBlock",
+    "ReinforcementRule",
     "SEVERITY_WEIGHTS",
     "STANDARD",
     "STRICT",
@@ -51,10 +62,13 @@ __all__ = [
     "compute_trend",
     "detect_stagnation",
     "evaluate_gate",
-    "evaluate_gate_with_nines",
+    "evaluate_gate_with_nines",  # deprecated, removal in v6.0
+    "findings_to_reinforcement",
     "generate_markdown_report",
     "generate_yaml_report",
+    "merge_reinforcement_into_dispatch",
     "quality_score",
+    "reinforcement_to_dict",
     "run_gate_cli",
     "score_acceptance_readiness",
 ]
