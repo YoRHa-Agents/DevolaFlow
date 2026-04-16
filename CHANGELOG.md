@@ -5,6 +5,26 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.1] — 2026-04-16
+
+### Removed
+- **MVP-SKILL.md legacy file**: Deleted `workflow-system/agent/MVP-SKILL.md` (317 lines) and swept 14 cross-references across README, quickstart (EN/ZH), demo, reference-dependencies, install.sh, build-site.sh, PR template, generate_human_docs.py, and design docs. CHANGELOG entries preserved (append-only history). `scripts/install.sh` keeps a backward-compat `mvp` alias documented in-line that routes to `install_standalone`.
+- **`_BUILTIN_SPECS` hardcoded plugin duplicate**: Removed the 78-line `_BUILTIN_SPECS` list from `src/devolaflow/plugins/loader.py`. `create_default_registry()` now loads from `workflow-system/agent/plugins.yaml` (single source of truth) with auto-discovery; an 8-line emergency NineS stub handles the YAML-absent case with a logged warning. 5 `test_builtin_*` tests renamed to `test_repo_yaml_*` and rewritten against the real YAML; 2 new tests cover auto-discovery and emergency-stub fallback.
+
+### Changed
+- **Rule reconciliation (TD-6)**: `.cursor/rules/change-process-rules.mdc` CP-3 rewritten to reference SF-3 as the authoritative version-location list (dropping the stale `CLAUDE.md (frontmatter + banner + body)` claim that contradicted the lightweight 38-line root CLAUDE.md). Root `CLAUDE.md` updated to "11 locations (8 files, rooted in `src/devolaflow/__init__.py`)" to match `scripts/bump_version.py` reality.
+
+### Fixed
+- **3 previously-silent rule contradictions**: CP-3 vs SF-3 vs CLAUDE.md version-location counts now consistent.
+
+### Metrics
+- Tests: **820 passed** (+2 from v5.4.2 for new emergency-stub tests), 0 failed
+- EvoBench: 26/26 pass, no regressions
+- Lint: ruff check + format clean
+- Net LOC: −295 (+156/−451 across 16 files touched + 1 file deleted)
+- MVP-SKILL references in source tree: 0 (down from 141)
+- DeprecationWarnings still present: 12 (removal scheduled for v6.0.2)
+
 ## [5.4.2] — 2026-04-15
 
 ### Changed

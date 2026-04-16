@@ -34,5 +34,5 @@ python -m pytest tests/test_benchmarks.py -v  # EvoBench benchmarks
 
 - Python 3.11+, ruff for lint/format, pytest for tests
 - Coverage floor: 80% (`pyproject.toml [tool.coverage]`)
-- Version tracked across 11 locations — use `scripts/bump_version.py`
+- Version tracked across 11 locations (8 files, rooted in `src/devolaflow/__init__.py`) — use `scripts/bump_version.py`
 - All paths in agent-facing files must be relative to repo root

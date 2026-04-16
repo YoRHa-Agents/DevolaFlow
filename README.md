@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.4.2-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-6.0.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -59,7 +59,7 @@ devola-init all          # all tools
 
 ### Manual (copy one file)
 
-Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and drop it in:
+Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and drop it in:
 
 | Tool | Project-local | User-global |
 |------|--------------|-------------|
@@ -257,7 +257,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v5.4.2"
+devola-version                   # prints "DevolaFlow v6.0.1"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -317,8 +317,7 @@ DevolaFlow/
     cli.py                    #   CLI entry points
   workflow-system/
     agent/                    # Agent-consumed content (md + yaml only)
-      SKILL.md                #   Tier 1 entry point (<500 lines)
-      MVP-SKILL.md            #   self-contained single-file version
+      SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
       references/             #   Tier 2: 8 domain reference files (200-500 lines)
       templates/builtin/      #   17 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs

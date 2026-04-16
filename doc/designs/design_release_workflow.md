@@ -41,24 +41,23 @@ Manual checks:
 python scripts/bump_version.py X.Y.Z --tag
 ```
 
-This updates all 16 version locations AND creates an annotated git tag `vX.Y.Z`. Use `--dry-run` first to preview:
+This updates all version locations AND creates an annotated git tag `vX.Y.Z`. Use `--dry-run` first to preview:
 
 ```bash
 python scripts/bump_version.py X.Y.Z --tag --dry-run
 ```
 
-Locations updated by `bump_version.py` (16 total — see `bump_version.py` for the full list):
-1. `src/devolaflow/__init__.py` — `__version__`
+Locations updated by `bump_version.py` (11 patterns across 8 files — see `bump_version.py` `VERSION_LOCATIONS` for the canonical list):
+1. `src/devolaflow/__init__.py` — `__version__` (source of truth)
 2. `pyproject.toml` — `version`
-3. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:"
-4. `workflow-system/agent/MVP-SKILL.md` — frontmatter `version:`, banner, body "Current version:", update instructions
-5. `workflow-system/agent/workflow-skill.yaml` — identity `version:`
-6. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
-7. `tests/test_smoke.py` — version assertion
-8. `README.md` — badge and version example
-9. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
+3. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:" (3 patterns)
+4. `workflow-system/agent/workflow-skill.yaml` — identity `version:`
+5. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
+6. `tests/test_smoke.py` — version assertion
+7. `README.md` — badge and version example (2 patterns)
+8. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
 
-See `scripts/bump_version.py` for the remaining 7 locations (additional SKILL.md/MVP-SKILL.md occurrences, generated docs, etc.).
+See `scripts/bump_version.py` for the full pattern list.
 
 After bumping, also run `make sync-human-docs` to propagate version into generated doc files.
 
@@ -123,7 +122,7 @@ _site/
 ├── docs-en/     ← workflow-system/human/en/*.md
 ├── docs-zh/     ← workflow-system/human/zh/*.md
 ├── designs/     ← doc/designs/*.md
-├── download/    ← SKILL.md, MVP-SKILL.md
+├── download/    ← SKILL.md
 └── templates/   ← builtin/*.yaml
 ```
 

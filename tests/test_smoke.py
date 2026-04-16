@@ -6,7 +6,7 @@ from pathlib import Path
 def test_import_devolaflow():
     import devolaflow
 
-    assert devolaflow.__version__ == "5.4.2"
+    assert devolaflow.__version__ == "6.0.1"
 
 
 def test_directory_structure(project_root: Path):

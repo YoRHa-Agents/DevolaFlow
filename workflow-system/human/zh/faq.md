@@ -4,8 +4,8 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-15T18:33:13Z"
-source_version: "5.4.2"
+last_synced: "2026-04-16T18:14:16Z"
+source_version: "6.0.1"
 ---
 
 # 常见问题

@@ -280,6 +280,8 @@ case "$TARGET" in
   claude)  install_claude ;;
   copilot) install_copilot ;;
   standalone) install_standalone ;;
+  # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
+  # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
   mvp)        install_standalone ;;
   update)  do_update ;;
   all)     install_cursor; install_codex; install_claude; install_copilot ;;

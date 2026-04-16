@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-15T18:33:13Z"
-source_version: "5.4.2"
+last_synced: "2026-04-16T18:14:16Z"
+source_version: "6.0.1"
 ---
 
 # Quick Start Guide
@@ -45,7 +45,7 @@ devola-init all          # all tools
 
 **Option C — Manual (single file):**
 
-Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and place it in:
+Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
 
 | Tool | Path |
 |------|------|
