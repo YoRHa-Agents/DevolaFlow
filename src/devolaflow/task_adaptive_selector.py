@@ -12,6 +12,7 @@ Based on: WP-4 Rank 4 (Task-Adaptive Context Selection via Goal-Hint Routing),
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import sys
@@ -281,6 +282,8 @@ def select_context(
     task_type: str,
     profiles_path: Path | None = None,
     verbose: bool = False,
+    round_num: int = 1,
+    escalation_config: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Select context sections for a given task type.
 
@@ -291,6 +294,13 @@ def select_context(
       - budget: token budget for this profile
       - skipped_sections: sections that didn't fit or were deprioritized
       - extra_context: additional reference files to load
+      - round_num: convergence round number (1 = initial, 2+ = escalated)
+      - escalation_applied: whether round-based escalation was applied
+
+    When ``round_num > 1`` the resolved profile is routed through
+    :func:`apply_round_escalation` so convergence rounds receive stricter
+    section priorities and larger token budgets.  Pass ``escalation_config``
+    to override the defaults defined in ``_ROUND_ESCALATION_DEFAULTS``.
     """
     config = load_profiles(profiles_path)
     skill_text = load_skill_md(config)
@@ -298,6 +308,8 @@ def select_context(
 
     profile_name = match_profile(task_type, config)
     profile = config["profiles"][profile_name]
+    if round_num > 1:
+        profile = apply_round_escalation(profile, round_num, escalation_config)
     budget = profile.get("token_budget", 6000)
 
     advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
@@ -331,6 +343,19 @@ def select_context(
         assembled_text = assembled_text + "\n\n" + advisor_text
         used_tokens += advisor_reserve
 
+    escalation_applied = round_num > 1
+    model_hint: str | None = None
+    if escalation_applied and "model_hint" in profile:
+        model_hint = profile["model_hint"]
+    if not model_hint:
+        model_hint = resolve_model_hint(task_type, profile)
+
+    compression_intensity = (
+        profile.get("compression_intensity")
+        if escalation_applied and "compression_intensity" in profile
+        else resolve_compression_intensity("l2_to_l3", config)
+    )
+
     return {
         "profile_name": profile_name,
         "description": profile.get("description", ""),
@@ -343,10 +368,12 @@ def select_context(
         "extra_context": profile.get("extra_context", []),
         "rationale": profile.get("rationale", "").strip(),
         "learnings_included": bool(learnings_text),
-        "model_hint": resolve_model_hint(task_type, profile),
+        "model_hint": model_hint,
         "advisor_enabled": advisor_enabled,
         "decomposition": resolve_decomposition_config(profile),
-        "compression_intensity": resolve_compression_intensity("l2_to_l3", config),
+        "compression_intensity": compression_intensity,
+        "round_num": round_num,
+        "escalation_applied": escalation_applied,
     }
 
 
@@ -415,7 +442,7 @@ def apply_round_escalation(
 def main():
     """CLI entry point for the task-adaptive context selector."""
     if len(sys.argv) < 2:
-        print("Usage: task_adaptive_selector.py <task_type> [--verbose] [--full]")
+        print("Usage: task_adaptive_selector.py <task_type> [--verbose] [--full] [--round N]")
         print()
         print("Task types: hotfix, feature, research, refactor, review, design")
         print("Also matches goal hints: 'fix bug', 'implement feature', etc.")
@@ -425,13 +452,21 @@ def main():
     verbose = "--verbose" in sys.argv
     show_full = "--full" in sys.argv
 
-    result = select_context(task_type, verbose=verbose)
+    round_num = 1
+    for i, arg in enumerate(sys.argv):
+        if arg == "--round" and i + 1 < len(sys.argv):
+            with contextlib.suppress(ValueError):
+                round_num = int(sys.argv[i + 1])
+
+    result = select_context(task_type, verbose=verbose, round_num=round_num)
 
     print(f"Profile: {result['profile_name']}")
     print(f"Description: {result['description']}")
     print(f"Model hint: {result['model_hint']}")
     print(f"Token budget: {result['budget']}")
     print(f"Tokens used: {result['total_tokens']} ({result['utilization_pct']}%)")
+    if verbose:
+        print(f"Round: {round_num}")
     print()
 
     print("Selected sections:")

@@ -5,6 +5,30 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.3] — 2026-04-16
+
+### Changed
+- **`select_context()` is now round-aware**: New keyword argument `round_num: int = 1` (backward-compatible default). When `round_num > 1` the profile is routed through `apply_round_escalation()` before section selection, automatically applying the v5.3.0 P8 escalation defaults (+20% token budget on round 3, `model_hint: quality`, and critical-bumping of `rationalization_prevention` / `convergence_loop` / `gate_mechanism` sections). A new `escalation_config` kwarg allows per-call overrides. Return value now includes `round_num` and `escalation_applied`.
+- **CLI `--round N` flag**: `python -m devolaflow.task_adaptive_selector <task> --round 3 [--verbose]` exposes the new round-aware behavior on the command line.
+
+### Added
+- **`ProposalGenerator.generate_round_dispatch(base_dispatch, verdict, round_num, target_score=85.0)`** in `src/devolaflow/feedback.py`: the production wiring that closes the v5.3.0 reinforcement dead-wire gap. Round 1 is pass-through; round 2+ with findings builds a `ReinforcementBlock` via `findings_to_reinforcement()` and merges it into a deep-copied dispatch via `merge_reinforcement_into_dispatch()`. L3 Task Agents receiving the merged dispatch see explicit MUST-fix mandates under `context.applicable_rules.reinforcement`.
+- **`severity_floor` parameter on `generate_reinforcement`**: optional kwarg (default `"major"`) for explicit severity filtering at generation time.
+- **`tests/test_e2e_convergence.py`** (C2): new 7-test end-to-end integration suite that exercises `select_context` + round escalation + `generate_round_dispatch` + reinforcement merge as a realistic 3-round convergence. Covers round-1 pass-through, round-2 budget+reinforcement, round-3 full escalation with metadata, MAX_REINFORCEMENT_RULES cap enforcement, severity-floor filtering, and round_num observability.
+
+### Metrics
+- Tests: 791 → **812 passed** (+21 new: 8 task-adaptive-selector, 6 feedback-reinforcement, 7 E2E)
+- Live verification: round 1 → 3 increases budget 4800 → 5760 exactly (+20%), `model_hint: balanced → quality`
+- Lint: ruff check + format clean
+- EvoBench: 26/26 pass, no regression
+- DeprecationWarnings: 0 (maintained from v6.0.2)
+- Coverage: maintained
+- NineS self-eval: 0.7405 overall (no regression)
+
+### Fixed (dead-wire closure)
+- **v5.3.0 P8 finally wired**: `apply_round_escalation` existed with passing unit tests since v5.3.0 but had no production callers. Now invoked automatically by `select_context()` on round > 1.
+- **v5.3.0 P4 finally wired**: `merge_reinforcement_into_dispatch` existed with passing unit tests since v5.1.0-pre but had no production callers. Now invoked by `ProposalGenerator.generate_round_dispatch()` during multi-round convergence.
+
 ## [6.0.2] — 2026-04-16
 
 ### Removed (BREAKING)
