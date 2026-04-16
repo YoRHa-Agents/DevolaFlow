@@ -16,6 +16,10 @@ STRICT = GateProfile(
     lint_policy="zero_warnings",
     benchmark_policy="required",
     acceptance_readiness_threshold=90,
+    visual_fidelity_threshold=95,
+    interaction_quality_threshold=95,
+    accessibility_threshold=95,
+    acceptance_verification_threshold=95,
 )
 
 STANDARD = GateProfile(
@@ -29,6 +33,10 @@ STANDARD = GateProfile(
     lint_policy="zero_errors",
     benchmark_policy="optional",
     acceptance_readiness_threshold=80,
+    visual_fidelity_threshold=90,
+    interaction_quality_threshold=90,
+    accessibility_threshold=90,
+    acceptance_verification_threshold=90,
 )
 
 RELAXED = GateProfile(
@@ -42,6 +50,10 @@ RELAXED = GateProfile(
     lint_policy="zero_errors",
     benchmark_policy="disabled",
     acceptance_readiness_threshold=70,
+    visual_fidelity_threshold=80,
+    interaction_quality_threshold=80,
+    accessibility_threshold=80,
+    acceptance_verification_threshold=80,
 )
 
 AUDIT = GateProfile(
@@ -55,6 +67,10 @@ AUDIT = GateProfile(
     lint_policy="zero_warnings",
     benchmark_policy="required_with_regression_check",
     acceptance_readiness_threshold=95,
+    visual_fidelity_threshold=98,
+    interaction_quality_threshold=98,
+    accessibility_threshold=95,
+    acceptance_verification_threshold=98,
 )
 
 PROFILES: dict[str, GateProfile] = {

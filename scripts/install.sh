@@ -9,7 +9,7 @@
 #   curl -fsSL ... | bash -s claude --global
 #   curl -fsSL ... | bash -s update
 #
-# Targets:  cursor, codex, claude, copilot, mvp, all, auto (default), update
+# Targets:  cursor, codex, claude, copilot, standalone, all, auto (default), update
 # Flags:    --global   install to the tool's user-wide location
 #           --project  install to the repo-local location (default)
 
@@ -138,37 +138,70 @@ install_cursor() {
 install_codex() {
   local dir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
   info "Codex -> $dir/"
-  mkdir -p "$dir"
-  dl "$AGENT_BASE/MVP-SKILL.md" "$dir/SKILL.md" || true
+  mkdir -p "$dir/references"
+  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
   stamp "$dir"
-  ok "Codex installed"
+  ok "Codex installed (SKILL.md + 8 refs)"
 }
 
 install_claude() {
-  local dest
+  local dir
   if [ "$SCOPE" = "global" ]; then
-    dest="$HOME/.claude/CLAUDE.md"
-    info "Claude Code (global) -> $dest"
+    dir="$HOME/.claude/skills/devola-flow"
+    info "Claude Code (global) -> $dir/"
   else
-    dest="CLAUDE.md"
-    info "Claude Code (project) -> ./$dest"
+    dir=".claude/skills/devola-flow"
+    info "Claude Code (project) -> $dir/"
   fi
 
-  dl "$AGENT_BASE/MVP-SKILL.md" "$dest" || true
-  ok "Claude installed"
+  mkdir -p "$dir/references" "$dir/examples"
+
+  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
+  info "examples (3 files):"
+  dl_batch "$dir" \
+    "examples/full-pipeline-trace.md" \
+    "examples/hotfix-trace.md" \
+    "examples/convergence-loop-trace.md"
+
+  stamp "$dir"
+  ok "Claude installed (SKILL.md + 8 refs + 3 examples)"
 }
 
 install_copilot() {
   info "Copilot -> .github/copilot-instructions.md"
   mkdir -p ".github"
-  dl "$AGENT_BASE/MVP-SKILL.md" ".github/copilot-instructions.md" || true
-  ok "Copilot installed"
+  dl "$AGENT_BASE/SKILL.md" ".github/copilot-instructions.md" || true
+  ok "Copilot installed (full SKILL.md)"
 }
 
-install_mvp() {
-  info "MVP -> devola-flow-skill.md"
-  dl "$AGENT_BASE/MVP-SKILL.md" "devola-flow-skill.md" || true
-  ok "MVP file downloaded"
+install_standalone() {
+  info "Standalone -> devola-flow-skill.md"
+  dl "$AGENT_BASE/SKILL.md" "devola-flow-skill.md" || true
+  ok "Standalone SKILL.md downloaded"
 }
 
 # ── Update ───────────────────────────────────────────────────────
@@ -185,10 +218,10 @@ do_update() {
   fi
   local cdir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
   if [ -f "$cdir/SKILL.md" ]; then install_codex; found=1; fi
-  if [ -f "CLAUDE.md" ] && head -5 "CLAUDE.md" 2>/dev/null | grep -q "devola-flow"; then
-    install_claude; found=1
+  if [ -f ".claude/skills/devola-flow/SKILL.md" ]; then
+    SCOPE="project"; install_claude; found=1
   fi
-  if [ -f "$HOME/.claude/CLAUDE.md" ] && head -5 "$HOME/.claude/CLAUDE.md" 2>/dev/null | grep -q "devola-flow"; then
+  if [ -f "$HOME/.claude/skills/devola-flow/SKILL.md" ]; then
     SCOPE="global"; install_claude; found=1
   fi
   if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
@@ -207,9 +240,9 @@ auto_detect() {
   local found=0
   if [ -d ".cursor" ] || command -v cursor >/dev/null 2>&1; then install_cursor; found=1; fi
   if [ -d "${CODEX_HOME:-$HOME/.codex}" ]; then install_codex; found=1; fi
-  if [ -d ".claude" ] || [ -f "CLAUDE.md" ]; then
+  if [ -d ".claude" ]; then
     SCOPE="project"; install_claude; found=1
-  elif [ -f "$HOME/.claude/CLAUDE.md" ] || [ -d "$HOME/.claude" ]; then
+  elif [ -d "$HOME/.claude" ]; then
     SCOPE="global"; install_claude; found=1
   fi
   if [ -d ".github" ]; then install_copilot; found=1; fi
@@ -222,7 +255,7 @@ auto_detect() {
     echo "  curl ... | bash -s claude             Claude Code (project-local)"
     echo "  curl ... | bash -s claude --global    Claude Code (user-global)"
     echo "  curl ... | bash -s copilot            GitHub Copilot"
-    echo "  curl ... | bash -s mvp                download standalone file"
+    echo "  curl ... | bash -s standalone         download standalone SKILL.md"
     echo ""
   fi
 }
@@ -246,7 +279,8 @@ case "$TARGET" in
   codex)   install_codex ;;
   claude)  install_claude ;;
   copilot) install_copilot ;;
-  mvp)     install_mvp ;;
+  standalone) install_standalone ;;
+  mvp)        install_standalone ;;
   update)  do_update ;;
   all)     install_cursor; install_codex; install_claude; install_copilot ;;
   auto)    auto_detect ;;
@@ -255,14 +289,14 @@ case "$TARGET" in
   Usage: install.sh [target] [flags]
 
   Targets:
-    cursor    Cursor (SKILL.md + refs + examples + rules)
-    codex     Codex (MVP single-file)
-    claude    Claude Code (MVP as CLAUDE.md / ~/.claude/CLAUDE.md)
-    copilot   Copilot (MVP as instructions)
-    mvp       Download standalone MVP-SKILL.md
-    all       All tools
-    update    Re-download latest to existing installs
-    auto      Auto-detect (default)
+    cursor      Cursor (SKILL.md + refs + examples + rules)
+    codex       Codex (SKILL.md + refs)
+    claude      Claude Code (SKILL.md + refs + examples as skill)
+    copilot     Copilot (SKILL.md as instructions)
+    standalone  Download standalone SKILL.md
+    all         All tools
+    update      Re-download latest to existing installs
+    auto        Auto-detect (default)
 
   Flags:
     --project   repo-local install path (default)

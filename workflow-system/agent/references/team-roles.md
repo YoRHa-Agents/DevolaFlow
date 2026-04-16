@@ -241,17 +241,18 @@ and performance. Does NOT modify implementation (except test code).
 1. ORIENT       — Read task spec, identify test scope, review acceptance criteria
 2. SETUP        — Verify test infrastructure, install deps, prepare test data
 3. EXECUTE      — Run suites: unit → integration → E2E (increasing scope)
-4. MEASURE      — Collect metrics: coverage, performance, resource usage
-5. GAP_ANALYSIS — Identify uncovered paths, missing edge cases
-6. WRITE_TESTS  — Write additional tests to close gaps (if part of task)
-7. REPORT       — Produce structured test report
+4. VERIFY       — Run user-facing checks: visual regression, acceptance verification, interaction flows, accessibility
+5. MEASURE      — Collect metrics: coverage, performance, visual fidelity, interaction quality, accessibility compliance
+6. GAP_ANALYSIS — Identify uncovered paths, missing edge cases, visual regressions, accessibility violations
+7. WRITE_TESTS  — Write additional tests to close gaps (if part of task)
+8. REPORT       — Produce structured test report including user-facing verification results
 ```
 
 ### Input Contract
 
 ```yaml
 test_task_input:
-  test_scope: "unit | integration | e2e | full | benchmark | security"
+  test_scope: "unit | integration | e2e | visual | acceptance | interaction | accessibility | full | benchmark | security"
   target_files: ["string"]
   test_files: ["string"]
   acceptance_criteria: ["string"]
@@ -261,6 +262,10 @@ test_task_input:
       threshold: "string"
   write_new_tests: "boolean"
   regression_baseline: "string | null"
+  visual_baselines: "string | null"          # path to visual baseline screenshots
+  acceptance_criteria_specs: ["string"]      # Gherkin/BDD specs for acceptance verification
+  user_flow_definitions: ["string"]          # E2E user flow scenario definitions
+  accessibility_standard: "WCAG2.1-AA | WCAG2.1-AAA | null"
 ```
 
 ### Output Contract
@@ -286,6 +291,20 @@ test_task_output:
   acceptance_criteria_met:
     - criterion: "string"
       met: "boolean"
+      evidence: "string"
+  visual_fidelity_score: "number | null"
+  visual_diffs: ["string"]                  # paths to diff images
+  interaction_quality_score: "number | null"
+  accessibility_score: "number | null"
+  accessibility_violations:
+    critical: "integer"
+    serious: "integer"
+    moderate: "integer"
+    minor: "integer"
+  acceptance_verification_score: "number | null"
+  acceptance_criteria_results:
+    - criterion: "string"
+      status: "pass | fail | skip"
       evidence: "string"
 ```
 
@@ -424,6 +443,7 @@ From §4.6:
 | security-audit | Active | — | Active | Active | Active |
 | RDRR | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
+| product-verification | — | Active | — | **Primary** | Active |
 
 **Primary** = drives the stage. **Active** = participates. **—** = not involved.
 
@@ -464,6 +484,8 @@ Implement ──source_code──► Review
 Implement ──source_code──► Test
 Review  ──review_findings──► Implement
 Test    ──test_results──► Implement
+Test (verify) ──verification_results──► Review
+Test (verify) ──visual_diffs──► Implement
 ```
 
 ### Handoff Contracts by Team Pair

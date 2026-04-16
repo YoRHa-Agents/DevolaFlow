@@ -7,7 +7,7 @@ const FRAMEWORK = {
     id: "SKILL.md",
     path: "workflow-system/agent/SKILL.md",
     tier: 1,
-    lines: 462,
+    lines: 496,
     tokenEstimate: 3500,
     purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains 19 sections covering all major concepts as compact summaries with pointers to Tier-2 references.",
     designSource: "design_delivery_architecture.md §3.4",

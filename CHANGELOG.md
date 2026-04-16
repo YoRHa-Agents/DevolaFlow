@@ -5,6 +5,61 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.2] — 2026-04-15
+
+### Changed
+- **Claude Code skill-based installation**: Claude Code now installs DevolaFlow as `.claude/skills/devola-flow/SKILL.md` with references and examples (identical structure to Cursor), instead of flat `CLAUDE.md`. Enables progressive 3-tier loading (~50 tokens at startup vs ~5000 previously), on-demand reference loading, and `/devola-flow` slash command.
+- **Root CLAUDE.md**: Now lightweight project context (~35 lines) instead of 496-line SKILL copy. Follows Claude Code best practice of keeping `CLAUDE.md` under 200 lines for passive project rules.
+- **install.sh / devola-init**: `install_claude()` installs to `.claude/skills/devola-flow/` with SKILL.md + 8 references + 3 examples, mirroring `install_cursor()` exactly.
+- **bump_version.py**: Reduced from 14 to 11 version locations (removed 3 CLAUDE.md entries since root CLAUDE.md no longer carries version strings).
+- **Parity achieved**: All 4 tools (Cursor, Codex, Claude, Copilot) now use identical skill directory structure.
+
+### Metrics
+- Tests: 818 passed (4 CLAUDE.md version tests removed), 0 failed
+- EvoBench: 30/30 scenarios pass
+- Lint: 0 errors
+
+## [5.4.1] — 2026-04-15
+
+### Changed
+- **Unified SKILL delivery**: All tools (Cursor, Codex, Claude Code, Copilot) now receive full `SKILL.md` instead of compressed `MVP-SKILL.md`, removing dual-file maintenance and ensuring the complete 14-primitive / 7-dimension framework everywhere.
+- **install.sh**: `install_codex`, `install_claude`, and `install_copilot` download full `SKILL.md` plus references; `mvp` target renamed to `standalone` (legacy `mvp` alias kept).
+- **devola-init CLI**: `install_claude`, `install_copilot`, and `install_codex` copy full `SKILL.md` instead of `MVP-SKILL.md`.
+- **Root CLAUDE.md**: Matches `workflow-system/agent/SKILL.md` in full, replacing the self-contained MVP variant.
+- **bump_version.py**: Sync locations updated from `MVP-SKILL.md` to root `CLAUDE.md` (14 references, down from 16).
+- **Repository rules**: All `.cursor/rules/*.mdc` files now reference `CLAUDE.md` instead of `MVP-SKILL.md`.
+
+### Deprecated
+- **MVP-SKILL.md**: Kept for backward compatibility; no longer used by installers or adapters. Scheduled for removal in a future release.
+
+### Metrics
+- Tests: 822 passed, 0 failed
+- EvoBench: 30/30 scenarios pass
+- Lint: 0 errors
+
+## [5.4.0] — 2026-04-15
+
+### Added
+- **User-Facing Verification Gate Dimensions**: Extended `GateInput` with 4 new optional fields (`visual_test_results`, `interaction_test_results`, `accessibility_results`, `acceptance_verification_results`) and `GateProfile` with 4 corresponding thresholds. New `EXTENDED_DIMENSION_WEIGHTS` (7-dimension composite) auto-selects when user-facing inputs are present, maintaining full backward compatibility with the original 4-dimension formula.
+- **Verification Scoring Functions**: `visual_fidelity_score()`, `interaction_quality_score()`, and `acceptance_verification_score()` in gate scorer for evaluating visual regression, interaction flows, and acceptance criteria respectively. All 4 profiles (STRICT/STANDARD/RELAXED/AUDIT) updated with user-facing thresholds.
+- **`verify` Stage Primitive (14th)**: New Verify-category primitive for user-facing validation — visual regression, acceptance verification, interaction flows, accessibility. Added to `VALID_PRIMITIVES`, `DEPENDENCY_LATTICE`, and meta-framework.md with full I/O contracts and configuration.
+- **`product-verification` Workflow Template**: 8-stage template (analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate) with `verification_cycle` convergence loop and `test_design_gate`/`verification_gate` quality gates.
+- **Full-Pipeline Verify Stage**: Updated `full-pipeline.yaml` with a verify stage between test and refine for user-facing validation in end-to-end workflows.
+- **4 New Context Profiles**: `verify_visual`, `verify_acceptance`, `verify_interaction`, `product_verification` — task-type-specific context for verification agents.
+- **4 New EvoBench Scenarios**: `visual_regression_webapp`, `acceptance_verification_feature`, `interaction_accessibility_test`, `product_verification_pipeline` — validating verification context assembly and scoring.
+
+### Changed
+- **Gate composite formula**: Extended from 4-dimension (test_quality 0.30, code_review 0.30, architecture 0.20, benchmark 0.20) to 7-dimension when user-facing inputs present (test_quality 0.20, code_review 0.20, architecture 0.15, benchmark 0.15, visual_fidelity 0.10, interaction_quality 0.10, acceptance_verification 0.10).
+- **team-roles.md**: Test team expanded with VERIFY step, visual/acceptance/interaction/accessibility I/O contracts.
+- **decomposition-gate.md**: Extended composite formula documentation, new dimension descriptions.
+- **Schemas updated**: `gate-report.schema.yaml`, `task-dispatch.schema.yaml`, `lean-dispatch.yaml` extended with verification fields.
+
+### Metrics
+- Tests: 822 passed (+19 from v5.3.0), 0 failed
+- EvoBench: 30/30 scenarios pass (4 new), no regressions
+- Lint: ruff check + format clean
+- Coverage: maintained ≥ 80%
+
 ## [5.3.0] — 2026-04-14
 
 ### Added

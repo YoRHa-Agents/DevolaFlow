@@ -2,7 +2,7 @@
 id: "agent/references/meta-framework"
 version: "1.0.0"
 purpose: >
-  Defines the 13 stage primitives with full interface contracts, the dependency
+  Defines the 14 stage primitives with full interface contracts, the dependency
   lattice, alias mapping table, 5 composition operators with YAML examples,
   formal grammar, and key composition patterns. Use this when designing workflow
   compositions, understanding stage primitives, or authoring templates.
@@ -31,11 +31,12 @@ From §2.1:
 │ research │ design    │ implement │ review    │ release   │ gate    │
 │ analyze  │ plan      │ refine    │ test      │ deploy    │         │
 │          │           │           │ validate  │ monitor   │         │
+│          │           │           │ verify    │           │         │
 └──────────┴───────────┴───────────┴───────────┴───────────┴─────────┘
 ```
 
 ## 2. Primitive Interface Contracts
-From §2.1.1–2.1.13:
+From §2.1.1–2.1.14:
 
 ### 2.1 research (Discover)
 
@@ -181,7 +182,43 @@ From §2.1.1–2.1.13:
 | **Team** | Test |
 | **Duration** | Long (45+ min) |
 
-### 2.13 gate (Control)
+### 2.13 verify (Verify)
+
+| Property | Value |
+|----------|-------|
+| **Input** | `VerifyRequest { test_artifacts[], acceptance_criteria[], visual_baselines[], user_flow_definitions[], accessibility_config }` |
+| **Output** | `VerifyResult { visual_fidelity_score, interaction_quality_score, acceptance_verification_score, accessibility_score, findings[], artifact_paths { screenshots[], diff_images[], flow_reports[] } }` |
+| **Preconditions** | Implementation complete; developer-side tests passing |
+| **Postconditions** | User-facing quality dimensions scored; findings classified by severity |
+| **Config** | See `verify_config` below |
+| **Team** | Test |
+| **Duration** | Medium (15–30 min) |
+
+**`verify_config` detail:**
+
+```yaml
+verify_config:
+  visual_testing:
+    enabled: boolean      # default: true for web projects
+    tool: "playwright | backstopjs | percy"
+    threshold: number     # screenshot pass rate threshold
+    mask_dynamic: boolean # mask timestamps, animations
+  acceptance_testing:
+    enabled: boolean
+    framework: "gherkin | robot | custom"
+    criteria_source: "plan.acceptance_criteria"
+  interaction_testing:
+    enabled: boolean
+    tool: "playwright | cypress"
+    flows: ["string"]     # user flow definitions
+  accessibility:
+    enabled: boolean
+    tool: "axe-core | pa11y | lighthouse"
+    standard: "WCAG2.1-AA"
+    threshold: number     # minimum score
+```
+
+### 2.14 gate (Control)
 
 | Property | Value |
 |----------|-------|
@@ -205,10 +242,11 @@ analyze  ──► design, plan, refine
 design   ──► plan, review
 plan     ──► implement
 implement──► review, test
-review   ──► refine, validate
-test     ──► refine, validate
+review   ──► refine, validate, verify
+test     ──► refine, validate, verify
 refine   ──► implement, design, review, test
 validate ──► release, refine
+verify   ──► gate, validate, release
 release  ──► deploy
 deploy   ──► monitor
 monitor  ──► refine
@@ -247,6 +285,9 @@ From §2.3:
 | benchmark | test | performance-optimization |
 | scope | analyze | feature-enhancement |
 | testgate | gate + validate | full-pipeline |
+| user-verification | verify | feature-enhancement, full-pipeline |
+| visual-test | verify | demo-showcase, full-pipeline |
+| acceptance-check | verify | feature-enhancement, full-pipeline |
 
 ## 5. Composition Operators
 From §3.1:
@@ -332,7 +373,8 @@ Gate       ::= 'gate' Name Criterion+ Stage Stage
 
 Primitive  ::= 'research' | 'analyze' | 'design' | 'plan'
              | 'implement' | 'review' | 'test' | 'validate'
-             | 'refine' | 'release' | 'deploy' | 'monitor' | 'gate'
+             | 'verify' | 'refine' | 'release' | 'deploy'
+             | 'monitor' | 'gate'
 
 Predicate  ::= FieldRef Operator Value
              | Predicate 'and' Predicate

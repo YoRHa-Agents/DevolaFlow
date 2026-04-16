@@ -131,6 +131,10 @@ lean_format_spec:
   accept:
     description: "Testable criteria. Each ≤15 words. Use → for cause/effect."
     max_entries: 8
+  verify_cfg:
+    description: "Compact verification config (v5.4.0)."
+    optional: true
+    fields: { visual: "bool", accept: "bool", interact: "bool", a11y: "bool", threshold: "number" }
   gate:
     description: "Numeric thresholds only. No prose."
 

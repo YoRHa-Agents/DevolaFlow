@@ -80,6 +80,11 @@ class GateInput:
     acceptance_readiness_criteria: list[AcceptanceCriterionResult] = field(
         default_factory=list,
     )
+    # v5.4.0: User-facing verification inputs
+    visual_test_results: CheckResult | None = None
+    interaction_test_results: CheckResult | None = None
+    accessibility_results: CheckResult | None = None
+    acceptance_verification_results: CheckResult | None = None
 
 
 @dataclass
@@ -115,6 +120,11 @@ class GateProfile:
     lint_policy: LintPolicy
     benchmark_policy: BenchmarkPolicy
     acceptance_readiness_threshold: float = 80.0
+    # v5.4.0: User-facing verification thresholds
+    visual_fidelity_threshold: float = 0.0
+    interaction_quality_threshold: float = 0.0
+    accessibility_threshold: float = 0.0
+    acceptance_verification_threshold: float = 0.0
     advisor_margin: float = 5.0
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],

@@ -40,34 +40,9 @@ VERSION_LOCATIONS = [
         "replacement": "> **Now Using DevolaFlow v{version}**",
     },
     {
-        "path": "workflow-system/agent/MVP-SKILL.md",
-        "pattern": r'^version:\s*"[^"]+"',
-        "replacement": 'version: "{version}"',
-    },
-    {
-        "path": "workflow-system/agent/MVP-SKILL.md",
-        "pattern": r"> \*\*Now Using DevolaFlow v[^*]+\*\*",
-        "replacement": "> **Now Using DevolaFlow v{version}**",
-    },
-    {
         "path": "workflow-system/agent/SKILL.md",
         "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
         "replacement": "**Current version:** {version}",
-    },
-    {
-        "path": "workflow-system/agent/MVP-SKILL.md",
-        "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
-        "replacement": "**Current version:** {version}",
-    },
-    {
-        "path": "workflow-system/agent/MVP-SKILL.md",
-        "pattern": r"Compare with current version \(\d+\.\d+\.\d+\)",
-        "replacement": "Compare with current version ({version})",
-    },
-    {
-        "path": "workflow-system/agent/MVP-SKILL.md",
-        "pattern": r'"DevolaFlow v\d+\.\d+\.\d+ is the latest version\."',
-        "replacement": '"DevolaFlow v{version} is the latest version."',
     },
     {
         "path": "workflow-system/human/demo/benchmark-results/index.html",

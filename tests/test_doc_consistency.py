@@ -26,8 +26,8 @@ def test_readme_workflow_type_count(project_root: Path):
 
     yaml_count = len(list(templates_dir.glob("*.yaml")))
 
-    assert table_rows == yaml_count == 18, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 18"
+    assert table_rows == yaml_count == 19, (
+        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 19"
     )
 
 

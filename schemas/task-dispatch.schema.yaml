@@ -94,6 +94,37 @@ fields:
         optional: true
         description: Small cross-cutting context (token-budgeted).
 
+  verification_config:
+    optional: true
+    description: "Configuration for user-facing verification tasks (v5.4.0)."
+    children:
+      visual_testing:
+        optional: true
+        children:
+          enabled: { type: bool, default: false }
+          tool: { type: string, description: "playwright | backstopjs | percy" }
+          threshold: { type: number, description: "Pixel diff threshold 0-1." }
+          mask_dynamic: { type: bool, default: true }
+      acceptance_testing:
+        optional: true
+        children:
+          enabled: { type: bool, default: false }
+          framework: { type: string, description: "gherkin | robot | custom" }
+          criteria_source: { type: string, description: "Path to acceptance criteria file." }
+      interaction_testing:
+        optional: true
+        children:
+          enabled: { type: bool, default: false }
+          tool: { type: string, description: "playwright | cypress" }
+          flows: { type: list, description: "List of user flow identifiers to test." }
+      accessibility:
+        optional: true
+        children:
+          enabled: { type: bool, default: false }
+          tool: { type: string, description: "axe-core | pa11y | lighthouse" }
+          standard: { type: string, default: "WCAG2.1-AA" }
+          threshold: { type: number, description: "Minimum accessibility score." }
+
   acceptance:
     required: true
     description: Done-when conditions and quality bar.

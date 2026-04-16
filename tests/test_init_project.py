@@ -71,33 +71,36 @@ def test_install_cursor_global(tmp_path: Path, monkeypatch):
 
 def test_install_claude(tmp_path: Path):
     agent_dir = _find_agent_dir()
-    if not (agent_dir / "MVP-SKILL.md").exists():
+    if not (agent_dir / "SKILL.md").exists():
         return
 
     from devolaflow.init_project import install_claude
 
     install_claude(agent_dir, tmp_path)
-    assert (tmp_path / "CLAUDE.md").exists()
-    content = (tmp_path / "CLAUDE.md").read_text()
-    assert "devola-flow" in content
+    skill = tmp_path / ".claude" / "skills" / "devola-flow" / "SKILL.md"
+    assert skill.exists()
+    refs = list((tmp_path / ".claude" / "skills" / "devola-flow" / "references").glob("*.md"))
+    assert len(refs) >= 7
 
 
 def test_install_claude_global(tmp_path: Path, monkeypatch):
     agent_dir = _find_agent_dir()
-    if not (agent_dir / "MVP-SKILL.md").exists():
+    if not (agent_dir / "SKILL.md").exists():
         return
 
     from devolaflow.init_project import install_claude
 
     monkeypatch.setenv("HOME", str(tmp_path))
     install_claude(agent_dir, tmp_path / "project", scope="global")
-    content = (tmp_path / ".claude" / "CLAUDE.md").read_text()
-    assert "devola-flow" in content
+    skill = tmp_path / ".claude" / "skills" / "devola-flow" / "SKILL.md"
+    assert skill.exists()
+    content = skill.read_text()
+    assert "DevolaFlow" in content
 
 
 def test_install_copilot(tmp_path: Path):
     agent_dir = _find_agent_dir()
-    if not (agent_dir / "MVP-SKILL.md").exists():
+    if not (agent_dir / "SKILL.md").exists():
         return
 
     from devolaflow.init_project import install_copilot

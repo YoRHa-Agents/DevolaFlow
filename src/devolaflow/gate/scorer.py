@@ -14,6 +14,7 @@ from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
+    CheckResult,
     ConvergenceRound,
     Finding,
     GateInput,
@@ -34,6 +35,16 @@ DEFAULT_DIMENSION_WEIGHTS: dict[str, float] = {
     "code_review": 0.30,
     "architecture": 0.20,
     "benchmark": 0.20,
+}
+
+EXTENDED_DIMENSION_WEIGHTS: dict[str, float] = {
+    "test_quality": 0.20,
+    "code_review": 0.20,
+    "architecture": 0.15,
+    "benchmark": 0.15,
+    "visual_fidelity": 0.10,
+    "interaction_quality": 0.10,
+    "acceptance_verification": 0.10,
 }
 
 ARS_DIMENSION_WEIGHTS: dict[str, float] = {
@@ -83,6 +94,66 @@ def composite_score(
     for dim, weight in weights.items():
         total += dimensions.get(dim, 0.0) * weight
     return round(total, 4)
+
+
+def visual_fidelity_score(results: CheckResult | None) -> float:
+    """Compute visual fidelity score from screenshot test results."""
+    if results is None or results.status == "skip":
+        return 100.0
+    if results.status == "fail":
+        details = results.details
+        total = int(details.get("screenshots_total", 1))
+        passing = int(details.get("screenshots_passing", 0))
+        return max(0.0, (passing / total) * 100) if total > 0 else 0.0
+    return 100.0
+
+
+def interaction_quality_score(
+    interaction_results: CheckResult | None,
+    accessibility_results: CheckResult | None,
+) -> float:
+    """Compute interaction quality from E2E flow results and accessibility scores."""
+    e2e_score = 100.0
+    if interaction_results is not None and interaction_results.status == "fail":
+        details = interaction_results.details
+        total = int(details.get("flows_total", 1))
+        passing = int(details.get("flows_passing", 0))
+        e2e_score = max(0.0, (passing / total) * 100) if total > 0 else 0.0
+
+    a11y_score = 100.0
+    if accessibility_results is not None and accessibility_results.status == "fail":
+        details = accessibility_results.details
+        critical = int(details.get("critical_violations", 0))
+        serious = int(details.get("serious_violations", 0))
+        moderate = int(details.get("moderate_violations", 0))
+        minor_v = int(details.get("minor_violations", 0))
+        a11y_score = max(0.0, 100.0 - (critical * 25 + serious * 15 + moderate * 5 + minor_v * 1))
+
+    return round(e2e_score * 0.60 + a11y_score * 0.40, 2)
+
+
+def acceptance_verification_score(results: CheckResult | None) -> float:
+    """Compute acceptance verification score from AC test results."""
+    if results is None or results.status == "skip":
+        return 100.0
+    if results.status == "fail":
+        details = results.details
+        total = int(details.get("criteria_total", 1))
+        passing = int(details.get("criteria_passing", 0))
+        return max(0.0, (passing / total) * 100) if total > 0 else 0.0
+    return 100.0
+
+
+def _has_user_facing_inputs(gate_input: GateInput) -> bool:
+    """Check if gate input includes any user-facing verification results."""
+    return any(
+        [
+            gate_input.visual_test_results is not None,
+            gate_input.interaction_test_results is not None,
+            gate_input.accessibility_results is not None,
+            gate_input.acceptance_verification_results is not None,
+        ]
+    )
 
 
 def score_acceptance_readiness(
@@ -376,6 +447,15 @@ def _compute_convergence_dimensions(gate_input: GateInput, q_score: float) -> di
 
     bench_detail = gate_input.build_status.details.get("benchmark_score")
     dims["benchmark"] = float(bench_detail) if bench_detail is not None else 100.0
+
+    # v5.4.0: User-facing verification dimensions
+    dims["visual_fidelity"] = visual_fidelity_score(gate_input.visual_test_results)
+    dims["interaction_quality"] = interaction_quality_score(
+        gate_input.interaction_test_results, gate_input.accessibility_results
+    )
+    dims["acceptance_verification"] = acceptance_verification_score(
+        gate_input.acceptance_verification_results
+    )
     return dims
 
 
@@ -388,7 +468,8 @@ def _evaluate_convergence(
     """Multi-round convergence gate (§5.7 flowchart)."""
     q_score = quality_score(gate_input.review_findings)
     dims = _compute_convergence_dimensions(gate_input, q_score)
-    score = composite_score(dims)
+    weights = EXTENDED_DIMENSION_WEIGHTS if _has_user_facing_inputs(gate_input) else None
+    score = composite_score(dims, weights)
     blocker_count = _count_severity(gate_input.review_findings, "blocker")
 
     meets = (
