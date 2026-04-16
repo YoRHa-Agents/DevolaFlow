@@ -1,0 +1,18 @@
+# Continue.dev adapter — OSS IDE extension
+name: continue
+display_name: Continue.dev
+version_added: "6.1.0"
+tier: tier_1
+output:
+  base_dir: ".continue"
+  files:
+    - source: "SKILL.md"
+      target: "rules/devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "rules/references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "rules/devola-flow.md"

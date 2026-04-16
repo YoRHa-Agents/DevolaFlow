@@ -25,7 +25,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v6.0.5_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v6.1.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -357,7 +357,7 @@ class TestBaselineFile:
     # ------------------------------------------------------------------
 
     def test_v6_baseline_exists(self) -> None:
-        """v6.0.5_baseline.json must be present in baselines/."""
+        """v6.1.0_baseline.json must be present in baselines/."""
         assert V6_BASELINE_PATH.exists(), (
             f"Missing {V6_BASELINE_PATH.relative_to(REPO_ROOT)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
@@ -372,18 +372,18 @@ class TestBaselineFile:
         missing_from_baseline = scenario_stems - baseline_keys
         extra_in_baseline = baseline_keys - scenario_stems
         assert not missing_from_baseline, (
-            f"v6.0.5_baseline.json is missing entries for scenarios "
+            f"v6.1.0_baseline.json is missing entries for scenarios "
             f"{sorted(missing_from_baseline)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
         )
         assert not extra_in_baseline, (
-            f"v6.0.5_baseline.json has entries for scenarios that no longer exist: "
+            f"v6.1.0_baseline.json has entries for scenarios that no longer exist: "
             f"{sorted(extra_in_baseline)}. Regenerate the baseline."
         )
         assert baseline_keys == scenario_stems
 
     def test_v6_baseline_scores_positive(self) -> None:
-        """Every scenario in v6.0.5_baseline has a strictly positive composite."""
+        """Every scenario in v6.1.0_baseline has a strictly positive composite."""
         with open(V6_BASELINE_PATH) as f:
             data = json.load(f)
         for name, entry in data.items():
@@ -402,19 +402,19 @@ class TestBaselineFile:
                 assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
 
     def test_runner_prefers_latest_baseline(self) -> None:
-        """load_baseline() picks v6.0.5 over older files, falls back to v2.1.0 otherwise."""
+        """load_baseline() picks v6.1.0 over older files, falls back to v2.1.0 otherwise."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v6.0.5_baseline.json", (
-            f"Expected load_baseline() to prefer v6.0.5_baseline.json; got {newest.name}"
+        assert newest.name == "v6.1.0_baseline.json", (
+            f"Expected load_baseline() to prefer v6.1.0_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns v6 data for a scenario covered only by v6.
-        # visual_regression_webapp is not in v2.1.0_baseline.json but is in v6.0.5.
+        # visual_regression_webapp is not in v2.1.0_baseline.json but is in v6.1.0.
         entry = load_baseline("visual_regression_webapp")
         assert entry is not None, (
             "load_baseline() did not return an entry for a scenario present in "
-            "v6.0.5_baseline.json — runner is still falling back to v2.1.0."
+            "v6.1.0_baseline.json — runner is still falling back to v2.1.0."
         )
         assert entry["composite"] > 0
 

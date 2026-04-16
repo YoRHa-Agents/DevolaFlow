@@ -5,6 +5,41 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0] — 2026-04-16
+
+**Final release of the v6.0 rollup (6 waves, v5.4.2 → v6.1.0).**
+
+### Added
+- **Continue.dev adapter** (`adapter_configs/continue.yaml`, A3): YAML-driven adapter for the OSS Continue IDE extension. Emits `.continue/rules/devola-flow.md` (frontmatter stripped) + `.continue/rules/references/` (full tree). Tier 1, 800-line budget.
+- **OpenClaw adapter** (`adapter_configs/openclaw.yaml`, A4): YAML-driven adapter for the MIT-licensed OSS gateway. Emits `openclaw/SKILL.md` (frontmatter preserved) + `openclaw/references/`. Tier 2, 500-line budget.
+- **Golden snapshot tests for Cursor adapter** (`tests/test_adapter_golden.py`, C3): 4 tests locking down structural invariants — required sections, line-count band (400-520), frontmatter keys, must-not-contain list (MVP-SKILL / evaluate_gate_with_nines / run_nines_advisor), references tree (8 files), examples tree (3 files), and the `workflow-hard-rules.mdc` file. Metadata-based (not byte-exact) to survive version-string drift. Golden fixture at `tests/fixtures/golden/cursor/SKILL.md.expected.meta.json`.
+- **21 new coverage-focused tests** in `tests/test_exercise_modules.py` (C4):
+  - 8 tests for `devolaflow.cli` (version_cmd, validate-template single-path / --all / missing / no-args / parse-error / invalid-content, build-skill no-tools / with-tools, check-drift no-drift)
+  - 8 tests for `devolaflow.init_project` (--list, unknown target, `all`, missing-agent-dir, copilot --global, codex, _copy_file missing source, _copy_dir non-directory)
+  - 3 tests for `template_engine.composer` (SequenceOp.stage_order, ParallelOp.join_count across all/any/n_of/fallback, collect_all_refs with loops + gates)
+- **SI-8 retrospective artifact** (`.local/research/retrospective_v6.0_to_v6.1.md`): documents all 6 waves, implemented vs deferred items, key learnings, cross-wave metrics evolution, and the SI-3 composite score (9.23/10).
+- **SKILL.md — Round-aware dispatch note**: single-line addition at the end of "Dispatch & Report Protocol" (after `Full schemas:` line) documents `select_context(round_num=N)` escalation and `ProposalGenerator.generate_round_dispatch()` reinforcement merging (the v6.0.3 dead-wire closure, surfaced to agents).
+- **`benchmarks/devolaflow_context/baselines/v6.1.0_baseline.json`**: full 29-scenario baseline regenerated for v6.1.0 (SKILL.md growth from 496 → 498 lines required refresh per SI-4). `v6.0.5_baseline.json` preserved as historical record.
+
+### Changed
+- **`workflow-system/human/demo/index.html` — "What's New" section** rewritten to cover the whole v6.0 rollup: 8 platform adapters, round-aware convergence, schema parity + 29/29 baselines, and updated metrics (896 tests, 94% coverage).
+
+### Metrics
+- Tests: **871 → 896** (+25 new across 2 files)
+- Adapters: **6 → 8** (core 4 + KimiCode + Windsurf + **Continue.dev** + **OpenClaw**)
+- Overall coverage: **91.35% → 94.08%**
+  - `devolaflow.cli`: 49% → **98%**
+  - `devolaflow.init_project`: 59% → **94%**
+  - `devolaflow.template_engine.composer`: 66% → **100%**
+- SKILL.md: **498 lines** (budget 500)
+- Lint: `ruff check` + `ruff format` clean
+- EvoBench: 29/29 pass, no regressions
+- DeprecationWarnings: **0** (maintained)
+- NineS self-eval: **0.7405** stable across v5.4.2 → v6.1.0
+
+### Known limitation (unchanged from v6.0.4)
+- **Windsurf output still produces a `[WARN]` status**: current `SKILL.md` is ~24 KB, Windsurf's `.windsurfrules` has an 8 KB char budget. Future release should add a compression transform or a Windsurf-specific lean SKILL. Tracked as a next-iteration item.
+
 ## [6.0.5] — 2026-04-16
 
 ### Added
