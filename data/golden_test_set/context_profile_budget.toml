@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-ctx-004"
+name = "context-profile-hotfix-budget"
+description = "select_context('hotfix') in context_profiles.yaml binds the hotfix task type to a 2400-token budget"
+dimension = "evaluation"
+difficulty = 2
+
+[task.input]
+type = "code"
+language = "python"
+source = "select_context('hotfix').budget == 2400"
+
+[task.expected]
+type = "text"
+value = "select_context('hotfix').budget == 2400"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

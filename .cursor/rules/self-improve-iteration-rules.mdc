@@ -13,6 +13,13 @@ For external reference analysis, run NineS deep analysis:
 ```
 nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
 ```
+
+For end-of-iteration self-evaluation, run NineS self-eval with the repo's canonical config:
+```
+nines -f json -c nines.toml self-eval --baseline-version <version> --golden-dir data/golden_test_set --samples-dir data/golden_test_set --src-dir src/devolaflow --test-dir tests --project-root .
+```
+When `nines.toml` is present at repo root, `-c nines.toml` ensures project defaults apply. The `--golden-dir` and `--samples-dir` flags point at DevolaFlow's in-repo golden test set (required for V1 scoring evaluators).
+
 Store raw JSON output in `.local/research/`. The NineS CLI tool is documented at `https://github.com/YoRHa-Agents/NineS`. Parse results to extract gap items feeding SI-1's planning gate. When NineS is unavailable, manual analysis following the same dimensions (code quality, architecture, tests, maintainability) is acceptable but must be explicitly noted as manual.
 
 ## Rule SI-3 — Evaluation Before Release

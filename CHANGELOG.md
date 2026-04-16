@@ -5,6 +5,26 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.1] — 2026-04-16
+
+### Added
+- **`data/golden_test_set/`** (new): 10 DevolaFlow-relevant NineS golden-test TOML fixtures spanning 3 dimensions (code_quality, analysis, evaluation). Unlocks NineS V1 scoring evaluators (`scoring_accuracy`, `scoring_reliability`, `scorer_agreement`, `eval_coverage`) which were previously 0.0 due to missing fixtures.
+- **`nines.toml`** (new): repo-root NineS config with project defaults, self-eval weights, and relative path bindings (`golden_dir`, `samples_dir`, `src_dir`, `test_dir`, `project_root`). Future `nines -c nines.toml self-eval` invocations auto-pick up correct paths.
+- **`tests/test_golden_test_set.py`** (8 tests) and **`tests/test_nines_config.py`** (5 tests): schema validation for the new fixtures + config.
+
+### Changed
+- **Rule SI-2** (`.cursor/rules/self-improve-iteration-rules.mdc`) updated with the canonical self-eval invocation including `--golden-dir` and `--samples-dir` flags.
+
+### Metrics
+- NineS overall: **0.7405 → 0.8805** (verified via `.local/research/v6.1.1/nines_self_eval_v6.1.1.json`; `--golden-dir data/golden_test_set` flips 4 V1 evaluators from 0.0 to high scores)
+- NineS capability mean: **0.7150 → 0.9150**
+- Tests: **896 → 954** (+58 from 13 new test functions; 10 TOMLs × 5 parametrized checks + 3 scalar + 5 config)
+- Ruff: `ruff check` + `ruff format --check` clean
+- No source changes to `src/devolaflow/`; bench / coverage unchanged.
+
+### Known limitation
+- **`pipeline_latency` capability remains 0.0**: upstream NineS v3.0.0 evaluator looks for `src/nines/__init__.py` inside the target repo (it is probing for its own package, not DevolaFlow code). Cannot be fixed cleanly from the DevolaFlow side without adding a shim file whose sole purpose is to satisfy the probe. Tracked as upstream item for NineS.
+
 ## [6.1.0] — 2026-04-16
 
 **Final release of the v6.0 rollup (6 waves, v5.4.2 → v6.1.0).**

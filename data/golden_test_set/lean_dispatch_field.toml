@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-lean-007"
+name = "lean-dispatch-reinforce-field-name"
+description = "Lean dispatch schema uses the short key 'reinforce' — not the verbose 'reinforcement' — to carry carry-over mandates"
+dimension = "code_quality"
+difficulty = 2
+
+[task.input]
+type = "code"
+language = "yaml"
+source = "applicable_rules.reinforce"
+
+[task.expected]
+type = "text"
+value = "applicable_rules.reinforce"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

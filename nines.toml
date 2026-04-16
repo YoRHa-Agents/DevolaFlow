@@ -1,0 +1,37 @@
+[project]
+name = "devolaflow"
+description = "DevolaFlow — composable workflow meta-framework for multi-agent orchestration"
+
+[eval]
+default_scorer = "composite"
+sandbox = true
+timeout = 60
+seed = 42
+
+[eval.scorers.composite]
+weights = { exact = 0.4, fuzzy = 0.3, rubric = 0.3 }
+
+[self_eval]
+max_iterations = 10
+convergence_threshold = 0.001
+
+[self_eval.weights]
+v1 = 0.30
+v2 = 0.25
+v3 = 0.25
+system = 0.20
+
+[self_eval.paths]
+golden_dir = "data/golden_test_set"
+samples_dir = "data/golden_test_set"
+src_dir = "src/devolaflow"
+test_dir = "tests"
+project_root = "."
+
+[collect]
+store = "./data/collections"
+incremental = true
+
+[collect.github]
+per_page = 30
+rate_limit = 30
