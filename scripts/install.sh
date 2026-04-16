@@ -9,7 +9,8 @@
 #   curl -fsSL ... | bash -s claude --global
 #   curl -fsSL ... | bash -s update
 #
-# Targets:  cursor, codex, claude, copilot, standalone, all, auto (default), update
+# Targets:  cursor, codex, claude, copilot, kimicode, windsurf,
+#           standalone, all, auto (default), update
 # Flags:    --global   install to the tool's user-wide location
 #           --project  install to the repo-local location (default)
 
@@ -198,6 +199,64 @@ install_copilot() {
   ok "Copilot installed (full SKILL.md)"
 }
 
+install_kimicode() {
+  local dir
+  if [ "$SCOPE" = "global" ]; then
+    dir="$HOME/.kimi/skills/devola-flow"
+    info "KimiCode (global) -> $dir/"
+  else
+    dir=".kimi/skills/devola-flow"
+    info "KimiCode (project) -> $dir/"
+  fi
+
+  mkdir -p "$dir/references" "$dir/examples"
+
+  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
+  info "examples (3 files):"
+  dl_batch "$dir" \
+    "examples/full-pipeline-trace.md" \
+    "examples/hotfix-trace.md" \
+    "examples/convergence-loop-trace.md"
+
+  stamp "$dir"
+  ok "KimiCode installed (SKILL.md + 8 refs + 3 examples)"
+}
+
+install_windsurf() {
+  info "Windsurf -> .windsurfrules"
+  # Download the canonical SKILL.md, then strip its YAML frontmatter for the
+  # single-file Windsurf rules document. Falls back to copying the raw SKILL.md
+  # if awk is unavailable.
+  local tmp
+  tmp=$(mktemp 2>/dev/null) || tmp=".devola-flow-skill.tmp"
+  dl "$AGENT_BASE/SKILL.md" "$tmp" || true
+  if [ -s "$tmp" ]; then
+    if command -v awk >/dev/null 2>&1; then
+      awk 'BEGIN{f=0} /^---$/{c++; if(c==2){f=1; next}} f==1' "$tmp" > ".windsurfrules"
+    else
+      cp "$tmp" ".windsurfrules"
+    fi
+    rm -f "$tmp"
+    stamp "."
+    ok "Windsurf installed (.windsurfrules, frontmatter stripped)"
+  else
+    rm -f "$tmp"
+    warn "Windsurf install failed (SKILL.md download empty)"
+  fi
+}
+
 install_standalone() {
   info "Standalone -> devola-flow-skill.md"
   dl "$AGENT_BASE/SKILL.md" "devola-flow-skill.md" || true
@@ -226,6 +285,15 @@ do_update() {
   fi
   if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
     install_copilot; found=1
+  fi
+  if [ -f ".kimi/skills/devola-flow/SKILL.md" ]; then
+    SCOPE="project"; install_kimicode; found=1
+  fi
+  if [ -f "$HOME/.kimi/skills/devola-flow/SKILL.md" ]; then
+    SCOPE="global"; install_kimicode; found=1
+  fi
+  if [ -f ".windsurfrules" ] && head -20 ".windsurfrules" 2>/dev/null | grep -q "devola-flow"; then
+    install_windsurf; found=1
   fi
 
   if [ "$found" -eq 0 ]; then
@@ -275,16 +343,19 @@ else
 fi
 
 case "$TARGET" in
-  cursor)  install_cursor ;;
-  codex)   install_codex ;;
-  claude)  install_claude ;;
-  copilot) install_copilot ;;
+  cursor)   install_cursor ;;
+  codex)    install_codex ;;
+  claude)   install_claude ;;
+  copilot)  install_copilot ;;
+  kimicode) install_kimicode ;;
+  windsurf) install_windsurf ;;
   standalone) install_standalone ;;
   # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
   # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
   mvp)        install_standalone ;;
   update)  do_update ;;
-  all)     install_cursor; install_codex; install_claude; install_copilot ;;
+  all)     install_cursor; install_codex; install_claude; install_copilot; \
+           install_kimicode; install_windsurf ;;
   auto)    auto_detect ;;
   help|--help|-h)
     cat << USAGE
@@ -295,6 +366,8 @@ case "$TARGET" in
     codex       Codex (SKILL.md + refs)
     claude      Claude Code (SKILL.md + refs + examples as skill)
     copilot     Copilot (SKILL.md as instructions)
+    kimicode    KimiCode (SKILL.md + refs + examples)
+    windsurf    Windsurf (.windsurfrules, frontmatter stripped)
     standalone  Download standalone SKILL.md
     all         All tools
     update      Re-download latest to existing installs

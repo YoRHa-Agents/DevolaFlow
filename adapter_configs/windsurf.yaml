@@ -1,0 +1,15 @@
+# Windsurf adapter — Codeium single-file rules
+name: windsurf
+display_name: Windsurf
+version_added: "6.0.4"
+tier: tier_1
+output:
+  base_dir: "."
+  files:
+    - source: "SKILL.md"
+      target: ".windsurfrules"
+      transform: strip_frontmatter
+budget:
+  type: chars
+  max: 8000
+  target_file: ".windsurfrules"

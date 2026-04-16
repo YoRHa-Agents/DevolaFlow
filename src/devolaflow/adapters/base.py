@@ -32,7 +32,34 @@ class BaseAdapter(ABC):
         ...
 
 
-def load_workflow_skill(path: Path) -> dict:
-    """Load and parse workflow-skill.yaml."""
-    with open(path) as f:
-        return yaml.safe_load(f)
+def _find_project_root() -> Path:
+    """Walk up from this file to find the project root containing pyproject.toml."""
+    p = Path(__file__).resolve()
+    while p != p.parent:
+        if (p / "pyproject.toml").exists():
+            return p
+        p = p.parent
+    return Path.cwd()
+
+
+def load_workflow_skill(path: Path | None = None) -> tuple[dict, Path]:
+    """Load and parse ``workflow-skill.yaml`` and return ``(source, agent_dir)``.
+
+    Parameters
+    ----------
+    path:
+        Optional explicit path to a ``workflow-skill.yaml``. When omitted, the
+        canonical location under ``workflow-system/agent/`` is used (discovered
+        by walking up to the project root).
+    """
+    if path is None:
+        root = _find_project_root()
+        agent_dir = root / "workflow-system" / "agent"
+        skill_yaml = agent_dir / "workflow-skill.yaml"
+    else:
+        skill_yaml = Path(path)
+        agent_dir = skill_yaml.parent
+
+    with open(skill_yaml) as f:
+        source = yaml.safe_load(f) or {}
+    return source, agent_dir

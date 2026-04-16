@@ -5,6 +5,39 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.4] — 2026-04-16
+
+### Added
+- **`AdapterRegistry`** (`src/devolaflow/adapters/registry.py`): central registry for all platform adapters with tier classification (`core`, `high_priority`, `tier_1`, `tier_2`), selective build via `build_selected()`, and `create_default_registry()` factory that pre-populates the 4 core adapters.
+- **`DataDrivenAdapter`** (`src/devolaflow/adapters/data_driven.py`): generic adapter driven by a YAML config file. Supports 4 transforms (`copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`), frontmatter injection, and line/char budget checks. `load_data_driven_adapters()` auto-discovers YAML configs under `adapter_configs/`.
+- **`--tools` CLI flag**: `python -m devolaflow.build_skill --tools cursor,windsurf` builds only the named adapters. Without the flag, all registered adapters build as before. Unknown names exit with code 2 and a helpful message.
+- **`adapter_configs/` directory** for data-driven adapter definitions:
+  - `adapter_configs/kimicode.yaml` — KimiCode (Moonshot AI VSCode + CLI). Writes `SKILL.md` + `references/` + `examples/` under `.kimi/skills/devola-flow/` with platform frontmatter injection. 500-line budget.
+  - `adapter_configs/windsurf.yaml` — Windsurf (Codeium). Writes a single `.windsurfrules` at the repo root with frontmatter stripped. 8000-char budget.
+- **`scripts/install.sh` targets**: `install_kimicode()`, `install_windsurf()` following the existing adapter install pattern; wired into `case`, `all`, `update`, and help text. Auto-detect intentionally left untouched (signals for the new platforms are unreliable).
+- **4 new test modules** (+46 tests, 812 → 858):
+  - `tests/test_adapter_registry.py` — 15 tests (registry unit + `build_all` integration)
+  - `tests/test_data_driven_adapter.py` — 18 tests (all 4 transforms, budget modes, loader)
+  - `tests/test_kimicode_adapter.py` — 7 tests
+  - `tests/test_windsurf_adapter.py` — 6 tests
+
+### Changed
+- **`build_all()`** (`src/devolaflow/build_skill.py`): refactored to be registry-driven. The hardcoded adapter list is gone; `build_all()` now takes an optional `registry` parameter (defaults to `create_default_registry()` + data-driven extensions).
+- **`load_workflow_skill()`** (`src/devolaflow/adapters/base.py`): now accepts optional path and returns `(source, agent_dir)` tuple. `_find_project_root()` relocated from `build_skill.py` to `base.py`, re-exported for backward compat.
+- **`tests/test_build_skill.py`**: replaced strict `len == 4` assertion with `{cursor,codex,claude,copilot}.issubset(tools) and len(results) >= 4` to accommodate dynamic registration.
+
+### Known limitation
+- **Windsurf output produces a `[WARN]` status**: current `SKILL.md` is ~25 KB, but Windsurf's `.windsurfrules` has an 8 KB char budget. The adapter builds correctly and the budget mechanism reports honestly, but the output exceeds Windsurf's practical size limit. A future release should add a compression transform (e.g. `compress_for_windsurf`) or a Windsurf-specific lean SKILL.
+
+### Metrics
+- Tests: 812 → **858** (+46)
+- Registry adapters: 6 (4 core + 2 new via data-driven)
+- New LOC: 957 across 8 files (source + configs + tests)
+- Lint: ruff check + format clean
+- EvoBench: 26/26 pass, no regression
+- DeprecationWarnings: 0 (maintained)
+- NineS self-eval: 0.7405 stable
+
 ## [6.0.3] — 2026-04-16
 
 ### Changed
