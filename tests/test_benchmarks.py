@@ -16,11 +16,16 @@ from benchmarks.devolaflow_context.evaluator import (
 )
 from benchmarks.devolaflow_context.runner import (
     BASELINES_DIR,
+    SCENARIOS_DIR,
+    _newest_baseline_path,
     discover_scenarios,
+    load_baseline,
     load_scenario,
     run_all,
     run_scenario,
 )
+
+V6_BASELINE_PATH = BASELINES_DIR / "v6.0.5_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -346,3 +351,154 @@ class TestBaselineFile:
         for name, entry in data.items():
             assert entry["composite"] > 0, f"{name} has composite <= 0"
             assert entry["section_relevance"] > 0, f"{name} has relevance <= 0"
+
+    # ------------------------------------------------------------------
+    # v6.0.5 full-coverage baseline (C1 closure — was 3/29, now 29/29).
+    # ------------------------------------------------------------------
+
+    def test_v6_baseline_exists(self) -> None:
+        """v6.0.5_baseline.json must be present in baselines/."""
+        assert V6_BASELINE_PATH.exists(), (
+            f"Missing {V6_BASELINE_PATH.relative_to(REPO_ROOT)}. "
+            f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
+        )
+
+    def test_v6_baseline_covers_all_scenarios(self) -> None:
+        """Full coverage: every scenario YAML has a baseline entry."""
+        with open(V6_BASELINE_PATH) as f:
+            data = json.load(f)
+        baseline_keys = set(data.keys())
+        scenario_stems = {p.stem for p in SCENARIOS_DIR.glob("*.yaml")}
+        missing_from_baseline = scenario_stems - baseline_keys
+        extra_in_baseline = baseline_keys - scenario_stems
+        assert not missing_from_baseline, (
+            f"v6.0.5_baseline.json is missing entries for scenarios "
+            f"{sorted(missing_from_baseline)}. "
+            f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
+        )
+        assert not extra_in_baseline, (
+            f"v6.0.5_baseline.json has entries for scenarios that no longer exist: "
+            f"{sorted(extra_in_baseline)}. Regenerate the baseline."
+        )
+        assert baseline_keys == scenario_stems
+
+    def test_v6_baseline_scores_positive(self) -> None:
+        """Every scenario in v6.0.5_baseline has a strictly positive composite."""
+        with open(V6_BASELINE_PATH) as f:
+            data = json.load(f)
+        for name, entry in data.items():
+            assert entry["composite"] > 0, (
+                f"{name} has non-positive composite ({entry.get('composite')})"
+            )
+            for required_field in (
+                "information_density",
+                "section_relevance",
+                "budget_utilization",
+                "noise_ratio",
+                "total_tokens",
+                "budget",
+                "selected_count",
+            ):
+                assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
+
+    def test_runner_prefers_latest_baseline(self) -> None:
+        """load_baseline() picks v6.0.5 over older files, falls back to v2.1.0 otherwise."""
+        newest = _newest_baseline_path()
+        assert newest is not None
+        assert newest.name == "v6.0.5_baseline.json", (
+            f"Expected load_baseline() to prefer v6.0.5_baseline.json; got {newest.name}"
+        )
+
+        # load_baseline() returns v6 data for a scenario covered only by v6.
+        # visual_regression_webapp is not in v2.1.0_baseline.json but is in v6.0.5.
+        entry = load_baseline("visual_regression_webapp")
+        assert entry is not None, (
+            "load_baseline() did not return an entry for a scenario present in "
+            "v6.0.5_baseline.json — runner is still falling back to v2.1.0."
+        )
+        assert entry["composite"] > 0
+
+    def test_v6_baseline_matches_current_results_within_tolerance(self) -> None:
+        """Sanity: the recorded baseline reflects the current evaluator output.
+
+        A recorded composite that drifts >5pp from a fresh re-run indicates the
+        baseline is stale and must be regenerated.
+        """
+        with open(V6_BASELINE_PATH) as f:
+            data = json.load(f)
+        for path in discover_scenarios("all"):
+            scenario_data = load_scenario(path)
+            name = scenario_data.get("name", path.stem)
+            if name not in data:
+                continue
+            current = run_scenario(scenario_data)
+            recorded = data[name]["composite"]
+            drift = abs(current.composite - recorded)
+            assert drift <= 5.0, (
+                f"{name}: recorded baseline composite {recorded} drifted "
+                f"{drift:.2f} points from current run ({current.composite}). "
+                f"Regenerate with: python -m benchmarks.devolaflow_context.generate_baseline"
+            )
+
+
+class TestBaselineRegressionDetection:
+    """Verify compare_to_baseline flags a simulated 10% composite drop."""
+
+    def test_ten_percent_drop_is_flagged_as_regression(self) -> None:
+        """A -10% composite vs baseline must be classified as REGRESSION."""
+        with open(V6_BASELINE_PATH) as f:
+            data = json.load(f)
+        baseline_entry = data["hotfix_jwt"]
+        baseline_composite = baseline_entry["composite"]
+
+        # Construct a synthetic score 10% below baseline composite.
+        # composite = 40*relevance + 30*density + 20*(1-noise) + 10*utilization
+        # To land ~10% below, tank section_relevance (the dominant term).
+        target_composite = baseline_composite * 0.9
+        synthetic = BenchmarkScore(
+            scenario_name="hotfix_jwt",
+            profile_name=baseline_entry["profile_name"],
+            information_density=baseline_entry["information_density"],
+            section_relevance=max(0.0, baseline_entry["section_relevance"] - 0.30),
+            budget_utilization=baseline_entry["budget_utilization"],
+            noise_ratio=baseline_entry["noise_ratio"] + 0.10,
+            total_tokens=baseline_entry["total_tokens"],
+            budget=baseline_entry["budget"],
+            selected_count=baseline_entry["selected_count"],
+            expected_count=7,
+            matched_count=5,
+        )
+        # Sanity: synthetic score must actually be below target.
+        assert synthetic.composite < target_composite + 0.1, (
+            f"Synthetic score {synthetic.composite} did not drop to ~10% below "
+            f"baseline {baseline_composite}"
+        )
+
+        result = compare_to_baseline(synthetic, baseline_entry)
+        assert result["verdict"] == "REGRESSION", (
+            f"Expected REGRESSION for a 10% composite drop; "
+            f"got {result['verdict']} with delta {result['delta']}"
+        )
+        assert result["regressed"] is True
+        assert result["pct_change"] < -5.0
+
+    def test_one_percent_drop_not_flagged(self) -> None:
+        """A -1% composite drop must NOT be classified as REGRESSION."""
+        synthetic = BenchmarkScore(
+            scenario_name="near_baseline",
+            profile_name="hotfix",
+            information_density=0.5,
+            section_relevance=0.5,
+            budget_utilization=0.5,
+            noise_ratio=0.0,
+            total_tokens=100,
+            budget=200,
+            selected_count=3,
+            expected_count=3,
+            matched_count=3,
+        )
+        # compare_to_baseline uses 5% threshold; a 1% drop is well inside.
+        adjusted_baseline = {"composite": synthetic.composite * 1.01}
+        result = compare_to_baseline(synthetic, adjusted_baseline)
+        assert result["verdict"] == "PASS"
+        assert result["regressed"] is False

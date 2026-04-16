@@ -5,6 +5,31 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.5] — 2026-04-16
+
+### Added
+- **Schema parity test** (`tests/test_schema_parity.py`, 6 tests): enforces field parity across `task-dispatch.schema.yaml`, `lean-dispatch.yaml`, and `gate-report.schema.yaml`. Closes **TD-4** drift gap — any future field addition to one schema must be reflected in the other two (or added to an explicit `*_VERBOSE_ONLY` compromise set) or the test fails loudly with a message that points to the exact missing equivalent. Tests cover: reinforcement fields (+ per-rule items), verification facets, gate-report coverage of dispatch verification_config, header abbreviation mapping, acceptance/gate thresholds, and a sanity "all schemas parse" check.
+- **Full EvoBench baseline coverage** (`benchmarks/devolaflow_context/baselines/v6.0.5_baseline.json`): regression baselines for all **29 / 29** scenarios (was **3 / 29**). Closes **C1** — the 89.7pp regression-detection gap from `.local/research/v6.0.0_improvement_advice.md`. The file is keyed by scenario name and records `composite`, `information_density`, `section_relevance`, `budget_utilization`, `noise_ratio`, `total_tokens`, `budget`, and `selected_count`.
+- **`benchmarks/devolaflow_context/generate_baseline.py`**: CLI utility to regenerate the baseline on demand. Supports `--output` for a custom path and works both directly (`python benchmarks/devolaflow_context/generate_baseline.py`) and via `-m` (`python -m benchmarks.devolaflow_context.generate_baseline`). Default output follows `devolaflow.__version__`.
+- **7 new benchmark tests** in `tests/test_benchmarks.py`:
+  - `TestBaselineFile.test_v6_baseline_exists`
+  - `TestBaselineFile.test_v6_baseline_covers_all_scenarios` (strict set equality — missing or extra keys both fail)
+  - `TestBaselineFile.test_v6_baseline_scores_positive`
+  - `TestBaselineFile.test_runner_prefers_latest_baseline`
+  - `TestBaselineFile.test_v6_baseline_matches_current_results_within_tolerance` (staleness guard, ±5pp)
+  - `TestBaselineRegressionDetection.test_ten_percent_drop_is_flagged_as_regression`
+  - `TestBaselineRegressionDetection.test_one_percent_drop_not_flagged`
+
+### Changed
+- **`benchmarks/devolaflow_context/runner.py`** `load_baseline()`: now prefers the newest `v*_baseline.json` by numeric-version order (e.g. v6.0.5 over v2.1.0). Legacy `v2.1.0_baseline.json` is kept as a fallback when no newer baseline exists. Optimization-round snapshots (`v*_round_N.json`) are explicitly excluded from the baseline sweep. New helpers `_newest_baseline_path()` and `_version_tuple()` expose the selection logic for tests.
+
+### Metrics
+- Tests: **858 → 871** (+13)
+- EvoBench scenarios with regression baseline: **3 / 29 → 29 / 29**
+- Lint: ruff check + format clean
+- EvoBench: no regressions (baseline now runs on all 29 scenarios)
+- NineS self-eval: stable
+
 ## [6.0.4] — 2026-04-16
 
 ### Added
