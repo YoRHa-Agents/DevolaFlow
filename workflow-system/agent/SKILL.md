@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "6.0.1"
+version: "6.0.2"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -20,7 +20,7 @@ triggers:
   - "/update-devola"
 tier: 1
 token_estimate: 2800
-last_updated: "2026-04-12"
+last_updated: "2026-04-16"
 name: devola-flow
 description: >
   Use when orchestrating multi-file software tasks, implementing features,
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v6.0.1**
+> **Now Using DevolaFlow v6.0.2**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 6.0.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 6.0.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 

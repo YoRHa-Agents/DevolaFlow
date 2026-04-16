@@ -5,6 +5,24 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.2] — 2026-04-16
+
+### Removed (BREAKING)
+- **`evaluate_gate_with_nines`**: Removed per v5.1 roadmap item P9. Use `evaluate_gate()` for gates, and call NineS separately via `devolaflow.nines.get_research_advice()` (defined in `devolaflow.nines.advisor`). See `MIGRATION-v6.md`.
+- **`run_nines_advisor`**: Removed. Advisor functionality was tied to the deprecated gate+NineS conflation. Use NineS directly or `devolaflow.nines.get_research_advice()`.
+- **Internal advisor helpers** (dead after `run_nines_advisor` removal): `should_invoke_advisor`, `_interpret_result`, `_extract_score`, `_extract_reasoning` and the `_SCORE_KEYS` / `_REASONING_KEYS` / `_APPROVE_STATUSES` / `_SCORE_THRESHOLD` constants; `GateVerdict` and `warnings` imports in `nines/advisor.py` also dropped.
+- **5 test classes retired** (29 tests total) from `tests/test_nines.py`: `TestEvaluateGateWithNines` (6), `TestRunNinesAdvisor` (6), `TestShouldInvokeAdvisor` (4), `TestInterpretResult` (11), `TestDeprecationWarnings` (2).
+
+### Added
+- **MIGRATION-v6.md**: 1-page migration guide documenting both removals, the dead helpers, and the stable v6.0 API surface.
+
+### Metrics
+- Tests: **791 passed** (−29 from v6.0.1's 820), 0 failed
+- EvoBench: 26/26 pass, no regressions
+- Lint: ruff check + format clean
+- DeprecationWarnings: **12 → 0**
+- Net LOC in core removal (5 files): **−519** (+6 / −525). MIGRATION-v6.md adds 32 lines (new file).
+
 ## [6.0.1] — 2026-04-16
 
 ### Removed

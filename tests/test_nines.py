@@ -12,22 +12,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from devolaflow.gate.models import (
-    CheckResult,
-    ConvergenceRound,
-    GateInput,
-    GateVerdict,
-)
-from devolaflow.gate.profiles import STANDARD
-from devolaflow.gate.scorer import evaluate_gate_with_nines
 from devolaflow.nines._cli import run_nines_cli
 from devolaflow.nines.advisor import (
     NinesAdvisorConfig,
-    _interpret_result,
     _run_nines_command,
     get_research_advice,
-    run_nines_advisor,
-    should_invoke_advisor,
 )
 from devolaflow.nines.detector import (
     _KNOWN_SUBCOMMANDS,
@@ -67,30 +56,6 @@ from devolaflow.nines.scorer import (
 # ---------------------------------------------------------------------------
 
 
-def _pass_input() -> GateInput:
-    return GateInput(
-        build_status=CheckResult(status="pass"),
-        test_results=CheckResult(status="pass"),
-        lint_status=CheckResult(status="pass"),
-        review_findings=[],
-        acceptance_criteria_results=CheckResult(status="pass"),
-    )
-
-
-def _make_verdict(
-    *,
-    advisor_recommended: bool = False,
-    composite_score: float | None = None,
-) -> GateVerdict:
-    return GateVerdict(
-        decision="FAIL",
-        rationale="Borderline score",
-        composite_score=composite_score,
-        meets_threshold=False,
-        advisor_recommended=advisor_recommended,
-    )
-
-
 def _mock_proc(
     stdout: str = "",
     stderr: str = "",
@@ -101,16 +66,6 @@ def _mock_proc(
     proc.stderr = stderr
     proc.returncode = returncode
     return proc
-
-
-def _round(num: int, score: float) -> ConvergenceRound:
-    return ConvergenceRound(
-        round_num=num,
-        composite_score=score,
-        blocker_count=0,
-        critical_count=0,
-        timestamp="2026-04-13T00:00:00Z",
-    )
 
 
 # ===========================================================================
@@ -564,28 +519,6 @@ class TestNinesAdvisorConfig:
         assert cfg.max_retries == 5
 
 
-class TestShouldInvokeAdvisor:
-    def test_invoke_when_recommended_and_enabled(self) -> None:
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(enabled=True)
-        assert should_invoke_advisor(verdict, config) is True
-
-    def test_no_invoke_when_not_recommended(self) -> None:
-        verdict = _make_verdict(advisor_recommended=False)
-        config = NinesAdvisorConfig(enabled=True)
-        assert should_invoke_advisor(verdict, config) is False
-
-    def test_no_invoke_when_disabled(self) -> None:
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(enabled=False)
-        assert should_invoke_advisor(verdict, config) is False
-
-    def test_no_invoke_when_both_false(self) -> None:
-        verdict = _make_verdict(advisor_recommended=False)
-        config = NinesAdvisorConfig(enabled=False)
-        assert should_invoke_advisor(verdict, config) is False
-
-
 class TestRunNinesCommand:
     @patch("devolaflow.nines._cli.subprocess.run")
     def test_success(self, mock_run: MagicMock) -> None:
@@ -633,250 +566,6 @@ class TestRunNinesCommand:
         result = _run_nines_command("nines self-eval", retries=2)
         assert result == payload
         assert mock_run.call_count == 2
-
-
-class TestInterpretResult:
-    def test_score_above_threshold(self) -> None:
-        verdict, reasoning = _interpret_result({"score": 85, "reasoning": "looks good"})
-        assert verdict == "APPROVE"
-        assert "looks good" in reasoning
-
-    def test_score_below_threshold(self) -> None:
-        verdict, reasoning = _interpret_result({"score": 50, "reasoning": "many issues"})
-        assert verdict == "REJECT"
-        assert "many issues" in reasoning
-
-    def test_score_at_threshold(self) -> None:
-        verdict, _ = _interpret_result({"score": 70})
-        assert verdict == "APPROVE"
-
-    def test_status_pass(self) -> None:
-        verdict, _ = _interpret_result({"status": "pass"})
-        assert verdict == "APPROVE"
-
-    def test_status_approved(self) -> None:
-        verdict, _ = _interpret_result({"status": "approved"})
-        assert verdict == "APPROVE"
-
-    def test_status_ok(self) -> None:
-        verdict, _ = _interpret_result({"status": "ok"})
-        assert verdict == "APPROVE"
-
-    def test_no_score_no_status(self) -> None:
-        verdict, reasoning = _interpret_result({})
-        assert verdict == "REJECT"
-        assert "not return a passing status" in reasoning
-
-    def test_overall_score_key(self) -> None:
-        verdict, _ = _interpret_result({"overall_score": 90})
-        assert verdict == "APPROVE"
-
-    def test_quality_score_key(self) -> None:
-        verdict, _ = _interpret_result({"quality_score": 40})
-        assert verdict == "REJECT"
-
-    def test_summary_used_as_reasoning(self) -> None:
-        _, reasoning = _interpret_result({"score": 80, "summary": "Good quality"})
-        assert reasoning == "Good quality"
-
-    def test_non_numeric_score_falls_to_status(self) -> None:
-        verdict, _ = _interpret_result({"score": "not_a_number", "status": "pass"})
-        assert verdict == "APPROVE"
-
-
-class TestRunNinesAdvisor:
-    @patch("devolaflow.nines.advisor._run_nines_command")
-    def test_advisor_enriches_verdict(self, mock_cmd: MagicMock) -> None:
-        mock_cmd.return_value = {"score": 85, "reasoning": "Quality meets bar"}
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(enabled=True, triggers=["self-eval"])
-        result = run_nines_advisor(verdict, config, artifact_path="artifact/")
-        assert result.advisor_verdict == "APPROVE"
-        assert "NineS (self-eval)" in result.advisor_context
-        assert "Quality meets bar" in result.advisor_context
-
-    def test_advisor_skips_when_not_recommended(self) -> None:
-        verdict = _make_verdict(advisor_recommended=False)
-        config = NinesAdvisorConfig(enabled=True)
-        result = run_nines_advisor(verdict, config, artifact_path="artifact/")
-        assert result.advisor_verdict == ""
-        assert result is verdict
-
-    def test_advisor_skips_when_disabled(self) -> None:
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(enabled=False)
-        result = run_nines_advisor(verdict, config, artifact_path="artifact/")
-        assert result.advisor_verdict == ""
-        assert result is verdict
-
-    @patch("devolaflow.nines.advisor._run_nines_command", return_value=None)
-    def test_advisor_handles_cli_failure(self, _cmd: MagicMock) -> None:
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(enabled=True, triggers=["self-eval"])
-        result = run_nines_advisor(verdict, config, artifact_path="artifact/")
-        assert result.advisor_verdict == ""
-        assert result is verdict
-
-    @patch("devolaflow.nines.advisor._run_nines_command")
-    def test_advisor_with_path_formatting(self, mock_cmd: MagicMock) -> None:
-        mock_cmd.return_value = {"score": 90, "reasoning": "ok"}
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(
-            enabled=True,
-            triggers=["review"],
-        )
-        run_nines_advisor(verdict, config, artifact_path="src/main.py")
-        called_cmd = mock_cmd.call_args[0][0]
-        assert "src/main.py" in called_cmd
-
-    @patch("devolaflow.nines.advisor._run_nines_command")
-    def test_advisor_unknown_trigger_skipped(self, mock_cmd: MagicMock) -> None:
-        mock_cmd.return_value = {"score": 90}
-        verdict = _make_verdict(advisor_recommended=True)
-        config = NinesAdvisorConfig(
-            enabled=True,
-            commands={"self-eval": "nines self-eval --format json"},
-            triggers=["nonexistent"],
-        )
-        result = run_nines_advisor(verdict, config, artifact_path="artifact/")
-        assert result.advisor_verdict == ""
-        mock_cmd.assert_not_called()
-
-
-# ===========================================================================
-# gate/scorer.py — evaluate_gate_with_nines
-# ===========================================================================
-
-
-class TestEvaluateGateWithNines:
-    def test_without_nines_config_delegates_to_standard(self) -> None:
-        verdict = evaluate_gate_with_nines(
-            _pass_input(), STANDARD, gate_type="standard", nines_config=None
-        )
-        assert verdict.decision == "PASS"
-
-    @patch("devolaflow.nines.advisor.run_nines_advisor")
-    @patch("devolaflow.nines.scorer.nines_dimension_scores")
-    @patch("devolaflow.nines.detector.detect_nines")
-    def test_with_nines_config_enriches_verdict(
-        self,
-        mock_detect: MagicMock,
-        mock_scores: MagicMock,
-        _mock_advisor: MagicMock,
-    ) -> None:
-        mock_detect.return_value = NinesStatus(available=True, version="1.0.0")
-        mock_scores.return_value = {
-            "test_quality": 90.0,
-            "code_review": 90.0,
-            "architecture": 90.0,
-            "benchmark": 90.0,
-        }
-
-        gi = GateInput(
-            build_status=CheckResult(status="pass"),
-            test_results=CheckResult(status="pass", details={"coverage_pct": 95}),
-            lint_status=CheckResult(status="pass", details={"architecture_score": 90}),
-            review_findings=[],
-        )
-        history = [_round(1, 80.0)]
-        nines_cfg = NinesScorerConfig(test_suite="tests/")
-
-        verdict = evaluate_gate_with_nines(
-            gi,
-            STANDARD,
-            round_num=2,
-            history=history,
-            gate_type="convergence",
-            nines_config=nines_cfg,
-            artifact_path="artifact/",
-        )
-        assert verdict.decision == "PASS"
-        assert "nines_dimension_scores" in verdict.details
-
-    @patch.dict(
-        "sys.modules",
-        {"devolaflow.nines.detector": None, "devolaflow.nines.scorer": None},
-    )
-    def test_nines_import_error_fallback(self) -> None:
-        nines_cfg = NinesScorerConfig(test_suite="tests/")
-        verdict = evaluate_gate_with_nines(
-            _pass_input(),
-            STANDARD,
-            gate_type="standard",
-            nines_config=nines_cfg,
-        )
-        assert verdict.decision == "PASS"
-
-    @patch("devolaflow.nines.detector.detect_nines")
-    def test_nines_not_available_fallback(self, mock_detect: MagicMock) -> None:
-        mock_detect.return_value = NinesStatus(available=False)
-        nines_cfg = NinesScorerConfig(test_suite="tests/")
-        verdict = evaluate_gate_with_nines(
-            _pass_input(),
-            STANDARD,
-            gate_type="standard",
-            nines_config=nines_cfg,
-        )
-        assert verdict.decision == "PASS"
-        assert "nines_dimension_scores" not in verdict.details
-
-    @patch("devolaflow.nines.advisor.run_nines_advisor")
-    @patch("devolaflow.nines.scorer.nines_dimension_scores")
-    @patch("devolaflow.nines.detector.detect_nines")
-    def test_advisor_invoked_on_borderline(
-        self,
-        mock_detect: MagicMock,
-        mock_scores: MagicMock,
-        mock_advisor: MagicMock,
-    ) -> None:
-        mock_detect.return_value = NinesStatus(available=True, version="1.0.0")
-        mock_scores.return_value = {
-            "test_quality": 84.0,
-            "code_review": 84.0,
-            "architecture": 84.0,
-            "benchmark": 84.0,
-        }
-
-        def advisor_side_effect(
-            verdict: GateVerdict, config: NinesAdvisorConfig, path: str
-        ) -> GateVerdict:
-            verdict.advisor_verdict = "APPROVE"
-            verdict.advisor_context = "NineS approves"
-            return verdict
-
-        mock_advisor.side_effect = advisor_side_effect
-
-        gi = GateInput(
-            build_status=CheckResult(status="pass"),
-            test_results=CheckResult(status="pass", details={"coverage_pct": 80}),
-            lint_status=CheckResult(status="pass", details={"architecture_score": 80}),
-            review_findings=[],
-        )
-        history = [_round(1, 75.0)]
-        nines_cfg = NinesScorerConfig(test_suite="tests/")
-        advisor_cfg = NinesAdvisorConfig(enabled=True, triggers=["self-eval"])
-
-        verdict = evaluate_gate_with_nines(
-            gi,
-            STANDARD,
-            round_num=2,
-            history=history,
-            gate_type="convergence",
-            nines_config=nines_cfg,
-            advisor_config=advisor_cfg,
-            artifact_path="artifact/",
-        )
-        assert "nines_dimension_scores" in verdict.details
-
-    def test_no_advisor_config_skips_advisor(self) -> None:
-        verdict = evaluate_gate_with_nines(
-            _pass_input(),
-            STANDARD,
-            gate_type="standard",
-            nines_config=None,
-            advisor_config=None,
-        )
-        assert verdict.advisor_verdict == ""
 
 
 # ===========================================================================
@@ -1190,28 +879,6 @@ class TestGetResearchAdvice:
         result = get_research_advice(config, target_path="src/")
         assert result["status"] == "no_result"
         assert result["recommendations"] == []
-
-
-# ===========================================================================
-# Deprecation warnings
-# ===========================================================================
-
-
-class TestDeprecationWarnings:
-    def test_evaluate_gate_with_nines_warns(self) -> None:
-        with pytest.warns(DeprecationWarning, match="evaluate_gate_with_nines is deprecated"):
-            evaluate_gate_with_nines(
-                _pass_input(),
-                STANDARD,
-                gate_type="standard",
-                nines_config=None,
-            )
-
-    def test_run_nines_advisor_warns(self) -> None:
-        verdict = _make_verdict(advisor_recommended=False)
-        config = NinesAdvisorConfig(enabled=False)
-        with pytest.warns(DeprecationWarning, match="run_nines_advisor is deprecated"):
-            run_nines_advisor(verdict, config, artifact_path="artifact/")
 
 
 # ===========================================================================
