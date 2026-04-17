@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "6.1.4"
+version: "6.1.5"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v6.1.4**
+> **Now Using DevolaFlow v6.1.5**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 6.1.4 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 6.1.5 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -56,7 +56,7 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
 2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
 3. User explicitly says "build a plan" / "plan this" / "design first" → **PLAN MODE**
-4. Otherwise → **AGENT MODE** (default, full orchestration)
+4. Otherwise → **AGENT MODE** (default, full orchestration). **v6.1.5+ runtime hook:** `select_context(plan_mode=True)` (or env `DEVOLAFLOW_PLAN_MODE=1`) escalates plan-relevant sections (`agent_hierarchy`, `decomposition_gate`, `rationalization_prevention`) to `critical` and upgrades `model_hint` to `quality`.
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 

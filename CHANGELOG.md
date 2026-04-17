@@ -5,6 +5,24 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.5] — 2026-04-16
+
+### Added
+- **Plan-mode detection in `select_context()` (V6-03)**: new `plan_mode: bool | None` parameter. When True (or auto-detected via `DEVOLAFLOW_PLAN_MODE` env var or `.devolaflow_plan_mode` marker file), the active context profile is escalated through `apply_plan_mode_overrides()` BEFORE round-escalation: `agent_hierarchy`, `decomposition_gate`, `rationalization_prevention` priorities lifted to `critical`; `model_hint` upgraded to `quality`; `compression_intensity` set to `minimal`. Composes with the v6.0.3 round-based escalation (plan-mode applies first, round adds budget on top).
+- **`--plan-mode` / `--no-plan-mode` CLI flags** on `python -m devolaflow.task_adaptive_selector`.
+- **`apply_plan_mode_overrides()`** public function in `task_adaptive_selector` (allowlisted in dead-API detector alongside `apply_round_escalation`/`select_context` as documented stable public API).
+- **10 new tests** in `test_task_adaptive_selector.py::TestPlanModeDetection` covering auto-detect default off, explicit override priorities, explicit-False short-circuit, env-var detection, marker-file detection, composition with round escalation, result-dict surface keys, profile-immutability, invalid-env-value rejection, and minimal-compression assertion.
+
+### Changed
+- **SKILL.md "Mode Awareness" section**: noted the v6.1.5 runtime hook inline on the AGENT-MODE-default line of the detection list — chars-only edit (no new lines), preserving line count and avoiding token-budget knock-on effects in the `feature` profile's `plan_mode_template` selection (which would otherwise displace `dispatch_report` from the EvoBench `decomposition_feature` scenario).
+- **`select_context()` model_hint / compression_intensity logic**: the `escalation_applied` gate is now `escalation_applied OR plan_mode_applied`, so plan-mode-set values on the profile (`model_hint=quality`, `compression_intensity=minimal`) are surfaced in the result dict at round 1.
+
+### Metrics
+- Tests: 999 → 1009 (+10)
+- Plan-mode detection signals: 3 (explicit param, env var, marker file)
+- SKILL.md: 498 → 498 lines (line count unchanged; chars-only addition to mode_detection section)
+- All 11 adapters [OK], lint clean, NineS stable, EvoBench `decomposition_feature` composite ≥ 95 preserved
+
 ## [6.1.4] — 2026-04-16
 
 ### Added

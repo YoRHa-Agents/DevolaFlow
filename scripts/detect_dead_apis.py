@@ -74,6 +74,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.gate.reinforcement:merge_reinforcement_into_dispatch",
         "devolaflow.gate.reinforcement:reinforcement_to_dict",
         "devolaflow.task_adaptive_selector:apply_round_escalation",
+        "devolaflow.task_adaptive_selector:apply_plan_mode_overrides",
         "devolaflow.task_adaptive_selector:select_context",
         "devolaflow.nines.advisor:get_research_advice",
         # ---- Compressor module — runtime lean format validators (CO-1) ----
