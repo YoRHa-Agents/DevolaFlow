@@ -300,6 +300,286 @@ def test_data_driven_unknown_transform_raises(tmp_path: Path):
     assert "weird_thing" in str(exc.value)
 
 
+def test_valid_transforms_enumeration_lists_keep_sections():
+    """``VALID_TRANSFORMS`` must include all transforms accepted by ``_apply_transform``."""
+    from devolaflow.adapters.data_driven import VALID_TRANSFORMS
+
+    assert "keep_sections" in VALID_TRANSFORMS
+    expected = {
+        "copy",
+        "copy_tree",
+        "copy_with_frontmatter",
+        "strip_frontmatter",
+        "keep_sections",
+    }
+    assert set(VALID_TRANSFORMS) == expected
+
+
+def _write_sectioned_skill(agent: Path) -> Path:
+    """Write a SKILL.md with multiple markdown sections for keep_sections tests."""
+    content = (
+        "---\n"
+        "id: demo\n"
+        "version: 1.0\n"
+        "---\n"
+        "\n"
+        "Preamble text before any heading.\n"
+        "\n"
+        "# DevolaFlow\n"
+        "\n"
+        "## Alpha Section\n"
+        "Alpha body line 1.\n"
+        "Alpha body line 2.\n"
+        "\n"
+        "### Alpha Subsection\n"
+        "Nested alpha content.\n"
+        "\n"
+        "## Beta Section\n"
+        "Beta body.\n"
+        "\n"
+        "## Gamma Section\n"
+        "Gamma body.\n"
+    )
+    path = agent / "SKILL.md"
+    path.write_text(content)
+    return path
+
+
+def test_keep_sections_extracts_named_sections(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Alpha Section", "Gamma Section"],
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert "## Alpha Section" in text
+    assert "Alpha body line 1." in text
+    assert "### Alpha Subsection" in text
+    assert "Nested alpha content." in text
+    assert "## Gamma Section" in text
+    assert "Gamma body." in text
+    assert "## Beta Section" not in text
+    assert "Beta body." not in text
+
+
+def test_keep_sections_excludes_frontmatter_by_default(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Beta Section"],
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert not text.startswith("---")
+    assert "id: demo" not in text
+    assert "version: 1.0" not in text
+    assert "## Beta Section" in text
+
+
+def test_keep_sections_includes_frontmatter_when_requested(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Beta Section"],
+                    "include_frontmatter": True,
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert text.startswith("---")
+    assert "id: demo" in text
+    assert "version: 1.0" in text
+    assert "## Beta Section" in text
+
+
+def test_keep_sections_prepends_header_prefix(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Alpha Section"],
+                    "header_prefix": "# Compressed Rules\nSee full docs.\n",
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert text.startswith("# Compressed Rules\nSee full docs.")
+    assert "## Alpha Section" in text
+    header_end = text.index("## Alpha Section")
+    assert "See full docs." in text[:header_end]
+
+
+def test_keep_sections_empty_list_produces_empty_body(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": [],
+                    "header_prefix": "# Only Prefix\n",
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert "## Alpha Section" not in text
+    assert "## Beta Section" not in text
+    assert "## Gamma Section" not in text
+    assert "Alpha body" not in text
+    assert text.strip() == "# Only Prefix"
+
+
+def test_keep_sections_substring_match_not_exact(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    _write_sectioned_skill(agent)
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Beta"],
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert "## Beta Section" in text
+    assert "Beta body." in text
+    assert "## Alpha Section" not in text
+    assert "## Gamma Section" not in text
+
+
+def test_keep_sections_handles_missing_source(tmp_path: Path):
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "missing.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Alpha Section"],
+                    "header_prefix": "# Prefix\n",
+                }
+            ],
+        },
+    }
+    result = DataDrivenAdapter(config).build({}, agent, out)
+    assert not (out / "rules.md").exists()
+    assert result.files_created == []
+
+
+def test_keep_sections_ignores_fenced_code_block_headings(tmp_path: Path):
+    """Headings inside fenced code blocks must NOT be treated as section boundaries."""
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    (agent / "SKILL.md").write_text(
+        "## Real Section\n"
+        "Real body.\n"
+        "\n"
+        "```markdown\n"
+        "## Fake Heading Inside Code\n"
+        "This line looks like a heading but is inside code.\n"
+        "```\n"
+        "\n"
+        "## Another Real\n"
+        "Another body.\n"
+    )
+    out = tmp_path / "out"
+    config = {
+        "name": "demo",
+        "output": {
+            "base_dir": ".",
+            "files": [
+                {
+                    "source": "SKILL.md",
+                    "target": "rules.md",
+                    "transform": "keep_sections",
+                    "keep_sections": ["Real Section"],
+                }
+            ],
+        },
+    }
+    DataDrivenAdapter(config).build({}, agent, out)
+    text = (out / "rules.md").read_text()
+    assert "## Real Section" in text
+    assert "Real body." in text
+    assert "## Fake Heading Inside Code" in text
+    assert "This line looks like a heading but is inside code." in text
+    assert "## Another Real" not in text
+    assert "Another body." not in text
+
+
 def test_data_driven_config_without_name_raises():
     with pytest.raises(ValueError):
         DataDrivenAdapter({})

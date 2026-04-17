@@ -44,13 +44,13 @@ def test_windsurf_strips_frontmatter(build_result):
     _, out_dir = build_result
     rules = out_dir / ".windsurfrules"
     text = rules.read_text()
-    # The original SKILL.md begins with ``---`` + YAML frontmatter.
-    # After strip_frontmatter, the output must NOT start with ``---``.
+    # v6.1.2: switched to ``keep_sections`` with ``include_frontmatter: false``.
+    # Output must NOT start with ``---`` (frontmatter) — same invariant as
+    # the previous ``strip_frontmatter`` behaviour.
     assert not text.startswith("---")
-    # Spot-check: frontmatter keys must not leak into the body.
-    first_block = text.split("\n\n", 1)[0]
-    assert "token_estimate:" not in first_block
-    assert "last_updated:" not in first_block
+    # Frontmatter keys must not leak into the body.
+    assert "token_estimate:" not in text
+    assert "last_updated:" not in text
 
 
 def test_windsurf_budget_chars_under_8000(build_result):
@@ -61,11 +61,10 @@ def test_windsurf_budget_chars_under_8000(build_result):
     actual = int(result.budget_details.split(":")[1].strip().split("/")[0])
     max_val = int(result.budget_details.split("/")[1].strip().split()[0])
     assert max_val == 8000
-    # Note: for the real DevolaFlow SKILL.md, actual>8000 is expected until a
-    # Windsurf-specific compression step is added (tracked separately). The
-    # contract under test is that the budget mechanism correctly measures chars
-    # and reports budget_ok accordingly.
-    assert result.budget_ok == (actual <= 8000)
+    # v6.1.2: the ``keep_sections`` compression step brings Windsurf output
+    # under the 8000-char budget, so the adapter now reports budget_ok=True.
+    assert actual <= 8000, f"Windsurf output {actual} chars exceeds 8000 budget"
+    assert result.budget_ok is True
 
 
 def test_windsurf_result_tool_name(build_result):
@@ -78,3 +77,43 @@ def test_windsurf_output_is_single_file(build_result):
     produced = [p for p in out_dir.rglob("*") if p.is_file()]
     assert len(produced) == 1
     assert produced[0].name == ".windsurfrules"
+
+
+def test_windsurf_under_8000_chars(build_result):
+    """The real ``.windsurfrules`` built from the real SKILL.md MUST be ≤ 8000 chars.
+
+    This is the contract that v6.1.2 introduces — replaces the known-broken
+    [WARN] status from v6.0.4–v6.1.1 (24,625 chars).
+    """
+    _, out_dir = build_result
+    rules = out_dir / ".windsurfrules"
+    text = rules.read_text()
+    assert len(text) <= 8000, (
+        f".windsurfrules is {len(text)} chars, exceeds Windsurf 8000-char budget"
+    )
+
+
+def test_windsurf_contains_quick_action(build_result):
+    """High-value section ``Quick Action Decision`` must survive compression."""
+    _, out_dir = build_result
+    text = (out_dir / ".windsurfrules").read_text()
+    assert "Quick Action Decision" in text
+
+
+def test_windsurf_contains_hierarchy(build_result):
+    """High-value section ``4-Layer Agent Hierarchy`` must survive compression."""
+    _, out_dir = build_result
+    text = (out_dir / ".windsurfrules").read_text()
+    assert "4-Layer Agent Hierarchy" in text
+
+
+def test_windsurf_has_header_prefix(build_result, windsurf_config: dict):
+    """Output must start with the configured ``header_prefix`` string."""
+    _, out_dir = build_result
+    text = (out_dir / ".windsurfrules").read_text()
+    spec = windsurf_config["output"]["files"][0]
+    prefix = spec["header_prefix"].rstrip("\n")
+    assert text.startswith(prefix), (
+        f"Expected output to start with:\n{prefix!r}\nGot:\n{text[: len(prefix) + 20]!r}"
+    )
+    assert "github.com/YoRHa-Agents/DevolaFlow" in text.splitlines()[1]

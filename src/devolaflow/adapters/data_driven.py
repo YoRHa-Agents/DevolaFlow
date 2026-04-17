@@ -8,7 +8,9 @@ place a YAML config file in ``adapter_configs/`` and register via
 from __future__ import annotations
 
 import logging
+import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,33 @@ from devolaflow.adapters.registry import AdapterRegistry
 ADAPTER_CONFIGS_DIR = Path(__file__).resolve().parents[3] / "adapter_configs"
 
 _LOG = logging.getLogger(__name__)
+
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+
+VALID_TRANSFORMS = frozenset(
+    {
+        "copy",
+        "copy_tree",
+        "copy_with_frontmatter",
+        "strip_frontmatter",
+        "keep_sections",
+    }
+)
+
+
+@dataclass(frozen=True)
+class _Section:
+    """A markdown section parsed from a document.
+
+    ``level == 0`` denotes the preamble (text preceding the first heading).
+    ``text`` includes the heading line itself (when ``level > 0``) and all
+    content up to — but not including — the next heading of equal-or-higher
+    level. Sub-headings deeper than ``level`` are therefore nested inside.
+    """
+
+    heading: str
+    level: int
+    text: str
 
 
 class DataDrivenAdapter(BaseAdapter):
@@ -36,7 +65,12 @@ class DataDrivenAdapter(BaseAdapter):
           files:
             - source: <path under agent_dir>
               target: <path under base_dir>
-              transform: copy | copy_tree | copy_with_frontmatter | strip_frontmatter
+              transform: copy | copy_tree | copy_with_frontmatter
+                       | strip_frontmatter | keep_sections
+              # keep_sections-only:
+              keep_sections: [<heading substring>, ...]
+              header_prefix: "<string prepended to output>"
+              include_frontmatter: false
         frontmatter:
           inject:
             platform: <str>
@@ -68,7 +102,7 @@ class DataDrivenAdapter(BaseAdapter):
                 _LOG.debug("skipping missing source: %s", src)
                 continue
             dst.parent.mkdir(parents=True, exist_ok=True)
-            self._apply_transform(src, dst, transform)
+            self._apply_transform(src, dst, transform, spec)
             files.append(str(dst.relative_to(output_dir)))
 
         budget_ok, details = self._check_budget(output_dir)
@@ -80,7 +114,14 @@ class DataDrivenAdapter(BaseAdapter):
             budget_details=details,
         )
 
-    def _apply_transform(self, src: Path, dst: Path, transform: str) -> None:
+    def _apply_transform(
+        self,
+        src: Path,
+        dst: Path,
+        transform: str,
+        spec: dict[str, Any] | None = None,
+    ) -> None:
+        spec = spec or {}
         if transform == "copy":
             shutil.copy2(src, dst)
         elif transform == "copy_tree":
@@ -99,8 +140,89 @@ class DataDrivenAdapter(BaseAdapter):
                 if len(parts) >= 3:
                     content = parts[2].lstrip("\n")
             dst.write_text(content)
+        elif transform == "keep_sections":
+            content = src.read_text()
+            frontmatter = ""
+            body = content
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    frontmatter = f"---{parts[1]}---\n"
+                    body = parts[2].lstrip("\n")
+            sections = self._split_by_heading(body)
+            keep = list(spec.get("keep_sections", []) or [])
+            prefix = spec.get("header_prefix", "") or ""
+            selected = [s for s in sections if s.level > 0 and any(k in s.heading for k in keep)]
+            out_parts: list[str] = []
+            if spec.get("include_frontmatter") and frontmatter:
+                out_parts.append(frontmatter.rstrip("\n"))
+            if prefix:
+                out_parts.append(prefix.rstrip("\n"))
+            for sec in selected:
+                out_parts.append(sec.text.rstrip("\n"))
+            output = "\n\n".join(out_parts).rstrip()
+            if output:
+                output += "\n"
+            dst.write_text(output)
         else:
             raise ValueError(f"Unknown transform: {transform!r}")
+
+    @staticmethod
+    def _split_by_heading(text: str) -> list[_Section]:
+        """Split ``text`` into sections by ATX markdown headings.
+
+        Fenced code blocks (``` or ~~~) are respected: heading-looking lines
+        inside a fence are treated as content, not section boundaries. Each
+        returned section's ``text`` spans from the heading line (inclusive)
+        through the next heading of equal-or-higher level (exclusive) — so
+        an H2 section naturally contains its H3/H4 children.
+
+        The first element, when present, is always the preamble (``level=0``)
+        containing everything before the first heading. The preamble is
+        omitted when the document starts with a heading or is empty.
+        """
+        lines = text.splitlines()
+        heads: list[tuple[int, int, str]] = []
+        in_fence = False
+        fence_marker = ""
+        for i, line in enumerate(lines):
+            stripped = line.lstrip()
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                marker = stripped[:3]
+                if not in_fence:
+                    in_fence = True
+                    fence_marker = marker
+                elif stripped.startswith(fence_marker):
+                    in_fence = False
+                    fence_marker = ""
+                continue
+            if in_fence:
+                continue
+            m = _HEADING_RE.match(line)
+            if m:
+                heads.append((i, len(m.group(1)), m.group(2).strip()))
+
+        sections: list[_Section] = []
+        if not heads:
+            if text.strip():
+                sections.append(_Section(heading="", level=0, text=text.rstrip("\n")))
+            return sections
+
+        first_head_line = heads[0][0]
+        if first_head_line > 0:
+            preamble = "\n".join(lines[:first_head_line]).rstrip("\n")
+            if preamble.strip():
+                sections.append(_Section(heading="", level=0, text=preamble))
+
+        for idx, (start, level, heading) in enumerate(heads):
+            end = len(lines)
+            for j in range(idx + 1, len(heads)):
+                if heads[j][1] <= level:
+                    end = heads[j][0]
+                    break
+            body = "\n".join(lines[start:end]).rstrip("\n")
+            sections.append(_Section(heading=heading, level=level, text=body))
+        return sections
 
     @staticmethod
     def _inject_frontmatter(content: str, injections: dict[str, Any]) -> str:

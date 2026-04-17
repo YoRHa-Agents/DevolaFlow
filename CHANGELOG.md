@@ -5,6 +5,32 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.2] — 2026-04-16
+
+### Fixed
+- **Windsurf adapter real bug**: `.windsurfrules` previously exceeded Windsurf's 8000-char budget (24,625 chars WARN, known-broken since v6.0.4 — customers could not actually install DevolaFlow on Windsurf despite the adapter appearing to build). Now 7,434 chars [OK] via new `keep_sections` transform that extracts only high-value sections of SKILL.md (Quick Action Decision, 4-Layer Agent Hierarchy, Gate Mechanism, Dispatch & Report Protocol) with a compact header prefix pointing users to the full skill on GitHub.
+
+### Added
+- **New `keep_sections` transform** in `DataDrivenAdapter` (`src/devolaflow/adapters/data_driven.py`): markdown-section-level extraction with optional frontmatter preservation (`include_frontmatter`) and header prefix injection (`header_prefix`). Substring-matches section headings (case-sensitive), respects fenced code blocks (heading-looking lines inside ``` fences are treated as content), and nests H3+ children under their matching H2 parent. Enables compact adapter outputs that cherry-pick relevant SKILL content for budget-constrained platforms.
+- **`VALID_TRANSFORMS` frozenset** exported from `data_driven` module — single source of truth for the 5 supported transforms (`copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`, `keep_sections`).
+- **`_Section` dataclass** (internal) capturing `heading`, `level`, `text` for the markdown section parser.
+- **8 new tests** in `test_data_driven_adapter.py` covering the new transform: `test_valid_transforms_enumeration_lists_keep_sections`, `test_keep_sections_extracts_named_sections`, `test_keep_sections_excludes_frontmatter_by_default`, `test_keep_sections_includes_frontmatter_when_requested`, `test_keep_sections_prepends_header_prefix`, `test_keep_sections_empty_list_produces_empty_body`, `test_keep_sections_substring_match_not_exact`, `test_keep_sections_handles_missing_source`, `test_keep_sections_ignores_fenced_code_block_headings`.
+- **4 new Windsurf tests** (`test_windsurf_adapter.py`): `test_windsurf_under_8000_chars`, `test_windsurf_contains_quick_action`, `test_windsurf_contains_hierarchy`, `test_windsurf_has_header_prefix`.
+
+### Changed
+- **`adapter_configs/windsurf.yaml`**: switched from `strip_frontmatter` to `keep_sections` with 4 high-value section selectors (Quick Action Decision, 4-Layer Agent Hierarchy, Gate Mechanism, Dispatch & Report Protocol) and a 2-line header prefix pointing to the full skill on GitHub. `include_frontmatter: false` preserves the no-frontmatter invariant from v6.0.4.
+- **`test_windsurf_budget_chars_under_8000`**: tightened from "budget_ok may be False, we tolerate overflow" to `assert result.budget_ok is True` — reflecting the v6.1.2 contract that the adapter always fits.
+- **`test_windsurf_strips_frontmatter`**: broadened frontmatter-leakage check from first-block-only to the entire output, since the new transform may place different content near the top.
+
+### Compromises
+- Only 4 of the 6 task-suggested sections fit under the 8000-char budget. Dropped: **Mode Awareness** (too large at 4,945 chars — includes full PLAN MODE sub-section) and **Context Isolation** (wouldn't fit alongside Dispatch & Report Protocol). The 4-Layer Agent Hierarchy section already carries the P1 Dispatcher-Not-Implementer invariant, and the header prefix directs users to the full SKILL at `https://github.com/YoRHa-Agents/DevolaFlow` for the dropped content.
+
+### Metrics
+- Tests: **954 → 966** (+12: 9 new in `test_data_driven_adapter.py`, 4 new in `test_windsurf_adapter.py`, −1 updated `test_windsurf_budget_chars_under_8000` tightened assertions but stays as 1 test)
+- Windsurf budget: **24,625 chars WARN → 7,434 chars OK** (69.8% reduction; 566-char margin under 8000 budget)
+- Adapters producing `[OK]`: **7/8 → 8/8**
+- No regressions: other 7 adapters unchanged, EvoBench baselines untouched, NineS self-eval unaffected (no source changes to `src/devolaflow/nines/`, `src/devolaflow/gate/`, or context profiles).
+
 ## [6.1.1] — 2026-04-16
 
 ### Added
