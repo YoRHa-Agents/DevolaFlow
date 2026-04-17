@@ -5,6 +5,27 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.1] — 2026-04-17
+
+**PATCH — hotfix for v7.1.0-pre feedback `"github 上的所有次级网页无法访问"` (all GitHub Pages secondary pages cannot be accessed). The shared demo nav script (`workflow-system/human/demo/shared/nav.js`) detected the landing page only by matching `/demo/` in `window.location.pathname`. GitHub Pages deploys the demo at `/DevolaFlow/`, so on the deployed landing page `isLanding` evaluated to `false` and every nav link was prefixed with `../`, resolving to `https://yorha-agents.github.io/<page>/index.html` — a 404 outside the project. Sub-page navigation was already correct (uses `../` from a one-level-deep page) and is unchanged. The fix detects landing by the ABSENCE of any known sub-page directory name in the URL path, so it works under all four canonical deployment shapes (GitHub Pages `/DevolaFlow/`, project-root local server `/demo/`, demo-dir local server `/`, and `file://`).**
+
+### Fixed
+- **`workflow-system/human/demo/shared/nav.js`** — replace the `/demo/`-only `isLanding` IIFE with a sub-page-directory ABSENCE check driven by a new `SUBPAGE_DIRS` constant listing the 8 sub-page directories (`design-system`, `framework-chain`, `context-flow`, `version-timeline`, `design-architecture`, `workflow-visualizer`, `stage-explorer`, `benchmark-results`). The new predicate evaluates `true` for: `https://yorha-agents.github.io/DevolaFlow/{,index.html}`, `http://localhost:8000/{,index.html}`, `http://localhost:8000/demo/index.html`, and `file:///.../workflow-system/human/demo/index.html`; and `false` for any URL whose path contains `/<subpage-dir>/` or ends with `/<subpage-dir>`. Two-line comment above the IIFE explains why the change was needed (GitHub Pages deploys at `/DevolaFlow/`, not `/demo/`).
+
+### Added
+- **`tests/test_demo_nav.py`** (CREATE, 21 tests) — Python regression suite that reads `nav.js`, regex-extracts the `SUBPAGE_DIRS` array, reimplements the `isLanding` predicate in pure Python, and asserts against 17 canonical URL shapes (11 GitHub Pages + 2 demo-dir local + 2 project-root local + 2 `file://`). Also includes: a parity check that `SUBPAGE_DIRS` exactly matches the on-disk sub-page directories under `workflow-system/human/demo/` (excluding `shared/`), a count check (must be 8), and a regression guard that fails if anyone reintroduces the legacy `/demo/`-only predicate. No browser, no playwright dependency — uses `pathlib`, `re`, and the existing `project_root` fixture from `tests/conftest.py`.
+
+### Metrics
+- Tests: 1100 → **1121** (+21 from `tests/test_demo_nav.py`).
+- SI-10 pre-commit: **5 / 5 pass** (full tests, ruff check, ruff format, test_version, test_benchmarks).
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.1.1` (SF-3 / CP-3); `make sync-human-docs` regenerated 16 EN/ZH human doc files.
+- Lint: `ruff check src/ tests/` + `ruff format --check src/ tests/` clean.
+- LOC delta: production code ~14 (nav.js IIFE rewrite + SUBPAGE_DIRS constant + 2-line comment); tests ~180 (`tests/test_demo_nav.py`); docs ~10 (CHANGELOG entry).
+
+### Cross-references
+- Source feedback: `.local/feedbacks/feedback_for_v7.1.0-pre.md` — verbatim user report `"github 上的所有次级网页无法访问"`.
+- Prior release: v7.1.0 (`27452db`) — staged-context-compression rollup.
+
 ## [7.1.0] — 2026-04-17
 
 **MINOR — rollup release closing the v7.0 → v7.1 staged-context-compression cycle. Fifth and final slice: no new primitives — adoption, integration, and retrospective. Flips 6 decomposition profiles to default-on for `tool_output_truncation` + extractive `summary`. Ships the final 2 NineS compression goldens (`compression_tool_output` + `compression_persistence`), regenerates `v7.1.0_baseline.json` (33 scenarios, 0 pp drift vs v7.0.2). SI-3 composite **9.47/10** — READY for stable tag.**
