@@ -306,3 +306,228 @@ Context injection now supports density-aware loading:
 | Parallel tasks produce conflicting code | Shared file ownership | Re-partition files; ensure disjoint ownership in wave |
 | Task ignores interface contracts | relevant_interfaces not populated | Add interface signatures to context.relevant_interfaces |
 | Task quality low despite good design | Rules not loaded or wrong strategy | Check rules.loading_strategy matches task complexity |
+
+## 10. Cache Layout Invariant (v7.0.0+)
+
+Long agent sessions hit a cost wall when the prompt-cache hit rate falls below
+~90 %. The single largest operational lever is **structural stability of the
+dispatch prefix across convergence rounds** — when round-N restructures the
+cached prefix, the host KV-cache rebuilds from scratch (5–10× cost delta on
+long sessions).
+
+DevolaFlow declares a single canonical top-level key order for every lean
+dispatch. The order is **additive**: each key may be absent, none may be
+reordered, and new top-level keys MUST be appended after `gate` (position 12).
+
+**Canonical order (12 keys):** `hdr` → `task` → `goal` → `assumptions` →
+`pred` → `files` → `rules` → `shared` → `accept` → `reinforce` (round 2+
+only) → `verify_cfg` → `gate`. Source of truth:
+`schemas/lean-dispatch.yaml#layout_invariant`.
+
+**Validator:** `devolaflow.compressor.assert_dispatch_layout(payload)` raises
+`DispatchLayoutError` on any out-of-order or pre-spec-end unknown key.
+`compute_dispatch_lcp_pct(a, b)` returns the round-over-round prefix
+stability fraction. **SLO:** LCP ≥ 80 % round 1→2 and ≥ 70 % round 1→3,
+enforced by `tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds`.
+**Rationale:** `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.
+
+## 11. Tool-Output Truncation (v7.0.1+)
+
+In multi-round convergence, prior-round `tool_use` outputs (Read/Grep/Shell
+returns) accumulate inside the predecessor context the L2 wave agent feeds
+to the next round's L3 task agents. Anthropic's cookbook (`[ref-6]`) calls
+this the "lightest-touch" lever: keep the `tool_use` record (so the model
+knows the call happened) but elide the bulky `tool_result` payload once it
+falls below a recency threshold. DevolaFlow ships the deterministic
+prompt-side equivalent in `devolaflow.compressor` per ADR-002.
+
+**When the runtime applies truncation.** The L3 task agent emits its
+`StatusReport` with the full tool_use list. Before the L2 wave agent splices
+that report into the next round's predecessor context, it calls
+`clear_old_tool_uses(tool_uses, keep=3, exclude_tool_names=("Read",))`.
+The default behaviour preserves the most recent 3 tool calls verbatim and
+truncates the middle of older outputs (head 500 + placeholder + tail 500
+chars). `Read` outputs are exempt from truncation by default because they
+represent authoritative file content frequently cited verbatim during code
+review. Triggering happens at round ≥ 2 only — round 1 has no
+prior-round payloads to clear.
+
+**Policy knobs.** Per-profile in
+`workflow-system/agent/context_profiles.yaml`:
+
+```yaml
+tool_output_truncation:
+  enabled: false                 # default at v7.0.1 cut
+  keep: 3                        # most-recent-N preserved verbatim
+  exclude_tool_names: ["Read"]   # never-truncated tool names
+  head_chars: 500
+  tail_chars: 500
+```
+
+The six decomposition-enabled profiles (`feature`, `refactor`,
+`skill-optimization`, `migration`, `security-audit`, `perf-optimization`)
+ship the knob disabled in v7.0.1. Operators opt in per profile after
+H.1 retention data confirms safety; v7.1.0 will flip the default to
+`enabled: true` cycle-wide.
+
+**Placeholder format.** `truncate_tool_output()` substitutes `{removed}`
+in `placeholder_template` (default `"[truncated {removed} chars]"`) with
+the count of elided characters. The placeholder is intended for the
+*model's* re-ingestion and human scan, not for programmatic JSON parsing —
+truncation always lands on character boundaries, not structural ones.
+
+**Reading the `tool_results.summary` block.** `clear_old_tool_uses()`
+returns a `ToolUseTruncation` summary that the producing agent records in
+`schemas/lean-report.yaml#tool_results.summary` (`kept_count`,
+`cleared_count`, `cleared_at_round`). The L2 wave agent inspects the
+summary to decide whether to refresh the L1 dispatch tool list:
+`cleared_count > 0` is the canonical signal that round-N reused fewer
+verbatim tool outputs than round-(N−1) and the cached prefix is starting
+to drift. Together with the cache-layout invariant (§10), this is the
+prompt-side mechanism for keeping convergence-round dispatches inside
+their token budget without sacrificing recent-call fidelity.
+
+**Rationale:** `.local/research/adr/v7-ADR-002-tool-output-truncation.md`.
+**Sub-agent budget bump (K.8 resolution):** the same six profiles raise
+`decomposition.sub_agent_context_budget` from 3000 → 5000 tokens at the
+v7.0.1 cut so a sub-agent can absorb the verbatim recent-N records without
+spillover.
+
+## 12. Hierarchical Predecessor Summariser (v7.0.2+)
+
+Predecessor artifacts from the prior stage enter a consuming layer's
+dispatch under `pred[*]`. When a single artifact exceeds ~25 % of the
+consuming layer's token budget (L3 8000 → 2000 tokens; L2 4000 → 1000
+tokens; L1 5000 → 1250 tokens; L0 3000 → 750 tokens), embedding the body
+verbatim starves every other dispatch section. DevolaFlow ships
+`devolaflow.compressor.summarise_predecessor(artifact_path, *,
+max_tokens=500, mode="extractive", schema_hint=None)` as the
+deterministic collapse primitive. The extractive pipeline is a
+fixed three-stage descent: (1) **schema-priority heading selection** —
+`design` favours *Decision* > *Consequences* > *Alternatives*, `research`
+favours *Recommendations* > *Open Questions* > *Synthesis*, `adr` favours
+*Decision* > *Consequences* > *Test plan*, `gate_report` favours *Verdict* >
+*Findings* > *Metrics*, with document-order H2 fallback; (2) **verbatim
+preserve-list extraction** via `extract_named_entities()`, which surfaces
+all 8 structured classes (file_paths, task_ids, version_strings,
+commit_hashes, metric_values, error_messages, acceptance_criterion_bullets,
+interface_signatures) as a `key_facts:` YAML prefix; (3) **sentence-level
+bounded truncation** — selected sections fill the remaining `max_tokens`
+budget in priority order; when a section would overflow, the renderer
+inserts `[TRUNCATED]` at the token boundary and emits `was_bounded=True`.
+No paraphrase ever occurs on the default path, honouring CO-2 by
+construction.
+
+Profile knobs live under each profile's `summary:` block in
+`workflow-system/agent/context_profiles.yaml` (fields `mode`, `max_tokens`,
+`trigger_pct`). Per-dispatch overrides travel on `pred[*].summary_mode`
+and `pred[*].summary_max_tokens` — both declared in
+`schemas/lean-dispatch.yaml#per_predecessor` and appended nested inside
+each pred entry, *never* as new top-level keys, to preserve the §10
+cache-layout invariant. Missing fields default to `extractive` / 500
+tokens. Abstractive mode is reserved for narrative stage reports and
+opts in per profile; it still runs the extractive pass first so the
+preserve-list facts travel verbatim, and is guarded by the §13
+persistence probe against named-entity drift. At the v7.1.0 cut the six
+decomposition-enabled profiles (`feature`, `refactor`,
+`skill-optimization`, `migration`, `security-audit`, `perf-optimization`)
+default to `summary.mode: extractive` with `max_tokens: 1200` —
+roomier than the schema default because these profiles consume 5000-
+token sub-agent contexts.
+
+**Rationale:** `.local/research/adr/v7-ADR-003-hierarchical-summary.md`.
+
+## 13. Persistence Probe (v7.0.3+)
+
+`summarise_predecessor()` is the only primitive that can silently
+paraphrase a file path or a commit hash — losing a single such entity
+between Stage A and Stage B breaks the P5 artifact contract and burns
+a convergence round on search-instead-of-execute rabbit holes. The
+persistence probe is the deterministic integration guard that catches
+this failure. The harness lives in `tests/test_e2e_compression.py`
+(with seed logic in `tests/_probe_fixtures.py`): it synthesises a
+Stage A artifact seeded with a preserve-list panel, runs it through
+`summarise_predecessor` + `render_dispatch` + `task_adaptive_selector.
+select_context`, then calls `compute_entity_carrythrough_rate()` to
+measure the fraction of Stage A entities that appear verbatim in the
+rendered Stage B dispatch. Any paraphrase, case-fold on a
+file-path/commit-hash, or outright omission fails the probe with a
+diagnostic naming the lost entity.
+
+Three scenarios ship at the v7.0.3 cut, matched to the H.1 retention
+tiers: **easy** (500-token artifact, 5 seeded entities, rate ≥ 1.0,
+0 misses), **medium** (5000-token artifact, 20 seeded entities, rate
+≥ 0.9, ≤ 2 misses), **hard** (15000-token artifact, 50 seeded
+entities, rate ≥ 0.9, ≤ 5 misses). Per-scenario elapsed time plus
+the realised carry-through rate land in
+`.local/research/v7.0.3_probe_telemetry.json` after each run, feeding
+SI-3 evaluation. The probe is marked `@pytest.mark.persistence_probe`
+and runs in the default pytest suite so SI-10 step 5 cannot merge a
+summariser regression.
+
+**Rationale:** `.local/research/adr/v7-ADR-004-persistence-probe.md`.
+
+## 14. Operational Learnings v2 (v7.0.3+)
+
+`src/devolaflow/learnings.py` gains four additive `Learning` fields —
+`confidence_half_life_days` (default 30), `last_accessed` (ISO
+timestamp), `pinned_for_session` (session id or empty), `promotion_count`
+(monotonic) — plus three public helpers: `consolidate_session(session_id,
+session_learnings, jsonl_path)` promotes learnings actually used during a
+session (+0.05 confidence, `promotion_count++`, refreshed `last_accessed`)
+or captures novel ones with `promotion_count=1`; `decay_confidence(
+jsonl_path, half_life_days=None)` applies linear decay across the file;
+`pin_learning_for_session(key, stage, task_type, session_id, jsonl_path)`
+attaches a session pin. `load_relevant_learnings()` accepts the new
+`session_id: str | None` parameter — when supplied, pinned entries for
+that session are surfaced ahead of the confidence-sorted top-N and
+bypass `min_confidence` (TTL + `task_type` still apply). The four new
+fields default to safe zero-equivalents so legacy JSONL parses unchanged
+via `Learning(**fields)` filtered through `Learning.__dataclass_fields__`.
+
+Decay is a single linear sweep per call: for every entry,
+`delta_days = (now - last_accessed)` in UTC days; `decay_factor =
+min(1.0, delta_days / entry.confidence_half_life_days)`; `new_conf =
+confidence - 0.5 * decay_factor`. The result is clamped to `[0.0, 1.0]`
+and every entry whose new confidence falls strictly below `DECAY_FLOOR =
+0.1` is pruned in-place. Pinned entries survive pruning regardless of
+confidence. ADR-005 §2.4's migration shim is lazy and per-entry: on the
+first `decay_confidence()` touch of a legacy v1 entry, `last_accessed`
+is backfilled from the existing `timestamp` so the linear formula has a
+stable anchor — no file-wide rewrite is forced and no writer ever
+overwrites a non-empty `last_accessed`.
+
+**Rationale:** `.local/research/adr/v7-ADR-005-learnings-v2.md`.
+
+## 15. Staged Compression — End-to-End Flow (v7.1.0+)
+
+The v7.0.x primitives compose across a convergence run as a single
+context-compression staircase. Each row below describes the primitive's
+active scope; rows downstream of a row do not disturb rows upstream.
+
+| Stage                   | Round | Primitive                              | Reference | Scope                                                                          |
+|-------------------------|-------|----------------------------------------|-----------|--------------------------------------------------------------------------------|
+| Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 12-key top-level order so round-N reuses round-(N−1)'s KV prefix.  |
+| Predecessor embed       | 1+    | Hierarchical summariser                | §12       | Collapses pred artifact > 25 % of layer budget via `summarise_predecessor()`.  |
+| Predecessor embed       | 1+    | Preserve-list extraction               | §12 / §13 | `extract_named_entities()` surfaces 8 structured classes verbatim.             |
+| L3 status → L2 context  | ≥ 2   | Tool-output truncation                 | §11       | `clear_old_tool_uses(keep=3, exclude=["Read"])` elides prior-round payloads.   |
+| L1 → L2 → L3 pipeline   | 1+    | Persistence probe                      | §13       | CI assertion that preserve-list entities carry through Stage A → Stage B.      |
+| Session end             | n/a   | Learnings consolidation / decay        | §14       | `consolidate_session()` bumps used learnings; `decay_confidence()` prunes.     |
+| Next session load       | n/a   | Pinned-session surfacing               | §14       | `load_relevant_learnings(session_id=...)` surfaces pinned entries first.       |
+
+At v7.1.0 the six decomposition-enabled profiles default to
+`tool_output_truncation.enabled: true` **and** `summary.mode: extractive`
+(opt-out per profile in `workflow-system/agent/context_profiles.yaml`).
+The other profiles remain opt-in. Dispatch renderers that predate the
+new `summary:` block continue to work: absent fields fall through to the
+schema defaults (`extractive` / 500 tokens).
+
+**Rollback posture.** Each primitive is individually reversible without
+destabilising the others: disabling truncation per profile leaves the
+summariser and probe untouched; removing the `summary:` block falls
+through to the schema default; the persistence probe is pure test code;
+learnings v2 fields are additive with safe defaults. Removing any single
+primitive does NOT require a version rollback — only the coupled bundle
+(SKILL.md + context profiles + compressor) needs a coordinated revert,
+which the `scripts/bump_version.py` harness and SI-5 coupling already
+gate.

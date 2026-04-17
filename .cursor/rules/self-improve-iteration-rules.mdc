@@ -97,12 +97,13 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 
 ## Rule SI-10 — Test-Then-Commit Protocol
 
-Every iteration follows this strict pre-commit sequence — all 5 must pass before any commit:
+Every iteration follows this strict pre-commit sequence — all 6 must pass before any commit:
 
 1. `python -m pytest tests/ -q` — all tests pass
 2. `ruff check src/ tests/` — no lint errors
 3. `ruff format --check src/ tests/` — formatting correct
-4. `python -m pytest tests/test_version.py -v` — version consistent across all locations
+4. `python -m pytest tests/test_version.py -v` — version consistent across all 11 locations + .cursor mirror stamp
 5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
+6. `make check-cursor-skill` — `.cursor/skills/devola-flow/` bytewise-matches `workflow-system/agent/` and its `.devola-flow-version` stamp equals `__version__`
 
-Commit only after all 5 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), and SI-6 (context) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.
+Commit only after all 6 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), SI-6 (context), and CP-3 (version bump + mirror sync) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.

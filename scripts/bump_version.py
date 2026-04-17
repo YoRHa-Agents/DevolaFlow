@@ -169,6 +169,23 @@ def main() -> None:
 
     bump(new_version, dry_run=dry_run, tag=create_tag)
 
+    # Keep the .cursor/skills/devola-flow/ project-local mirror in sync with the
+    # freshly-bumped canonical skill under workflow-system/agent/. See
+    # .cursor/rules/skill-format-rules.mdc Rule SF-3 and
+    # .cursor/rules/change-process-rules.mdc Rule CP-3.
+    sync_script = Path(__file__).parent / "sync_cursor_skill.py"
+    if dry_run:
+        print(f"\n[sync-cursor-skill] WOULD run {sync_script} (skipped: --dry-run)")
+    else:
+        print(f"\n[sync-cursor-skill] {sync_script}", flush=True)
+        result = subprocess.run(
+            [sys.executable, str(sync_script)],
+            check=False,
+        )
+        if result.returncode != 0:
+            print("ERROR: sync_cursor_skill.py failed", file=sys.stderr)
+            sys.exit(result.returncode)
+
 
 if __name__ == "__main__":
     main()

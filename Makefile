@@ -4,7 +4,7 @@
 .PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
        build-site release-preflight release-dry-run
 
-all: lint test validate-templates build-skill sync-human-docs check-drift
+all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill check-drift
 
 install:
 	pip install -e ".[dev]"
@@ -38,6 +38,14 @@ sync-human-docs-en:
 sync-human-docs-zh:
 	python scripts/generate_human_docs.py --lang zh
 
+sync-cursor-skill:
+	python scripts/sync_cursor_skill.py
+
+check-cursor-skill:
+	python scripts/sync_cursor_skill.py --check
+
+.PHONY: sync-cursor-skill check-cursor-skill
+
 check-drift:
 	check-drift
 
@@ -47,7 +55,7 @@ detect-repo-mode:
 build-site:
 	bash scripts/build-site.sh
 
-release-preflight: lint test validate-templates build-skill sync-human-docs check-drift
+release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill check-drift
 	@echo "--- Release preflight PASSED ---"
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"

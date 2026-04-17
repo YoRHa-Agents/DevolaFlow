@@ -143,3 +143,57 @@ def test_cli_version_cmd():
 
     output = captured.getvalue()
     assert f"DevolaFlow v{__version__}" in output
+
+
+# ---------- .cursor/skills/devola-flow/ mirror parity ----------
+# Added by feat/cursor-skill-mirror-sync. The project-local skill mirror
+# under .cursor/skills/devola-flow/ must stay bytewise identical to the
+# canonical skill under workflow-system/agent/ (SKILL + 8 refs + 3 examples,
+# matching what scripts/install.sh::install_cursor downloads for end users).
+# The stamp .cursor/skills/devola-flow/.devola-flow-version must first-line
+# equal src/devolaflow/__init__.py __version__. See Rule SF-3 / CP-3.
+
+_MIRRORED_SKILL_FILES = [
+    "SKILL.md",
+    "references/agent-hierarchy.md",
+    "references/meta-framework.md",
+    "references/decomposition-gate.md",
+    "references/repo-modes.md",
+    "references/execution-protocol.md",
+    "references/message-schemas.md",
+    "references/team-roles.md",
+    "references/context-isolation.md",
+    "examples/full-pipeline-trace.md",
+    "examples/hotfix-trace.md",
+    "examples/convergence-loop-trace.md",
+]
+
+
+@pytest.mark.parametrize("rel_path", _MIRRORED_SKILL_FILES)
+def test_cursor_skill_mirror_bytewise_parity(project_root: Path, rel_path: str):
+    canonical = project_root / "workflow-system" / "agent" / rel_path
+    mirror = project_root / ".cursor" / "skills" / "devola-flow" / rel_path
+    assert canonical.is_file(), f"canonical missing: {canonical}"
+    assert mirror.is_file(), f"mirror missing: {mirror} — run `make sync-cursor-skill`"
+    assert canonical.read_bytes() == mirror.read_bytes(), (
+        f"{rel_path} drifted between canonical and .cursor mirror — run `make sync-cursor-skill`"
+    )
+
+
+def test_cursor_skill_stamp_matches_version(project_root: Path):
+    stamp = project_root / ".cursor" / "skills" / "devola-flow" / ".devola-flow-version"
+    assert stamp.is_file(), f"stamp missing: {stamp} — run `make sync-cursor-skill`"
+    lines = stamp.read_text(encoding="utf-8").splitlines()
+    assert lines, f"stamp empty: {stamp}"
+    first_line = lines[0]
+    init = (project_root / "src" / "devolaflow" / "__init__.py").read_text(encoding="utf-8")
+    m = re.search(r'__version__\s*=\s*"([^"]+)"', init)
+    assert m, "could not find __version__ in src/devolaflow/__init__.py"
+    canonical_version = m.group(1)
+    assert first_line == canonical_version, (
+        f".cursor/skills/devola-flow/.devola-flow-version first-line={first_line!r} "
+        f"!= __version__={canonical_version!r} — run `make sync-cursor-skill`"
+    )
+    assert len(lines) == 1, (
+        f"stamp must be a single line; got {len(lines)} — run `make sync-cursor-skill`"
+    )
