@@ -15,16 +15,22 @@ from devolaflow.gate.models import (
     ConvergenceRound,
     Finding,
     GateInput,
+    GateProfile,
     GateVerdict,
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
 from devolaflow.gate.reporter import generate_markdown_report, generate_yaml_report
 from devolaflow.gate.scorer import (
+    EXTENDED_DIMENSION_WEIGHTS,
+    _has_user_facing_inputs,
     _resolve_gate_type,
+    acceptance_verification_score,
     composite_score,
     evaluate_gate,
+    interaction_quality_score,
     quality_score,
     score_acceptance_readiness,
+    visual_fidelity_score,
 )
 
 # ---------------------------------------------------------------------------
@@ -686,3 +692,211 @@ class TestAdvisorBorderlineDetection:
         assert abs(verdict.composite_score - 82.0) < 0.1
         assert verdict.advisor_recommended is False
         assert verdict.advisor_context == ""
+
+
+# ---------------------------------------------------------------------------
+# 20. v5.4.0 user-facing verification dimensions
+# ---------------------------------------------------------------------------
+
+
+class TestUserFacingVerificationScoring:
+    """Tests for v5.4.0 user-facing verification dimensions."""
+
+    def test_visual_fidelity_score_pass(self) -> None:
+        """Visual fidelity returns 100 for passing results."""
+        result = CheckResult(status="pass")
+        assert visual_fidelity_score(result) == 100.0
+
+    def test_visual_fidelity_score_none(self) -> None:
+        """Visual fidelity returns 100 (neutral) when no results provided."""
+        assert visual_fidelity_score(None) == 100.0
+
+    def test_visual_fidelity_score_skip(self) -> None:
+        """Visual fidelity returns 100 (neutral) when skipped."""
+        result = CheckResult(status="skip")
+        assert visual_fidelity_score(result) == 100.0
+
+    def test_visual_fidelity_score_partial_fail(self) -> None:
+        """Visual fidelity computes ratio from screenshots_passing/total."""
+        result = CheckResult(
+            status="fail",
+            details={"screenshots_total": 10, "screenshots_passing": 8},
+        )
+        assert visual_fidelity_score(result) == 80.0
+
+    def test_visual_fidelity_score_full_fail(self) -> None:
+        """Visual fidelity returns 0 when all screenshots fail."""
+        result = CheckResult(
+            status="fail",
+            details={"screenshots_total": 5, "screenshots_passing": 0},
+        )
+        assert visual_fidelity_score(result) == 0.0
+
+    def test_interaction_quality_full_pass(self) -> None:
+        """Interaction quality returns 100 when both E2E and a11y pass."""
+        interaction = CheckResult(status="pass")
+        accessibility = CheckResult(status="pass")
+        assert interaction_quality_score(interaction, accessibility) == 100.0
+
+    def test_interaction_quality_none_inputs(self) -> None:
+        """Interaction quality returns 100 when no inputs."""
+        assert interaction_quality_score(None, None) == 100.0
+
+    def test_interaction_quality_e2e_partial(self) -> None:
+        """Interaction quality with partial E2E failures."""
+        interaction = CheckResult(
+            status="fail",
+            details={"flows_total": 10, "flows_passing": 7},
+        )
+        accessibility = CheckResult(status="pass")
+        score = interaction_quality_score(interaction, accessibility)
+        expected = 70.0 * 0.60 + 100.0 * 0.40
+        assert score == expected
+
+    def test_interaction_quality_a11y_violations(self) -> None:
+        """Interaction quality penalized by accessibility violations."""
+        interaction = CheckResult(status="pass")
+        accessibility = CheckResult(
+            status="fail",
+            details={
+                "critical_violations": 1,
+                "serious_violations": 2,
+                "moderate_violations": 3,
+                "minor_violations": 5,
+            },
+        )
+        score = interaction_quality_score(interaction, accessibility)
+        a11y = max(0.0, 100.0 - (1 * 25 + 2 * 15 + 3 * 5 + 5 * 1))
+        expected = round(100.0 * 0.60 + a11y * 0.40, 2)
+        assert score == expected
+
+    def test_acceptance_verification_pass(self) -> None:
+        """Acceptance verification returns 100 for passing results."""
+        result = CheckResult(status="pass")
+        assert acceptance_verification_score(result) == 100.0
+
+    def test_acceptance_verification_none(self) -> None:
+        """Acceptance verification returns 100 (neutral) when None."""
+        assert acceptance_verification_score(None) == 100.0
+
+    def test_acceptance_verification_partial(self) -> None:
+        """Acceptance verification computes ratio from criteria."""
+        result = CheckResult(
+            status="fail",
+            details={"criteria_total": 10, "criteria_passing": 7},
+        )
+        assert acceptance_verification_score(result) == 70.0
+
+    def test_extended_weights_sum_to_one(self) -> None:
+        """EXTENDED_DIMENSION_WEIGHTS must sum to 1.0."""
+        total = sum(EXTENDED_DIMENSION_WEIGHTS.values())
+        assert abs(total - 1.0) < 1e-9
+
+    def test_extended_weights_has_seven_dimensions(self) -> None:
+        """EXTENDED_DIMENSION_WEIGHTS has exactly 7 dimensions."""
+        assert len(EXTENDED_DIMENSION_WEIGHTS) == 7
+
+    def test_has_user_facing_inputs_false(self) -> None:
+        """_has_user_facing_inputs returns False for standard gate input."""
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(status="pass"),
+            lint_status=CheckResult(status="pass"),
+        )
+        assert not _has_user_facing_inputs(gi)
+
+    def test_has_user_facing_inputs_true_visual(self) -> None:
+        """_has_user_facing_inputs returns True when visual results present."""
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(status="pass"),
+            lint_status=CheckResult(status="pass"),
+            visual_test_results=CheckResult(status="pass"),
+        )
+        assert _has_user_facing_inputs(gi)
+
+    def test_convergence_with_user_facing_uses_extended_weights(self) -> None:
+        """Convergence gate uses EXTENDED_DIMENSION_WEIGHTS when user-facing inputs present."""
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(status="pass", details={"coverage_pct": 90}),
+            lint_status=CheckResult(status="pass"),
+            visual_test_results=CheckResult(status="pass"),
+            interaction_test_results=CheckResult(status="pass"),
+            accessibility_results=CheckResult(status="pass"),
+            acceptance_verification_results=CheckResult(status="pass"),
+        )
+        profile = GateProfile(
+            name="standard",
+            composite_threshold=85.0,
+            coverage_threshold=80.0,
+            max_blocker=0,
+            max_critical=3,
+            max_rounds=3,
+            min_rounds=1,
+            lint_policy="zero_errors",
+            benchmark_policy="optional",
+        )
+        verdict = evaluate_gate(
+            gi,
+            profile,
+            round_num=1,
+            history=[
+                ConvergenceRound(
+                    round_num=0,
+                    composite_score=80.0,
+                    blocker_count=0,
+                    critical_count=0,
+                    timestamp="t0",
+                ),
+            ],
+            gate_type="convergence",
+        )
+        assert verdict.composite_score is not None
+        assert verdict.decision in ("PASS", "FAIL")
+
+    def test_convergence_without_user_facing_uses_default_weights(self) -> None:
+        """Convergence gate uses DEFAULT_DIMENSION_WEIGHTS when no user-facing inputs."""
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(status="pass", details={"coverage_pct": 90}),
+            lint_status=CheckResult(status="pass"),
+        )
+        profile = GateProfile(
+            name="standard",
+            composite_threshold=85.0,
+            coverage_threshold=80.0,
+            max_blocker=0,
+            max_critical=3,
+            max_rounds=3,
+            min_rounds=1,
+            lint_policy="zero_errors",
+            benchmark_policy="optional",
+        )
+        verdict = evaluate_gate(
+            gi,
+            profile,
+            round_num=1,
+            history=[
+                ConvergenceRound(
+                    round_num=0,
+                    composite_score=80.0,
+                    blocker_count=0,
+                    critical_count=0,
+                    timestamp="t0",
+                ),
+            ],
+            gate_type="convergence",
+        )
+        assert verdict.composite_score is not None
+
+    def test_gate_profile_user_facing_thresholds(self) -> None:
+        """Gate profiles have user-facing threshold fields with correct defaults."""
+        assert STANDARD.visual_fidelity_threshold == 90.0
+        assert STANDARD.interaction_quality_threshold == 90.0
+        assert STANDARD.accessibility_threshold == 90.0
+        assert STANDARD.acceptance_verification_threshold == 90.0
+        assert STRICT.visual_fidelity_threshold == 95.0
+        assert RELAXED.visual_fidelity_threshold == 80.0
+        assert AUDIT.visual_fidelity_threshold == 98.0
+        assert AUDIT.accessibility_threshold == 95.0

@@ -1278,3 +1278,119 @@ profiles:
       into the system. Gate mechanism and task quality score are critical
       for evaluation. Higher learnings budget since this profile focuses
       on learning from past executions.
+
+  verify_visual:
+    goal_hints:
+      - "visual regression"
+      - "screenshot comparison"
+      - "visual fidelity"
+      - "visual test"
+    token_budget: 4000
+    model_hints:
+      default: balanced
+      code_heavy: quality
+    section_priorities:
+      quick_action_decision: skip
+      mode_detection: skip
+      quick_start_workflows: skip
+      hierarchy_table: skip
+      stage_primitives: supplementary
+      gate_mechanism: important
+      agent_teams: important
+      context_isolation: supplementary
+      wave_task_constraints: skip
+      convergence_loop: important
+      dispatch_report: important
+      lifecycle_hooks: supplementary
+      repo_mode: skip
+      task_quality_score: skip
+      reference_navigation: skip
+    rationale: "Visual testing requires understanding gate scoring with visual_fidelity dimension, convergence for iterative visual fixes, and dispatch for reporting screenshot results."
+
+  verify_acceptance:
+    goal_hints:
+      - "acceptance verification"
+      - "BDD test"
+      - "gherkin test"
+      - "UAT validation"
+      - "acceptance criteria test"
+    token_budget: 4000
+    model_hints:
+      default: balanced
+      code_heavy: quality
+    section_priorities:
+      quick_action_decision: skip
+      mode_detection: skip
+      quick_start_workflows: skip
+      hierarchy_table: skip
+      stage_primitives: supplementary
+      gate_mechanism: important
+      agent_teams: important
+      context_isolation: supplementary
+      wave_task_constraints: skip
+      convergence_loop: important
+      dispatch_report: important
+      lifecycle_hooks: supplementary
+      repo_mode: skip
+      task_quality_score: skip
+      reference_navigation: skip
+    rationale: "Acceptance verification needs gate scoring (acceptance_verification dimension), convergence for iterative criteria fixes, and dispatch for structured reporting."
+
+  verify_interaction:
+    goal_hints:
+      - "E2E interaction"
+      - "user flow verification"
+      - "accessibility compliance"
+      - "interaction test"
+    token_budget: 4000
+    model_hints:
+      default: balanced
+      code_heavy: quality
+    section_priorities:
+      quick_action_decision: skip
+      mode_detection: skip
+      quick_start_workflows: skip
+      hierarchy_table: skip
+      stage_primitives: supplementary
+      gate_mechanism: important
+      agent_teams: important
+      context_isolation: supplementary
+      wave_task_constraints: skip
+      convergence_loop: important
+      dispatch_report: important
+      lifecycle_hooks: supplementary
+      repo_mode: skip
+      task_quality_score: skip
+      reference_navigation: skip
+    rationale: "Interaction testing needs gate scoring (interaction_quality dimension), convergence for fixing failing flows, and accessibility compliance evaluation."
+
+  product_verification:
+    goal_hints:
+      - "product verification"
+      - "multi-level quality"
+      - "user-facing quality"
+      - "verification pipeline"
+    token_budget: 6000
+    model_hints:
+      default: quality
+      code_heavy: quality
+    section_priorities:
+      quick_action_decision: important
+      mode_detection: skip
+      quick_start_workflows: important
+      hierarchy_table: important
+      stage_primitives: critical
+      gate_mechanism: critical
+      agent_teams: critical
+      context_isolation: important
+      wave_task_constraints: important
+      convergence_loop: critical
+      dispatch_report: critical
+      lifecycle_hooks: supplementary
+      repo_mode: skip
+      task_quality_score: supplementary
+      reference_navigation: supplementary
+    extra_context:
+      - "references/team-roles.md"
+      - "references/decomposition-gate.md"
+    rationale: "Product verification orchestrates multi-level testing (dev + user-facing), requires full gate understanding including extended dimensions, and convergence for iterative quality improvement."

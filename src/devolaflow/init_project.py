@@ -84,35 +84,35 @@ def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
 
 
 def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
-    """Install DevolaFlow MVP skill for Claude Code."""
-    mvp = agent_dir / "MVP-SKILL.md"
-    if scope == "global":
-        dest = Path.home() / ".claude" / "CLAUDE.md"
-        print(f"\n  Claude Code (global) -> {dest}")
-    else:
-        dest = cwd / "CLAUDE.md"
-        print("\n  Claude Code (project) -> ./CLAUDE.md")
-
-    _copy_file(mvp, dest)
+    """Install DevolaFlow skill files for Claude Code."""
+    base_dir = Path.home() / ".claude" if scope == "global" else cwd / ".claude"
+    skill_dir = base_dir / "skills" / "devola-flow"
+    print(f"\n  Claude Code ({scope}) -> {skill_dir}/")
+    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+    examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+    print(f"  ({refs} references, {examples} examples)")
 
 
 def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
-    """Install DevolaFlow MVP skill for GitHub Copilot."""
+    """Install DevolaFlow full skill for GitHub Copilot."""
     if scope == "global":
         print("\n  Copilot does not support a global install. Using project-local path.")
     print("\n  Copilot -> .github/copilot-instructions.md")
-    mvp = agent_dir / "MVP-SKILL.md"
-    _copy_file(mvp, cwd / ".github" / "copilot-instructions.md")
+    skill = agent_dir / "SKILL.md"
+    _copy_file(skill, cwd / ".github" / "copilot-instructions.md")
 
 
 def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
-    """Install DevolaFlow MVP skill for Codex."""
+    """Install DevolaFlow full skill for Codex."""
     import os
 
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
     skill_dir = codex_home / "skills" / "devola-flow"
     print(f"\n  Codex -> {skill_dir}/")
-    _copy_file(agent_dir / "MVP-SKILL.md", skill_dir / "SKILL.md")
+    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+    print(f"  ({refs} references)")
 
 
 TOOLS = {
@@ -128,7 +128,7 @@ def _auto_detect(cwd: Path) -> list[str]:
     found = []
     if (cwd / ".cursor").is_dir():
         found.append("cursor")
-    if (cwd / ".claude").is_dir() or (cwd / "CLAUDE.md").exists():
+    if (cwd / ".claude").is_dir():
         found.append("claude")
     if (cwd / ".github").is_dir():
         found.append("copilot")

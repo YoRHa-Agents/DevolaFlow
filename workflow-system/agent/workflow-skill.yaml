@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "5.3.0"
+  version: "6.2.1"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -268,7 +268,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 17 builtin templates covering all workflow types.
+  # Registry + 18 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
@@ -360,6 +360,11 @@ content:
         file: "templates/builtin/self-update.yaml"
         stages: ["check-refs", "research-updates", "decompose", "integrate", "test", "evaluate"]
         description: "Self-referential skill and workflow update with validation"
+
+      - id: "product-verification"
+        file: "templates/builtin/product-verification.yaml"
+        stages: ["analyze", "design", "implement", "test", "verify", "review", "validate"]
+        description: "Product-level verification including visual regression, acceptance testing, and accessibility"
 
       - id: nines-assisted
         file: "templates/builtin/nines-assisted.yaml"

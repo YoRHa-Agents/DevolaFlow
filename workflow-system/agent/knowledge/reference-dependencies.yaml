@@ -48,8 +48,7 @@ active_tracking:
       - changes to rationalization tables or iron laws
       - new enforcement patterns or hard gate types
     devolaflow_integration_points:
-      - SKILL.md (rationalization tables, enforcement ladder levels 3-5)
-      - MVP-SKILL.md (CSO description format)
+      - SKILL.md (rationalization tables, enforcement ladder levels 3-5, CSO description format)
       - schemas/lean-report.yaml (typed status enum)
       - SF-2 rule (description format constraint)
     gap_ids: [H1, H4, H6, M2, M7]
@@ -227,7 +226,7 @@ active_tracking:
       - changes to CLAUDE.md
       - new guidelines added
     devolaflow_integration_points:
-      - SKILL.md/MVP-SKILL.md (behavioral norms)
+      - SKILL.md (behavioral norms)
       - references/team-roles.md (review rubric)
       - schemas/lean-dispatch.yaml (assumptions field)
     gap_ids: []

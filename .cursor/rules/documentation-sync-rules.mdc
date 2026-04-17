@@ -85,7 +85,7 @@ Same **8** topics as EN (filenames mirror `en/`):
 | `scripts/build-site.sh` | Static site assembly |
 | `scripts/generate_human_docs.py` | EN/ZH guide generation, `SOURCE_VERSION`, synced content |
 
-**Cross-reference:** Agent-facing SKILL packaging and version locations remain under **Rule SF-3** (`SKILL.md`, `MVP-SKILL.md`, `workflow-skill.yaml`, `pyproject.toml`, `tests/test_smoke.py`, etc.). A full version bump touches **both** SF-3 and this registry.
+**Cross-reference:** Agent-facing SKILL packaging and version locations remain under **Rule SF-3** (`SKILL.md`, `CLAUDE.md`, `workflow-skill.yaml`, `pyproject.toml`, `tests/test_smoke.py`, etc.). A full version bump touches **both** SF-3 and this registry.
 
 ## Rule DS-2 — NieR: Automata Visual Identity (Devola)
 

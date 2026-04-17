@@ -10,7 +10,7 @@ from pathlib import Path
 def test_install_script_supports_global_claude_and_update(tmp_path: Path):
     repo_root = Path(__file__).resolve().parents[1]
     script_path = repo_root / "scripts" / "install.sh"
-    mvp_source = repo_root / "workflow-system" / "agent" / "MVP-SKILL.md"
+    skill_source = repo_root / "workflow-system" / "agent" / "SKILL.md"
 
     fakebin = tmp_path / "fakebin"
     fakebin.mkdir()
@@ -39,8 +39,13 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "${url##*/}" = "MVP-SKILL.md" ]; then
-  cp "$FAKE_MVP_SOURCE" "$dest"
+basename="${url##*/}"
+if [ "$basename" = "SKILL.md" ]; then
+  cp "$FAKE_SKILL_SOURCE" "$dest"
+elif [ "$basename" = "__init__.py" ]; then
+  echo '__version__ = "0.0.0"'
+elif echo "$basename" | grep -q '\\.md$'; then
+  echo "# $basename" > "$dest"
 else
   echo "unsupported url: $url" >&2
   exit 1
@@ -57,7 +62,7 @@ fi
     env = os.environ.copy()
     env["HOME"] = str(home_dir)
     env["PATH"] = f"{fakebin}:{env['PATH']}"
-    env["FAKE_MVP_SOURCE"] = str(mvp_source)
+    env["FAKE_SKILL_SOURCE"] = str(skill_source)
 
     install = subprocess.run(
         ["bash", str(script_path), "claude", "--global"],
@@ -69,11 +74,11 @@ fi
     )
     assert install.returncode == 0, install.stderr
 
-    claude_md = home_dir / ".claude" / "CLAUDE.md"
-    assert claude_md.exists()
-    assert "devola-flow" in claude_md.read_text()
+    skill_md = home_dir / ".claude" / "skills" / "devola-flow" / "SKILL.md"
+    assert skill_md.exists()
+    assert "DevolaFlow" in skill_md.read_text()
 
-    claude_md.write_text("devola-flow stale install\n")
+    skill_md.write_text("devola-flow stale install\n")
     update = subprocess.run(
         ["bash", str(script_path), "update"],
         cwd=project_dir,
@@ -83,4 +88,4 @@ fi
         check=False,
     )
     assert update.returncode == 0, update.stderr
-    assert "orchestrating multi-file software tasks" in claude_md.read_text()
+    assert "DevolaFlow" in skill_md.read_text()

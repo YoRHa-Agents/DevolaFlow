@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <code>... | bash</code> <span style="font-size:.8rem">(auto-detect)</span>
         </p>
         <p class="text-muted" style="font-size:.85rem;margin-top:.5rem;">
-          Or just download <a href="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md">MVP-SKILL.md</a> and drop it into your tool.
+          Or just download <a href="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md">SKILL.md</a> and drop it into your tool.
         </p>
       </div>
     </section>
@@ -195,33 +195,33 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
-    <!-- What's New in v5.3.0 -->
+    <!-- What's New in v6.2.1 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v5.2.0</h2>
-      <p class="desc" data-i18n="landing.whatsNew.desc">NineS CLI integration, self-improvement loops, and Karpathy-inspired behavioral norms bring DevolaFlow to a new level of autonomous quality.</p>
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v6.2.1</h2>
+      <p class="desc" data-i18n="landing.whatsNew.desc">Final release of the v6.0+v6.1 rollup (12 waves, v5.4.2 → v6.2.0). Highlights: 11 platform adapters via YAML-driven contract (Cursor/Codex/Claude/Copilot core + KimiCode/Windsurf/Continue/OpenClaw/Zed/Cline/Roo); NineS overall +18.9% via tool-config (0.7405 → 0.8805); 0 DeprecationWarnings (12 retired); v5.3.0 dead-wire closed; dead-API CI guard prevents regression; plan-mode detection in select_context; schema parity + 29/29 EvoBench baselines. 1009 tests passing, lint clean across all 12 commits.</p>
       <div class="cards">
         <div class="card">
-          <span class="label" data-i18n="label.integration">INTEGRATION</span>
-          <h3 data-i18n="landing.whatsNew.nines">NineS v2.0.0 CLI Integration</h3>
-          <p data-i18n="landing.whatsNew.nines.desc">Full CLI migration with 6 breaking changes resolved. Self-improvement loop infrastructure: self-eval, iterate, and benchmark in a unified pipeline.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow"><span data-i18n="btn.github">GitHub</span> &rarr;</a>
+          <span class="label" data-i18n="label.adapters">ADAPTERS</span>
+          <h3 data-i18n="landing.whatsNew.adapters">8 Platform Adapters</h3>
+          <p data-i18n="landing.whatsNew.adapters.desc">Cursor, Codex, Claude Code, Copilot (core) + KimiCode, Windsurf, Continue.dev, OpenClaw via a single YAML-driven adapter contract. New platforms need ~25 LOC of YAML, not 80 LOC of Python.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/adapter_configs"><span data-i18n="btn.viewConfigs">View Configs</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.quality">QUALITY</span>
-          <h3 data-i18n="landing.whatsNew.quality">Code Quality: CC 23&rarr;7</h3>
-          <p data-i18n="landing.whatsNew.quality.desc">NineS-guided complexity reduction brought select_context cyclomatic complexity from 23 to 7. NineS findings reduced from 7 to 0 across the codebase.</p>
+          <span class="label" data-i18n="label.deadwire">DEAD-WIRE</span>
+          <h3 data-i18n="landing.whatsNew.deadwire">Round-Aware Convergence</h3>
+          <p data-i18n="landing.whatsNew.deadwire.desc">v5.3.0 infrastructure finally wired in v6.0.3: `select_context(round_num=N)` auto-escalates critical sections, bumps budget +20% on round 3, and merges prior-round gate findings into `applicable_rules.reinforcement` as MUST-fix mandates.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.schemas">SCHEMAS</span>
+          <h3 data-i18n="landing.whatsNew.schemas">Schema Parity + 29/29 Baselines</h3>
+          <p data-i18n="landing.whatsNew.schemas.desc">Parity enforcer (6 tests) catches any field drift between task-dispatch, lean-dispatch, and gate-report schemas. EvoBench regression baselines now cover all 29 scenarios (up from 3) — any composite regression &gt;5% fails CI.</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.norms">NORMS</span>
-          <h3 data-i18n="landing.whatsNew.karpathy">Karpathy Behavioral Norms</h3>
-          <p data-i18n="landing.whatsNew.karpathy.desc">Explicit assumptions documentation, simplicity review gates, and anti-complexity checks inspired by Andrej Karpathy's software engineering principles.</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/meta-framework.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
-        </div>
-        <div class="card">
           <span class="label" data-i18n="label.metrics">METRICS</span>
-          <h3 data-i18n="landing.whatsNew.metrics">681 Tests, 90.90% Coverage</h3>
-          <p data-i18n="landing.whatsNew.metrics.desc">25 EvoBench scenarios (avg 99.50), 18 context profiles, 18 reference dependencies tracked. Quality gates hold the line — just as Devola would.</p>
+          <h3 data-i18n="landing.whatsNew.metrics">896 Tests, 94% Coverage</h3>
+          <p data-i18n="landing.whatsNew.metrics.desc">+78 tests across the v6.0 rollup (818 → 896), coverage 91% → 94%. cli.py and composer.py pushed to 98% and 100% in Wave 6. Golden snapshot tests lock the Cursor adapter contract. 0 DeprecationWarnings.</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>
@@ -230,12 +230,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- v3.3.0 Highlights -->
     <section class="slide-up">
       <h2>v3.3.0 <span data-i18n="landing.highlights">Highlights</span></h2>
-      <p class="desc">Full workflow coverage: 18 context profiles, 25 benchmark scenarios, optimized budget utilization (99.51 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 22 context profiles, 29 benchmark scenarios, optimized budget utilization (99.51 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.benchmarks">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 25 scenarios covering all 18 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.51/100.</p>
+          <p>Context density benchmark suite with 29 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.51/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context"><span data-i18n="btn.viewBenchmarks">View Benchmarks</span> &rarr;</a>
         </div>
         <div class="card">
@@ -247,13 +247,13 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.context">CONTEXT</span>
           <h3>Task-Adaptive Selection</h3>
-          <p>18 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
+          <p>22 context profiles for all workflow types. Each profile uses longest-match routing with optimized ~85% budget utilization.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml"><span data-i18n="btn.viewProfiles">View Profiles</span> &rarr;</a>
         </div>
         <div class="card">
           <span class="label" data-i18n="label.visualization">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 25 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.51).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 29 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.51).</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>

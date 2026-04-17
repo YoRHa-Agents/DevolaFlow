@@ -80,6 +80,159 @@ class TestFeedbackReinforcementBridge:
         assert "60.0/90.0" in block.escalation_note
 
 
+class TestGenerateRoundDispatch:
+    """V6-01: ProposalGenerator.generate_round_dispatch wiring."""
+
+    def _verdict(self, findings: list, score: float = 72.0) -> GateVerdict:
+        return GateVerdict(
+            decision="FAIL",
+            rationale="test",
+            composite_score=score,
+            details={"findings": findings},
+        )
+
+    def _base_dispatch(self) -> dict:
+        return {
+            "task_id": "T-001",
+            "task_type": "refactor",
+            "context": {
+                "applicable_rules": {"loading_strategy": "standard"},
+                "target_files": ["src/foo.py"],
+            },
+        }
+
+    def test_generate_round_dispatch_round1_passthrough(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        findings = [
+            Finding(
+                finding_id="F-1",
+                severity="critical",
+                category="quality",
+                location="src/foo.py",
+                description="bad",
+            )
+        ]
+        result = gen.generate_round_dispatch(base, self._verdict(findings), round_num=1)
+        assert "reinforcement" not in result["context"]["applicable_rules"]
+        assert result["task_id"] == base["task_id"]
+        assert result["context"]["applicable_rules"]["loading_strategy"] == "standard"
+
+    def test_generate_round_dispatch_round2_injects_reinforcement(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        findings = [
+            Finding(
+                finding_id="F-1",
+                severity="blocker",
+                category="security",
+                location="src/foo.py",
+                description="SQL injection",
+                suggestion="use parameterized queries",
+            ),
+            Finding(
+                finding_id="F-2",
+                severity="critical",
+                category="quality",
+                location="src/bar.py",
+                description="missing error handling",
+            ),
+        ]
+        verdict = self._verdict(findings, score=65.0)
+        result = gen.generate_round_dispatch(base, verdict, round_num=2, target_score=90.0)
+
+        reinforcement = result["context"]["applicable_rules"]["reinforcement"]
+        assert reinforcement["round"] == 2
+        assert reinforcement["prior_score"] == 65.0
+        assert reinforcement["target_score"] == 90.0
+        assert len(reinforcement["rules"]) == 2
+        ids = [r["id"] for r in reinforcement["rules"]]
+        assert "F-1" in ids and "F-2" in ids
+        assert result["context"]["applicable_rules"]["loading_strategy"] == "standard"
+
+    def test_generate_round_dispatch_empty_verdict(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        result = gen.generate_round_dispatch(base, self._verdict([]), round_num=2)
+        assert "reinforcement" not in result["context"]["applicable_rules"]
+        assert result == base
+
+    def test_generate_round_dispatch_none_verdict(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        result = gen.generate_round_dispatch(base, None, round_num=3)
+        assert "reinforcement" not in result["context"]["applicable_rules"]
+        assert result == base
+
+    def test_generate_round_dispatch_does_not_mutate_input(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        base_snapshot = {
+            "task_id": base["task_id"],
+            "rules_keys": list(base["context"]["applicable_rules"].keys()),
+            "target_files": list(base["context"]["target_files"]),
+        }
+        findings = [
+            Finding(
+                finding_id="F-1",
+                severity="critical",
+                category="quality",
+                location="src/foo.py",
+                description="issue",
+            )
+        ]
+        result = gen.generate_round_dispatch(base, self._verdict(findings), round_num=2)
+
+        assert "reinforcement" not in base["context"]["applicable_rules"]
+        assert base["task_id"] == base_snapshot["task_id"]
+        assert list(base["context"]["applicable_rules"].keys()) == base_snapshot["rules_keys"]
+        assert base["context"]["target_files"] == base_snapshot["target_files"]
+        assert result is not base
+        assert result["context"] is not base["context"]
+
+    def test_generate_round_dispatch_severity_floor(self) -> None:
+        gen = ProposalGenerator()
+        base = self._base_dispatch()
+        findings = [
+            Finding(
+                finding_id="F-BL",
+                severity="blocker",
+                category="q",
+                location="",
+                description="a",
+            ),
+            Finding(
+                finding_id="F-CR",
+                severity="critical",
+                category="q",
+                location="",
+                description="b",
+            ),
+            Finding(
+                finding_id="F-MA",
+                severity="major",
+                category="q",
+                location="",
+                description="c",
+            ),
+            Finding(
+                finding_id="F-MI",
+                severity="minor",
+                category="q",
+                location="",
+                description="d",
+            ),
+        ]
+        verdict = self._verdict(findings, score=70.0)
+        result = gen.generate_round_dispatch(base, verdict, round_num=2, severity_floor="critical")
+        reinforcement = result["context"]["applicable_rules"]["reinforcement"]
+        ids = [r["id"] for r in reinforcement["rules"]]
+        assert "F-BL" in ids
+        assert "F-CR" in ids
+        assert "F-MA" not in ids
+        assert "F-MI" not in ids
+
+
 class TestRoundEscalation:
     def test_round_1_no_change(self) -> None:
         profile = {"section_priorities": {"foo": "supplementary"}, "token_budget": 6000}

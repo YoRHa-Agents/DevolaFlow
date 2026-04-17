@@ -103,6 +103,37 @@ fields:
               met: { type: bool }
               evidence: { type: string }
 
+  user_facing_verification:
+    optional: true
+    description: "User-facing verification scores and findings (v5.4.0). Present when product-verification pipeline is active."
+    children:
+      visual_fidelity_score:
+        type: number
+        optional: true
+        description: "Visual fidelity score (0-100) from screenshot comparison tests."
+      interaction_quality_score:
+        type: number
+        optional: true
+        description: "Interaction quality score (0-100) from E2E flows and accessibility."
+      acceptance_verification_score:
+        type: number
+        optional: true
+        description: "Acceptance verification score (0-100) from acceptance criteria tests."
+      user_facing_findings:
+        type: list
+        optional: true
+        description: "Findings from user-facing verification dimensions."
+        item_fields:
+          dimension:
+            type: string
+            description: "visual_fidelity | interaction_quality | acceptance_verification | accessibility"
+          severity:
+            type: string
+            description: "blocker | critical | major | minor | info"
+          description: { type: string }
+          location: { type: string, optional: true }
+          artifact_path: { type: string, optional: true }
+
   convergence_history:
     optional: true
     description: Populated for convergence gates to show score trajectory.

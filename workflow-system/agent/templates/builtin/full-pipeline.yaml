@@ -87,6 +87,29 @@ stages:
     input_mapping:
       code_refs: "impl.files_changed"
 
+  - id: verify
+    primitive: verify
+    description: >
+      User-facing verification — visual regression, acceptance criteria validation,
+      interaction flow testing, accessibility checks. Runs after developer tests pass.
+    team: test
+    duration_class: medium
+    config:
+      visual_testing:
+        enabled: true
+        threshold: 0.90
+      acceptance_testing:
+        enabled: true
+        criteria_source: "plan.acceptance_criteria"
+      interaction_testing:
+        enabled: true
+      accessibility:
+        enabled: true
+        standard: "WCAG2.1-AA"
+    input_mapping:
+      test_results: "test"
+      acceptance_criteria: "plan.acceptance_criteria"
+
   - id: refine
     primitive: refine
     description: >
@@ -152,7 +175,7 @@ composition:
 
 loops:
   - name: impl_review_test_cycle
-    body_stages: [impl, review, test, refine, testgate]
+    body_stages: [impl, review, test, verify, refine, testgate]
     until: "testgate.ready == true"
     max_iterations: 3
     on_exhaustion: escalate
@@ -222,6 +245,12 @@ gates:
       - field: review.blocking_count
         operator: "=="
         value: 0
+      - field: verify.visual_fidelity
+        operator: ">="
+        value: 0.90
+      - field: verify.interaction_quality
+        operator: ">="
+        value: 0.90
     on_pass: "next"
     on_fail:
       action: loop_back

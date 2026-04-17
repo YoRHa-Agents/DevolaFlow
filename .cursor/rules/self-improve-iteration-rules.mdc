@@ -13,6 +13,13 @@ For external reference analysis, run NineS deep analysis:
 ```
 nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
 ```
+
+For end-of-iteration self-evaluation, run NineS self-eval with the repo's canonical config:
+```
+nines -f json -c nines.toml self-eval --baseline-version <version> --golden-dir data/golden_test_set --samples-dir data/golden_test_set --src-dir src/devolaflow --test-dir tests --project-root .
+```
+When `nines.toml` is present at repo root, `-c nines.toml` ensures project defaults apply. The `--golden-dir` and `--samples-dir` flags point at DevolaFlow's in-repo golden test set (required for V1 scoring evaluators).
+
 Store raw JSON output in `.local/research/`. The NineS CLI tool is documented at `https://github.com/YoRHa-Agents/NineS`. Parse results to extract gap items feeding SI-1's planning gate. When NineS is unavailable, manual analysis following the same dimensions (code quality, architecture, tests, maintainability) is acceptable but must be explicitly noted as manual.
 
 ## Rule SI-3 — Evaluation Before Release
@@ -40,9 +47,9 @@ python -m pytest tests/test_benchmarks.py -v
 
 ## Rule SI-5 — Skill Format Coupling
 
-Changes to SKILL.md or MVP-SKILL.md trigger ALL of the following as a coupled unit — skipping any one is a violation:
+Changes to SKILL.md or CLAUDE.md trigger ALL of the following as a coupled unit — skipping any one is a violation:
 
-1. **Line count check:** `wc -l` confirms ≤ 500 lines each
+1. **Line count check:** `wc -l` confirms ≤ 500 lines
 2. **Adapter build:** `build-skill` succeeds for all 4 adapters (Cursor, Codex, Claude, Copilot)
 3. **Benchmark run:** `python -m pytest tests/test_benchmarks.py -v` passes (SI-4)
 4. **Version consistency:** `python -m pytest tests/test_version.py -v` passes
@@ -72,7 +79,7 @@ External tools and benchmarks MUST be referenced by their remote GitHub URL:
 - **DevolaFlow / EvoBench:** `https://github.com/YoRHa-Agents/DevolaFlow`
 - **NineS:** `https://github.com/YoRHa-Agents/NineS`
 
-Local clone paths are provided by the user at runtime and MUST NOT be hardcoded in any agent-facing file (SKILL.md, MVP-SKILL.md, .mdc rules, reference docs, context profiles). All external reference dependencies are tracked in `workflow-system/agent/knowledge/reference-dependencies.yaml`. At verification stage, require the user to provide their local paths — never assume them.
+Local clone paths are provided by the user at runtime and MUST NOT be hardcoded in any agent-facing file (SKILL.md, CLAUDE.md, .mdc rules, reference docs, context profiles). All external reference dependencies are tracked in `workflow-system/agent/knowledge/reference-dependencies.yaml`. At verification stage, require the user to provide their local paths — never assume them.
 
 ## Rule SI-8 — Iteration Retrospective
 

@@ -2,9 +2,10 @@
 
 All NineS CLI commands used by DevolaFlow are defined here.
 YAML configs and templates should reference these instead of
-defining their own command strings. Eliminates Gap 7 (triple
-source of commands across _BUILTIN_SPECS, plugins.yaml, and
-context_profiles.yaml).
+defining their own command strings. Eliminates Gap 7 (formerly
+triple source of commands across _BUILTIN_SPECS, plugins.yaml,
+and context_profiles.yaml; _BUILTIN_SPECS was removed in v6.0.1
+so plugins.yaml is now the canonical plugin catalog).
 """
 
 from __future__ import annotations

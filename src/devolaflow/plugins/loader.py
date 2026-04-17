@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from devolaflow.nines.commands import STAGE_MAPPING as _NINES_STAGE_MAPPING
 from devolaflow.plugins.models import PluginSpec
 from devolaflow.plugins.registry import PluginRegistry
 
@@ -14,65 +13,23 @@ log = logging.getLogger(__name__)
 
 _REPO_PLUGINS_YAML = "workflow-system/agent/plugins.yaml"
 
-_BUILTIN_SPECS: list[dict[str, Any]] = [
-    {
-        "name": "nines",
-        "description": "Multi-vertex evaluation and research system",
-        "cli_binary": "nines",
-        "version_command": "nines --version",
-        "version_regex": r"version\s+(\d+\.\d+\.\d+\S*)",
-        "install_methods": {
-            "script": (
-                "curl -fsSL"
-                " https://raw.githubusercontent.com/YoRHa-Agents/NineS"
-                "/main/scripts/install.sh | bash"
-            ),
-            "pip": "uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
-        },
-        "capabilities": [
-            "eval",
-            "collect",
-            "analyze",
-            "self-eval",
-            "iterate",
-            "install",
-            "benchmark",
-            "update",
-        ],
-        "role": "research_and_iteration",
-        "repo_url": "https://github.com/YoRHa-Agents/NineS",
-        "min_version": "1.0.0",
-        "skill_install_command": "nines install --target cursor",
-        "stage_mapping": dict(_NINES_STAGE_MAPPING),
-        "workflows": ["research-only", "skill-optimization", "self-update"],
+# Emergency-only fallback used when ``plugins.yaml`` cannot be located.
+# The canonical plugin catalog lives in ``workflow-system/agent/plugins.yaml``;
+# this stub exists solely so NineS detection remains functional in degraded
+# installs that are missing the YAML file. Keep it intentionally minimal.
+_EMERGENCY_NINES_STUB: dict[str, Any] = {
+    "name": "nines",
+    "description": "Multi-vertex evaluation and research system (emergency stub)",
+    "cli_binary": "nines",
+    "version_command": "nines --version",
+    "version_regex": r"version\s+(\d+\.\d+\.\d+\S*)",
+    "install_methods": {
+        "pip": "uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
     },
-    {
-        "name": "ui-ux-pro-max",
-        "description": (
-            "AI-powered design intelligence for professional UI/UX across 15 frameworks"
-        ),
-        "cli_binary": "uipro",
-        "version_command": "uipro versions",
-        "version_regex": r"v?(\d+\.\d+\.\d+)",
-        "install_methods": {
-            "npm": "npm install -g uipro-cli",
-        },
-        "capabilities": [
-            "design_system_generation",
-            "ui_style_recommendation",
-            "color_palette_selection",
-            "typography_pairing",
-            "landing_page_patterns",
-            "chart_recommendations",
-            "ux_guidelines",
-            "multi_stack_support",
-        ],
-        "role": "ui_tooling",
-        "repo_url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
-        "min_version": "2.0.0",
-        "skill_install_command": "uipro init --ai cursor",
-    },
-]
+    "role": "research_and_iteration",
+    "repo_url": "https://github.com/YoRHa-Agents/NineS",
+    "min_version": "1.0.0",
+}
 
 
 def _dict_to_spec(data: dict[str, Any]) -> PluginSpec:
@@ -118,29 +75,56 @@ def load_plugin_specs(yaml_path: str | Path) -> list[PluginSpec]:
     return specs
 
 
-def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginRegistry:
-    """Create a registry pre-loaded with built-in plugin definitions.
+def _find_repo_plugins_yaml() -> Path | None:
+    """Locate ``workflow-system/agent/plugins.yaml`` near the installed package.
 
-    If *plugins_yaml* is ``None``, the function looks for
-    ``workflow-system/agent/plugins.yaml`` relative to the repo root.
-    When that file is absent it falls back to hard-coded defaults
-    (NineS, ui-ux-pro-max).
+    Looks at the package's repo-root ancestor, the current working directory,
+    and each ancestor of the package directory so the YAML resolves whether
+    DevolaFlow is used from a source checkout or an installed wheel.
+    """
+    pkg_dir = Path(__file__).resolve().parent
+    candidates = [
+        pkg_dir.parent.parent / _REPO_PLUGINS_YAML,
+        Path.cwd() / _REPO_PLUGINS_YAML,
+    ]
+    for parent in pkg_dir.parents:
+        candidates.append(parent / _REPO_PLUGINS_YAML)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginRegistry:
+    """Create a registry populated from the canonical ``plugins.yaml``.
+
+    When *plugins_yaml* is ``None`` (the common case), the function looks for
+    ``workflow-system/agent/plugins.yaml`` relative to the installed package
+    and the current working directory. If the YAML is absent, the registry is
+    populated with a minimal NineS emergency stub and a warning is logged —
+    this keeps NineS detection functional in degraded installs but makes the
+    missing YAML visible in logs.
     """
     registry = PluginRegistry()
 
-    for entry in _BUILTIN_SPECS:
-        registry.register(_dict_to_spec(entry))
-
     yaml_path: Path | None = None
     if plugins_yaml is not None:
-        yaml_path = Path(plugins_yaml)
-    else:
-        candidate = Path(_REPO_PLUGINS_YAML)
+        candidate = Path(plugins_yaml)
         if candidate.exists():
             yaml_path = candidate
+    else:
+        yaml_path = _find_repo_plugins_yaml()
 
     if yaml_path is not None:
         for spec in load_plugin_specs(yaml_path):
             registry.register(spec)
+    else:
+        log.warning(
+            "plugins.yaml not found; falling back to emergency NineS stub. "
+            "Ship workflow-system/agent/plugins.yaml alongside the package "
+            "to restore the full plugin catalog."
+        )
+        registry.register(_dict_to_spec(_EMERGENCY_NINES_STUB))
 
     return registry

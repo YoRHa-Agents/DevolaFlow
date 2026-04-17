@@ -645,6 +645,7 @@ class TestModelInvariants:
             "implement",
             "review",
             "test",
+            "verify",
             "validate",
             "refine",
             "release",

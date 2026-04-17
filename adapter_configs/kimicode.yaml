@@ -1,0 +1,25 @@
+# KimiCode adapter — Moonshot AI VSCode extension + CLI
+name: kimicode
+display_name: KimiCode
+version_added: "6.0.4"
+tier: high_priority
+output:
+  base_dir: ".kimi/skills/devola-flow"
+  files:
+    - source: "SKILL.md"
+      target: "SKILL.md"
+      transform: copy_with_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+    - source: "examples"
+      target: "examples"
+      transform: copy_tree
+frontmatter:
+  inject:
+    platform: kimicode
+    compatible_with: "[cursor, codex, claude]"
+budget:
+  type: lines
+  max: 500
+  target_file: "SKILL.md"

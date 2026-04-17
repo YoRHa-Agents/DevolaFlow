@@ -31,7 +31,6 @@ from devolaflow.gate.scorer import (
     SEVERITY_WEIGHTS,
     composite_score,
     evaluate_gate,
-    evaluate_gate_with_nines,
     quality_score,
     run_gate_cli,
     score_acceptance_readiness,
@@ -62,7 +61,6 @@ __all__ = [
     "compute_trend",
     "detect_stagnation",
     "evaluate_gate",
-    "evaluate_gate_with_nines",  # deprecated, removal in v6.0
     "findings_to_reinforcement",
     "generate_markdown_report",
     "generate_yaml_report",

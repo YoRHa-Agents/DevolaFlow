@@ -16,6 +16,7 @@ from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
     VALID_COMPRESSION_INTENSITIES,
     VALID_MODEL_HINTS,
+    apply_plan_mode_overrides,
     estimate_tokens,
     extract_section,
     load_profiles,
@@ -246,6 +247,10 @@ class TestSelectContext:
             "advisor_enabled",
             "decomposition",
             "compression_intensity",
+            "round_num",
+            "escalation_applied",
+            "plan_mode",
+            "plan_mode_applied",
         }
         assert set(result.keys()) == expected_keys
 
@@ -578,3 +583,257 @@ class TestResolveCompressionIntensity:
                 f"Profile {profile_name} missing compression_intensity"
             )
             assert result["compression_intensity"] in VALID_COMPRESSION_INTENSITIES
+
+
+class TestSelectContextRoundEscalation:
+    """V6-02: select_context must honour the ``round_num`` parameter."""
+
+    def test_select_context_round1_no_escalation(self) -> None:
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["round_num"] == 1
+        assert result["escalation_applied"] is False
+
+    def test_select_context_round2_budget_increased(self) -> None:
+        r1 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=1)
+        r2 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=2)
+        # Round 2 defaults don't bump budget but MUST add critical sections
+        assert r2["escalation_applied"] is True
+        assert r2["round_num"] == 2
+        r2_critical_in_skipped = any(
+            s in r2["skipped_sections"] for s in ("rationalization_prevention", "convergence_loop")
+        )
+        r1_critical_forced = not r2_critical_in_skipped or r2["total_tokens"] >= r1["total_tokens"]
+        assert r1_critical_forced
+
+    def test_select_context_round3_quality_model(self) -> None:
+        r1 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=1)
+        r3 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=3)
+        assert r3["model_hint"] == "quality"
+        assert r3["escalation_applied"] is True
+        assert r3["budget"] > r1["budget"]
+        assert r3["budget"] == int(r1["budget"] * 1.2)
+
+    def test_select_context_round_num_in_result(self) -> None:
+        for rn in (1, 2, 3, 5):
+            result = select_context("refactor", profiles_path=PROFILES_YAML, round_num=rn)
+            assert result["round_num"] == rn, f"round_num={rn} expected, got {result['round_num']}"
+
+    def test_select_context_custom_escalation_config(self) -> None:
+        custom = {
+            2: {
+                "model_hint_override": "balanced",
+                "token_budget_increase_pct": 50,
+            }
+        }
+        r1 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=1)
+        r2 = select_context(
+            "refactor",
+            profiles_path=PROFILES_YAML,
+            round_num=2,
+            escalation_config=custom,
+        )
+        assert r2["model_hint"] == "balanced"
+        assert r2["budget"] == int(r1["budget"] * 1.5)
+
+
+class TestMainRoundFlag:
+    """V6-02: CLI ``--round N`` flag wiring."""
+
+    def test_main_with_round_flag(self, capsys: pytest.CaptureFixture) -> None:
+        old_argv = sys.argv
+        sys.argv = ["task_adaptive_selector.py", "refactor", "--round", "3", "--verbose"]
+        try:
+            main()
+        finally:
+            sys.argv = old_argv
+        out = capsys.readouterr().out
+        assert "Round: 3" in out
+        assert "Profile: refactor" in out
+
+    def test_main_round_flag_defaults_to_one(self, capsys: pytest.CaptureFixture) -> None:
+        old_argv = sys.argv
+        sys.argv = ["task_adaptive_selector.py", "refactor", "--verbose"]
+        try:
+            main()
+        finally:
+            sys.argv = old_argv
+        out = capsys.readouterr().out
+        assert "Round: 1" in out
+
+    def test_main_round_flag_invalid_falls_back_to_one(self, capsys: pytest.CaptureFixture) -> None:
+        old_argv = sys.argv
+        sys.argv = ["task_adaptive_selector.py", "refactor", "--round", "abc", "--verbose"]
+        try:
+            main()
+        finally:
+            sys.argv = old_argv
+        out = capsys.readouterr().out
+        assert "Round: 1" in out
+
+
+class TestPlanModeDetection:
+    """V6-03: Plan-mode detection drives :func:`select_context` overrides."""
+
+    def test_plan_mode_default_auto_detect_off(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Without env var or marker file, default behaviour is unchanged."""
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["plan_mode"] is False
+        assert result["plan_mode_applied"] is False
+
+    def test_plan_mode_explicit_true_overrides_priorities(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """plan_mode=True escalates plan-relevant sections + sets quality model.
+
+        Section-priority overrides are verified at the profile level via
+        :func:`apply_plan_mode_overrides` (the names ``agent_hierarchy`` and
+        ``decomposition_gate`` are aspirational keys that may not all exist
+        in the section registry yet — what matters is that the priority dict
+        carries the ``critical`` mark so future registry additions inherit it).
+        ``model_hint`` is verified via :func:`select_context` directly.
+        """
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        result = select_context("refactor", profiles_path=PROFILES_YAML, plan_mode=True)
+        assert result["plan_mode"] is True
+        assert result["model_hint"] == "quality"
+
+        baseline_profile = {"section_priorities": {"execution_protocol": "important"}}
+        plan_profile = apply_plan_mode_overrides(baseline_profile)
+        assert plan_profile["section_priorities"]["agent_hierarchy"] == "critical"
+        assert plan_profile["section_priorities"]["decomposition_gate"] == "critical"
+        assert plan_profile["section_priorities"]["rationalization_prevention"] == "critical"
+        assert plan_profile["section_priorities"]["execution_protocol"] == "supplementary"
+
+    def test_plan_mode_explicit_false_skips_detection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """plan_mode=False disables detection even when env var is set."""
+        monkeypatch.setenv("DEVOLAFLOW_PLAN_MODE", "1")
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML, plan_mode=False)
+        assert result["plan_mode"] is False
+        assert result["plan_mode_applied"] is False
+
+    def test_plan_mode_env_var_detection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """DEVOLAFLOW_PLAN_MODE=1 triggers auto-detect when plan_mode param is None."""
+        monkeypatch.setenv("DEVOLAFLOW_PLAN_MODE", "1")
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["plan_mode"] is True
+        assert result["model_hint"] == "quality"
+
+    def test_plan_mode_marker_file_detection(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A `.devolaflow_plan_mode` file in cwd triggers auto-detect."""
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".devolaflow_plan_mode").write_text("")
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["plan_mode"] is True
+        assert result["plan_mode_applied"] is True
+
+    def test_plan_mode_overrides_apply_before_round_escalation(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """plan_mode=True AND round_num=3 compose: plan adds critical, round adds budget.
+
+        The visible composition is verified via :func:`select_context`
+        (model_hint, budget delta, both flags set). The plan-then-round
+        section-priority composition is verified by chaining
+        :func:`apply_plan_mode_overrides` and :func:`apply_round_escalation`
+        directly on a baseline profile: plan-mode lifts ``convergence_loop``
+        to ``important``, round-3 then re-escalates it to ``critical``.
+        """
+        from devolaflow.task_adaptive_selector import apply_round_escalation
+
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        r_round1 = select_context("refactor", profiles_path=PROFILES_YAML, round_num=1)
+        r_combo = select_context(
+            "refactor", profiles_path=PROFILES_YAML, plan_mode=True, round_num=3
+        )
+
+        assert r_combo["plan_mode"] is True
+        assert r_combo["escalation_applied"] is True
+        assert r_combo["round_num"] == 3
+        assert r_combo["model_hint"] == "quality"
+        assert r_combo["budget"] == int(r_round1["budget"] * 1.2)
+
+        baseline = {"section_priorities": {}, "token_budget": 5000}
+        composed = apply_round_escalation(apply_plan_mode_overrides(baseline), 3)
+        assert composed["section_priorities"]["agent_hierarchy"] == "critical"
+        assert composed["section_priorities"]["decomposition_gate"] == "critical"
+        assert composed["section_priorities"]["convergence_loop"] == "critical"
+        assert composed["section_priorities"]["gate_mechanism"] == "critical"
+        assert composed["token_budget"] == int(5000 * 1.2)
+
+    def test_plan_mode_in_result_dict(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Return value always exposes both plan_mode and plan_mode_applied."""
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert "plan_mode" in result
+        assert "plan_mode_applied" in result
+        assert isinstance(result["plan_mode"], bool)
+        assert isinstance(result["plan_mode_applied"], bool)
+
+    def test_apply_plan_mode_overrides_does_not_mutate_profile(self) -> None:
+        """The helper must return a new dict and leave its input untouched."""
+        original = {
+            "section_priorities": {
+                "agent_hierarchy": "supplementary",
+                "execution_protocol": "critical",
+            },
+            "model_hint": "balanced",
+            "compression_intensity": "standard",
+            "token_budget": 4000,
+        }
+        snapshot = {
+            "section_priorities": dict(original["section_priorities"]),
+            "model_hint": original["model_hint"],
+            "compression_intensity": original["compression_intensity"],
+            "token_budget": original["token_budget"],
+        }
+        result = apply_plan_mode_overrides(original)
+
+        assert original["section_priorities"] == snapshot["section_priorities"]
+        assert original["model_hint"] == snapshot["model_hint"]
+        assert original["compression_intensity"] == snapshot["compression_intensity"]
+        assert original["token_budget"] == snapshot["token_budget"]
+
+        assert result["model_hint"] == "quality"
+        assert result["compression_intensity"] == "minimal"
+        assert result["section_priorities"]["agent_hierarchy"] == "critical"
+        assert result["section_priorities"]["execution_protocol"] == "supplementary"
+        assert result["token_budget"] == 4000
+
+    def test_plan_mode_invalid_env_value_treated_as_false(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Unrecognised env values like 'garbage' must NOT enable plan-mode."""
+        monkeypatch.setenv("DEVOLAFLOW_PLAN_MODE", "garbage")
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML)
+        assert result["plan_mode"] is False
+        assert result["plan_mode_applied"] is False
+
+    def test_plan_mode_compression_intensity_minimal(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Plan-mode forces compression_intensity to 'minimal' regardless of config default."""
+        monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+        result = select_context("refactor", profiles_path=PROFILES_YAML, plan_mode=True)
+        assert result["compression_intensity"] == "minimal"

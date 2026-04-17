@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-plug-008"
+name = "plugins-yaml-contains-nines"
+description = "The DevolaFlow plugins.yaml registry declares a first-class 'nines' plugin entry"
+dimension = "analysis"
+difficulty = 1
+
+[task.input]
+type = "code"
+language = "yaml"
+source = "plugins:\n  - name: nines\n    enabled: true"
+
+[task.expected]
+type = "text"
+value = "plugins:\n  - name: nines\n    enabled: true"
+
+[task.golden]
+expected_score = 1.0
+scorer = "fuzzy"

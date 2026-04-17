@@ -4,21 +4,19 @@ Provides detector, CLI wrappers, research utilities, and advisor
 bridges to the NineS CLI.  All imports are safe when NineS is not
 installed; functions return graceful fallback values.
 
-Primary research API (preferred):
+Primary research API:
     :func:`collect_research`, :func:`analyze_target`,
     :func:`run_self_evaluation`, :func:`run_skill_iteration`,
     :class:`NinesResearchConfig`, :func:`get_research_advice`.
 
-Legacy scorer/advisor API (backward-compatible, deprecated for gates):
-    :func:`nines_dimension_scores`, :func:`run_nines_advisor`.
+Scorer API:
+    :func:`nines_dimension_scores`.
 """
 
 from devolaflow.nines._cli import run_nines_cli
 from devolaflow.nines.advisor import (
     NinesAdvisorConfig,
     get_research_advice,
-    run_nines_advisor,
-    should_invoke_advisor,
 )
 from devolaflow.nines.commands import (
     COMMANDS,
@@ -75,9 +73,6 @@ __all__ = [
     "run_skill_iteration",
     # Advisor
     "NinesAdvisorConfig",
-    "get_research_advice",
-    "run_nines_advisor",
-    "should_invoke_advisor",
     # Detector
     "NinesStatus",
     "detect_nines",

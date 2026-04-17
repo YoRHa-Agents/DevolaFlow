@@ -12,7 +12,9 @@ Based on: WP-4 Rank 4 (Task-Adaptive Context Selection via Goal-Hint Routing),
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -31,6 +33,63 @@ PRIORITY_ORDER = ["critical", "important", "supplementary"]
 VALID_MODEL_HINTS = {"quality", "balanced", "budget", "inherit"}
 
 VALID_COMPRESSION_INTENSITIES = {"minimal", "standard", "aggressive"}
+
+_PLAN_MODE_ENV = "DEVOLAFLOW_PLAN_MODE"
+_PLAN_MODE_MARKER = ".devolaflow_plan_mode"
+
+
+def _detect_plan_mode() -> bool:
+    """Detect plan-mode from environment or filesystem markers.
+
+    Detection signals (in priority order):
+      1. Env var ``DEVOLAFLOW_PLAN_MODE`` in {"1", "true", "yes", "on"}
+      2. File ``.devolaflow_plan_mode`` exists in cwd
+
+    Returns False on any other state (including unset, empty, or unknown
+    string values like ``"garbage"``).
+    """
+    val = os.environ.get(_PLAN_MODE_ENV, "").strip().lower()
+    if val in {"1", "true", "yes", "on"}:
+        return True
+    return (Path.cwd() / _PLAN_MODE_MARKER).exists()
+
+
+_PLAN_MODE_OVERRIDES: dict[str, Any] = {
+    "section_priority_overrides": {
+        "agent_hierarchy": "critical",
+        "decomposition_gate": "critical",
+        "rationalization_prevention": "critical",
+        "convergence_loop": "important",
+        "execution_protocol": "supplementary",
+    },
+    "compression_intensity": "minimal",
+    "model_hint_override": "quality",
+}
+
+
+def apply_plan_mode_overrides(profile: dict[str, Any]) -> dict[str, Any]:
+    """Return a profile copy with plan-mode priority/model overrides applied.
+
+    When plan-mode is active, the L0 Project Agent is designing an execution
+    plan rather than executing. The assembled context therefore needs to
+    emphasise the primitives that shape good plans (agent hierarchy,
+    decomposition gate, rationalization prevention) and de-emphasise the
+    runtime execution protocol.
+
+    Does not mutate *profile*. Composes with :func:`apply_round_escalation`:
+    plan-mode applies first, round-escalation may then override individual
+    sections (e.g. round-3 lifts ``convergence_loop`` back to critical).
+    """
+    result = {**profile}
+
+    prio_overrides = _PLAN_MODE_OVERRIDES["section_priority_overrides"]
+    existing = dict(result.get("section_priorities", {}))
+    existing.update(prio_overrides)
+    result["section_priorities"] = existing
+
+    result["model_hint"] = _PLAN_MODE_OVERRIDES["model_hint_override"]
+    result["compression_intensity"] = _PLAN_MODE_OVERRIDES["compression_intensity"]
+    return result
 
 
 def resolve_decomposition_config(profile_config: dict[str, Any]) -> dict[str, Any]:
@@ -281,6 +340,9 @@ def select_context(
     task_type: str,
     profiles_path: Path | None = None,
     verbose: bool = False,
+    round_num: int = 1,
+    escalation_config: dict[int, dict[str, Any]] | None = None,
+    plan_mode: bool | None = None,
 ) -> dict[str, Any]:
     """Select context sections for a given task type.
 
@@ -291,6 +353,24 @@ def select_context(
       - budget: token budget for this profile
       - skipped_sections: sections that didn't fit or were deprioritized
       - extra_context: additional reference files to load
+      - round_num: convergence round number (1 = initial, 2+ = escalated)
+      - escalation_applied: whether round-based escalation was applied
+      - plan_mode: whether plan-mode is active (resolved from param or
+        :func:`_detect_plan_mode` when *plan_mode* is ``None``)
+      - plan_mode_applied: alias of ``plan_mode`` for explicit downstream
+        checks; True when :func:`apply_plan_mode_overrides` was applied
+
+    When ``round_num > 1`` the resolved profile is routed through
+    :func:`apply_round_escalation` so convergence rounds receive stricter
+    section priorities and larger token budgets.  Pass ``escalation_config``
+    to override the defaults defined in ``_ROUND_ESCALATION_DEFAULTS``.
+
+    When *plan_mode* is True (or auto-detected via env var/marker file when
+    ``plan_mode is None``) :func:`apply_plan_mode_overrides` runs *before*
+    round-based escalation so plan-relevant primitives are escalated first
+    and round overrides may then layer on top (e.g. round-3 still lifts
+    ``convergence_loop`` to critical and bumps the budget by 20%).
+    Pass ``plan_mode=False`` to disable detection entirely.
     """
     config = load_profiles(profiles_path)
     skill_text = load_skill_md(config)
@@ -298,6 +378,13 @@ def select_context(
 
     profile_name = match_profile(task_type, config)
     profile = config["profiles"][profile_name]
+
+    active_plan_mode = plan_mode if plan_mode is not None else _detect_plan_mode()
+    if active_plan_mode:
+        profile = apply_plan_mode_overrides(profile)
+
+    if round_num > 1:
+        profile = apply_round_escalation(profile, round_num, escalation_config)
     budget = profile.get("token_budget", 6000)
 
     advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
@@ -331,6 +418,20 @@ def select_context(
         assembled_text = assembled_text + "\n\n" + advisor_text
         used_tokens += advisor_reserve
 
+    escalation_applied = round_num > 1
+    profile_overrides_applied = escalation_applied or active_plan_mode
+    model_hint: str | None = None
+    if profile_overrides_applied and "model_hint" in profile:
+        model_hint = profile["model_hint"]
+    if not model_hint:
+        model_hint = resolve_model_hint(task_type, profile)
+
+    compression_intensity = (
+        profile.get("compression_intensity")
+        if profile_overrides_applied and "compression_intensity" in profile
+        else resolve_compression_intensity("l2_to_l3", config)
+    )
+
     return {
         "profile_name": profile_name,
         "description": profile.get("description", ""),
@@ -343,10 +444,14 @@ def select_context(
         "extra_context": profile.get("extra_context", []),
         "rationale": profile.get("rationale", "").strip(),
         "learnings_included": bool(learnings_text),
-        "model_hint": resolve_model_hint(task_type, profile),
+        "model_hint": model_hint,
         "advisor_enabled": advisor_enabled,
         "decomposition": resolve_decomposition_config(profile),
-        "compression_intensity": resolve_compression_intensity("l2_to_l3", config),
+        "compression_intensity": compression_intensity,
+        "round_num": round_num,
+        "escalation_applied": escalation_applied,
+        "plan_mode": active_plan_mode,
+        "plan_mode_applied": active_plan_mode,
     }
 
 
@@ -415,7 +520,10 @@ def apply_round_escalation(
 def main():
     """CLI entry point for the task-adaptive context selector."""
     if len(sys.argv) < 2:
-        print("Usage: task_adaptive_selector.py <task_type> [--verbose] [--full]")
+        print(
+            "Usage: task_adaptive_selector.py <task_type> "
+            "[--verbose] [--full] [--round N] [--plan-mode|--no-plan-mode]"
+        )
         print()
         print("Task types: hotfix, feature, research, refactor, review, design")
         print("Also matches goal hints: 'fix bug', 'implement feature', etc.")
@@ -425,13 +533,33 @@ def main():
     verbose = "--verbose" in sys.argv
     show_full = "--full" in sys.argv
 
-    result = select_context(task_type, verbose=verbose)
+    round_num = 1
+    for i, arg in enumerate(sys.argv):
+        if arg == "--round" and i + 1 < len(sys.argv):
+            with contextlib.suppress(ValueError):
+                round_num = int(sys.argv[i + 1])
+
+    plan_mode_flag: bool | None = None
+    if "--plan-mode" in sys.argv:
+        plan_mode_flag = True
+    elif "--no-plan-mode" in sys.argv:
+        plan_mode_flag = False
+
+    result = select_context(
+        task_type,
+        verbose=verbose,
+        round_num=round_num,
+        plan_mode=plan_mode_flag,
+    )
 
     print(f"Profile: {result['profile_name']}")
     print(f"Description: {result['description']}")
     print(f"Model hint: {result['model_hint']}")
     print(f"Token budget: {result['budget']}")
     print(f"Tokens used: {result['total_tokens']} ({result['utilization_pct']}%)")
+    if verbose:
+        print(f"Round: {round_num}")
+        print(f"Plan mode: {result['plan_mode']}")
     print()
 
     print("Selected sections:")

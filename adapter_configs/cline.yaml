@@ -1,0 +1,18 @@
+# Cline adapter — autonomous coding agent rules
+name: cline
+display_name: Cline
+version_added: "6.1.3"
+tier: tier_1
+output:
+  base_dir: ".clinerules"
+  files:
+    - source: "SKILL.md"
+      target: "devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "devola-flow.md"

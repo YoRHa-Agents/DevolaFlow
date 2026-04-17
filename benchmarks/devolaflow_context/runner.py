@@ -13,6 +13,7 @@ Repository: https://github.com/YoRHa-Agents/DevolaFlow
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,57 @@ from benchmarks.devolaflow_context.evaluator import (
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 BASELINES_DIR = Path(__file__).parent / "baselines"
 HISTORY_DIR = Path(__file__).parent / "history"
+
+# Legacy fallback — kept as safety net if no newer v*_baseline.json exists yet.
+FALLBACK_BASELINE_NAME = "v2.1.0_baseline.json"
+
+# Match files like ``v6.0.5_baseline.json``. Optimization-round snapshots
+# (``v3.2.0_round_N.json``) are intentionally excluded — they are not full
+# regression baselines.
+_BASELINE_PATTERN = re.compile(r"^v(?P<ver>\d+(?:\.\d+){0,3})_baseline\.json$")
+
+
+def _version_tuple(ver: str) -> tuple[int, ...]:
+    """Parse ``"6.0.5"`` → ``(6, 0, 5)``. Missing parts treated as 0.
+
+    Non-numeric components sort last (effectively ``-1`` becomes ``(-inf,)``),
+    so tagged pre-releases never outrank a clean numeric release.
+    """
+    parts: list[int] = []
+    for seg in ver.split("."):
+        try:
+            parts.append(int(seg))
+        except ValueError:
+            parts.append(-1)
+    return tuple(parts)
+
+
+def _list_baseline_files(baselines_dir: Path = BASELINES_DIR) -> list[tuple[tuple[int, ...], Path]]:
+    """Return (version_tuple, path) for every ``v*_baseline.json`` file."""
+    if not baselines_dir.is_dir():
+        return []
+    results: list[tuple[tuple[int, ...], Path]] = []
+    for p in baselines_dir.iterdir():
+        m = _BASELINE_PATTERN.match(p.name)
+        if m is None:
+            continue
+        results.append((_version_tuple(m.group("ver")), p))
+    return results
+
+
+def _newest_baseline_path(baselines_dir: Path = BASELINES_DIR) -> Path | None:
+    """Return the newest ``v*_baseline.json`` by version, or ``None``.
+
+    Prefers numeric-version ordering; falls back to ``FALLBACK_BASELINE_NAME``
+    (``v2.1.0_baseline.json``) when no matching files exist.
+    """
+    candidates = _list_baseline_files(baselines_dir)
+    if not candidates:
+        fallback = baselines_dir / FALLBACK_BASELINE_NAME
+        return fallback if fallback.exists() else None
+    candidates.sort(key=lambda pair: pair[0])
+    return candidates[-1][1]
+
 
 _selector_module = None
 
@@ -73,8 +125,21 @@ def run_scenario(scenario_data: dict[str, Any]) -> BenchmarkScore:
     )
 
 
-def load_baseline(scenario_name: str) -> dict[str, Any] | None:
-    baseline_path = BASELINES_DIR / "v2.1.0_baseline.json"
+def load_baseline(
+    scenario_name: str,
+    baseline_path: Path | None = None,
+) -> dict[str, Any] | None:
+    """Load a single scenario's baseline entry.
+
+    When ``baseline_path`` is omitted, prefers the newest ``v*_baseline.json``
+    (by semver-style numeric order) and falls back to ``v2.1.0_baseline.json``
+    if no newer file exists. Returns ``None`` if no baseline file is present
+    or the scenario is not keyed in the file.
+    """
+    if baseline_path is None:
+        baseline_path = _newest_baseline_path()
+        if baseline_path is None:
+            return None
     if not baseline_path.exists():
         return None
     with open(baseline_path) as f:

@@ -5,6 +5,411 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.1] — 2026-04-17
+
+### Fixed
+- **Benchmark staleness-guard CI flake**: `tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_matches_current_results_within_tolerance` was passing locally but failing on CI with a 12.59pp composite drift on `hotfix_jwt`. Root cause: `devolaflow.task_adaptive_selector.estimate_tokens()` uses `tiktoken` when available, otherwise falls back to `len(text) // 4`. Local environment had `tiktoken` installed (incidentally — not in `pyproject.toml` dependencies); CI did not. Different token estimators produce different section selections, which produce different composite scores. The 86.93 baseline was generated with one estimator, current run used the other → 12.59pp drift.
+- **Solution**: added an autouse pytest fixture in `tests/conftest.py` that hides `tiktoken` from `sys.modules` for tests in `tests/test_benchmarks.py` only. Both local and CI now consistently exercise the deterministic fallback estimator. Production runtime is unaffected — agents that have `tiktoken` installed still get the more accurate token counts.
+- **Regenerated `v6.1.0_baseline.json`** under the deterministic fallback estimator so `hotfix_jwt` baseline composite is now 99.52 (matches the current fallback-estimator run within 0pp drift).
+
+### Metrics
+- Tests: 1009 passed (no count change)
+- Lint clean, NineS stable
+- CI test job will now succeed on the same commit that previously failed (PR #36)
+
+## [6.2.0] — 2026-04-16
+
+**Final release of the v6.0 + v6.1 rollup (12 waves, v5.4.2 → v6.2.0).**
+
+This version is a meta-release that closes the second self-update cycle (v6.1.0 → v6.2.0). It ships no new code on top of v6.1.5 — every line of the v6.2 cycle was already delivered across v6.1.1–v6.1.5. v6.2.0 stamps the cumulative release and ships the SI-8 retrospective.
+
+### Highlights of the v6.0 → v6.2 journey (cumulative)
+
+**Code quality / debt**
+- 12 → **0** `DeprecationWarning` lines (P9 honored in v6.0.2)
+- 141 → **0** MVP-SKILL.md cross-references (TD-3 in v6.0.1)
+- 92 LOC of `_BUILTIN_SPECS` removed (TD-2 in v6.0.1)
+- 3 → **0** rule contradictions (TD-6 in v6.0.1)
+- Dead-API CI guard active (G1 in v6.1.4)
+
+**NineS self-eval**
+- Overall: 0.7405 → **0.8805** (+18.9% — entirely from the v6.1.1 tool-config fix; zero source changes)
+- Capability mean: 0.7150 → **0.9150** (+27.97%)
+- Hygiene mean: 0.8000 stable (upstream NineS `code_coverage` parser bug remains)
+
+**Adapters / platforms**
+- 4 → **11** platforms supported (+7: KimiCode, Windsurf, Continue, OpenClaw, Zed, Cline, Roo Code)
+- New `AdapterRegistry` + `DataDrivenAdapter` engine: simple new adapters now ship as ~25 LOC of YAML (vs ~80 LOC of Python in v5.x)
+- 5 transforms supported: `copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`, `keep_sections` (the last one fixed Windsurf's 24,625 → 7,434 char real bug)
+- All 11 adapters report `[OK]` in `python -m devolaflow.build_skill`
+- `--tools cursor,kimicode,windsurf` selective build supported
+
+**Runtime correctness (dead-wire closure)**
+- v5.3.0 P8 finally wired: `apply_round_escalation` invoked automatically by `select_context(round_num=N)` (v6.0.3)
+- v5.3.0 P4 finally wired: `merge_reinforcement_into_dispatch` invoked by `ProposalGenerator.generate_round_dispatch` (v6.0.3)
+- v6.1.5: `apply_plan_mode_overrides` wired into `select_context(plan_mode=True)` with env var + marker file fallback
+
+**Tests / benchmarks**
+- 818 → **1009** total (+191 net, with 29 deprecated tests retired in v6.0.2)
+- Coverage 91.07% → **93.93%+** (`cli.py` 49% → 98%, `init_project.py` 59% → 94%, `composer.py` 66% → 100%)
+- `tests/test_e2e_convergence.py` (7 tests) — full template→gate→reinforcement integration
+- `tests/test_schema_parity.py` (6 tests) — schemas can no longer drift silently
+- `tests/test_dead_apis.py` (11 tests) — bug-class regression prevention
+- `tests/test_adapter_golden.py` (4 tests) — Cursor SKILL output structurally locked
+- 29 / 29 EvoBench scenarios with regression baseline (was 3 / 29)
+- Per-version `nines_self_eval_v*.json` snapshots in `.local/research/v6.0.0/` through `.local/research/v6.1.5/`
+
+**Tool configuration / governance**
+- `nines.toml` codifies the canonical `nines self-eval` invocation
+- `data/golden_test_set/` (10 TOML fixtures) unlocks NineS V1 scoring evaluators
+- `.cursor/rules/self-improve-iteration-rules.mdc` SI-2 updated with the canonical NineS invocation
+- `MIGRATION-v6.md` documents the v6.0.2 BREAKING removals
+- 2 SI-8 retrospectives at `.local/research/retrospective_v6.0_to_v6.1.md` and `.local/research/retrospective_v6.1_to_v6.2.md`
+
+### SI-3 evaluation (v6.2.0)
+
+Weighted composite **9.43 / 10** (threshold ≥ 8.5) — **READY for stable release.**
+
+### Wave-by-wave commit reference (v6.0 + v6.1 cycles)
+
+| Wave | Version | Commit | Theme |
+|------|---------|--------|-------|
+| 1 | v6.0.1 | `34bc586` | MVP-SKILL retirement + plugin loader + rule reconciliation |
+| 2 | v6.0.2 | `f4d93fc` | [BREAKING] deprecated API removal + MIGRATION-v6.md |
+| 3 | v6.0.3 | `c0112d6` | Dead-wire closure (apply_round_escalation + reinforcement merge) |
+| 4 | v6.0.4 | `ec9e14c` | AdapterRegistry + DataDrivenAdapter + KimiCode + Windsurf |
+| 5 | v6.0.5 | `931183e` | Schema parity + 29/29 EvoBench baselines |
+| 6 | v6.1.0 | `0fa4294` | Continue + OpenClaw + golden snapshots + coverage fixes |
+| 7 | v6.1.1 | `3c6f29f` | NineS tool-config (+18.9% overall — biggest single jump) |
+| 8 | v6.1.2 | `01eb0d0` | Windsurf compression fix (real bug, all 8 adapters [OK]) |
+| 9 | v6.1.3 | `5228d58` | +Zed +Cline +Roo (11 platforms total) |
+| 10 | v6.1.4 | `30c785e` | Dead-API CI guard (G1) |
+| 11 | v6.1.5 | `34b327f` | Plan-mode detection wired (V6-03) |
+| rollup | **v6.2.0** | (this) | Retrospective + final summary |
+
+Cycle artifacts:
+- `.local/research/v6.0.0_improvement_advice.md` — initial SI-1 planning gate
+- `.local/research/v6.0.0_improvement_advice_zh.md` — Chinese mirror
+- `.local/research/v6.2.0_improvement_advice.md` — second-cycle SI-1 planning gate
+- `.local/research/retrospective_v6.0_to_v6.1.md` — first cycle SI-8
+- `.local/research/retrospective_v6.1_to_v6.2.md` — second cycle SI-8
+
+### Metrics
+- Tests: 1009 passed (no change from v6.1.5; this is a meta-release)
+- All 11 adapters [OK]
+- Lint: ruff check + format clean
+- DeprecationWarnings: 0
+- NineS self-eval: 0.8805 stable
+- SKILL.md: 498 / 500 lines
+
+## [6.1.5] — 2026-04-16
+
+### Added
+- **Plan-mode detection in `select_context()` (V6-03)**: new `plan_mode: bool | None` parameter. When True (or auto-detected via `DEVOLAFLOW_PLAN_MODE` env var or `.devolaflow_plan_mode` marker file), the active context profile is escalated through `apply_plan_mode_overrides()` BEFORE round-escalation: `agent_hierarchy`, `decomposition_gate`, `rationalization_prevention` priorities lifted to `critical`; `model_hint` upgraded to `quality`; `compression_intensity` set to `minimal`. Composes with the v6.0.3 round-based escalation (plan-mode applies first, round adds budget on top).
+- **`--plan-mode` / `--no-plan-mode` CLI flags** on `python -m devolaflow.task_adaptive_selector`.
+- **`apply_plan_mode_overrides()`** public function in `task_adaptive_selector` (allowlisted in dead-API detector alongside `apply_round_escalation`/`select_context` as documented stable public API).
+- **10 new tests** in `test_task_adaptive_selector.py::TestPlanModeDetection` covering auto-detect default off, explicit override priorities, explicit-False short-circuit, env-var detection, marker-file detection, composition with round escalation, result-dict surface keys, profile-immutability, invalid-env-value rejection, and minimal-compression assertion.
+
+### Changed
+- **SKILL.md "Mode Awareness" section**: noted the v6.1.5 runtime hook inline on the AGENT-MODE-default line of the detection list — chars-only edit (no new lines), preserving line count and avoiding token-budget knock-on effects in the `feature` profile's `plan_mode_template` selection (which would otherwise displace `dispatch_report` from the EvoBench `decomposition_feature` scenario).
+- **`select_context()` model_hint / compression_intensity logic**: the `escalation_applied` gate is now `escalation_applied OR plan_mode_applied`, so plan-mode-set values on the profile (`model_hint=quality`, `compression_intensity=minimal`) are surfaced in the result dict at round 1.
+
+### Metrics
+- Tests: 999 → 1009 (+10)
+- Plan-mode detection signals: 3 (explicit param, env var, marker file)
+- SKILL.md: 498 → 498 lines (line count unchanged; chars-only addition to mode_detection section)
+- All 11 adapters [OK], lint clean, NineS stable, EvoBench `decomposition_feature` composite ≥ 95 preserved
+
+## [6.1.4] — 2026-04-16
+
+### Added
+- **`scripts/detect_dead_apis.py`** (G1): static analyzer that scans `src/devolaflow/` for public functions/classes with zero non-test callers. Catches the bug class that cost v6.0.3 three versions to fix (`apply_round_escalation` and `merge_reinforcement_into_dispatch` had passing unit tests but no production callers since v5.3.0). Walks `src/devolaflow/**/*.py` with `ast`, collects top-level public `def`/`class` (skipping `_*`, `__dunder__`, `main`, `cli`, `*_cmd`), then verifies each has a real (non-import) reference somewhere in `src/`, `scripts/`, or `benchmarks/`. Re-exports in `__init__.py` are correctly excluded as non-callers (so the v6.0.3 pattern of "exported but never called" is detected). Run: `python scripts/detect_dead_apis.py [--format text|json] [--strict]`. Stdlib only; ~150 LOC of logic plus a documented allowlist.
+- **`tests/test_dead_apis.py`** (11 tests): unit tests for the detector — synthetic cases for unused functions, used-via-sibling, test-only callers, allowlist suppression, private/dunder skip, CLI-entry skip, `__init__.py` re-export non-counter, self-use alive — plus the CI-grade `test_devolaflow_codebase_has_no_dead_apis` assertion that fails if any new dead public API ships, and 2 subprocess tests for `--strict` exit code 2 and `--format json` schema.
+- **Allowlist**: 36-entry catalogue of intentionally external-only public APIs in `DEFAULT_ALLOWLIST`, grouped and commented by category — adapter base API (`BaseAdapter`, `AdapterResult`, `load_workflow_skill`, `create_default_registry` ×2), CLI entry-point modules (`build_all`), MIGRATION-v6.md recommended replacements (`evaluate_gate`, `findings_to_reinforcement`, `merge_reinforcement_into_dispatch`, `reinforcement_to_dict`, `apply_round_escalation`, `select_context`, `get_research_advice`), compressor validators (`compress_message`, `validate_lean_format`), self-improving feedback module (`Proposal`, `FeedbackCollector`, `FeedbackAnalyzer`, `ProposalGenerator`), gate report generators (`generate_yaml_report`, `generate_markdown_report`), operational learnings utilities (`prune_learnings`, `promote_learning`, `get_learnings_stats`, `log_external_source_review`), NineS subsystem (`build_command`, `build_stage_command`, `ensure_nines`, `get_nines_capabilities`, `NinesResearchConfig`, `collect_research`, `analyze_target`, `run_self_evaluation`, `run_skill_iteration`, `run_nines_benchmark`, `run_nines_update`, `run_self_improve_loop`, `refresh_reference_dependency`, `nines_dimension_scores`, `find_nines_config`), pre-decision phase (`auto_detect`, `freeze_config`, `recommend_workflow`), and template engine (`collect_all_refs`, `JoinStrategy`, `OnExhaustion`, `GateFailAction`, `nines_commands_to_dispatch_context`, `parse_template_string`, `TemplateRegistry`).
+
+### Metrics
+- Tests: **988 → 999** (+11)
+- Detection runtime: **143 ms** on full DevolaFlow codebase (50 modules)
+- Bug class prevention: dead-wire regressions now CI-blocked (`--strict` exit 2)
+- Lint clean (`ruff check` + `ruff format --check`)
+- No source changes to `src/devolaflow/` — pure CI guard addition.
+- NineS stable (no source changes to `src/devolaflow/nines/`).
+
+## [6.1.3] — 2026-04-16
+
+### Added
+- **3 new Tier-1 adapters via data-driven YAML**:
+  - `adapter_configs/zed.yaml` — Zed editor rules (`.rules/devola-flow.md` + `references/`)
+  - `adapter_configs/cline.yaml` — Cline autonomous agent rules (`.clinerules/devola-flow.md` + `references/`)
+  - `adapter_configs/roo.yaml` — Roo Code per-mode rules (`.roo/rules/devola-flow.md` + `references/`)
+  Each adapter is ≈25 LOC of YAML — no Python source changes required (validates the v6.0.4 data-driven pattern).
+- **install.sh** support for `zed`, `cline`, `roo` targets; `all` and `update` extended to include them. New `dl_skill_no_frontmatter` shell helper centralises the "download SKILL.md and strip YAML frontmatter" step shared by the 3 new installers.
+- **15-21 new tests** across 3 adapter test modules (5-7 tests per adapter).
+
+### Metrics
+- Adapter count: **8 → 11** (+3 platforms)
+- New YAML LOC: ~75 (avg 25 per adapter, vs ~80 LOC of Python in v6.0.4)
+- Tests: **967 → ~985** (target: +15-21 net)
+- All 11 adapters [OK] in `python -m devolaflow.build_skill`
+- No source code changes to `src/devolaflow/`
+- Lint clean, NineS stable
+
+## [6.1.2] — 2026-04-16
+
+### Fixed
+- **Windsurf adapter real bug**: `.windsurfrules` previously exceeded Windsurf's 8000-char budget (24,625 chars WARN, known-broken since v6.0.4 — customers could not actually install DevolaFlow on Windsurf despite the adapter appearing to build). Now 7,434 chars [OK] via new `keep_sections` transform that extracts only high-value sections of SKILL.md (Quick Action Decision, 4-Layer Agent Hierarchy, Gate Mechanism, Dispatch & Report Protocol) with a compact header prefix pointing users to the full skill on GitHub.
+
+### Added
+- **New `keep_sections` transform** in `DataDrivenAdapter` (`src/devolaflow/adapters/data_driven.py`): markdown-section-level extraction with optional frontmatter preservation (`include_frontmatter`) and header prefix injection (`header_prefix`). Substring-matches section headings (case-sensitive), respects fenced code blocks (heading-looking lines inside ``` fences are treated as content), and nests H3+ children under their matching H2 parent. Enables compact adapter outputs that cherry-pick relevant SKILL content for budget-constrained platforms.
+- **`VALID_TRANSFORMS` frozenset** exported from `data_driven` module — single source of truth for the 5 supported transforms (`copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`, `keep_sections`).
+- **`_Section` dataclass** (internal) capturing `heading`, `level`, `text` for the markdown section parser.
+- **8 new tests** in `test_data_driven_adapter.py` covering the new transform: `test_valid_transforms_enumeration_lists_keep_sections`, `test_keep_sections_extracts_named_sections`, `test_keep_sections_excludes_frontmatter_by_default`, `test_keep_sections_includes_frontmatter_when_requested`, `test_keep_sections_prepends_header_prefix`, `test_keep_sections_empty_list_produces_empty_body`, `test_keep_sections_substring_match_not_exact`, `test_keep_sections_handles_missing_source`, `test_keep_sections_ignores_fenced_code_block_headings`.
+- **4 new Windsurf tests** (`test_windsurf_adapter.py`): `test_windsurf_under_8000_chars`, `test_windsurf_contains_quick_action`, `test_windsurf_contains_hierarchy`, `test_windsurf_has_header_prefix`.
+
+### Changed
+- **`adapter_configs/windsurf.yaml`**: switched from `strip_frontmatter` to `keep_sections` with 4 high-value section selectors (Quick Action Decision, 4-Layer Agent Hierarchy, Gate Mechanism, Dispatch & Report Protocol) and a 2-line header prefix pointing to the full skill on GitHub. `include_frontmatter: false` preserves the no-frontmatter invariant from v6.0.4.
+- **`test_windsurf_budget_chars_under_8000`**: tightened from "budget_ok may be False, we tolerate overflow" to `assert result.budget_ok is True` — reflecting the v6.1.2 contract that the adapter always fits.
+- **`test_windsurf_strips_frontmatter`**: broadened frontmatter-leakage check from first-block-only to the entire output, since the new transform may place different content near the top.
+
+### Compromises
+- Only 4 of the 6 task-suggested sections fit under the 8000-char budget. Dropped: **Mode Awareness** (too large at 4,945 chars — includes full PLAN MODE sub-section) and **Context Isolation** (wouldn't fit alongside Dispatch & Report Protocol). The 4-Layer Agent Hierarchy section already carries the P1 Dispatcher-Not-Implementer invariant, and the header prefix directs users to the full SKILL at `https://github.com/YoRHa-Agents/DevolaFlow` for the dropped content.
+
+### Metrics
+- Tests: **954 → 966** (+12: 9 new in `test_data_driven_adapter.py`, 4 new in `test_windsurf_adapter.py`, −1 updated `test_windsurf_budget_chars_under_8000` tightened assertions but stays as 1 test)
+- Windsurf budget: **24,625 chars WARN → 7,434 chars OK** (69.8% reduction; 566-char margin under 8000 budget)
+- Adapters producing `[OK]`: **7/8 → 8/8**
+- No regressions: other 7 adapters unchanged, EvoBench baselines untouched, NineS self-eval unaffected (no source changes to `src/devolaflow/nines/`, `src/devolaflow/gate/`, or context profiles).
+
+## [6.1.1] — 2026-04-16
+
+### Added
+- **`data/golden_test_set/`** (new): 10 DevolaFlow-relevant NineS golden-test TOML fixtures spanning 3 dimensions (code_quality, analysis, evaluation). Unlocks NineS V1 scoring evaluators (`scoring_accuracy`, `scoring_reliability`, `scorer_agreement`, `eval_coverage`) which were previously 0.0 due to missing fixtures.
+- **`nines.toml`** (new): repo-root NineS config with project defaults, self-eval weights, and relative path bindings (`golden_dir`, `samples_dir`, `src_dir`, `test_dir`, `project_root`). Future `nines -c nines.toml self-eval` invocations auto-pick up correct paths.
+- **`tests/test_golden_test_set.py`** (8 tests) and **`tests/test_nines_config.py`** (5 tests): schema validation for the new fixtures + config.
+
+### Changed
+- **Rule SI-2** (`.cursor/rules/self-improve-iteration-rules.mdc`) updated with the canonical self-eval invocation including `--golden-dir` and `--samples-dir` flags.
+
+### Metrics
+- NineS overall: **0.7405 → 0.8805** (verified via `.local/research/v6.1.1/nines_self_eval_v6.1.1.json`; `--golden-dir data/golden_test_set` flips 4 V1 evaluators from 0.0 to high scores)
+- NineS capability mean: **0.7150 → 0.9150**
+- Tests: **896 → 954** (+58 from 13 new test functions; 10 TOMLs × 5 parametrized checks + 3 scalar + 5 config)
+- Ruff: `ruff check` + `ruff format --check` clean
+- No source changes to `src/devolaflow/`; bench / coverage unchanged.
+
+### Known limitation
+- **`pipeline_latency` capability remains 0.0**: upstream NineS v3.0.0 evaluator looks for `src/nines/__init__.py` inside the target repo (it is probing for its own package, not DevolaFlow code). Cannot be fixed cleanly from the DevolaFlow side without adding a shim file whose sole purpose is to satisfy the probe. Tracked as upstream item for NineS.
+
+## [6.1.0] — 2026-04-16
+
+**Final release of the v6.0 rollup (6 waves, v5.4.2 → v6.1.0).**
+
+### Added
+- **Continue.dev adapter** (`adapter_configs/continue.yaml`, A3): YAML-driven adapter for the OSS Continue IDE extension. Emits `.continue/rules/devola-flow.md` (frontmatter stripped) + `.continue/rules/references/` (full tree). Tier 1, 800-line budget.
+- **OpenClaw adapter** (`adapter_configs/openclaw.yaml`, A4): YAML-driven adapter for the MIT-licensed OSS gateway. Emits `openclaw/SKILL.md` (frontmatter preserved) + `openclaw/references/`. Tier 2, 500-line budget.
+- **Golden snapshot tests for Cursor adapter** (`tests/test_adapter_golden.py`, C3): 4 tests locking down structural invariants — required sections, line-count band (400-520), frontmatter keys, must-not-contain list (MVP-SKILL / evaluate_gate_with_nines / run_nines_advisor), references tree (8 files), examples tree (3 files), and the `workflow-hard-rules.mdc` file. Metadata-based (not byte-exact) to survive version-string drift. Golden fixture at `tests/fixtures/golden/cursor/SKILL.md.expected.meta.json`.
+- **21 new coverage-focused tests** in `tests/test_exercise_modules.py` (C4):
+  - 8 tests for `devolaflow.cli` (version_cmd, validate-template single-path / --all / missing / no-args / parse-error / invalid-content, build-skill no-tools / with-tools, check-drift no-drift)
+  - 8 tests for `devolaflow.init_project` (--list, unknown target, `all`, missing-agent-dir, copilot --global, codex, _copy_file missing source, _copy_dir non-directory)
+  - 3 tests for `template_engine.composer` (SequenceOp.stage_order, ParallelOp.join_count across all/any/n_of/fallback, collect_all_refs with loops + gates)
+- **SI-8 retrospective artifact** (`.local/research/retrospective_v6.0_to_v6.1.md`): documents all 6 waves, implemented vs deferred items, key learnings, cross-wave metrics evolution, and the SI-3 composite score (9.23/10).
+- **SKILL.md — Round-aware dispatch note**: single-line addition at the end of "Dispatch & Report Protocol" (after `Full schemas:` line) documents `select_context(round_num=N)` escalation and `ProposalGenerator.generate_round_dispatch()` reinforcement merging (the v6.0.3 dead-wire closure, surfaced to agents).
+- **`benchmarks/devolaflow_context/baselines/v6.1.0_baseline.json`**: full 29-scenario baseline regenerated for v6.1.0 (SKILL.md growth from 496 → 498 lines required refresh per SI-4). `v6.0.5_baseline.json` preserved as historical record.
+
+### Changed
+- **`workflow-system/human/demo/index.html` — "What's New" section** rewritten to cover the whole v6.0 rollup: 8 platform adapters, round-aware convergence, schema parity + 29/29 baselines, and updated metrics (896 tests, 94% coverage).
+
+### Metrics
+- Tests: **871 → 896** (+25 new across 2 files)
+- Adapters: **6 → 8** (core 4 + KimiCode + Windsurf + **Continue.dev** + **OpenClaw**)
+- Overall coverage: **91.35% → 94.08%**
+  - `devolaflow.cli`: 49% → **98%**
+  - `devolaflow.init_project`: 59% → **94%**
+  - `devolaflow.template_engine.composer`: 66% → **100%**
+- SKILL.md: **498 lines** (budget 500)
+- Lint: `ruff check` + `ruff format` clean
+- EvoBench: 29/29 pass, no regressions
+- DeprecationWarnings: **0** (maintained)
+- NineS self-eval: **0.7405** stable across v5.4.2 → v6.1.0
+
+### Known limitation (unchanged from v6.0.4)
+- **Windsurf output still produces a `[WARN]` status**: current `SKILL.md` is ~24 KB, Windsurf's `.windsurfrules` has an 8 KB char budget. Future release should add a compression transform or a Windsurf-specific lean SKILL. Tracked as a next-iteration item.
+
+## [6.0.5] — 2026-04-16
+
+### Added
+- **Schema parity test** (`tests/test_schema_parity.py`, 6 tests): enforces field parity across `task-dispatch.schema.yaml`, `lean-dispatch.yaml`, and `gate-report.schema.yaml`. Closes **TD-4** drift gap — any future field addition to one schema must be reflected in the other two (or added to an explicit `*_VERBOSE_ONLY` compromise set) or the test fails loudly with a message that points to the exact missing equivalent. Tests cover: reinforcement fields (+ per-rule items), verification facets, gate-report coverage of dispatch verification_config, header abbreviation mapping, acceptance/gate thresholds, and a sanity "all schemas parse" check.
+- **Full EvoBench baseline coverage** (`benchmarks/devolaflow_context/baselines/v6.0.5_baseline.json`): regression baselines for all **29 / 29** scenarios (was **3 / 29**). Closes **C1** — the 89.7pp regression-detection gap from `.local/research/v6.0.0_improvement_advice.md`. The file is keyed by scenario name and records `composite`, `information_density`, `section_relevance`, `budget_utilization`, `noise_ratio`, `total_tokens`, `budget`, and `selected_count`.
+- **`benchmarks/devolaflow_context/generate_baseline.py`**: CLI utility to regenerate the baseline on demand. Supports `--output` for a custom path and works both directly (`python benchmarks/devolaflow_context/generate_baseline.py`) and via `-m` (`python -m benchmarks.devolaflow_context.generate_baseline`). Default output follows `devolaflow.__version__`.
+- **7 new benchmark tests** in `tests/test_benchmarks.py`:
+  - `TestBaselineFile.test_v6_baseline_exists`
+  - `TestBaselineFile.test_v6_baseline_covers_all_scenarios` (strict set equality — missing or extra keys both fail)
+  - `TestBaselineFile.test_v6_baseline_scores_positive`
+  - `TestBaselineFile.test_runner_prefers_latest_baseline`
+  - `TestBaselineFile.test_v6_baseline_matches_current_results_within_tolerance` (staleness guard, ±5pp)
+  - `TestBaselineRegressionDetection.test_ten_percent_drop_is_flagged_as_regression`
+  - `TestBaselineRegressionDetection.test_one_percent_drop_not_flagged`
+
+### Changed
+- **`benchmarks/devolaflow_context/runner.py`** `load_baseline()`: now prefers the newest `v*_baseline.json` by numeric-version order (e.g. v6.0.5 over v2.1.0). Legacy `v2.1.0_baseline.json` is kept as a fallback when no newer baseline exists. Optimization-round snapshots (`v*_round_N.json`) are explicitly excluded from the baseline sweep. New helpers `_newest_baseline_path()` and `_version_tuple()` expose the selection logic for tests.
+
+### Metrics
+- Tests: **858 → 871** (+13)
+- EvoBench scenarios with regression baseline: **3 / 29 → 29 / 29**
+- Lint: ruff check + format clean
+- EvoBench: no regressions (baseline now runs on all 29 scenarios)
+- NineS self-eval: stable
+
+## [6.0.4] — 2026-04-16
+
+### Added
+- **`AdapterRegistry`** (`src/devolaflow/adapters/registry.py`): central registry for all platform adapters with tier classification (`core`, `high_priority`, `tier_1`, `tier_2`), selective build via `build_selected()`, and `create_default_registry()` factory that pre-populates the 4 core adapters.
+- **`DataDrivenAdapter`** (`src/devolaflow/adapters/data_driven.py`): generic adapter driven by a YAML config file. Supports 4 transforms (`copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`), frontmatter injection, and line/char budget checks. `load_data_driven_adapters()` auto-discovers YAML configs under `adapter_configs/`.
+- **`--tools` CLI flag**: `python -m devolaflow.build_skill --tools cursor,windsurf` builds only the named adapters. Without the flag, all registered adapters build as before. Unknown names exit with code 2 and a helpful message.
+- **`adapter_configs/` directory** for data-driven adapter definitions:
+  - `adapter_configs/kimicode.yaml` — KimiCode (Moonshot AI VSCode + CLI). Writes `SKILL.md` + `references/` + `examples/` under `.kimi/skills/devola-flow/` with platform frontmatter injection. 500-line budget.
+  - `adapter_configs/windsurf.yaml` — Windsurf (Codeium). Writes a single `.windsurfrules` at the repo root with frontmatter stripped. 8000-char budget.
+- **`scripts/install.sh` targets**: `install_kimicode()`, `install_windsurf()` following the existing adapter install pattern; wired into `case`, `all`, `update`, and help text. Auto-detect intentionally left untouched (signals for the new platforms are unreliable).
+- **4 new test modules** (+46 tests, 812 → 858):
+  - `tests/test_adapter_registry.py` — 15 tests (registry unit + `build_all` integration)
+  - `tests/test_data_driven_adapter.py` — 18 tests (all 4 transforms, budget modes, loader)
+  - `tests/test_kimicode_adapter.py` — 7 tests
+  - `tests/test_windsurf_adapter.py` — 6 tests
+
+### Changed
+- **`build_all()`** (`src/devolaflow/build_skill.py`): refactored to be registry-driven. The hardcoded adapter list is gone; `build_all()` now takes an optional `registry` parameter (defaults to `create_default_registry()` + data-driven extensions).
+- **`load_workflow_skill()`** (`src/devolaflow/adapters/base.py`): now accepts optional path and returns `(source, agent_dir)` tuple. `_find_project_root()` relocated from `build_skill.py` to `base.py`, re-exported for backward compat.
+- **`tests/test_build_skill.py`**: replaced strict `len == 4` assertion with `{cursor,codex,claude,copilot}.issubset(tools) and len(results) >= 4` to accommodate dynamic registration.
+
+### Known limitation
+- **Windsurf output produces a `[WARN]` status**: current `SKILL.md` is ~25 KB, but Windsurf's `.windsurfrules` has an 8 KB char budget. The adapter builds correctly and the budget mechanism reports honestly, but the output exceeds Windsurf's practical size limit. A future release should add a compression transform (e.g. `compress_for_windsurf`) or a Windsurf-specific lean SKILL.
+
+### Metrics
+- Tests: 812 → **858** (+46)
+- Registry adapters: 6 (4 core + 2 new via data-driven)
+- New LOC: 957 across 8 files (source + configs + tests)
+- Lint: ruff check + format clean
+- EvoBench: 26/26 pass, no regression
+- DeprecationWarnings: 0 (maintained)
+- NineS self-eval: 0.7405 stable
+
+## [6.0.3] — 2026-04-16
+
+### Changed
+- **`select_context()` is now round-aware**: New keyword argument `round_num: int = 1` (backward-compatible default). When `round_num > 1` the profile is routed through `apply_round_escalation()` before section selection, automatically applying the v5.3.0 P8 escalation defaults (+20% token budget on round 3, `model_hint: quality`, and critical-bumping of `rationalization_prevention` / `convergence_loop` / `gate_mechanism` sections). A new `escalation_config` kwarg allows per-call overrides. Return value now includes `round_num` and `escalation_applied`.
+- **CLI `--round N` flag**: `python -m devolaflow.task_adaptive_selector <task> --round 3 [--verbose]` exposes the new round-aware behavior on the command line.
+
+### Added
+- **`ProposalGenerator.generate_round_dispatch(base_dispatch, verdict, round_num, target_score=85.0)`** in `src/devolaflow/feedback.py`: the production wiring that closes the v5.3.0 reinforcement dead-wire gap. Round 1 is pass-through; round 2+ with findings builds a `ReinforcementBlock` via `findings_to_reinforcement()` and merges it into a deep-copied dispatch via `merge_reinforcement_into_dispatch()`. L3 Task Agents receiving the merged dispatch see explicit MUST-fix mandates under `context.applicable_rules.reinforcement`.
+- **`severity_floor` parameter on `generate_reinforcement`**: optional kwarg (default `"major"`) for explicit severity filtering at generation time.
+- **`tests/test_e2e_convergence.py`** (C2): new 7-test end-to-end integration suite that exercises `select_context` + round escalation + `generate_round_dispatch` + reinforcement merge as a realistic 3-round convergence. Covers round-1 pass-through, round-2 budget+reinforcement, round-3 full escalation with metadata, MAX_REINFORCEMENT_RULES cap enforcement, severity-floor filtering, and round_num observability.
+
+### Metrics
+- Tests: 791 → **812 passed** (+21 new: 8 task-adaptive-selector, 6 feedback-reinforcement, 7 E2E)
+- Live verification: round 1 → 3 increases budget 4800 → 5760 exactly (+20%), `model_hint: balanced → quality`
+- Lint: ruff check + format clean
+- EvoBench: 26/26 pass, no regression
+- DeprecationWarnings: 0 (maintained from v6.0.2)
+- Coverage: maintained
+- NineS self-eval: 0.7405 overall (no regression)
+
+### Fixed (dead-wire closure)
+- **v5.3.0 P8 finally wired**: `apply_round_escalation` existed with passing unit tests since v5.3.0 but had no production callers. Now invoked automatically by `select_context()` on round > 1.
+- **v5.3.0 P4 finally wired**: `merge_reinforcement_into_dispatch` existed with passing unit tests since v5.1.0-pre but had no production callers. Now invoked by `ProposalGenerator.generate_round_dispatch()` during multi-round convergence.
+
+## [6.0.2] — 2026-04-16
+
+### Removed (BREAKING)
+- **`evaluate_gate_with_nines`**: Removed per v5.1 roadmap item P9. Use `evaluate_gate()` for gates, and call NineS separately via `devolaflow.nines.get_research_advice()` (defined in `devolaflow.nines.advisor`). See `MIGRATION-v6.md`.
+- **`run_nines_advisor`**: Removed. Advisor functionality was tied to the deprecated gate+NineS conflation. Use NineS directly or `devolaflow.nines.get_research_advice()`.
+- **Internal advisor helpers** (dead after `run_nines_advisor` removal): `should_invoke_advisor`, `_interpret_result`, `_extract_score`, `_extract_reasoning` and the `_SCORE_KEYS` / `_REASONING_KEYS` / `_APPROVE_STATUSES` / `_SCORE_THRESHOLD` constants; `GateVerdict` and `warnings` imports in `nines/advisor.py` also dropped.
+- **5 test classes retired** (29 tests total) from `tests/test_nines.py`: `TestEvaluateGateWithNines` (6), `TestRunNinesAdvisor` (6), `TestShouldInvokeAdvisor` (4), `TestInterpretResult` (11), `TestDeprecationWarnings` (2).
+
+### Added
+- **MIGRATION-v6.md**: 1-page migration guide documenting both removals, the dead helpers, and the stable v6.0 API surface.
+
+### Metrics
+- Tests: **791 passed** (−29 from v6.0.1's 820), 0 failed
+- EvoBench: 26/26 pass, no regressions
+- Lint: ruff check + format clean
+- DeprecationWarnings: **12 → 0**
+- Net LOC in core removal (5 files): **−519** (+6 / −525). MIGRATION-v6.md adds 32 lines (new file).
+
+## [6.0.1] — 2026-04-16
+
+### Removed
+- **MVP-SKILL.md legacy file**: Deleted `workflow-system/agent/MVP-SKILL.md` (317 lines) and swept 14 cross-references across README, quickstart (EN/ZH), demo, reference-dependencies, install.sh, build-site.sh, PR template, generate_human_docs.py, and design docs. CHANGELOG entries preserved (append-only history). `scripts/install.sh` keeps a backward-compat `mvp` alias documented in-line that routes to `install_standalone`.
+- **`_BUILTIN_SPECS` hardcoded plugin duplicate**: Removed the 78-line `_BUILTIN_SPECS` list from `src/devolaflow/plugins/loader.py`. `create_default_registry()` now loads from `workflow-system/agent/plugins.yaml` (single source of truth) with auto-discovery; an 8-line emergency NineS stub handles the YAML-absent case with a logged warning. 5 `test_builtin_*` tests renamed to `test_repo_yaml_*` and rewritten against the real YAML; 2 new tests cover auto-discovery and emergency-stub fallback.
+
+### Changed
+- **Rule reconciliation (TD-6)**: `.cursor/rules/change-process-rules.mdc` CP-3 rewritten to reference SF-3 as the authoritative version-location list (dropping the stale `CLAUDE.md (frontmatter + banner + body)` claim that contradicted the lightweight 38-line root CLAUDE.md). Root `CLAUDE.md` updated to "11 locations (8 files, rooted in `src/devolaflow/__init__.py`)" to match `scripts/bump_version.py` reality.
+
+### Fixed
+- **3 previously-silent rule contradictions**: CP-3 vs SF-3 vs CLAUDE.md version-location counts now consistent.
+
+### Metrics
+- Tests: **820 passed** (+2 from v5.4.2 for new emergency-stub tests), 0 failed
+- EvoBench: 26/26 pass, no regressions
+- Lint: ruff check + format clean
+- Net LOC: −295 (+156/−451 across 16 files touched + 1 file deleted)
+- MVP-SKILL references in source tree: 0 (down from 141)
+- DeprecationWarnings still present: 12 (removal scheduled for v6.0.2)
+
+## [5.4.2] — 2026-04-15
+
+### Changed
+- **Claude Code skill-based installation**: Claude Code now installs DevolaFlow as `.claude/skills/devola-flow/SKILL.md` with references and examples (identical structure to Cursor), instead of flat `CLAUDE.md`. Enables progressive 3-tier loading (~50 tokens at startup vs ~5000 previously), on-demand reference loading, and `/devola-flow` slash command.
+- **Root CLAUDE.md**: Now lightweight project context (~35 lines) instead of 496-line SKILL copy. Follows Claude Code best practice of keeping `CLAUDE.md` under 200 lines for passive project rules.
+- **install.sh / devola-init**: `install_claude()` installs to `.claude/skills/devola-flow/` with SKILL.md + 8 references + 3 examples, mirroring `install_cursor()` exactly.
+- **bump_version.py**: Reduced from 14 to 11 version locations (removed 3 CLAUDE.md entries since root CLAUDE.md no longer carries version strings).
+- **Parity achieved**: All 4 tools (Cursor, Codex, Claude, Copilot) now use identical skill directory structure.
+
+### Metrics
+- Tests: 818 passed (4 CLAUDE.md version tests removed), 0 failed
+- EvoBench: 30/30 scenarios pass
+- Lint: 0 errors
+
+## [5.4.1] — 2026-04-15
+
+### Changed
+- **Unified SKILL delivery**: All tools (Cursor, Codex, Claude Code, Copilot) now receive full `SKILL.md` instead of compressed `MVP-SKILL.md`, removing dual-file maintenance and ensuring the complete 14-primitive / 7-dimension framework everywhere.
+- **install.sh**: `install_codex`, `install_claude`, and `install_copilot` download full `SKILL.md` plus references; `mvp` target renamed to `standalone` (legacy `mvp` alias kept).
+- **devola-init CLI**: `install_claude`, `install_copilot`, and `install_codex` copy full `SKILL.md` instead of `MVP-SKILL.md`.
+- **Root CLAUDE.md**: Matches `workflow-system/agent/SKILL.md` in full, replacing the self-contained MVP variant.
+- **bump_version.py**: Sync locations updated from `MVP-SKILL.md` to root `CLAUDE.md` (14 references, down from 16).
+- **Repository rules**: All `.cursor/rules/*.mdc` files now reference `CLAUDE.md` instead of `MVP-SKILL.md`.
+
+### Deprecated
+- **MVP-SKILL.md**: Kept for backward compatibility; no longer used by installers or adapters. Scheduled for removal in a future release.
+
+### Metrics
+- Tests: 822 passed, 0 failed
+- EvoBench: 30/30 scenarios pass
+- Lint: 0 errors
+
+## [5.4.0] — 2026-04-15
+
+### Added
+- **User-Facing Verification Gate Dimensions**: Extended `GateInput` with 4 new optional fields (`visual_test_results`, `interaction_test_results`, `accessibility_results`, `acceptance_verification_results`) and `GateProfile` with 4 corresponding thresholds. New `EXTENDED_DIMENSION_WEIGHTS` (7-dimension composite) auto-selects when user-facing inputs are present, maintaining full backward compatibility with the original 4-dimension formula.
+- **Verification Scoring Functions**: `visual_fidelity_score()`, `interaction_quality_score()`, and `acceptance_verification_score()` in gate scorer for evaluating visual regression, interaction flows, and acceptance criteria respectively. All 4 profiles (STRICT/STANDARD/RELAXED/AUDIT) updated with user-facing thresholds.
+- **`verify` Stage Primitive (14th)**: New Verify-category primitive for user-facing validation — visual regression, acceptance verification, interaction flows, accessibility. Added to `VALID_PRIMITIVES`, `DEPENDENCY_LATTICE`, and meta-framework.md with full I/O contracts and configuration.
+- **`product-verification` Workflow Template**: 8-stage template (analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate) with `verification_cycle` convergence loop and `test_design_gate`/`verification_gate` quality gates.
+- **Full-Pipeline Verify Stage**: Updated `full-pipeline.yaml` with a verify stage between test and refine for user-facing validation in end-to-end workflows.
+- **4 New Context Profiles**: `verify_visual`, `verify_acceptance`, `verify_interaction`, `product_verification` — task-type-specific context for verification agents.
+- **4 New EvoBench Scenarios**: `visual_regression_webapp`, `acceptance_verification_feature`, `interaction_accessibility_test`, `product_verification_pipeline` — validating verification context assembly and scoring.
+
+### Changed
+- **Gate composite formula**: Extended from 4-dimension (test_quality 0.30, code_review 0.30, architecture 0.20, benchmark 0.20) to 7-dimension when user-facing inputs present (test_quality 0.20, code_review 0.20, architecture 0.15, benchmark 0.15, visual_fidelity 0.10, interaction_quality 0.10, acceptance_verification 0.10).
+- **team-roles.md**: Test team expanded with VERIFY step, visual/acceptance/interaction/accessibility I/O contracts.
+- **decomposition-gate.md**: Extended composite formula documentation, new dimension descriptions.
+- **Schemas updated**: `gate-report.schema.yaml`, `task-dispatch.schema.yaml`, `lean-dispatch.yaml` extended with verification fields.
+
+### Metrics
+- Tests: 822 passed (+19 from v5.3.0), 0 failed
+- EvoBench: 30/30 scenarios pass (4 new), no regressions
+- Lint: ruff check + format clean
+- Coverage: maintained ≥ 80%
+
 ## [5.3.0] — 2026-04-14
 
 ### Added

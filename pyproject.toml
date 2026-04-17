@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "5.3.0"
+version = "6.2.1"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}

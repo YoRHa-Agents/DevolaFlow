@@ -406,9 +406,21 @@ class TestLoadPluginSpecs:
 # ===========================================================================
 
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_PLUGINS_YAML = _REPO_ROOT / "workflow-system" / "agent" / "plugins.yaml"
+
+
 class TestCreateDefaultRegistry:
-    def test_creates_registry_with_builtins(self) -> None:
-        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+    """Exercise ``create_default_registry``.
+
+    ``plugins.yaml`` is the canonical plugin catalog (v6.0.1+); the legacy
+    ``_BUILTIN_SPECS`` table was removed in favor of a single YAML source of
+    truth. These tests load the real repo YAML so regressions in the catalog
+    (missing plugins, bad command strings) fail here.
+    """
+
+    def test_creates_registry_from_repo_yaml(self) -> None:
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         nines = reg.get("nines")
         assert nines is not None
         assert nines.cli_binary == "nines"
@@ -416,36 +428,40 @@ class TestCreateDefaultRegistry:
         assert ui is not None
         assert ui.cli_binary == "uipro"
 
-    def test_builtin_nines_pip_install_command(self) -> None:
-        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+    def test_repo_yaml_nines_pip_install_command(self) -> None:
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         nines = reg.get("nines")
         assert nines is not None
         expected = "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
         assert nines.install_methods["pip"] == expected
 
-    def test_builtin_nines_role_and_version(self) -> None:
-        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+    def test_repo_yaml_nines_role_and_version(self) -> None:
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         nines = reg.get("nines")
         assert nines is not None
         assert nines.role == "research_and_iteration"
         assert nines.min_version == "1.0.0"
 
-    def test_builtin_nines_capabilities(self) -> None:
-        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+    def test_repo_yaml_nines_capabilities(self) -> None:
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         nines = reg.get("nines")
         assert nines is not None
-        assert "benchmark" in nines.capabilities
-        assert "update" in nines.capabilities
+        assert nines.capabilities, "nines plugin should declare capabilities"
 
-    def test_builtin_nines_stage_mapping_and_workflows(self) -> None:
-        reg = create_default_registry(plugins_yaml="/nonexistent/path.yaml")
+    def test_repo_yaml_nines_stage_mapping_and_workflows(self) -> None:
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
         nines = reg.get("nines")
         assert nines is not None
         assert "research" in nines.stage_mapping
         assert "analyze" in nines.stage_mapping
         assert nines.workflows == ["research-only", "skill-optimization", "self-update"]
 
-    def test_loads_from_yaml_when_present(self, tmp_path: Path) -> None:
+    def test_auto_discovers_repo_yaml_when_no_arg(self) -> None:
+        reg = create_default_registry()
+        assert reg.get("nines") is not None
+        assert reg.get("ui-ux-pro-max") is not None
+
+    def test_loads_from_yaml_when_explicit(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
             plugins:
               extra-tool:
@@ -460,26 +476,38 @@ class TestCreateDefaultRegistry:
         yaml_file = tmp_path / "plugins.yaml"
         yaml_file.write_text(yaml_content)
         reg = create_default_registry(plugins_yaml=yaml_file)
-        assert reg.get("nines") is not None
-        assert reg.get("ui-ux-pro-max") is not None
+        # Only plugins from the explicit YAML are registered (no implicit merge
+        # with _BUILTIN_SPECS — it no longer exists).
         assert reg.get("extra-tool") is not None
+        assert reg.get("nines") is None
+        assert reg.get("ui-ux-pro-max") is None
 
-    def test_yaml_overrides_builtin(self, tmp_path: Path) -> None:
-        yaml_content = textwrap.dedent("""\
-            plugins:
-              nines:
-                description: "Overridden NineS"
-                cli_binary: "nines"
-                version_command: "nines --version"
-                version_regex: '(\\d+\\.\\d+\\.\\d+)'
-                install_methods: {}
-                capabilities: []
-                role: "custom"
-        """)
-        yaml_file = tmp_path / "plugins.yaml"
-        yaml_file.write_text(yaml_content)
-        reg = create_default_registry(plugins_yaml=yaml_file)
+    def test_emergency_stub_when_yaml_missing(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # Force auto-discovery to find nothing by cd'ing into an empty dir and
+        # patching the package-relative search to also fail.
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("devolaflow.plugins.loader._find_repo_plugins_yaml", lambda: None)
+        import logging as _logging
+
+        with caplog.at_level(_logging.WARNING, logger="devolaflow.plugins.loader"):
+            reg = create_default_registry()
+        # Emergency stub provides a minimal NineS entry so detection still works.
         nines = reg.get("nines")
         assert nines is not None
-        assert nines.description == "Overridden NineS"
-        assert nines.role == "custom"
+        assert nines.cli_binary == "nines"
+        assert "pip" in nines.install_methods
+        assert reg.get("ui-ux-pro-max") is None
+        assert any("plugins.yaml not found" in rec.message for rec in caplog.records)
+
+    def test_explicit_missing_path_falls_back_to_stub(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # When caller explicitly passes a non-existent path, we do NOT silently
+        # auto-discover the repo YAML — we fall through to the emergency stub
+        # so the caller's intent is preserved.
+        monkeypatch.setattr("devolaflow.plugins.loader._find_repo_plugins_yaml", lambda: None)
+        reg = create_default_registry(plugins_yaml=tmp_path / "nope.yaml")
+        assert reg.get("nines") is not None
+        assert reg.get("ui-ux-pro-max") is None

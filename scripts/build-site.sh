@@ -26,7 +26,6 @@ cp "$REPO_ROOT/doc/designs/"*.md "$SITE/designs/"
 
 # Downloadable skill files
 mkdir -p "$SITE/download"
-cp "$REPO_ROOT/workflow-system/agent/MVP-SKILL.md" "$SITE/download/"
 cp "$REPO_ROOT/workflow-system/agent/SKILL.md" "$SITE/download/"
 
 # Templates for architecture page

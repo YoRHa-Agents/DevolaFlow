@@ -71,7 +71,7 @@ DOCS = [
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "5.3.0"
+SOURCE_VERSION = "6.2.1"
 
 
 def _gen_doc(slug: str, title: str, desc: str, lang: str, output_dir: Path) -> None:
@@ -159,7 +159,7 @@ devola-init all          # all tools
 
 **Option C — Manual (single file):**
 
-Download [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and place it in:
+Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
 
 | Tool | Path |
 |------|------|
@@ -1143,7 +1143,7 @@ devola-init all          # 所有工具
 
 **方式 C — 手动安装（单文件）：**
 
-下载 [MVP-SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) 并放置到：
+下载 [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) 并放置到：
 
 | 工具 | 路径 |
 |------|------|

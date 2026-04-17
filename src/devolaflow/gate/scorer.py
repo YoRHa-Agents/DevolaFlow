@@ -1,12 +1,10 @@
 """Gate composite scorer and quality scorer.
 
 Design ref: design_decomposition_gate.md §5.3, §5.7
-NineS integration: §nines-integration
 """
 
 from __future__ import annotations
 
-import warnings
 from collections import Counter
 from collections.abc import Sequence
 
@@ -14,6 +12,7 @@ from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
+    CheckResult,
     ConvergenceRound,
     Finding,
     GateInput,
@@ -34,6 +33,16 @@ DEFAULT_DIMENSION_WEIGHTS: dict[str, float] = {
     "code_review": 0.30,
     "architecture": 0.20,
     "benchmark": 0.20,
+}
+
+EXTENDED_DIMENSION_WEIGHTS: dict[str, float] = {
+    "test_quality": 0.20,
+    "code_review": 0.20,
+    "architecture": 0.15,
+    "benchmark": 0.15,
+    "visual_fidelity": 0.10,
+    "interaction_quality": 0.10,
+    "acceptance_verification": 0.10,
 }
 
 ARS_DIMENSION_WEIGHTS: dict[str, float] = {
@@ -83,6 +92,66 @@ def composite_score(
     for dim, weight in weights.items():
         total += dimensions.get(dim, 0.0) * weight
     return round(total, 4)
+
+
+def visual_fidelity_score(results: CheckResult | None) -> float:
+    """Compute visual fidelity score from screenshot test results."""
+    if results is None or results.status == "skip":
+        return 100.0
+    if results.status == "fail":
+        details = results.details
+        total = int(details.get("screenshots_total", 1))
+        passing = int(details.get("screenshots_passing", 0))
+        return max(0.0, (passing / total) * 100) if total > 0 else 0.0
+    return 100.0
+
+
+def interaction_quality_score(
+    interaction_results: CheckResult | None,
+    accessibility_results: CheckResult | None,
+) -> float:
+    """Compute interaction quality from E2E flow results and accessibility scores."""
+    e2e_score = 100.0
+    if interaction_results is not None and interaction_results.status == "fail":
+        details = interaction_results.details
+        total = int(details.get("flows_total", 1))
+        passing = int(details.get("flows_passing", 0))
+        e2e_score = max(0.0, (passing / total) * 100) if total > 0 else 0.0
+
+    a11y_score = 100.0
+    if accessibility_results is not None and accessibility_results.status == "fail":
+        details = accessibility_results.details
+        critical = int(details.get("critical_violations", 0))
+        serious = int(details.get("serious_violations", 0))
+        moderate = int(details.get("moderate_violations", 0))
+        minor_v = int(details.get("minor_violations", 0))
+        a11y_score = max(0.0, 100.0 - (critical * 25 + serious * 15 + moderate * 5 + minor_v * 1))
+
+    return round(e2e_score * 0.60 + a11y_score * 0.40, 2)
+
+
+def acceptance_verification_score(results: CheckResult | None) -> float:
+    """Compute acceptance verification score from AC test results."""
+    if results is None or results.status == "skip":
+        return 100.0
+    if results.status == "fail":
+        details = results.details
+        total = int(details.get("criteria_total", 1))
+        passing = int(details.get("criteria_passing", 0))
+        return max(0.0, (passing / total) * 100) if total > 0 else 0.0
+    return 100.0
+
+
+def _has_user_facing_inputs(gate_input: GateInput) -> bool:
+    """Check if gate input includes any user-facing verification results."""
+    return any(
+        [
+            gate_input.visual_test_results is not None,
+            gate_input.interaction_test_results is not None,
+            gate_input.accessibility_results is not None,
+            gate_input.acceptance_verification_results is not None,
+        ]
+    )
 
 
 def score_acceptance_readiness(
@@ -376,6 +445,15 @@ def _compute_convergence_dimensions(gate_input: GateInput, q_score: float) -> di
 
     bench_detail = gate_input.build_status.details.get("benchmark_score")
     dims["benchmark"] = float(bench_detail) if bench_detail is not None else 100.0
+
+    # v5.4.0: User-facing verification dimensions
+    dims["visual_fidelity"] = visual_fidelity_score(gate_input.visual_test_results)
+    dims["interaction_quality"] = interaction_quality_score(
+        gate_input.interaction_test_results, gate_input.accessibility_results
+    )
+    dims["acceptance_verification"] = acceptance_verification_score(
+        gate_input.acceptance_verification_results
+    )
     return dims
 
 
@@ -388,7 +466,8 @@ def _evaluate_convergence(
     """Multi-round convergence gate (§5.7 flowchart)."""
     q_score = quality_score(gate_input.review_findings)
     dims = _compute_convergence_dimensions(gate_input, q_score)
-    score = composite_score(dims)
+    weights = EXTENDED_DIMENSION_WEIGHTS if _has_user_facing_inputs(gate_input) else None
+    score = composite_score(dims, weights)
     blocker_count = _count_severity(gate_input.review_findings, "blocker")
 
     meets = (
@@ -441,84 +520,6 @@ def _evaluate_convergence(
         composite_score=score,
         meets_threshold=False,
     )
-
-
-def evaluate_gate_with_nines(
-    gate_input: GateInput,
-    profile: GateProfile,
-    round_num: int = 1,
-    history: list[ConvergenceRound] | None = None,
-    gate_type: str = "standard",
-    nines_config: object | None = None,
-    advisor_config: object | None = None,
-    artifact_path: str = "",
-) -> GateVerdict:
-    """Evaluate a gate with optional NineS-backed scoring and advisor.
-
-    .. deprecated::
-        NineS is a research/iteration tool, not a gate scorer.  Use
-        :func:`evaluate_gate` for quality gates.  See
-        ``devolaflow.nines.researcher`` for NineS research capabilities.
-
-    Delegates to :func:`evaluate_gate` first, then — when NineS is
-    installed and *nines_config* is provided — enriches the verdict with
-    NineS dimension scores and advisor analysis.
-
-    All NineS imports are lazy so the gate package has no hard dependency
-    on the ``devolaflow.nines`` module.  When NineS is unavailable the
-    original verdict is returned unchanged.
-
-    Parameters
-    ----------
-    nines_config:
-        A ``NinesScorerConfig`` instance (from ``devolaflow.nines.scorer``).
-        ``None`` disables NineS scoring entirely.
-    advisor_config:
-        A ``NinesAdvisorConfig`` instance (from ``devolaflow.nines.advisor``).
-        ``None`` disables advisor enrichment.
-    artifact_path:
-        Filesystem path forwarded to NineS CLI commands.
-    """
-    warnings.warn(
-        "evaluate_gate_with_nines is deprecated. NineS is a research/iteration tool, "
-        "not a gate scorer. Use the standard evaluate_gate() for quality gates. "
-        "See devolaflow.nines.researcher for NineS research capabilities.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    verdict = evaluate_gate(gate_input, profile, round_num, history, gate_type)
-
-    if nines_config is None:
-        return verdict
-
-    try:
-        from devolaflow.nines.detector import detect_nines
-        from devolaflow.nines.scorer import nines_dimension_scores
-    except ImportError:
-        return verdict
-
-    status = detect_nines()
-    if not status.available:
-        return verdict
-
-    nines_scores = nines_dimension_scores(nines_config, artifact_path)
-
-    if verdict.composite_score is not None:
-        merged = composite_score(nines_scores)
-        verdict.composite_score = merged
-        verdict.meets_threshold = (
-            merged >= profile.composite_threshold and round_num >= profile.min_rounds
-        )
-        verdict.details["nines_dimension_scores"] = nines_scores
-
-    if verdict.advisor_recommended and advisor_config is not None:
-        try:
-            from devolaflow.nines.advisor import run_nines_advisor
-        except ImportError:
-            return verdict
-        verdict = run_nines_advisor(verdict, advisor_config, artifact_path)
-
-    return verdict
 
 
 def run_gate_cli(args: Sequence[str]) -> None:

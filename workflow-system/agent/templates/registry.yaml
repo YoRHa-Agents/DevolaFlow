@@ -121,6 +121,13 @@ templates:
     category: composite
     tags: [self-update, update, upgrade, refs, validate, meta]
 
+  - name: product-verification
+    path: builtin/product-verification.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [verify, visual, acceptance, interaction, accessibility, uat, e2e, product, quality]
+
   - name: nines-assisted
     path: builtin/nines-assisted.yaml
     source: builtin

@@ -10,15 +10,18 @@ Design ref: S02-T08-engine-infra.md §5 (Integration Point 5)
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
-from devolaflow.gate.models import Finding, GateVerdict
+from devolaflow.gate.models import Finding, GateVerdict, Severity
 from devolaflow.gate.reinforcement import (
     ReinforcementBlock,
     findings_to_reinforcement,
+    merge_reinforcement_into_dispatch,
 )
 from devolaflow.learnings import _now_iso, _read_lines
 
@@ -370,6 +373,7 @@ class ProposalGenerator:
         verdict: GateVerdict,
         round_num: int,
         target_score: float = 85.0,
+        severity_floor: Severity = "major",
     ) -> ReinforcementBlock | None:
         """Generate a :class:`ReinforcementBlock` from a gate verdict.
 
@@ -407,4 +411,40 @@ class ProposalGenerator:
             round_num=round_num,
             prior_score=prior_score,
             target_score=target_score,
+            severity_floor=severity_floor,
         )
+
+    def generate_round_dispatch(
+        self,
+        base_dispatch: dict[str, Any],
+        verdict: GateVerdict | None,
+        round_num: int,
+        target_score: float = 85.0,
+        severity_floor: Severity = "major",
+    ) -> dict[str, Any]:
+        """Produce a dispatch for convergence round ``round_num``.
+
+        V6-01 wiring: stitches :meth:`generate_reinforcement` into the
+        dispatch lifecycle so L3 Task Agents receive the reinforcement
+        block under ``context.applicable_rules.reinforcement`` on rounds
+        ≥ 2.  Round 1 is a pure pass-through — the first attempt has no
+        prior round to learn from.
+
+        The input ``base_dispatch`` is never mutated; a deep copy is
+        returned in all cases.
+        """
+        dispatch = copy.deepcopy(base_dispatch)
+
+        if round_num <= 1 or verdict is None:
+            return dispatch
+
+        block = self.generate_reinforcement(
+            verdict,
+            round_num=round_num,
+            target_score=target_score,
+            severity_floor=severity_floor,
+        )
+        if block is None:
+            return dispatch
+
+        return merge_reinforcement_into_dispatch(dispatch, block)

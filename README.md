@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-5.3.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-6.2.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -59,7 +59,7 @@ devola-init all          # all tools
 
 ### Manual (copy one file)
 
-Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/MVP-SKILL.md) and drop it in:
+Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and drop it in:
 
 | Tool | Project-local | User-global |
 |------|--------------|-------------|
@@ -74,7 +74,7 @@ Download [`MVP-SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaF
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 434+ tests, 18 templates
+make test && make validate-templates   # 434+ tests, 19 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -169,7 +169,7 @@ The agent will compare your installed version against the latest on GitHub and t
 
 ## What's Inside
 
-### 18 Built-in Workflow Types
+### 19 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
@@ -190,6 +190,7 @@ The agent will compare your installed version against the latest on GitHub and t
 | `onboarding` | New contributor, codebase intro | analyze → document → setup → verify |
 | `skill-optimization` | SKILL.md / skills, EvoBench, context density | survey → profile → optimize → benchmark → iterate → document |
 | `self-update` | Update references, track external changes | check-refs → research-updates → decompose → integrate → test → evaluate |
+| `product-verification` | verify, visual, acceptance, uat, e2e, product | composite |
 | NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
 
 ### 4-Layer Agent Hierarchy
@@ -216,17 +217,17 @@ ESCALATE: produce divergence report for human review
 
 ### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite (25 scenarios covering all 18 context profiles) that measures how effectively context is routed to agents:
+DevolaFlow includes a built-in benchmark suite (29 scenarios covering all 22 context profiles) that measures how effectively context is routed to agents:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 25 scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 29 scenarios
 python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
 python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
 python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Current avg composite: **99.51/100** with 100% relevance and 0% noise across all 25 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Current avg composite: **99.51/100** with 100% relevance and 0% noise across all 29 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Task Quality Score
 
@@ -256,7 +257,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v5.3.0"
+devola-version                   # prints "DevolaFlow v6.2.1"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -287,7 +288,7 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 5.0.0            # updates all 16 version locations
+python scripts/bump_version.py 5.0.0            # updates all 11 version locations
 python scripts/bump_version.py 5.0.0 --dry-run   # preview without writing
 ```
 
@@ -316,8 +317,7 @@ DevolaFlow/
     cli.py                    #   CLI entry points
   workflow-system/
     agent/                    # Agent-consumed content (md + yaml only)
-      SKILL.md                #   Tier 1 entry point (<500 lines)
-      MVP-SKILL.md            #   self-contained single-file version
+      SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
       references/             #   Tier 2: 8 domain reference files (200-500 lines)
       templates/builtin/      #   17 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs

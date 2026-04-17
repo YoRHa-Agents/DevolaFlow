@@ -1,0 +1,24 @@
+# Windsurf adapter — Codeium single-file rules, 8000-char budget
+name: windsurf
+display_name: Windsurf
+version_added: "6.0.4"
+tier: tier_1
+output:
+  base_dir: "."
+  files:
+    - source: "SKILL.md"
+      target: ".windsurfrules"
+      transform: keep_sections
+      keep_sections:
+        - "Quick Action Decision"
+        - "4-Layer Agent Hierarchy"
+        - "Gate Mechanism"
+        - "Dispatch & Report Protocol"
+      header_prefix: |
+        # DevolaFlow Rules (condensed for Windsurf)
+        Full skill: https://github.com/YoRHa-Agents/DevolaFlow
+      include_frontmatter: false
+budget:
+  type: chars
+  max: 8000
+  target_file: ".windsurfrules"

@@ -81,22 +81,24 @@ def test_dispatch_report_schema_roundtrip(schemas_dir: Path):
             assert "design_reference" in data
 
 
-def test_mvp_skill_under_500_lines(project_root: Path):
-    """Verify MVP SKILL.md is under 500 lines per design_delivery_architecture.md section 5.5."""
-    mvp = project_root / "workflow-system" / "agent" / "MVP-SKILL.md"
-    if not mvp.exists():
-        return
-    lines = mvp.read_text().splitlines()
-    assert len(lines) < 500, f"MVP-SKILL.md has {len(lines)} lines (limit: 500)"
+def test_claude_md_exists(project_root: Path):
+    """Verify root CLAUDE.md exists as project context."""
+    claude = project_root / "CLAUDE.md"
+    assert claude.exists(), "CLAUDE.md not found at project root"
+    lines = claude.read_text().splitlines()
+    assert len(lines) < 100, (
+        f"CLAUDE.md should be lightweight project context, has {len(lines)} lines"
+    )
 
 
-def test_mvp_skill_self_contained(project_root: Path):
-    """Verify MVP SKILL.md has no external file references."""
-    mvp = project_root / "workflow-system" / "agent" / "MVP-SKILL.md"
-    if not mvp.exists():
+def test_claude_md_is_project_context(project_root: Path):
+    """Verify root CLAUDE.md is lightweight project context (not a SKILL copy)."""
+    claude = project_root / "CLAUDE.md"
+    if not claude.exists():
         return
-    text = mvp.read_text()
-    assert "references/" not in text or "external" not in text.lower()
+    text = claude.read_text()
+    assert "## Build & Test" in text or "## Project Structure" in text
+    assert len(text.splitlines()) < 100
 
 
 def test_skill_md_under_500_lines(project_root: Path):
