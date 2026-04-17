@@ -5,6 +5,25 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.3] — 2026-04-16
+
+### Added
+- **3 new Tier-1 adapters via data-driven YAML**:
+  - `adapter_configs/zed.yaml` — Zed editor rules (`.rules/devola-flow.md` + `references/`)
+  - `adapter_configs/cline.yaml` — Cline autonomous agent rules (`.clinerules/devola-flow.md` + `references/`)
+  - `adapter_configs/roo.yaml` — Roo Code per-mode rules (`.roo/rules/devola-flow.md` + `references/`)
+  Each adapter is ≈25 LOC of YAML — no Python source changes required (validates the v6.0.4 data-driven pattern).
+- **install.sh** support for `zed`, `cline`, `roo` targets; `all` and `update` extended to include them. New `dl_skill_no_frontmatter` shell helper centralises the "download SKILL.md and strip YAML frontmatter" step shared by the 3 new installers.
+- **15-21 new tests** across 3 adapter test modules (5-7 tests per adapter).
+
+### Metrics
+- Adapter count: **8 → 11** (+3 platforms)
+- New YAML LOC: ~75 (avg 25 per adapter, vs ~80 LOC of Python in v6.0.4)
+- Tests: **967 → ~985** (target: +15-21 net)
+- All 11 adapters [OK] in `python -m devolaflow.build_skill`
+- No source code changes to `src/devolaflow/`
+- Lint clean, NineS stable
+
 ## [6.1.2] — 2026-04-16
 
 ### Fixed

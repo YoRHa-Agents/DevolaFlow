@@ -10,7 +10,7 @@
 #   curl -fsSL ... | bash -s update
 #
 # Targets:  cursor, codex, claude, copilot, kimicode, windsurf,
-#           standalone, all, auto (default), update
+#           zed, cline, roo, standalone, all, auto (default), update
 # Flags:    --global   install to the tool's user-wide location
 #           --project  install to the repo-local location (default)
 
@@ -92,6 +92,26 @@ stamp() {
   else
     date -u +"%Y-%m-%dT%H:%M:%SZ" > "$dir/$STAMP" 2>/dev/null || true
   fi
+}
+
+# Download SKILL.md and strip its YAML frontmatter into <dest>.
+# Used by adapters that consume rules-style markdown without frontmatter
+# (zed, cline, roo). Falls back to a raw copy if awk is unavailable.
+dl_skill_no_frontmatter() {
+  local dest="$1"
+  local tmp
+  tmp=$(mktemp 2>/dev/null) || tmp="${dest}.tmp"
+  if dl "$AGENT_BASE/SKILL.md" "$tmp" && [ -s "$tmp" ]; then
+    if command -v awk >/dev/null 2>&1; then
+      awk 'BEGIN{f=0} /^---$/{c++; if(c==2){f=1; next}} f==1' "$tmp" > "$dest"
+    else
+      cp "$tmp" "$dest"
+    fi
+    rm -f "$tmp"
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
 }
 
 # ── Installers ───────────────────────────────────────────────────
@@ -257,6 +277,111 @@ install_windsurf() {
   fi
 }
 
+install_zed() {
+  # Mirrors adapter_configs/zed.yaml: .rules/devola-flow.md (frontmatter
+  # stripped) + .rules/references/ tree. Global scope targets the Zed
+  # user-config rules directory (~/.config/zed/rules/).
+  local dir
+  if [ "$SCOPE" = "global" ]; then
+    dir="$HOME/.config/zed/rules"
+    info "Zed (global) -> $dir/"
+  else
+    dir=".rules"
+    info "Zed (project) -> $dir/"
+  fi
+
+  mkdir -p "$dir/references"
+
+  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
+    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
+  else
+    warn "Zed install failed (SKILL.md download empty)"
+    return 1
+  fi
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
+  stamp "$dir"
+  ok "Zed installed (devola-flow.md + 8 refs)"
+}
+
+install_cline() {
+  # Mirrors adapter_configs/cline.yaml: .clinerules/devola-flow.md
+  # (frontmatter stripped) + .clinerules/references/ tree. Project-only —
+  # Cline reads .clinerules/ relative to the workspace.
+  local dir=".clinerules"
+  if [ "$SCOPE" = "global" ]; then
+    warn "Cline has no user-wide install location; using project scope (.clinerules/)"
+  fi
+  info "Cline (project) -> $dir/"
+
+  mkdir -p "$dir/references"
+
+  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
+    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
+  else
+    warn "Cline install failed (SKILL.md download empty)"
+    return 1
+  fi
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
+  stamp "$dir"
+  ok "Cline installed (devola-flow.md + 8 refs)"
+}
+
+install_roo() {
+  # Mirrors adapter_configs/roo.yaml: .roo/rules/devola-flow.md (frontmatter
+  # stripped) + .roo/rules/references/ tree. Roo Code reads per-mode rule
+  # files from .roo/rules/ inside the workspace.
+  local dir=".roo/rules"
+  if [ "$SCOPE" = "global" ]; then
+    warn "Roo Code has no user-wide install location; using project scope (.roo/rules/)"
+  fi
+  info "Roo Code (project) -> $dir/"
+
+  mkdir -p "$dir/references"
+
+  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
+    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
+  else
+    warn "Roo Code install failed (SKILL.md download empty)"
+    return 1
+  fi
+
+  info "references (8 files):"
+  dl_batch "$dir" \
+    "references/agent-hierarchy.md" \
+    "references/meta-framework.md" \
+    "references/decomposition-gate.md" \
+    "references/repo-modes.md" \
+    "references/execution-protocol.md" \
+    "references/message-schemas.md" \
+    "references/team-roles.md" \
+    "references/context-isolation.md"
+
+  stamp "$dir"
+  ok "Roo Code installed (devola-flow.md + 8 refs)"
+}
+
 install_standalone() {
   info "Standalone -> devola-flow-skill.md"
   dl "$AGENT_BASE/SKILL.md" "devola-flow-skill.md" || true
@@ -294,6 +419,18 @@ do_update() {
   fi
   if [ -f ".windsurfrules" ] && head -20 ".windsurfrules" 2>/dev/null | grep -q "devola-flow"; then
     install_windsurf; found=1
+  fi
+  if [ -f ".rules/devola-flow.md" ]; then
+    SCOPE="project"; install_zed; found=1
+  fi
+  if [ -f "$HOME/.config/zed/rules/devola-flow.md" ]; then
+    SCOPE="global"; install_zed; found=1
+  fi
+  if [ -f ".clinerules/devola-flow.md" ]; then
+    install_cline; found=1
+  fi
+  if [ -f ".roo/rules/devola-flow.md" ]; then
+    install_roo; found=1
   fi
 
   if [ "$found" -eq 0 ]; then
@@ -349,13 +486,17 @@ case "$TARGET" in
   copilot)  install_copilot ;;
   kimicode) install_kimicode ;;
   windsurf) install_windsurf ;;
+  zed)      install_zed ;;
+  cline)    install_cline ;;
+  roo)      install_roo ;;
   standalone) install_standalone ;;
   # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
   # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
   mvp)        install_standalone ;;
   update)  do_update ;;
   all)     install_cursor; install_codex; install_claude; install_copilot; \
-           install_kimicode; install_windsurf ;;
+           install_kimicode; install_windsurf; \
+           install_zed; install_cline; install_roo ;;
   auto)    auto_detect ;;
   help|--help|-h)
     cat << USAGE
@@ -368,6 +509,9 @@ case "$TARGET" in
     copilot     Copilot (SKILL.md as instructions)
     kimicode    KimiCode (SKILL.md + refs + examples)
     windsurf    Windsurf (.windsurfrules, frontmatter stripped)
+    zed         Zed (.rules/devola-flow.md + references; --global supported)
+    cline       Cline (.clinerules/devola-flow.md + references; project-only)
+    roo         Roo Code (.roo/rules/devola-flow.md + references; project-only)
     standalone  Download standalone SKILL.md
     all         All tools
     update      Re-download latest to existing installs
