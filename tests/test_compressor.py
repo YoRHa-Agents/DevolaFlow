@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import pytest
+
 from devolaflow.compressor import (
     DROP_LIST,
     INTENSITY_TIERS,
+    DispatchLayoutError,
+    assert_dispatch_layout,
     compress_message,
+    compute_dispatch_lcp_pct,
     detect_drop_violations,
     validate_lean_format,
     validate_preserve_list,
 )
+from devolaflow.task_adaptive_selector import apply_round_escalation
 
 
 class TestPreserveValidation:
@@ -308,3 +314,87 @@ class TestIntensityTiers:
         for tier_name, tier in INTENSITY_TIERS.items():
             for drop in tier["active_drops"]:
                 assert drop in DROP_LIST, f"{drop} in {tier_name} not in DROP_LIST"
+
+
+class TestDispatchLayoutInvariant:
+    """v7.0.0 cache-layout-invariant tests (per ADR-001 §6).
+
+    Verifies the canonical dispatch order, the round-over-round LCP SLO
+    (>= 80% round 1->2, >= 70% round 1->3), and the additive rule for new
+    top-level keys.
+    """
+
+    @staticmethod
+    def _canonical_round_dispatch(round_num: int) -> dict:
+        """Lean dispatch in canonical order. Round 1 omits ``reinforce``;
+        rounds 2+ add it at canonical position 10."""
+        payload: dict = {
+            "hdr": {"id": "d-cache-001", "parent": "stage-cache", "layer": "wave"},
+            "task": {"id": "T-CACHE-001", "type": "code", "title": "cache layout probe"},
+            "goal": "demonstrate round-stable cached prefix",
+            "assumptions": ["dispatch renderer preserves insertion order"],
+            "pred": [{"ref": "ADR-001", "key_facts": ["LCP >= 80% r1->r2", "LCP >= 70% r1->r3"]}],
+            "files": ["src/devolaflow/compressor.py", "schemas/lean-dispatch.yaml"],
+            "rules": {"strategy": "standard", "lang": "python"},
+            "shared": "Python 3.11+, ruff, pytest",
+            "accept": ["assert_dispatch_layout accepts canonical", "LCP r1->r2 >= 80%"],
+        }
+        if round_num >= 2:
+            rule = {"id": f"F-{round_num:03d}", "sev": "blocker", "mandate": "honour invariant"}
+            payload["reinforce"] = {
+                "round": round_num,
+                "prior": 72.3 if round_num == 2 else 78.5,
+                "target": 85,
+                "rules": [rule],
+            }
+        payload["verify_cfg"] = {"visual": False, "accept": True}
+        payload["gate"] = {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2}
+        return payload
+
+    def test_assert_dispatch_layout_accepts_canonical(self):
+        assert assert_dispatch_layout(self._canonical_round_dispatch(round_num=1)) is None
+
+    def test_assert_dispatch_layout_rejects_reordered(self):
+        payload = self._canonical_round_dispatch(round_num=2)
+        keys = list(payload.keys())
+        i_pred, i_reinforce = keys.index("pred"), keys.index("reinforce")
+        keys[i_pred], keys[i_reinforce] = keys[i_reinforce], keys[i_pred]
+        reordered = {k: payload[k] for k in keys}
+        with pytest.raises(DispatchLayoutError) as exc_info:
+            assert_dispatch_layout(reordered)
+        assert "pred" in str(exc_info.value) and "reinforce" in str(exc_info.value)
+
+    def test_dispatch_prefix_is_stable_across_rounds(self):
+        r1 = self._canonical_round_dispatch(round_num=1)
+        r2 = self._canonical_round_dispatch(round_num=2)
+        r3 = self._canonical_round_dispatch(round_num=3)
+        for payload in (r1, r2, r3):
+            assert_dispatch_layout(payload)
+        baseline = {"token_budget": 4800, "section_priorities": {}, "model_hint": "balanced"}
+        round2_profile = apply_round_escalation(baseline, round_num=2)
+        round3_profile = apply_round_escalation(baseline, round_num=3)
+        assert round2_profile["token_budget"] >= baseline["token_budget"]
+        assert round3_profile["token_budget"] >= round2_profile["token_budget"]
+        lcp_12 = compute_dispatch_lcp_pct(r1, r2)
+        lcp_13 = compute_dispatch_lcp_pct(r1, r3)
+        assert lcp_12 >= 0.80, f"r1->r2 LCP {lcp_12:.4f} violates lcp_threshold_round_1_to_2"
+        assert lcp_13 >= 0.70, f"r1->r3 LCP {lcp_13:.4f} violates lcp_threshold_round_1_to_3"
+
+    def test_new_field_appended_not_inserted(self):
+        payload = self._canonical_round_dispatch(round_num=1)
+        appended = dict(payload, cache_hint={"prefix_pct": 0.83})
+        assert assert_dispatch_layout(appended) is None
+        keys = list(payload.keys())
+        keys.insert(keys.index("gate"), "cache_hint")
+        inserted = {k: ({"prefix_pct": 0.83} if k == "cache_hint" else payload[k]) for k in keys}
+        with pytest.raises(DispatchLayoutError) as exc_info:
+            assert_dispatch_layout(inserted)
+        assert "gate" in str(exc_info.value)
+
+    def test_assert_dispatch_layout_unknown_keys_after_spec(self):
+        payload = self._canonical_round_dispatch(round_num=1)
+        trailing = dict(payload, cache_hint={"prefix_pct": 0.83}, telemetry={"lcp": 0.83})
+        assert assert_dispatch_layout(trailing) is None
+        leading = {"telemetry": {"foo": "bar"}, **payload}
+        with pytest.raises(DispatchLayoutError):
+            assert_dispatch_layout(leading)

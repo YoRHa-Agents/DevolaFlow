@@ -354,7 +354,9 @@ class TestNewProfiles:
         result = select_context("feedback", profiles_path=PROFILES_YAML)
         assert result["profile_name"] == "feedback"
         assert result["total_tokens"] <= result["budget"]
-        assert result["budget"] == 2375
+        # v7.0.0: bumped 2375 → 2475 to fit rationalization_prevention after
+        # corrected line ranges (cache-layout invariant cycle, ADR-001).
+        assert result["budget"] == 2475
         assert len(result["selected_sections"]) > 0
         assert result["model_hint"] in VALID_MODEL_HINTS
 

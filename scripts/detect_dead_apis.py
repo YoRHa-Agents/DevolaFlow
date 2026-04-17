@@ -82,6 +82,12 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # agents and CI checks (validate dispatch/report compliance).
         "devolaflow.compressor:compress_message",
         "devolaflow.compressor:validate_lean_format",
+        # v7.0.0 cache-layout invariant validators — consumed by external
+        # workflow agents before sending lean dispatches; mandated by Rule P6
+        # in .cursor/rules/devola-flow-rules.mdc and ADR v7-ADR-001.
+        "devolaflow.compressor:assert_dispatch_layout",
+        "devolaflow.compressor:compute_dispatch_lcp_pct",
+        "devolaflow.compressor:DispatchLayoutError",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in

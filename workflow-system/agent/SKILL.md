@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "6.2.1"
+version: "7.0.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v6.2.1**
+> **Now Using DevolaFlow v7.0.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 6.2.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -284,12 +284,7 @@ Full alias table and per-workflow stage sequences: `references/meta-framework.md
 
 **Extended Composite (when user-facing verification is present):**
 `composite = test_quality×0.20 + code_review×0.20 + architecture×0.15 + benchmark×0.15 + visual_fidelity×0.10 + interaction_quality×0.10 + acceptance_verification×0.10`
-
-- `visual_fidelity`: Screenshot comparison pass rate (0-100)
-- `interaction_quality`: E2E flow success (60%) + accessibility score (40%)
-- `acceptance_verification`: Acceptance criteria test pass rate (0-100)
-
-When no user-facing verification inputs are present, the standard 4-dimension formula is used (backward compatible).
+- `visual_fidelity`: Screenshot comparison pass rate (0-100); `interaction_quality`: E2E flow success (60%) + accessibility (40%); `acceptance_verification`: AC test pass rate (0-100). Standard 4-dimension formula is used when no user-facing inputs are present (backward compatible).
 
 **Pass conditions (ALL required):**
 1. `composite_score >= threshold` (default 85)
@@ -362,6 +357,8 @@ context_injection:
 **MUST NOT leak:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
 **IS shared (via artifact summaries):** interface contracts, design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
 Full context injection spec: `references/context-isolation.md`
+**Cache layout (v7.0.0+):** Top-of-payload key order is fixed by the canonical layout invariant (`schemas/lean-dispatch.yaml#layout_invariant`).
+See `references/context-isolation.md` Cache-Layout Invariant subsection for rationale + the `assert_dispatch_layout` validator API.
 
 ## Dispatch & Report Protocol
 

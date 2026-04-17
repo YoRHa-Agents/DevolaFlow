@@ -20,10 +20,14 @@ __all__ = [
     "INTENSITY_TIERS",
     "PRESERVE_PATTERNS",
     "DROP_PATTERNS",
+    "DEFAULT_DISPATCH_LAYOUT",
+    "DispatchLayoutError",
     "validate_preserve_list",
     "detect_drop_violations",
     "compress_message",
     "validate_lean_format",
+    "assert_dispatch_layout",
+    "compute_dispatch_lcp_pct",
 ]
 
 # ---------------------------------------------------------------------------
@@ -296,3 +300,85 @@ def validate_lean_format(message: str, intensity: str = "standard") -> dict:
         "intensity": intensity,
         "details": details,
     }
+
+
+DEFAULT_DISPATCH_LAYOUT: list[str] = [
+    "hdr",
+    "task",
+    "goal",
+    "assumptions",
+    "pred",
+    "files",
+    "rules",
+    "shared",
+    "accept",
+    "reinforce",
+    "verify_cfg",
+    "gate",
+]
+
+
+class DispatchLayoutError(ValueError):
+    """Raised when a dispatch payload's top-level key order violates the
+    canonical layout invariant declared in lean-dispatch.yaml."""
+
+
+def assert_dispatch_layout(
+    payload: dict,
+    layout_spec: list[str] | None = None,
+) -> None:
+    """Validate that ``payload``'s top-level key insertion order is a
+    subsequence of the canonical layout (default ``DEFAULT_DISPATCH_LAYOUT``).
+
+    Each spec key may be absent, but none may appear out of order. Unknown keys
+    MUST appear after the last spec key (additive rule per ADR-001 §2). Raises
+    :class:`DispatchLayoutError` identifying the first violating key.
+    """
+    if not isinstance(payload, dict):
+        raise DispatchLayoutError(f"payload must be a dict, got {type(payload).__name__}")
+
+    spec = list(layout_spec) if layout_spec is not None else list(DEFAULT_DISPATCH_LAYOUT)
+    spec_index = {key: idx for idx, key in enumerate(spec)}
+    last_position = -1
+    seen_unknown = False
+
+    for key in payload:
+        if key not in spec_index:
+            seen_unknown = True
+            continue
+        if seen_unknown:
+            raise DispatchLayoutError(
+                f"spec key {key!r} appears after non-spec key(s); new top-level "
+                f"keys MUST be appended after {spec[-1]!r} (additive rule, ADR-001 §2)"
+            )
+        position = spec_index[key]
+        if position < last_position:
+            raise DispatchLayoutError(
+                f"key {key!r} (canonical position {position}) appears after "
+                f"{spec[last_position]!r} (canonical position {last_position}); "
+                f"canonical order is {spec!r}"
+            )
+        last_position = position
+
+
+def compute_dispatch_lcp_pct(payload_a: dict, payload_b: dict) -> float:
+    """Longest common prefix of the rendered YAML for two dispatch payloads,
+    as a fraction of ``payload_a``'s rendered byte length.
+
+    Used by the H.2 stability test (ADR-001 §6). Renders both via
+    ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` to
+    preserve insertion order across implementations. Returns 0.0 if
+    ``payload_a`` renders empty.
+    """
+    import yaml
+
+    bytes_a = yaml.safe_dump(payload_a, sort_keys=False, default_flow_style=False).encode("utf-8")
+    bytes_b = yaml.safe_dump(payload_b, sort_keys=False, default_flow_style=False).encode("utf-8")
+    if not bytes_a:
+        return 0.0
+    common = 0
+    for byte_a, byte_b in zip(bytes_a, bytes_b, strict=False):
+        if byte_a != byte_b:
+            break
+        common += 1
+    return common / len(bytes_a)

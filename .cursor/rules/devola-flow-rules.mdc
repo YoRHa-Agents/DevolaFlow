@@ -24,3 +24,11 @@ Every loop has a max_iterations ceiling. Every failure triggers a classified res
 ## Rule 5 — P5 Artifacts as Contracts
 
 Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
+
+## Rule 6 — P6 Preserve Cached Prefix
+
+Dispatch payloads MUST honour the canonical layout declared in
+`schemas/lean-dispatch.yaml#layout_invariant`. Use
+`devolaflow.compressor.assert_dispatch_layout(payload)` before send. New
+top-level keys MUST be appended after `gate` (position 12). Reordering
+existing keys is a release blocker per `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.

@@ -306,3 +306,27 @@ Context injection now supports density-aware loading:
 | Parallel tasks produce conflicting code | Shared file ownership | Re-partition files; ensure disjoint ownership in wave |
 | Task ignores interface contracts | relevant_interfaces not populated | Add interface signatures to context.relevant_interfaces |
 | Task quality low despite good design | Rules not loaded or wrong strategy | Check rules.loading_strategy matches task complexity |
+
+## 10. Cache Layout Invariant (v7.0.0+)
+
+Long agent sessions hit a cost wall when the prompt-cache hit rate falls below
+~90 %. The single largest operational lever is **structural stability of the
+dispatch prefix across convergence rounds** — when round-N restructures the
+cached prefix, the host KV-cache rebuilds from scratch (5–10× cost delta on
+long sessions).
+
+DevolaFlow declares a single canonical top-level key order for every lean
+dispatch. The order is **additive**: each key may be absent, none may be
+reordered, and new top-level keys MUST be appended after `gate` (position 12).
+
+**Canonical order (12 keys):** `hdr` → `task` → `goal` → `assumptions` →
+`pred` → `files` → `rules` → `shared` → `accept` → `reinforce` (round 2+
+only) → `verify_cfg` → `gate`. Source of truth:
+`schemas/lean-dispatch.yaml#layout_invariant`.
+
+**Validator:** `devolaflow.compressor.assert_dispatch_layout(payload)` raises
+`DispatchLayoutError` on any out-of-order or pre-spec-end unknown key.
+`compute_dispatch_lcp_pct(a, b)` returns the round-over-round prefix
+stability fraction. **SLO:** LCP ≥ 80 % round 1→2 and ≥ 70 % round 1→3,
+enforced by `tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds`.
+**Rationale:** `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.

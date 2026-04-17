@@ -143,48 +143,48 @@ sections:
     content_type: table
 
   context_isolation:
-    lines: "325-341"
-    tokens_est: 204
+    lines: "343-362"
+    tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "343-371"
+    lines: "363-394"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "373-383"
+    lines: "396-406"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "385-394"
+    lines: "408-417"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "396-424"
+    lines: "419-447"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "396-424"
+    lines: "419-447"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "396-424"
+    lines: "419-447"
     tokens_est: 343
     content_type: navigation
 
   task_quality_score:
-    lines: "426-450"
+    lines: "471-495"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "426-450"
-    tokens_est: 288
+    lines: "449-470"
+    tokens_est: 188
     content_type: table
 
   nines_advisor:
@@ -262,7 +262,7 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 4800
+    token_budget: 4950
     model_hints:
       default_tier: balanced
       overrides:
@@ -1231,7 +1231,7 @@ profiles:
       - "gate evaluation"
       - "learnings"
       - "retrospective"
-    token_budget: 2375
+    token_budget: 2475
     model_hints:
       default_tier: budget
       overrides:

@@ -5,6 +5,47 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] — 2026-04-17
+
+**MAJOR — opens the v7.0 → v7.1 staged-context-compression cycle by shipping J.1 only: the cache-layout invariant.**
+
+This release introduces the first publicly-documented governance contract on dispatch layout. It is an additive API at the Python level (no public function changes signature, no rendered dispatch produced by v6.x is invalidated), but a **backwards-incompatible governance constraint on any downstream tooling that previously assumed free reordering of top-level dispatch sections**. Per `.local/research/adr/v7-ADR-001-cache-layout-invariant.md` §2, every lean dispatch must henceforth honour the canonical 12-key order, and every new top-level key must be appended after `gate`. The MAJOR bump signals that constraint to ecosystem consumers; v7.0.1–v7.0.3 land additive primitives on top of it (default-off feature flags), and v7.1.0 flips the flags on with the cycle SI-3 evaluation and SI-8 retrospective.
+
+### Added
+- **`devolaflow.compressor.assert_dispatch_layout(payload, layout_spec=None)`**: runtime validator that raises `DispatchLayoutError` when a dispatch payload's top-level key insertion order is not a subsequence of the canonical layout, or when an unknown key appears before the last spec key. Honours the additive rule from ADR-001 §2.
+- **`devolaflow.compressor.compute_dispatch_lcp_pct(payload_a, payload_b)`**: rendered-YAML longest-common-prefix percentage helper backing the H.2 round-stability test (`yaml.safe_dump(..., sort_keys=False, default_flow_style=False)` byte-comparison).
+- **`devolaflow.compressor.DispatchLayoutError`**: new `ValueError` subclass for invariant violations.
+- **`devolaflow.compressor.DEFAULT_DISPATCH_LAYOUT`**: module-level canonical 12-key order constant (`hdr`, `task`, `goal`, `assumptions`, `pred`, `files`, `rules`, `shared`, `accept`, `reinforce`, `verify_cfg`, `gate`).
+- **`schemas/lean-dispatch.yaml#layout_invariant`**: new schema block declaring `version: 1`, `canonical_order` (12 keys), and `enforcement` (validator path, stability test path, `lcp_threshold_round_1_to_2: 0.80`, `lcp_threshold_round_1_to_3: 0.70`).
+- **`benchmarks/devolaflow_context/baselines/layout_invariant_v7.0.0.yaml`**: golden rendered dispatch (51 lines) used by the byte-comparison test below.
+- **5 new unit tests** in `tests/test_compressor.py::TestDispatchLayoutInvariant`: `test_assert_dispatch_layout_accepts_canonical`, `test_assert_dispatch_layout_rejects_reordered`, `test_dispatch_prefix_is_stable_across_rounds` (uses `compute_dispatch_lcp_pct` + `apply_round_escalation`; asserts LCP ≥ 0.80 round 1→2 and ≥ 0.70 round 1→3 — the H.2 SLO), `test_new_field_appended_not_inserted`, `test_assert_dispatch_layout_unknown_keys_after_spec`. Measured LCP on the synthetic 3-round payload: r1→r2 = 0.8487, r1→r3 = 0.8487 (both above threshold).
+- **1 new benchmark test** `tests/test_benchmarks.py::TestLayoutInvariantBaseline::test_layout_invariant_baseline`: byte-compares the canonical payload's `yaml.safe_dump` output against `benchmarks/devolaflow_context/baselines/layout_invariant_v7.0.0.yaml`. Drift fails CI in a dedicated assertion (renderer upgrade vs payload edit vs layout reorder all surface here).
+- **`workflow-system/agent/references/context-isolation.md`** new section 10 "Cache Layout Invariant (v7.0.0+)": rationale, 12-key canonical order, validator API, LCP SLO, ADR cross-link.
+- **`workflow-system/agent/SKILL.md`** Context Isolation section: 2-line cache-layout pointer to the new reference subsection and the validator API.
+- **`workflow-system/agent/context_profiles.yaml`**: `sections.context_isolation.lines` extended (and tokens_est bumped from 204 → 230); subsequent section line ranges shifted by +2 to mirror the SKILL.md growth.
+- **`.cursor/rules/devola-flow-rules.mdc` Rule 6 (P6 — Preserve Cached Prefix)**: workspace rule mandating `assert_dispatch_layout(payload)` before send + the additive-after-`gate` rule for new keys.
+
+### Changed
+- **`devolaflow.compressor.__all__`** extended with `DEFAULT_DISPATCH_LAYOUT`, `DispatchLayoutError`, `assert_dispatch_layout`, `compute_dispatch_lcp_pct`. No symbols removed; v6.x importers continue to work unchanged.
+
+### Metrics
+- Tests: 1009 → 1015 (+6: 5 unit + 1 benchmark baseline)
+- LCP measurement (synthetic 3-round task_id, ADR-001 §2 canonical layout): r1→r2 0.8487, r1→r3 0.8487, r2→r3 0.7049 — all above the SLO thresholds.
+- `devolaflow.compressor` coverage: ≥ 85 % (rule CP-2 floor for new module paths)
+- SKILL.md: 498 → 500 lines (within the 500 SF-1 cap)
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.0` (SF-3 / CP-3)
+- Benchmarks: no regressions on existing 29 EvoBench scenarios (SI-4 guard)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md`
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§A, B.6, F row 1, J.1
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.0 ships J.1 only. The remaining cycle slices land additively in v7.0.1 (J.2 tool-output truncation), v7.0.2 (J.3 hierarchical predecessor summary), v7.0.3 (J.4 + J.5 persistence probe + learnings v2), and v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective).
+
 ## [6.2.1] — 2026-04-17
 
 ### Fixed
