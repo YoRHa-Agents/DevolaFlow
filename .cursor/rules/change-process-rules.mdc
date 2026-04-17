@@ -16,7 +16,11 @@ python -m pytest tests/ --cov=devolaflow --cov-report=term-missing
 
 ## Rule CP-3 — Version Bump Protocol
 
-When bumping the version, update ALL locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify consistency. The canonical list of 7 synced locations is defined in rule SF-3 (`skill-format-rules.mdc`); the source of truth is `src/devolaflow/__init__.py`. For reference, the files touched are:
+When bumping the version, update ALL locations consistently using `scripts/bump_version.py`. The script performs 7 pattern replacements across the canonical files, then invokes `scripts/sync_cursor_skill.py` to bytewise-mirror the canonical skill into `.cursor/skills/devola-flow/`. After bumping, run `python -m pytest tests/test_version.py -v` to verify all 11 locations + the stamp agree.
+
+The canonical list of 11 synced locations is defined in rule SF-3 (`skill-format-rules.mdc`); the source of truth is `src/devolaflow/__init__.py`. For reference, the files touched are:
+
+**Canonical (pattern-replaced by `bump_version.py`):**
 
 1. `src/devolaflow/__init__.py` — `__version__` (source of truth)
 2. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, and body "Current version:" text
@@ -27,7 +31,14 @@ When bumping the version, update ALL locations consistently using `scripts/bump_
 7. `README.md` — badge and version example
 8. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
 
-Root `CLAUDE.md` is a lightweight project-context file and does NOT carry a version — do not add version frontmatter or banners to it. After bumping, also re-run `make sync-human-docs` to propagate the new version into generated docs.
+**Project-local mirror (auto-synced by `sync_cursor_skill.py`):**
+
+9. `.cursor/skills/devola-flow/SKILL.md` — bytewise mirror of (2)
+10. `.cursor/skills/devola-flow/references/*.md` — 8 bytewise mirrors of `workflow-system/agent/references/*.md`
+11. `.cursor/skills/devola-flow/examples/*.md` — 3 bytewise mirrors of `workflow-system/agent/examples/*.md`
+12. `.cursor/skills/devola-flow/.devola-flow-version` — single-line stamp, first line = `__version__`
+
+Root `CLAUDE.md` is a lightweight project-context file and does NOT carry a version — do not add version frontmatter or banners to it. After bumping, also re-run `make sync-human-docs` to propagate the new version into generated docs. If you edit `workflow-system/agent/SKILL.md` or any reference/example outside of a version bump, run `make sync-cursor-skill` before committing so the mirror stays current.
 
 ## Rule CP-4 — Gate Module Changes
 

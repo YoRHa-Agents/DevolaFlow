@@ -14,7 +14,10 @@ SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, 
 ## Rule SF-3 — Version Consistency
 
 The version string must match `src/devolaflow/__init__.py` `__version__` in ALL of these locations:
-1. SKILL.md frontmatter `version:`, banner, and body "Current version:" text
+
+**Canonical 7 (the ones `scripts/bump_version.py` pattern-replaces):**
+
+1. SKILL.md frontmatter `version:`, banner, and body "Current version:" text (file: `workflow-system/agent/SKILL.md`)
 2. `workflow-skill.yaml` identity section
 3. `pyproject.toml` version field
 4. `scripts/generate_human_docs.py` SOURCE_VERSION
@@ -22,7 +25,24 @@ The version string must match `src/devolaflow/__init__.py` `__version__` in ALL 
 6. `README.md` badge and version example
 7. `workflow-system/human/demo/benchmark-results/index.html` SAMPLE_DATA version
 
-Use `scripts/bump_version.py` for consistent bumps. After bumping, run `make sync-human-docs` then `python -m pytest tests/test_version.py -v` to verify.
+**`.cursor/skills/devola-flow/` project-local mirror (kept in sync bytewise by `scripts/sync_cursor_skill.py`):**
+
+8. `.cursor/skills/devola-flow/SKILL.md` — bytewise mirror of `workflow-system/agent/SKILL.md` (version strings propagate automatically)
+9. `.cursor/skills/devola-flow/references/*.md` — 8 bytewise mirrors of `workflow-system/agent/references/*.md`
+10. `.cursor/skills/devola-flow/examples/*.md` — 3 bytewise mirrors of `workflow-system/agent/examples/*.md`
+11. `.cursor/skills/devola-flow/.devola-flow-version` — single-line stamp equal to `__version__`
+
+The mirror set (12 content files + 1 stamp) is EXACTLY what `scripts/install.sh::install_cursor` downloads for Cursor end-users. Editing the mirror set here requires editing the same list in `scripts/sync_cursor_skill.py` and `scripts/install.sh` in lockstep.
+
+**Workflow:**
+
+```bash
+python scripts/bump_version.py <new-version>   # bumps canonical 7 + auto-syncs mirror
+make sync-human-docs                            # regenerate EN/ZH human docs
+python -m pytest tests/test_version.py -v       # asserts all 11 locations + stamp agree
+```
+
+`bump_version.py` invokes `sync_cursor_skill.py` at its final step, so the mirror cannot drift under normal bumps. If you edit `workflow-system/agent/SKILL.md` or any reference/example manually (without bumping), you MUST run `make sync-cursor-skill` before committing. `make all` and `make release-preflight` both include the sync as a safety net.
 
 ## Rule SF-4 — Valid Reference Links
 
