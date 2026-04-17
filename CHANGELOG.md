@@ -5,6 +5,91 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0] — 2026-04-16
+
+**Final release of the v6.0 + v6.1 rollup (12 waves, v5.4.2 → v6.2.0).**
+
+This version is a meta-release that closes the second self-update cycle (v6.1.0 → v6.2.0). It ships no new code on top of v6.1.5 — every line of the v6.2 cycle was already delivered across v6.1.1–v6.1.5. v6.2.0 stamps the cumulative release and ships the SI-8 retrospective.
+
+### Highlights of the v6.0 → v6.2 journey (cumulative)
+
+**Code quality / debt**
+- 12 → **0** `DeprecationWarning` lines (P9 honored in v6.0.2)
+- 141 → **0** MVP-SKILL.md cross-references (TD-3 in v6.0.1)
+- 92 LOC of `_BUILTIN_SPECS` removed (TD-2 in v6.0.1)
+- 3 → **0** rule contradictions (TD-6 in v6.0.1)
+- Dead-API CI guard active (G1 in v6.1.4)
+
+**NineS self-eval**
+- Overall: 0.7405 → **0.8805** (+18.9% — entirely from the v6.1.1 tool-config fix; zero source changes)
+- Capability mean: 0.7150 → **0.9150** (+27.97%)
+- Hygiene mean: 0.8000 stable (upstream NineS `code_coverage` parser bug remains)
+
+**Adapters / platforms**
+- 4 → **11** platforms supported (+7: KimiCode, Windsurf, Continue, OpenClaw, Zed, Cline, Roo Code)
+- New `AdapterRegistry` + `DataDrivenAdapter` engine: simple new adapters now ship as ~25 LOC of YAML (vs ~80 LOC of Python in v5.x)
+- 5 transforms supported: `copy`, `copy_tree`, `copy_with_frontmatter`, `strip_frontmatter`, `keep_sections` (the last one fixed Windsurf's 24,625 → 7,434 char real bug)
+- All 11 adapters report `[OK]` in `python -m devolaflow.build_skill`
+- `--tools cursor,kimicode,windsurf` selective build supported
+
+**Runtime correctness (dead-wire closure)**
+- v5.3.0 P8 finally wired: `apply_round_escalation` invoked automatically by `select_context(round_num=N)` (v6.0.3)
+- v5.3.0 P4 finally wired: `merge_reinforcement_into_dispatch` invoked by `ProposalGenerator.generate_round_dispatch` (v6.0.3)
+- v6.1.5: `apply_plan_mode_overrides` wired into `select_context(plan_mode=True)` with env var + marker file fallback
+
+**Tests / benchmarks**
+- 818 → **1009** total (+191 net, with 29 deprecated tests retired in v6.0.2)
+- Coverage 91.07% → **93.93%+** (`cli.py` 49% → 98%, `init_project.py` 59% → 94%, `composer.py` 66% → 100%)
+- `tests/test_e2e_convergence.py` (7 tests) — full template→gate→reinforcement integration
+- `tests/test_schema_parity.py` (6 tests) — schemas can no longer drift silently
+- `tests/test_dead_apis.py` (11 tests) — bug-class regression prevention
+- `tests/test_adapter_golden.py` (4 tests) — Cursor SKILL output structurally locked
+- 29 / 29 EvoBench scenarios with regression baseline (was 3 / 29)
+- Per-version `nines_self_eval_v*.json` snapshots in `.local/research/v6.0.0/` through `.local/research/v6.1.5/`
+
+**Tool configuration / governance**
+- `nines.toml` codifies the canonical `nines self-eval` invocation
+- `data/golden_test_set/` (10 TOML fixtures) unlocks NineS V1 scoring evaluators
+- `.cursor/rules/self-improve-iteration-rules.mdc` SI-2 updated with the canonical NineS invocation
+- `MIGRATION-v6.md` documents the v6.0.2 BREAKING removals
+- 2 SI-8 retrospectives at `.local/research/retrospective_v6.0_to_v6.1.md` and `.local/research/retrospective_v6.1_to_v6.2.md`
+
+### SI-3 evaluation (v6.2.0)
+
+Weighted composite **9.43 / 10** (threshold ≥ 8.5) — **READY for stable release.**
+
+### Wave-by-wave commit reference (v6.0 + v6.1 cycles)
+
+| Wave | Version | Commit | Theme |
+|------|---------|--------|-------|
+| 1 | v6.0.1 | `34bc586` | MVP-SKILL retirement + plugin loader + rule reconciliation |
+| 2 | v6.0.2 | `f4d93fc` | [BREAKING] deprecated API removal + MIGRATION-v6.md |
+| 3 | v6.0.3 | `c0112d6` | Dead-wire closure (apply_round_escalation + reinforcement merge) |
+| 4 | v6.0.4 | `ec9e14c` | AdapterRegistry + DataDrivenAdapter + KimiCode + Windsurf |
+| 5 | v6.0.5 | `931183e` | Schema parity + 29/29 EvoBench baselines |
+| 6 | v6.1.0 | `0fa4294` | Continue + OpenClaw + golden snapshots + coverage fixes |
+| 7 | v6.1.1 | `3c6f29f` | NineS tool-config (+18.9% overall — biggest single jump) |
+| 8 | v6.1.2 | `01eb0d0` | Windsurf compression fix (real bug, all 8 adapters [OK]) |
+| 9 | v6.1.3 | `5228d58` | +Zed +Cline +Roo (11 platforms total) |
+| 10 | v6.1.4 | `30c785e` | Dead-API CI guard (G1) |
+| 11 | v6.1.5 | `34b327f` | Plan-mode detection wired (V6-03) |
+| rollup | **v6.2.0** | (this) | Retrospective + final summary |
+
+Cycle artifacts:
+- `.local/research/v6.0.0_improvement_advice.md` — initial SI-1 planning gate
+- `.local/research/v6.0.0_improvement_advice_zh.md` — Chinese mirror
+- `.local/research/v6.2.0_improvement_advice.md` — second-cycle SI-1 planning gate
+- `.local/research/retrospective_v6.0_to_v6.1.md` — first cycle SI-8
+- `.local/research/retrospective_v6.1_to_v6.2.md` — second cycle SI-8
+
+### Metrics
+- Tests: 1009 passed (no change from v6.1.5; this is a meta-release)
+- All 11 adapters [OK]
+- Lint: ruff check + format clean
+- DeprecationWarnings: 0
+- NineS self-eval: 0.8805 stable
+- SKILL.md: 498 / 500 lines
+
 ## [6.1.5] — 2026-04-16
 
 ### Added
