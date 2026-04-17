@@ -1,0 +1,26 @@
+---
+description: "Hard constraints for DevolaFlow workflow orchestration — 5 invariants from design_agent_hierarchy.md §1"
+alwaysApply: true
+---
+
+## Rule 1 — P1 Dispatcher-Not-Implementer
+
+Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews.
+
+**Tool enforcement**: L0-L2 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement — delegate to L3 Task Agents via the `Task` tool. **Trivial exception**: Single file, < 20 lines — P1 waived.
+
+## Rule 2 — P2 Minimal Context
+
+Each agent layer receives only the context it needs. Project Agent: ~3K tokens (workflow template + status). Stage Agent: ~5K tokens (stage def + predecessor summaries). Wave Agent: ~4K tokens (task list + status). Task Agent: ~8K tokens (task spec + owned files + rules).
+
+## Rule 3 — P3 Structured Messages
+
+All inter-layer communication uses typed YAML message schemas (TaskDispatch, StatusReport, ExceptionEscalation). Free-form natural language between layers is prohibited.
+
+## Rule 4 — P4 Bounded Retry
+
+Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Stage→Project→Human.
+
+## Rule 5 — P5 Artifacts as Contracts
+
+Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
