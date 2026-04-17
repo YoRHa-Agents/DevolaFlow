@@ -22,6 +22,7 @@ meta:
   # summarise above 1000). Override per-profile by setting `summary_trigger_pct:`
   # under the profile's section_priorities sibling (additive, optional).
   summary_trigger_pct: 25
+  # v7.1.0: tool_output_truncation + summariser default-on for 6 decomposition profiles; opt-out per profile.
   compression_defaults:
     l0_to_l1: standard
     l1_to_l2: standard
@@ -333,11 +334,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Feature work needs the full hierarchy, stage primitives for planning,
       gate mechanism for quality control, and team roles for task dispatch.
@@ -470,11 +475,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Refactoring needs strong convergence loops and gates to ensure no
       regressions. Code review and test cycles are the primary quality mechanism.
@@ -650,11 +659,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Skill optimization focuses on measuring and improving context density.
       Gate mechanism is critical for evaluating optimization results. Context
@@ -729,11 +742,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Migrations need strong validation gates, convergence for iterative
       compatibility testing, and full hierarchy for multi-wave impl.
@@ -807,11 +824,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Security audits require strict gate evaluation, team roles for
       scan/analyze/remediate handoffs, and convergence for fix-verify cycles.
@@ -1093,11 +1114,15 @@ profiles:
       gen_verify_mode: true
       gen_verify_max_rounds: 3
     tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: false
+      enabled: true
       keep: 3
       exclude_tool_names: ["Read"]
       head_chars: 500
       tail_chars: 500
+    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
+      mode: extractive
+      max_tokens: 1200
+      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
     rationale: >
       Performance optimization uses profile→optimize→benchmark convergence
       loops. Gate mechanism validates benchmark improvements. Dispatch protocol

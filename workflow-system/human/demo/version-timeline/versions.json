@@ -572,5 +572,90 @@
       "Tests: 1009 passed (no count change), Lint clean, NineS stable"
     ],
     "metrics": { "tests": 1009, "nines": 0.8805 }
+  },
+  {
+    "version": "7.0.0",
+    "date": "2026-04-17",
+    "era": "compression",
+    "headline": "MAJOR — first publicly-documented cache-layout invariant (12-key canonical order). LCP SLO 80%/70% round-over-round.",
+    "summary": "Opens the staged-context-compression cycle (J.1 + ADR-001). New runtime validator assert_dispatch_layout(payload) + DispatchLayoutError pin the canonical section order of every lean dispatch; Rule P6 in .cursor/rules/devola-flow-rules.mdc forbids reordering existing keys (additive-only after gate).",
+    "highlights": [
+      "assert_dispatch_layout(payload) validator + DispatchLayoutError + DEFAULT_DISPATCH_LAYOUT constant in devolaflow.compressor",
+      "12-key canonical order (hdr → task → budget → files → rules → pred → learnings → inv → rep → escalation → checkpoint → gate)",
+      "LCP stability metric compute_dispatch_lcp_pct — measured r1→r2 = 0.8487, r1→r3 = 0.8487 (thresholds 0.80 / 0.70)",
+      "+6 tests (5 unit for layout/LCP/error paths + 1 baseline byte-comparison)",
+      "Benchmark baseline at benchmarks/devolaflow_context/baselines/layout_invariant_v7.0.0.yaml",
+      "Rule P6 (Preserve Cached Prefix) added to .cursor/rules/devola-flow-rules.mdc + layout_invariant: block in schemas/lean-dispatch.yaml",
+      "SKILL.md stays at 498 / 500 lines (SF-1 budget honoured)"
+    ],
+    "metrics": { "tests": 1015, "nines": 0.8805 }
+  },
+  {
+    "version": "7.0.1",
+    "date": "2026-04-17",
+    "era": "compression",
+    "headline": "Tool-output truncation primitive (clear_old_tool_uses) — deterministic prompt-side compaction for multi-round dispatch",
+    "summary": "Second slice (J.2 + ADR-002). Ships head/tail truncation + most-recent-N + exclude-by-name policy for prior-round tool_use payloads. Default disabled per profile; v7.1.0 flips the flag. Appended tool_results: block lands after gate per P6 additive rule.",
+    "highlights": [
+      "clear_old_tool_uses(tool_uses, keep=3, exclude_tool_names=(\"Read\",)) — most-recent-N policy with exclude-by-name",
+      "truncate_tool_output() helper (head 500 + placeholder + tail 500) + ToolUseTruncation frozen dataclass",
+      "6 decomposition-enabled profiles gain tool_output_truncation: block (default enabled: false)",
+      "sub_agent_context_budget lifted 3000 → 5000 tokens (resolves K.8)",
+      "+8 unit tests (TestToolOutputTruncation, all passing)",
+      "New EvoBench scenario compression_tool_output (composite 98.33); v7.0.1_baseline.json regenerated (30 scenarios full coverage)",
+      "schemas/lean-report.yaml: tool_results: { policy, summary } appended at file end (P6 additive)"
+    ],
+    "metrics": { "tests": 1023, "nines": 0.8805 }
+  },
+  {
+    "version": "7.0.2",
+    "date": "2026-04-17",
+    "era": "compression",
+    "headline": "Deterministic extractive summariser — summarise_predecessor + extract_named_entities (8 entity classes)",
+    "summary": "Third slice (J.3 + ADR-003). Extractive-by-default predecessor summariser with verbatim key_facts prefix + schema-hint-prioritised sections (no paraphrase per CO-2). Resolves K.1 with forced-summarisation threshold summary_trigger_pct = 25%.",
+    "highlights": [
+      "summarise_predecessor(artifact_path, max_tokens=500, mode=\"extractive\", schema_hint=None) — returns 7-key dict (summary_text, mode, token_count, extracted_entities, covered_sections, dropped_sections, was_bounded)",
+      "extract_named_entities(text) over 8 classes (file_paths, task_ids, version_strings, commit_hashes, metric_values, error_messages, acceptance_criterion_bullets, interface_signatures) — first six reuse PRESERVE_PATTERNS for CO-2 lock-step",
+      "Nested per-pred summary_mode / summary_max_tokens schema fields (honours P6 — no new top-level keys)",
+      "3 new EvoBench compression_retention scenarios (easy 99.62 / medium 99.23 / hard 98.55)",
+      "3 new NineS golden TOMLs (compression_retention_easy/medium/hard.toml — 3 / 5 of K.6)",
+      "+10 unit tests; meta.summary_trigger_pct = 25 in workflow-system/agent/context_profiles.yaml (resolves K.1)",
+      "abstractive mode wired at schema level (NotImplementedError at v7.0.2) — flip-ready for v7.2+"
+    ],
+    "metrics": { "tests": 1033, "nines": 0.8805 }
+  },
+  {
+    "version": "7.0.3",
+    "date": "2026-04-17",
+    "era": "compression",
+    "headline": "End-to-end persistence probe (carry_through 1.0/1.0/1.0 vs SLO 1.0/0.9/0.9) + Learnings v2 additive schema",
+    "summary": "Fourth slice — J.4 probe harness + J.5 learnings v2 (decay, session pinning, consolidate_session). Resolves K.5 (stay JSONL, no FS memory tool).",
+    "highlights": [
+      "tests/test_e2e_compression.py + tests/_probe_fixtures.py persistence probe (easy / medium / hard at 5 / 20 / 50 entities; 75/75 seeded entities preserved)",
+      "4 new additive Learning fields (confidence_half_life_days, last_accessed, pinned_for_session, promotion_count)",
+      "3 new helpers (consolidate_session, decay_confidence, pin_learning_for_session) + session_id parameter on load_relevant_learnings()",
+      "Linear decay with DECAY_FLOOR = 0.1 prune; ADR-005 §2.4 lazy migration shim backfills last_accessed from timestamp (legacy v1 JSONL parses unchanged)",
+      "+32 tests (probe + learnings v2 schema + coverage-floor class); devolaflow.learnings coverage 81 % → 97.35 %",
+      "Telemetry at .local/research/v7.0.3_probe_telemetry.json — carry-through 1.0 across all 3 tiers, elapsed 0.011 / 0.049 / 0.122 s",
+      "Resolves K.5 (JSONL + confidence decay + session pinning; no file-system memory tool)"
+    ],
+    "metrics": { "tests": 1090, "coverage_pct": 95.68, "nines": 0.8805 }
+  },
+  {
+    "version": "7.1.0",
+    "date": "2026-04-17",
+    "era": "rollup",
+    "headline": "Final rollup — 6 decomposition profiles flip to default-on (truncation + extractive summary). SI-3 composite 9.47 / 10.",
+    "summary": "Cycle closer — no new primitives. Adoption opt-in → default-on, 2 final NineS goldens, v7.1.0 baseline regenerated (33 scenarios, 0pp drift), SI-8 retrospective + SI-3 scorecard.",
+    "highlights": [
+      "tool_output_truncation.enabled: true default across 6 decomposition profiles (previously opt-in since v7.0.1)",
+      "summary.mode: extractive + max_tokens: 1200 + trigger_pct: 25 added under same profiles",
+      "2 final NineS goldens (compression_tool_output.toml + compression_persistence.toml) — closes K.6 at 15 / 15",
+      "benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json regenerated under deterministic fallback estimator (33 scenarios, 0 pp drift)",
+      "workflow-system/agent/references/context-isolation.md §§12 – 15 added (Hierarchical Summariser / Persistence Probe / Learnings v2 / Staged Compression)",
+      "retrospective_v7.0_to_v7.1.md authored (SI-8) + v7.1.0_evaluation_report.md authored (SI-3)",
+      "SKILL.md stays at 498 / 500 lines; 1100 tests, 94 % compressor coverage, NineS 0.8805 stable"
+    ],
+    "metrics": { "tests": 1100, "coverage_pct": 95.68, "nines": 0.8805 }
   }
 ]

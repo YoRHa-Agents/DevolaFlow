@@ -5,6 +5,62 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.0] — 2026-04-17
+
+**MINOR — rollup release closing the v7.0 → v7.1 staged-context-compression cycle. Fifth and final slice: no new primitives — adoption, integration, and retrospective. Flips 6 decomposition profiles to default-on for `tool_output_truncation` + extractive `summary`. Ships the final 2 NineS compression goldens (`compression_tool_output` + `compression_persistence`), regenerates `v7.1.0_baseline.json` (33 scenarios, 0 pp drift vs v7.0.2). SI-3 composite **9.47/10** — READY for stable tag.**
+
+This release closes the staged-context-compression cycle opened in v7.0.0 (Cache-Layout Invariant), advanced in v7.0.1 (tool-output truncation), v7.0.2 (hierarchical predecessor summariser), and v7.0.3 (persistence probe + Learnings v2). No new primitives or public APIs ship — v7.1.0 is the **adoption + integration + retrospective** slice: the 6 decomposition profiles that previously had `tool_output_truncation.enabled: false` now flip to `true`, each gaining a default `summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25}` block under `predecessor_summary`. The final two NineS compression goldens ship (closing open question K.6), and the EvoBench baseline is regenerated under the deterministic fallback estimator against the frozen v7.0.2 scoring rubric to confirm 0 pp composite drift across all 33 scenarios. Code/config delta is lean (~89 LOC); the bulk of the delta is documentation (§§12-15 in `context-isolation.md`: ~140 lines) and research artefacts (retrospective 312 LOC + SI-3 scorecard 220 LOC, stored under `.local/research/`). SI-3 composite lands at **9.47/10** (threshold ≥ 8.5, target ≥ 8.8), verdict **READY**. Open questions K.2 (plan-mode stays L1-only for v7.x), K.6 (all 5 compression goldens shipped), and K.7 (stay prompt-side for v7.x; OEM outreach deferred to v8.x) are resolved.
+
+### Added
+- **`data/golden_test_set/compression_tool_output.toml`** (CREATE, 3 cases) — NineS golden extracted verbatim from `tests/test_compressor.py::TestToolOutputTruncation`. Cases cover the three truncation tiers: `head_tail_short_output_no_truncation` (below threshold, passthrough), `middle_elision_mid_output` (head/tail marker emission), and `extractive_summary_above_cap` (cap-based extractive fallback). Each case pins the expected `truncated_bytes`, marker text (`[... N lines elided ...]`), and token counts so the golden exercises the primitive's full decision tree.
+- **`data/golden_test_set/compression_persistence.toml`** (CREATE, 3 tiers) — NineS golden sourced verbatim from `.local/research/v7.0.3_probe_telemetry.json`. Tiers: `easy` (5 entities, SLO carry-through ≥ 1.0), `medium` (20 entities, SLO ≥ 0.9), `hard` (50 entities, SLO ≥ 0.9). Telemetry-observed carry-through is `1.0 / 1.0 / 1.0`, all passing their SLO. Closes open question K.6 — with the 3 compression goldens shipped in v7.0.1/v7.0.2 plus these 2, all 5 compression goldens from the v7 roadmap §K.6 are delivered.
+- **`benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`** (CREATE, 33 scenarios) — regenerated under the deterministic fallback estimator with the frozen v7.0.2 scoring rubric. Per-scenario composite range `[84.13, 99.80]`; zero drift vs v7.0.2 baseline (SI-4 max-drift ceiling 5 pp preserved). Consumed by `tests/test_benchmarks.py::test_v7_1_0_baseline_present_and_healthy`.
+- **`workflow-system/agent/references/context-isolation.md` §§ 12-15** (394 → 533 lines, +139):
+  - §12 **Hierarchical Predecessor Summariser** — shape-preserving extraction algorithm from v7.0.2, preserve-list semantics (file paths, task ids, version strings, commit hashes, metric values, numeric ranges, interface signatures, named references = 8 ADR-003 NER classes), trigger / skip rules tied to `predecessor_summary.trigger_pct` and `predecessor_summary.max_tokens`.
+  - §13 **Persistence Probe** — v7.0.3 probe harness (`tests/test_e2e_compression.py` + `tests/_probe_fixtures.py`), carry-through metric definition, tier SLOs (easy 1.0 / medium 0.9 / hard 0.9), paraphrase-FAIL / missing-FAIL / case-mismatch-FAIL classification, telemetry schema emitted to `.local/research/v7.0.3_probe_telemetry.json`.
+  - §14 **Operational Learnings v2** — Learnings v2 schema (confidence decay linear `new_conf = conf - 0.5 * min(1, delta_days / half_life)`, `DECAY_FLOOR=0.1`, session pinning via `pinned_for_session`, `consolidate_session(session_id, ...)`), lazy migration shim for v1 entries, `session_id` flow through `load_relevant_learnings`.
+  - §15 **Staged Compression — End-to-End Flow** — consolidated cross-version walkthrough tying v7.0.0 cache invariant, v7.0.1 tool truncation, v7.0.2 predecessor summariser, v7.0.3 probe + Learnings v2, and v7.1.0 adoption into a single diagram + narrative of how a Stage A → Stage B handoff now preserves critical entities under the 8K L3 budget.
+- **`workflow-system/human/demo/version-timeline/versions.json`** — **+5 entries** (v7.0.0, v7.0.1, v7.0.2, v7.0.3, v7.1.0), raising total to 40. Each entry carries `headline`, `summary`, `highlights[]`, and `metrics{}`, and is tagged with the new `compression` era.
+- **`workflow-system/human/demo/version-timeline/index.html`** — compression era section added with filter chip, hero tagline updated to reflect cycle closure.
+- **`workflow-system/human/demo/shared/i18n.js`** — `vt.era.compression` keys in EN+ZH (`compression` / `上下文压缩`), plus compression-era filter chip strings.
+- **`.local/research/retrospective_v7.0_to_v7.1.md`** (CREATE, 312 lines — **NOT committed; `.local/` is gitignored**) — SI-8 retrospective covering the full cycle: 7 gaps identified, 5-version delivery table, 6 deferrals with rationale, 8 learnings, cross-version metrics, process notes, next-iteration bullets for v7.2+.
+- **`.local/research/v7.1.0_evaluation_report.md`** (CREATE, 220 lines — **NOT committed; `.local/` is gitignored**) — SI-3 scorecard: composite **9.47/10** (Code quality 9.5 · Architecture 9.7 · Test adequacy 9.5 · Maintainability 9.0 · Compatibility 9.5 · Performance 9.5). 0 blockers, 0 criticals, 2 minor follow-ups queued for v7.2+.
+- **Cross-repo artefact** — `EvoBench/.local/feedbacks/feedbacks_from_devola/7.1.0.md` (496 lines, **lives in the EvoBench repository — NOT part of this commit**). Authored as evaluation-mode feedback with 9 proposals: persistence-probe scorer, LCP harness, golden ingestion, truncation fidelity, decay-aware scoring, session-pinning, composite rebalancing, 11-adapter parity, flake-rate tracking.
+
+### Changed
+- **`workflow-system/agent/context_profiles.yaml`** — 6 decomposition profiles flip `tool_output_truncation.enabled: false → true` and gain a `summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25}` block under their `predecessor_summary` section:
+  - `feature`, `refactor`, `skill-optimization`, `migration`, `security-audit`, `perf-optimization`.
+  - Opt-out documented per-profile via the pre-existing `tool_output_truncation.override` knob; hotfix / docs / research-heavy profiles remain unaffected.
+- **`workflow-system/human/demo/version-timeline/version-timeline.js`** — `ERAS` array gains `"compression"`; rollup description copy refreshed to cover the staged-compression cycle.
+- **`workflow-system/human/demo/benchmark-results/index.html`** — `SAMPLE_DATA.version` 7.0.3 → 7.1.0 (bumped via `scripts/bump_version.py`); round 6 `v7_staged_compression` dataset added with 5 compression scenarios (per-scenario composite range `[98.33, 99.80]`).
+- **`tests/test_benchmarks.py`** — `V6_BASELINE_PATH` retargets from the v7.0.2 baseline path to `benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`; accompanying healthy-baseline assertions updated to match the new filename.
+
+### Open questions resolved
+- **K.2** — plan-mode scope. Resolution: **plan-mode stays L1 (Stage) only for v7.x**. Rationale: the v6.x convergence loop and v7.0 probe harness already cover the planning reinforcement loop at L1; promoting plan-mode to L0 (Project) would couple project-level orchestration to per-stage planning assumptions. Revisit in v8.x if reinforcement metrics show a gap.
+- **K.6** — compression goldens. Resolution: **all 5 shipped** (3 in v7.0.1/v7.0.2 — `compression_cache_invariant`, `compression_predecessor_summary`, `compression_staged_end_to_end`; 2 in v7.1.0 — `compression_tool_output`, `compression_persistence`).
+- **K.7** — OEM outreach / runtime-side compression. Resolution: **stay prompt-side for v7.x**. The staged-compression primitives ship as deterministic prompt-level transforms so they compose with every adapter in the 11-adapter matrix without runtime coupling. A runtime-side / OEM outreach protocol is deferred to v8.x.
+
+### Metrics
+- Tests: 1090 → **1100** (+10 from the 2 new NineS compression goldens' verification tests).
+- Coverage: `devolaflow.compressor` 94 %, `devolaflow.learnings` 97 %, total **94.37 %** (rule CP-2 floor 80 %; v7.0.3 ≥ 90 % target preserved).
+- NineS composite: **0.8805** (stable vs v7.0.3).
+- EvoBench benchmarks: **34/34 pass**, **0 pp** composite drift vs v7.0.2 baseline across all 33 scenarios (SI-4 max-drift ceiling 5 pp preserved).
+- SKILL.md line count: **498 / 500** (SF-1 satisfied — body unchanged from v7.0.3; only frontmatter/banner/body version strings bumped via `scripts/bump_version.py`).
+- LOC delta: production code / config **~89** (mostly `context_profiles.yaml` flips + baseline JSON + 2 golden TOMLs + web-demo JS/HTML); docs + research **~1450** (§§12-15 in `context-isolation.md` ~140 LOC + retrospective 312 + SI-3 scorecard 220 + EvoBench feedback 496 + versions.json + CHANGELOG + misc).
+- Lint: `ruff check` + `ruff format --check` clean (SI-10 #2, #3).
+- SI-10 pre-commit: **5 / 5 pass** (full tests, ruff check, ruff format, test_version, test_benchmarks).
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.1.0` (SF-3 / CP-3); `make sync-human-docs` regenerated EN/ZH human docs.
+
+### Cross-references
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.1.0 (rollup slice).
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§K.2, K.6, K.7 (resolved), §G (adoption matrix).
+- Retrospective: `.local/research/retrospective_v7.0_to_v7.1.md` (SI-8).
+- SI-3 evaluation: `.local/research/v7.1.0_evaluation_report.md`.
+- Cross-repo: `EvoBench/.local/feedbacks/feedbacks_from_devola/7.1.0.md` (EvoBench repo; 9 evaluation-mode proposals).
+
+### Scope (v7.0 → v7.1 cycle closure)
+v7.1.0 closes the cycle that began with v7.0.0 (Cache-Layout Invariant, J.1). The five-slice delivery is: v7.0.0 J.1 → v7.0.1 J.2 → v7.0.2 J.3 → v7.0.3 J.4+J.5 → v7.1.0 adoption. With K.2 / K.6 / K.7 resolved, the staged-compression primitives are now default-on across 6 decomposition profiles and the SI-3 scorecard clears the stable-release threshold. Verdict: **READY** for stable tag.
+
 ## [7.0.3] — 2026-04-17
 
 **MINOR — fourth slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.4 + J.5 together (end-to-end persistence-probe harness + Learnings v2 additive schema with confidence decay, session pinning, and consolidate_session). Resolves K.5 (stay JSONL, no file-system memory tool).**

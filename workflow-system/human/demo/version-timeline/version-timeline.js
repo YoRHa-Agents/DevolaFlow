@@ -38,17 +38,19 @@
 
   /* ----- 22 SPEC-REQUIRED page-specific keys (EN) ----- */
   var EN_REQUIRED = {
-    'vt.subtitle':              'From v0.1.0 to v6.2.1 — five eras of guarded change.',
+    'vt.subtitle':              'From v0.1.0 to v7.1.0 — six eras of guarded change.',
     'vt.era.foundations':       'Foundations',
     'vt.era.evobench':          'EvoBench & Hardening',
     'vt.era.selfImprove':       'Self-Improvement Loops',
     'vt.era.platforms':         'Platforms & Closure',
+    'vt.era.compression':       'Staged Context Compression',
     'vt.era.rollup':            'Rollup & Stabilization',
     'vt.era.foundations.desc':  'v0.1.0 – v2.2.0: scaffolding, the first 11 templates, +93% information density.',
     'vt.era.evobench.desc':     'v3.0.0 – v3.9.x: EvoBench, repository rules, full workflow coverage, P1 enforced.',
     'vt.era.selfImprove.desc':  'v4.0.0 – v5.4.2: model routing, plugin registry, NineS, reinforcement infrastructure.',
     'vt.era.platforms.desc':    'v6.0.0 – v6.1.5: 11 platforms, dead-wire closure, schema parity, plan-mode runtime.',
-    'vt.era.rollup.desc':       'v6.2.0 – v6.2.1: SI-3 9.43/10, 1009 tests, NineS 0.7405 → 0.8805, CI flake closed.',
+    'vt.era.compression.desc':  'v7.0.0 → v7.1.0 — cache-layout invariant, tool-output truncation, hierarchical summariser, persistence probe, learnings v2.',
+    'vt.era.rollup.desc':       'v6.2.0 – v7.1.0: SI-3 9.47/10, 1100 tests, NineS 0.8805 stable, cycle closure.',
     'vt.filter.all':            'All eras',
     'vt.toggle.compact':        'Compact',
     'vt.toggle.detailed':       'Detailed',
@@ -64,17 +66,19 @@
 
   /* ----- 22 SPEC-REQUIRED page-specific keys (ZH) ----- */
   var ZH_REQUIRED = {
-    'vt.subtitle':              '从 v0.1.0 到 v6.2.1——五个时代、有守护的演进。',
+    'vt.subtitle':              '从 v0.1.0 到 v7.1.0——六个时代、有守护的演进。',
     'vt.era.foundations':       '奠基',
     'vt.era.evobench':          'EvoBench 与加固',
     'vt.era.selfImprove':       '自我改进闭环',
     'vt.era.platforms':         '平台扩展与收口',
+    'vt.era.compression':       '分阶段上下文压缩',
     'vt.era.rollup':            '总集与稳定',
     'vt.era.foundations.desc':  'v0.1.0 – v2.2.0：脚手架、最初的 11 个模板、信息密度 +93%。',
     'vt.era.evobench.desc':     'v3.0.0 – v3.9.x：EvoBench、仓库规则、全工作流覆盖、P1 真正落地。',
     'vt.era.selfImprove.desc':  'v4.0.0 – v5.4.2：模型路由、插件注册、NineS、强化基础设施。',
     'vt.era.platforms.desc':    'v6.0.0 – v6.1.5：11 个平台、死线接通、schema 对齐、Plan-mode 运行时。',
-    'vt.era.rollup.desc':       'v6.2.0 – v6.2.1：SI-3 9.43/10、1009 测试、NineS 0.7405 → 0.8805、CI flake 收口。',
+    'vt.era.compression.desc':  'v7.0.0 → v7.1.0：缓存布局不变量、工具输出截断、层级化摘要、持久化探针、操作学习 v2。',
+    'vt.era.rollup.desc':       'v6.2.0 – v7.1.0：SI-3 9.47/10、1100 测试、NineS 0.8805 稳定、周期收口。',
     'vt.filter.all':            '全部时代',
     'vt.toggle.compact':        '简洁',
     'vt.toggle.detailed':       '详细',
@@ -97,7 +101,7 @@
     'vt.cta.designSystem':      'Design System →',
     'vt.cta.frameworkChain':    'Framework Chain →',
     'vt.status.loading':        'Loading versions…',
-    'vt.status.loaded':         '{n} versions across 5 eras.',
+    'vt.status.loaded':         '{n} versions across 6 eras.',
     'vt.status.filtered':       'Showing {n} versions in “{era}”.',
     'vt.error.title':           'Could not load versions.json',
     'vt.error.detail':          'Open the browser console for the underlying network or parse error.',
@@ -111,7 +115,7 @@
     'vt.cta.designSystem':      '设计体系 →',
     'vt.cta.frameworkChain':    '框架链路 →',
     'vt.status.loading':        '正在加载版本…',
-    'vt.status.loaded':         '共 {n} 个版本，覆盖 5 个时代。',
+    'vt.status.loaded':         '共 {n} 个版本，覆盖 6 个时代。',
     'vt.status.filtered':       '在「{era}」中显示 {n} 个版本。',
     'vt.error.title':           '无法加载 versions.json',
     'vt.error.detail':          '请打开浏览器控制台查看具体的网络或解析错误。',
@@ -134,7 +138,7 @@
   var VIEW_KEY = 'devolaflow-timeline-view';   /* localStorage key per spec rule 8 */
   var VIEW_DETAILED = 'detailed';
   var VIEW_COMPACT  = 'compact';
-  var ERAS = ['foundations', 'evobench', 'self-improve', 'platforms', 'rollup'];
+  var ERAS = ['foundations', 'evobench', 'self-improve', 'platforms', 'compression', 'rollup'];
 
   /* Map era enum -> i18n key for the era label */
   var ERA_LABEL_KEY = {
@@ -142,6 +146,7 @@
     'evobench':     'vt.era.evobench',
     'self-improve': 'vt.era.selfImprove',
     'platforms':    'vt.era.platforms',
+    'compression':  'vt.era.compression',
     'rollup':       'vt.era.rollup'
   };
 

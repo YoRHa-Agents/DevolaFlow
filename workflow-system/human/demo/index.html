@@ -234,10 +234,10 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
-    <!-- What's New in v7.0.2 -->
+    <!-- What's New in v7.1.0 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.0.2</h2>
-      <p class="desc" data-i18n="landing.whatsNew.desc">v7.0.2 ships J.3 of the v7.0→v7.1 staged-context-compression cycle: a deterministic hierarchical predecessor summariser. summarise_predecessor() parses an artifact (md/yaml/json/toml), runs an 8-class NER pass (file_paths, task_ids, version_strings, commit_hashes, metric_values, error_messages, acceptance_criterion_bullets, interface_signatures — first six reusing PRESERVE_PATTERNS for CO-2 lock-step), emits a verbatim key_facts: prefix, then fills the remaining max_tokens budget with schema-hint-prioritised sections (design / research / adr / gate_report). Resolves K.1 (25% trigger threshold) and ships first 3 of 5 NineS goldens for K.6.</p>
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.1.0</h2>
+      <p class="desc" data-i18n="landing.whatsNew.desc">v7.1.0 closes the v7.0→v7.1 staged-context-compression cycle. Rollup release — no new primitives: 6 decomposition profiles (feature, refactor, skill-optimization, migration, security-audit, perf-optimization) flip tool_output_truncation.enabled to true and gain a default summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25} block. Final 2 NineS compression goldens ship (compression_tool_output, compression_persistence) — closing K.6 with all 5 goldens delivered. v7.1.0_baseline.json regenerated (33 scenarios, 0 pp drift vs v7.0.2). SI-3 composite 9.47/10 — READY for stable tag.</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.summariser">SUMMARISER</span>

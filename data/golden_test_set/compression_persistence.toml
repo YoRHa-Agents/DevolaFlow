@@ -1,0 +1,87 @@
+[task]
+id = "devolaflow-compress-015"
+name = "compression-persistence"
+description = "End-to-end persistence probe — entity carry-through from Stage A artifact through summarise_predecessor into Stage B lean dispatch. 3 tiers (easy/medium/hard) derived from .local/research/v7.0.3_probe_telemetry.json validate that extracted_entities survive the two-stage round-trip with missed_entity_count == 0 per ADR-004/005 §6 (J.4+J.5)."
+dimension = "analysis"
+difficulty = 4
+schema_version = "1.0"
+
+[task.input]
+type = "code"
+language = "python"
+source = "probe_persistence(scenario)['carrythrough_rate']"
+
+[task.expected]
+type = "text"
+value = "probe_persistence(scenario)['carrythrough_rate']  # measured >= expected_carry_through SLO"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"
+
+[task.metadata]
+adr = ["ADR-004", "ADR-005"]
+probe_item = "§6 J.4+J.5"
+telemetry_source = ".local/research/v7.0.3_probe_telemetry.json"
+probe_entrypoint = "tests/test_e2e_compression.py::test_persistence_probe"
+fixture_builder = "tests._probe_fixtures.build_probe_workspace"
+summary_keys = [
+    "body_tokens",
+    "entity_target",
+    "carrythrough_rate",
+    "missed_entity_count",
+    "threshold_min_rate",
+    "elapsed_s",
+]
+
+# -- Case 1: easy tier — ~500-token Stage A artifact, 5 preserve-list entities, SLO 100%.
+[[task.cases]]
+id = "c1-easy"
+name = "compression-persistence-easy"
+scenario = "easy"
+body_tokens = 500
+seed_count = 5
+expected_carry_through = 1.0
+measured_carry_through = 1.0
+missed_entity_count = 0
+elapsed_s = 0.0117
+threshold_min_rate = 1.0
+slo_met = true
+
+# -- Case 2: medium tier — ~5 000-token Stage A artifact, 20 preserve-list entities, SLO 90%.
+[[task.cases]]
+id = "c2-medium"
+name = "compression-persistence-medium"
+scenario = "medium"
+body_tokens = 5000
+seed_count = 20
+expected_carry_through = 0.9
+measured_carry_through = 1.0
+missed_entity_count = 0
+elapsed_s = 0.0484
+threshold_min_rate = 0.9
+slo_met = true
+
+# -- Case 3: hard tier — ~15 000-token Stage A artifact, 50 preserve-list entities, SLO 90%.
+[[task.cases]]
+id = "c3-hard"
+name = "compression-persistence-hard"
+scenario = "hard"
+body_tokens = 15000
+seed_count = 50
+expected_carry_through = 0.9
+measured_carry_through = 1.0
+missed_entity_count = 0
+elapsed_s = 0.1223
+threshold_min_rate = 0.9
+slo_met = true
+
+[task.expectations]
+min_easy_carry_through = 1.0
+min_medium_carry_through = 0.9
+min_hard_carry_through = 0.9
+max_missed_entity_count = 0
+max_elapsed_s = 1.0
+invariant_missed_equals_zero = "missed_entity_count == 0 across all tiers on v7.0.3 telemetry"
+invariant_slo_met = "measured_carry_through >= expected_carry_through for every tier"
+invariant_entity_target_monotone = "seed_count is strictly monotonic across easy(5) < medium(20) < hard(50)"
