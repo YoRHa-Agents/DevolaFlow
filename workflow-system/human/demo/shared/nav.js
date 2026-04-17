@@ -9,11 +9,22 @@
   var THEME_KEY = 'devolaflow-theme';
   var GITHUB_URL = 'https://github.com/YoRHa-Agents/DevolaFlow';
 
+  var SUBPAGE_DIRS = [
+    'design-system', 'framework-chain', 'context-flow',
+    'version-timeline', 'design-architecture',
+    'workflow-visualizer', 'stage-explorer',
+    'benchmark-results'
+  ];
+
+  // Detect landing by ABSENCE of any known sub-page dir in the URL path.
+  // GitHub Pages deploys at '/DevolaFlow/' (not '/demo/'), so the prior
+  // '/demo/'-only check resolved to false on the deployed landing page.
   var isLanding = (function () {
     var path = window.location.pathname;
-    return path.endsWith('/demo/') ||
-           path.endsWith('/demo/index.html') ||
-           path.match(/\/demo\/?$/);
+    return !SUBPAGE_DIRS.some(function (d) {
+      return path.indexOf('/' + d + '/') !== -1 ||
+             path.endsWith('/' + d);
+    });
   })();
 
   function prefix(subPath) {

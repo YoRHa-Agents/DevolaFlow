@@ -1,0 +1,51 @@
+# EvoBench Scenario: Compression — Tool-Output Truncation (v7.0.1, ADR-002)
+# Exercises the skill-optimization profile in a context where the L2 wave agent
+# has accumulated many prior-round tool_use blocks (Read, Grep, Shell). Validates
+# that the decomposition-enabled profile still selects context-isolation,
+# dispatch_report, gate_mechanism, and convergence_loop — the four sections that
+# the consumer needs to read the tool_results.summary block (per ADR-002 §2.3)
+# and decide whether to refresh the L1 dispatch tool list.
+#
+# The "20+ synthetic tool_use blocks" the new clear_old_tool_uses(keep=3,
+# exclude=[Read]) primitive operates on are not section-level inputs; they live
+# in the StatusReport that the L3 task agent produces and the L2 wave agent
+# consumes. The probe's expectation per ADR-002 §6 #6 (retention >= 95%
+# preserve-list facts after truncation) is verified by the unit-test suite at
+# tests/test_compressor.py::TestToolOutputTruncation. This scenario instead
+# verifies that the *profile selection* under the truncation-aware workflow
+# remains correctly scoped — no profile drift, no section-budget bloat from the
+# new tool_output_truncation: knob.
+
+name: "compression_tool_output"
+task_type: "skill-optimization"
+description: >
+  Tool-output truncation profile-selection probe — exercises the
+  skill-optimization decomposition-enabled profile (one of the 6 profiles
+  that ships the new tool_output_truncation: knob with default enabled:
+  false in v7.0.1). Verifies the profile retains the four sections needed
+  to read the tool_results.summary block and to decide on a tool refresh.
+
+expected_sections:
+  - quick_action_decision
+  - plan_mode_template
+  - agent_mode_protocol
+  - hierarchy_table
+  - wave_task_constraints
+  - wave_coordination
+  - gate_mechanism
+  - context_isolation
+  - dispatch_report
+  - convergence_loop
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - mode_detection
+  - reference_navigation
+  - repo_mode
+  - template_quick_ref
+
+quality_thresholds:
+  min_composite: 85.0
+  min_relevance: 0.85
+  max_noise_ratio: 0.15

@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import yaml
+
 from benchmarks.devolaflow_context.evaluator import (
     BenchmarkScore,
     compare_to_baseline,
@@ -25,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v6.1.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v7.1.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -357,7 +359,7 @@ class TestBaselineFile:
     # ------------------------------------------------------------------
 
     def test_v6_baseline_exists(self) -> None:
-        """v6.1.0_baseline.json must be present in baselines/."""
+        """v7.1.0_baseline.json must be present in baselines/ (regenerated each release cut)."""
         assert V6_BASELINE_PATH.exists(), (
             f"Missing {V6_BASELINE_PATH.relative_to(REPO_ROOT)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
@@ -372,18 +374,18 @@ class TestBaselineFile:
         missing_from_baseline = scenario_stems - baseline_keys
         extra_in_baseline = baseline_keys - scenario_stems
         assert not missing_from_baseline, (
-            f"v6.1.0_baseline.json is missing entries for scenarios "
+            f"{V6_BASELINE_PATH.name} is missing entries for scenarios "
             f"{sorted(missing_from_baseline)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
         )
         assert not extra_in_baseline, (
-            f"v6.1.0_baseline.json has entries for scenarios that no longer exist: "
+            f"{V6_BASELINE_PATH.name} has entries for scenarios that no longer exist: "
             f"{sorted(extra_in_baseline)}. Regenerate the baseline."
         )
         assert baseline_keys == scenario_stems
 
     def test_v6_baseline_scores_positive(self) -> None:
-        """Every scenario in v6.1.0_baseline has a strictly positive composite."""
+        """Every scenario in the latest baseline has a strictly positive composite."""
         with open(V6_BASELINE_PATH) as f:
             data = json.load(f)
         for name, entry in data.items():
@@ -402,19 +404,19 @@ class TestBaselineFile:
                 assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
 
     def test_runner_prefers_latest_baseline(self) -> None:
-        """load_baseline() picks v6.1.0 over older files, falls back to v2.1.0 otherwise."""
+        """load_baseline() picks the v7.1.0 baseline over older files, falls back as needed."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v6.1.0_baseline.json", (
-            f"Expected load_baseline() to prefer v6.1.0_baseline.json; got {newest.name}"
+        assert newest.name == "v7.1.0_baseline.json", (
+            f"Expected load_baseline() to prefer v7.1.0_baseline.json; got {newest.name}"
         )
 
-        # load_baseline() returns v6 data for a scenario covered only by v6.
-        # visual_regression_webapp is not in v2.1.0_baseline.json but is in v6.1.0.
+        # load_baseline() returns data for a scenario covered only by v6+ baselines
+        # (not present in the legacy v2.1.0_baseline.json fallback).
         entry = load_baseline("visual_regression_webapp")
         assert entry is not None, (
             "load_baseline() did not return an entry for a scenario present in "
-            "v6.1.0_baseline.json — runner is still falling back to v2.1.0."
+            "the v7.1.0 baseline — runner is still falling back to v2.1.0."
         )
         assert entry["composite"] > 0
 
@@ -502,3 +504,76 @@ class TestBaselineRegressionDetection:
         result = compare_to_baseline(synthetic, adjusted_baseline)
         assert result["verdict"] == "PASS"
         assert result["regressed"] is False
+
+
+class TestLayoutInvariantBaseline:
+    """v7.0.0 cache-layout-invariant golden baseline (per ADR-001 §6 #5).
+
+    Renders the canonical dispatch via
+    ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
+    byte-compares against ``layout_invariant_v7.0.0.yaml``. Any drift
+    (renderer upgrade, layout reorder, payload edit) fails CI here.
+    """
+
+    BASELINE_PATH = BASELINES_DIR / "layout_invariant_v7.0.0.yaml"
+
+    @staticmethod
+    def _canonical_baseline_payload() -> dict:
+        """Canonical dispatch matching the v7.0.0 golden baseline file. Order
+        MUST follow ``lean-dispatch.yaml#layout_invariant.canonical_order``."""
+        return {
+            "hdr": {"id": "d-baseline-v7.0.0", "parent": "stage-baseline", "layer": "wave"},
+            "task": {"id": "T-BASELINE-001", "type": "code", "title": "cache layout baseline"},
+            "goal": "golden rendered dispatch for layout invariant",
+            "assumptions": ["yaml renderer preserves insertion order", "utf-8 byte comparison"],
+            "pred": [
+                {
+                    "ref": ".local/research/adr/v7-ADR-001-cache-layout-invariant.md",
+                    "key_facts": [
+                        "canonical 12-key order",
+                        "additive rule for new keys",
+                        "LCP thresholds 0.80 and 0.70",
+                    ],
+                }
+            ],
+            "files": ["src/devolaflow/compressor.py", "schemas/lean-dispatch.yaml"],
+            "rules": {"strategy": "standard", "lang": "python", "focus": ["cache-discipline"]},
+            "shared": "Python 3.11+, PyYAML, pytest",
+            "accept": [
+                "render byte-stable across CI runs",
+                "top-level keys remain in canonical order",
+                "reinforce slot present at position 10",
+            ],
+            "reinforce": {
+                "round": 2,
+                "prior": 78.0,
+                "target": 85,
+                "rules": [
+                    {
+                        "id": "F-LAY-001",
+                        "sev": "blocker",
+                        "mandate": "MUST validate via assert_dispatch_layout before send",
+                        "file": "src/devolaflow/compressor.py",
+                    }
+                ],
+            },
+            "verify_cfg": {
+                "visual": False,
+                "accept": True,
+                "interact": False,
+                "a11y": False,
+                "threshold": 0.85,
+            },
+            "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
+        }
+
+    def test_layout_invariant_baseline(self) -> None:
+        assert self.BASELINE_PATH.exists(), f"Missing {self.BASELINE_PATH} (see ADR-001 §6)."
+        recorded = self.BASELINE_PATH.read_text()
+        rendered = yaml.safe_dump(
+            self._canonical_baseline_payload(), sort_keys=False, default_flow_style=False
+        )
+        assert rendered == recorded, (
+            "layout_invariant_v7.0.0.yaml has drifted from the canonical renderer output. "
+            "See .local/research/adr/v7-ADR-001-cache-layout-invariant.md §6."
+        )

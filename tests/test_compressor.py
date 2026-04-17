@@ -2,14 +2,28 @@
 
 from __future__ import annotations
 
+import pytest
+
 from devolaflow.compressor import (
     DROP_LIST,
     INTENSITY_TIERS,
+    PRESERVE_PATTERNS,
+    SCHEMA_HINT_PRIORITIES,
+    SUMMARY_TRUNCATION_MARKER,
+    DispatchLayoutError,
+    ToolUseTruncation,
+    assert_dispatch_layout,
+    clear_old_tool_uses,
     compress_message,
+    compute_dispatch_lcp_pct,
     detect_drop_violations,
+    extract_named_entities,
+    summarise_predecessor,
+    truncate_tool_output,
     validate_lean_format,
     validate_preserve_list,
 )
+from devolaflow.task_adaptive_selector import apply_round_escalation, estimate_tokens
 
 
 class TestPreserveValidation:
@@ -308,3 +322,473 @@ class TestIntensityTiers:
         for tier_name, tier in INTENSITY_TIERS.items():
             for drop in tier["active_drops"]:
                 assert drop in DROP_LIST, f"{drop} in {tier_name} not in DROP_LIST"
+
+
+class TestDispatchLayoutInvariant:
+    """v7.0.0 cache-layout-invariant tests (per ADR-001 §6).
+
+    Verifies the canonical dispatch order, the round-over-round LCP SLO
+    (>= 80% round 1->2, >= 70% round 1->3), and the additive rule for new
+    top-level keys.
+    """
+
+    @staticmethod
+    def _canonical_round_dispatch(round_num: int) -> dict:
+        """Lean dispatch in canonical order. Round 1 omits ``reinforce``;
+        rounds 2+ add it at canonical position 10."""
+        payload: dict = {
+            "hdr": {"id": "d-cache-001", "parent": "stage-cache", "layer": "wave"},
+            "task": {"id": "T-CACHE-001", "type": "code", "title": "cache layout probe"},
+            "goal": "demonstrate round-stable cached prefix",
+            "assumptions": ["dispatch renderer preserves insertion order"],
+            "pred": [{"ref": "ADR-001", "key_facts": ["LCP >= 80% r1->r2", "LCP >= 70% r1->r3"]}],
+            "files": ["src/devolaflow/compressor.py", "schemas/lean-dispatch.yaml"],
+            "rules": {"strategy": "standard", "lang": "python"},
+            "shared": "Python 3.11+, ruff, pytest",
+            "accept": ["assert_dispatch_layout accepts canonical", "LCP r1->r2 >= 80%"],
+        }
+        if round_num >= 2:
+            rule = {"id": f"F-{round_num:03d}", "sev": "blocker", "mandate": "honour invariant"}
+            payload["reinforce"] = {
+                "round": round_num,
+                "prior": 72.3 if round_num == 2 else 78.5,
+                "target": 85,
+                "rules": [rule],
+            }
+        payload["verify_cfg"] = {"visual": False, "accept": True}
+        payload["gate"] = {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2}
+        return payload
+
+    def test_assert_dispatch_layout_accepts_canonical(self):
+        assert assert_dispatch_layout(self._canonical_round_dispatch(round_num=1)) is None
+
+    def test_assert_dispatch_layout_rejects_reordered(self):
+        payload = self._canonical_round_dispatch(round_num=2)
+        keys = list(payload.keys())
+        i_pred, i_reinforce = keys.index("pred"), keys.index("reinforce")
+        keys[i_pred], keys[i_reinforce] = keys[i_reinforce], keys[i_pred]
+        reordered = {k: payload[k] for k in keys}
+        with pytest.raises(DispatchLayoutError) as exc_info:
+            assert_dispatch_layout(reordered)
+        assert "pred" in str(exc_info.value) and "reinforce" in str(exc_info.value)
+
+    def test_dispatch_prefix_is_stable_across_rounds(self):
+        r1 = self._canonical_round_dispatch(round_num=1)
+        r2 = self._canonical_round_dispatch(round_num=2)
+        r3 = self._canonical_round_dispatch(round_num=3)
+        for payload in (r1, r2, r3):
+            assert_dispatch_layout(payload)
+        baseline = {"token_budget": 4800, "section_priorities": {}, "model_hint": "balanced"}
+        round2_profile = apply_round_escalation(baseline, round_num=2)
+        round3_profile = apply_round_escalation(baseline, round_num=3)
+        assert round2_profile["token_budget"] >= baseline["token_budget"]
+        assert round3_profile["token_budget"] >= round2_profile["token_budget"]
+        lcp_12 = compute_dispatch_lcp_pct(r1, r2)
+        lcp_13 = compute_dispatch_lcp_pct(r1, r3)
+        assert lcp_12 >= 0.80, f"r1->r2 LCP {lcp_12:.4f} violates lcp_threshold_round_1_to_2"
+        assert lcp_13 >= 0.70, f"r1->r3 LCP {lcp_13:.4f} violates lcp_threshold_round_1_to_3"
+
+    def test_new_field_appended_not_inserted(self):
+        payload = self._canonical_round_dispatch(round_num=1)
+        appended = dict(payload, cache_hint={"prefix_pct": 0.83})
+        assert assert_dispatch_layout(appended) is None
+        keys = list(payload.keys())
+        keys.insert(keys.index("gate"), "cache_hint")
+        inserted = {k: ({"prefix_pct": 0.83} if k == "cache_hint" else payload[k]) for k in keys}
+        with pytest.raises(DispatchLayoutError) as exc_info:
+            assert_dispatch_layout(inserted)
+        assert "gate" in str(exc_info.value)
+
+    def test_assert_dispatch_layout_unknown_keys_after_spec(self):
+        payload = self._canonical_round_dispatch(round_num=1)
+        trailing = dict(payload, cache_hint={"prefix_pct": 0.83}, telemetry={"lcp": 0.83})
+        assert assert_dispatch_layout(trailing) is None
+        leading = {"telemetry": {"foo": "bar"}, **payload}
+        with pytest.raises(DispatchLayoutError):
+            assert_dispatch_layout(leading)
+
+
+class TestToolOutputTruncation:
+    """v7.0.1 tool-output truncation primitive (per ADR-002 §6).
+
+    Verifies the head/tail/placeholder behaviour of ``truncate_tool_output``
+    plus the most-recent-N + exclude-by-name policy of
+    ``clear_old_tool_uses``. Together these primitives shrink convergence-
+    round dispatches by replacing the bulky middle of older tool outputs
+    with a short placeholder, while preserving authoritative ``Read`` output
+    and the most recent N entries verbatim.
+    """
+
+    def test_truncate_tool_output_below_threshold(self):
+        text = "x" * 999  # head_chars + tail_chars defaults sum to 1000
+        result, removed = truncate_tool_output(text)
+        assert result == text
+        assert removed == 0
+
+    def test_truncate_tool_output_above_threshold(self):
+        head = "H" * 500
+        middle = "M" * 1234
+        tail = "T" * 500
+        text = head + middle + tail
+        result, removed = truncate_tool_output(text)
+        assert removed == 1234
+        assert result.startswith(head)
+        assert result.endswith(tail)
+        assert "[truncated 1234 chars]" in result
+        assert len(result) == 500 + len("[truncated 1234 chars]") + 500
+
+    def test_truncate_tool_output_placeholder_format(self):
+        text = "a" * 100 + "X" * 50 + "b" * 100
+        result, removed = truncate_tool_output(
+            text,
+            head_chars=100,
+            tail_chars=100,
+            placeholder_template="<<<{removed}>>>",
+        )
+        assert removed == 50
+        assert "<<<50>>>" in result
+        assert result == "a" * 100 + "<<<50>>>" + "b" * 100
+
+    def test_truncate_tool_output_unicode_safe(self):
+        head = "你" * 500
+        middle = "好" * 200
+        tail = "界" * 500
+        text = head + middle + tail
+        result, removed = truncate_tool_output(text)
+        assert removed == 200
+        assert result.startswith("你" * 500)
+        assert result.endswith("界" * 500)
+        assert "[truncated 200 chars]" in result
+        assert len(text) == 1200
+        assert len(head) == 500 and len(tail) == 500
+
+    def test_clear_old_tool_uses_keeps_recent_n(self):
+        long_output = "L" * 2000
+        tool_uses = [{"name": "Shell", "output": long_output} for _ in range(8)]
+        modified, summary = clear_old_tool_uses(tool_uses, keep=3)
+        assert len(modified) == 8
+        assert summary.kept_count == 3
+        assert summary.cleared_count == 5
+        for record in modified[-3:]:
+            assert record["output"] == long_output
+        for record in modified[:5]:
+            assert record["output"] != long_output
+            assert "[truncated" in record["output"]
+
+    def test_clear_old_tool_uses_excludes_named_tools(self):
+        long_output = "L" * 2000
+        tool_uses = [
+            {"name": "Read", "output": long_output},
+            {"name": "Read", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Read", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+        ]
+        modified, summary = clear_old_tool_uses(tool_uses, keep=2)
+        assert summary.cleared_count == 1
+        assert summary.kept_count == 5
+        for original, after in zip(tool_uses, modified, strict=True):
+            if original["name"] == "Read":
+                assert after["output"] == long_output
+        for record in modified[-2:]:
+            assert record["output"] == long_output
+        assert modified[2]["output"] != long_output
+        assert "[truncated" in modified[2]["output"]
+        assert "Read" in summary.excluded_tool_names
+
+    def test_clear_old_tool_uses_returns_summary(self):
+        long_output = "L" * 2000
+        tool_uses = [
+            {"name": "Shell", "output": long_output},
+            {"name": "Grep", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+        ]
+        modified, summary = clear_old_tool_uses(
+            tool_uses,
+            keep=3,
+            exclude_tool_names=("Read",),
+            head_chars=200,
+            tail_chars=200,
+            placeholder_template="<{removed}>",
+        )
+        assert isinstance(summary, ToolUseTruncation)
+        assert summary.kept_count + summary.cleared_count == len(tool_uses)
+        assert summary.kept_count == 3
+        assert summary.cleared_count == 3
+        assert summary.head_chars == 200
+        assert summary.tail_chars == 200
+        assert summary.placeholder == "<{removed}>"
+        assert summary.excluded_tool_names == ("Read",)
+        for record in modified[:3]:
+            assert "<1600>" in record["output"]
+        for record, original in zip(modified[-3:], tool_uses[-3:], strict=True):
+            assert record["output"] == original["output"]
+
+    def test_clear_old_tool_uses_empty_list(self):
+        modified, summary = clear_old_tool_uses([])
+        assert modified == []
+        assert isinstance(summary, ToolUseTruncation)
+        assert summary.kept_count == 0
+        assert summary.cleared_count == 0
+        assert summary.head_chars == 500
+        assert summary.tail_chars == 500
+        assert summary.excluded_tool_names == ("Read",)
+        assert summary.placeholder == "[truncated {removed} chars]"
+
+
+class TestHierarchicalSummariser:
+    """v7.0.2 hierarchical predecessor summariser tests (per ADR-003 §6).
+
+    Verifies the deterministic extractive path: bounded token output,
+    schema-hint priority, NER coverage of all 8 entity types, the
+    25 % trigger threshold (resolves K.1), reuse of PRESERVE_PATTERNS,
+    and the structured 7-key return contract.
+    """
+
+    DESIGN_DOC = """# Auth Middleware Design
+
+## Context
+
+Need JWT validation for all protected routes.
+
+## Decision
+
+Use src/middleware/auth.py with the jsonwebtoken library version 9.0.2.
+- MUST validate Authorization header on every request.
+- MUST return 401 on expired tokens at commit abc1234.
+- SHOULD log failures for task T07 with coverage 92%.
+
+```python
+def verify_token(token: str) -> dict:
+    pass
+
+class AuthError(Exception): ...
+```
+
+## Consequences
+
+Error: legacy clients get rejected.
+Modified file src/legacy/handler.py.
+
+## Alternatives
+
+Considered passport.js — rejected.
+"""
+
+    @pytest.fixture
+    def design_artifact(self, tmp_path):
+        path = tmp_path / "design_auth.md"
+        path.write_text(self.DESIGN_DOC, encoding="utf-8")
+        return path
+
+    def test_summarise_extractive_preserves_file_paths(self, design_artifact):
+        result = summarise_predecessor(str(design_artifact), max_tokens=500, mode="extractive")
+        paths = [e["value"] for e in result["extracted_entities"] if e["type"] == "file_paths"]
+        assert "src/middleware/auth.py" in paths
+        assert "src/legacy/handler.py" in paths
+        assert "src/middleware/auth.py" in result["summary_text"]
+
+    def test_summarise_extractive_honours_max_tokens(self, design_artifact):
+        result = summarise_predecessor(str(design_artifact), max_tokens=120, mode="extractive")
+        assert result["token_count"] <= 120
+        assert result["mode"] == "extractive"
+
+    def test_summarise_schema_hint_priority(self, tmp_path):
+        adr = tmp_path / "v7-ADR-099-toy.md"
+        adr.write_text(
+            "## Context\nbackground prose.\n\n"
+            "## Decision\nadopt foo.py at version 1.2.3.\n\n"
+            "## Consequences\nbar may break.\n",
+            encoding="utf-8",
+        )
+        with_hint = summarise_predecessor(str(adr), max_tokens=500, schema_hint="adr")
+        without_hint = summarise_predecessor(str(adr), max_tokens=500)
+        with_idx = with_hint["covered_sections"].index("Decision")
+        wo_idx = without_hint["covered_sections"].index("Decision")
+        assert with_idx < wo_idx, (
+            f"adr hint should rank Decision before Context; got "
+            f"with={with_hint['covered_sections']} without={without_hint['covered_sections']}"
+        )
+        assert with_hint["covered_sections"][0] == "Decision"
+
+    def test_summarise_unknown_extension(self, tmp_path):
+        path = tmp_path / "notes.txt"
+        path.write_text(
+            "## First Heading\nthe quick brown fox.\n\n## Second\nlazy dog at src/a.py.\n",
+            encoding="utf-8",
+        )
+        result = summarise_predecessor(str(path), max_tokens=500)
+        assert result["mode"] == "extractive"
+        assert "First Heading" in result["covered_sections"]
+        assert "src/a.py" in result["summary_text"]
+
+    def test_summarise_trigger_threshold(self):
+        from devolaflow.compressor import DEFAULT_SUMMARY_TRIGGER_PCT
+
+        l3_budget = 8000
+        l2_budget = 4000
+        l3_threshold = l3_budget * DEFAULT_SUMMARY_TRIGGER_PCT // 100
+        l2_threshold = l2_budget * DEFAULT_SUMMARY_TRIGGER_PCT // 100
+        assert l3_threshold == 2000, "L3 trigger must be 25 % of 8000 per ADR-003 §2.4"
+        assert l2_threshold == 1000, "L2 trigger must be 25 % of 4000 per ADR-003 §2.4"
+        assert DEFAULT_SUMMARY_TRIGGER_PCT == 25
+
+    def test_extract_named_entities_all_types(self):
+        text = (
+            "Edited src/devolaflow/compressor.py for task T07.\n"
+            "Bumped version to 7.0.2 at commit abc1234def5.\n"
+            "Coverage rose to 93%.\n"
+            "Error: legacy path missing.\n"
+            "- MUST validate inputs.\n"
+            "- SHOULD log failures.\n"
+            "def summarise_predecessor(path: str) -> dict:\n"
+            "    pass\n"
+            "class FooError(Exception): ...\n"
+        )
+        entities = extract_named_entities(text)
+        types_found = {e["type"] for e in entities}
+        expected = {
+            "file_paths",
+            "task_ids",
+            "version_strings",
+            "commit_hashes",
+            "metric_values",
+            "error_messages",
+            "acceptance_criterion_bullets",
+            "interface_signatures",
+        }
+        missing = expected - types_found
+        assert not missing, f"NER missed entity types: {missing}; saw {types_found}"
+        for entry in entities:
+            assert set(entry) == {"type", "value", "source_line"}
+            assert isinstance(entry["source_line"], int) and entry["source_line"] >= 1
+
+    def test_summarise_was_bounded_truncation_marker(self, tmp_path):
+        path = tmp_path / "huge.md"
+        path.write_text(
+            "## Section\n" + ("the quick brown fox jumps over the lazy dog. " * 200),
+            encoding="utf-8",
+        )
+        result = summarise_predecessor(str(path), max_tokens=80, mode="extractive")
+        assert result["was_bounded"] is True
+        assert SUMMARY_TRUNCATION_MARKER in result["summary_text"]
+        assert result["token_count"] <= 80
+
+    def test_summarise_abstractive_not_yet_wired_raises(self, design_artifact):
+        with pytest.raises(NotImplementedError) as exc_info:
+            summarise_predecessor(str(design_artifact), mode="abstractive")
+        assert "abstractive" in str(exc_info.value).lower()
+
+    def test_extract_entities_reuses_preserve_patterns(self):
+        from devolaflow.compressor import _ENTITY_PATTERNS
+
+        for ner_key, preserve_key in (
+            ("file_paths", "file_paths"),
+            ("task_ids", "task_ids"),
+            ("version_strings", "version_strings"),
+            ("commit_hashes", "commit_hashes"),
+            ("metric_values", "metric_values"),
+            ("error_messages", "error_messages_verbatim"),
+        ):
+            assert _ENTITY_PATTERNS[ner_key] is PRESERVE_PATTERNS[preserve_key], (
+                f"NER {ner_key} must reuse PRESERVE_PATTERNS[{preserve_key}] (CO-2 lock-step)"
+            )
+
+    def test_summarise_returns_structured_dict_keys(self, design_artifact):
+        result = summarise_predecessor(str(design_artifact), max_tokens=500)
+        assert set(result.keys()) == {
+            "summary_text",
+            "mode",
+            "token_count",
+            "extracted_entities",
+            "covered_sections",
+            "dropped_sections",
+            "was_bounded",
+        }
+        assert isinstance(result["summary_text"], str)
+        assert isinstance(result["mode"], str)
+        assert isinstance(result["token_count"], int)
+        assert isinstance(result["extracted_entities"], list)
+        assert isinstance(result["covered_sections"], list)
+        assert isinstance(result["dropped_sections"], list)
+        assert isinstance(result["was_bounded"], bool)
+        assert "design" in SCHEMA_HINT_PRIORITIES
+        assert estimate_tokens(result["summary_text"]) == result["token_count"]
+
+
+class TestSummariserEdgeCases:
+    """Coverage for parser branches and validation paths in the v7.0.2
+    summariser (CP-2 ≥ 90 % floor for compressor.py)."""
+
+    def test_extract_named_entities_non_string_returns_empty(self):
+        assert extract_named_entities(None) == []  # type: ignore[arg-type]
+        assert extract_named_entities("") == []
+
+    def test_summarise_yaml_artifact(self, tmp_path):
+        path = tmp_path / "spec.yaml"
+        path.write_text(
+            "decision:\n  approach: extractive\n  uses: src/devolaflow/compressor.py\n"
+            "consequences:\n  positive: deterministic\n",
+            encoding="utf-8",
+        )
+        result = summarise_predecessor(str(path), max_tokens=500, schema_hint="design")
+        assert result["mode"] == "extractive"
+        assert "decision" in result["covered_sections"]
+        assert "consequences" in result["covered_sections"]
+
+    def test_summarise_json_artifact(self, tmp_path):
+        path = tmp_path / "report.json"
+        path.write_text(
+            '{"verdict": "PASS", "findings": [], "metrics": {"coverage": 92}}',
+            encoding="utf-8",
+        )
+        result = summarise_predecessor(str(path), max_tokens=500, schema_hint="gate_report")
+        assert "verdict" in result["covered_sections"]
+
+    def test_summarise_toml_artifact(self, tmp_path):
+        path = tmp_path / "config.toml"
+        path.write_text(
+            '[task]\nid = "T07"\nname = "summarise"\n[golden]\nexpected_score = 1.0\n',
+            encoding="utf-8",
+        )
+        result = summarise_predecessor(str(path), max_tokens=500)
+        assert "task" in result["covered_sections"]
+
+    def test_summarise_yaml_invalid_falls_back_to_markdown(self, tmp_path):
+        path = tmp_path / "broken.yaml"
+        path.write_text("## Heading\n  : invalid : yaml :\nbody text", encoding="utf-8")
+        result = summarise_predecessor(str(path), max_tokens=500)
+        assert isinstance(result["summary_text"], str)
+        assert "Heading" in result["covered_sections"]
+
+    def test_summarise_json_invalid_falls_back_to_markdown(self, tmp_path):
+        path = tmp_path / "broken.json"
+        path.write_text("## Not JSON\nbody", encoding="utf-8")
+        result = summarise_predecessor(str(path), max_tokens=500)
+        assert "Not JSON" in result["covered_sections"]
+
+    def test_summarise_toml_invalid_falls_back_to_markdown(self, tmp_path):
+        path = tmp_path / "broken.toml"
+        path.write_text("## Not TOML\nbody", encoding="utf-8")
+        result = summarise_predecessor(str(path), max_tokens=500)
+        assert "Not TOML" in result["covered_sections"]
+
+    def test_summarise_rejects_invalid_mode(self, tmp_path):
+        path = tmp_path / "x.md"
+        path.write_text("## H\nbody", encoding="utf-8")
+        with pytest.raises(ValueError, match="unknown mode"):
+            summarise_predecessor(str(path), mode="bogus")
+
+    def test_summarise_rejects_nonpositive_max_tokens(self, tmp_path):
+        path = tmp_path / "x.md"
+        path.write_text("## H\nbody", encoding="utf-8")
+        with pytest.raises(ValueError, match="max_tokens"):
+            summarise_predecessor(str(path), max_tokens=0)
+
+    def test_summarise_missing_artifact_raises(self):
+        with pytest.raises(FileNotFoundError):
+            summarise_predecessor("does/not/exist.md", max_tokens=500)

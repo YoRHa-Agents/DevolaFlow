@@ -82,6 +82,27 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # agents and CI checks (validate dispatch/report compliance).
         "devolaflow.compressor:compress_message",
         "devolaflow.compressor:validate_lean_format",
+        # v7.0.0 cache-layout invariant validators — consumed by external
+        # workflow agents before sending lean dispatches; mandated by Rule P6
+        # in .cursor/rules/devola-flow-rules.mdc and ADR v7-ADR-001.
+        "devolaflow.compressor:assert_dispatch_layout",
+        "devolaflow.compressor:compute_dispatch_lcp_pct",
+        "devolaflow.compressor:DispatchLayoutError",
+        # v7.0.1 tool-output truncation primitives — consumed by external
+        # runtimes (L3 task agents producing StatusReports, L2 wave agents
+        # composing predecessor context) per ADR-002 §2.1. The dataclass +
+        # two helpers are opted in via context_profiles.yaml's per-profile
+        # `tool_output_truncation:` block (default disabled at v7.0.1 cut).
+        "devolaflow.compressor:truncate_tool_output",
+        "devolaflow.compressor:clear_old_tool_uses",
+        "devolaflow.compressor:ToolUseTruncation",
+        # v7.0.2 hierarchical predecessor summariser primitives — consumed by
+        # external dispatchers (L0/L1/L2) before composing pred[*].key_facts
+        # (per ADR-003 §2.4 trigger threshold). The persistence probe planned
+        # in v7.0.3 (ADR-004) re-uses extract_named_entities for entity
+        # carry-through scoring.
+        "devolaflow.compressor:summarise_predecessor",
+        "devolaflow.compressor:extract_named_entities",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in
@@ -99,11 +120,17 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- Operational learnings utilities ----
         # Exposed via devolaflow.learnings.*; called by self-update workflow
         # template (workflow-system/agent/templates/builtin/self-update.yaml)
-        # and by external workflow agents for learnings management.
+        # and by external workflow agents for learnings management. v7.0.3
+        # (ADR-005) adds consolidate_session / decay_confidence /
+        # pin_learning_for_session — consumed by L1/L0 session-end hooks and
+        # by dispatchers that need cross-round pinning.
         "devolaflow.learnings:prune_learnings",
         "devolaflow.learnings:promote_learning",
         "devolaflow.learnings:get_learnings_stats",
         "devolaflow.learnings:log_external_source_review",
+        "devolaflow.learnings:consolidate_session",
+        "devolaflow.learnings:decay_confidence",
+        "devolaflow.learnings:pin_learning_for_session",
         # ---- NineS subsystem — research, analysis, advisor APIs ----
         # All exported via devolaflow.nines.__all__ for external research
         # workflows; the NineS CLI integration is invoked by the user via

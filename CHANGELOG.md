@@ -5,6 +5,263 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.1] — 2026-04-17
+
+**PATCH — hotfix for v7.1.0-pre feedback `"github 上的所有次级网页无法访问"` (all GitHub Pages secondary pages cannot be accessed). The shared demo nav script (`workflow-system/human/demo/shared/nav.js`) detected the landing page only by matching `/demo/` in `window.location.pathname`. GitHub Pages deploys the demo at `/DevolaFlow/`, so on the deployed landing page `isLanding` evaluated to `false` and every nav link was prefixed with `../`, resolving to `https://yorha-agents.github.io/<page>/index.html` — a 404 outside the project. Sub-page navigation was already correct (uses `../` from a one-level-deep page) and is unchanged. The fix detects landing by the ABSENCE of any known sub-page directory name in the URL path, so it works under all four canonical deployment shapes (GitHub Pages `/DevolaFlow/`, project-root local server `/demo/`, demo-dir local server `/`, and `file://`).**
+
+### Fixed
+- **`workflow-system/human/demo/shared/nav.js`** — replace the `/demo/`-only `isLanding` IIFE with a sub-page-directory ABSENCE check driven by a new `SUBPAGE_DIRS` constant listing the 8 sub-page directories (`design-system`, `framework-chain`, `context-flow`, `version-timeline`, `design-architecture`, `workflow-visualizer`, `stage-explorer`, `benchmark-results`). The new predicate evaluates `true` for: `https://yorha-agents.github.io/DevolaFlow/{,index.html}`, `http://localhost:8000/{,index.html}`, `http://localhost:8000/demo/index.html`, and `file:///.../workflow-system/human/demo/index.html`; and `false` for any URL whose path contains `/<subpage-dir>/` or ends with `/<subpage-dir>`. Two-line comment above the IIFE explains why the change was needed (GitHub Pages deploys at `/DevolaFlow/`, not `/demo/`).
+
+### Added
+- **`tests/test_demo_nav.py`** (CREATE, 21 tests) — Python regression suite that reads `nav.js`, regex-extracts the `SUBPAGE_DIRS` array, reimplements the `isLanding` predicate in pure Python, and asserts against 17 canonical URL shapes (11 GitHub Pages + 2 demo-dir local + 2 project-root local + 2 `file://`). Also includes: a parity check that `SUBPAGE_DIRS` exactly matches the on-disk sub-page directories under `workflow-system/human/demo/` (excluding `shared/`), a count check (must be 8), and a regression guard that fails if anyone reintroduces the legacy `/demo/`-only predicate. No browser, no playwright dependency — uses `pathlib`, `re`, and the existing `project_root` fixture from `tests/conftest.py`.
+
+### Metrics
+- Tests: 1100 → **1121** (+21 from `tests/test_demo_nav.py`).
+- SI-10 pre-commit: **5 / 5 pass** (full tests, ruff check, ruff format, test_version, test_benchmarks).
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.1.1` (SF-3 / CP-3); `make sync-human-docs` regenerated 16 EN/ZH human doc files.
+- Lint: `ruff check src/ tests/` + `ruff format --check src/ tests/` clean.
+- LOC delta: production code ~14 (nav.js IIFE rewrite + SUBPAGE_DIRS constant + 2-line comment); tests ~180 (`tests/test_demo_nav.py`); docs ~10 (CHANGELOG entry).
+
+### Cross-references
+- Source feedback: `.local/feedbacks/feedback_for_v7.1.0-pre.md` — verbatim user report `"github 上的所有次级网页无法访问"`.
+- Prior release: v7.1.0 (`27452db`) — staged-context-compression rollup.
+
+## [7.1.0] — 2026-04-17
+
+**MINOR — rollup release closing the v7.0 → v7.1 staged-context-compression cycle. Fifth and final slice: no new primitives — adoption, integration, and retrospective. Flips 6 decomposition profiles to default-on for `tool_output_truncation` + extractive `summary`. Ships the final 2 NineS compression goldens (`compression_tool_output` + `compression_persistence`), regenerates `v7.1.0_baseline.json` (33 scenarios, 0 pp drift vs v7.0.2). SI-3 composite **9.47/10** — READY for stable tag.**
+
+This release closes the staged-context-compression cycle opened in v7.0.0 (Cache-Layout Invariant), advanced in v7.0.1 (tool-output truncation), v7.0.2 (hierarchical predecessor summariser), and v7.0.3 (persistence probe + Learnings v2). No new primitives or public APIs ship — v7.1.0 is the **adoption + integration + retrospective** slice: the 6 decomposition profiles that previously had `tool_output_truncation.enabled: false` now flip to `true`, each gaining a default `summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25}` block under `predecessor_summary`. The final two NineS compression goldens ship (closing open question K.6), and the EvoBench baseline is regenerated under the deterministic fallback estimator against the frozen v7.0.2 scoring rubric to confirm 0 pp composite drift across all 33 scenarios. Code/config delta is lean (~89 LOC); the bulk of the delta is documentation (§§12-15 in `context-isolation.md`: ~140 lines) and research artefacts (retrospective 312 LOC + SI-3 scorecard 220 LOC, stored under `.local/research/`). SI-3 composite lands at **9.47/10** (threshold ≥ 8.5, target ≥ 8.8), verdict **READY**. Open questions K.2 (plan-mode stays L1-only for v7.x), K.6 (all 5 compression goldens shipped), and K.7 (stay prompt-side for v7.x; OEM outreach deferred to v8.x) are resolved.
+
+### Added
+- **`data/golden_test_set/compression_tool_output.toml`** (CREATE, 3 cases) — NineS golden extracted verbatim from `tests/test_compressor.py::TestToolOutputTruncation`. Cases cover the three truncation tiers: `head_tail_short_output_no_truncation` (below threshold, passthrough), `middle_elision_mid_output` (head/tail marker emission), and `extractive_summary_above_cap` (cap-based extractive fallback). Each case pins the expected `truncated_bytes`, marker text (`[... N lines elided ...]`), and token counts so the golden exercises the primitive's full decision tree.
+- **`data/golden_test_set/compression_persistence.toml`** (CREATE, 3 tiers) — NineS golden sourced verbatim from `.local/research/v7.0.3_probe_telemetry.json`. Tiers: `easy` (5 entities, SLO carry-through ≥ 1.0), `medium` (20 entities, SLO ≥ 0.9), `hard` (50 entities, SLO ≥ 0.9). Telemetry-observed carry-through is `1.0 / 1.0 / 1.0`, all passing their SLO. Closes open question K.6 — with the 3 compression goldens shipped in v7.0.1/v7.0.2 plus these 2, all 5 compression goldens from the v7 roadmap §K.6 are delivered.
+- **`benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`** (CREATE, 33 scenarios) — regenerated under the deterministic fallback estimator with the frozen v7.0.2 scoring rubric. Per-scenario composite range `[84.13, 99.80]`; zero drift vs v7.0.2 baseline (SI-4 max-drift ceiling 5 pp preserved). Consumed by `tests/test_benchmarks.py::test_v7_1_0_baseline_present_and_healthy`.
+- **`workflow-system/agent/references/context-isolation.md` §§ 12-15** (394 → 533 lines, +139):
+  - §12 **Hierarchical Predecessor Summariser** — shape-preserving extraction algorithm from v7.0.2, preserve-list semantics (file paths, task ids, version strings, commit hashes, metric values, numeric ranges, interface signatures, named references = 8 ADR-003 NER classes), trigger / skip rules tied to `predecessor_summary.trigger_pct` and `predecessor_summary.max_tokens`.
+  - §13 **Persistence Probe** — v7.0.3 probe harness (`tests/test_e2e_compression.py` + `tests/_probe_fixtures.py`), carry-through metric definition, tier SLOs (easy 1.0 / medium 0.9 / hard 0.9), paraphrase-FAIL / missing-FAIL / case-mismatch-FAIL classification, telemetry schema emitted to `.local/research/v7.0.3_probe_telemetry.json`.
+  - §14 **Operational Learnings v2** — Learnings v2 schema (confidence decay linear `new_conf = conf - 0.5 * min(1, delta_days / half_life)`, `DECAY_FLOOR=0.1`, session pinning via `pinned_for_session`, `consolidate_session(session_id, ...)`), lazy migration shim for v1 entries, `session_id` flow through `load_relevant_learnings`.
+  - §15 **Staged Compression — End-to-End Flow** — consolidated cross-version walkthrough tying v7.0.0 cache invariant, v7.0.1 tool truncation, v7.0.2 predecessor summariser, v7.0.3 probe + Learnings v2, and v7.1.0 adoption into a single diagram + narrative of how a Stage A → Stage B handoff now preserves critical entities under the 8K L3 budget.
+- **`workflow-system/human/demo/version-timeline/versions.json`** — **+5 entries** (v7.0.0, v7.0.1, v7.0.2, v7.0.3, v7.1.0), raising total to 40. Each entry carries `headline`, `summary`, `highlights[]`, and `metrics{}`, and is tagged with the new `compression` era.
+- **`workflow-system/human/demo/version-timeline/index.html`** — compression era section added with filter chip, hero tagline updated to reflect cycle closure.
+- **`workflow-system/human/demo/shared/i18n.js`** — `vt.era.compression` keys in EN+ZH (`compression` / `上下文压缩`), plus compression-era filter chip strings.
+- **`.local/research/retrospective_v7.0_to_v7.1.md`** (CREATE, 312 lines — **NOT committed; `.local/` is gitignored**) — SI-8 retrospective covering the full cycle: 7 gaps identified, 5-version delivery table, 6 deferrals with rationale, 8 learnings, cross-version metrics, process notes, next-iteration bullets for v7.2+.
+- **`.local/research/v7.1.0_evaluation_report.md`** (CREATE, 220 lines — **NOT committed; `.local/` is gitignored**) — SI-3 scorecard: composite **9.47/10** (Code quality 9.5 · Architecture 9.7 · Test adequacy 9.5 · Maintainability 9.0 · Compatibility 9.5 · Performance 9.5). 0 blockers, 0 criticals, 2 minor follow-ups queued for v7.2+.
+- **Cross-repo artefact** — `EvoBench/.local/feedbacks/feedbacks_from_devola/7.1.0.md` (496 lines, **lives in the EvoBench repository — NOT part of this commit**). Authored as evaluation-mode feedback with 9 proposals: persistence-probe scorer, LCP harness, golden ingestion, truncation fidelity, decay-aware scoring, session-pinning, composite rebalancing, 11-adapter parity, flake-rate tracking.
+
+### Changed
+- **`workflow-system/agent/context_profiles.yaml`** — 6 decomposition profiles flip `tool_output_truncation.enabled: false → true` and gain a `summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25}` block under their `predecessor_summary` section:
+  - `feature`, `refactor`, `skill-optimization`, `migration`, `security-audit`, `perf-optimization`.
+  - Opt-out documented per-profile via the pre-existing `tool_output_truncation.override` knob; hotfix / docs / research-heavy profiles remain unaffected.
+- **`workflow-system/human/demo/version-timeline/version-timeline.js`** — `ERAS` array gains `"compression"`; rollup description copy refreshed to cover the staged-compression cycle.
+- **`workflow-system/human/demo/benchmark-results/index.html`** — `SAMPLE_DATA.version` 7.0.3 → 7.1.0 (bumped via `scripts/bump_version.py`); round 6 `v7_staged_compression` dataset added with 5 compression scenarios (per-scenario composite range `[98.33, 99.80]`).
+- **`tests/test_benchmarks.py`** — `V6_BASELINE_PATH` retargets from the v7.0.2 baseline path to `benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`; accompanying healthy-baseline assertions updated to match the new filename.
+
+### Open questions resolved
+- **K.2** — plan-mode scope. Resolution: **plan-mode stays L1 (Stage) only for v7.x**. Rationale: the v6.x convergence loop and v7.0 probe harness already cover the planning reinforcement loop at L1; promoting plan-mode to L0 (Project) would couple project-level orchestration to per-stage planning assumptions. Revisit in v8.x if reinforcement metrics show a gap.
+- **K.6** — compression goldens. Resolution: **all 5 shipped** (3 in v7.0.1/v7.0.2 — `compression_cache_invariant`, `compression_predecessor_summary`, `compression_staged_end_to_end`; 2 in v7.1.0 — `compression_tool_output`, `compression_persistence`).
+- **K.7** — OEM outreach / runtime-side compression. Resolution: **stay prompt-side for v7.x**. The staged-compression primitives ship as deterministic prompt-level transforms so they compose with every adapter in the 11-adapter matrix without runtime coupling. A runtime-side / OEM outreach protocol is deferred to v8.x.
+
+### Metrics
+- Tests: 1090 → **1100** (+10 from the 2 new NineS compression goldens' verification tests).
+- Coverage: `devolaflow.compressor` 94 %, `devolaflow.learnings` 97 %, total **94.37 %** (rule CP-2 floor 80 %; v7.0.3 ≥ 90 % target preserved).
+- NineS composite: **0.8805** (stable vs v7.0.3).
+- EvoBench benchmarks: **34/34 pass**, **0 pp** composite drift vs v7.0.2 baseline across all 33 scenarios (SI-4 max-drift ceiling 5 pp preserved).
+- SKILL.md line count: **498 / 500** (SF-1 satisfied — body unchanged from v7.0.3; only frontmatter/banner/body version strings bumped via `scripts/bump_version.py`).
+- LOC delta: production code / config **~89** (mostly `context_profiles.yaml` flips + baseline JSON + 2 golden TOMLs + web-demo JS/HTML); docs + research **~1450** (§§12-15 in `context-isolation.md` ~140 LOC + retrospective 312 + SI-3 scorecard 220 + EvoBench feedback 496 + versions.json + CHANGELOG + misc).
+- Lint: `ruff check` + `ruff format --check` clean (SI-10 #2, #3).
+- SI-10 pre-commit: **5 / 5 pass** (full tests, ruff check, ruff format, test_version, test_benchmarks).
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.1.0` (SF-3 / CP-3); `make sync-human-docs` regenerated EN/ZH human docs.
+
+### Cross-references
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.1.0 (rollup slice).
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§K.2, K.6, K.7 (resolved), §G (adoption matrix).
+- Retrospective: `.local/research/retrospective_v7.0_to_v7.1.md` (SI-8).
+- SI-3 evaluation: `.local/research/v7.1.0_evaluation_report.md`.
+- Cross-repo: `EvoBench/.local/feedbacks/feedbacks_from_devola/7.1.0.md` (EvoBench repo; 9 evaluation-mode proposals).
+
+### Scope (v7.0 → v7.1 cycle closure)
+v7.1.0 closes the cycle that began with v7.0.0 (Cache-Layout Invariant, J.1). The five-slice delivery is: v7.0.0 J.1 → v7.0.1 J.2 → v7.0.2 J.3 → v7.0.3 J.4+J.5 → v7.1.0 adoption. With K.2 / K.6 / K.7 resolved, the staged-compression primitives are now default-on across 6 decomposition profiles and the SI-3 scorecard clears the stable-release threshold. Verdict: **READY** for stable tag.
+
+## [7.0.3] — 2026-04-17
+
+**MINOR — fourth slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.4 + J.5 together (end-to-end persistence-probe harness + Learnings v2 additive schema with confidence decay, session pinning, and consolidate_session). Resolves K.5 (stay JSONL, no file-system memory tool).**
+
+This release lands two independent but thematically paired deliverables from the v7 roadmap. J.4 / ADR-004 adds a **cross-stage persistence probe** (`tests/test_e2e_compression.py` + `tests/_probe_fixtures.py`) that synthesises a Stage A artifact with a seeded preserve-list panel, runs it through `summarise_predecessor` (from v7.0.2), embeds the result in a canonical-layout Stage B dispatch, and asserts that every seeded entity survives verbatim. Three probe scenarios ship (easy / medium / hard at 5 / 20 / 50 entities respectively); telemetry is captured per-scenario in `.local/research/v7.0.3_probe_telemetry.json` for SI-3 scoring. Failure classification matches ADR-004 §2.3: paraphrase → FAIL, missing entirely → FAIL, case-mismatch → FAIL for `file_paths` and `commit_hashes`, PASS otherwise. J.5 / ADR-005 ships a **Learnings v2 additive schema migration** in `src/devolaflow/learnings.py`: four new optional dataclass fields (`confidence_half_life_days`, `last_accessed`, `pinned_for_session`, `promotion_count`), three new public functions (`consolidate_session`, `decay_confidence`, `pin_learning_for_session`), and a `session_id: str | None` parameter on `load_relevant_learnings()`. Decay is linear — `new_conf = conf - 0.5 * min(1, days_since_last_accessed / half_life)` — with a `DECAY_FLOOR=0.1` prune threshold. Legacy v1 JSONL entries parse unchanged (ADR-005 §2.4 migration shim: `last_accessed` is lazily backfilled from `timestamp` on the first decay touch). Open question K.5 is resolved: we stay with JSONL and do **not** surface a Claude-style file-system memory tool.
+
+### Added
+- **`tests/test_e2e_compression.py`** (CREATE, 10 tests) — persistence-probe harness marked `@pytest.mark.persistence_probe`. Tests: `test_carrythrough_passes_on_faithful_summary`, `test_carrythrough_fails_on_paraphrase` (paraphrase-injection FAIL-path guard), `test_carrythrough_threshold_easy` / `_medium` / `_hard` (ADR-004 §2.2 tiers), `test_extract_named_entities_integration` (≥40 entities of mixed types on a ~10 K-token artifact), `test_probe_reports_flake_rate` (per-scenario elapsed time + carry-through rate written to `.local/research/v7.0.3_probe_telemetry.json`), `test_telemetry_records_threshold_per_scenario`, `test_carrythrough_helper_empty_artifact_returns_one`, `test_carrythrough_helper_case_mismatch_for_file_paths_fails` (ADR-004 §2.3 case-sensitivity guard).
+- **`tests/_probe_fixtures.py`** (CREATE, 190 LOC) — `build_probe_workspace(tmp_path, scenario, paraphrase_file_path=False, summary_max_tokens=1200)` builder used by both the `_compression_e2e_workspace` fixture and the direct-call probe tests. Writes `stage_a/artifact.md` (with seeded preserve-list panel + filler body sized to the scenario's body-token target), `stage_b/dispatch.yaml` (canonical 12-key layout, validated via `assert_dispatch_layout`), and `stage_b/context_packed.yaml` (token accounting). Seeds cycle through file paths, task ids, version strings, commit hashes, metric values, and interface signatures so every scenario exercises ≥ 4 of the 8 ADR-003 NER classes. **Test-only** per ADR-004 §3 — deliberately kept out of `src/` so the probe's scoring semantics can evolve without coupling production consumers.
+- **`tests/conftest.py#_compression_e2e_workspace`** — new pytest fixture (60 LOC addition) that delegates to `build_probe_workspace(tmp_path, scenario="easy")`. Tests needing medium / hard scenarios call the builder directly.
+- **`devolaflow.learnings.Learning`** gains 4 v2 additive fields (ADR-005 §2.1, default-safe for legacy JSONL entries): `confidence_half_life_days: int = 30`, `last_accessed: str = ""`, `pinned_for_session: str = ""`, `promotion_count: int = 0`. `__post_init__` coerces types (defends ADR-005 §3 risk P3).
+- **`devolaflow.learnings.consolidate_session(session_id, session_learnings, jsonl_path) -> dict`** — session-end helper that bumps matched entries by `+0.05` confidence, increments `promotion_count`, refreshes `last_accessed`, and captures unmatched ones with `promotion_count=1`. Idempotent within a single call: duplicate `(key, stage, task_type)` triples in the payload are skipped (ADR-005 §6 test #8). Returns `{promoted, captured, skipped}`.
+- **`devolaflow.learnings.decay_confidence(jsonl_path, half_life_days=None) -> dict`** — linear decay `new_conf = conf - 0.5 * min(1.0, delta_days / half_life)` clamped to `[0.0, 1.0]`; entries whose new confidence falls strictly below `DECAY_FLOOR=0.1` are pruned. Migration shim (ADR-005 §2.4): legacy entries without `last_accessed` get that field backfilled from `timestamp` on first touch. Returns `{decayed_count, dropped_below_floor_count}`.
+- **`devolaflow.learnings.pin_learning_for_session(key, stage, task_type, session_id, jsonl_path) -> bool`** — marks a matched entry as pinned for `session_id`. `load_relevant_learnings(..., session_id=X)` then surfaces that entry regardless of confidence floor. Empty `session_id` clears the pin. Returns `True` iff a match was found.
+- **`devolaflow.learnings.DEFAULT_DECAY_HALF_LIFE_DAYS=30`** and **`DECAY_FLOOR=0.1`** — module-level constants exposing the decay defaults.
+- **`devolaflow.learnings.__all__`** — new module-level export list surfacing 12 public symbols (3 new v2 helpers + 9 pre-existing).
+- **12 new tests** in `tests/test_learnings.py::TestLearningsV2Schema`: `test_decay_confidence_linear`, `test_decay_confidence_floor`, `test_consolidate_session_promotes_matched`, `test_consolidate_session_captures_new`, `test_pin_for_session`, `test_legacy_entry_parses`, `test_migration_last_accessed_shim`, `test_consolidate_session_idempotent`, `test_consolidate_session_empty_payload_noop`, `test_decay_confidence_missing_file_returns_zero_summary`, plus class `TestLearningsV2Coverage` (12 tests) targeting pre-existing branches to hit the ≥ 90 % coverage floor (`promote_learning` matched / no-match, `get_learnings_stats` nonempty + empty, `load_relevant_learnings` invalid-timestamp / missing-required-fields, `prune_learnings` invalid-timestamp, `decay_confidence` zero half-life / invalid last_accessed / empty file, `pin_learning_for_session` missing-key, `log_external_source_review` default path).
+- **`workflow-system/agent/SKILL.md` §"Operational Learnings — Session Pinning & Decay (v7.0.3+)"**: 2-paragraph addition appended after the Task Quality Score section (SF-1 budget preserved — `wc -l` 498 ≤ 500). Documents decay formula, pin semantics, and the lazy migration shim.
+- **`pyproject.toml#[tool.pytest.ini_options].markers`**: registers `persistence_probe` so `@pytest.mark.persistence_probe` does not trigger the default `PytestUnknownMarkWarning`.
+- **`scripts/detect_dead_apis.py` allowlist**: `consolidate_session`, `decay_confidence`, `pin_learning_for_session` added (consumed by L1/L0 session-end hooks and by dispatchers that need cross-round pinning).
+
+### Changed
+- **`devolaflow.learnings.load_relevant_learnings(..., session_id=None)`**: new optional parameter. When provided, entries whose `pinned_for_session` matches are surfaced first (ahead of the confidence-sorted top-N) regardless of `min_confidence`; unpinned entries still honour `min_confidence`. De-duplicates by `(stage, task_type, key)` so a pinned + high-confidence entry does not appear twice.
+- **`src/devolaflow/learnings.py` module docstring** updated to document the v2 schema additions.
+
+### Open questions resolved
+- **K.5** — memory-tool surface area. Resolution: **stay JSONL**, do NOT surface a Claude-style file-system memory tool. Rationale (ADR-005 §1): (a) hook-based validation (`check_file_ownership`, `test_on_complete`) already covers JSONL shape; (b) a file-system API duplicates functionality `Read` / `Write` / `StrReplace` already provide against the JSONL file; (c) v7 scope is tight. Revisit in v8.x if learnings-consumption metrics demonstrate a workflow gain.
+
+### Metrics
+- Tests: 1058 → **1090** (+32: 10 persistence-probe + 10 new `TestLearningsV2Schema` + 12 coverage-floor tests in `TestLearningsV2Coverage`). Exceeds the spec's +19 test-count delta target.
+- `devolaflow.learnings` coverage: 81 % → **97.35 %** (rule CP-2 floor for v7.0.3 per roadmap §v7.0.3 = ≥ 90 %).
+- Probe telemetry at `.local/research/v7.0.3_probe_telemetry.json` — carry-through rate **1.0** on all three scenarios (easy / medium / hard; 0 entities missed across 5 + 20 + 50 = 75 seeded entities).
+- LOC delta (against budget 700 — within budget): production code 236 (`learnings.py`), test code 464 (`test_learnings.py` 220 + `test_e2e_compression.py` 287 + `_probe_fixtures.py` 190 − file renumbering; see branch diff for exact accounting), schema / docs 3 (SKILL.md + pyproject marker), changelog ~80, allowlist 10, version sync ~11. Code-only delta ~240; test code ~460; total ~700 LOC.
+- Benchmarks: no regression vs. v7.0.2 baseline (SI-4 guard; max drift **0.00 pp** across all 33 EvoBench scenarios; verdict **PASS**). Per-scenario delta: all zero because the v7.0.3 SKILL.md addition lives past every `context_profiles.yaml` line-range mapping (deliberately placed after `task_quality_score: 471-495` so no existing section's line range shifts).
+- All 11 adapters [OK] (CP-5 verified). SKILL.md: 495 → **498 lines** (SF-1 cap 500; KimiCode adapter budget 500 honoured after prepended frontmatter).
+- Lint: ruff check + format clean (SI-10 #2, #3).
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.0.3` (SF-3 / CP-3); `make sync-human-docs` regenerated 16 EN/ZH human docs.
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-004-persistence-probe.md` (J.4), `.local/research/adr/v7-ADR-005-learnings-v2.md` (J.5)
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.0.3
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§H.4, I, J.4, B.5, F row 7, G row 7, J.5, K.5
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.3 ships J.4 + J.5 together (per roadmap §v7.0.3 — two ADRs × two modules = clean two-wave split, paired under "quality / measurement" theme). Remaining cycle slice: v7.1.0 (adoption opt-in + SI-3 evaluation + SI-8 retrospective + final 2 of 5 NineS goldens `compression_tool_output` + `compression_persistence` to close K.6).
+
+## [7.0.2] — 2026-04-17
+
+**MINOR — third slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.3 only (deterministic hierarchical predecessor summariser + 8-class NER + compression-retention scenarios + first 3 of 5 NineS goldens for K.6).**
+
+This release lands the deterministic extractive summariser that ADR-003 commits DevolaFlow to. `summarise_predecessor()` parses an artifact by extension (markdown / YAML / JSON / TOML / H2 fallback), runs the new `extract_named_entities()` pass over the full body, prefixes the output with a verbatim `key_facts:` YAML block, then fills the remaining token budget with schema-hint-prioritised sections (`design` → Decision/Consequences/Alternatives, `research` → Recommendations/OpenQuestions/Synthesis, `adr` → Decision/Consequences/Test plan, `gate_report` → Verdict/Findings/Metrics, default → H2 in document order). Hard-capped at `max_tokens` with a `[TRUNCATED]` marker and `was_bounded=True` flag — no paraphrase, ever. The companion 8-class NER (`file_paths`, `task_ids`, `version_strings`, `commit_hashes`, `metric_values`, `error_messages`, `acceptance_criterion_bullets`, `interface_signatures`) reuses `PRESERVE_PATTERNS` for the first six classes so the compactor and the summariser stay in lock-step on what counts as a verbatim preserve-list fact (CO-2). The new schema fields `pred[*].summary_mode` and `pred[*].summary_max_tokens` are nested per-pred (NOT new top-level keys — honours the v7-ADR-001 cache-layout invariant). The new `meta.summary_trigger_pct: 25` profile knob resolves open question K.1: dispatchers MUST summarise above 25 % of the consuming layer's token_budget (e.g. L3 8000 → above 2000 tokens; L2 4000 → above 1000).
+
+### Added
+- **`devolaflow.compressor.summarise_predecessor(artifact_path, max_tokens=500, mode="extractive", schema_hint=None) -> dict`**: deterministic extractive summariser. Parses markdown / YAML / JSON / TOML by extension (default H2 fallback), runs `extract_named_entities` on the full body, emits a `key_facts:` verbatim prefix, then fills the budget with schema-hint-prioritised sections (case-insensitive substring match, accepts plural/singular). Returns a 7-key dict: `summary_text`, `mode`, `token_count`, `extracted_entities`, `covered_sections`, `dropped_sections`, `was_bounded`. Mode `"abstractive"` raises `NotImplementedError` at v7.0.2 — wired in v7.0.3+ behind an opt-in profile flag per ADR-003 §2.3.
+- **`devolaflow.compressor.extract_named_entities(text) -> list[dict]`**: deterministic NER over 8 entity classes — `file_paths`, `task_ids`, `version_strings`, `commit_hashes`, `metric_values`, `error_messages` (all six reuse `PRESERVE_PATTERNS` per CO-2), `acceptance_criterion_bullets` (matches `- MUST/SHOULD/SHALL/MAY [NOT]` lines), `interface_signatures` (Python `def`/`class` plus YAML `key: type` hints). Each entry is `{type, value, source_line}` with 1-indexed source lines; duplicates de-duped per `(type, value)` pair, document order preserved.
+- **`devolaflow.compressor.SCHEMA_HINT_PRIORITIES`**: module-level constant exposing the 4 schema-hint priority lists — `design`, `research`, `adr`, `gate_report` — for downstream callers that need to introspect the priority order.
+- **`devolaflow.compressor.DEFAULT_SUMMARY_MODE`**, **`DEFAULT_SUMMARY_MAX_TOKENS`**, **`DEFAULT_SUMMARY_TRIGGER_PCT`**, **`SUMMARY_TRUNCATION_MARKER`**: module-level constants for the summariser defaults (`"extractive"`, `500`, `25`, `"[TRUNCATED]"`).
+- **`schemas/lean-dispatch.yaml#pred.per_entry.summary_mode`** and **`summary_max_tokens`**: new OPTIONAL fields nested inside each `pred` entry. Defaults: `extractive` / `500`. Missing → extractive / 500. Honours v7-ADR-001 layout invariant (no new top-level keys; nested under existing `pred`).
+- **`workflow-system/agent/context_profiles.yaml#meta.summary_trigger_pct: 25`**: new meta key — relative threshold above which dispatchers MUST summarise predecessor artifacts (resolves K.1 per ADR-003 §2.4). Per-profile override available.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_easy.yaml`**: research profile (3300-token budget) probe — ~5 K-token artifact, 5 probe facts, retention target ≥ 95 %. Composite at v7.0.2 cut: **99.62**.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_medium.yaml`**: design profile (4450-token budget) probe — ~10 K-token artifact, 10 probe facts, retention target ≥ 95 %. Composite at v7.0.2 cut: **99.23**.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_hard.yaml`**: hotfix profile (2400-token budget — the tightest) probe — ~15 K-token ADR-class artifact, 15 probe facts spanning all 8 NER types, retention target ≥ 90 % (stretch goal per ADR-003 §6 #9). Composite at v7.0.2 cut: **98.55**.
+- **`data/golden_test_set/compression_retention_easy.toml`** / **`compression_retention_medium.toml`** / **`compression_retention_hard.toml`**: 3 NineS V1 golden TOMLs (target dimension `analysis`, scorer `exact`) probing extractive entity preservation, schema-hint priority, and `was_bounded` truncation respectively. Closes 3 / 5 of K.6 (remaining 2 ship in v7.1.0).
+- **`benchmarks/devolaflow_context/baselines/v7.0.2_baseline.json`**: regenerated full-coverage baseline (33 scenarios = 30 prior + 3 new `compression_retention_*`). Replaces `v7.0.1_baseline.json` as the staleness-guard target.
+- **10 new unit tests** in `tests/test_compressor.py::TestHierarchicalSummariser` (per ADR-003 §6): `test_summarise_extractive_preserves_file_paths`, `test_summarise_extractive_honours_max_tokens`, `test_summarise_schema_hint_priority`, `test_summarise_unknown_extension`, `test_summarise_trigger_threshold`, `test_extract_named_entities_all_types`, `test_summarise_was_bounded_truncation_marker`, `test_summarise_abstractive_not_yet_wired_raises`, `test_extract_entities_reuses_preserve_patterns`, `test_summarise_returns_structured_dict_keys`.
+- **`scripts/detect_dead_apis.py` allowlist**: `summarise_predecessor`, `extract_named_entities` added (consumed by external dispatchers per ADR-003 §2.4 and re-used by the v7.0.3 persistence probe per ADR-004).
+
+### Changed
+- **`devolaflow.compressor.__all__`** extended with `summarise_predecessor`, `extract_named_entities`, `SCHEMA_HINT_PRIORITIES`, `DEFAULT_SUMMARY_MODE`, `DEFAULT_SUMMARY_MAX_TOKENS`, `DEFAULT_SUMMARY_TRIGGER_PCT`, `SUMMARY_TRUNCATION_MARKER`. No symbols removed; v7.0.x importers continue to work unchanged.
+- **`tests/test_benchmarks.py`** `V6_BASELINE_PATH` retargeted to `v7.0.2_baseline.json`; `test_runner_prefers_latest_baseline` expectation bumped accordingly. The v7.0.0 / v7.0.1 baseline files are retained on disk as historical record.
+
+### Open questions resolved
+- **K.1** — forced-summarisation threshold. Resolution: relative threshold of **25 %** of the consuming layer's `token_budget` (per ADR-003 §2.4). Surfaces as `meta.summary_trigger_pct` in `context_profiles.yaml` for per-profile override. Below threshold, dispatchers may embed the artifact body verbatim under `pred[*].body`.
+- **K.6** — NineS V1 golden set authoring. **3 / 5 shipped** in v7.0.2 (`compression_retention_easy/medium/hard`); remaining 2 (`compression_tool_output`, `compression_persistence`) ship in v7.1.0 per roadmap §v7.1.0.
+
+### Metrics
+- Tests: 1023 → 1033 (+10: all in `TestHierarchicalSummariser`)
+- `devolaflow.compressor` coverage: ≥ 90 % (rule CP-2 floor for v7.0.2 per roadmap §v7.0.2)
+- New EvoBench scenario composites: `compression_retention_easy` 99.62, `compression_retention_medium` 99.23, `compression_retention_hard` 98.55 (all above min_composite 85 / min_relevance 0.9 / max_noise_ratio 0.15)
+- Existing 30 EvoBench scenarios: zero regression vs. v7.0.1 baseline (max drift 0.00 pp, well within SI-4 5pp tolerance)
+- LOC delta against budget 420 — within budget: production code 162, schema 8, profile 11, tests 165, scenarios 165, goldens 60, baseline regen ~430 (auto-generated), changelog ~50, allowlist 8, version sync ~10
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.2` (SF-3 / CP-3)
+- SKILL.md unchanged at 495 lines (the v7.0.2 docs land in inline docstrings + ADR-003 cross-link only — well within the 500 SF-1 cap)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-003-hierarchical-summary.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.0.2
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§B.3, F row 2, G row 2, H.1, J.3, K.1, K.6
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.2 ships J.3 only. Remaining cycle slices: v7.0.3 (J.4 + J.5 persistence probe + learnings v2 — re-uses `extract_named_entities` from this version), v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective + remaining 2 NineS goldens to close K.6).
+
+## [7.0.1] — 2026-04-17
+
+**MINOR — second slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.2 only (tool-output truncation primitive + `tool_results` schema block).**
+
+This release lands the prompt-side equivalent of Anthropic's `clear_tool_uses_20250919` server-side primitive: a deterministic head/tail truncation helper and a most-recent-N + exclude-by-name policy applied to a sequence of `tool_use` records. Both helpers are pure functions; per-profile opt-in lives in `workflow-system/agent/context_profiles.yaml` (default `enabled: false` for the six decomposition-enabled profiles at the v7.0.1 cut). The new `tool_results:` block is appended at the end of `schemas/lean-report.yaml` per the cache-layout invariant from v7.0.0 (additive rule, no existing top-level keys reordered). v7.0.1 also bumps `decomposition.sub_agent_context_budget` from 3000 → 5000 tokens across those six profiles (resolves open question K.8).
+
+### Added
+- **`devolaflow.compressor.truncate_tool_output(text, *, head_chars=500, tail_chars=500, placeholder_template="[truncated {removed} chars]")`**: pure function that returns `(maybe_truncated_text, removed_chars)`. If `len(text) <= head_chars + tail_chars` returns `(text, 0)`; otherwise `(head + placeholder + tail, removed_chars)` with `{removed}` substituted in the placeholder. Character-boundary slicing via `len()` keeps Unicode payloads safe.
+- **`devolaflow.compressor.clear_old_tool_uses(tool_uses, *, keep=3, exclude_tool_names=("Read",), head_chars=500, tail_chars=500, placeholder_template=...)`**: walks a list of `tool_use` dicts (each with `name` + `output`), preserves the most recent `keep` records verbatim, preserves any older record whose `name` is in `exclude_tool_names`, and truncates everything else via `truncate_tool_output`. Returns `(modified_list, ToolUseTruncation summary)`. `kept_count + cleared_count == len(tool_uses)`. Inputs are not mutated (shallow-copied modified records).
+- **`devolaflow.compressor.ToolUseTruncation`**: new frozen dataclass with `kept_count`, `cleared_count`, `head_chars`, `tail_chars`, `placeholder`, `excluded_tool_names`. Records the policy applied so the L2 wave consumer can decide whether to refresh the L1 dispatch tool list.
+- **`schemas/lean-report.yaml#tool_results`**: new top-level block (appended at the end of the file per ADR-001 §2 additive rule). Documents the policy (`keep`, `exclude_tool_names`, `head_chars`, `tail_chars`, `placeholder_template`) and the runtime-recorded summary (`kept_count`, `cleared_count`, `cleared_at_round`). Producing layer = L3 task agent; consumer = L2 wave agent.
+- **`benchmarks/devolaflow_context/scenarios/compression_tool_output.yaml`**: new EvoBench scenario exercising the `skill-optimization` decomposition-enabled profile. Validates that the four sections (`context_isolation`, `dispatch_report`, `gate_mechanism`, `convergence_loop`) needed to read the `tool_results.summary` block remain selected after the v7.0.1 profile edits. Composite at v7.0.1 cut: **98.33** (well above min_composite 85, min_relevance 0.85, max_noise_ratio 0.15).
+- **`benchmarks/devolaflow_context/baselines/v7.0.1_baseline.json`**: regenerated full-coverage baseline (30 scenarios, including the new `compression_tool_output`). Replaces `v7.0.0_baseline.json` as the staleness-guard target.
+- **8 new unit tests** in `tests/test_compressor.py::TestToolOutputTruncation`: `test_truncate_tool_output_below_threshold`, `test_truncate_tool_output_above_threshold`, `test_truncate_tool_output_placeholder_format`, `test_truncate_tool_output_unicode_safe`, `test_clear_old_tool_uses_keeps_recent_n`, `test_clear_old_tool_uses_excludes_named_tools`, `test_clear_old_tool_uses_returns_summary`, `test_clear_old_tool_uses_empty_list`.
+- **`workflow-system/agent/references/context-isolation.md` §11 "Tool-Output Truncation (v7.0.1+)"**: documents when the runtime applies truncation, the keep/exclude/head/tail policy, the placeholder format, and how the L2 wave consumer reads the `tool_results.summary` block to decide on tool-list refresh.
+- **`scripts/detect_dead_apis.py` allowlist**: `truncate_tool_output`, `clear_old_tool_uses`, `ToolUseTruncation` added (consumed by external runtimes per ADR-002 §2.1; opted in via per-profile `tool_output_truncation:` block).
+
+### Changed
+- **`workflow-system/agent/context_profiles.yaml`**: 6 decomposition-enabled profiles (`feature`, `refactor`, `skill-optimization`, `migration`, `security-audit`, `perf-optimization`) gain a `tool_output_truncation:` block (default `enabled: false`, `keep: 3`, `exclude_tool_names: ["Read"]`, `head_chars: 500`, `tail_chars: 500`). Same 6 profiles bump `decomposition.sub_agent_context_budget` from 3000 → 5000 (resolves open question K.8 — recent-N verbatim records require headroom for the sub-agent to ingest without spillover).
+- **`devolaflow.compressor.__all__`** extended with `truncate_tool_output`, `clear_old_tool_uses`, `ToolUseTruncation`. No symbols removed; v7.0.x importers continue to work unchanged.
+- **`tests/test_benchmarks.py`** `V6_BASELINE_PATH` retargeted to `v7.0.1_baseline.json`; `test_runner_prefers_latest_baseline` expectation bumped accordingly. The v7.0.0 baseline file is retained on disk as historical record.
+
+### Open questions resolved
+- **K.4** — tool-result clearing default. Resolution: `keep=3` (Anthropic's default), `exclude_tool_names=("Read",)`, `head_chars=500`, `tail_chars=500`. Per-profile override available.
+- **K.8** — `sub_agent_context_budget` for decomposition-enabled profiles. Resolution: 3000 → 5000 tokens across the 6 profiles. Confirms the headroom needed once recent-N tool outputs are preserved verbatim downstream.
+
+### Metrics
+- Tests: 1015 → 1023 (+8: all in `TestToolOutputTruncation`)
+- `devolaflow.compressor` coverage: ≥ 88 % (rule CP-2 floor for v7.0.1 per ADR-002 §3)
+- New EvoBench scenario `compression_tool_output` composite: 98.33 (relevance 1.0, noise 0.06, budget util 0.56)
+- Existing 29 EvoBench scenarios: no regression vs. v7.0.0 baseline (SI-4 guard; max drift well within 5pp tolerance)
+- LOC delta (against budget 320): within budget — production code 125, schema 20, tests 80, scenario 50, baseline 40, profiles 35, docs 60, changelog 35, allowlist 10, version sync 10
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.1` (SF-3 / CP-3)
+- SKILL.md unchanged (the v7.0.1 docs land in `references/context-isolation.md` only — `wc -l` 495 → 495, well within the 500 SF-1 cap)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-002-tool-output-truncation.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.0.1
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§B.3, F row 6, G row 6, J.2
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.1 ships J.2 only. Remaining cycle slices: v7.0.2 (J.3 hierarchical predecessor summary), v7.0.3 (J.4 + J.5 persistence probe + learnings v2), v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective).
+
+## [7.0.0] — 2026-04-17
+
+**MAJOR — opens the v7.0 → v7.1 staged-context-compression cycle by shipping J.1 only: the cache-layout invariant.**
+
+This release introduces the first publicly-documented governance contract on dispatch layout. It is an additive API at the Python level (no public function changes signature, no rendered dispatch produced by v6.x is invalidated), but a **backwards-incompatible governance constraint on any downstream tooling that previously assumed free reordering of top-level dispatch sections**. Per `.local/research/adr/v7-ADR-001-cache-layout-invariant.md` §2, every lean dispatch must henceforth honour the canonical 12-key order, and every new top-level key must be appended after `gate`. The MAJOR bump signals that constraint to ecosystem consumers; v7.0.1–v7.0.3 land additive primitives on top of it (default-off feature flags), and v7.1.0 flips the flags on with the cycle SI-3 evaluation and SI-8 retrospective.
+
+### Added
+- **`devolaflow.compressor.assert_dispatch_layout(payload, layout_spec=None)`**: runtime validator that raises `DispatchLayoutError` when a dispatch payload's top-level key insertion order is not a subsequence of the canonical layout, or when an unknown key appears before the last spec key. Honours the additive rule from ADR-001 §2.
+- **`devolaflow.compressor.compute_dispatch_lcp_pct(payload_a, payload_b)`**: rendered-YAML longest-common-prefix percentage helper backing the H.2 round-stability test (`yaml.safe_dump(..., sort_keys=False, default_flow_style=False)` byte-comparison).
+- **`devolaflow.compressor.DispatchLayoutError`**: new `ValueError` subclass for invariant violations.
+- **`devolaflow.compressor.DEFAULT_DISPATCH_LAYOUT`**: module-level canonical 12-key order constant (`hdr`, `task`, `goal`, `assumptions`, `pred`, `files`, `rules`, `shared`, `accept`, `reinforce`, `verify_cfg`, `gate`).
+- **`schemas/lean-dispatch.yaml#layout_invariant`**: new schema block declaring `version: 1`, `canonical_order` (12 keys), and `enforcement` (validator path, stability test path, `lcp_threshold_round_1_to_2: 0.80`, `lcp_threshold_round_1_to_3: 0.70`).
+- **`benchmarks/devolaflow_context/baselines/layout_invariant_v7.0.0.yaml`**: golden rendered dispatch (51 lines) used by the byte-comparison test below.
+- **5 new unit tests** in `tests/test_compressor.py::TestDispatchLayoutInvariant`: `test_assert_dispatch_layout_accepts_canonical`, `test_assert_dispatch_layout_rejects_reordered`, `test_dispatch_prefix_is_stable_across_rounds` (uses `compute_dispatch_lcp_pct` + `apply_round_escalation`; asserts LCP ≥ 0.80 round 1→2 and ≥ 0.70 round 1→3 — the H.2 SLO), `test_new_field_appended_not_inserted`, `test_assert_dispatch_layout_unknown_keys_after_spec`. Measured LCP on the synthetic 3-round payload: r1→r2 = 0.8487, r1→r3 = 0.8487 (both above threshold).
+- **1 new benchmark test** `tests/test_benchmarks.py::TestLayoutInvariantBaseline::test_layout_invariant_baseline`: byte-compares the canonical payload's `yaml.safe_dump` output against `benchmarks/devolaflow_context/baselines/layout_invariant_v7.0.0.yaml`. Drift fails CI in a dedicated assertion (renderer upgrade vs payload edit vs layout reorder all surface here).
+- **`workflow-system/agent/references/context-isolation.md`** new section 10 "Cache Layout Invariant (v7.0.0+)": rationale, 12-key canonical order, validator API, LCP SLO, ADR cross-link.
+- **`workflow-system/agent/SKILL.md`** Context Isolation section: 2-line cache-layout pointer to the new reference subsection and the validator API.
+- **`workflow-system/agent/context_profiles.yaml`**: `sections.context_isolation.lines` extended (and tokens_est bumped from 204 → 230); subsequent section line ranges shifted by +2 to mirror the SKILL.md growth.
+- **`.cursor/rules/devola-flow-rules.mdc` Rule 6 (P6 — Preserve Cached Prefix)**: workspace rule mandating `assert_dispatch_layout(payload)` before send + the additive-after-`gate` rule for new keys.
+
+### Changed
+- **`devolaflow.compressor.__all__`** extended with `DEFAULT_DISPATCH_LAYOUT`, `DispatchLayoutError`, `assert_dispatch_layout`, `compute_dispatch_lcp_pct`. No symbols removed; v6.x importers continue to work unchanged.
+
+### Metrics
+- Tests: 1009 → 1015 (+6: 5 unit + 1 benchmark baseline)
+- LCP measurement (synthetic 3-round task_id, ADR-001 §2 canonical layout): r1→r2 0.8487, r1→r3 0.8487, r2→r3 0.7049 — all above the SLO thresholds.
+- `devolaflow.compressor` coverage: ≥ 85 % (rule CP-2 floor for new module paths)
+- SKILL.md: 498 → 500 lines (within the 500 SF-1 cap)
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.0` (SF-3 / CP-3)
+- Benchmarks: no regressions on existing 29 EvoBench scenarios (SI-4 guard)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md`
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§A, B.6, F row 1, J.1
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.0 ships J.1 only. The remaining cycle slices land additively in v7.0.1 (J.2 tool-output truncation), v7.0.2 (J.3 hierarchical predecessor summary), v7.0.3 (J.4 + J.5 persistence probe + learnings v2), and v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective).
+
 ## [6.2.1] — 2026-04-17
 
 ### Fixed

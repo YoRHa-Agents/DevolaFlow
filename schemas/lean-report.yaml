@@ -244,3 +244,22 @@ aggregation_formats:
       - Blockers listed only for FAIL state
       - "Max tokens: 150 per stage summary"
     intensity: aggressive
+
+# Tool-output truncation manifest (v7.0.1+, per .local/research/adr/v7-ADR-002-tool-output-truncation.md)
+# Reports how many tool_use outputs were preserved verbatim vs. truncated, and
+# the head/tail/placeholder policy applied. Producing layer is the L3 task agent;
+# consuming layer is the L2 wave agent (which uses it to decide whether to refresh
+# tool definitions). Block is APPENDED at the end of the file per the additive rule
+# in v7-ADR-001 §2 (cache layout invariant) — new top-level keys MUST follow the
+# previous last key (`aggregation_formats`), never be inserted between existing keys.
+tool_results:
+  policy:
+    keep: 3                          # most-recent-N preserved verbatim
+    exclude_tool_names: [Read]       # tools whose output is always preserved
+    head_chars: 500
+    tail_chars: 500
+    placeholder_template: "[truncated {removed} chars]"
+  summary:
+    kept_count: 0                    # int — recorded by the runtime
+    cleared_count: 0                 # int — recorded by the runtime
+    cleared_at_round: null           # int | null

@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "4.5.0"
+version: "7.1.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -20,7 +20,7 @@ triggers:
   - "/update-devola"
 tier: 1
 token_estimate: 2800
-last_updated: "2026-04-12"
+last_updated: "2026-04-16"
 name: devola-flow
 description: >
   Use when orchestrating multi-file software tasks, implementing features,
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v4.5.0**
+> **Now Using DevolaFlow v7.1.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 4.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -56,7 +56,7 @@ Only check when user explicitly requests via "update devola" / "update_devola" /
 1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
 2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
 3. User explicitly says "build a plan" / "plan this" / "design first" → **PLAN MODE**
-4. Otherwise → **AGENT MODE** (default, full orchestration)
+4. Otherwise → **AGENT MODE** (default, full orchestration). **v6.1.5+ runtime hook:** `select_context(plan_mode=True)` (or env `DEVOLAFLOW_PLAN_MODE=1`) escalates plan-relevant sections (`agent_hierarchy`, `decomposition_gate`, `rationalization_prevention`) to `critical` and upgrades `model_hint` to `quality`.
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 
@@ -171,6 +171,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
+| verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 
 **Selection heuristics:**
 
@@ -227,7 +228,7 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 
 ## Stage Primitives Index
 
-13 universal primitives across 6 categories. Every workflow is a composition of these.
+14 universal primitives across 6 categories. Every workflow is a composition of these.
 
 **Discover:**
 
@@ -257,6 +258,7 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 | `review` | Evaluate artifacts against quality standards, produce findings | Review |
 | `test` | Execute test suites, measure coverage and performance | Test |
 | `validate` | Aggregate verification results into readiness verdict | Review |
+| `verify` | User-facing validation: visual regression, acceptance verification, interaction flows, accessibility | Test |
 
 **Deliver:**
 
@@ -280,6 +282,10 @@ Full alias table and per-workflow stage sequences: `references/meta-framework.md
 **Composite score:** `composite = Σ(dimension_score × weight)` — test_quality×0.30, code_review×0.30, architecture×0.20, benchmark×0.20.
 **Per-dimension:** `max(0, 100 - Σ(severity_weight × count))` — blocker=25, critical=15, major=5, minor=1, info=0.
 
+**Extended Composite (when user-facing verification is present):**
+`composite = test_quality×0.20 + code_review×0.20 + architecture×0.15 + benchmark×0.15 + visual_fidelity×0.10 + interaction_quality×0.10 + acceptance_verification×0.10`
+- `visual_fidelity`: Screenshot comparison pass rate (0-100); `interaction_quality`: E2E flow success (60%) + accessibility (40%); `acceptance_verification`: AC test pass rate (0-100). Standard 4-dimension formula is used when no user-facing inputs are present (backward compatible).
+
 **Pass conditions (ALL required):**
 1. `composite_score >= threshold` (default 85)
 2. Zero blocker findings AND zero MUST-priority violations
@@ -289,6 +295,18 @@ Full alias table and per-workflow stage sequences: `references/meta-framework.md
 **Gate profiles:** `relaxed` (≥70, ≥60% cov), `standard` (≥85, ≥80%), `strict` (≥90, ≥90%), `audit` (≥95, ≥90%).
 Full gate specification: `references/decomposition-gate.md`
 
+### Reinforcement Rules (v5.1+)
+
+When a stage gate evaluates FAIL, the next convergence round's dispatch includes
+`applicable_rules.reinforcement` — mandates derived from the previous round's findings.
+This prevents L3 Task Agents from repeating the same mistakes.
+
+**Flow:** Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into
+next dispatch `applicable_rules.reinforcement` → L3 MUST address before other work.
+
+**L3 obligation:** Task Agents receiving reinforcement rules MUST address ALL listed rules
+before starting new work. Failure to address reinforcement rules = automatic blocker in next gate.
+
 ## AgentTeam Quick Reference
 
 | Team | Responsibilities | Primary Tools | Output |
@@ -297,7 +315,7 @@ Full gate specification: `references/decomposition-gate.md`
 | **Design** | Architecture, API spec, data models, ADRs, schemas | Read, Write, SemanticSearch, WebSearch | Design document, interface definitions |
 | **Implement** | Write code + unit tests, fix issues, configs | Read, Write, StrReplace, Shell, Grep, ReadLints | Source files, test files, build artifacts |
 | **Test** | Run test suites, measure coverage, gap analysis | Shell, Read, Write, Grep | Test report, coverage metrics |
-| **Review** | Code/design review, quality scoring, SOLID checks | Read, Grep, SemanticSearch, ReadLints | Severity-classified findings, quality score |
+| **Review** | Code/design review, quality scoring, SOLID + simplicity checks | Read, Grep, SemanticSearch, ReadLints | Severity-classified findings, quality score |
 
 **Team participation matrix (workflow × team):**
 
@@ -339,6 +357,8 @@ context_injection:
 **MUST NOT leak:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
 **IS shared (via artifact summaries):** interface contracts, design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
 Full context injection spec: `references/context-isolation.md`
+**Cache layout (v7.0.0+):** Top-of-payload key order is fixed by the canonical layout invariant (`schemas/lean-dispatch.yaml#layout_invariant`).
+See `references/context-isolation.md` Cache-Layout Invariant subsection for rationale + the `assert_dispatch_layout` validator API.
 
 ## Dispatch & Report Protocol
 
@@ -353,6 +373,7 @@ All inter-layer communication uses typed YAML schemas. Free-form chat between la
 - `model_hint`: quality | balanced | budget | inherit (default: inherit) — model tier suggestion
 - `decomposition_mode`: single | sub_agents (default: single) — L3 execution strategy
 - `compression_intensity`: minimal | standard | aggressive (default: standard) — dispatch message compression
+- `verification_config`: visual/acceptance/interaction/accessibility test settings (optional)
 
 **Reporting completion:**
 - `task_id`, `state` (completed/failed/escalated), `progress_pct`
@@ -369,6 +390,8 @@ All inter-layer communication uses typed YAML schemas. Free-form chat between la
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt all |
 
 Full schemas: `references/message-schemas.md`
+
+**Round-aware dispatch (v6.0.3+):** `select_context(task_type, round_num=N)` auto-applies escalation for N>1 (critical-section bump, +20% budget on round 3, `model_hint → quality`). `ProposalGenerator.generate_round_dispatch()` merges prior-round gate findings into `context.applicable_rules.reinforcement` as explicit MUST-fix mandates for L3.
 
 ## Lifecycle Hooks
 
@@ -423,6 +446,28 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `templates/wave-plan.md` | Wave decomposition planning |
 | `knowledge/index.md` | Knowledge page catalog, selective loading |
 
+## Template Quick-Reference
+
+| Template | Stages | Gate Type |
+|----------|--------|-----------|
+| research-only | 3 | standard |
+| design-only | 3 | standard |
+| hotfix | 4 | standard |
+| refactoring | 5 | convergence |
+| migration | 5 | convergence |
+| spike-poc | 3 | standard |
+| documentation | 3 | standard |
+| security-audit | 5 | convergence |
+| feature-enhancement | 7 | convergence |
+| full-pipeline | 8 | convergence |
+| RDRR | 4-5 | convergence |
+| demo-showcase | 6 | standard |
+| performance-optimization | 5 | convergence |
+| dependency-setup | 4 | standard |
+| onboarding | 4 | standard |
+| skill-optimization | 6 | convergence |
+| product-verification | 8 | convergence |
+
 ## Task Quality Score
 
 **After every Standard+ complexity workflow**, evaluate the user's original request:
@@ -448,3 +493,6 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 ```
 
 **Rules**: Always score (positive reinforcement matters). Keep tips actionable and specific. Do not let scoring delay the workflow.
+
+## Operational Learnings — Session Pinning & Decay (v7.0.3+)
+Persisted learnings (`.../learnings/operational.jsonl`) carry a confidence half-life (default 30 days per `DEFAULT_DECAY_HALF_LIFE_DAYS`): `decay_confidence()` applies `new_conf = conf - 0.5 * min(1, days_since_last_access / half_life)`, prunes entries below `DECAY_FLOOR=0.1`; `consolidate_session(session_id, session_learnings, path)` bumps matched entries by +0.05 at session end and appends new ones with `promotion_count=1` — stale entries decay while validated insights stay fresh. For cross-round convergence loops that must keep a specific insight in context regardless of confidence, call `pin_learning_for_session(key, stage, task_type, session_id, path)` — `load_relevant_learnings(..., session_id=...)` then surfaces pinned entries first. Reserve pinning for blockers (ADR-005 §3); legacy v1 entries parse unchanged, `last_accessed` lazily backfilled from `timestamp` on first decay.

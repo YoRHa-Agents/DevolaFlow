@@ -15,7 +15,7 @@
          ============================================================ -->
     <header class="slide-up scan-flicker vt-hero">
       <h1><span class="accent">R&amp;D</span> Timeline</h1>
-      <p class="tagline" data-i18n="vt.subtitle">From v0.1.0 to v6.2.1 — five eras of guarded change.</p>
+      <p class="tagline" data-i18n="vt.subtitle">From v0.1.0 to v7.1.0 — six eras of guarded change.</p>
       <div class="vt-cta">
         <a href="../design-system/index.html" class="btn btn-primary"
            data-i18n="vt.cta.designSystem">Design System &rarr;</a>
@@ -74,6 +74,11 @@
                     data-i18n="vt.era.platforms">Platforms &amp; Closure</button></li>
         <li><button type="button"
                     class="vt-era-chip"
+                    data-era="compression"
+                    aria-pressed="false"
+                    data-i18n="vt.era.compression">Staged Context Compression</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
                     data-era="rollup"
                     aria-pressed="false"
                     data-i18n="vt.era.rollup">Rollup &amp; Stabilization</button></li>
@@ -129,12 +134,23 @@
     </section>
 
     <!-- ============================================================
-         Era 5 — Rollup & Stabilization (#vt-era-rollup)
+         Era 5 — Staged Context Compression (#vt-era-compression)
+         ============================================================ -->
+    <section id="vt-era-compression" class="vt-era" data-era="compression">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.compression">Staged Context Compression</h2>
+        <p class="desc" data-i18n="vt.era.compression.desc">v7.0.0 &rarr; v7.1.0 — cache-layout invariant, tool-output truncation, hierarchical summariser, persistence probe, learnings v2.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-compression" aria-label="Compression era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Era 6 — Rollup & Stabilization (#vt-era-rollup)
          ============================================================ -->
     <section id="vt-era-rollup" class="vt-era" data-era="rollup">
       <div class="vt-era-header">
         <h2 data-i18n="vt.era.rollup">Rollup &amp; Stabilization</h2>
-        <p class="desc" data-i18n="vt.era.rollup.desc">v6.2.0 – v6.2.1: SI-3 9.43/10, 1009 tests, NineS 0.7405 → 0.8805, CI flake closed.</p>
+        <p class="desc" data-i18n="vt.era.rollup.desc">v6.2.0 – v7.1.0: SI-3 9.47/10, 1100 tests, NineS 0.8805 stable, cycle closure.</p>
       </div>
       <ol class="tl-rail" id="vt-rail-rollup" aria-label="Rollup era version cards"></ol>
     </section>

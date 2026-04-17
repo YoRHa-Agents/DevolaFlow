@@ -241,6 +241,8 @@ From §5:
 ### Composite Score Formula
 From §5.3:
 
+#### Standard Composite (4 dimensions — backward compatible)
+
 ```
 composite = Σ(dimension_score × weight)
 
@@ -250,6 +252,25 @@ Dimensions:
   architecture       × 0.20   (SOLID review score)
   benchmark          × 0.20   (benchmark pass_rate, or 100 if no benchmarks)
 ```
+
+#### Extended Composite (7 dimensions — when user-facing verification is present)
+
+When the product-verification pipeline is active, three additional dimensions are
+added and weights are redistributed:
+
+```
+composite = test_quality       × 0.20
+          + code_review        × 0.20
+          + architecture       × 0.15
+          + benchmark          × 0.15
+          + visual_fidelity    × 0.10
+          + interaction_quality × 0.10
+          + acceptance_verification × 0.10
+```
+
+Selection logic: if any `user_facing_verification` scores are present in the gate
+report, the extended formula applies. Otherwise the standard 4-dimension formula
+is used. This ensures full backward compatibility.
 
 ### Per-Dimension Quality Score
 From §5.3:
@@ -264,6 +285,17 @@ Severity weights:
   minor    = 1
   info     = 0
 ```
+
+### User-Facing Verification Dimension Scores (v5.4.0)
+
+Each user-facing dimension follows the same `quality_score` formula above, applied
+to findings within that dimension's scope:
+
+| Dimension | Input Source | Score Computation |
+|-----------|------------|-------------------|
+| **visual_fidelity** | Screenshot diff results, pixel mismatch counts | `max(0, 100 - Σ(severity_weight × finding_count))` where findings are classified by diff magnitude: >10% pixels = blocker, >5% = critical, >2% = major, >0.5% = minor |
+| **interaction_quality** | E2E flow results, accessibility audit | `max(0, 100 - Σ(severity_weight × finding_count))` where findings come from failed user flows (blocker/critical) and accessibility violations (severity mapped from WCAG impact level) |
+| **acceptance_verification** | Acceptance criteria test results | `max(0, 100 - Σ(severity_weight × finding_count))` where each unmet criterion is a blocker, partially met is critical, met-with-caveats is minor |
 
 ### Pass Conditions (ALL required)
 
@@ -281,12 +313,16 @@ Severity weights:
 ### Gate Profiles
 From §5.4:
 
-| Profile | Composite | Coverage | Blockers | Criticals | Min Rounds | Max Rounds | Use When |
-|---------|-----------|----------|----------|-----------|------------|------------|----------|
-| **relaxed** | ≥ 70 | ≥ 60% | 0 | ≤ 5 | 1 | 2 | Prototypes, spikes, PoCs |
-| **standard** | ≥ 85 | ≥ 80% | 0 | ≤ 2 | 1 | 3 | Default for most projects |
-| **strict** | ≥ 90 | ≥ 85% | 0 | 0 | 2 | 4 | Production, public APIs |
-| **audit** | ≥ 95 | ≥ 90% | 0 | 0 | 3 | 6 | Security audits, compliance |
+| Profile | Composite | Coverage | Blockers | Criticals | Min Rounds | Max Rounds | Visual | Interaction | Acceptance | Use When |
+|---------|-----------|----------|----------|-----------|------------|------------|--------|-------------|------------|----------|
+| **relaxed** | ≥ 70 | ≥ 60% | 0 | ≤ 5 | 1 | 2 | — | — | — | Prototypes, spikes, PoCs |
+| **standard** | ≥ 85 | ≥ 80% | 0 | ≤ 2 | 1 | 3 | ≥ 70 | ≥ 70 | ≥ 80 | Default for most projects |
+| **strict** | ≥ 90 | ≥ 85% | 0 | 0 | 2 | 4 | ≥ 85 | ≥ 85 | ≥ 90 | Production, public APIs |
+| **audit** | ≥ 95 | ≥ 90% | 0 | 0 | 3 | 6 | ≥ 90 | ≥ 90 | ≥ 95 | Security audits, compliance |
+
+Visual/Interaction/Acceptance thresholds apply only when the extended composite
+(7-dimension) formula is active. A dash (—) means user-facing verification is
+not enforced at that profile level.
 
 ### Gate Evaluation Flowchart
 

@@ -116,6 +116,11 @@ lean_format_spec:
     per_entry:
       ref: "verbatim filesystem path"
       key_facts: "list of ≤8-word factual statements extracted verbatim from source"
+      # v7.0.2+: optional per-pred summariser knobs (ADR-003 §2.5). Nested
+      # under each pred entry; not new top-level keys (honours v7-ADR-001
+      # cache-layout invariant). Missing → extractive / 500 tokens.
+      summary_mode: "extractive | abstractive (default: extractive)"
+      summary_max_tokens: "int (default: 500); hard cap on summarise_predecessor output"
     max_entries: 5
     max_facts_per_entry: 5
   files:
@@ -172,3 +177,27 @@ compression_rules:
       description: "Drop all non-essential text"
       active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies, progress_narration, obvious_acknowledgments, tool_call_echoing]
   default_intensity: standard
+
+# Layout invariant (v7.0.0+, per .local/research/adr/v7-ADR-001-cache-layout-invariant.md)
+# The rendered top-level key order MUST match this sequence (each may be absent;
+# none may be reordered). New top-level keys MUST be appended after `gate`.
+layout_invariant:
+  version: 1
+  canonical_order:
+    - hdr
+    - task
+    - goal
+    - assumptions
+    - pred
+    - files
+    - rules
+    - shared
+    - accept
+    - reinforce
+    - verify_cfg
+    - gate
+  enforcement:
+    validator: "devolaflow.compressor.assert_dispatch_layout"
+    stability_test: "tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds"
+    lcp_threshold_round_1_to_2: 0.80
+    lcp_threshold_round_1_to_3: 0.70
