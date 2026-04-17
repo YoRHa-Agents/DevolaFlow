@@ -330,3 +330,65 @@ only) → `verify_cfg` → `gate`. Source of truth:
 stability fraction. **SLO:** LCP ≥ 80 % round 1→2 and ≥ 70 % round 1→3,
 enforced by `tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds`.
 **Rationale:** `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.
+
+## 11. Tool-Output Truncation (v7.0.1+)
+
+In multi-round convergence, prior-round `tool_use` outputs (Read/Grep/Shell
+returns) accumulate inside the predecessor context the L2 wave agent feeds
+to the next round's L3 task agents. Anthropic's cookbook (`[ref-6]`) calls
+this the "lightest-touch" lever: keep the `tool_use` record (so the model
+knows the call happened) but elide the bulky `tool_result` payload once it
+falls below a recency threshold. DevolaFlow ships the deterministic
+prompt-side equivalent in `devolaflow.compressor` per ADR-002.
+
+**When the runtime applies truncation.** The L3 task agent emits its
+`StatusReport` with the full tool_use list. Before the L2 wave agent splices
+that report into the next round's predecessor context, it calls
+`clear_old_tool_uses(tool_uses, keep=3, exclude_tool_names=("Read",))`.
+The default behaviour preserves the most recent 3 tool calls verbatim and
+truncates the middle of older outputs (head 500 + placeholder + tail 500
+chars). `Read` outputs are exempt from truncation by default because they
+represent authoritative file content frequently cited verbatim during code
+review. Triggering happens at round ≥ 2 only — round 1 has no
+prior-round payloads to clear.
+
+**Policy knobs.** Per-profile in
+`workflow-system/agent/context_profiles.yaml`:
+
+```yaml
+tool_output_truncation:
+  enabled: false                 # default at v7.0.1 cut
+  keep: 3                        # most-recent-N preserved verbatim
+  exclude_tool_names: ["Read"]   # never-truncated tool names
+  head_chars: 500
+  tail_chars: 500
+```
+
+The six decomposition-enabled profiles (`feature`, `refactor`,
+`skill-optimization`, `migration`, `security-audit`, `perf-optimization`)
+ship the knob disabled in v7.0.1. Operators opt in per profile after
+H.1 retention data confirms safety; v7.1.0 will flip the default to
+`enabled: true` cycle-wide.
+
+**Placeholder format.** `truncate_tool_output()` substitutes `{removed}`
+in `placeholder_template` (default `"[truncated {removed} chars]"`) with
+the count of elided characters. The placeholder is intended for the
+*model's* re-ingestion and human scan, not for programmatic JSON parsing —
+truncation always lands on character boundaries, not structural ones.
+
+**Reading the `tool_results.summary` block.** `clear_old_tool_uses()`
+returns a `ToolUseTruncation` summary that the producing agent records in
+`schemas/lean-report.yaml#tool_results.summary` (`kept_count`,
+`cleared_count`, `cleared_at_round`). The L2 wave agent inspects the
+summary to decide whether to refresh the L1 dispatch tool list:
+`cleared_count > 0` is the canonical signal that round-N reused fewer
+verbatim tool outputs than round-(N−1) and the cached prefix is starting
+to drift. Together with the cache-layout invariant (§10), this is the
+prompt-side mechanism for keeping convergence-round dispatches inside
+their token budget without sacrificing recent-call fidelity.
+
+**Rationale:** `.local/research/adr/v7-ADR-002-tool-output-truncation.md`.
+**Sub-agent budget bump (K.8 resolution):** the same six profiles raise
+`decomposition.sub_agent_context_budget` from 3000 → 5000 tokens at the
+v7.0.1 cut so a sub-agent can absorb the verbatim recent-N records without
+spillover.

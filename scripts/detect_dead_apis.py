@@ -88,6 +88,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.compressor:assert_dispatch_layout",
         "devolaflow.compressor:compute_dispatch_lcp_pct",
         "devolaflow.compressor:DispatchLayoutError",
+        # v7.0.1 tool-output truncation primitives — consumed by external
+        # runtimes (L3 task agents producing StatusReports, L2 wave agents
+        # composing predecessor context) per ADR-002 §2.1. The dataclass +
+        # two helpers are opted in via context_profiles.yaml's per-profile
+        # `tool_output_truncation:` block (default disabled at v7.0.1 cut).
+        "devolaflow.compressor:truncate_tool_output",
+        "devolaflow.compressor:clear_old_tool_uses",
+        "devolaflow.compressor:ToolUseTruncation",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in

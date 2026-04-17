@@ -8,10 +8,13 @@ from devolaflow.compressor import (
     DROP_LIST,
     INTENSITY_TIERS,
     DispatchLayoutError,
+    ToolUseTruncation,
     assert_dispatch_layout,
+    clear_old_tool_uses,
     compress_message,
     compute_dispatch_lcp_pct,
     detect_drop_violations,
+    truncate_tool_output,
     validate_lean_format,
     validate_preserve_list,
 )
@@ -398,3 +401,135 @@ class TestDispatchLayoutInvariant:
         leading = {"telemetry": {"foo": "bar"}, **payload}
         with pytest.raises(DispatchLayoutError):
             assert_dispatch_layout(leading)
+
+
+class TestToolOutputTruncation:
+    """v7.0.1 tool-output truncation primitive (per ADR-002 §6).
+
+    Verifies the head/tail/placeholder behaviour of ``truncate_tool_output``
+    plus the most-recent-N + exclude-by-name policy of
+    ``clear_old_tool_uses``. Together these primitives shrink convergence-
+    round dispatches by replacing the bulky middle of older tool outputs
+    with a short placeholder, while preserving authoritative ``Read`` output
+    and the most recent N entries verbatim.
+    """
+
+    def test_truncate_tool_output_below_threshold(self):
+        text = "x" * 999  # head_chars + tail_chars defaults sum to 1000
+        result, removed = truncate_tool_output(text)
+        assert result == text
+        assert removed == 0
+
+    def test_truncate_tool_output_above_threshold(self):
+        head = "H" * 500
+        middle = "M" * 1234
+        tail = "T" * 500
+        text = head + middle + tail
+        result, removed = truncate_tool_output(text)
+        assert removed == 1234
+        assert result.startswith(head)
+        assert result.endswith(tail)
+        assert "[truncated 1234 chars]" in result
+        assert len(result) == 500 + len("[truncated 1234 chars]") + 500
+
+    def test_truncate_tool_output_placeholder_format(self):
+        text = "a" * 100 + "X" * 50 + "b" * 100
+        result, removed = truncate_tool_output(
+            text,
+            head_chars=100,
+            tail_chars=100,
+            placeholder_template="<<<{removed}>>>",
+        )
+        assert removed == 50
+        assert "<<<50>>>" in result
+        assert result == "a" * 100 + "<<<50>>>" + "b" * 100
+
+    def test_truncate_tool_output_unicode_safe(self):
+        head = "你" * 500
+        middle = "好" * 200
+        tail = "界" * 500
+        text = head + middle + tail
+        result, removed = truncate_tool_output(text)
+        assert removed == 200
+        assert result.startswith("你" * 500)
+        assert result.endswith("界" * 500)
+        assert "[truncated 200 chars]" in result
+        assert len(text) == 1200
+        assert len(head) == 500 and len(tail) == 500
+
+    def test_clear_old_tool_uses_keeps_recent_n(self):
+        long_output = "L" * 2000
+        tool_uses = [{"name": "Shell", "output": long_output} for _ in range(8)]
+        modified, summary = clear_old_tool_uses(tool_uses, keep=3)
+        assert len(modified) == 8
+        assert summary.kept_count == 3
+        assert summary.cleared_count == 5
+        for record in modified[-3:]:
+            assert record["output"] == long_output
+        for record in modified[:5]:
+            assert record["output"] != long_output
+            assert "[truncated" in record["output"]
+
+    def test_clear_old_tool_uses_excludes_named_tools(self):
+        long_output = "L" * 2000
+        tool_uses = [
+            {"name": "Read", "output": long_output},
+            {"name": "Read", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Read", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+        ]
+        modified, summary = clear_old_tool_uses(tool_uses, keep=2)
+        assert summary.cleared_count == 1
+        assert summary.kept_count == 5
+        for original, after in zip(tool_uses, modified, strict=True):
+            if original["name"] == "Read":
+                assert after["output"] == long_output
+        for record in modified[-2:]:
+            assert record["output"] == long_output
+        assert modified[2]["output"] != long_output
+        assert "[truncated" in modified[2]["output"]
+        assert "Read" in summary.excluded_tool_names
+
+    def test_clear_old_tool_uses_returns_summary(self):
+        long_output = "L" * 2000
+        tool_uses = [
+            {"name": "Shell", "output": long_output},
+            {"name": "Grep", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+            {"name": "Shell", "output": long_output},
+        ]
+        modified, summary = clear_old_tool_uses(
+            tool_uses,
+            keep=3,
+            exclude_tool_names=("Read",),
+            head_chars=200,
+            tail_chars=200,
+            placeholder_template="<{removed}>",
+        )
+        assert isinstance(summary, ToolUseTruncation)
+        assert summary.kept_count + summary.cleared_count == len(tool_uses)
+        assert summary.kept_count == 3
+        assert summary.cleared_count == 3
+        assert summary.head_chars == 200
+        assert summary.tail_chars == 200
+        assert summary.placeholder == "<{removed}>"
+        assert summary.excluded_tool_names == ("Read",)
+        for record in modified[:3]:
+            assert "<1600>" in record["output"]
+        for record, original in zip(modified[-3:], tool_uses[-3:], strict=True):
+            assert record["output"] == original["output"]
+
+    def test_clear_old_tool_uses_empty_list(self):
+        modified, summary = clear_old_tool_uses([])
+        assert modified == []
+        assert isinstance(summary, ToolUseTruncation)
+        assert summary.kept_count == 0
+        assert summary.cleared_count == 0
+        assert summary.head_chars == 500
+        assert summary.tail_chars == 500
+        assert summary.excluded_tool_names == ("Read",)
+        assert summary.placeholder == "[truncated {removed} chars]"

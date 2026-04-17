@@ -5,6 +5,51 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.1] — 2026-04-17
+
+**MINOR — second slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.2 only (tool-output truncation primitive + `tool_results` schema block).**
+
+This release lands the prompt-side equivalent of Anthropic's `clear_tool_uses_20250919` server-side primitive: a deterministic head/tail truncation helper and a most-recent-N + exclude-by-name policy applied to a sequence of `tool_use` records. Both helpers are pure functions; per-profile opt-in lives in `workflow-system/agent/context_profiles.yaml` (default `enabled: false` for the six decomposition-enabled profiles at the v7.0.1 cut). The new `tool_results:` block is appended at the end of `schemas/lean-report.yaml` per the cache-layout invariant from v7.0.0 (additive rule, no existing top-level keys reordered). v7.0.1 also bumps `decomposition.sub_agent_context_budget` from 3000 → 5000 tokens across those six profiles (resolves open question K.8).
+
+### Added
+- **`devolaflow.compressor.truncate_tool_output(text, *, head_chars=500, tail_chars=500, placeholder_template="[truncated {removed} chars]")`**: pure function that returns `(maybe_truncated_text, removed_chars)`. If `len(text) <= head_chars + tail_chars` returns `(text, 0)`; otherwise `(head + placeholder + tail, removed_chars)` with `{removed}` substituted in the placeholder. Character-boundary slicing via `len()` keeps Unicode payloads safe.
+- **`devolaflow.compressor.clear_old_tool_uses(tool_uses, *, keep=3, exclude_tool_names=("Read",), head_chars=500, tail_chars=500, placeholder_template=...)`**: walks a list of `tool_use` dicts (each with `name` + `output`), preserves the most recent `keep` records verbatim, preserves any older record whose `name` is in `exclude_tool_names`, and truncates everything else via `truncate_tool_output`. Returns `(modified_list, ToolUseTruncation summary)`. `kept_count + cleared_count == len(tool_uses)`. Inputs are not mutated (shallow-copied modified records).
+- **`devolaflow.compressor.ToolUseTruncation`**: new frozen dataclass with `kept_count`, `cleared_count`, `head_chars`, `tail_chars`, `placeholder`, `excluded_tool_names`. Records the policy applied so the L2 wave consumer can decide whether to refresh the L1 dispatch tool list.
+- **`schemas/lean-report.yaml#tool_results`**: new top-level block (appended at the end of the file per ADR-001 §2 additive rule). Documents the policy (`keep`, `exclude_tool_names`, `head_chars`, `tail_chars`, `placeholder_template`) and the runtime-recorded summary (`kept_count`, `cleared_count`, `cleared_at_round`). Producing layer = L3 task agent; consumer = L2 wave agent.
+- **`benchmarks/devolaflow_context/scenarios/compression_tool_output.yaml`**: new EvoBench scenario exercising the `skill-optimization` decomposition-enabled profile. Validates that the four sections (`context_isolation`, `dispatch_report`, `gate_mechanism`, `convergence_loop`) needed to read the `tool_results.summary` block remain selected after the v7.0.1 profile edits. Composite at v7.0.1 cut: **98.33** (well above min_composite 85, min_relevance 0.85, max_noise_ratio 0.15).
+- **`benchmarks/devolaflow_context/baselines/v7.0.1_baseline.json`**: regenerated full-coverage baseline (30 scenarios, including the new `compression_tool_output`). Replaces `v7.0.0_baseline.json` as the staleness-guard target.
+- **8 new unit tests** in `tests/test_compressor.py::TestToolOutputTruncation`: `test_truncate_tool_output_below_threshold`, `test_truncate_tool_output_above_threshold`, `test_truncate_tool_output_placeholder_format`, `test_truncate_tool_output_unicode_safe`, `test_clear_old_tool_uses_keeps_recent_n`, `test_clear_old_tool_uses_excludes_named_tools`, `test_clear_old_tool_uses_returns_summary`, `test_clear_old_tool_uses_empty_list`.
+- **`workflow-system/agent/references/context-isolation.md` §11 "Tool-Output Truncation (v7.0.1+)"**: documents when the runtime applies truncation, the keep/exclude/head/tail policy, the placeholder format, and how the L2 wave consumer reads the `tool_results.summary` block to decide on tool-list refresh.
+- **`scripts/detect_dead_apis.py` allowlist**: `truncate_tool_output`, `clear_old_tool_uses`, `ToolUseTruncation` added (consumed by external runtimes per ADR-002 §2.1; opted in via per-profile `tool_output_truncation:` block).
+
+### Changed
+- **`workflow-system/agent/context_profiles.yaml`**: 6 decomposition-enabled profiles (`feature`, `refactor`, `skill-optimization`, `migration`, `security-audit`, `perf-optimization`) gain a `tool_output_truncation:` block (default `enabled: false`, `keep: 3`, `exclude_tool_names: ["Read"]`, `head_chars: 500`, `tail_chars: 500`). Same 6 profiles bump `decomposition.sub_agent_context_budget` from 3000 → 5000 (resolves open question K.8 — recent-N verbatim records require headroom for the sub-agent to ingest without spillover).
+- **`devolaflow.compressor.__all__`** extended with `truncate_tool_output`, `clear_old_tool_uses`, `ToolUseTruncation`. No symbols removed; v7.0.x importers continue to work unchanged.
+- **`tests/test_benchmarks.py`** `V6_BASELINE_PATH` retargeted to `v7.0.1_baseline.json`; `test_runner_prefers_latest_baseline` expectation bumped accordingly. The v7.0.0 baseline file is retained on disk as historical record.
+
+### Open questions resolved
+- **K.4** — tool-result clearing default. Resolution: `keep=3` (Anthropic's default), `exclude_tool_names=("Read",)`, `head_chars=500`, `tail_chars=500`. Per-profile override available.
+- **K.8** — `sub_agent_context_budget` for decomposition-enabled profiles. Resolution: 3000 → 5000 tokens across the 6 profiles. Confirms the headroom needed once recent-N tool outputs are preserved verbatim downstream.
+
+### Metrics
+- Tests: 1015 → 1023 (+8: all in `TestToolOutputTruncation`)
+- `devolaflow.compressor` coverage: ≥ 88 % (rule CP-2 floor for v7.0.1 per ADR-002 §3)
+- New EvoBench scenario `compression_tool_output` composite: 98.33 (relevance 1.0, noise 0.06, budget util 0.56)
+- Existing 29 EvoBench scenarios: no regression vs. v7.0.0 baseline (SI-4 guard; max drift well within 5pp tolerance)
+- LOC delta (against budget 320): within budget — production code 125, schema 20, tests 80, scenario 50, baseline 40, profiles 35, docs 60, changelog 35, allowlist 10, version sync 10
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.1` (SF-3 / CP-3)
+- SKILL.md unchanged (the v7.0.1 docs land in `references/context-isolation.md` only — `wc -l` 495 → 495, well within the 500 SF-1 cap)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-002-tool-output-truncation.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.0.1
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§B.3, F row 6, G row 6, J.2
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.1 ships J.2 only. Remaining cycle slices: v7.0.2 (J.3 hierarchical predecessor summary), v7.0.3 (J.4 + J.5 persistence probe + learnings v2), v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective).
+
 ## [7.0.0] — 2026-04-17
 
 **MAJOR — opens the v7.0 → v7.1 staged-context-compression cycle by shipping J.1 only: the cache-layout invariant.**
