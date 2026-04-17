@@ -1,0 +1,200 @@
+---
+description: "Contract for the v6.3+ Devola web demo: four mandatory theme showcases (Design System, Framework Chain, Context Flow, R&D Timeline), additive design language, and synchronization with version, SKILL.md, and i18n — apply when editing anything under workflow-system/human/demo/ or when changing __version__, SKILL.md sections cited by the showcase pages, or shared/styles.css tokens"
+alwaysApply: false
+---
+
+# Web Experience & Theme Showcase Rules
+
+Apply this file whenever you touch the v6.3 theme showcases, the additive Devola design language, or any source the showcases cite. These rules complement (do **not** duplicate):
+
+- **DS-1..DS-5** (`documentation-sync-rules.mdc`) — registry, NieR identity, bilingual completeness, version propagation, demo consistency. DS-* covers human-facing surfaces in general; **WX-* specifically governs the four v6.3 theme showcases** and the additive token / motion / component vocabulary they introduce.
+- **SF-3** (`skill-format-rules.mdc`) — version consistency across the 7 canonical locations. **WX-2** extends that contract to `version-timeline/versions.json`.
+- **CO-2** (`context-optimization-rules.mdc`) — verbatim extraction. **WX-6** re-affirms this for showcase pages that cite SKILL.md.
+- **SI-7 / SI-10** (`self-improve-iteration-rules.mdc`) — external-reference protocol and Test-Then-Commit Protocol. **WX-2 / WX-7 / WX-8** verifications run alongside the SI-10 sequence before any PR touching showcase files or SKILL.md sections in **WX-6** may be merged.
+
+## Rule WX-1 — Four Theme Showcases Are Mandatory
+
+The four v6.3 theme pages are first-class deliverables of the project. None may be removed, renamed, or merged into another page without all of the following preconditions met **in the same PR**:
+
+| # | Page id          | Directory (relative to repo root)                          | First shipped |
+|---|------------------|------------------------------------------------------------|---------------|
+| 1 | design-system    | `workflow-system/human/demo/design-system/`                | v6.3          |
+| 2 | framework-chain  | `workflow-system/human/demo/framework-chain/`              | v6.3          |
+| 3 | context-flow     | `workflow-system/human/demo/context-flow/`                 | v6.3          |
+| 4 | version-timeline | `workflow-system/human/demo/version-timeline/`             | v6.3          |
+
+Removal / rename / merge checklist (all MUST be satisfied):
+
+- [ ] Explicit retrospective entry in `.local/research/retrospective_v*.md` documenting why
+- [ ] User-visible deprecation notice in `CHANGELOG.md`
+- [ ] `workflow-system/human/demo/shared/nav.js` `NAV_LINKS` updated AND `LABELS_EN` / `LABELS_ZH` updated AND `currentPageId()` branch removed in the SAME PR
+- [ ] Cross-page CTA references in the remaining three showcase pages updated (per **WX-8**)
+
+Adding a fifth+ theme page is allowed and SHOULD reuse the existing sub-page template (head loads `../shared/styles.css`, then page-local `styles.css`; body bottom loads `../shared/i18n.js` then `../shared/nav.js` then page-local script — same pattern as `workflow-system/human/demo/workflow-visualizer/index.html`).
+
+Cross-reference: complements **DS-1** (Human-Facing Content Registry).
+
+## Rule WX-2 — Version Timeline Tracks `__version__`
+
+Whenever `src/devolaflow/__init__.py.__version__` changes, `workflow-system/human/demo/version-timeline/versions.json` MUST gain a new entry in the SAME PR. This rule extends **DS-4** (Version Propagation) and **SF-3** (Version Consistency); use `scripts/bump_version.py` for the underlying version bump.
+
+Required fields per entry (none may be omitted; **never invent** `metrics` not stated in `CHANGELOG.md`):
+
+| Field        | Type            | Source                                                         |
+|--------------|-----------------|----------------------------------------------------------------|
+| `version`    | string          | matches `__version__` (no `v` prefix)                          |
+| `date`       | string `YYYY-MM-DD` | release date from `CHANGELOG.md`                           |
+| `era`        | enum            | one of `foundations` / `evobench` / `self-improve` / `platforms` / `rollup` |
+| `headline`   | string          | verbatim from `CHANGELOG.md` headline                          |
+| `summary`    | string (≤ 200 chars) | verbatim from `CHANGELOG.md`                              |
+| `highlights` | array of strings | bullet points from `CHANGELOG.md`                             |
+| `metrics`    | object          | only fields stated in `CHANGELOG.md`; never invented           |
+
+Example of a valid `versions.json` entry:
+
+```json
+{
+  "version": "6.2.1",
+  "date": "2026-04-17",
+  "era": "rollup",
+  "headline": "Benchmark staleness-guard CI flake fix",
+  "summary": "Tiktoken hidden via tests/conftest.py autouse fixture; deterministic benchmark estimator restored.",
+  "highlights": [
+    "tests/conftest.py autouse fixture hides tiktoken from benchmark estimator",
+    "1009 tests passing, NineS overall 0.8805 stable"
+  ],
+  "metrics": { "tests": 1009, "coverage_pct": 93.93, "nines": 0.8805 }
+}
+```
+
+Verification after bump:
+
+```
+python -m pytest tests/test_version.py -v
+```
+
+Cross-references: extends **DS-4**, **SF-3**, **CP-3**.
+
+## Rule WX-3 — Motion Patterns Must Be Showcased
+
+Whenever a NEW `@keyframes <pattern>` is introduced in `workflow-system/human/demo/shared/styles.css`, it MUST appear as a `MotionShowcase` figure in `workflow-system/human/demo/design-system/index.html` `#ds-motion` IN THE SAME PR.
+
+Each `MotionShowcase` MUST include:
+
+- [ ] A live visual demo inside `<figure class="motion-demo" data-motion="<pattern>">`
+- [ ] A `Replay` button (`<button class="motion-replay">`) that re-triggers the animation on demand
+- [ ] A duration / easing badge in `<figcaption>` (e.g. `pulse-dispatch 1.4s · cubic-bezier(.4,.0,.2,1)`)
+- [ ] An i18n key `ds.motion.label.<pattern>` registered in BOTH `en` and `zh` blocks of `workflow-system/human/demo/shared/i18n.js`
+- [ ] Coverage by the existing `@media (prefers-reduced-motion: reduce)` block in `shared/styles.css`; do NOT add a duplicate `prefers-reduced-motion` rule for the new pattern
+
+Verify locally by opening `design-system/index.html#ds-motion` after the change; the new pattern's `ds.motion.label.<pattern>` key MUST resolve in both EN and ZH (no key-shaped fallback).
+
+Cross-reference: complements **DS-2** (NieR Visual Identity — motion vocabulary stays cohesive) and **DS-5** #5 (responsive checklist).
+
+## Rule WX-4 — Design Tokens Must Be Showcased
+
+Whenever a NEW CSS custom property (`--*` token) is introduced in the `:root` block of `workflow-system/human/demo/shared/styles.css`, the corresponding dark-mode value MUST be appended in the `.dark` block AND a `TokenSwatch` MUST appear in `workflow-system/human/demo/design-system/index.html` `#ds-palette` IN THE SAME PR.
+
+Each `TokenSwatch` MUST satisfy:
+
+- [ ] Light AND dark hex (or rgba / value) shown side-by-side
+- [ ] CSS-var name rendered inside `<code>` (e.g. `<code>--gold-glow</code>`)
+- [ ] Lives inside the existing `.swatch` markup (`<div class="swatch" style="--swatch:<value>">`) so the chip auto-themes
+- [ ] Counts toward the palette total declared in i18n key `ds.section.palette.desc`
+
+Removing a token requires updating BOTH the swatch list and any pages that reference the removed token (grep before delete):
+
+```
+grep -rn 'var(--<token-name>)' workflow-system/human/demo/
+```
+
+Cross-reference: complements **DS-2** (palette consistency — no ad-hoc colours) and **DS-5** #3.
+
+## Rule WX-5 — Components Must Be Showcased
+
+Whenever a new component class family is introduced in `workflow-system/human/demo/shared/styles.css` (any new selector that defines a reusable component pattern such as `.layer-node`, `.msg-envelope`, `.tl-card`, `.swatch`, `.gate-badge`, `.wave-strip`, `.metric-micro`, `.motion-demo`, `.route-track`, etc.), it MUST appear in the `#ds-components` live render section of `workflow-system/human/demo/design-system/index.html` IN THE SAME PR.
+
+Each component render MUST include:
+
+- [ ] A live example inside `<figure class="component-demo">` (not an inert screenshot)
+- [ ] The component name in `<code>` inside `<figcaption>`
+- [ ] A one-line purpose description (English + Chinese via `data-i18n`)
+
+**In scope:** any selector under `workflow-system/human/demo/shared/styles.css` that introduces a reusable component pattern.
+
+**Out of scope:** page-local utility classes that live in a sub-page's own `styles.css` (those are not shared components and SHOULD NOT pollute the showcase).
+
+Cross-reference: complements **DS-1** (registry) and **DS-5** (consistency).
+
+## Rule WX-6 — SKILL.md Section Changes Cascade to the Showcase
+
+When ANY of the following `workflow-system/agent/SKILL.md` sections changes, the corresponding section on Framework Chain (`workflow-system/human/demo/framework-chain/index.html`) or Context Flow (`workflow-system/human/demo/context-flow/index.html`) MUST be updated VERBATIM in the SAME PR. Citations remain VERBATIM per **CO-2** — paraphrasing is prohibited.
+
+| SKILL.md section                                                                         | Showcase page section                                                       |
+|------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `## 4-Layer Agent Hierarchy` table                                                       | `framework-chain/#fc-hierarchy` (4 LayerNodes + per-layer MUST NOT lists)   |
+| `## AgentTeam Quick Reference` table                                                     | `framework-chain/#fc-teams` (5 team cards)                                  |
+| `## Gate Mechanism` (composite formula, profiles, pass conditions)                       | `framework-chain/#fc-gate`                                                  |
+| `### Wave Coordination Modes` table                                                      | `framework-chain/#fc-loops`                                                 |
+| `### Rationalization Prevention` table                                                   | `framework-chain/#fc-rationalization`                                       |
+| `## Dispatch & Report Protocol` (12 dispatch fields, 5 report fields)                    | `context-flow/#cf-dispatch` and `context-flow/#cf-report`                   |
+| `## Dispatch & Report Protocol` (escalation severity table)                              | `context-flow/#cf-escalation`                                               |
+| `### Reinforcement Rules (v5.1+)` paragraph + `Round-aware dispatch (v6.0.3+)` line       | `context-flow/#cf-reinforcement`                                            |
+| `## Context Isolation` (MUST NOT leak / IS shared lists + budget block)                  | `context-flow/#cf-isolation`                                                |
+
+If a SKILL.md edit reorders columns, renames a layer, or adjusts the composite-score weights, the showcase MUST mirror the change byte-for-byte. Adding a new SKILL.md section that conceptually maps to one of the four showcases SHOULD extend this table in a follow-up PR rather than ship an undocumented divergence.
+
+Cross-reference: extends **CO-2** (Verbatim Extraction) for the web showcase surface.
+
+## Rule WX-7 — Bilingual Completeness on Showcase Pages
+
+Every `data-i18n` key introduced anywhere under `workflow-system/human/demo/{design-system,framework-chain,context-flow,version-timeline}/` MUST exist in BOTH the `en:` and `zh:` blocks of `workflow-system/human/demo/shared/i18n.js`, OR be registered via `addTranslations('en', …)` AND `addTranslations('zh', …)` in the page's own JS, BEFORE commit. This re-affirms **DS-3** (Bilingual Completeness) specifically for the four showcase pages — half-translated showcase pages are blockers.
+
+Verification: after editing any showcase HTML or JS, run:
+
+```
+grep -ohE 'data-i18n="[^"]+"' workflow-system/human/demo/{design-system,framework-chain,context-flow,version-timeline}/*.html | sort -u
+```
+
+Every key in the output MUST appear in BOTH the EN and ZH dictionaries (either in `shared/i18n.js` or via the page's `addTranslations` calls). Run the EN/ZH toggle in the browser to confirm no key-shaped fallback (e.g. literal `ds.subtitle`) renders.
+
+Cross-reference: re-affirms **DS-3** for the four showcase pages.
+
+## Rule WX-8 — Cross-Page CTA Cluster Integrity
+
+The four theme pages MUST cross-link to each other via a footer / hero CTA cluster so a reader can traverse all themes without returning to the landing page. The mandatory cross-link map (per spec §2.3):
+
+| From page          | MUST link to (CTA cluster)                                  |
+|--------------------|-------------------------------------------------------------|
+| `design-system`    | `framework-chain` (component-in-action) + `context-flow` (or GitHub) |
+| `framework-chain`  | `context-flow` (route-detail) + `design-system`             |
+| `context-flow`     | `version-timeline` (history-of-context-changes) + `framework-chain` |
+| `version-timeline` | `design-system` (loop back to language) + `framework-chain` |
+
+In addition, EACH of the four pages MUST carry a "Read SKILL ↗" link to `https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md` for the receipt-trail mandated by **SI-7** (External Reference Protocol — remote URL only, never absolute filesystem paths).
+
+Verification: after editing any showcase page, the four `index.html` files MUST collectively contain at least 12 internal cross-links (4 pages × ~3 outbound CTAs from the map above) and 4 SKILL receipt links. One-liner sanity check:
+
+```
+grep -E 'href="(\.\./)?(design-system|framework-chain|context-flow|version-timeline)/index\.html"' \
+  workflow-system/human/demo/{design-system,framework-chain,context-flow,version-timeline}/index.html | wc -l
+grep -E 'href="https://github\.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL\.md"' \
+  workflow-system/human/demo/{design-system,framework-chain,context-flow,version-timeline}/index.html | wc -l
+```
+
+The first command MUST report ≥ 12; the second MUST report ≥ 4. A failing count means a CTA was lost during a refactor — restore it before commit.
+
+Cross-reference: complements **SI-7** (External Reference Protocol) and **DS-1** (registry).
+
+## Cross-Reference Table
+
+| Rule  | Title                                              | Related rules                          |
+|-------|----------------------------------------------------|----------------------------------------|
+| WX-1  | Four Theme Showcases Are Mandatory                 | DS-1                                   |
+| WX-2  | Version Timeline Tracks `__version__`              | DS-4, SF-3, CP-3                       |
+| WX-3  | Motion Patterns Must Be Showcased                  | DS-2, DS-5                             |
+| WX-4  | Design Tokens Must Be Showcased                    | DS-2, DS-5                             |
+| WX-5  | Components Must Be Showcased                       | DS-1, DS-5                             |
+| WX-6  | SKILL.md Section Changes Cascade to the Showcase   | CO-2, SF-3                             |
+| WX-7  | Bilingual Completeness on Showcase Pages           | DS-3, DS-5                             |
+| WX-8  | Cross-Page CTA Cluster Integrity                   | SI-7, DS-1                             |

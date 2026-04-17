@@ -1,0 +1,495 @@
+/* ============================================================
+   Version Timeline — page-specific styles
+   Base styles, design tokens, and the .tl-rail / .tl-card / .tl-dot /
+   .metric-micro / .gate-badge / .era-filter / @keyframes flow-down
+   primitives all come from ../shared/styles.css (spec §6.1).
+   This file only LAYOUTS them and adds page-specific behavior states
+   (compact view, expand/collapse, era-reveal cascade, error state).
+   ============================================================ */
+
+/* --- Hero ----------------------------------------------------- */
+.vt-hero {
+  position: relative;
+  overflow: hidden;
+}
+.vt-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(184, 134, 11, var(--scanline-alpha)) 0 1px,
+    transparent 1px 4px
+  );
+}
+.vt-hero h1 { position: relative; z-index: 1; }
+.vt-hero .tagline { position: relative; z-index: 1; }
+.vt-cta {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Toolbar (view-toggle + era-filter chips) ----------------- */
+.vt-toolbar {
+  padding: 1.75rem 0 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "view filter"
+    "status status";
+  align-items: center;
+  gap: 1rem 1.25rem;
+}
+.vt-toolbar::before { content: none; } /* suppress shared section ornament */
+
+.vt-view-toggle {
+  grid-area: view;
+  display: inline-flex;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  gap: 0.15rem;
+  box-shadow: var(--shadow);
+}
+.vt-view-btn {
+  background: transparent;
+  border: none;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.02em;
+}
+.vt-view-btn:hover, .vt-view-btn:focus-visible { color: var(--accent); }
+.vt-view-btn.is-active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* The shared `.era-filter` already styles the chip row + chips +
+   .is-active state.  We only need to place the row in the toolbar grid. */
+.vt-toolbar .era-filter {
+  grid-area: filter;
+  margin: 0;
+  justify-content: flex-end;
+}
+
+.vt-status {
+  grid-area: status;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.vt-status.is-error { color: var(--error); }
+
+/* --- Era sections --------------------------------------------- */
+.vt-era {
+  padding: 2.5rem 0 1.5rem;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.vt-era:last-of-type { border-bottom: none; }
+.vt-era-header { margin-bottom: 1.25rem; }
+.vt-era-header h2 {
+  font-family: var(--font-heading);
+  font-size: 1.55rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.25rem;
+}
+.vt-era-header .desc {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+/* Filter-mode: hidden eras */
+.vt-era.is-hidden { display: none; }
+
+/* --- Rail: replace shared-rail's flat track with a gold gradient
+       (spec rule 9: "vertical gold rail running through each era
+       column (gradient using --accent and --gold-glow)") ---------- */
+.tl-rail {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding-left: 2.25rem;
+  border-left: none; /* override shared 2px solid rail-track */
+}
+.tl-rail::before {
+  content: '';
+  position: absolute;
+  left: 0.65rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 4px;
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      180deg,
+      var(--rail-track) 0%,
+      var(--accent) 18%,
+      var(--accent-hover) 50%,
+      var(--accent) 82%,
+      var(--rail-track) 100%
+    );
+  box-shadow: 0 0 8px var(--gold-glow);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.tl-rail:empty { display: none; }
+.tl-rail:empty + .vt-era-empty { display: block; }
+
+/* --- TimelineCard layout ------------------------------------- */
+.tl-card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.1rem;
+  margin: 0 0 1rem 0;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  list-style: none;
+}
+.tl-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+}
+.tl-card[data-era="evobench"]     { border-left-color: var(--warning); }
+.tl-card[data-era="self-improve"] { border-left-color: var(--success); }
+.tl-card[data-era="platforms"]    { border-left-color: var(--secondary); }
+.tl-card[data-era="rollup"]       { border-left-color: var(--accent-hover); }
+.tl-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--gold-glow);
+}
+
+/* Dot anchor on the rail (override shared so it sits on our gold rail) */
+.tl-dot {
+  position: absolute;
+  left: -1.95rem;
+  top: 1rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 0 0 1px var(--rail-track), 0 0 8px var(--gold-glow);
+}
+.tl-card[data-era="evobench"]     .tl-dot { background: var(--warning); }
+.tl-card[data-era="self-improve"] .tl-dot { background: var(--success); }
+.tl-card[data-era="platforms"]    .tl-dot { background: var(--secondary); }
+.tl-card[data-era="rollup"]       .tl-dot { background: var(--accent-hover); }
+
+/* Card header row */
+.tl-card-head {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 0.55rem 0.75rem;
+  align-items: baseline;
+}
+.tl-version {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.tl-card time {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+.tl-era-badge {
+  font-size: 0.7rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.tl-card[data-era="evobench"]     .tl-era-badge { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
+.tl-card[data-era="self-improve"] .tl-era-badge { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.tl-card[data-era="platforms"]    .tl-era-badge { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
+.tl-card[data-era="rollup"]       .tl-era-badge { background: var(--accent-light); color: var(--accent-hover); border-color: color-mix(in srgb, var(--accent-hover) 30%, transparent); }
+
+.tl-expand {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: var(--font-body);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.tl-expand:hover, .tl-expand:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Headline + summary */
+.tl-headline {
+  grid-column: 1 / -1;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  margin: 0.4rem 0 0.15rem;
+  line-height: 1.4;
+}
+.tl-summary {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* Headline-metric MetricMicroBar row */
+.tl-metric-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.tl-metric-label { letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.7rem; }
+.tl-metric-value { color: var(--accent); font-weight: 700; }
+/* The shared `.metric-micro` is used as-is (sized 7.5rem * 0.55rem). */
+
+/* Detail panel (expanded) */
+.tl-detail {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border);
+  display: none;
+}
+.tl-card.is-expanded .tl-detail { display: block; }
+
+.tl-detail h4 {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  margin: 0 0 0.4rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-deep);
+}
+.dark .tl-detail h4 { color: var(--fg); }
+
+.tl-highlights {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+.tl-highlights li {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-light) 50%, transparent);
+  border-left: 2px solid var(--accent);
+  line-height: 1.5;
+}
+
+/* Full metrics table when expanded */
+.tl-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+.tl-metric-cell {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+}
+.tl-metric-cell .k {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+}
+.tl-metric-cell .v {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+  display: block;
+  margin-top: 0.15rem;
+}
+
+/* Cross-link button cluster */
+.tl-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.tl-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  font-size: 0.8rem;
+  color: var(--fg);
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.tl-link:hover, .tl-link:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  text-decoration: none;
+}
+
+/* --- Compact view (one-line strip per card) ------------------- */
+.is-compact .tl-card {
+  padding: 0.45rem 0.85rem;
+  margin-bottom: 0.45rem;
+}
+.is-compact .tl-card-head {
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 0.35rem 0.7rem;
+}
+.is-compact .tl-headline,
+.is-compact .tl-summary,
+.is-compact .tl-metric-row,
+.is-compact .tl-detail {
+  display: none !important;
+}
+.is-compact .tl-card-head .tl-summary-inline {
+  display: inline-block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
+}
+.tl-card-head .tl-summary-inline { display: none; }
+.is-compact .tl-dot { top: 0.65rem; }
+
+/* --- Empty state per era (when filter hides all cards) --------- */
+.vt-era-empty {
+  display: none;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card-bg) 60%, var(--bg));
+}
+
+/* --- Error state (fetch failure) ------------------------------ */
+.vt-error {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--error);
+  border-left: 4px solid var(--error);
+  background: color-mix(in srgb, var(--error) 6%, var(--card-bg));
+  border-radius: var(--radius);
+  margin: 1.5rem 0;
+}
+.vt-error h3 {
+  font-family: var(--font-heading);
+  color: var(--error);
+  font-size: 1.05rem;
+  margin: 0 0 0.4rem;
+}
+.vt-error p { margin: 0.25rem 0; font-size: 0.88rem; }
+.vt-error code {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+/* --- Footer --------------------------------------------------- */
+.vt-footer {
+  padding: 2.5rem 0 2rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.vt-footer-cta {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.vt-footer-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+.vt-footer-meta a { color: var(--accent); }
+
+/* --- Era reveal cascade (page-local keyframe; spec rule 10) ---
+   The shared `flow-down` keyframe already exists in shared/styles.css,
+   but the spec asks the page to "define keyframe inline in page-local
+   styles.css" — defining `vt-flow-down` here keeps the cascade self-
+   documenting and ensures we never depend on the shared name being
+   available.  Both are wrapped by the global `prefers-reduced-motion`
+   rule already in shared/styles.css line 339. */
+@keyframes vt-flow-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tl-card.is-revealed {
+  animation: vt-flow-down 0.55s ease-out both;
+  animation-delay: calc(var(--vt-stagger, 0) * 0.07s);
+}
+
+/* --- Responsive ----------------------------------------------- */
+@media (max-width: 880px) {
+  .vt-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "view"
+      "filter"
+      "status";
+  }
+  .vt-toolbar .era-filter { justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .tl-rail { padding-left: 1.6rem; }
+  .tl-rail::before { left: 0.45rem; width: 3px; }
+  .tl-dot { left: -1.45rem; width: 0.7rem; height: 0.7rem; }
+  .tl-card { padding: 0.7rem 0.85rem; }
+  .tl-card-head {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.35rem 0.5rem;
+  }
+  .tl-card-head time { grid-column: 1 / -1; font-size: 0.75rem; }
+  .tl-card-head .tl-era-badge { grid-row: 1; }
+  .is-compact .tl-card-head {
+    grid-template-columns: auto auto 1fr auto;
+  }
+  .is-compact .tl-card-head .tl-summary-inline { display: none; }
+  .vt-cta { gap: 0.5rem; }
+}

@@ -1,0 +1,576 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2026-04-04",
+    "era": "foundations",
+    "headline": "11 built-in workflow templates (research-only, design-only, hotfix, refactoring, migration, spike-poc, documentation, security-audit, feature-enhancement, full-pipeline, RDRR)",
+    "summary": "Project scaffolding with pyproject.toml, Makefile, and GitHub Actions CI. 7 schemas, template engine, gate engine, MVP single-file SKILL.md, cross-tool adapter pipeline.",
+    "highlights": [
+      "7 schema definitions (workflow-template, task-dispatch, status-report, gate-report, pre-decision-checklist, checkpoint, exception-escalation)",
+      "Template engine with YAML parser, 5 composition operators (sequence/parallel/choice/loop/gate), 7-check validator, inheritance, and registry",
+      "Pre-Decision engine with repo mode detection, checklist collection, consistency validation, and workflow type recommendation",
+      "Gate quality engine with composite scoring, 4 gate profiles (strict/standard/relaxed/audit), convergence detection, and YAML+Markdown report generation",
+      "Cross-tool adapter pipeline (build-skill.py) generating outputs for Cursor, Codex, Claude Code, and GitHub Copilot",
+      "5 hard constraint rules (.cursor/rules/workflow-rules.mdc)"
+    ],
+    "metrics": {}
+  },
+  {
+    "version": "2.1.0",
+    "date": "2026-04-07",
+    "era": "foundations",
+    "headline": "Task Quality Score: Lightweight post-workflow scoring system that evaluates user task descriptions on 4 dimensions (Clarity, Scope, Success Criteria, Context) — scored 1-5 each with actionable improvement tips",
+    "summary": "Quick Action Decision: complexity assessment table (Trivial/Simple/Standard/Complex) to prevent over-orchestrating simple tasks — match ceremony to complexity.",
+    "highlights": [
+      "Task Quality Score scored 1-5 across 4 dimensions",
+      "Quick Action Decision (Trivial/Simple/Standard/Complex)",
+      "Dispatch & Report Protocol streamlined to compact field-list (~40% token reduction)",
+      "Fail-Forward Protocol consolidated into Dispatch & Report",
+      "Workflow type count corrected from 10 to 11 (including RDRR)"
+    ],
+    "metrics": {}
+  },
+  {
+    "version": "2.2.0",
+    "date": "2026-04-10",
+    "era": "foundations",
+    "headline": "Information Density: +93% (quality per token nearly doubles)",
+    "summary": "Acceptance Readiness Gate, Task-Adaptive Context Selection, Lean Message Templates, EvoBench Integration. SKILL.md optimized 449 → 293 lines, all behavioral specs preserved.",
+    "highlights": [
+      "Acceptance Readiness Gate (Testability, Completeness, Measurability, Clarity, Independence)",
+      "Task-Adaptive Context Selection (per-task-type profiles for hotfix/research/design/refactor/review/feature)",
+      "Lean Message Templates for TaskDispatch and StatusReport",
+      "EvoBench Integration at /benchmarks/devolaflow_context/",
+      "Task Completion Quality +15.4%, Task Clarity +32.3%, Focus Efficiency +32.1%"
+    ],
+    "metrics": { "tests": 254 }
+  },
+  {
+    "version": "3.0.0",
+    "date": "2026-04-10",
+    "era": "evobench",
+    "headline": "Repository Development Rules: 3 new .cursor/rules/ files codifying lessons from v2.1.0 and v2.2.0 iterations",
+    "summary": "EvoBench Benchmark Suite at benchmarks/devolaflow_context/ with evaluator, runner, 3 scenarios, baseline storage, regression detection. Tests 254→309, coverage 82.78%→88.31%.",
+    "highlights": [
+      "skill-format-rules.mdc (SF-1 through SF-6)",
+      "change-process-rules.mdc (CP-1 through CP-7)",
+      "context-optimization-rules.mdc (CO-1 through CO-6)",
+      "EvoBench Benchmark Suite — context density benchmarks",
+      "Task-Adaptive Selector Tests raising coverage 0% → 90%",
+      "EvoBench: 3/3 scenarios PASS, 0 regressions against baseline"
+    ],
+    "metrics": { "tests": 309, "coverage_pct": 88.31 },
+    "links": [
+      { "href": "../framework-chain/index.html#fc-gate", "label": "Gate Mechanism →" }
+    ]
+  },
+  {
+    "version": "3.1.0",
+    "date": "2026-04-10",
+    "era": "evobench",
+    "headline": "4 New Workflow Templates: demo-showcase, performance-optimization, dependency-setup, onboarding",
+    "summary": "Expanded from 11 to 15 built-in workflows. Comprehensive Human Documentation: completely rewrote all 8 EN + 8 ZH human-facing docs. Updated README.",
+    "highlights": [
+      "+demo-showcase (presentation-ready demos with storyboard)",
+      "+performance-optimization (profile-driven before/after benchmarks)",
+      "+dependency-setup (environment + tooling setup)",
+      "+onboarding (codebase survey + dev environment)",
+      "All 8 EN + 8 ZH guides rewritten",
+      "Per-tool integration sections for Cursor, Claude Code, Copilot, Codex"
+    ],
+    "metrics": {}
+  },
+  {
+    "version": "3.3.0",
+    "date": "2026-04-10",
+    "era": "evobench",
+    "headline": "Full Workflow Coverage (16 profiles, 17 scenarios)",
+    "summary": "Plan Mode Hardening with rigid hierarchy constraints (P1-P5). Skill Optimization Workflow (16th type). 9 new context profiles + 11 new benchmark scenarios.",
+    "highlights": [
+      "Plan Mode rewrite with rigid hierarchy: per-task columns, per-wave validation (≤5 tasks, disjoint ownership), per-stage gate_type/min/max_rounds",
+      "Skill Optimization Workflow (16th): survey → profile → optimize → benchmark → iterate → document",
+      "11 new EvoBench benchmark scenarios",
+      "EvoBench avg composite 94.4/100 (up from 80.5 baseline, +17.3%)",
+      "All 17 scenarios: 100% relevance, 0% noise"
+    ],
+    "metrics": { "tests": 312, "coverage_pct": 88.49, "composite": 94.4 }
+  },
+  {
+    "version": "3.5.0",
+    "date": "2026-04-10",
+    "era": "evobench",
+    "headline": "Release Workflow: Complete end-to-end release process with tooling and documentation",
+    "summary": "scripts/build-site.sh shared site builder. bump_version.py --tag creates annotated git tags. bump_version.py now updates 16 version locations (was 9).",
+    "highlights": [
+      "scripts/build-site.sh shared site builder eliminates duplication between pages.yml and release.yml",
+      "bump_version.py --tag creates annotated git tags alongside version bumps",
+      "Makefile targets: release-preflight, release-dry-run, build-site",
+      ".github/PULL_REQUEST_TEMPLATE.md with adapter budget + EvoBench checklist",
+      "16 version locations across 11 files (was 9)"
+    ],
+    "metrics": { "tests": 316, "coverage_pct": 88.49 }
+  },
+  {
+    "version": "3.6.0",
+    "date": "2026-04-10",
+    "era": "evobench",
+    "headline": "P1 Dispatcher-Not-Implementer not enforced (root cause: 5 gaps in SKILL.md)",
+    "summary": "Agent Mode Execution Protocol: 27-line enforcement block. Explicit L0 role assignment. P1 Self-Check 4-point verification. Tool permissions ALLOWED vs DELEGATE.",
+    "highlights": [
+      "Replaced 2-line vacuous Agent Mode section with 27-line enforcement block",
+      "Explicit L0 role assignment ('You are the L0 Project Agent')",
+      "P1 Self-Check: 4-point 'Am I about to...' verification before any tool use",
+      "Tool permissions: ALLOWED (Read/Glob/Grep/SemanticSearch) vs DELEGATE (Write/StrReplace/Shell)",
+      "7-step execution protocol: ASSESS → SELECT → DECOMPOSE → DISPATCH → VERIFY → GATE → REPORT"
+    ],
+    "metrics": { "tests": 316, "coverage_pct": 88.49 },
+    "links": [
+      { "href": "../framework-chain/index.html#fc-hierarchy", "label": "4-Layer Hierarchy →" }
+    ]
+  },
+  {
+    "version": "3.7.0",
+    "date": "2026-04-11",
+    "era": "evobench",
+    "headline": "Wave Coordination Modes: L2 Wave auto-selects coordination mode (parallel/sequential/generator_verifier/hybrid) via O(|V|+|E|) DAG analysis",
+    "summary": "Plan Mode Hierarchy Enforcement: plan template embeds the 4-layer delegation model explicitly. Plan Mode in MVP-SKILL.md. EvoBench avg composite 99.43.",
+    "highlights": [
+      "Auto-selects parallel / sequential / generator_verifier / hybrid coordination",
+      "Generator-Verifier protocol provides tight generate→evaluate→refine loops within waves",
+      "Plan template embeds 4-layer delegation model explicitly with Execution Model table (L0→L1→L2→L3)",
+      "EvoBench optimization: 3 rounds (97.08 → 98.99 → 99.43, converged)"
+    ],
+    "metrics": { "tests": 316, "coverage_pct": 88.49, "composite": 99.43 },
+    "links": [
+      { "href": "../framework-chain/index.html#fc-loops", "label": "Wave Coordination →" }
+    ]
+  },
+  {
+    "version": "3.8.0",
+    "date": "2026-04-11",
+    "era": "evobench",
+    "headline": "Lifecycle Hooks: System-level deterministic enforcement at task lifecycle events (100% compliance vs 70-90% prompt-based)",
+    "summary": "Three hooks: validate_dispatch (AC quality gate), check_file_ownership (P1 file boundary enforcement), test_on_complete (auto-retry on test/lint failure).",
+    "highlights": [
+      "validate_dispatch — AC quality gate at dispatch time",
+      "check_file_ownership — P1 file boundary enforcement",
+      "test_on_complete — auto-retry on test/lint failure",
+      "EvoBench avg composite 99.73 (+0.30 vs v3.7.0, +0.60 vs v3.6.0)",
+      "Promoted convergence_loop to critical for security-audit profile"
+    ],
+    "metrics": { "tests": 316, "coverage_pct": 88.49, "composite": 99.73 },
+    "links": [
+      { "href": "../framework-chain/index.html#fc-gate", "label": "Gate Mechanism →" }
+    ]
+  },
+  {
+    "version": "3.9.0",
+    "date": "2026-04-12",
+    "era": "evobench",
+    "headline": "Operational Learnings Persistence: New learnings.py module for cross-session knowledge accumulation",
+    "summary": "Self-Improving Feedback Loop, 4-Type Gate Taxonomy (preflight/revision/escalation/abort), Advisor Tool Integration, Model Profiles per Agent Role, Self-Update Workflow (17th).",
+    "highlights": [
+      "Operational Learnings Persistence (learnings.py) — JSONL knowledge accumulation",
+      "Self-Improving Feedback Loop (feedback.py: FeedbackCollector, FeedbackAnalyzer, ProposalGenerator)",
+      "4-Type Gate Taxonomy: preflight, revision, escalation, abort (with backward-compat aliases)",
+      "Advisor Tool Integration with borderline detection (composite within ±5% of threshold)",
+      "Model Profiles per Agent Role (model_hint: quality/balanced/budget/inherit)",
+      "Typed Subagent Status Protocol (DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED)",
+      "Rationalization Prevention 8-row table",
+      "Self-Update Workflow (17th) + reference-dependencies.yaml tracking 17 external repos"
+    ],
+    "metrics": { "tests": 423, "coverage_pct": 89.21 },
+    "links": [
+      { "href": "../framework-chain/index.html#fc-rationalization", "label": "Rationalization Prevention →" }
+    ]
+  },
+  {
+    "version": "3.9.2",
+    "date": "2026-04-12",
+    "era": "evobench",
+    "headline": "Shared design system: New workflow-system/human/demo/shared/ with unified CSS (296 lines), navigation component, and i18n system",
+    "summary": "i18n EN/ZH (133 data-i18n attributes). Dark/light theme toggle. Glassmorphism shared nav with mobile hamburger menu. 5 demo pages redesigned.",
+    "highlights": [
+      "Shared design system (296 lines unified CSS)",
+      "i18n EN/ZH with 133 data-i18n attributes, language toggle in nav, localStorage persistence",
+      "Dark/light .dark class-based theming with system preference + persistence",
+      "Glassmorphism shared nav with logo, 6 page links, theme toggle, language switcher, mobile hamburger",
+      "Page-specific translations via addTranslations()"
+    ],
+    "metrics": { "tests": 438, "coverage_pct": 89.21 },
+    "links": [
+      { "href": "../design-system/index.html#ds-palette", "label": "Palette →" }
+    ]
+  },
+  {
+    "version": "4.0.0",
+    "date": "2026-04-12",
+    "era": "self-improve",
+    "headline": "Platform Model Routing Infrastructure: platform_model_mapping in context_profiles.yaml with per-platform hint→model mapping (Cursor: budget→fast, Codex: quality→o3, Claude Code: quality→opus)",
+    "summary": "Per-Boundary Compression Intensity (l2_to_l3 minimal, others standard/aggressive). L3 Decomposition Framework (decomposition_mode: single | sub_agents). 3 New EvoBench Scenarios.",
+    "highlights": [
+      "Platform Model Routing — Cursor budget→fast; Codex quality→o3, balanced→o4-mini; Claude quality→opus, balanced→sonnet, budget→haiku",
+      "Per-Boundary Compression Intensity (compression_defaults: l2_to_l3 minimal, l3_to_l2/l2_to_l1/l1_to_l0 aggressive, l0_to_l1/l1_to_l2 standard)",
+      "L3 Decomposition Framework with decomposition + gen_verify_mode",
+      "decomposition_mode + compression_intensity in TaskDispatch schema",
+      "3 new EvoBench scenarios (compression_hotfix, decomposition_feature, model_routing_feature)"
+    ],
+    "metrics": { "tests": 451 }
+  },
+  {
+    "version": "4.1.0",
+    "date": "2026-04-12",
+    "era": "self-improve",
+    "headline": "Runtime Compression Validator: New src/devolaflow/compressor.py module with deterministic lean format validation and compression",
+    "summary": "Aggregation Compression Formats (wave_summary ≤200 tokens, stage_summary ≤150 tokens). EvoBench format_compliance dimension (1.00 across all 23 scenarios).",
+    "highlights": [
+      "compressor.py — validate_lean_format / compress_message / validate_preserve_list / detect_drop_violations",
+      "wave_summary aggregation (merge N task reports into ≤200 tokens)",
+      "stage_summary aggregation (merge N wave summaries into ≤150 tokens with gate verdict)",
+      "EvoBench format_compliance dimension (1.00 across all 23 scenarios)",
+      "Expanded preserve list (12 items) and drop list (9 items) with 3 intensity tiers"
+    ],
+    "metrics": { "tests": 495, "composite": 99.20 }
+  },
+  {
+    "version": "4.3.0",
+    "date": "2026-04-13",
+    "era": "self-improve",
+    "headline": "Plugin Registry System: New src/devolaflow/plugins/ package providing unified plugin management for external tools (NineS, ui-pro, future plugins)",
+    "summary": "NineS Research Module (researcher.py) and NineS Integration Module (detector / scorer / advisor). NineS-Assisted Workflow Template. Tests 504 → 643.",
+    "highlights": [
+      "Plugin Registry — auto-detect via shutil.which, auto-install (pip/npm/script), version checking, capability/role queries",
+      "NineS Research Module (researcher.py): collect_research, analyze_target, run_self_evaluation, run_skill_iteration",
+      "NineS Integration Module (detector.py CLI auto-detection, scorer.py CLI wrappers, advisor.py)",
+      "NineS-Assisted Workflow Template (research-driven workflows)",
+      "task_adaptive_selector handles non-numeric line ranges gracefully"
+    ],
+    "metrics": { "tests": 643, "coverage_pct": 90.45 }
+  },
+  {
+    "version": "4.5.0",
+    "date": "2026-04-13",
+    "era": "self-improve",
+    "headline": "NieR: Automata / Devola visual identity for all human-facing content",
+    "summary": "Documentation sync rules (DS-1 through DS-5). Complete redesign of web demo pages with NieR palette (warm parchment, gold, Devola red). All 8 EN + 8 ZH guides updated.",
+    "highlights": [
+      "NieR: Automata / Devola visual identity (warm parchment, gold accents, Devola red)",
+      "Documentation sync rules DS-1 through DS-5 in .cursor/rules/documentation-sync-rules.mdc",
+      "README.md rewritten with warm, guardian-inspired tone",
+      "All 8 EN and 8 ZH user guides updated with Devola-flavored professional tone",
+      "CI status summary job for branch protection + concurrency groups"
+    ],
+    "metrics": {},
+    "links": [
+      { "href": "../design-system/index.html#ds-palette", "label": "Palette →" }
+    ]
+  },
+  {
+    "version": "5.0.0",
+    "date": "2026-04-13",
+    "era": "self-improve",
+    "headline": "NineS v2.0.0 CLI Migration: Updated all 4 nines/ modules (researcher, scorer, advisor, detector) from v1.0.0-pre to v2.0.0 CLI syntax",
+    "summary": "Self-Improvement Loop Infrastructure (run_self_improve_loop, log_external_source_review, refresh_reference_dependency). Karpathy-Inspired Behavioral Improvements.",
+    "highlights": [
+      "NineS v2 CLI migration (global -f json, named flags for collect/analyze/eval/self-eval/iterate)",
+      "run_self_improve_loop orchestrating self-eval → iterate → benchmark cycle",
+      "explicit_assumptions field in TaskDispatch (Think Before Coding)",
+      "Simplicity / scope-creep criteria in Review rubric",
+      "Verification-first micro-plan in execution-protocol.md",
+      "Decomposed select_context() from CC=23 to CC≈7 via 5 extracted helpers"
+    ],
+    "metrics": { "tests": 681, "coverage_pct": 90.90, "nines": 0.7405, "composite": 99.50 }
+  },
+  {
+    "version": "5.1.0-pre",
+    "date": "2026-04-14",
+    "era": "self-improve",
+    "headline": "Convergence Round Reinforcement: New gate/reinforcement.py module implementing dispatch-level rule injection (Approach B — zero file I/O, platform-agnostic)",
+    "summary": "ReinforcementBlock/ReinforcementRule dataclasses. Severity-filtered, capped at 5 rules per round. Schema extensions to task-dispatch.schema.yaml and lean-dispatch.yaml.",
+    "highlights": [
+      "findings_to_reinforcement converts gate findings into mandates",
+      "Severity-filtered, capped at 5 rules per round, with escalation notes and prior-score context",
+      "Schema extensions (reinforcement field under applicable_rules)",
+      "Shared NineS CLI helper (run_nines_cli) using shlex.split — fixes quoted-argument parsing",
+      "Critical fix: NineS install command corrected to uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
+      "Critical fix: 11 NineS CLI v1→v2 commands updated"
+    ],
+    "metrics": { "tests": 704 },
+    "links": [
+      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+    ]
+  },
+  {
+    "version": "5.2.0",
+    "date": "2026-04-14",
+    "era": "self-improve",
+    "headline": "Self-Improve Iteration Rules: New .cursor/rules/self-improve-iteration-rules.mdc with 10 rules (SI-1 through SI-10) codifying the iteration process",
+    "summary": "NineS Command Templates Module (commands.py) as single source of truth for all NineS CLI v2 command templates. Template NineS Bridge.",
+    "highlights": [
+      "10 SI rules: planning gates, NineS-driven analysis, evaluation before release, benchmark regression guard, skill format coupling, context budget enforcement, external reference protocol, retrospective, convergence reinforcement, test-then-commit",
+      "nines/commands.py — build_command, build_stage_command (closes Gap 7: triple-source command definitions)",
+      "Template NineS Bridge (extract_nines_commands, format_nines_context, nines_commands_to_dispatch_context)",
+      "Rule count: 24 → 34 (10 new SI rules)",
+      "Reference tracking: 10 active + 9 periodic = 19 total"
+    ],
+    "metrics": { "tests": 782 }
+  },
+  {
+    "version": "5.3.0",
+    "date": "2026-04-14",
+    "era": "self-improve",
+    "headline": "Feedback-Reinforcement Bridge (P4): ProposalGenerator.generate_reinforcement() wires feedback.py to gate/reinforcement.py",
+    "summary": "Round-Based Context Escalation (P8): apply_round_escalation() in task_adaptive_selector.py. NineS Config Discovery (P2): find_nines_config() searches upward for nines.toml.",
+    "highlights": [
+      "P4: Feedback-Reinforcement Bridge — converts gate verdict findings into ReinforcementBlock for next round",
+      "P8: Round-Based Context Escalation — higher rounds get stricter section priorities, better model hints, +20% token budget",
+      "P2: NineS Config Discovery (find_nines_config in nines/_cli.py)",
+      "P3: Schema Validation Tests (test_schema_validation.py) — no v1 NineS patterns, schema structure",
+      "P1: _BUILTIN_SPECS stage_mapping unified via STAGE_MAPPING import from nines/commands.py"
+    ],
+    "metrics": { "tests": 803 },
+    "links": [
+      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+    ]
+  },
+  {
+    "version": "5.4.0",
+    "date": "2026-04-15",
+    "era": "self-improve",
+    "headline": "User-Facing Verification Gate Dimensions: Extended GateInput with 4 new optional fields (visual_test_results, interaction_test_results, accessibility_results, acceptance_verification_results)",
+    "summary": "EXTENDED_DIMENSION_WEIGHTS (7-dim composite) auto-selects when user-facing inputs present. verify primitive (14th). product-verification template (8-stage).",
+    "highlights": [
+      "14th `verify` primitive (Verify-category) for user-facing validation",
+      "EXTENDED_DIMENSION_WEIGHTS (7-dim composite, backward-compat with 4-dim)",
+      "visual_fidelity_score, interaction_quality_score, acceptance_verification_score functions",
+      "product-verification 8-stage template (analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate)",
+      "Full-Pipeline updated with verify stage between test and refine",
+      "4 new context profiles + 4 new EvoBench scenarios"
+    ],
+    "metrics": { "tests": 822 }
+  },
+  {
+    "version": "5.4.2",
+    "date": "2026-04-15",
+    "era": "self-improve",
+    "headline": "Claude Code skill-based installation: Claude Code now installs DevolaFlow as .claude/skills/devola-flow/SKILL.md with references and examples (identical structure to Cursor)",
+    "summary": "Progressive 3-tier loading (~50 tokens at startup vs ~5000 previously), on-demand reference loading, /devola-flow slash command. All 4 tools now use identical skill directory structure.",
+    "highlights": [
+      "Claude Code skill-based install — .claude/skills/devola-flow/SKILL.md + 8 references + 3 examples",
+      "Root CLAUDE.md lightweight (~35 lines) following Claude Code best practice (under 200 lines)",
+      "bump_version.py reduced from 14 to 11 version locations",
+      "Parity achieved: all 4 tools (Cursor, Codex, Claude, Copilot) use identical skill directory structure"
+    ],
+    "metrics": { "tests": 818 }
+  },
+  {
+    "version": "6.0.1",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "MVP-SKILL.md legacy file: Deleted workflow-system/agent/MVP-SKILL.md (317 lines) and swept 14 cross-references",
+    "summary": "_BUILTIN_SPECS hardcoded plugin duplicate removed (78-line). Rule reconciliation (TD-6) — CP-3 vs SF-3 vs CLAUDE.md version-location counts now consistent.",
+    "highlights": [
+      "MVP-SKILL.md (317 lines) deleted; 14 cross-references swept across README, quickstart (EN/ZH), demo, install.sh, build-site.sh, PR template, generate_human_docs.py",
+      "_BUILTIN_SPECS hardcoded plugin duplicate (78-line) removed; create_default_registry loads from plugins.yaml",
+      "8-line emergency NineS stub for YAML-absent case",
+      "Rule reconciliation: CP-3 rewritten to reference SF-3 as authoritative version-location list",
+      "Net LOC: −295 (+156 / −451 across 16 files + 1 deletion)"
+    ],
+    "metrics": { "tests": 820 }
+  },
+  {
+    "version": "6.0.2",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "[BREAKING] Removed evaluate_gate_with_nines, run_nines_advisor",
+    "summary": "DeprecationWarnings: 12 → 0. Net LOC −519 (+6 / −525). MIGRATION-v6.md (32 lines) added. 5 test classes (29 tests) retired.",
+    "highlights": [
+      "BREAKING: evaluate_gate_with_nines removed (per v5.1 roadmap item P9)",
+      "BREAKING: run_nines_advisor removed",
+      "Internal advisor helpers dropped: should_invoke_advisor, _interpret_result, _extract_score, _extract_reasoning",
+      "MIGRATION-v6.md — 1-page migration guide documenting both removals",
+      "DeprecationWarnings: 12 → 0",
+      "5 test classes retired (29 tests)"
+    ],
+    "metrics": { "tests": 791 }
+  },
+  {
+    "version": "6.0.3",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "v5.3.0 P8 finally wired: apply_round_escalation invoked automatically by select_context() on round > 1",
+    "summary": "v5.3.0 P4 finally wired: merge_reinforcement_into_dispatch invoked by ProposalGenerator.generate_round_dispatch(). select_context now round-aware (round_num kwarg).",
+    "highlights": [
+      "select_context() round-aware — new round_num kwarg (default 1, backward-compat)",
+      "ProposalGenerator.generate_round_dispatch — production wiring closing the v5.3.0 reinforcement dead-wire gap",
+      "CLI --round N flag",
+      "tests/test_e2e_convergence.py — 7 E2E tests for full template→gate→reinforcement integration",
+      "Round 1 → 3: budget 4800 → 5760 exactly (+20%), model_hint balanced → quality"
+    ],
+    "metrics": { "tests": 812, "nines": 0.7405 },
+    "links": [
+      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+    ]
+  },
+  {
+    "version": "6.0.4",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "AdapterRegistry: central registry for all platform adapters with tier classification (core, high_priority, tier_1, tier_2)",
+    "summary": "DataDrivenAdapter generic adapter driven by YAML config (4 transforms). KimiCode (Moonshot AI VSCode + CLI) and Windsurf (Codeium) adapters. --tools CLI flag.",
+    "highlights": [
+      "AdapterRegistry — selective build via build_selected(), create_default_registry() factory",
+      "DataDrivenAdapter — supports copy / copy_tree / copy_with_frontmatter / strip_frontmatter transforms",
+      "+KimiCode adapter — .kimi/skills/devola-flow/ with SKILL.md + references + examples (500-line budget)",
+      "+Windsurf adapter — single .windsurfrules at repo root with frontmatter stripped (8000-char budget)",
+      "--tools cursor,windsurf CLI flag for selective build"
+    ],
+    "metrics": { "tests": 858 }
+  },
+  {
+    "version": "6.0.5",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "Schema parity test: enforces field parity across task-dispatch.schema.yaml, lean-dispatch.yaml, and gate-report.schema.yaml",
+    "summary": "Full EvoBench baseline coverage 29/29 scenarios (was 3/29). Closes the 89.7pp regression-detection gap. 7 new benchmark tests.",
+    "highlights": [
+      "Schema parity test (TD-4 closed) — 6 tests covering reinforcement fields, verification facets, gate-report coverage of dispatch verification_config, header abbreviation",
+      "v6.0.5_baseline.json — full 29/29 scenarios with composite, information_density, section_relevance, budget_utilization, noise_ratio",
+      "benchmarks/devolaflow_context/generate_baseline.py CLI",
+      "load_baseline() prefers newest baseline by numeric-version order",
+      "Staleness guard test (±5pp tolerance)"
+    ],
+    "metrics": { "tests": 871 }
+  },
+  {
+    "version": "6.1.0",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "Continue.dev adapter and OpenClaw adapter — final release of the v6.0 rollup (6 waves, v5.4.2 → v6.1.0)",
+    "summary": "Golden snapshot tests for Cursor adapter (4 tests). 21 new coverage-focused tests. SI-8 retrospective. Tests 871 → 896, Coverage 91.35% → 94.08%.",
+    "highlights": [
+      "+Continue.dev adapter (.continue/rules/devola-flow.md + references/, Tier 1, 800-line budget)",
+      "+OpenClaw adapter (openclaw/SKILL.md + references/, Tier 2, 500-line budget)",
+      "Golden snapshot tests (test_adapter_golden.py) — required sections, line-count band, frontmatter keys",
+      "+21 coverage tests: cli.py 49% → 98%, init_project.py 59% → 94%, composer.py 66% → 100%",
+      "SI-8 retrospective at .local/research/retrospective_v6.0_to_v6.1.md (SI-3 composite 9.23/10)",
+      "v6.1.0 baseline regenerated for SKILL.md growth from 496 → 498 lines"
+    ],
+    "metrics": { "tests": 896, "coverage_pct": 94.08 }
+  },
+  {
+    "version": "6.1.1",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "NineS overall: 0.7405 → 0.8805 (+18.9% — entirely from the v6.1.1 tool-config fix; zero source changes)",
+    "summary": "data/golden_test_set/ (10 TOML fixtures) unlocks NineS V1 scoring evaluators. nines.toml repo-root config. Capability mean 0.7150 → 0.9150.",
+    "highlights": [
+      "data/golden_test_set/ — 10 DevolaFlow-relevant NineS golden-test TOML fixtures across 3 dimensions",
+      "Unlocks 4 V1 evaluators (scoring_accuracy, scoring_reliability, scorer_agreement, eval_coverage)",
+      "nines.toml repo-root config with project defaults, self-eval weights, relative path bindings",
+      "Tests: 896 → 954 (+58 from 13 new test functions)",
+      "Rule SI-2 updated with canonical self-eval invocation (--golden-dir + --samples-dir)",
+      "NineS overall +18.9% — biggest single jump in DevolaFlow history"
+    ],
+    "metrics": { "tests": 954, "nines": 0.8805 }
+  },
+  {
+    "version": "6.1.2",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "Windsurf adapter real bug: 24,625 chars WARN → 7,434 chars OK via new keep_sections transform",
+    "summary": "New keep_sections transform — markdown-section-level extraction with optional frontmatter preservation. VALID_TRANSFORMS frozenset (5 transforms). 8 new tests.",
+    "highlights": [
+      "New keep_sections transform in DataDrivenAdapter — markdown-section-level extraction",
+      "Windsurf .windsurfrules: 24,625 chars WARN → 7,434 chars OK (69.8% reduction; 566-char margin under 8000)",
+      "VALID_TRANSFORMS frozenset (copy, copy_tree, copy_with_frontmatter, strip_frontmatter, keep_sections)",
+      "Compromise: 4 of 6 task-suggested sections fit (dropped Mode Awareness 4945 chars + Context Isolation)",
+      "8/8 adapters report [OK]"
+    ],
+    "metrics": { "tests": 966 }
+  },
+  {
+    "version": "6.1.3",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "+Zed +Cline +Roo (11 platforms total) — 3 new Tier-1 adapters via data-driven YAML",
+    "summary": "Each adapter ≈25 LOC of YAML — no Python source changes required (validates the v6.0.4 data-driven pattern). Adapter count 8 → 11 (+3 platforms).",
+    "highlights": [
+      "+Zed editor (.rules/devola-flow.md + references/)",
+      "+Cline autonomous agent (.clinerules/devola-flow.md + references/)",
+      "+Roo Code per-mode rules (.roo/rules/devola-flow.md + references/)",
+      "Adapter count: 8 → 11 (+3 platforms)",
+      "~75 LOC of YAML (avg 25 per adapter, vs ~80 LOC of Python in v6.0.4)",
+      "install.sh extended with zed/cline/roo targets + dl_skill_no_frontmatter helper"
+    ],
+    "metrics": { "tests": 985 }
+  },
+  {
+    "version": "6.1.4",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "scripts/detect_dead_apis.py (G1): static analyzer that scans src/devolaflow/ for public functions/classes with zero non-test callers",
+    "summary": "Catches the bug class that cost v6.0.3 three versions to fix. Tests 988 → 999. Detection runtime 143ms on 50 modules. 36-entry DEFAULT_ALLOWLIST.",
+    "highlights": [
+      "detect_dead_apis.py — static analyzer walks src/devolaflow/**/*.py with ast",
+      "Bug-class CI guard for the v6.0.3 pattern (apply_round_escalation + merge_reinforcement_into_dispatch had passing unit tests but no production callers since v5.3.0)",
+      "tests/test_dead_apis.py — 11 tests including CI-grade test_devolaflow_codebase_has_no_dead_apis",
+      "36-entry DEFAULT_ALLOWLIST grouped by category (adapter API, CLI entries, MIGRATION-v6.md replacements, NineS subsystem, etc.)",
+      "--strict exit 2, --format json schema",
+      "Detection runtime: 143ms on 50 modules"
+    ],
+    "metrics": { "tests": 999 }
+  },
+  {
+    "version": "6.1.5",
+    "date": "2026-04-16",
+    "era": "platforms",
+    "headline": "Plan-mode detection in select_context() (V6-03): new plan_mode parameter with auto-detection via DEVOLAFLOW_PLAN_MODE env var or .devolaflow_plan_mode marker file",
+    "summary": "When True, apply_plan_mode_overrides escalates priorities (agent_hierarchy / decomposition_gate / rationalization_prevention → critical), model_hint → quality, compression_intensity → minimal.",
+    "highlights": [
+      "plan_mode kwarg + auto-detect (3 signals: explicit param, env var, marker file)",
+      "Composes with v6.0.3 round-based escalation (plan-mode applies first, round adds budget on top)",
+      "--plan-mode / --no-plan-mode CLI flags on python -m devolaflow.task_adaptive_selector",
+      "apply_plan_mode_overrides public function (allowlisted in dead-API detector)",
+      "10 new tests in TestPlanModeDetection covering all 3 signals + composition + invalid values",
+      "Tests: 999 → 1009 (+10)"
+    ],
+    "metrics": { "tests": 1009 },
+    "links": [
+      { "href": "../context-flow/index.html#cf-dispatch", "label": "Dispatch route →" }
+    ]
+  },
+  {
+    "version": "6.2.0",
+    "date": "2026-04-16",
+    "era": "rollup",
+    "headline": "Final release of the v6.0 + v6.1 rollup (12 waves, v5.4.2 → v6.2.0). SI-3 weighted composite 9.43 / 10 — READY for stable release.",
+    "summary": "Meta-release closing the second self-update cycle (v6.1.0 → v6.2.0). 1009 tests. NineS overall 0.8805 stable. 11 platform adapters [OK]. SI-8 retrospective.",
+    "highlights": [
+      "12 → 0 DeprecationWarnings; 141 → 0 MVP-SKILL cross-refs; 92 LOC _BUILTIN_SPECS removed; 3 → 0 rule contradictions",
+      "NineS overall 0.7405 → 0.8805 (+18.9% — entirely from v6.1.1 tool-config fix; zero source changes); capability mean 0.7150 → 0.9150 (+27.97%)",
+      "4 → 11 platforms supported (+7: KimiCode, Windsurf, Continue, OpenClaw, Zed, Cline, Roo Code); 5 transforms in DataDrivenAdapter",
+      "Dead-wire closure: v5.3.0 P8 + P4 finally wired in v6.0.3; v6.1.5 plan-mode wired",
+      "Tests 818 → 1009 (+191), coverage 91.07% → 93.93%+; cli.py 49→98%, init_project.py 59→94%, composer.py 66→100%",
+      "29/29 EvoBench scenarios with regression baseline (was 3/29)",
+      "SI-3 weighted composite 9.43/10 (threshold ≥ 8.5) — READY for stable release",
+      "SKILL.md 498/500 lines"
+    ],
+    "metrics": { "tests": 1009, "coverage_pct": 93.93, "nines": 0.8805 }
+  },
+  {
+    "version": "6.2.1",
+    "date": "2026-04-17",
+    "era": "rollup",
+    "headline": "Benchmark staleness-guard CI flake fix: tiktoken hidden via tests/conftest.py autouse fixture",
+    "summary": "test_v6_baseline_matches_current_results_within_tolerance was passing locally but failing on CI with 12.59pp composite drift on hotfix_jwt. Root cause: tiktoken vs fallback estimator divergence.",
+    "highlights": [
+      "Autouse pytest fixture in tests/conftest.py hides tiktoken from sys.modules for tests in tests/test_benchmarks.py only",
+      "Both local and CI now consistently exercise the deterministic fallback estimator",
+      "Production runtime unaffected — agents that have tiktoken installed still get the more accurate token counts",
+      "Regenerated v6.1.0_baseline.json under deterministic fallback estimator (hotfix_jwt baseline composite now 99.52, 0pp drift)",
+      "Tests: 1009 passed (no count change), Lint clean, NineS stable"
+    ],
+    "metrics": { "tests": 1009, "nines": 0.8805 }
+  }
+]

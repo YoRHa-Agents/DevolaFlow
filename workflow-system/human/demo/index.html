@@ -20,6 +20,13 @@
         <a href="https://github.com/YoRHa-Agents/DevolaFlow" class="btn btn-outline" data-i18n="btn.github">GitHub</a>
         <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md" class="btn btn-outline" data-i18n="card.userGuide">User Guide</a>
       </div>
+      <!-- v6.3 Theme showcase CTAs -->
+      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:.75rem;">
+        <a href="design-system/index.html" class="btn btn-outline" data-i18n="card.designSystem">Design System</a>
+        <a href="framework-chain/index.html" class="btn btn-outline" data-i18n="card.frameworkChain">Framework Chain</a>
+        <a href="context-flow/index.html" class="btn btn-outline" data-i18n="card.contextFlow">Context Flow</a>
+        <a href="version-timeline/index.html" class="btn btn-outline" data-i18n="card.versionTimeline">R&amp;D Timeline</a>
+      </div>
     </header>
 
     <!-- Quick Start -->
@@ -151,6 +158,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- Theme Showcases (v6.3) -->
+    <section class="slide-up">
+      <h2 data-i18n="landing.showcase">Theme Showcases</h2>
+      <p class="desc" data-i18n="landing.showcase.desc">Four new pages making the design language, framework chain, context flow, and R&amp;D journey first-class citizens.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label" data-i18n="label.designSystem">DESIGN SYSTEM</span>
+          <h3 data-i18n="card.designSystem">Design System</h3>
+          <p data-i18n="card.designSystem.desc">Palette, typography, motion, components, states, accessibility — the Devola design language as an artifact.</p>
+          <a href="design-system/index.html"><span data-i18n="card.designSystem">Design System</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.frameworkChain">FRAMEWORK CHAIN</span>
+          <h3 data-i18n="card.frameworkChain">Framework Chain</h3>
+          <p data-i18n="card.frameworkChain.desc">Animated 4-layer hierarchy + 5 AgentTeams + gate convergence + reinforcement loop.</p>
+          <a href="framework-chain/index.html"><span data-i18n="card.frameworkChain">Framework Chain</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.contextFlow">CONTEXT FLOW</span>
+          <h3 data-i18n="card.contextFlow">Context Flow</h3>
+          <p data-i18n="card.contextFlow.desc">Dispatch / Report / Escalation / Round-Reinforcement message routing animations.</p>
+          <a href="context-flow/index.html"><span data-i18n="card.contextFlow">Context Flow</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.versionTimeline">TIMELINE</span>
+          <h3 data-i18n="card.versionTimeline">R&amp;D Timeline</h3>
+          <p data-i18n="card.versionTimeline.desc">Cross-version journey from v3.x &rarr; v6.2.1 across 5 R&amp;D eras.</p>
+          <a href="version-timeline/index.html"><span data-i18n="card.versionTimeline">R&amp;D Timeline</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- Interactive Tools -->
     <section class="slide-up">
       <h2 data-i18n="landing.tools">Interactive Tools</h2>
@@ -198,18 +237,18 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- What's New in v6.2.1 -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew">What's New</span> in v6.2.1</h2>
-      <p class="desc" data-i18n="landing.whatsNew.desc">Final release of the v6.0+v6.1 rollup (12 waves, v5.4.2 → v6.2.0). Highlights: 11 platform adapters via YAML-driven contract (Cursor/Codex/Claude/Copilot core + KimiCode/Windsurf/Continue/OpenClaw/Zed/Cline/Roo); NineS overall +18.9% via tool-config (0.7405 → 0.8805); 0 DeprecationWarnings (12 retired); v5.3.0 dead-wire closed; dead-API CI guard prevents regression; plan-mode detection in select_context; schema parity + 29/29 EvoBench baselines. 1009 tests passing, lint clean across all 12 commits.</p>
+      <p class="desc" data-i18n="landing.whatsNew.desc">v6.2.1 closes the v6.0 + v6.1 rollup with a CI-flake fix (deterministic benchmark estimator via tests/conftest.py). 1009 tests passing, NineS overall 0.8805 stable, 11 platform adapters [OK]. The v6.0→v6.2 journey shipped +18.9% NineS gain via tool-config (zero source changes), schema parity + 29/29 EvoBench baselines, dead-wire closure of v5.3.0 reinforcement infrastructure, plan-mode runtime hook, and four new theme showcases (Design System, Framework Chain, Context Flow, R&amp;D Timeline).</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.adapters">ADAPTERS</span>
-          <h3 data-i18n="landing.whatsNew.adapters">8 Platform Adapters</h3>
-          <p data-i18n="landing.whatsNew.adapters.desc">Cursor, Codex, Claude Code, Copilot (core) + KimiCode, Windsurf, Continue.dev, OpenClaw via a single YAML-driven adapter contract. New platforms need ~25 LOC of YAML, not 80 LOC of Python.</p>
+          <h3 data-i18n="landing.whatsNew.adapters">11 Platform Adapters</h3>
+          <p data-i18n="landing.whatsNew.adapters.desc">Cursor, Codex, Claude Code, Copilot (core) + KimiCode, Windsurf, Continue.dev, OpenClaw, Zed, Cline, Roo Code via a single YAML-driven adapter contract. New platforms need ~25 LOC of YAML.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/adapter_configs"><span data-i18n="btn.viewConfigs">View Configs</span> &rarr;</a>
         </div>
         <div class="card">
           <span class="label" data-i18n="label.deadwire">DEAD-WIRE</span>
           <h3 data-i18n="landing.whatsNew.deadwire">Round-Aware Convergence</h3>
-          <p data-i18n="landing.whatsNew.deadwire.desc">v5.3.0 infrastructure finally wired in v6.0.3: `select_context(round_num=N)` auto-escalates critical sections, bumps budget +20% on round 3, and merges prior-round gate findings into `applicable_rules.reinforcement` as MUST-fix mandates.</p>
+          <p data-i18n="landing.whatsNew.deadwire.desc">v5.3.0 infrastructure finally wired in v6.0.3: select_context(round_num=N) auto-escalates critical sections, bumps budget +20% on round 3, and merges prior-round gate findings into applicable_rules.reinforcement as MUST-fix mandates.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
         </div>
         <div class="card">
@@ -220,8 +259,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
         <div class="card">
           <span class="label" data-i18n="label.metrics">METRICS</span>
-          <h3 data-i18n="landing.whatsNew.metrics">896 Tests, 94% Coverage</h3>
-          <p data-i18n="landing.whatsNew.metrics.desc">+78 tests across the v6.0 rollup (818 → 896), coverage 91% → 94%. cli.py and composer.py pushed to 98% and 100% in Wave 6. Golden snapshot tests lock the Cursor adapter contract. 0 DeprecationWarnings.</p>
+          <h3 data-i18n="landing.whatsNew.metrics">1009 Tests, 94% Coverage</h3>
+          <p data-i18n="landing.whatsNew.metrics.desc">+191 tests across the v6.0+v6.1 rollup (818 → 1009), coverage 91% → 94%. NineS overall 0.7405 → 0.8805 (+18.9%). cli.py and composer.py pushed to 98% and 100%. 0 DeprecationWarnings.</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>
@@ -240,8 +279,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
         <div class="card">
           <span class="label" data-i18n="label.rules">RULES</span>
-          <h3>34 Repository Rules</h3>
-          <p>Enforceable guardrails codified from iteration lessons: SKILL format constraints, change process rules, context optimization rules, documentation sync rules, and self-improve iteration rules.</p>
+          <h3>42 Repository Rules</h3>
+          <p>Enforceable guardrails codified from iteration lessons: SKILL format constraints, change process rules, context optimization rules, documentation sync rules, self-improve iteration rules, and web-experience rules (WX-1..8 governing the four theme showcases).</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/.cursor/rules"><span data-i18n="btn.viewRules">View Rules</span> &rarr;</a>
         </div>
         <div class="card">
