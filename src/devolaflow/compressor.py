@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from devolaflow.task_adaptive_selector import estimate_tokens
 
@@ -24,6 +25,11 @@ __all__ = [
     "DEFAULT_DISPATCH_LAYOUT",
     "DispatchLayoutError",
     "ToolUseTruncation",
+    "DEFAULT_SUMMARY_MODE",
+    "DEFAULT_SUMMARY_MAX_TOKENS",
+    "DEFAULT_SUMMARY_TRIGGER_PCT",
+    "SUMMARY_TRUNCATION_MARKER",
+    "SCHEMA_HINT_PRIORITIES",
     "validate_preserve_list",
     "detect_drop_violations",
     "compress_message",
@@ -32,6 +38,8 @@ __all__ = [
     "compute_dispatch_lcp_pct",
     "truncate_tool_output",
     "clear_old_tool_uses",
+    "summarise_predecessor",
+    "extract_named_entities",
 ]
 
 # ---------------------------------------------------------------------------
@@ -520,3 +528,330 @@ def clear_old_tool_uses(
         excluded_tool_names=excluded,
     )
     return modified, summary
+
+
+# ---------------------------------------------------------------------------
+# v7.0.2 — Hierarchical predecessor summariser (ADR-003, ships J.3)
+# ---------------------------------------------------------------------------
+
+DEFAULT_SUMMARY_MODE: str = "extractive"
+DEFAULT_SUMMARY_MAX_TOKENS: int = 500
+DEFAULT_SUMMARY_TRIGGER_PCT: int = 25
+SUMMARY_TRUNCATION_MARKER: str = "[TRUNCATED]"
+
+SCHEMA_HINT_PRIORITIES: dict[str, tuple[str, ...]] = {
+    "design": ("decision", "consequences", "alternatives"),
+    "research": ("recommendations", "open questions", "synthesis"),
+    "adr": ("decision", "consequences", "test plan"),
+    "gate_report": ("verdict", "findings", "metrics"),
+}
+
+_NER_ACCEPTANCE_PATTERN: re.Pattern[str] = re.compile(
+    r"^\s*[-*]\s+(?:MUST(?:\s+NOT)?|SHOULD(?:\s+NOT)?|SHALL(?:\s+NOT)?|MAY)\b.+$",
+    re.MULTILINE,
+)
+_NER_INTERFACE_PATTERN: re.Pattern[str] = re.compile(
+    r"(?:^[ \t]*(?:async\s+)?def\s+\w+\s*\([^)]*\)"
+    r"|^[ \t]*class\s+\w+\b"
+    r"|^[ \t]*[a-zA-Z_][\w]*\s*:\s*"
+    r"(?:str|int|bool|float|list|dict|tuple|Any|None|Optional)\b)",
+    re.MULTILINE,
+)
+
+_ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {
+    "file_paths": PRESERVE_PATTERNS["file_paths"],
+    "task_ids": PRESERVE_PATTERNS["task_ids"],
+    "version_strings": PRESERVE_PATTERNS["version_strings"],
+    "commit_hashes": PRESERVE_PATTERNS["commit_hashes"],
+    "metric_values": PRESERVE_PATTERNS["metric_values"],
+    "error_messages": PRESERVE_PATTERNS["error_messages_verbatim"],
+    "acceptance_criterion_bullets": _NER_ACCEPTANCE_PATTERN,
+    "interface_signatures": _NER_INTERFACE_PATTERN,
+}
+
+
+def extract_named_entities(text: str) -> list[dict]:
+    """Deterministic NER over DevolaFlow's 8 structured entity classes.
+
+    Detects file_paths, task_ids, version_strings, commit_hashes,
+    metric_values, error_messages, acceptance_criterion_bullets, and
+    interface_signatures (Python ``def``/``class`` or YAML ``key: type`` hints).
+    Reuses :data:`PRESERVE_PATTERNS` for the first six entity types so the
+    compactor and the summariser stay in lock-step on what counts as a
+    preserve-list fact (ADR-003 §2.2 step 2).
+
+    Returns an in-document-order list of ``{type, value, source_line}`` dicts.
+    Duplicate ``(type, value)`` pairs are emitted once, anchored to their
+    first occurrence. ``source_line`` is 1-indexed.
+    """
+    if not isinstance(text, str) or not text:
+        return []
+
+    line_starts: list[int] = [0]
+    for idx, ch in enumerate(text):
+        if ch == "\n":
+            line_starts.append(idx + 1)
+
+    def _line_for(offset: int) -> int:
+        lo, hi = 0, len(line_starts) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if line_starts[mid] <= offset:
+                lo = mid
+            else:
+                hi = mid - 1
+        return lo + 1
+
+    found: list[tuple[int, dict]] = []
+    seen: set[tuple[str, str]] = set()
+    for entity_type, pattern in _ENTITY_PATTERNS.items():
+        for match in pattern.finditer(text):
+            value = match.group(0).strip()
+            if not value:
+                continue
+            key = (entity_type, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(
+                (
+                    match.start(),
+                    {"type": entity_type, "value": value, "source_line": _line_for(match.start())},
+                )
+            )
+    found.sort(key=lambda pair: pair[0])
+    return [entry for _, entry in found]
+
+
+_HEADING_RE: re.Pattern[str] = re.compile(r"^(#{1,3})\s+(.+?)\s*$")
+
+
+def _parse_markdown_sections(text: str) -> list[tuple[str, str]]:
+    """Split markdown into ``(heading, body)`` tuples on H1/H2/H3 boundaries.
+
+    The body of section *N* runs until the next heading. Content before the
+    first heading is emitted under the empty heading ``""``.
+    """
+    sections: list[tuple[str, str]] = []
+    current_heading = ""
+    current_body: list[str] = []
+    for line in text.splitlines():
+        match = _HEADING_RE.match(line)
+        if match is not None:
+            if current_heading or current_body:
+                sections.append((current_heading, "\n".join(current_body).strip("\n")))
+            current_heading = match.group(2).strip()
+            current_body = []
+            continue
+        current_body.append(line)
+    if current_heading or current_body:
+        sections.append((current_heading, "\n".join(current_body).strip("\n")))
+    return sections or [("", text)]
+
+
+def _parse_yaml_sections(text: str) -> list[tuple[str, str]]:
+    """Split YAML into ``(top_level_key, body)`` tuples."""
+    try:
+        import yaml as _yaml
+
+        data = _yaml.safe_load(text)
+    except Exception:
+        return _parse_markdown_sections(text)
+    if not isinstance(data, dict) or not data:
+        return [("", text)]
+    sections: list[tuple[str, str]] = []
+    for key, value in data.items():
+        body = _yaml.safe_dump({key: value}, sort_keys=False, default_flow_style=False).rstrip()
+        sections.append((str(key), body))
+    return sections
+
+
+def _parse_json_sections(text: str) -> list[tuple[str, str]]:
+    """Split JSON object leaves into ``(key, body)`` tuples."""
+    import json as _json
+
+    try:
+        data = _json.loads(text)
+    except Exception:
+        return _parse_markdown_sections(text)
+    if not isinstance(data, dict) or not data:
+        return [("", text)]
+    return [(str(key), _json.dumps(value, indent=2)) for key, value in data.items()]
+
+
+def _parse_toml_sections(text: str) -> list[tuple[str, str]]:
+    """Split TOML into ``(table_name, body)`` tuples; falls back to markdown."""
+    try:
+        import tomllib as _tomllib
+
+        data = _tomllib.loads(text)
+    except Exception:
+        return _parse_markdown_sections(text)
+    if not isinstance(data, dict) or not data:
+        return [("", text)]
+    return [(str(key), repr(value)) for key, value in data.items()]
+
+
+_PARSER_BY_EXT: dict[str, callable] = {
+    ".md": _parse_markdown_sections,
+    ".markdown": _parse_markdown_sections,
+    ".yaml": _parse_yaml_sections,
+    ".yml": _parse_yaml_sections,
+    ".json": _parse_json_sections,
+    ".toml": _parse_toml_sections,
+}
+
+
+def _select_sections_by_priority(
+    sections: list[tuple[str, str]],
+    schema_hint: str | None,
+) -> list[tuple[str, str]]:
+    """Reorder ``sections`` so schema-hint matches come first; nothing dropped.
+
+    Heading matching is case-insensitive substring against the priority list
+    (per ADR-003 §3 risk row 1: accepts "Decisions" plural / "Decision"
+    singular alike). Sections without a priority match keep their document
+    order after the prioritised ones.
+    """
+    if schema_hint is None or schema_hint not in SCHEMA_HINT_PRIORITIES:
+        return list(sections)
+    priorities = SCHEMA_HINT_PRIORITIES[schema_hint]
+    ranked: list[tuple[int, int, tuple[str, str]]] = []
+    rest: list[tuple[int, tuple[str, str]]] = []
+    for doc_idx, section in enumerate(sections):
+        heading_lower = section[0].lower()
+        rank: int | None = None
+        for idx, keyword in enumerate(priorities):
+            if keyword in heading_lower:
+                rank = idx
+                break
+        if rank is not None:
+            ranked.append((rank, doc_idx, section))
+        else:
+            rest.append((doc_idx, section))
+    ranked.sort(key=lambda triple: (triple[0], triple[1]))
+    rest.sort(key=lambda pair: pair[0])
+    return [section for _, _, section in ranked] + [section for _, section in rest]
+
+
+def _truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, bool]:
+    """Hard-cap ``text`` at ``max_tokens`` tokens, appending the truncation
+    marker. Returns ``(maybe_truncated_text, was_bounded)``.
+    """
+    if max_tokens <= 0:
+        return SUMMARY_TRUNCATION_MARKER, True
+    current = estimate_tokens(text)
+    if current <= max_tokens:
+        return text, False
+    marker_tokens = estimate_tokens(SUMMARY_TRUNCATION_MARKER)
+    keep_tokens = max(1, max_tokens - marker_tokens)
+    if not text:
+        return SUMMARY_TRUNCATION_MARKER, True
+    ratio = keep_tokens / max(current, 1)
+    cutoff = max(1, int(len(text) * ratio))
+    truncated = text[:cutoff].rstrip()
+    while estimate_tokens(truncated + " " + SUMMARY_TRUNCATION_MARKER) > max_tokens and truncated:
+        truncated = truncated[: max(1, len(truncated) - 16)]
+    return truncated.rstrip() + " " + SUMMARY_TRUNCATION_MARKER, True
+
+
+def summarise_predecessor(
+    artifact_path: str,
+    max_tokens: int = DEFAULT_SUMMARY_MAX_TOKENS,
+    mode: str = DEFAULT_SUMMARY_MODE,
+    schema_hint: str | None = None,
+) -> dict:
+    """Produce a bounded-token summary of a predecessor artifact.
+
+    See ``.local/research/adr/v7-ADR-003-hierarchical-summary.md`` §2 for the
+    full algorithm. The default ``extractive`` mode is deterministic and
+    verbatim per CO-2: it parses the artifact by extension, runs
+    :func:`extract_named_entities` on the full body, and emits a
+    ``key_facts:`` YAML prefix followed by the schema-hint-prioritised
+    sections, hard-capped at ``max_tokens`` tokens.
+
+    Mode ``abstractive`` is a stub at v7.0.2 — it raises
+    :class:`NotImplementedError` until the LLM call is wired in v7.0.3+
+    (per ADR-003 §2.3, abstractive opts in via
+    ``context_profiles.yaml#summary_mode``).
+
+    Returns a 7-key dict:
+      * ``summary_text`` — bounded markdown body (≤ ``max_tokens`` tokens).
+      * ``mode`` — echoed mode string.
+      * ``token_count`` — actual token count of ``summary_text``.
+      * ``extracted_entities`` — verbatim entity list (see
+        :func:`extract_named_entities`).
+      * ``covered_sections`` — headings that contributed to ``summary_text``.
+      * ``dropped_sections`` — headings skipped entirely (token budget).
+      * ``was_bounded`` — ``True`` iff truncation marker was inserted.
+    """
+    if mode not in ("extractive", "abstractive"):
+        raise ValueError(f"unknown mode {mode!r} (expected 'extractive' or 'abstractive')")
+    if mode == "abstractive":
+        raise NotImplementedError(
+            "abstractive summarisation is not yet wired (planned for v7.0.3+); "
+            "use mode='extractive' for the deterministic verbatim path"
+        )
+    if max_tokens <= 0:
+        raise ValueError(f"max_tokens must be positive (got {max_tokens})")
+
+    path = Path(artifact_path)
+    if not path.exists():
+        raise FileNotFoundError(f"artifact not found: {artifact_path}")
+
+    text = path.read_text(encoding="utf-8")
+    parser = _PARSER_BY_EXT.get(path.suffix.lower(), _parse_markdown_sections)
+    sections = parser(text)
+    selected = _select_sections_by_priority(sections, schema_hint)
+    entities = extract_named_entities(text)
+
+    fact_lines = ["key_facts:"]
+    for entity in entities:
+        first_line = entity["value"].splitlines()[0]
+        fact_lines.append(f"  - {first_line}")
+    facts_block = "\n".join(fact_lines)
+
+    facts_tokens = estimate_tokens(facts_block)
+    body_budget = max(0, max_tokens - facts_tokens)
+    covered: list[str] = []
+    dropped: list[str] = []
+    body_chunks: list[str] = []
+    was_bounded = False
+    remaining = body_budget
+
+    for heading, body in selected:
+        chunk = f"## {heading}\n\n{body}".strip() if heading else body.strip()
+        if not chunk:
+            continue
+        chunk_tokens = estimate_tokens(chunk)
+        if chunk_tokens <= remaining:
+            body_chunks.append(chunk)
+            covered.append(heading)
+            remaining -= chunk_tokens
+            continue
+        if remaining > estimate_tokens(SUMMARY_TRUNCATION_MARKER) + 5 and not was_bounded:
+            truncated, _ = _truncate_to_tokens(chunk, remaining)
+            body_chunks.append(truncated)
+            covered.append(heading)
+            was_bounded = True
+            remaining = 0
+        else:
+            dropped.append(heading)
+
+    summary_text = facts_block
+    if body_chunks:
+        summary_text = facts_block + "\n\n" + "\n\n".join(body_chunks)
+
+    if estimate_tokens(summary_text) > max_tokens:
+        summary_text, _ = _truncate_to_tokens(summary_text, max_tokens)
+        was_bounded = True
+
+    return {
+        "summary_text": summary_text,
+        "mode": mode,
+        "token_count": estimate_tokens(summary_text),
+        "extracted_entities": entities,
+        "covered_sections": covered,
+        "dropped_sections": dropped,
+        "was_bounded": was_bounded,
+    }

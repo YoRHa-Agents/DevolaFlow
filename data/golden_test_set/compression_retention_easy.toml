@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-compress-011"
+name = "compression-retention-easy"
+description = "summarise_predecessor extractive default mode preserves verbatim file_paths in extracted_entities (>=95% retention on 5K-token artifact, 5 probe facts) per ADR-003 §6 #7"
+dimension = "analysis"
+difficulty = 2
+
+[task.input]
+type = "code"
+language = "python"
+source = "summarise_predecessor(path, max_tokens=500, mode='extractive', schema_hint='research')['extracted_entities']"
+
+[task.expected]
+type = "text"
+value = "summarise_predecessor(path, max_tokens=500, mode='extractive', schema_hint='research')['extracted_entities']"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

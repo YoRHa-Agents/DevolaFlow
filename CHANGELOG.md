@@ -5,6 +5,54 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.2] — 2026-04-17
+
+**MINOR — third slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.3 only (deterministic hierarchical predecessor summariser + 8-class NER + compression-retention scenarios + first 3 of 5 NineS goldens for K.6).**
+
+This release lands the deterministic extractive summariser that ADR-003 commits DevolaFlow to. `summarise_predecessor()` parses an artifact by extension (markdown / YAML / JSON / TOML / H2 fallback), runs the new `extract_named_entities()` pass over the full body, prefixes the output with a verbatim `key_facts:` YAML block, then fills the remaining token budget with schema-hint-prioritised sections (`design` → Decision/Consequences/Alternatives, `research` → Recommendations/OpenQuestions/Synthesis, `adr` → Decision/Consequences/Test plan, `gate_report` → Verdict/Findings/Metrics, default → H2 in document order). Hard-capped at `max_tokens` with a `[TRUNCATED]` marker and `was_bounded=True` flag — no paraphrase, ever. The companion 8-class NER (`file_paths`, `task_ids`, `version_strings`, `commit_hashes`, `metric_values`, `error_messages`, `acceptance_criterion_bullets`, `interface_signatures`) reuses `PRESERVE_PATTERNS` for the first six classes so the compactor and the summariser stay in lock-step on what counts as a verbatim preserve-list fact (CO-2). The new schema fields `pred[*].summary_mode` and `pred[*].summary_max_tokens` are nested per-pred (NOT new top-level keys — honours the v7-ADR-001 cache-layout invariant). The new `meta.summary_trigger_pct: 25` profile knob resolves open question K.1: dispatchers MUST summarise above 25 % of the consuming layer's token_budget (e.g. L3 8000 → above 2000 tokens; L2 4000 → above 1000).
+
+### Added
+- **`devolaflow.compressor.summarise_predecessor(artifact_path, max_tokens=500, mode="extractive", schema_hint=None) -> dict`**: deterministic extractive summariser. Parses markdown / YAML / JSON / TOML by extension (default H2 fallback), runs `extract_named_entities` on the full body, emits a `key_facts:` verbatim prefix, then fills the budget with schema-hint-prioritised sections (case-insensitive substring match, accepts plural/singular). Returns a 7-key dict: `summary_text`, `mode`, `token_count`, `extracted_entities`, `covered_sections`, `dropped_sections`, `was_bounded`. Mode `"abstractive"` raises `NotImplementedError` at v7.0.2 — wired in v7.0.3+ behind an opt-in profile flag per ADR-003 §2.3.
+- **`devolaflow.compressor.extract_named_entities(text) -> list[dict]`**: deterministic NER over 8 entity classes — `file_paths`, `task_ids`, `version_strings`, `commit_hashes`, `metric_values`, `error_messages` (all six reuse `PRESERVE_PATTERNS` per CO-2), `acceptance_criterion_bullets` (matches `- MUST/SHOULD/SHALL/MAY [NOT]` lines), `interface_signatures` (Python `def`/`class` plus YAML `key: type` hints). Each entry is `{type, value, source_line}` with 1-indexed source lines; duplicates de-duped per `(type, value)` pair, document order preserved.
+- **`devolaflow.compressor.SCHEMA_HINT_PRIORITIES`**: module-level constant exposing the 4 schema-hint priority lists — `design`, `research`, `adr`, `gate_report` — for downstream callers that need to introspect the priority order.
+- **`devolaflow.compressor.DEFAULT_SUMMARY_MODE`**, **`DEFAULT_SUMMARY_MAX_TOKENS`**, **`DEFAULT_SUMMARY_TRIGGER_PCT`**, **`SUMMARY_TRUNCATION_MARKER`**: module-level constants for the summariser defaults (`"extractive"`, `500`, `25`, `"[TRUNCATED]"`).
+- **`schemas/lean-dispatch.yaml#pred.per_entry.summary_mode`** and **`summary_max_tokens`**: new OPTIONAL fields nested inside each `pred` entry. Defaults: `extractive` / `500`. Missing → extractive / 500. Honours v7-ADR-001 layout invariant (no new top-level keys; nested under existing `pred`).
+- **`workflow-system/agent/context_profiles.yaml#meta.summary_trigger_pct: 25`**: new meta key — relative threshold above which dispatchers MUST summarise predecessor artifacts (resolves K.1 per ADR-003 §2.4). Per-profile override available.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_easy.yaml`**: research profile (3300-token budget) probe — ~5 K-token artifact, 5 probe facts, retention target ≥ 95 %. Composite at v7.0.2 cut: **99.62**.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_medium.yaml`**: design profile (4450-token budget) probe — ~10 K-token artifact, 10 probe facts, retention target ≥ 95 %. Composite at v7.0.2 cut: **99.23**.
+- **`benchmarks/devolaflow_context/scenarios/compression_retention_hard.yaml`**: hotfix profile (2400-token budget — the tightest) probe — ~15 K-token ADR-class artifact, 15 probe facts spanning all 8 NER types, retention target ≥ 90 % (stretch goal per ADR-003 §6 #9). Composite at v7.0.2 cut: **98.55**.
+- **`data/golden_test_set/compression_retention_easy.toml`** / **`compression_retention_medium.toml`** / **`compression_retention_hard.toml`**: 3 NineS V1 golden TOMLs (target dimension `analysis`, scorer `exact`) probing extractive entity preservation, schema-hint priority, and `was_bounded` truncation respectively. Closes 3 / 5 of K.6 (remaining 2 ship in v7.1.0).
+- **`benchmarks/devolaflow_context/baselines/v7.0.2_baseline.json`**: regenerated full-coverage baseline (33 scenarios = 30 prior + 3 new `compression_retention_*`). Replaces `v7.0.1_baseline.json` as the staleness-guard target.
+- **10 new unit tests** in `tests/test_compressor.py::TestHierarchicalSummariser` (per ADR-003 §6): `test_summarise_extractive_preserves_file_paths`, `test_summarise_extractive_honours_max_tokens`, `test_summarise_schema_hint_priority`, `test_summarise_unknown_extension`, `test_summarise_trigger_threshold`, `test_extract_named_entities_all_types`, `test_summarise_was_bounded_truncation_marker`, `test_summarise_abstractive_not_yet_wired_raises`, `test_extract_entities_reuses_preserve_patterns`, `test_summarise_returns_structured_dict_keys`.
+- **`scripts/detect_dead_apis.py` allowlist**: `summarise_predecessor`, `extract_named_entities` added (consumed by external dispatchers per ADR-003 §2.4 and re-used by the v7.0.3 persistence probe per ADR-004).
+
+### Changed
+- **`devolaflow.compressor.__all__`** extended with `summarise_predecessor`, `extract_named_entities`, `SCHEMA_HINT_PRIORITIES`, `DEFAULT_SUMMARY_MODE`, `DEFAULT_SUMMARY_MAX_TOKENS`, `DEFAULT_SUMMARY_TRIGGER_PCT`, `SUMMARY_TRUNCATION_MARKER`. No symbols removed; v7.0.x importers continue to work unchanged.
+- **`tests/test_benchmarks.py`** `V6_BASELINE_PATH` retargeted to `v7.0.2_baseline.json`; `test_runner_prefers_latest_baseline` expectation bumped accordingly. The v7.0.0 / v7.0.1 baseline files are retained on disk as historical record.
+
+### Open questions resolved
+- **K.1** — forced-summarisation threshold. Resolution: relative threshold of **25 %** of the consuming layer's `token_budget` (per ADR-003 §2.4). Surfaces as `meta.summary_trigger_pct` in `context_profiles.yaml` for per-profile override. Below threshold, dispatchers may embed the artifact body verbatim under `pred[*].body`.
+- **K.6** — NineS V1 golden set authoring. **3 / 5 shipped** in v7.0.2 (`compression_retention_easy/medium/hard`); remaining 2 (`compression_tool_output`, `compression_persistence`) ship in v7.1.0 per roadmap §v7.1.0.
+
+### Metrics
+- Tests: 1023 → 1033 (+10: all in `TestHierarchicalSummariser`)
+- `devolaflow.compressor` coverage: ≥ 90 % (rule CP-2 floor for v7.0.2 per roadmap §v7.0.2)
+- New EvoBench scenario composites: `compression_retention_easy` 99.62, `compression_retention_medium` 99.23, `compression_retention_hard` 98.55 (all above min_composite 85 / min_relevance 0.9 / max_noise_ratio 0.15)
+- Existing 30 EvoBench scenarios: zero regression vs. v7.0.1 baseline (max drift 0.00 pp, well within SI-4 5pp tolerance)
+- LOC delta against budget 420 — within budget: production code 162, schema 8, profile 11, tests 165, scenarios 165, goldens 60, baseline regen ~430 (auto-generated), changelog ~50, allowlist 8, version sync ~10
+- All 11 adapters [OK] (CP-5 verified)
+- Lint: ruff check + format clean (SI-10 #2, #3)
+- Version consistency: 8 sync locations updated via `scripts/bump_version.py 7.0.2` (SF-3 / CP-3)
+- SKILL.md unchanged at 495 lines (the v7.0.2 docs land in inline docstrings + ADR-003 cross-link only — well within the 500 SF-1 cap)
+
+### Cross-references
+- ADR: `.local/research/adr/v7-ADR-003-hierarchical-summary.md`
+- Roadmap: `.local/research/v7.0.0_version_roadmap.md` §v7.0.2
+- Research source: `.local/research/v7.0.0_context_compression_research.md` §§B.3, F row 2, G row 2, H.1, J.3, K.1, K.6
+
+### Scope (v7.0 → v7.1 cycle)
+v7.0.2 ships J.3 only. Remaining cycle slices: v7.0.3 (J.4 + J.5 persistence probe + learnings v2 — re-uses `extract_named_entities` from this version), v7.1.0 (cycle adoption + SI-3 evaluation + SI-8 retrospective + remaining 2 NineS goldens to close K.6).
+
 ## [7.0.1] — 2026-04-17
 
 **MINOR — second slice of the v7.0 → v7.1 staged-context-compression cycle: ships J.2 only (tool-output truncation primitive + `tool_results` schema block).**

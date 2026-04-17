@@ -96,6 +96,13 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.compressor:truncate_tool_output",
         "devolaflow.compressor:clear_old_tool_uses",
         "devolaflow.compressor:ToolUseTruncation",
+        # v7.0.2 hierarchical predecessor summariser primitives — consumed by
+        # external dispatchers (L0/L1/L2) before composing pred[*].key_facts
+        # (per ADR-003 §2.4 trigger threshold). The persistence probe planned
+        # in v7.0.3 (ADR-004) re-uses extract_named_entities for entity
+        # carry-through scoring.
+        "devolaflow.compressor:summarise_predecessor",
+        "devolaflow.compressor:extract_named_entities",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in

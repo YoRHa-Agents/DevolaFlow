@@ -13,6 +13,15 @@ meta:
   skill_source: "workflow-system/agent/SKILL.md"
   default_profile: "feature"
   budget_hard_cap_tokens: 8000
+  # v7.0.2+ — Hierarchical predecessor summariser trigger threshold (resolves K.1).
+  # When a single predecessor artifact exceeds this percentage of the consuming
+  # layer's token_budget, dispatchers MUST call
+  # `devolaflow.compressor.summarise_predecessor()` instead of embedding the
+  # artifact body verbatim under `pred[*].body`. Default 25 % per ADR-003 §2.4
+  # (e.g. L3 budget 8000 → summarise above 2000 tokens; L2 budget 4000 →
+  # summarise above 1000). Override per-profile by setting `summary_trigger_pct:`
+  # under the profile's section_priorities sibling (additive, optional).
+  summary_trigger_pct: 25
   compression_defaults:
     l0_to_l1: standard
     l1_to_l2: standard

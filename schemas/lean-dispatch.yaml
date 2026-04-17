@@ -116,6 +116,11 @@ lean_format_spec:
     per_entry:
       ref: "verbatim filesystem path"
       key_facts: "list of ≤8-word factual statements extracted verbatim from source"
+      # v7.0.2+: optional per-pred summariser knobs (ADR-003 §2.5). Nested
+      # under each pred entry; not new top-level keys (honours v7-ADR-001
+      # cache-layout invariant). Missing → extractive / 500 tokens.
+      summary_mode: "extractive | abstractive (default: extractive)"
+      summary_max_tokens: "int (default: 500); hard cap on summarise_predecessor output"
     max_entries: 5
     max_facts_per_entry: 5
   files:

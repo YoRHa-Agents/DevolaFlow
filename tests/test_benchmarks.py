@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v7.0.1_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v7.0.2_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -359,7 +359,7 @@ class TestBaselineFile:
     # ------------------------------------------------------------------
 
     def test_v6_baseline_exists(self) -> None:
-        """v7.0.1_baseline.json must be present in baselines/ (regenerated each release cut)."""
+        """v7.0.2_baseline.json must be present in baselines/ (regenerated each release cut)."""
         assert V6_BASELINE_PATH.exists(), (
             f"Missing {V6_BASELINE_PATH.relative_to(REPO_ROOT)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
@@ -404,11 +404,11 @@ class TestBaselineFile:
                 assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
 
     def test_runner_prefers_latest_baseline(self) -> None:
-        """load_baseline() picks the v7.0.1 baseline over older files, falls back as needed."""
+        """load_baseline() picks the v7.0.2 baseline over older files, falls back as needed."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v7.0.1_baseline.json", (
-            f"Expected load_baseline() to prefer v7.0.1_baseline.json; got {newest.name}"
+        assert newest.name == "v7.0.2_baseline.json", (
+            f"Expected load_baseline() to prefer v7.0.2_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines
@@ -416,7 +416,7 @@ class TestBaselineFile:
         entry = load_baseline("visual_regression_webapp")
         assert entry is not None, (
             "load_baseline() did not return an entry for a scenario present in "
-            "the v7.0.1 baseline — runner is still falling back to v2.1.0."
+            "the v7.0.2 baseline — runner is still falling back to v2.1.0."
         )
         assert entry["composite"] > 0
 
