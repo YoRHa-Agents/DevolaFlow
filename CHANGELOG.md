@@ -5,6 +5,21 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.4] — 2026-04-16
+
+### Added
+- **`scripts/detect_dead_apis.py`** (G1): static analyzer that scans `src/devolaflow/` for public functions/classes with zero non-test callers. Catches the bug class that cost v6.0.3 three versions to fix (`apply_round_escalation` and `merge_reinforcement_into_dispatch` had passing unit tests but no production callers since v5.3.0). Walks `src/devolaflow/**/*.py` with `ast`, collects top-level public `def`/`class` (skipping `_*`, `__dunder__`, `main`, `cli`, `*_cmd`), then verifies each has a real (non-import) reference somewhere in `src/`, `scripts/`, or `benchmarks/`. Re-exports in `__init__.py` are correctly excluded as non-callers (so the v6.0.3 pattern of "exported but never called" is detected). Run: `python scripts/detect_dead_apis.py [--format text|json] [--strict]`. Stdlib only; ~150 LOC of logic plus a documented allowlist.
+- **`tests/test_dead_apis.py`** (11 tests): unit tests for the detector — synthetic cases for unused functions, used-via-sibling, test-only callers, allowlist suppression, private/dunder skip, CLI-entry skip, `__init__.py` re-export non-counter, self-use alive — plus the CI-grade `test_devolaflow_codebase_has_no_dead_apis` assertion that fails if any new dead public API ships, and 2 subprocess tests for `--strict` exit code 2 and `--format json` schema.
+- **Allowlist**: 36-entry catalogue of intentionally external-only public APIs in `DEFAULT_ALLOWLIST`, grouped and commented by category — adapter base API (`BaseAdapter`, `AdapterResult`, `load_workflow_skill`, `create_default_registry` ×2), CLI entry-point modules (`build_all`), MIGRATION-v6.md recommended replacements (`evaluate_gate`, `findings_to_reinforcement`, `merge_reinforcement_into_dispatch`, `reinforcement_to_dict`, `apply_round_escalation`, `select_context`, `get_research_advice`), compressor validators (`compress_message`, `validate_lean_format`), self-improving feedback module (`Proposal`, `FeedbackCollector`, `FeedbackAnalyzer`, `ProposalGenerator`), gate report generators (`generate_yaml_report`, `generate_markdown_report`), operational learnings utilities (`prune_learnings`, `promote_learning`, `get_learnings_stats`, `log_external_source_review`), NineS subsystem (`build_command`, `build_stage_command`, `ensure_nines`, `get_nines_capabilities`, `NinesResearchConfig`, `collect_research`, `analyze_target`, `run_self_evaluation`, `run_skill_iteration`, `run_nines_benchmark`, `run_nines_update`, `run_self_improve_loop`, `refresh_reference_dependency`, `nines_dimension_scores`, `find_nines_config`), pre-decision phase (`auto_detect`, `freeze_config`, `recommend_workflow`), and template engine (`collect_all_refs`, `JoinStrategy`, `OnExhaustion`, `GateFailAction`, `nines_commands_to_dispatch_context`, `parse_template_string`, `TemplateRegistry`).
+
+### Metrics
+- Tests: **988 → 999** (+11)
+- Detection runtime: **143 ms** on full DevolaFlow codebase (50 modules)
+- Bug class prevention: dead-wire regressions now CI-blocked (`--strict` exit 2)
+- Lint clean (`ruff check` + `ruff format --check`)
+- No source changes to `src/devolaflow/` — pure CI guard addition.
+- NineS stable (no source changes to `src/devolaflow/nines/`).
+
 ## [6.1.3] — 2026-04-16
 
 ### Added
