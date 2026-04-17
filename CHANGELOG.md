@@ -5,6 +5,18 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.1] — 2026-04-17
+
+### Fixed
+- **Benchmark staleness-guard CI flake**: `tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_matches_current_results_within_tolerance` was passing locally but failing on CI with a 12.59pp composite drift on `hotfix_jwt`. Root cause: `devolaflow.task_adaptive_selector.estimate_tokens()` uses `tiktoken` when available, otherwise falls back to `len(text) // 4`. Local environment had `tiktoken` installed (incidentally — not in `pyproject.toml` dependencies); CI did not. Different token estimators produce different section selections, which produce different composite scores. The 86.93 baseline was generated with one estimator, current run used the other → 12.59pp drift.
+- **Solution**: added an autouse pytest fixture in `tests/conftest.py` that hides `tiktoken` from `sys.modules` for tests in `tests/test_benchmarks.py` only. Both local and CI now consistently exercise the deterministic fallback estimator. Production runtime is unaffected — agents that have `tiktoken` installed still get the more accurate token counts.
+- **Regenerated `v6.1.0_baseline.json`** under the deterministic fallback estimator so `hotfix_jwt` baseline composite is now 99.52 (matches the current fallback-estimator run within 0pp drift).
+
+### Metrics
+- Tests: 1009 passed (no count change)
+- Lint clean, NineS stable
+- CI test job will now succeed on the same commit that previously failed (PR #36)
+
 ## [6.2.0] — 2026-04-16
 
 **Final release of the v6.0 + v6.1 rollup (12 waves, v5.4.2 → v6.2.0).**
