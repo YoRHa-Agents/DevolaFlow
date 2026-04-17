@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.0.2"
+version: "7.0.3"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.0.2**
+> **Now Using DevolaFlow v7.0.3**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 7.0.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.0.3 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -493,3 +493,6 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 ```
 
 **Rules**: Always score (positive reinforcement matters). Keep tips actionable and specific. Do not let scoring delay the workflow.
+
+## Operational Learnings — Session Pinning & Decay (v7.0.3+)
+Persisted learnings (`.../learnings/operational.jsonl`) carry a confidence half-life (default 30 days per `DEFAULT_DECAY_HALF_LIFE_DAYS`): `decay_confidence()` applies `new_conf = conf - 0.5 * min(1, days_since_last_access / half_life)`, prunes entries below `DECAY_FLOOR=0.1`; `consolidate_session(session_id, session_learnings, path)` bumps matched entries by +0.05 at session end and appends new ones with `promotion_count=1` — stale entries decay while validated insights stay fresh. For cross-round convergence loops that must keep a specific insight in context regardless of confidence, call `pin_learning_for_session(key, stage, task_type, session_id, path)` — `load_relevant_learnings(..., session_id=...)` then surfaces pinned entries first. Reserve pinning for blockers (ADR-005 §3); legacy v1 entries parse unchanged, `last_accessed` lazily backfilled from `timestamp` on first decay.
