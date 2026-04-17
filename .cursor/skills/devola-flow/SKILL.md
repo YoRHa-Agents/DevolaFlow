@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "6.2.1"
+version: "7.1.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v6.2.1**
+> **Now Using DevolaFlow v7.1.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 6.2.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -284,12 +284,7 @@ Full alias table and per-workflow stage sequences: `references/meta-framework.md
 
 **Extended Composite (when user-facing verification is present):**
 `composite = test_quality×0.20 + code_review×0.20 + architecture×0.15 + benchmark×0.15 + visual_fidelity×0.10 + interaction_quality×0.10 + acceptance_verification×0.10`
-
-- `visual_fidelity`: Screenshot comparison pass rate (0-100)
-- `interaction_quality`: E2E flow success (60%) + accessibility score (40%)
-- `acceptance_verification`: Acceptance criteria test pass rate (0-100)
-
-When no user-facing verification inputs are present, the standard 4-dimension formula is used (backward compatible).
+- `visual_fidelity`: Screenshot comparison pass rate (0-100); `interaction_quality`: E2E flow success (60%) + accessibility (40%); `acceptance_verification`: AC test pass rate (0-100). Standard 4-dimension formula is used when no user-facing inputs are present (backward compatible).
 
 **Pass conditions (ALL required):**
 1. `composite_score >= threshold` (default 85)
@@ -362,6 +357,8 @@ context_injection:
 **MUST NOT leak:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
 **IS shared (via artifact summaries):** interface contracts, design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
 Full context injection spec: `references/context-isolation.md`
+**Cache layout (v7.0.0+):** Top-of-payload key order is fixed by the canonical layout invariant (`schemas/lean-dispatch.yaml#layout_invariant`).
+See `references/context-isolation.md` Cache-Layout Invariant subsection for rationale + the `assert_dispatch_layout` validator API.
 
 ## Dispatch & Report Protocol
 
@@ -496,3 +493,6 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 ```
 
 **Rules**: Always score (positive reinforcement matters). Keep tips actionable and specific. Do not let scoring delay the workflow.
+
+## Operational Learnings — Session Pinning & Decay (v7.0.3+)
+Persisted learnings (`.../learnings/operational.jsonl`) carry a confidence half-life (default 30 days per `DEFAULT_DECAY_HALF_LIFE_DAYS`): `decay_confidence()` applies `new_conf = conf - 0.5 * min(1, days_since_last_access / half_life)`, prunes entries below `DECAY_FLOOR=0.1`; `consolidate_session(session_id, session_learnings, path)` bumps matched entries by +0.05 at session end and appends new ones with `promotion_count=1` — stale entries decay while validated insights stay fresh. For cross-round convergence loops that must keep a specific insight in context regardless of confidence, call `pin_learning_for_session(key, stage, task_type, session_id, path)` — `load_relevant_learnings(..., session_id=...)` then surfaces pinned entries first. Reserve pinning for blockers (ADR-005 §3); legacy v1 entries parse unchanged, `last_accessed` lazily backfilled from `timestamp` on first decay.
