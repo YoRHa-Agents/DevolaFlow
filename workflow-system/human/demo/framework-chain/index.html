@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.frameworkChain">Framework Chain — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    /* Mark JS-enabled so layer-cascade hidden state only applies when JS will reveal it. */
+    document.documentElement.classList.add('fc-js');
+  </script>
+</head>
+<body>
+  <div class="container">
+
+    <header class="slide-up scan-flicker">
+      <h1><span class="accent">Framework</span> Chain</h1>
+      <p class="tagline" data-i18n="fc.subtitle">Project &rarr; Stage &rarr; Wave &rarr; Task &mdash; see the chain move.</p>
+      <div class="cta-cluster">
+        <a href="../context-flow/index.html" class="btn btn-primary">Context Flow &rarr;</a>
+        <a href="../design-system/index.html" class="btn btn-primary">Design System &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-outline" target="_blank" rel="noopener">Read SKILL &uarr;</a>
+      </div>
+    </header>
+
+    <!-- ===== #fc-hierarchy ===== -->
+    <section id="fc-hierarchy" class="slide-up">
+      <h2 data-i18n="fc.section.hierarchy">4-Layer Hierarchy</h2>
+      <p class="desc" data-i18n="fc.section.hierarchy.desc">Each layer dispatches downward and reports upward; only L3 does work.</p>
+
+      <div class="hierarchy-controls">
+        <button id="fc-replay" class="btn btn-outline" type="button" data-i18n="fc.replay">Replay cascade</button>
+      </div>
+
+      <div class="layer-cascade" id="fc-layer-cascade">
+        <div class="layer-node" data-layer="L0"
+             data-name="Project"
+             data-budget="~3K tok"
+             data-delegates="Stage Agents"
+             data-mustnot="Write code|run tests|read source|author docs"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <span class="layer-badge badge-l0">L0</span>
+          <strong>Project</strong>
+          <span class="layer-budget">~3K</span>
+          <p class="layer-role">Selects workflow, sequences stages, evaluates gates, reports to human</p>
+          <p class="layer-delegates">&rarr; Stage Agents</p>
+        </div>
+
+        <div class="route-track" aria-hidden="true">
+          <span class="dispatch-dot has-pulse-dispatch"></span>
+        </div>
+
+        <div class="layer-node" data-layer="L1"
+             data-name="Stage"
+             data-budget="~5K tok"
+             data-delegates="Wave Agents"
+             data-mustnot="Write code|run tests|review|author content"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <span class="layer-badge badge-l1">L1</span>
+          <strong>Stage</strong>
+          <span class="layer-budget">~5K</span>
+          <p class="layer-role">Owns one stage; decomposes into waves, runs convergence, evaluates gate</p>
+          <p class="layer-delegates">&rarr; Wave Agents</p>
+        </div>
+
+        <div class="route-track" aria-hidden="true">
+          <span class="dispatch-dot has-pulse-dispatch"></span>
+        </div>
+
+        <div class="layer-node" data-layer="L2"
+             data-name="Wave"
+             data-budget="~4K tok"
+             data-delegates="Task Agents"
+             data-mustnot="Do any task's work|modify outputs|retry >1"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <span class="layer-badge badge-l2">L2</span>
+          <strong>Wave</strong>
+          <span class="layer-budget">~4K</span>
+          <p class="layer-role">Dispatches parallel tasks, collects results, checks cross-task conflicts</p>
+          <p class="layer-delegates">&rarr; Task Agents</p>
+        </div>
+
+        <div class="route-track" aria-hidden="true">
+          <span class="dispatch-dot has-pulse-dispatch"></span>
+        </div>
+
+        <div class="layer-node" data-layer="L3"
+             data-name="Task"
+             data-budget="~8K tok"
+             data-delegates="Nothing (leaf)"
+             data-mustnot="Spawn sub-agents|modify files outside owned set"
+             role="button" tabindex="0" aria-haspopup="dialog">
+          <span class="layer-badge badge-l3">L3</span>
+          <strong>Task</strong>
+          <span class="layer-budget">~8K</span>
+          <p class="layer-role">Only layer that does work. Executes single atomic task</p>
+          <p class="layer-delegates">&rarr; Nothing (leaf)</p>
+        </div>
+      </div>
+
+      <aside class="cf-aside" id="fc-aside" hidden aria-labelledby="fc-aside-title" role="dialog">
+        <button class="cf-aside-close" id="fc-aside-close" type="button">
+          <span data-i18n="fc.aside.close">Close</span> &times;
+        </button>
+        <h3 id="fc-aside-title">L0 Project &mdash; ~3K tok</h3>
+        <p class="cf-aside-deleg"><code id="fc-aside-deleg">&rarr; Stage Agents</code></p>
+        <h4 data-i18n="fc.layer.mustNot">MUST NOT</h4>
+        <ul id="fc-aside-mustnot"></ul>
+      </aside>
+    </section>
+
+    <!-- ===== #fc-teams ===== -->
+    <section id="fc-teams" class="fade-in">
+      <h2 data-i18n="fc.section.teams">AgentTeams</h2>
+      <p class="desc" data-i18n="fc.section.teams.desc">Five teams: Research / Design / Implement / Test / Review.</p>
+
+      <div class="cards">
+        <div class="card team-card">
+          <h3 data-i18n="fc.team.research">Research</h3>
+          <p class="team-resp">Survey prior art, benchmark, compare, identify gaps</p>
+          <div class="team-meta">
+            <div class="meta-row"><strong>Tools</strong><span><code>WebSearch, WebFetch, Read, Glob, SemanticSearch</code></span></div>
+            <div class="meta-row"><strong>Output</strong><span>Research report, comparison matrix</span></div>
+          </div>
+        </div>
+
+        <div class="card team-card">
+          <h3 data-i18n="fc.team.design">Design</h3>
+          <p class="team-resp">Architecture, API spec, data models, ADRs, schemas</p>
+          <div class="team-meta">
+            <div class="meta-row"><strong>Tools</strong><span><code>Read, Write, SemanticSearch, WebSearch</code></span></div>
+            <div class="meta-row"><strong>Output</strong><span>Design document, interface definitions</span></div>
+          </div>
+        </div>
+
+        <div class="card team-card">
+          <h3 data-i18n="fc.team.implement">Implement</h3>
+          <p class="team-resp">Write code + unit tests, fix issues, configs</p>
+          <div class="team-meta">
+            <div class="meta-row"><strong>Tools</strong><span><code>Read, Write, StrReplace, Shell, Grep, ReadLints</code></span></div>
+            <div class="meta-row"><strong>Output</strong><span>Source files, test files, build artifacts</span></div>
+          </div>
+        </div>
+
+        <div class="card team-card">
+          <h3 data-i18n="fc.team.test">Test</h3>
+          <p class="team-resp">Run test suites, measure coverage, gap analysis</p>
+          <div class="team-meta">
+            <div class="meta-row"><strong>Tools</strong><span><code>Shell, Read, Write, Grep</code></span></div>
+            <div class="meta-row"><strong>Output</strong><span>Test report, coverage metrics</span></div>
+          </div>
+        </div>
+
+        <div class="card team-card">
+          <h3 data-i18n="fc.team.review">Review</h3>
+          <p class="team-resp">Code/design review, quality scoring, SOLID + simplicity checks</p>
+          <div class="team-meta">
+            <div class="meta-row"><strong>Tools</strong><span><code>Read, Grep, SemanticSearch, ReadLints</code></span></div>
+            <div class="meta-row"><strong>Output</strong><span>Severity-classified findings, quality score</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== #fc-gate ===== -->
+    <section id="fc-gate" class="slide-up">
+      <h2 data-i18n="fc.section.gate">Gate Mechanism</h2>
+      <p class="desc" data-i18n="fc.section.gate.desc">Composite score across 4 (or 7 with verification) dimensions; four profiles, three pass conditions.</p>
+
+      <div class="composite-formula">
+        <code>composite = &Sigma;(dimension_score &times; weight)</code>
+      </div>
+
+      <div class="gate-controls">
+        <div class="segmented" role="radiogroup" aria-label="Gate dimension mode">
+          <button class="seg-btn is-active" type="button" data-mode="standard" data-i18n="fc.gate.standardLabel">Standard (4-dim)</button>
+          <button class="seg-btn" type="button" data-mode="extended" data-i18n="fc.gate.extendedLabel">Extended (7-dim)</button>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="fc-simulate-fail">
+          <span data-i18n="fc.gate.simulateFail">Simulate fail on benchmark</span>
+        </label>
+      </div>
+
+      <div class="composite-display">
+        <span class="composite-label">composite</span>
+        <span class="composite-value" id="fc-composite-value">100</span>
+        <span class="composite-threshold" id="fc-composite-threshold">/ &ge;85</span>
+        <span class="composite-state is-pass" id="fc-composite-state">PASS</span>
+      </div>
+
+      <div class="gate-strip" id="fc-gate-strip" aria-live="polite">
+        <!-- GateBadges injected by framework-chain.js -->
+      </div>
+
+      <h3>Gate Profiles</h3>
+      <div class="table-wrap">
+        <table class="gate-profiles">
+          <thead>
+            <tr>
+              <th>Profile</th>
+              <th>Composite</th>
+              <th>Coverage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>relaxed</code></td><td>&ge;70</td><td>&ge;60% cov</td></tr>
+            <tr><td><code>standard</code></td><td>&ge;85</td><td>&ge;80%</td></tr>
+            <tr><td><code>strict</code></td><td>&ge;90</td><td>&ge;90%</td></tr>
+            <tr><td><code>audit</code></td><td>&ge;95</td><td>&ge;90%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Pass Conditions (ALL required)</h3>
+      <ol class="pass-conditions">
+        <li><code>composite_score &gt;= threshold</code> (default 85)</li>
+        <li>Zero blocker findings AND zero MUST-priority violations</li>
+        <li><code>coverage &gt;= coverage_threshold</code> (default 80%)</li>
+      </ol>
+    </section>
+
+    <!-- ===== #fc-loops ===== -->
+    <section id="fc-loops" class="fade-in">
+      <h2 data-i18n="fc.section.loops">Wave Coordination</h2>
+      <p class="desc" data-i18n="fc.section.loops.desc">Parallel / Sequential / Generator-Verifier / Hybrid &mdash; auto-selected by DAG analysis.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>DAG Shape</th>
+              <th>Mode</th>
+              <th>Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No edges</td>
+              <td><code data-i18n="fc.loop.parallel">parallel</code></td>
+              <td>Dispatch all, collect results (default)</td>
+            </tr>
+            <tr>
+              <td>Linear chain</td>
+              <td><code data-i18n="fc.loop.sequential">sequential</code></td>
+              <td>Dispatch N+1 after N completes</td>
+            </tr>
+            <tr>
+              <td>Quality-critical + shared context</td>
+              <td><code data-i18n="fc.loop.genVerify">generator_verifier</code></td>
+              <td>Gen &rarr; Verify &rarr; Refine loop (below)</td>
+            </tr>
+            <tr>
+              <td>Mixed</td>
+              <td><code data-i18n="fc.loop.hybrid">hybrid</code></td>
+              <td>Partition: parallel groups + sequential chains</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Gen-Verify loop</h3>
+      <p>Wave dispatches a <strong>generator</strong> + <strong>verifier</strong>. Verifier evaluates &rarr; <code>{PASS | FAIL + feedback}</code>. PASS &rarr; done. FAIL &rarr; generator refines (round N+1). Terminates on verifier PASS, <code>max_rounds</code> reached, or score stagnant 2 rounds &rarr; escalate L1.</p>
+
+      <div class="genverify-diagram">
+        <div class="round">
+          <span class="round-label">Round 1</span>
+          <ul class="wave-strip" aria-label="Wave round 1: generator and verifier tasks">
+            <li class="task-dot" data-state="done" title="Generator task — done"></li>
+            <li class="task-dot" data-state="done" title="Verifier task — done"></li>
+            <li class="task-dot" data-state="failed" title="Verdict: FAIL"></li>
+          </ul>
+          <span class="round-verdict is-fail">FAIL</span>
+        </div>
+        <div class="round">
+          <span class="round-label">Round 2</span>
+          <ul class="wave-strip" aria-label="Wave round 2: refined generator and verifier tasks">
+            <li class="task-dot" data-state="done" title="Refined generator — done"></li>
+            <li class="task-dot" data-state="done" title="Verifier — done"></li>
+            <li class="task-dot" data-state="done" title="Verdict: PASS"></li>
+          </ul>
+          <span class="round-verdict is-pass">PASS</span>
+        </div>
+        <div class="round">
+          <span class="round-label">Active wave</span>
+          <ul class="wave-strip" aria-label="Active wave example">
+            <li class="task-dot" data-state="done" title="T01 — done"></li>
+            <li class="task-dot" data-state="running" title="T02 — running"></li>
+            <li class="task-dot" data-state="todo" title="T03 — todo"></li>
+            <li class="task-dot" data-state="todo" title="T04 — todo"></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== #fc-rationalization ===== -->
+    <section id="fc-rationalization" class="slide-up">
+      <h2 data-i18n="fc.section.rationalization">Rationalization Prevention</h2>
+      <p class="desc" data-i18n="fc.section.rationalization.desc">Eight canned excuses pre-countered by the SKILL &mdash; no shortcuts.</p>
+
+      <div class="rationalization-grid">
+        <div class="card">
+          <p class="rat-quote">It's just one small file</p>
+          <p class="rat-reality">P1 applies regardless of size. Dispatch via <code>Task</code> tool.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">I'll be faster doing it myself</p>
+          <p class="rat-reality">Speed is not the goal &mdash; isolation and auditability are.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">The task is too simple for a subagent</p>
+          <p class="rat-reality">Use the Quick Action Decision table. If Simple+, delegate.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">I need to see the result before dispatching</p>
+          <p class="rat-reality">Read files (ALLOWED), then dispatch. Never write.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">One more retry should fix it</p>
+          <p class="rat-reality">Check <code>max_iterations</code>. If at limit, escalate &mdash; do not increment.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">The gate score is close enough</p>
+          <p class="rat-reality">Close is FAIL. Run convergence round or escalate.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">I'll skip the gate for this stage</p>
+          <p class="rat-reality">Gates are mandatory. No stage advances without gate PASS.</p>
+        </div>
+        <div class="card">
+          <p class="rat-quote">Tests can be added later</p>
+          <p class="rat-reality"><code>test_on_complete</code> hook enforces. No completion without passing tests.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="fc-footer-cta">
+        <a href="../context-flow/index.html" class="btn btn-outline">Context Flow &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener">Read SKILL &uarr;</a>
+      </div>
+      <p style="margin-top:1rem;">
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
+    </footer>
+  </div>
+
+  <script src="../shared/i18n.js"></script>
+  <script>
+    /* ============================================================
+       Page-specific i18n: 26 keys per spec §6.3 (Framework Chain)
+       + 1 defensive page-title key. Both EN and ZH MUST be in
+       the same file (Rule DS-3).
+       ============================================================ */
+    addTranslations('en', {
+      /* Defensive page-title fallback (the canonical key lives in
+         shared/i18n.js per spec §6.3; registered here so the page
+         renders correctly if the shared registration is not yet
+         deployed). */
+      'page.frameworkChain':           'Framework Chain — DevolaFlow',
+
+      /* 26 page-specific keys (verbatim from spec §6.3). */
+      'fc.subtitle':                   'Project → Stage → Wave → Task — see the chain move.',
+      'fc.section.hierarchy':          '4-Layer Hierarchy',
+      'fc.section.hierarchy.desc':     'Each layer dispatches downward and reports upward; only L3 does work.',
+      'fc.section.teams':              'AgentTeams',
+      'fc.section.teams.desc':         'Five teams: Research / Design / Implement / Test / Review.',
+      'fc.section.gate':               'Gate Mechanism',
+      'fc.section.gate.desc':          'Composite score across 4 (or 7 with verification) dimensions; four profiles, three pass conditions.',
+      'fc.section.loops':              'Wave Coordination',
+      'fc.section.loops.desc':         'Parallel / Sequential / Generator-Verifier / Hybrid — auto-selected by DAG analysis.',
+      'fc.section.rationalization':    'Rationalization Prevention',
+      'fc.section.rationalization.desc':'Eight canned excuses pre-countered by the SKILL — no shortcuts.',
+      'fc.layer.mustNot':              'MUST NOT',
+      'fc.gate.standardLabel':         'Standard (4-dim)',
+      'fc.gate.extendedLabel':         'Extended (7-dim)',
+      'fc.gate.simulateFail':          'Simulate fail on benchmark',
+      'fc.replay':                     'Replay cascade',
+      'fc.aside.close':                'Close',
+      'fc.team.research':              'Research',
+      'fc.team.design':                'Design',
+      'fc.team.implement':             'Implement',
+      'fc.team.test':                  'Test',
+      'fc.team.review':                'Review',
+      'fc.loop.parallel':              'Parallel',
+      'fc.loop.sequential':            'Sequential',
+      'fc.loop.genVerify':             'Generator-Verifier',
+      'fc.loop.hybrid':                'Hybrid'
+    });
+    addTranslations('zh', {
+      'page.frameworkChain':           '框架链路 — DevolaFlow',
+
+      'fc.subtitle':                   '项目 → 阶段 → 波次 → 任务——让链路动起来。',
+      'fc.section.hierarchy':          '四层层次结构',
+      'fc.section.hierarchy.desc':     '每层向下派发、向上汇报；只有 L3 真正执行工作。',
+      'fc.section.teams':              '代理团队',
+      'fc.section.teams.desc':         '五大团队：调研 / 设计 / 实现 / 测试 / 评审。',
+      'fc.section.gate':               '门控机制',
+      'fc.section.gate.desc':          '4 维（含校验时为 7 维）综合评分；四种配置、三个通过条件。',
+      'fc.section.loops':              '波次协调',
+      'fc.section.loops.desc':         '并行 / 顺序 / 生成-校验 / 混合——通过 DAG 分析自动选择。',
+      'fc.section.rationalization':    '规避借口',
+      'fc.section.rationalization.desc':'SKILL 预先反驳的八条常见借口——没有捷径。',
+      'fc.layer.mustNot':              '禁止',
+      'fc.gate.standardLabel':         '标准（4 维）',
+      'fc.gate.extendedLabel':         '扩展（7 维）',
+      'fc.gate.simulateFail':          '模拟基准维度失败',
+      'fc.replay':                     '重放级联动效',
+      'fc.aside.close':                '关闭',
+      'fc.team.research':              '调研',
+      'fc.team.design':                '设计',
+      'fc.team.implement':             '实现',
+      'fc.team.test':                  '测试',
+      'fc.team.review':                '评审',
+      'fc.loop.parallel':              '并行',
+      'fc.loop.sequential':            '顺序',
+      'fc.loop.genVerify':             '生成-校验',
+      'fc.loop.hybrid':                '混合'
+    });
+  </script>
+  <script src="../shared/nav.js"></script>
+  <script src="framework-chain.js"></script>
+</body>
+</html>

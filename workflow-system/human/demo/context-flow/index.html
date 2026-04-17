@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.contextFlow">Context Flow — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- ============================================================
+         Hero
+         ============================================================ -->
+    <header class="slide-up scan-flicker cf-hero">
+      <h1><span class="accent">Context</span> Flow</h1>
+      <p class="tagline" data-i18n="cf.subtitle">Watch the messages travel — dispatch down, report up, escalate up, reinforce on round 2+.</p>
+      <div class="cf-cta">
+        <a href="../framework-chain/index.html" class="btn btn-primary" data-i18n="cf.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="../version-timeline/index.html" class="btn btn-primary" data-i18n="cf.cta.versionTimeline">Version Timeline &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"
+           class="btn btn-ghost"
+           target="_blank" rel="noopener"
+           data-i18n="cf.cta.readSkill">Read SKILL &#x2197;</a>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         #cf-dispatch — TaskDispatch route (L0 -> L3)
+         ============================================================ -->
+    <section id="cf-dispatch" class="cf-section">
+      <h2 data-i18n="cf.section.dispatch">Dispatch (L0 &rarr; L3)</h2>
+      <p class="desc" data-i18n="cf.section.dispatch.desc">TaskDispatch envelopes travel down the route track from Project to Task.</p>
+
+      <div class="cf-route-wrap">
+
+        <!-- Vertical route diagram: 4 stacked LayerNodes + animated envelope -->
+        <div class="cf-route" data-direction="down" aria-label="Dispatch route, L0 to L3">
+          <ol class="layer-stack">
+            <li class="layer-node" data-layer="L0" style="--layer-index:0;">
+              <span class="layer-badge badge-l0">L0</span>
+              <strong class="layer-name">Project</strong>
+              <span class="layer-budget">~3K ctx</span>
+              <p class="layer-role">Selects workflow, sequences stages</p>
+            </li>
+            <li class="layer-node" data-layer="L1" style="--layer-index:1;">
+              <span class="layer-badge badge-l1">L1</span>
+              <strong class="layer-name">Stage</strong>
+              <span class="layer-budget">~5K ctx</span>
+              <p class="layer-role">Decomposes into waves, runs gates</p>
+            </li>
+            <li class="layer-node" data-layer="L2" style="--layer-index:2;">
+              <span class="layer-badge badge-l2">L2</span>
+              <strong class="layer-name">Wave</strong>
+              <span class="layer-budget">~4K ctx</span>
+              <p class="layer-role">Dispatches parallel tasks, checks conflicts</p>
+            </li>
+            <li class="layer-node" data-layer="L3" style="--layer-index:3;">
+              <span class="layer-badge badge-l3">L3</span>
+              <strong class="layer-name">Task</strong>
+              <span class="layer-budget">~8K ctx</span>
+              <p class="layer-role">Only layer that does work</p>
+            </li>
+          </ol>
+
+          <div class="route-track" aria-hidden="true">
+            <span class="dispatch-dot has-pulse-dispatch"
+                  data-kind="dispatch"
+                  data-anim="pulse-dispatch"></span>
+          </div>
+        </div>
+
+        <!-- Play/Pause control -->
+        <aside class="cf-controls">
+          <button type="button"
+                  class="btn btn-outline cf-play-toggle"
+                  data-target="cf-dispatch"
+                  aria-pressed="false">
+            <span class="cf-play-label" data-i18n="cf.pause">Pause</span>
+          </button>
+          <p class="cf-note text-muted">
+            <span data-i18n="cf.dispatch.cadence">Loops every ~1.4s</span>
+          </p>
+        </aside>
+      </div>
+
+      <!-- Collapsible TaskDispatch envelope -->
+      <article class="msg-envelope" data-kind="dispatch" id="cf-envelope-dispatch">
+        <header class="msg-envelope-header" tabindex="0" role="button"
+                aria-expanded="true" aria-controls="cf-envelope-dispatch-body">
+          <span class="badge badge-accent">TaskDispatch</span>
+          <code>YAML</code>
+          <span class="msg-envelope-summary" data-i18n="cf.dispatch.envelopeSummary">12 required fields, schema in references/message-schemas.md</span>
+          <span class="msg-envelope-toggle" aria-hidden="true">&minus;</span>
+        </header>
+        <div class="msg-envelope-body" id="cf-envelope-dispatch-body">
+          <h4 data-i18n="cf.envelope.fields">Required fields</h4>
+          <ul class="msg-fields">
+            <li><code>task_id</code></li>
+            <li><code>type</code></li>
+            <li><code>title</code></li>
+            <li><code>description</code></li>
+            <li><code>predecessor_artifacts</code>: list of <code>{path, summary}</code> (3-5 sentence summaries only)</li>
+            <li><code>owned_files</code>: disjoint from parallel tasks</li>
+            <li><code>acceptance_criteria</code>: concrete pass conditions</li>
+            <li><code>timeout_seconds</code>: max execution time (default 7200)</li>
+            <li><code>model_hint</code>: quality | balanced | budget | inherit (default: inherit) &mdash; model tier suggestion</li>
+            <li><code>decomposition_mode</code>: single | sub_agents (default: single) &mdash; L3 execution strategy</li>
+            <li><code>compression_intensity</code>: minimal | standard | aggressive (default: standard) &mdash; dispatch message compression</li>
+            <li><code>verification_config</code>: visual/acceptance/interaction/accessibility test settings (optional)</li>
+          </ul>
+          <h4 data-i18n="cf.envelope.example">Example payload</h4>
+          <pre class="msg-example"><code>task_id: S02-T03-context-flow-page
+type: implement
+title: Build Context Flow demo page
+description: Render dispatch / report / escalation / reinforcement / isolation routes.
+predecessor_artifacts:
+  - path: .local/research/v6.3.0_web_redesign_spec.md
+    summary: "Design contract: 4-layer route, 26 i18n keys, AC-CF-1..6."
+owned_files:
+  - workflow-system/human/demo/context-flow/index.html
+  - workflow-system/human/demo/context-flow/styles.css
+  - workflow-system/human/demo/context-flow/context-flow.js
+acceptance_criteria:
+  - "AC-CF-1: page loads at context-flow/index.html"
+  - "AC-CF-2: 4 LayerNodes with TaskDispatch envelope traveling downward"
+timeout_seconds: 7200
+model_hint: inherit
+decomposition_mode: single
+compression_intensity: standard
+verification_config: null</code></pre>
+        </div>
+      </article>
+    </section>
+
+    <!-- ============================================================
+         #cf-report — StatusReport route (L3 -> L0)
+         ============================================================ -->
+    <section id="cf-report" class="cf-section">
+      <h2 data-i18n="cf.section.report">Status Report (L3 &rarr; L0)</h2>
+      <p class="desc" data-i18n="cf.section.report.desc">StatusReport envelopes travel up the route on completion or partial progress.</p>
+
+      <div class="cf-route-wrap">
+
+        <div class="cf-route" data-direction="up" aria-label="Status report route, L3 to L0">
+          <ol class="layer-stack">
+            <li class="layer-node" data-layer="L0" style="--layer-index:0;">
+              <span class="layer-badge badge-l0">L0</span>
+              <strong class="layer-name">Project</strong>
+              <span class="layer-budget">~3K ctx</span>
+              <p class="layer-role">Aggregates stage reports, decides next stage</p>
+            </li>
+            <li class="layer-node" data-layer="L1" style="--layer-index:1;">
+              <span class="layer-badge badge-l1">L1</span>
+              <strong class="layer-name">Stage</strong>
+              <span class="layer-budget">~5K ctx</span>
+              <p class="layer-role">Aggregates wave reports, evaluates gate</p>
+            </li>
+            <li class="layer-node" data-layer="L2" style="--layer-index:2;">
+              <span class="layer-badge badge-l2">L2</span>
+              <strong class="layer-name">Wave</strong>
+              <span class="layer-budget">~4K ctx</span>
+              <p class="layer-role">Aggregates task reports, checks conflicts</p>
+            </li>
+            <li class="layer-node" data-layer="L3" style="--layer-index:3;">
+              <span class="layer-badge badge-l3">L3</span>
+              <strong class="layer-name">Task</strong>
+              <span class="layer-budget">~8K ctx</span>
+              <p class="layer-role">Emits StatusReport on completion</p>
+            </li>
+          </ol>
+
+          <div class="route-track" aria-hidden="true">
+            <span class="dispatch-dot has-pulse-dispatch"
+                  data-kind="report"
+                  data-anim="pulse-dispatch"></span>
+          </div>
+        </div>
+
+        <aside class="cf-controls">
+          <button type="button"
+                  class="btn btn-outline cf-play-toggle"
+                  data-target="cf-report"
+                  aria-pressed="false">
+            <span class="cf-play-label" data-i18n="cf.pause">Pause</span>
+          </button>
+          <p class="cf-note text-muted">
+            <span data-i18n="cf.report.cadence">Loops every ~1.4s upward</span>
+          </p>
+        </aside>
+      </div>
+
+      <article class="msg-envelope" data-kind="report" id="cf-envelope-report">
+        <header class="msg-envelope-header" tabindex="0" role="button"
+                aria-expanded="true" aria-controls="cf-envelope-report-body">
+          <span class="badge badge-success">StatusReport</span>
+          <code>YAML</code>
+          <span class="msg-envelope-summary" data-i18n="cf.report.envelopeSummary">5 required fields, emitted on completion / failure / escalation</span>
+          <span class="msg-envelope-toggle" aria-hidden="true">&minus;</span>
+        </header>
+        <div class="msg-envelope-body" id="cf-envelope-report-body">
+          <h4 data-i18n="cf.envelope.fields">Required fields</h4>
+          <ul class="msg-fields">
+            <li><code>task_id</code></li>
+            <li><code>state</code> (completed/failed/escalated)</li>
+            <li><code>progress_pct</code></li>
+            <li><code>artifacts</code>: list of <code>{path, type, summary}</code></li>
+            <li><code>metrics</code>: <code>tests_passed</code>, <code>coverage_pct</code>, <code>findings_by_severity</code></li>
+          </ul>
+          <h4 data-i18n="cf.envelope.example">Example payload</h4>
+          <pre class="msg-example"><code>task_id: S02-T03-context-flow-page
+state: completed
+progress_pct: 100
+artifacts:
+  - path: workflow-system/human/demo/context-flow/index.html
+    type: html
+    summary: "Hero + 5 sections, 26 i18n keys registered."
+  - path: workflow-system/human/demo/context-flow/styles.css
+    type: css
+    summary: "Page-local tokens, keyframes, component classes."
+  - path: workflow-system/human/demo/context-flow/context-flow.js
+    type: js
+    summary: "Translations + interactive controllers."
+metrics:
+  tests_passed: null
+  coverage_pct: null
+  findings_by_severity:
+    blocker: 0
+    critical: 0
+    major: 0
+    minor: 0</code></pre>
+        </div>
+      </article>
+    </section>
+
+    <!-- ============================================================
+         #cf-escalation — Escalation chain (always upward)
+         ============================================================ -->
+    <section id="cf-escalation" class="cf-section">
+      <h2 data-i18n="cf.section.escalation">Escalation Chain</h2>
+      <p class="desc" data-i18n="cf.section.escalation.desc">Always upward, never skip levels &mdash; Task &rarr; Wave &rarr; Stage &rarr; Project &rarr; Human.</p>
+
+      <div class="cf-escalation-grid">
+
+        <!-- Severity table (verbatim from SKILL.md) -->
+        <div class="cf-escalation-table">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="cf.escalation.col.severity">Severity</th>
+                  <th data-i18n="cf.escalation.col.action">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-severity="AUTO_RECOVER">
+                  <td><code>AUTO_RECOVER</code></td>
+                  <td>Retry up to 3x with exponential backoff</td>
+                </tr>
+                <tr data-severity="PAUSE">
+                  <td><code>PAUSE</code></td>
+                  <td>Pause task, queue question, continue parallel work</td>
+                </tr>
+                <tr data-severity="HUMAN_INTERVENE">
+                  <td><code class="cf-ember">HUMAN_INTERVENE</code></td>
+                  <td>Stop stage, present options to human</td>
+                </tr>
+                <tr data-severity="FULL_ROLLBACK">
+                  <td><code class="cf-ember">FULL_ROLLBACK</code></td>
+                  <td>Rollback to checkpoint, halt all</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Trigger buttons -->
+          <div class="cf-escalation-buttons" role="group" aria-label="Trigger escalation severity">
+            <button type="button" class="btn btn-outline cf-esc-btn"
+                    data-severity="AUTO_RECOVER"
+                    data-i18n="cf.escalation.severity.autoRecover">AUTO_RECOVER &mdash; retry up to 3x with exponential backoff</button>
+            <button type="button" class="btn btn-outline cf-esc-btn"
+                    data-severity="PAUSE"
+                    data-i18n="cf.escalation.severity.pause">PAUSE &mdash; pause task, queue question, continue parallel work</button>
+            <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
+                    data-severity="HUMAN_INTERVENE"
+                    data-i18n="cf.escalation.severity.humanIntervene">HUMAN_INTERVENE &mdash; stop stage, present options to human</button>
+            <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
+                    data-severity="FULL_ROLLBACK"
+                    data-i18n="cf.escalation.severity.fullRollback">FULL_ROLLBACK &mdash; rollback to checkpoint, halt all</button>
+          </div>
+        </div>
+
+        <!-- Vertical mini-route showing escalation traveling upward -->
+        <div class="cf-escalation-route">
+          <div class="cf-route cf-route-mini" data-direction="up" aria-label="Escalation route, never skips levels">
+            <ol class="layer-stack layer-stack-mini">
+              <li class="layer-node layer-node-mini" data-layer="L0">
+                <span class="layer-badge badge-l0">L0</span>
+                <strong class="layer-name">Project</strong>
+              </li>
+              <li class="layer-node layer-node-mini" data-layer="L1">
+                <span class="layer-badge badge-l1">L1</span>
+                <strong class="layer-name">Stage</strong>
+              </li>
+              <li class="layer-node layer-node-mini" data-layer="L2">
+                <span class="layer-badge badge-l2">L2</span>
+                <strong class="layer-name">Wave</strong>
+              </li>
+              <li class="layer-node layer-node-mini" data-layer="L3">
+                <span class="layer-badge badge-l3">L3</span>
+                <strong class="layer-name">Task</strong>
+              </li>
+            </ol>
+            <div class="route-track route-track-ember" aria-hidden="true">
+              <span class="dispatch-dot is-escalated"
+                    data-kind="escalation"
+                    data-severity="HUMAN_INTERVENE"
+                    aria-hidden="true"></span>
+            </div>
+          </div>
+          <p class="cf-escalation-active text-muted" id="cf-escalation-active-label">
+            <span data-i18n="cf.escalation.activeLabel">Active severity</span>:
+            <code id="cf-escalation-active-code">&mdash;</code>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         #cf-reinforcement — Round-Reinforcement step machine
+         ============================================================ -->
+    <section id="cf-reinforcement" class="cf-section">
+      <h2 data-i18n="cf.section.reinforcement">Round-Reinforcement (v5.1+, wired v6.0.3)</h2>
+      <p class="desc" data-i18n="cf.section.reinforcement.desc">Gate FAIL &rarr; top 5 findings (&ge; major) &rarr; injected into next dispatch as MUST-fix.</p>
+
+      <!-- Verbatim citations from SKILL.md (literal characters preserved) -->
+      <blockquote class="cf-cite">
+        <p>
+          <strong>Reinforcement Rules (v5.1+):</strong>
+          Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into next dispatch <code>applicable_rules.reinforcement</code> → L3 MUST address before other work.
+        </p>
+        <p>
+          <strong>Round-aware dispatch (v6.0.3+):</strong>
+          <code>select_context(task_type, round_num=N)</code> auto-applies escalation for N&gt;1 (critical-section bump, +20% budget on round 3, <code>model_hint → quality</code>).
+          <code>ProposalGenerator.generate_round_dispatch()</code> merges prior-round gate findings into <code>context.applicable_rules.reinforcement</code> as explicit MUST-fix mandates for L3.
+        </p>
+      </blockquote>
+
+      <!-- Step machine -->
+      <div class="cf-reinforcement-controls">
+        <button type="button" class="btn btn-primary" id="cf-reinforcement-step"
+                data-i18n="cf.reinforcement.step">Step &#9654;</button>
+        <button type="button" class="btn btn-outline" id="cf-reinforcement-reset"
+                data-i18n="cf.reinforcement.reset">Reset</button>
+        <span class="cf-reinforcement-status text-muted">
+          <span data-i18n="cf.reinforcement.stateLabel">State</span>:
+          <code id="cf-reinforcement-state-code">0</code> / 3
+        </span>
+      </div>
+
+      <div class="cf-reinforcement-stage" id="cf-reinforcement-stage" data-state="0">
+
+        <!-- Round 1 envelope (visible state >= 0) -->
+        <article class="msg-envelope cf-reinforcement-round1" data-round="1">
+          <header class="msg-envelope-header">
+            <span class="badge badge-accent" data-i18n="cf.reinforcement.round1">Round 1 dispatch</span>
+            <code>round_num=1</code>
+          </header>
+          <div class="msg-envelope-body">
+            <p class="text-muted">Initial dispatch &mdash; standard compression, no reinforcement rules attached.</p>
+          </div>
+        </article>
+
+        <!-- Gate FAIL badge (visible state >= 1) -->
+        <div class="cf-reinforcement-gate" id="cf-reinforcement-gate" hidden>
+          <span class="gate-badge is-fail" data-score="62">
+            <span class="gate-dim">composite</span>
+            <span class="gate-score">62</span>
+            <span class="gate-threshold">&ge;85</span>
+          </span>
+          <p class="text-muted cf-reinforcement-gate-note">
+            <span data-i18n="cf.reinforcement.gateFailNote">Gate FAIL &rarr; reinforcement extraction begins.</span>
+          </p>
+        </div>
+
+        <!-- Findings list (visible state >= 2) -->
+        <ol class="cf-reinforcement-findings" id="cf-reinforcement-findings" hidden>
+          <li>
+            <span class="cf-finding-num">1</span>
+            <span class="cf-finding-dot cf-finding-dot--blocker" aria-label="blocker"></span>
+            <span class="cf-finding-text">verification_config field missing from dispatch envelope</span>
+          </li>
+          <li>
+            <span class="cf-finding-num">2</span>
+            <span class="cf-finding-dot cf-finding-dot--critical" aria-label="critical"></span>
+            <span class="cf-finding-text">prefers-reduced-motion fallback not exercised</span>
+          </li>
+          <li>
+            <span class="cf-finding-num">3</span>
+            <span class="cf-finding-dot cf-finding-dot--critical" aria-label="critical"></span>
+            <span class="cf-finding-text">i18n key cf.escalation.severity.* not registered for ZH</span>
+          </li>
+          <li>
+            <span class="cf-finding-num">4</span>
+            <span class="cf-finding-dot cf-finding-dot--major" aria-label="major"></span>
+            <span class="cf-finding-text">--ember-red token shadowed by --secondary in dark mode</span>
+          </li>
+          <li>
+            <span class="cf-finding-num">5</span>
+            <span class="cf-finding-dot cf-finding-dot--major" aria-label="major"></span>
+            <span class="cf-finding-text">collapsible envelope missing aria-expanded toggle</span>
+          </li>
+        </ol>
+        <p class="text-muted cf-reinforcement-findings-note" id="cf-reinforcement-findings-note" hidden>
+          <span data-i18n="cf.reinforcement.findings">Findings filtered by severity</span> (&ge; major), top 5.
+        </p>
+
+        <!-- Round 2 envelope with is-reinforced styling (visible state >= 3) -->
+        <article class="msg-envelope is-reinforced cf-reinforcement-round2" data-round="2" id="cf-reinforcement-round2" hidden>
+          <header class="msg-envelope-header">
+            <span class="badge badge-accent" data-i18n="cf.reinforcement.round2">Round 2 dispatch (reinforced)</span>
+            <code>round_num=2</code>
+            <span class="msg-envelope-summary text-muted">model_hint &rarr; quality, +20% budget</span>
+          </header>
+          <div class="msg-envelope-body">
+            <div class="cf-reinforcement-ribbon" role="region" aria-label="Reinforcement rules">
+              <strong class="cf-reinforcement-ribbon-title">applicable_rules.reinforcement</strong>
+              <ol class="cf-reinforcement-rules">
+                <li>MUST add <code>verification_config</code> to TaskDispatch envelope</li>
+                <li>MUST verify <code>prefers-reduced-motion</code> fallback path</li>
+                <li>MUST register every <code>cf.escalation.severity.*</code> key in ZH</li>
+                <li>MUST resolve <code>--ember-red</code> shadowing in <code>.dark</code></li>
+                <li>MUST expose <code>aria-expanded</code> on envelope header</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         #cf-isolation — Context Isolation
+         ============================================================ -->
+    <section id="cf-isolation" class="cf-section">
+      <h2 data-i18n="cf.section.isolation">Context Isolation</h2>
+      <p class="desc" data-i18n="cf.section.isolation.desc">What MUST NOT leak between agents, what IS shared via artifact summaries.</p>
+
+      <!-- context_injection budget table (verbatim from SKILL.md) -->
+      <div class="cf-injection-budget">
+        <h3 data-i18n="cf.isolation.budgetTitle">context_injection budgets</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="cf.isolation.col.section">Section</th>
+                <th data-i18n="cf.isolation.col.fields">Fields</th>
+                <th data-i18n="cf.isolation.col.budget">Budget</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>identity</code></td>
+                <td>role, task_id, team</td>
+                <td><span class="badge badge-muted">~100 tokens</span></td>
+              </tr>
+              <tr>
+                <td><code>task</code></td>
+                <td>title, description, acceptance_criteria</td>
+                <td><span class="badge badge-muted">~500-1500 tokens</span></td>
+              </tr>
+              <tr>
+                <td><code>context</code></td>
+                <td>predecessor_summary, design_excerpt, interfaces</td>
+                <td><span class="badge badge-muted">~1000-3000 tokens</span></td>
+              </tr>
+              <tr>
+                <td><code>files</code></td>
+                <td>owned (create/modify), read_only</td>
+                <td><span class="badge badge-muted">~200-500 tokens</span></td>
+              </tr>
+              <tr>
+                <td><code>rules</code></td>
+                <td>loading_strategy, language, quality_focus</td>
+                <td><span class="badge badge-muted">~2000-5000 tokens</span></td>
+              </tr>
+              <tr>
+                <td><code>behavioral</code></td>
+                <td>timeout, max_files, output_format, escalation</td>
+                <td><span class="badge badge-muted">~200 tokens</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Two-column lists -->
+      <div class="cf-isolation-grid">
+        <div class="cf-isolation-col cf-isolation-col--leak">
+          <h3 class="cf-isolation-col-title">
+            <span class="cf-isolation-dot cf-isolation-dot--leak" aria-hidden="true"></span>
+            <span data-i18n="cf.isolation.mustNotLeak">MUST NOT leak</span>
+          </h3>
+          <ul class="cf-isolation-list">
+            <li>conversation history</li>
+            <li>file contents from other tasks</li>
+            <li>full predecessor artifacts</li>
+            <li>error details from siblings</li>
+            <li>quality scores from unrelated tasks</li>
+          </ul>
+        </div>
+
+        <div class="cf-isolation-col cf-isolation-col--shared">
+          <h3 class="cf-isolation-col-title">
+            <span class="cf-isolation-dot cf-isolation-dot--shared" aria-hidden="true"></span>
+            <span data-i18n="cf.isolation.isShared">IS shared via artifact summaries</span>
+          </h3>
+          <ul class="cf-isolation-list">
+            <li>interface contracts</li>
+            <li>design decisions (ADRs)</li>
+            <li>naming conventions</li>
+            <li>quality thresholds</li>
+            <li>acceptance criteria</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/nav.js"></script>
+  <script src="context-flow.js"></script>
+</body>
+</html>

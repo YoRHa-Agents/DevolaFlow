@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.designSystem">Design System — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="scan-flicker">
+      <h1><span class="accent">Devola</span> Design System</h1>
+      <p class="tagline" data-i18n="ds.subtitle">The Devola design language, on display.</p>
+      <div class="cta-cluster">
+        <a class="btn btn-outline" href="../framework-chain/index.html"
+           data-i18n="card.frameworkChain">Framework Chain</a>
+        <a class="btn btn-outline" href="../context-flow/index.html"
+           data-i18n="card.contextFlow">Context Flow</a>
+        <a class="btn btn-ghost" href="https://github.com/YoRHa-Agents/DevolaFlow"
+           target="_blank" rel="noopener">GitHub &#8599;</a>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         §1  Palette  (#ds-palette)  — 14 inherited + 5 NEW = 19 swatches
+         ============================================================ -->
+    <section id="ds-palette">
+      <h2 data-i18n="ds.section.palette">Palette</h2>
+      <p class="desc" data-i18n="ds.section.palette.desc">14 inherited tokens plus 5 new tokens for the v6.3 redesign — light + dark side-by-side.</p>
+      <div class="palette-grid" id="palette-grid">
+        <!-- swatches injected by design-system.js -->
+      </div>
+    </section>
+
+    <!-- ============================================================
+         §2  Typography  (#ds-typography)  — 3 live samples
+         ============================================================ -->
+    <section id="ds-typography">
+      <h2 data-i18n="ds.section.typography">Typography</h2>
+      <p class="desc" data-i18n="ds.section.typography.desc">Cinzel for headings, Inter for body, JetBrains Mono for code.</p>
+      <div class="type-samples">
+
+        <figure class="type-sample">
+          <div class="type-preview type-heading">DevolaFlow</div>
+          <figcaption>
+            <code>--font-heading</code>
+            <small>Cinzel &middot; 400 / 700 &middot; wordmark + section titles</small>
+          </figcaption>
+        </figure>
+
+        <figure class="type-sample">
+          <div class="type-preview type-body">A guardian's song for your code &mdash; orchestrating workflows so nothing is left behind.</div>
+          <figcaption>
+            <code>--font-body</code>
+            <small>Inter &middot; 400 / 500 / 600 / 700 &middot; body copy + UI</small>
+          </figcaption>
+        </figure>
+
+        <figure class="type-sample">
+          <div class="type-preview type-mono"><code>python -m devolaflow.task_adaptive_selector --plan-mode</code></div>
+          <figcaption>
+            <code>--font-mono</code>
+            <small>JetBrains Mono &middot; 400 / 500 &middot; code + commands</small>
+          </figcaption>
+        </figure>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         §3  Motion  (#ds-motion)  — 3 NEW + 1 existing reference
+         ============================================================ -->
+    <section id="ds-motion">
+      <h2 data-i18n="ds.section.motion">Motion</h2>
+      <p class="desc" data-i18n="ds.section.motion.desc">Three new patterns (pulse-dispatch / flow-down / verify-gate-glow) plus the existing scan-flicker reference — all reduce-motion safe.</p>
+      <div class="motion-grid">
+
+        <figure class="motion-demo" data-motion="pulse-dispatch">
+          <div class="motion-stage motion-stage-pulse">
+            <div class="route-track"></div>
+            <div class="dispatch-dot has-pulse-dispatch"></div>
+          </div>
+          <figcaption>
+            <strong data-i18n="ds.motion.label.pulse">pulse-dispatch</strong>
+            <small>1.4s &middot; cubic-bezier(.4,.0,.2,1) &middot; loop</small>
+          </figcaption>
+          <button type="button" class="motion-replay btn btn-outline"
+                  data-target="pulse-dispatch" data-i18n="ds.motion.replay">Replay</button>
+        </figure>
+
+        <figure class="motion-demo" data-motion="flow-down">
+          <div class="motion-stage motion-stage-flow">
+            <div class="flow-layer has-flow-down" style="--layer-index:0">L0</div>
+            <div class="flow-layer has-flow-down" style="--layer-index:1">L1</div>
+            <div class="flow-layer has-flow-down" style="--layer-index:2">L2</div>
+            <div class="flow-layer has-flow-down" style="--layer-index:3">L3</div>
+          </div>
+          <figcaption>
+            <strong data-i18n="ds.motion.label.flow">flow-down</strong>
+            <small>0.6s &middot; ease-out &middot; 0.15s stagger</small>
+          </figcaption>
+          <button type="button" class="motion-replay btn btn-outline"
+                  data-target="flow-down" data-i18n="ds.motion.replay">Replay</button>
+        </figure>
+
+        <figure class="motion-demo" data-motion="verify-gate-glow">
+          <div class="motion-stage motion-stage-gate">
+            <span class="gate-badge is-pass has-verify-glow">
+              <span class="gate-dim">composite</span>
+              <span class="gate-score">92</span>
+              <span class="gate-threshold">&ge;85</span>
+            </span>
+          </div>
+          <figcaption>
+            <strong data-i18n="ds.motion.label.gateGlow">verify-gate-glow</strong>
+            <small>2.0s &middot; ease-in-out &middot; loop</small>
+          </figcaption>
+          <button type="button" class="motion-replay btn btn-outline"
+                  data-target="verify-gate-glow" data-i18n="ds.motion.replay">Replay</button>
+        </figure>
+
+        <figure class="motion-demo" data-motion="scan-flicker">
+          <div class="motion-stage motion-stage-scan">
+            <div class="scan-target scan-flicker">scan-flicker</div>
+          </div>
+          <figcaption>
+            <strong data-i18n="ds.motion.label.scanFlicker">scan-flicker (existing)</strong>
+            <small>0.8s &middot; ease-out &middot; play once</small>
+          </figcaption>
+          <button type="button" class="motion-replay btn btn-outline"
+                  data-target="scan-flicker" data-i18n="ds.motion.replay">Replay</button>
+        </figure>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         §4  Components  (#ds-components)  — 8 live renders
+         ============================================================ -->
+    <section id="ds-components">
+      <h2 data-i18n="ds.section.components">Components</h2>
+      <p class="desc" data-i18n="ds.section.components.desc">Eight reusable building blocks the new pages depend on.</p>
+      <div class="components-grid">
+
+        <!-- 1. LayerNode -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <div class="layer-node">
+              <span class="layer-badge badge-l0">L0</span>
+              <strong>Project</strong>
+              <span class="layer-budget">~3K</span>
+              <p class="layer-role">overseer &mdash; picks workflow type, dispatches stages</p>
+            </div>
+          </div>
+          <figcaption><code>LayerNode</code> &middot; one of four hierarchy layers, with badge / role / context-budget pill.</figcaption>
+        </figure>
+
+        <!-- 2. MessageEnvelope -->
+        <figure class="component-demo">
+          <div class="component-stage component-stage-wide">
+            <article class="msg-envelope" data-kind="dispatch">
+              <header>
+                <span class="badge badge-accent">TaskDispatch</span>
+                <code>YAML</code>
+              </header>
+              <ul class="msg-fields">
+                <li><code>task_id</code> &middot; unique handle</li>
+                <li><code>owned_files</code> &middot; disjoint set</li>
+                <li><code>acceptance_criteria</code> &middot; verifiable bullets</li>
+              </ul>
+              <pre class="msg-example"><code>task_id: S02-T01
+type: implement
+owned_files: [...]</code></pre>
+            </article>
+          </div>
+          <figcaption><code>MessageEnvelope</code> &middot; visual envelope of a typed YAML message; collapsible to show schema fields and an example payload.</figcaption>
+        </figure>
+
+        <!-- 3. TimelineCard -->
+        <figure class="component-demo">
+          <div class="component-stage component-stage-wide">
+            <ul class="tl-rail">
+              <li class="tl-card" data-version="6.2.1">
+                <span class="tl-dot"></span>
+                <span class="tl-version">v6.2.1</span>
+                <time>2026-04-17</time>
+                <h3>Benchmark staleness-guard CI flake fix</h3>
+                <p class="tl-summary">Tiny stabiliser; current __version__.</p>
+              </li>
+            </ul>
+          </div>
+          <figcaption><code>TimelineCard</code> &middot; one version on the timeline rail with version badge, date, theme tag, headline metric.</figcaption>
+        </figure>
+
+        <!-- 4. TokenSwatch -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <div class="swatch-demo">
+              <span class="swatch-chip" style="background:#B8860B"></span>
+              <span class="swatch-chip" style="background:#D4A843"></span>
+              <span class="swatch-demo-meta">
+                <code>--accent</code>
+                <small>#B8860B / dark #D4A843</small>
+              </span>
+            </div>
+          </div>
+          <figcaption><code>TokenSwatch</code> &middot; one palette token rendered light + dark side-by-side with CSS-var label.</figcaption>
+        </figure>
+
+        <!-- 5. MotionShowcase -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <figure class="motion-demo motion-demo-mini" data-motion="pulse-dispatch">
+              <div class="motion-stage motion-stage-pulse">
+                <div class="route-track"></div>
+                <div class="dispatch-dot has-pulse-dispatch"></div>
+              </div>
+              <figcaption><strong>pulse-dispatch</strong> &middot; 1.4s</figcaption>
+            </figure>
+          </div>
+          <figcaption><code>MotionShowcase</code> &middot; live demo of one motion pattern with name, duration, easing, replay control.</figcaption>
+        </figure>
+
+        <!-- 6. GateBadge -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <span class="gate-badge is-pass">
+              <span class="gate-dim">composite</span>
+              <span class="gate-score">92</span>
+              <span class="gate-threshold">&ge;85</span>
+            </span>
+          </div>
+          <figcaption><code>GateBadge</code> &middot; pill-shaped quality-gate primitive: dimension, score, threshold, pass/fail.</figcaption>
+        </figure>
+
+        <!-- 7. WaveStrip -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <ul class="wave-strip" aria-label="Wave W01">
+              <li class="task-dot" data-state="done"    title="T01 owns: foo.py"></li>
+              <li class="task-dot" data-state="done"    title="T02 owns: bar.py"></li>
+              <li class="task-dot" data-state="running" title="T03 owns: baz.py"></li>
+              <li class="task-dot" data-state="todo"    title="T04 owns: qux.py"></li>
+            </ul>
+          </div>
+          <figcaption><code>WaveStrip</code> &middot; horizontal strip of 1&ndash;5 task dots representing one wave's parallel tasks.</figcaption>
+        </figure>
+
+        <!-- 8. MetricMicroBar -->
+        <figure class="component-demo">
+          <div class="component-stage">
+            <span class="metric-micro" role="img" aria-label="composite 92">
+              <i class="metric-micro-fill" style="--pct:92%"></i>
+            </span>
+            <span class="metric-micro-label">composite &middot; 92 / 100</span>
+          </div>
+          <figcaption><code>MetricMicroBar</code> &middot; tiny inline 0&ndash;100 bar chart used in timeline cards and gate-detail rows.</figcaption>
+        </figure>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         §5  States  (#ds-states)  — 5 rows
+         ============================================================ -->
+    <section id="ds-states">
+      <h2 data-i18n="ds.section.states">States</h2>
+      <p class="desc" data-i18n="ds.section.states.desc">How active / pass / fail / escalated / reinforced are styled.</p>
+      <div class="states-grid">
+
+        <div class="state-row">
+          <div class="state-visual">
+            <div class="layer-node is-active">
+              <span class="layer-badge badge-l0">L0</span>
+              <strong>focused</strong>
+              <span class="layer-budget">~3K</span>
+            </div>
+          </div>
+          <div class="state-desc">
+            <code>is-active</code>
+            <p>border-color: <code>var(--accent)</code>; box-shadow: <code>0 0 12px var(--gold-glow)</code>; current focus.</p>
+          </div>
+        </div>
+
+        <div class="state-row">
+          <div class="state-visual">
+            <span class="gate-badge is-pass has-verify-glow">
+              <span class="gate-dim">benchmark</span>
+              <span class="gate-score">92</span>
+              <span class="gate-threshold">&ge;85</span>
+            </span>
+          </div>
+          <div class="state-desc">
+            <code>is-pass</code>
+            <p>border-color: <code>var(--success)</code>; tinted background; <code>verify-gate-glow</code> motion when not reduced-motion.</p>
+          </div>
+        </div>
+
+        <div class="state-row">
+          <div class="state-visual">
+            <span class="gate-badge is-fail">
+              <span class="gate-dim">benchmark</span>
+              <span class="gate-score">42</span>
+              <span class="gate-threshold">&ge;85</span>
+            </span>
+          </div>
+          <div class="state-desc">
+            <code>is-fail</code>
+            <p>border-color: <code>var(--error)</code>; tinted background; gate failure state.</p>
+          </div>
+        </div>
+
+        <div class="state-row">
+          <div class="state-visual">
+            <article class="msg-envelope is-escalated" data-kind="escalation">
+              <header>
+                <span class="badge badge-error">Escalation</span>
+                <code>HUMAN_INTERVENE</code>
+              </header>
+              <p class="msg-note">Always upward, never skip levels.</p>
+            </article>
+          </div>
+          <div class="state-desc">
+            <code>is-escalated</code>
+            <p>border-color: <code>var(--ember-red)</code>; 4px left mark; storytelling colour for "broke and went upstream".</p>
+          </div>
+        </div>
+
+        <div class="state-row">
+          <div class="state-visual">
+            <article class="msg-envelope is-reinforced" data-kind="dispatch">
+              <header>
+                <span class="badge badge-warning">Round 2 reinforced</span>
+                <code>YAML</code>
+              </header>
+              <ul class="msg-fields">
+                <li>5 reinforcement rules attached &mdash; MUST address first.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="state-desc">
+            <code>is-reinforced</code>
+            <p>4px left mark in <code>var(--accent)</code>; <code>var(--accent-light)</code> background; yellow inner ribbon for round 2+ dispatch.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         §6  Accessibility  (#ds-accessibility)  — 4 commitments
+         ============================================================ -->
+    <section id="ds-accessibility">
+      <h2 data-i18n="ds.section.accessibility">Accessibility</h2>
+      <p class="desc" data-i18n="ds.section.accessibility.desc">Reduced-motion fallbacks, WCAG contrast targets, keyboard focus, bilingual switching.</p>
+      <ul class="a11y-list">
+        <li data-i18n="ds.a11y.reducedMotion">All animations honour `prefers-reduced-motion: reduce`.</li>
+        <li data-i18n="ds.a11y.contrast">Body text meets WCAG AA on both themes; new tokens were chosen for AA.</li>
+        <li data-i18n="ds.a11y.keyboard">Every interactive control is keyboard-focusable with visible focus ring.</li>
+        <li data-i18n="ds.a11y.bilingual">EN/ZH switch is one click; preference persists in localStorage.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <span data-i18n="footer.text">DevolaFlow</span> &middot;
+      <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+      <span data-i18n="footer.license">MIT License</span>
+    </footer>
+
+  </div>
+
+  <div class="toast" id="ds-toast" role="status" aria-live="polite"></div>
+
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/nav.js"></script>
+  <script src="design-system.js"></script>
+</body>
+</html>

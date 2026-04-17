@@ -21,27 +21,46 @@
   }
 
   var NAV_LINKS = [
-    { key: 'nav.home',         href: isLanding ? 'index.html' : '../index.html' },
-    { key: 'nav.architecture', href: prefix('design-architecture/index.html') },
-    { key: 'nav.visualizer',   href: prefix('workflow-visualizer/index.html') },
-    { key: 'nav.explorer',     href: prefix('stage-explorer/index.html') },
-    { key: 'nav.benchmarks',   href: prefix('benchmark-results/index.html') },
-    { key: 'nav.docs',         href: GITHUB_URL + '/blob/main/workflow-system/human/en/quickstart.md' }
+    { key: 'nav.home',            href: isLanding ? 'index.html' : '../index.html' },
+    { key: 'nav.designSystem',    href: prefix('design-system/index.html') },
+    { key: 'nav.frameworkChain',  href: prefix('framework-chain/index.html') },
+    { key: 'nav.contextFlow',     href: prefix('context-flow/index.html') },
+    { key: 'nav.versionTimeline', href: prefix('version-timeline/index.html') },
+    { key: 'nav.architecture',    href: prefix('design-architecture/index.html') },
+    { key: 'nav.visualizer',      href: prefix('workflow-visualizer/index.html') },
+    { key: 'nav.explorer',        href: prefix('stage-explorer/index.html') },
+    { key: 'nav.benchmarks',      href: prefix('benchmark-results/index.html') }
   ];
 
   var LABELS_EN = {
-    'nav.home': 'Home', 'nav.architecture': 'Architecture',
-    'nav.visualizer': 'Visualizer', 'nav.explorer': 'Explorer',
-    'nav.benchmarks': 'Benchmarks', 'nav.docs': 'Docs'
+    'nav.home': 'Home',
+    'nav.designSystem': 'Design System',
+    'nav.frameworkChain': 'Framework Chain',
+    'nav.contextFlow': 'Context Flow',
+    'nav.versionTimeline': 'Timeline',
+    'nav.architecture': 'Architecture',
+    'nav.visualizer': 'Visualizer',
+    'nav.explorer': 'Explorer',
+    'nav.benchmarks': 'Benchmarks'
   };
   var LABELS_ZH = {
-    'nav.home': '首页', 'nav.architecture': '架构',
-    'nav.visualizer': '可视化', 'nav.explorer': '探索器',
-    'nav.benchmarks': '基准测试', 'nav.docs': '文档'
+    'nav.home': '首页',
+    'nav.designSystem': '设计体系',
+    'nav.frameworkChain': '框架链路',
+    'nav.contextFlow': '上下文流转',
+    'nav.versionTimeline': '版本演进',
+    'nav.architecture': '架构',
+    'nav.visualizer': '可视化',
+    'nav.explorer': '探索器',
+    'nav.benchmarks': '基准测试'
   };
 
   function currentPageId() {
     var path = window.location.pathname;
+    if (path.match(/design-system/))    { return 'nav.designSystem'; }
+    if (path.match(/framework-chain/))  { return 'nav.frameworkChain'; }
+    if (path.match(/context-flow/))     { return 'nav.contextFlow'; }
+    if (path.match(/version-timeline/)) { return 'nav.versionTimeline'; }
     if (path.match(/design-architecture/)) { return 'nav.architecture'; }
     if (path.match(/workflow-visualizer/))  { return 'nav.visualizer'; }
     if (path.match(/stage-explorer/))       { return 'nav.explorer'; }

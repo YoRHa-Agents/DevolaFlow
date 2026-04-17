@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.versionTimeline">R&amp;D Timeline — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- ============================================================
+         Hero
+         ============================================================ -->
+    <header class="slide-up scan-flicker vt-hero">
+      <h1><span class="accent">R&amp;D</span> Timeline</h1>
+      <p class="tagline" data-i18n="vt.subtitle">From v0.1.0 to v6.2.1 — five eras of guarded change.</p>
+      <div class="vt-cta">
+        <a href="../design-system/index.html" class="btn btn-primary"
+           data-i18n="vt.cta.designSystem">Design System &rarr;</a>
+        <a href="../framework-chain/index.html" class="btn btn-primary"
+           data-i18n="vt.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/releases"
+           class="btn btn-ghost"
+           target="_blank" rel="noopener"
+           data-i18n="vt.cta.releases">GitHub Releases &#x2197;</a>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         Toolbar — view-mode toggle + era-filter chips
+         ============================================================ -->
+    <section class="vt-toolbar" aria-label="Timeline controls">
+
+      <div class="vt-view-toggle" role="group" aria-label="Timeline view mode">
+        <button type="button"
+                class="vt-view-btn is-active"
+                data-view="detailed"
+                aria-pressed="true"
+                data-i18n="vt.toggle.detailed">Detailed</button>
+        <button type="button"
+                class="vt-view-btn"
+                data-view="compact"
+                aria-pressed="false"
+                data-i18n="vt.toggle.compact">Compact</button>
+      </div>
+
+      <ul class="era-filter" role="group" aria-label="Filter by era">
+        <li><button type="button"
+                    class="vt-era-chip is-active"
+                    data-era="all"
+                    aria-pressed="true"
+                    data-i18n="vt.filter.all">All eras</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
+                    data-era="foundations"
+                    aria-pressed="false"
+                    data-i18n="vt.era.foundations">Foundations</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
+                    data-era="evobench"
+                    aria-pressed="false"
+                    data-i18n="vt.era.evobench">EvoBench &amp; Hardening</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
+                    data-era="self-improve"
+                    aria-pressed="false"
+                    data-i18n="vt.era.selfImprove">Self-Improvement Loops</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
+                    data-era="platforms"
+                    aria-pressed="false"
+                    data-i18n="vt.era.platforms">Platforms &amp; Closure</button></li>
+        <li><button type="button"
+                    class="vt-era-chip"
+                    data-era="rollup"
+                    aria-pressed="false"
+                    data-i18n="vt.era.rollup">Rollup &amp; Stabilization</button></li>
+      </ul>
+
+      <p class="vt-status text-muted" id="vt-status" role="status" aria-live="polite">
+        <span data-i18n="vt.status.loading">Loading versions&hellip;</span>
+      </p>
+    </section>
+
+    <!-- ============================================================
+         Era 1 — Foundations (#vt-era-foundations)
+         ============================================================ -->
+    <section id="vt-era-foundations" class="vt-era" data-era="foundations">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.foundations">Foundations</h2>
+        <p class="desc" data-i18n="vt.era.foundations.desc">v0.1.0 – v2.2.0: scaffolding, the first 11 templates, +93% information density.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-foundations" aria-label="Foundations era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Era 2 — EvoBench & Hardening (#vt-era-evobench)
+         ============================================================ -->
+    <section id="vt-era-evobench" class="vt-era" data-era="evobench">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.evobench">EvoBench &amp; Hardening</h2>
+        <p class="desc" data-i18n="vt.era.evobench.desc">v3.0.0 – v3.9.x: EvoBench, repository rules, full workflow coverage, P1 enforced.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-evobench" aria-label="EvoBench era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Era 3 — Self-Improvement Loops (#vt-era-self-improve)
+         ============================================================ -->
+    <section id="vt-era-self-improve" class="vt-era" data-era="self-improve">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.selfImprove">Self-Improvement Loops</h2>
+        <p class="desc" data-i18n="vt.era.selfImprove.desc">v4.0.0 – v5.4.2: model routing, plugin registry, NineS, reinforcement infrastructure.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-self-improve" aria-label="Self-Improve era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Era 4 — Platforms & Closure (#vt-era-platforms)
+         ============================================================ -->
+    <section id="vt-era-platforms" class="vt-era" data-era="platforms">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.platforms">Platforms &amp; Closure</h2>
+        <p class="desc" data-i18n="vt.era.platforms.desc">v6.0.0 – v6.1.5: 11 platforms, dead-wire closure, schema parity, plan-mode runtime.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-platforms" aria-label="Platforms era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Era 5 — Rollup & Stabilization (#vt-era-rollup)
+         ============================================================ -->
+    <section id="vt-era-rollup" class="vt-era" data-era="rollup">
+      <div class="vt-era-header">
+        <h2 data-i18n="vt.era.rollup">Rollup &amp; Stabilization</h2>
+        <p class="desc" data-i18n="vt.era.rollup.desc">v6.2.0 – v6.2.1: SI-3 9.43/10, 1009 tests, NineS 0.7405 → 0.8805, CI flake closed.</p>
+      </div>
+      <ol class="tl-rail" id="vt-rail-rollup" aria-label="Rollup era version cards"></ol>
+    </section>
+
+    <!-- ============================================================
+         Footer with CTA cluster
+         ============================================================ -->
+    <footer class="vt-footer">
+      <div class="vt-footer-cta">
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"
+           class="btn btn-outline"
+           target="_blank" rel="noopener"
+           data-i18n="vt.cta.changelog">Read CHANGELOG</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/releases"
+           class="btn btn-outline"
+           target="_blank" rel="noopener"
+           data-i18n="vt.cta.releases">GitHub Releases</a>
+      </div>
+      <p class="vt-footer-meta">
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="../shared/i18n.js"></script>
+  <script src="../shared/nav.js"></script>
+  <script src="version-timeline.js"></script>
+</body>
+</html>
