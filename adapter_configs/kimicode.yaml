@@ -21,5 +21,7 @@ frontmatter:
     compatible_with: "[cursor, codex, claude]"
 budget:
   type: lines
-  max: 500
+  # v7.2.0 PR-E: bumped 500 -> 502 to track SF-1 source ceiling 499 + 2-line
+  # frontmatter overhead from copy_with_frontmatter transform (built = source + 2).
+  max: 502
   target_file: "SKILL.md"

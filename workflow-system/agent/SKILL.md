@@ -219,7 +219,8 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 | No edges | `parallel` | Dispatch all, collect results (default) |
 | Linear chain | `sequential` | Dispatch N+1 after N completes |
 | Quality-critical + shared context | `generator_verifier` | Gen → Verify → Refine loop (below) |
-| Mixed | `hybrid` | Partition: parallel groups + sequential chains |
+| Low-risk doc/research/design | `inline_self_review` | In-process checklist (~30s vs ~25min subagent); see references/decomposition-gate.md §8 |
+| Mixed | `hybrid` | Partition into named recipes: orchestrator-subagent ⊕ shared-state, message-bus ⊕ agent-teams (see references/execution-protocol.md §7) |
 
 **Gen-Verify loop** (convergence stages: review+fix, test+fix, benchmark+optimize):
 1. Wave dispatches **generator** + **verifier** (criteria from `acceptance_criteria`)

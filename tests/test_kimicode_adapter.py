@@ -56,7 +56,10 @@ def test_kimicode_budget_under_500(build_result):
     # Format: "SKILL.md: <actual>/<max> lines"
     assert "lines" in result.budget_details
     actual = int(result.budget_details.split(":")[1].strip().split("/")[0])
-    assert actual <= 500
+    # v7.2.0 PR-E: bumped 500 -> 502 to match adapter_configs/kimicode.yaml
+    # budget update; tracks SF-1 source ceiling 499 + 2-line frontmatter
+    # overhead from copy_with_frontmatter transform (built = source + 2).
+    assert actual <= 502
 
 
 def test_kimicode_copies_references_tree(build_result):

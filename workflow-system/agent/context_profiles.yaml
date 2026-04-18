@@ -408,6 +408,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for research stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Research tasks are single-stage with minimal ceremony. No convergence
       loops, no gate mechanism, no repo mode. Focus on dispatch/report protocol
@@ -601,6 +604,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for design stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
@@ -902,6 +908,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for documentation stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Documentation tasks focus on survey-author-review cycle. No convergence
       loops or deep architecture. TQS matters for quality evaluation.
