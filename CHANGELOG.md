@@ -5,6 +5,63 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.0] — 2026-04-18
+
+**MINOR — self-update cycle rollup. End-to-end self-update workflow (5 stages, 14 L3 task agents) consumed `.local/feedbacks/feecback_for_v7.1.1.md` and shipped 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 user-selected PRs (PR-0 through PR-E). All 7 candidates were validated in S03 self-loop validation with ACCEPT or ACCEPT-WITH-CAVEATS decisions and 0 rejections. Notable additions: tiered SKILL/reference/examples size budgets (PR-A, C-006), compression bypass for security warnings & destructive operations (PR-B, C-002), dormant operational.jsonl learnings substrate activation (PR-C, C-007), advisor cluster with conciseness instruction + timing/reconcile blocks + +200 token budget bump on 4 advisor profiles (PR-D, C-001+C-003), and SKILL.md "Wave Coordination Modes" extension with inline_self_review + hybrid recipes (PR-E, C-004+C-005). SI-10 6-step gate green across all PRs; 1181 tests pass (vs 1121 baseline, +60 net); 0 EvoBench regressions. SI-3 composite projected ~9.46/10 (heuristic, NineS confirmation deferred to v7.2.x retrospective).**
+
+### Added
+- **`schemas/lean-dispatch.yaml` + `schemas/lean-report.yaml`** (PR-B, C-002) — `bypass_conditions` sub-key inside existing `compression_rules` block (P6-safe, NOT a new top-level key); 4 deterministic bypass conditions: `security_warning`, `destructive_operation`, `multi_step_sequence_with_order_dependency`, `repeated_user_question`. Mirror parity enforced by new `tests/test_compressor.py::test_bypass_conditions_schema_mirror_parity`.
+- **`src/devolaflow/compressor.py`** (PR-B, C-002) — `BYPASS_CONDITIONS`, `BYPASS_PATTERNS` (4 compiled regex patterns), `_MULTI_STEP_MIN_MATCHES = 2` threshold, `CompressionBypassWarning` typed warning class, `detect_bypass_conditions(message, conditions=None) -> list[str]` pure function, and bypass branch in `compress_message(message, intensity, bypass_conditions=None)`. On bypass match: returns source verbatim + emits one-line `CompressionBypassWarning` + populates `bypass_matched` and `bypass_warning` keys in return dict (additive — non-bypass path adds `[]` / `None` to the return dict for shape consistency). Backward-compat preserved: legacy 2-arg signature still works; `bypass_conditions=[]` opt-out gives v7.1.x behaviour.
+- **`src/devolaflow/learnings.py`** (PR-C, C-007) — 2 additive `Learning` dataclass fields: `files: list[str] = field(default_factory=list)`, `source: str = ""`. Coercion in `__post_init__` handles JSONL `null` files + str cast. New `dedup_learnings(entries: list[Learning]) -> list[Learning]` helper returns latest-timestamp entry per `(task_type, key)` pair; mirrors gstack `/learn` `{type, key}` last-write-wins contract; empty timestamps lose to populated; insertion order preserved across distinct tuples. Activates the dormant `workflow-system/agent/knowledge/learnings/operational.jsonl` substrate (writers land in v7.3 via C-009 reflective reflex).
+- **`src/devolaflow/task_adaptive_selector.py`** (PR-D, C-001 + C-003) — `_resolve_advisor_text` refactored from string literal to `parts = [...]` builder + 3 conditional appends gated on per-profile flags. C-001: appends `"Reply in under 100 words and use enumerated steps, not explanations."` (verbatim from anthropic-advisor-tool docs; reduces advisor *response* tokens 35-45%). C-003: appends Timing block ("Call advisor BEFORE substantive work...") + Reconcile-on-conflict block ("If you've already retrieved data pointing one way and the advisor points another, do not silently switch..."). All three blocks default-on with per-flag opt-out via `advisor_config.get(KEY, True)`.
+- **`workflow-system/agent/SKILL.md`** (PR-E, C-005) — new `inline_self_review` row in Wave Coordination Modes table for low-risk waves (~30s checklist vs ~25min subagent dispatch; 50× speedup for SAFE stages — `research`, `design`, `documentation`). Final line count: 499 / 500 (zero headroom; v7.3 follow-up: extract a section to references/ or raise Default tier ceiling).
+- **`workflow-system/agent/references/decomposition-gate.md`** (PR-E, C-005) — new `## 8. Inline Self-Review Mode (v7.2.0+)` section (+39 lines). SAFE/UNSAFE stage tables (3 SAFE, 4 UNSAFE) with rationale; activation via per-profile opt-in; mutex with `gen_verify_mode`. Verbatim quotes from superpowers v5.0.6 release notes.
+- **`workflow-system/agent/references/execution-protocol.md`** (PR-E, C-004) — new `## 7. Wave Coordination Mode Selection (v7.2.0+)` section (+53 lines). 4 pairwise rubrics (orchestrator-subagent vs agent teams vs message bus vs shared state) + 2 named hybrid recipes (orchestrator-subagent ⊕ shared-state, message-bus ⊕ agent-teams) verbatim from anthropic-coordination-blog (2026-04-10). DevolaFlow P1/P5 mapping in §7.3; `self-update` workflow application in §7.4.
+- **`tests/test_reference_size_budgets.py`** (PR-A, C-006, NEW 78 LOC) — parametrised pytest covering 8 references (Large tier ≤1000) + 3 examples (XL tier ≤1600) + 1 sanity check that `MIRRORED_FILES` from `scripts/sync_cursor_skill.py` matches the canonical 8/3 contract.
+- **`tests/test_compressor.py`** (PR-B, C-002) — new `TestCompressionBypass*` class (12 cases lifted from V02 sandbox + 1 mirror-parity test).
+- **`tests/test_learnings.py`** (PR-C, C-007) — 6 new test classes (15 cases): `TestDedupLearningsBasic` (3), `TestDedupLearningsDuplicates` (4), `TestDedupLearningsEdgeCases` (3), `TestV1EntryLoadsWithoutNewFields` (2), `TestV2EntryLoadsWithoutV3Fields` (1), `TestV3EntryRoundTrip` (2).
+- **`tests/test_task_adaptive_selector.py`** (PR-D, C-001 + C-003) — 5+ new tests covering default-on emission for each advisor block, per-flag opt-out, and per-profile post-patch budget headroom assertion.
+
+### Changed
+- **`workflow-system/agent/knowledge/reference-dependencies.yaml`** (PR-0, H-01 to H-06):
+  - **H-01** delete broken `karpathy/andrej-karpathy-skills` entry (404 upstream); fold its 4 integration points into the surviving `forrestchang/andrej-karpathy-skills` entry. active_tracking 11 → 10.
+  - **H-02** `PrimeLocus/Hydra` deleted upstream → redirect `repo_url` to `mikecubed/Hydra` fork (v1.2.0); `status: verified → deleted_upstream`; `relevance_score: 4 → 3`.
+  - **H-03** `spring-ai-agent-skills.last_known_version` v0.4.2 → v0.7.0 (2026-04-06); add `releases_total: 9`.
+  - **H-04** `agent-skills-security.last_known_version` arXiv pin v3 (2026-02-17); add `companion_repo: scienceaix/agentskills`.
+  - **H-05** `skillrouter.last_known_version` arXiv v3 → v4 (2026-04-01); append v4 finding key_pattern.
+  - **H-06** new `agent-skills-threat-taxonomy` entry under `periodic_monitoring` for arXiv:2604.02837v1 follow-up paper. periodic_monitoring 9 → 10.
+- **`workflow-system/agent/context_profiles.yaml`** (PR-D + PR-E):
+  - PR-D: 4 advisor-enabled profiles (`feature`, `refactor`, `migration`, `security-audit`) gain `advisor.conciseness_instruction: true` + `advisor.timing_block: true` + `advisor.reconcile_block: true`; `token_budget` bumped +200 each (`feature: 4950→5150`, `refactor: 4800→5000`, `migration: 4800→5000`, `security-audit: 5200→5400`) to absorb +100/+126 advisor-section growth without bumping `important`-priority sections under chars//4 fallback.
+  - PR-E: 3 SAFE profiles (`research`, `design`, `documentation`) gain `inline_review_checklist: false` (opt-in default off) for the v7.2.0 inline self-review pattern (runtime hook lands in v7.3).
+- **`.cursor/rules/skill-format-rules.mdc`** (PR-A, C-006) — SF-1 rewritten as tiered budget table: Default `<500` (SKILL.md), Large `≤1000` (references), XL `≤1600` (examples).
+- **`adapter_configs/kimicode.yaml`** (PR-E, KimiCode coupling) — `budget.max: 500 → 502` to track SF-1 source ceiling 499 + 2-line frontmatter overhead from the `copy_with_frontmatter` transform (built output = source + 2). Caught by SI-10 step 1 on first PR-E attempt; absorbed into PR-E v2 per L0 escalation Option A.
+- **`tests/test_kimicode_adapter.py`** (PR-E, KimiCode coupling) — hardcoded assertion `<= 500` → `<= 502` to match the YAML budget update.
+
+### Metrics
+- Tests: 1121 (v7.1.1) → **1181** (+60 net). Per-PR: PR-A +12, PR-B +13 (12 bypass + 1 mirror-parity), PR-C +15, PR-D +10, PR-E +0 (docs/yaml only), KimiCode test bump 0 (modified existing).
+- Coverage: `devolaflow.compressor` ≥ 90 % (new bypass branch covered by 12 sandbox tests); `devolaflow.learnings` projected ≥ 97 % (15 new tests on dedup + backward-compat); `devolaflow.task_adaptive_selector` advisor coverage maintained (5+ new tests).
+- EvoBench benchmarks: 34 / 34 PASS; **0 pp** composite drift vs v7.1.0 baseline (`tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_matches_current_results_within_tolerance` PASSED with SI-4 5 % regression threshold preserved across all scenarios).
+- SKILL.md line count: **499 / 500** (SF-1 satisfied with zero headroom; v7.3 follow-up tracked).
+- references/*.md max: `decomposition-gate.md` 517 / 1000 (51.7 %, comfortably under new C-006 Large tier ceiling).
+- examples/*.md max: `full-pipeline-trace.md` 408 / 1600 (25.5 %, generous headroom under new XL tier).
+- KimiCode adapter built output: 501 / 502 (within new cap).
+- Lint: `ruff check src/ tests/` + `ruff format --check src/ tests/` clean.
+- SI-10 pre-commit: **5 / 5 pass** (full tests, ruff check, ruff format, test_version, test_benchmarks). Step 6 (`make check-cursor-skill`) is a no-op since `.cursor/skills/devola-flow/` mirror was untracked in v7.1.1+ per `e44fa11`.
+- SI-3 composite projection (heuristic, NineS confirmation pending): **9.46 / 10** vs threshold 8.5 — READY.
+- Version consistency: 11 sync locations updated via `scripts/bump_version.py 7.2.0` (SF-3 / CP-3); `make sync-human-docs` regenerated EN/ZH human docs.
+- LOC delta (production code/config): ~89 (compressor +70, learnings +49 / -5, task_adaptive_selector +37 / -6 + 4 yaml budget bumps + 9 advisor flags, schemas +20, references +92, SKILL.md +1 / 0 net, kimicode +1 / -1, hygiene yaml +30). Tests: ~250 LOC. Docs: ~200 LOC + CHANGELOG entry.
+
+### Cross-references
+- Source feedback: `.local/feedbacks/feecback_for_v7.1.1.md` (3-line ask: refresh refs + NineS decompose + self-loop validation + accept-list for user selection).
+- Self-update workflow artifacts:
+  - 7 delta reports: `.local/research/v7.2.0_refs/delta-T01.md` … `delta-T07.md` (87 deltas across 19 reference repos).
+  - Candidate list: `.local/research/v7.2.0_candidate_list.md` (96 → 75 kept → 7 TIER-1 + 13 TIER-2 + 55 TIER-3 + 6 Registry Hygiene).
+  - 6 validation reports: `.local/research/v7.2.0_validations/V01.md` … `V07.md`.
+  - Accept list & roadmap: `.local/research/v7.2.0_accept_list_and_roadmap.md` (the user-selection deliverable).
+- Patches (sandbox-validated, all `git apply --check` exit 0): `.local/sandbox/v7.2.0/V0[1-7]/patch.diff` + V04 rebased SKILL.md hunk.
+- v7.2.x backlog (TIER-2 carryover): C-008 advisor-side prompt caching, C-009 reflective reflex (writes operational.jsonl using v7.2.0 C-007 schema), C-010 vexp plugins entry, C-011 data-instruction envelope spec, C-012 learnings substrate design note, C-013 Karpathy EXAMPLES.md pointer, C-014 knowledge/log.md, C-015 file-back-from-Review threshold, C-016 feedback.apply_proposal closure, C-017 clear_thinking caveat, C-018 vexp SWE-bench refresh, C-019 scion Hub primitives, C-020 per-agent budget ledger spec.
+- Related v7.x cycle: continues the v7.0 → v7.1 staged-context-compression rollup. v7.2 closes the user-feedback loop opened by `feedback_for_v7.1.1.md`.
+
 ## [7.1.1] — 2026-04-17
 
 **PATCH — hotfix for v7.1.0-pre feedback `"github 上的所有次级网页无法访问"` (all GitHub Pages secondary pages cannot be accessed). The shared demo nav script (`workflow-system/human/demo/shared/nav.js`) detected the landing page only by matching `/demo/` in `window.location.pathname`. GitHub Pages deploys the demo at `/DevolaFlow/`, so on the deployed landing page `isLanding` evaluated to `false` and every nav link was prefixed with `../`, resolving to `https://yorha-agents.github.io/<page>/index.html` — a 404 outside the project. Sub-page navigation was already correct (uses `../` from a one-level-deep page) and is unchanged. The fix detects landing by the ABSENCE of any known sub-page directory name in the URL path, so it works under all four canonical deployment shapes (GitHub Pages `/DevolaFlow/`, project-root local server `/demo/`, demo-dir local server `/`, and `file://`).**

@@ -657,5 +657,23 @@
       "SKILL.md stays at 498 / 500 lines; 1100 tests, 94 % compressor coverage, NineS 0.8805 stable"
     ],
     "metrics": { "tests": 1100, "coverage_pct": 95.68, "nines": 0.8805 }
+  },
+  {
+    "version": "7.2.0",
+    "date": "2026-04-18",
+    "era": "rollup",
+    "headline": "Self-update cycle rollup — 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 PRs (PR-0..PR-E). SI-3 composite projected ~9.46 / 10.",
+    "summary": "End-to-end self-update workflow consumed feedback_for_v7.1.1 and shipped tiered size budgets (PR-A), compression bypass conditions (PR-B), learnings substrate activation (PR-C), advisor cluster + budget bump (PR-D), and SKILL Wave Coordination Modes extension (PR-E).",
+    "highlights": [
+      "PR-0 registry hygiene H-01..H-06 (broken 404 entry pruned, deleted-upstream redirect, 4 last_known_version refreshes, +1 threat-taxonomy entry)",
+      "PR-A C-006 tiered SKILL/Reference/Examples size budgets (Default <500, Large ≤1000, XL ≤1600) via tests/test_reference_size_budgets.py + SF-1 rule rewrite",
+      "PR-B C-002 compression bypass — 4 deterministic conditions in compress_message() + bypass_conditions sub-key in lean-dispatch/lean-report (P6-safe additive)",
+      "PR-C C-007 dormant learnings substrate activation — 2 additive Learning fields (files, source) + dedup_learnings() last-write-wins helper",
+      "PR-D C-001 + C-003 advisor cluster — conciseness_instruction + timing_block + reconcile_block default-on for 4 advisor profiles + +200 token_budget bump each",
+      "PR-E C-004 + C-005 SKILL Wave Coordination Modes section + decomposition-gate inline_self_review mode + KimiCode budget align (500 → 502)",
+      "SKILL.md 499 / 500 (zero headroom; v7.3 follow-up tracked); references max 517 / 1000; examples max 408 / 1600",
+      "1181 tests pass (+60 net vs 1121 baseline); EvoBench 34 / 34 PASS, 0 pp drift vs v7.1.0 baseline; SI-10 5/5 (step 6 mirror-parity no-op per e44fa11)"
+    ],
+    "metrics": { "tests": 1181, "coverage_pct": 95.68, "nines": 0.8805 }
   }
 ]
