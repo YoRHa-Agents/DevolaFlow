@@ -219,7 +219,14 @@ def match_profile(task_type: str, profiles_config: dict[str, Any]) -> str:
 
 
 def _resolve_advisor_text(profile: dict[str, Any]) -> tuple[bool, str, int]:
-    """Build advisor section text and compute its token reserve."""
+    """Build advisor section text and compute its token reserve.
+
+    v7.2.0 PR-D note: dispatch and candidate-list refer to this helper as
+    `_build_advisor_section`; the actual symbol is `_resolve_advisor_text`.
+    The helper is the single emitter for the "## Advisor Tool" block consumed
+    by all 4 advisor-enabled profiles (feature, refactor, migration,
+    security-audit). One change here covers all 4.
+    """
     advisor_config = profile.get("advisor", {})
     if not advisor_config.get("enabled", False):
         return False, "", 0
@@ -228,11 +235,30 @@ def _resolve_advisor_text(profile: dict[str, Any]) -> tuple[bool, str, int]:
     cost_ceiling = advisor_config.get("cost_ceiling_usd", 0.30)
     triggers = advisor_config.get("trigger_conditions", [])
     triggers_str = ", ".join(triggers) if triggers else "none"
-    text = (
-        f"## Advisor Tool\n"
-        f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).\n"
-        f"Invoke for: {triggers_str}."
-    )
+    parts = [
+        "## Advisor Tool",
+        f"Advisor enabled (max {max_uses} uses, budget ${cost_ceiling}).",
+        f"Invoke for: {triggers_str}.",
+    ]
+    if advisor_config.get("conciseness_instruction", True):
+        parts.append(
+            'When invoking advisor, append: "Reply in under 100 words and use '
+            'enumerated steps, not explanations."'
+        )
+    if advisor_config.get("timing_block", True):
+        parts.append(
+            "Timing: Call advisor BEFORE substantive work. On tasks longer than "
+            "a few steps, call advisor at least once before committing to an "
+            "approach and once before declaring done."
+        )
+    if advisor_config.get("reconcile_block", True):
+        parts.append(
+            "On conflict: If you've already retrieved data pointing one way and "
+            "the advisor points another, do not silently switch. Surface the "
+            'conflict in one more advisor call: "I found X, you suggest Y, '
+            'which constraint breaks the tie?".'
+        )
+    text = "\n".join(parts)
     return True, text, estimate_tokens(text)
 
 

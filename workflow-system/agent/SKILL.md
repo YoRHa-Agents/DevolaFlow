@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.1.1"
+version: "7.2.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,13 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.1.1**
+> **Now Using DevolaFlow v7.2.0**
 
 # DevolaFlow
 
 ## Version & Update
 
-**Current version:** 7.1.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.2.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -219,7 +219,8 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 | No edges | `parallel` | Dispatch all, collect results (default) |
 | Linear chain | `sequential` | Dispatch N+1 after N completes |
 | Quality-critical + shared context | `generator_verifier` | Gen → Verify → Refine loop (below) |
-| Mixed | `hybrid` | Partition: parallel groups + sequential chains |
+| Low-risk doc/research/design | `inline_self_review` | In-process checklist (~30s vs ~25min subagent); see references/decomposition-gate.md §8 |
+| Mixed | `hybrid` | Partition into named recipes: orchestrator-subagent ⊕ shared-state, message-bus ⊕ agent-teams (see references/execution-protocol.md §7) |
 
 **Gen-Verify loop** (convergence stages: review+fix, test+fix, benchmark+optimize):
 1. Wave dispatches **generator** + **verifier** (criteria from `acceptance_criteria`)

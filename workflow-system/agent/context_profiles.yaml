@@ -272,7 +272,7 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 4950
+    token_budget: 5150  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
     model_hints:
       default_tier: balanced
       overrides:
@@ -315,6 +315,12 @@ profiles:
     advisor:
       enabled: true
       max_uses: 3
+      # v7.2.0 PR-D additive flags (default true; explicit here for opt-out clarity).
+      # conciseness_instruction → C-001 (advisor responses ~35-45% shorter).
+      # timing_block / reconcile_block → C-003 (BEFORE-substantive-work + reconcile prompt).
+      conciseness_instruction: true
+      timing_block: true
+      reconcile_block: true
       conversation_budget: 6
       trigger_conditions:
         - complexity_high
@@ -402,6 +408,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for research stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Research tasks are single-stage with minimal ceremony. No convergence
       loops, no gate mechanism, no repo mode. Focus on dispatch/report protocol
@@ -414,7 +423,7 @@ profiles:
       - "clean up"
       - "tech debt"
       - "simplify"
-    token_budget: 4800
+    token_budget: 5000  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
     model_hints:
       default_tier: balanced
       overrides:
@@ -457,6 +466,9 @@ profiles:
     advisor:
       enabled: true
       max_uses: 3
+      conciseness_instruction: true
+      timing_block: true
+      reconcile_block: true
       conversation_budget: 6
       trigger_conditions:
         - complexity_high
@@ -592,6 +604,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for design stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
@@ -681,7 +696,7 @@ profiles:
       - "upgrade"
       - "port"
       - "convert"
-    token_budget: 4800
+    token_budget: 5000  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
     model_hints:
       default_tier: balanced
       overrides:
@@ -723,6 +738,9 @@ profiles:
     advisor:
       enabled: true
       max_uses: 3
+      conciseness_instruction: true
+      timing_block: true
+      reconcile_block: true
       conversation_budget: 6
       trigger_conditions:
         - complexity_high
@@ -765,7 +783,7 @@ profiles:
       - "vulnerability"
       - "threat model"
       - "penetration"
-    token_budget: 5200
+    token_budget: 5400  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
     model_hints:
       default_tier: quality
       overrides:
@@ -805,6 +823,9 @@ profiles:
     advisor:
       enabled: true
       max_uses: 3
+      conciseness_instruction: true
+      timing_block: true
+      reconcile_block: true
       conversation_budget: 6
       trigger_conditions:
         - complexity_high
@@ -887,6 +908,9 @@ profiles:
       - "references/team-roles.md"
     decomposition:
       enabled: false
+    inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
+                                         # safe for documentation stages where defects are structural; default off.
+                                         # See references/decomposition-gate.md §8 for safe-stage list.
     rationale: >
       Documentation tasks focus on survey-author-review cycle. No convergence
       loops or deep architecture. TQS matters for quality evaluation.

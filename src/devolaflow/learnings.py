@@ -9,13 +9,18 @@ v7.0.3 (ADR-005) adds four additive schema fields to :class:`Learning`
 `promotion_count`) plus three helper functions (:func:`consolidate_session`,
 :func:`decay_confidence`, :func:`pin_learning_for_session`). Legacy v1
 JSONL entries parse unchanged; the migration is lazy per entry.
+
+v7.2.0 (C-007 / CCT-3) adds two further additive schema fields
+(`files: list[str]`, `source: str`) plus one helper :func:`dedup_learnings`.
+No migration shim is needed — both fields default to safe zero-equivalents
+so legacy v1 / v2 JSONL entries parse unchanged.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -28,6 +33,7 @@ __all__ = [
     "capture_learning",
     "consolidate_session",
     "decay_confidence",
+    "dedup_learnings",
     "format_learnings_section",
     "get_learnings_stats",
     "load_relevant_learnings",
@@ -52,8 +58,9 @@ Floor is inclusive: values strictly ``< DECAY_FLOOR`` are dropped."""
 class Learning:
     """A single operational learning captured from a workflow execution.
 
-    The first nine fields are the pre-v7 schema. The last four are additive
-    v2 fields introduced by ADR-005 §2.1 and default to safe zero-equivalents
+    The first nine fields are the pre-v7 schema. The next four are additive
+    v2 fields introduced by ADR-005 §2.1. The last two are additive v3 fields
+    introduced by C-007 (CCT-3 cluster) and default to safe zero-equivalents
     so legacy JSONL entries parse unchanged.
     """
 
@@ -71,14 +78,23 @@ class Learning:
     last_accessed: str = ""
     pinned_for_session: str = ""
     promotion_count: int = 0
+    # v3 additive fields (C-007 / CCT-3) — default-safe for legacy entries.
+    files: list[str] = field(default_factory=list)
+    source: str = ""
 
     def __post_init__(self) -> None:
-        """Clamp confidence and coerce v2 int/str fields (ADR-005 §3 risk P3)."""
+        """Clamp confidence and coerce v2/v3 typed fields."""
         self.confidence = max(0.0, min(1.0, float(self.confidence)))
         self.confidence_half_life_days = int(self.confidence_half_life_days)
         self.promotion_count = int(self.promotion_count)
         self.last_accessed = str(self.last_accessed)
         self.pinned_for_session = str(self.pinned_for_session)
+        # v3 coercions: tolerate JSONL load with missing/null payloads.
+        if self.files is None:
+            self.files = []
+        else:
+            self.files = [str(f) for f in self.files]
+        self.source = str(self.source)
 
 
 def _now_iso() -> str:
@@ -203,6 +219,34 @@ def load_relevant_learnings(
         merged.append(item)
         seen_keys.add(ident)
     return merged[:max_entries]
+
+
+def dedup_learnings(entries: list[Learning]) -> list[Learning]:
+    """Return latest-timestamp entry per ``(task_type, key)`` pair.
+
+    Mirrors the gstack ``/learn`` JSONL ``{type, key}`` last-write-wins
+    contract (see C-007 description and ``.local/research/v7.2.0_refs/``
+    delta-T02 §D2.1 for verbatim source). When two entries share the same
+    ``(task_type, key)``, the one with the lexicographically-greater
+    ``timestamp`` wins (ISO 8601 sorts correctly under string comparison).
+
+    Empty timestamps lose to populated timestamps. Insertion order is
+    preserved across distinct ``(task_type, key)`` tuples — the returned
+    list contains entries in the order their key was first encountered.
+
+    Pure / no I/O. Intended consumers: pre-write dedup at session-end
+    (C-009 reflective reflex) and post-read dedup at filter time.
+    """
+    seen: dict[tuple[str, str], Learning] = {}
+    for entry in entries:
+        key = (entry.task_type, entry.key)
+        prev = seen.get(key)
+        if prev is None:
+            seen[key] = entry
+            continue
+        if entry.timestamp > prev.timestamp:
+            seen[key] = entry
+    return list(seen.values())
 
 
 def prune_learnings(jsonl_path: Path) -> int:

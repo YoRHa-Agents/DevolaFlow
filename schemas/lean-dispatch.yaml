@@ -177,6 +177,19 @@ compression_rules:
       description: "Drop all non-essential text"
       active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies, progress_narration, obvious_acknowledgments, tool_call_echoing]
   default_intensity: standard
+  # v7.2.0 (C-002, source: caveman/SKILL.md "## Auto-Clarity") — bypass list.
+  # When *any* of these conditions match the input text, compress_message()
+  # MUST return the source verbatim (compression_ratio=0.0) and emit one
+  # one-line warning to the wave agent. Default = full list (opt-out by
+  # passing bypass_conditions=[] explicitly). P6-safe: nested under the
+  # existing compression_rules block — NOT a new top-level key in the
+  # dispatch payload, so v7-ADR-001 §2 cache layout invariant is untouched.
+  bypass_conditions:
+    - security_warning
+    - destructive_operation
+    - multi_step_sequence_with_order_dependency
+    - repeated_user_question
+  bypass_default_active: true
 
 # Layout invariant (v7.0.0+, per .local/research/adr/v7-ADR-001-cache-layout-invariant.md)
 # The rendered top-level key order MUST match this sequence (each may be absent;

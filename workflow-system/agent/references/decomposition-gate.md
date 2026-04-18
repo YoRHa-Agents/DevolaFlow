@@ -476,3 +476,42 @@ DEPENDENCY GRAPH:
   □ Critical path identified
   □ All tasks reachable from root
 ```
+
+## 8. Inline Self-Review Mode (v7.2.0+)
+
+For low-risk waves where a separate verifier subagent would over-engineer the
+quality check, L2 may select `inline_self_review` mode (declared in SKILL.md
+"Wave Coordination Modes"). The executing agent runs through a pre-defined
+checklist in-process at the end of its turn — approximate cost ~30 seconds vs
+~25 minutes for the gen_verify subagent dispatch (50× wallclock saving).
+
+**Source:** Imported from superpowers v5.0.6 release notes (verbatim):
+"Replaced subagent review loops with inline self-review checklists in
+brainstorming and writing-plans skills, reducing review time from ~25 minutes
+to ~30 seconds while maintaining comparable defect detection."
+
+### When inline_self_review is SAFE
+
+Apply only to stages where defects are structural/organisational and the
+executing agent is well-positioned to detect them via a checklist:
+
+| Stage Type      | Safety Rationale |
+|-----------------|-------------------|
+| `research`      | Defect = missing source / wrong claim; checklist = "every claim has a source URL" |
+| `design`        | Defect = missing interface / inconsistent terminology; checklist = "interface contracts complete, ADR sections present" |
+| `documentation` | Defect = stale info / broken link / unclear example; checklist = "links validated, terms defined, examples runnable" |
+
+### When to KEEP gen_verify_mode (UNSAFE for inline)
+
+| Stage Type       | Why subagent verifier is required |
+|------------------|-----------------------------------|
+| `implement`      | Logic bugs require execution-style verification (run tests, lint) |
+| `test`           | Gate validity depends on independent test reproduction |
+| `refactor`       | Regression risk requires second-pair-of-eyes review |
+| `security-audit` | Defect-cost is high; comparable detection NOT claimed |
+
+### Activation
+
+Opt-in per profile via `context_profiles.yaml`:
+`inline_review_checklist: true` (default `false`). Mutually exclusive with
+`decomposition.gen_verify_mode: true` — if both are set, gen_verify wins.

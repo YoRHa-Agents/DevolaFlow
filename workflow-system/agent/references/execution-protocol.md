@@ -423,3 +423,56 @@ Adjustments:
   + 30% per active blocker
   + 25% if first run (no historical data)
 ```
+
+## 7. Wave Coordination Mode Selection (v7.2.0+)
+
+When SKILL.md "Wave Coordination Modes" leaves the choice between modes
+ambiguous — particularly which `hybrid` partition fits — apply the rubrics
+below, derived from Anthropic's "Multi-Agent Coordination Patterns" blog
+post (§"Choosing and evolving between patterns"), 2026-04-10.
+
+**Source:** anthropic-coordination-blog (relevance=5 in
+`workflow-system/agent/knowledge/reference-dependencies.yaml`).
+
+### 7.1 Pairwise Rubrics
+
+The blog frames the choice as four pairwise switches. Verbatim quotes:
+
+| Pair | Rubric (verbatim from anthropic-coordination-blog) |
+|------|----------------------------------------------------|
+| Orchestrator-subagent vs. agent teams | "When subagents need to retain state across invocations, agent teams are the better fit." |
+| Orchestrator-subagent vs. message bus | "As conditional logic accumulates in the orchestrator to handle an expanding variety of cases, the message bus makes that routing explicit and extensible." |
+| Agent teams vs. shared state | "Once teammates need to communicate with each other rather than only share final results, shared state makes that more natural." |
+| Message bus vs. shared state | "If agents in a message bus system are publishing events to share findings rather than trigger actions, shared state is a better fit." |
+
+### 7.2 Named Hybrid Recipes
+
+The two hybrid configurations called out by name in the blog (verbatim):
+
+1. **orchestrator-subagent ⊕ shared-state** — "A common hybrid uses
+   orchestrator-subagent for the overall workflow with shared state for
+   a collaboration-heavy subtask."
+2. **message-bus ⊕ agent-teams** — "Another uses message bus for event
+   routing with agent team-style workers handling each event type."
+
+### 7.3 Mapping to DevolaFlow
+
+DevolaFlow's L0→L1→L2→L3 hierarchy is the canonical orchestrator-subagent
+pattern. The other three patterns map as follows:
+
+| Blog pattern | DevolaFlow status | Rationale |
+|--------------|-------------------|-----------|
+| orchestrator-subagent | **Native** (L0/L1/L2 dispatchers + L3 leaves) | P1 Dispatcher-Not-Implementer is exactly this shape. |
+| agent teams (persistent workers) | **Not modelled** as a primitive | P1 + L3 fresh-context guarantee preclude persistent workers; opt-in for stateful subtasks tracked as future work. |
+| message bus | **Not modelled** | No event-driven routing primitive in v7.x; the SKILL.md `hybrid` row is the only escape hatch today. |
+| shared state | **Forbidden** by P5 | "Layers communicate through artifact files, not shared memory or conversation history. … No bidirectional shared state." |
+
+### 7.4 Applying the Recipes Inside DevolaFlow
+
+The first hybrid (orchestrator-subagent ⊕ shared-state) describes the
+existing `self-update` workflow research stage almost exactly: many T01–T07
+parallel L3 task agents produce delta reports that L1 then synthesises —
+the artifact directory `.local/research/` is the shared store, but it is
+read-only for downstream layers, so P5 is preserved. When picking `hybrid`
+mode, declare which named recipe applies in the wave's `topology_override`
+rationale so downstream agents can audit the choice.

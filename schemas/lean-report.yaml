@@ -167,6 +167,17 @@ compression_rules:
       description: "Drop all non-essential text"
       active_drops: [filler_phrases, hedging_language, pleasantries, redundant_narration, meta_commentary, apologies, progress_narration, obvious_acknowledgments, tool_call_echoing]
   default_intensity: standard
+  # v7.2.0 (C-002 mirror, source: caveman/SKILL.md "## Auto-Clarity") — bypass list.
+  # Mirrors lean-dispatch.yaml#compression_rules.bypass_conditions verbatim so
+  # the L3→L2 (status report) and L2→L3 (dispatch) sides of the channel agree
+  # on which content classes are NEVER compressed. P6-safe (nested, not new
+  # top-level key in the rendered report payload).
+  bypass_conditions:
+    - security_warning
+    - destructive_operation
+    - multi_step_sequence_with_order_dependency
+    - repeated_user_question
+  bypass_default_active: true
 
 # --- RESULT STATUS PROTOCOL ---
 # Typed status enum for deterministic routing. Replaces free-form state interpretation.

@@ -234,33 +234,33 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
-    <!-- What's New in v7.1.0 -->
+    <!-- What's New in v7.2.0 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.1.0</h2>
-      <p class="desc" data-i18n="landing.whatsNew.desc">v7.1.0 closes the v7.0→v7.1 staged-context-compression cycle. Rollup release — no new primitives: 6 decomposition profiles (feature, refactor, skill-optimization, migration, security-audit, perf-optimization) flip tool_output_truncation.enabled to true and gain a default summary: {mode: extractive, max_tokens: 1200, trigger_pct: 25} block. Final 2 NineS compression goldens ship (compression_tool_output, compression_persistence) — closing K.6 with all 5 goldens delivered. v7.1.0_baseline.json regenerated (33 scenarios, 0 pp drift vs v7.0.2). SI-3 composite 9.47/10 — READY for stable tag.</p>
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.2.0</h2>
+      <p class="desc" data-i18n="landing.whatsNew.desc">v7.2.0 — self-update cycle rollup. End-to-end self-update workflow (5 stages, 14 L3 task agents) consumed feedback_for_v7.1.1 and shipped 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 PRs (PR-0..PR-E). Highlights: tiered SKILL/reference/examples size budgets (PR-A, C-006), compression bypass for security warnings & destructive operations (PR-B, C-002), dormant operational.jsonl learnings substrate activation (PR-C, C-007), advisor cluster with conciseness instruction + timing/reconcile blocks + +200 token budget bump (PR-D, C-001+C-003), and SKILL.md "Wave Coordination Modes" extension with inline_self_review + hybrid recipes (PR-E, C-004+C-005). 1181 tests pass (vs 1121 baseline, +60 net); 0 EvoBench regressions. SI-3 composite projected ~9.46/10 — READY.</p>
       <div class="cards">
         <div class="card">
-          <span class="label" data-i18n="label.summariser">SUMMARISER</span>
-          <h3>summarise_predecessor()</h3>
-          <p>Deterministic extractive summariser. Parses md/yaml/json/toml by extension, prefixes a verbatim key_facts: block from extract_named_entities(), then fills the remaining max_tokens budget with schema-hint-prioritised sections. Hard-capped with a [TRUNCATED] marker; was_bounded flag exposes the cutoff.</p>
+          <span class="label" data-i18n="label.bypass">BYPASS</span>
+          <h3>Compression Bypass Conditions</h3>
+          <p>4 deterministic bypass conditions added to compress_message(): security_warning, destructive_operation, multi_step_sequence_with_order_dependency, repeated_user_question. On match, message returns verbatim + emits CompressionBypassWarning. P6-safe: bypass_conditions nests inside existing compression_rules block (no new top-level dispatch keys).</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/compressor.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.ner">NER</span>
-          <h3>extract_named_entities() — 8 Classes</h3>
-          <p>file_paths, task_ids, version_strings, commit_hashes, metric_values, error_messages (all six reuse PRESERVE_PATTERNS for CO-2 lock-step), acceptance_criterion_bullets (MUST/SHOULD/SHALL/MAY), interface_signatures (Python def/class plus YAML key:type). Each entry is {type, value, source_line}, document order, deduped per (type, value).</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.local/research/adr/v7-ADR-003-hierarchical-summary.md"><span data-i18n="btn.viewADR">View ADR</span> &rarr;</a>
+          <span class="label" data-i18n="label.learnings">LEARNINGS</span>
+          <h3>operational.jsonl Substrate</h3>
+          <p>Learning dataclass gains 2 additive fields (files, source) + new dedup_learnings() helper that returns latest-timestamp entry per (task_type, key) pair (gstack-style last-write-wins). Activates the dormant workflow-system/agent/knowledge/learnings/operational.jsonl substrate; reflective-reflex writers land in v7.3 via C-009.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/learnings.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
         </div>
         <div class="card">
-          <span class="label" data-i18n="label.threshold">THRESHOLD</span>
-          <h3>25% Trigger (resolves K.1)</h3>
-          <p>meta.summary_trigger_pct: 25 in context_profiles.yaml — dispatchers MUST summarise when a predecessor exceeds 25% of the consuming layer's token_budget (e.g. L3 8000 → above 2000 tokens; L2 4000 → above 1000). Per-profile override available. New schema fields summary_mode and summary_max_tokens nest under each pred entry (no new top-level keys — honours v7-ADR-001 cache-layout invariant).</p>
-          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/lean-dispatch.yaml"><span data-i18n="btn.viewSchema">View Schema</span> &rarr;</a>
+          <span class="label" data-i18n="label.advisor">ADVISOR</span>
+          <h3>Advisor Cluster + Budget Bump</h3>
+          <p>4 advisor-enabled profiles (feature, refactor, migration, security-audit) gain conciseness_instruction + timing_block + reconcile_block, all default-on with per-flag opt-out. token_budget bumped +200 each to absorb advisor-section growth. Advisor *response* tokens projected −35..−45 % via the verbatim "Reply in under 100 words" instruction.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/context_profiles.yaml"><span data-i18n="btn.viewSchema">View Profiles</span> &rarr;</a>
         </div>
         <div class="card">
           <span class="label" data-i18n="label.metrics">METRICS</span>
-          <h3>1033 Tests, +10 New</h3>
-          <p>10 new unit tests in TestHierarchicalSummariser + 3 EvoBench compression_retention scenarios (easy 99.62, medium 99.23, hard 98.55) + 3 NineS goldens (closes 3/5 of K.6). Roadmap: v7.0.3 persistence probe (re-uses extract_named_entities) → v7.1.0 adoption + retrospective.</p>
+          <h3>1181 Tests, +60 Net</h3>
+          <p>SKILL.md 499/500 (SF-1 satisfied with zero headroom); references max 517/1000; examples max 408/1600. EvoBench 34/34 PASS, 0 pp drift vs v7.1.0 baseline. Lint clean. SI-10 5/5 pass (step 6 mirror parity no-op per e44fa11). 11 sync locations bumped via scripts/bump_version.py 7.2.0; 16 EN/ZH human docs regenerated.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
         </div>
       </div>
