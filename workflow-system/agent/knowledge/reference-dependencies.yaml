@@ -166,28 +166,6 @@ active_tracking:
       - Review agent (query-back-to-wiki for recurring findings)
     gap_ids: [H5]
 
-  - id: andrej-karpathy-skills
-    repo_url: https://github.com/karpathy/andrej-karpathy-skills
-    source_type: github_repo
-    last_checked: "2026-04-13"
-    last_known_version: "latest (2026-04)"
-    relevance_score: 4
-    key_patterns:
-      - "think before you code: state assumptions explicitly before implementation"
-      - "verify every step: Step→Verify pattern with observable checks"
-      - "simplicity as a review criterion: no speculative features, no unnecessary abstraction"
-      - "scope discipline: every changed line traces to task objective"
-    update_triggers:
-      - changes to CLAUDE.md or skill guideline files
-      - new behavioral guidelines added
-      - community forks with enhanced enforcement patterns
-    devolaflow_integration_points:
-      - schemas/task-dispatch.schema.yaml (explicit_assumptions field)
-      - schemas/lean-dispatch.yaml (assumptions entry)
-      - references/team-roles.md (Simplicity Check rubric)
-      - references/execution-protocol.md (verification-first micro-plan)
-    gap_ids: []
-
   - id: anthropic-coordination-blog
     repo_url: https://www.claude.com/blog/multi-agent-coordination-patterns
     source_type: blog
@@ -227,10 +205,12 @@ active_tracking:
       - new guidelines added
     devolaflow_integration_points:
       - SKILL.md (behavioral norms)
-      - references/team-roles.md (review rubric)
+      - schemas/task-dispatch.schema.yaml (explicit_assumptions field)
       - schemas/lean-dispatch.yaml (assumptions field)
+      - references/team-roles.md (Simplicity Check rubric)
+      - references/execution-protocol.md (verification-first micro-plan)
     gap_ids: []
-    note: "complements existing karpathy-llm-wiki (gist about wiki ops, not coding norms)"
+    note: "Karpathy-attributed coding norms (originally posted by Andrej Karpathy on X). The earlier `karpathy/andrej-karpathy-skills` entry was a 404 — this `forrestchang` fork is the only real implementation. v7.2.0 H-01 consolidated both integration-points lists here."
 
   - id: understand-anything
     repo_url: "https://github.com/Lum1104/Understand-Anything"
@@ -276,13 +256,14 @@ periodic_monitoring:
   - id: skillrouter
     repo_url: https://github.com/zhengyanzhao1997/SkillRouter
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "v3 (arXiv:2603.22455v3)"
+    last_checked: "2026-04-18"
+    last_known_version: "v4 (arXiv:2603.22455v4, 2026-04-01)"
     relevance_score: 4
     key_patterns:
       - "retrieve-and-rerank skill selection with 1.2B parameter pipeline"
       - "74.0% Hit@1 accuracy at 80K candidate skills"
       - "full-text signal critical: hiding impl text causes -31-44pp accuracy drop"
+      - "v4 end-to-end study: routing gains transfer to task success, scale with agent capability"
     update_triggers:
       - new paper versions on arXiv
       - model accuracy improvements or reduced model size
@@ -334,8 +315,9 @@ periodic_monitoring:
   - id: agent-skills-security
     repo_url: https://arxiv.org/abs/2602.12430
     source_type: paper
-    last_checked: "2026-04-11"
-    last_known_version: "arXiv:2602.12430 (2026-02)"
+    last_checked: "2026-04-18"
+    last_known_version: "arXiv:2602.12430v3 (2026-02-17)"
+    companion_repo: "https://github.com/scienceaix/agentskills"
     relevance_score: 4
     key_patterns:
       - "four-tier trust model: first-party→verified→community→unverified"
@@ -352,13 +334,35 @@ periodic_monitoring:
       - adapter build pipeline (vulnerability scanning)
     gap_ids: [M6]
 
+  - id: agent-skills-threat-taxonomy
+    repo_url: https://arxiv.org/abs/2604.02837
+    source_type: paper
+    last_checked: "2026-04-18"
+    last_known_version: "arXiv:2604.02837v1 (2026-04-03)"
+    relevance_score: 4
+    key_patterns:
+      - "threat taxonomy: 4 lifecycle phases × 7 categories × 17 scenarios × 3 attack layers"
+      - "absence of a data-instruction boundary at dispatch surface (DevolaFlow gap C-011)"
+      - "follow-up to arXiv:2602.12430 (different team, cs.CR primary)"
+    update_triggers:
+      - new revisions or related security taxonomy publications
+      - industry adoption of the data-instruction envelope pattern
+    devolaflow_integration_points:
+      - schemas/task-dispatch.schema.yaml (data-instruction envelope spec)
+      - src/devolaflow/compressor.py (envelope_artifact_data wrapper)
+      - SKILL.md (agent-instruction discipline for tagged data regions)
+    gap_ids: [M6]
+    note: "v7.2.0 H-06: shipped 2026-04-03; promoted from update_triggers keyword in agent-skills-security to its own entry. v7.2.0 candidate C-011 references this paper's threat taxonomy."
+
   - id: primelocus-hydra
-    repo_url: https://github.com/PrimeLocus/Hydra
+    repo_url: https://github.com/mikecubed/Hydra
     source_type: github_repo
     last_checked: "2026-04-13"
     last_known_version: "v0.1.0 (2026-03)"
-    status: verified
-    relevance_score: 4
+    status: deleted_upstream
+    forked_from_deleted: PrimeLocus/Hydra
+    fork_version: "v1.2.0 (mikecubed/Hydra package.json)"
+    relevance_score: 3
     key_patterns:
       - "strength-based model routing: Claude=architecture, Gemini=critique, Codex=impl"
       - "multi-round deliberation: propose→critique→refine→implement"
@@ -371,6 +375,7 @@ periodic_monitoring:
       - TaskDispatch schema (model_hint field)
       - Wave dispatch logic (model-strength routing)
     gap_ids: [M2, M9]
+    note: "v7.2.0 H-02: original PrimeLocus/Hydra repo deleted upstream between 2026-04-13 and 2026-04-18 (REST API + HTML both 404). Tracking via mikecubed/Hydra fork at package.json v1.2.0. Downgraded relevance_score 4→3."
 
   - id: ruflo
     repo_url: https://github.com/ruvnet/ruflo
@@ -413,8 +418,9 @@ periodic_monitoring:
   - id: spring-ai-agent-skills
     repo_url: https://github.com/spring-ai-community/spring-ai-agent-utils
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "Spring AI (2026-01)"
+    last_checked: "2026-04-18"
+    last_known_version: "v0.7.0 (2026-04-06): MemoryTools + mkdocs site; preceded by v0.6.0 (2026-03-30) and v0.5.0 (2026-02-24): subagent SPI extraction"
+    releases_total: 9
     relevance_score: 3
     key_patterns:
       - "three-stage progressive disclosure: discovery→activation→execution"
