@@ -123,7 +123,9 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # and by external workflow agents for learnings management. v7.0.3
         # (ADR-005) adds consolidate_session / decay_confidence /
         # pin_learning_for_session — consumed by L1/L0 session-end hooks and
-        # by dispatchers that need cross-round pinning.
+        # by dispatchers that need cross-round pinning. v7.2.0 (C-007 / CCT-3)
+        # adds dedup_learnings — dormant in v7.2.0; promoted to a writer in
+        # v7.3 via C-009 (reflective reflex) per the explicit two-phase plan.
         "devolaflow.learnings:prune_learnings",
         "devolaflow.learnings:promote_learning",
         "devolaflow.learnings:get_learnings_stats",
@@ -131,6 +133,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.learnings:consolidate_session",
         "devolaflow.learnings:decay_confidence",
         "devolaflow.learnings:pin_learning_for_session",
+        "devolaflow.learnings:dedup_learnings",
         # ---- NineS subsystem — research, analysis, advisor APIs ----
         # All exported via devolaflow.nines.__all__ for external research
         # workflows; the NineS CLI integration is invoked by the user via

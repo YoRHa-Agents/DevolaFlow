@@ -18,6 +18,7 @@ from devolaflow.learnings import (
     capture_learning,
     consolidate_session,
     decay_confidence,
+    dedup_learnings,
     format_learnings_section,
     load_relevant_learnings,
     log_external_source_review,
@@ -798,3 +799,389 @@ class TestLearningsV2Coverage:
             / "external-sources.jsonl"
         )
         assert default.exists()
+
+
+# ---------------------------------------------------------------------------
+# v7.2.0 C-007 (CCT-3) — dedup_learnings helper + v3 schema backward compat
+# ---------------------------------------------------------------------------
+# Lifted verbatim from .local/sandbox/v7.2.0/V07/test_dedup.py (10 cases) and
+# .local/sandbox/v7.2.0/V07/test_backward_compat.py (5 cases). Sandbox imports
+# from sandbox_learnings; production imports from devolaflow.learnings.
+# Validation report: .local/research/v7.2.0_validations/V07.md.
+
+
+def _make_dedup_learning(
+    *,
+    stage: str = "s",
+    task_type: str = "feature",
+    key: str = "k1",
+    insight: str = "i",
+    confidence: float = 0.5,
+    timestamp: str = "",
+) -> Learning:
+    return Learning(
+        stage=stage,
+        task_type=task_type,
+        key=key,
+        insight=insight,
+        confidence=confidence,
+        timestamp=timestamp,
+    )
+
+
+class TestDedupLearningsBasic:
+    def test_empty_input_returns_empty_list(self) -> None:
+        assert dedup_learnings([]) == []
+
+    def test_single_entry_passthrough(self) -> None:
+        only = _make_dedup_learning(timestamp="2026-04-18T00:00:00+00:00")
+        result = dedup_learnings([only])
+        assert len(result) == 1
+        assert result[0] is only
+
+    def test_no_duplicates_passthrough(self) -> None:
+        a = _make_dedup_learning(task_type="t1", key="k1", timestamp="2026-01-01T00:00:00+00:00")
+        b = _make_dedup_learning(task_type="t2", key="k1", timestamp="2026-02-01T00:00:00+00:00")
+        c = _make_dedup_learning(task_type="t1", key="k2", timestamp="2026-03-01T00:00:00+00:00")
+        result = dedup_learnings([a, b, c])
+        assert len(result) == 3
+        assert {(e.task_type, e.key) for e in result} == {
+            ("t1", "k1"),
+            ("t2", "k1"),
+            ("t1", "k2"),
+        }
+
+
+class TestDedupLearningsDuplicates:
+    def test_latest_timestamp_wins_ordered_input(self) -> None:
+        """Older entry first, newer second — newer wins."""
+        older = _make_dedup_learning(
+            task_type="feature",
+            key="dup-key",
+            insight="OLD",
+            confidence=0.5,
+            timestamp="2026-01-01T00:00:00+00:00",
+        )
+        newer = _make_dedup_learning(
+            task_type="feature",
+            key="dup-key",
+            insight="NEW",
+            confidence=0.9,
+            timestamp="2026-04-18T00:00:00+00:00",
+        )
+        result = dedup_learnings([older, newer])
+        assert len(result) == 1
+        assert result[0].insight == "NEW"
+        assert result[0].confidence == 0.9
+        assert result[0].timestamp == "2026-04-18T00:00:00+00:00"
+
+    def test_latest_timestamp_wins_reversed_input(self) -> None:
+        """Order independence: newer first, older second — newer still wins."""
+        newer = _make_dedup_learning(
+            task_type="feature",
+            key="dup-key",
+            insight="NEW",
+            confidence=0.9,
+            timestamp="2026-04-18T00:00:00+00:00",
+        )
+        older = _make_dedup_learning(
+            task_type="feature",
+            key="dup-key",
+            insight="OLD",
+            confidence=0.5,
+            timestamp="2026-01-01T00:00:00+00:00",
+        )
+        result = dedup_learnings([newer, older])
+        assert len(result) == 1
+        assert result[0].insight == "NEW"
+        assert result[0].timestamp == "2026-04-18T00:00:00+00:00"
+
+    def test_dedup_groups_by_task_type_and_key_only(self) -> None:
+        """Two entries with same (task_type, key) but different stages collapse
+        to one — proves the dedup criterion is (task_type, key), NOT
+        (stage, task_type, key) like capture_learning's skip-dup."""
+        s1 = _make_dedup_learning(
+            stage="implement",
+            task_type="t",
+            key="k",
+            insight="from implement",
+            timestamp="2026-01-01T00:00:00+00:00",
+        )
+        s2 = _make_dedup_learning(
+            stage="review",
+            task_type="t",
+            key="k",
+            insight="from review",
+            timestamp="2026-04-18T00:00:00+00:00",
+        )
+        result = dedup_learnings([s1, s2])
+        assert len(result) == 1, (
+            "Different stages should NOT prevent dedup — "
+            "criterion is (task_type, key) per C-007 spec"
+        )
+        assert result[0].insight == "from review"
+
+    def test_overlapping_pairs_at_different_timestamps(self) -> None:
+        """Three (task_type, key) tuples, each with 2-3 timestamped entries.
+        After dedup: exactly 3 entries, one per tuple, latest each.
+
+        Canonical fixture called out in the dispatch:
+            "Fixture with overlapping (task_type, key) pairs at different
+             timestamps. Assert dedup returns latest only."
+        """
+        entries = [
+            _make_dedup_learning(
+                task_type="feature",
+                key="k1",
+                insight="f-k1-old",
+                timestamp="2026-01-01T00:00:00+00:00",
+            ),
+            _make_dedup_learning(
+                task_type="feature",
+                key="k1",
+                insight="f-k1-mid",
+                timestamp="2026-02-15T00:00:00+00:00",
+            ),
+            _make_dedup_learning(
+                task_type="feature",
+                key="k1",
+                insight="f-k1-new",
+                timestamp="2026-04-18T00:00:00+00:00",
+            ),
+            _make_dedup_learning(
+                task_type="hotfix",
+                key="k1",
+                insight="h-k1-old",
+                timestamp="2026-01-01T00:00:00+00:00",
+            ),
+            _make_dedup_learning(
+                task_type="hotfix",
+                key="k1",
+                insight="h-k1-new",
+                timestamp="2026-04-15T00:00:00+00:00",
+            ),
+            _make_dedup_learning(
+                task_type="feature",
+                key="k2",
+                insight="f-k2-only",
+                timestamp="2026-03-01T00:00:00+00:00",
+            ),
+        ]
+        result = dedup_learnings(entries)
+        assert len(result) == 3
+
+        by_tuple = {(e.task_type, e.key): e for e in result}
+        assert by_tuple[("feature", "k1")].insight == "f-k1-new"
+        assert by_tuple[("hotfix", "k1")].insight == "h-k1-new"
+        assert by_tuple[("feature", "k2")].insight == "f-k2-only"
+
+
+class TestDedupLearningsEdgeCases:
+    def test_empty_timestamp_loses_to_populated(self) -> None:
+        """Lexicographic comparison: '' < any non-empty string, so the
+        populated-timestamp entry wins regardless of input order."""
+        no_ts = _make_dedup_learning(task_type="t", key="k", insight="no-ts", timestamp="")
+        with_ts = _make_dedup_learning(
+            task_type="t",
+            key="k",
+            insight="with-ts",
+            timestamp="2026-04-18T00:00:00+00:00",
+        )
+        assert dedup_learnings([no_ts, with_ts])[0].insight == "with-ts"
+        assert dedup_learnings([with_ts, no_ts])[0].insight == "with-ts"
+
+    def test_both_empty_timestamps_first_wins(self) -> None:
+        """When both timestamps are empty (equal), dedup keeps the FIRST
+        encountered entry. Not specified by C-007 but documented behaviour."""
+        first = _make_dedup_learning(task_type="t", key="k", insight="first", timestamp="")
+        second = _make_dedup_learning(task_type="t", key="k", insight="second", timestamp="")
+        result = dedup_learnings([first, second])
+        assert len(result) == 1
+        assert result[0].insight == "first"
+
+    def test_preserves_v3_files_and_source_fields_on_winner(self) -> None:
+        """Dedup winner should carry its own files/source — the helper does
+        not merge fields, it just picks the latest."""
+        loser = _make_dedup_learning(
+            task_type="t",
+            key="k",
+            insight="loser",
+            timestamp="2026-01-01T00:00:00+00:00",
+        )
+        loser.files = ["a.py", "b.py"]
+        loser.source = "manual"
+        winner = _make_dedup_learning(
+            task_type="t",
+            key="k",
+            insight="winner",
+            timestamp="2026-04-18T00:00:00+00:00",
+        )
+        winner.files = ["c.py"]
+        winner.source = "observed"
+        result = dedup_learnings([loser, winner])
+        assert len(result) == 1
+        assert result[0].insight == "winner"
+        assert result[0].files == ["c.py"], "winner.files must NOT be merged with loser"
+        assert result[0].source == "observed"
+
+
+class TestV1EntryLoadsWithoutNewFields:
+    def test_v1_jsonl_loads_with_v3_defaults(self, tmp_path: Path) -> None:
+        """Hand-crafted v1 JSONL line without `files` or `source` parses
+        cleanly via load_relevant_learnings(). No exception. Both v2 and v3
+        defaults applied automatically.
+
+        Primary backward-compat guard for C-007. Failure here blocks the
+        v7.2.0 release.
+        """
+        p = tmp_path / "v1.jsonl"
+        v1_line = {
+            "stage": "implement",
+            "task_type": "feature",
+            "key": "v1-legacy-key",
+            "insight": "captured under pre-v7.0.3 schema",
+            "confidence": 0.8,
+            "rule_id": "",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "ttl_days": 90,
+            "source_task_id": "",
+        }
+        p.write_text(json.dumps(v1_line) + "\n")
+
+        results = load_relevant_learnings("feature", p, min_confidence=0.5)
+        assert len(results) == 1, f"v1 entry failed to load, got {results}"
+
+        learning = results[0]
+        assert learning.key == "v1-legacy-key"
+        assert learning.confidence == 0.8
+        assert learning.insight == "captured under pre-v7.0.3 schema"
+
+        assert learning.confidence_half_life_days == DEFAULT_DECAY_HALF_LIFE_DAYS
+        assert learning.last_accessed == ""
+        assert learning.pinned_for_session == ""
+        assert learning.promotion_count == 0
+
+        assert learning.files == [], (
+            f"v3 `files` default broken: expected [], got {learning.files!r}"
+        )
+        assert learning.source == "", (
+            f"v3 `source` default broken: expected '', got {learning.source!r}"
+        )
+
+    def test_v1_jsonl_files_default_is_distinct_list_per_instance(self, tmp_path: Path) -> None:
+        """field(default_factory=list) must produce a DISTINCT list per
+        Learning — not a shared mutable default. Guards the classic Python
+        mutable-default-arg trap."""
+        p = tmp_path / "v1-multi.jsonl"
+        ts = datetime.now(UTC).isoformat()
+        line_template = {
+            "stage": "s",
+            "task_type": "t",
+            "insight": "i",
+            "confidence": 0.9,
+            "timestamp": ts,
+        }
+        l1 = {**line_template, "key": "k1"}
+        l2 = {**line_template, "key": "k2"}
+        p.write_text(json.dumps(l1) + "\n" + json.dumps(l2) + "\n")
+
+        results = load_relevant_learnings("t", p, min_confidence=0.5)
+        assert len(results) == 2
+
+        results[0].files.append("touched-by-r0.py")
+        assert results[1].files == [], (
+            "files default_factory must give DISTINCT lists per instance — "
+            f"shared-default trap detected: r1.files={results[1].files}"
+        )
+
+
+class TestV2EntryLoadsWithoutV3Fields:
+    def test_v2_jsonl_loads_with_v3_defaults(self, tmp_path: Path) -> None:
+        """v2-shaped JSONL entries (post-v7.0.3, pre-v7.2.0) load cleanly
+        with v3 defaults applied. Existing v2 fields are preserved
+        untouched. Required to honour the lazy-migration contract from
+        ADR-005 §2.4 — v3 must not undo v2's compatibility."""
+        p = tmp_path / "v2.jsonl"
+        ts = datetime.now(UTC).isoformat()
+        v2_line = {
+            "stage": "implement",
+            "task_type": "feature",
+            "key": "v2-key",
+            "insight": "captured under v7.0.3 schema",
+            "confidence": 0.85,
+            "rule_id": "",
+            "timestamp": ts,
+            "ttl_days": 90,
+            "source_task_id": "",
+            "confidence_half_life_days": 45,
+            "last_accessed": ts,
+            "pinned_for_session": "sess-active",
+            "promotion_count": 3,
+        }
+        p.write_text(json.dumps(v2_line) + "\n")
+
+        results = load_relevant_learnings("feature", p, min_confidence=0.5)
+        assert len(results) == 1
+
+        learning = results[0]
+        assert learning.confidence == 0.85
+        assert learning.confidence_half_life_days == 45
+        assert learning.pinned_for_session == "sess-active"
+        assert learning.promotion_count == 3
+        assert learning.files == []
+        assert learning.source == ""
+
+
+class TestV3EntryRoundTrip:
+    def test_capture_then_load_preserves_files_and_source(self, tmp_path: Path) -> None:
+        """Full v3 round-trip: write a Learning with non-default files +
+        source through capture_learning, load it back through
+        load_relevant_learnings, both fields preserved bit-for-bit."""
+        p = tmp_path / "v3.jsonl"
+        original = Learning(
+            stage="implement",
+            task_type="feature",
+            key="v3-roundtrip",
+            insight="captured with files+source",
+            confidence=0.9,
+            files=[
+                "src/devolaflow/learnings.py",
+                "tests/test_learnings.py",
+            ],
+            source="observed",
+        )
+        wrote = capture_learning(original, p)
+        assert wrote is True
+
+        results = load_relevant_learnings("feature", p, min_confidence=0.5)
+        assert len(results) == 1
+        loaded = results[0]
+        assert loaded.files == [
+            "src/devolaflow/learnings.py",
+            "tests/test_learnings.py",
+        ], f"v3 files round-trip broken: got {loaded.files!r}"
+        assert loaded.source == "observed", f"v3 source round-trip broken: got {loaded.source!r}"
+
+    def test_v3_jsonl_with_null_files_field_coerces_to_empty_list(self, tmp_path: Path) -> None:
+        """Defensive: a malformed v3 entry that has files: null on disk
+        should coerce to [] via __post_init__ rather than raise on access.
+        Protects against hand-edited or partially-migrated JSONL files."""
+        p = tmp_path / "v3-null.jsonl"
+        ts = datetime.now(UTC).isoformat()
+        bad_line = {
+            "stage": "s",
+            "task_type": "t",
+            "key": "null-files",
+            "insight": "i",
+            "confidence": 0.9,
+            "timestamp": ts,
+            "files": None,
+            "source": "manual",
+        }
+        p.write_text(json.dumps(bad_line) + "\n")
+
+        results = load_relevant_learnings("t", p, min_confidence=0.5)
+        assert len(results) == 1
+        learning = results[0]
+        assert learning.files == [], f"null files must coerce to []; got {learning.files!r}"
+        assert learning.source == "manual"
