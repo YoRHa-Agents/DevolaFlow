@@ -3,9 +3,32 @@ description: "Format constraints for DevolaFlow SKILL.md and CLAUDE.md — codif
 alwaysApply: true
 ---
 
-## Rule SF-1 — Line Budget
+## Rule SF-1 — Tiered Line Budget
 
-SKILL.md must stay under 500 lines. Verify with `wc -l` or the `test_skill_md_under_500_lines` integration test before committing changes.
+Agent-facing skill files are subject to tiered line-count ceilings, adopted from gsd
+v1.37.0 (issue #2361) and applied to the canonical 12-file set listed in
+`scripts/sync_cursor_skill.py::MIRRORED_FILES`:
+
+| Tier    | Ceiling | Files                                                | Enforced by |
+|---------|---------|-------------------------------------------------------|---|
+| Default | < 500   | `workflow-system/agent/SKILL.md`                      | `tests/test_integration.py::test_skill_md_under_500_lines` |
+| Large   | ≤ 1000  | `workflow-system/agent/references/*.md` (8 files)     | `tests/test_reference_size_budgets.py::test_reference_within_large_tier` |
+| XL      | ≤ 1600  | `workflow-system/agent/examples/*.md` (3 files)       | `tests/test_reference_size_budgets.py::test_example_within_xl_tier` |
+
+Rationale: SKILL.md is loaded into every dispatcher prompt and must stay tight;
+references are loaded on-demand by L1/L2/L3 agents and may carry richer context;
+examples are only consulted when an agent needs a worked trace, so they get the
+widest budget.
+
+Verify before committing changes with either:
+
+```bash
+wc -l workflow-system/agent/SKILL.md \
+      workflow-system/agent/references/*.md \
+      workflow-system/agent/examples/*.md
+python -m pytest tests/test_integration.py::test_skill_md_under_500_lines \
+                 tests/test_reference_size_budgets.py -v
+```
 
 ## Rule SF-2 — Required Frontmatter Keys
 
