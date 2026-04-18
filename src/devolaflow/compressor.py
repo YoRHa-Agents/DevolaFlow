@@ -20,10 +20,13 @@ __all__ = [
     "PRESERVE_LIST",
     "DROP_LIST",
     "INTENSITY_TIERS",
+    "BYPASS_CONDITIONS",
+    "BYPASS_PATTERNS",
     "PRESERVE_PATTERNS",
     "DROP_PATTERNS",
     "DEFAULT_DISPATCH_LAYOUT",
     "DispatchLayoutError",
+    "CompressionBypassWarning",
     "ToolUseTruncation",
     "DEFAULT_SUMMARY_MODE",
     "DEFAULT_SUMMARY_MAX_TOKENS",
@@ -32,6 +35,7 @@ __all__ = [
     "SCHEMA_HINT_PRIORITIES",
     "validate_preserve_list",
     "detect_drop_violations",
+    "detect_bypass_conditions",
     "compress_message",
     "validate_lean_format",
     "assert_dispatch_layout",
@@ -88,6 +92,93 @@ INTENSITY_TIERS: dict[str, dict[str, list[str]]] = {
     },
     "aggressive": {"active_drops": list(DROP_LIST)},
 }
+
+# ---------------------------------------------------------------------------
+# v7.2.0 — Bypass conditions (C-002, source: caveman/SKILL.md "## Auto-Clarity")
+# Mirrors schemas/lean-dispatch.yaml#compression_rules.bypass_conditions and
+# schemas/lean-report.yaml mirror.
+# ---------------------------------------------------------------------------
+
+BYPASS_CONDITIONS: list[str] = [
+    "security_warning",
+    "destructive_operation",
+    "multi_step_sequence_with_order_dependency",
+    "repeated_user_question",
+]
+
+BYPASS_PATTERNS: dict[str, re.Pattern[str]] = {
+    "security_warning": re.compile(
+        r"\b(?:WARNING|CAUTION|DANGER|SECURITY|VULNERABILIT(?:Y|IES)|"
+        r"CVE-\d{4}-\d{4,7}|INSECURE|UNSAFE|XSS|CSRF|RCE|"
+        r"SQL[\s_-]*INJECT(?:ION)?|PROMPT[\s_-]*INJECT(?:ION)?)\b",
+        re.IGNORECASE,
+    ),
+    "destructive_operation": re.compile(
+        r"\b(?:DROP\s+(?:TABLE|DATABASE|SCHEMA)|TRUNCATE\s+TABLE|"
+        r"DELETE\s+FROM\b(?![^;]*\bWHERE\b)|"
+        r"rm\s+-rf|chmod\s+-R\s+(?:0?777|a\+w)|kill\s+-9|"
+        r"sudo\s+rm|mkfs(?:\.\w+)?|dd\s+if=|"
+        r"git\s+(?:reset\s+--hard|push\s+--force|push\s+-f|"
+        r"clean\s+-(?:f|d){2,}|filter-branch)|"
+        r"docker\s+(?:rm\s+-f|rmi\s+-f|system\s+prune\s+-(?:a|f))|"
+        r"kubectl\s+delete\s+(?:ns|namespace|deploy|pod\s+--all)|"
+        r"terraform\s+destroy)\b",
+        re.IGNORECASE,
+    ),
+    "multi_step_sequence_with_order_dependency": re.compile(
+        r"(?:^[ \t]*(?:(?:\d+)[.)]\s+|step\s+\d+\b|first(?:ly)?\b|"
+        r"second(?:ly)?\b|then\b|finally\b|next\b))",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    "repeated_user_question": re.compile(
+        r"(?:\b(?:as\s+I\s+(?:already\s+)?(?:asked|said|mentioned)\s+"
+        r"(?:before|earlier|again|previously))\b|"
+        r"\b(?:I'?ll\s+)?(?:repeat(?:ing)?|reasking|re-ask(?:ing)?)\s+"
+        r"(?:my|the)\s+(?:question|ask)\b|"
+        r"\b(?:please\s+)?clarif(?:y|ication)(?:\s+again)?\b|"
+        r"\?{2,})",
+        re.IGNORECASE,
+    ),
+}
+
+_MULTI_STEP_MIN_MATCHES: int = 2
+
+
+class CompressionBypassWarning(UserWarning):
+    """Raised (as a warning, not exception) when compress_message() bypasses
+    compression because the input matched one or more bypass_conditions.
+
+    Wave agents observe these via Python's warnings module OR via the
+    ``bypass_warning`` field on the compress_message() return dict.
+    """
+
+
+def detect_bypass_conditions(
+    message: str,
+    conditions: list[str] | None = None,
+) -> list[str]:
+    """Return list of matched bypass-condition names in BYPASS_CONDITIONS order.
+
+    ``conditions=None`` (default) checks ALL of BYPASS_CONDITIONS.
+    ``conditions=[]`` (explicit empty list) returns [] without checking
+    anything — backward-compat opt-out for callers that pass an empty list.
+    """
+    if conditions is None:
+        conditions = BYPASS_CONDITIONS
+    if not conditions or not message:
+        return []
+    matched: list[str] = []
+    for name in conditions:
+        pattern = BYPASS_PATTERNS.get(name)
+        if pattern is None:
+            continue
+        if name == "multi_step_sequence_with_order_dependency":
+            if len(pattern.findall(message)) >= _MULTI_STEP_MIN_MATCHES:
+                matched.append(name)
+        elif pattern.search(message):
+            matched.append(name)
+    return matched
+
 
 # ---------------------------------------------------------------------------
 # Preserve-pattern validators
@@ -214,7 +305,11 @@ def detect_drop_violations(message: str, intensity: str = "standard") -> dict:
     }
 
 
-def compress_message(message: str, intensity: str = "standard") -> dict:
+def compress_message(
+    message: str,
+    intensity: str = "standard",
+    bypass_conditions: list[str] | None = None,
+) -> dict:
     """Apply deterministic compression to a message.
 
     For each active drop pattern (based on intensity tier), removes matches,
@@ -226,9 +321,38 @@ def compress_message(message: str, intensity: str = "standard") -> dict:
       - compressed_text: the compressed message
       - compression_ratio: fraction of tokens saved (0..1)
       - transformations_applied: names of drop patterns that matched
+      - bypass_matched: list of matched bypass-condition names (empty when
+        no bypass triggered); v7.2.0+
+      - bypass_warning: one-line human-readable warning when bypass fired,
+        otherwise None; v7.2.0+
+
+    v7.2.0 (C-002): if any bypass_conditions match, the source is returned
+    verbatim (compression_ratio == 0.0, transformations_applied == []) and
+    a one-line warning is emitted via the warnings module + bypass_warning
+    field. Pass ``bypass_conditions=[]`` to fully opt out (legacy behaviour).
     """
+    import warnings
+
     if intensity not in INTENSITY_TIERS:
         intensity = "standard"
+
+    matched_bypass = detect_bypass_conditions(message, bypass_conditions)
+    if matched_bypass:
+        original_tokens = estimate_tokens(message)
+        warning_msg = (
+            f"compression_bypass: returned source verbatim due to matched "
+            f"conditions [{','.join(matched_bypass)}] under intensity={intensity!r}"
+        )
+        warnings.warn(warning_msg, CompressionBypassWarning, stacklevel=2)
+        return {
+            "original_tokens": original_tokens,
+            "compressed_tokens": original_tokens,
+            "compression_ratio": 0.0,
+            "compressed_text": message,
+            "transformations_applied": [],
+            "bypass_matched": matched_bypass,
+            "bypass_warning": warning_msg,
+        }
 
     original_tokens = estimate_tokens(message)
     active_drops = INTENSITY_TIERS[intensity]["active_drops"]
@@ -259,6 +383,8 @@ def compress_message(message: str, intensity: str = "standard") -> dict:
         "compression_ratio": ratio,
         "compressed_text": text,
         "transformations_applied": transformations,
+        "bypass_matched": [],
+        "bypass_warning": None,
     }
 
 

@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+import warnings
+from pathlib import Path
+
 import pytest
+import yaml
 
 from devolaflow.compressor import (
+    BYPASS_CONDITIONS,
+    BYPASS_PATTERNS,
     DROP_LIST,
     INTENSITY_TIERS,
     PRESERVE_PATTERNS,
     SCHEMA_HINT_PRIORITIES,
     SUMMARY_TRUNCATION_MARKER,
+    CompressionBypassWarning,
     DispatchLayoutError,
     ToolUseTruncation,
     assert_dispatch_layout,
     clear_old_tool_uses,
     compress_message,
     compute_dispatch_lcp_pct,
+    detect_bypass_conditions,
     detect_drop_violations,
     extract_named_entities,
     summarise_predecessor,
@@ -792,3 +800,207 @@ class TestSummariserEdgeCases:
     def test_summarise_missing_artifact_raises(self):
         with pytest.raises(FileNotFoundError):
             summarise_predecessor("does/not/exist.md", max_tokens=500)
+
+
+class TestCompressionBypassConditions:
+    """C-002 (v7.2.0) — compress_message() must skip compression and emit a
+    one-line warning when bypass conditions match.
+
+    Lifted from .local/sandbox/v7.2.0/V02/test_bypass.py (18/18 PASSED in
+    sandbox); the inline reference impl was dropped in favour of the now-real
+    devolaflow.compressor exports.
+    """
+
+    def test_drop_table_warning_passes_verbatim_under_aggressive(self):
+        """Headline acceptance: ``"WARNING: DROP TABLE users;"`` under
+        intensity ``aggressive`` must be returned byte-for-byte."""
+        source = "WARNING: DROP TABLE users;"
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            result = compress_message(source, intensity="aggressive")
+
+        assert result["compressed_text"] == source
+        assert len(result["compressed_text"].encode("utf-8")) == len(source.encode("utf-8"))
+
+        assert result["compression_ratio"] == 0.0
+        assert result["transformations_applied"] == []
+
+        assert "security_warning" in result["bypass_matched"]
+        assert "destructive_operation" in result["bypass_matched"]
+
+        assert isinstance(result["bypass_warning"], str)
+        assert "\n" not in result["bypass_warning"], "warning must be one line"
+        assert "security_warning" in result["bypass_warning"]
+        assert "destructive_operation" in result["bypass_warning"]
+
+        bypass_warnings = [w for w in captured if issubclass(w.category, CompressionBypassWarning)]
+        assert len(bypass_warnings) == 1
+        assert "compression_bypass" in str(bypass_warnings[0].message)
+
+    def test_byte_count_unchanged_for_drop_table(self):
+        """Byte-count assertion called out explicitly in the task spec."""
+        source = "WARNING: DROP TABLE users;"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            result = compress_message(source, intensity="aggressive")
+        src_bytes = source.encode("utf-8")
+        out_bytes = result["compressed_text"].encode("utf-8")
+        assert len(out_bytes) == len(src_bytes)
+        assert out_bytes == src_bytes
+
+    @pytest.mark.parametrize(
+        "source,expected_match",
+        [
+            ("CVE-2026-12345 affects v1.4.0", "security_warning"),
+            ("This input is vulnerable to XSS", "security_warning"),
+            ("Possible prompt-injection in summary field", "security_warning"),
+            ("rm -rf /tmp/staging please", "destructive_operation"),
+            ("git push --force origin main", "destructive_operation"),
+            ("DELETE FROM accounts;", "destructive_operation"),
+            ("terraform destroy -auto-approve", "destructive_operation"),
+        ],
+    )
+    def test_each_security_or_destructive_pattern_triggers_bypass(self, source, expected_match):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            result = compress_message(source, intensity="aggressive")
+        assert expected_match in result["bypass_matched"]
+        assert result["compressed_text"] == source
+
+    def test_multi_step_sequence_triggers_only_at_two_or_more(self):
+        single = "first I'd like to thank you"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            single_result = compress_message(single, intensity="aggressive")
+        assert "multi_step_sequence_with_order_dependency" not in single_result["bypass_matched"]
+
+        multi = "1. Backup the DB\n2. Apply migration\n3. Restart workers"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            multi_result = compress_message(multi, intensity="aggressive")
+        assert "multi_step_sequence_with_order_dependency" in multi_result["bypass_matched"]
+        assert multi_result["compressed_text"] == multi
+
+    def test_repeated_user_question_triggers_bypass(self):
+        msg = "As I already asked before, where is the spec?"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            result = compress_message(msg, intensity="aggressive")
+        assert "repeated_user_question" in result["bypass_matched"]
+        assert result["compressed_text"] == msg
+
+    def test_default_bypass_conditions_none_uses_full_list(self):
+        """Calling without ``bypass_conditions=`` MUST default to the full
+        4-rule list (backward-compat for new opt-in callers)."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", CompressionBypassWarning)
+            result = compress_message("WARNING: DROP TABLE users;", intensity="aggressive")
+        assert result["bypass_matched"]
+
+    def test_explicit_empty_list_disables_bypass_legacy_behaviour(self):
+        """Passing ``bypass_conditions=[]`` MUST disable bypass entirely so
+        callers can opt out and get the v7.1.x compression behaviour."""
+        source = "WARNING: DROP TABLE users; basically the situation"
+        result = compress_message(source, intensity="aggressive", bypass_conditions=[])
+        assert result["bypass_matched"] == []
+        assert result["bypass_warning"] is None
+        assert "basically" not in result["compressed_text"].lower()
+
+    def test_subset_bypass_only_security_active(self):
+        source = "DROP TABLE users; please basically clean up"
+        result = compress_message(
+            source, intensity="aggressive", bypass_conditions=["security_warning"]
+        )
+        assert result["bypass_matched"] == []
+        assert result["compression_ratio"] >= 0.0
+
+    def test_clean_message_no_bypass_no_warning(self):
+        """Non-bypass path returns the normal dict shape with two new keys
+        defaulted to empty/None for forward compat. No warning is emitted."""
+        source = "src/auth.py: added JWT validation, coverage 92%"
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            result = compress_message(source, intensity="aggressive")
+        assert result["bypass_matched"] == []
+        assert result["bypass_warning"] is None
+        bypass_warnings = [w for w in captured if issubclass(w.category, CompressionBypassWarning)]
+        assert len(bypass_warnings) == 0
+
+    def test_existing_compress_message_signature_still_works(self):
+        """The 2-arg ``compress_message(msg, intensity)`` signature MUST keep
+        working — proves additive change does not break existing call sites."""
+        result = compress_message("Basically a test", "standard")
+        assert result["compressed_text"]
+        assert "original_tokens" in result
+        assert "compressed_tokens" in result
+        assert "transformations_applied" in result
+        assert "bypass_matched" in result
+        assert "bypass_warning" in result
+
+    def test_empty_message_no_bypass(self):
+        result = compress_message("", intensity="aggressive")
+        assert result["bypass_matched"] == []
+        assert result["compressed_text"] == ""
+
+    def test_whitespace_only_message_no_bypass(self):
+        result = compress_message("   \n\t  ", intensity="aggressive")
+        assert result["bypass_matched"] == []
+
+
+class TestCompressionBypassDetector:
+    """Direct unit-tests for ``detect_bypass_conditions()``."""
+
+    def test_detect_returns_matched_names_in_canonical_order(self):
+        msg = "WARNING: DROP TABLE users;"
+        matched = detect_bypass_conditions(msg)
+        assert matched == ["security_warning", "destructive_operation"]
+
+    def test_detect_empty_conditions_short_circuits(self):
+        msg = "WARNING: DROP TABLE users;"
+        assert detect_bypass_conditions(msg, conditions=[]) == []
+
+    def test_detect_unknown_condition_name_skipped(self):
+        msg = "WARNING: DROP TABLE users;"
+        matched = detect_bypass_conditions(msg, conditions=["unknown_rule"])
+        assert matched == []
+
+    def test_bypass_constants_exposed(self):
+        assert BYPASS_CONDITIONS == [
+            "security_warning",
+            "destructive_operation",
+            "multi_step_sequence_with_order_dependency",
+            "repeated_user_question",
+        ]
+        assert set(BYPASS_PATTERNS.keys()) == set(BYPASS_CONDITIONS)
+
+
+def test_bypass_conditions_schema_mirror_parity():
+    """V02 R6 mitigation — both schema YAMLs MUST declare identical
+    ``compression_rules.bypass_conditions`` lists so that the L3->L2 (status
+    report) and L2->L3 (dispatch) sides of the channel agree on the set of
+    content classes that are NEVER compressed.
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    dispatch_path = repo_root / "schemas" / "lean-dispatch.yaml"
+    report_path = repo_root / "schemas" / "lean-report.yaml"
+
+    dispatch = yaml.safe_load(dispatch_path.read_text(encoding="utf-8"))
+    report = yaml.safe_load(report_path.read_text(encoding="utf-8"))
+
+    dispatch_bypass = dispatch["compression_rules"]["bypass_conditions"]
+    report_bypass = report["compression_rules"]["bypass_conditions"]
+
+    assert dispatch_bypass == report_bypass, (
+        "lean-dispatch.yaml and lean-report.yaml must declare identical "
+        f"bypass_conditions; dispatch={dispatch_bypass!r}, report={report_bypass!r}"
+    )
+    assert dispatch_bypass == BYPASS_CONDITIONS, (
+        "schema bypass_conditions must match BYPASS_CONDITIONS in compressor.py; "
+        f"schema={dispatch_bypass!r}, code={BYPASS_CONDITIONS!r}"
+    )
+    assert dispatch["compression_rules"].get("bypass_default_active") is True, (
+        "bypass_default_active must be true in lean-dispatch.yaml"
+    )
+    assert report["compression_rules"].get("bypass_default_active") is True, (
+        "bypass_default_active must be true in lean-report.yaml"
+    )
