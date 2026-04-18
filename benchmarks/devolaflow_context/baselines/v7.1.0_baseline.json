@@ -83,6 +83,18 @@
     "selected_count": 13,
     "total_tokens": 4186
   },
+  "convergence_noise_filter": {
+    "budget": 2475,
+    "budget_utilization": 0.9523,
+    "composite": 98.09,
+    "information_density": 0.9523,
+    "noise_ratio": 0.0,
+    "profile_name": "feedback",
+    "scenario_name": "convergence_noise_filter",
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 2357
+  },
   "decomposition_feature": {
     "budget": 4950,
     "budget_utilization": 0.9917,

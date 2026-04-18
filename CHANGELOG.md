@@ -5,6 +5,38 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.2] — 2026-04-18
+
+**PATCH — v7.3.0 cycle P-01: convergence-loop noise filter.** Second patch of the v7.3.0 cycle driven by EvoBench v2.2.0 feedback (`.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md`). Adds optional `noise_tolerance_pct` parameter to `detect_stagnation()` plus a new `compute_smoothed_trend()` helper that uses a window-3 moving-average classification. When `noise_tolerance_pct > 0`, score deltas within tolerance count as stagnant only if observed for ≥ 2 consecutive rounds, preventing the gen-verify loop from misclassifying real-but-noisy improvement as stagnation. Default `noise_tolerance_pct=0.0` preserves bytewise behavior on the existing 70 gate tests. Targets EvoBench Tier 1 #2 — 9 tasks at 21% aggregate pass; worst: `feedback_loop_convergence_under_noise` (q=0.4375, σ=0.0793), `v2_X_13_optimize_measure_revert_loop` (q=0.4198, regressed -0.0481 vs v7.1.0), `competitive_hypothesis_debate` (q=0.4138 — worst overall), `adversarial_requirement_mutation` (q=0.4603).
+
+### Added
+- **`src/devolaflow/gate/convergence.py`** — additive `noise_tolerance_pct: float = 0.0` parameter on `detect_stagnation()`; new `compute_smoothed_trend(history, window=3) -> Literal["improving", "degrading", "stagnant"]` helper. Smoothed trend compares the last `window` rounds' moving average against the immediately-preceding window of the same size; falls back to pairwise `compute_trend()` when `len(history) < window` so the helper is safe at every loop round.
+- **`src/devolaflow/gate/scorer.py`** — `_evaluate_convergence` reads `profile.noise_tolerance_pct` and forwards it into `detect_stagnation`; calls `compute_smoothed_trend` when tolerance > 0, otherwise the legacy `compute_trend` path is unchanged. Verdict rationale string format preserved bytewise.
+- **`src/devolaflow/gate/models.py`** — `GateProfile.noise_tolerance_pct: float = 0.0` (additive; legacy profile dicts load unchanged because the dataclass default covers missing keys).
+- **`tests/test_gate.py`** — `TestNoiseTolerance` (8 cases: byte-stable default, single-round within-tolerance not stagnant, two-round confirmation, real-improvement keeps converging, clear-regression still stagnant, profile field default + override, end-to-end `_evaluate_convergence` round-3 escalation avoidance) + `TestSmoothedTrend` (6 cases: window-3 classifies improving / degrading, absorbs ±2pp noise around upward trend, fall-back to pairwise when `len < window`, single-window slope when `len == window`, `window <= 1` collapses to pairwise).
+- **`benchmarks/devolaflow_context/scenarios/convergence_noise_filter.yaml`** — new EvoBench scenario covering the `feedback` profile section selection with the synthesized 30%-noise score-history fixture documented inline. Composite 98.09, relevance 1.0, noise 0.0. Documents the 4 stagnation branches + 6 smoothed-trend branches verified at the unit level via a non-runner-consumed `noise_filter_fixture:` key (mirrors the `complexity_tier_branches:` precedent set in v7.2.1 P-04).
+- **`benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`** — single additive entry for `convergence_noise_filter` (no modification to the existing 34 entries) so `tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_covers_all_scenarios` stays green.
+
+### Changed
+- **`README.md`** — benchmark scenario count `34 → 35` (3 occurrences) per `documentation-sync-rules.mdc` Rule DS-1 §1.
+- **`workflow-system/human/demo/index.html`** — benchmark scenario count `34 → 35` (3 occurrences) per Rule DS-1 §2.
+- **`workflow-system/human/demo/benchmark-results/index.html`** — `SAMPLE_DATA.rounds[5].scenarios` (`budget_tuning_final` round) adds `convergence_noise_filter` (next to `complexity_tier_routing`, `feedback_analysis`, `feedback_regression`) per Rule DS-1 §2 and `tests/test_doc_consistency.py::test_demo_benchmark_sample_data_scenarios` coverage requirement.
+
+### Metrics
+- Tests: 1202 → 1216 (+14 from `TestNoiseTolerance` + `TestSmoothedTrend`).
+- Existing 70 gate tests unchanged PASS — `noise_tolerance_pct=0.0` default preserves bytewise behavior on `detect_stagnation`, `compute_trend`, and `_evaluate_convergence` rationale strings.
+- EvoBench scenarios: 34 → 35 (1 new); 0 pp drift on the existing 34 (verified by `test_v6_baseline_matches_current_results_within_tolerance` at the SI-4 ±5pp threshold).
+- Coverage: `gate/` module unchanged (≥97% maintained per CP-2 floor; 14 new tests cover both new functions plus the additive `_evaluate_convergence` wiring).
+- LOC: ~70 production (convergence.py +95 / -10, scorer.py +5 / -1, models.py +9 / 0) + ~165 tests + ~95 scenario YAML + 12 baseline JSON.
+- SI-10 6-step gate: 5/5 PASS (step 6 no-op per opt-in mirror absence, see `e44fa11`).
+- New scenario: composite 98.09, relevance 1.0, noise 0.0 (all ≥ thresholds: composite ≥ 90, relevance ≥ 0.95, noise ≤ 0.10).
+
+### Cross-references
+- Source feedback: `.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md` §"Recommended Focus" §🔴 Tier 1 #2.
+- Patch plan: `.local/research/v7.3.0_patch_plan.md` §P-01.
+- v7.3.0 cycle: this is patch 2 of 6 candidates (P-04 → **P-01** → P-03 → P-02 → P-05 → P-06 per the recommended execution order); next: P-03 reflective reflex writer (v7.2.3).
+- Couples with: `documentation-sync-rules.mdc` Rule DS-1 (scenario count propagation), `change-process-rules.mdc` Rule CP-3 (version bump 7.2.1 → 7.2.2) + Rule CP-4 (gate-module change → full gate test suite re-run), `self-improve-iteration-rules.mdc` Rule SI-4 (benchmark regression guard) + Rule SI-9 (convergence round reinforcement substrate) + Rule SI-10 (test-then-commit protocol).
+
 ## [7.2.1] — 2026-04-18
 
 **PATCH — v7.3.0 cycle P-04: complexity-tier model routing.** First patch of the v7.3.0 cycle driven by EvoBench v2.2.0 feedback (`.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md`). Adds a new `meta.complexity_routing:` block to `context_profiles.yaml` mapping the EvoBench complexity tiers (`simple` / `medium` / `complex` / `very_complex`) to model_hint tiers (`budget` / `balanced` / `quality` / `quality`). Extends `resolve_model_hint()` and `select_context()` with an optional `complexity_tier` kwarg that takes priority over per-task `model_hints.overrides` and `model_hints.default_tier` when provided. Default `complexity_tier=None` preserves bytewise behavior on the existing 101 selector tests. Locks in the EvoBench operational guidance "route by tier — opus4.7/max for Complex+, sonnet4.6/high for Simple/Medium" (5.6× cost-efficiency win per eb220 §"Recommended Focus").
