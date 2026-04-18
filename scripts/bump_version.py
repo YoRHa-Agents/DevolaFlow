@@ -170,12 +170,20 @@ def main() -> None:
     bump(new_version, dry_run=dry_run, tag=create_tag)
 
     # Keep the .cursor/skills/devola-flow/ project-local mirror in sync with the
-    # freshly-bumped canonical skill under workflow-system/agent/. See
+    # freshly-bumped canonical skill under workflow-system/agent/. The mirror is
+    # opt-in (gitignored) — skip the subprocess entirely when it's not present
+    # so fresh clones / CI bump cleanly. See
     # .cursor/rules/skill-format-rules.mdc Rule SF-3 and
     # .cursor/rules/change-process-rules.mdc Rule CP-3.
     sync_script = Path(__file__).parent / "sync_cursor_skill.py"
+    mirror_dir = _find_root() / ".cursor" / "skills" / "devola-flow"
     if dry_run:
         print(f"\n[sync-cursor-skill] WOULD run {sync_script} (skipped: --dry-run)")
+    elif not mirror_dir.exists():
+        print(
+            f"\n[sync-cursor-skill] skipped — {mirror_dir.relative_to(_find_root())} "
+            "not present (opt-in mirror)"
+        )
     else:
         print(f"\n[sync-cursor-skill] {sync_script}", flush=True)
         result = subprocess.run(

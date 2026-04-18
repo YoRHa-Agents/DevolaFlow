@@ -47,3 +47,11 @@ node_modules/
 
 # Local planning files
 .local/
+
+# Project-local Cursor skill mirror — opt-in, recreated on demand.
+# Tracked counterparts live under workflow-system/agent/. Devs who want the
+# skill auto-loaded inside the DevolaFlow repo itself can recreate the mirror
+# with: make sync-cursor-skill   (or the project-local installer:
+#   curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor )
+# See .cursor/rules/skill-format-rules.mdc Rule SF-3 for the parity contract.
+.cursor/skills/devola-flow/

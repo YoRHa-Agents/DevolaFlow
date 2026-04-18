@@ -146,12 +146,15 @@ def test_cli_version_cmd():
 
 
 # ---------- .cursor/skills/devola-flow/ mirror parity ----------
-# Added by feat/cursor-skill-mirror-sync. The project-local skill mirror
-# under .cursor/skills/devola-flow/ must stay bytewise identical to the
-# canonical skill under workflow-system/agent/ (SKILL + 8 refs + 3 examples,
-# matching what scripts/install.sh::install_cursor downloads for end users).
-# The stamp .cursor/skills/devola-flow/.devola-flow-version must first-line
-# equal src/devolaflow/__init__.py __version__. See Rule SF-3 / CP-3.
+# Added by feat/cursor-skill-mirror-sync; relaxed by chore/cursor-skill-mirror-untrack.
+# The project-local skill mirror under .cursor/skills/devola-flow/ is now
+# gitignored (opt-in via `make sync-cursor-skill --init` or the project-local
+# installer). When present, it must stay bytewise identical to the canonical
+# skill under workflow-system/agent/ (SKILL + 8 refs + 3 examples, matching
+# what scripts/install.sh::install_cursor downloads for end users) and its
+# stamp .cursor/skills/devola-flow/.devola-flow-version must first-line equal
+# src/devolaflow/__init__.py __version__. When absent (fresh clones, CI), the
+# tests pytest.skip so the suite passes cleanly. See Rule SF-3 / CP-3.
 
 _MIRRORED_SKILL_FILES = [
     "SKILL.md",
@@ -167,10 +170,17 @@ _MIRRORED_SKILL_FILES = [
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
 ]
+_MIRROR_DIR_REL = Path(".cursor/skills/devola-flow")
+
+
+def _mirror_present(project_root: Path) -> bool:
+    return (project_root / _MIRROR_DIR_REL).is_dir()
 
 
 @pytest.mark.parametrize("rel_path", _MIRRORED_SKILL_FILES)
 def test_cursor_skill_mirror_bytewise_parity(project_root: Path, rel_path: str):
+    if not _mirror_present(project_root):
+        pytest.skip(".cursor/skills/devola-flow/ not locally installed (gitignored, opt-in)")
     canonical = project_root / "workflow-system" / "agent" / rel_path
     mirror = project_root / ".cursor" / "skills" / "devola-flow" / rel_path
     assert canonical.is_file(), f"canonical missing: {canonical}"
@@ -181,6 +191,8 @@ def test_cursor_skill_mirror_bytewise_parity(project_root: Path, rel_path: str):
 
 
 def test_cursor_skill_stamp_matches_version(project_root: Path):
+    if not _mirror_present(project_root):
+        pytest.skip(".cursor/skills/devola-flow/ not locally installed (gitignored, opt-in)")
     stamp = project_root / ".cursor" / "skills" / "devola-flow" / ".devola-flow-version"
     assert stamp.is_file(), f"stamp missing: {stamp} — run `make sync-cursor-skill`"
     lines = stamp.read_text(encoding="utf-8").splitlines()

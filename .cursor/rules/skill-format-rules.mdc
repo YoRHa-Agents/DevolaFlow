@@ -13,9 +13,9 @@ SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, 
 
 ## Rule SF-3 — Version Consistency
 
-The version string must match `src/devolaflow/__init__.py` `__version__` in ALL of these locations:
+The version string must match `src/devolaflow/__init__.py` `__version__` in ALL of these tracked locations:
 
-**Canonical 7 (the ones `scripts/bump_version.py` pattern-replaces):**
+**Canonical 7 (the ones `scripts/bump_version.py` pattern-replaces — tracked, required):**
 
 1. SKILL.md frontmatter `version:`, banner, and body "Current version:" text (file: `workflow-system/agent/SKILL.md`)
 2. `workflow-skill.yaml` identity section
@@ -25,24 +25,34 @@ The version string must match `src/devolaflow/__init__.py` `__version__` in ALL 
 6. `README.md` badge and version example
 7. `workflow-system/human/demo/benchmark-results/index.html` SAMPLE_DATA version
 
-**`.cursor/skills/devola-flow/` project-local mirror (kept in sync bytewise by `scripts/sync_cursor_skill.py`):**
+**Project-local opt-in mirror (NOT tracked — gitignored as of chore/cursor-skill-mirror-untrack):**
 
-8. `.cursor/skills/devola-flow/SKILL.md` — bytewise mirror of `workflow-system/agent/SKILL.md` (version strings propagate automatically)
-9. `.cursor/skills/devola-flow/references/*.md` — 8 bytewise mirrors of `workflow-system/agent/references/*.md`
-10. `.cursor/skills/devola-flow/examples/*.md` — 3 bytewise mirrors of `workflow-system/agent/examples/*.md`
-11. `.cursor/skills/devola-flow/.devola-flow-version` — single-line stamp equal to `__version__`
+The `.cursor/skills/devola-flow/` directory is the project-local Cursor skill bundle. It is identical to what `scripts/install.sh::install_cursor` produces — devs who want the DevolaFlow skill auto-loaded while working in *this* repo can opt in with:
 
-The mirror set (12 content files + 1 stamp) is EXACTLY what `scripts/install.sh::install_cursor` downloads for Cursor end-users. Editing the mirror set here requires editing the same list in `scripts/sync_cursor_skill.py` and `scripts/install.sh` in lockstep.
+```bash
+python scripts/sync_cursor_skill.py --init   # create mirror from canonical (one-time)
+make sync-cursor-skill                        # refresh existing mirror
+make check-cursor-skill                       # exits 0 if mirror absent OR in sync; 1 only on drift
+```
+
+Bytewise parity is enforced **only when the mirror is present locally**:
+
+- `.cursor/skills/devola-flow/SKILL.md` ↔ `workflow-system/agent/SKILL.md`
+- `.cursor/skills/devola-flow/references/*.md` (8 files) ↔ `workflow-system/agent/references/*.md`
+- `.cursor/skills/devola-flow/examples/*.md` (3 files) ↔ `workflow-system/agent/examples/*.md`
+- `.cursor/skills/devola-flow/.devola-flow-version` first line == `__version__`
+
+`scripts/bump_version.py` invokes `scripts/sync_cursor_skill.py` automatically after every bump; the sync script is a no-op when the mirror directory doesn't exist, so CI and fresh clones pass without it. The `tests/test_version.py` mirror-parity assertions skip themselves when the mirror is absent.
 
 **Workflow:**
 
 ```bash
-python scripts/bump_version.py <new-version>   # bumps canonical 7 + auto-syncs mirror
+python scripts/bump_version.py <new-version>   # bumps canonical 7 + auto-syncs mirror IFF present
 make sync-human-docs                            # regenerate EN/ZH human docs
-python -m pytest tests/test_version.py -v       # asserts all 11 locations + stamp agree
+python -m pytest tests/test_version.py -v       # asserts canonical 7; mirror tests skip if absent
 ```
 
-`bump_version.py` invokes `sync_cursor_skill.py` at its final step, so the mirror cannot drift under normal bumps. If you edit `workflow-system/agent/SKILL.md` or any reference/example manually (without bumping), you MUST run `make sync-cursor-skill` before committing. `make all` and `make release-preflight` both include the sync as a safety net.
+If you locally edit `workflow-system/agent/SKILL.md` or any reference/example outside of a version bump and you have the mirror locally installed, run `make sync-cursor-skill` before committing canonical changes.
 
 ## Rule SF-4 — Valid Reference Links
 
