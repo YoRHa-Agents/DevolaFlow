@@ -30,6 +30,21 @@ meta:
     l3_to_l2: aggressive
     l2_to_l1: aggressive
     l1_to_l0: aggressive
+  # v7.2.1+ — Complexity-tier model routing (P-04, eb220 §"Model Interaction").
+  # Maps the EvoBench complexity tiers (simple/medium/complex/very_complex)
+  # to model_hint tiers drawn from VALID_MODEL_HINTS. Dispatchers that detect
+  # task complexity may pass `complexity_tier=<tier>` to `select_context()` /
+  # `resolve_model_hint()`; when set, the lookup overrides the per-profile
+  # `model_hints.overrides[task_type]` and `model_hints.default_tier`.
+  # Default `complexity_tier=None` preserves the v7.1.0 lookup priority
+  # (overrides > default_tier > "inherit"). Locks in the EvoBench operational
+  # guidance "opus4.7/max for Complex+, sonnet4.6/high for Simple/Medium"
+  # (5.6x cost-efficiency win per eb220 §"Recommended Focus").
+  complexity_routing:
+    simple: budget
+    medium: balanced
+    complex: quality
+    very_complex: quality
   platform_model_mapping:
     cursor:
       quality: inherit

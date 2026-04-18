@@ -953,3 +953,242 @@ class TestAdvisorPRDAdditiveBlocks:
         assert self.CONCISENESS_MARKER in assembled
         assert self.TIMING_MARKER in assembled
         assert self.RECONCILE_MARKER in assembled
+
+
+class TestComplexityTierRouting:
+    """v7.2.1 P-04 — complexity-tier-aware model routing.
+
+    Verifies the new ``complexity_tier`` kwarg on
+    :func:`resolve_model_hint` and :func:`select_context`. Lookup priority:
+    ``complexity_routing[complexity_tier]`` > ``model_hints.overrides[task_type]``
+    > ``model_hints.default_tier`` > ``"inherit"``. The complexity-tier table
+    lives under top-level ``meta.complexity_routing`` in
+    ``context_profiles.yaml``; :func:`select_context` injects it into the
+    per-profile dict via copy-on-write.
+
+    Default ``complexity_tier=None`` MUST preserve bytewise behaviour on
+    every existing selector test (verified by the rest of this test module
+    plus the explicit baseline-equality assertion below).
+
+    Locks in the EvoBench v2.2.0 operational guidance (eb220 §"Model
+    Interaction" + §"Recommended Focus"): "route by tier — opus4.7/max for
+    Complex+, sonnet4.6/high for Simple/Medium" (5.6× cost-efficiency win).
+    """
+
+    PROFILE_WITH_ROUTING = {
+        "model_hints": {
+            "default_tier": "balanced",
+            "overrides": {
+                "code_review": "quality",
+                "simple_implementation": "budget",
+            },
+        },
+        "complexity_routing": {
+            "simple": "budget",
+            "medium": "balanced",
+            "complex": "quality",
+            "very_complex": "quality",
+        },
+    }
+
+    @pytest.mark.parametrize(
+        ("tier", "expected_hint"),
+        [
+            ("simple", "budget"),
+            ("medium", "balanced"),
+            ("complex", "quality"),
+            ("very_complex", "quality"),
+        ],
+    )
+    def test_complexity_tier_overrides_per_task_overrides(
+        self, tier: str, expected_hint: str
+    ) -> None:
+        """complexity_tier MUST take priority over model_hints.overrides.
+
+        ``code_review`` is in ``overrides`` mapped to ``quality``; passing
+        ``complexity_tier="simple"`` MUST return ``budget`` instead because
+        the new branch is checked first.
+        """
+        result = resolve_model_hint("code_review", self.PROFILE_WITH_ROUTING, tier)
+        assert result == expected_hint, (
+            f"complexity_tier={tier!r} expected {expected_hint!r}; "
+            f"got {result!r} (lookup priority broken — overrides won)."
+        )
+
+    @pytest.mark.parametrize(
+        ("tier", "expected_hint"),
+        [
+            ("simple", "budget"),
+            ("medium", "balanced"),
+            ("complex", "quality"),
+            ("very_complex", "quality"),
+        ],
+    )
+    def test_complexity_tier_overrides_default_tier(self, tier: str, expected_hint: str) -> None:
+        """complexity_tier MUST take priority over model_hints.default_tier.
+
+        ``unknown_task`` is NOT in overrides, so without complexity_tier
+        the hint would resolve to ``balanced`` (the default_tier). With
+        complexity_tier set, the new branch must win.
+        """
+        result = resolve_model_hint("unknown_task", self.PROFILE_WITH_ROUTING, tier)
+        assert result == expected_hint
+
+    def test_complexity_tier_none_matches_baseline_overrides(self) -> None:
+        """complexity_tier=None MUST match v7.1.0 lookup priority bytewise.
+
+        For ``code_review`` in overrides mapped to ``quality``:
+        - 2-arg call (legacy): returns ``quality``.
+        - 3-arg call with None: must return identical ``quality``.
+        - 3-arg call with valid tier: returns the tier hint, NOT ``quality``.
+        """
+        legacy = resolve_model_hint("code_review", self.PROFILE_WITH_ROUTING)
+        explicit_none = resolve_model_hint("code_review", self.PROFILE_WITH_ROUTING, None)
+        assert legacy == explicit_none == "quality"
+
+        tier_branch = resolve_model_hint("code_review", self.PROFILE_WITH_ROUTING, "simple")
+        assert tier_branch == "budget"
+        assert tier_branch != legacy, (
+            "complexity_tier branch and overrides branch must produce different "
+            "hints for this fixture; otherwise the test is not exercising the new code."
+        )
+
+    def test_complexity_tier_none_matches_baseline_default_tier(self) -> None:
+        """complexity_tier=None MUST fall through to default_tier as in v7.1.0."""
+        legacy = resolve_model_hint("unknown_task", self.PROFILE_WITH_ROUTING)
+        explicit_none = resolve_model_hint("unknown_task", self.PROFILE_WITH_ROUTING, None)
+        assert legacy == explicit_none == "balanced"
+
+    def test_complexity_tier_unknown_falls_through_to_overrides(self) -> None:
+        """An unknown complexity_tier must fall through to overrides/default."""
+        result = resolve_model_hint("code_review", self.PROFILE_WITH_ROUTING, "epic")
+        assert result == "quality", (
+            "Unknown complexity_tier must fall through to model_hints.overrides[task_type]."
+        )
+
+    def test_complexity_tier_invalid_hint_falls_through(self) -> None:
+        """A complexity_routing entry with an invalid hint must fall through."""
+        bad_profile = {
+            "model_hints": {
+                "default_tier": "balanced",
+                "overrides": {"code_review": "quality"},
+            },
+            "complexity_routing": {"simple": "not_a_valid_tier"},
+        }
+        result = resolve_model_hint("code_review", bad_profile, "simple")
+        assert result == "quality", (
+            "Invalid complexity_routing hint must NOT be returned; "
+            "resolution must fall through to model_hints.overrides."
+        )
+
+    def test_complexity_tier_no_routing_table_falls_through(self) -> None:
+        """A profile without complexity_routing must behave exactly like v7.1.0."""
+        no_routing = {
+            "model_hints": {
+                "default_tier": "balanced",
+                "overrides": {"code_review": "quality"},
+            }
+        }
+        with_tier = resolve_model_hint("code_review", no_routing, "complex")
+        without_tier = resolve_model_hint("code_review", no_routing)
+        assert with_tier == without_tier == "quality"
+
+    def test_complexity_tier_lookup_does_not_mutate_profile(self) -> None:
+        """The resolve_model_hint complexity_tier branch MUST be read-only.
+
+        Verified via deepcopy comparison: the input profile_config dict
+        (including its nested model_hints + complexity_routing dicts) must
+        be byte-identical after every resolve_model_hint call across all
+        4 tiers + None.
+        """
+        from copy import deepcopy
+
+        profile = deepcopy(self.PROFILE_WITH_ROUTING)
+        snapshot = deepcopy(profile)
+
+        for tier in (None, "simple", "medium", "complex", "very_complex", "unknown_xyz"):
+            resolve_model_hint("code_review", profile, tier)
+            resolve_model_hint("unknown_task", profile, tier)
+            assert profile == snapshot, (
+                f"resolve_model_hint mutated profile_config (tier={tier!r}). "
+                f"The lookup must be read-only."
+            )
+
+    def test_select_context_default_complexity_tier_preserves_baseline(self) -> None:
+        """select_context() called WITHOUT complexity_tier must match the v7.1.0 result.
+
+        The 4 advisor profiles + plan-mode/round-escalation paths are covered
+        by their dedicated test classes; this test is the entry-point check
+        that the new complexity_tier kwarg defaults to None and produces
+        bytewise-identical model_hint vs. the legacy 6-arg signature.
+        """
+        legacy = select_context("feature", profiles_path=PROFILES_YAML)
+        explicit_none = select_context("feature", profiles_path=PROFILES_YAML, complexity_tier=None)
+        assert legacy["model_hint"] == explicit_none["model_hint"]
+        assert [s["name"] for s in legacy["selected_sections"]] == [
+            s["name"] for s in explicit_none["selected_sections"]
+        ]
+        assert legacy["budget"] == explicit_none["budget"]
+        assert legacy["total_tokens"] == explicit_none["total_tokens"]
+
+    @pytest.mark.parametrize(
+        ("tier", "expected_hint"),
+        [
+            ("simple", "budget"),
+            ("medium", "balanced"),
+            ("complex", "quality"),
+            ("very_complex", "quality"),
+        ],
+    )
+    def test_select_context_forwards_complexity_tier(self, tier: str, expected_hint: str) -> None:
+        """select_context must forward complexity_tier to resolve_model_hint.
+
+        The ``feature`` profile's ``architecture_decisions`` override maps to
+        ``quality``; with ``complexity_tier="simple"`` the resolved hint must
+        flip to ``budget`` because the complexity branch wins. For tasks not
+        in the overrides map (e.g. plain ``feature``), the complexity branch
+        also wins over ``default_tier``.
+        """
+        result = select_context(
+            "architecture_decisions",
+            profiles_path=PROFILES_YAML,
+            complexity_tier=tier,
+        )
+        assert result["model_hint"] == expected_hint, (
+            f"select_context did not forward complexity_tier={tier!r} correctly; "
+            f"expected {expected_hint!r}, got {result['model_hint']!r}."
+        )
+
+    def test_select_context_complexity_tier_unknown_falls_through(self) -> None:
+        """An unknown complexity_tier in select_context must fall through to overrides."""
+        result = select_context(
+            "architecture_decisions",
+            profiles_path=PROFILES_YAML,
+            complexity_tier="epic",
+        )
+        assert result["model_hint"] == "quality", (
+            "Unknown complexity_tier must fall through to feature profile's "
+            "architecture_decisions override (quality)."
+        )
+
+    def test_meta_complexity_routing_yaml_block_is_valid(self) -> None:
+        """The yaml meta.complexity_routing block must define all 4 tiers in VALID_MODEL_HINTS."""
+        config = load_profiles(PROFILES_YAML)
+        complexity_routing = config["meta"].get("complexity_routing")
+        assert complexity_routing is not None, (
+            "meta.complexity_routing block missing from context_profiles.yaml"
+        )
+        expected_tiers = {"simple", "medium", "complex", "very_complex"}
+        assert set(complexity_routing.keys()) == expected_tiers, (
+            f"meta.complexity_routing keys must be exactly {expected_tiers}; "
+            f"got {set(complexity_routing.keys())}"
+        )
+        for tier, hint in complexity_routing.items():
+            assert hint in VALID_MODEL_HINTS, (
+                f"meta.complexity_routing[{tier!r}]={hint!r} not in VALID_MODEL_HINTS"
+            )
+
+        assert complexity_routing["simple"] == "budget"
+        assert complexity_routing["medium"] == "balanced"
+        assert complexity_routing["complex"] == "quality"
+        assert complexity_routing["very_complex"] == "quality"

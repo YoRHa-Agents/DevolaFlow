@@ -11,6 +11,18 @@
     "selected_count": 7,
     "total_tokens": 2413
   },
+  "complexity_tier_routing": {
+    "budget": 5150,
+    "budget_utilization": 0.9769,
+    "composite": 99.08,
+    "information_density": 0.9769,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "complexity_tier_routing",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5031
+  },
   "compression_hotfix": {
     "budget": 2400,
     "budget_utilization": 0.9637,
