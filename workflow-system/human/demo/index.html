@@ -234,9 +234,35 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v7.2.2 -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.2.2</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v722.desc">v7.3.0 cycle in progress — patches 1 and 2 of 6 candidates landed, both driven by EvoBench v2.2.0 feedback. v7.2.1 added complexity-tier model routing (P-04) — new <code>meta.complexity_routing:</code> block + <code>complexity_tier</code> kwarg lock in the operational guidance "opus4.7/max for Complex+, sonnet4.6/high for Simple/Medium" (5.6× cost-efficiency win). v7.2.2 (this release) adds the convergence-loop noise filter (P-01) — additive <code>GateProfile.noise_tolerance_pct</code> + <code>compute_smoothed_trend()</code> window-3 helper prevent the gen-verify loop from misclassifying real-but-noisy improvement as stagnation. Default <code>0.0</code> preserves bytewise behavior on the existing 70 gate tests; targeting 9 EvoBench Tier 1 #2 tasks at 21% aggregate pass.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label" data-i18n="label.routing">ROUTING</span>
+          <h3>Complexity-Tier Model Routing (v7.2.1, P-04)</h3>
+          <p>New <code>meta.complexity_routing:</code> block in <code>context_profiles.yaml</code> maps EvoBench tiers (simple / medium / complex / very_complex) to model_hint tiers (budget / balanced / quality / quality). <code>resolve_model_hint(task_type, profile_config, complexity_tier=None)</code> + <code>select_context(..., complexity_tier=None)</code> stay byte-stable when <code>complexity_tier=None</code> (the default branch).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/task_adaptive_selector.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.gate">GATE</span>
+          <h3>Convergence-Loop Noise Filter (v7.2.2, P-01)</h3>
+          <p>Additive <code>GateProfile.noise_tolerance_pct: float = 0.0</code>; <code>detect_stagnation()</code> gains an optional kwarg so within-band deltas only count as stagnation after ≥ 2 consecutive rounds. New <code>compute_smoothed_trend(history, window=3)</code> uses a moving-average window in place of pairwise comparison when the noise filter is active. Default <code>0.0</code> preserves bytewise behavior on the existing 70 gate tests; 14 new tests cover both functions + the additive <code>_evaluate_convergence</code> wiring.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/gate/convergence.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.metrics">METRICS</span>
+          <h3>1216 Tests, +14 Net</h3>
+          <p>v7.2.1 P-04 added 21 selector tests (1181 → 1202). v7.2.2 P-01 adds 14 gate tests (1202 → 1216). EvoBench 35/35 PASS, 0 pp drift vs v7.1.0 baseline (existing 34) + new <code>convergence_noise_filter.yaml</code> at composite 98.09. SI-10 5/5 pass per patch (step 6 mirror-parity no-op per <code>e44fa11</code>). 4 patches remaining in the v7.3.0 cycle: P-03 reflective reflex writer (next), P-02 adversarial envelope, P-05 long-context QA, P-06 multi-repo dispatch.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v7.2.0 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.2.0</h2>
+      <h2><span data-i18n="landing.whatsNew.v720">What's New</span> in v7.2.0</h2>
       <p class="desc" data-i18n="landing.whatsNew.desc">v7.2.0 — self-update cycle rollup. End-to-end self-update workflow (5 stages, 14 L3 task agents) consumed feedback_for_v7.1.1 and shipped 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 PRs (PR-0..PR-E). Highlights: tiered SKILL/reference/examples size budgets (PR-A, C-006), compression bypass for security warnings & destructive operations (PR-B, C-002), dormant operational.jsonl learnings substrate activation (PR-C, C-007), advisor cluster with conciseness instruction + timing/reconcile blocks + +200 token budget bump (PR-D, C-001+C-003), and SKILL.md "Wave Coordination Modes" extension with inline_self_review + hybrid recipes (PR-E, C-004+C-005). 1181 tests pass (vs 1121 baseline, +60 net); 0 EvoBench regressions. SI-3 composite projected ~9.46/10 — READY.</p>
       <div class="cards">
         <div class="card">
@@ -269,12 +295,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- v3.3.0 Highlights -->
     <section class="slide-up">
       <h2>v3.3.0 <span data-i18n="landing.highlights">Highlights</span></h2>
-      <p class="desc">Full workflow coverage: 22 context profiles, 34 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 22 context profiles, 35 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.benchmarks">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 34 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
+          <p>Context density benchmark suite with 35 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context"><span data-i18n="btn.viewBenchmarks">View Benchmarks</span> &rarr;</a>
         </div>
         <div class="card">
@@ -292,7 +318,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.visualization">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 34 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 35 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>

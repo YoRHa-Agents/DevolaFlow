@@ -8,7 +8,11 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Sequence
 
-from devolaflow.gate.convergence import compute_trend, detect_stagnation
+from devolaflow.gate.convergence import (
+    compute_smoothed_trend,
+    compute_trend,
+    detect_stagnation,
+)
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
@@ -498,8 +502,9 @@ def _evaluate_convergence(
             meets_threshold=False,
         )
 
-    if detect_stagnation(history):
-        trend = compute_trend(history)
+    tolerance = profile.noise_tolerance_pct
+    if detect_stagnation(history, noise_tolerance_pct=tolerance):
+        trend = compute_smoothed_trend(history) if tolerance > 0.0 else compute_trend(history)
         if trend != "improving" and round_num > 2:
             return GateVerdict(
                 decision="ESCALATE",
