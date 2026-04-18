@@ -99,11 +99,11 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 
 Every iteration follows this strict pre-commit sequence — all 6 must pass before any commit:
 
-1. `python -m pytest tests/ -q` — all tests pass
+1. `python -m pytest tests/ -q` — all tests pass (mirror-parity tests self-skip when `.cursor/skills/devola-flow/` is absent)
 2. `ruff check src/ tests/` — no lint errors
 3. `ruff format --check src/ tests/` — formatting correct
-4. `python -m pytest tests/test_version.py -v` — version consistent across all 11 locations + .cursor mirror stamp
+4. `python -m pytest tests/test_version.py -v` — canonical 7 sync locations agree; mirror checks self-skip if absent
 5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
-6. `make check-cursor-skill` — `.cursor/skills/devola-flow/` bytewise-matches `workflow-system/agent/` and its `.devola-flow-version` stamp equals `__version__`
+6. `make check-cursor-skill` — exit 0. The script is a no-op when `.cursor/skills/devola-flow/` is absent (opt-in, gitignored); when the mirror IS present locally, it asserts bytewise parity with `workflow-system/agent/` and that the `.devola-flow-version` stamp first line equals `__version__`.
 
-Commit only after all 6 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), SI-6 (context), and CP-3 (version bump + mirror sync) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.
+Commit only after all 6 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), SI-6 (context), and CP-3 (version bump + opt-in mirror sync) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.

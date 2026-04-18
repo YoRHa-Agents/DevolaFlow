@@ -7,12 +7,18 @@ scripts/install.sh::install_cursor downloads (SKILL.md + 8 references + 3
 examples), plus a single-line .devola-flow-version stamp equal to
 src/devolaflow/__init__.py __version__.
 
-Run manually:
-    python scripts/sync_cursor_skill.py           # sync in place
-    python scripts/sync_cursor_skill.py --check   # exit 1 if mirror is stale
+The mirror is **opt-in** (gitignored as of chore/cursor-skill-mirror-untrack).
+Default sync and --check are no-ops when the mirror directory is absent so
+fresh clones, CI runners, and bump_version.py all pass without it. To opt in,
+run --init once; subsequent default-sync runs will keep the mirror fresh.
 
-scripts/bump_version.py invokes this at the end of every version bump so the
-mirror cannot drift.
+Run manually:
+    python scripts/sync_cursor_skill.py           # sync if mirror present; no-op otherwise
+    python scripts/sync_cursor_skill.py --init    # bytewise-create the mirror (opt-in)
+    python scripts/sync_cursor_skill.py --check   # exit 1 only on present-and-stale; 0 if absent
+
+scripts/bump_version.py invokes this at the end of every version bump; when
+the mirror is absent the hook prints a "skipped" line and exits 0.
 """
 
 from __future__ import annotations
@@ -59,7 +65,14 @@ def iter_pairs() -> list[tuple[Path, Path]]:
 
 
 def check() -> int:
-    """Exit 1 if any mirrored file differs or the stamp is wrong; else 0."""
+    """Exit 1 if any mirrored file differs or the stamp is wrong; else 0.
+
+    Returns 0 (no-op) when MIRROR_DIR is absent — the mirror is opt-in and
+    CI / fresh clones must pass without it.
+    """
+    if not MIRROR_DIR.exists():
+        print(f"[.cursor mirror] not present at {MIRROR_DIR} — opt-in (see Rule SF-3)")
+        return 0
     version = read_canonical_version()
     problems: list[str] = []
     for src, dst in iter_pairs():
@@ -92,7 +105,21 @@ def check() -> int:
     return 0
 
 
-def sync() -> int:
+def sync(*, allow_init: bool = False) -> int:
+    """Sync the mirror in place.
+
+    When MIRROR_DIR is absent and ``allow_init`` is False, exits 0 with an
+    info line — does NOT create the mirror out of nothing. Only --init
+    (allow_init=True) materialises the mirror from canonical, so accidental
+    `bump_version.py` / `make all` runs cannot resurrect it for users who
+    deliberately opted out.
+    """
+    if not MIRROR_DIR.exists() and not allow_init:
+        print(
+            f"[.cursor mirror] not present at {MIRROR_DIR} — "
+            "opt-in via `--init` (see Rule SF-3)"
+        )
+        return 0
     version = read_canonical_version()
     changed = 0
     for src, dst in iter_pairs():
@@ -124,12 +151,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--check",
         action="store_true",
-        help="exit 1 if mirror is stale (no writes)",
+        help="exit 1 only if mirror is present-and-stale (no writes); exit 0 if absent",
+    )
+    ap.add_argument(
+        "--init",
+        action="store_true",
+        help="create the mirror from canonical (opt-in to project-local skill)",
     )
     args = ap.parse_args(argv)
     if args.check:
         return check()
-    return sync()
+    return sync(allow_init=args.init)
 
 
 if __name__ == "__main__":
