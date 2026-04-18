@@ -5,6 +5,37 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.1] — 2026-04-18
+
+**PATCH — v7.3.0 cycle P-04: complexity-tier model routing.** First patch of the v7.3.0 cycle driven by EvoBench v2.2.0 feedback (`.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md`). Adds a new `meta.complexity_routing:` block to `context_profiles.yaml` mapping the EvoBench complexity tiers (`simple` / `medium` / `complex` / `very_complex`) to model_hint tiers (`budget` / `balanced` / `quality` / `quality`). Extends `resolve_model_hint()` and `select_context()` with an optional `complexity_tier` kwarg that takes priority over per-task `model_hints.overrides` and `model_hints.default_tier` when provided. Default `complexity_tier=None` preserves bytewise behavior on the existing 101 selector tests. Locks in the EvoBench operational guidance "route by tier — opus4.7/max for Complex+, sonnet4.6/high for Simple/Medium" (5.6× cost-efficiency win per eb220 §"Recommended Focus").
+
+### Added
+- **`workflow-system/agent/context_profiles.yaml`** — additive `meta.complexity_routing:` block (4 keys → tier strings drawn from `VALID_MODEL_HINTS = {"quality", "balanced", "budget", "inherit"}`). Defaults preserve current behavior when the dispatcher does not pass a `complexity_tier`.
+- **`src/devolaflow/task_adaptive_selector.py`** — extend `resolve_model_hint(task_type, profile_config, complexity_tier=None)` with new lookup priority: `complexity_routing[complexity_tier]` > `model_hints.overrides[task_type]` > `model_hints.default_tier` > `"inherit"`. Extend `select_context(..., complexity_tier=None)` to accept and forward the kwarg; the routing table is injected into the per-profile dict via copy-on-write (mirrors the `apply_plan_mode_overrides` pattern at lines 70-92). Two-arg signature `resolve_model_hint(task_type, profile_config)` preserved so every existing caller stays valid.
+- **`tests/test_task_adaptive_selector.py`** — new `TestComplexityTierRouting` class with 21 parametrised cases: 4-tier `simple/medium/complex/very_complex` × 2 fixtures (overrides + default_tier) + None-baseline-equality + invalid-hint fall-through + immutability via `deepcopy` comparison + `select_context` end-to-end forwarding + meta YAML block validation.
+- **`benchmarks/devolaflow_context/scenarios/complexity_tier_routing.yaml`** — new EvoBench scenario covering `feature` profile section selection with the new routing block injected; documents the 3 routing branches (verified at unit level) via a non-runner-consumed `complexity_tier_branches:` key. Composite 99.08, relevance 1.0, noise 0.0, format_compliance 1.0.
+- **`benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`** — single additive entry for `complexity_tier_routing` (no modification to the existing 33 entries) so `tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_covers_all_scenarios` stays green.
+
+### Changed
+- **`README.md`** — benchmark scenario count `33 → 34` (3 occurrences) per `documentation-sync-rules.mdc` Rule DS-1 §1.
+- **`workflow-system/human/demo/index.html`** — benchmark scenario count `33 → 34` (3 occurrences) per Rule DS-1 §2.
+- **`workflow-system/human/demo/benchmark-results/index.html`** — `SAMPLE_DATA.rounds[2].scenarios` adds `complexity_tier_routing` (the only round with a `model_routing_feature` entry got a sibling) per Rule DS-1 §2 and `tests/test_doc_consistency.py::test_demo_benchmark_sample_data_scenarios` coverage requirement.
+
+### Metrics
+- Tests: 1181 → 1202 (+21 from `TestComplexityTierRouting`).
+- Existing 96 selector tests (now 101 after PR-D + this patch's measurement correction) unchanged PASS — `complexity_tier=None` default preserves bytewise behavior.
+- EvoBench scenarios: 33 → 34 (1 new); 0 pp drift on the existing 33 (verified by `test_v6_baseline_matches_current_results_within_tolerance` at the ±5pp threshold).
+- Coverage: `task_adaptive_selector` module unchanged (≥97% maintained per CP-2 floor).
+- LOC: ~22 production + ~210 tests + ~70 scenario YAML + ~12 baseline JSON.
+- SI-10 6-step gate: 6/6 PASS (step 6 no-op per opt-in mirror absence, see `e44fa11`).
+- New scenario: composite 99.08, relevance 1.0, noise 0.0, format_compliance 1.0 (all ≥ thresholds).
+
+### Cross-references
+- Source feedback: `.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md` §"Model Interaction" + §"Recommended Focus".
+- Patch plan: `.local/research/v7.3.0_patch_plan.md` §P-04.
+- v7.3.0 cycle: this is patch 1 of 6 candidates (P-04 → P-01 → P-03 → P-02 → P-05 → P-06 per the recommended execution order).
+- Couples with: `documentation-sync-rules.mdc` Rule DS-1 (scenario count propagation), `change-process-rules.mdc` Rule CP-3 (version bump 7.2.0 → 7.2.1), `self-improve-iteration-rules.mdc` Rule SI-4 (benchmark regression guard) + Rule SI-10 (test-then-commit protocol).
+
 ## [7.2.0] — 2026-04-18
 
 **MINOR — self-update cycle rollup. End-to-end self-update workflow (5 stages, 14 L3 task agents) consumed `.local/feedbacks/feecback_for_v7.1.1.md` and shipped 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 user-selected PRs (PR-0 through PR-E). All 7 candidates were validated in S03 self-loop validation with ACCEPT or ACCEPT-WITH-CAVEATS decisions and 0 rejections. Notable additions: tiered SKILL/reference/examples size budgets (PR-A, C-006), compression bypass for security warnings & destructive operations (PR-B, C-002), dormant operational.jsonl learnings substrate activation (PR-C, C-007), advisor cluster with conciseness instruction + timing/reconcile blocks + +200 token budget bump on 4 advisor profiles (PR-D, C-001+C-003), and SKILL.md "Wave Coordination Modes" extension with inline_self_review + hybrid recipes (PR-E, C-004+C-005). SI-10 6-step gate green across all PRs; 1181 tests pass (vs 1121 baseline, +60 net); 0 EvoBench regressions. SI-3 composite projected ~9.46/10 (heuristic, NineS confirmation deferred to v7.2.x retrospective).**

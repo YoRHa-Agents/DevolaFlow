@@ -121,12 +121,37 @@ def resolve_compression_intensity(boundary: str, profiles_config: dict[str, Any]
     return intensity if intensity in VALID_COMPRESSION_INTENSITIES else "standard"
 
 
-def resolve_model_hint(task_type: str, profile_config: dict[str, Any]) -> str:
+def resolve_model_hint(
+    task_type: str,
+    profile_config: dict[str, Any],
+    complexity_tier: str | None = None,
+) -> str:
     """Resolve the model_hint for a given task type from the profile config.
 
-    Checks profile-level model_hints.overrides first, then falls back to
-    model_hints.default_tier, then to "inherit".
+    Lookup priority (v7.2.1+ P-04):
+      1. ``complexity_routing[complexity_tier]`` — when *complexity_tier* is
+         provided AND a mapping exists in
+         ``profile_config["complexity_routing"]`` AND the resolved tier is in
+         :data:`VALID_MODEL_HINTS`. The complexity-tier lookup table lives
+         under top-level ``meta.complexity_routing`` in
+         ``context_profiles.yaml``; :func:`select_context` injects it into the
+         per-profile dict via copy-on-write before calling this function.
+      2. ``model_hints.overrides[task_type]`` — per-task override.
+      3. ``model_hints.default_tier`` — profile default.
+      4. ``"inherit"`` — terminal fallback.
+
+    Default ``complexity_tier=None`` preserves the v7.1.0 lookup priority
+    bytewise (the new branch is skipped entirely), so the 2-arg signature
+    ``resolve_model_hint(task_type, profile_config)`` remains valid for
+    every existing caller and test.
     """
+    if complexity_tier is not None:
+        complexity_routing = profile_config.get("complexity_routing", {})
+        if complexity_tier in complexity_routing:
+            tier_hint = complexity_routing[complexity_tier]
+            if tier_hint in VALID_MODEL_HINTS:
+                return tier_hint
+
     model_hints = profile_config.get("model_hints", {})
     overrides = model_hints.get("overrides", {})
 
@@ -369,6 +394,7 @@ def select_context(
     round_num: int = 1,
     escalation_config: dict[int, dict[str, Any]] | None = None,
     plan_mode: bool | None = None,
+    complexity_tier: str | None = None,
 ) -> dict[str, Any]:
     """Select context sections for a given task type.
 
@@ -397,6 +423,13 @@ def select_context(
     and round overrides may then layer on top (e.g. round-3 still lifts
     ``convergence_loop`` to critical and bumps the budget by 20%).
     Pass ``plan_mode=False`` to disable detection entirely.
+
+    When *complexity_tier* is provided (one of the keys in
+    ``meta.complexity_routing`` — typically ``"simple" | "medium" | "complex"
+    | "very_complex"``) the corresponding model hint takes priority over
+    the per-profile ``model_hints.overrides`` and ``default_tier``. Default
+    ``complexity_tier=None`` preserves the v7.1.0 routing priority bytewise.
+    See :func:`resolve_model_hint` for the full lookup priority.
     """
     config = load_profiles(profiles_path)
     skill_text = load_skill_md(config)
@@ -411,6 +444,10 @@ def select_context(
 
     if round_num > 1:
         profile = apply_round_escalation(profile, round_num, escalation_config)
+
+    meta_complexity_routing = config.get("meta", {}).get("complexity_routing", {})
+    if meta_complexity_routing:
+        profile = {**profile, "complexity_routing": meta_complexity_routing}
     budget = profile.get("token_budget", 6000)
 
     advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
@@ -450,7 +487,7 @@ def select_context(
     if profile_overrides_applied and "model_hint" in profile:
         model_hint = profile["model_hint"]
     if not model_hint:
-        model_hint = resolve_model_hint(task_type, profile)
+        model_hint = resolve_model_hint(task_type, profile, complexity_tier)
 
     compression_intensity = (
         profile.get("compression_intensity")
