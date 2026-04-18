@@ -16,6 +16,7 @@ from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
     VALID_COMPRESSION_INTENSITIES,
     VALID_MODEL_HINTS,
+    _resolve_advisor_text,
     apply_plan_mode_overrides,
     estimate_tokens,
     extract_section,
@@ -839,3 +840,116 @@ class TestPlanModeDetection:
         monkeypatch.chdir(tmp_path)
         result = select_context("refactor", profiles_path=PROFILES_YAML, plan_mode=True)
         assert result["compression_intensity"] == "minimal"
+
+
+class TestAdvisorPRDAdditiveBlocks:
+    """v7.2.0 PR-D — C-001 (conciseness) + C-003 (timing + reconcile).
+
+    Verifies the three additive blocks emitted by ``_resolve_advisor_text`` are
+    present by default, individually opt-out-able via per-profile flags, and that
+    the +200 token_budget bump on the 4 advisor profiles preserves headroom under
+    both the tiktoken and chars//4 token estimators.
+    """
+
+    CONCISENESS_MARKER = "Reply in under 100 words and use enumerated steps"
+    TIMING_MARKER = "Timing: Call advisor BEFORE substantive work"
+    RECONCILE_MARKER = "On conflict: If you've already retrieved data"
+
+    def test_advisor_text_contains_conciseness_default(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert self.CONCISENESS_MARKER in result["assembled_text"]
+
+    def test_advisor_text_contains_timing_default(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert self.TIMING_MARKER in result["assembled_text"]
+
+    def test_advisor_text_contains_reconcile_default(self) -> None:
+        result = select_context("feature", profiles_path=PROFILES_YAML)
+        assert result["advisor_enabled"] is True
+        assert self.RECONCILE_MARKER in result["assembled_text"]
+
+    @pytest.mark.parametrize(
+        ("flag", "marker"),
+        [
+            ("conciseness_instruction", CONCISENESS_MARKER),
+            ("timing_block", TIMING_MARKER),
+            ("reconcile_block", RECONCILE_MARKER),
+        ],
+    )
+    def test_advisor_text_optout_per_flag(self, flag: str, marker: str) -> None:
+        """Setting any of the 3 additive flags to False must suppress only its block."""
+        base_advisor = {
+            "enabled": True,
+            "max_uses": 3,
+            "cost_ceiling_usd": 0.30,
+            "trigger_conditions": ["complexity_high"],
+            "conciseness_instruction": True,
+            "timing_block": True,
+            "reconcile_block": True,
+        }
+        enabled, baseline_text, baseline_tokens = _resolve_advisor_text({"advisor": base_advisor})
+        assert enabled is True
+        assert marker in baseline_text
+
+        opt_out = {**base_advisor, flag: False}
+        enabled_opt, opt_text, opt_tokens = _resolve_advisor_text({"advisor": opt_out})
+        assert enabled_opt is True
+        assert marker not in opt_text, (
+            f"Flag {flag}=False must suppress its block (marker still present)."
+        )
+        assert opt_tokens < baseline_tokens, (
+            f"Suppressing {flag} must not grow the section token count."
+        )
+        always_present = {
+            "## Advisor Tool",
+            "Advisor enabled (max 3 uses",
+            "Invoke for: complexity_high",
+        }
+        for snippet in always_present:
+            assert snippet in opt_text, (
+                f"Opt-out of {flag} must not remove core advisor scaffolding "
+                f"(missing: {snippet!r})."
+            )
+        other_markers = {
+            "conciseness_instruction": self.CONCISENESS_MARKER,
+            "timing_block": self.TIMING_MARKER,
+            "reconcile_block": self.RECONCILE_MARKER,
+        }
+        for other_flag, other_marker in other_markers.items():
+            if other_flag == flag:
+                continue
+            assert other_marker in opt_text, (
+                f"Opt-out of {flag} must NOT suppress {other_flag} block."
+            )
+
+    @pytest.mark.parametrize(
+        ("profile_name", "goal_hint"),
+        [
+            ("feature", "implement feature"),
+            ("refactor", "refactor"),
+            ("migration", "migrate"),
+            ("security-audit", "security"),
+        ],
+    )
+    def test_advisor_section_token_growth_within_budget(
+        self, profile_name: str, goal_hint: str
+    ) -> None:
+        """The 4 advisor profiles must absorb the C-001+C-003 advisor section
+        growth without exceeding their (post-bump) token_budget under whichever
+        estimator is active in the running environment."""
+        result = select_context(goal_hint, profiles_path=PROFILES_YAML)
+        assert result["profile_name"] == profile_name, (
+            f"goal_hint {goal_hint!r} must map to profile {profile_name!r}; "
+            f"got {result['profile_name']!r}."
+        )
+        assert result["advisor_enabled"] is True
+        assert result["total_tokens"] <= result["budget"], (
+            f"Profile {profile_name}: total_tokens={result['total_tokens']} "
+            f"exceeds post-bump budget={result['budget']}."
+        )
+        assembled = result["assembled_text"]
+        assert self.CONCISENESS_MARKER in assembled
+        assert self.TIMING_MARKER in assembled
+        assert self.RECONCILE_MARKER in assembled
