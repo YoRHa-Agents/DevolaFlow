@@ -7,7 +7,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from devolaflow.gate.convergence import compute_trend, detect_stagnation
+from devolaflow.gate.convergence import (
+    compute_smoothed_trend,
+    compute_trend,
+    detect_stagnation,
+)
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
@@ -900,3 +904,189 @@ class TestUserFacingVerificationScoring:
         assert RELAXED.visual_fidelity_threshold == 80.0
         assert AUDIT.visual_fidelity_threshold == 98.0
         assert AUDIT.accessibility_threshold == 95.0
+
+
+# ---------------------------------------------------------------------------
+# 21. v7.2.2 P-01 — convergence-loop noise filter (EvoBench v2.2.0 Tier 1 #2)
+# ---------------------------------------------------------------------------
+
+
+class TestNoiseTolerance:
+    """`detect_stagnation(history, noise_tolerance_pct)` — v7.2.2 P-01.
+
+    Source: ``.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md``
+    §"Recommended Focus" §🔴 Tier 1 #2.
+    Plan:   ``.local/research/v7.3.0_patch_plan.md`` §P-01.
+    """
+
+    def test_default_zero_preserves_baseline_behavior(self) -> None:
+        """``noise_tolerance_pct=0.0`` (default) is byte-stable with v7.1.x."""
+        history = [_round(1, 80.0), _round(2, 79.5)]
+        assert detect_stagnation(history) is True
+        assert detect_stagnation(history, noise_tolerance_pct=0.0) is True
+
+        history_improving = [_round(1, 80.0), _round(2, 80.5)]
+        assert detect_stagnation(history_improving) is False
+        assert detect_stagnation(history_improving, noise_tolerance_pct=0.0) is False
+
+        history_equal = [_round(1, 80.0), _round(2, 80.0)]
+        assert detect_stagnation(history_equal) is True
+        assert detect_stagnation(history_equal, noise_tolerance_pct=0.0) is True
+
+    def test_noise_within_tolerance_not_stagnant_single_round(self) -> None:
+        """Within-band delta on a single round must NOT trigger stagnation.
+
+        Two rounds (one delta) with ``score[1] = score[0] - 2`` and tolerance
+        ``0.05`` (=> ``±5pp`` band) is within tolerance — by spec we must wait
+        for a second consecutive within-band delta before declaring stagnation.
+        Without the v7.2.2 P-01 noise filter this same fixture would return
+        ``True`` immediately and trigger ESCALATE downstream.
+        """
+        history = [_round(1, 80.0), _round(2, 78.0)]
+        assert detect_stagnation(history, noise_tolerance_pct=0.05) is False
+        assert detect_stagnation(history) is True
+
+    def test_noise_within_tolerance_stagnant_two_rounds(self) -> None:
+        """Two consecutive within-band deltas DO confirm stagnation."""
+        history = [_round(1, 80.0), _round(2, 78.0), _round(3, 79.0)]
+        assert detect_stagnation(history, noise_tolerance_pct=0.05) is True
+
+        history2 = [_round(1, 80.0), _round(2, 81.5), _round(3, 80.0)]
+        assert detect_stagnation(history2, noise_tolerance_pct=0.05) is True
+
+    def test_real_improvement_above_tolerance_keeps_converging(self) -> None:
+        """Delta strictly above ``+tolerance_band`` keeps the loop going."""
+        history = [_round(1, 70.0), _round(2, 80.0)]
+        assert detect_stagnation(history, noise_tolerance_pct=0.05) is False
+
+        history_sustained = [_round(1, 70.0), _round(2, 76.0), _round(3, 84.0)]
+        assert detect_stagnation(history_sustained, noise_tolerance_pct=0.05) is False
+
+    def test_clear_regression_below_tolerance_band_still_stagnant(self) -> None:
+        """Delta strictly below ``-tolerance_band`` retains the fail-fast signal."""
+        history = [_round(1, 80.0), _round(2, 60.0)]
+        assert detect_stagnation(history, noise_tolerance_pct=0.05) is True
+
+    def test_gate_profile_noise_tolerance_default(self) -> None:
+        """``GateProfile.noise_tolerance_pct`` defaults to 0.0 (additive default-safe)."""
+        assert STANDARD.noise_tolerance_pct == 0.0
+        assert STRICT.noise_tolerance_pct == 0.0
+        assert RELAXED.noise_tolerance_pct == 0.0
+        assert AUDIT.noise_tolerance_pct == 0.0
+
+    def test_gate_profile_noise_tolerance_overridable(self) -> None:
+        """Profiles can opt into the noise filter via ``replace`` (additive field)."""
+        tolerant = replace(STANDARD, noise_tolerance_pct=0.05)
+        assert tolerant.noise_tolerance_pct == 0.05
+        assert tolerant.composite_threshold == STANDARD.composite_threshold
+
+    def test_evaluate_convergence_with_tolerance_avoids_round3_escalation(self) -> None:
+        """End-to-end: noisy 3-round history terminates with FAIL (retry) not ESCALATE.
+
+        Without the patch (``noise_tolerance_pct=0.0``) the same fixture would
+        ESCALATE on round 3 because ``score[3] <= score[2]`` triggers
+        ``detect_stagnation`` and ``compute_trend`` returns ``"stagnant"``.
+        With the patch (``noise_tolerance_pct=0.05``) the within-band single
+        delta does not trigger stagnation, so the convergence loop is allowed
+        to retry into round 4 and beyond.
+
+        The fixture pins ``max_rounds=5`` so round 3 is well below the
+        max-rounds ESCALATE branch and the only gate event exercised is the
+        stagnation classifier (otherwise STANDARD.max_rounds=3 would mask
+        the patch's behavior).
+        """
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(status="pass", details={"coverage_pct": 70}),
+            lint_status=CheckResult(status="pass"),
+            review_findings=[_make_finding("major", f"F{i:03d}") for i in range(3)],
+        )
+        history = [_round(1, 78.0), _round(2, 76.0)]
+
+        baseline_profile = replace(STANDARD, max_rounds=5)
+        baseline_verdict = evaluate_gate(
+            gi,
+            baseline_profile,
+            round_num=3,
+            history=history,
+            gate_type="convergence",
+        )
+        assert baseline_verdict.decision == "ESCALATE"
+        assert "stagnant" in baseline_verdict.rationale.lower()
+
+        tolerant = replace(STANDARD, max_rounds=5, noise_tolerance_pct=0.05)
+        tolerant_verdict = evaluate_gate(
+            gi,
+            tolerant,
+            round_num=3,
+            history=history,
+            gate_type="convergence",
+        )
+        assert tolerant_verdict.decision == "FAIL"
+        assert "Retry" in tolerant_verdict.rationale
+
+
+class TestSmoothedTrend:
+    """`compute_smoothed_trend(history, window=3)` — v7.2.2 P-01.
+
+    Window-3 moving-average classifier replaces pairwise comparison when
+    the noise filter is active so that single-round jitter (eb220 ``±2-3pp``
+    verifier-noise pattern) does not flip the classification.
+    """
+
+    def test_window_3_moving_average_classifies_improving(self) -> None:
+        """Strictly increasing 4-element series → 'improving' via MA shift."""
+        history = [_round(1, 60.0), _round(2, 70.0), _round(3, 80.0), _round(4, 90.0)]
+        assert compute_smoothed_trend(history, window=3) == "improving"
+
+    def test_window_3_moving_average_classifies_degrading(self) -> None:
+        """Strictly decreasing 4-element series → 'degrading' via MA shift."""
+        history = [_round(1, 90.0), _round(2, 80.0), _round(3, 70.0), _round(4, 60.0)]
+        assert compute_smoothed_trend(history, window=3) == "degrading"
+
+    def test_window_3_moving_average_handles_noise(self) -> None:
+        """Alternating ±2pp around an upward trend → 'improving'.
+
+        Pairwise :func:`compute_trend` on the same fixture would call the last
+        round 'degrading' (74 < 76). The window-3 MA correctly sees the lift.
+        """
+        history = [
+            _round(1, 70.0),
+            _round(2, 72.0),
+            _round(3, 70.0),
+            _round(4, 76.0),
+            _round(5, 74.0),
+        ]
+        assert compute_smoothed_trend(history, window=3) == "improving"
+        assert compute_trend(history) == "degrading"
+
+    def test_window_3_with_lt_3_history_falls_back_to_pairwise(self) -> None:
+        """Fewer than ``window`` entries → reuse :func:`compute_trend`."""
+        empty: list[ConvergenceRound] = []
+        assert compute_smoothed_trend(empty, window=3) == "stagnant"
+        assert compute_smoothed_trend([_round(1, 80.0)], window=3) == "stagnant"
+
+        history_two_up = [_round(1, 70.0), _round(2, 80.0)]
+        assert compute_smoothed_trend(history_two_up, window=3) == "improving"
+        assert compute_smoothed_trend(history_two_up, window=3) == compute_trend(history_two_up)
+
+        history_two_down = [_round(1, 80.0), _round(2, 70.0)]
+        assert compute_smoothed_trend(history_two_down, window=3) == "degrading"
+        assert compute_smoothed_trend(history_two_down, window=3) == compute_trend(history_two_down)
+
+    def test_window_3_exact_3_uses_single_window_slope(self) -> None:
+        """Exactly 3 entries → compare last to first within the single window."""
+        improving = [_round(1, 60.0), _round(2, 70.0), _round(3, 80.0)]
+        assert compute_smoothed_trend(improving, window=3) == "improving"
+
+        degrading = [_round(1, 80.0), _round(2, 70.0), _round(3, 60.0)]
+        assert compute_smoothed_trend(degrading, window=3) == "degrading"
+
+        flat = [_round(1, 80.0), _round(2, 80.0), _round(3, 80.0)]
+        assert compute_smoothed_trend(flat, window=3) == "stagnant"
+
+    def test_window_1_collapses_to_pairwise(self) -> None:
+        """``window <= 1`` is a degenerate case — reuse :func:`compute_trend`."""
+        history = [_round(1, 70.0), _round(2, 80.0)]
+        assert compute_smoothed_trend(history, window=1) == compute_trend(history)
+        assert compute_smoothed_trend(history, window=0) == compute_trend(history)

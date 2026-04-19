@@ -11,6 +11,30 @@
     "selected_count": 7,
     "total_tokens": 2413
   },
+  "adversarial_data_instruction": {
+    "budget": 5400,
+    "budget_utilization": 0.9872,
+    "composite": 99.49,
+    "information_density": 0.9872,
+    "noise_ratio": 0.0,
+    "profile_name": "security-audit",
+    "scenario_name": "adversarial_data_instruction",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 5331
+  },
+  "complexity_tier_routing": {
+    "budget": 5150,
+    "budget_utilization": 0.9769,
+    "composite": 99.08,
+    "information_density": 0.9769,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "complexity_tier_routing",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5031
+  },
   "compression_hotfix": {
     "budget": 2400,
     "budget_utilization": 0.9637,
@@ -70,6 +94,18 @@
     "section_relevance": 1.0,
     "selected_count": 13,
     "total_tokens": 4186
+  },
+  "convergence_noise_filter": {
+    "budget": 2475,
+    "budget_utilization": 0.9523,
+    "composite": 98.09,
+    "information_density": 0.9523,
+    "noise_ratio": 0.0,
+    "profile_name": "feedback",
+    "scenario_name": "convergence_noise_filter",
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 2357
   },
   "decomposition_feature": {
     "budget": 4950,
@@ -203,6 +239,18 @@
     "selected_count": 7,
     "total_tokens": 2413
   },
+  "long_context_repo_qa": {
+    "budget": 3300,
+    "budget_utilization": 0.9618,
+    "composite": 98.47,
+    "information_density": 0.9618,
+    "noise_ratio": 0.0,
+    "profile_name": "research",
+    "scenario_name": "long_context_repo_qa",
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 3174
+  },
   "migration_upgrade": {
     "budget": 4800,
     "budget_utilization": 0.9946,
@@ -226,6 +274,18 @@
     "section_relevance": 1.0,
     "selected_count": 14,
     "total_tokens": 4909
+  },
+  "multi_repo_dispatch": {
+    "budget": 5000,
+    "budget_utilization": 0.9964,
+    "composite": 99.86,
+    "information_density": 0.9964,
+    "noise_ratio": 0.0,
+    "profile_name": "migration",
+    "scenario_name": "multi_repo_dispatch",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 4982
   },
   "onboarding_new": {
     "budget": 3700,
@@ -286,6 +346,18 @@
     "section_relevance": 1.0,
     "selected_count": 15,
     "total_tokens": 4774
+  },
+  "reflective_reflex_capture": {
+    "budget": 5150,
+    "budget_utilization": 0.9769,
+    "composite": 99.08,
+    "information_density": 0.9769,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "reflective_reflex_capture",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5031
   },
   "research_survey": {
     "budget": 3300,

@@ -234,9 +234,41 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v7.3.0 -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.3.0</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v730.desc">v7.3.0 — EvoBench-driven cycle rollup. End-to-end self-update workflow consumed <code>.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md</code> and shipped <strong>6 of 6</strong> candidate patches across v7.2.1 → v7.2.6 (100 % accept rate vs the patch plan's 4-5/6, ~70-83 % projection). All five EvoBench capability gaps closed: Tier 1 #1 adversarial robustness (P-02 envelope), Tier 1 #2 convergence-loop noise (P-01 noise filter), Tier 1 #3 multi-session orchestration (P-03 reflective writer), Tier 2 #4 multi-repo coordination (P-06 dispatch assembly), Tier 2 #5 long-context QA (P-05 retrieval mode), plus the operational complexity-tier model-routing finding (P-04). 1281 tests pass (vs 1181 v7.2.0 baseline, +100 net); 39 EvoBench scenarios (33 + 6 new, one per patch); 0 pp drift on the 33 v7.1.0 baseline scenarios. P6 cache layout invariant honoured under additive bump (LCP(v7.0.0, v7.3.0) = 1.00). SI-3 composite projected ~9.5/10 — READY.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label" data-i18n="label.envelope">ENVELOPE</span>
+          <h3>Adversarial Data-Instruction Envelope (v7.2.4, P-02)</h3>
+          <p>Three new compressor helpers wrap untrusted text in <code>&lt;data channel="…"&gt;…&lt;/data&gt;</code> envelopes (literal <code>&lt;/data&gt;</code> in body escaped to <code>&lt;/data\u200B&gt;</code> to defeat envelope-escape attacks). <code>INJECTION_PATTERNS</code> covers the 4 canonical prompt-injection categories from <code>arXiv:2604.02837v1</code>; <code>detect_data_channel_instructions()</code> returns sorted matches. Held-out 20-example precision split: 100% (≥ 90% required).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/compressor.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.retrieval">RETRIEVAL</span>
+          <h3>Long-Context Repo QA Retrieval Mode (v7.2.5, P-05)</h3>
+          <p>Additive <code>retrieval_query: str | None = None</code> kwarg on <code>summarise_predecessor</code> + 3 private helpers (jaccard scorer with 0.6 query-overlap / 0.4 schema-priority weights, tokeniser with 36 stopwords, query ranker) lift target-module retention from baseline 50% to 100% (50 pp lift) on a synthesized 50k-token 10-module repo probe. <code>retrieval_query=None</code> byte-identical to v7.2.4 (additive); &lt; 10 ms latency penalty (microbenchmarked).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/compressor.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.layout">LAYOUT</span>
+          <h3>Multi-Repo Dispatch Assembly (v7.2.6, P-06)</h3>
+          <p>P6 cache layout invariant grew additively: <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code> 12 → 13 by APPENDING <code>repos</code> at position 13 (after <code>gate</code>); <code>layout_invariant.version: 1 → 2</code>. Field shape <code>[{name: str, root_path: str, primary: bool, branch: str}]</code>; <code>primary: true</code> exactly-once constraint; optional (single-repo dispatches MAY omit). <code>DEFAULT_DISPATCH_LAYOUT</code> mirrors. Dual golden baselines (v7.0.0 + v7.3.0); v7.0.0 byte-comparison STILL PASSES post-bump — the live additivity proof. LCP(v7.0.0, v7.3.0) = 1.00 on first 12 keys.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/lean-dispatch.yaml"><span data-i18n="btn.viewSchema">View Schema</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label" data-i18n="label.metrics">METRICS</span>
+          <h3>1281 Tests, +100 Net (Cycle Aggregate)</h3>
+          <p>Across the v7.3.0 cycle (v7.2.1 → v7.2.6): P-04 +21, P-01 +14, P-03 +6, P-02 +35, P-05 +15, P-06 +7, plus +2 incidental from <code>tests/test_doc_consistency.py</code> parametric coverage growth = 1181 → 1281 (+100 net). EvoBench 39/39 PASS (33 v7.1.0 baseline + 6 new), 0 pp drift on the 33 baseline scenarios across all 6 patch boundaries (SI-4 ±5pp threshold preserved). New scenario composites: P-04 99.08, P-01 98.09, P-03 99.08, P-02 99.49, P-05 98.47, P-06 99.86 — average ≈ 99.01. P6 cache layout invariant: <code>layout_invariant.version: 1 → 2</code>; <code>canonical_order</code> length 12 → 13; v7.0.0 byte-comparison STILL PASSES; LCP = 1.00. SKILL.md preserved at 499 / 500 (SF-1 zero-headroom). SI-10 5/5 pass per patch (step 6 mirror-parity no-op).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v7.2.0 -->
     <section class="fade-in">
-      <h2><span data-i18n="landing.whatsNew">What's New</span> in v7.2.0</h2>
+      <h2><span data-i18n="landing.whatsNew.v720">What's New</span> in v7.2.0</h2>
       <p class="desc" data-i18n="landing.whatsNew.desc">v7.2.0 — self-update cycle rollup. End-to-end self-update workflow (5 stages, 14 L3 task agents) consumed feedback_for_v7.1.1 and shipped 7 TIER-1 candidates + 6 registry-hygiene fixes across 5 PRs (PR-0..PR-E). Highlights: tiered SKILL/reference/examples size budgets (PR-A, C-006), compression bypass for security warnings & destructive operations (PR-B, C-002), dormant operational.jsonl learnings substrate activation (PR-C, C-007), advisor cluster with conciseness instruction + timing/reconcile blocks + +200 token budget bump (PR-D, C-001+C-003), and SKILL.md "Wave Coordination Modes" extension with inline_self_review + hybrid recipes (PR-E, C-004+C-005). 1181 tests pass (vs 1121 baseline, +60 net); 0 EvoBench regressions. SI-3 composite projected ~9.46/10 — READY.</p>
       <div class="cards">
         <div class="card">
@@ -269,12 +301,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- v3.3.0 Highlights -->
     <section class="slide-up">
       <h2>v3.3.0 <span data-i18n="landing.highlights">Highlights</span></h2>
-      <p class="desc">Full workflow coverage: 22 context profiles, 33 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 22 context profiles, 39 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.benchmarks">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 33 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
+          <p>Context density benchmark suite with 39 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context"><span data-i18n="btn.viewBenchmarks">View Benchmarks</span> &rarr;</a>
         </div>
         <div class="card">
@@ -292,7 +324,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.visualization">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 33 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 39 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>

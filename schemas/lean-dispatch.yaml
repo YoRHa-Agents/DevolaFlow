@@ -190,12 +190,33 @@ compression_rules:
     - multi_step_sequence_with_order_dependency
     - repeated_user_question
   bypass_default_active: true
+  # v7.2.4 (P-02, source: arXiv:2604.02837v1 "agent-skills-threat-taxonomy",
+  # registered in v7.2.0 PR-0 H-06) — data-instruction envelope policy.
+  # When true (default), dispatchers MUST wrap predecessor key_facts and
+  # tool-output blocks in <data channel="..."> ... </data> envelopes per
+  # references/execution-protocol.md §8 before rendering the dispatch.
+  # Nested SUB-KEY of compression_rules — NOT a new top-level key in the
+  # dispatch payload, so v7-ADR-001 §2 cache-layout invariant is untouched.
+  data_envelope_required: true
 
 # Layout invariant (v7.0.0+, per .local/research/adr/v7-ADR-001-cache-layout-invariant.md)
 # The rendered top-level key order MUST match this sequence (each may be absent;
 # none may be reordered). New top-level keys MUST be appended after `gate`.
+#
+# v7.2.6 (P-06, source: eb220 §"Recommended Focus" §🟠 Tier 2 #4 — multi-repo
+# coordination): canonical_order grew 12 → 13 by APPENDING `repos` AT THE END
+# (after `gate`) per ADR-001 §2 "additive rule for new keys". Version bumped
+# 1 → 2 to mark the schema generation. ZERO existing keys reordered; the v7.0.0
+# golden baseline byte-comparison (tests/test_benchmarks.py::TestLayoutInvariant
+# Baseline::test_layout_invariant_baseline) STILL PASSES after this bump,
+# proving additivity. The new `repos` field shape is documented as:
+#   repos: [{name: str, root_path: str, primary: bool, branch: str}]
+# where exactly one entry MUST have `primary: true` (the dispatch's primary
+# repo for the task) and 0+ additional entries name dependent repos requiring
+# coordinated commits. Field is optional — single-repo dispatches MAY omit it
+# entirely; assert_dispatch_layout treats absence as canonical.
 layout_invariant:
-  version: 1
+  version: 2
   canonical_order:
     - hdr
     - task
@@ -209,6 +230,7 @@ layout_invariant:
     - reinforce
     - verify_cfg
     - gate
+    - repos
   enforcement:
     validator: "devolaflow.compressor.assert_dispatch_layout"
     stability_test: "tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds"

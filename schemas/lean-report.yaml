@@ -274,3 +274,30 @@ tool_results:
     kept_count: 0                    # int — recorded by the runtime
     cleared_count: 0                 # int — recorded by the runtime
     cleared_at_round: null           # int | null
+
+# Optional session reflections — v7.2.3 (P-03 reflective reflex writer; activates
+# dormant substrate from v7.2.0 PR-C / C-007). The L3 task agent emits an
+# ``learnings.entries`` list inside its status report; the L0 dispatcher's
+# status-report consumer persists each entry via
+# ``devolaflow.learnings.capture_session_reflection`` (auto-derives ``key`` when
+# unset; runs ``dedup_learnings`` against existing entries for last-write-wins).
+# Read-side already wired via v7.0.3 ADR-005 (``load_relevant_learnings`` accepts
+# ``session_id``).
+#
+# Block is APPENDED at the end of the file per the additive rule — lean-report.yaml
+# has NO ``layout_invariant:`` (only lean-dispatch.yaml carries the P6 invariant
+# per `.cursor/rules/devola-flow-rules.mdc` Rule 6 and ADR-001).
+learnings:
+  description: "Optional list of session reflections to persist via capture_session_reflection."
+  entries:
+    - insight: "<short text — verbatim, ≤25 words>"
+      files: ["<file1>", "<file2>"]    # optional; key auto-derives from files[0] when key omitted
+      source: "observed | reasoning | external"
+      confidence: 0.0                  # 0.0..1.0; default 0.7 when unset
+      key: "<optional override>"       # default: f"{task_type}:{files[0] if files else 'session'}"
+  rules:
+    - rule: "Each entry must include `insight` and `source`; everything else has safe defaults"
+    - rule: "Auto-derived key collisions are resolved last-write-wins via `dedup_learnings`"
+      source: "C-007 / gstack /learn {type, key} contract"
+    - rule: "Persisted via `devolaflow.learnings.capture_session_reflection` (no caller-side write needed)"
+    - rule: "Block APPENDED at end of file — lean-report.yaml has no P6 cache-layout invariant"

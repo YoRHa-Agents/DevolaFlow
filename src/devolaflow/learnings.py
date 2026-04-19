@@ -14,6 +14,14 @@ v7.2.0 (C-007 / CCT-3) adds two further additive schema fields
 (`files: list[str]`, `source: str`) plus one helper :func:`dedup_learnings`.
 No migration shim is needed — both fields default to safe zero-equivalents
 so legacy v1 / v2 JSONL entries parse unchanged.
+
+v7.2.3 (P-03 / C-009) adds :func:`capture_session_reflection` — the writer
+that activates the dormant ``operational.jsonl`` substrate v7.2.0 PR-C
+shipped. Called at L3 task completion to persist a "pre-completion
+reflection" Learning entry that the next session can load via
+:func:`load_relevant_learnings`. Read-side already wired via v7.0.3
+ADR-005 (the ``session_id`` argument is recorded in ``source_task_id``
+so consumers can correlate reflections back to their originating session).
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ __all__ = [
     "ExternalSourceReview",
     "Learning",
     "capture_learning",
+    "capture_session_reflection",
     "consolidate_session",
     "decay_confidence",
     "dedup_learnings",
@@ -247,6 +256,82 @@ def dedup_learnings(entries: list[Learning]) -> list[Learning]:
         if entry.timestamp > prev.timestamp:
             seen[key] = entry
     return list(seen.values())
+
+
+def capture_session_reflection(
+    session_id: str,
+    task_type: str,
+    files: list[str],
+    insight: str,
+    source: str,
+    jsonl_path: Path,
+    key: str | None = None,
+) -> Learning:
+    """Capture an L3-session reflective reflex into ``jsonl_path``.
+
+    Activates the dormant ``operational.jsonl`` substrate that v7.2.0 PR-C
+    shipped (C-007 schema additions to :class:`Learning`: ``files``,
+    ``source``, plus :func:`dedup_learnings`). Called at L3 task completion
+    to persist a "pre-completion reflection" Learning entry that the next
+    session can load via :func:`load_relevant_learnings`.
+
+    Auto-derives ``key`` as ``f"{task_type}:{files[0] if files else 'session'}"``
+    when not provided. The new entry is constructed with ``stage='reflection'``,
+    ``confidence=0.7``, ``source_task_id=session_id``, and ``timestamp`` set
+    to :func:`_now_iso` so it always wins against any prior entry sharing the
+    same ``(task_type, key)`` pair.
+
+    Loads existing entries from ``jsonl_path`` and runs :func:`dedup_learnings`
+    against ``existing + [new]`` to enforce the C-007 last-write-wins contract.
+    Rewrites the JSONL with the surviving non-new entries (dropping any
+    ``(task_type, key)`` collision), then persists the new entry via
+    :func:`capture_learning` so the existing skip-dup guard on
+    ``(key, stage, task_type)`` still applies to other reflective writers.
+
+    Returns the newly constructed :class:`Learning` object.
+
+    Source: v7.3.0 plan §P-03 — ``.local/research/v7.3.0_patch_plan.md``.
+    """
+    if key is None:
+        key = f"{task_type}:{files[0] if files else 'session'}"
+
+    new_learning = Learning(
+        stage="reflection",
+        task_type=task_type,
+        key=key,
+        insight=insight,
+        confidence=0.7,
+        timestamp=_now_iso(),
+        source_task_id=session_id,
+        files=list(files),
+        source=source,
+    )
+
+    existing_entries = _read_lines(jsonl_path)
+    existing_learnings: list[Learning] = []
+    for entry in existing_entries:
+        fields = {k: entry[k] for k in Learning.__dataclass_fields__ if k in entry}
+        try:
+            existing_learnings.append(Learning(**fields))
+        except (TypeError, KeyError):
+            logger.warning("Skipping malformed entry at session-reflection dedup time")
+            continue
+
+    combined = existing_learnings + [new_learning]
+    deduped = dedup_learnings(combined)
+
+    surviving_others = [item for item in deduped if item is not new_learning]
+    _write_entries(jsonl_path, [asdict(item) for item in surviving_others])
+
+    capture_learning(new_learning, jsonl_path)
+
+    logger.info(
+        "Captured session reflection: session=%s task_type=%s key=%s",
+        session_id,
+        task_type,
+        key,
+    )
+    return new_learning
 
 
 def prune_learnings(jsonl_path: Path) -> int:

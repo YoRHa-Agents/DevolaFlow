@@ -103,6 +103,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # carry-through scoring.
         "devolaflow.compressor:summarise_predecessor",
         "devolaflow.compressor:extract_named_entities",
+        # P-02 v7.2.4 envelope helpers — surface API for v7.3.x dispatcher
+        # integration; not yet wired into compress_message but exported for
+        # L0 dispatcher consumption per execution-protocol.md §8. The
+        # helpers wrap predecessor key_facts and tool outputs in
+        # <data channel="..."> ... </data> envelopes so L3 agents can
+        # syntactically refuse imperatives that arrive via the data channel
+        # (mitigation for arXiv:2604.02837v1 prompt-injection variants).
+        "devolaflow.compressor:wrap_data_envelope",
+        "devolaflow.compressor:unwrap_data_envelope",
+        "devolaflow.compressor:detect_data_channel_instructions",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in
@@ -126,6 +136,10 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # by dispatchers that need cross-round pinning. v7.2.0 (C-007 / CCT-3)
         # adds dedup_learnings — dormant in v7.2.0; promoted to a writer in
         # v7.3 via C-009 (reflective reflex) per the explicit two-phase plan.
+        # v7.2.3 (P-03 / C-009) adds capture_session_reflection — the writer
+        # that activates the dormant operational.jsonl substrate; called by
+        # L1/L0 status-report consumers that persist L3 task-completion
+        # reflections (read-side already wired via load_relevant_learnings).
         "devolaflow.learnings:prune_learnings",
         "devolaflow.learnings:promote_learning",
         "devolaflow.learnings:get_learnings_stats",
@@ -134,6 +148,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.learnings:decay_confidence",
         "devolaflow.learnings:pin_learning_for_session",
         "devolaflow.learnings:dedup_learnings",
+        "devolaflow.learnings:capture_session_reflection",
         # ---- NineS subsystem — research, analysis, advisor APIs ----
         # All exported via devolaflow.nines.__all__ for external research
         # workflows; the NineS CLI integration is invoked by the user via

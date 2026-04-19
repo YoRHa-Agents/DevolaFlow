@@ -126,6 +126,15 @@ class GateProfile:
     accessibility_threshold: float = 0.0
     acceptance_verification_threshold: float = 0.0
     advisor_margin: float = 5.0
+    # v7.2.2: Convergence-loop noise filter (P-01).
+    # Fraction of the 0-100 composite-score scale to treat as the noise band
+    # when calling :func:`devolaflow.gate.convergence.detect_stagnation` and
+    # :func:`devolaflow.gate.convergence.compute_smoothed_trend`. Default 0.0
+    # preserves bytewise pre-v7.2.2 behavior (single non-improving round =
+    # stagnation, pairwise trend). Values > 0 require >= 2 consecutive rounds
+    # of within-band deltas before declaring stagnation, and switch the
+    # trend classifier to a window-3 moving average.
+    noise_tolerance_pct: float = 0.0
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )
