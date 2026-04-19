@@ -513,9 +513,16 @@ class TestLayoutInvariantBaseline:
     ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
     byte-compares against ``layout_invariant_v7.0.0.yaml``. Any drift
     (renderer upgrade, layout reorder, payload edit) fails CI here.
+
+    v7.2.6 P-06 extends this with the v7.3.0 dual baseline:
+    ``layout_invariant_v7.3.0.yaml`` adds the additive ``repos`` field at
+    canonical position 13 (per ADR-001 §2). The v7.0.0 byte-comparison MUST
+    STILL PASS unchanged — that is the proof that the schema bump 1 → 2 is
+    purely additive and the cached prefix is preserved.
     """
 
     BASELINE_PATH = BASELINES_DIR / "layout_invariant_v7.0.0.yaml"
+    BASELINE_PATH_V7_3_0 = BASELINES_DIR / "layout_invariant_v7.3.0.yaml"
 
     @staticmethod
     def _canonical_baseline_payload() -> dict:
@@ -567,6 +574,38 @@ class TestLayoutInvariantBaseline:
             "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
         }
 
+    @classmethod
+    def _canonical_baseline_payload_v7_3_0(cls) -> dict:
+        """v7.3.0-shape baseline payload — v7.0.0 baseline + appended ``repos``
+        block at canonical position 13. The first 12 keys are byte-identical to
+        the v7.0.0 baseline so ``compute_dispatch_lcp_pct(v7.0.0, v7.3.0)``
+        returns 1.0 (the v7.0.0 render is a perfect prefix of v7.3.0). 3 repos
+        — one ``primary: true`` (auth-service) plus 2 dependents (web-frontend,
+        api-gateway) — model the multi-repo coordination case targeted by P-06.
+        """
+        payload = cls._canonical_baseline_payload()
+        payload["repos"] = [
+            {
+                "name": "auth-service",
+                "root_path": "repos/auth-service",
+                "primary": True,
+                "branch": "main",
+            },
+            {
+                "name": "web-frontend",
+                "root_path": "repos/web-frontend",
+                "primary": False,
+                "branch": "develop",
+            },
+            {
+                "name": "api-gateway",
+                "root_path": "repos/api-gateway",
+                "primary": False,
+                "branch": "main",
+            },
+        ]
+        return payload
+
     def test_layout_invariant_baseline(self) -> None:
         assert self.BASELINE_PATH.exists(), f"Missing {self.BASELINE_PATH} (see ADR-001 §6)."
         recorded = self.BASELINE_PATH.read_text()
@@ -576,4 +615,43 @@ class TestLayoutInvariantBaseline:
         assert rendered == recorded, (
             "layout_invariant_v7.0.0.yaml has drifted from the canonical renderer output. "
             "See .local/research/adr/v7-ADR-001-cache-layout-invariant.md §6."
+        )
+
+    def test_layout_invariant_baseline_v7_3_0(self) -> None:
+        """v7.3.0 dual-baseline byte-comparison (P-06). The new golden contains
+        the same first 12 keys as v7.0.0 plus the additive ``repos`` block."""
+        assert self.BASELINE_PATH_V7_3_0.exists(), (
+            f"Missing {self.BASELINE_PATH_V7_3_0} — v7.2.6 P-06 introduced the "
+            "v7.3.0 schema-version golden alongside the v7.0.0 baseline."
+        )
+        recorded = self.BASELINE_PATH_V7_3_0.read_text()
+        rendered = yaml.safe_dump(
+            self._canonical_baseline_payload_v7_3_0(),
+            sort_keys=False,
+            default_flow_style=False,
+        )
+        assert rendered == recorded, (
+            "layout_invariant_v7.3.0.yaml has drifted from the canonical renderer output. "
+            "See schemas/lean-dispatch.yaml#layout_invariant (version: 2)."
+        )
+
+    def test_layout_invariant_v7_0_0_prefix_lcp_v7_3_0(self) -> None:
+        """LCP between v7.0.0 and v7.3.0 baselines on the first 12 keys must be
+        >= 0.95 (margin over ``schemas/lean-dispatch.yaml#layout_invariant.
+        enforcement.lcp_threshold_round_1_to_2`` of 0.80). This is the P6 cache
+        prefix preservation proof — appending ``repos`` AT THE END must NOT
+        invalidate the cached prefix that downstream LLM caches see for round 1.
+        """
+        from devolaflow.compressor import compute_dispatch_lcp_pct
+
+        v7_0_0 = self._canonical_baseline_payload()
+        v7_3_0 = self._canonical_baseline_payload_v7_3_0()
+        lcp = compute_dispatch_lcp_pct(v7_0_0, v7_3_0)
+        assert lcp >= 0.95, (
+            f"LCP(v7.0.0, v7.3.0) = {lcp:.4f} violates the 0.95 margin "
+            f"(lean-dispatch.yaml#layout_invariant.enforcement."
+            f"lcp_threshold_round_1_to_2 = 0.80). The v7.3.0 schema bump must "
+            "preserve the v7.0.0 cached prefix; if this assertion fails, the "
+            "additive rule (ADR-001 §2) was violated — REORDERING ANY EXISTING "
+            "KEY IS A RELEASE BLOCKER per devola-flow-rules.mdc Rule 6."
         )

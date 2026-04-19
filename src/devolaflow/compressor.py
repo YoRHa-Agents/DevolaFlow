@@ -598,6 +598,11 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     "reinforce",
     "verify_cfg",
     "gate",
+    # v7.2.6 (P-06) — appended at position 13 per ADR-001 §2 additive rule.
+    # Field shape: [{name: str, root_path: str, primary: bool, branch: str}].
+    # Optional — single-repo dispatches may omit it (assert_dispatch_layout
+    # treats absence as canonical, preserving v7.0.0 byte-baseline parity).
+    "repos",
 ]
 
 
