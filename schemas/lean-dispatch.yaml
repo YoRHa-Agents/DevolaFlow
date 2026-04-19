@@ -190,6 +190,14 @@ compression_rules:
     - multi_step_sequence_with_order_dependency
     - repeated_user_question
   bypass_default_active: true
+  # v7.2.4 (P-02, source: arXiv:2604.02837v1 "agent-skills-threat-taxonomy",
+  # registered in v7.2.0 PR-0 H-06) — data-instruction envelope policy.
+  # When true (default), dispatchers MUST wrap predecessor key_facts and
+  # tool-output blocks in <data channel="..."> ... </data> envelopes per
+  # references/execution-protocol.md §8 before rendering the dispatch.
+  # Nested SUB-KEY of compression_rules — NOT a new top-level key in the
+  # dispatch payload, so v7-ADR-001 §2 cache-layout invariant is untouched.
+  data_envelope_required: true
 
 # Layout invariant (v7.0.0+, per .local/research/adr/v7-ADR-001-cache-layout-invariant.md)
 # The rendered top-level key order MUST match this sequence (each may be absent;
