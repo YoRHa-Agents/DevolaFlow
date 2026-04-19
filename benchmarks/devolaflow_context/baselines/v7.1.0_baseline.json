@@ -311,6 +311,18 @@
     "selected_count": 15,
     "total_tokens": 4774
   },
+  "reflective_reflex_capture": {
+    "budget": 5150,
+    "budget_utilization": 0.9769,
+    "composite": 99.08,
+    "information_density": 0.9769,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "reflective_reflex_capture",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5031
+  },
   "research_survey": {
     "budget": 3300,
     "budget_utilization": 0.9906,

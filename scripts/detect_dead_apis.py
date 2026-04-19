@@ -126,6 +126,10 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # by dispatchers that need cross-round pinning. v7.2.0 (C-007 / CCT-3)
         # adds dedup_learnings — dormant in v7.2.0; promoted to a writer in
         # v7.3 via C-009 (reflective reflex) per the explicit two-phase plan.
+        # v7.2.3 (P-03 / C-009) adds capture_session_reflection — the writer
+        # that activates the dormant operational.jsonl substrate; called by
+        # L1/L0 status-report consumers that persist L3 task-completion
+        # reflections (read-side already wired via load_relevant_learnings).
         "devolaflow.learnings:prune_learnings",
         "devolaflow.learnings:promote_learning",
         "devolaflow.learnings:get_learnings_stats",
@@ -134,6 +138,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.learnings:decay_confidence",
         "devolaflow.learnings:pin_learning_for_session",
         "devolaflow.learnings:dedup_learnings",
+        "devolaflow.learnings:capture_session_reflection",
         # ---- NineS subsystem — research, analysis, advisor APIs ----
         # All exported via devolaflow.nines.__all__ for external research
         # workflows; the NineS CLI integration is invoked by the user via

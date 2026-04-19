@@ -16,6 +16,7 @@ from devolaflow.learnings import (
     ExternalSourceReview,
     Learning,
     capture_learning,
+    capture_session_reflection,
     consolidate_session,
     decay_confidence,
     dedup_learnings,
@@ -1185,3 +1186,158 @@ class TestV3EntryRoundTrip:
         learning = results[0]
         assert learning.files == [], f"null files must coerce to []; got {learning.files!r}"
         assert learning.source == "manual"
+
+
+# ---------------------------------------------------------------------------
+# v7.2.3 P-03 (C-009 promotion) — capture_session_reflection writer
+# ---------------------------------------------------------------------------
+# Activates the dormant operational.jsonl substrate that v7.2.0 PR-C shipped
+# (C-007 schema additions). Six cases per the v7.3.0 patch plan §P-03:
+#   - happy path
+#   - auto-derived key from files[0]
+#   - session_id passes through to persisted entry
+#   - dedup against existing same-(task_type, key) pre-populated entry
+#   - round-trip through load_relevant_learnings
+#   - empty files list → key auto-derives to f"{task_type}:session"
+
+
+class TestCaptureSessionReflection:
+    """v7.2.3 P-03 — capture_session_reflection() writer.
+
+    See ``.local/research/v7.3.0_patch_plan.md`` §P-03 and the dispatch's
+    Step 2 test plan. Six cases mirror the spec list verbatim.
+    """
+
+    def test_capture_creates_learning_entry(self, tmp_path: Path) -> None:
+        p = tmp_path / "operational.jsonl"
+        learning = capture_session_reflection(
+            session_id="sess-1",
+            task_type="feature",
+            files=["src/devolaflow/learnings.py"],
+            insight="Dedup must run against existing entries before persistence",
+            source="observed",
+            jsonl_path=p,
+        )
+        assert isinstance(learning, Learning)
+        assert learning.task_type == "feature"
+        assert learning.key == "feature:src/devolaflow/learnings.py"
+        assert learning.insight == "Dedup must run against existing entries before persistence"
+        assert learning.source == "observed"
+        assert learning.confidence == 0.7, "spec defaults confidence to 0.7"
+        assert learning.stage == "reflection", "spec hardcodes stage to 'reflection'"
+        assert learning.files == ["src/devolaflow/learnings.py"]
+        assert learning.timestamp, "timestamp must be auto-set to now"
+
+        assert p.exists()
+        data = json.loads(p.read_text().strip())
+        assert data["task_type"] == "feature"
+        assert data["key"] == "feature:src/devolaflow/learnings.py"
+        assert data["source"] == "observed"
+
+    def test_capture_auto_derives_key(self, tmp_path: Path) -> None:
+        """key=None → derived key matches f"{task_type}:{files[0]}"."""
+        p = tmp_path / "operational.jsonl"
+        learning = capture_session_reflection(
+            session_id="sess-2",
+            task_type="hotfix",
+            files=["src/auth.py", "tests/test_auth.py"],
+            insight="JWT path needs explicit nil guard",
+            source="reasoning",
+            jsonl_path=p,
+        )
+        assert learning.key == "hotfix:src/auth.py", (
+            f"expected key to derive from task_type:files[0]; got {learning.key!r}"
+        )
+        data = json.loads(p.read_text().strip())
+        assert data["key"] == "hotfix:src/auth.py"
+
+    def test_capture_session_passes_through_session_id(self, tmp_path: Path) -> None:
+        """session_id reaches the persisted entry (via source_task_id)."""
+        p = tmp_path / "operational.jsonl"
+        capture_session_reflection(
+            session_id="sess-trace-99",
+            task_type="feature",
+            files=["x.py"],
+            insight="i",
+            source="observed",
+            jsonl_path=p,
+        )
+        data = json.loads(p.read_text().strip())
+        assert data["source_task_id"] == "sess-trace-99", (
+            f"session_id must round-trip via source_task_id; got {data.get('source_task_id')!r}"
+        )
+
+    def test_capture_dedups_against_existing(self, tmp_path: Path) -> None:
+        """Pre-populate JSONL with same (task_type, key) older entry; new wins by ts."""
+        p = tmp_path / "operational.jsonl"
+        old_ts = "2026-01-01T00:00:00+00:00"
+        old_entry = {
+            "stage": "implement",
+            "task_type": "feature",
+            "key": "feature:x.py",
+            "insight": "OLD",
+            "confidence": 0.6,
+            "timestamp": old_ts,
+            "ttl_days": 90,
+            "source_task_id": "sess-old",
+        }
+        p.write_text(json.dumps(old_entry) + "\n")
+
+        new_learning = capture_session_reflection(
+            session_id="sess-new",
+            task_type="feature",
+            files=["x.py"],
+            insight="NEW",
+            source="observed",
+            jsonl_path=p,
+        )
+
+        lines = p.read_text().strip().splitlines()
+        assert len(lines) == 1, f"expected exactly 1 entry after dedup, got {len(lines)}: {lines}"
+        data = json.loads(lines[0])
+        assert data["insight"] == "NEW", (
+            f"latest timestamp must win per (task_type, key); got insight={data['insight']!r}"
+        )
+        assert data["source_task_id"] == "sess-new"
+        assert new_learning.timestamp > old_ts, (
+            "new entry timestamp must be strictly later than old (now > 2026-01-01)"
+        )
+
+    def test_capture_round_trip_through_load_relevant_learnings(self, tmp_path: Path) -> None:
+        """capture → load_relevant_learnings → fields preserved bit-for-bit."""
+        p = tmp_path / "operational.jsonl"
+        capture_session_reflection(
+            session_id="sess-round-trip",
+            task_type="feature",
+            files=["src/api.py"],
+            insight="Always validate input at boundary",
+            source="observed",
+            jsonl_path=p,
+        )
+        results = load_relevant_learnings("feature", p, min_confidence=0.5)
+        assert len(results) == 1
+        loaded = results[0]
+        assert loaded.insight == "Always validate input at boundary"
+        assert loaded.source == "observed"
+        assert loaded.files == ["src/api.py"]
+        assert loaded.key == "feature:src/api.py"
+        assert loaded.source_task_id == "sess-round-trip"
+        assert loaded.confidence == 0.7
+
+    def test_capture_handles_empty_files_list(self, tmp_path: Path) -> None:
+        """files=[] → key auto-derives to f"{task_type}:session"."""
+        p = tmp_path / "operational.jsonl"
+        learning = capture_session_reflection(
+            session_id="sess-no-files",
+            task_type="research",
+            files=[],
+            insight="Survey complete; no source files touched",
+            source="reasoning",
+            jsonl_path=p,
+        )
+        assert learning.key == "research:session", (
+            f"empty files must derive key='<task_type>:session'; got {learning.key!r}"
+        )
+        data = json.loads(p.read_text().strip())
+        assert data["key"] == "research:session"
+        assert data["files"] == []

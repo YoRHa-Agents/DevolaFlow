@@ -5,6 +5,38 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.3] — 2026-04-18
+
+**PATCH — v7.3.0 cycle P-03: reflective reflex writer.** Third patch of the v7.3.0 cycle driven by EvoBench v2.2.0 feedback (`.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md`). Activates the dormant `operational.jsonl` substrate that v7.2.0 PR-C shipped (C-007 schema additions to `Learning` dataclass: `files`, `source`, `dedup_learnings`). New `capture_session_reflection()` helper writes a v3 `Learning` entry per session with auto-derived `key` (when unset), runs `dedup_learnings` against existing entries to enforce last-write-wins, and persists via the existing `capture_learning`. The `lean-report.yaml` schema gains an additive top-level `learnings:` block so L3 status reports can carry reflections to the dispatcher. Read-side already wired via v7.0.3 ADR-005 (`load_relevant_learnings` accepts `session_id`). Targets EvoBench Tier 1 #3 — 12 multi-session orchestration tasks at 41% aggregate pass; worst: `cross_session_knowledge_persistence` (q=0.4705), `v2_X_06_multi_session_compounding_bug` (q=0.4617, σ=0.0765), `earned_autonomy_escalation` (q=0.4468), `v2_X_15_incident_commander_simulation` (q=0.4387).
+
+### Added
+- **`src/devolaflow/learnings.py`** — `capture_session_reflection(session_id, task_type, files, insight, source, jsonl_path, key=None) -> Learning` between `dedup_learnings` (lines 233-258) and `prune_learnings`. Auto-derives `key=f"{task_type}:{files[0] if files else 'session'}"` when not provided. Constructs a `Learning` with `stage='reflection'`, `confidence=0.7`, `source_task_id=session_id`, `timestamp=now`. Loads existing entries, runs `dedup_learnings` against `existing + [new]` (last-write-wins per `(task_type, key)`), then rewrites file with surviving non-new entries and re-appends via `capture_learning`. `__all__` extended.
+- **`schemas/lean-report.yaml`** — additive top-level `learnings:` block (no P6 invariant on report side — verified by absence of `layout_invariant:`). Documents the per-entry shape (`insight`, `files`, `source`, `confidence`, `key`) and the four persistence rules; appended at end-of-file per the additive rule.
+- **`tests/test_learnings.py`** — `TestCaptureSessionReflection` (6 cases): happy path with v3 fields, auto-derived key from `files[0]`, `session_id` round-trip via `source_task_id`, dedup against pre-populated same-`(task_type, key)` older entry, round-trip through `load_relevant_learnings`, empty-`files` fallback to `f"{task_type}:session"`.
+- **`benchmarks/devolaflow_context/scenarios/reflective_reflex_capture.yaml`** — new EvoBench scenario covering the `feature` profile section selection. Documents the 3-session 15-entry persistence fixture + 4th-session `load_relevant_learnings(min_confidence=0.5, max_entries=10)` query inline via a non-runner-consumed `reflective_reflex_fixture:` key (mirrors the `noise_filter_fixture:` precedent set in v7.2.2 P-01). Composite 99.08, relevance 1.0, noise 0.0.
+- **`benchmarks/devolaflow_context/baselines/v7.1.0_baseline.json`** — single additive entry for `reflective_reflex_capture` (no modification to the existing 35 entries) so `tests/test_benchmarks.py::TestBaselineFile::test_v6_baseline_covers_all_scenarios` stays green.
+- **`scripts/detect_dead_apis.py`** — `capture_session_reflection` added to `DEFAULT_ALLOWLIST` with explanatory comment per the v7.0.3 / v7.2.0 precedent for `consolidate_session` / `dedup_learnings`. The pre-existing comment block already anticipated the C-009 promotion ("dormant in v7.2.0; promoted to a writer in v7.3 via C-009 reflective reflex per the explicit two-phase plan").
+
+### Changed
+- **`README.md`** — benchmark scenario count `35 → 36` (3 occurrences) per `documentation-sync-rules.mdc` Rule DS-1 §1.
+- **`workflow-system/human/demo/index.html`** — benchmark scenario count `35 → 36` (3 occurrences) per Rule DS-1 §2.
+- **`workflow-system/human/demo/benchmark-results/index.html`** — `SAMPLE_DATA.rounds[5].scenarios` (`budget_tuning_final` round) adds `reflective_reflex_capture` (next to `convergence_noise_filter`, `complexity_tier_routing`) per Rule DS-1 §2 and `tests/test_doc_consistency.py::test_demo_benchmark_sample_data_scenarios` coverage requirement.
+
+### Metrics
+- Tests: 1216 → 1222 (+6 from `TestCaptureSessionReflection`).
+- Existing 65 `tests/test_learnings.py` tests unchanged PASS — additive function preserves all v1/v2/v3 schema contracts.
+- EvoBench scenarios: 35 → 36 (1 new); 0 pp drift on the existing 35 (verified by `test_v6_baseline_matches_current_results_within_tolerance` at the SI-4 ±5pp threshold).
+- Coverage: `learnings` module 97% (≥97% maintained per CP-2 floor; v7.2.0 PR-C baseline 97.35%).
+- LOC: ~50 production (`learnings.py` +83 / -1) + ~125 tests + ~140 scenario YAML + 12 baseline JSON + 28 lean-report.yaml + 6 detect_dead_apis.py + 8 docs.
+- SI-10 6-step gate: 5/5 PASS (step 6 no-op per opt-in mirror absence, see `e44fa11`).
+- New scenario: composite 99.08, relevance 1.0, noise 0.0, format_compliance 1.0 (all ≥ thresholds: composite ≥ 90, relevance ≥ 0.95, noise ≤ 0.10).
+
+### Cross-references
+- Source feedback: `.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md` §"Recommended Focus" §🔴 Tier 1 #3.
+- Patch plan: `.local/research/v7.3.0_patch_plan.md` §P-03.
+- Builds on v7.2.0 PR-C (C-007 schema). v7.3.0 cycle: this is patch 3 of 6 candidates (P-04 → P-01 → **P-03** → P-02 → P-05 → P-06 per the recommended execution order); next: P-02 adversarial data-instruction envelope (v7.2.4).
+- Couples with: `documentation-sync-rules.mdc` Rule DS-1 (scenario count propagation), `change-process-rules.mdc` Rule CP-3 (version bump 7.2.2 → 7.2.3), `self-improve-iteration-rules.mdc` Rule SI-4 (benchmark regression guard) + Rule SI-9 (convergence round reinforcement substrate) + Rule SI-10 (test-then-commit protocol).
+
 ## [7.2.2] — 2026-04-18
 
 **PATCH — v7.3.0 cycle P-01: convergence-loop noise filter.** Second patch of the v7.3.0 cycle driven by EvoBench v2.2.0 feedback (`.local/feedbacks/from_evobench/eb220_for_devola_v7.1.1.md`). Adds optional `noise_tolerance_pct` parameter to `detect_stagnation()` plus a new `compute_smoothed_trend()` helper that uses a window-3 moving-average classification. When `noise_tolerance_pct > 0`, score deltas within tolerance count as stagnant only if observed for ≥ 2 consecutive rounds, preventing the gen-verify loop from misclassifying real-but-noisy improvement as stagnation. Default `noise_tolerance_pct=0.0` preserves bytewise behavior on the existing 70 gate tests. Targets EvoBench Tier 1 #2 — 9 tasks at 21% aggregate pass; worst: `feedback_loop_convergence_under_noise` (q=0.4375, σ=0.0793), `v2_X_13_optimize_measure_revert_loop` (q=0.4198, regressed -0.0481 vs v7.1.0), `competitive_hypothesis_debate` (q=0.4138 — worst overall), `adversarial_requirement_mutation` (q=0.4603).
