@@ -253,8 +253,8 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
         <div class="card">
           <span class="label" data-i18n="label.metrics">METRICS</span>
-          <h3>1257 Tests, +35 Net</h3>
-          <p>v7.2.3 P-03 added 6 learnings tests (1216 → 1222). v7.2.4 P-02 adds 35 compressor tests (1222 → 1257) covering the 4 INJECTION_PATTERNS categories, the 3 envelope helpers (incl. escape-attack defence), and the held-out 20-example precision split. EvoBench 37/37 PASS, 0 pp drift vs v7.1.0 baseline (existing 36) + new <code>adversarial_data_instruction.yaml</code> at composite 99.49. SI-10 5/5 pass per patch (step 6 mirror-parity no-op per <code>e44fa11</code>). 2 patches remaining: P-05 long-context QA, P-06 multi-repo dispatch.</p>
+          <h3>1272 Tests, +15 Net</h3>
+          <p>v7.2.4 P-02 added 35 compressor tests (1222 → 1257). v7.2.5 P-05 adds 15 retrieval tests (1257 → 1272) covering the new <code>retrieval_query</code> kwarg on <code>summarise_predecessor</code>, the 3 private retrieval helpers (jaccard scorer, tokeniser with 36 stopwords, query ranker), and the &lt; 10 ms latency reject-trigger microbenchmark plus the 50k-token e2e probe. EvoBench 38/38 PASS, 0 pp drift vs v7.1.0 baseline (existing 37) + new <code>long_context_repo_qa.yaml</code> at composite 98.47 with measured 50 pp auth-retention lift under retrieval mode. SI-10 5/5 pass per patch (step 6 mirror-parity no-op per <code>e44fa11</code>). 1 patch remaining: P-06 multi-repo dispatch.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
         </div>
       </div>
@@ -295,12 +295,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- v3.3.0 Highlights -->
     <section class="slide-up">
       <h2>v3.3.0 <span data-i18n="landing.highlights">Highlights</span></h2>
-      <p class="desc">Full workflow coverage: 22 context profiles, 37 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
+      <p class="desc">Full workflow coverage: 22 context profiles, 38 benchmark scenarios, optimized budget utilization (99.49 avg composite) — multi-round iterative optimization across all workflows.</p>
       <div class="cards">
         <div class="card">
           <span class="label" data-i18n="label.benchmarks">BENCHMARKS</span>
           <h3>EvoBench</h3>
-          <p>Context density benchmark suite with 37 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
+          <p>Context density benchmark suite with 38 scenarios covering all 22 context profiles. Measures section relevance, information density, noise ratio, and budget utilization. Avg composite: 99.49/100.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context"><span data-i18n="btn.viewBenchmarks">View Benchmarks</span> &rarr;</a>
         </div>
         <div class="card">
@@ -318,7 +318,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.visualization">VISUALIZATION</span>
           <h3>Benchmark Results</h3>
-          <p>Interactive visualization of 6 EvoBench optimization rounds across 37 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
+          <p>Interactive visualization of 6 EvoBench optimization rounds across 38 scenarios. Tracks composite scores, budget utilization, and round-over-round improvement (baseline 80.5 &rarr; final 99.49).</p>
           <a href="benchmark-results/index.html"><span data-i18n="btn.viewResults">View Results</span> &rarr;</a>
         </div>
       </div>

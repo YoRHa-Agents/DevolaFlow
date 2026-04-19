@@ -817,6 +817,102 @@ SCHEMA_HINT_PRIORITIES: dict[str, tuple[str, ...]] = {
     "gate_report": ("verdict", "findings", "metrics"),
 }
 
+# ---------------------------------------------------------------------------
+# v7.2.5 — Retrieval-prioritised summariser (P-05; Tier 2 #5 long-context QA).
+# When summarise_predecessor() is called with a non-empty retrieval_query the
+# section ranker scores every section by jaccard overlap against the query
+# tokens and combines that with the schema-hint priority via a 0.6 / 0.4
+# weighted sum. Default retrieval_query=None preserves byte-stable existing
+# behaviour. Stopwords + tokeniser are deliberately conservative so a short
+# question collapses to its content words (jwt, middleware, authentication)
+# without filler ("where", "is", "the", ...).
+# ---------------------------------------------------------------------------
+
+_QUERY_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "being",
+        "but",
+        "by",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "in",
+        "is",
+        "may",
+        "might",
+        "of",
+        "on",
+        "or",
+        "should",
+        "the",
+        "to",
+        "was",
+        "were",
+        "will",
+        "with",
+        "would",
+    }
+)
+
+_QUERY_TOKEN_SPLIT_RE: re.Pattern[str] = re.compile(r"[^a-zA-Z0-9]+")
+
+_QUERY_OVERLAP_WEIGHT: float = 0.6
+_SCHEMA_PRIORITY_WEIGHT: float = 0.4
+
+
+def _tokenize_for_retrieval(text: str) -> frozenset[str]:
+    """Lowercase + split on non-alnum + strip stopwords + drop tokens of length < 2.
+
+    Returns a ``frozenset[str]`` of content tokens suitable for fast set
+    intersection against query tokens. Empty / non-string input returns the
+    empty frozenset so callers may pass through ``retrieval_query=None``
+    without branching.
+    """
+    if not isinstance(text, str) or not text:
+        return frozenset()
+    tokens: list[str] = []
+    for raw in _QUERY_TOKEN_SPLIT_RE.split(text.lower()):
+        if len(raw) < 2:
+            continue
+        if raw in _QUERY_STOPWORDS:
+            continue
+        tokens.append(raw)
+    return frozenset(tokens)
+
+
+def _score_section_against_query(section_text: str, query_tokens: frozenset[str]) -> float:
+    """Return jaccard-like overlap (intersection / union) of section vs query.
+
+    Tokenises ``section_text`` via :func:`_tokenize_for_retrieval` (lowercase
+    + split on non-alphanumeric + strip stopwords + drop tokens of length <2)
+    and returns ``len(section ∩ query) / len(section ∪ query)``. Returns
+    ``0.0`` when the union is empty (degenerate case where both sides have
+    no scoring tokens after stopword strip), so the helper is safe on empty
+    section text and empty query tokens.
+    """
+    section_tokens = _tokenize_for_retrieval(section_text)
+    union = section_tokens | query_tokens
+    if not union:
+        return 0.0
+    intersection = section_tokens & query_tokens
+    return len(intersection) / len(union)
+
+
 _NER_ACCEPTANCE_PATTERN: re.Pattern[str] = re.compile(
     r"^\s*[-*]\s+(?:MUST(?:\s+NOT)?|SHOULD(?:\s+NOT)?|SHALL(?:\s+NOT)?|MAY)\b.+$",
     re.MULTILINE,
@@ -1005,6 +1101,63 @@ def _select_sections_by_priority(
     return [section for _, _, section in ranked] + [section for _, section in rest]
 
 
+def _select_sections_by_query(
+    sections: list[tuple[str, str]],
+    schema_hint: str | None,
+    query_tokens: frozenset[str],
+) -> list[tuple[str, str]]:
+    """Rank ``sections`` by ``0.6 * query_overlap + 0.4 * schema_priority_norm``.
+
+    Used by :func:`summarise_predecessor` when a non-empty
+    ``retrieval_query`` is provided (P-05, v7.2.5). Each section is scored on
+    two axes:
+
+    * ``query_overlap`` — :func:`_score_section_against_query` jaccard
+      overlap between the section text (heading + body) and the query token
+      frozenset. In ``[0.0, 1.0]``.
+    * ``schema_priority_norm`` — normalised schema-hint priority. Slot 0
+      (highest priority keyword) maps to ``1.0``; the lowest slot maps to
+      ``1 / N`` where ``N == len(priorities)``. Sections whose heading does
+      not match any priority keyword score ``0.0``. When ``schema_hint`` is
+      ``None`` or unrecognised, the schema axis collapses to ``0.0`` for
+      every section so the ranking is driven purely by query overlap.
+
+    The combined score is ``0.6 * query_overlap + 0.4 * schema_priority_norm``
+    (matches the v7.3.0 patch plan §P-05). Sections are returned in
+    descending order of combined score; ties resolve by document order so
+    the result is deterministic across runs. Empty ``query_tokens`` falls
+    back to :func:`_select_sections_by_priority` to preserve the v7.0.2
+    behaviour.
+    """
+    if not query_tokens:
+        return _select_sections_by_priority(sections, schema_hint)
+
+    priorities = SCHEMA_HINT_PRIORITIES.get(schema_hint, ()) if schema_hint else ()
+    n_pri = max(1, len(priorities))
+
+    scored: list[tuple[float, int, tuple[str, str]]] = []
+    for doc_idx, section in enumerate(sections):
+        heading, body = section
+        section_text = f"{heading} {body}" if heading else body
+        query_overlap = _score_section_against_query(section_text, query_tokens)
+
+        schema_priority_norm = 0.0
+        if priorities:
+            heading_lower = heading.lower()
+            for idx, keyword in enumerate(priorities):
+                if keyword in heading_lower:
+                    schema_priority_norm = (n_pri - idx) / n_pri
+                    break
+
+        combined = (
+            _QUERY_OVERLAP_WEIGHT * query_overlap + _SCHEMA_PRIORITY_WEIGHT * schema_priority_norm
+        )
+        scored.append((-combined, doc_idx, section))
+
+    scored.sort(key=lambda triple: (triple[0], triple[1]))
+    return [section for _, _, section in scored]
+
+
 def _truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, bool]:
     """Hard-cap ``text`` at ``max_tokens`` tokens, appending the truncation
     marker. Returns ``(maybe_truncated_text, was_bounded)``.
@@ -1031,6 +1184,7 @@ def summarise_predecessor(
     max_tokens: int = DEFAULT_SUMMARY_MAX_TOKENS,
     mode: str = DEFAULT_SUMMARY_MODE,
     schema_hint: str | None = None,
+    retrieval_query: str | None = None,
 ) -> dict:
     """Produce a bounded-token summary of a predecessor artifact.
 
@@ -1045,6 +1199,16 @@ def summarise_predecessor(
     :class:`NotImplementedError` until the LLM call is wired in v7.0.3+
     (per ADR-003 §2.3, abstractive opts in via
     ``context_profiles.yaml#summary_mode``).
+
+    When ``retrieval_query`` is provided AND non-empty (after stopword strip
+    via :func:`_tokenize_for_retrieval`) the section ranker switches from
+    pure schema-hint priority to a retrieval-prioritised mode (P-05, v7.2.5)
+    that ranks sections by ``0.6 * query_overlap + 0.4 * schema_priority``.
+    This surfaces the sections most relevant to a known question first,
+    improving density on long-context Q&A artifacts (50k+ token repos)
+    where the question is known upfront. Default ``retrieval_query=None``
+    preserves byte-stable existing behaviour — verified by
+    :class:`tests.test_compressor.TestRetrievalScoring`.
 
     Returns a 7-key dict:
       * ``summary_text`` — bounded markdown body (≤ ``max_tokens`` tokens).
@@ -1073,7 +1237,11 @@ def summarise_predecessor(
     text = path.read_text(encoding="utf-8")
     parser = _PARSER_BY_EXT.get(path.suffix.lower(), _parse_markdown_sections)
     sections = parser(text)
-    selected = _select_sections_by_priority(sections, schema_hint)
+    query_tokens = _tokenize_for_retrieval(retrieval_query or "")
+    if query_tokens:
+        selected = _select_sections_by_query(sections, schema_hint, query_tokens)
+    else:
+        selected = _select_sections_by_priority(sections, schema_hint)
     entities = extract_named_entities(text)
 
     fact_lines = ["key_facts:"]

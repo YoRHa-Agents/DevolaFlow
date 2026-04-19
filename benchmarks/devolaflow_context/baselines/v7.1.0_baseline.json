@@ -239,6 +239,18 @@
     "selected_count": 7,
     "total_tokens": 2413
   },
+  "long_context_repo_qa": {
+    "budget": 3300,
+    "budget_utilization": 0.9618,
+    "composite": 98.47,
+    "information_density": 0.9618,
+    "noise_ratio": 0.0,
+    "profile_name": "research",
+    "scenario_name": "long_context_repo_qa",
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 3174
+  },
   "migration_upgrade": {
     "budget": 4800,
     "budget_utilization": 0.9946,
