@@ -103,6 +103,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # carry-through scoring.
         "devolaflow.compressor:summarise_predecessor",
         "devolaflow.compressor:extract_named_entities",
+        # P-02 v7.2.4 envelope helpers — surface API for v7.3.x dispatcher
+        # integration; not yet wired into compress_message but exported for
+        # L0 dispatcher consumption per execution-protocol.md §8. The
+        # helpers wrap predecessor key_facts and tool outputs in
+        # <data channel="..."> ... </data> envelopes so L3 agents can
+        # syntactically refuse imperatives that arrive via the data channel
+        # (mitigation for arXiv:2604.02837v1 prompt-injection variants).
+        "devolaflow.compressor:wrap_data_envelope",
+        "devolaflow.compressor:unwrap_data_envelope",
+        "devolaflow.compressor:detect_data_channel_instructions",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in

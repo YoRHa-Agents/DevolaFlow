@@ -11,6 +11,18 @@
     "selected_count": 7,
     "total_tokens": 2413
   },
+  "adversarial_data_instruction": {
+    "budget": 5400,
+    "budget_utilization": 0.9872,
+    "composite": 99.49,
+    "information_density": 0.9872,
+    "noise_ratio": 0.0,
+    "profile_name": "security-audit",
+    "scenario_name": "adversarial_data_instruction",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 5331
+  },
   "complexity_tier_routing": {
     "budget": 5150,
     "budget_utilization": 0.9769,
