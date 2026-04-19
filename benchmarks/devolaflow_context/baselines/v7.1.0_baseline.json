@@ -275,6 +275,18 @@
     "selected_count": 14,
     "total_tokens": 4909
   },
+  "multi_repo_dispatch": {
+    "budget": 5000,
+    "budget_utilization": 0.9964,
+    "composite": 99.86,
+    "information_density": 0.9964,
+    "noise_ratio": 0.0,
+    "profile_name": "migration",
+    "scenario_name": "multi_repo_dispatch",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 4982
+  },
   "onboarding_new": {
     "budget": 3700,
     "budget_utilization": 0.9732,

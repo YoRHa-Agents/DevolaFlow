@@ -11,6 +11,7 @@ import yaml
 from devolaflow.compressor import (
     BYPASS_CONDITIONS,
     BYPASS_PATTERNS,
+    DEFAULT_DISPATCH_LAYOUT,
     DROP_LIST,
     INJECTION_PATTERNS,
     INTENSITY_TIERS,
@@ -418,6 +419,147 @@ class TestDispatchLayoutInvariant:
         leading = {"telemetry": {"foo": "bar"}, **payload}
         with pytest.raises(DispatchLayoutError):
             assert_dispatch_layout(leading)
+
+
+class TestDefaultDispatchLayoutV730:
+    """v7.2.6 P-06 — multi-repo dispatch assembly (per ADR-001 §2 additive rule).
+
+    Verifies that ``DEFAULT_DISPATCH_LAYOUT`` grew 12 → 13 by APPENDING ``repos``
+    AT THE END (after ``gate``) without reordering any of the v7.0.0 keys.
+    Also verifies ``assert_dispatch_layout`` accepts both v7.3.0-shape payloads
+    (with the new ``repos`` field) AND v7.0.0-shape payloads (omitting it),
+    proving the additivity property required for P6 cache-prefix preservation.
+    """
+
+    V7_0_0_CANONICAL_ORDER: tuple[str, ...] = (
+        "hdr",
+        "task",
+        "goal",
+        "assumptions",
+        "pred",
+        "files",
+        "rules",
+        "shared",
+        "accept",
+        "reinforce",
+        "verify_cfg",
+        "gate",
+    )
+
+    @staticmethod
+    def _v7_3_0_payload_with_repos() -> dict:
+        """Synthetic v7.3.0-shape dispatch — all 12 v7.0.0 keys plus the new
+        ``repos`` block at canonical position 13. Mirrors the goldenbaseline
+        at ``benchmarks/devolaflow_context/baselines/layout_invariant_v7.3.0.yaml``.
+        """
+        return {
+            "hdr": {"id": "d-multi-001", "parent": "stage-multi-repo", "layer": "wave"},
+            "task": {"id": "T-MULTI-001", "type": "code", "title": "multi-repo coord"},
+            "goal": "coordinate dependent commits across 3 repos",
+            "assumptions": ["repo roots are sibling directories", "primary repo is auth-service"],
+            "pred": [{"ref": "ADR-001", "key_facts": ["repos appended at position 13"]}],
+            "files": ["repos/auth-service/src/jwt.py", "repos/api-gateway/src/proxy.py"],
+            "rules": {"strategy": "standard", "lang": "python"},
+            "shared": "Python 3.11+, multi-repo coordination",
+            "accept": ["all 3 repo CIs green", "primary repo merge gates dependents"],
+            "verify_cfg": {"visual": False, "accept": True},
+            "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
+            "repos": [
+                {
+                    "name": "auth-service",
+                    "root_path": "repos/auth-service",
+                    "primary": True,
+                    "branch": "main",
+                },
+                {
+                    "name": "web-frontend",
+                    "root_path": "repos/web-frontend",
+                    "primary": False,
+                    "branch": "develop",
+                },
+                {
+                    "name": "api-gateway",
+                    "root_path": "repos/api-gateway",
+                    "primary": False,
+                    "branch": "main",
+                },
+            ],
+        }
+
+    @staticmethod
+    def _v7_0_0_payload_without_repos() -> dict:
+        """Synthetic v7.0.0-shape dispatch — same 12 keys, no ``repos`` field.
+        Verifies that pre-v7.3.0 dispatchers continue to validate cleanly
+        against the post-bump ``DEFAULT_DISPATCH_LAYOUT`` (the additivity
+        property required for P6 cache-prefix preservation across rounds and
+        across schema versions).
+        """
+        return {
+            "hdr": {"id": "d-legacy-001", "parent": "stage-legacy", "layer": "wave"},
+            "task": {"id": "T-LEGACY-001", "type": "code", "title": "legacy single-repo"},
+            "goal": "single-repo dispatch on the post-P-06 schema",
+            "assumptions": ["pre-P-06 dispatcher renderer in use"],
+            "pred": [{"ref": "ADR-001", "key_facts": ["v7.0.0 12-key shape"]}],
+            "files": ["src/legacy/module.py"],
+            "rules": {"strategy": "standard", "lang": "python"},
+            "shared": "Python 3.11+",
+            "accept": ["legacy CI green", "no schema violation"],
+            "verify_cfg": {"visual": False, "accept": True},
+            "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
+        }
+
+    def test_default_dispatch_layout_length_is_13(self):
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 13, (
+            f"DEFAULT_DISPATCH_LAYOUT length is {len(DEFAULT_DISPATCH_LAYOUT)}, "
+            "expected 13 after v7.2.6 P-06 (12 v7.0.0 keys + repos)"
+        )
+
+    def test_default_dispatch_layout_last_entry_is_repos(self):
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "repos", (
+            f"DEFAULT_DISPATCH_LAYOUT[-1] is {DEFAULT_DISPATCH_LAYOUT[-1]!r}, "
+            "expected 'repos' (v7.2.6 P-06 appends at position 13 per ADR-001 §2)"
+        )
+
+    def test_default_dispatch_layout_first_12_match_v7_0_0_sequence(self):
+        first_twelve = tuple(DEFAULT_DISPATCH_LAYOUT[:12])
+        assert first_twelve == self.V7_0_0_CANONICAL_ORDER, (
+            f"DEFAULT_DISPATCH_LAYOUT[:12] is {first_twelve}, expected "
+            f"{self.V7_0_0_CANONICAL_ORDER} verbatim — REORDERING ANY EXISTING "
+            "KEY IS A RELEASE BLOCKER per devola-flow-rules.mdc Rule 6 (P6) "
+            "and v7-ADR-001 §2."
+        )
+
+    def test_assert_dispatch_layout_accepts_v7_3_0_payload_with_repos(self):
+        payload = self._v7_3_0_payload_with_repos()
+        assert assert_dispatch_layout(payload) is None
+
+    def test_assert_dispatch_layout_accepts_v7_0_0_payload_without_repos(self):
+        legacy = self._v7_0_0_payload_without_repos()
+        assert assert_dispatch_layout(legacy) is None, (
+            "v7.0.0-shape payload (no repos field) MUST validate cleanly "
+            "against the post-P-06 DEFAULT_DISPATCH_LAYOUT — additivity is "
+            "the P6 cache-prefix preservation contract."
+        )
+
+    def test_repos_appears_after_gate_in_canonical_order(self):
+        gate_idx = DEFAULT_DISPATCH_LAYOUT.index("gate")
+        repos_idx = DEFAULT_DISPATCH_LAYOUT.index("repos")
+        assert repos_idx > gate_idx, (
+            f"repos canonical position {repos_idx} is not after gate position "
+            f"{gate_idx} — additive rule (ADR-001 §2) requires new keys to be "
+            "appended after gate."
+        )
+
+    def test_repos_before_gate_raises_dispatch_layout_error(self):
+        payload = self._v7_3_0_payload_with_repos()
+        keys = list(payload.keys())
+        gate_pos = keys.index("gate")
+        repos_pos = keys.index("repos")
+        keys[gate_pos], keys[repos_pos] = keys[repos_pos], keys[gate_pos]
+        reordered = {k: payload[k] for k in keys}
+        with pytest.raises(DispatchLayoutError) as exc_info:
+            assert_dispatch_layout(reordered)
+        assert "gate" in str(exc_info.value) or "repos" in str(exc_info.value)
 
 
 class TestToolOutputTruncation:
