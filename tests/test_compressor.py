@@ -1212,3 +1212,245 @@ class TestInjectionPatternPrecision:
             f"(TP={true_positive}, FP={false_positive}); "
             f"per the P-02 reject trigger, regex must be re-tuned."
         )
+
+
+class TestRetrievalScoring:
+    """P-05 (v7.2.5) retrieval-prioritised summariser tests.
+
+    Verifies the new ``retrieval_query`` kwarg on
+    :func:`devolaflow.compressor.summarise_predecessor` plus the two
+    private helpers (`_score_section_against_query`, `_tokenize_for_retrieval`)
+    that back it. These run as a unit; the ≥ 30 pp auth-module retention
+    lift on a synthesized 50k-token repo is asserted in
+    ``tests/test_e2e_compression.py::test_long_context_retrieval_query_lifts_target_module_carry_through``.
+    """
+
+    def test_score_returns_one_on_identical_token_sets(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        query_tokens = _tokenize_for_retrieval("jwt middleware authentication")
+        section_text = "JWT MIDDLEWARE AUTHENTICATION"
+        assert _score_section_against_query(section_text, query_tokens) == 1.0
+
+    def test_score_returns_zero_on_disjoint_token_sets(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        query_tokens = _tokenize_for_retrieval("jwt middleware authentication")
+        section_text = "stripe charge refund webhook payment"
+        assert _score_section_against_query(section_text, query_tokens) == 0.0
+
+    def test_score_returns_half_on_half_overlap(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        # query={alpha,beta,gamma,delta} and section text contains beta+delta
+        # only. Intersection={beta,delta}=2; union={alpha,beta,gamma,delta}=4.
+        query_tokens = _tokenize_for_retrieval("alpha beta gamma delta")
+        section_text = "beta delta"
+        score = _score_section_against_query(section_text, query_tokens)
+        assert score == pytest.approx(0.5)
+
+    def test_score_empty_section_text_returns_zero(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        query_tokens = _tokenize_for_retrieval("jwt middleware")
+        assert _score_section_against_query("", query_tokens) == 0.0
+
+    def test_score_empty_query_tokens_returns_zero(self):
+        from devolaflow.compressor import _score_section_against_query
+
+        assert _score_section_against_query("any prose body", frozenset()) == 0.0
+
+    def test_score_stopword_only_query_collapses_to_empty(self):
+        from devolaflow.compressor import _tokenize_for_retrieval
+
+        # All tokens in this query are in _QUERY_STOPWORDS — should collapse
+        # to the empty frozenset so summarise_predecessor falls back to the
+        # legacy schema-priority path.
+        query_tokens = _tokenize_for_retrieval("the and of or but is the")
+        assert query_tokens == frozenset()
+
+    def test_score_is_case_insensitive(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        # Query "JWT" should match section text "jwt".
+        query_tokens = _tokenize_for_retrieval("JWT")
+        score = _score_section_against_query("the jwt validates the bearer", query_tokens)
+        assert score > 0.0
+
+    def test_score_strips_punctuation(self):
+        from devolaflow.compressor import (
+            _score_section_against_query,
+            _tokenize_for_retrieval,
+        )
+
+        # "JWT, middleware" tokenises to {jwt, middleware}; section "the JWT
+        # middleware validates..." tokenises to {jwt, middleware, validates,
+        # bearer}. Intersection=2, union=4 → 0.5.
+        query_tokens = _tokenize_for_retrieval("JWT, middleware!")
+        section_text = "The JWT middleware validates bearer."
+        score = _score_section_against_query(section_text, query_tokens)
+        assert score == pytest.approx(0.5)
+
+    def test_summarise_with_none_query_byte_identical_to_no_kwarg(self, tmp_path):
+        """Default-preservation guarantee: retrieval_query=None must produce
+        bytewise-identical output to the legacy 4-arg form (no kwarg)."""
+        artifact = tmp_path / "artifact.md"
+        artifact.write_text(
+            "# Stage A\n\n"
+            "## Decision\n\nUse src/middleware/auth.py for JWT validation.\n\n"
+            "## Consequences\n\nLegacy clients get rejected at commit abc1234.\n\n"
+            "## Alternatives\n\nConsidered passport.js — rejected.\n",
+            encoding="utf-8",
+        )
+        legacy_result = summarise_predecessor(
+            str(artifact), max_tokens=500, mode="extractive", schema_hint="adr"
+        )
+        new_result = summarise_predecessor(
+            str(artifact),
+            max_tokens=500,
+            mode="extractive",
+            schema_hint="adr",
+            retrieval_query=None,
+        )
+        # Compare every field; primary check is summary_text byte-equality.
+        assert new_result["summary_text"] == legacy_result["summary_text"]
+        assert new_result["covered_sections"] == legacy_result["covered_sections"]
+        assert new_result["dropped_sections"] == legacy_result["dropped_sections"]
+        assert new_result["token_count"] == legacy_result["token_count"]
+        assert new_result["was_bounded"] == legacy_result["was_bounded"]
+        assert new_result["mode"] == legacy_result["mode"]
+
+    def test_summarise_with_empty_query_byte_identical_to_none(self, tmp_path):
+        """retrieval_query='' (and stopword-only queries) collapse to the
+        legacy schema-priority path — verify byte-equality with the None
+        default."""
+        artifact = tmp_path / "artifact.md"
+        artifact.write_text(
+            "# Stage A\n\n"
+            "## Decision\n\nUse src/middleware/auth.py.\n\n"
+            "## Consequences\n\nLegacy rejected at abc1234.\n",
+            encoding="utf-8",
+        )
+        none_result = summarise_predecessor(str(artifact), max_tokens=500, retrieval_query=None)
+        empty_result = summarise_predecessor(str(artifact), max_tokens=500, retrieval_query="")
+        stopwords_result = summarise_predecessor(
+            str(artifact), max_tokens=500, retrieval_query="the and or"
+        )
+        assert empty_result["summary_text"] == none_result["summary_text"]
+        assert stopwords_result["summary_text"] == none_result["summary_text"]
+
+    def test_summarise_query_lifts_relevant_section_above_schema_hint(self, tmp_path):
+        """retrieval_query must rank a query-rich section above an unrelated
+        section EVEN WHEN the schema-hint priority would have inverted them.
+
+        Combined score is ``0.6 * query_overlap + 0.4 * schema_priority``,
+        so a section needs ``query_overlap > 0.67`` to beat a schema-priority
+        slot-0 keyword section. We make ``Auth Module`` densely match the
+        query (overlap → 1.0, combined → 0.6) and ``Decision`` match nothing
+        from the query (overlap → 0.0, combined → 0.4).
+        """
+        artifact = tmp_path / "artifact.md"
+        artifact.write_text(
+            "# Stage A\n\n"
+            "## Decision\n\nUse cache layer with redis tier.\n\n"
+            "## Auth Module\n\nauth jwt bearer middleware authentication signing decode\n\n"
+            "## Unrelated Section\n\nProse about caching layers and redis tier.\n",
+            encoding="utf-8",
+        )
+        # Without retrieval_query, schema_hint='adr' puts Decision first.
+        baseline = summarise_predecessor(str(artifact), max_tokens=500, schema_hint="adr")
+        assert baseline["covered_sections"][0] == "Decision"
+        # With retrieval_query whose tokens densely match Auth Module body,
+        # combined score lifts Auth Module above Decision.
+        query_result = summarise_predecessor(
+            str(artifact),
+            max_tokens=500,
+            schema_hint="adr",
+            retrieval_query="auth jwt bearer middleware authentication signing decode",
+        )
+        assert query_result["covered_sections"][0] == "Auth Module", (
+            f"retrieval_query failed to lift Auth Module above Decision; "
+            f"got covered_sections={query_result['covered_sections']}"
+        )
+
+    def test_score_section_helper_not_in_module_all(self):
+        """`_score_section_against_query` is a private helper and must NOT
+        be exported via `__all__` — keeps the public API surface stable."""
+        from devolaflow import compressor
+
+        assert "_score_section_against_query" not in compressor.__all__
+        assert "_tokenize_for_retrieval" not in compressor.__all__
+        assert "_QUERY_STOPWORDS" not in compressor.__all__
+        assert "_select_sections_by_query" not in compressor.__all__
+
+    def test_query_stopwords_set_is_frozen_and_lowercase(self):
+        """`_QUERY_STOPWORDS` must be an immutable lowercase set so the
+        tokeniser (which lowercases input) can intersect against it."""
+        from devolaflow.compressor import _QUERY_STOPWORDS
+
+        assert isinstance(_QUERY_STOPWORDS, frozenset)
+        assert len(_QUERY_STOPWORDS) >= 25, f"expected ~30 stopwords, got {len(_QUERY_STOPWORDS)}"
+        for word in _QUERY_STOPWORDS:
+            assert word == word.lower(), f"stopword {word!r} is not lowercase"
+
+    def test_summarise_query_latency_under_10ms(self, tmp_path):
+        """P-05 reject trigger: retrieval-query path adds < 10 ms per
+        ``summarise_predecessor`` call vs the baseline (no-query) path.
+        Microbenchmark uses ``time.perf_counter`` and a small artifact so
+        the absolute numbers are stable across CI hardware. The assertion
+        is on the *delta* (query-mode minus baseline-mode), not on
+        absolute time.
+        """
+        import time
+
+        artifact = tmp_path / "artifact.md"
+        artifact.write_text(
+            "# Stage A\n\n"
+            "## Module A\n\nSome prose with JWT and middleware tokens.\n\n"
+            "## Module B\n\nSome prose with stripe and charge tokens.\n\n"
+            "## Module C\n\nMore prose with authentication and bearer.\n\n"
+            "## Module D\n\nUnrelated prose with redis and ttl.\n",
+            encoding="utf-8",
+        )
+
+        # Warm-up so the first-call overhead does not skew measurements.
+        summarise_predecessor(str(artifact), max_tokens=500)
+        summarise_predecessor(str(artifact), max_tokens=500, retrieval_query="JWT middleware")
+
+        runs = 20
+        baseline_total = 0.0
+        for _ in range(runs):
+            start = time.perf_counter()
+            summarise_predecessor(str(artifact), max_tokens=500)
+            baseline_total += time.perf_counter() - start
+
+        query_total = 0.0
+        for _ in range(runs):
+            start = time.perf_counter()
+            summarise_predecessor(str(artifact), max_tokens=500, retrieval_query="JWT middleware")
+            query_total += time.perf_counter() - start
+
+        baseline_ms = (baseline_total / runs) * 1000
+        query_ms = (query_total / runs) * 1000
+        delta_ms = query_ms - baseline_ms
+
+        assert delta_ms < 10.0, (
+            f"retrieval-query path added {delta_ms:.3f} ms per call "
+            f"(baseline={baseline_ms:.3f} ms, query={query_ms:.3f} ms); "
+            f"P-05 reject trigger is > 10 ms penalty"
+        )

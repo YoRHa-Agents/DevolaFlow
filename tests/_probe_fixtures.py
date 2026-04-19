@@ -176,8 +176,16 @@ def build_probe_workspace(
     *,
     paraphrase_file_path: bool = False,
     summary_max_tokens: int = 1200,
+    retrieval_query: str | None = None,
 ) -> dict:
-    """Return a dict describing a freshly-built Stage A + Stage B workspace."""
+    """Return a dict describing a freshly-built Stage A + Stage B workspace.
+
+    ``retrieval_query`` (added in v7.2.5 P-05) is forwarded verbatim to
+    :func:`devolaflow.compressor.summarise_predecessor`. When omitted/None
+    behaviour is byte-identical to v7.2.4 and earlier (the existing 3-tier
+    easy/medium/hard persistence probe in ``tests/test_e2e_compression.py``
+    relies on this default-preservation guarantee).
+    """
     if scenario not in SCENARIO_SPECS:
         raise ValueError(f"unknown scenario {scenario!r}; expected one of {list(SCENARIO_SPECS)}")
 
@@ -193,6 +201,7 @@ def build_probe_workspace(
         artifact_path=str(artifact_path),
         max_tokens=summary_max_tokens,
         mode="extractive",
+        retrieval_query=retrieval_query,
     )
     dispatch_payload = _canonical_dispatch(summary["summary_text"], scenario)
     assert_dispatch_layout(dispatch_payload, layout_spec=DEFAULT_DISPATCH_LAYOUT)

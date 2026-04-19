@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from devolaflow.compressor import extract_named_entities
+from devolaflow.compressor import extract_named_entities, summarise_predecessor
 from tests._probe_fixtures import SCENARIO_SPECS, build_probe_workspace
 
 PROBE_TELEMETRY_PATH = Path(".local/research/v7.0.3_probe_telemetry.json")
@@ -315,3 +315,253 @@ class TestProbeTelemetry:
         assert record["threshold_min_rate"] == 1.0
         assert record["threshold_max_misses"] == 0
         assert record["carrythrough_rate"] >= record["threshold_min_rate"]
+
+
+# ---------------------------------------------------------------------------
+# v7.2.5 P-05 — Long-Context Repo QA retrieval-mode probe (Tier 2 #5).
+# Asserts that summarise_predecessor with retrieval_query lifts the target
+# module's body-marker carry-through by >= 30 pp vs the baseline (no-query)
+# path on a synthesized 50k-token "repo" payload (10 modules × 5k each).
+# ---------------------------------------------------------------------------
+
+# Body-only markers. Chosen so they do NOT match any pattern in
+# devolaflow.compressor._ENTITY_PATTERNS (file_paths, task_ids, version_strings,
+# commit_hashes, metric_values, error_messages, acceptance_criterion_bullets,
+# interface_signatures) — i.e. they appear in the summary ONLY when the
+# section that holds them is selected for the body. None of these strings
+# carry a ".ext" suffix (would match file_paths) or surround a `def`/`class`
+# (would match interface_signatures).
+_AUTH_MARKERS: tuple[str, ...] = (
+    "JWT",
+    "validate_jwt",
+    "decode_token",
+    "authentication",
+    "authorize",
+    "bearer_token",
+    "claims_set",
+    "signing_key",
+    "token_expiry",
+    "hmac_signature",
+)
+_PAYMENT_MARKERS: tuple[str, ...] = (
+    "Stripe",
+    "charge_intent",
+    "refund_flow",
+    "webhook_event",
+    "transaction_id",
+)
+# Order in which sections are written into the synthesized artifact. payments.py
+# is positioned first so it is fully retained in the baseline (no-query) probe;
+# auth.py is positioned mid-document so the baseline body budget runs out
+# before reaching it. routes.py at position 2 carries 5 of the 10 auth markers
+# as incidental references so the baseline still scores ~50% auth retention.
+_MODULE_ORDER: tuple[str, ...] = (
+    "payments.py",
+    "routes.py",
+    "db.py",
+    "cache.py",
+    "auth.py",
+    "middleware.py",
+    "templates.py",
+    "notifications.py",
+    "users.py",
+    "admin.py",
+)
+
+
+def _module_body(module: str, target_chars: int) -> str:
+    """Return ``target_chars`` of prose specific to ``module``.
+
+    The body is built from a small per-module sentence pool (deliberately
+    narrow vocabulary so the jaccard-based query-overlap score does not
+    explode the union when auth.py is tokenised). Each module's prose is
+    repeated until the byte budget is met, then trimmed to ``target_chars``.
+    """
+    pools: dict[str, list[str]] = {
+        "payments.py": [
+            "The Stripe charge_intent flow handles refund_flow and webhook_event.",
+            "Each transaction_id is logged with a Stripe webhook_event signature.",
+            "Refund_flow reverses a Stripe charge_intent atomically per transaction_id.",
+            "The Stripe webhook_event endpoint validates the transaction_id and refund_flow.",
+            "Charge_intent records carry transaction_id metadata and webhook_event status.",
+        ],
+        "routes.py": [
+            "Routing dispatches incoming requests through the JWT middleware layer.",
+            "The router matches paths and applies authentication via JWT.",
+            "Routes call validate_jwt before delegating to handlers.",
+            "Each route may opt into authorize for role checks.",
+            "The decode_token helper exposes claims for downstream handlers.",
+        ],
+        "db.py": [
+            "The database layer manages connection pools and query batching.",
+            "Migrations track schema versions through the changelog table.",
+            "Indexes are rebuilt nightly to keep query latency stable.",
+            "Replicas serve read traffic while the primary handles writes.",
+            "Connection pool size scales with the number of CPU cores.",
+        ],
+        "cache.py": [
+            "The cache layer wraps redis with consistent hashing.",
+            "TTL values default to five minutes for hot keys.",
+            "Eviction follows an LRU policy with size-tiered buckets.",
+            "Cache misses fall through to the database read path.",
+            "Hit rate metrics are pushed to the monitoring pipeline.",
+        ],
+        "auth.py": [
+            "JWT middleware validates JWT and authentication on every request.",
+            "validate_jwt decodes JWT and verifies signing_key integrity.",
+            "decode_token returns claims_set, bearer_token and authentication state.",
+            "authorize checks the bearer_token and JWT claims_set against the role.",
+            "JWT middleware enforces token_expiry and hmac_signature for authentication.",
+        ],
+        "middleware.py": [
+            "The middleware chain composes logging, tracing, and CSRF guards.",
+            "Request context is enriched before reaching the handler layer.",
+            "Each guard short-circuits on failure with a structured response.",
+            "Tracing emits spans across upstream and downstream calls.",
+            "Compression and content negotiation run last in the chain.",
+        ],
+        "templates.py": [
+            "Templates use jinja with sandboxed expression evaluation.",
+            "Render passes wrap layout files around partial fragments.",
+            "Common partials are cached by template path and locale.",
+            "Layouts inherit from a base shell with named blocks.",
+            "Asset references resolve to fingerprinted bundle paths.",
+        ],
+        "notifications.py": [
+            "Notifications fan out to email, sms, and push channels.",
+            "Each delivery is enqueued for the worker pool to process.",
+            "Failures retry with exponential backoff and dead-letter routing.",
+            "Templates support locale negotiation for multi-region tenants.",
+            "Receipts are stored with delivery status and timestamps.",
+        ],
+        "users.py": [
+            "User records carry profile fields and audit timestamps.",
+            "Profile updates are validated before persistence layer writes.",
+            "Email verification tokens expire after twenty four hours.",
+            "Account lifecycle events emit to the audit trail bus.",
+            "User search supports prefix and full-text query modes.",
+        ],
+        "admin.py": [
+            "Admin tooling exposes feature flags and tenant overrides.",
+            "Bulk operations stream through a job queue with progress events.",
+            "Audit logs render with filterable timestamps and operators.",
+            "Tenant selection is gated by a dedicated session attribute.",
+            "Long-running jobs surface health metrics on the dashboard.",
+        ],
+    }
+    pool = pools[module]
+    parts: list[str] = []
+    idx = 0
+    while sum(len(p) + 1 for p in parts) < target_chars:
+        parts.append(pool[idx % len(pool)])
+        idx += 1
+    body = " ".join(parts)
+    return body[:target_chars]
+
+
+def _build_long_context_artifact(tmp_path: Path) -> Path:
+    """Return a 50k-token markdown artifact with 10 modules × 5k tokens each.
+
+    Token estimation in :mod:`devolaflow.compressor` uses ``len(text) // 4``
+    in the conftest fallback path, so each section body targets ``5000 * 4 =
+    20000`` characters of prose.
+    """
+    target_chars_per_module = 5000 * 4
+    sections: list[str] = ["# Long-Context Repo QA Probe (50k tokens)\n"]
+    for module in _MODULE_ORDER:
+        body = _module_body(module, target_chars_per_module)
+        sections.append(f"## {module}\n\n{body}\n")
+    artifact_path = tmp_path / "repo.md"
+    artifact_path.write_text("\n".join(sections), encoding="utf-8")
+    return artifact_path
+
+
+def _strip_key_facts_block(summary_text: str) -> str:
+    """Return ``summary_text`` with the leading ``key_facts:`` YAML block stripped.
+
+    ``summarise_predecessor`` always emits the key_facts prefix followed by a
+    blank line and then the body chunks. We only want to count carry-through
+    in the BODY (where the section-selection algorithm has effect); markers
+    that survive in the always-emitted key_facts prefix would confound the
+    measurement. The body section starts at the first blank-line gap after
+    the ``key_facts:`` header.
+    """
+    if not summary_text.startswith("key_facts:"):
+        return summary_text
+    parts = summary_text.split("\n\n", 1)
+    if len(parts) < 2:
+        return ""
+    return parts[1]
+
+
+def _marker_carry_through(summary_text: str, markers: tuple[str, ...]) -> float:
+    """Return the fraction of ``markers`` present (case-insensitive) in body."""
+    body = _strip_key_facts_block(summary_text).lower()
+    if not markers:
+        return 0.0
+    hits = sum(1 for m in markers if m.lower() in body)
+    return hits / len(markers)
+
+
+@pytest.mark.persistence_probe
+def test_long_context_retrieval_query_lifts_target_module_carry_through(
+    tmp_path: Path,
+) -> None:
+    """P-05 v7.2.5 acceptance gate — retrieval-prioritised summary lifts the
+    target module's carry-through by >= 30 pp on a synthesized 50k-token repo.
+
+    Layout: 10 modules × 5k tokens each. ``payments.py`` at position 1 (always
+    retained in baseline, drops out under retrieval-mode), ``auth.py`` at
+    position 5 (out of baseline budget; surfaces under retrieval-mode).
+    ``routes.py`` at position 2 carries 5 of the 10 auth markers as incidental
+    references so baseline auth retention is ~50% (the other 5 markers are
+    auth.py-only and therefore dropped in baseline).
+
+    Assertions (per task spec):
+      * ``0.40 <= baseline_auth <= 0.60`` (~50% baseline carry-through)
+      * ``query_auth > 0.85``
+      * ``(query_auth - baseline_auth) > 0.30``  (>= 30 pp lift)
+      * ``query_payments < 0.40``  (distractor module retention drops)
+    """
+    artifact_path = _build_long_context_artifact(tmp_path)
+    max_tokens = 9000
+
+    baseline = summarise_predecessor(str(artifact_path), max_tokens=max_tokens, mode="extractive")
+    query_result = summarise_predecessor(
+        str(artifact_path),
+        max_tokens=max_tokens,
+        mode="extractive",
+        retrieval_query="JWT middleware authentication",
+    )
+
+    baseline_auth = _marker_carry_through(baseline["summary_text"], _AUTH_MARKERS)
+    query_auth = _marker_carry_through(query_result["summary_text"], _AUTH_MARKERS)
+    baseline_payments = _marker_carry_through(baseline["summary_text"], _PAYMENT_MARKERS)
+    query_payments = _marker_carry_through(query_result["summary_text"], _PAYMENT_MARKERS)
+    lift_pp = query_auth - baseline_auth
+
+    assert 0.40 <= baseline_auth <= 0.60, (
+        f"baseline auth retention {baseline_auth:.3f} outside [0.40, 0.60] "
+        f"tolerance — fixture needs adjustment "
+        f"(query_auth={query_auth:.3f}, "
+        f"covered_baseline={baseline['covered_sections']})"
+    )
+    assert query_auth > 0.85, (
+        f"query auth retention {query_auth:.3f} <= 0.85 — retrieval mode "
+        f"failed to surface auth.py "
+        f"(covered_query={query_result['covered_sections']})"
+    )
+    assert lift_pp > 0.30, (
+        f"retrieval mode lifted auth retention by only {lift_pp * 100:.1f} pp "
+        f"(baseline {baseline_auth:.3f} → query {query_auth:.3f}); "
+        f"P-05 requires >= 30 pp lift — REJECT"
+    )
+    assert query_payments < 0.40, (
+        f"distractor (payments) retention {query_payments:.3f} >= 0.40 in "
+        f"query mode — retrieval scoring failed to demote payments.py "
+        f"(baseline_payments={baseline_payments:.3f})"
+    )
+    assert query_payments < baseline_payments, (
+        f"distractor retention should DROP in query mode: "
+        f"baseline {baseline_payments:.3f} -> query {query_payments:.3f}"
+    )
