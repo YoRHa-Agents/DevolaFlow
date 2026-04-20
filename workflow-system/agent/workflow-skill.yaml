@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "7.4.1"
+  version: "7.4.2"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -375,6 +375,11 @@ content:
       - id: nines-assisted
         file: "templates/builtin/nines-assisted.yaml"
         tags: ["nines", "research", "iteration", "skill-optimization"]
+
+      - id: "repo-init"
+        file: "templates/builtin/repo-init.yaml"
+        stages: ["analyze", "scaffold", "compile", "verify"]
+        description: "Initialize repo workspace (.local/) and governance rules; depth via mode: minimal | standard | deep"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.

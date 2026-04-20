@@ -1,0 +1,95 @@
+# Depth modes: see parameters.mode (Option α per .local/research/v7.4.2_gap_analysis.md §E.5)
+schema_version: "1.0"
+
+metadata:
+  name: repo-init
+  version: "1.0.0"
+  display_name: "Repo Workspace & Governance Init"
+  description: >
+    Initialize repo workspace (.local/) and governance rules (.rules/),
+    detect AI tools present, and (optionally) compile rules to all
+    detected tool-native formats. Default depth (mode=standard) scaffolds
+    structure and compiles rules; verification (tests/build smoke) is
+    opt-in via mode=deep. mode=minimal mirrors Claude Code /init parity
+    by stopping after analyze + scaffold (read + write structure only).
+  category: discover
+  applicable_scenarios:
+    - "Bootstrapping DevolaFlow into a fresh repo"
+    - "Adding .local/ + .rules/ to an existing project"
+    - "Migrating from .cursor/rules/ to the 5-layer model"
+    - "Mirroring Claude Code /init parity in a DevolaFlow workflow"
+  tags: [init, scaffold, bootstrap, repo, workspace, rules]
+
+stages:
+  - id: analyze
+    primitive: analyze
+    alias: repo-survey
+    description: "Survey repo — detect existing AI tool dirs, read pyproject/package.json, infer language and build commands"
+    team: research
+    duration_class: quick
+    config:
+      analysis_type: structure
+      severity_threshold: low
+
+  - id: scaffold
+    primitive: implement
+    alias: workspace-scaffold
+    description: "Create .local/{feedbacks,tasks}/ + index.md + .rules/ skeleton; write CLAUDE.md / AGENTS.md if missing"
+    team: implement
+    duration_class: quick
+    config:
+      test_strategy: no_test
+    input_mapping:
+      tasks: "analyze.findings"
+
+  - id: compile
+    primitive: implement
+    alias: rule-compile
+    description: "Compile .rules/*.mdc to detected adapter targets (Cursor MDC, AGENTS.md, Codex, Copilot)"
+    team: implement
+    duration_class: quick
+    config:
+      test_strategy: no_test
+    input_mapping:
+      detected_tools: "analyze.findings.tools"
+
+  - id: verify
+    primitive: verify
+    alias: init-smoke
+    description: "(opt-in: mode=deep) Smoke-verify scaffold — assert .local/ exists, .rules/ compiles cleanly, no drift; SKIPPED under mode=minimal or mode=standard"
+    team: test
+    duration_class: quick
+    config:
+      suites: [smoke]
+      fail_fast: true
+      coverage_threshold: 0.0
+
+composition:
+  compose: sequence
+  stages:
+    - stage: analyze
+    - stage: scaffold
+    - stage: compile
+    - stage: verify
+
+loops: []
+
+gates: []
+
+environment_modes:
+  local:
+    skip_stages: []
+  github:
+    extra_stages: []
+
+# Depth-mode parameter (Option α — .local/research/v7.4.2_gap_analysis.md §E.5).
+# Surfaced in SKILL.md Workflow Selection row for repo-init.
+parameters:
+  mode:
+    type: enum
+    default: standard
+    choices: [minimal, standard, deep]
+    description: >
+      minimal  — analyze + scaffold only (Claude Code /init parity: read + write structure, no rule compile, no verify)
+      standard — analyze + scaffold + compile (DEFAULT — adds rule compilation across detected adapters)
+      deep     — all four stages including verify smoke tests (full DevolaFlow init)

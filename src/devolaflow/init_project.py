@@ -142,7 +142,13 @@ TOOLS = {
 
 
 def _auto_detect(cwd: Path) -> list[str]:
-    """Detect which AI coding tools are present in the project directory."""
+    """Detect which AI coding tools are present in the project directory.
+
+    Also includes ``"local"`` when ``.local/`` is absent so a fresh repo gets
+    its workspace scaffolded on the first ``devola-init`` run (feedback #1
+    root-cause fix per gap analysis D-4); idempotent thereafter because
+    ``.local/`` exists after the first run.
+    """
     found = []
     if (cwd / ".cursor").is_dir():
         found.append("cursor")
@@ -152,6 +158,8 @@ def _auto_detect(cwd: Path) -> list[str]:
         found.append("copilot")
     if Path.home().joinpath(".codex").is_dir():
         found.append("codex")
+    if not (cwd / ".local").is_dir():
+        found.append("local")
     return found
 
 
@@ -183,6 +191,7 @@ def main() -> None:
 
     targets = args if args else _auto_detect(cwd)
 
+    # `all` excludes `local` (explicit-opt-in via auto-detect or `local` arg).
     if "all" in targets:
         targets = [t for t in TOOLS if t != "local"]
 

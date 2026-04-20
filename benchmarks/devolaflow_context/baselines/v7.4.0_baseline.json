@@ -73,15 +73,15 @@
   },
   "compression_retention_medium": {
     "budget": 4450,
-    "budget_utilization": 0.9987,
-    "composite": 99.95,
-    "information_density": 0.9987,
+    "budget_utilization": 0.9881,
+    "composite": 93.72,
+    "information_density": 0.9057,
     "noise_ratio": 0.0,
     "profile_name": "design",
     "scenario_name": "compression_retention_medium",
-    "section_relevance": 1.0,
+    "section_relevance": 0.9167,
     "selected_count": 12,
-    "total_tokens": 4444
+    "total_tokens": 4397
   },
   "compression_tool_output": {
     "budget": 4200,
@@ -145,15 +145,15 @@
   },
   "design_workflow": {
     "budget": 4450,
-    "budget_utilization": 0.9987,
-    "composite": 99.95,
-    "information_density": 0.9987,
+    "budget_utilization": 0.9881,
+    "composite": 87.92,
+    "information_density": 0.8234,
     "noise_ratio": 0.0,
     "profile_name": "design",
     "scenario_name": "design_workflow",
-    "section_relevance": 1.0,
+    "section_relevance": 0.8333,
     "selected_count": 12,
-    "total_tokens": 4444
+    "total_tokens": 4397
   },
   "documentation_guide": {
     "budget": 3380,

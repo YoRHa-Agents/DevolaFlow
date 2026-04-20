@@ -70,6 +70,7 @@ def _build_template(raw: dict[str, Any]) -> WorkflowTemplate:
         environment_modes=raw.get("environment_modes", {}) or {},
         extends=raw.get("extends"),
         overrides=raw.get("overrides"),
+        parameters=raw.get("parameters", {}) or {},
     )
 
 

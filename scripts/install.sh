@@ -466,6 +466,8 @@ auto_detect() {
     SCOPE="global"; install_claude; found=1
   fi
   if [ -d ".github" ]; then install_copilot; found=1; fi
+  # Auto-init .local/ when missing — feedback #1 root cause (v7.4.2)
+  if [ ! -d ".local" ]; then install_local; found=1; fi
 
   if [ "$found" -eq 0 ]; then
     warn "No AI tools detected. Pick one:"
