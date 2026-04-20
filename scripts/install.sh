@@ -10,7 +10,7 @@
 #   curl -fsSL ... | bash -s update
 #
 # Targets:  cursor, codex, claude, copilot, kimicode, windsurf,
-#           zed, cline, roo, standalone, all, auto (default), update
+#           zed, cline, roo, local, standalone, all, auto (default), update
 # Flags:    --global   install to the tool's user-wide location
 #           --project  install to the repo-local location (default)
 
@@ -382,6 +382,21 @@ install_roo() {
   ok "Roo Code installed (devola-flow.md + 8 refs)"
 }
 
+install_local() {
+  info "Initializing local workspace..."
+  mkdir -p ".local/feedbacks" ".local/tasks"
+
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import devolaflow" 2>/dev/null; then
+    python3 -m devolaflow.local.workspace 2>/dev/null || true
+  fi
+
+  ok "Local workspace initialized (.local/feedbacks, .local/tasks)"
+
+  if [ ! -d ".rules" ]; then
+    info "No .rules/ directory found. Create one with governance rules to use rule compilation."
+  fi
+}
+
 install_standalone() {
   info "Standalone -> devola-flow-skill.md"
   dl "$AGENT_BASE/SKILL.md" "devola-flow-skill.md" || true
@@ -489,6 +504,7 @@ case "$TARGET" in
   zed)      install_zed ;;
   cline)    install_cline ;;
   roo)      install_roo ;;
+  local)      install_local ;;
   standalone) install_standalone ;;
   # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
   # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
@@ -496,7 +512,7 @@ case "$TARGET" in
   update)  do_update ;;
   all)     install_cursor; install_codex; install_claude; install_copilot; \
            install_kimicode; install_windsurf; \
-           install_zed; install_cline; install_roo ;;
+           install_zed; install_cline; install_roo; install_local ;;
   auto)    auto_detect ;;
   help|--help|-h)
     cat << USAGE
@@ -512,6 +528,7 @@ case "$TARGET" in
     zed         Zed (.rules/devola-flow.md + references; --global supported)
     cline       Cline (.clinerules/devola-flow.md + references; project-only)
     roo         Roo Code (.roo/rules/devola-flow.md + references; project-only)
+    local       Initialize .local/ workspace + .rules/ governance (project-only)
     standalone  Download standalone SKILL.md
     all         All tools
     update      Re-download latest to existing installs

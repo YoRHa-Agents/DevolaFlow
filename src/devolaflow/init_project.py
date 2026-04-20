@@ -6,6 +6,7 @@ Usage:
   devola-init claude           Install for Claude Code only
   devola-init claude --global  Install Claude Code globally
   devola-init copilot          Install for Copilot only
+  devola-init local            Initialize .local/ workspace + .rules/
   devola-init --list           Show what would be installed
 """
 
@@ -115,11 +116,28 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     print(f"  ({refs} references)")
 
 
+def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+    """Initialize .local/ workspace and .rules/ governance structure."""
+    print(f"\n  Local workspace -> {cwd / '.local/'}")
+
+    from devolaflow.local.workspace import scaffold_local
+
+    scaffold_local(cwd)
+
+    rules_dir = cwd / ".rules"
+    if not rules_dir.is_dir():
+        rules_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  OK   {rules_dir / 'compile-config.yaml'} (template created)")
+    else:
+        print("  SKIP .rules/ (already exists)")
+
+
 TOOLS = {
     "cursor": install_cursor,
     "claude": install_claude,
     "copilot": install_copilot,
     "codex": install_codex,
+    "local": install_local,
 }
 
 
@@ -147,7 +165,7 @@ def main() -> None:
     if "--list" in sys.argv:
         detected = _auto_detect(cwd)
         print("Detected tools:", ", ".join(detected) if detected else "(none)")
-        print("\nAvailable targets: cursor, claude, copilot, codex, all")
+        print("\nAvailable targets: cursor, claude, copilot, codex, local, all")
         print(f"Scope: {scope}")
         print(f"Agent source: {agent_dir}")
         print(f"SKILL.md exists: {(agent_dir / 'SKILL.md').exists()}")
@@ -166,7 +184,7 @@ def main() -> None:
     targets = args if args else _auto_detect(cwd)
 
     if "all" in targets:
-        targets = list(TOOLS.keys())
+        targets = [t for t in TOOLS if t != "local"]
 
     if not targets:
         print("  No AI tools detected. Installing for Cursor (most common).")
@@ -176,7 +194,7 @@ def main() -> None:
         if t in TOOLS:
             TOOLS[t](agent_dir, cwd, scope)
         else:
-            print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, all)")
+            print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, local, all)")
 
     print(f"\n  Now Using DevolaFlow v{__version__}")
     print("  Start using DevolaFlow by asking your AI tool to")

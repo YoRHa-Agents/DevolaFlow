@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "7.3.0"
+version = "7.4.1"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -31,6 +31,9 @@ validate-gate = "devolaflow.cli:validate_gate_cmd"
 build-skill = "devolaflow.cli:build_skill_cmd"
 check-drift = "devolaflow.cli:check_drift_cmd"
 detect-repo-mode = "devolaflow.cli:detect_repo_mode_cmd"
+sync-rules = "devolaflow.cli:sync_rules_cmd"
+check-rules-drift = "devolaflow.cli:check_rules_drift_cmd"
+scaffold-local = "devolaflow.cli:scaffold_local_cmd"
 
 [tool.setuptools.packages.find]
 where = ["src"]

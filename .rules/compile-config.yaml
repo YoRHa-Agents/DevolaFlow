@@ -1,0 +1,42 @@
+version: "1.0"
+source_dir: ".rules"
+layers:
+  - name: soul
+    file: soul.mdc
+    priority: 0
+    always_include: true
+  - name: architecture
+    file: architecture.mdc
+    priority: 1
+    always_include: true
+  - name: conventions
+    file: conventions.mdc
+    priority: 2
+    always_include: false
+  - name: workflow
+    file: workflow.mdc
+    priority: 3
+    always_include: false
+  - name: style
+    file: style.mdc
+    priority: 4
+    always_include: false
+
+targets:
+  cursor:
+    output: ".cursor/rules/repo-governance.mdc"
+    format: mdc
+    token_budget: 8000
+    include_layers: [soul, architecture, conventions, workflow, style]
+    frontmatter:
+      description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
+      alwaysApply: true
+  agents_md:
+    output: "AGENTS.md"
+    format: markdown
+    token_budget: 6000
+    include_layers: [soul, architecture, conventions, workflow]
+
+drift_detection:
+  enabled: true
+  hash_file: ".rules/.compile-hashes.json"

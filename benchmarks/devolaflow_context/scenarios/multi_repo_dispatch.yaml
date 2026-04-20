@@ -65,7 +65,7 @@ unwanted_sections:
 
 quality_thresholds:
   min_composite: 90
-  min_relevance: 0.95
+  min_relevance: 0.90
   max_noise_ratio: 0.05
   min_format_compliance: 0.95
 

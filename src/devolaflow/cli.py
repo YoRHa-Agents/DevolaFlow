@@ -85,3 +85,50 @@ def detect_repo_mode_cmd() -> None:
     from devolaflow.pre_decision.detect import detect_and_print
 
     detect_and_print()
+
+
+def sync_rules_cmd() -> None:
+    """Compile .rules/ governance rules to all AI tool formats."""
+    from devolaflow.local.compiler import RuleCompiler
+
+    config_path = Path.cwd() / ".rules" / "compile-config.yaml"
+    if not config_path.exists():
+        print("No .rules/compile-config.yaml found. Run 'devola-init' first.")
+        sys.exit(1)
+
+    compiler = RuleCompiler(config_path)
+    results = compiler.compile_all()
+    for r in results:
+        print(
+            f"  {r.target}: {r.tokens_used}/{r.tokens_budget} tokens, layers: {r.layers_included}"
+        )
+    print(f"\n  {len(results)} target(s) compiled.")
+
+
+def check_rules_drift_cmd() -> None:
+    """Check compiled rules for drift against .rules/ source."""
+    from devolaflow.local.drift import check_rules_drift
+
+    rules_dir = Path.cwd() / ".rules"
+    if not rules_dir.is_dir():
+        print("No .rules/ directory found.")
+        sys.exit(1)
+
+    results = check_rules_drift(rules_dir)
+    any_drift = False
+    for r in results:
+        status_icon = {"in_sync": "✅", "drifted": "⚠️", "missing": "❌"}.get(r.status, "?")
+        print(f"  {status_icon} {r.target} — {r.status}")
+        if r.status != "in_sync":
+            any_drift = True
+    sys.exit(1 if any_drift else 0)
+
+
+def scaffold_local_cmd() -> None:
+    """Initialize .local/ workspace structure."""
+    from devolaflow.local.workspace import scaffold_local
+
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    dirs = args if args else None
+    scaffold_local(Path.cwd(), dirs=dirs)
+    print("  .local/ workspace initialized.")

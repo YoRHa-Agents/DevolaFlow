@@ -289,6 +289,16 @@ From §2.3:
 | visual-test | verify | demo-showcase, full-pipeline |
 | acceptance-check | verify | feature-enhancement, full-pipeline |
 
+### repo-init
+
+| Property | Value |
+|----------|-------|
+| **Stages** | `analyze → scaffold → compile → verify` |
+| **Gate Type** | standard |
+| **Threshold** | 85 |
+| **Description** | Initialize repo workspace (.local/) and governance rules (.rules/), compile rules to all detected AI tools |
+| **Teams** | Research (analyze), Implement (scaffold, compile), Test (verify) |
+
 ## 5. Composition Operators
 From §3.1:
 

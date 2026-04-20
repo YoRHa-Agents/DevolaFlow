@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "7.3.0"
+  version: "7.4.1"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -36,6 +36,12 @@ activation:
     - "prototype"
     - "document"
     - "research"
+    - "init repo"
+    - "initialize repo"
+    - "初始化仓库"
+    - "setup workspace"
+    - "scaffold local"
+    - "sync rules"
 
 content:
 

@@ -1,0 +1,45 @@
+---
+description: "架构约束 — 项目核心架构决策"
+priority: P1
+alwaysApply: true
+---
+
+# Architecture Rules (P1) — Core Architectural Decisions
+
+## A-1 — 4-Layer Agent Hierarchy (P1–P5)
+
+### P1 Dispatcher-Not-Implementer
+Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work. Tool enforcement: L0-L2 MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell, or EditNotebook to implement — delegate to L3 Task Agents via the `Task` tool. Trivial exception: single file, < 20 lines — P1 waived.
+
+### P2 Minimal Context
+Each agent layer receives only the context it needs:
+- L0 Project Agent: ~3K tokens (workflow template + status)
+- L1 Stage Agent: ~5K tokens (stage def + predecessor summaries)
+- L2 Wave Agent: ~4K tokens (task list + dependency map)
+- L3 Task Agent: ~8K tokens (task spec + owned files + rules)
+
+### P3 Structured Messages
+All inter-layer communication uses typed YAML message schemas (TaskDispatch, StatusReport, ExceptionEscalation). Free-form natural language between layers is prohibited.
+
+### P4 Bounded Retry
+Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Stage→Project→Human.
+
+### P5 Artifacts as Contracts
+Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
+
+## A-2 — P6 Preserve Cached Prefix
+
+Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after `gate` (position 12). Reordering existing keys is a release blocker.
+
+## A-3 — Context Token Budgets
+
+Context profiles (`workflow-system/agent/context_profiles.yaml`) must define explicit token budgets per task type. Budgets are enforced by priority-based allocation: critical sections first, then important, then supplementary.
+
+| Layer | Budget | Role |
+|-------|--------|------|
+| L0 Project | ~3K tokens | Workflow template + status |
+| L1 Stage | ~5K tokens | Stage def + predecessor summaries |
+| L2 Wave | ~4K tokens | Task list + dependency map |
+| L3 Task | ~8K tokens | Task spec + owned files + rules |
+
+Source: CO-3, SI-6.
