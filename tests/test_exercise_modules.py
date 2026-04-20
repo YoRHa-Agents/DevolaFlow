@@ -43,7 +43,7 @@ def test_validate_template_cmd(monkeypatch):
 
 
 def test_validate_gate_cmd(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["validate-gate", "x"])
+    monkeypatch.setattr(sys, "argv", ["validate-gate"])
     from devolaflow.cli import validate_gate_cmd
 
     validate_gate_cmd()

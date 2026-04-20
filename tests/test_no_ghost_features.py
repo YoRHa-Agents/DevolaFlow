@@ -136,9 +136,14 @@ def test_context_profiles_match_registry_templates(project_root: Path) -> None:
 # ── Category B: CLI commands ────────────────────────────────────────
 
 
-@pytest.mark.xfail(strict=True, reason="G-B1: validate-gate is a print-stub — closes in P-06")
 def test_validate_gate_cli_is_not_stub(project_root: Path) -> None:
-    """G-B1: validate-gate must not be the print('gate: pass (stub)') stub."""
+    """G-B1: validate-gate must not be the print('gate: pass (stub)') stub.
+
+    Closed by P-06 in v7.4.5 — :func:`devolaflow.gate.scorer.run_gate_cli`
+    now parses ``--input``, calls :func:`evaluate_gate`, and exits 0/1/2 with
+    a structured ``decision: …`` summary on stdout. This test pins the
+    closure: any regression that re-introduces the stub string fails here.
+    """
     src = _read(project_root / "src/devolaflow/gate/scorer.py")
     assert 'print("gate: pass (stub)")' not in src, (
         "validate-gate CLI is still a print-stub — see scorer.py::run_gate_cli"
