@@ -220,27 +220,30 @@ def _skill_schema_paths(project_root: Path) -> set[str]:
     return set(re.findall(r"`(schemas/[a-zA-Z0-9._/-]+\.yaml)`", skill))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-E1/G-E2/G-E3: SKILL Tier-3 cites 3 schema paths missing on disk "
-    "(task-dispatch.yaml, status-report.yaml, handoff-deliverable.yaml) — "
-    "closes in P-07",
-)
 def test_skill_schema_references_exist_on_disk(project_root: Path) -> None:
-    """G-E1/E2/E3: every schema path SKILL.md cites must exist on disk."""
+    """G-E1/E2/E3: every schema path SKILL.md cites must exist on disk.
+
+    Closed by P-07 in v7.4.7 — SKILL.md Tier 3 paths corrected from
+    ``schemas/{task-dispatch,status-report,handoff-deliverable}.yaml`` to
+    the canonical ``.schema.yaml`` suffix per audit §3.E G-E1/E2/E3
+    evidence; the missing ``handoff-deliverable.schema.yaml`` was authored
+    as a P-07 Option α stub. xfail marker removed per the audit §6
+    strict=True contract.
+    """
     refs = _skill_schema_paths(project_root)
     missing = sorted(r for r in refs if not (project_root / r).exists())
     assert not missing, f"SKILL.md cites schema files that don't exist: {missing}"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-E4: workflow-skill.yaml manifest cites 4 schemas missing on disk "
-    "(stage-definition, wave-definition, task-definition, dependency-matrix) "
-    "— closes in P-07",
-)
 def test_workflow_skill_yaml_manifest_schemas_exist(project_root: Path) -> None:
-    """G-E4: every schema file declared in workflow-skill.yaml must exist."""
+    """G-E4: every schema file declared in workflow-skill.yaml must exist.
+
+    Closed by P-07 in v7.4.7 — the four ``stage-definition``,
+    ``wave-definition``, ``task-definition``, and ``dependency-matrix``
+    schemas referenced by ``workflow-skill.yaml`` were authored as P-07
+    Option α stubs per audit §5 P-07 row decision; xfail marker removed
+    per the audit §6 strict=True contract.
+    """
     raw = _load_yaml(project_root / "workflow-system/agent/workflow-skill.yaml")
     base = project_root / "workflow-system/agent"
     missing = [
@@ -249,14 +252,15 @@ def test_workflow_skill_yaml_manifest_schemas_exist(project_root: Path) -> None:
     assert not missing, f"Manifest schemas missing on disk: {missing}"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-E5/G-E6: 2 schemas exist on disk (feedback-report.schema.yaml, "
-    "workflow-template.schema.yaml) but are NEITHER cited in SKILL.md NOR "
-    "registered in workflow-skill.yaml schemas section — closes in P-07",
-)
 def test_existing_schemas_are_declared_in_manifest(project_root: Path) -> None:
-    """G-E5/E6 (inverse): on-disk schemas must be declared in the manifest."""
+    """G-E5/E6 (inverse): on-disk schemas must be declared in the manifest.
+
+    Closed by P-07 in v7.4.7 — the on-disk ``feedback-report.schema.yaml``
+    and ``workflow-template.schema.yaml`` were registered in the
+    ``content.schemas`` block of ``workflow-skill.yaml`` per audit §3.E
+    G-E5/G-E6 inverse-ghost evidence; xfail marker removed per the audit
+    §6 strict=True contract.
+    """
     on_disk = {p.name for p in (project_root / "schemas").glob("*.schema.yaml")}
     raw = _load_yaml(project_root / "workflow-system/agent/workflow-skill.yaml")
     declared = {Path(e["file"]).name for e in raw["content"]["schemas"]}
@@ -351,13 +355,15 @@ def _skill_tier3_section(project_root: Path) -> str:
     return match.group(1) if match else ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-H1/G-H2/G-H3: SKILL Tier-3 cites 3 template paths missing on "
-    "disk (project-status.yaml, stage-readme.md, wave-plan.md) — closes in P-07",
-)
 def test_skill_template_tier3_paths_exist(project_root: Path) -> None:
-    """G-H1/H2/H3: every `templates/...` path in SKILL Tier-3 must exist."""
+    """G-H1/H2/H3: every `templates/...` path in SKILL Tier-3 must exist.
+
+    Closed by P-07 in v7.4.7 — the three SKILL Tier-3 template paths
+    (``templates/project-status.yaml``, ``templates/stage-readme.md``,
+    ``templates/wave-plan.md``) were authored as P-07 Option α stubs per
+    audit §3.H G-H1/G-H2/G-H3 evidence; xfail marker removed per the
+    audit §6 strict=True contract.
+    """
     paths = re.findall(r"`(templates/[a-zA-Z0-9._/-]+)`", _skill_tier3_section(project_root))
     base = project_root / "workflow-system/agent"
     missing = sorted(p for p in paths if not (base / p).exists())
@@ -381,13 +387,15 @@ def test_skill_knowledge_paths_exist(project_root: Path) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-H6: SKILL Tier-3 cites knowledge/index.md but the manifest "
-    "knowledge block omits it — closes in P-07",
-)
 def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
-    """G-H6: knowledge/index.md cited by SKILL must appear in manifest."""
+    """G-H6: knowledge/index.md cited by SKILL must appear in manifest.
+
+    Closed by P-07 in v7.4.7 — the ``knowledge/index.md`` entry was added
+    to the ``content.knowledge`` block of ``workflow-skill.yaml`` (and to
+    the bottom ``manifest.knowledge`` block for symmetry) per audit §3.H
+    G-H6 inverse-ghost evidence; xfail marker removed per the audit §6
+    strict=True contract.
+    """
     skill = _read(project_root / "workflow-system/agent/SKILL.md")
     assert "knowledge/index.md" in skill, "G-H6 precondition: SKILL must cite knowledge/index.md"
     raw = _load_yaml(project_root / "workflow-system/agent/workflow-skill.yaml")

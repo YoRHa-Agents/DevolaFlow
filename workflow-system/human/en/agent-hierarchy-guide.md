@@ -4,8 +4,8 @@ description: "Understanding the 4-layer delegation hierarchy."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-20T23:26:26Z"
-source_version: "7.4.6"
+last_synced: "2026-04-20T23:44:38Z"
+source_version: "7.4.7"
 ---
 
 # Agent Hierarchy Guide

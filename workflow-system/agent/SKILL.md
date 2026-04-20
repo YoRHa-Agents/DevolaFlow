@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.4.6"
+version: "7.4.7"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.4.6**
+> **Now Using DevolaFlow v7.4.7**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 7.4.6 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.4.7 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -433,9 +433,9 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `examples/full-pipeline-trace.md` | Full-pipeline walkthrough |
 | `examples/hotfix-trace.md` | Hotfix delegation example |
 | `examples/convergence-loop-trace.md` | Review-fix-test cycle walkthrough |
-| `schemas/task-dispatch.yaml` | Building TaskDispatch YAML |
-| `schemas/status-report.yaml` | Building StatusReport YAML |
-| `schemas/handoff-deliverable.yaml` | Inter-team handoff envelopes |
+| `schemas/task-dispatch.schema.yaml` | Building TaskDispatch YAML |
+| `schemas/status-report.schema.yaml` | Building StatusReport YAML |
+| `schemas/handoff-deliverable.schema.yaml` | Inter-team handoff envelopes |
 | `templates/project-status.yaml` | Project tracking dashboard |
 | `templates/stage-readme.md` | Per-stage tracking documents |
 | `templates/wave-plan.md` | Wave decomposition planning |

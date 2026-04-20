@@ -1,0 +1,46 @@
+# -----------------------------------------------------------------------------
+# Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
+# Design reference: doc/designs/design_agent_hierarchy.md §5.1
+# HandoffDeliverable — inter-team transfer envelope (e.g. design → implement,
+# implement → review). Carries produced artifact set + acceptance receipt so
+# the receiving team verifies completeness without re-reading upstream.
+# -----------------------------------------------------------------------------
+# TODO(v7.6.x P-07 Option β): expand `artifacts.item_fields` with checksums,
+# size budgets, and signed-attestation hooks; promote `acceptance_receipt`
+# to the `acceptance` shape used by task-dispatch.schema.yaml; add
+# `verification_runbook` block per design_agent_hierarchy.md §5.2.
+
+design_reference: doc/designs/design_agent_hierarchy.md §5.1
+schema_name: handoff-deliverable
+instance_top_level_required:
+  - header
+  - producing_team
+  - receiving_team
+  - artifacts
+  - acceptance_receipt
+
+fields:
+  header:
+    children:
+      handoff_id: { type: string, description: UUID for this handoff envelope. }
+      dispatch_id: { type: string, description: Originating TaskDispatch id. }
+      timestamp: { type: string, description: ISO8601 handoff time. }
+  producing_team:
+    children:
+      team: { type: string, description: research | design | implement | test | review. }
+      stage_id: { type: string, description: Stage that produced the deliverable. }
+  receiving_team:
+    children:
+      team: { type: string, description: Downstream consuming team. }
+      stage_id: { type: string, description: Next stage that will consume. }
+  artifacts:
+    type: list
+    description: Files and structured outputs being handed over.
+    item_fields:
+      artifact_id: { type: string }
+      path: { type: string, description: Repo-relative artifact path. }
+      summary: { type: string, description: One-line description for the receiver. }
+  acceptance_receipt:
+    children:
+      criteria_met: { type: list, description: Acceptance criteria the producer asserts as PASS. }
+      open_questions: { type: list, optional: true, description: Items the receiver should clarify. }

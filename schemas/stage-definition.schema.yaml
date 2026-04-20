@@ -1,0 +1,45 @@
+# -----------------------------------------------------------------------------
+# Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
+# Design reference: doc/designs/design_decomposition_gate.md §2.3
+# StageDefinition — single stage instance inside a workflow template (id,
+# scope, inputs, outputs, acceptance, optional skip / timeout). Mirrors
+# `WorkflowTemplate.stages[*]` in src/devolaflow/template_engine/models.py.
+# -----------------------------------------------------------------------------
+# TODO(v7.6.x P-07 Option β): align field-by-field with StageDefinition in
+# src/devolaflow/template_engine/models.py (currently 14 dataclass fields)
+# and generate this stub via a documentation-extraction pass; document the
+# runtime contract for `skip_condition` once G-G2 closes in v7.4.8 (P-04).
+
+design_reference: doc/designs/design_decomposition_gate.md §2.3
+schema_name: stage-definition
+instance_top_level_required:
+  - id
+  - primitive
+  - team
+  - scope
+  - acceptance
+
+fields:
+  id: { type: string, description: Unique within template (e.g. S01, design). }
+  primitive: { type: string, description: One of the 13 universal stage primitives. }
+  alias: { type: string, optional: true, description: Domain-specific label for this stage. }
+  team: { type: string, description: research | design | implement | test | review. }
+  duration_class: { type: string, description: quick | medium | long. }
+  scope:
+    children:
+      description: { type: string, description: What this stage achieves. }
+      owned_files: { type: list, optional: true, description: Repo-relative paths owned by this stage. }
+  inputs:
+    type: list
+    optional: true
+    description: Predecessor artifacts or external references this stage consumes.
+  outputs:
+    type: list
+    optional: true
+    description: Artifacts this stage produces (handoff-deliverable.schema.yaml carries them).
+  acceptance:
+    children:
+      criteria: { type: list, description: Testable completion conditions. }
+      gate_type: { type: string, optional: true, description: standard | convergence | passthrough. }
+  skip_condition: { type: string, optional: true, description: Predicate; runtime consumer pending P-04 (G-G2). }
+  timeout_minutes: { type: int, optional: true, description: Hard wall-clock limit; runtime consumer pending P-08 (G-I3). }

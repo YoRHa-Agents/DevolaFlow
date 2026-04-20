@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "7.4.6"
+  version: "7.4.7"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -272,6 +272,11 @@ content:
       description: "How SOLID, TDD, Clean Architecture, DDD map to gate dimensions and code-rules"
       tier: 3
 
+    - id: "knowledge-index"
+      file: "knowledge/index.md"
+      description: "Knowledge page catalog with selective loading hints for L3 task agents"
+      tier: 3
+
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
   # Registry + 20 builtin templates covering all workflow types.
@@ -441,6 +446,16 @@ content:
       design_source: "design_execution_protocol.md §4.3"
       description: "Checkpoint schema for state preservation between stages"
 
+    - id: "feedback-report"
+      file: "../../schemas/feedback-report.schema.yaml"
+      design_source: "design_meta_framework.md §8 (self-improving feedback loop)"
+      description: "Post-workflow feedback report with execution metrics, pattern analysis, and improvement proposals"
+
+    - id: "workflow-template"
+      file: "../../schemas/workflow-template.schema.yaml"
+      design_source: "design_meta_framework.md §4.1"
+      description: "WorkflowTemplate YAML instance shape (documentation schema for templates/builtin/*.yaml)"
+
 # ═══════════════════════════════════════════════════════════════════
 # Adapters: Per-tool output configuration.
 # Each adapter reads this schema and produces tool-specific files.
@@ -602,6 +617,10 @@ manifest:
       tier: 3
       type: "knowledge"
       design_source: "design_agent_hierarchy.md §4, design_decomposition_gate.md §5"
+    - path: "knowledge/index.md"
+      tier: 3
+      type: "knowledge"
+      design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
   templates:
     - path: "templates/registry.yaml"
