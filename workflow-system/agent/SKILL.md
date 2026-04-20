@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.3.0"
+version: "7.4.1"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.3.0**
+> **Now Using DevolaFlow v7.4.1**
 
 # DevolaFlow
 
 ## Version & Update
-
-**Current version:** 7.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.4.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -149,7 +148,6 @@ Escalation: Task → Wave → Stage → Project → Human
 Skip multi-stage hierarchy. Dispatch a **single Task Agent** via `Task` tool with full context. Verify output and report.
 
 ## Quick Start — Workflow Selection
-
 Match user intent to workflow type, then load the corresponding stage template.
 
 | Intent Keywords | Workflow Type | Stages (abbreviated) |
@@ -172,6 +170,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
+| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold → compile → verify |
 
 **Selection heuristics:**
 
@@ -468,6 +467,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | onboarding | 4 | standard |
 | skill-optimization | 6 | convergence |
 | product-verification | 8 | convergence |
+| repo-init | 4 | standard |
 
 ## Task Quality Score
 

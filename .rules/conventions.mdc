@@ -1,0 +1,78 @@
+---
+description: "编码与格式规范"
+priority: P2
+alwaysApply: true
+---
+
+# Conventions Rules (P2) — Coding & Format Standards
+
+## C-1 — Pre-Commit Verification Checklist
+
+Before committing to this repository, verify:
+1. `python -m pytest tests/ -q` — all tests pass
+2. `ruff check src/ tests/` — no lint errors
+3. `ruff format --check src/ tests/` — formatting correct
+4. No absolute filesystem paths introduced in agent-facing files
+5. CHANGELOG updated if user-visible changes were made
+
+Source: CP-7.
+
+## C-2 — Lean Message Format
+
+Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+
+Source: CO-1.
+
+## C-3 — Verbatim Extraction
+
+`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
+
+Source: CO-2.
+
+## C-4 — Tiered Line Budget
+
+Agent-facing skill files are subject to tiered line-count ceilings:
+
+| Tier | Ceiling | Files |
+|------|---------|-------|
+| Default | < 500 | `workflow-system/agent/SKILL.md` |
+| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (8 files) |
+| XL | ≤ 1600 | `workflow-system/agent/examples/*.md` (3 files) |
+
+Verify with:
+```bash
+wc -l workflow-system/agent/SKILL.md workflow-system/agent/references/*.md workflow-system/agent/examples/*.md
+python -m pytest tests/test_integration.py::test_skill_md_under_500_lines tests/test_reference_size_budgets.py -v
+```
+
+Source: SF-1.
+
+## C-5 — Required Frontmatter Keys
+
+SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does.
+
+Source: SF-2.
+
+## C-6 — Version Consistency
+
+The version string must match `src/devolaflow/__init__.py` `__version__` in ALL canonical 7 locations:
+
+1. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, body "Current version:" text
+2. `workflow-system/agent/workflow-skill.yaml` — identity section
+3. `pyproject.toml` — version field
+4. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
+5. `tests/test_smoke.py` — version assertion
+6. `README.md` — badge and version example
+7. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA` version
+
+Source: SF-3.
+
+## C-7 — Valid Reference Links
+
+Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. Valid references: `agent-hierarchy.md`, `context-isolation.md`, `decomposition-gate.md`, `execution-protocol.md`, `message-schemas.md`, `meta-framework.md`, `repo-modes.md`, `team-roles.md`.
+
+Source: SF-4.
+
+## C-8 — Always Use Braces for If
+
+Always use braces for if, else if, and else branches in C++. No single-line unbracketed bodies allowed.

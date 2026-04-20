@@ -1,0 +1,91 @@
+---
+description: "开发工作流规则"
+priority: P3
+alwaysApply: false
+---
+
+# Workflow Rules (P3) — Development Process
+
+## W-1 — Iteration Planning Gate (SI-1)
+
+Before starting any version iteration, produce a research/analysis artifact identifying gaps between current state and target goals. No implementation without documented gap analysis. Analysis artifacts live in `.local/research/`. The gap analysis must enumerate: (a) specific deficiencies found, (b) priority ranking, (c) proposed fixes with file-level scope. This gate is the entry point for SI-2 through SI-10.
+
+## W-2 — NineS-Driven Analysis (SI-2)
+
+For external reference analysis, run NineS deep analysis:
+```
+nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
+```
+For end-of-iteration self-evaluation, run NineS self-eval with the repo's canonical config:
+```
+nines -f json -c nines.toml self-eval --baseline-version <version> --golden-dir data/golden_test_set --samples-dir data/golden_test_set --src-dir src/devolaflow --test-dir tests --project-root .
+```
+Store raw JSON output in `.local/research/`. When NineS is unavailable, manual analysis following the same dimensions is acceptable but must be noted as manual.
+
+## W-3 — Evaluation Before Release (SI-3)
+
+Every pre-release requires an evaluation report covering: Code quality (0.20), Architecture rationality (0.20), Test adequacy (0.20), Maintainability (0.15), Compatibility (0.10), Performance impact (0.15). Version readiness threshold: weighted composite ≥ 8.5/10.
+
+## W-4 — Benchmark Regression Guard (SI-4)
+
+Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean message schemas, SKILL.md sections, or gate modules requires EvoBench verification:
+```
+python -m pytest tests/test_benchmarks.py -v
+```
+Regression threshold: composite score must not drop >5% below baseline per scenario.
+
+## W-5 — Skill Format Coupling (SI-5)
+
+Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check ≤ 500, (2) `build-skill` for all 4 adapters, (3) benchmark run passes, (4) version consistency passes. Partial compliance is treated as full violation.
+
+## W-6 — Context Budget Enforcement (SI-6)
+
+Changes to `context_profiles.yaml` require running `python -m devolaflow.task_adaptive_selector <task_type> --verbose` for all affected task types and verifying no section marked `critical` was dropped.
+
+## W-7 — Iteration Retrospective (SI-8)
+
+After completing a version release, produce a retrospective artifact summarizing: (1) Gaps identified, (2) What was implemented, (3) What was deferred and why, (4) Key learnings. Store in `.local/research/`.
+
+## W-8 — Convergence Round Reinforcement (SI-9)
+
+Multi-round convergence iterations MUST use the reinforcement mechanism (`src/devolaflow/gate/reinforcement.py`). Maximum 5 reinforcement rules per round, severity-filtered. If score stagnates for 2+ rounds → escalate to human.
+
+## W-9 — Test-Then-Commit Protocol (SI-10)
+
+Every iteration follows this strict pre-commit sequence — all 6 must pass:
+1. `python -m pytest tests/ -q` — all tests pass
+2. `ruff check src/ tests/` — no lint errors
+3. `ruff format --check src/ tests/` — formatting correct
+4. `python -m pytest tests/test_version.py -v` — version consistency
+5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
+6. `make check-cursor-skill` — exit 0
+
+## W-10 — Version Bump Protocol (CP-3)
+
+When bumping the version, update ALL tracked locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify.
+
+## W-11 — Gate Module Changes (CP-4)
+
+Changes to `src/devolaflow/gate/` require running the full gate test suite:
+```
+python -m pytest tests/test_gate.py -v
+```
+
+## W-12 — SKILL Changes Require Adapter Build (CP-5)
+
+Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying all 4 adapter outputs build successfully and stay within their budgets.
+
+## W-13 — Context Optimization Benchmarks (CP-6)
+
+Changes to `task_adaptive_selector.py`, `context_profiles.yaml`, or lean message schemas require running:
+```
+python -m pytest tests/test_benchmarks.py -v
+```
+
+## W-14 — Benchmark Verification (CO-5)
+
+Context optimization changes must demonstrate improvement (or no regression) via EvoBench benchmarks. Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/`.
+
+## W-15 — Section Relevance (CO-6)
+
+Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.

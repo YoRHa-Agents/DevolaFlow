@@ -1473,6 +1473,29 @@ profiles:
       reference_navigation: skip
     rationale: "Interaction testing needs gate scoring (interaction_quality dimension), convergence for fixing failing flows, and accessibility compliance evaluation."
 
+  repo-init:
+    token_budget: 6000
+    model_hints:
+      default_tier: balanced
+    section_priorities:
+      version_update: skip
+      quick_action_decision: important
+      mode_awareness: skip
+      workflow_selection: critical
+      agent_hierarchy: important
+      rationalization_prevention: skip
+      wave_coordination: skip
+      stage_primitives: critical
+      gate_mechanism: skip
+      agent_teams: important
+      context_isolation: skip
+      dispatch_protocol: important
+      lifecycle_hooks: skip
+      repo_mode_detection: critical
+      reference_navigation: supplementary
+      task_quality_score: skip
+      operational_learnings: skip
+
   product_verification:
     goal_hints:
       - "product verification"

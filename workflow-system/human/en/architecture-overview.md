@@ -4,8 +4,8 @@ description: "System architecture: 4-layer hierarchy, stage primitives, gate mec
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-19T06:27:55Z"
-source_version: "7.3.0"
+last_synced: "2026-04-20T15:17:03Z"
+source_version: "7.4.1"
 ---
 
 # Architecture Overview

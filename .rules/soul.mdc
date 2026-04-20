@@ -1,0 +1,48 @@
+---
+description: "不可变核心约束 — 所有 AI 工具和开发者必须遵守"
+priority: P0
+alwaysApply: true
+---
+
+# Soul Rules (P0) — Immutable Invariants
+
+These rules can NEVER be violated regardless of context, task type, or agent layer.
+
+## S-1 — Dispatcher-Not-Implementer Invariant
+
+Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews. L0-L2 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement. Trivial exception: single file, < 20 lines.
+
+## S-2 — No Absolute Paths in Agent Files
+
+All paths in dispatch messages, status reports, artifact references, SKILL.md, CLAUDE.md, and all reference documents must be relative to the repository root. Absolute filesystem paths are prohibited. External resources must be referenced via their remote URL.
+
+Sources: CO-4, SF-5.
+
+## S-3 — Test Coverage Floor
+
+Every new or modified Python module must maintain >= 80% test coverage. New modules must have > 0% coverage before merge. Verify with:
+```
+python -m pytest tests/ --cov=devolaflow --cov-report=term-missing
+```
+
+Source: CP-2.
+
+## S-4 — No Ghost Features
+
+Every feature listed in CHANGELOG.md must have corresponding working code, tests, and (if applicable) documentation. Do not add CHANGELOG entries for code that does not yet exist.
+
+Source: CP-1.
+
+## S-5 — No Silent Failures
+
+Never suppress errors with try-catch (or equivalents) without logging, re-throwing, or returning explicit error states. Only ignore errors if explicitly requested for non-critical "best-effort" execution.
+
+## S-6 — Protected Branch Workflow
+
+NEVER push directly to protected branches (main, master, yc_dev, production). Always create a new feature branch, commit changes there, and propose a Merge Request or Pull Request.
+
+## S-7 — External Resource URLs
+
+External tools and benchmarks MUST be referenced by their remote GitHub URL. Local clone paths MUST NOT be hardcoded in any agent-facing file.
+
+Sources: SF-6, SI-7.
