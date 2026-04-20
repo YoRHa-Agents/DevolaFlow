@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-7.4.2-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-7.4.3-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -74,7 +74,7 @@ Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 434+ tests, 20 templates
+make test && make validate-templates   # 1343 tests, 20 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -159,13 +159,13 @@ The agent will compare your installed version against the latest on GitHub and t
 | "update refs" / "check references" | `self-update` — track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
 
-## What's New in v5.0.0
+## What's New in v7.4.3
 
-- **NineS v2.0.0 Integration** — Full CLI migration with self-improvement loop (self-eval → iterate → benchmark)
-- **Code Quality Improvements** — NineS-guided complexity reduction: select_context CC 23→7, findings 7→0
-- **Karpathy Behavioral Norms** — Explicit assumptions, simplicity review gates, anti-complexity checks
-- **Self-Update Workflow Enhanced** — NineS iterate/benchmark integrated into the self-update pipeline
-- **18 Reference Dependencies Tracked** — Added andrej-karpathy-skills to external reference tracking
+- **Stale Doc Refs Closed (v7.4.3, P-02)** — 12 minor stale numeric/version references in `README.md`, `CLAUDE.md`, `workflow-system/agent/workflow-skill.yaml` aligned with v7.4.2 reality (template count `17→20`, scenario count `20→39`, test count `434+→1343`, rule count `19 process→9 .mdc files`, version-bump location count `11/16→7 canonical sync locations`).
+- **`repo-init` Template Landed (v7.4.2)** — Closed v7.4.0's S-4 / CP-1 ghost-feature gap: new `workflow-system/agent/templates/builtin/repo-init.yaml` (4 stages: analyze → scaffold → compile → verify) with `parameters.mode: {minimal | standard | deep}` enum defaulted to `standard` for Claude Code `/init` parity (no heavy verify execution by default).
+- **CLI Coverage Restored (v7.4.1)** — `tests/test_cli_local_commands.py` (+7 tests) lifted `src/devolaflow/cli.py` from 63% → 99% coverage; CP-2 / S-3 floor restored after the v7.4.0 staged work.
+- **`.rules/` 5-Layer Governance (v7.4.0)** — Soul Rules P0 → Architecture P1 → Conventions P2 → Workflow P3 → Style P4 model; rule compiler emits `.cursor/rules/repo-governance.mdc` and `AGENTS.md` from a single canonical source.
+- **`.local/` Workspace Scaffolding (v7.4.0)** — Structured local dev workspace with `.local/feedbacks/`, `.local/tasks/`, `.local/research/`, and `index.md` navigation; auto-detected by `devola-init` and the curl-installer one-liner.
 
 ## What's Inside
 
@@ -243,13 +243,19 @@ The score appears at the end of the workflow report with actionable tips to impr
 
 ### Repository Development Rules
 
-19 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+9 enforceable rule files in `.cursor/rules/` codifying iteration lessons:
 
 | Rule File | Rules | What It Enforces |
 |-----------|-------|-----------------|
-| `skill-format-rules.mdc` | SF-1 to SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
-| `change-process-rules.mdc` | CP-1 to CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
-| `context-optimization-rules.mdc` | CO-1 to CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
+| `repo-governance.mdc` | S-1..S-7, A-1..A-3, C-1..C-8, W-1..W-15, ST-1..ST-13 | Compiled aggregate: Soul invariants, architecture, conventions, workflow, style |
+| `workflow-rules.mdc` | P1..P5 | 4-layer hierarchy: Dispatcher-Not-Implementer, Minimal Context, Structured Messages, Bounded Retry, Artifacts as Contracts |
+| `devola-flow-rules.mdc` | P1..P6 | DevolaFlow-specific: P1..P5 + P6 cache-prefix invariant |
+| `skill-format-rules.mdc` | SF-1..SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
+| `change-process-rules.mdc` | CP-1..CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
+| `context-optimization-rules.mdc` | CO-1..CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
+| `self-improve-iteration-rules.mdc` | SI-1..SI-10 | Iteration planning gate, NineS analysis, evaluation, retrospective, test-then-commit |
+| `web-experience-rules.mdc` | WX-1..WX-8 | Four theme showcases, additive design tokens, motion patterns, bilingual showcase pages |
+| `documentation-sync-rules.mdc` | DS-1..DS-5 | Human-facing content registry, NieR identity, bilingual completeness, version propagation |
 
 ## Versioning & Updates
 
@@ -258,7 +264,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v7.4.2"
+devola-version                   # prints "DevolaFlow v7.4.3"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -289,8 +295,8 @@ devola-init claude --global
 ### Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 5.0.0            # updates all 11 version locations
-python scripts/bump_version.py 5.0.0 --dry-run   # preview without writing
+python scripts/bump_version.py 7.4.3            # updates all 11 version locations (7 canonical sync locations across 8 files per CP-3)
+python scripts/bump_version.py 7.4.3 --dry-run   # preview without writing
 ```
 
 ## CLI Tools
@@ -320,7 +326,7 @@ DevolaFlow/
     agent/                    # Agent-consumed content (md + yaml only)
       SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
       references/             #   Tier 2: 8 domain reference files (200-500 lines)
-      templates/builtin/      #   17 workflow template YAMLs
+      templates/builtin/      #   20 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs
       knowledge/              #   Tier 3: code-rules + principle mappings
       workflow-skill.yaml     #   canonical source for adapter pipeline
@@ -332,7 +338,7 @@ DevolaFlow/
     devolaflow_context/        # EvoBench context density benchmarks
       evaluator.py             #   scoring: relevance, density, noise, utilization
       runner.py                #   CLI runner with baseline comparison
-      scenarios/               #   20 benchmark scenarios (all 17 workflow types)
+      scenarios/               #   39 benchmark scenarios (all 20 workflow types)
       baselines/               #   stored baseline results for regression detection
   schemas/                    # All schema definitions (system + primitives)
     *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
@@ -341,9 +347,9 @@ DevolaFlow/
     primitives/               #   per-primitive I/O schemas (future)
   doc/designs/                # 15 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (434+ tests, 89% coverage)
+  tests/                      # pytest suite (1343 tests, 94.76% coverage)
   .github/workflows/          # CI + Release + Pages
-  .cursor/rules/              # always-on hard constraints (5 core + 19 process rules)
+  .cursor/rules/              # always-on hard constraints (9 .mdc rule files)
 ```
 
 ## Interactive Demo
@@ -369,7 +375,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |-----|-------------|
 | [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
 | [Architecture Overview](workflow-system/human/en/architecture-overview.md) | 4-layer hierarchy, primitives, gates, context isolation |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 17 workflow types with examples and selection guidance |
+| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 20 workflow types with examples and selection guidance |
 | [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
 | [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
 | [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
@@ -382,7 +388,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |------|------|
 | [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
 | [架构概述](workflow-system/human/zh/architecture-overview.md) | 4 层层级、原语、质量门、上下文隔离 |
-| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 17 种工作流类型，含示例和选择指南 |
+| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 20 种工作流类型，含示例和选择指南 |
 | [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
 | [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
 | [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |
@@ -401,7 +407,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make changes following the [repository rules](.cursor/rules/) (5 core + 19 process rules)
+3. Make changes following the [repository rules](.cursor/rules/) (9 .mdc rule files)
 4. Run `make all` to verify (tests, lint, templates, adapters, docs sync, drift check)
 5. Update `CHANGELOG.md` if your changes are user-visible
 6. Submit a Pull Request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md) (never push directly to `main`)
@@ -413,7 +419,7 @@ Commit messages use [Conventional Commits](https://www.conventionalcommits.org/)
 ```bash
 make release-preflight                          # run all quality gates
 python scripts/bump_version.py X.Y.Z --dry-run  # preview version bump
-python scripts/bump_version.py X.Y.Z --tag      # bump all 16 locations + create git tag
+python scripts/bump_version.py X.Y.Z --tag      # bump 7 canonical sync locations + create git tag
 git add -A && git commit -m "chore: bump version to X.Y.Z"
 git push origin main --tags                      # triggers release workflow
 ```
