@@ -1332,6 +1332,12 @@ profiles:
       what changed, and lifecycle hooks for version management. Minimal
       ceremony — no convergence loops or deep architecture.
 
+  # G-A4 closure (audit §3.A + §9 Open Q1): the four profiles below
+  # (feedback, verify_visual, verify_acceptance, verify_interaction) are
+  # intentional sub-task routing layers consumed by composite workflows
+  # (e.g. product-verification dispatching verify_* sub-tasks) — they have
+  # NO standalone template in templates/registry.yaml by design. Tier-1
+  # dispatch never instantiates these as top-level workflows.
   feedback:
     description: "Feedback loop — gate evaluation, learnings integration"
     goal_hints:
