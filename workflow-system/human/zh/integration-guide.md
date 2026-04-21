@@ -4,7 +4,7 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-21T10:54:17Z"
+last_synced: "2026-04-21T19:12:15Z"
 source_version: "7.8.0"
 ---
 
@@ -35,7 +35,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 安装内容：
 - `.cursor/skills/devola-flow/SKILL.md` — 主 skill 文件
-- `.cursor/skills/devola-flow/references/` — 8 个领域参考文件
+- `.cursor/skills/devola-flow/references/` — 9 个领域参考文件
 - `.cursor/skills/devola-flow/examples/` — 3 个执行追踪示例
 
 ### 在 Cursor 中如何工作

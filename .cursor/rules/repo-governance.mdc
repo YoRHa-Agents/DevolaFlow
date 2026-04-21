@@ -118,7 +118,7 @@ Agent-facing skill files are subject to tiered line-count ceilings:
 | Tier | Ceiling | Files |
 |------|---------|-------|
 | Default | < 500 | `workflow-system/agent/SKILL.md` |
-| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (8 files) |
+| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (9 files) |
 | XL | ≤ 1600 | `workflow-system/agent/examples/*.md` (3 files) |
 
 Verify with:
@@ -151,7 +151,7 @@ Source: SF-3.
 
 ## C-7 — Valid Reference Links
 
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. Valid references: `agent-hierarchy.md`, `context-isolation.md`, `decomposition-gate.md`, `execution-protocol.md`, `message-schemas.md`, `meta-framework.md`, `repo-modes.md`, `team-roles.md`.
+Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. Valid references: `agent-hierarchy.md`, `behavioral-guidelines.md`, `context-isolation.md`, `decomposition-gate.md`, `execution-protocol.md`, `message-schemas.md`, `meta-framework.md`, `repo-modes.md`, `team-roles.md`.
 
 Source: SF-4.
 

@@ -720,7 +720,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 This installs:
 - `.cursor/skills/devola-flow/SKILL.md` — the main skill file
-- `.cursor/skills/devola-flow/references/` — 8 domain reference files
+- `.cursor/skills/devola-flow/references/` — 9 domain reference files
 - `.cursor/skills/devola-flow/examples/` — 3 execution trace examples
 
 ### How It Works in Cursor
@@ -1645,7 +1645,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 安装内容：
 - `.cursor/skills/devola-flow/SKILL.md` — 主 skill 文件
-- `.cursor/skills/devola-flow/references/` — 8 个领域参考文件
+- `.cursor/skills/devola-flow/references/` — 9 个领域参考文件
 - `.cursor/skills/devola-flow/examples/` — 3 个执行追踪示例
 
 ### 在 Cursor 中如何工作

@@ -4,7 +4,7 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-21T10:54:17Z"
+last_synced: "2026-04-21T19:12:15Z"
 source_version: "7.8.0"
 ---
 
@@ -35,7 +35,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 This installs:
 - `.cursor/skills/devola-flow/SKILL.md` — the main skill file
-- `.cursor/skills/devola-flow/references/` — 8 domain reference files
+- `.cursor/skills/devola-flow/references/` — 9 domain reference files
 - `.cursor/skills/devola-flow/examples/` — 3 execution trace examples
 
 ### How It Works in Cursor
