@@ -94,9 +94,31 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.gate.reinforcement:findings_to_reinforcement",
         "devolaflow.gate.reinforcement:merge_reinforcement_into_dispatch",
         "devolaflow.gate.reinforcement:reinforcement_to_dict",
+        # v8.0.0 P-07 monotonic ratchet — convergence-loop bridge helpers.
+        # Both are exposed via devolaflow.gate.__all__ for external L0/L1/L2
+        # orchestrators that need to thread the new ratchet into their
+        # convergence-round bookkeeping (per ``patch_plan §3 P-07``).
+        # ``record_round_with_ratchet`` is the canonical way to append to
+        # ``list[ConvergenceRound]`` AND record on ``MonotonicRatchet`` in
+        # one call; ``detect_ratchet_escalation`` short-circuits the
+        # stagnation path when the ratchet's most recent verdict is
+        # ``ESCALATE``. Not yet wired into evaluate_gate / evaluate_ladder
+        # at v8.0.0 cut — orchestrator opt-in only (matches the
+        # evaluate_ladder allowlisting precedent above).
+        "devolaflow.gate.convergence:record_round_with_ratchet",
+        "devolaflow.gate.convergence:detect_ratchet_escalation",
         "devolaflow.task_adaptive_selector:apply_round_escalation",
         "devolaflow.task_adaptive_selector:apply_plan_mode_overrides",
         "devolaflow.task_adaptive_selector:select_context",
+        # v8.0.0 P-07 apply_round_escalation refactor (NineS [CC-448821-0001]
+        # closure). The three named helpers (``select_round_result`` /
+        # ``apply_severity_filter`` / ``escalate_round``) are intentionally
+        # public so external dispatchers can compose round-level overrides
+        # piecemeal without re-running ``apply_round_escalation`` end-to-end.
+        # Verified by ``tests/test_ratchet.py::TestApplyRoundEscalationRefactor``.
+        "devolaflow.task_adaptive_selector:select_round_result",
+        "devolaflow.task_adaptive_selector:apply_severity_filter",
+        "devolaflow.task_adaptive_selector:escalate_round",
         "devolaflow.nines.advisor:get_research_advice",
         # ---- Compressor module — runtime lean format validators (CO-1) ----
         # Public API exported via module path; consumed by external workflow
