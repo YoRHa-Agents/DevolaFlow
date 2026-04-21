@@ -164,6 +164,89 @@ def _resolve_mode_default(template: WorkflowTemplate) -> str:
     return DEFAULT_MODE
 
 
+def _resolve_runtime_context(
+    template: WorkflowTemplate,
+    mode: str | None,
+    environment: str,
+    extra_context: dict[str, Any] | None,
+) -> tuple[str, dict[str, Any]]:
+    """Resolve the effective mode and the skip-condition evaluation context.
+
+    Explicit *mode* wins; otherwise falls back to
+    ``template.parameters.mode.default`` and finally :data:`DEFAULT_MODE`.
+    The returned context is seeded with ``mode`` and ``environment`` and
+    then overlaid with *extra_context* when provided.
+    """
+    effective_mode = mode if mode is not None else _resolve_mode_default(template)
+    context: dict[str, Any] = {
+        "mode": effective_mode,
+        "environment": environment,
+    }
+    if extra_context:
+        context.update(extra_context)
+    return effective_mode, context
+
+
+def _filter_by_skip_predicates(
+    ordered: list[StageRef],
+    stage_def_map: dict[str, Any],
+    context: dict[str, Any],
+) -> list[StageRef]:
+    """Drop any :class:`StageRef` whose stage definition's ``skip_condition`` is True.
+
+    Stage refs without a matching definition (or without a skip condition)
+    pass through unchanged. Elided stages are logged at DEBUG with the
+    triggering expression and context.
+    """
+    filtered: list[StageRef] = []
+    for ref in ordered:
+        stage_def = stage_def_map.get(ref.stage)
+        if stage_def is None or not stage_def.skip_condition:
+            filtered.append(ref)
+            continue
+        if evaluate_skip_condition(stage_def.skip_condition, context):
+            log.debug(
+                "Stage %r elided: skip_condition %r evaluated True under context %r",
+                ref.stage,
+                stage_def.skip_condition,
+                context,
+            )
+            continue
+        filtered.append(ref)
+    return filtered
+
+
+def _apply_environment_overlay(
+    filtered: list[StageRef],
+    env_cfg: dict[str, Any] | None,
+    environment: str,
+    stage_def_map: dict[str, Any],
+) -> list[StageRef]:
+    """Apply ``environment_modes`` skip/extra stages overlay to *filtered*.
+
+    ``skip_stages`` removes refs by stage id; ``extra_stages`` appends
+    a fresh :class:`StageRef` for each id that resolves to a defined
+    stage. Unknown ids are logged at WARNING and skipped.
+    """
+    if not isinstance(env_cfg, dict):
+        return filtered
+    skip_set = set(env_cfg.get("skip_stages") or [])
+    if skip_set:
+        filtered = [r for r in filtered if r.stage not in skip_set]
+    for extra_id in env_cfg.get("extra_stages") or []:
+        if not isinstance(extra_id, str):
+            continue
+        if extra_id in stage_def_map:
+            filtered.append(StageRef(stage=extra_id))
+        else:
+            log.warning(
+                "environment_modes[%r].extra_stages references unknown stage id %r — skipping",
+                environment,
+                extra_id,
+            )
+    return filtered
+
+
 def select_stages_for_runtime(
     template: WorkflowTemplate,
     *,
@@ -211,56 +294,16 @@ def select_stages_for_runtime(
         and environment overlays applied. May be empty if every stage is
         elided.
     """
-    effective_mode = mode if mode is not None else _resolve_mode_default(template)
-    context: dict[str, Any] = {
-        "mode": effective_mode,
-        "environment": environment,
-    }
-    if extra_context:
-        context.update(extra_context)
-
+    _, context = _resolve_runtime_context(template, mode, environment, extra_context)
     stage_def_map = {s.id: s for s in template.stages}
 
     ordered: list[StageRef] = []
     _flatten_composition(template.composition, ordered)
 
-    filtered: list[StageRef] = []
-    for ref in ordered:
-        stage_def = stage_def_map.get(ref.stage)
-        if stage_def is None:
-            filtered.append(ref)
-            continue
-        if not stage_def.skip_condition:
-            filtered.append(ref)
-            continue
-        if evaluate_skip_condition(stage_def.skip_condition, context):
-            log.debug(
-                "Stage %r elided: skip_condition %r evaluated True under context %r",
-                ref.stage,
-                stage_def.skip_condition,
-                context,
-            )
-            continue
-        filtered.append(ref)
+    filtered = _filter_by_skip_predicates(ordered, stage_def_map, context)
 
     env_cfg = template.environment_modes.get(environment) if template.environment_modes else None
-    if isinstance(env_cfg, dict):
-        skip_set = set(env_cfg.get("skip_stages") or [])
-        if skip_set:
-            filtered = [r for r in filtered if r.stage not in skip_set]
-        for extra_id in env_cfg.get("extra_stages") or []:
-            if not isinstance(extra_id, str):
-                continue
-            if extra_id in stage_def_map:
-                filtered.append(StageRef(stage=extra_id))
-            else:
-                log.warning(
-                    "environment_modes[%r].extra_stages references unknown stage id %r — skipping",
-                    environment,
-                    extra_id,
-                )
-
-    return filtered
+    return _apply_environment_overlay(filtered, env_cfg, environment, stage_def_map)
 
 
 __all__ = [

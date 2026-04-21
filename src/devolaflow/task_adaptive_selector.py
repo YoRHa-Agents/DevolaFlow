@@ -582,41 +582,42 @@ def apply_round_escalation(
     return result
 
 
-def main():
-    """CLI entry point for the task-adaptive context selector."""
-    if len(sys.argv) < 2:
-        print(
-            "Usage: task_adaptive_selector.py <task_type> "
-            "[--verbose] [--full] [--round N] [--plan-mode|--no-plan-mode]"
-        )
-        print()
-        print("Task types: hotfix, feature, research, refactor, review, design")
-        print("Also matches goal hints: 'fix bug', 'implement feature', etc.")
-        sys.exit(1)
-
-    task_type = sys.argv[1]
-    verbose = "--verbose" in sys.argv
-    show_full = "--full" in sys.argv
-
-    round_num = 1
-    for i, arg in enumerate(sys.argv):
-        if arg == "--round" and i + 1 < len(sys.argv):
-            with contextlib.suppress(ValueError):
-                round_num = int(sys.argv[i + 1])
-
-    plan_mode_flag: bool | None = None
-    if "--plan-mode" in sys.argv:
-        plan_mode_flag = True
-    elif "--no-plan-mode" in sys.argv:
-        plan_mode_flag = False
-
-    result = select_context(
-        task_type,
-        verbose=verbose,
-        round_num=round_num,
-        plan_mode=plan_mode_flag,
+def _print_cli_usage() -> None:
+    """Print the CLI usage banner shown when no task_type is supplied."""
+    print(
+        "Usage: task_adaptive_selector.py <task_type> "
+        "[--verbose] [--full] [--round N] [--plan-mode|--no-plan-mode]"
     )
+    print()
+    print("Task types: hotfix, feature, research, refactor, review, design")
+    print("Also matches goal hints: 'fix bug', 'implement feature', etc.")
 
+
+def _parse_round_arg(argv: list[str]) -> int:
+    """Return the ``--round N`` value from *argv*, defaulting to 1.
+
+    Invalid integer values are silently coerced to 1 (matching the legacy
+    behaviour preserved by ``test_main_round_flag_invalid_falls_back_to_one``).
+    """
+    round_num = 1
+    for i, arg in enumerate(argv):
+        if arg == "--round" and i + 1 < len(argv):
+            with contextlib.suppress(ValueError):
+                round_num = int(argv[i + 1])
+    return round_num
+
+
+def _parse_plan_mode_flag(argv: list[str]) -> bool | None:
+    """Return ``True`` / ``False`` / ``None`` for ``--plan-mode`` / ``--no-plan-mode``."""
+    if "--plan-mode" in argv:
+        return True
+    if "--no-plan-mode" in argv:
+        return False
+    return None
+
+
+def _print_cli_summary(result: dict[str, Any], *, verbose: bool, round_num: int) -> None:
+    """Print the per-profile summary block (lines 1–N of CLI output)."""
     print(f"Profile: {result['profile_name']}")
     print(f"Description: {result['description']}")
     print(f"Model hint: {result['model_hint']}")
@@ -627,6 +628,9 @@ def main():
         print(f"Plan mode: {result['plan_mode']}")
     print()
 
+
+def _print_cli_sections(result: dict[str, Any]) -> None:
+    """Print selected/skipped/extra-context lines for a CLI run."""
     print("Selected sections:")
     for sec in result["selected_sections"]:
         print(f"  [{sec['tokens']:>4} tok] {sec['name']}")
@@ -639,12 +643,40 @@ def main():
     print()
     print(f"Extra context to load: {', '.join(result['extra_context'])}")
 
+
+def _print_cli_assembled(result: dict[str, Any]) -> None:
+    """Print the full assembled context block (only when ``--full`` was given)."""
+    print()
+    print("=" * 72)
+    print("ASSEMBLED CONTEXT")
+    print("=" * 72)
+    print(result["assembled_text"])
+
+
+def main():
+    """CLI entry point for the task-adaptive context selector."""
+    if len(sys.argv) < 2:
+        _print_cli_usage()
+        sys.exit(1)
+
+    task_type = sys.argv[1]
+    verbose = "--verbose" in sys.argv
+    show_full = "--full" in sys.argv
+    round_num = _parse_round_arg(sys.argv)
+    plan_mode_flag = _parse_plan_mode_flag(sys.argv)
+
+    result = select_context(
+        task_type,
+        verbose=verbose,
+        round_num=round_num,
+        plan_mode=plan_mode_flag,
+    )
+
+    _print_cli_summary(result, verbose=verbose, round_num=round_num)
+    _print_cli_sections(result)
+
     if show_full:
-        print()
-        print("=" * 72)
-        print("ASSEMBLED CONTEXT")
-        print("=" * 72)
-        print(result["assembled_text"])
+        _print_cli_assembled(result)
 
 
 if __name__ == "__main__":

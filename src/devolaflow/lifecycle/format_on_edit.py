@@ -35,58 +35,80 @@ KNOWN_FORMATTERS: dict[str, list[str]] = {
 }
 
 
+_LANG_BY_EXTENSION: dict[str, str] = {
+    "py": "python",
+    "js": "javascript",
+    "ts": "typescript",
+    "go": "go",
+    "rs": "rust",
+    "css": "css",
+    "html": "html",
+    "json": "json",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "md": "markdown",
+}
+
+
+def _extract_files(payload: dict[str, Any]) -> list[str]:
+    """Return the list of modified files declared in *payload*, or [] when absent.
+
+    Accepts both ``"files"`` and the legacy alias ``"modified_files"``.
+    Returns ``[]`` when the value is missing, empty, or not a list.
+    """
+    files = payload.get("files") or payload.get("modified_files") or []
+    if not isinstance(files, list):
+        return []
+    return files
+
+
+def _detect_unformatted_languages(files: list[str]) -> list[str]:
+    """Return languages present in *files* without a registered formatter.
+
+    A file contributes its language only when its extension maps to one of
+    the entries in :data:`_LANG_BY_EXTENSION` AND that language is registered
+    in :data:`KNOWN_FORMATTERS`. Multiple extensions sharing the same language
+    (e.g. ``.yaml`` and ``.yml`` both → ``"yaml"``) intentionally yield
+    duplicate entries, matching the legacy behaviour preserved as a public
+    contract.
+    """
+    extensions = {f.rsplit(".", 1)[-1].lower() for f in files if "." in f}
+    unformatted: list[str] = []
+    for ext in extensions:
+        lang = _LANG_BY_EXTENSION.get(ext)
+        if lang and lang in KNOWN_FORMATTERS:
+            unformatted.append(lang)
+    return unformatted
+
+
+def _build_foe001(unformatted_langs: list[str]) -> HookViolation:
+    """Construct the FOE001 ``HookViolation`` for the given languages."""
+    return HookViolation(
+        code="FOE001",
+        message=(
+            f"No formatter declared for {len(unformatted_langs)} language(s): "
+            f"{unformatted_langs}. Consider configuring a format-on-edit hook."
+        ),
+        severity="warning",
+        context={
+            "languages": unformatted_langs,
+            "suggested_formatters": {lang: KNOWN_FORMATTERS[lang][0] for lang in unformatted_langs},
+        },
+    )
+
+
 def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
     if not isinstance(payload, dict):
         return []
-
-    files = payload.get("files") or payload.get("modified_files") or []
-    if not isinstance(files, list) or not files:
+    files = _extract_files(payload)
+    if not files:
         return []
-
-    formatter = payload.get("formatter") or payload.get("format_command")
-    if formatter:
+    if payload.get("formatter") or payload.get("format_command"):
         return []
-
-    extensions = {f.rsplit(".", 1)[-1].lower() for f in files if "." in f}
-    lang_map = {
-        "py": "python",
-        "js": "javascript",
-        "ts": "typescript",
-        "go": "go",
-        "rs": "rust",
-        "css": "css",
-        "html": "html",
-        "json": "json",
-        "yaml": "yaml",
-        "yml": "yaml",
-        "md": "markdown",
-    }
-
-    unformatted_langs = []
-    for ext in extensions:
-        lang = lang_map.get(ext)
-        if lang and lang in KNOWN_FORMATTERS:
-            unformatted_langs.append(lang)
-
+    unformatted_langs = _detect_unformatted_languages(files)
     if not unformatted_langs:
         return []
-
-    return [
-        HookViolation(
-            code="FOE001",
-            message=(
-                f"No formatter declared for {len(unformatted_langs)} language(s): "
-                f"{unformatted_langs}. Consider configuring a format-on-edit hook."
-            ),
-            severity="warning",
-            context={
-                "languages": unformatted_langs,
-                "suggested_formatters": {
-                    lang: KNOWN_FORMATTERS[lang][0] for lang in unformatted_langs
-                },
-            },
-        )
-    ]
+    return [_build_foe001(unformatted_langs)]
 
 
 def format_on_edit(payload: dict[str, Any], *, strict: bool = False) -> HookResult:
