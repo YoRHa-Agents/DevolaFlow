@@ -199,6 +199,70 @@ def capture_learning(learning: Learning, jsonl_path: Path) -> bool:
     return True
 
 
+def _entry_ttl_valid(entry: dict, now: datetime) -> bool:
+    """Return ``True`` when the entry is within its TTL window.
+
+    Entries without a parseable ``timestamp`` are treated as valid (legacy
+    schema tolerance). A malformed timestamp logs a warning and excludes the
+    entry — mirrors the pre-refactor behaviour of
+    :func:`load_relevant_learnings`.
+    """
+    ts_str = entry.get("timestamp", "")
+    if not ts_str:
+        return True
+    ttl = int(entry.get("ttl_days", 90))
+    try:
+        ts = _parse_timestamp(ts_str)
+    except (ValueError, TypeError):
+        logger.warning("Invalid timestamp in learning: %s", ts_str)
+        return False
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    return ts + timedelta(days=ttl) > now
+
+
+def _entry_to_learning(entry: dict) -> Learning | None:
+    """Hydrate a JSONL dict into a :class:`Learning`, or ``None`` on failure.
+
+    Drops entries whose payload is missing required dataclass fields. Logs
+    a single warning per drop so operators can triage malformed JSONL.
+    """
+    fields = {k: entry[k] for k in Learning.__dataclass_fields__ if k in entry}
+    try:
+        return Learning(**fields)
+    except (TypeError, KeyError):
+        logger.warning("Skipping learning with missing required fields")
+        return None
+
+
+def _is_pinned_for_session(learning: Learning, session_id: str | None) -> bool:
+    """Return ``True`` when ``learning`` is pinned for the given session."""
+    return bool(
+        session_id is not None
+        and learning.pinned_for_session
+        and learning.pinned_for_session == session_id
+    )
+
+
+def _merge_ranked_learnings(
+    pinned: list[Learning],
+    unpinned: list[Learning],
+    max_entries: int,
+) -> list[Learning]:
+    """Sort pinned+unpinned by confidence desc and merge without duplicates."""
+    pinned.sort(key=lambda item: item.confidence, reverse=True)
+    unpinned.sort(key=lambda item: item.confidence, reverse=True)
+    seen_keys: set[tuple[str, str, str]] = {(p.stage, p.task_type, p.key) for p in pinned}
+    merged: list[Learning] = list(pinned)
+    for item in unpinned:
+        ident = (item.stage, item.task_type, item.key)
+        if ident in seen_keys:
+            continue
+        merged.append(item)
+        seen_keys.add(ident)
+    return merged[:max_entries]
+
+
 def load_relevant_learnings(
     task_type: str,
     jsonl_path: Path,
@@ -224,48 +288,17 @@ def load_relevant_learnings(
     for entry in entries:
         if entry.get("task_type") != task_type:
             continue
-
-        ts_str = entry.get("timestamp", "")
-        ttl = int(entry.get("ttl_days", 90))
-        if ts_str:
-            try:
-                ts = _parse_timestamp(ts_str)
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=UTC)
-                if ts + timedelta(days=ttl) <= now:
-                    continue
-            except (ValueError, TypeError):
-                logger.warning("Invalid timestamp in learning: %s", ts_str)
-                continue
-
-        fields = {k: entry[k] for k in Learning.__dataclass_fields__ if k in entry}
-        try:
-            learning = Learning(**fields)
-        except (TypeError, KeyError):
-            logger.warning("Skipping learning with missing required fields")
+        if not _entry_ttl_valid(entry, now):
             continue
-
-        is_pinned = bool(
-            session_id is not None
-            and learning.pinned_for_session
-            and learning.pinned_for_session == session_id
-        )
-        if is_pinned:
+        learning = _entry_to_learning(entry)
+        if learning is None:
+            continue
+        if _is_pinned_for_session(learning, session_id):
             pinned.append(learning)
         elif learning.confidence >= min_confidence:
             unpinned.append(learning)
 
-    pinned.sort(key=lambda item: item.confidence, reverse=True)
-    unpinned.sort(key=lambda item: item.confidence, reverse=True)
-    seen_keys: set[tuple[str, str, str]] = {(p.stage, p.task_type, p.key) for p in pinned}
-    merged: list[Learning] = list(pinned)
-    for item in unpinned:
-        ident = (item.stage, item.task_type, item.key)
-        if ident in seen_keys:
-            continue
-        merged.append(item)
-        seen_keys.add(ident)
-    return merged[:max_entries]
+    return _merge_ranked_learnings(pinned, unpinned, max_entries)
 
 
 def dedup_learnings(entries: list[Learning]) -> list[Learning]:
@@ -519,6 +552,47 @@ def consolidate_session(
     return {"promoted": promoted, "captured": captured, "skipped": skipped}
 
 
+def _resolve_last_accessed(entry: dict) -> datetime | None:
+    """Return the parsed ``last_accessed`` timestamp, migrating if needed.
+
+    Migration shim (ADR-005 §2.4): legacy v1 entries without ``last_accessed``
+    inherit their ``timestamp`` value on first touch so subsequent decay
+    calls measure from a stable anchor. Malformed timestamps and entries
+    with neither field return ``None`` so the caller can skip decay for
+    that record.
+    """
+    last_accessed_str = entry.get("last_accessed") or ""
+    if not last_accessed_str and entry.get("timestamp"):
+        last_accessed_str = entry["timestamp"]
+        entry["last_accessed"] = last_accessed_str
+    if not last_accessed_str:
+        return None
+    try:
+        dt = _parse_timestamp(last_accessed_str)
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt
+
+
+def _effective_half_life(entry: dict, override: int | None) -> int:
+    """Return the half-life to apply for ``entry`` (override > per-entry)."""
+    per_entry = int(entry.get("confidence_half_life_days", DEFAULT_DECAY_HALF_LIFE_DAYS))
+    return int(override) if override is not None else per_entry
+
+
+def _decay_formula(
+    prior_confidence: float,
+    delta_days: float,
+    half_life_days: int,
+) -> float:
+    """Return the post-decay confidence, clamped to ``[0.0, 1.0]``."""
+    decay_factor = min(1.0, delta_days / half_life_days)
+    new_confidence = max(0.0, min(1.0, prior_confidence - 0.5 * decay_factor))
+    return round(new_confidence, 4)
+
+
 def decay_confidence(
     jsonl_path: Path,
     half_life_days: int | None = None,
@@ -554,41 +628,24 @@ def decay_confidence(
     dropped_below_floor_count = 0
 
     for entry in entries:
-        # Migration shim: legacy v1 entries lack ``last_accessed``.
-        last_accessed_str = entry.get("last_accessed") or ""
-        if not last_accessed_str and entry.get("timestamp"):
-            last_accessed_str = entry["timestamp"]
-            entry["last_accessed"] = last_accessed_str
-
-        try:
-            last_accessed_dt = _parse_timestamp(last_accessed_str) if last_accessed_str else None
-        except (ValueError, TypeError):
-            last_accessed_dt = None
-
+        last_accessed_dt = _resolve_last_accessed(entry)
         if last_accessed_dt is None:
             kept.append(entry)
             continue
 
-        if last_accessed_dt.tzinfo is None:
-            last_accessed_dt = last_accessed_dt.replace(tzinfo=UTC)
-        delta_seconds = (now - last_accessed_dt).total_seconds()
-        delta_days = max(0.0, delta_seconds / 86400.0)
-
-        per_entry_half_life = int(
-            entry.get("confidence_half_life_days", DEFAULT_DECAY_HALF_LIFE_DAYS)
-        )
-        effective_half_life = (
-            int(half_life_days) if half_life_days is not None else per_entry_half_life
-        )
+        effective_half_life = _effective_half_life(entry, half_life_days)
         if effective_half_life <= 0:
             kept.append(entry)
             continue
 
-        decay_factor = min(1.0, delta_days / effective_half_life)
-        prior_confidence = float(entry.get("confidence", 0.0))
-        new_confidence = max(0.0, min(1.0, prior_confidence - 0.5 * decay_factor))
-        # Round to 4 decimals to match promote_learning's precision contract.
-        new_confidence = round(new_confidence, 4)
+        delta_seconds = (now - last_accessed_dt).total_seconds()
+        delta_days = max(0.0, delta_seconds / 86400.0)
+
+        new_confidence = _decay_formula(
+            prior_confidence=float(entry.get("confidence", 0.0)),
+            delta_days=delta_days,
+            half_life_days=effective_half_life,
+        )
         entry["confidence"] = new_confidence
         decayed_count += 1
 

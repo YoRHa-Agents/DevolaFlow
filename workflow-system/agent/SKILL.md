@@ -172,6 +172,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
+| entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 
 ### Repo-Init Pre-Dispatch Contract
 
@@ -462,6 +463,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | nines-assisted | 9 | convergence |
 | self-update | 7 | convergence |
 | repo-init | 5 | standard |
+| entropy-cleanup | 4 | standard |
 
 ## Task Quality Score
 

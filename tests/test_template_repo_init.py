@@ -91,7 +91,7 @@ def test_template_composition_is_sequence(template: WorkflowTemplate) -> None:
 def test_template_registered_in_registry() -> None:
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     templates = data["templates"]
-    assert len(templates) == 20, f"Expected 20 registry entries, got {len(templates)}"
+    assert len(templates) == 21, f"Expected 21 registry entries, got {len(templates)}"
 
     repo_init = next((e for e in templates if e["name"] == "repo-init"), None)
     assert repo_init is not None, "repo-init missing from registry.yaml"

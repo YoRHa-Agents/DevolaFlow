@@ -231,6 +231,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- Learnings + compiler prefs (v7.7 memory system) ----
         "devolaflow.learnings:load_prefs",
         "devolaflow.local.compiler:compile_prefs",
+        # ---- Entropy manager GC entrypoint (v8.0.0 P-11) ----
+        # Public GC dispatcher exported via ``devolaflow.entropy_manager.__all__``
+        # and consumed by L3 Task Agents executing the ``entropy-cleanup``
+        # workflow template (``workflow-system/agent/templates/builtin/
+        # entropy-cleanup.yaml``). Not yet wired into in-repo production at the
+        # v8.0.0 cut — opt-in via the template's ``apply`` stage only. Same
+        # allowlist pattern as v8.0.0 P-02 ``directed_compact`` above.
+        "devolaflow.entropy_manager:cleanup",
         # ---- Progressive merge (v7.7 — diff-suggest for existing files) ----
         "devolaflow.local.merge:propose_merge",
         "devolaflow.local.merge:apply_merge",
