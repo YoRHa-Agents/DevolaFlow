@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from devolaflow.gate.models import Finding, Severity
+from devolaflow.gate.models import CYCLE_DEFAULT_SEVERITY, CycleReport, Finding, Severity
 
 SEVERITY_ORDER: dict[str, int] = {
     "blocker": 0,
@@ -289,4 +289,166 @@ def fence_to_instruction(
         severity=resolved_severity,
         mandate=mandate,
         file=payload.get("file", ""),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-06) — Cycle-to-instruction expansion
+#
+# Converts a :class:`devolaflow.gate.models.CycleReport` produced by
+# :class:`devolaflow.gate.cycle_detector.CycleDetector` into a
+# :class:`ReinforcementRule` whose ``mandate`` starts with the literal
+# token ``MUST NOT repeat`` so L3 Task Agents recognise it as a hard
+# prohibition for the next round (per ``patch_plan §3 P-06 AC #4``).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# Deterministic id format for cycle-derived rules. Stable across calls so
+# the same ``(cycle_type, sequence)`` pair always renders the same id —
+# mirrors the ``F-{fence_type}-{sequence:03d}`` convention from P-04 to
+# keep dispatch payloads diffable across rounds.
+_CYCLE_RULE_ID_FORMAT: str = "C-{cycle_type}-{sequence:03d}"
+
+# Maximum length of the file-list segment in the rendered mandate. Keeps
+# the mandate readable when the cycle touches many files; longer lists
+# get an ellipsis suffix so callers can detect truncation without a
+# separate flag (mirrors :func:`_truncate_to_token_budget`).
+_CYCLE_FILES_INLINE_LIMIT: int = 3
+
+
+def _format_cycle_files(files: tuple[str, ...]) -> str:
+    """Render the ``files`` tuple inline, truncating long lists with ``…``."""
+    if not files:
+        return ""
+    visible = list(files[:_CYCLE_FILES_INLINE_LIMIT])
+    if len(files) > _CYCLE_FILES_INLINE_LIMIT:
+        visible.append(f"… (+{len(files) - _CYCLE_FILES_INLINE_LIMIT} more)")
+    return ", ".join(visible)
+
+
+def _format_cycle_mandate(report: CycleReport) -> str:
+    """Render the ``MUST NOT repeat`` mandate string for a cycle finding.
+
+    Format mirrors ``patch_plan §3 P-06 AC #4`` — e.g.::
+
+        MUST NOT repeat exact_match cycle: signature='edit:a.py:add print'
+        observed in rounds [3, 4]; vary the approach (different tool, file,
+        or argument structure) before the next attempt.
+
+    Empty / unknown segments are omitted so the mandate stays readable
+    for cycle reports without file or rounds metadata (S-5 — never emit
+    an empty mandate).
+    """
+    cycle_type = report.cycle_type
+    repeated = (
+        report.repeated_signatures[0] if report.repeated_signatures else "(no signature recorded)"
+    )
+    rounds_part = f" in rounds {list(report.rounds)}" if report.rounds else ""
+    files_part = ""
+    if report.files:
+        files_part = f" touching {_format_cycle_files(report.files)}"
+    similarity_part = ""
+    if cycle_type == "fuzzy_match" and report.similarity:
+        similarity_part = f" (Jaccard ≈ {report.similarity:.2f})"
+
+    guidance = {
+        "exact_match": (
+            "vary the approach (different tool, file, or argument structure) "
+            "before the next attempt"
+        ),
+        "fuzzy_match": (
+            "stop iterating on near-duplicate edits; produce a structurally "
+            "different change before the next attempt"
+        ),
+        "edit_oscillation": (
+            "stop reverting between two states on the shared file(s); commit "
+            "to a single direction backed by tests before the next attempt"
+        ),
+        "none": "no cycle observed (defensive mandate — caller error)",
+    }.get(cycle_type, "vary the approach before the next attempt")
+
+    return (
+        f"MUST NOT repeat {cycle_type} cycle: signature={repeated!r}"
+        f"{rounds_part}{files_part}{similarity_part}; {guidance}."
+    )
+
+
+def cycle_to_instruction(
+    report: CycleReport,
+    *,
+    sequence: int = 1,
+    max_tokens: int = 200,
+    severity: Severity | None = None,
+) -> ReinforcementRule:
+    """Map a :class:`CycleReport` into a deterministic ``MUST NOT`` rule.
+
+    Parameters
+    ----------
+    report:
+        A :class:`CycleReport` produced by
+        :meth:`devolaflow.gate.cycle_detector.CycleDetector.detect`.
+        ``report.detected`` MUST be ``True`` — passing a no-cycle report
+        raises :class:`ValueError` per S-5 (never silently emit a hard
+        ``MUST NOT`` mandate without evidence).
+    sequence:
+        1-based ordinal that disambiguates multiple cycle rules within a
+        single round. Drives the deterministic id format
+        ``C-{cycle_type}-{sequence:03d}``.
+    max_tokens:
+        Soft ceiling on the rendered mandate string. Honoured via the
+        same 4-chars-per-token approximation used by
+        :func:`fence_to_instruction`. Defaults to 200 (≈ 800 chars).
+    severity:
+        Override for the cycle's default severity. Defaults to
+        :data:`devolaflow.gate.models.CYCLE_DEFAULT_SEVERITY` when the
+        report's severity is ``info`` (the no-cycle path); otherwise the
+        report's own severity wins so detector-side escalations
+        (e.g. ≥ 4 consecutive identical signatures → ``critical``)
+        propagate verbatim.
+
+    Returns
+    -------
+    ReinforcementRule
+        Carries the deterministic id, severity ≥ ``major``, MUST-NOT
+        mandate, and the first file path from the report (when known).
+        Pure function: same input ⇒ identical output.
+
+    Raises
+    ------
+    ValueError
+        If ``report.detected`` is ``False`` or ``sequence`` is non-positive.
+    TypeError
+        If ``report`` is not a :class:`CycleReport`.
+    """
+    if not isinstance(report, CycleReport):
+        raise TypeError(f"report must be a CycleReport (got {type(report).__name__})")
+    if not report.detected:
+        raise ValueError(
+            "cycle_to_instruction requires a detected cycle "
+            "(report.detected=False; nothing to forbid)"
+        )
+    if sequence < 1:
+        raise ValueError(f"sequence must be >= 1 (got {sequence})")
+
+    if severity is not None:
+        resolved_severity: Severity = severity
+    elif report.severity == CYCLE_DEFAULT_SEVERITY["none"]:
+        resolved_severity = CYCLE_DEFAULT_SEVERITY.get(report.cycle_type, "major")
+    else:
+        resolved_severity = report.severity
+
+    mandate = _truncate_to_token_budget(
+        _format_cycle_mandate(report),
+        max_tokens=max_tokens,
+    )
+    file_value = report.files[0] if report.files else ""
+
+    return ReinforcementRule(
+        id=_CYCLE_RULE_ID_FORMAT.format(
+            cycle_type=report.cycle_type,
+            sequence=sequence,
+        ),
+        severity=resolved_severity,
+        mandate=mandate,
+        file=file_value,
     )

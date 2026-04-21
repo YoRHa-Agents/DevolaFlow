@@ -301,3 +301,43 @@ learnings:
       source: "C-007 / gstack /learn {type, key} contract"
     - rule: "Persisted via `devolaflow.learnings.capture_session_reflection` (no caller-side write needed)"
     - rule: "Block APPENDED at end of file — lean-report.yaml has no P6 cache-layout invariant"
+
+# v8.0.0 (P-06) — Cycle Detection Middleware optional surface.
+#
+# When the L3 task agent uses `devolaflow.gate.cycle_detector.CycleDetector`
+# inside its convergence loop, the resulting `CycleReport` MAY be surfaced
+# in the StatusReport so upstream gates (L2 Wave / L1 Stage) can decide
+# whether to inject a `MUST NOT repeat` reinforcement rule into the next
+# round's dispatch via `devolaflow.gate.reinforcement.cycle_to_instruction`.
+#
+# Both fields are OPTIONAL — omitting them is the byte-identical pre-P-06
+# behaviour. Block is APPENDED at end of file per the additive rule —
+# lean-report.yaml has NO `layout_invariant:` (only lean-dispatch.yaml
+# carries the P6 invariant per `.cursor/rules/devola-flow-rules.mdc`
+# Rule 6 and ADR-001).
+cycle_detected:
+  description: "Optional bool — true iff a convergence-loop cycle was detected this round."
+  type: bool
+  default: false
+  rules:
+    - rule: "When true, `cycle_details` MUST be populated; consumers MUST NOT silently drop the signal (S-5)."
+    - rule: "Producer: L3 task agent's `evaluate_gate(..., cycle_detector=...)` call."
+    - rule: "Consumer: L2 Wave agent — converts the report into a ReinforcementRule via `cycle_to_instruction`."
+
+cycle_details:
+  description: "Optional structured payload carrying the verbatim CycleReport when cycle_detected=true."
+  fields:
+    cycle_type: "exact_match | fuzzy_match | edit_oscillation"
+    severity: "blocker | critical | major | minor | info"
+    similarity: 0.0                  # 0.0..1.0; 1.0 for exact_match, average Jaccard for fuzzy_match
+    rationale: "<single-line summary suitable for GateVerdict.rationale>"
+    evidence: ["<round N: signature=…>", "<round N+1: signature=…>"]
+    repeated_signatures: ["<verbatim signature>"]   # length >= 1 when detected
+    rounds: [N, N+1, ...]            # round_num list of the offending snapshots
+    files: ["<path1>", "<path2>"]    # files touched by the cycle, sorted
+    window_size: 3                   # echo of CycleDetector.window_size
+    threshold: 0.8                   # echo of CycleDetector.similarity_threshold
+  rules:
+    - rule: "Field set mirrors `devolaflow.gate.models.CycleReport` verbatim per CO-2 (no paraphrasing)."
+    - rule: "When omitted, consumers MUST treat as `cycle_detected=false` (S-5 — no silent fallback)."
+    - rule: "Block APPENDED at end of file — lean-report.yaml has no P6 cache-layout invariant."

@@ -19,6 +19,7 @@ from devolaflow.gate.convergence import (
     compute_trend,
     detect_stagnation,
 )
+from devolaflow.gate.cycle_detector import CycleDetector
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     LADDER_RUNG_NAMES,
@@ -28,6 +29,7 @@ from devolaflow.gate.models import (
     BudgetDecision,
     CheckResult,
     ConvergenceRound,
+    CycleReport,
     Finding,
     GateInput,
     GateProfile,
@@ -41,6 +43,7 @@ from devolaflow.gate.reinforcement import (
     MAX_REINFORCEMENT_RULES,
     ReinforcementBlock,
     ReinforcementRule,
+    cycle_to_instruction,
     fence_to_instruction,
 )
 
@@ -950,6 +953,7 @@ def evaluate_ladder(
     cumulative_tokens: int | None = None,
     extra_checks: Mapping[str, CheckResult] | None = None,
     rung_overrides: Mapping[LadderRung, RungChecker] | None = None,
+    cycle_detector: CycleDetector | None = None,
 ) -> GateVerdict:
     """Evaluate a 6-rung verification ladder R1..R6 with short-circuit semantics.
 
@@ -1000,6 +1004,7 @@ def evaluate_ladder(
             gate_type=gate_type,
             breaker=breaker,
             cumulative_tokens=cumulative_tokens,
+            cycle_detector=cycle_detector,
         )
 
     results: list[LadderEvaluation] = []
@@ -1035,7 +1040,50 @@ def evaluate_ladder(
             short_circuited = True
             failing_rung = rung
 
-    return _build_ladder_verdict(results, profile)
+    verdict = _build_ladder_verdict(results, profile)
+    if cycle_detector is not None:
+        cycle_report = cycle_detector.detect_cycle()
+        if cycle_report.detected:
+            _attach_cycle_report(verdict, cycle_report)
+    return verdict
+
+
+def _attach_cycle_report(verdict: GateVerdict, report: CycleReport) -> GateVerdict:
+    """Attach a detected :class:`CycleReport` to ``verdict.details``.
+
+    Mutates ``verdict.details`` in place to surface the cycle metadata
+    without changing the underlying decision (per ``patch_plan §3 P-06
+    AC #6`` — ``cycle_detector=None`` is byte-identical, supplying one
+    must never silently change a PASS into a FAIL). The companion
+    ``MUST NOT repeat`` :class:`ReinforcementRule` is pre-computed via
+    :func:`devolaflow.gate.reinforcement.cycle_to_instruction` and
+    embedded under ``cycle_details.suggested_rule`` so L2 Wave agents
+    can inject it into the next round's dispatch verbatim.
+    """
+    suggested = cycle_to_instruction(report)
+    verdict.details.setdefault("cycle_detected", True)
+    verdict.details.setdefault(
+        "cycle_details",
+        {
+            "cycle_type": report.cycle_type,
+            "severity": report.severity,
+            "similarity": report.similarity,
+            "rationale": report.rationale,
+            "evidence": list(report.evidence),
+            "repeated_signatures": list(report.repeated_signatures),
+            "rounds": list(report.rounds),
+            "files": list(report.files),
+            "window_size": report.window_size,
+            "threshold": report.threshold,
+            "suggested_rule": {
+                "id": suggested.id,
+                "severity": suggested.severity,
+                "mandate": suggested.mandate,
+                "file": suggested.file,
+            },
+        },
+    )
+    return verdict
 
 
 def evaluate_gate(
@@ -1046,6 +1094,7 @@ def evaluate_gate(
     gate_type: str = "standard",
     breaker: TokenBudgetBreaker | None = None,
     cumulative_tokens: int | None = None,
+    cycle_detector: CycleDetector | None = None,
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -1075,6 +1124,17 @@ def evaluate_gate(
         When ``None``, the breaker's internal counter (from
         :meth:`TokenBudgetBreaker.record`) is used. Ignored when
         ``breaker is None``.
+    cycle_detector:
+        Optional :class:`devolaflow.gate.cycle_detector.CycleDetector`.
+        When ``None`` (the default), behaviour is byte-identical to
+        pre-P-06 — no cycle inspection (``patch_plan §3 P-06 AC #6``).
+        When supplied, the detector is consulted *after* the standard
+        verdict is computed; a detected cycle is appended to
+        ``verdict.details`` as ``cycle_detected=True`` plus a structured
+        ``cycle_details`` mapping. The verdict's ``decision`` is NOT
+        mutated — callers translate the report into a reinforcement rule
+        via :func:`devolaflow.gate.reinforcement.cycle_to_instruction`
+        and decide how to escalate.
     """
     if history is None:
         history = []
@@ -1082,7 +1142,12 @@ def evaluate_gate(
     if breaker is not None:
         decision = _resolve_breaker_decision(breaker, cumulative_tokens)
         if decision.action is BudgetAction.BREAK:
-            return _build_budget_break_verdict(decision)
+            verdict = _build_budget_break_verdict(decision)
+            if cycle_detector is not None:
+                cycle_report = cycle_detector.detect_cycle()
+                if cycle_report.detected:
+                    _attach_cycle_report(verdict, cycle_report)
+            return verdict
     else:
         decision = None
 
@@ -1100,6 +1165,11 @@ def evaluate_gate(
 
     if decision is not None and decision.action is BudgetAction.WARN:
         _attach_budget_warning(verdict, decision)
+
+    if cycle_detector is not None:
+        cycle_report = cycle_detector.detect_cycle()
+        if cycle_report.detected:
+            _attach_cycle_report(verdict, cycle_report)
 
     return verdict
 
