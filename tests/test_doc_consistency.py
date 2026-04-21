@@ -272,3 +272,33 @@ def test_demo_index_version_matches_package(project_root: Path):
     assert 0 <= patch_delta <= 1, (
         f"demo version {demo_version} is more than 1 patch behind package {pkg_version}"
     )
+
+
+def test_changelog_has_v7_6_0_entry(project_root: Path):
+    """CHANGELOG.md must carry a top-level [7.6.0] entry (P-13 backfill)."""
+    changelog = (project_root / "CHANGELOG.md").read_text()
+    assert "## [7.6.0]" in changelog, (
+        "CHANGELOG.md missing '## [7.6.0]' entry; "
+        "P-13 backfilled v7.6.0 from commit 1a4f1ee — re-run scripts/bump_version.py "
+        "or restore the entry per CO-2 verbatim contract"
+    )
+
+
+def test_changelog_has_v7_7_0_entry(project_root: Path):
+    """CHANGELOG.md must carry a top-level [7.7.0] entry (P-13 backfill)."""
+    changelog = (project_root / "CHANGELOG.md").read_text()
+    assert "## [7.7.0]" in changelog, (
+        "CHANGELOG.md missing '## [7.7.0]' entry; "
+        "P-13 backfilled v7.7.0 from commit 828b9ff — re-run scripts/bump_version.py "
+        "or restore the entry per CO-2 verbatim contract"
+    )
+
+
+def test_changelog_has_v7_8_0_entry(project_root: Path):
+    """CHANGELOG.md must carry a top-level [7.8.0] entry (P-13 backfill)."""
+    changelog = (project_root / "CHANGELOG.md").read_text()
+    assert "## [7.8.0]" in changelog, (
+        "CHANGELOG.md missing '## [7.8.0]' entry; "
+        "P-13 backfilled v7.8.0 from commit 17d2a14 — re-run scripts/bump_version.py "
+        "or restore the entry per CO-2 verbatim contract"
+    )
