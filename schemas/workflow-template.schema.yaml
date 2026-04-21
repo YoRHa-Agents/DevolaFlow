@@ -12,7 +12,6 @@ instance_top_level_required:
   - composition
   - loops
   - gates
-  - team_overrides
   - environment_modes
 
 fields:
@@ -109,11 +108,6 @@ fields:
           target: { type: string, optional: true, description: Stage id for loop_back. }
       require_human_override: { type: bool, description: Pause on failure for human decision. }
       auto_insert: { type: bool, description: Apply this gate pattern automatically. }
-
-  team_overrides:
-    type: map
-    required: true
-    description: Optional map stage_id -> team enum overriding defaults (may be empty).
 
   environment_modes:
     required: true

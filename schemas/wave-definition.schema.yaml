@@ -1,0 +1,47 @@
+# -----------------------------------------------------------------------------
+# Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
+# Design reference: doc/designs/design_decomposition_gate.md §3.5
+# WaveDefinition — a parallel batch of L3 Task Agent dispatches grouped by an
+# L2 Wave Agent. Encodes the task list, sync barrier, and per-wave gate that
+# blocks downstream waves until composite acceptance is reached.
+# -----------------------------------------------------------------------------
+# TODO(v7.6.x P-07 Option β): add `dependency_matrix_ref` field linking to
+# the dependency-matrix.schema.yaml instance for this wave (currently the L2
+# Wave Agent assembles dependencies inline in the dispatch payload).
+# TODO(v7.6.x P-07 Option β): document the `sync_barrier` semantics — current
+# composer treats every wave as `all` (block until all tasks PASS); the schema
+# needs to surface `any` and `n_of(k)` once parallel-with-quorum lands.
+
+design_reference: doc/designs/design_decomposition_gate.md §3.5
+schema_name: wave-definition
+instance_top_level_required:
+  - id
+  - stage_id
+  - tasks
+  - sync_barrier
+  - gate
+
+fields:
+  id: { type: string, description: Wave id (e.g. W01) unique within parent stage. }
+  stage_id: { type: string, description: Parent stage id. }
+  description: { type: string, optional: true, description: One-line wave purpose. }
+
+  tasks:
+    type: list
+    description: L3 Task Agent dispatches in this wave.
+    item_fields:
+      task_id: { type: string, description: Task id (e.g. W01-T01). }
+      title: { type: string }
+      owned_files: { type: list, description: Disjoint file scope per P5 artifacts-as-contracts. }
+      depends_on: { type: list, optional: true, description: Other task_ids in same/upstream wave. }
+
+  sync_barrier:
+    children:
+      mode: { type: string, description: all | any | n_of(k) — currently composer only supports `all`. }
+      max_parallelism: { type: int, optional: true, description: Concurrent L3 dispatches cap. }
+
+  gate:
+    children:
+      type: { type: string, description: standard | convergence | passthrough. }
+      profile: { type: string, optional: true, description: strict | standard | relaxed | audit. }
+      max_rounds: { type: int, optional: true, description: P4 bounded retry cap. }

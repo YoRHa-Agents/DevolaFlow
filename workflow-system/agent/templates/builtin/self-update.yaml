@@ -265,8 +265,6 @@ gates:
     require_human_override: true
     auto_insert: true
 
-team_overrides: {}
-
 environment_modes:
   local:
     skip_stages: []

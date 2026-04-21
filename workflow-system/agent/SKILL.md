@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.4.4"
+version: "7.5.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.4.4**
+> **Now Using DevolaFlow v7.5.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 7.4.4 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -158,11 +158,11 @@ Match user intent to workflow type, then load the corresponding stage template.
 | refactor, clean up, tech debt, simplify | `refactoring` | scope → plan → impl → test → review |
 | migrate, upgrade, port, convert | `migration` | assess → plan → impl → validate → cutover |
 | prototype, spike, experiment, PoC | `spike-poc` | research → prototype → evaluate |
-| document, write docs, README, guide | `documentation` | survey → author → review |
+| document, write docs, README, guide | `documentation-only` | survey → author → review |
 | security, audit, CVE, vulnerability | `security-audit` | threat-model → scan → analyze → remediate → verify |
 | add to existing, extend, enhance | `feature-enhancement` | design → plan → impl → review → test → release |
 | build from scratch, new project, full | `full-pipeline` | design → plan → impl → review → test → testgate → release |
-| design with research, ADR, iterate design | `RDRR` | research → design → review → refine (loop) |
+| design with research, ADR, iterate design | `research-design-review-refine` | research → design → review → refine (loop) |
 | demo, showcase, presentation, pitch | `demo-showcase` | research → storyboard → build → review → polish → package |
 | slow, optimize, profile, benchmark | `performance-optimization` | profile → design → optimize → benchmark → validate |
 | setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
@@ -170,6 +170,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
+| nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold → compile → verify (mode: minimal\|standard\|deep) |
 
 **Selection heuristics:**
@@ -207,7 +208,7 @@ Every loop has `max_iterations`. Every failure is classified (retry / escalate /
 | "One more retry should fix it" | Check `max_iterations`. If at limit, escalate — do not increment. |
 | "The gate score is close enough" | Close is FAIL. Run convergence round or escalate. |
 | "I'll skip the gate for this stage" | Gates are mandatory. No stage advances without gate PASS. |
-| "Tests can be added later" | `test_on_complete` hook enforces. No completion without passing tests. |
+| "Tests can be added later" | `test_on_complete` hook checks (warns by default; strict mode blocks). Run with `strict=True` for hard enforcement. |
 
 ### Wave Coordination Modes
 
@@ -297,15 +298,9 @@ Full gate specification: `references/decomposition-gate.md`
 
 ### Reinforcement Rules (v5.1+)
 
-When a stage gate evaluates FAIL, the next convergence round's dispatch includes
-`applicable_rules.reinforcement` — mandates derived from the previous round's findings.
-This prevents L3 Task Agents from repeating the same mistakes.
+When a stage gate FAILS, the next round's dispatch carries `applicable_rules.reinforcement` — top 5 prior-round findings (severity ≥ major) injected as MUST-fix mandates.
 
-**Flow:** Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into
-next dispatch `applicable_rules.reinforcement` → L3 MUST address before other work.
-
-**L3 obligation:** Task Agents receiving reinforcement rules MUST address ALL listed rules
-before starting new work. Failure to address reinforcement rules = automatic blocker in next gate.
+**L3 obligation:** Address ALL listed reinforcement rules before any new work; failure = automatic blocker in next gate.
 
 ## AgentTeam Quick Reference
 
@@ -327,9 +322,9 @@ before starting new work. Failure to address reinforcement rules = automatic blo
 | refactoring | — | — | **Primary** | **Primary** | Optional |
 | migration | Active | — | **Primary** | Active | Optional |
 | spike-poc | Active | — | Active | — | — |
-| documentation | Active | — | — | — | Active |
+| documentation-only | Active | — | — | — | Active |
 | security-audit | Active | — | Active | Active | Active |
-| RDRR | **Primary** | **Primary** | — | — | **Primary** |
+| research-design-review-refine | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
 | demo-showcase | Active | Active | **Primary** | — | Active |
 | perf-optimization | Active | Active | **Primary** | **Primary** | — |
@@ -395,15 +390,15 @@ Full schemas: `references/message-schemas.md`
 
 ## Lifecycle Hooks
 
-System-level enforcement (100% compliance). Optional per-dispatch; default: none.
+Permissive default (warn + log); strict opt-in raises HookViolation.
 
-| Hook | Event | Enforces | On Violation |
-|------|-------|----------|--------------|
+| Hook | Event | Checks | On Violation (strict) |
+|------|-------|--------|----------------------|
 | `validate_dispatch` | Pre-dispatch | AC ≥1 testable condition | Block + escalate |
 | `check_file_ownership` | File write | File ∈ `owned_files` | Reject + log (P1) |
 | `test_on_complete` | Task stop | Tests pass, lint clean | Auto-retry ≤ P4 limit |
 
-Elevates P1 (ownership enforcement) and P4 (bounded retry) from prompt-based to deterministic.
+API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/`.
 
 ## Repo Mode Detection
 
@@ -438,13 +433,15 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `examples/full-pipeline-trace.md` | Full-pipeline walkthrough |
 | `examples/hotfix-trace.md` | Hotfix delegation example |
 | `examples/convergence-loop-trace.md` | Review-fix-test cycle walkthrough |
-| `schemas/task-dispatch.yaml` | Building TaskDispatch YAML |
-| `schemas/status-report.yaml` | Building StatusReport YAML |
-| `schemas/handoff-deliverable.yaml` | Inter-team handoff envelopes |
+| `schemas/task-dispatch.schema.yaml` | Building TaskDispatch YAML |
+| `schemas/status-report.schema.yaml` | Building StatusReport YAML |
+| `schemas/handoff-deliverable.schema.yaml` | Inter-team handoff envelopes |
 | `templates/project-status.yaml` | Project tracking dashboard |
 | `templates/stage-readme.md` | Per-stage tracking documents |
 | `templates/wave-plan.md` | Wave decomposition planning |
 | `knowledge/index.md` | Knowledge page catalog, selective loading |
+| `knowledge/code-rules-mapping.md` | Code-to-rule lineage (S/A/C/W/ST taxonomy) |
+| `knowledge/principle-mapping.md` | P0–P6 principle ↔ rule trace |
 
 ## Template Quick-Reference
 
@@ -456,17 +453,19 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | refactoring | 5 | convergence |
 | migration | 5 | convergence |
 | spike-poc | 3 | standard |
-| documentation | 3 | standard |
+| documentation-only | 3 | standard |
 | security-audit | 5 | convergence |
 | feature-enhancement | 7 | convergence |
 | full-pipeline | 8 | convergence |
-| RDRR | 4-5 | convergence |
+| research-design-review-refine | 4-5 | convergence |
 | demo-showcase | 6 | standard |
 | performance-optimization | 5 | convergence |
 | dependency-setup | 4 | standard |
 | onboarding | 4 | standard |
 | skill-optimization | 6 | convergence |
 | product-verification | 8 | convergence |
+| nines-assisted | 9 | convergence |
+| self-update | 7 | convergence |
 | repo-init | 4 | standard |
 
 ## Task Quality Score

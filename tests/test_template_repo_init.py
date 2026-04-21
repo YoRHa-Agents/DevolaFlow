@@ -21,6 +21,7 @@ import yaml
 
 from devolaflow.template_engine.models import Sequence, StageRef, WorkflowTemplate
 from devolaflow.template_engine.parser import parse_template
+from devolaflow.template_engine.runtime import select_stages_for_runtime
 from devolaflow.template_engine.validator import validate_template
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -141,3 +142,88 @@ def test_template_loads_via_registry_scan() -> None:
     metas = reg.discover(name="repo-init")
     assert len(metas) == 1
     assert metas[0].category == "discover"
+
+
+# ── v7.4.9 P-04: mode-driven runtime stage filtering ────────────────
+
+
+def test_repo_init_verify_has_skip_condition(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / G-G2: verify stage carries `mode != 'deep'` skip_condition.
+
+    Closes G-G2 (`StageDefinition.skip_condition` parsed but no runtime
+    consumer) jointly with G-G1 — the skip_condition is now consulted by
+    :func:`select_stages_for_runtime` per audit §3.G G-G2 evidence.
+    """
+    verify_stage = template.stage_by_id("verify")
+    assert verify_stage is not None
+    assert verify_stage.skip_condition == "mode != 'deep'", (
+        f"verify.skip_condition must be 'mode != \\'deep\\'' to elide verify "
+        f"under mode in {{minimal, standard}}; got: {verify_stage.skip_condition!r}"
+    )
+
+
+def test_repo_init_compile_has_skip_condition(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / G-G1: compile stage carries `mode == 'minimal'` skip_condition.
+
+    Required to satisfy AC-1 minimal=2-stages: the v7.4.2 description
+    asserts `minimal — analyze + scaffold only (Claude Code /init parity)`,
+    so `compile` must elide under mode=minimal alongside `verify` eliding
+    under mode != deep.
+    """
+    compile_stage = template.stage_by_id("compile")
+    assert compile_stage is not None
+    assert compile_stage.skip_condition == "mode == 'minimal'", (
+        f"compile.skip_condition must be 'mode == \\'minimal\\'' to elide "
+        f"compile under mode=minimal (Claude Code /init parity); "
+        f"got: {compile_stage.skip_condition!r}"
+    )
+
+
+def test_select_stages_for_runtime_default_uses_standard(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / AC-1: default mode is `standard` (per parameters.mode.default)."""
+    refs = select_stages_for_runtime(template)
+    ids = [r.stage for r in refs]
+    assert ids == ["analyze", "scaffold", "compile"], (
+        f"Default mode (resolved from parameters.mode.default='standard') "
+        f"should yield 3 stages; got {ids}"
+    )
+
+
+def test_select_stages_for_runtime_minimal(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / AC-1: mode='minimal' returns 2 stages (analyze + scaffold)."""
+    refs = select_stages_for_runtime(template, mode="minimal")
+    ids = [r.stage for r in refs]
+    assert ids == ["analyze", "scaffold"], (
+        f"mode='minimal' should yield Claude Code /init parity (2 stages); got {ids}"
+    )
+
+
+def test_select_stages_for_runtime_standard(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / AC-1: mode='standard' returns 3 stages (no verify)."""
+    refs = select_stages_for_runtime(template, mode="standard")
+    ids = [r.stage for r in refs]
+    assert ids == ["analyze", "scaffold", "compile"], (
+        f"mode='standard' should yield 3 stages (verify elided); got {ids}"
+    )
+
+
+def test_select_stages_for_runtime_deep(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / AC-1: mode='deep' returns all 4 stages including verify."""
+    refs = select_stages_for_runtime(template, mode="deep")
+    ids = [r.stage for r in refs]
+    assert ids == ["analyze", "scaffold", "compile", "verify"], (
+        f"mode='deep' should yield all 4 stages (full DevolaFlow init); got {ids}"
+    )
+
+
+def test_select_stages_for_runtime_environment_modes_noop(template: WorkflowTemplate) -> None:
+    """v7.4.9 P-04 / AC-3: repo-init's empty environment_modes are no-op.
+
+    Both `local.skip_stages` and `github.extra_stages` are empty lists in
+    the YAML, so swapping environment must not change the resulting list.
+    """
+    local = [r.stage for r in select_stages_for_runtime(template, environment="local")]
+    github = [r.stage for r in select_stages_for_runtime(template, environment="github")]
+    assert local == github == ["analyze", "scaffold", "compile"], (
+        f"Empty environment_modes blocks must be no-op; local={local}, github={github}"
+    )

@@ -86,6 +86,8 @@ class StageDefinition:
     config: dict[str, Any] = field(default_factory=dict)
     input_mapping: dict[str, Any] = field(default_factory=dict)
     skip_condition: str | None = None
+    # Reserved for v7.6.x runtime wiring (per audit G-I3 deferral).
+    # Currently parsed but not consumed at runtime.
     timeout_minutes: int | None = None
 
 
@@ -222,7 +224,6 @@ class WorkflowTemplate:
     composition: CompositionNode
     loops: list[LoopDef] = field(default_factory=list)
     gates: list[GateDef] = field(default_factory=list)
-    team_overrides: dict[str, str] = field(default_factory=dict)
     environment_modes: dict[str, Any] = field(default_factory=dict)
     extends: str | None = None
     overrides: dict[str, Any] | None = None

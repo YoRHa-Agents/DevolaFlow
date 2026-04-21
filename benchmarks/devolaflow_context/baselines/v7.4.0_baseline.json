@@ -97,15 +97,15 @@
   },
   "convergence_noise_filter": {
     "budget": 2475,
-    "budget_utilization": 0.9164,
-    "composite": 89.91,
-    "information_density": 0.8247,
+    "budget_utilization": 0.9943,
+    "composite": 99.77,
+    "information_density": 0.9943,
     "noise_ratio": 0.0,
     "profile_name": "feedback",
     "scenario_name": "convergence_noise_filter",
-    "section_relevance": 0.9,
-    "selected_count": 9,
-    "total_tokens": 2268
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 2461
   },
   "decomposition_feature": {
     "budget": 5150,
@@ -193,15 +193,15 @@
   },
   "feedback_regression": {
     "budget": 2475,
-    "budget_utilization": 0.9164,
-    "composite": 89.91,
-    "information_density": 0.8247,
+    "budget_utilization": 0.9943,
+    "composite": 99.77,
+    "information_density": 0.9943,
     "noise_ratio": 0.0,
     "profile_name": "feedback",
     "scenario_name": "feedback_regression",
-    "section_relevance": 0.9,
-    "selected_count": 9,
-    "total_tokens": 2268
+    "section_relevance": 1.0,
+    "selected_count": 10,
+    "total_tokens": 2461
   },
   "full_pipeline_auth": {
     "budget": 5150,

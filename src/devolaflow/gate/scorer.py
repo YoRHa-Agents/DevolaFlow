@@ -5,8 +5,13 @@ Design ref: design_decomposition_gate.md §5.3, §5.7
 
 from __future__ import annotations
 
+import argparse
+import sys
 from collections import Counter
 from collections.abc import Sequence
+from pathlib import Path
+
+import yaml
 
 from devolaflow.gate.convergence import (
     compute_smoothed_trend,
@@ -23,6 +28,7 @@ from devolaflow.gate.models import (
     GateProfile,
     GateVerdict,
 )
+from devolaflow.gate.profiles import PROFILES, STANDARD
 
 SEVERITY_WEIGHTS: dict[str, int] = {
     "blocker": 25,
@@ -527,6 +533,232 @@ def _evaluate_convergence(
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI entry point — closes G-B1 (audit §3.B). The previous v7.4.4 implementation
+# was a one-line print stub that silently masked real failures
+# (S-5 No-Silent-Failures violation).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+_EXIT_PASS = 0
+_EXIT_FAIL = 1
+_EXIT_USAGE = 2
+
+_GATE_TYPE_CHOICES: tuple[str, ...] = (
+    "standard",
+    "convergence",
+    "passthrough",
+    "acceptance_readiness",
+    "preflight",
+    "revision",
+    "escalation",
+    "abort",
+)
+
+
+def _check_result_from_dict(data: object) -> CheckResult | None:
+    """Convert an optional YAML mapping into a :class:`CheckResult`."""
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        raise TypeError(f"check result must be a mapping (got {type(data).__name__})")
+    status = data.get("status")
+    if status not in ("pass", "fail", "skip"):
+        raise ValueError(f"check result status must be one of pass/fail/skip (got {status!r})")
+    details = data.get("details") or {}
+    if not isinstance(details, dict):
+        raise TypeError(f"check result details must be a mapping (got {type(details).__name__})")
+    return CheckResult(status=status, details=dict(details))
+
+
+def _finding_from_dict(data: object) -> Finding:
+    """Convert one YAML mapping into a :class:`Finding`."""
+    if not isinstance(data, dict):
+        raise TypeError(f"finding must be a mapping (got {type(data).__name__})")
+    severity = data.get("severity")
+    if severity not in SEVERITY_WEIGHTS:
+        raise ValueError(
+            f"finding severity must be one of {sorted(SEVERITY_WEIGHTS)} (got {severity!r})"
+        )
+    return Finding(
+        finding_id=str(data.get("finding_id", "")),
+        severity=severity,  # type: ignore[arg-type]
+        category=str(data.get("category", "")),
+        location=str(data.get("location", "")),
+        description=str(data.get("description", "")),
+        suggestion=str(data.get("suggestion", "")),
+        rule_id=str(data.get("rule_id", "")),
+    )
+
+
+def _build_gate_input(raw: dict) -> GateInput:
+    """Build a :class:`GateInput` from a parsed YAML mapping.
+
+    Required top-level keys: ``build_status``, ``test_results``, ``lint_status``.
+    Optional: ``review_findings``, ``acceptance_criteria_results``, plus the
+    four user-facing verification check results (visual / interaction /
+    accessibility / acceptance_verification).
+    """
+    required = ("build_status", "test_results", "lint_status")
+    missing = [k for k in required if k not in raw]
+    if missing:
+        raise ValueError(
+            f"gate input missing required keys: {missing} (expected: {list(required)})"
+        )
+
+    raw_findings = raw.get("review_findings") or []
+    if not isinstance(raw_findings, list):
+        raise TypeError(f"review_findings must be a list (got {type(raw_findings).__name__})")
+    review_findings = [_finding_from_dict(f) for f in raw_findings]
+
+    build = _check_result_from_dict(raw["build_status"])
+    test = _check_result_from_dict(raw["test_results"])
+    lint = _check_result_from_dict(raw["lint_status"])
+    if build is None or test is None or lint is None:
+        # required keys cannot be null — _check_result_from_dict only returns
+        # None for explicit YAML null
+        raise ValueError("build_status, test_results, lint_status must not be null")
+
+    return GateInput(
+        build_status=build,
+        test_results=test,
+        lint_status=lint,
+        review_findings=review_findings,
+        acceptance_criteria_results=_check_result_from_dict(raw.get("acceptance_criteria_results")),
+        visual_test_results=_check_result_from_dict(raw.get("visual_test_results")),
+        interaction_test_results=_check_result_from_dict(raw.get("interaction_test_results")),
+        accessibility_results=_check_result_from_dict(raw.get("accessibility_results")),
+        acceptance_verification_results=_check_result_from_dict(
+            raw.get("acceptance_verification_results")
+        ),
+    )
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Construct the argparse parser for ``validate-gate``."""
+    parser = argparse.ArgumentParser(
+        prog="validate-gate",
+        description=(
+            "Evaluate a DevolaFlow gate checkpoint. Loads a YAML gate-input "
+            "file, calls evaluate_gate(), and prints decision / composite / "
+            "findings to stdout. Exit code 0 = PASS, 1 = FAIL or ESCALATE, "
+            "2 = usage / IO / parse error."
+        ),
+    )
+    parser.add_argument(
+        "--input",
+        "-i",
+        help="Path to a YAML gate-input file (build_status, test_results, "
+        "lint_status, review_findings, ...)",
+    )
+    parser.add_argument(
+        "--profile",
+        "-p",
+        default="standard",
+        choices=sorted(PROFILES),
+        help="Gate profile (default: standard)",
+    )
+    parser.add_argument(
+        "--gate-type",
+        default="standard",
+        choices=list(_GATE_TYPE_CHOICES),
+        help="Gate type (default: standard)",
+    )
+    parser.add_argument(
+        "--round",
+        type=int,
+        default=1,
+        dest="round_num",
+        help="Convergence round number (default: 1)",
+    )
+    return parser
+
+
+def _format_findings(findings: list[Finding]) -> str:
+    """Render a single-line ``blocker=N critical=N major=N minor=N info=N`` summary."""
+    counts: Counter[str] = Counter(f.severity for f in findings)
+    return (
+        f"blocker={counts.get('blocker', 0)} "
+        f"critical={counts.get('critical', 0)} "
+        f"major={counts.get('major', 0)} "
+        f"minor={counts.get('minor', 0)} "
+        f"info={counts.get('info', 0)}"
+    )
+
+
 def run_gate_cli(args: Sequence[str]) -> None:
-    """CLI entry point for gate validation."""
-    print("gate: pass (stub)")
+    """CLI entry point for the ``validate-gate`` console script.
+
+    Behaviour
+    ---------
+    * Empty ``args`` — print usage to stdout and **return** without raising.
+      This preserves the smoke-test contract used by
+      ``tests/test_exercise_modules.py::test_stub_helpers``.
+    * ``--help`` / ``-h`` — argparse prints usage and exits 0.
+    * Otherwise:
+        1. parse ``--input``/``--profile``/``--gate-type``/``--round``;
+        2. read the input YAML, build a :class:`GateInput`;
+        3. dispatch to :func:`evaluate_gate` (unmodified — wrap-not-modify);
+        4. print ``decision: …``, optional ``composite: …``,
+           ``findings: blocker=… critical=… …``, ``profile: …``,
+           ``gate_type: …``, ``rationale: …`` to stdout;
+        5. exit 0 (PASS) / 1 (FAIL or ESCALATE) / 2 (usage / IO / parse error).
+
+    Closes ghost G-B1 (`.local/research/v7.5.0_ghost_audit.md` §3.B): the
+    previous body was a one-line print stub — an S-4 / CP-1 No-Ghost-Features
+    + S-5 No-Silent-Failures violation.
+    """
+    parser = _build_arg_parser()
+
+    if not args:
+        parser.print_help()
+        return
+
+    parsed = parser.parse_args(list(args))
+
+    if parsed.input is None:
+        parser.print_help()
+        sys.exit(_EXIT_USAGE)
+
+    input_path = Path(parsed.input)
+    if not input_path.is_file():
+        print(f"error: input file not found: {input_path}", file=sys.stderr)
+        sys.exit(_EXIT_USAGE)
+
+    try:
+        raw = yaml.safe_load(input_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        print(f"error: malformed YAML in {input_path}: {exc}", file=sys.stderr)
+        sys.exit(_EXIT_USAGE)
+
+    if not isinstance(raw, dict):
+        print(
+            f"error: gate input must be a YAML mapping (got {type(raw).__name__})",
+            file=sys.stderr,
+        )
+        sys.exit(_EXIT_USAGE)
+
+    try:
+        gate_input = _build_gate_input(raw)
+    except (KeyError, TypeError, ValueError) as exc:
+        print(f"error: invalid gate input: {exc}", file=sys.stderr)
+        sys.exit(_EXIT_USAGE)
+
+    profile = PROFILES.get(parsed.profile, STANDARD)
+
+    verdict = evaluate_gate(
+        gate_input,
+        profile,
+        round_num=parsed.round_num,
+        gate_type=parsed.gate_type,
+    )
+
+    print(f"decision: {verdict.decision}")
+    if verdict.composite_score is not None:
+        print(f"composite: {verdict.composite_score:.2f}")
+    print(f"findings: {_format_findings(gate_input.review_findings)}")
+    print(f"profile: {profile.name}")
+    print(f"gate_type: {parsed.gate_type}")
+    print(f"rationale: {verdict.rationale}")
+
+    sys.exit(_EXIT_PASS if verdict.decision == "PASS" else _EXIT_FAIL)
