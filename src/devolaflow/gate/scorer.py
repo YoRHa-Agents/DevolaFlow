@@ -36,9 +36,14 @@ from devolaflow.gate.models import (
     GateVerdict,
     LadderEvaluation,
     LadderRung,
+    RatchetAction,
     Severity,
 )
 from devolaflow.gate.profiles import PROFILES, STANDARD
+from devolaflow.gate.ratchet import (
+    MonotonicRatchet,
+    compute_deterministic_oracle_score,
+)
 from devolaflow.gate.reinforcement import (
     MAX_REINFORCEMENT_RULES,
     ReinforcementBlock,
@@ -791,6 +796,8 @@ def _check_convergence(
     gate_type: str = "standard",
     breaker: TokenBudgetBreaker | None = None,
     cumulative_tokens: int | None = None,
+    ratchet: MonotonicRatchet | None = None,
+    ratchet_artifact: dict[str, object] | None = None,
     **_: object,
 ) -> LadderEvaluation:
     """R6 default checker — delegate to :func:`evaluate_gate` and translate
@@ -807,6 +814,8 @@ def _check_convergence(
         gate_type=gate_type,
         breaker=breaker,
         cumulative_tokens=cumulative_tokens,
+        ratchet=ratchet,
+        ratchet_artifact=ratchet_artifact,
     )
     status = "pass" if verdict.decision == "PASS" else "fail"
     return LadderEvaluation(
@@ -954,6 +963,8 @@ def evaluate_ladder(
     extra_checks: Mapping[str, CheckResult] | None = None,
     rung_overrides: Mapping[LadderRung, RungChecker] | None = None,
     cycle_detector: CycleDetector | None = None,
+    ratchet: MonotonicRatchet | None = None,
+    ratchet_artifact: dict[str, object] | None = None,
 ) -> GateVerdict:
     """Evaluate a 6-rung verification ladder R1..R6 with short-circuit semantics.
 
@@ -1005,6 +1016,8 @@ def evaluate_ladder(
             breaker=breaker,
             cumulative_tokens=cumulative_tokens,
             cycle_detector=cycle_detector,
+            ratchet=ratchet,
+            ratchet_artifact=ratchet_artifact,
         )
 
     results: list[LadderEvaluation] = []
@@ -1033,6 +1046,8 @@ def evaluate_ladder(
             breaker=breaker,
             cumulative_tokens=cumulative_tokens,
             extra_checks=extra_checks,
+            ratchet=ratchet,
+            ratchet_artifact=ratchet_artifact,
         )
         evaluation = _normalise_rung_result(rung, raw)
         results.append(evaluation)
@@ -1045,6 +1060,75 @@ def evaluate_ladder(
         cycle_report = cycle_detector.detect_cycle()
         if cycle_report.detected:
             _attach_cycle_report(verdict, cycle_report)
+    return verdict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-07) — Monotonic Ratchet integration
+#
+# ``_attach_ratchet_action`` consults the optional :class:`MonotonicRatchet`,
+# computes the deterministic oracle score from the same :class:`GateInput`
+# the gate verdict was built from, records the round, and surfaces the
+# resulting :class:`RatchetAction` in ``verdict.details``. ``ratchet=None``
+# is byte-identical to pre-P-07 behaviour (per ``patch_plan §3 P-07
+# AC #4`` — ratchet=None scorer round-trip equals v7.8.0).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _attach_ratchet_action(
+    verdict: GateVerdict,
+    gate_input: GateInput,
+    ratchet: MonotonicRatchet,
+    round_num: int,
+    artifact: dict[str, object] | None = None,
+) -> GateVerdict:
+    """Record this round on the ratchet and surface the verdict on ``details``.
+
+    The oracle score is computed via
+    :func:`devolaflow.gate.ratchet.compute_deterministic_oracle_score`
+    (test + lint + build only — review_findings excluded per the S/O/R
+    non-gameable principle, ``patch_plan §3 P-07 AC #5``). The action
+    plus the new best-score / best-round metadata are appended to
+    ``verdict.details['ratchet']`` in place; the verdict's ``decision``
+    is NOT mutated by default (consumers translate ``ROLLBACK`` /
+    ``ESCALATE`` into the appropriate convergence response).
+
+    However, when the ratchet emits ``ESCALATE`` AND the underlying
+    verdict is currently ``PASS`` / ``FAIL``, we upgrade the decision to
+    ``ESCALATE`` because the loop is provably stuck (S-5 — never
+    silently swallow an ESCALATE signal). ``ROLLBACK`` is surfaced via
+    ``verdict.details`` only — the convergence orchestrator decides
+    whether to restore the snapshot and re-dispatch the round.
+    """
+    oracle_score = compute_deterministic_oracle_score(gate_input)
+    action = ratchet.record_round(round_num, oracle_score, artifact=artifact)
+    snapshot_meta: dict[str, object] = {}
+    if ratchet.best_artifact_snapshot is not None:
+        snap = ratchet.best_artifact_snapshot
+        snapshot_meta = {
+            "round_num": snap.round_num,
+            "score": snap.score,
+            "payload_hash": snap.payload_hash,
+        }
+    verdict.details.setdefault("ratchet", {})
+    verdict.details["ratchet"] = {
+        "action": action.value,
+        "oracle_score": oracle_score,
+        "best_score": ratchet.best_score,
+        "best_round": ratchet.best_round,
+        "consecutive_regressions": ratchet.consecutive_regressions,
+        "regression_tolerance": ratchet.regression_tolerance,
+        "max_regressions": ratchet.max_regressions,
+        "best_artifact_snapshot": snapshot_meta,
+    }
+    if action is RatchetAction.ESCALATE and verdict.decision != "ESCALATE":
+        verdict.decision = "ESCALATE"
+        verdict.meets_threshold = False
+        verdict.escalation_context = verdict.escalation_context or (
+            f"Ratchet escalation: post-rollback round {round_num} "
+            f"oracle_score={oracle_score:.2f} cannot exceed best="
+            f"{ratchet.best_score:.2f} (round {ratchet.best_round})."
+        )
     return verdict
 
 
@@ -1095,6 +1179,8 @@ def evaluate_gate(
     breaker: TokenBudgetBreaker | None = None,
     cumulative_tokens: int | None = None,
     cycle_detector: CycleDetector | None = None,
+    ratchet: MonotonicRatchet | None = None,
+    ratchet_artifact: dict[str, object] | None = None,
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -1135,6 +1221,22 @@ def evaluate_gate(
         mutated — callers translate the report into a reinforcement rule
         via :func:`devolaflow.gate.reinforcement.cycle_to_instruction`
         and decide how to escalate.
+    ratchet:
+        Optional :class:`devolaflow.gate.ratchet.MonotonicRatchet`. When
+        ``None`` (the default), behaviour is byte-identical to pre-P-07
+        (``patch_plan §3 P-07 AC #4``). When supplied, the deterministic
+        oracle subset (test + lint + build, review_findings EXCLUDED) is
+        computed via
+        :func:`devolaflow.gate.ratchet.compute_deterministic_oracle_score`
+        and recorded on the ratchet, surfacing the resulting
+        :class:`RatchetAction` in ``verdict.details['ratchet']``. The
+        verdict's ``decision`` is upgraded to ``ESCALATE`` only when the
+        ratchet emits ``ESCALATE`` (S-5 — never silently downgrade an
+        escalation signal).
+    ratchet_artifact:
+        Optional ``{str: object}`` payload snapshot recorded into
+        :pyattr:`MonotonicRatchet.best_artifact_snapshot` whenever the
+        round becomes the new best. Ignored when ``ratchet is None``.
     """
     if history is None:
         history = []
@@ -1147,6 +1249,8 @@ def evaluate_gate(
                 cycle_report = cycle_detector.detect_cycle()
                 if cycle_report.detected:
                     _attach_cycle_report(verdict, cycle_report)
+            if ratchet is not None:
+                _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
             return verdict
     else:
         decision = None
@@ -1170,6 +1274,9 @@ def evaluate_gate(
         cycle_report = cycle_detector.detect_cycle()
         if cycle_report.detected:
             _attach_cycle_report(verdict, cycle_report)
+
+    if ratchet is not None:
+        _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
 
     return verdict
 

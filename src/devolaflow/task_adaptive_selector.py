@@ -772,6 +772,95 @@ _ROUND_ESCALATION_DEFAULTS: dict[int, dict[str, Any]] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# v8.0.0 (P-07) — apply_round_escalation refactor (NineS [CC-448821-0001]
+# closure). The legacy single-function body had cyclomatic complexity 11;
+# splitting into 3 named helpers (``select_round_result`` /
+# ``apply_severity_filter`` / ``escalate_round``) brings every leaf
+# function's cc to ≤ 6 (per ``patch_plan §3 P-07 AC #6``) while keeping
+# the public ``apply_round_escalation`` wrapper byte-identical to the
+# v7.x return contract (verified by
+# ``tests/test_feedback_reinforcement.py::TestApplyRoundEscalation``).
+# ---------------------------------------------------------------------------
+
+
+def select_round_result(
+    round_num: int,
+    escalation_config: dict[int, dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    """Pick the override block for ``round_num`` from ``escalation_config``.
+
+    Lookup priority:
+      1. Exact match on ``round_num`` in the active config.
+      2. ``round_num`` above the highest configured key → reuse the
+         highest-budget block (the v7.x "max-round overflow" semantic).
+      3. Otherwise → ``None`` (caller returns the profile untouched).
+
+    The ``escalation_config`` parameter may be ``None`` to use the
+    module-level :data:`_ROUND_ESCALATION_DEFAULTS`. Returns a borrow
+    of the internal dict — callers MUST treat the result as read-only
+    or copy-on-write.
+    """
+    config = escalation_config or _ROUND_ESCALATION_DEFAULTS
+    overrides = config.get(round_num)
+    if overrides is not None:
+        return overrides
+    if round_num > max(config, default=0):
+        return max(
+            config.values(),
+            key=lambda v: v.get("token_budget_increase_pct", 0),
+            default={},
+        )
+    return None
+
+
+def apply_severity_filter(
+    result: dict[str, Any],
+    overrides: dict[str, Any],
+) -> None:
+    """Apply section-priority + model-hint overrides to ``result`` in place.
+
+    The "severity filter" naming reflects the ratchet vocabulary in
+    ``patch_plan §3 P-07``: the per-round overrides effectively raise
+    the severity floor for the next convergence round so safety-critical
+    primitives (rationalization_prevention, convergence_loop, …) are
+    promoted to ``critical``.
+
+    Mutates ``result``; does NOT return anything (S-5 — never silently
+    swallow the mutation by returning a fresh dict the caller forgets
+    to use).
+    """
+    prio_overrides = overrides.get("section_priority_overrides", {})
+    if prio_overrides:
+        existing = dict(result.get("section_priorities", {}))
+        existing.update(prio_overrides)
+        result["section_priorities"] = existing
+    if "model_hint_override" in overrides:
+        result["model_hint"] = overrides["model_hint_override"]
+
+
+def escalate_round(
+    result: dict[str, Any],
+    overrides: dict[str, Any],
+) -> None:
+    """Apply compression + token-budget escalation to ``result`` in place.
+
+    Bumps ``compression_intensity`` (typically to ``"minimal"`` on
+    higher rounds) and grows ``token_budget`` by
+    ``overrides["token_budget_increase_pct"]`` percent — the v7.x
+    round-3 escalation budget grew the budget by 20 % so the escalated
+    convergence round had room to load the additional gate-mechanism /
+    rationalization sections (per ``patch_plan §3 P-07``: this helper is
+    the round-level companion to the new
+    :class:`devolaflow.gate.ratchet.MonotonicRatchet`).
+    """
+    if "compression_intensity" in overrides:
+        result["compression_intensity"] = overrides["compression_intensity"]
+    increase_pct = overrides.get("token_budget_increase_pct", 0)
+    if increase_pct and "token_budget" in result:
+        result["token_budget"] = int(result["token_budget"] * (1 + increase_pct / 100))
+
+
 def apply_round_escalation(
     profile: dict[str, Any],
     round_num: int,
@@ -781,36 +870,22 @@ def apply_round_escalation(
 
     Higher convergence rounds get stricter section priorities, better
     model hints, and increased token budgets.  Does not mutate *profile*.
+
+    v8.0.0 (P-07) refactor: delegates lookup to :func:`select_round_result`,
+    priority + model-hint overrides to :func:`apply_severity_filter`, and
+    compression + budget escalation to :func:`escalate_round`. Legacy
+    cyclomatic complexity 11 (NineS finding ``[CC-448821-0001]``) drops
+    to ≤ 4 on the wrapper and ≤ 6 on every helper. Return contract is
+    byte-identical to v7.x (verified by
+    ``tests/test_feedback_reinforcement.py::TestApplyRoundEscalation``
+    and ``tests/test_compressor.py::TestRoundEscalationBudget``).
     """
-    overrides = (escalation_config or _ROUND_ESCALATION_DEFAULTS).get(round_num)
+    overrides = select_round_result(round_num, escalation_config)
     if overrides is None:
-        if round_num > max((escalation_config or _ROUND_ESCALATION_DEFAULTS), default=0):
-            overrides = max(
-                (escalation_config or _ROUND_ESCALATION_DEFAULTS).values(),
-                key=lambda v: v.get("token_budget_increase_pct", 0),
-                default={},
-            )
-        else:
-            return profile
-
+        return profile
     result = {**profile}
-
-    prio_overrides = overrides.get("section_priority_overrides", {})
-    if prio_overrides:
-        existing = dict(result.get("section_priorities", {}))
-        existing.update(prio_overrides)
-        result["section_priorities"] = existing
-
-    if "model_hint_override" in overrides:
-        result["model_hint"] = overrides["model_hint_override"]
-
-    if "compression_intensity" in overrides:
-        result["compression_intensity"] = overrides["compression_intensity"]
-
-    increase_pct = overrides.get("token_budget_increase_pct", 0)
-    if increase_pct and "token_budget" in result:
-        result["token_budget"] = int(result["token_budget"] * (1 + increase_pct / 100))
-
+    apply_severity_filter(result, overrides)
+    escalate_round(result, overrides)
     return result
 
 

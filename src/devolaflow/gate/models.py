@@ -468,3 +468,78 @@ class CycleReport:
         the patch plan name compiling without a rename.
         """
         return self.cycle_type
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-07) — Monotonic Ratchet Guarantee (G13 closure)
+#
+# The ratchet records per-round oracle scores in an append-only log and
+# emits one of four verdicts on each new round (per ``patch_plan §3 P-07
+# AC #1-#4``):
+#
+#     ADVANCE   — strict score lift over the recorded best; rotate best.
+#     TOLERATE  — score equal-or-near-best within ``regression_tolerance``;
+#                 keep best, no escalation.
+#     ROLLBACK  — score below best by more than the tolerance for the
+#                 ``max_regressions``-th consecutive round; restore the
+#                 saved ``ArtifactSnapshot``.
+#     ESCALATE  — a round AFTER a ROLLBACK still cannot beat best; the
+#                 loop is stuck and must escalate per P4 bounded retry.
+#
+# The deterministic oracle score (test+lint+build only — review_findings
+# excluded) lives in :func:`devolaflow.gate.scorer.compute_deterministic_oracle_score`
+# so the ratchet is unaffected by S/O/R-style review-finding gaming
+# (Karpathy "non-gameable success criteria" per upstream tweet analysis
+# ``v7.8`` §4.11).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class RatchetAction(StrEnum):
+    """One of the 4 verdict paths emitted by :class:`MonotonicRatchet`.
+
+    Ordered by escalation severity — ``ADVANCE`` is the happy path,
+    ``ESCALATE`` aborts the convergence loop. The enum is exhaustive
+    (S-5 — every ``record_round`` invocation MUST return one of these
+    four values, never ``None``).
+    """
+
+    ADVANCE = "ADVANCE"
+    TOLERATE = "TOLERATE"
+    ROLLBACK = "ROLLBACK"
+    ESCALATE = "ESCALATE"
+
+
+@dataclass(frozen=True)
+class ArtifactSnapshot:
+    """Immutable per-round capture used for ratchet rollback.
+
+    Stored on the :class:`devolaflow.gate.ratchet.MonotonicRatchet` whenever
+    a round produces a new best deterministic oracle score. On a
+    ``ROLLBACK`` verdict the consumer reinstates the saved
+    :pyattr:`payload` so the convergence loop resumes from the last
+    known-good state instead of letting the loop drift downward.
+
+    Attributes
+    ----------
+    round_num:
+        1-based round ordinal that produced the snapshot.
+    score:
+        Deterministic oracle score that justified saving this snapshot.
+        Computed via
+        :func:`devolaflow.gate.scorer.compute_deterministic_oracle_score`.
+    payload_hash:
+        Stable digest of :pyattr:`payload` (e.g. ``hashlib.sha256``
+        hex-digest of a canonicalised JSON dump). Lets downstream
+        verifiers prove the rollback target is byte-identical to the
+        original snapshot without re-loading the full payload.
+    payload:
+        Free-form mapping carrying whatever artifact state the consumer
+        needs to restore on rollback (file diffs, dispatch payload,
+        intermediate gate verdict, etc.). Intentionally permissive —
+        the ratchet never inspects the contents.
+    """
+
+    round_num: int
+    score: float
+    payload_hash: str = ""
+    payload: dict[str, object] = field(default_factory=dict)

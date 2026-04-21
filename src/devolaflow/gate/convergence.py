@@ -5,9 +5,12 @@ Design ref: design_decomposition_gate.md §5.7, §7.3
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from devolaflow.gate.models import ConvergenceRound
+from devolaflow.gate.models import ConvergenceRound, RatchetAction
+
+if TYPE_CHECKING:
+    from devolaflow.gate.ratchet import MonotonicRatchet
 
 Trend = Literal["improving", "degrading", "stagnant"]
 
@@ -142,3 +145,64 @@ def compute_smoothed_trend(
     if delta < 0:
         return "degrading"
     return "stagnant"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-07) — ConvergenceRound ↔ MonotonicRatchet integration
+#
+# ``record_round_with_ratchet`` is the canonical bridge between the
+# convergence-loop history list (``list[ConvergenceRound]``) and the
+# new :class:`devolaflow.gate.ratchet.MonotonicRatchet`. It appends the
+# round to ``history`` (so existing detect_stagnation / compute_trend
+# helpers still see it) AND records the same round on the ratchet,
+# returning the ratchet verdict so the orchestrator can decide whether
+# to ADVANCE / TOLERATE / ROLLBACK / ESCALATE.
+#
+# ``detect_ratchet_escalation`` is a thin wrapper that returns ``True``
+# whenever the ratchet's most recent action was ``ESCALATE`` — the
+# convergence orchestrator can check this BEFORE calling
+# :func:`detect_stagnation` and short-circuit the stagnation path so a
+# ratchet ESCALATE always wins (per ``patch_plan §3 P-07`` —
+# "detect_stagnation() triggers escalation on ratchet ESCALATE").
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def record_round_with_ratchet(
+    history: list[ConvergenceRound],
+    round_entry: ConvergenceRound,
+    ratchet: MonotonicRatchet,
+    *,
+    artifact: dict[str, object] | None = None,
+) -> RatchetAction:
+    """Append ``round_entry`` to ``history`` and record it on ``ratchet``.
+
+    The composite score on ``round_entry`` is forwarded verbatim to
+    :meth:`devolaflow.gate.ratchet.MonotonicRatchet.record_round`. The
+    optional ``artifact`` is snapshotted on the ratchet whenever the
+    round becomes the new best (see
+    :class:`devolaflow.gate.models.ArtifactSnapshot`).
+
+    Returns
+    -------
+    RatchetAction
+        The verdict emitted by the ratchet for this round.
+    """
+    history.append(round_entry)
+    return ratchet.record_round(
+        round_entry.round_num,
+        round_entry.composite_score,
+        artifact=artifact,
+    )
+
+
+def detect_ratchet_escalation(ratchet: MonotonicRatchet) -> bool:
+    """Return ``True`` when the ratchet's last verdict was ``ESCALATE``.
+
+    Use this at the top of the convergence-loop dispatch decision so a
+    ratchet ESCALATE always wins over a stagnation / compute_trend
+    verdict (per ``patch_plan §3 P-07`` — "detect_stagnation() triggers
+    escalation on ratchet ESCALATE"). Returns ``False`` when the ratchet
+    has not yet recorded any round (S-5 — never silently treat absence
+    as escalation).
+    """
+    return ratchet.last_action is RatchetAction.ESCALATE
