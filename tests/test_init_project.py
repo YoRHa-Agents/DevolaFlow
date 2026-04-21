@@ -1,5 +1,6 @@
 """Tests for devola-init project initialization."""
 
+import sys
 from pathlib import Path
 
 from devolaflow.init_project import _auto_detect, _find_agent_dir, _parse_scope
@@ -107,3 +108,90 @@ def test_install_copilot(tmp_path: Path):
 
     install_copilot(agent_dir, tmp_path)
     assert (tmp_path / ".github" / "copilot-instructions.md").exists()
+
+
+def test_auto_detect_local_when_missing(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    result = _auto_detect(tmp_path)
+    assert "local" in result
+
+
+def test_auto_detect_no_local_when_present(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / ".local").mkdir()
+    result = _auto_detect(tmp_path)
+    assert "local" not in result
+
+
+def test_auto_detect_local_idempotent(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    first = _auto_detect(tmp_path)
+    assert "local" in first
+
+    from devolaflow.init_project import install_local
+
+    install_local(_find_agent_dir(), tmp_path)
+    second = _auto_detect(tmp_path)
+    assert "local" not in second
+
+
+def test_main_with_no_local_scaffolds_workspace(tmp_path: Path, monkeypatch):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    (tmp_path / ".cursor").mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "_home"))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    monkeypatch.setattr(sys, "argv", ["devola-init"])
+
+    from devolaflow.init_project import main
+
+    main()
+
+    assert (tmp_path / ".local" / "feedbacks").is_dir()
+    assert (tmp_path / ".local" / "tasks").is_dir()
+    assert (tmp_path / ".local" / "index.md").is_file()
+    assert (tmp_path / ".cursor" / "skills" / "devola-flow" / "SKILL.md").exists()
+
+
+def test_install_codex(tmp_path: Path, monkeypatch):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_codex
+
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / ".codex"))
+    install_codex(agent_dir, tmp_path)
+    skill = tmp_path / ".codex" / "skills" / "devola-flow" / "SKILL.md"
+    assert skill.exists()
+
+
+def test_install_local_with_existing_rules_dir(tmp_path: Path):
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_local
+
+    (tmp_path / ".rules").mkdir()
+    install_local(agent_dir, tmp_path)
+    assert (tmp_path / ".local" / "feedbacks").is_dir()
+    assert (tmp_path / ".rules").is_dir()
+
+
+def test_main_list_flag(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "_home"))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    monkeypatch.setattr(sys, "argv", ["devola-init", "--list"])
+
+    from devolaflow.init_project import main
+
+    main()
+    out = capsys.readouterr().out
+    assert "Detected tools:" in out
+    assert "local" in out
+    assert "Available targets:" in out

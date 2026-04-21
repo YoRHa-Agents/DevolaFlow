@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-7.4.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-7.4.2-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -74,7 +74,7 @@ Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 434+ tests, 19 templates
+make test && make validate-templates   # 434+ tests, 20 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -169,7 +169,7 @@ The agent will compare your installed version against the latest on GitHub and t
 
 ## What's Inside
 
-### 19 Built-in Workflow Types
+### 20 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
@@ -192,6 +192,7 @@ The agent will compare your installed version against the latest on GitHub and t
 | `self-update` | Update references, track external changes | check-refs → research-updates → decompose → integrate → test → evaluate |
 | `product-verification` | verify, visual, acceptance, uat, e2e, product | composite |
 | NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
+| `repo-init` | init repo, scaffold workspace, setup rules, 初始化仓库 | analyze → scaffold → compile → verify (mode: minimal \| standard \| deep) |
 
 ### 4-Layer Agent Hierarchy
 
@@ -257,7 +258,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v7.4.1"
+devola-version                   # prints "DevolaFlow v7.4.2"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

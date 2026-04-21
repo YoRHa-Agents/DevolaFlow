@@ -26,8 +26,9 @@ def test_readme_workflow_type_count(project_root: Path):
 
     yaml_count = len(list(templates_dir.glob("*.yaml")))
 
-    assert table_rows == yaml_count == 19, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 19"
+    # v7.4.2: 19 → 20 with repo-init added
+    assert table_rows == yaml_count == 20, (
+        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 20"
     )
 
 

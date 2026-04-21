@@ -226,6 +226,7 @@ class WorkflowTemplate:
     environment_modes: dict[str, Any] = field(default_factory=dict)
     extends: str | None = None
     overrides: dict[str, Any] | None = None
+    parameters: dict[str, Any] = field(default_factory=dict)
 
     def stage_ids(self) -> set[str]:
         """Return the set of all stage ids defined in this template."""
