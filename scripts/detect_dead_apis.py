@@ -209,6 +209,21 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ``tests/test_template_repo_init.py``) in lieu of an in-repo
         # production call site.
         "devolaflow.template_engine.runtime:select_stages_for_runtime",
+        # ---- init_interview module (v7.7 — interview stage for repo-init) ----
+        # Public API consumed by L3 task agents during the interview stage
+        # of repo-init (mode=full). Not called from in-repo production code.
+        "devolaflow.init_interview:detect_project_tools",
+        "devolaflow.init_interview:suggest_skills",
+        "devolaflow.init_interview:suggest_hooks",
+        "devolaflow.init_interview:write_skill",
+        "devolaflow.init_interview:generate_claude_hook_config",
+        # ---- Learnings + compiler prefs (v7.7 memory system) ----
+        "devolaflow.learnings:load_prefs",
+        "devolaflow.local.compiler:compile_prefs",
+        # ---- Progressive merge (v7.7 — diff-suggest for existing files) ----
+        "devolaflow.local.merge:propose_merge",
+        "devolaflow.local.merge:apply_merge",
+        "devolaflow.local.merge:format_diff_for_review",
         # ---- NineS internal helper exposed in private _cli module ----
         # Public name (no underscore) inside private module; documented in
         # CHANGELOG v5.x as a public helper for callers needing nines.toml

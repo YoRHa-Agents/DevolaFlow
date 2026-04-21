@@ -233,3 +233,42 @@ class RuleCompiler:
         if tc.format == "mdc":
             return self._format_mdc(layers, tc)
         return self._format_markdown(layers, tc)
+
+
+def compile_prefs(prefs_path: Path, output_path: Path) -> CompileResult | None:
+    """Compile ``.local/memory/prefs.md`` into ``CLAUDE.local.md``.
+
+    Reads personal preferences and wraps them in a CLAUDE.local.md format
+    that Claude Code loads alongside the project CLAUDE.md. Returns None
+    if the prefs file doesn't exist or is empty.
+    """
+    if not prefs_path.exists():
+        return None
+
+    content = prefs_path.read_text(encoding="utf-8").strip()
+    if not content:
+        return None
+
+    lines = [
+        "# Personal Preferences",
+        "",
+        "> Auto-compiled from .local/memory/prefs.md by DevolaFlow.",
+        "> This file is gitignored. Edit prefs.md to change preferences.",
+        "",
+        content.split("\n", 1)[-1].strip() if "\n" in content else content,
+        "",
+    ]
+    compiled = "\n".join(lines) + "\n"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(compiled, encoding="utf-8")
+
+    content_hash = hashlib.sha256(compiled.encode("utf-8")).hexdigest()[:16]
+    return CompileResult(
+        target="claude_local",
+        content=compiled,
+        tokens_used=_estimate_tokens(compiled),
+        tokens_budget=2000,
+        layers_included=["prefs"],
+        content_hash=content_hash,
+    )

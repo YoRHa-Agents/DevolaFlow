@@ -50,6 +50,7 @@ __all__ = [
     "pin_learning_for_session",
     "promote_learning",
     "prune_learnings",
+    "load_prefs",
     "resolve_learnings_path",
 ]
 
@@ -65,7 +66,29 @@ def resolve_learnings_path(cwd: str | Path | None = None) -> Path:
     local_path = base / ".local" / "memory" / "operational.jsonl"
     if local_path.exists():
         return local_path
+    canonical = base / "workflow-system" / "agent" / "knowledge" / "learnings" / "operational.jsonl"
+    if canonical.exists():
+        return canonical
     return local_path
+
+
+def load_prefs(cwd: str | Path | None = None) -> dict[str, str]:
+    """Load personal preferences from ``.local/memory/prefs.md``.
+
+    Returns a dict of key-value pairs parsed from the markdown bullet list.
+    Empty dict if the file doesn't exist or has no parseable entries.
+    """
+    base = Path(cwd) if cwd else Path.cwd()
+    prefs_path = base / ".local" / "memory" / "prefs.md"
+    if not prefs_path.exists():
+        return {}
+    prefs: dict[str, str] = {}
+    for line in prefs_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ") and ":" in stripped:
+            key, _, value = stripped[2:].partition(":")
+            prefs[key.strip().lower()] = value.strip()
+    return prefs
 
 
 DEFAULT_DECAY_HALF_LIFE_DAYS: int = 30
