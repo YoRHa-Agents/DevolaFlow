@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.4.7"
+version: "7.4.8"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.4.7**
+> **Now Using DevolaFlow v7.4.8**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 7.4.7 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.4.8 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -208,7 +208,7 @@ Every loop has `max_iterations`. Every failure is classified (retry / escalate /
 | "One more retry should fix it" | Check `max_iterations`. If at limit, escalate — do not increment. |
 | "The gate score is close enough" | Close is FAIL. Run convergence round or escalate. |
 | "I'll skip the gate for this stage" | Gates are mandatory. No stage advances without gate PASS. |
-| "Tests can be added later" | `test_on_complete` hook enforces. No completion without passing tests. |
+| "Tests can be added later" | `test_on_complete` hook checks (warns by default; strict mode blocks). Run with `strict=True` for hard enforcement. |
 
 ### Wave Coordination Modes
 
@@ -390,15 +390,15 @@ Full schemas: `references/message-schemas.md`
 
 ## Lifecycle Hooks
 
-System-level enforcement (100% compliance). Optional per-dispatch; default: none.
+Permissive default (warn + log); strict opt-in raises HookViolation.
 
-| Hook | Event | Enforces | On Violation |
-|------|-------|----------|--------------|
+| Hook | Event | Checks | On Violation (strict) |
+|------|-------|--------|----------------------|
 | `validate_dispatch` | Pre-dispatch | AC ≥1 testable condition | Block + escalate |
 | `check_file_ownership` | File write | File ∈ `owned_files` | Reject + log (P1) |
 | `test_on_complete` | Task stop | Tests pass, lint clean | Auto-retry ≤ P4 limit |
 
-Elevates P1 (ownership enforcement) and P4 (bounded retry) from prompt-based to deterministic.
+API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/`.
 
 ## Repo Mode Detection
 

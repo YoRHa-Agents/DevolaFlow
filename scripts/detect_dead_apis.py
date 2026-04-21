@@ -56,6 +56,19 @@ CLI_ENTRY_SUFFIX: str = "_cmd"
 
 DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
     {
+        # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
+        # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
+        # P-05 dispatch directive, the lifecycle package is intentionally
+        # NOT wired into existing dispatch / write / status flows in this
+        # patch — integration is deferred to a future iteration. The four
+        # public entry-points below are advertised in
+        # ``workflow-system/agent/SKILL.md`` §"Lifecycle Hooks" and consumed
+        # by external orchestrators (and ``tests/test_lifecycle_hooks.py``)
+        # in lieu of an in-repo production call site.
+        "devolaflow.lifecycle.dispatcher:run_hooks",
+        "devolaflow.lifecycle.dispatcher:register_hook",
+        "devolaflow.lifecycle.dispatcher:clear_hooks",
+        "devolaflow.lifecycle.dispatcher:registered_events",
         # ---- Adapter base API — subclassed/instantiated externally ----
         "devolaflow.adapters.base:BaseAdapter",
         "devolaflow.adapters.base:AdapterResult",

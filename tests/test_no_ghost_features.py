@@ -174,14 +174,19 @@ def test_check_drift_has_adversarial_test(project_root: Path) -> None:
 # ── Category C: lifecycle hooks ─────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-C1: 3 lifecycle hooks (validate_dispatch, check_file_ownership, "
-    "test_on_complete) are documentation-only — closes in P-05",
-)
 @pytest.mark.parametrize("hook", ["validate_dispatch", "check_file_ownership", "test_on_complete"])
 def test_lifecycle_hook_implemented(project_root: Path, hook: str) -> None:
-    """G-C1: each documented lifecycle hook must have a code identifier."""
+    """G-C1: each documented lifecycle hook must have a code identifier.
+
+    Closed by P-05 in v7.4.8 — the three hooks were landed as a new
+    ``src/devolaflow/lifecycle/`` package (``__init__.py``,
+    ``dispatcher.py``, ``validate_dispatch.py``, ``check_file_ownership.py``,
+    ``test_on_complete.py``) with permissive-with-warning DEFAULT and
+    opt-in strict mode per the audit §3.C G-C1 BLOCKER evidence and the
+    audit §5 P-05 row design. xfail marker removed per the audit §6
+    strict=True contract; xfail count drops 10 → 7 (3 ghost IDs closed
+    via 1 marker covering the parametrize).
+    """
     src_dir = project_root / "src" / "devolaflow"
     found = any(hook in _read(p) for p in src_dir.rglob("*.py"))
     assert found, (

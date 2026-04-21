@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-20T23:44:38Z"
-source_version: "7.4.7"
+last_synced: "2026-04-21T00:19:29Z"
+source_version: "7.4.8"
 ---
 
 # Quick Start Guide
