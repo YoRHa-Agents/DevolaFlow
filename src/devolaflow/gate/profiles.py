@@ -1,6 +1,15 @@
 """Predefined gate profiles.
 
 Design ref: design_decomposition_gate.md §5.4
+
+v8.0.0 (P-03) — each profile carries an explicit ``max_tokens`` ceiling
+consumed by :class:`devolaflow.gate.budget.TokenBudgetBreaker`. Defaults
+per patch_plan §3 P-03:
+
+    STRICT   80_000   tokens / task — most aggressive guard, BREAK ⇒ ESCALATE
+    STANDARD 50_000   tokens / task — default for most code work
+    RELAXED       0   tokens / task — *unlimited*; breaker disabled
+    AUDIT   100_000   tokens / task — long-form review allowance, BREAK ⇒ ESCALATE
 """
 
 from devolaflow.gate.models import GateProfile
@@ -20,6 +29,7 @@ STRICT = GateProfile(
     interaction_quality_threshold=95,
     accessibility_threshold=95,
     acceptance_verification_threshold=95,
+    max_tokens=80_000,
 )
 
 STANDARD = GateProfile(
@@ -37,6 +47,7 @@ STANDARD = GateProfile(
     interaction_quality_threshold=90,
     accessibility_threshold=90,
     acceptance_verification_threshold=90,
+    max_tokens=50_000,
 )
 
 RELAXED = GateProfile(
@@ -54,6 +65,7 @@ RELAXED = GateProfile(
     interaction_quality_threshold=80,
     accessibility_threshold=80,
     acceptance_verification_threshold=80,
+    max_tokens=0,
 )
 
 AUDIT = GateProfile(
@@ -71,6 +83,7 @@ AUDIT = GateProfile(
     interaction_quality_threshold=98,
     accessibility_threshold=95,
     acceptance_verification_threshold=98,
+    max_tokens=100_000,
 )
 
 PROFILES: dict[str, GateProfile] = {

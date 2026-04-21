@@ -6,10 +6,60 @@ Design ref: design_decomposition_gate.md §5
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Literal
 
 Severity = Literal["blocker", "critical", "major", "minor", "info"]
 GateDecision = Literal["PASS", "FAIL", "ESCALATE"]
+
+
+class BudgetAction(StrEnum):
+    """Outcome of a :class:`devolaflow.gate.budget.TokenBudgetBreaker` check.
+
+    Three paths follow the v8.0.0 P-03 patch plan §3:
+
+    - ``CONTINUE`` — utilization below the warning threshold (default 75 %).
+    - ``WARN`` — utilization within the warning band but below 100 %.
+    - ``BREAK`` — utilization at or above 100 %; circuit broken.
+    """
+
+    CONTINUE = "CONTINUE"
+    WARN = "WARN"
+    BREAK = "BREAK"
+
+
+class BudgetRecommendation(StrEnum):
+    """Suggested follow-up action paired with a :class:`BudgetAction`.
+
+    The recommendation depends on both action and profile severity:
+    STRICT/AUDIT escalate immediately on BREAK, STANDARD/RELAXED first
+    iterate with a throttled budget. See ``patch_plan §3 P-03 AC #6``.
+    """
+
+    NONE = "NONE"
+    THROTTLE = "THROTTLE"
+    ITERATE = "ITERATE"
+    ESCALATE = "ESCALATE"
+
+
+@dataclass(frozen=True)
+class BudgetDecision:
+    """Result of a :class:`devolaflow.gate.budget.TokenBudgetBreaker` check.
+
+    All fields are populated even on the ``CONTINUE`` path so callers can log
+    every measurement uniformly without conditional branches. ``utilization``
+    is rounded to 4 decimal places and is ``0.0`` whenever ``max_tokens == 0``
+    (the unlimited / disabled state).
+    """
+
+    action: BudgetAction
+    cumulative_tokens: int
+    max_tokens: int
+    utilization: float
+    rationale: str
+    recommendation: BudgetRecommendation
+
+
 GateType = Literal[
     "standard",
     "convergence",
@@ -135,6 +185,14 @@ class GateProfile:
     # of within-band deltas before declaring stagnation, and switch the
     # trend classifier to a window-3 moving average.
     noise_tolerance_pct: float = 0.0
+    # v8.0.0 (P-03) — token-budget circuit breaker ceiling per task. ``0``
+    # (the default) means *unlimited* and renders the breaker a no-op,
+    # preserving byte-identical pre-P-03 behaviour for any caller that does
+    # not opt in via ``devolaflow.gate.budget.TokenBudgetBreaker``.
+    # Profile-specific defaults (per patch_plan §3 P-03):
+    #   STRICT   80_000   STANDARD 50_000
+    #   RELAXED       0   AUDIT   100_000
+    max_tokens: int = 0
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )

@@ -157,6 +157,23 @@ lean_format_spec:
     fields: { visual: "bool", accept: "bool", interact: "bool", a11y: "bool", threshold: "number" }
   gate:
     description: "Numeric thresholds only. No prose."
+    # v8.0.0 (P-03) — token-budget circuit breaker. NESTED under the
+    # existing `gate` block (position 12 of canonical_order); NOT a new
+    # top-level dispatch key — layout_invariant.canonical_order length
+    # stays 13 and version stays 2 (P6 cache-layout invariant preserved
+    # per ADR-001 §2 additive rule). Consumed by
+    # `devolaflow.gate.budget.TokenBudgetBreaker.check()` and surfaced
+    # via `evaluate_gate(..., breaker=...)`. Field shape:
+    #   token_budget:
+    #     max_tokens: int       # 0 = unlimited (breaker disabled)
+    #     warn_at: float        # optional, default 0.75 (utilization)
+    #     break_at: float       # optional, default 1.00 (utilization)
+    # Semantics: cumulative token usage < warn_at*max → CONTINUE;
+    # warn_at*max ≤ usage < break_at*max → WARN (non-fatal, attached to
+    # verdict.details); usage ≥ break_at*max → BREAK (FAIL on
+    # standard/relaxed; ESCALATE on strict/audit). Missing → breaker=None
+    # → byte-stable v7.x evaluate_gate output.
+    token_budget: "optional dict {max_tokens: int (0=unlimited), warn_at: float (default 0.75), break_at: float (default 1.00)}"
 
 # --- COMPRESSION RULES ---
 # Deterministic drop/preserve lists for inter-layer message compaction.
