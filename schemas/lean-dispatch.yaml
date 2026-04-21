@@ -121,6 +121,21 @@ lean_format_spec:
       # cache-layout invariant). Missing → extractive / 500 tokens.
       summary_mode: "extractive | abstractive (default: extractive)"
       summary_max_tokens: "int (default: 500); hard cap on summarise_predecessor output"
+      # v8.0.0 (P-02) — directed-compaction directive. NESTED under pred[*],
+      # NOT a new top-level dispatch key — layout_invariant.canonical_order
+      # length stays 13 and version stays 2 (P6 cache-layout invariant
+      # preserved per ADR-001 §2 additive rule). Consumed by
+      # `devolaflow.compressor.directed_compact()` (Layer-3 of the layered
+      # compression pipeline). Field shape:
+      #   compact_directive:
+      #     focus_keywords: [str, ...]   # required when directive is set
+      #     max_drop_pct: 0.20           # optional, default 0.20 (≤ 1.0)
+      # Semantics: paragraphs whose body OR heading matches ANY keyword
+      # (case-insensitive substring) are NEVER dropped (≥ 80 % focus
+      # retention guarantee — in fact 100 %); cumulative non-focus drop
+      # is bounded by max_drop_pct of the input length. Missing →
+      # directive=None → byte-stable v7.x summarise_predecessor output.
+      compact_directive: "optional dict {focus_keywords: list[str], max_drop_pct: float (0..1, default 0.20)}"
     max_entries: 5
     max_facts_per_entry: 5
   files:

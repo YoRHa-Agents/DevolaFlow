@@ -32,6 +32,7 @@ __all__ = [
     "DEFAULT_SUMMARY_MODE",
     "DEFAULT_SUMMARY_MAX_TOKENS",
     "DEFAULT_SUMMARY_TRIGGER_PCT",
+    "DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT",
     "SUMMARY_TRUNCATION_MARKER",
     "SCHEMA_HINT_PRIORITIES",
     "validate_preserve_list",
@@ -48,6 +49,7 @@ __all__ = [
     "clear_old_tool_uses",
     "summarise_predecessor",
     "extract_named_entities",
+    "directed_compact",
 ]
 
 # ---------------------------------------------------------------------------
@@ -1077,6 +1079,7 @@ _PARSER_BY_EXT: dict[str, callable] = {
 def _select_sections_by_priority(
     sections: list[tuple[str, str]],
     schema_hint: str | None,
+    directive: dict | None = None,
 ) -> list[tuple[str, str]]:
     """Reorder ``sections`` so schema-hint matches come first; nothing dropped.
 
@@ -1084,6 +1087,78 @@ def _select_sections_by_priority(
     (per ADR-003 §3 risk row 1: accepts "Decisions" plural / "Decision"
     singular alike). Sections without a priority match keep their document
     order after the prioritised ones.
+
+    v8.0.0 (P-02) — when ``directive`` is provided with a non-empty
+    ``focus_keywords`` list, sections whose heading or body contains any
+    keyword (case-insensitive substring) are promoted to the front of the
+    returned list, BEFORE the schema-hint priority pass is applied to the
+    remaining sections. This is the "directed compaction" overlay layered
+    on top of the existing schema-hint priority pass; with ``directive=None``
+    the function is byte-identical to the v7.x behaviour (verified by
+    :class:`tests.test_compressor.TestSummarisePredecessorRefactor`).
+    """
+    focus_partition = _partition_sections_by_directive(sections, directive)
+    if focus_partition is not None:
+        focused, normal = focus_partition
+        return _rank_sections_by_schema_hint(focused, schema_hint) + _rank_sections_by_schema_hint(
+            normal, schema_hint
+        )
+    return _rank_sections_by_schema_hint(sections, schema_hint)
+
+
+def _normalise_focus_keywords(directive: dict | None) -> list[str]:
+    """Return the lowercased non-empty string keywords from ``directive``.
+
+    Used by both :func:`_partition_sections_by_directive` (compressor.py
+    section ranker overlay) and :func:`directed_compact` (text-level
+    paragraph filter) so directive parsing stays in one place. ``directive``
+    may be ``None`` (returns ``[]``); ``focus_keywords`` may be missing,
+    None, or a list — non-string entries are skipped without raising
+    (S-5: explicit no-op return rather than silent attribute error).
+    """
+    if not directive:
+        return []
+    raw = directive.get("focus_keywords") or []
+    return [str(kw).lower() for kw in raw if isinstance(kw, str) and kw]
+
+
+def _partition_sections_by_directive(
+    sections: list[tuple[str, str]],
+    directive: dict | None,
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]] | None:
+    """Split ``sections`` into ``(focused, normal)`` per ``directive.focus_keywords``.
+
+    Returns ``None`` when ``directive`` is missing or carries no usable
+    keywords; the caller MUST then fall back to the schema-hint priority
+    path. A section is "focused" when at least one keyword matches its
+    heading (case-insensitive substring) or its body. Document order is
+    preserved within each partition.
+    """
+    keywords = _normalise_focus_keywords(directive)
+    if not keywords:
+        return None
+    focused: list[tuple[str, str]] = []
+    normal: list[tuple[str, str]] = []
+    for section in sections:
+        section_text = section[0].lower() + "\n" + section[1].lower()
+        if any(kw in section_text for kw in keywords):
+            focused.append(section)
+        else:
+            normal.append(section)
+    return focused, normal
+
+
+def _rank_sections_by_schema_hint(
+    sections: list[tuple[str, str]],
+    schema_hint: str | None,
+) -> list[tuple[str, str]]:
+    """Apply the v7.0.2 schema-hint priority ordering to ``sections``.
+
+    Extracted from the legacy :func:`_select_sections_by_priority` body in
+    v8.0.0 (P-02) so the directed-compaction overlay can compose by calling
+    this helper twice (once on the focused partition, once on the normal
+    partition). Behaviour for ``schema_hint=None`` or unknown hints is to
+    return ``sections`` unchanged (legacy contract preserved).
     """
     if schema_hint is None or schema_hint not in SCHEMA_HINT_PRIORITIES:
         return list(sections)
@@ -1184,12 +1259,109 @@ def _truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, bool]:
     return truncated.rstrip() + " " + SUMMARY_TRUNCATION_MARKER, True
 
 
+def _validate_summary_args(mode: str, max_tokens: int) -> None:
+    """Validate ``mode`` and ``max_tokens`` for :func:`summarise_predecessor`.
+
+    Extracted from the legacy ``summarise_predecessor`` body in v8.0.0
+    (P-02) to bring the parent function's cyclomatic complexity from 16
+    down to ≤10 (NineS finding ``[CC-39ab83-0001]``). Raises
+    :class:`ValueError` for unknown modes or non-positive ``max_tokens``;
+    raises :class:`NotImplementedError` for the still-pending
+    ``abstractive`` mode (planned for v8.x via P-12 Stage A).
+    """
+    if mode not in ("extractive", "abstractive"):
+        raise ValueError(f"unknown mode {mode!r} (expected 'extractive' or 'abstractive')")
+    if mode == "abstractive":
+        raise NotImplementedError(
+            "abstractive summarisation is not yet wired (planned for v7.0.3+); "
+            "use mode='extractive' for the deterministic verbatim path"
+        )
+    if max_tokens <= 0:
+        raise ValueError(f"max_tokens must be positive (got {max_tokens})")
+
+
+def _select_sections_for_summary(
+    sections: list[tuple[str, str]],
+    schema_hint: str | None,
+    retrieval_query: str | None,
+    directive: dict | None,
+) -> list[tuple[str, str]]:
+    """Pick the section ranker (query > priority+directive) for a summary.
+
+    Extracted from the legacy ``summarise_predecessor`` body in v8.0.0
+    (P-02). When ``retrieval_query`` produces a non-empty token frozenset
+    after stopword strip, sections are ranked via
+    :func:`_select_sections_by_query` (P-05, v7.2.5 retrieval-prioritised
+    mode). Otherwise sections fall back to :func:`_select_sections_by_priority`
+    with the optional v8.0.0 ``directive`` overlay. Empty ``retrieval_query``
+    AND ``directive=None`` preserves byte-stable v7.0.2 behaviour.
+    """
+    query_tokens = _tokenize_for_retrieval(retrieval_query or "")
+    if query_tokens:
+        return _select_sections_by_query(sections, schema_hint, query_tokens)
+    return _select_sections_by_priority(sections, schema_hint, directive)
+
+
+def _assemble_summary_body(
+    selected: list[tuple[str, str]],
+    facts_block: str,
+    max_tokens: int,
+) -> tuple[str, list[str], list[str], bool]:
+    """Greedy section packer: fits sections into the remaining token budget.
+
+    Returns ``(summary_text, covered_headings, dropped_headings, was_bounded)``.
+    ``summary_text`` is ``facts_block`` followed by a blank line and the
+    packed sections (joined with double newlines). Sections that exceed the
+    remaining budget are dropped entirely; if the FIRST exceeding section
+    could be partially included (remaining budget > marker tokens + 5) it
+    is truncated via :func:`_truncate_to_tokens` and ``was_bounded`` is set.
+
+    Extracted from the legacy ``summarise_predecessor`` body in v8.0.0
+    (P-02) to drive the parent function's cc 16 → ≤10. The greedy/first-
+    truncation policy and the marker-tokens + 5 inclusion threshold are
+    preserved verbatim from v7.0.2.
+    """
+    facts_tokens = estimate_tokens(facts_block)
+    body_budget = max(0, max_tokens - facts_tokens)
+    marker_tokens = estimate_tokens(SUMMARY_TRUNCATION_MARKER)
+    covered: list[str] = []
+    dropped: list[str] = []
+    body_chunks: list[str] = []
+    was_bounded = False
+    remaining = body_budget
+
+    for heading, body in selected:
+        chunk = f"## {heading}\n\n{body}".strip() if heading else body.strip()
+        if not chunk:
+            continue
+        chunk_tokens = estimate_tokens(chunk)
+        if chunk_tokens <= remaining:
+            body_chunks.append(chunk)
+            covered.append(heading)
+            remaining -= chunk_tokens
+            continue
+        if remaining > marker_tokens + 5 and not was_bounded:
+            truncated, _ = _truncate_to_tokens(chunk, remaining)
+            body_chunks.append(truncated)
+            covered.append(heading)
+            was_bounded = True
+            remaining = 0
+        else:
+            dropped.append(heading)
+
+    summary_text = facts_block
+    if body_chunks:
+        summary_text = facts_block + "\n\n" + "\n\n".join(body_chunks)
+    return summary_text, covered, dropped, was_bounded
+
+
 def summarise_predecessor(
     artifact_path: str,
     max_tokens: int = DEFAULT_SUMMARY_MAX_TOKENS,
     mode: str = DEFAULT_SUMMARY_MODE,
     schema_hint: str | None = None,
     retrieval_query: str | None = None,
+    directive: dict | None = None,
 ) -> dict:
     """Produce a bounded-token summary of a predecessor artifact.
 
@@ -1215,6 +1387,25 @@ def summarise_predecessor(
     preserves byte-stable existing behaviour — verified by
     :class:`tests.test_compressor.TestRetrievalScoring`.
 
+    v8.0.0 (P-02) — when ``directive`` is provided it is forwarded to
+    :func:`_select_sections_by_priority` so the focus-keyword overlay
+    promotes matching sections to the head of the body. The directive
+    field shape is ``{focus_keywords: list[str], max_drop_pct: float}``;
+    only ``focus_keywords`` is consumed at the section-ranking layer. The
+    directive is mutually exclusive with ``retrieval_query`` — when both
+    are provided, ``retrieval_query`` wins (it already encodes a richer
+    relevance signal). Default ``directive=None`` preserves the v7.x
+    section-ordering behaviour byte-identically (verified by
+    :class:`tests.test_compressor.TestSummarisePredecessorRefactor`).
+
+    v8.0.0 (P-02) refactor: this function delegates section selection to
+    :func:`_select_sections_for_summary` and body packing to
+    :func:`_assemble_summary_body`, bringing its cyclomatic complexity
+    from 16 down to ≤10 (NineS finding ``[CC-39ab83-0001]`` closure). The
+    return contract (7 keys, types, and order of ``covered_sections`` /
+    ``dropped_sections``) is preserved bytewise — the helper extraction
+    is a pure refactor, NOT a behaviour change.
+
     Returns a 7-key dict:
       * ``summary_text`` — bounded markdown body (≤ ``max_tokens`` tokens).
       * ``mode`` — echoed mode string.
@@ -1225,15 +1416,7 @@ def summarise_predecessor(
       * ``dropped_sections`` — headings skipped entirely (token budget).
       * ``was_bounded`` — ``True`` iff truncation marker was inserted.
     """
-    if mode not in ("extractive", "abstractive"):
-        raise ValueError(f"unknown mode {mode!r} (expected 'extractive' or 'abstractive')")
-    if mode == "abstractive":
-        raise NotImplementedError(
-            "abstractive summarisation is not yet wired (planned for v7.0.3+); "
-            "use mode='extractive' for the deterministic verbatim path"
-        )
-    if max_tokens <= 0:
-        raise ValueError(f"max_tokens must be positive (got {max_tokens})")
+    _validate_summary_args(mode, max_tokens)
 
     path = Path(artifact_path)
     if not path.exists():
@@ -1242,11 +1425,7 @@ def summarise_predecessor(
     text = path.read_text(encoding="utf-8")
     parser = _PARSER_BY_EXT.get(path.suffix.lower(), _parse_markdown_sections)
     sections = parser(text)
-    query_tokens = _tokenize_for_retrieval(retrieval_query or "")
-    if query_tokens:
-        selected = _select_sections_by_query(sections, schema_hint, query_tokens)
-    else:
-        selected = _select_sections_by_priority(sections, schema_hint)
+    selected = _select_sections_for_summary(sections, schema_hint, retrieval_query, directive)
     entities = extract_named_entities(text)
 
     fact_lines = ["key_facts:"]
@@ -1255,36 +1434,9 @@ def summarise_predecessor(
         fact_lines.append(f"  - {first_line}")
     facts_block = "\n".join(fact_lines)
 
-    facts_tokens = estimate_tokens(facts_block)
-    body_budget = max(0, max_tokens - facts_tokens)
-    covered: list[str] = []
-    dropped: list[str] = []
-    body_chunks: list[str] = []
-    was_bounded = False
-    remaining = body_budget
-
-    for heading, body in selected:
-        chunk = f"## {heading}\n\n{body}".strip() if heading else body.strip()
-        if not chunk:
-            continue
-        chunk_tokens = estimate_tokens(chunk)
-        if chunk_tokens <= remaining:
-            body_chunks.append(chunk)
-            covered.append(heading)
-            remaining -= chunk_tokens
-            continue
-        if remaining > estimate_tokens(SUMMARY_TRUNCATION_MARKER) + 5 and not was_bounded:
-            truncated, _ = _truncate_to_tokens(chunk, remaining)
-            body_chunks.append(truncated)
-            covered.append(heading)
-            was_bounded = True
-            remaining = 0
-        else:
-            dropped.append(heading)
-
-    summary_text = facts_block
-    if body_chunks:
-        summary_text = facts_block + "\n\n" + "\n\n".join(body_chunks)
+    summary_text, covered, dropped, was_bounded = _assemble_summary_body(
+        selected, facts_block, max_tokens
+    )
 
     if estimate_tokens(summary_text) > max_tokens:
         summary_text, _ = _truncate_to_tokens(summary_text, max_tokens)
@@ -1299,3 +1451,155 @@ def summarise_predecessor(
         "dropped_sections": dropped,
         "was_bounded": was_bounded,
     }
+
+
+# ---------------------------------------------------------------------------
+# v8.0.0 — Directed compaction primitive (P-02; tweet analysis §4.2 + plan §3
+# P-02). Pairs with the v7.0.2 hierarchical summariser (extractive path) to
+# form Layer 3 of the layered compression pipeline:
+#   * Layer 1 (v7.0.0+): compress_message() drop/preserve regex pass.
+#   * Layer 2 (v7.0.2+): summarise_predecessor() schema-hint section ranking.
+#   * Layer 3 (v8.0.0+): directed_compact() focus-keyword retention with a
+#     hard ``max_drop_pct`` ceiling on what may be elided.
+#
+# The contract (per AC #2 of P-02 in .local/research/v8.0.0_patch_plan.md):
+#   * Paragraphs whose body OR enclosing heading matches ANY focus keyword
+#     are NEVER dropped (≥ 80 % focus retention guarantee — in fact 100 %
+#     retention because no focus paragraph is ever marked for removal).
+#   * The cumulative number of characters elided MUST be ≤ ``max_drop_pct``
+#     of the input length (default 0.20 → ≤ 20 % drop guarantee).
+#   * Document order is preserved among the kept paragraphs.
+#   * Empty input, empty focus_keywords, ``max_drop_pct == 0`` → pass-through.
+#
+# P6-safe: this is a pure-Python text helper; it does NOT touch dispatch
+# layout or schema invariants. The dispatcher consumer wires it in via the
+# new pred[*].compact_directive NESTED field (lean-dispatch.yaml — also
+# additive, layout_invariant.canonical_order length 13, version 2 unchanged).
+# ---------------------------------------------------------------------------
+
+DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT: float = 0.20
+
+
+def _split_paragraphs(text: str) -> list[str]:
+    """Split ``text`` into paragraph chunks on blank-line boundaries.
+
+    Returns the original paragraph strings WITHOUT the separating blank
+    lines so the caller can reassemble via ``"\\n\\n".join(kept)``. Empty
+    input returns ``[]``. Single-paragraph input returns a 1-element list.
+    """
+    if not text:
+        return []
+    # Split on one-or-more blank lines (handles \n\n, \n\n\n, etc.).
+    return [chunk for chunk in re.split(r"\n\s*\n", text) if chunk.strip()]
+
+
+def _classify_paragraphs_by_focus(
+    paragraphs: list[str],
+    focus_keywords: list[str],
+) -> tuple[set[int], set[int]]:
+    """Return ``(focus_indices, nonfocus_indices)`` for ``paragraphs``.
+
+    A paragraph is considered "focus" when at least one of the lowercased
+    ``focus_keywords`` appears as a case-insensitive substring of the
+    paragraph body (heading lines that begin with ``#`` are also part of
+    the body for this match). The two index sets partition
+    ``range(len(paragraphs))`` exactly.
+    """
+    keywords = [kw.lower() for kw in focus_keywords if kw]
+    focus_idx: set[int] = set()
+    nonfocus_idx: set[int] = set()
+    for idx, para in enumerate(paragraphs):
+        para_lower = para.lower()
+        if any(kw in para_lower for kw in keywords):
+            focus_idx.add(idx)
+        else:
+            nonfocus_idx.add(idx)
+    return focus_idx, nonfocus_idx
+
+
+def _select_paragraphs_to_drop(
+    paragraphs: list[str],
+    nonfocus_idx: set[int],
+    max_drop_chars: int,
+) -> set[int]:
+    """Greedy non-focus paragraph picker bounded by ``max_drop_chars``.
+
+    Sorts non-focus paragraphs by length DESCENDING (so we drop the
+    largest non-focus chunks first to maximise compaction per drop) and
+    accumulates indices whose cumulative character cost stays at or below
+    ``max_drop_chars``. The +2 separator cost (``\\n\\n``) is ONLY charged
+    when ``idx > 0`` because the leading paragraph has no preceding
+    separator. Returns the set of indices to drop (empty when budget is 0).
+    """
+    if max_drop_chars <= 0 or not nonfocus_idx:
+        return set()
+    candidates = sorted(nonfocus_idx, key=lambda i: -len(paragraphs[i]))
+    dropped: set[int] = set()
+    dropped_chars = 0
+    for idx in candidates:
+        para_chars = len(paragraphs[idx]) + (2 if idx > 0 else 0)
+        if dropped_chars + para_chars > max_drop_chars:
+            continue
+        dropped.add(idx)
+        dropped_chars += para_chars
+    return dropped
+
+
+def directed_compact(
+    text: str,
+    focus_keywords: list[str] | None,
+    *,
+    max_drop_pct: float = DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT,
+) -> str:
+    """Apply Layer-3 directed compaction to ``text``.
+
+    Splits ``text`` into paragraphs (blank-line boundaries), classifies each
+    paragraph as "focus" (matches at least one of ``focus_keywords``,
+    case-insensitive substring) or "non-focus", and then greedily drops the
+    largest non-focus paragraphs whose cumulative character cost stays
+    within ``max_drop_pct`` of the input length. Focus paragraphs are
+    NEVER dropped, guaranteeing ≥ 80 % focus retention (in fact 100 % —
+    the implementation never marks focus paragraphs for removal). The
+    cumulative drop is bounded by ``max_drop_pct`` of the input length so
+    no more than ``max_drop_pct`` of the original text is removed.
+
+    Pass-through cases (input returned unchanged):
+      * ``text`` is empty / not a string.
+      * ``focus_keywords`` is None or empty (no focus signal — the function
+        cannot distinguish focus from non-focus, so refuses to drop).
+      * ``max_drop_pct <= 0`` (no drop budget).
+
+    Edge cases:
+      * ``max_drop_pct >= 1.0`` → cap at 1.0 (drop budget = full text).
+      * Single paragraph that matches a keyword → returned unchanged.
+      * Single paragraph that does NOT match → MAY be dropped if its
+        length fits the drop budget; otherwise returned unchanged.
+
+    Document order is preserved among the kept paragraphs.
+
+    See P-02 in ``.local/research/v8.0.0_patch_plan.md`` §3 for the full
+    contract; AC #2 (≥ 80 % focus retention, ≤ ``max_drop_pct`` total drop)
+    is verified by :class:`tests.test_compressor.TestDirectedCompact`.
+    """
+    if not isinstance(text, str) or not text:
+        return text
+    if not focus_keywords:
+        return text
+    if max_drop_pct <= 0:
+        return text
+    capped_drop_pct = min(max_drop_pct, 1.0)
+
+    paragraphs = _split_paragraphs(text)
+    if not paragraphs:
+        return text
+
+    total_chars = len(text)
+    max_drop_chars = int(total_chars * capped_drop_pct)
+
+    _, nonfocus_idx = _classify_paragraphs_by_focus(paragraphs, focus_keywords)
+    drop_idx = _select_paragraphs_to_drop(paragraphs, nonfocus_idx, max_drop_chars)
+    if not drop_idx:
+        return text
+
+    kept = [para for idx, para in enumerate(paragraphs) if idx not in drop_idx]
+    return "\n\n".join(kept)

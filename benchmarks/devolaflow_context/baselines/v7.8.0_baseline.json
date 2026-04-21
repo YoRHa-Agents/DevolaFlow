@@ -155,6 +155,18 @@
     "selected_count": 12,
     "total_tokens": 4401
   },
+  "directed_compaction_focused": {
+    "budget": 5000,
+    "budget_utilization": 0.9922,
+    "composite": 99.69,
+    "information_density": 0.9922,
+    "noise_ratio": 0.0,
+    "profile_name": "refactor",
+    "scenario_name": "directed_compaction_focused",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 4961
+  },
   "documentation_guide": {
     "budget": 3380,
     "budget_utilization": 0.9713,
@@ -238,6 +250,18 @@
     "section_relevance": 1.0,
     "selected_count": 7,
     "total_tokens": 2386
+  },
+  "layered_recency_decay": {
+    "budget": 5150,
+    "budget_utilization": 0.9998,
+    "composite": 99.99,
+    "information_density": 0.9998,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "layered_recency_decay",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5149
   },
   "long_context_repo_qa": {
     "budget": 3300,
