@@ -65,9 +65,6 @@ def _merge_templates(
     _apply_gate_overrides(result, overrides.get("gates", {}))
     _apply_env_overrides(result, overrides.get("environment_modes", {}))
 
-    if child.team_overrides:
-        result.team_overrides.update(child.team_overrides)
-
     return result
 
 

@@ -66,7 +66,6 @@ def _build_template(raw: dict[str, Any]) -> WorkflowTemplate:
         composition=composition,
         loops=loops,
         gates=gates,
-        team_overrides=raw.get("team_overrides", {}) or {},
         environment_modes=raw.get("environment_modes", {}) or {},
         extends=raw.get("extends"),
         overrides=raw.get("overrides"),

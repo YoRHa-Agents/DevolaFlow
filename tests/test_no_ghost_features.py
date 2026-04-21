@@ -425,22 +425,17 @@ def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
 @pytest.mark.parametrize(
     "field",
     [
-        pytest.param(
-            "team_overrides",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="G-I1: WorkflowTemplate.team_overrides parsed but no "
-                "runtime consumer outside structural files — closes in P-08",
-            ),
-        ),
         "environment_modes",
         pytest.param(
             "timeout_minutes",
             marks=pytest.mark.xfail(
                 strict=True,
-                reason="G-I3: StageDefinition.timeout_minutes parsed but no "
-                "runtime consumer (no template currently sets it either) — "
-                "closes in P-08",
+                reason="G-I3: StageDefinition.timeout_minutes RESERVED for "
+                "v7.6.x runtime wiring (per audit §9 Open Q4 + user "
+                "'delete_team_keep_timeout' decision); the field is "
+                "intentionally retained but consumer-less, with a "
+                "reserved-for-v7.6.x docstring on models.py — marker stays "
+                "until P-NN in v7.6.x lands the runtime enforcement",
             ),
         ),
         pytest.param(
@@ -458,15 +453,26 @@ def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
 def test_dataclass_field_has_consumer(project_root: Path, field: str) -> None:
     """G-I1..I4: each parsed field must have a runtime consumer.
 
-    G-I2 (``environment_modes``) closed by P-04 in v7.4.9 — the new
-    :mod:`devolaflow.template_engine.runtime` reads
+    G-I1 (``team_overrides``) closed by P-08 in v7.4.10 — the field was
+    deleted from :class:`devolaflow.template_engine.models.WorkflowTemplate`
+    (and the parser populator + inheritance merger + 5 builtin templates +
+    test fixture + schema doc) per audit §3.I G-I1 evidence and the user's
+    'delete_team_keep_timeout' mixed decision in audit §9 Open Q4. The
+    parametrize entry is therefore removed (no field → no test).
+
+    G-I2 (``environment_modes``) closed by P-04 in v7.4.9 — the
+    :mod:`devolaflow.template_engine.runtime` module reads
     ``template.environment_modes[<env>].skip_stages`` and ``.extra_stages``
     and applies them after skip_condition filtering per audit §3.I G-I2
-    evidence. Per-parameter xfail markers replace the previous
-    test-level marker so G-I1 / G-I3 / G-I4 remain xfailed (per
-    audit §6 strict=True contract: each ghost gets its own marker).
-    G-I4 explicitly carries the v7.6.x deferral reason per the user's
-    'mode_only' scope decision recorded in audit §9 Open Q1.
+    evidence.
+
+    G-I3 (``timeout_minutes``) intentionally RETAINED with reserved
+    docstring per audit §9 Open Q4 + user 'delete_team_keep_timeout' mixed
+    decision — the xfail marker stays in place with the v7.6.x reservation
+    reason until that runtime wiring lands.
+
+    G-I4 (``input_mapping``) explicitly carries the v7.6.x deferral reason
+    per the user's 'mode_only' scope decision recorded in audit §9 Open Q1.
     """
     src_dir = project_root / "src" / "devolaflow"
     py_files = [p for p in src_dir.rglob("*.py") if p.name not in _STRUCTURAL_FILES]
@@ -482,18 +488,18 @@ def test_dataclass_field_has_consumer(project_root: Path, field: str) -> None:
 # ── Category J: CHANGELOG <-> code ──────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-J1: install_local() prints 'compile-config.yaml (template "
-    "created)' but never writes the file; sync-rules then exits 1 demanding "
-    "it — closes in P-08",
-)
 def test_init_creates_compile_config_template(project_root: Path, tmp_path: Path) -> None:
     """G-J1: install_local() must actually scaffold compile-config.yaml.
 
-    The ghost is detected by EXECUTING install_local() against a fresh
-    tmp_path: a non-ghost implementation creates the file, while the
-    current ghost only prints a misleading line.
+    Closed by P-08 in v7.4.10 — :func:`devolaflow.init_project.install_local`
+    now copies the packaged ``devolaflow/local/compile_config_template.yaml``
+    into ``<cwd>/.rules/compile-config.yaml`` if missing (idempotent — never
+    overwrites an existing config) per audit §3.J G-J1 evidence and the
+    user's 'delete_team_keep_timeout' mixed decision in audit §9 Open Q4.
+    The xfail marker is REMOVED per the audit §6 strict=True contract; the
+    test now PASSES — pinning the closure of the v7.4.0 ``sync-rules``
+    circular UX dead-end ("No .rules/compile-config.yaml found. Run
+    'devola-init' first." → but devola-init itself produced no config).
     """
     from devolaflow.init_project import install_local
 

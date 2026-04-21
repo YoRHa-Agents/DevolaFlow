@@ -117,7 +117,16 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
 
 
 def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
-    """Initialize .local/ workspace and .rules/ governance structure."""
+    """Initialize .local/ workspace and .rules/ governance structure.
+
+    Closes audit ghost G-J1 (v7.4.10 P-08): scaffolds a default
+    ``compile-config.yaml`` into ``.rules/`` so that a follow-up
+    ``sync-rules`` invocation has a config to read instead of dead-ending
+    with "No .rules/compile-config.yaml found." The template is copied
+    from ``devolaflow/local/compile_config_template.yaml`` (packaged via
+    ``importlib.resources``). Idempotent — never overwrites an existing
+    config.
+    """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
 
     from devolaflow.local.workspace import scaffold_local
@@ -125,11 +134,16 @@ def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     scaffold_local(cwd)
 
     rules_dir = cwd / ".rules"
-    if not rules_dir.is_dir():
-        rules_dir.mkdir(parents=True, exist_ok=True)
-        print(f"  OK   {rules_dir / 'compile-config.yaml'} (template created)")
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    config_path = rules_dir / "compile-config.yaml"
+    if not config_path.exists():
+        from importlib import resources
+
+        template = resources.files("devolaflow.local").joinpath("compile_config_template.yaml")
+        config_path.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"  OK   {config_path} (template created)")
     else:
-        print("  SKIP .rules/ (already exists)")
+        print(f"  SKIP {config_path} (already exists)")
 
 
 TOOLS = {

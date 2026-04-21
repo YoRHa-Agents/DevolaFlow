@@ -180,6 +180,91 @@ def test_install_local_with_existing_rules_dir(tmp_path: Path):
     install_local(agent_dir, tmp_path)
     assert (tmp_path / ".local" / "feedbacks").is_dir()
     assert (tmp_path / ".rules").is_dir()
+    assert (tmp_path / ".rules" / "compile-config.yaml").is_file()
+
+
+def test_install_local_creates_compile_config_in_fresh_dir(tmp_path: Path):
+    """G-J1 closure: install_local() scaffolds a default compile-config.yaml.
+
+    Closes the v7.4.0 circular UX dead-end where ``sync-rules`` demanded a
+    config that ``devola-init`` itself never produced (audit §3.J G-J1).
+    """
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_local
+
+    install_local(agent_dir, tmp_path)
+    config_path = tmp_path / ".rules" / "compile-config.yaml"
+    assert config_path.is_file(), "install_local must scaffold .rules/compile-config.yaml"
+
+
+def test_install_local_compile_config_is_idempotent(tmp_path: Path):
+    """G-J1 idempotency: second invocation MUST NOT overwrite existing config."""
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_local
+
+    install_local(agent_dir, tmp_path)
+    config_path = tmp_path / ".rules" / "compile-config.yaml"
+    user_marker = '# user-edited config; do not regenerate\nversion: "99.99"\n'
+    config_path.write_text(user_marker, encoding="utf-8")
+
+    install_local(agent_dir, tmp_path)
+    assert config_path.read_text(encoding="utf-8") == user_marker, (
+        "install_local must NOT overwrite an existing compile-config.yaml"
+    )
+
+
+def test_install_local_compile_config_is_valid_yaml_and_consumable(tmp_path: Path):
+    """G-J1 acceptance: the scaffolded config must parse via RuleCompiler.
+
+    Mirrors the ``sync-rules`` execution path — RuleCompiler.compile_all()
+    must not raise on the freshly-scaffolded config (closes the silent UX
+    dead-end from audit §3.J G-J1 / S-5).
+    """
+    import yaml
+
+    from devolaflow.init_project import install_local
+    from devolaflow.local.compiler import RuleCompiler
+
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    install_local(agent_dir, tmp_path)
+    config_path = tmp_path / ".rules" / "compile-config.yaml"
+
+    parsed = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert isinstance(parsed, dict), "compile-config.yaml must parse to a mapping"
+    assert "version" in parsed and "layers" in parsed and "targets" in parsed
+
+    compiler = RuleCompiler(config_path)
+    results = compiler.compile_all()
+    assert isinstance(results, list), "RuleCompiler.compile_all must return a list"
+
+
+def test_install_local_then_sync_rules_does_not_dead_end(tmp_path: Path, monkeypatch):
+    """G-J1 UX closure: sync_rules_cmd() must NOT exit 1 after install_local.
+
+    Pre-v7.4.10: ``devola-init local`` left ``.rules/`` empty, so
+    ``sync-rules`` printed "No .rules/compile-config.yaml found." and
+    exited 1. Post-v7.4.10: install_local scaffolds the config, so
+    sync-rules proceeds to compile_all() without dead-ending.
+    """
+    from devolaflow.cli import sync_rules_cmd
+    from devolaflow.init_project import install_local
+
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    install_local(agent_dir, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    sync_rules_cmd()
 
 
 def test_main_list_flag(tmp_path: Path, monkeypatch, capsys):
