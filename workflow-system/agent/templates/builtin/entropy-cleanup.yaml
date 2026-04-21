@@ -1,0 +1,156 @@
+schema_version: "1.0"
+
+metadata:
+  name: entropy-cleanup
+  version: "1.0.0"
+  display_name: "Entropy Cleanup"
+  description: >
+    Periodic entropy-management / GC pass. Scan workspace for documentation
+    staleness and agent-source drift, propose retention actions, obtain
+    human review, and apply approved actions. Implements v8.0.0 P-11
+    (tweet_analysis_harness_engineering_v7.8.md §4.5).
+  category: control
+  trigger_phrases:
+    - "entropy cleanup"
+    - "entropy-cleanup"
+    - "/entropy-cleanup"
+    - "scan for stale docs"
+    - "documentation drift cleanup"
+    - "gc agent"
+  applicable_scenarios:
+    - "Periodic workspace hygiene sweeps"
+    - "Pre-release drift audit between human docs and agent sources"
+    - "Pruning stale operational-learnings entries"
+    - "Retention-policy enforcement"
+  tags:
+    [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
+
+stages:
+  - id: scan
+    primitive: analyze
+    alias: scan
+    description: >
+      Run DocFreshness + DeviationScanner over the workspace. Produce a
+      freshness report (per-file age/score) and a deviation report
+      (human-doc ↔ agent-source version mismatches).
+    team: research
+    duration_class: quick
+    config:
+      analysis_type: dependency
+      include_metrics: true
+      output_format: entropy_report
+    input_mapping:
+      targets: "workflow-system/"
+
+  - id: propose
+    primitive: design
+    alias: propose
+    description: >
+      Translate scan findings into a concrete cleanup plan. Each candidate
+      is paired with a retention rule (flag / touch / archive / delete)
+      based on staleness_score thresholds. Conservative defaults: no
+      deletion without explicit human-approved override.
+    team: design
+    duration_class: quick
+    config:
+      design_type: cleanup_plan
+      formality: standard
+    input_mapping:
+      inputs: "scan.entropy_report"
+      constraints: "_context.retention_policy"
+
+  - id: review
+    primitive: review
+    alias: review
+    description: >
+      Present the cleanup plan to a reviewer. Destructive actions (archive,
+      delete) require explicit approval; non-destructive actions (flag,
+      touch) may auto-approve per policy.
+    team: review
+    duration_class: quick
+    config:
+      review_type: cleanup_plan
+      pass_threshold: 1.0
+      require_zero_blocking: true
+    input_mapping:
+      artifacts: "propose.cleanup_plan"
+
+  - id: apply
+    primitive: implement
+    alias: apply
+    description: >
+      Execute the approved retention rules via
+      ``devolaflow.entropy_manager.cleanup(dry_run=False)``. Record each
+      applied action plus any OS-level failures. Produces an ApplyReport.
+    team: implement
+    duration_class: quick
+    config:
+      test_strategy: test_after
+      code_style: minimal_diff
+      target_coverage: 0.80
+    input_mapping:
+      tasks: "review.approved_actions"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: scan
+    - compose: gate
+      ref: scan_complete_gate
+    - stage: propose
+    - compose: gate
+      ref: plan_reviewable_gate
+    - stage: review
+    - compose: gate
+      ref: cleanup_approved_gate
+    - stage: apply
+
+gates:
+  - name: scan_complete_gate
+    position: "after:scan"
+    criteria:
+      - field: scan.entropy_report.valid
+        operator: "=="
+        value: true
+    on_pass: "next"
+    on_fail:
+      action: escalate
+    require_human_override: false
+    auto_insert: true
+
+  - name: plan_reviewable_gate
+    position: "after:propose"
+    criteria:
+      - field: propose.cleanup_plan.actions
+        operator: "!="
+        value: []
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: propose
+    require_human_override: false
+    auto_insert: true
+
+  - name: cleanup_approved_gate
+    position: "after:review"
+    criteria:
+      - field: review.approved_actions
+        operator: "!="
+        value: []
+      - field: review.blocking_issues
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: escalate
+    require_human_override: true
+    auto_insert: true
+
+environment_modes:
+  local:
+    skip_stages: []
+    gate_overrides: {}
+  github:
+    extra_stages: []
+  other-git:
+    extra_stages: []
