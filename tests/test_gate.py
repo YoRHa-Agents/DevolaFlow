@@ -1299,3 +1299,92 @@ class TestEvaluateChecksFenceIntegration:
         assert dispatch["context"]["applicable_rules"]["reinforcement"] == reinforcement_to_dict(
             block
         )
+
+
+# ---------------------------------------------------------------------------
+# 17. v8.0.0 (P-05) — verification-ladder integration with evaluate_gate
+#
+# These regression tests pin byte-identical pre-P-05 behaviour for callers
+# that DO NOT opt into ``evaluate_ladder``. Per ``patch_plan §3 P-05 AC #3``
+# the existing ``evaluate_gate(...)`` contract is unchanged: identical
+# verdict, rationale, composite_score, details, and escalation_context for
+# every input shape that exercised the v7.8.0 code path.
+# ---------------------------------------------------------------------------
+
+
+class TestLadderByteIdenticalDefaultProfile:
+    """``patch_plan §3 P-05 AC #3`` — STANDARD/RELAXED default profiles
+    leave ``evaluate_gate`` byte-identical to v7.8.0 even with the new
+    ``ladder_enabled`` field present on every profile.
+    """
+
+    def test_evaluate_gate_pass_input_unchanged_with_ladder_field(self) -> None:
+        # Two calls must return *equal* verdicts now that GateProfile
+        # carries a new ``ladder_enabled`` field with default False.
+        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+
+        gi = _pass_input()
+        v_gate = evaluate_gate(gi, STANDARD)
+        v_ladder = evaluate_ladder(gi, STANDARD)  # STANDARD.ladder_enabled=False
+        assert v_gate.decision == v_ladder.decision == "PASS"
+        assert v_gate.rationale == v_ladder.rationale
+        assert v_gate.composite_score == v_ladder.composite_score
+        assert v_gate.meets_threshold == v_ladder.meets_threshold
+        assert v_gate.details == v_ladder.details
+        assert v_gate.escalation_context == v_ladder.escalation_context
+
+    def test_evaluate_gate_fail_blockers_unchanged_with_ladder_field(self) -> None:
+        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+
+        gi = _pass_input()
+        gi.review_findings = [_make_finding("blocker", "F001")]
+        v_gate = evaluate_gate(gi, RELAXED)  # RELAXED.ladder_enabled=False
+        v_ladder = evaluate_ladder(gi, RELAXED)
+        assert v_gate.decision == v_ladder.decision == "FAIL"
+        assert v_gate.rationale == v_ladder.rationale
+        assert v_gate.details == v_ladder.details
+        assert "blockers" in v_gate.rationale
+
+    def test_evaluate_gate_convergence_unchanged_with_ladder_field(self) -> None:
+        from devolaflow.gate.scorer import evaluate_gate, evaluate_ladder
+
+        gi = GateInput(
+            build_status=CheckResult(status="pass"),
+            test_results=CheckResult(
+                status="pass",
+                details={"coverage_pct": 95, "tests_passed": 50, "tests_total": 50},
+            ),
+            lint_status=CheckResult(status="pass", details={"architecture_score": 90}),
+            review_findings=[],
+        )
+        history = [_round(1, 80.0)]
+        v_gate = evaluate_gate(gi, STANDARD, round_num=2, history=history, gate_type="convergence")
+        v_ladder = evaluate_ladder(
+            gi, STANDARD, round_num=2, history=history, gate_type="convergence"
+        )
+        # STANDARD.ladder_enabled=False ⇒ ladder MUST delegate verbatim.
+        assert v_gate.decision == v_ladder.decision == "PASS"
+        assert v_gate.composite_score == v_ladder.composite_score
+        assert v_gate.composite_score >= STANDARD.composite_threshold
+        assert v_gate.details == v_ladder.details
+
+    def test_profile_dataclass_carries_new_ladder_enabled_field(self) -> None:
+        # Field is present on every predefined profile with the
+        # ``patch_plan §3 P-05`` defaults: STRICT/AUDIT True, others False.
+        assert STRICT.ladder_enabled is True
+        assert AUDIT.ladder_enabled is True
+        assert STANDARD.ladder_enabled is False
+        assert RELAXED.ladder_enabled is False
+        # Ad-hoc GateProfile() construction defaults to False (back-compat).
+        new_profile = GateProfile(
+            name="standard",
+            composite_threshold=85,
+            coverage_threshold=80,
+            max_blocker=0,
+            max_critical=2,
+            max_rounds=3,
+            min_rounds=1,
+            lint_policy="zero_errors",
+            benchmark_policy="optional",
+        )
+        assert new_profile.ladder_enabled is False

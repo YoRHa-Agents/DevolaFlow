@@ -12,6 +12,8 @@ from devolaflow.gate.budget import (
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
+    LADDER_RUNG_NAMES,
+    LADDER_RUNG_ORDER,
     AcceptanceCriterionResult,
     BudgetAction,
     BudgetDecision,
@@ -23,6 +25,9 @@ from devolaflow.gate.models import (
     GateProfile,
     GateType,
     GateVerdict,
+    LadderEvaluation,
+    LadderRung,
+    LadderRungStatus,
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
 from devolaflow.gate.reinforcement import (
@@ -40,6 +45,7 @@ from devolaflow.gate.scorer import (
     SEVERITY_WEIGHTS,
     composite_score,
     evaluate_gate,
+    evaluate_ladder,
     quality_score,
     run_gate_cli,
     score_acceptance_readiness,
@@ -55,6 +61,8 @@ __all__ = [
     "BudgetRecommendation",
     "DEFAULT_DIMENSION_WEIGHTS",
     "GATE_TYPE_ALIASES",
+    "LADDER_RUNG_NAMES",
+    "LADDER_RUNG_ORDER",
     "MAX_REINFORCEMENT_RULES",
     "PROFILES",
     "RELAXED",
@@ -72,10 +80,14 @@ __all__ = [
     "GateProfile",
     "GateType",
     "GateVerdict",
+    "LadderEvaluation",
+    "LadderRung",
+    "LadderRungStatus",
     "composite_score",
     "compute_trend",
     "detect_stagnation",
     "evaluate_gate",
+    "evaluate_ladder",
     "findings_to_reinforcement",
     "from_profile_name",
     "generate_markdown_report",

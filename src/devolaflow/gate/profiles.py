@@ -10,6 +10,12 @@ per patch_plan §3 P-03:
     STANDARD 50_000   tokens / task — default for most code work
     RELAXED       0   tokens / task — *unlimited*; breaker disabled
     AUDIT   100_000   tokens / task — long-form review allowance, BREAK ⇒ ESCALATE
+
+v8.0.0 (P-05) — each profile carries a ``ladder_enabled`` opt-in flag
+controlling :func:`devolaflow.gate.scorer.evaluate_ladder`. STRICT/AUDIT
+default to ``True`` (high-quality work benefits from short-circuited
+fail-fast); STANDARD/RELAXED default to ``False`` (byte-identical
+pre-P-05 behaviour). See ``patch_plan §3 P-05`` AC #2/#3.
 """
 
 from devolaflow.gate.models import GateProfile
@@ -30,6 +36,7 @@ STRICT = GateProfile(
     accessibility_threshold=95,
     acceptance_verification_threshold=95,
     max_tokens=80_000,
+    ladder_enabled=True,
 )
 
 STANDARD = GateProfile(
@@ -48,6 +55,7 @@ STANDARD = GateProfile(
     accessibility_threshold=90,
     acceptance_verification_threshold=90,
     max_tokens=50_000,
+    ladder_enabled=False,
 )
 
 RELAXED = GateProfile(
@@ -66,6 +74,7 @@ RELAXED = GateProfile(
     accessibility_threshold=80,
     acceptance_verification_threshold=80,
     max_tokens=0,
+    ladder_enabled=False,
 )
 
 AUDIT = GateProfile(
@@ -84,6 +93,7 @@ AUDIT = GateProfile(
     accessibility_threshold=95,
     acceptance_verification_threshold=98,
     max_tokens=100_000,
+    ladder_enabled=True,
 )
 
 PROFILES: dict[str, GateProfile] = {

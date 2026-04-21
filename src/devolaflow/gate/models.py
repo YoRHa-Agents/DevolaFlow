@@ -193,6 +193,14 @@ class GateProfile:
     #   STRICT   80_000   STANDARD 50_000
     #   RELAXED       0   AUDIT   100_000
     max_tokens: int = 0
+    # v8.0.0 (P-05) — verification-ladder opt-in flag. ``False`` (the
+    # default) makes :func:`devolaflow.gate.scorer.evaluate_ladder`
+    # delegate to :func:`devolaflow.gate.scorer.evaluate_gate` for
+    # byte-identical pre-P-05 behaviour. ``True`` activates the 6-rung
+    # short-circuit ladder per ``patch_plan §3 P-05 AC #1/#2/#3``.
+    # Profile-specific defaults: STRICT/AUDIT enable, STANDARD/RELAXED
+    # remain disabled until the orchestrator opts in.
+    ladder_enabled: bool = False
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )
@@ -208,3 +216,101 @@ class ConvergenceRound:
     blocker_count: int
     critical_count: int
     timestamp: str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-05) — Verification Ladder Formalization
+#
+# Formalizes a 6-rung verification ladder R1..R6 with deterministic
+# short-circuit semantics. When an earlier rung FAILs, all later rungs are
+# marked ``skip`` and not executed (per ``patch_plan §3 P-05 AC #1``).
+#
+# ``LadderRung`` (R1..R6) maps to the canonical ordering:
+#
+#     R1 = lint        (cheap, run first)
+#     R2 = typecheck   (compile-time guarantees)
+#     R3 = unit_test   (deterministic, fast)
+#     R4 = integration (slower, may need fixtures)
+#     R5 = benchmark   (perf budget enforcement)
+#     R6 = convergence (composite-score / quality-gate evaluation)
+#
+# Earlier rungs are intentionally cheaper so failures abort before LLM /
+# review cycles spend tokens — Karpathy "fail fast on cheap signals" per
+# upstream tweet analysis ``v7.8`` §4.10.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class LadderRung(StrEnum):
+    """One of the 6 rungs in the v8.0.0 P-05 verification ladder.
+
+    Order matters — :func:`devolaflow.gate.scorer.evaluate_ladder` walks
+    R1 → R6 and short-circuits on the first ``fail`` (later rungs are
+    marked ``skip``).
+    """
+
+    R1 = "R1"
+    R2 = "R2"
+    R3 = "R3"
+    R4 = "R4"
+    R5 = "R5"
+    R6 = "R6"
+
+
+# Stable mapping from each :class:`LadderRung` to its canonical name. Used
+# by :class:`LadderEvaluation` consumers for human-facing reports and by
+# the test suite for naming assertions. Pinned to satisfy S-4 (no ghost
+# features — the rung names appear in CHANGELOG / docs verbatim).
+LADDER_RUNG_NAMES: dict[LadderRung, str] = {
+    LadderRung.R1: "lint",
+    LadderRung.R2: "typecheck",
+    LadderRung.R3: "unit_test",
+    LadderRung.R4: "integration_test",
+    LadderRung.R5: "benchmark",
+    LadderRung.R6: "convergence",
+}
+
+
+# Canonical iteration order for the ladder — R1 → R6 (used by the scorer).
+# Wrapped in a tuple so it is immutable from the caller's perspective.
+LADDER_RUNG_ORDER: tuple[LadderRung, ...] = (
+    LadderRung.R1,
+    LadderRung.R2,
+    LadderRung.R3,
+    LadderRung.R4,
+    LadderRung.R5,
+    LadderRung.R6,
+)
+
+
+LadderRungStatus = Literal["pass", "fail", "skip"]
+
+
+@dataclass(frozen=True)
+class LadderEvaluation:
+    """Outcome of evaluating one rung in the verification ladder.
+
+    Three :pyattr:`status` paths follow ``patch_plan §3 P-05 AC #5``
+    (S-5 No Silent Failures — the enum is exhaustive):
+
+    - ``pass`` — rung executed and succeeded.
+    - ``fail`` — rung executed and failed; later rungs short-circuit to ``skip``.
+    - ``skip`` — rung not applicable (no input) OR short-circuited by an
+      earlier failing rung. The :pyattr:`message` distinguishes the two.
+
+    All fields are populated even on the ``skip`` path so callers can log
+    every rung uniformly without conditional branches.
+    """
+
+    rung: LadderRung
+    status: LadderRungStatus
+    message: str
+    name: str = ""
+    details: dict[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Auto-fill the human-facing name from the canonical mapping. The
+        # ``object.__setattr__`` dance is needed because the dataclass is
+        # frozen — we still want a stable default without forcing every
+        # caller to repeat ``LADDER_RUNG_NAMES[rung]``.
+        if not self.name:
+            object.__setattr__(self, "name", LADDER_RUNG_NAMES[self.rung])
