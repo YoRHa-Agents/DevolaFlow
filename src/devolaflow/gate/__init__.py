@@ -3,10 +3,19 @@
 Design ref: design_decomposition_gate.md §5
 """
 
+from devolaflow.gate.budget import (
+    BREAK_UTILIZATION_THRESHOLD,
+    WARN_UTILIZATION_THRESHOLD,
+    TokenBudgetBreaker,
+    from_profile_name,
+)
 from devolaflow.gate.convergence import compute_trend, detect_stagnation
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
+    BudgetAction,
+    BudgetDecision,
+    BudgetRecommendation,
     CheckResult,
     ConvergenceRound,
     Finding,
@@ -40,6 +49,10 @@ __all__ = [
     "ARS_DIMENSION_WEIGHTS",
     "AUDIT",
     "AcceptanceCriterionResult",
+    "BREAK_UTILIZATION_THRESHOLD",
+    "BudgetAction",
+    "BudgetDecision",
+    "BudgetRecommendation",
     "DEFAULT_DIMENSION_WEIGHTS",
     "GATE_TYPE_ALIASES",
     "MAX_REINFORCEMENT_RULES",
@@ -50,6 +63,8 @@ __all__ = [
     "SEVERITY_WEIGHTS",
     "STANDARD",
     "STRICT",
+    "TokenBudgetBreaker",
+    "WARN_UTILIZATION_THRESHOLD",
     "CheckResult",
     "ConvergenceRound",
     "Finding",
@@ -62,6 +77,7 @@ __all__ = [
     "detect_stagnation",
     "evaluate_gate",
     "findings_to_reinforcement",
+    "from_profile_name",
     "generate_markdown_report",
     "generate_yaml_report",
     "merge_reinforcement_into_dispatch",

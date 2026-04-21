@@ -239,6 +239,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # v8.0.0 cut — opt-in via the template's ``apply`` stage only. Same
         # allowlist pattern as v8.0.0 P-02 ``directed_compact`` above.
         "devolaflow.entropy_manager:cleanup",
+        # ---- Token-budget breaker factory (v8.0.0 P-03) ----
+        # Public factory exported via ``devolaflow.gate.__init__`` and
+        # ``devolaflow.gate.budget.__all__``. Consumed by L3 Task Agents and
+        # CLI tooling that resolves a profile name string into a
+        # ``TokenBudgetBreaker`` (mirrors the policy in
+        # ``devolaflow.gate.scorer.run_gate_cli``). Direct construction via
+        # ``TokenBudgetBreaker(profile=PROFILES[name])`` is the in-repo
+        # call-site at the v8.0.0 cut; the factory is the user-facing
+        # ergonomic API. Same allowlist pattern as v8.0.0 P-11 above.
+        "devolaflow.gate.budget:from_profile_name",
         # ---- Progressive merge (v7.7 — diff-suggest for existing files) ----
         "devolaflow.local.merge:propose_merge",
         "devolaflow.local.merge:apply_merge",

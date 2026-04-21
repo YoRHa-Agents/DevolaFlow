@@ -13,6 +13,7 @@ from pathlib import Path
 
 import yaml
 
+from devolaflow.gate.budget import TokenBudgetBreaker
 from devolaflow.gate.convergence import (
     compute_smoothed_trend,
     compute_trend,
@@ -21,6 +22,8 @@ from devolaflow.gate.convergence import (
 from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     AcceptanceCriterionResult,
+    BudgetAction,
+    BudgetDecision,
     CheckResult,
     ConvergenceRound,
     Finding,
@@ -355,12 +358,79 @@ def _apply_advisor_detection(verdict: GateVerdict, profile: GateProfile) -> None
         )
 
 
+def _build_budget_break_verdict(decision: BudgetDecision) -> GateVerdict:
+    """Render a :class:`GateVerdict` from a ``BREAK`` :class:`BudgetDecision`.
+
+    The decision shape is fully embedded in ``details`` for downstream
+    consumers (Project / Stage agents) to surface in StatusReport and
+    reinforcement injection. ESCALATE on STRICT/AUDIT, FAIL on
+    STANDARD/RELAXED — see ``patch_plan §3 P-03 AC #6``.
+    """
+    rec = decision.recommendation
+    is_escalate = rec.value == "ESCALATE"
+    return GateVerdict(
+        decision="ESCALATE" if is_escalate else "FAIL",
+        rationale=(f"Token-budget circuit broken: {decision.rationale} recommendation={rec.value}"),
+        composite_score=None,
+        meets_threshold=False,
+        escalation_context=(
+            f"Token budget exhausted: {decision.cumulative_tokens}/"
+            f"{decision.max_tokens} tokens "
+            f"({decision.utilization * 100:.1f}%). "
+            f"Profile recommendation: {rec.value}."
+        )
+        if is_escalate
+        else "",
+        details={
+            "budget_break": True,
+            "budget_action": decision.action.value,
+            "budget_recommendation": rec.value,
+            "cumulative_tokens": decision.cumulative_tokens,
+            "max_tokens": decision.max_tokens,
+            "utilization": decision.utilization,
+        },
+    )
+
+
+def _attach_budget_warning(verdict: GateVerdict, decision: BudgetDecision) -> GateVerdict:
+    """Attach a non-fatal WARN ``BudgetDecision`` to an existing verdict.
+
+    Mutates ``verdict.details`` in place to surface utilization metrics
+    without changing the underlying decision (PASS / FAIL / ESCALATE).
+    """
+    verdict.details.setdefault("budget_warning", True)
+    verdict.details.setdefault("budget_action", decision.action.value)
+    verdict.details.setdefault("budget_recommendation", decision.recommendation.value)
+    verdict.details.setdefault("cumulative_tokens", decision.cumulative_tokens)
+    verdict.details.setdefault("max_tokens", decision.max_tokens)
+    verdict.details.setdefault("utilization", decision.utilization)
+    return verdict
+
+
+def _resolve_breaker_decision(
+    breaker: TokenBudgetBreaker,
+    cumulative_tokens: int | None,
+) -> BudgetDecision:
+    """Choose between an explicit cumulative count and the breaker's state.
+
+    When ``cumulative_tokens`` is ``None`` the breaker's internal
+    ``cumulative_tokens`` (populated via :meth:`record`) is used; otherwise
+    the explicit value wins. This lets callers either drive the breaker
+    statefully across rounds or keep it pure per-round.
+    """
+    if cumulative_tokens is None:
+        return breaker.check_recorded()
+    return breaker.check(cumulative_tokens)
+
+
 def evaluate_gate(
     gate_input: GateInput,
     profile: GateProfile,
     round_num: int = 1,
     history: list[ConvergenceRound] | None = None,
     gate_type: str = "standard",
+    breaker: TokenBudgetBreaker | None = None,
+    cumulative_tokens: int | None = None,
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -378,9 +448,28 @@ def evaluate_gate(
         One of ``"standard"``, ``"convergence"``, ``"passthrough"``,
         ``"acceptance_readiness"``, ``"preflight"``, ``"revision"``,
         ``"escalation"``, ``"abort"``.
+    breaker:
+        Optional :class:`devolaflow.gate.budget.TokenBudgetBreaker`. When
+        ``None`` (the default), behaviour is byte-identical to v7.8.0 —
+        no token-budget evaluation is performed (per ``patch_plan §3 P-03
+        AC #2``). When supplied, the breaker is checked first; a
+        ``BREAK`` decision returns early with FAIL or ESCALATE depending
+        on the profile severity (STRICT / AUDIT escalate).
+    cumulative_tokens:
+        Optional explicit cumulative-token count for the breaker check.
+        When ``None``, the breaker's internal counter (from
+        :meth:`TokenBudgetBreaker.record`) is used. Ignored when
+        ``breaker is None``.
     """
     if history is None:
         history = []
+
+    if breaker is not None:
+        decision = _resolve_breaker_decision(breaker, cumulative_tokens)
+        if decision.action is BudgetAction.BREAK:
+            return _build_budget_break_verdict(decision)
+    else:
+        decision = None
 
     resolved = _resolve_gate_type(gate_type)
     handler = _GATE_DISPATCH.get(resolved)
@@ -393,6 +482,10 @@ def evaluate_gate(
         verdict = _evaluate_standard(gate_input, profile)
 
     _apply_advisor_detection(verdict, profile)
+
+    if decision is not None and decision.action is BudgetAction.WARN:
+        _attach_budget_warning(verdict, decision)
+
     return verdict
 
 
