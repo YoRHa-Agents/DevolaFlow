@@ -141,3 +141,10 @@ templates:
     version: "1.0.0"
     category: discover
     tags: [init, scaffold, bootstrap, repo, workspace, rules]
+
+  - name: entropy-cleanup
+    path: builtin/entropy-cleanup.yaml
+    source: builtin
+    version: "1.0.0"
+    category: control
+    tags: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]

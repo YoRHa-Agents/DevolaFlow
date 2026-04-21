@@ -279,7 +279,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 20 builtin templates covering all workflow types.
+  # Registry + 21 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
@@ -385,6 +385,11 @@ content:
         file: "templates/builtin/repo-init.yaml"
         stages: ["analyze", "scaffold", "compile", "verify"]
         description: "Initialize repo workspace (.local/) and governance rules; depth via mode: minimal | standard | deep"
+
+      - id: "entropy-cleanup"
+        file: "templates/builtin/entropy-cleanup.yaml"
+        stages: ["scan", "propose", "review", "apply"]
+        description: "Periodic entropy / GC pass — scan for stale docs and drift, propose retention actions, apply after review"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.
