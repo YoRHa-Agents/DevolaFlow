@@ -80,6 +80,10 @@ from devolaflow.lifecycle.validate_dispatch import (
     validate_dispatch,
 )
 from devolaflow.lifecycle.validate_owned_files import (
+    DoctorFinding,
+    DoctorReport,
+    check_init_health,
+    get_canonical_manifest,
     validate_owned_files,
 )
 
@@ -106,6 +110,8 @@ DEFAULT_EVENTS: tuple[str, ...] = (
 
 __all__ = [
     "DEFAULT_EVENTS",
+    "DoctorFinding",
+    "DoctorReport",
     "FILE_WRITE_EVENT",
     "FORMAT_ON_EDIT_EVENT",
     "HookHandler",
@@ -115,10 +121,12 @@ __all__ = [
     "Severity",
     "TASK_STOP_EVENT",
     "check_file_ownership",
+    "check_init_health",
     "clear_hooks",
     "emit_violations",
     "finalize",
     "format_on_edit",
+    "get_canonical_manifest",
     "list_handlers",
     "register_hook",
     "registered_events",

@@ -116,6 +116,8 @@ parameters:
     default: core
     choices: [core, standard, full]
     description: >
-      core     — analyze + scaffold only (DEFAULT — read + write structure, no rule compile, no verify)
-      standard — analyze + scaffold + compile (opt-in — adds rule compilation across detected adapters)
-      full     — all five stages including interview and verify smoke tests (opt-in — full DevolaFlow init; interview placeholder for v7.7)
+      Mode selects STAGES, not files — canonical_manifest (5 paths) is
+      ALWAYS required regardless of mode. See SKILL.md §Repo-Init Pre-Dispatch Contract.
+      core     — analyze + scaffold only (DEFAULT — canonical layout still required, skips compile/interview/verify)
+      standard — analyze + scaffold + compile (adds rule compilation across detected adapters)
+      full     — all five stages including interview and verify smoke tests
