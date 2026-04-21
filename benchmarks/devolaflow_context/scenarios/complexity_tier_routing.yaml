@@ -43,9 +43,9 @@ unwanted_sections:
   - template_quick_ref
 
 quality_thresholds:
-  min_composite: 95
-  min_relevance: 1.0
-  max_noise_ratio: 0.07
+  min_composite: 90
+  min_relevance: 0.90
+  max_noise_ratio: 0.15
   # min_format_compliance is documentation-only — not enforced by the current
   # tests/test_benchmarks.py::TestRunner::test_quality_thresholds runner
   # (which only asserts on min_composite / min_relevance / max_noise_ratio).

@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v7.4.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v7.5.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -407,8 +407,8 @@ class TestBaselineFile:
         """load_baseline() picks the v7.4.0 baseline over older files, falls back as needed."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v7.4.0_baseline.json", (
-            f"Expected load_baseline() to prefer v7.4.0_baseline.json; got {newest.name}"
+        assert newest.name == "v7.5.0_baseline.json", (
+            f"Expected load_baseline() to prefer v7.5.0_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

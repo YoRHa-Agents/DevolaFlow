@@ -135,11 +135,11 @@ class TestHookResult:
 
 
 def test_default_events_match_skill_md_table() -> None:
-    """SKILL.md §Lifecycle Hooks lists 3 events; package must wire all 3."""
+    """Package must wire all canonical events (3 original + format_on_edit)."""
     assert PRE_DISPATCH_EVENT == "pre_dispatch"
     assert FILE_WRITE_EVENT == "file_write"
     assert TASK_STOP_EVENT == "task_stop"
-    assert set(DEFAULT_EVENTS) == {"pre_dispatch", "file_write", "task_stop"}
+    assert set(DEFAULT_EVENTS) == {"pre_dispatch", "file_write", "task_stop", "format_on_edit"}
 
 
 def test_registered_events_includes_all_defaults() -> None:

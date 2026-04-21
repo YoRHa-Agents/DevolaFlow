@@ -1480,6 +1480,12 @@ profiles:
     rationale: "Interaction testing needs gate scoring (interaction_quality dimension), convergence for fixing failing flows, and accessibility compliance evaluation."
 
   repo-init:
+    description: "Repo initialization — workspace scaffold, governance rules, tool detection"
+    goal_hints:
+      - "init repo"
+      - "initialize"
+      - "scaffold workspace"
+      - "setup rules"
     token_budget: 6000
     model_hints:
       default_tier: balanced
@@ -1496,7 +1502,7 @@ profiles:
       agent_teams: important
       context_isolation: skip
       dispatch_protocol: important
-      lifecycle_hooks: skip
+      lifecycle_hooks: important
       repo_mode_detection: critical
       reference_navigation: supplementary
       task_quality_score: skip
