@@ -547,3 +547,32 @@ There is no mirror in `schemas/lean-report.yaml`: the envelope is a
 one-direction dispatcher policy and StatusReport text is L3-authored,
 so wrapping the report would defeat the purpose. Findings emitted per
 §8.3 step 2 ride in the existing report fields.
+
+## 9. Deterministic Fence Expansion (v8.0.0+)
+
+Fence checks (lint / format / typecheck / test / build) that fail in
+round N must be re-surfaced to the round N+1 L3 as explicit MUST-fix
+mandates. `devolaflow.gate.reinforcement.fence_to_instruction(
+fence_type, fence_payload, *, sequence=1, max_tokens=200)` maps a
+single failure to a `ReinforcementRule` whose `id` is deterministic —
+the format `F-{fence_type}-{sequence:03d}` (e.g. `F-lint-001`,
+`F-typecheck-007`) — so the same `(fence_type, sequence)` pair always
+renders the same id (pure function, zero I/O).
+
+`devolaflow.gate.scorer._evaluate_checks(gate_input, *, round_num,
+prior_score, target_score, severity_floor='major', extra_checks=None,
+max_tokens_per_rule=200)` walks the failing built-in checks (build /
+test / lint) and any caller-supplied extras (`format` / `typecheck`),
+then packages the resulting rules into a `ReinforcementBlock` ready
+for `merge_reinforcement_into_dispatch()`. The helper returns `None`
+when nothing failed, which keeps `evaluate_gate()` byte-identical to
+v7.8.0 for callers who don't opt in.
+
+Round flow per W-8 / SI-9 (≤ 5 reinforcement rules per round):
+
+```
+round N gate FAIL → _evaluate_checks(...) → ReinforcementBlock
+                  → merge_reinforcement_into_dispatch(round N+1 dispatch, block)
+                  → round N+1 L3 sees applicable_rules.reinforcement.rules[*]
+                    with deterministic F-{type}-NNN ids and MUST-fix mandates
+```

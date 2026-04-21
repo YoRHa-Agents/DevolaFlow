@@ -23,6 +23,7 @@ from devolaflow.gate.models import (
     GateVerdict,
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
+from devolaflow.gate.reinforcement import MAX_REINFORCEMENT_RULES, ReinforcementBlock
 from devolaflow.gate.reporter import generate_markdown_report, generate_yaml_report
 from devolaflow.gate.scorer import (
     EXTENDED_DIMENSION_WEIGHTS,
@@ -1090,3 +1091,211 @@ class TestSmoothedTrend:
         history = [_round(1, 70.0), _round(2, 80.0)]
         assert compute_smoothed_trend(history, window=1) == compute_trend(history)
         assert compute_smoothed_trend(history, window=0) == compute_trend(history)
+
+
+# ---------------------------------------------------------------------------
+# v8.0.0 (P-04) — _evaluate_checks integration
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluateChecksFenceIntegration:
+    """``_evaluate_checks`` converts failing gate checks to a ReinforcementBlock.
+
+    Per ``patch_plan §3 P-04``: byte-identical pre-P-04 behaviour when no
+    checks fail OR no extras are declared; ``F-{type}-*`` rules emitted on
+    failure. AC #2: ``lint_status.status='fail'`` ⇒ ``F-lint-*`` rule.
+    """
+
+    def test_no_failures_returns_none_byte_identical(self) -> None:
+        """All checks pass + no extras ⇒ None (pre-P-04 behaviour preserved)."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        assert _evaluate_checks(gi) is None
+
+    def test_no_failures_with_passing_extras_returns_none(self) -> None:
+        """Passing extra checks must not synthesise a ReinforcementBlock."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        extras = {
+            "format": CheckResult(status="pass"),
+            "typecheck": CheckResult(status="pass"),
+        }
+        assert _evaluate_checks(gi, extra_checks=extras) is None
+
+    def test_skip_status_does_not_emit_rule(self) -> None:
+        """``status='skip'`` is not a failure — no rule emitted."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.lint_status = CheckResult(status="skip")
+        assert _evaluate_checks(gi) is None
+
+    def test_lint_failure_emits_f_lint_rule(self) -> None:
+        """AC #2 — ``lint_status.status='fail'`` ⇒ ``F-lint-*`` rule."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.lint_status = CheckResult(
+            status="fail",
+            details={"file": "src/foo.py", "line": 42, "msg": "E501 too long"},
+        )
+        block = _evaluate_checks(gi, round_num=2, prior_score=70.0, target_score=85.0)
+
+        assert block is not None
+        assert isinstance(block, ReinforcementBlock)
+        assert len(block.rules) == 1
+        rule = block.rules[0]
+        assert rule.id == "F-lint-001"
+        assert rule.severity in ("major", "critical", "blocker")
+        assert "MUST fix lint" in rule.mandate
+        assert rule.file == "src/foo.py"
+
+    def test_build_failure_emits_f_build_rule(self) -> None:
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.build_status = CheckResult(
+            status="fail",
+            details={"msg": "compiler exited with code 2"},
+        )
+        block = _evaluate_checks(gi)
+        assert block is not None
+        assert block.rules[0].id == "F-build-001"
+
+    def test_test_failure_emits_f_test_rule(self) -> None:
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.test_results = CheckResult(
+            status="fail",
+            details={"msg": "5 tests failed"},
+        )
+        block = _evaluate_checks(gi)
+        assert block is not None
+        assert block.rules[0].id == "F-test-001"
+
+    def test_extra_format_failure_emits_f_format_rule(self) -> None:
+        """Caller-supplied extras (``format`` / ``typecheck``) flow through."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        extras = {
+            "format": CheckResult(status="fail", details={"msg": "would reformat 3 files"}),
+        }
+        block = _evaluate_checks(gi, extra_checks=extras)
+        assert block is not None
+        assert block.rules[0].id == "F-format-001"
+        assert "MUST fix format" in block.rules[0].mandate
+
+    def test_extra_typecheck_failure_emits_f_typecheck_rule(self) -> None:
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        extras = {
+            "typecheck": CheckResult(
+                status="fail",
+                details={"file": "src/x.py", "msg": "incompatible types"},
+            ),
+        }
+        block = _evaluate_checks(gi, extra_checks=extras)
+        assert block is not None
+        assert block.rules[0].id == "F-typecheck-001"
+        # typecheck severity defaults to critical (more serious than lint)
+        assert block.rules[0].severity == "critical"
+        assert block.rules[0].file == "src/x.py"
+
+    def test_multiple_failures_emit_one_rule_per_check(self) -> None:
+        """Build + test + lint all failing ⇒ 3 rules in order build/test/lint."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.build_status = CheckResult(status="fail", details={"msg": "make exit=2"})
+        gi.test_results = CheckResult(status="fail", details={"msg": "1 failed"})
+        gi.lint_status = CheckResult(status="fail", details={"msg": "E501"})
+        block = _evaluate_checks(gi)
+        assert block is not None
+        ids = [r.id for r in block.rules]
+        assert ids == ["F-build-001", "F-test-001", "F-lint-001"]
+
+    def test_rules_capped_at_max_reinforcement_rules(self) -> None:
+        """W-8 / SI-9 — ≤ 5 reinforcement rules per round."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.build_status = CheckResult(status="fail", details={"msg": "b"})
+        gi.test_results = CheckResult(status="fail", details={"msg": "t"})
+        gi.lint_status = CheckResult(status="fail", details={"msg": "l"})
+        extras = {
+            "format": CheckResult(status="fail", details={"msg": "f"}),
+            "typecheck": CheckResult(status="fail", details={"msg": "tc"}),
+            "security": CheckResult(status="fail", details={"msg": "s"}),  # 6th — dropped
+            "perf": CheckResult(status="fail", details={"msg": "p"}),  # 7th — dropped
+        }
+        block = _evaluate_checks(gi, extra_checks=extras)
+        assert block is not None
+        assert len(block.rules) == MAX_REINFORCEMENT_RULES
+
+    def test_block_metadata_preserved(self) -> None:
+        """``round_num`` / ``prior_score`` / ``target_score`` / ``severity_floor``
+        must propagate through to the emitted block (no drop-on-floor)."""
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.lint_status = CheckResult(status="fail", details={"msg": "E501"})
+        block = _evaluate_checks(
+            gi,
+            round_num=4,
+            prior_score=78.5,
+            target_score=90.0,
+            severity_floor="critical",
+        )
+        assert block is not None
+        assert block.round == 4
+        assert block.prior_score == 78.5
+        assert block.target_score == 90.0
+        assert block.severity_floor == "critical"
+        assert "Round 3 fence checks failed" in block.escalation_note
+        assert "['lint']" in block.escalation_note
+
+    def test_evaluate_gate_unchanged_when_helper_not_invoked(self) -> None:
+        """Sanity: ``evaluate_gate()`` itself remains byte-identical because
+        ``_evaluate_checks`` is a separate helper, not wired into the
+        existing FAIL path. Pre-existing tests prove the rest; this one
+        asserts the contract explicitly."""
+        gi = _pass_input()
+        gi.lint_status = CheckResult(status="fail")
+        verdict = evaluate_gate(gi, STANDARD, gate_type="standard")
+        # Unchanged: rationale shape and decision unchanged from pre-P-04.
+        assert verdict.decision == "FAIL"
+        assert "lint" in verdict.rationale
+        # Unchanged: no fence rules leak into details by default.
+        assert "fence_rules" not in verdict.details
+
+    def test_emitted_block_round_trips_through_dispatch_merge(self) -> None:
+        """Integration: produced block plugs into the existing
+        ``merge_reinforcement_into_dispatch`` pipeline without special-casing."""
+        from devolaflow.gate.reinforcement import (
+            merge_reinforcement_into_dispatch,
+            reinforcement_to_dict,
+        )
+        from devolaflow.gate.scorer import _evaluate_checks
+
+        gi = _pass_input()
+        gi.lint_status = CheckResult(
+            status="fail",
+            details={"file": "src/foo.py", "line": 7, "msg": "E501"},
+        )
+        block = _evaluate_checks(gi, round_num=2, prior_score=70.0, target_score=85.0)
+        assert block is not None
+
+        dispatch: dict = {}
+        merge_reinforcement_into_dispatch(dispatch, block)
+        rules = dispatch["context"]["applicable_rules"]["reinforcement"]["rules"]
+        assert rules[0]["id"] == "F-lint-001"
+        assert rules[0]["file"] == "src/foo.py"
+        # Serialisation parity with reinforcement_to_dict()
+        assert dispatch["context"]["applicable_rules"]["reinforcement"] == reinforcement_to_dict(
+            block
+        )
