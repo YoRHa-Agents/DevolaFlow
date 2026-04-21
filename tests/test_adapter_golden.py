@@ -92,7 +92,11 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 8 canonical reference files must be copied into ``references/``."""
+    """All 9 canonical reference files must be copied into ``references/``.
+
+    v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
+    (the L3 behavioral primitives reference wired through the new top-level
+    ``behavioral_guidelines`` dispatch field at canonical_order position 14)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -103,7 +107,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 8, f"expected 8 reference files, got {len(actual)}"
+    assert len(actual) == 9, f"expected 9 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

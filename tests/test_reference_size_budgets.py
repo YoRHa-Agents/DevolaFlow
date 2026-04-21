@@ -71,8 +71,16 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the long-standing 8-refs / 3-examples SF-3 contract."""
-    assert len(_REF_FILES) == 8, f"expected 8 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    """Sanity: shape matches the SF-3 contract (9-refs / 3-examples since v8.0.0 P-08).
+
+    v8.0.0 P-08 grew the reference set 8 → 9 by appending
+    ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
+    wired through the new top-level ``behavioral_guidelines`` dispatch field at
+    ``schemas/lean-dispatch.yaml#layout_invariant.canonical_order`` position 14,
+    schema version 3). Per Rule 6 (P6 Preserve Cached Prefix), positions 1–13
+    remained byte-identical; the new field is appended at position 14.
+    """
+    assert len(_REF_FILES) == 9, f"expected 9 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

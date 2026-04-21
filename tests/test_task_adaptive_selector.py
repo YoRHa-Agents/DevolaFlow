@@ -252,6 +252,7 @@ class TestSelectContext:
             "escalation_applied",
             "plan_mode",
             "plan_mode_applied",
+            "behavioral_guidelines",
         }
         assert set(result.keys()) == expected_keys
 

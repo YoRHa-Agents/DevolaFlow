@@ -107,6 +107,40 @@ meta:
       - design_system
       - landing_page
 
+  # v8.0.0 (P-08) — L3 behavioral guidelines defaults per complexity tier.
+  # Profiles that omit their own ``behavioral_guidelines`` block fall back
+  # to the matching tier here. Each tier maps to the 4 Karpathy primitives
+  # documented in ``workflow-system/agent/references/behavioral-guidelines.md``:
+  #   * think_first (BG-001, warn) — plan-before-code discipline
+  #   * simplicity_check (BG-002, warn) — over-engineering audit
+  #   * surgical_scope (BG-003, blocker) — 'line' | 'function' | 'module'
+  #   * goal_loop (BG-004, warn) — round-N goal re-anchor
+  # The dispatcher's ``select_context()`` reads these defaults via
+  # ``_select_behavioral_sections()`` and injects matching rule sections
+  # into the L3 dispatch payload's top-level ``behavioral_guidelines``
+  # field (canonical_order position 14, schema version 3 — P6 additive).
+  behavioral_guidelines_defaults:
+    trivial:
+      think_first: false
+      simplicity_check: false
+      surgical_scope: line
+      goal_loop: false
+    simple:
+      think_first: true
+      simplicity_check: false
+      surgical_scope: function
+      goal_loop: false
+    standard:
+      think_first: true
+      simplicity_check: true
+      surgical_scope: function
+      goal_loop: false
+    complex:
+      think_first: true
+      simplicity_check: true
+      surgical_scope: module
+      goal_loop: true
+
 # SKILL.md section registry with line ranges and base token estimates
 sections:
   frontmatter:
@@ -304,7 +338,7 @@ profiles:
       - "enhance"
       - "build from scratch"
       - "new project"
-    token_budget: 5150  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
+    token_budget: 5300  # v8.0.0 P-08 bumped +150 to absorb behavioral_guidelines block (was 5150 after v7.2.0+ PR-D +200 advisor)
     model_hints:
       default_tier: balanced
       overrides:
@@ -381,6 +415,12 @@ profiles:
       mode: extractive
       max_tokens: 1200
       trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    behavioral_guidelines:            # v8.0.0 P-08: standard tier (impl complexity)
+      tier: standard                  # inherits meta.behavioral_guidelines_defaults.standard
+      think_first: true               # explicit override; plan-before-code on every impl
+      simplicity_check: true          # explicit override; reject over-engineering
+      surgical_scope: function        # function-level edit discipline (P2 disjoint ownership)
+      goal_loop: false                # single-round impl; goal re-anchor not needed
     rationale: >
       Feature work needs the full hierarchy, stage primitives for planning,
       gate mechanism for quality control, and team roles for task dispatch.
@@ -455,7 +495,7 @@ profiles:
       - "clean up"
       - "tech debt"
       - "simplify"
-    token_budget: 5000  # v7.2.0+ PR-D bumped +200 to absorb C-001/C-003 advisor section growth
+    token_budget: 5200  # v8.0.0 P-08 bumped +200 to absorb behavioral_guidelines complex tier (think_first+simplicity_check+goal_loop+module scope) — was 5000 after v7.2.0+ PR-D +200 advisor
     model_hints:
       default_tier: balanced
       overrides:
@@ -528,6 +568,12 @@ profiles:
       mode: extractive
       max_tokens: 1200
       trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    behavioral_guidelines:            # v8.0.0 P-08: complex tier (refactor needs goal_loop)
+      tier: complex                   # inherits meta.behavioral_guidelines_defaults.complex
+      think_first: true
+      simplicity_check: true
+      surgical_scope: function        # refactor stays within function bodies; widen via escalation
+      goal_loop: true                 # multi-round refactor needs goal re-anchor each round
     rationale: >
       Refactoring needs strong convergence loops and gates to ensure no
       regressions. Code review and test cycles are the primary quality mechanism.
@@ -593,7 +639,7 @@ profiles:
       - "architect"
       - "API spec"
       - "schema"
-    token_budget: 4450
+    token_budget: 4600  # v8.0.0 P-08 bumped +150 to absorb behavioral_guidelines standard tier — was 4450
     model_hints:
       default_tier: quality
       overrides:
@@ -639,6 +685,12 @@ profiles:
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for design stages where defects are structural; default off.
                                          # See references/decomposition-gate.md §8 for safe-stage list.
+    behavioral_guidelines:               # v8.0.0 P-08: standard tier (design discipline)
+      tier: standard
+      think_first: true                  # design must plan before recording ADRs
+      simplicity_check: true             # YAGNI on speculative abstractions
+      surgical_scope: module             # design changes span multiple files; module-level ok
+      goal_loop: false                   # single-pass design; goal_loop is for impl iteration
     rationale: >
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
@@ -1466,6 +1518,12 @@ profiles:
       repo_mode: skip
       task_quality_score: skip
       reference_navigation: skip
+    behavioral_guidelines:               # v8.0.0 P-08: simple tier (test-only edits, narrow scope)
+      tier: simple
+      think_first: true                  # tests need clear plan-first discipline
+      simplicity_check: false            # over-engineering audit not relevant for test code
+      surgical_scope: function           # tests stay inside test functions
+      goal_loop: false
     rationale: "Acceptance verification needs gate scoring (acceptance_verification dimension), convergence for iterative criteria fixes, and dispatch for structured reporting."
 
   verify_interaction:

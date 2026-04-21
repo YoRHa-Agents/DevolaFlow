@@ -433,6 +433,192 @@ def _integrate_learnings(
         return ""
 
 
+# ---------------------------------------------------------------------------
+# v8.0.0 (P-08) — L3 behavioral guideline injection.
+#
+# Behavioral guidelines are 4 Karpathy-derived primitives (think_first,
+# simplicity_check, surgical_scope, goal_loop) documented in
+# ``workflow-system/agent/references/behavioral-guidelines.md`` and
+# expressed in the dispatch payload via the top-level
+# ``behavioral_guidelines`` field (canonical_order position 14, schema
+# version 3 — added by P-08, P6 additive). The two helpers below resolve
+# per-profile defaults and render the injectable text block. They are
+# extracted from ``select_context`` so the parent function's cyclomatic
+# complexity stays ≤ 8 (NineS finding ``[CC-448821-0000]`` closure).
+#
+# Backward compatibility: when a profile omits ``behavioral_guidelines``
+# AND ``meta.behavioral_guidelines_defaults`` is unset, both helpers
+# short-circuit to None / "" so the dispatch payload remains
+# byte-identical to the v7.x output (preserves the v7.0.0 layout
+# baseline byte-comparison; verified by
+# ``tests/test_behavioral_guidelines.py::TestBackwardCompat``).
+# ---------------------------------------------------------------------------
+
+
+def _select_behavioral_sections(
+    profile: dict[str, Any],
+    profiles_config: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Resolve the L3 behavioral_guidelines for ``profile``.
+
+    Lookup order:
+      1. ``profile["behavioral_guidelines"]`` — explicit per-profile block.
+      2. ``meta.behavioral_guidelines_defaults[profile_block.tier]`` —
+         tier-default fallback when the per-profile block sets ``tier``.
+      3. Per-profile explicit keys (think_first, simplicity_check,
+         surgical_scope, goal_loop) override tier defaults on a per-key
+         basis (so a profile MAY inherit standard tier yet override
+         ``goal_loop=true`` for one specific profile).
+
+    Returns the merged 4-key dict, or ``None`` when the profile omits
+    the block AND no tier fallback is available — preserves v7.x
+    byte-identical dispatch shape for backward compatibility.
+    """
+    profile_block = profile.get("behavioral_guidelines")
+    if profile_block is None:
+        return None
+    if not isinstance(profile_block, dict):
+        return None
+
+    defaults = profiles_config.get("meta", {}).get("behavioral_guidelines_defaults", {})
+    tier = profile_block.get("tier")
+    base: dict[str, Any] = dict(defaults.get(tier, {})) if tier else {}
+    base.update({k: v for k, v in profile_block.items() if k != "tier"})
+    return base or None
+
+
+def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> str:
+    """Render the active behavioral guidelines into an injectable text block.
+
+    The block is a compact ``## Behavioral Guidelines (L3 active)`` markdown
+    section with one bullet per active rule. Inactive rules (those with a
+    falsy flag) are NOT rendered so the token cost scales with the number
+    of active rules. ``surgical_scope`` is always rendered (str field with
+    no opt-out) when the block is non-None.
+
+    The full rule prose lives in
+    ``workflow-system/agent/references/behavioral-guidelines.md`` (Tier 3
+    on-demand reference, loaded only when this block surfaces). This helper
+    emits a 5-line summary block (~ 30-100 tokens depending on active
+    rules) intended for verbatim injection into the L3 dispatch context.
+
+    Returns "" when ``behavioral_guidelines`` is None or empty so callers
+    can ``if block:`` without a None-check.
+    """
+    if not behavioral_guidelines:
+        return ""
+
+    lines = ["## Behavioral Guidelines (L3 active)"]
+    if behavioral_guidelines.get("think_first"):
+        lines.append("- BG-001 think_first ENABLED — emit numbered plan before any source edit.")
+    if behavioral_guidelines.get("simplicity_check"):
+        lines.append(
+            "- BG-002 simplicity_check ENABLED — audit 3 over-engineering smells before commit."
+        )
+    scope = behavioral_guidelines.get("surgical_scope", "function")
+    lines.append(f"- BG-003 surgical_scope = {scope!r} — diff hunks MUST stay within this tier.")
+    if behavioral_guidelines.get("goal_loop"):
+        lines.append("- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.")
+    return "\n".join(lines)
+
+
+def _resolve_active_profile(
+    config: dict[str, Any],
+    task_type: str,
+    plan_mode: bool | None,
+    round_num: int,
+    escalation_config: dict[int, dict[str, Any]] | None,
+) -> tuple[str, dict[str, Any], bool]:
+    """Match ``task_type`` to a profile and apply plan-mode + round overrides.
+
+    Extracted from the legacy ``select_context`` body in v8.0.0 (P-08) to
+    bring the parent function's cyclomatic complexity from 16 down to ≤ 8
+    (NineS finding ``[CC-448821-0000]``). Returns
+    ``(profile_name, resolved_profile, active_plan_mode)``.
+
+    Plan-mode is auto-detected via :func:`_detect_plan_mode` when *plan_mode*
+    is ``None``; pass ``plan_mode=False`` to disable detection. Round-based
+    escalation runs AFTER plan-mode overrides so round overrides may layer
+    on top (matches the v7.x ordering preserved across the refactor).
+    """
+    profile_name = match_profile(task_type, config)
+    profile = config["profiles"][profile_name]
+
+    active_plan_mode = plan_mode if plan_mode is not None else _detect_plan_mode()
+    if active_plan_mode:
+        profile = apply_plan_mode_overrides(profile)
+
+    if round_num > 1:
+        profile = apply_round_escalation(profile, round_num, escalation_config)
+
+    meta_complexity_routing = config.get("meta", {}).get("complexity_routing", {})
+    if meta_complexity_routing:
+        profile = {**profile, "complexity_routing": meta_complexity_routing}
+
+    return profile_name, profile, active_plan_mode
+
+
+def _resolve_dispatch_overrides(
+    profile: dict[str, Any],
+    task_type: str,
+    complexity_tier: str | None,
+    config: dict[str, Any],
+    profile_overrides_applied: bool,
+) -> tuple[str, str]:
+    """Compute ``(model_hint, compression_intensity)`` honouring overrides.
+
+    Extracted from the legacy ``select_context`` body in v8.0.0 (P-08).
+    When *profile_overrides_applied* is True (plan-mode active OR round
+    escalation applied) and the profile carries explicit ``model_hint`` /
+    ``compression_intensity`` keys, those keys win. Otherwise the helpers
+    :func:`resolve_model_hint` and :func:`resolve_compression_intensity`
+    apply the per-task / per-boundary defaults.
+
+    Behaviour is byte-identical to the inlined v7.x logic (verified by
+    ``tests.test_task_adaptive_selector.TestSelectContext::test_result_structure``).
+    """
+    model_hint: str | None = None
+    if profile_overrides_applied and "model_hint" in profile:
+        model_hint = profile["model_hint"]
+    if not model_hint:
+        model_hint = resolve_model_hint(task_type, profile, complexity_tier)
+
+    if profile_overrides_applied and "compression_intensity" in profile:
+        compression_intensity = profile["compression_intensity"]
+    else:
+        compression_intensity = resolve_compression_intensity("l2_to_l3", config)
+
+    return model_hint, compression_intensity
+
+
+def _append_optional_blocks(
+    base_text: str,
+    base_tokens: int,
+    blocks: list[tuple[str, int]],
+) -> tuple[str, int]:
+    """Append non-empty blocks to ``base_text`` and accumulate token costs.
+
+    Each block is a ``(text, token_cost)`` tuple. Empty / falsy text
+    blocks are skipped (their token cost is NOT added). Non-empty blocks
+    are concatenated with a ``\\n\\n`` separator and their costs are
+    summed into ``base_tokens``. Returns ``(merged_text, total_tokens)``.
+
+    Extracted from the legacy ``select_context`` body in v8.0.0 (P-08) so
+    the parent's cc stays ≤ 8 even after the new behavioral_guidelines
+    block is added. The ordering of *blocks* is preserved verbatim so
+    callers control concatenation order (matches v7.x: learnings then
+    advisor; v8.0.0 appends behavioral_guidelines as the final block).
+    """
+    text = base_text
+    tokens = base_tokens
+    for block_text, block_cost in blocks:
+        if not block_text:
+            continue
+        text = (text + "\n\n" + block_text) if text else block_text
+        tokens += block_cost
+    return text, tokens
+
+
 def select_context(
     task_type: str,
     profiles_path: Path | None = None,
@@ -457,6 +643,10 @@ def select_context(
         :func:`_detect_plan_mode` when *plan_mode* is ``None``)
       - plan_mode_applied: alias of ``plan_mode`` for explicit downstream
         checks; True when :func:`apply_plan_mode_overrides` was applied
+      - behavioral_guidelines (v8.0.0 P-08): resolved 4-key dict (think_first,
+        simplicity_check, surgical_scope, goal_loop) when the profile
+        carries the block, otherwise ``None`` (preserves v7.x byte-stable
+        dispatch shape for backward compatibility)
 
     When ``round_num > 1`` the resolved profile is routed through
     :func:`apply_round_escalation` so convergence rounds receive stricter
@@ -476,30 +666,36 @@ def select_context(
     the per-profile ``model_hints.overrides`` and ``default_tier``. Default
     ``complexity_tier=None`` preserves the v7.1.0 routing priority bytewise.
     See :func:`resolve_model_hint` for the full lookup priority.
+
+    v8.0.0 (P-08) refactor: the parent function delegates plan-mode +
+    round + complexity-routing resolution to :func:`_resolve_active_profile`,
+    behavioral guideline resolution to :func:`_select_behavioral_sections`
+    + :func:`_compose_behavioral_block`, optional-block concatenation to
+    :func:`_append_optional_blocks`, and override resolution to
+    :func:`_resolve_dispatch_overrides`. This brings the cyclomatic
+    complexity from 16 (NineS finding ``[CC-448821-0000]``) down to ≤ 8.
+    The dispatch-payload contract is preserved bytewise for the v7.x
+    return key set; the new ``behavioral_guidelines`` key is purely
+    additive (``None`` when the profile omits the block).
     """
     config = load_profiles(profiles_path)
     skill_text = load_skill_md(config)
     sections_registry = config.get("sections", {})
 
-    profile_name = match_profile(task_type, config)
-    profile = config["profiles"][profile_name]
-
-    active_plan_mode = plan_mode if plan_mode is not None else _detect_plan_mode()
-    if active_plan_mode:
-        profile = apply_plan_mode_overrides(profile)
-
-    if round_num > 1:
-        profile = apply_round_escalation(profile, round_num, escalation_config)
-
-    meta_complexity_routing = config.get("meta", {}).get("complexity_routing", {})
-    if meta_complexity_routing:
-        profile = {**profile, "complexity_routing": meta_complexity_routing}
+    profile_name, profile, active_plan_mode = _resolve_active_profile(
+        config, task_type, plan_mode, round_num, escalation_config
+    )
     budget = profile.get("token_budget", 6000)
 
     advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
     learnings_config = profile.get("learnings", {})
     learnings_reserve = _compute_learnings_reserve(learnings_config, profiles_path, budget)
-    section_budget = budget - advisor_reserve - learnings_reserve
+
+    behavioral_guidelines = _select_behavioral_sections(profile, config)
+    behavioral_text = _compose_behavioral_block(behavioral_guidelines)
+    behavioral_reserve = estimate_tokens(behavioral_text) if behavioral_text else 0
+
+    section_budget = budget - advisor_reserve - learnings_reserve - behavioral_reserve
 
     priority_buckets, skipped = _build_priority_buckets(profile.get("section_priorities", {}))
     selected, overflow_skipped, used_tokens = _select_sections_within_budget(
@@ -511,34 +707,25 @@ def select_context(
     )
     skipped.extend(overflow_skipped)
 
-    assembled_text = "\n\n".join(text for _, text, _ in selected)
-
+    base_text = "\n\n".join(text for _, text, _ in selected)
     learnings_text = _integrate_learnings(
-        learnings_config,
-        profile_name,
-        profiles_path,
-        learnings_reserve,
+        learnings_config, profile_name, profiles_path, learnings_reserve
     )
-    if learnings_text:
-        assembled_text = assembled_text + "\n\n" + learnings_text
-        used_tokens += estimate_tokens(learnings_text)
-
-    if advisor_text:
-        assembled_text = assembled_text + "\n\n" + advisor_text
-        used_tokens += advisor_reserve
+    learnings_cost = estimate_tokens(learnings_text) if learnings_text else 0
+    assembled_text, used_tokens = _append_optional_blocks(
+        base_text,
+        used_tokens,
+        [
+            (learnings_text, learnings_cost),
+            (advisor_text, advisor_reserve),
+            (behavioral_text, behavioral_reserve),
+        ],
+    )
 
     escalation_applied = round_num > 1
     profile_overrides_applied = escalation_applied or active_plan_mode
-    model_hint: str | None = None
-    if profile_overrides_applied and "model_hint" in profile:
-        model_hint = profile["model_hint"]
-    if not model_hint:
-        model_hint = resolve_model_hint(task_type, profile, complexity_tier)
-
-    compression_intensity = (
-        profile.get("compression_intensity")
-        if profile_overrides_applied and "compression_intensity" in profile
-        else resolve_compression_intensity("l2_to_l3", config)
+    model_hint, compression_intensity = _resolve_dispatch_overrides(
+        profile, task_type, complexity_tier, config, profile_overrides_applied
     )
 
     return {
@@ -561,6 +748,7 @@ def select_context(
         "escalation_applied": escalation_applied,
         "plan_mode": active_plan_mode,
         "plan_mode_applied": active_plan_mode,
+        "behavioral_guidelines": behavioral_guidelines,
     }
 
 

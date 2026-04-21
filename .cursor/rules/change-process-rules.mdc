@@ -34,7 +34,7 @@ The canonical list of synced locations is defined in rule SF-3 (`skill-format-ru
 **Opt-in mirror (auto-synced by `sync_cursor_skill.py` when present locally; gitignored):**
 
 - `.cursor/skills/devola-flow/SKILL.md` — bytewise mirror of (2)
-- `.cursor/skills/devola-flow/references/*.md` — 8 bytewise mirrors of `workflow-system/agent/references/*.md`
+- `.cursor/skills/devola-flow/references/*.md` — 9 bytewise mirrors of `workflow-system/agent/references/*.md`
 - `.cursor/skills/devola-flow/examples/*.md` — 3 bytewise mirrors of `workflow-system/agent/examples/*.md`
 - `.cursor/skills/devola-flow/.devola-flow-version` — single-line stamp = `__version__`
 

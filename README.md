@@ -326,7 +326,7 @@ DevolaFlow/
   workflow-system/
     agent/                    # Agent-consumed content (md + yaml only)
       SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
-      references/             #   Tier 2: 8 domain reference files (200-500 lines)
+      references/             #   Tier 2: 9 domain reference files (190-580 lines)
       templates/builtin/      #   21 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs
       knowledge/              #   Tier 3: code-rules + principle mappings

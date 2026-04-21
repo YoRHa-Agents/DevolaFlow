@@ -174,6 +174,40 @@ lean_format_spec:
     # standard/relaxed; ESCALATE on strict/audit). Missing → breaker=None
     # → byte-stable v7.x evaluate_gate output.
     token_budget: "optional dict {max_tokens: int (0=unlimited), warn_at: float (default 0.75), break_at: float (default 1.00)}"
+  # v8.0.0 (P-08) — L3 behavioral guidelines injection. NEW top-level
+  # dispatch key APPENDED to ``canonical_order`` AT THE END (position
+  # 14, after ``repos``) per ADR-001 §2 additive rule. Schema version
+  # bumped 2 → 3 to mark the schema generation. ZERO existing keys
+  # reordered; the v7.0.0 golden baseline byte-comparison
+  # (tests/test_benchmarks.py::TestLayoutInvariantBaseline::
+  # test_layout_invariant_baseline) AND the v7.3.0 byte-comparison
+  # STILL PASS after this bump, proving additivity (verified by
+  # tests/test_behavioral_guidelines.py::TestSchemaAdditivity).
+  #
+  # Field shape:
+  #   behavioral_guidelines:
+  #     think_first: bool        # plan-before-code discipline (BG-001)
+  #     simplicity_check: bool   # over-engineering audit (BG-002)
+  #     surgical_scope: str      # 'line' | 'function' | 'module' (BG-003)
+  #     goal_loop: bool          # round-N goal re-anchor (BG-004)
+  #
+  # Semantics: when present, ``select_context()`` injects the matching
+  # rule sections from ``workflow-system/agent/references/behavioral-guidelines.md``
+  # into the L3 dispatch context (each rule ≤ 30 lines / ~120 tokens;
+  # 4 rules total ≤ 5 % of L3 8K budget). When absent, behaviour is
+  # byte-identical to v7.x (preserves the v7.0.0 layout golden
+  # baseline). Per-profile defaults live in
+  # ``workflow-system/agent/context_profiles.yaml#profiles.<name>.behavioral_guidelines``.
+  # See ``references/behavioral-guidelines.md`` for full rule specs,
+  # severity classification, and self-check questions.
+  behavioral_guidelines:
+    description: "L3 behavioral primitives — Karpathy-derived (think_first / simplicity_check / surgical_scope / goal_loop)."
+    optional: true
+    fields:
+      think_first: "bool — plan-before-code discipline (BG-001, severity warn)"
+      simplicity_check: "bool — over-engineering audit (BG-002, severity warn)"
+      surgical_scope: "str — one of 'line' | 'function' | 'module' (BG-003, severity blocker)"
+      goal_loop: "bool — round-N goal re-anchor (BG-004, severity warn)"
 
 # --- COMPRESSION RULES ---
 # Deterministic drop/preserve lists for inter-layer message compaction.
@@ -247,8 +281,21 @@ compression_rules:
 # repo for the task) and 0+ additional entries name dependent repos requiring
 # coordinated commits. Field is optional — single-repo dispatches MAY omit it
 # entirely; assert_dispatch_layout treats absence as canonical.
+#
+# v8.0.0 (P-08, source: .local/research/v8.0.0_patch_plan.md §3 P-08 +
+# Karpathy nano-agent skill set): canonical_order grew 13 → 14 by APPENDING
+# `behavioral_guidelines` AT THE END (after `repos`) per ADR-001 §2 additive
+# rule. Version bumped 2 → 3 to mark the schema generation. ZERO existing
+# keys reordered; BOTH the v7.0.0 golden baseline byte-comparison AND the
+# v7.3.0 baseline (tests/test_benchmarks.py::TestLayoutInvariantBaseline)
+# STILL PASS after this bump, proving additivity holds across two schema
+# generations. The new `behavioral_guidelines` field shape is documented
+# above under `lean_format_spec.behavioral_guidelines`. Field is optional —
+# dispatches without behavioral injection MAY omit it entirely;
+# assert_dispatch_layout treats absence as canonical (preserves v7.x
+# byte-stable dispatch shape for backward compatibility).
 layout_invariant:
-  version: 2
+  version: 3
   canonical_order:
     - hdr
     - task
@@ -263,6 +310,7 @@ layout_invariant:
     - verify_cfg
     - gate
     - repos
+    - behavioral_guidelines
   enforcement:
     validator: "devolaflow.compressor.assert_dispatch_layout"
     stability_test: "tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds"

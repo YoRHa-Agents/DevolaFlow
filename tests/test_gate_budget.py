@@ -596,18 +596,34 @@ class TestSchemaP6Invariant:
     def spec(self) -> dict:
         return yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
 
-    def test_canonical_order_length_remains_13(self, spec: dict) -> None:
+    def test_p03_did_not_add_top_level_keys(self, spec: dict) -> None:
+        """P-03 (token_budget) MUST NOT add top-level keys. The canonical_order
+        length may grow due to OTHER patches (P-06 added repos at position 13;
+        v8.0.0 P-08 added behavioral_guidelines at position 14) — those are
+        unrelated to P-03's nested token_budget addition. The invariant P-03
+        carries is that ``token_budget`` itself is NESTED under ``gate``,
+        verified by ``test_token_budget_field_nested_under_gate`` and
+        ``test_token_budget_not_in_top_level_canonical_order`` below."""
         canonical = spec["layout_invariant"]["canonical_order"]
-        assert len(canonical) == 13, (
-            f"P-03 MUST NOT add top-level keys (P6 ADR-001 §2); "
-            f"canonical_order length = {len(canonical)}"
+        assert "token_budget" not in canonical, (
+            f"P-03 invariant: ``token_budget`` MUST stay nested under ``gate``, "
+            f"NOT at top level (canonical_order = {canonical})"
         )
 
-    def test_layout_invariant_version_remains_2(self, spec: dict) -> None:
-        assert spec["layout_invariant"]["version"] == 2
+    def test_layout_invariant_version_is_at_least_2(self, spec: dict) -> None:
+        """P-03 nested token_budget did not bump schema version. The version
+        may be bumped by OTHER patches (P-06 took 1→2; v8.0.0 P-08 took
+        2→3). What P-03 guarantees is that whatever version is in effect,
+        token_budget remains nested — not a version-bumping change."""
+        assert spec["layout_invariant"]["version"] >= 2
 
-    def test_canonical_order_last_key_remains_repos(self, spec: dict) -> None:
-        assert spec["layout_invariant"]["canonical_order"][-1] == "repos"
+    def test_p03_did_not_change_repos_position(self, spec: dict) -> None:
+        """P-06 placed ``repos`` at position 13 (1-indexed). P-03's nested
+        token_budget MUST NOT have moved it. v8.0.0 P-08 appends
+        ``behavioral_guidelines`` AFTER ``repos`` (position 14), so ``repos``
+        stays at position 13 even though it is no longer the last key."""
+        canonical = spec["layout_invariant"]["canonical_order"]
+        assert canonical[12] == "repos"
 
     def test_token_budget_field_nested_under_gate(self, spec: dict) -> None:
         gate_spec = spec["lean_format_spec"]["gate"]
