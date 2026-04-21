@@ -33,6 +33,9 @@ __all__ = [
     "DEFAULT_SUMMARY_MAX_TOKENS",
     "DEFAULT_SUMMARY_TRIGGER_PCT",
     "DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT",
+    "ABSTRACTIVE_LOW_DENSITY_THRESHOLD",
+    "ABSTRACTIVE_LOW_DENSITY_MAX_LINES",
+    "ABSTRACTIVE_HIGH_DENSITY_MAX_LINES",
     "SUMMARY_TRUNCATION_MARKER",
     "SCHEMA_HINT_PRIORITIES",
     "validate_preserve_list",
@@ -1276,17 +1279,17 @@ def _validate_summary_args(mode: str, max_tokens: int) -> None:
     Extracted from the legacy ``summarise_predecessor`` body in v8.0.0
     (P-02) to bring the parent function's cyclomatic complexity from 16
     down to ≤10 (NineS finding ``[CC-39ab83-0001]``). Raises
-    :class:`ValueError` for unknown modes or non-positive ``max_tokens``;
-    raises :class:`NotImplementedError` for the still-pending
-    ``abstractive`` mode (planned for v8.x via P-12 Stage A).
+    :class:`ValueError` for unknown modes or non-positive ``max_tokens``.
+
+    v8.0.0 (P-12) — ``abstractive`` mode is now implemented via the
+    Stage A heuristic path (``_assemble_abstractive_summary``); the
+    earlier :class:`NotImplementedError` raise was removed. Stage B
+    (LLM-assisted) remains out of scope for v8.0.0; the design lives
+    in ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` and
+    is targeted for v8.2.0 PV-01.
     """
     if mode not in ("extractive", "abstractive"):
         raise ValueError(f"unknown mode {mode!r} (expected 'extractive' or 'abstractive')")
-    if mode == "abstractive":
-        raise NotImplementedError(
-            "abstractive summarisation is not yet wired (planned for v7.0.3+); "
-            "use mode='extractive' for the deterministic verbatim path"
-        )
     if max_tokens <= 0:
         raise ValueError(f"max_tokens must be positive (got {max_tokens})")
 
@@ -1366,6 +1369,261 @@ def _assemble_summary_body(
     return summary_text, covered, dropped, was_bounded
 
 
+# ---------------------------------------------------------------------------
+# v8.0.0 (P-12) — Abstractive summariser Stage A (heuristic path).
+#
+# Stage A is a deterministic, no-LLM heuristic that complements the
+# extractive default. The extractive path (ADR-003 §2.2) emits verbatim
+# section bodies; that's safe for short artifacts but wastes budget on
+# low-information-density sections (e.g. boilerplate header blocks,
+# enumerated examples, repeated whitespace). Stage A measures each
+# section's information density and switches to a denser representation
+# when the body is dilute, while preserving high-density sections in
+# their entirety so named entities (file paths, version strings, error
+# messages, interface signatures) are NEVER lost.
+#
+# Stage B (LLM-assisted) remains out of scope for v8.0.0 — see
+# ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` for the
+# v8.2.0 PV-01 design (prompt template, fallback, latency budget,
+# cost ceiling, integration points).
+#
+# P6-safe: the abstractive path is gated by ``mode='abstractive'`` and
+# never touches the dispatch layout invariant (canonical_order length 14,
+# version 3 — both unchanged by this patch).
+# ---------------------------------------------------------------------------
+
+ABSTRACTIVE_LOW_DENSITY_THRESHOLD: float = 0.30
+"""Density below this value is considered "low" (compress to ≤2 lines)."""
+
+ABSTRACTIVE_LOW_DENSITY_MAX_LINES: int = 2
+"""Output line cap for low-density sections."""
+
+ABSTRACTIVE_HIGH_DENSITY_MAX_LINES: int = 5
+"""Output line cap for high-density sections (named entities still preserved)."""
+
+_DENSITY_TOKEN_RE: re.Pattern[str] = re.compile(r"[A-Za-z0-9_./-]{2,}")
+
+
+def _compute_information_density(text: str) -> float:
+    """Return an information-density score in ``[0.0, 1.0]`` for ``text``.
+
+    Stage A heuristic (P-12, v8.0.0). The score blends two signals so
+    repetitive whitespace / filler text scores low and entity-rich code
+    or specification text scores high:
+
+    * **Unique-token ratio** (``α = 0.6``): ``len(unique_tokens) /
+      len(tokens)`` over the regex ``[A-Za-z0-9_./-]{2,}`` (tokens of
+      length ≥ 2; underscores, dots, slashes, hyphens kept so that
+      ``src/auth.py`` and ``foo_bar`` stay intact). Repeated tokens
+      collapse the ratio toward 0; all-distinct tokens push it to 1.
+    * **Entity-density signal** (``β = 0.4``): a normalised
+      ``min(1.0, entity_count / max(1, total_tokens / 20))`` so that a
+      section with at least one structured entity per ~20 tokens hits
+      the ceiling. Entities are pulled via :func:`extract_named_entities`
+      and count file paths, task IDs, version strings, commit hashes,
+      metric values, error messages, acceptance bullets, and interface
+      signatures (the same 8 classes used by the extractive path).
+
+    Edge cases (return ``0.0``):
+
+    * ``text`` is None, not a str, empty, or whitespace-only.
+    * ``text`` produces zero scoring tokens after the regex pass.
+
+    The score is bounded by construction: each component is in
+    ``[0.0, 1.0]`` and ``α + β = 1.0`` so the weighted sum stays in
+    ``[0.0, 1.0]``. Determinism: pure function of ``text`` — no I/O,
+    no time-dependence, no randomness; bytewise identical across
+    Python runs (CO-2 verbatim safety).
+    """
+    if not isinstance(text, str) or not text or not text.strip():
+        return 0.0
+
+    tokens = _DENSITY_TOKEN_RE.findall(text)
+    total = len(tokens)
+    if total == 0:
+        return 0.0
+
+    unique_ratio = len(set(t.lower() for t in tokens)) / total
+
+    entities = extract_named_entities(text)
+    entity_density = min(1.0, len(entities) / max(1.0, total / 20.0))
+
+    score = 0.6 * unique_ratio + 0.4 * entity_density
+    if score < 0.0:
+        return 0.0
+    if score > 1.0:
+        return 1.0
+    return score
+
+
+def _summarise_low_density_section(heading: str, body: str) -> str:
+    """Compress a low-density section to ``≤2`` lines (Stage A heuristic).
+
+    Used by :func:`_assemble_abstractive_summary` when
+    :func:`_compute_information_density` reports ``< 0.30``. The output
+    is at most :data:`ABSTRACTIVE_LOW_DENSITY_MAX_LINES` newline-joined
+    lines (``2`` by default). Strategy:
+
+    * Line 1 — the section heading (prefixed ``## ``) when present;
+      otherwise the first non-blank body line trimmed to ~120 chars.
+    * Line 2 — the first non-blank, non-heading body line trimmed to
+      ~120 chars (key-phrase extraction by truncation, not by NLP).
+
+    Empty body → returns the heading line alone (still ≤2 lines).
+    Empty heading AND empty body → returns the empty string ``""`` so
+    the orchestrator (:func:`_assemble_abstractive_summary`) skips it
+    via its ``if not chunk: continue`` guard. This is what triggers
+    the extractive fallback for fully-empty artifacts (P-12 AC: empty
+    body → mode falls back to extractive).
+    """
+    body_lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+    head = f"## {heading}".strip() if heading else ""
+    if not head and not body_lines:
+        return ""
+    if not body_lines:
+        return head
+    first = body_lines[0]
+    if len(first) > 120:
+        first = first[:117].rstrip() + "..."
+    if not head:
+        return first
+    return f"{head}\n{first}"
+
+
+def _summarise_high_density_section(
+    heading: str,
+    body: str,
+    section_entities: list[dict],
+) -> str:
+    """Preserve a high-density section in ``≤5`` lines while keeping entities.
+
+    Used by :func:`_assemble_abstractive_summary` when
+    :func:`_compute_information_density` reports ``≥ 0.30``. The output
+    is at most :data:`ABSTRACTIVE_HIGH_DENSITY_MAX_LINES` newline-joined
+    lines (``5`` by default). Strategy:
+
+    * Line 1 — ``## <heading>`` when present.
+    * Lines 2..N — the first ``N-1`` non-blank body lines verbatim
+      (CO-2 verbatim — no paraphrasing).
+    * If the verbatim slice would drop any entity ``value`` reported by
+      :func:`extract_named_entities` for THIS section, an additional
+      ``entities: [<comma-joined values>]`` line is appended (still
+      bounded by the 5-line cap so we may drop the LAST verbatim line
+      to make room — entity preservation always wins over verbatim
+      tail per AC #4 of P-12).
+
+    The 5-line cap is a soft upper bound: empty body → returns just the
+    heading (1 line); a 1-line body → returns 2 lines.
+    """
+    body_lines = [ln for ln in body.splitlines() if ln.strip()]
+    head = f"## {heading}".strip() if heading else ""
+
+    out: list[str] = []
+    if head:
+        out.append(head)
+    remaining_slots = ABSTRACTIVE_HIGH_DENSITY_MAX_LINES - len(out)
+    out.extend(body_lines[:remaining_slots])
+
+    entity_values = [e.get("value", "") for e in section_entities if e.get("value")]
+    if entity_values:
+        joined_out = "\n".join(out)
+        missing = [v for v in entity_values if v not in joined_out]
+        if missing:
+            entity_line = "entities: [" + ", ".join(missing) + "]"
+            if len(out) >= ABSTRACTIVE_HIGH_DENSITY_MAX_LINES:
+                out[-1] = entity_line
+            else:
+                out.append(entity_line)
+
+    if not out:
+        return ""
+    return "\n".join(out)
+
+
+def _assemble_abstractive_summary(
+    sections: list[tuple[str, str]],
+    full_text: str,
+    max_tokens: int,
+) -> tuple[str, list[str], list[str], bool]:
+    """Stage A orchestrator: density-routed section summariser.
+
+    Returns ``(summary_text, covered_headings, dropped_headings,
+    was_bounded)`` matching :func:`_assemble_summary_body`'s contract so
+    :func:`summarise_predecessor` can swap implementations cleanly.
+
+    Algorithm (per P-12 §3 patch plan):
+
+    1. Pre-extract all named entities from ``full_text`` once so each
+       section can look up its own entities in O(1) by source line.
+    2. For each section, compute :func:`_compute_information_density`
+       on the body text.
+    3. Low-density (``< 0.30``) → :func:`_summarise_low_density_section`
+       (≤2 lines).
+    4. High-density (``≥ 0.30``) → :func:`_summarise_high_density_section`
+       (≤5 lines, entities preserved).
+    5. Greedy-pack into ``max_tokens``; sections whose chunk wouldn't
+       fit go to ``dropped_headings`` (matches extractive semantics).
+    6. ``was_bounded=True`` iff the final output had to be hard-truncated
+       to honour ``max_tokens`` OR a section was elided due to budget.
+
+    Determinism: this orchestrator is a pure function of its inputs;
+    no I/O, no clock, no randomness — safe to call from CO-2 verbatim
+    callers.
+    """
+    all_entities = extract_named_entities(full_text)
+
+    line_to_section: dict[int, int] = {}
+    cursor = 1
+    for sec_idx, (heading, body) in enumerate(sections):
+        if heading:
+            cursor += 1
+        body_line_count = body.count("\n") + 1 if body else 0
+        for offset in range(body_line_count):
+            line_to_section[cursor + offset] = sec_idx
+        cursor += body_line_count + 1
+
+    covered: list[str] = []
+    dropped: list[str] = []
+    chunks: list[str] = []
+    remaining = max_tokens
+    marker_tokens = estimate_tokens(SUMMARY_TRUNCATION_MARKER)
+    was_bounded = False
+
+    for sec_idx, (heading, body) in enumerate(sections):
+        density = _compute_information_density(body)
+        section_entities = [
+            e for e in all_entities if line_to_section.get(e.get("source_line", -1)) == sec_idx
+        ]
+        if density < ABSTRACTIVE_LOW_DENSITY_THRESHOLD:
+            chunk = _summarise_low_density_section(heading, body)
+        else:
+            chunk = _summarise_high_density_section(heading, body, section_entities)
+        if not chunk:
+            continue
+        chunk_tokens = estimate_tokens(chunk)
+        if chunk_tokens <= remaining:
+            chunks.append(chunk)
+            covered.append(heading)
+            remaining -= chunk_tokens
+            continue
+        if remaining > marker_tokens + 5 and not was_bounded:
+            truncated, _ = _truncate_to_tokens(chunk, remaining)
+            chunks.append(truncated)
+            covered.append(heading)
+            was_bounded = True
+            remaining = 0
+        else:
+            dropped.append(heading)
+            was_bounded = True
+
+    summary_text = "\n\n".join(chunks)
+    if estimate_tokens(summary_text) > max_tokens:
+        summary_text, _ = _truncate_to_tokens(summary_text, max_tokens)
+        was_bounded = True
+
+    return summary_text, covered, dropped, was_bounded
+
+
 def summarise_predecessor(
     artifact_path: str,
     max_tokens: int = DEFAULT_SUMMARY_MAX_TOKENS,
@@ -1383,10 +1641,17 @@ def summarise_predecessor(
     ``key_facts:`` YAML prefix followed by the schema-hint-prioritised
     sections, hard-capped at ``max_tokens`` tokens.
 
-    Mode ``abstractive`` is a stub at v7.0.2 — it raises
-    :class:`NotImplementedError` until the LLM call is wired in v7.0.3+
-    (per ADR-003 §2.3, abstractive opts in via
-    ``context_profiles.yaml#summary_mode``).
+    v8.0.0 (P-12) — ``abstractive`` mode is now wired via the Stage A
+    heuristic path (:func:`_assemble_abstractive_summary`). It computes
+    :func:`_compute_information_density` per section, collapses
+    low-density sections (``< 0.30``) to ≤2-line key-phrase summaries,
+    and preserves high-density sections (``≥ 0.30``) in ≤5 lines while
+    keeping every named entity intact (AC #4). Returns the same 7-key
+    dict contract as extractive. The Stage A path falls back to
+    extractive when its output would be empty (defensive: matches the
+    extractive byte-stable behaviour for empty-body artifacts). Stage
+    B (LLM-assisted) opt-in remains out of scope for v8.0.0; see
+    ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md``.
 
     When ``retrieval_query`` is provided AND non-empty (after stopword strip
     via :func:`_tokenize_for_retrieval`) the section ranker switches from
@@ -1436,8 +1701,26 @@ def summarise_predecessor(
     text = path.read_text(encoding="utf-8")
     parser = _PARSER_BY_EXT.get(path.suffix.lower(), _parse_markdown_sections)
     sections = parser(text)
-    selected = _select_sections_for_summary(sections, schema_hint, retrieval_query, directive)
     entities = extract_named_entities(text)
+
+    if mode == "abstractive":
+        summary_text, covered, dropped, was_bounded = _assemble_abstractive_summary(
+            sections, text, max_tokens
+        )
+        if not summary_text.strip():
+            mode = "extractive"
+        else:
+            return {
+                "summary_text": summary_text,
+                "mode": mode,
+                "token_count": estimate_tokens(summary_text),
+                "extracted_entities": entities,
+                "covered_sections": covered,
+                "dropped_sections": dropped,
+                "was_bounded": was_bounded,
+            }
+
+    selected = _select_sections_for_summary(sections, schema_hint, retrieval_query, directive)
 
     fact_lines = ["key_facts:"]
     for entity in entities:

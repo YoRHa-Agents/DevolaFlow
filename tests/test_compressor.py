@@ -843,10 +843,12 @@ Considered passport.js — rejected.
         assert SUMMARY_TRUNCATION_MARKER in result["summary_text"]
         assert result["token_count"] <= 80
 
-    def test_summarise_abstractive_not_yet_wired_raises(self, design_artifact):
-        with pytest.raises(NotImplementedError) as exc_info:
-            summarise_predecessor(str(design_artifact), mode="abstractive")
-        assert "abstractive" in str(exc_info.value).lower()
+    def test_summarise_abstractive_returns_non_empty_dict(self, design_artifact):
+        """v8.0.0 (P-12) — abstractive Stage A is now wired; no NotImplementedError."""
+        result = summarise_predecessor(str(design_artifact), mode="abstractive")
+        assert result["mode"] == "abstractive"
+        assert isinstance(result["summary_text"], str)
+        assert result["summary_text"].strip(), "abstractive summary must be non-empty"
 
     def test_extract_entities_reuses_preserve_patterns(self):
         from devolaflow.compressor import _ENTITY_PATTERNS
@@ -2184,3 +2186,384 @@ class TestSelectorDirectiveBackwardCompat:
             buckets, registry, skill, 2400, False, directive=None
         )
         assert default == explicit
+
+
+# ---------------------------------------------------------------------------
+# v8.0.0 (P-12) — Abstractive summariser Stage A heuristic path tests.
+# AC reference: .local/research/v8.0.0_patch_plan.md §3 P-12.
+# ---------------------------------------------------------------------------
+
+
+class TestComputeInformationDensity:
+    """AC #2 — ``_compute_information_density`` returns float in ``[0.0, 1.0]``.
+
+    Probes the unique-token + entity-density blended formula used by the
+    Stage A router. All inputs MUST yield a score in the closed unit
+    interval; degenerate inputs (None, empty, whitespace) MUST collapse
+    cleanly to ``0.0`` instead of raising.
+    """
+
+    def test_density_empty_string_is_zero(self):
+        from devolaflow.compressor import _compute_information_density
+
+        assert _compute_information_density("") == 0.0
+
+    def test_density_none_input_is_zero(self):
+        from devolaflow.compressor import _compute_information_density
+
+        assert _compute_information_density(None) == 0.0  # type: ignore[arg-type]
+
+    def test_density_whitespace_only_is_zero(self):
+        from devolaflow.compressor import _compute_information_density
+
+        assert _compute_information_density("   \n  \t  \n") == 0.0
+
+    def test_density_non_string_returns_zero(self):
+        from devolaflow.compressor import _compute_information_density
+
+        assert _compute_information_density(123) == 0.0  # type: ignore[arg-type]
+        assert _compute_information_density(["foo"]) == 0.0  # type: ignore[arg-type]
+
+    def test_density_returns_float(self):
+        from devolaflow.compressor import _compute_information_density
+
+        result = _compute_information_density("the quick brown fox")
+        assert isinstance(result, float)
+
+    def test_density_is_within_unit_interval_for_repetitive(self):
+        from devolaflow.compressor import _compute_information_density
+
+        score = _compute_information_density("the the the the the the the the")
+        assert 0.0 <= score <= 1.0
+
+    def test_density_is_within_unit_interval_for_dense_code(self):
+        from devolaflow.compressor import _compute_information_density
+
+        score = _compute_information_density(
+            "src/auth.py validate_jwt() T07 v8.0.0 commit abc1234 cov 92%"
+        )
+        assert 0.0 <= score <= 1.0
+
+    def test_density_repetitive_below_low_threshold(self):
+        from devolaflow.compressor import (
+            ABSTRACTIVE_LOW_DENSITY_THRESHOLD,
+            _compute_information_density,
+        )
+
+        score = _compute_information_density("the " * 60)
+        assert score < ABSTRACTIVE_LOW_DENSITY_THRESHOLD, (
+            f"highly-repetitive 'the ... the' must score below low-density threshold; got {score}"
+        )
+
+    def test_density_dense_above_low_threshold(self):
+        from devolaflow.compressor import (
+            ABSTRACTIVE_LOW_DENSITY_THRESHOLD,
+            _compute_information_density,
+        )
+
+        text = (
+            "src/auth.py defines validate_jwt() with version 9.0.2.\n"
+            "Bumped src/middleware/handler.py at commit abc1234 for task T07.\n"
+        )
+        score = _compute_information_density(text)
+        assert score > ABSTRACTIVE_LOW_DENSITY_THRESHOLD, (
+            f"entity-rich text must exceed low-density threshold; got {score}"
+        )
+
+    def test_density_unique_only_text_high(self):
+        from devolaflow.compressor import _compute_information_density
+
+        score = _compute_information_density("alpha beta gamma delta epsilon zeta")
+        assert score >= 0.6, (
+            f"all-unique tokens (no repeats) should give unique_ratio=1.0 → "
+            f"score >= 0.6 from the alpha=0.6 weight; got {score}"
+        )
+
+    def test_density_deterministic_byte_identical(self):
+        from devolaflow.compressor import _compute_information_density
+
+        text = "src/auth.py validate_jwt() T07 v8.0.0 commit abc1234"
+        first = _compute_information_density(text)
+        second = _compute_information_density(text)
+        assert first == second, "density must be a pure deterministic function"
+
+
+class TestAbstractivePathStageA:
+    """AC #1 / #3 / #4 / #5 — abstractive Stage A end-to-end behaviour.
+
+    Validates that ``summarise_predecessor(..., mode='abstractive')``
+    no longer raises :class:`NotImplementedError` (AC #1), low-density
+    inputs collapse to ≤ 2 lines per section block (AC #3), high-density
+    inputs preserve named entities (AC #4), and the function still
+    returns the canonical 7-key dict contract (AC #5).
+    """
+
+    DENSE_DOC = (
+        "# Auth Middleware Refactor\n"
+        "\n"
+        "## Decision\n"
+        "\n"
+        "Use src/middleware/auth.py at version 9.0.2 — commit abc1234.\n"
+        "- MUST validate JWT on every protected route at task T07.\n"
+        "- SHOULD log failures with coverage 92% per acceptance ladder.\n"
+        "\n"
+        "```python\n"
+        "def validate_jwt(token: str) -> dict:\n"
+        "    pass\n"
+        "\n"
+        "class AuthError(Exception): ...\n"
+        "```\n"
+        "\n"
+        "## Files Touched\n"
+        "\n"
+        "Modified src/legacy/handler.py and src/middleware/auth.py.\n"
+    )
+
+    LOW_DOC = (
+        "# Filler Document\n"
+        "\n"
+        "## Boilerplate Section\n"
+        "\n" + ("the the the the the the the the the the the the the the the the\n" * 8) + "\n"
+        "## Another Filler\n"
+        "\n" + ("the the the the the the the the the the the the the the the the\n" * 8)
+    )
+
+    def _write(self, tmp_path, name: str, content: str):
+        path = tmp_path / name
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def test_abstractive_does_not_raise_not_implemented(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        try:
+            result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        except NotImplementedError as exc:
+            raise AssertionError(
+                f"abstractive Stage A must be wired in v8.0.0 P-12; got: {exc!r}"
+            ) from None
+        assert isinstance(result, dict)
+
+    def test_abstractive_returns_non_empty_summary(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert result["summary_text"].strip() != ""
+
+    def test_abstractive_returns_seven_key_contract(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert set(result.keys()) == {
+            "summary_text",
+            "mode",
+            "token_count",
+            "extracted_entities",
+            "covered_sections",
+            "dropped_sections",
+            "was_bounded",
+        }
+        assert result["mode"] == "abstractive"
+        assert isinstance(result["summary_text"], str)
+        assert isinstance(result["token_count"], int)
+
+    def test_abstractive_low_density_collapses_to_two_lines_per_section(self, tmp_path):
+        path = self._write(tmp_path, "low.md", self.LOW_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        for block in result["summary_text"].split("\n\n"):
+            non_blank = [ln for ln in block.splitlines() if ln.strip()]
+            assert len(non_blank) <= 2, (
+                f"low-density section block exceeded 2 non-blank lines: {non_blank!r}"
+            )
+
+    def test_abstractive_low_density_single_section_at_most_two_lines(self, tmp_path):
+        path = self._write(
+            tmp_path,
+            "single.md",
+            "the the the the the the the the the the the the the the the\n" * 5,
+        )
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        non_blank = [ln for ln in result["summary_text"].splitlines() if ln.strip()]
+        assert len(non_blank) <= 2, (
+            f"pure low-density single-section input must give ≤2 lines; got {non_blank!r}"
+        )
+
+    def test_abstractive_high_density_preserves_file_paths(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert "src/middleware/auth.py" in result["summary_text"]
+        assert "src/legacy/handler.py" in result["summary_text"]
+
+    def test_abstractive_high_density_preserves_version_string(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert "9.0.2" in result["summary_text"]
+
+    def test_abstractive_high_density_preserves_commit_hash(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert "abc1234" in result["summary_text"]
+
+    def test_abstractive_high_density_preserves_task_id(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert "T07" in result["summary_text"]
+
+    def test_abstractive_high_density_caps_section_at_five_lines(self, tmp_path):
+        text = (
+            "# Cap Test\n\n"
+            "## Wide Section\n\n"
+            "alpha is line one with src/foo.py.\n"
+            "beta is line two with src/bar.py at v1.2.3.\n"
+            "gamma is line three with src/baz.py.\n"
+            "delta is line four with task T11.\n"
+            "epsilon is line five with cov 88%.\n"
+            "zeta is line six and SHOULD be dropped.\n"
+            "eta is line seven and SHOULD be dropped.\n"
+        )
+        path = self._write(tmp_path, "wide.md", text)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        for block in result["summary_text"].split("\n\n"):
+            if block.startswith("## Wide Section"):
+                non_blank = [ln for ln in block.splitlines() if ln.strip()]
+                assert len(non_blank) <= 5, (
+                    f"high-density section block exceeded 5 non-blank lines: {non_blank!r}"
+                )
+
+    def test_abstractive_honours_max_tokens(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=80)
+        assert result["token_count"] <= 80
+
+    def test_abstractive_token_count_matches_estimator(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert estimate_tokens(result["summary_text"]) == result["token_count"]
+
+    def test_abstractive_extracted_entities_populated(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert len(result["extracted_entities"]) > 0
+        types = {e["type"] for e in result["extracted_entities"]}
+        assert "file_paths" in types
+        assert "version_strings" in types
+
+    def test_abstractive_was_bounded_when_truncated(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC * 4)
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=40)
+        assert result["was_bounded"] is True
+
+    def test_abstractive_falls_back_to_extractive_on_empty(self, tmp_path):
+        """AC: abstractive falls back to extractive when its output is empty."""
+        path = self._write(tmp_path, "blank.md", "")
+        result = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        assert result["mode"] == "extractive", (
+            "empty-body artifact MUST trigger fallback to extractive (defensive)"
+        )
+
+    def test_abstractive_extractive_coexist_no_state_leakage(self, tmp_path):
+        """Calling both modes on the same artifact MUST be idempotent."""
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        ext = summarise_predecessor(str(path), mode="extractive", max_tokens=500)
+        abs_ = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        ext2 = summarise_predecessor(str(path), mode="extractive", max_tokens=500)
+        assert ext["summary_text"] == ext2["summary_text"], "extractive must be deterministic"
+        assert ext["mode"] == "extractive"
+        assert abs_["mode"] == "abstractive"
+
+    def test_abstractive_unknown_mode_still_raises(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        with pytest.raises(ValueError):
+            summarise_predecessor(str(path), mode="generative", max_tokens=500)
+
+    def test_abstractive_zero_max_tokens_raises(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        with pytest.raises(ValueError):
+            summarise_predecessor(str(path), mode="abstractive", max_tokens=0)
+
+    def test_abstractive_negative_max_tokens_raises(self, tmp_path):
+        path = self._write(tmp_path, "dense.md", self.DENSE_DOC)
+        with pytest.raises(ValueError):
+            summarise_predecessor(str(path), mode="abstractive", max_tokens=-1)
+
+    def test_abstractive_missing_artifact_raises_file_not_found(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            summarise_predecessor(
+                str(tmp_path / "does-not-exist.md"), mode="abstractive", max_tokens=500
+            )
+
+
+class TestAbstractiveProfileWiring:
+    """v8.0.0 (P-12) — ``complex_feature`` opts INTO abstractive mode.
+
+    Lives as a TOP-LEVEL section in
+    ``workflow-system/agent/context_profiles.yaml`` (sibling to
+    ``meta:``/``sections:``/``profiles:``), NOT as a new profile —
+    keeping the profile count stable so the demo/index.html sync test
+    does not need updating and isolating the abstractive opt-in behind
+    a single named flag that v8.2.0 PV-01 (Stage B) can extend.
+    These tests guard the wiring so a future rename does not silently
+    disable Stage A on the long-context routes that depend on it (per
+    P-12 AC #6, EvoBench ``long_context_repo_qa`` ≥ +3pp lift).
+    """
+
+    @staticmethod
+    def _load_yaml() -> dict:
+        from pathlib import Path
+
+        path = (
+            Path(__file__).resolve().parent.parent
+            / "workflow-system"
+            / "agent"
+            / "context_profiles.yaml"
+        )
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    def test_complex_feature_section_exists(self):
+        cfg = self._load_yaml()
+        assert "complex_feature" in cfg, (
+            "P-12 requires the ``complex_feature`` top-level section in context_profiles.yaml"
+        )
+
+    def test_complex_feature_summary_mode_is_abstractive(self):
+        cfg = self._load_yaml()
+        section = cfg["complex_feature"]
+        assert section["summary_mode"] == "abstractive", (
+            f"complex_feature.summary_mode must be 'abstractive' (P-12); "
+            f"got {section.get('summary_mode')!r}"
+        )
+
+    def test_complex_feature_section_carries_threshold(self):
+        cfg = self._load_yaml()
+        section = cfg["complex_feature"]
+        assert section["low_density_threshold"] == 0.30, (
+            "P-12 default low-density threshold is 0.30; "
+            "the YAML knob must agree with ABSTRACTIVE_LOW_DENSITY_THRESHOLD"
+        )
+
+    def test_complex_feature_section_carries_line_caps(self):
+        from devolaflow.compressor import (
+            ABSTRACTIVE_HIGH_DENSITY_MAX_LINES,
+            ABSTRACTIVE_LOW_DENSITY_MAX_LINES,
+        )
+
+        cfg = self._load_yaml()
+        section = cfg["complex_feature"]
+        assert section["low_density_max_lines"] == ABSTRACTIVE_LOW_DENSITY_MAX_LINES
+        assert section["high_density_max_lines"] == ABSTRACTIVE_HIGH_DENSITY_MAX_LINES
+
+    def test_complex_feature_fallback_is_extractive(self):
+        cfg = self._load_yaml()
+        section = cfg["complex_feature"]
+        assert section["fallback_mode"] == "extractive", (
+            "Stage A MUST fall back to extractive on empty output (defensive)"
+        )
+
+    def test_other_profiles_still_extractive(self):
+        """Default extractive mode preserved for non-opt-in profiles (AC #5)."""
+        from devolaflow.task_adaptive_selector import load_profiles
+
+        profiles = load_profiles()["profiles"]
+        for name in ("hotfix", "feature", "research", "refactor", "review"):
+            assert name in profiles, name
+            mode = profiles[name].get("summary", {}).get("mode", "extractive")
+            assert mode == "extractive", (
+                f"{name}.summary.mode must remain 'extractive' to preserve v7.x bytewise behaviour"
+            )
