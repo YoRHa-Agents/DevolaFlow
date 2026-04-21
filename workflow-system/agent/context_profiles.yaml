@@ -1682,3 +1682,37 @@ profiles:
       gates. Convergence loops are skipped — GC runs once and exits.
       Higher learnings budget helps reuse prior retention decisions without
       re-litigating them each cycle.
+
+# v8.0.0 (P-12) — Complex-feature opt-in for the new abstractive
+# summariser path (Stage A heuristic in
+# ``src/devolaflow/compressor.py::summarise_predecessor`` with
+# ``mode='abstractive'``). Density-routed compression (low-density
+# sections collapsed to ≤2 lines, high-density preserved up to 5 with
+# named entities intact) frees ~30-50 % of the predecessor budget on
+# long-context complex-feature artifacts (50k+ token repos), targeting
+# the EvoBench ``long_context_repo_qa`` ≥ +3pp lift per P-12 AC #6.
+#
+# This is a TOP-LEVEL section (sibling to ``meta:``/``sections:``/
+# ``profiles:``), NOT a new profile. That keeps the profile count
+# stable so the demo/index.html sync test does not need updating, and
+# it isolates the abstractive opt-in behind a single named flag that
+# v8.2.0 PV-01 (Stage B) can extend without re-shaping the YAML tree.
+#
+# Stage B (LLM-assisted) opt-in is OUT OF SCOPE for v8.0.0 — see
+# ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md``.
+complex_feature:
+  summary_mode: abstractive
+  max_tokens: 1200
+  low_density_threshold: 0.30
+  low_density_max_lines: 2
+  high_density_max_lines: 5
+  fallback_mode: extractive
+  rationale: >
+    Complex feature work routinely consumes long-context predecessor
+    artifacts (multi-file design docs, accumulated round-N convergence
+    reports, 50k+ token repo digests). The abstractive summariser
+    (P-12 Stage A) measures information density per section and
+    collapses low-density sections to ≤2 lines while preserving
+    high-density sections (named entities intact, ≤5 lines), freeing
+    budget for additional predecessor sections. Falls back to
+    extractive when Stage A output would be empty.

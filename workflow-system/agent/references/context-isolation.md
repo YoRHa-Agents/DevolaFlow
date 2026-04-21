@@ -531,3 +531,29 @@ primitive does NOT require a version rollback — only the coupled bundle
 (SKILL.md + context profiles + compressor) needs a coordinated revert,
 which the `scripts/bump_version.py` harness and SI-5 coupling already
 gate.
+
+## 15. Abstractive summariser Stage A (P-12, v8.0.0)
+
+`summarise_predecessor(..., mode='abstractive')` is now wired via a
+deterministic Stage A heuristic (no LLM). It complements the extractive
+default by routing each parsed section through `_compute_information_density`
+(unique-token ratio × 0.6 + entity-density signal × 0.4, both bounded to
+`[0.0, 1.0]`) and switching to a denser representation when the body is
+dilute:
+
+* **Low-density sections** (`< 0.30`) collapse to ≤ 2 lines via
+  `_summarise_low_density_section` — heading + first key phrase.
+* **High-density sections** (`≥ 0.30`) preserve up to 5 lines via
+  `_summarise_high_density_section`; if the verbatim slice would drop
+  any named entity reported by `extract_named_entities`, an
+  `entities: [...]` line is appended (entity preservation always wins
+  over verbatim tail per AC #4 of the P-12 patch plan).
+* **Empty input** falls back to the extractive path (defensive — keeps
+  the v7.x byte-stable behaviour for blank artifacts).
+
+Opt-in via `context_profiles.yaml#complex_feature.summary_mode`
+= `abstractive` (top-level section, sibling to `meta:`/`sections:`/
+`profiles:`, NOT a new profile — keeps profile count stable). All
+existing profiles remain `extractive` (CO-2 verbatim). Stage B
+(LLM-assisted, v8.2.0 PV-01) design lives in
+`.local/research/v8.0.0_p12_abstractive_stage_b_design.md`.
