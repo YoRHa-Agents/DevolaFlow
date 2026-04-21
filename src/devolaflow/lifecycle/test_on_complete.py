@@ -146,16 +146,58 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
     return violations
 
 
+def _try_consolidate_learnings(payload: dict[str, Any]) -> None:
+    """Best-effort persist learnings from a successful task completion."""
+    try:
+        from devolaflow.learnings import (
+            Learning,
+            consolidate_session,
+            resolve_learnings_path,
+        )
+
+        learnings_entries = payload.get("learnings", {}).get("entries", [])
+        if not learnings_entries:
+            return
+
+        session_id = payload.get("task_id", "unknown")
+        jsonl_path = resolve_learnings_path()
+        jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+
+        session_learnings = []
+        for entry in learnings_entries:
+            if isinstance(entry, dict) and "insight" in entry:
+                session_learnings.append(
+                    Learning(
+                        stage=entry.get("stage", "task"),
+                        task_type=entry.get("task_type", "general"),
+                        key=entry.get("key", f"{session_id}:{entry.get('insight', '')[:30]}"),
+                        insight=entry["insight"],
+                        confidence=float(entry.get("confidence", 0.7)),
+                        source_task_id=session_id,
+                        files=entry.get("files", []),
+                        source=entry.get("source", "task_completion"),
+                    )
+                )
+
+        if session_learnings:
+            consolidate_session(session_id, session_learnings, jsonl_path)
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).debug("Session consolidation skipped", exc_info=True)
+
+
 def test_on_complete(payload: dict[str, Any], *, strict: bool = False) -> HookResult:
     """Verify a status report shows tests-pass + lint-clean.
 
-    Permissive default emits WARNINGs and returns a populated
-    :class:`HookResult`. Strict mode raises the top-severity
-    :class:`HookViolation` so the calling wave-retry classifier can
-    route the task back into a convergence round per P4.
+    On a clean pass (no violations), also persists any learnings entries
+    from the payload via :func:`consolidate_session`.
     """
     violations = _collect_violations(payload)
-    return finalize(EVENT, violations, strict=strict)
+    result = finalize(EVENT, violations, strict=strict)
+    if result.passed:
+        _try_consolidate_learnings(payload)
+    return result
 
 
 # Tell pytest this is NOT a test function — it's a lifecycle hook that

@@ -63,9 +63,18 @@ stages:
   - id: interview
     primitive: analyze
     alias: interactive-interview
-    description: "(placeholder for v7.7) Interactive interview stage for gathering project-specific preferences and constraints; SKIPPED unless mode=full"
+    description: >
+      8-phase interactive interview (mode=full only): P1 ask intent
+      (mode + skills/hooks toggle), P2 explore codebase (reuse analyze
+      findings), P3 fill gaps (team conventions, branch strategy, prefs),
+      P4 generate .rules/ source rules, P5 write .local/memory/prefs.md,
+      P6 suggest and create skills (.claude/skills/ .cursor/skills/),
+      P7 detect formatters and configure hooks, P8 summary + next steps.
+      Uses init_interview.py for detection and generation logic.
     team: research
     duration_class: medium
+    config:
+      phases: [ask_intent, explore, fill_gaps, gen_rules, gen_prefs, gen_skills, gen_hooks, summary]
     skip_condition: "mode != 'full'"
 
   - id: verify
