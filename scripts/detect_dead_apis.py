@@ -83,6 +83,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # even when an in-repo caller exists, so a future refactor that
         # drops the caller does not silently break the public contract.
         "devolaflow.gate.scorer:evaluate_gate",
+        # v8.0.0 P-05 verification ladder — opt-in entry point exposed via
+        # devolaflow.gate.__all__ for external L0/L1/L2 dispatchers that
+        # want to short-circuit the 6-rung R1..R6 ladder. Activated when
+        # ``profile.ladder_enabled=True`` (STRICT/AUDIT default); when
+        # False the function delegates to evaluate_gate() byte-identically
+        # (patch_plan §3 P-05 AC #3). Not yet wired into evaluate_gate
+        # itself — orchestrator opt-in only at v8.0.0 cut.
+        "devolaflow.gate.scorer:evaluate_ladder",
         "devolaflow.gate.reinforcement:findings_to_reinforcement",
         "devolaflow.gate.reinforcement:merge_reinforcement_into_dispatch",
         "devolaflow.gate.reinforcement:reinforcement_to_dict",
