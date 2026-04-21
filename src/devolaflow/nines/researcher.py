@@ -421,6 +421,68 @@ def run_self_improve_loop(
 # ---------------------------------------------------------------------------
 
 
+def _load_reference_deps(deps_path: str) -> dict | None:
+    """Load and parse a reference-dependencies YAML file.
+
+    Returns ``None`` (and logs a WARNING) when PyYAML is missing, when the
+    file is absent, or when the file is empty/parses to a falsy value.
+    """
+    from pathlib import Path
+
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        logger.warning("PyYAML not installed — cannot refresh reference dependency")
+        return None
+
+    path = Path(deps_path)
+    if not path.exists():
+        logger.warning("reference-dependencies.yaml not found at %s", deps_path)
+        return None
+
+    data = yaml.safe_load(path.read_text())
+    if not data:
+        return None
+    return data
+
+
+def _apply_dep_updates(
+    entry: dict,
+    new_version: str | None,
+    new_patterns: list[str] | None,
+) -> None:
+    """Mutate *entry* in place with the supplied version / patterns / timestamp.
+
+    ``new_version`` overwrites ``last_known_version`` when not None.
+    ``new_patterns`` extends (does not replace) ``key_patterns``, skipping
+    duplicates. ``last_checked`` is always refreshed to today's UTC date.
+    """
+    if new_version is not None:
+        entry["last_known_version"] = new_version
+    if new_patterns:
+        existing = entry.get("key_patterns", [])
+        for pat in new_patterns:
+            if pat not in existing:
+                existing.append(pat)
+        entry["key_patterns"] = existing
+    entry["last_checked"] = datetime.now(UTC).strftime("%Y-%m-%d")
+
+
+def _persist_reference_deps(deps_path: str, data: dict) -> None:
+    """Serialise *data* back to *deps_path* using the canonical YAML style."""
+    from pathlib import Path
+
+    import yaml  # type: ignore[import-untyped]
+
+    yaml_text = yaml.dump(
+        data,
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    Path(deps_path).write_text(yaml_text)
+
+
 def refresh_reference_dependency(
     dep_id: str,
     deps_path: str,
@@ -444,45 +506,19 @@ def refresh_reference_dependency(
     new_patterns:
         If given, **extends** (not replaces) the ``key_patterns`` list.
     """
-    from pathlib import Path
-
-    try:
-        import yaml  # type: ignore[import-untyped]
-    except ImportError:
-        logger.warning("PyYAML not installed — cannot refresh reference dependency")
-        return False
-
-    path = Path(deps_path)
-    if not path.exists():
-        logger.warning("reference-dependencies.yaml not found at %s", deps_path)
-        return False
-
-    data = yaml.safe_load(path.read_text())
-    if not data:
+    data = _load_reference_deps(deps_path)
+    if data is None:
         return False
 
     for section_key in ("active_tracking", "periodic_monitoring"):
         entries = data.get(section_key) or []
         for entry in entries:
-            if entry.get("id") == dep_id:
-                if new_version is not None:
-                    entry["last_known_version"] = new_version
-                if new_patterns:
-                    existing = entry.get("key_patterns", [])
-                    for pat in new_patterns:
-                        if pat not in existing:
-                            existing.append(pat)
-                    entry["key_patterns"] = existing
-                entry["last_checked"] = datetime.now(UTC).strftime("%Y-%m-%d")
-                yaml_text = yaml.dump(
-                    data,
-                    default_flow_style=False,
-                    sort_keys=False,
-                    allow_unicode=True,
-                )
-                path.write_text(yaml_text)
-                logger.info("Updated reference dependency: %s", dep_id)
-                return True
+            if entry.get("id") != dep_id:
+                continue
+            _apply_dep_updates(entry, new_version, new_patterns)
+            _persist_reference_deps(deps_path, data)
+            logger.info("Updated reference dependency: %s", dep_id)
+            return True
 
     logger.warning("Dependency %s not found in %s", dep_id, deps_path)
     return False

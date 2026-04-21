@@ -122,66 +122,96 @@ class DataDrivenAdapter(BaseAdapter):
         spec: dict[str, Any] | None = None,
     ) -> None:
         spec = spec or {}
-        if transform == "copy":
-            shutil.copy2(src, dst)
-        elif transform == "copy_tree":
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
-        elif transform == "copy_with_frontmatter":
-            content = src.read_text()
-            inject = (self.config.get("frontmatter") or {}).get("inject", {}) or {}
-            content = self._inject_frontmatter(content, inject)
-            dst.write_text(content)
-        elif transform == "strip_frontmatter":
-            content = src.read_text()
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    content = parts[2].lstrip("\n")
-            dst.write_text(content)
-        elif transform == "keep_sections":
-            content = src.read_text()
-            frontmatter = ""
-            body = content
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    frontmatter = f"---{parts[1]}---\n"
-                    body = parts[2].lstrip("\n")
-            sections = self._split_by_heading(body)
-            keep = list(spec.get("keep_sections", []) or [])
-            prefix = spec.get("header_prefix", "") or ""
-            selected = [s for s in sections if s.level > 0 and any(k in s.heading for k in keep)]
-            out_parts: list[str] = []
-            if spec.get("include_frontmatter") and frontmatter:
-                out_parts.append(frontmatter.rstrip("\n"))
-            if prefix:
-                out_parts.append(prefix.rstrip("\n"))
-            for sec in selected:
-                out_parts.append(sec.text.rstrip("\n"))
-            output = "\n\n".join(out_parts).rstrip()
-            if output:
-                output += "\n"
-            dst.write_text(output)
-        else:
+        handler = self._TRANSFORM_HANDLERS.get(transform)
+        if handler is None:
             raise ValueError(f"Unknown transform: {transform!r}")
+        handler(self, src, dst, spec)
+
+    def _xform_copy(self, src: Path, dst: Path, spec: dict[str, Any]) -> None:
+        shutil.copy2(src, dst)
+
+    def _xform_copy_tree(self, src: Path, dst: Path, spec: dict[str, Any]) -> None:
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+
+    def _xform_copy_with_frontmatter(self, src: Path, dst: Path, spec: dict[str, Any]) -> None:
+        content = src.read_text()
+        inject = (self.config.get("frontmatter") or {}).get("inject", {}) or {}
+        content = self._inject_frontmatter(content, inject)
+        dst.write_text(content)
+
+    def _xform_strip_frontmatter(self, src: Path, dst: Path, spec: dict[str, Any]) -> None:
+        content = src.read_text()
+        _, body = self._split_frontmatter(content)
+        dst.write_text(body)
+
+    def _xform_keep_sections(self, src: Path, dst: Path, spec: dict[str, Any]) -> None:
+        content = src.read_text()
+        frontmatter, body = self._split_frontmatter(content)
+        sections = self._split_by_heading(body)
+        keep = list(spec.get("keep_sections", []) or [])
+        selected = self._filter_sections_by_keep(sections, keep)
+        output = self._assemble_keep_sections_output(
+            selected,
+            frontmatter,
+            prefix=spec.get("header_prefix", "") or "",
+            include_frontmatter=bool(spec.get("include_frontmatter")),
+        )
+        dst.write_text(output)
 
     @staticmethod
-    def _split_by_heading(text: str) -> list[_Section]:
-        """Split ``text`` into sections by ATX markdown headings.
+    def _filter_sections_by_keep(sections: list[_Section], keep: list[str]) -> list[_Section]:
+        """Return non-preamble sections whose heading contains any keep token."""
+        return [s for s in sections if s.level > 0 and any(k in s.heading for k in keep)]
 
-        Fenced code blocks (``` or ~~~) are respected: heading-looking lines
-        inside a fence are treated as content, not section boundaries. Each
-        returned section's ``text`` spans from the heading line (inclusive)
-        through the next heading of equal-or-higher level (exclusive) — so
-        an H2 section naturally contains its H3/H4 children.
+    @staticmethod
+    def _assemble_keep_sections_output(
+        selected: list[_Section],
+        frontmatter: str,
+        *,
+        prefix: str,
+        include_frontmatter: bool,
+    ) -> str:
+        """Join selected sections with optional frontmatter and prefix block."""
+        out_parts: list[str] = []
+        if include_frontmatter and frontmatter:
+            out_parts.append(frontmatter.rstrip("\n"))
+        if prefix:
+            out_parts.append(prefix.rstrip("\n"))
+        for sec in selected:
+            out_parts.append(sec.text.rstrip("\n"))
+        output = "\n\n".join(out_parts).rstrip()
+        if output:
+            output += "\n"
+        return output
 
-        The first element, when present, is always the preamble (``level=0``)
-        containing everything before the first heading. The preamble is
-        omitted when the document starts with a heading or is empty.
+    @staticmethod
+    def _split_frontmatter(content: str) -> tuple[str, str]:
+        """Split a markdown document into (frontmatter, body).
+
+        Returns ``("", content)`` when no leading ``---`` frontmatter is
+        present. When a frontmatter block is found, the first element is
+        formatted as ``"---<yaml>---\\n"`` (matching the legacy
+        ``keep_sections`` output) and the body is the post-frontmatter
+        text with one leading blank line stripped.
         """
-        lines = text.splitlines()
+        if not content.startswith("---"):
+            return "", content
+        parts = content.split("---", 2)
+        if len(parts) < 3:
+            return "", content
+        return f"---{parts[1]}---\n", parts[2].lstrip("\n")
+
+    @staticmethod
+    def _find_atx_headings(lines: list[str]) -> list[tuple[int, int, str]]:
+        """Scan *lines* and return ATX headings outside fenced code blocks.
+
+        Each entry is ``(line_index, heading_level, heading_text)``.
+        Fenced code blocks opened by ``\u0060\u0060\u0060`` or ``~~~`` are
+        respected: heading-looking lines within a fence are treated as
+        content. A fence is closed by the same marker that opened it.
+        """
         heads: list[tuple[int, int, str]] = []
         in_fence = False
         fence_marker = ""
@@ -201,7 +231,15 @@ class DataDrivenAdapter(BaseAdapter):
             m = _HEADING_RE.match(line)
             if m:
                 heads.append((i, len(m.group(1)), m.group(2).strip()))
+        return heads
 
+    @staticmethod
+    def _build_sections_from_headings(
+        text: str,
+        lines: list[str],
+        heads: list[tuple[int, int, str]],
+    ) -> list[_Section]:
+        """Assemble :class:`_Section` entries from line indices and heading meta."""
         sections: list[_Section] = []
         if not heads:
             if text.strip():
@@ -223,6 +261,24 @@ class DataDrivenAdapter(BaseAdapter):
             body = "\n".join(lines[start:end]).rstrip("\n")
             sections.append(_Section(heading=heading, level=level, text=body))
         return sections
+
+    @staticmethod
+    def _split_by_heading(text: str) -> list[_Section]:
+        """Split ``text`` into sections by ATX markdown headings.
+
+        Fenced code blocks (``` or ~~~) are respected: heading-looking lines
+        inside a fence are treated as content, not section boundaries. Each
+        returned section's ``text`` spans from the heading line (inclusive)
+        through the next heading of equal-or-higher level (exclusive) — so
+        an H2 section naturally contains its H3/H4 children.
+
+        The first element, when present, is always the preamble (``level=0``)
+        containing everything before the first heading. The preamble is
+        omitted when the document starts with a heading or is empty.
+        """
+        lines = text.splitlines()
+        heads = DataDrivenAdapter._find_atx_headings(lines)
+        return DataDrivenAdapter._build_sections_from_headings(text, lines, heads)
 
     @staticmethod
     def _inject_frontmatter(content: str, injections: dict[str, Any]) -> str:
@@ -254,6 +310,14 @@ class DataDrivenAdapter(BaseAdapter):
         actual = len(text.splitlines()) if btype == "lines" else len(text)
         ok = actual <= max_val if max_val > 0 else True
         return ok, f"{target_file}: {actual}/{max_val} {btype}"
+
+    _TRANSFORM_HANDLERS: dict[str, Any] = {
+        "copy": _xform_copy,
+        "copy_tree": _xform_copy_tree,
+        "copy_with_frontmatter": _xform_copy_with_frontmatter,
+        "strip_frontmatter": _xform_strip_frontmatter,
+        "keep_sections": _xform_keep_sections,
+    }
 
 
 def load_data_driven_adapters(
