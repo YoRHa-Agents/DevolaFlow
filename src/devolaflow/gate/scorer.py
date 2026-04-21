@@ -30,8 +30,15 @@ from devolaflow.gate.models import (
     GateInput,
     GateProfile,
     GateVerdict,
+    Severity,
 )
 from devolaflow.gate.profiles import PROFILES, STANDARD
+from devolaflow.gate.reinforcement import (
+    MAX_REINFORCEMENT_RULES,
+    ReinforcementBlock,
+    ReinforcementRule,
+    fence_to_instruction,
+)
 
 SEVERITY_WEIGHTS: dict[str, int] = {
     "blocker": 25,
@@ -421,6 +428,133 @@ def _resolve_breaker_decision(
     if cumulative_tokens is None:
         return breaker.check_recorded()
     return breaker.check(cumulative_tokens)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-04) — Deterministic Fence Expansion integration
+#
+# ``_evaluate_checks`` inspects the fence-style check results in a
+# :class:`GateInput` (build / test / lint, plus optional caller-supplied
+# extras like ``format`` / ``typecheck``) and converts each ``status='fail'``
+# into a deterministic :class:`ReinforcementRule` via
+# :func:`devolaflow.gate.reinforcement.fence_to_instruction`. The helper
+# returns ``None`` whenever no checks are declared OR all declared checks
+# pass, preserving byte-identical pre-P-04 behaviour for callers that do
+# not opt in (per ``patch_plan §3 P-04``).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# Built-in fence checks pulled from :class:`GateInput`. The order is
+# semantic — build failures gate everything else, so they win the first
+# rule slot when MAX_REINFORCEMENT_RULES truncation kicks in.
+_BUILTIN_FENCE_ATTRS: tuple[tuple[str, str], ...] = (
+    ("build", "build_status"),
+    ("test", "test_results"),
+    ("lint", "lint_status"),
+)
+
+
+def _payload_from_check(check: CheckResult, file_hint: str = "") -> dict[str, str]:
+    """Render a fence payload from a failing :class:`CheckResult`.
+
+    Looks for the conventional ``file`` / ``line`` / ``msg`` keys in
+    ``check.details``, falling back to ``message`` then a short status
+    summary so every fence rule has a non-empty mandate (S-5 — never
+    silently emit an empty MUST-fix). The optional ``file_hint`` lets
+    callers seed a default file path when the check itself doesn't
+    carry one (e.g. global lint runs).
+    """
+    details = check.details or {}
+    file_value = str(details.get("file") or file_hint or "")
+    line_value = "" if details.get("line") is None else str(details.get("line"))
+    msg_value = str(
+        details.get("msg")
+        or details.get("message")
+        or details.get("error")
+        or f"check status={check.status}"
+    )
+    return {"file": file_value, "line": line_value, "msg": msg_value}
+
+
+def _collect_fence_failures(
+    gate_input: GateInput,
+    extra_checks: dict[str, CheckResult] | None,
+) -> list[tuple[str, dict[str, str]]]:
+    """Gather ``(fence_type, payload)`` pairs for every failing check.
+
+    Built-in checks (build / test / lint) are inspected first, then any
+    caller-supplied extras (e.g. ``format`` / ``typecheck``). Order is
+    deterministic so the resulting :class:`ReinforcementRule` ids are
+    stable across runs.
+    """
+    failures: list[tuple[str, dict[str, str]]] = []
+    for fence_type, attr in _BUILTIN_FENCE_ATTRS:
+        check = getattr(gate_input, attr)
+        if check.status == "fail":
+            failures.append((fence_type, _payload_from_check(check)))
+    if extra_checks:
+        for fence_type, check in extra_checks.items():
+            if check.status == "fail":
+                failures.append((fence_type, _payload_from_check(check)))
+    return failures
+
+
+def _evaluate_checks(
+    gate_input: GateInput,
+    *,
+    round_num: int = 2,
+    prior_score: float = 0.0,
+    target_score: float = 85.0,
+    severity_floor: Severity = "major",
+    extra_checks: dict[str, CheckResult] | None = None,
+    max_tokens_per_rule: int = 200,
+) -> ReinforcementBlock | None:
+    """Convert failing fence checks into a :class:`ReinforcementBlock`.
+
+    Inspects ``gate_input.build_status`` / ``test_results`` / ``lint_status``
+    plus any caller-supplied ``extra_checks`` mapping (e.g.
+    ``{"format": CheckResult(...), "typecheck": CheckResult(...)}``).
+    Each ``status == 'fail'`` entry becomes a deterministic
+    ``F-{fence_type}-{seq:03d}`` rule via
+    :func:`devolaflow.gate.reinforcement.fence_to_instruction`.
+
+    Returns ``None`` when no failures are detected (byte-identical
+    pre-P-04 behaviour per ``patch_plan §3 P-04``). The rule list is
+    capped at :data:`MAX_REINFORCEMENT_RULES` to honour W-8 / SI-9
+    (≤ 5 reinforcement rules per round).
+    """
+    failures = _collect_fence_failures(gate_input, extra_checks)
+    if not failures:
+        return None
+
+    rules: list[ReinforcementRule] = []
+    type_counters: dict[str, int] = {}
+    for fence_type, payload in failures[:MAX_REINFORCEMENT_RULES]:
+        type_counters[fence_type] = type_counters.get(fence_type, 0) + 1
+        rules.append(
+            fence_to_instruction(
+                fence_type,
+                payload,
+                sequence=type_counters[fence_type],
+                max_tokens=max_tokens_per_rule,
+            )
+        )
+
+    failure_types = [t for t, _ in failures]
+    escalation = (
+        f"Round {round_num - 1} fence checks failed: {failure_types}. "
+        f"{len(rules)} fence-derived rule(s) injected for round {round_num} "
+        f"(target_score={target_score:.1f})."
+    )
+
+    return ReinforcementBlock(
+        round=round_num,
+        prior_score=prior_score,
+        target_score=target_score,
+        severity_floor=severity_floor,
+        rules=tuple(rules),
+        escalation_note=escalation,
+    )
 
 
 def evaluate_gate(

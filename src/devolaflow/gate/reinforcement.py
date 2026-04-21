@@ -3,6 +3,13 @@
 Converts gate findings into reinforcement rules for the next convergence
 round's dispatch, enabling L3 Task Agents to receive explicit mandates
 about what MUST be fixed.  Zero file I/O, platform-agnostic (Approach B).
+
+v8.0.0 (P-04) — adds deterministic fence expansion via
+:func:`fence_to_instruction`, mapping a single fence-check failure
+(``lint``/``format``/``typecheck``/``test``/``build``) to a
+:class:`ReinforcementRule` whose ``id`` is deterministic given a
+``(fence_type, sequence)`` pair (e.g. ``F-lint-001``). See
+``.local/research/v8.0.0_patch_plan.md §3 P-04``.
 """
 
 from __future__ import annotations
@@ -21,6 +28,32 @@ SEVERITY_ORDER: dict[str, int] = {
 }
 
 MAX_REINFORCEMENT_RULES = 5
+
+# v8.0.0 (P-04) — deterministic fence-to-instruction expansion.
+#
+# Supported fence types and their default severities. Lint / format are
+# styled as ``major``; build / test / typecheck escalate to ``critical``
+# because a broken build, failing test, or type error blocks downstream
+# work entirely (Karpathy "strong success criteria" — verbatim oracle
+# signals get higher severity than style nitpicks).
+FENCE_DEFAULT_SEVERITY: dict[str, Severity] = {
+    "lint": "major",
+    "format": "major",
+    "typecheck": "critical",
+    "test": "critical",
+    "build": "critical",
+}
+
+# Approximate chars-per-token used to honour ``fence_to_instruction``'s
+# ``max_tokens`` budget without pulling in a tokenizer dependency. The
+# 4 chars/token heuristic is the cl100k-base ballpark and is the same
+# approximation used by ``schemas/lean-dispatch.yaml`` budget docs.
+_CHARS_PER_TOKEN: int = 4
+
+# The fence-derived rule id format. Stable across calls so the same
+# ``(fence_type, sequence)`` pair always renders the same id (see
+# ``patch_plan §3 P-04 AC #1``).
+_FENCE_RULE_ID_FORMAT: str = "F-{fence_type}-{sequence:03d}"
 
 
 @dataclass(frozen=True)
@@ -123,3 +156,137 @@ def merge_reinforcement_into_dispatch(
     rules = context.setdefault("applicable_rules", {})
     rules["reinforcement"] = reinforcement_to_dict(reinforcement)
     return dispatch
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-04) — Deterministic Fence Expansion
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _truncate_to_token_budget(text: str, max_tokens: int) -> str:
+    """Truncate ``text`` to roughly ``max_tokens`` tokens.
+
+    Uses a 4-chars-per-token approximation to avoid a tokenizer dependency.
+    When truncation is necessary, an ellipsis (``…``) replaces the trailing
+    character so callers can detect the cut without a separate flag.
+    Returns ``text`` unchanged when ``max_tokens <= 0`` (treat as unlimited)
+    or when the budget is already met.
+    """
+    if max_tokens <= 0:
+        return text
+    char_budget = max_tokens * _CHARS_PER_TOKEN
+    if len(text) <= char_budget:
+        return text
+    return text[: char_budget - 1] + "…"
+
+
+def _coerce_fence_payload(fence_payload: object) -> dict[str, str]:
+    """Normalise a fence payload into a flat ``{file, line, msg}`` mapping.
+
+    Accepts either a plain string (treated as the ``msg`` field with no
+    ``file``/``line``) or a mapping. Other types raise ``TypeError`` per
+    S-5 (No Silent Failures). Missing keys default to empty strings so
+    downstream rendering never crashes on partial payloads.
+    """
+    if isinstance(fence_payload, str):
+        return {"file": "", "line": "", "msg": fence_payload}
+    if isinstance(fence_payload, dict):
+        return {
+            "file": str(fence_payload.get("file", "")),
+            "line": str(fence_payload.get("line", "")),
+            "msg": str(fence_payload.get("msg", "")),
+        }
+    raise TypeError(
+        f"fence_payload must be a str or dict (got {type(fence_payload).__name__}); "
+        "expected keys: file, line, msg"
+    )
+
+
+def _format_fence_mandate(fence_type: str, payload: dict[str, str]) -> str:
+    """Render the MUST-fix mandate string for a fence finding.
+
+    Format mirrors ``patch_plan §3 P-04 AC #1`` — e.g.
+    ``MUST fix lint error at src/foo.py:42: E501 line too long (123 > 79)``.
+    Empty ``file``/``line`` segments are skipped so the mandate stays
+    readable for fence types that lack location info (e.g. a global
+    typecheck failure).
+    """
+    file_part = payload.get("file", "")
+    line_part = payload.get("line", "")
+    msg_part = payload.get("msg", "") or "(no details provided)"
+
+    if file_part and line_part:
+        location = f" at {file_part}:{line_part}"
+    elif file_part:
+        location = f" at {file_part}"
+    else:
+        location = ""
+
+    return f"MUST fix {fence_type} error{location}: {msg_part}"
+
+
+def fence_to_instruction(
+    fence_type: str,
+    fence_payload: object,
+    *,
+    sequence: int = 1,
+    max_tokens: int = 200,
+    severity: Severity | None = None,
+) -> ReinforcementRule:
+    """Map a single fence-check failure into a deterministic reinforcement rule.
+
+    Parameters
+    ----------
+    fence_type:
+        One of ``"lint"``, ``"format"``, ``"typecheck"``, ``"test"``,
+        ``"build"``. Other values are accepted (returned verbatim in the
+        rule id) but get a default ``"major"`` severity.
+    fence_payload:
+        Either a plain string (treated as ``msg``) or a mapping with
+        ``file`` / ``line`` / ``msg`` keys. Anything else raises
+        :class:`TypeError` per S-5.
+    sequence:
+        1-based ordinal that disambiguates multiple fences of the same
+        type within a single round. Drives the deterministic id format
+        ``F-{fence_type}-{sequence:03d}``.
+    max_tokens:
+        Soft ceiling on the rendered mandate string. Honoured via a
+        4-chars-per-token approximation so this function stays
+        tokenizer-free. Defaults to 200 (≈ 800 chars), matching the
+        ``patch_plan §3 P-04`` budget recommendation.
+    severity:
+        Override for the fence's default severity. Defaults to
+        :data:`FENCE_DEFAULT_SEVERITY` (or ``"major"`` for unknown types).
+
+    Returns
+    -------
+    ReinforcementRule
+        Carries the deterministic id, severity, MUST-fix mandate, and
+        the originating ``file`` (when known). Pure function: same input
+        ⇒ identical output.
+
+    Raises
+    ------
+    ValueError
+        If ``fence_type`` is empty or ``sequence`` is non-positive.
+    TypeError
+        If ``fence_payload`` is neither a string nor a mapping.
+    """
+    if not fence_type:
+        raise ValueError("fence_type must be a non-empty string")
+    if sequence < 1:
+        raise ValueError(f"sequence must be >= 1 (got {sequence})")
+
+    payload = _coerce_fence_payload(fence_payload)
+    mandate = _truncate_to_token_budget(
+        _format_fence_mandate(fence_type, payload),
+        max_tokens=max_tokens,
+    )
+    resolved_severity: Severity = severity or FENCE_DEFAULT_SEVERITY.get(fence_type, "major")
+
+    return ReinforcementRule(
+        id=_FENCE_RULE_ID_FORMAT.format(fence_type=fence_type, sequence=sequence),
+        severity=resolved_severity,
+        mandate=mandate,
+        file=payload.get("file", ""),
+    )
