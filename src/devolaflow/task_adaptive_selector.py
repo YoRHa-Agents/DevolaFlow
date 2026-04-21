@@ -22,7 +22,11 @@ from typing import Any
 
 import yaml
 
-from devolaflow.learnings import format_learnings_section, load_relevant_learnings
+from devolaflow.learnings import (
+    format_learnings_section,
+    load_relevant_learnings,
+    resolve_learnings_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -295,8 +299,7 @@ def _compute_learnings_reserve(
     """Compute the token reservation for operational learnings."""
     if not learnings_config.get("enabled", False):
         return 0
-    p = profiles_path or PROFILES_PATH
-    learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+    learnings_path = resolve_learnings_path()
     if not learnings_path.exists() or learnings_path.stat().st_size == 0:
         return 0
     budget_max_tokens = learnings_config.get("budget_max_tokens", 500)
@@ -365,8 +368,7 @@ def _integrate_learnings(
     """Load and format operational learnings, returning the text (or empty)."""
     if not learnings_config.get("enabled", False):
         return ""
-    p = profiles_path or PROFILES_PATH
-    learnings_path = p.parent / "knowledge" / "learnings" / "operational.jsonl"
+    learnings_path = resolve_learnings_path()
     if not learnings_path.exists():
         return ""
 

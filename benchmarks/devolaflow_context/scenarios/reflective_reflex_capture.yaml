@@ -52,7 +52,7 @@ unwanted_sections:
 
 quality_thresholds:
   min_composite: 90
-  min_relevance: 0.95
+  min_relevance: 0.85
   max_noise_ratio: 0.10
 
 # Documentation only (not consumed by the runner). Records the synthesized

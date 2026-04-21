@@ -1,4 +1,4 @@
-# Depth modes: see parameters.mode (Option α per .local/research/v7.4.2_gap_analysis.md §E.5)
+# Depth modes: core|standard|full — see parameters.mode (Option α per .local/research/v7.4.2_gap_analysis.md §E.5)
 schema_version: "1.0"
 
 metadata:
@@ -8,10 +8,10 @@ metadata:
   description: >
     Initialize repo workspace (.local/) and governance rules (.rules/),
     detect AI tools present, and (optionally) compile rules to all
-    detected tool-native formats. Default depth (mode=standard) scaffolds
-    structure and compiles rules; verification (tests/build smoke) is
-    opt-in via mode=deep. mode=minimal mirrors Claude Code /init parity
-    by stopping after analyze + scaffold (read + write structure only).
+    detected tool-native formats. Default depth (mode=core) runs
+    analyze + scaffold only; mode=standard adds rule compilation;
+    mode=full adds compilation, an interactive interview stage, and
+    verification smoke tests.
   category: discover
   applicable_scenarios:
     - "Bootstrapping DevolaFlow into a fresh repo"
@@ -34,37 +34,51 @@ stages:
   - id: scaffold
     primitive: implement
     alias: workspace-scaffold
-    description: "Create .local/{feedbacks,tasks}/ + index.md + .rules/ skeleton; write CLAUDE.md / AGENTS.md if missing"
+    description: "Create .local/{feedbacks,tasks,memory}/ + index.md + .rules/ with canonical manifest in config; write CLAUDE.md / AGENTS.md if missing"
     team: implement
     duration_class: quick
     config:
       test_strategy: no_test
+      canonical_manifest:
+        - ".local/feedbacks/"
+        - ".local/tasks/"
+        - ".local/memory/"
+        - ".local/index.md"
+        - ".rules/compile-config.yaml"
     input_mapping:
       tasks: "analyze.findings"
 
   - id: compile
     primitive: implement
     alias: rule-compile
-    description: "Compile .rules/*.mdc to detected adapter targets (Cursor MDC, AGENTS.md, Codex, Copilot); SKIPPED under mode=minimal (Claude Code /init parity)"
+    description: "Compile .rules/*.mdc to detected adapter targets (Cursor MDC, AGENTS.md, Codex, Copilot); SKIPPED under mode=core (analyze+scaffold only)"
     team: implement
     duration_class: quick
     config:
       test_strategy: no_test
     input_mapping:
       detected_tools: "analyze.findings.tools"
-    skip_condition: "mode == 'minimal'"
+    skip_condition: "mode == 'core'"
+
+  - id: interview
+    primitive: analyze
+    alias: interactive-interview
+    description: "(placeholder for v7.7) Interactive interview stage for gathering project-specific preferences and constraints; SKIPPED unless mode=full"
+    team: research
+    duration_class: medium
+    skip_condition: "mode != 'full'"
 
   - id: verify
     primitive: verify
     alias: init-smoke
-    description: "(opt-in: mode=deep) Smoke-verify scaffold — assert .local/ exists, .rules/ compiles cleanly, no drift; SKIPPED under mode=minimal or mode=standard via runtime skip_condition"
+    description: "(opt-in: mode=full) Smoke-verify scaffold — assert .local/ exists, .rules/ compiles cleanly, no drift; SKIPPED unless mode=full"
     team: test
     duration_class: quick
     config:
       suites: [smoke]
       fail_fast: true
       coverage_threshold: 0.0
-    skip_condition: "mode != 'deep'"
+    skip_condition: "mode != 'full'"
 
 composition:
   compose: sequence
@@ -72,6 +86,7 @@ composition:
     - stage: analyze
     - stage: scaffold
     - stage: compile
+    - stage: interview
     - stage: verify
 
 loops: []
@@ -89,9 +104,9 @@ environment_modes:
 parameters:
   mode:
     type: enum
-    default: standard
-    choices: [minimal, standard, deep]
+    default: core
+    choices: [core, standard, full]
     description: >
-      minimal  — analyze + scaffold only (Claude Code /init parity: read + write structure, no rule compile, no verify)
-      standard — analyze + scaffold + compile (DEFAULT — adds rule compilation across detected adapters)
-      deep     — all four stages including verify smoke tests (full DevolaFlow init)
+      core     — analyze + scaffold only (DEFAULT — read + write structure, no rule compile, no verify)
+      standard — analyze + scaffold + compile (opt-in — adds rule compilation across detected adapters)
+      full     — all five stages including interview and verify smoke tests (opt-in — full DevolaFlow init; interview placeholder for v7.7)

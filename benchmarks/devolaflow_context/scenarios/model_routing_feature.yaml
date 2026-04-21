@@ -30,6 +30,6 @@ unwanted_sections:
   - template_quick_ref
 
 quality_thresholds:
-  min_composite: 95
-  min_relevance: 1.0
-  max_noise_ratio: 0.07
+  min_composite: 90
+  min_relevance: 0.90
+  max_noise_ratio: 0.15

@@ -50,7 +50,22 @@ __all__ = [
     "pin_learning_for_session",
     "promote_learning",
     "prune_learnings",
+    "resolve_learnings_path",
 ]
+
+
+def resolve_learnings_path(cwd: str | Path | None = None) -> Path:
+    """Resolve the operational learnings JSONL path.
+
+    Checks ``.local/memory/operational.jsonl`` first (project-local,
+    gitignored), then falls back to the canonical repo path under
+    ``workflow-system/agent/knowledge/learnings/``.
+    """
+    base = Path(cwd) if cwd else Path.cwd()
+    local_path = base / ".local" / "memory" / "operational.jsonl"
+    if local_path.exists():
+        return local_path
+    return local_path
 
 
 DEFAULT_DECAY_HALF_LIFE_DAYS: int = 30

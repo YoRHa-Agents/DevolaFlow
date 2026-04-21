@@ -4,8 +4,8 @@ description: "17 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-21T01:25:42Z"
-source_version: "7.5.0"
+last_synced: "2026-04-21T08:46:01Z"
+source_version: "7.6.0"
 ---
 
 # 工作流类型目录

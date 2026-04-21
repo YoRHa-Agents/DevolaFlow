@@ -29,14 +29,14 @@ risk profile stays LOW because this package is purely additive.
 Public API
 ----------
 * :func:`run_hooks` — dispatch by event name (``pre_dispatch``,
-  ``file_write``, ``task_stop``).
+  ``file_write``, ``task_stop``, ``format_on_edit``).
 * :func:`register_hook` — add an extra handler for an event (defaults
   remain installed).
 * :func:`clear_hooks` — clear extras only; defaults are immutable.
 * :class:`HookResult` / :class:`HookViolation` — result/error envelopes.
-* The three default hooks themselves are also re-exported so callers
-  can invoke them directly with the same ``(payload, *, strict=False)``
-  signature without going through :func:`run_hooks`.
+* The default hooks are re-exported so callers can invoke them directly
+  with the same ``(payload, *, strict=False)`` signature without going
+  through :func:`run_hooks`.
 """
 
 from __future__ import annotations
@@ -61,6 +61,12 @@ from devolaflow.lifecycle.dispatcher import (
     registered_events,
     run_hooks,
 )
+from devolaflow.lifecycle.format_on_edit import (
+    EVENT as _FORMAT_ON_EDIT_EVENT,
+)
+from devolaflow.lifecycle.format_on_edit import (
+    format_on_edit,
+)
 from devolaflow.lifecycle.test_on_complete import (
     EVENT as _TASK_STOP_EVENT,
 )
@@ -73,28 +79,35 @@ from devolaflow.lifecycle.validate_dispatch import (
 from devolaflow.lifecycle.validate_dispatch import (
     validate_dispatch,
 )
+from devolaflow.lifecycle.validate_owned_files import (
+    validate_owned_files,
+)
 
-# Wire the three canonical defaults. Done here (rather than in each hook
-# module) to avoid circular imports through ``dispatcher``.
+# Wire the canonical defaults.
 _set_default_hook(_PRE_DISPATCH_EVENT, validate_dispatch)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
+_set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
 
-# Re-exported for tests and downstream callers that want to query the
-# canonical event names without importing the hook modules directly.
+# Register validate_owned_files as an extra on pre_dispatch (runs after default).
+register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
+
 PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
 FILE_WRITE_EVENT: str = _FILE_WRITE_EVENT
 TASK_STOP_EVENT: str = _TASK_STOP_EVENT
+FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
 
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     FILE_WRITE_EVENT,
     TASK_STOP_EVENT,
+    FORMAT_ON_EDIT_EVENT,
 )
 
 __all__ = [
     "DEFAULT_EVENTS",
     "FILE_WRITE_EVENT",
+    "FORMAT_ON_EDIT_EVENT",
     "HookHandler",
     "HookResult",
     "HookViolation",
@@ -105,10 +118,12 @@ __all__ = [
     "clear_hooks",
     "emit_violations",
     "finalize",
+    "format_on_edit",
     "list_handlers",
     "register_hook",
     "registered_events",
     "run_hooks",
     "test_on_complete",
     "validate_dispatch",
+    "validate_owned_files",
 ]

@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.5.0"
+version: "7.6.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.5.0**
+> **Now Using DevolaFlow v7.6.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 7.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.6.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -171,7 +171,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
-| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold → compile → verify (mode: minimal\|standard\|deep) |
+| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
 
 **Selection heuristics:**
 
@@ -466,7 +466,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | product-verification | 8 | convergence |
 | nines-assisted | 9 | convergence |
 | self-update | 7 | convergence |
-| repo-init | 4 | standard |
+| repo-init | 5 | standard |
 
 ## Task Quality Score
 
