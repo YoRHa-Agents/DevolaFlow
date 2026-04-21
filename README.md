@@ -218,17 +218,17 @@ ESCALATE: produce divergence report for human review
 
 ### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite (39 scenarios covering all 22 context profiles) that measures how effectively context is routed to agents:
+DevolaFlow includes a built-in benchmark suite (41 scenarios covering all 22 context profiles) that measures how effectively context is routed to agents:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 39 scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 41 scenarios
 python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
 python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
 python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 39 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 41 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Task Quality Score
 

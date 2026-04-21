@@ -321,40 +321,84 @@ def _build_priority_buckets(
     return buckets, skipped
 
 
+def _select_sections_by_priority(
+    priority_buckets: dict[str, list[str]],
+    directive: dict | None = None,
+) -> list[str]:
+    """Flatten ``priority_buckets`` into a single ordered list of section names.
+
+    Walks the canonical :data:`PRIORITY_ORDER` (``critical → important →
+    supplementary``) and emits each bucket's contents in the order recorded
+    by :func:`_build_priority_buckets`. When ``directive`` is provided AND
+    its ``focus_section_names`` set is non-empty, sections in that set are
+    promoted to the front of their priority tier (preserving the cross-tier
+    ranking — focused critical still beats focused important). Default
+    ``directive=None`` preserves byte-stable v7.x ordering.
+
+    v8.0.0 (P-02) — companion to the ``compressor._select_sections_by_priority``
+    section-text overlay: this helper performs the SAME directed-compaction
+    promotion at the SKILL-section-name layer so both Layer-2 (section
+    ranker) and Layer-3 (text compactor) honour the same directive shape.
+    The helper is intentionally additive — :func:`_select_sections_within_budget`
+    accepts ``directive=None`` by default so every existing caller is
+    untouched.
+    """
+    focus = set((directive or {}).get("focus_section_names", []) or [])
+    ordered: list[str] = []
+    for priority in PRIORITY_ORDER:
+        bucket = priority_buckets.get(priority, [])
+        if focus:
+            focused_in_bucket = [s for s in bucket if s in focus]
+            other_in_bucket = [s for s in bucket if s not in focus]
+            ordered.extend(focused_in_bucket)
+            ordered.extend(other_in_bucket)
+        else:
+            ordered.extend(bucket)
+    return ordered
+
+
 def _select_sections_within_budget(
     priority_buckets: dict[str, list[str]],
     sections_registry: dict[str, Any],
     skill_text: str,
     section_budget: int,
     verbose: bool,
+    directive: dict | None = None,
 ) -> tuple[list[tuple[str, str, int]], list[str], int]:
-    """Pick sections in priority order until the token budget is exhausted."""
+    """Pick sections in priority order until the token budget is exhausted.
+
+    v8.0.0 (P-02) — accepts an optional ``directive`` dict that is forwarded
+    to :func:`_select_sections_by_priority` so directed-compaction overlays
+    can promote focus sections within each priority tier. Default
+    ``directive=None`` preserves byte-stable v7.x behaviour for every
+    existing caller (verified by :class:`tests.test_compressor.
+    TestSelectorDirectiveBackwardCompat`).
+    """
     selected: list[tuple[str, str, int]] = []
     overflow: list[str] = []
     used_tokens = 0
 
-    for priority in PRIORITY_ORDER:
-        for section_name in priority_buckets[priority]:
-            if section_name not in sections_registry:
-                continue
-            sec_info = sections_registry[section_name]
-            line_range = sec_info.get("lines", "")
-            if not line_range or not _LINE_RANGE_RE.match(line_range):
-                continue
+    for section_name in _select_sections_by_priority(priority_buckets, directive):
+        if section_name not in sections_registry:
+            continue
+        sec_info = sections_registry[section_name]
+        line_range = sec_info.get("lines", "")
+        if not line_range or not _LINE_RANGE_RE.match(line_range):
+            continue
 
-            text = extract_section(skill_text, line_range)
-            tok = estimate_tokens(text)
+        text = extract_section(skill_text, line_range)
+        tok = estimate_tokens(text)
 
-            if used_tokens + tok <= section_budget:
-                selected.append((section_name, text, tok))
-                used_tokens += tok
-            else:
-                overflow.append(section_name)
-                if verbose:
-                    print(
-                        f"  [SKIP] {section_name} ({tok} tok) — "
-                        f"would exceed budget ({used_tokens}+{tok} > {section_budget})"
-                    )
+        if used_tokens + tok <= section_budget:
+            selected.append((section_name, text, tok))
+            used_tokens += tok
+        else:
+            overflow.append(section_name)
+            if verbose:
+                print(
+                    f"  [SKIP] {section_name} ({tok} tok) — "
+                    f"would exceed budget ({used_tokens}+{tok} > {section_budget})"
+                )
 
     return selected, overflow, used_tokens
 

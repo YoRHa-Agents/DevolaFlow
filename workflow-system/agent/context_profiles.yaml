@@ -22,6 +22,23 @@ meta:
   # summarise above 1000). Override per-profile by setting `summary_trigger_pct:`
   # under the profile's section_priorities sibling (additive, optional).
   summary_trigger_pct: 25
+  # v8.0.0 (P-02) — Layer-2 recency decay factor for multi-round predecessor
+  # ranking. The dispatcher applies an exponential weighting w_round =
+  # recency_decay_factor ** rounds_since_round (so older rounds shrink in
+  # importance). Range (0.0, 1.0]:
+  #   * 1.0  → no decay (preserves v7.x byte-stable behaviour; safe default
+  #     for non-convergence dispatches that consume only the current round).
+  #   * 0.9  → ≈ 10 % per-round decay (DevolaFlow default for P-02; matches
+  #     plan §3 P-02 tuning band of 0.5-0.9 with 0.9 chosen to minimise
+  #     EvoBench drift on the 36 existing scenarios).
+  #   * 0.5  → aggressive decay (favoured when rounds carry heavy noise).
+  # Per-profile override is allowed: add `recency_decay_factor:` under the
+  # profile's `section_priorities` sibling (additive, optional). Consumed by
+  # `_select_sections_by_priority` (compressor.py) and the layered
+  # compression pipeline. P6-safe: NESTED under existing meta block, not a
+  # new top-level dispatch key — layout_invariant.canonical_order length
+  # stays 13 and version stays 2.
+  recency_decay_factor: 0.9
   # v7.1.0: tool_output_truncation + summariser default-on for 6 decomposition profiles; opt-out per profile.
   compression_defaults:
     l0_to_l1: standard

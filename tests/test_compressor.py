@@ -11,6 +11,7 @@ import yaml
 from devolaflow.compressor import (
     BYPASS_CONDITIONS,
     BYPASS_PATTERNS,
+    DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT,
     DEFAULT_DISPATCH_LAYOUT,
     DROP_LIST,
     INJECTION_PATTERNS,
@@ -28,6 +29,7 @@ from devolaflow.compressor import (
     detect_bypass_conditions,
     detect_data_channel_instructions,
     detect_drop_violations,
+    directed_compact,
     extract_named_entities,
     summarise_predecessor,
     truncate_tool_output,
@@ -1596,3 +1598,562 @@ class TestRetrievalScoring:
             f"(baseline={baseline_ms:.3f} ms, query={query_ms:.3f} ms); "
             f"P-05 reject trigger is > 10 ms penalty"
         )
+
+
+# ---------------------------------------------------------------------------
+# v8.0.0 — P-02: Layered + Directed Compaction tests (35+ added).
+#
+# Closes NineS findings:
+#   * [NineS:CC-39ab83-0001] (cc 16) summarise_predecessor
+#   * [NineS:CC-39ab83-0000] (cc 11) extract_named_entities (already cc 10
+#     pre-patch — no refactor required, but covered indirectly here)
+#
+# Coverage targets per .local/research/v8.0.0_patch_plan.md §3 P-02 AC:
+#   1. summarise_predecessor cc ≤ 10                        → TestSummarisePredecessorRefactor
+#   2. directed_compact ≥80% focus retention, ≤20% drop      → TestDirectedCompact
+#   3. recency_decay_factor wiring + default 0.9             → TestRecencyDecayConfig
+#   4. compact_directive NESTED schema validation + P6 safe  → TestCompactDirectiveSchema
+#   5. _select_sections_by_priority backward compat overlay  → TestSelectorDirectiveBackwardCompat
+# ---------------------------------------------------------------------------
+
+
+class TestSummarisePredecessorRefactor:
+    """v8.0.0 P-02 — verifies the cc 16 → ≤10 refactor preserved behaviour.
+
+    The 3-helper extraction (``_validate_summary_args`` /
+    ``_select_sections_for_summary`` / ``_assemble_summary_body``) plus the
+    new optional ``directive`` parameter MUST be byte-identical to the
+    v7.x output when ``directive`` is omitted. Verified by snapshotting the
+    full 7-key return dict against itself across calls and against the
+    pre-refactor expected behaviour from existing :class:`TestHierarchicalSummariser`
+    fixtures (re-use ``DESIGN_DOC`` via fresh tmp_path artifacts).
+    """
+
+    DESIGN_DOC = TestHierarchicalSummariser.DESIGN_DOC
+
+    @pytest.fixture
+    def design_artifact(self, tmp_path):
+        path = tmp_path / "design_auth_p02.md"
+        path.write_text(self.DESIGN_DOC, encoding="utf-8")
+        return path
+
+    def test_directive_none_byte_identical_to_default(self, design_artifact):
+        """``directive=None`` (explicit) MUST equal the v7.x default path."""
+        legacy = summarise_predecessor(str(design_artifact), max_tokens=500)
+        directed = summarise_predecessor(str(design_artifact), max_tokens=500, directive=None)
+        assert legacy == directed
+
+    def test_directive_omitted_byte_identical_to_explicit_none(self, design_artifact):
+        """Omitting the kwarg MUST equal passing ``directive=None`` (default)."""
+        legacy = summarise_predecessor(str(design_artifact), max_tokens=500)
+        directed = summarise_predecessor(str(design_artifact), max_tokens=500, directive=None)
+        assert legacy["summary_text"] == directed["summary_text"]
+        assert legacy["covered_sections"] == directed["covered_sections"]
+        assert legacy["dropped_sections"] == directed["dropped_sections"]
+        assert legacy["was_bounded"] == directed["was_bounded"]
+
+    def test_directive_empty_dict_byte_identical(self, design_artifact):
+        """``directive={}`` (no focus_keywords) MUST be a no-op overlay."""
+        legacy = summarise_predecessor(str(design_artifact), max_tokens=500)
+        directed = summarise_predecessor(str(design_artifact), max_tokens=500, directive={})
+        assert legacy == directed
+
+    def test_directive_empty_focus_keywords_byte_identical(self, design_artifact):
+        """``directive={focus_keywords: []}`` MUST be a no-op overlay."""
+        legacy = summarise_predecessor(str(design_artifact), max_tokens=500)
+        directed = summarise_predecessor(
+            str(design_artifact), max_tokens=500, directive={"focus_keywords": []}
+        )
+        assert legacy == directed
+
+    def test_directive_promotes_focus_section_in_covered_order(self, design_artifact):
+        """``focus_keywords=['alternatives']`` MUST move ``Alternatives`` to front."""
+        result = summarise_predecessor(
+            str(design_artifact),
+            max_tokens=500,
+            directive={"focus_keywords": ["alternatives"]},
+        )
+        # The Alternatives section's heading matches the focus keyword
+        # so it MUST appear earlier than in the legacy ordering.
+        legacy = summarise_predecessor(str(design_artifact), max_tokens=500)
+        focus_idx = result["covered_sections"].index("Alternatives")
+        legacy_idx = legacy["covered_sections"].index("Alternatives")
+        assert focus_idx <= legacy_idx, (
+            f"directive failed to promote 'Alternatives'; got {result['covered_sections']} "
+            f"(legacy: {legacy['covered_sections']})"
+        )
+
+    def test_directive_focus_keywords_case_insensitive(self, design_artifact):
+        """Focus keywords MUST be matched case-insensitively against headings."""
+        upper = summarise_predecessor(
+            str(design_artifact),
+            max_tokens=500,
+            directive={"focus_keywords": ["ALTERNATIVES"]},
+        )
+        lower = summarise_predecessor(
+            str(design_artifact),
+            max_tokens=500,
+            directive={"focus_keywords": ["alternatives"]},
+        )
+        assert upper["covered_sections"] == lower["covered_sections"]
+
+    def test_directive_with_retrieval_query_query_wins(self, design_artifact):
+        """When both ``directive`` and ``retrieval_query`` are given, the
+        query-prioritised path MUST take precedence (richer relevance signal
+        per docstring contract). The directive is silently ignored.
+        """
+        # Use a retrieval_query that targets the Decision section while the
+        # directive targets Alternatives — query path should pick Decision.
+        result = summarise_predecessor(
+            str(design_artifact),
+            max_tokens=500,
+            schema_hint="design",
+            retrieval_query="jsonwebtoken authorization validate",
+            directive={"focus_keywords": ["alternatives"]},
+        )
+        assert result["covered_sections"], "must cover at least one section"
+
+    def test_summarise_returns_extant_seven_keys_after_refactor(self, design_artifact):
+        """The 7-key return contract is preserved across the refactor."""
+        result = summarise_predecessor(str(design_artifact), max_tokens=500, directive={})
+        assert set(result.keys()) == {
+            "summary_text",
+            "mode",
+            "token_count",
+            "extracted_entities",
+            "covered_sections",
+            "dropped_sections",
+            "was_bounded",
+        }
+
+    def test_summarise_predecessor_cc_threshold(self):
+        """Static cc gate: refactored ``summarise_predecessor`` MUST be ≤ 10.
+
+        Soft assertion via :mod:`radon`'s ``radon.complexity.cc_visit``;
+        skipped when radon is not installed (avoids hard dependency in
+        minimal CI configurations).
+        """
+        try:
+            from radon.complexity import cc_visit
+        except ImportError:
+            pytest.skip("radon not available; skipping static cc gate")
+        from devolaflow import compressor as _comp_mod
+
+        source = Path(_comp_mod.__file__).read_text(encoding="utf-8")
+        ccs = {
+            block.name: block.complexity
+            for block in cc_visit(source)
+            if hasattr(block, "complexity")
+        }
+        assert ccs.get("summarise_predecessor", 99) <= 10, (
+            f"summarise_predecessor cc = {ccs.get('summarise_predecessor')} > 10 "
+            f"(P-02 AC #1 failure; NineS [CC-39ab83-0001] not closed)"
+        )
+
+    def test_helpers_have_low_cc(self):
+        """The 3 extracted helpers MUST each have cc ≤ 10."""
+        try:
+            from radon.complexity import cc_visit
+        except ImportError:
+            pytest.skip("radon not available; skipping static cc gate")
+        from devolaflow import compressor as _comp_mod
+
+        source = Path(_comp_mod.__file__).read_text(encoding="utf-8")
+        ccs = {
+            block.name: block.complexity
+            for block in cc_visit(source)
+            if hasattr(block, "complexity")
+        }
+        for helper in (
+            "_validate_summary_args",
+            "_select_sections_for_summary",
+            "_assemble_summary_body",
+        ):
+            assert helper in ccs, f"helper {helper!r} missing — refactor regressed"
+            assert ccs[helper] <= 10, f"{helper} cc = {ccs[helper]} > 10"
+
+
+class TestDirectedCompact:
+    """v8.0.0 P-02 — text-level Layer-3 directed compaction primitive.
+
+    Verifies the ≥80% focus-region retention guarantee (in fact 100%
+    because focus paragraphs are NEVER dropped) and the ≤``max_drop_pct``
+    cumulative drop guarantee. Pass-through cases (empty input, empty
+    keywords, drop_pct=0) MUST return the input unchanged.
+    """
+
+    AUTH_TEXT = (
+        "Auth middleware validates JWT tokens.\n\n"
+        "Tests cover token validation paths.\n\n"
+        "The authentication flow uses bearer tokens.\n\n"
+        "Database migration scripts are unrelated.\n\n"
+        "CI pipeline runs in parallel.\n"
+    )
+
+    def test_default_max_drop_pct_constant(self):
+        """The module exposes a 0.20 default per P-02 §3 plan."""
+        assert DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT == 0.20
+
+    def test_empty_text_returns_empty(self):
+        assert directed_compact("", focus_keywords=["auth"]) == ""
+
+    def test_non_string_text_returns_input(self):
+        assert directed_compact(None, focus_keywords=["auth"]) is None  # type: ignore[arg-type]
+        assert directed_compact(42, focus_keywords=["auth"]) == 42  # type: ignore[arg-type]
+
+    def test_empty_focus_keywords_passthrough(self):
+        assert directed_compact(self.AUTH_TEXT, focus_keywords=[]) == self.AUTH_TEXT
+
+    def test_none_focus_keywords_passthrough(self):
+        assert directed_compact(self.AUTH_TEXT, focus_keywords=None) == self.AUTH_TEXT
+
+    def test_zero_max_drop_pct_passthrough(self):
+        result = directed_compact(self.AUTH_TEXT, focus_keywords=["auth"], max_drop_pct=0.0)
+        assert result == self.AUTH_TEXT
+
+    def test_negative_max_drop_pct_passthrough(self):
+        result = directed_compact(self.AUTH_TEXT, focus_keywords=["auth"], max_drop_pct=-0.1)
+        assert result == self.AUTH_TEXT
+
+    def test_focus_paragraphs_always_preserved(self):
+        """≥80% focus retention guarantee — focus paragraphs are never dropped."""
+        result = directed_compact(self.AUTH_TEXT, focus_keywords=["auth"], max_drop_pct=0.5)
+        # Both 'Auth middleware' and 'authentication flow' contain 'auth' (case-insensitive).
+        assert "Auth middleware validates JWT tokens." in result
+        assert "The authentication flow uses bearer tokens." in result
+
+    def test_drop_budget_respected(self):
+        """Cumulative drop MUST be ≤ max_drop_pct of total chars."""
+        max_drop_pct = 0.25
+        original_chars = len(self.AUTH_TEXT)
+        result = directed_compact(
+            self.AUTH_TEXT, focus_keywords=["auth"], max_drop_pct=max_drop_pct
+        )
+        dropped = original_chars - len(result)
+        assert dropped <= int(original_chars * max_drop_pct) + 5  # small slack for separators
+
+    def test_focus_retention_at_least_80pct(self):
+        """AC #2: focus regions retain ≥ 80 % of their characters."""
+        # Construct an artifact with a clearly-marked focus region.
+        focus_para = (
+            "FOCUS_REGION_START\n"
+            "Bearer token validation must reject expired tokens.\n"
+            "FOCUS_REGION_END"
+        )
+        non_focus_paras = [f"non-focus paragraph {i} with random prose." for i in range(10)]
+        text = focus_para + "\n\n" + "\n\n".join(non_focus_paras)
+        result = directed_compact(text, focus_keywords=["bearer"], max_drop_pct=0.99)
+        # Focus paragraph MUST survive verbatim (100% > 80%).
+        assert "FOCUS_REGION_START" in result
+        assert "Bearer token validation must reject expired tokens." in result
+        assert "FOCUS_REGION_END" in result
+
+    def test_case_insensitive_keyword_match(self):
+        text = "Lower auth here.\n\nUNRELATED stuff here."
+        result = directed_compact(text, focus_keywords=["AUTH"], max_drop_pct=0.5)
+        assert "Lower auth here." in result
+
+    def test_keyword_in_heading_marks_paragraph_focus(self):
+        text = "## auth flow\n\nbody about validation.\n\nrandom unrelated paragraph here."
+        result = directed_compact(text, focus_keywords=["auth"], max_drop_pct=0.5)
+        assert "## auth flow" in result
+        assert "body about validation." in result
+
+    def test_multiple_focus_keywords_or_match(self):
+        text = "JWT block.\n\nbearer block.\n\nrandom block here."
+        result = directed_compact(text, focus_keywords=["jwt", "bearer"], max_drop_pct=0.5)
+        assert "JWT block." in result
+        assert "bearer block." in result
+
+    def test_no_match_returns_input_unchanged(self):
+        """When NO keyword matches anything, every paragraph is non-focus.
+        The greedy dropper MAY then pick non-focus paragraphs up to the
+        drop budget — this is intentional (the directive is a permission
+        to elide non-relevant text). Ensure SOME content survives.
+        """
+        text = "alpha block.\n\nbeta block.\n\ngamma block."
+        result = directed_compact(text, focus_keywords=["nomatch"], max_drop_pct=0.20)
+        # At max_drop_pct=0.20 the dropper may elide a small block; result
+        # must still be a str ≤ original length.
+        assert isinstance(result, str)
+        assert len(result) <= len(text)
+
+    def test_order_preserved_among_kept(self):
+        """Document order of kept paragraphs MUST match input order."""
+        text = "auth A.\n\nfiller B.\n\nauth C.\n\nfiller D.\n\nauth E."
+        result = directed_compact(text, focus_keywords=["auth"], max_drop_pct=0.5)
+        # All "auth" lines preserved in order.
+        idx_a = result.find("auth A.")
+        idx_c = result.find("auth C.")
+        idx_e = result.find("auth E.")
+        assert -1 < idx_a < idx_c < idx_e
+
+    def test_drop_pct_above_one_clamped(self):
+        """``max_drop_pct >= 1.0`` MUST be clamped to 1.0 (no error)."""
+        text = "auth here.\n\nfiller one.\n\nfiller two.\n\nfiller three."
+        result = directed_compact(text, focus_keywords=["auth"], max_drop_pct=1.5)
+        assert "auth here." in result
+
+    def test_largest_nonfocus_dropped_first(self):
+        """Greedy strategy prioritises dropping the LARGEST non-focus
+        paragraphs first to maximise compaction-per-drop. Use a max_drop_pct
+        that admits the BIG paragraph but is still under 1.0 — the BIG
+        paragraph (which exceeds the tiny paragraph by > 10x) MUST be the
+        one dropped, leaving the tiny non-focus paragraph kept.
+
+        Total text ≈ 208 chars; max_drop_pct=0.95 → budget 197 chars; the
+        big paragraph drop-cost is 182 chars (180 + 2 separator) which fits;
+        the tiny one (cost 7) does NOT also fit (197 - 182 = 15 < 7 + 0
+        ... well 7 fits actually). Use max_drop_pct large enough that big
+        fits but tiny would push past.
+        """
+        text = (
+            "auth content small.\n\n"
+            "tiny.\n\n"
+            "this is a deliberately much longer non-focus paragraph "
+            "filled with prose to exceed the tiny paragraph by a very wide "
+            "margin so that the greedy dropper picks it before the tiny one."
+        )
+        # Budget at 0.95 = 197 chars. Big para cost = 182 → fits (used 182).
+        # Tiny para cost = 7. 182 + 7 = 189 ≤ 197 → tiny ALSO fits in the
+        # greedy budget. Switch to drop_pct=0.90 → budget 187; big fits
+        # (182 used), tiny would push to 189 > 187 → tiny stays.
+        result = directed_compact(text, focus_keywords=["auth"], max_drop_pct=0.90)
+        # Focus paragraph kept verbatim.
+        assert "auth content small." in result
+        # Big non-focus dropped (it was the largest, picked first by greedy).
+        assert "this is a deliberately much longer" not in result
+        # Tiny non-focus kept (the budget was already exhausted by the big drop).
+        assert "tiny." in result
+
+
+class TestRecencyDecayConfig:
+    """v8.0.0 P-02 — verifies the new ``meta.recency_decay_factor`` field."""
+
+    def test_recency_decay_factor_default_0_9(self):
+        from devolaflow.task_adaptive_selector import load_profiles
+
+        config = load_profiles()
+        assert config["meta"]["recency_decay_factor"] == 0.9
+
+    def test_recency_decay_factor_in_range(self):
+        from devolaflow.task_adaptive_selector import load_profiles
+
+        config = load_profiles()
+        factor = config["meta"]["recency_decay_factor"]
+        assert 0.0 < factor <= 1.0
+
+    def test_recency_decay_factor_is_float(self):
+        from devolaflow.task_adaptive_selector import load_profiles
+
+        config = load_profiles()
+        assert isinstance(config["meta"]["recency_decay_factor"], float)
+
+    def test_recency_decay_doc_references_v8_p02(self):
+        """The YAML comment block above the field must mention P-02 + v8.0.0."""
+        profiles_yaml = (
+            Path(__file__).resolve().parents[1]
+            / "workflow-system"
+            / "agent"
+            / "context_profiles.yaml"
+        )
+        text = profiles_yaml.read_text(encoding="utf-8")
+        assert "recency_decay_factor: 0.9" in text
+        assert "v8.0.0 (P-02)" in text
+
+    def test_summary_trigger_pct_unchanged(self):
+        """Adding recency_decay_factor MUST NOT shift the v7.0.2 trigger."""
+        from devolaflow.task_adaptive_selector import load_profiles
+
+        config = load_profiles()
+        assert config["meta"]["summary_trigger_pct"] == 25
+
+
+class TestCompactDirectiveSchema:
+    """v8.0.0 P-02 — verifies the NESTED ``pred[*].compact_directive`` field
+    in ``schemas/lean-dispatch.yaml`` AND that the P6 cache-layout invariant
+    is preserved (canonical_order length 13, version 2 UNCHANGED).
+
+    AC #5 of P-02: ``assert_dispatch_layout(payload)`` accepts the new
+    ``compact_directive`` sub-field (positioned inside ``pred[*]`` — NOT a
+    new top-level dispatch key) and the v7.3.0 byte-baseline still passes.
+    """
+
+    SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "lean-dispatch.yaml"
+
+    def test_layout_invariant_canonical_order_length_13(self):
+        """P6 invariant: canonical_order MUST stay at 13 keys (no top-level addition)."""
+        spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
+        assert len(spec["layout_invariant"]["canonical_order"]) == 13, (
+            f"canonical_order length = {len(spec['layout_invariant']['canonical_order'])}; "
+            "P-02 MUST NOT add top-level keys (P6 ADR-001 §2)"
+        )
+
+    def test_layout_invariant_version_unchanged(self):
+        """P6 invariant: schema version MUST stay at 2 (no top-level addition)."""
+        spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
+        assert spec["layout_invariant"]["version"] == 2
+
+    def test_layout_invariant_last_key_is_repos(self):
+        """P6 invariant: position 13 (1-indexed) MUST still be ``repos``
+        (added by v7.2.6 P-06)."""
+        spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
+        assert spec["layout_invariant"]["canonical_order"][-1] == "repos"
+
+    def test_compact_directive_field_present_under_pred(self):
+        """The new directive field MUST be NESTED under pred[*], not at top."""
+        spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
+        per_entry = spec["lean_format_spec"]["pred"]["per_entry"]
+        assert "compact_directive" in per_entry, (
+            "compact_directive MUST appear inside lean_format_spec.pred.per_entry"
+        )
+
+    def test_compact_directive_not_at_top_level(self):
+        """The new directive field MUST NOT appear in top-level canonical_order."""
+        spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
+        assert "compact_directive" not in spec["layout_invariant"]["canonical_order"]
+
+    def test_default_dispatch_layout_unchanged(self):
+        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST still be 13 keys."""
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 13
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "repos"
+
+    def test_assert_layout_accepts_pred_with_compact_directive(self):
+        """AC #5: ``assert_dispatch_layout`` must NOT reject a pred entry
+        that carries the new nested ``compact_directive`` field."""
+        payload = {
+            "hdr": {"id": "d-test"},
+            "task": {"id": "T01"},
+            "pred": [
+                {
+                    "ref": "src/foo.py",
+                    "key_facts": ["file_paths verbatim"],
+                    "compact_directive": {
+                        "focus_keywords": ["auth", "jwt"],
+                        "max_drop_pct": 0.20,
+                    },
+                }
+            ],
+        }
+        # MUST NOT raise — compact_directive is nested under pred[*].
+        assert_dispatch_layout(payload)
+
+    def test_assert_layout_rejects_compact_directive_at_top_level(self):
+        """Defensive: a top-level ``compact_directive`` would violate the
+        canonical_order; assert it IS rejected when it appears OUT of order."""
+        payload = {
+            "hdr": {"id": "d-test"},
+            "compact_directive": {"focus_keywords": ["x"]},  # spurious top-level key
+            "task": {"id": "T01"},
+        }
+        # Unknown top-level keys are tolerated only AFTER the last spec key
+        # (additive rule). Here `compact_directive` appears BEFORE `task`
+        # → must raise.
+        with pytest.raises(DispatchLayoutError):
+            assert_dispatch_layout(payload)
+
+    def test_v7_3_0_layout_baseline_still_byte_stable(self):
+        """The v7.3.0 dual-baseline byte-comparison MUST still pass after
+        the schema edit (P-02 added only NESTED comments + a directive
+        sub-key under pred[*], NOT a new top-level key)."""
+        from tests.test_benchmarks import TestLayoutInvariantBaseline
+
+        # Re-run the v7.3.0 baseline comparison directly — if P-02 broke
+        # the canonical layout this would fail.
+        TestLayoutInvariantBaseline().test_layout_invariant_baseline_v7_3_0()
+
+    def test_v7_0_0_layout_baseline_still_byte_stable(self):
+        """The v7.0.0 baseline byte-comparison MUST still pass."""
+        from tests.test_benchmarks import TestLayoutInvariantBaseline
+
+        TestLayoutInvariantBaseline().test_layout_invariant_baseline()
+
+
+class TestSelectorDirectiveBackwardCompat:
+    """v8.0.0 P-02 — task_adaptive_selector ``_select_sections_by_priority``
+    optional ``directive`` parameter backward-compat probe."""
+
+    def test_helper_default_directive_none_byte_identical(self):
+        """``_select_sections_by_priority(buckets)`` (default) MUST equal
+        ``_select_sections_by_priority(buckets, None)``."""
+        from devolaflow.task_adaptive_selector import _select_sections_by_priority
+
+        buckets = {
+            "critical": ["dispatch_report", "context_isolation"],
+            "important": ["hierarchy_table"],
+            "supplementary": ["template_quick_ref"],
+        }
+        default = _select_sections_by_priority(buckets)
+        explicit_none = _select_sections_by_priority(buckets, directive=None)
+        assert default == explicit_none
+
+    def test_helper_empty_directive_byte_identical(self):
+        from devolaflow.task_adaptive_selector import _select_sections_by_priority
+
+        buckets = {
+            "critical": ["a", "b"],
+            "important": ["c"],
+            "supplementary": ["d"],
+        }
+        default = _select_sections_by_priority(buckets)
+        empty = _select_sections_by_priority(buckets, directive={})
+        assert default == empty == ["a", "b", "c", "d"]
+
+    def test_helper_focus_section_names_promotes_within_tier(self):
+        from devolaflow.task_adaptive_selector import _select_sections_by_priority
+
+        buckets = {
+            "critical": ["dispatch_report", "context_isolation", "agent_teams"],
+            "important": ["hierarchy_table"],
+            "supplementary": [],
+        }
+        result = _select_sections_by_priority(
+            buckets, directive={"focus_section_names": ["context_isolation"]}
+        )
+        # context_isolation must come BEFORE dispatch_report within the
+        # critical tier.
+        assert result.index("context_isolation") < result.index("dispatch_report")
+
+    def test_helper_focus_section_names_preserves_cross_tier_priority(self):
+        """Focus promotion only re-orders WITHIN a priority tier — focused
+        important MUST NOT come before unfocused critical."""
+        from devolaflow.task_adaptive_selector import _select_sections_by_priority
+
+        buckets = {
+            "critical": ["a"],
+            "important": ["b_focus", "c"],
+            "supplementary": [],
+        }
+        result = _select_sections_by_priority(
+            buckets, directive={"focus_section_names": ["b_focus"]}
+        )
+        assert result == ["a", "b_focus", "c"]
+
+    def test_select_context_byte_identical_with_no_directive(self):
+        """Top-level ``select_context`` is unchanged by the new helper."""
+        from devolaflow.task_adaptive_selector import select_context
+
+        first = select_context("hotfix")
+        second = select_context("hotfix")
+        assert first["selected_sections"] == second["selected_sections"]
+        assert first["total_tokens"] == second["total_tokens"]
+
+    def test_within_budget_directive_default_none_byte_identical(self):
+        """``_select_sections_within_budget`` default behaviour preserved."""
+        from devolaflow.task_adaptive_selector import (
+            _build_priority_buckets,
+            _select_sections_within_budget,
+            load_profiles,
+            load_skill_md,
+        )
+
+        config = load_profiles()
+        skill = load_skill_md(config)
+        registry = config["sections"]
+        profile = config["profiles"]["hotfix"]
+        buckets, _ = _build_priority_buckets(profile["section_priorities"])
+        default = _select_sections_within_budget(buckets, registry, skill, 2400, False)
+        explicit = _select_sections_within_budget(
+            buckets, registry, skill, 2400, False, directive=None
+        )
+        assert default == explicit

@@ -126,6 +126,17 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.compressor:wrap_data_envelope",
         "devolaflow.compressor:unwrap_data_envelope",
         "devolaflow.compressor:detect_data_channel_instructions",
+        # v8.0.0 P-02 directed compaction — Layer-3 of the layered compression
+        # pipeline. Public API exported for L0/L1/L2 dispatchers that consume
+        # `pred[*].compact_directive` (NESTED schema field added to
+        # schemas/lean-dispatch.yaml in v8.0.0 P-02). The dispatcher consumer
+        # calls directed_compact(text, focus_keywords, max_drop_pct=0.20)
+        # on the predecessor's key_facts block before rendering the lean
+        # dispatch payload. Not yet wired into compressor.compress_message
+        # at v8.0.0 cut — opt-in via per-pred directive only (see
+        # context_profiles.yaml#meta.recency_decay_factor for the
+        # complementary Layer-2 overlay default of 0.9).
+        "devolaflow.compressor:directed_compact",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in
