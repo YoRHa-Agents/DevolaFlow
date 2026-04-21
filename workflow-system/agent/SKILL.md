@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "7.7.0"
+version: "7.8.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v7.7.0**
+> **Now Using DevolaFlow v7.8.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 7.7.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 7.8.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
 Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
 
@@ -172,6 +172,22 @@ Match user intent to workflow type, then load the corresponding stage template.
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
+
+### Repo-Init Pre-Dispatch Contract
+
+**Canonical manifest — ALL modes (core/standard/full) MUST create all 5 paths:**
+
+| # | Path | Source | Contents |
+|---|------|--------|----------|
+| 1 | `.local/feedbacks/` | `scaffold_local()` | TRACKER.md + dir README |
+| 2 | `.local/tasks/` | `scaffold_local()` | dir README |
+| 3 | `.local/memory/` | `scaffold_local()` | MEMORY.md + dir README |
+| 4 | `.local/index.md` | `generate_index()` | auto-generated listing |
+| 5 | `.rules/compile-config.yaml` | `install_local()` | from packaged template |
+
+**Mode selects stages, NOT files.** `core` skips compile/interview/verify but scaffold MUST create all 5 paths. `standard` adds compile. `full` adds all stages.
+
+**Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 5 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 5 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
 
 **Selection heuristics:**
 
@@ -312,28 +328,7 @@ When a stage gate FAILS, the next round's dispatch carries `applicable_rules.rei
 | **Test** | Run test suites, measure coverage, gap analysis | Shell, Read, Write, Grep | Test report, coverage metrics |
 | **Review** | Code/design review, quality scoring, SOLID + simplicity checks | Read, Grep, SemanticSearch, ReadLints | Severity-classified findings, quality score |
 
-**Team participation matrix (workflow × team):**
-
-| Workflow | Research | Design | Implement | Test | Review |
-|---|---|---|---|---|---|
-| research-only | **Primary** | — | — | — | — |
-| design-only | — | **Primary** | — | — | Active |
-| hotfix | — | — | **Primary** | Active | Minimal |
-| refactoring | — | — | **Primary** | **Primary** | Optional |
-| migration | Active | — | **Primary** | Active | Optional |
-| spike-poc | Active | — | Active | — | — |
-| documentation-only | Active | — | — | — | Active |
-| security-audit | Active | — | Active | Active | Active |
-| research-design-review-refine | **Primary** | **Primary** | — | — | **Primary** |
-| full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
-| demo-showcase | Active | Active | **Primary** | — | Active |
-| perf-optimization | Active | Active | **Primary** | **Primary** | — |
-| dependency-setup | Active | Active | **Primary** | Active | — |
-| onboarding | **Primary** | — | Active | Active | — |
-| skill-optimization | Active | — | **Primary** | **Primary** | Active |
-| self-update | **Primary** | Active | Active | **Primary** | Active |
-
-Full team specifications: `references/team-roles.md`
+Full team specifications + participation matrix: `references/team-roles.md`
 
 ## Context Isolation
 

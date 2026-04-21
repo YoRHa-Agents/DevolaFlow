@@ -132,3 +132,24 @@ def scaffold_local_cmd() -> None:
     dirs = args if args else None
     scaffold_local(Path.cwd(), dirs=dirs)
     print("  .local/ workspace initialized.")
+
+
+def doctor_cmd() -> None:
+    """Check repo-init canonical manifest health.
+
+    Scans the current working directory against the canonical manifest
+    for repo-init and reports missing paths. Exit 0 if healthy, 1 if not.
+    """
+    from devolaflow.lifecycle.validate_owned_files import check_init_health
+
+    report = check_init_health(Path.cwd())
+    icons = {True: "✅", False: "❌"}
+    for f in report.findings:
+        print(f"  {icons[f.ok]} {f.path} — {f.detail}")
+    print()
+    if report.healthy:
+        print("  All canonical paths present. Workspace is healthy.")
+    else:
+        print(f"  {len(report.missing)} missing path(s): {report.missing}")
+        print("  Run 'devola-init local' to fix.")
+    sys.exit(0 if report.healthy else 1)

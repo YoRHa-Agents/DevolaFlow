@@ -10,6 +10,8 @@ default :func:`validate_dispatch` handler).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
@@ -75,4 +77,97 @@ def validate_owned_files(payload: dict[str, Any], *, strict: bool = False) -> Ho
     return finalize(EVENT, violations, strict=strict)
 
 
-__all__ = ["EVENT", "WORKFLOW_MANIFESTS", "validate_owned_files"]
+def get_canonical_manifest(workflow: str) -> list[str]:
+    """Return the canonical manifest paths for a workflow, or empty list."""
+    return list(WORKFLOW_MANIFESTS.get(workflow, []))
+
+
+@dataclass
+class DoctorFinding:
+    """A single finding from ``check_init_health``."""
+
+    path: str
+    expected: bool
+    found: bool
+    detail: str
+
+    @property
+    def ok(self) -> bool:
+        return self.expected == self.found
+
+
+@dataclass
+class DoctorReport:
+    """Aggregate result of ``check_init_health``."""
+
+    findings: list[DoctorFinding]
+
+    @property
+    def healthy(self) -> bool:
+        return all(f.ok for f in self.findings)
+
+    @property
+    def missing(self) -> list[str]:
+        return [f.path for f in self.findings if f.expected and not f.found]
+
+    def summary(self) -> str:
+        total = len(self.findings)
+        ok = sum(1 for f in self.findings if f.ok)
+        return f"{ok}/{total} checks passed" + (
+            "" if self.healthy else f"; missing: {self.missing}"
+        )
+
+
+def check_init_health(cwd: str | Path) -> DoctorReport:
+    """Check a directory against the repo-init canonical manifest.
+
+    Inspects ``cwd`` for ALL paths declared in
+    ``WORKFLOW_MANIFESTS["repo-init"]``, plus the expected sub-artifacts
+    (dir READMEs, TRACKER.md, MEMORY.md).
+    """
+    from pathlib import Path as _Path
+
+    root = _Path(cwd)
+    findings: list[DoctorFinding] = []
+
+    manifest = get_canonical_manifest("repo-init")
+    for p in manifest:
+        full = root / p
+        if p.endswith("/"):
+            found = full.is_dir()
+            detail = "directory" if found else "missing directory"
+        else:
+            found = full.is_file()
+            detail = "file" if found else "missing file"
+        findings.append(DoctorFinding(path=p, expected=True, found=found, detail=detail))
+
+    extras: list[tuple[str, str]] = [
+        (".local/feedbacks/TRACKER.md", "feedback tracker"),
+        (".local/feedbacks/README.md", "feedbacks dir README"),
+        (".local/tasks/README.md", "tasks dir README"),
+        (".local/memory/README.md", "memory dir README"),
+        (".local/memory/MEMORY.md", "memory index"),
+    ]
+    for rel, desc in extras:
+        full = root / rel
+        findings.append(
+            DoctorFinding(
+                path=rel,
+                expected=True,
+                found=full.is_file(),
+                detail=desc if full.is_file() else f"missing {desc}",
+            )
+        )
+
+    return DoctorReport(findings=findings)
+
+
+__all__ = [
+    "EVENT",
+    "WORKFLOW_MANIFESTS",
+    "DoctorFinding",
+    "DoctorReport",
+    "check_init_health",
+    "get_canonical_manifest",
+    "validate_owned_files",
+]
