@@ -197,6 +197,18 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.template_engine.nines_bridge:nines_commands_to_dispatch_context",
         "devolaflow.template_engine.parser:parse_template_string",
         "devolaflow.template_engine.registry:TemplateRegistry",
+        # ---- Runtime stage selector (P-04 in v7.4.9) ----
+        # Per the v7.5.0 ghost-audit §3.G G-G1/G-G2/§3.I G-I2 closure design
+        # and the P-04 dispatch directive, the runtime layer is intentionally
+        # NOT wired into existing dispatch / compose / status flows in this
+        # patch — integration with the L0/L1 plan generator is deferred per
+        # audit §9 ("scope mode-skip strictly to dispatch composition ...
+        # NOT to compressor input shape"). The public entry point is
+        # advertised via ``devolaflow.template_engine.__all__`` and consumed
+        # by external orchestrators (and ``tests/test_composer_runtime.py``,
+        # ``tests/test_template_repo_init.py``) in lieu of an in-repo
+        # production call site.
+        "devolaflow.template_engine.runtime:select_stages_for_runtime",
         # ---- NineS internal helper exposed in private _cli module ----
         # Public name (no underscore) inside private module; documented in
         # CHANGELOG v5.x as a public helper for callers needing nines.toml

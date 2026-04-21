@@ -48,6 +48,12 @@ from devolaflow.template_engine.parser import (
     parse_template_string,
 )
 from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.runtime import (
+    DEFAULT_ENVIRONMENT,
+    DEFAULT_MODE,
+    evaluate_skip_condition,
+    select_stages_for_runtime,
+)
 from devolaflow.template_engine.validator import (
     ValidationResult,
     validate_all_templates,
@@ -55,6 +61,8 @@ from devolaflow.template_engine.validator import (
 )
 
 __all__ = [
+    "DEFAULT_ENVIRONMENT",
+    "DEFAULT_MODE",
     "DEPENDENCY_LATTICE",
     "OPERATORS",
     "VALID_PRIMITIVES",
@@ -84,6 +92,7 @@ __all__ = [
     "WorkflowTemplate",
     "collect_all_refs",
     "collect_stage_refs",
+    "evaluate_skip_condition",
     "extract_nines_commands",
     "format_nines_context",
     "nines_commands_to_dispatch_context",
@@ -91,6 +100,7 @@ __all__ = [
     "parse_template",
     "parse_template_string",
     "resolve_inheritance",
+    "select_stages_for_runtime",
     "validate_all_templates",
     "validate_template",
 ]

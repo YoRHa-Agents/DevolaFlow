@@ -319,14 +319,17 @@ def test_skill_examples_paths_exist(project_root: Path) -> None:
 # ── Category G: composer / parameters wiring ────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-G1: composer.py never reads template.parameters; the "
-    "parameters.mode enum on repo-init.yaml is parsed but never honoured at "
-    "runtime — closes in P-04",
-)
 def test_composer_consumes_template_parameters(project_root: Path) -> None:
-    """G-G1: composer (or runtime.py) must consume template.parameters."""
+    """G-G1: composer (or runtime.py) must consume template.parameters.
+
+    Closed by P-04 in v7.4.9 — :mod:`devolaflow.template_engine.runtime`
+    landed as a thin runtime shim with
+    :func:`select_stages_for_runtime(template, *, mode, environment)` that
+    consumes ``WorkflowTemplate.parameters.mode.default`` (per audit §3.G
+    G-G1 evidence: ``composer.py`` never referenced ``parameters``).
+    Composer API kept bytewise-compatible — runtime is purely additive.
+    xfail marker removed per the audit §6 strict=True contract.
+    """
     composer = _read(project_root / "src/devolaflow/template_engine/composer.py")
     runtime = project_root / "src/devolaflow/template_engine/runtime.py"
     assert "parameters" in composer or runtime.exists(), (
@@ -334,14 +337,19 @@ def test_composer_consumes_template_parameters(project_root: Path) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-G2: StageDefinition.skip_condition is parsed but never causes "
-    "runtime stage skipping (only validator exempts it from unreachability "
-    "warnings) — closes in P-04",
-)
 def test_skip_condition_field_has_runtime_consumer(project_root: Path) -> None:
-    """G-G2: skip_condition must drive actual runtime stage skipping."""
+    """G-G2: skip_condition must drive actual runtime stage skipping.
+
+    Closed by P-04 in v7.4.9 — :func:`devolaflow.template_engine.runtime
+    .evaluate_skip_condition` parses the supported grammar
+    (``<ident> ('==' | '!=') (<quoted-string> | <number> | <ident>)``)
+    and elides stages when the expression evaluates True; ``repo-init.yaml``
+    now declares ``skip_condition: "mode != 'deep'"`` on ``verify`` and
+    ``skip_condition: "mode == 'minimal'"`` on ``compile`` per audit §3.G
+    G-G2 evidence (``StageDefinition.skip_condition`` had no execution-time
+    consumer — only validator exemptions). xfail marker removed per the
+    audit §6 strict=True contract.
+    """
     composer = _read(project_root / "src/devolaflow/template_engine/composer.py")
     runtime = project_root / "src/devolaflow/template_engine/runtime.py"
     in_runtime = runtime.exists() and "skip_condition" in _read(runtime)
@@ -414,19 +422,52 @@ def test_skill_knowledge_index_in_manifest(project_root: Path) -> None:
 # ── Category I: WorkflowTemplate dataclass fields ──────────────────
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="G-I1/G-I2/G-I3/G-I4: 4 dataclass fields (team_overrides, "
-    "environment_modes, timeout_minutes, input_mapping) parsed but no runtime "
-    "consumer outside structural files (models/parser/inheritance/validator) "
-    "— closes in P-04 (G-I2/G-I4) and P-08 (G-I1/G-I3)",
-)
 @pytest.mark.parametrize(
     "field",
-    ["team_overrides", "environment_modes", "timeout_minutes", "input_mapping"],
+    [
+        pytest.param(
+            "team_overrides",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="G-I1: WorkflowTemplate.team_overrides parsed but no "
+                "runtime consumer outside structural files — closes in P-08",
+            ),
+        ),
+        "environment_modes",
+        pytest.param(
+            "timeout_minutes",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="G-I3: StageDefinition.timeout_minutes parsed but no "
+                "runtime consumer (no template currently sets it either) — "
+                "closes in P-08",
+            ),
+        ),
+        pytest.param(
+            "input_mapping",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="G-I4: StageDefinition.input_mapping wiring DEFERRED "
+                "to v7.6.x per audit §9 Open Q1 + user 'mode_only' decision "
+                "for the v7.5.0 P-04 scope (mode-driven stage skip only; "
+                "dataflow input_mapping is a v7.6.x candidate)",
+            ),
+        ),
+    ],
 )
 def test_dataclass_field_has_consumer(project_root: Path, field: str) -> None:
-    """G-I1..I4: each parsed field must have a runtime consumer."""
+    """G-I1..I4: each parsed field must have a runtime consumer.
+
+    G-I2 (``environment_modes``) closed by P-04 in v7.4.9 — the new
+    :mod:`devolaflow.template_engine.runtime` reads
+    ``template.environment_modes[<env>].skip_stages`` and ``.extra_stages``
+    and applies them after skip_condition filtering per audit §3.I G-I2
+    evidence. Per-parameter xfail markers replace the previous
+    test-level marker so G-I1 / G-I3 / G-I4 remain xfailed (per
+    audit §6 strict=True contract: each ghost gets its own marker).
+    G-I4 explicitly carries the v7.6.x deferral reason per the user's
+    'mode_only' scope decision recorded in audit §9 Open Q1.
+    """
     src_dir = project_root / "src" / "devolaflow"
     py_files = [p for p in src_dir.rglob("*.py") if p.name not in _STRUCTURAL_FILES]
     consumers = sorted(

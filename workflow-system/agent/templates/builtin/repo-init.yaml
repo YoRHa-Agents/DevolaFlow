@@ -45,24 +45,26 @@ stages:
   - id: compile
     primitive: implement
     alias: rule-compile
-    description: "Compile .rules/*.mdc to detected adapter targets (Cursor MDC, AGENTS.md, Codex, Copilot)"
+    description: "Compile .rules/*.mdc to detected adapter targets (Cursor MDC, AGENTS.md, Codex, Copilot); SKIPPED under mode=minimal (Claude Code /init parity)"
     team: implement
     duration_class: quick
     config:
       test_strategy: no_test
     input_mapping:
       detected_tools: "analyze.findings.tools"
+    skip_condition: "mode == 'minimal'"
 
   - id: verify
     primitive: verify
     alias: init-smoke
-    description: "(opt-in: mode=deep) Smoke-verify scaffold — assert .local/ exists, .rules/ compiles cleanly, no drift; SKIPPED under mode=minimal or mode=standard"
+    description: "(opt-in: mode=deep) Smoke-verify scaffold — assert .local/ exists, .rules/ compiles cleanly, no drift; SKIPPED under mode=minimal or mode=standard via runtime skip_condition"
     team: test
     duration_class: quick
     config:
       suites: [smoke]
       fail_fast: true
       coverage_threshold: 0.0
+    skip_condition: "mode != 'deep'"
 
 composition:
   compose: sequence
