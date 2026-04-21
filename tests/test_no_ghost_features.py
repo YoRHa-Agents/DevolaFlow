@@ -289,6 +289,10 @@ _SF4_REFERENCE_SET = frozenset(
         "meta-framework.md",
         "repo-modes.md",
         "team-roles.md",
+        # v8.0.0 P-08 — L3 behavioral guidelines reference (BG-001..BG-004),
+        # wired through the new top-level ``behavioral_guidelines`` dispatch
+        # field at canonical_order position 14 (schema version 3).
+        "behavioral-guidelines.md",
     }
 )
 

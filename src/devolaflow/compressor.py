@@ -605,6 +605,17 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # Optional — single-repo dispatches may omit it (assert_dispatch_layout
     # treats absence as canonical, preserving v7.0.0 byte-baseline parity).
     "repos",
+    # v8.0.0 (P-08) — appended at position 14 per ADR-001 §2 additive rule.
+    # Schema version bumped 2 → 3 in schemas/lean-dispatch.yaml. Field shape:
+    #   {think_first: bool, simplicity_check: bool, surgical_scope: str,
+    #    goal_loop: bool}
+    # Optional — dispatches without behavioral injection may omit it
+    # (assert_dispatch_layout treats absence as canonical, preserving BOTH
+    # the v7.0.0 byte-baseline AND the v7.3.0 byte-baseline parity — proves
+    # additivity holds across two schema generations). See
+    # ``workflow-system/agent/references/behavioral-guidelines.md`` for the
+    # full rule semantics, severity classification, and self-check questions.
+    "behavioral_guidelines",
 ]
 
 
