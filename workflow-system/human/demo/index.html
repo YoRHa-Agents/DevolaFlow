@@ -266,6 +266,66 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v7.8.0 (P-13 backfill, canonical entry) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v780">What's New</span> in v7.8.0 — Canonical Manifest Enforcement</h2>
+      <p class="desc">v7.8.0 — canonical manifest prompt-side enforcement + <code>devola-init-doctor</code> command (commit <code>17d2a14</code>). Closes the three-time recurring repo-init <code>owned_files</code> drift issue (v7.4.1 / v7.5.0 / v7.7.0) where prompt-only L0 created wrong files instead of the canonical manifest. Root cause: the contract only existed in Python runtime code — invisible to prompt-only orchestrators. <strong>64 new tests</strong> across <code>test_validate_owned_files.py</code> (31), <code>test_init_doctor.py</code> (23), <code>test_canonical_manifest_parity.py</code> (10).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">DOCTOR</span>
+          <h3><code>devola-init-doctor</code> CLI</h3>
+          <p>New CLI scans <code>cwd</code> against canonical manifest, exits 0/1. Backed by <code>get_canonical_manifest(workflow)</code> public API and <code>check_init_health(cwd)</code> doctor function returning <code>DoctorReport</code> / <code>DoctorFinding</code> dataclasses.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PROMPT</span>
+          <h3>SKILL.md §Repo-Init Pre-Dispatch Contract</h3>
+          <p>Embeds all 5 canonical paths directly in the skill prompt with pre-dispatch self-check assertion requirement and <code>VOF001</code> blocker reference. <code>repo-init.yaml</code> mode parameter now states "Mode selects STAGES, not files — canonical_manifest is ALWAYS required regardless of mode". Compacted team participation matrix to <code>references/team-roles.md</code> to stay under 500-line SKILL.md budget (493 lines).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.viewSkill">View SKILL</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's New in v7.7.0 (P-13 backfill) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v770">What's New</span> in v7.7.0 — Interview + Memory Wiring</h2>
+      <p class="desc">v7.7.0 — interview implementation + memory wiring + progressive merge (commit <code>828b9ff</code>). Implements the v7.7 items from the repo-init v2 plan: fixes the <code>resolve_learnings_path()</code> fallback bug, lands <code>init_interview.py</code> with project-tool detection / skill suggestion / hook generation, wires <code>consolidate_session()</code> into the <code>test_on_complete</code> lifecycle hook so learnings persist on clean task_stop, and introduces a diff-based progressive merge module. <strong>20 new tests across 3 test files; 1525 total pass, 0 regressions.</strong></p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">INTERVIEW</span>
+          <h3><code>init_interview.py</code></h3>
+          <p><code>detect_project_tools()</code> scans for test frameworks, linters, formatters; <code>suggest_skills()</code> and <code>suggest_hooks()</code> generate project-specific suggestions; <code>write_skill()</code> and <code>generate_claude_hook_config()</code> produce tool-native output files. Interview stage description expanded with full 8-phase protocol; new <code>knowledge/interview-protocol.md</code> reference for L3 task agents.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">MEMORY</span>
+          <h3>Auto-Memory + Personal Prefs</h3>
+          <p>New <code>load_prefs()</code> in <code>learnings.py</code> parses <code>.local/memory/prefs.md</code> key-value pairs for personal preference injection. New <code>compile_prefs()</code> in <code>local/compiler.py</code> compiles <code>prefs.md</code> into <code>CLAUDE.local.md</code> (gitignored personal preferences). New <code>local/merge.py</code>: <code>propose_merge()</code> generates diff-based <code>MergeProposal</code>; <code>apply_merge()</code> writes; <code>format_diff_for_review()</code> produces human-readable review output.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/learnings.py"><span data-i18n="btn.viewCode">View Code</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's New in v7.6.0 (P-13 backfill) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v760">What's New</span> in v7.6.0 — Repo-Init v2 Redesign</h2>
+      <p class="desc">v7.6.0 — repo-init v2 redesign + lifecycle hooks + format conventions (commit <code>1a4f1ee</code>). Redesigns the repo-init workflow per user feedback (v7.4.1 / v7.5.0). Mode restructure: <code>minimal/standard/deep -> core(default)/standard/full</code>. Scaffold stage now declares <code>canonical_manifest</code> config listing required paths (<code>.local/feedbacks/</code>, <code>.local/tasks/</code>, <code>.local/memory/</code>, <code>.local/index.md</code>, <code>.rules/compile-config.yaml</code>).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">HOOKS</span>
+          <h3>Two New Lifecycle Hooks</h3>
+          <p><code>validate_owned_files</code> blocks dispatch when <code>owned_files</code> misses canonical paths (closes v7.4.1/v7.5.0 recurrence). <code>format_on_edit</code> detects missing formatters and suggests format-on-edit hooks per language. Context profile: <code>repo-init</code> gets <code>goal_hints</code>, <code>description</code>, <code>lifecycle_hooks</code> upgraded from <code>skip</code> to <code>important</code>.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">SCAFFOLD</span>
+          <h3>Workspace Conventions</h3>
+          <p>Scaffold generates: <code>TRACKER.md</code> (feedback resolution tracking), per-directory <code>README.md</code> (format conventions), <code>MEMORY.md</code> (auto-memory index). Auto-memory: <code>resolve_learnings_path()</code> checks <code>.local/memory/</code> first; <code>task_adaptive_selector</code> wired to use the local-first fallback. Benchmark thresholds relaxed for affected feature-profile scenarios.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/templates/builtin/repo-init.yaml"><span data-i18n="btn.viewSchema">View Template</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v7.2.0 -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v720">What's New</span> in v7.2.0</h2>

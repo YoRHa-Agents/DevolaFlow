@@ -5,6 +5,96 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.0] — 2026-04-21
+
+**MINOR — canonical manifest prompt-side enforcement + `devola-init-doctor` command** (commit `17d2a14`). Closes the three-time recurring repo-init `owned_files` drift issue (v7.4.1 / v7.5.0 / v7.7.0) where prompt-only L0 created wrong files instead of the canonical manifest. Root cause: the contract only existed in Python runtime code — invisible to prompt-only orchestrators. Prompt-side fix embeds the contract in `SKILL.md` directly; Python-side adds a `devola-init-doctor` CLI plus public `get_canonical_manifest(workflow)` and `check_init_health(cwd)` APIs. Benchmark baseline regenerated (tiktoken-free for test determinism).
+
+### Added
+- **`get_canonical_manifest(workflow)`** — public API for manifest lookup.
+- **`check_init_health(cwd)`** — doctor function returning `DoctorReport` / `DoctorFinding` dataclasses.
+- **`devola-init-doctor` CLI** — scans `cwd` against canonical manifest, exits 0/1.
+- **SKILL.md §"Repo-Init Pre-Dispatch Contract"** — embeds all 5 canonical paths directly in the skill prompt with pre-dispatch self-check assertion requirement and `VOF001` blocker reference.
+
+### Changed
+- **`repo-init.yaml`**: mode parameter now states `"Mode selects STAGES, not files — canonical_manifest is ALWAYS required regardless of mode"`.
+- **Compacted team participation matrix to `references/team-roles.md`** to stay under 500-line SKILL.md budget (493 lines).
+- **Benchmark baseline regenerated** (tiktoken-free for test determinism).
+
+### Removed
+
+_(none)_
+
+### Tests
+- **64 new tests** across 3 files:
+  - **`test_validate_owned_files.py` (31)**: `WORKFLOW_MANIFESTS` registry, path matching, validation, doctor dataclasses, health check with virtual repos.
+  - **`test_init_doctor.py` (23)**: CLI exit codes, virtual repo init flows (empty / git / Next.js / Python), canonical path existence verification, prompt-only contract simulation (v7.7.0 wrong paths → `VOF001` blocker).
+  - **`test_canonical_manifest_parity.py` (10)**: cross-file regression guard ensuring Python dict ↔ `repo-init.yaml` ↔ `SKILL.md` table all agree.
+
+### Cross-references
+- Source commit: `17d2a14` (verbatim per CO-2).
+- Predecessor: `[7.7.0] — 2026-04-21` immediately below.
+- Closes the recurring drift across v7.4.1 / v7.5.0 / v7.7.0.
+
+## [7.7.0] — 2026-04-21
+
+**MINOR — interview implementation + memory wiring + progressive merge** (commit `828b9ff`). Implements the v7.7 items from the repo-init v2 plan: fixes the `resolve_learnings_path()` fallback bug (always returned `local_path` even when `.local/memory/` didn't exist), lands `init_interview.py` with project-tool detection / skill suggestion / hook generation, wires `consolidate_session()` into the `test_on_complete` lifecycle hook so learnings persist on clean task_stop, adds personal preferences (`prefs.md` → `CLAUDE.local.md`) compilation, and introduces a diff-based progressive merge module for existing files. **20 new tests across 3 test files; 1525 total pass, 0 regressions.**
+
+### Added
+- **`init_interview.py`**: `detect_project_tools()` scans for test frameworks, linters, formatters; `suggest_skills()` and `suggest_hooks()` generate project-specific suggestions; `write_skill()` and `generate_claude_hook_config()` produce tool-native output files.
+- **`load_prefs()` in `learnings.py`**: parses `.local/memory/prefs.md` key-value pairs for personal preference injection.
+- **`compile_prefs()` in `local/compiler.py`**: compiles `prefs.md` into `CLAUDE.local.md` (gitignored personal preferences).
+- **`local/merge.py`**: `propose_merge()` generates diff-based `MergeProposal` for existing files; `apply_merge()` writes; `format_diff_for_review()` produces human-readable review output.
+- **`knowledge/interview-protocol.md`** reference for L3 task agents.
+
+### Changed
+- **`resolve_learnings_path()` fallback bug fix** (always returned `local_path` even when `.local/memory/` didn't exist; now falls back to canonical `workflow-system/agent/knowledge/learnings/` path).
+- **`test_on_complete` lifecycle hook**: on clean `task_stop`, learnings from status report are persisted to `.local/memory/operational.jsonl` via `consolidate_session()`.
+- **Interview stage description expanded** with full 8-phase protocol.
+
+### Removed
+
+_(none)_
+
+### Tests
+- **20 new tests across 3 test files; 1525 total pass, 0 regressions.**
+
+### Cross-references
+- Source commit: `828b9ff` (verbatim per CO-2).
+- Predecessor: `[7.6.0] — 2026-04-21` immediately below.
+- Successor: `[7.8.0] — 2026-04-21` above.
+
+## [7.6.0] — 2026-04-21
+
+**MINOR — repo-init v2 redesign + lifecycle hooks + format conventions** (commit `1a4f1ee`). Redesigns the repo-init workflow per user feedback (v7.4.1 / v7.5.0). Restructures modes to `core(default)/standard/full`, declares a `canonical_manifest` config in the scaffold stage listing the required `.local/` and `.rules/` paths, lands two new lifecycle hooks (`validate_owned_files`, `format_on_edit`), and wires auto-memory via `resolve_learnings_path()` checking `.local/memory/` first.
+
+### Added
+- **Mode restructure**: `minimal/standard/deep -> core(default)/standard/full`
+  - `core`: analyze + scaffold only (creates `.local/` + `.rules/` skeleton)
+  - `standard`: + compile (rule compilation to multi-tool formats)
+  - `full`: + interview placeholder + verify smoke tests
+- **Canonical layout fix**: scaffold stage now declares `canonical_manifest` config listing required paths (`.local/feedbacks/`, `.local/tasks/`, `.local/memory/`, `.local/index.md`, `.rules/compile-config.yaml`).
+- **New lifecycle hook: `validate_owned_files`** blocks dispatch when `owned_files` misses canonical paths (closes v7.4.1/v7.5.0 recurrence).
+- **New lifecycle hook: `format_on_edit`** detects missing formatters and suggests format-on-edit hooks per language.
+- **Workspace scaffold generates**: `TRACKER.md` (feedback resolution tracking), per-directory `README.md` (format conventions), `MEMORY.md` (auto-memory index).
+
+### Changed
+- **Auto-memory**: `resolve_learnings_path()` checks `.local/memory/` first; `task_adaptive_selector` wired to use the local-first fallback.
+- **Context profile**: `repo-init` gets `goal_hints`, `description`, `lifecycle_hooks` upgraded from `skip` to `important`.
+- **Benchmark thresholds relaxed** for affected feature-profile scenarios (cross-profile noise from `repo-init` `lifecycle_hooks` promotion).
+
+### Removed
+
+_(none)_
+
+### Tests
+
+_(none — entry derived verbatim from commit body which does not enumerate test counts)_
+
+### Cross-references
+- Source commit: `1a4f1ee` (verbatim per CO-2).
+- Predecessor: `[7.5.0] — 2026-04-20` immediately below.
+- Successor: `[7.7.0] — 2026-04-21` above.
+
 ## [7.5.0] — 2026-04-20
 
 **MINOR — Audit-driven cycle rollup. End-to-end ghost-feature elimination consumed the SI-1 planning gate at `.local/research/v7.5.0_ghost_audit.md` (715 lines, 41 ghosts across 11 categories A–K) and shipped 8 of 8 candidate patches across 8 user-tagged patch versions (v7.4.3 → v7.4.10).** Driven by the session-level user feedback "add test to cover this and exam if there are more fake-impl and make a deep review and improve and make patches for each of them and pr to main and release for each of them after all make a summary version to self-update and bump a minor version /devola-flow" — which translated into the audit's structured 8-patch decomposition (P-01 anti-ghost meta-test infrastructure + P-02..P-08 cohesive ghost-cluster closures). All 8 candidates landed via the standard mini-cycle (research → impl → in-repo benchmark → SI-10 6-step gate → ACCEPT/REJECT) with a final accept rate of 8/8 = 100%. The cycle closes the audit's **single BLOCKER** (G-C1 lifecycle hooks per P-05), all **4 critical ghosts** (G-B1 `validate-gate` stub per P-06; G-G1 `parameters.mode` runtime wiring per P-04; G-E3 `handoff-deliverable.yaml` schema authoring per P-07; G-E4 4-schema manifest closure per P-07), **10 of 11 major ghosts** (G-G2 + G-I1 + G-I2 + G-E1 + G-E2 + G-H1 + G-H2 + G-H3 + G-J1 + G-J2; G-I4 deferred per user "mode_only" scope decision), and **all 12 Cat K minor stale-doc ghosts** (per P-02). **19 of 21 (90%) original P-01 xfail markers cleared in the cycle**; the remaining 2 are intentional v7.6.x deferrals (G-I3 retained-with-reservation per user "delete_team_keep_timeout" decision; G-I4 deferred per user "mode_only" scope decision). SI-10 6-step pre-commit gate **6/6 PASS across all 8 patches AND at the v7.5.0 final state**; 1504 tests pass (vs 1343 v7.4.2 baseline, +161 net); 0 EvoBench regressions on the existing 36 v7.4.x baseline scenarios; **2 EvoBench scenarios re-baselined POSITIVELY** in P-03 (`convergence_noise_filter` and `feedback_regression`, both 89.91 → 99.77, +9.86pp each — the §"Reinforcement Rules" compression freed budget for higher-density content under the `feedback` profile's tight 2475-token budget). SI-3 composite projected ~9.4/10 (heuristic — ghost-feature elimination strongly improves Test Adequacy 0.20, Maintainability 0.15, and Architecture 0.20 dimensions; NineS self-eval run as part of the rollup per W-2 / SI-2 — see `.local/research/v7.5.0_nines_self_eval.json`).
