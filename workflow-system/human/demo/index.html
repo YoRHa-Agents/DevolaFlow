@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v8.1.0-rc.1 (pre-release; v8.2.0 SI-1 planning gate) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v810rc1">What's New</span> in v8.1.0-rc.1 — Self-Analysis Cycle &amp; v8.2.0 Planning Gate</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v810rc1.desc">v8.1.0-rc.1 — PRE-RELEASE marking the v8.x trilogy mid-cycle checkpoint. No new feature code; deliverables are entirely meta-cycle artifacts: <strong>NineS self-eval composite 9.05/10</strong> (✓ ≥ 8.5 G2 PASS); NineS workflow-system second scan closes <code>[NineS:kp-find-3de75952]</code> 0-mechanism gap with <strong>mechanism_count = 8</strong>; EvoBench v8.1.0 baseline TRACKED with 36/36 PASS at 0pp regression vs v8.0.0; gap analysis surfaces <strong>18 candidates across A/B/C/D types</strong>; v8.2.0 SI-1 planning gate publishes <strong>5 forecasted patches PV-01..PV-05</strong> (LLM Stage B, legibility scoring, unified session state, surgical_scope='line', R7 section-anchor registry) over 2 waves with 0 P6 schema bumps planned. Pre-release suffix supported by <code>scripts/bump_version.py</code> SEMVER_RE; 11 canonical sync locations updated.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">SELF-ANALYSIS</span>
+          <h3>NineS Self-Eval Composite 9.05/10</h3>
+          <p>NineS self-eval against v8.0.0 baseline (<code>.local/research/v8.1.0_nines_self_eval.json</code>, 51 KB; 25 dimension scores) PASSES the G2 ≥ 8.5 SI-3 minor threshold by +0.55pp. Weighted_overall 0.7044 dragged by <code>code_coverage: 0.0</code> artifact (NineS's nested <code>pytest --cov</code> timing out at 54s); actual coverage is 96.78% per v8.0.0 SI-3 evaluation. Bundled into PV-05 A1 fix (<code>nines.toml</code> budget bump 54 → 120s; expected weighted_overall 0.7044 → ≥ 0.88).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.local/research/v8.1.0_gap_analysis.md"><span data-i18n="btn.viewGapAnalysis">View Gap Analysis</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">WORKFLOW-SCAN</span>
+          <h3>NineS Workflow-System Second Scan: 8 Mechanisms</h3>
+          <p>NineS workflow-system second scan (<code>.local/research/v8.1.0_nines_workflow_system.json</code>, 24 KB) closes the v8.0.0 patch_plan §2.2 0-mechanism gap by detecting <strong>8 mechanisms</strong> in <code>SKILL.md</code> post-P-08: drift_prevention 0.83, behavioral_rules 0.80, multi_platform_sync 0.73, productive_contradiction 0.67, token_compression 0.60, safety_guardrails 0.56, active_forgetting 0.51, churn_aware_routing 0.50. Economics_score 0.1606; break_even_interactions 9; total_agent_context_tokens 46179.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.local/research/v8.1.0_gap_analysis.md"><span data-i18n="btn.viewGapAnalysis">View Gap Analysis</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PLANNING-GATE</span>
+          <h3>v8.2.0 5-Patch Forecast (PV-01..PV-05)</h3>
+          <p>v8.2.0 SI-1 planning gate (<code>.local/research/v8.2.0_patch_plan.md</code>, 562 lines, 5 PVs × 8 mandatory fields + DAG + 10-risk register) forecasts <strong>~10-14 wall-clock days</strong>: PV-01 LLM Stage B abstractive (XL, closes 4.6 Stage B; design doc 260 lines READY), PV-02 Agent legibility scoring (XL, closes 4.7), PV-03 Unified session state (XL, closes 4.8; depends on PV-02), PV-04 surgical_scope='line' (M 4h, closes P-08 deferred AC), PV-05 emergent R7 section-anchor registry refactor (L 10h, bundles A1 cov budget + B2 partial + B3 partial + D1 byte-baseline). 0 P6 schema bumps; canonical_order length stays 15 / version stays 4 throughout.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.local/research/v8.2.0_patch_plan.md"><span data-i18n="btn.viewPatchPlan">View Patch Plan</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">BENCHMARK</span>
+          <h3>EvoBench v8.1.0 Baseline TRACKED</h3>
+          <p>EvoBench v8.1.0 baseline (<code>benchmarks/devolaflow_context/baselines/v8.1.0_baseline.json</code>, 13.6 KB / 13636 bytes; <strong>TRACKED</strong> in this PR) holds <strong>36/36 PASS in 12.78s; 0 regression > 5pp</strong> vs v8.0.0 baseline. File rebased from v8.0.0 with <code>rebased_from: v8.0.0</code> + <code>rebased_at: 2026-04-22</code> provenance markers, capturing the architectural watermark of the v8.0.0 cycle's regression-firewall outcome. Layout invariant baselines (v7.0.0 + v7.3.0 + LCP cross-baseline) STILL PASS; gap-analysis D1 candidate (add v8.0.0 byte-baseline) bundled into PV-05.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/benchmarks/devolaflow_context/baselines/v8.1.0_baseline.json"><span data-i18n="btn.viewBaseline">View Baseline</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v8.0.0 -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew">What's New</span> in v8.0.0 — Harness Engineering Cycle</h2>
