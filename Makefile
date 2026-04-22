@@ -2,7 +2,7 @@
 # Design ref: design_dual_system.md §4.5
 
 .PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
-       build-site release-preflight release-dry-run
+       build-site release-preflight release-dry-run scaffold-agent
 
 all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill check-drift
 
@@ -44,7 +44,14 @@ sync-cursor-skill:
 check-cursor-skill:
 	python scripts/sync_cursor_skill.py --check
 
-.PHONY: sync-cursor-skill check-cursor-skill
+.PHONY: sync-cursor-skill check-cursor-skill scaffold-agent
+
+# v8.2.3 — one-shot re-scaffold for existing repos. Idempotent: safe to re-run.
+# Repairs G-1 (.local/index.md drift) + G-2 (missing TRACKER.md / MEMORY.md)
+# and creates the .local/.agent/{active,handoff,archive}/ + .local/memory/specs/
+# substrate per .local/research/v8.3.0_design.md §1.1.
+scaffold-agent:
+	python -c "from devolaflow.local.workspace import scaffold_local; scaffold_local('.')"
 
 check-drift:
 	check-drift

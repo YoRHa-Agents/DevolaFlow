@@ -25,6 +25,14 @@ WORKFLOW_MANIFESTS: dict[str, list[str]] = {
         ".local/memory/",
         ".local/index.md",
         ".rules/compile-config.yaml",
+        # v8.2.3 — A1 .agent/* substrate per .local/research/v8.3.0_design.md §1.1.
+        # Order MUST stay parity-locked with workflow-system/agent/templates/
+        # builtin/repo-init.yaml::scaffold.config.canonical_manifest and the
+        # Repo-Init Pre-Dispatch Contract table in workflow-system/agent/SKILL.md
+        # (see tests/test_canonical_manifest_parity.py for the regression gate).
+        ".local/.agent/active/",
+        ".local/.agent/handoff/",
+        ".local/.agent/archive/",
     ],
 }
 
@@ -147,6 +155,14 @@ def check_init_health(cwd: str | Path) -> DoctorReport:
         (".local/tasks/README.md", "tasks dir README"),
         (".local/memory/README.md", "memory dir README"),
         (".local/memory/MEMORY.md", "memory index"),
+        # v8.2.3 — README placeholders for the new .agent/* dirs and memory/specs/.
+        # Acts as both a placeholder (since .local/ is gitignored until v8.2.4
+        # lifts the exception per Q-5) and inline documentation of the dir's
+        # purpose. See src/devolaflow/local/workspace.py::_DIR_README_CONTENT.
+        (".local/.agent/active/README.md", ".agent/active dir README"),
+        (".local/.agent/handoff/README.md", ".agent/handoff dir README"),
+        (".local/.agent/archive/README.md", ".agent/archive dir README"),
+        (".local/memory/specs/README.md", "memory/specs dir README"),
     ]
     for rel, desc in extras:
         full = root / rel

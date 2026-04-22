@@ -34,7 +34,7 @@ stages:
   - id: scaffold
     primitive: implement
     alias: workspace-scaffold
-    description: "Create .local/{feedbacks,tasks,memory}/ + index.md + .rules/ with canonical manifest in config; write CLAUDE.md / AGENTS.md if missing"
+    description: "Create .local/{feedbacks,tasks,memory,.agent/{active,handoff,archive}}/ + index.md + .rules/ with 8-path canonical manifest in config; write CLAUDE.md / AGENTS.md if missing"
     team: implement
     duration_class: quick
     config:
@@ -45,6 +45,9 @@ stages:
         - ".local/memory/"
         - ".local/index.md"
         - ".rules/compile-config.yaml"
+        - ".local/.agent/active/"
+        - ".local/.agent/handoff/"
+        - ".local/.agent/archive/"
     input_mapping:
       tasks: "analyze.findings"
 
@@ -116,8 +119,11 @@ parameters:
     default: core
     choices: [core, standard, full]
     description: >
-      Mode selects STAGES, not files — canonical_manifest (5 paths) is
-      ALWAYS required regardless of mode. See SKILL.md §Repo-Init Pre-Dispatch Contract.
+      Mode selects STAGES, not files — canonical_manifest (8 paths, since
+      v8.2.3) is ALWAYS required regardless of mode. The 8 paths are the
+      original 5 (.local/{feedbacks,tasks,memory}/, .local/index.md,
+      .rules/compile-config.yaml) plus the v8.2.3 .agent/{active,handoff,
+      archive}/ substrate. See SKILL.md §Repo-Init Pre-Dispatch Contract.
       core     — analyze + scaffold only (DEFAULT — canonical layout still required, skips compile/interview/verify)
       standard — analyze + scaffold + compile (adds rule compilation across detected adapters)
       full     — all five stages including interview and verify smoke tests
