@@ -323,6 +323,24 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # CHANGELOG v5.x as a public helper for callers needing nines.toml
         # auto-discovery before invoking run_nines_cli(config_path=...).
         "devolaflow.nines._cli:find_nines_config",
+        # ---- v8.2.1 runtime plugin auto-install (H-001 / design.md §6) ----
+        # Entry points of the new runtime plugin surface. They are consumed
+        # declaratively by workflow YAML precondition stages
+        # (``workflow-system/agent/templates/builtin/nines-assisted.yaml``
+        # and ``product-verification.yaml`` now both start with a
+        # ``config.ensure_plugins: [...]`` stage per PV-01) and invoked
+        # externally by the workflow runner. A production Python caller
+        # lands in v8.2.6 when the ``change-driven`` template wires
+        # ``ensure_plugins`` config into dispatch — allowlisted here until
+        # that caller exists, matching the same pattern used by the
+        # lifecycle hooks block at the top of this allowlist (P-05 v7.4.8).
+        # Verified by ``tests/test_plugins.py`` TestEnsurePluginFailureModes
+        # (8 failure-mode scenarios per design.md §6.5) + TestEnsurePluginNpmBackend
+        # (ui-pro 2-step install) + smoke test against /home/agent/workspace/NineS.
+        "devolaflow.plugins.installer:ensure_plugin",
+        "devolaflow.plugins.installer:load_registry",
+        "devolaflow.plugins.installer:resolve_plugin",
+        "devolaflow.plugins.installer:RuntimePluginSpec",
     }
 )
 
