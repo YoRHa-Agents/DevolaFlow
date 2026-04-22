@@ -135,6 +135,17 @@ class GateInput:
     interaction_test_results: CheckResult | None = None
     accessibility_results: CheckResult | None = None
     acceptance_verification_results: CheckResult | None = None
+    # v8.0.0 (P-10) — Structured acceptance-criterion verdicts (one per
+    # :class:`AcceptanceCriterion` in the dispatch payload's
+    # ``acceptance_criteria_v2`` field). Default ``None`` keeps
+    # behaviour byte-identical to pre-P-10 — :func:`evaluate_gate` does
+    # NOT consult this field unless callers explicitly aggregate it into
+    # ``acceptance_criteria_results`` via
+    # :func:`devolaflow.gate.scorer.aggregate_criterion_verdicts`. The
+    # field is exposed so downstream consumers (Project / Stage agents,
+    # StatusReport renderers) can surface per-criterion outcomes without
+    # re-running ``verification_cmd``.
+    acceptance_criterion_verdicts: list[AcceptanceCriterionVerdict] | None = None
 
 
 @dataclass
@@ -681,3 +692,118 @@ class ComplexitySignals:
             raise ValueError(f"nines_error_findings must be >= 0 (got {self.nines_error_findings})")
         if self.nines_warn_findings < 0:
             raise ValueError(f"nines_warn_findings must be >= 0 (got {self.nines_warn_findings})")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-10) — Automatic Acceptance Criteria generation
+#
+# Structured successor to the legacy ``acceptance_criteria: list[str]``
+# alias (R5 backward compatibility — the legacy alias is PRESERVED and
+# continues to validate via ``src/devolaflow/lifecycle/validate_dispatch.py``).
+# The new ``AcceptanceCriterion`` dataclass mirrors the dispatch field
+# shape declared in ``schemas/lean-dispatch.yaml#lean_format_spec.
+# acceptance_criteria_v2`` (canonical_order position 15, schema version 4
+# — additive per ADR-001 §2).
+#
+# Three :pyattr:`verification_type` paths follow ``patch_plan §3 P-10
+# AC #1/#2``:
+#
+#     test    — ``verification_cmd`` is a shell command whose exit code
+#               determines pass/fail (``ACGenerator.generate("fix bug X")``
+#               returns this path by default).
+#     metric  — ``metric`` + ``threshold`` define a numeric assertion the
+#               caller evaluates externally (``ACGenerator.generate
+#               ("improve performance")`` returns this path; the gate
+#               surfaces it as ``skip`` until a metric runner ratifies).
+#     manual  — Human-only verification; the gate marks it ``skip`` and
+#               surfaces it for advisor review (S-5 — never silently
+#               treat manual checks as PASS).
+#
+# ``AcceptanceCriterionVerdict`` captures the per-criterion outcome
+# emitted by :func:`devolaflow.gate.scorer.evaluate_acceptance_criteria_v2`.
+# The verdict list lives on :pyattr:`GateInput.acceptance_criterion_verdicts`
+# (default ``None`` — byte-identical to pre-P-10 fallback).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+VerificationType = Literal["test", "metric", "manual"]
+
+
+VALID_VERIFICATION_TYPES: frozenset[str] = frozenset({"test", "metric", "manual"})
+
+
+CriterionVerdictStatus = Literal["pass", "fail", "skip"]
+
+
+@dataclass(frozen=True)
+class AcceptanceCriterion:
+    """One structured acceptance criterion (v8.0.0 P-10).
+
+    Frozen + hashable so the gate can compare criterion identity across
+    rounds without defensive copies (S-5 — no silent mutation across
+    rounds). ``id`` is the stable handle the verdict refers back to.
+
+    Attributes
+    ----------
+    id:
+        Short stable identifier (e.g. ``"AC-001"``). MUST be unique per
+        dispatch payload — duplicate ids cause
+        :func:`devolaflow.gate.scorer.evaluate_acceptance_criteria_v2`
+        to raise :class:`ValueError`.
+    description:
+        Human-readable criterion text (≤ 200 chars recommended).
+    verification_type:
+        One of ``test`` / ``metric`` / ``manual``.
+    verification_cmd:
+        Shell command consulted when ``verification_type='test'``. Empty
+        string is allowed for the other two types.
+    metric:
+        Metric name consulted when ``verification_type='metric'``
+        (e.g. ``"latency_p95_ms"``). Empty for the other two types.
+    threshold:
+        Threshold expression consulted when
+        ``verification_type='metric'`` (e.g. ``"<= baseline * 0.9"``).
+        Empty for the other two types.
+    """
+
+    id: str
+    description: str
+    verification_type: VerificationType
+    verification_cmd: str = ""
+    metric: str = ""
+    threshold: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise ValueError("AcceptanceCriterion.id must be a non-empty string")
+        if not self.description:
+            raise ValueError("AcceptanceCriterion.description must be a non-empty string")
+        if self.verification_type not in VALID_VERIFICATION_TYPES:
+            raise ValueError(
+                "AcceptanceCriterion.verification_type must be one of "
+                f"{sorted(VALID_VERIFICATION_TYPES)} (got {self.verification_type!r})"
+            )
+
+
+@dataclass(frozen=True)
+class AcceptanceCriterionVerdict:
+    """Per-criterion outcome emitted by ``evaluate_acceptance_criteria_v2``.
+
+    Three :pyattr:`status` paths (S-5 No Silent Failures — the enum is
+    exhaustive):
+
+    - ``pass`` — verification succeeded (test exit 0, metric satisfied,
+      or manual review approved).
+    - ``fail`` — verification failed (test non-zero exit, metric breach,
+      or manual review rejected).
+    - ``skip`` — verification deferred (no runner provided for the type,
+      or manual review pending). NEVER silently treated as ``pass``.
+
+    All fields are populated even on the ``skip`` path so callers can
+    log every measurement uniformly without conditional branches.
+    """
+
+    criterion_id: str
+    status: CriterionVerdictStatus
+    message: str = ""
+    details: dict[str, object] = field(default_factory=dict)

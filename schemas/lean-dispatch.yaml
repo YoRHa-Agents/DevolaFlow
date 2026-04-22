@@ -208,6 +208,54 @@ lean_format_spec:
       simplicity_check: "bool — over-engineering audit (BG-002, severity warn)"
       surgical_scope: "str — one of 'line' | 'function' | 'module' (BG-003, severity blocker)"
       goal_loop: "bool — round-N goal re-anchor (BG-004, severity warn)"
+  # v8.0.0 (P-10) — Automatic Acceptance Criteria generator (Karpathy
+  # Goal-Driven Execution per upstream tweet analysis ``v7.8`` §4.14).
+  # NEW top-level dispatch key APPENDED to ``canonical_order`` AT THE END
+  # (position 15, after ``behavioral_guidelines``) per ADR-001 §2 additive
+  # rule. Schema version bumped 3 → 4 to mark the schema generation. ZERO
+  # existing keys reordered; the v7.0.0 golden baseline byte-comparison
+  # AND the v7.3.0 byte-baseline STILL PASS after this bump (verified by
+  # tests/test_benchmarks.py::TestLayoutInvariantBaseline AND
+  # tests/test_ac_generator.py::TestSchemaAdditivity), proving additivity
+  # holds across THREE schema generations (v7.2.6 → v8.0.0-P-08 →
+  # v8.0.0-P-10).
+  #
+  # IMPORTANT — ``acceptance_criteria`` (the legacy ``list[str]`` alias
+  # recognised by ``src/devolaflow/lifecycle/validate_dispatch.py``) is
+  # PRESERVED unchanged for backward compatibility (R5 mitigation per
+  # ``.local/research/v8.0.0_patch_plan.md`` §9). Existing dispatch
+  # payloads that supply ``accept: list[str]`` OR ``acceptance_criteria:
+  # list[str]`` continue to validate exactly as in v7.x — no breaking
+  # change. The new ``acceptance_criteria_v2`` field is OPT-IN; agents
+  # MAY ignore it if they do not yet support structured criteria.
+  #
+  # Field shape:
+  #   acceptance_criteria_v2:
+  #     - id: str                 # short stable identifier (e.g. "AC-001")
+  #       description: str        # human-readable criterion text
+  #       verification_type: str  # 'test' | 'metric' | 'manual'
+  #       verification_cmd: str   # optional shell command (verification_type='test')
+  #       metric: str             # optional metric name (verification_type='metric')
+  #       threshold: str          # optional threshold expression (verification_type='metric')
+  #
+  # Semantics: when present, ``ACGenerator.generate(...)`` (see
+  # ``src/devolaflow/ac_generator.py``) populates the list from the task
+  # description. The companion ``evaluate_acceptance_criteria_v2(...)``
+  # in ``src/devolaflow/gate/scorer.py`` runs each ``verification_cmd``
+  # via subprocess and emits per-criterion :class:`AcceptanceCriterionVerdict`
+  # outcomes. When absent, the gate falls back to legacy
+  # ``acceptance_criteria: list[str]`` behaviour — byte-identical to v7.x
+  # (preserves the v7.0.0 layout golden baseline).
+  acceptance_criteria_v2:
+    description: "Structured acceptance criteria — ACGenerator-friendly successor to the legacy `accept` list[str]. Opt-in; does NOT replace the legacy alias."
+    optional: true
+    per_entry:
+      id: "str — short stable identifier (e.g. 'AC-001')"
+      description: "str — human-readable criterion text"
+      verification_type: "str — one of 'test' | 'metric' | 'manual'"
+      verification_cmd: "str — optional shell command (verification_type='test')"
+      metric: "str — optional metric name (verification_type='metric')"
+      threshold: "str — optional threshold expression (verification_type='metric')"
 
 # --- COMPRESSION RULES ---
 # Deterministic drop/preserve lists for inter-layer message compaction.
@@ -294,8 +342,24 @@ compression_rules:
 # dispatches without behavioral injection MAY omit it entirely;
 # assert_dispatch_layout treats absence as canonical (preserves v7.x
 # byte-stable dispatch shape for backward compatibility).
+#
+# v8.0.0 (P-10, source: .local/research/v8.0.0_patch_plan.md §3 P-10 +
+# Karpathy Goal-Driven Execution): canonical_order grew 14 → 15 by APPENDING
+# `acceptance_criteria_v2` AT THE END (after `behavioral_guidelines`) per
+# ADR-001 §2 additive rule. Version bumped 3 → 4 to mark the schema
+# generation. ZERO existing keys reordered; BOTH the v7.0.0 golden baseline
+# byte-comparison AND the v7.3.0 baseline STILL PASS after this bump,
+# proving additivity holds across THREE schema generations (v7.2.6 →
+# v8.0.0-P-08 → v8.0.0-P-10). The new `acceptance_criteria_v2` field
+# shape is documented above under `lean_format_spec.acceptance_criteria_v2`.
+# Field is optional — dispatches without structured AC MAY omit it
+# entirely; the legacy `acceptance_criteria: list[str]` alias (recognised
+# by `src/devolaflow/lifecycle/validate_dispatch.py`) is PRESERVED
+# unchanged (R5 mitigation per patch_plan §9). assert_dispatch_layout
+# treats absence as canonical (preserves v7.x byte-stable dispatch shape
+# for backward compatibility AND keeps the existing 1500+ tests green).
 layout_invariant:
-  version: 3
+  version: 4
   canonical_order:
     - hdr
     - task
@@ -311,6 +375,7 @@ layout_invariant:
     - gate
     - repos
     - behavioral_guidelines
+    - acceptance_criteria_v2
   enforcement:
     validator: "devolaflow.compressor.assert_dispatch_layout"
     stability_test: "tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds"

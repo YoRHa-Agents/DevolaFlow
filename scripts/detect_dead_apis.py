@@ -91,6 +91,31 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # (patch_plan §3 P-05 AC #3). Not yet wired into evaluate_gate
         # itself — orchestrator opt-in only at v8.0.0 cut.
         "devolaflow.gate.scorer:evaluate_ladder",
+        # v8.0.0 P-10 acceptance-criteria auto-evaluator + verdict aggregator.
+        # ``evaluate_acceptance_criteria_v2`` runs the new structured criteria
+        # (canonical_order position 15, schema version 4) and emits per-criterion
+        # :class:`AcceptanceCriterionVerdict` outcomes; ``aggregate_criterion_verdicts``
+        # folds them into a :class:`CheckResult` for legacy
+        # ``GateInput.acceptance_criteria_results`` integration. Both are
+        # exposed via ``devolaflow.gate.__all__`` for external L0/L1/L2
+        # orchestrators that opt in to ``acceptance_criteria_v2`` dispatch
+        # field. NOT yet wired into ``evaluate_gate`` itself at the v8.0.0
+        # cut — orchestrator opt-in only (R5: legacy ``acceptance_criteria:
+        # list[str]`` alias remains the byte-identical default per
+        # ``patch_plan §3 P-10``). Verified by
+        # ``tests/test_ac_generator.py::TestEvaluateAcceptanceCriteriaV2``
+        # and ``::TestAggregateCriterionVerdicts``.
+        "devolaflow.gate.scorer:evaluate_acceptance_criteria_v2",
+        "devolaflow.gate.scorer:aggregate_criterion_verdicts",
+        # v8.0.0 P-10 ACGenerator — pure-Python pattern-matching synthesiser
+        # for the new ``acceptance_criteria_v2`` dispatch field. Consumed by
+        # external L0/L1/L2 orchestrators that opt in via
+        # ``context_profiles.yaml#profiles.<name>.ac_generation.enabled=true``
+        # (default ``false`` — opt-in per ``patch_plan §3 P-10``). Not wired
+        # into any in-repo dispatch flow at the v8.0.0 cut; companion to
+        # ``evaluate_acceptance_criteria_v2`` above. Verified by
+        # ``tests/test_ac_generator.py::TestACGeneratorGenerate``.
+        "devolaflow.ac_generator:ACGenerator",
         "devolaflow.gate.reinforcement:findings_to_reinforcement",
         "devolaflow.gate.reinforcement:merge_reinforcement_into_dispatch",
         "devolaflow.gate.reinforcement:reinforcement_to_dict",

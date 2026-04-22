@@ -510,16 +510,17 @@ class TestDefaultDispatchLayoutV730:
             "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
         }
 
-    def test_default_dispatch_layout_length_is_14(self):
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 14, (
+    def test_default_dispatch_layout_length_is_15(self):
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 15, (
             f"DEFAULT_DISPATCH_LAYOUT length is {len(DEFAULT_DISPATCH_LAYOUT)}, "
-            "expected 14 after v8.0.0 P-08 (12 v7.0.0 keys + repos + behavioral_guidelines)"
+            "expected 15 after v8.0.0 P-10 (12 v7.0.0 keys + repos + "
+            "behavioral_guidelines + acceptance_criteria_v2)"
         )
 
-    def test_default_dispatch_layout_last_entry_is_behavioral_guidelines(self):
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "behavioral_guidelines", (
+    def test_default_dispatch_layout_last_entry_is_acceptance_criteria_v2(self):
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "acceptance_criteria_v2", (
             f"DEFAULT_DISPATCH_LAYOUT[-1] is {DEFAULT_DISPATCH_LAYOUT[-1]!r}, "
-            "expected 'behavioral_guidelines' (v8.0.0 P-08 appends at position 14 per ADR-001 §2)"
+            "expected 'acceptance_criteria_v2' (v8.0.0 P-10 appends at position 15 per ADR-001 §2)"
         )
 
     def test_repos_remains_at_position_13(self):
@@ -1994,37 +1995,45 @@ class TestCompactDirectiveSchema:
 
     SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "lean-dispatch.yaml"
 
-    def test_layout_invariant_canonical_order_length_14(self):
-        """P6 invariant (post v8.0.0 P-08): canonical_order MUST be 14 keys
+    def test_layout_invariant_canonical_order_length_15(self):
+        """P6 invariant (post v8.0.0 P-10): canonical_order MUST be 15 keys
         (12 v7.0.0 keys + repos appended by P-06 + behavioral_guidelines
-        appended by P-08, both per ADR-001 §2 additive rule)."""
+        appended by P-08 + acceptance_criteria_v2 appended by P-10, all
+        per ADR-001 §2 additive rule)."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert len(spec["layout_invariant"]["canonical_order"]) == 14, (
+        assert len(spec["layout_invariant"]["canonical_order"]) == 15, (
             f"canonical_order length = {len(spec['layout_invariant']['canonical_order'])}; "
-            "expected 14 after v8.0.0 P-08 (additive append of behavioral_guidelines)"
+            "expected 15 after v8.0.0 P-10 (additive append of acceptance_criteria_v2)"
         )
 
-    def test_layout_invariant_version_is_3(self):
-        """P6 invariant (post v8.0.0 P-08): schema version MUST be 3 (bumped
-        2 → 3 by P-08 to mark the schema generation; the v7.0.0 byte-baseline
-        AND v7.3.0 byte-baseline STILL pass — additivity proven)."""
+    def test_layout_invariant_version_is_4(self):
+        """P6 invariant (post v8.0.0 P-10): schema version MUST be 4 (bumped
+        3 → 4 by P-10 to mark the schema generation; the v7.0.0 byte-baseline
+        AND v7.3.0 byte-baseline STILL pass — additivity proven across
+        THREE schema generations: v7.2.6 → P-08 → P-10)."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert spec["layout_invariant"]["version"] == 3, (
+        assert spec["layout_invariant"]["version"] == 4, (
             f"layout_invariant.version = {spec['layout_invariant']['version']}; "
-            "expected 3 after v8.0.0 P-08 schema bump (per ADR-001 §2)"
+            "expected 4 after v8.0.0 P-10 schema bump (per ADR-001 §2)"
         )
 
-    def test_layout_invariant_last_key_is_behavioral_guidelines(self):
-        """P6 invariant (post v8.0.0 P-08): position 14 (1-indexed) MUST be
-        ``behavioral_guidelines`` (added by v8.0.0 P-08, after ``repos`` at
-        position 13). The v7.0.0 12-key prefix and v7.3.0 13-key prefix both
-        remain byte-stable — assertions for those live in TestLayoutInvariantBaseline."""
+    def test_layout_invariant_last_key_is_acceptance_criteria_v2(self):
+        """P6 invariant (post v8.0.0 P-10): position 15 (1-indexed) MUST be
+        ``acceptance_criteria_v2`` (added by v8.0.0 P-10, after
+        ``behavioral_guidelines`` at position 14). The v7.0.0 12-key
+        prefix, v7.3.0 13-key prefix, and the position-13 ``repos`` /
+        position-14 ``behavioral_guidelines`` slots all remain
+        byte-stable — assertions for those live in
+        ``TestLayoutInvariantBaseline``."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         canonical = spec["layout_invariant"]["canonical_order"]
-        assert canonical[-1] == "behavioral_guidelines"
+        assert canonical[-1] == "acceptance_criteria_v2"
+        assert canonical[13] == "behavioral_guidelines", (
+            "behavioral_guidelines MUST stay at position 14 (1-indexed) after "
+            "the P-10 append; P-10 appends AFTER behavioral_guidelines, never before it"
+        )
         assert canonical[12] == "repos", (
-            "repos MUST stay at position 13 (1-indexed) after the P-08 append; "
-            "P-08 appends AFTER repos, never before it"
+            "repos MUST stay at position 13 (1-indexed) after the P-10 append"
         )
 
     def test_compact_directive_field_present_under_pred(self):
@@ -2040,11 +2049,14 @@ class TestCompactDirectiveSchema:
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         assert "compact_directive" not in spec["layout_invariant"]["canonical_order"]
 
-    def test_default_dispatch_layout_grew_to_14(self):
-        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 14 keys after v8.0.0 P-08
-        (last entry == 'behavioral_guidelines'; ``repos`` stays at position 13)."""
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 14
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "behavioral_guidelines"
+    def test_default_dispatch_layout_grew_to_15(self):
+        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 15 keys after v8.0.0
+        P-10 (last entry == 'acceptance_criteria_v2';
+        ``behavioral_guidelines`` stays at position 14; ``repos`` stays at
+        position 13)."""
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 15
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "acceptance_criteria_v2"
+        assert DEFAULT_DISPATCH_LAYOUT[13] == "behavioral_guidelines"
         assert DEFAULT_DISPATCH_LAYOUT[12] == "repos"
 
     def test_assert_layout_accepts_pred_with_compact_directive(self):

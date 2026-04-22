@@ -9,6 +9,7 @@ import argparse
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -28,7 +29,9 @@ from devolaflow.gate.models import (
     GATE_TYPE_ALIASES,
     LADDER_RUNG_NAMES,
     LADDER_RUNG_ORDER,
+    AcceptanceCriterion,
     AcceptanceCriterionResult,
+    AcceptanceCriterionVerdict,
     BudgetAction,
     BudgetDecision,
     CheckResult,
@@ -1217,6 +1220,256 @@ def _attach_complexity_evaluation(
                 f"{verdict.rationale} | Overcomplexity gate CRITICAL — {evaluation.rationale}"
             )
     return verdict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-10) — Automatic Acceptance Criteria evaluation
+#
+# ``evaluate_acceptance_criteria_v2`` runs each
+# :class:`AcceptanceCriterion` in a list (typically sourced from the
+# dispatch payload's ``acceptance_criteria_v2`` field — canonical_order
+# position 15, schema version 4) and emits a list of
+# :class:`AcceptanceCriterionVerdict`. Three verdict paths follow
+# ``patch_plan §3 P-10``:
+#
+#     test    — invoke ``verification_cmd`` via the supplied runner
+#               (default :mod:`subprocess`); exit 0 → pass, else → fail.
+#     metric  — skip with a deterministic message (the metric runner is
+#               external; the verdict surfaces the metric + threshold
+#               so a downstream analytics pass can ratify).
+#     manual  — skip with a deterministic message ("manual review
+#               required"); never silently treated as PASS (S-5).
+#
+# When the dispatch supplies no ``acceptance_criteria_v2`` (legacy
+# v7.x payloads), the gate falls back to the existing
+# ``GateInput.acceptance_criteria_results: CheckResult`` path —
+# byte-identical to pre-P-10 behaviour (``patch_plan §3 P-10 AC #5``).
+#
+# ``aggregate_criterion_verdicts`` folds a verdict list into a single
+# :class:`CheckResult` so callers can stuff it into
+# :pyattr:`GateInput.acceptance_criteria_results` and reuse the existing
+# ``_evaluate_standard`` failure branch without a separate dispatch
+# table.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+CommandRunner = Callable[[AcceptanceCriterion], "CommandRunResult"]
+
+
+@dataclass(frozen=True)
+class CommandRunResult:
+    """Result of running a single ``verification_cmd`` (test path).
+
+    Wraps the subset of :class:`subprocess.CompletedProcess` semantics
+    we actually need so unit tests can inject a pure-Python mock without
+    spawning processes. ``stdout`` / ``stderr`` are best-effort — empty
+    strings are acceptable when the runner does not capture output.
+    """
+
+    returncode: int
+    stdout: str = ""
+    stderr: str = ""
+
+
+def _default_command_runner(criterion: AcceptanceCriterion) -> CommandRunResult:
+    """Default :data:`CommandRunner` — invoke
+    ``criterion.verification_cmd`` via :mod:`subprocess` with shell=True.
+
+    S-5 No Silent Failures — exceptions from :class:`subprocess.SubprocessError`
+    are caught and rendered as a non-zero CommandRunResult with the
+    exception class name in ``stderr`` so the verdict shows ``fail``
+    rather than crashing the gate. Other exceptions propagate.
+    """
+    import subprocess
+
+    if not criterion.verification_cmd:
+        # Defensive — should be filtered by evaluate_acceptance_criteria_v2.
+        return CommandRunResult(
+            returncode=2,
+            stderr="verification_cmd is empty",
+        )
+    try:
+        completed = subprocess.run(  # noqa: S602 - shell=True is intentional
+            criterion.verification_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=900,
+        )
+    except subprocess.SubprocessError as exc:
+        return CommandRunResult(
+            returncode=2,
+            stderr=f"{type(exc).__name__}: {exc}",
+        )
+    return CommandRunResult(
+        returncode=completed.returncode,
+        stdout=completed.stdout or "",
+        stderr=completed.stderr or "",
+    )
+
+
+def evaluate_acceptance_criteria_v2(
+    criteria: list[AcceptanceCriterion],
+    *,
+    runner: CommandRunner | None = None,
+) -> list[AcceptanceCriterionVerdict]:
+    """Auto-evaluate a list of :class:`AcceptanceCriterion`.
+
+    Per ``patch_plan §3 P-10``:
+
+    - ``verification_type='test'`` → invoke ``verification_cmd`` via
+      *runner* (default :func:`_default_command_runner`); exit 0 →
+      ``pass``, else → ``fail``.
+    - ``verification_type='metric'`` → ``skip`` with the metric +
+      threshold echoed in details (caller-driven evaluation).
+    - ``verification_type='manual'`` → ``skip`` with the message
+      ``"manual review required"`` (S-5 — never silently treat as PASS).
+
+    Duplicate ``criterion.id`` entries raise :class:`ValueError` because
+    the dispatch payload's ``acceptance_criteria_v2`` field MUST carry
+    unique ids (the verdicts are keyed by id downstream).
+
+    When *criteria* is empty, an empty verdict list is returned — the
+    legacy ``acceptance_criteria_results`` fallback path remains
+    byte-identical to pre-P-10 behaviour (``AC #5``).
+    """
+    if not criteria:
+        return []
+
+    seen_ids: set[str] = set()
+    for c in criteria:
+        if c.id in seen_ids:
+            raise ValueError(
+                f"duplicate AcceptanceCriterion.id {c.id!r} in evaluate_acceptance_criteria_v2 "
+                "(ids MUST be unique per dispatch payload)"
+            )
+        seen_ids.add(c.id)
+
+    actual_runner = runner if runner is not None else _default_command_runner
+    verdicts: list[AcceptanceCriterionVerdict] = []
+    for c in criteria:
+        if c.verification_type == "test":
+            if not c.verification_cmd:
+                verdicts.append(
+                    AcceptanceCriterionVerdict(
+                        criterion_id=c.id,
+                        status="skip",
+                        message="test criterion has no verification_cmd",
+                        details={"verification_type": "test"},
+                    )
+                )
+                continue
+            result = actual_runner(c)
+            if result.returncode == 0:
+                status = "pass"
+                message = f"verification_cmd exited 0: {c.verification_cmd}"
+            else:
+                status = "fail"
+                message = f"verification_cmd exit={result.returncode}: {c.verification_cmd}"
+            verdicts.append(
+                AcceptanceCriterionVerdict(
+                    criterion_id=c.id,
+                    status=status,  # type: ignore[arg-type]
+                    message=message,
+                    details={
+                        "verification_type": "test",
+                        "verification_cmd": c.verification_cmd,
+                        "returncode": result.returncode,
+                        "stdout": result.stdout[-500:],
+                        "stderr": result.stderr[-500:],
+                    },
+                )
+            )
+        elif c.verification_type == "metric":
+            verdicts.append(
+                AcceptanceCriterionVerdict(
+                    criterion_id=c.id,
+                    status="skip",
+                    message=(
+                        f"metric '{c.metric}' requires external evaluator "
+                        f"(threshold='{c.threshold}')"
+                    ),
+                    details={
+                        "verification_type": "metric",
+                        "metric": c.metric,
+                        "threshold": c.threshold,
+                    },
+                )
+            )
+        else:  # manual
+            verdicts.append(
+                AcceptanceCriterionVerdict(
+                    criterion_id=c.id,
+                    status="skip",
+                    message="manual review required",
+                    details={"verification_type": "manual"},
+                )
+            )
+    return verdicts
+
+
+def aggregate_criterion_verdicts(
+    verdicts: list[AcceptanceCriterionVerdict],
+) -> CheckResult:
+    """Fold per-criterion verdicts into a single :class:`CheckResult`.
+
+    Per ``patch_plan §3 P-10``: the gate's existing
+    ``GateInput.acceptance_criteria_results`` slot expects a
+    :class:`CheckResult`. This helper aggregates the structured verdicts
+    so callers can route them into the legacy code path without changing
+    :func:`_evaluate_standard`.
+
+    Status rules (S-5 — never silently downgrade a fail):
+
+    - empty list → ``status='skip'`` with message ``"no criteria"``.
+    - any verdict ``status='fail'`` → ``status='fail'``.
+    - all verdicts ``status='pass'`` → ``status='pass'``.
+    - mix of ``pass`` and ``skip`` (no failures) → ``status='pass'``.
+    - all verdicts ``status='skip'`` → ``status='skip'`` (the gate
+      treats this as advisory; downstream consumers decide whether to
+      escalate).
+    """
+    if not verdicts:
+        return CheckResult(
+            status="skip",
+            details={"acceptance_criteria_v2": "no criteria"},
+        )
+
+    status_counts: Counter[str] = Counter(v.status for v in verdicts)
+    failing = [v for v in verdicts if v.status == "fail"]
+    passing = [v for v in verdicts if v.status == "pass"]
+    skipping = [v for v in verdicts if v.status == "skip"]
+
+    if failing:
+        status: str = "fail"
+        message = (
+            f"{len(failing)}/{len(verdicts)} criteria FAILED: "
+            f"{', '.join(v.criterion_id for v in failing[:5])}"
+        )
+    elif passing:
+        status = "pass"
+        message = f"{len(passing)}/{len(verdicts)} criteria PASSED"
+    else:
+        status = "skip"
+        message = (
+            f"{len(skipping)}/{len(verdicts)} criteria SKIPPED (no auto-runnable verifications)"
+        )
+
+    return CheckResult(
+        status=status,  # type: ignore[arg-type]
+        details={
+            "acceptance_criteria_v2": True,
+            "criteria_total": len(verdicts),
+            "criteria_passing": len(passing),
+            "criteria_failing": len(failing),
+            "criteria_skipped": len(skipping),
+            "status_counts": dict(status_counts),
+            "message": message,
+            "failing_ids": [v.criterion_id for v in failing],
+            "skipping_ids": [v.criterion_id for v in skipping],
+        },
+    )
 
 
 def _attach_cycle_report(verdict: GateVerdict, report: CycleReport) -> GateVerdict:
