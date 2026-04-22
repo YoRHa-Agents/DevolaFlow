@@ -452,7 +452,95 @@ def _integrate_learnings(
 # byte-identical to the v7.x output (preserves the v7.0.0 layout
 # baseline byte-comparison; verified by
 # ``tests/test_behavioral_guidelines.py::TestBackwardCompat``).
+#
+# v8.2.0 (PV-04) — surgical_scope='line' completion. Closes the deferred
+# AC #2 from v8.0.0 P-08 (line-tier verification). When the resolved
+# behavioral block carries ``surgical_scope='line'``,
+# :func:`_load_line_level_criteria` extracts the line-diff validation
+# rules from ``references/behavioral-guidelines.md#line-level-behavioral-criteria``
+# verbatim (per CO-2 / C-3) and the helper appends them under
+# ``line_level_criteria`` in the returned dict.
+# ``surgical_scope='function'`` and ``surgical_scope='module'`` paths
+# remain byte-identical to v8.0.0-p08 (R5 backward-compat discipline,
+# verified by ``tests/test_behavioral_guidelines.py
+# ::TestSurgicalScopeLine::test_function_scope_byte_identical_to_p08``).
 # ---------------------------------------------------------------------------
+
+
+_BEHAVIORAL_REF_PATH: Path = (
+    Path(__file__).parents[2]
+    / "workflow-system"
+    / "agent"
+    / "references"
+    / "behavioral-guidelines.md"
+)
+_LINE_LEVEL_HEADING = "## Line-Level Behavioral Criteria"
+_LINE_LEVEL_BULLET_RE = re.compile(r"^[-*]\s+(.*\S)\s*$")
+
+
+def _load_line_level_criteria(ref_path: Path | None = None) -> list[str]:
+    """Extract line-level behavioural criteria verbatim from the reference doc.
+
+    Walks ``references/behavioral-guidelines.md`` for the canonical
+    ``## Line-Level Behavioral Criteria`` heading (added in v8.2.0 PV-04)
+    and returns each ``- ...`` bullet from that section as a list of
+    strings. Returns ``[]`` when:
+      * ``ref_path`` does not exist (S-5 — explicit empty signal, never
+        a silent exception),
+      * the heading is absent (older reference docs predating PV-04),
+      * the section is empty.
+
+    Per CO-2 / C-3 (verbatim extraction), each bullet's text is preserved
+    as-written in the markdown — no paraphrasing, normalisation, or
+    re-ordering. Continuation lines (indented under a bullet, common for
+    line-wrapped markdown) are joined into the parent bullet with a
+    single space so the returned list carries each criterion's full
+    prose. Nested bullets (lines that themselves start with ``- ``
+    after indentation) terminate the parent bullet and start a fresh
+    entry — matches Markdown rendering semantics.
+
+    The default ``ref_path=None`` resolves the path relative to the
+    DevolaFlow checkout root so callers in tests / scripts inherit the
+    canonical reference doc without wiring boilerplate.
+    """
+    path = ref_path if ref_path is not None else _BEHAVIORAL_REF_PATH
+    if not path.exists():
+        return []
+
+    text = path.read_text(encoding="utf-8")
+    if _LINE_LEVEL_HEADING not in text:
+        return []
+
+    after = text.split(_LINE_LEVEL_HEADING, 1)[1]
+    next_heading_match = re.search(r"^## ", after, flags=re.MULTILINE)
+    section_body = after[: next_heading_match.start()] if next_heading_match else after
+
+    criteria: list[str] = []
+    current: list[str] | None = None
+    for raw in section_body.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            if current is not None:
+                criteria.append(" ".join(current))
+                current = None
+            continue
+        match = _LINE_LEVEL_BULLET_RE.match(raw)
+        if match and not raw.startswith((" ", "\t")):
+            if current is not None:
+                criteria.append(" ".join(current))
+            current = [match.group(1)]
+        elif current is not None and raw.startswith((" ", "\t")):
+            continuation = stripped
+            if continuation.startswith(("- ", "* ")):
+                continuation = continuation[2:]
+            current.append(continuation)
+        else:
+            if current is not None:
+                criteria.append(" ".join(current))
+                current = None
+    if current is not None:
+        criteria.append(" ".join(current))
+    return criteria
 
 
 def _select_behavioral_sections(
@@ -473,6 +561,14 @@ def _select_behavioral_sections(
     Returns the merged 4-key dict, or ``None`` when the profile omits
     the block AND no tier fallback is available — preserves v7.x
     byte-identical dispatch shape for backward compatibility.
+
+    v8.2.0 (PV-04): when the resolved block sets ``surgical_scope='line'``,
+    augments the returned dict with ``line_level_criteria`` (a list of
+    strings extracted verbatim from
+    ``references/behavioral-guidelines.md#line-level-behavioral-criteria``).
+    Other ``surgical_scope`` values produce output byte-identical to
+    v8.0.0-p08 (R5 discipline) so existing function/module dispatchers
+    are unaffected.
     """
     profile_block = profile.get("behavioral_guidelines")
     if profile_block is None:
@@ -484,7 +580,15 @@ def _select_behavioral_sections(
     tier = profile_block.get("tier")
     base: dict[str, Any] = dict(defaults.get(tier, {})) if tier else {}
     base.update({k: v for k, v in profile_block.items() if k != "tier"})
-    return base or None
+    if not base:
+        return None
+
+    if base.get("surgical_scope") == "line":
+        criteria = _load_line_level_criteria()
+        if criteria:
+            base["line_level_criteria"] = criteria
+
+    return base
 
 
 def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> str:
@@ -502,6 +606,13 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
     emits a 5-line summary block (~ 30-100 tokens depending on active
     rules) intended for verbatim injection into the L3 dispatch context.
 
+    v8.2.0 (PV-04): when ``surgical_scope='line'`` AND
+    ``line_level_criteria`` is present, each criterion is rendered as an
+    indented sub-bullet under BG-003 so the L3 task agent sees the
+    line-diff validation rules verbatim. ``surgical_scope='function'`` /
+    ``'module'`` paths emit output byte-identical to v8.0.0-p08
+    (R5 backward-compat discipline).
+
     Returns "" when ``behavioral_guidelines`` is None or empty so callers
     can ``if block:`` without a None-check.
     """
@@ -517,6 +628,9 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
         )
     scope = behavioral_guidelines.get("surgical_scope", "function")
     lines.append(f"- BG-003 surgical_scope = {scope!r} — diff hunks MUST stay within this tier.")
+    if scope == "line":
+        for criterion in behavioral_guidelines.get("line_level_criteria") or []:
+            lines.append(f"  - {criterion}")
     if behavioral_guidelines.get("goal_loop"):
         lines.append("- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.")
     return "\n".join(lines)

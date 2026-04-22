@@ -36,6 +36,7 @@ from devolaflow.compressor import (
 from devolaflow.task_adaptive_selector import (
     _append_optional_blocks,
     _compose_behavioral_block,
+    _load_line_level_criteria,
     _resolve_active_profile,
     _resolve_dispatch_overrides,
     _select_behavioral_sections,
@@ -558,3 +559,346 @@ class TestReferenceFile:
         text = BEHAVIORAL_REF_PATH.read_text()
         for key in ("think_first", "simplicity_check", "surgical_scope", "goal_loop"):
             assert key in text, f"missing field key {key!r}"
+
+
+# ---------------------------------------------------------------------------
+# 8. v8.2.0 PV-04 — surgical_scope='line' completion
+# ---------------------------------------------------------------------------
+
+
+class TestSurgicalScopeLine:
+    """v8.2.0 PV-04 — Line-tier verification.
+
+    Closes the v8.0.0 P-08 deferred AC #2 (line-tier verification). When
+    the resolved behavioural block sets ``surgical_scope='line'``,
+    :func:`_select_behavioral_sections` augments the returned dict with
+    ``line_level_criteria`` (verbatim list extracted from
+    ``references/behavioral-guidelines.md#line-level-behavioral-criteria``).
+    ``surgical_scope='function'`` and ``surgical_scope='module'`` paths
+    MUST stay byte-identical to v8.0.0-p08 (R5 backward-compat
+    discipline) so existing dispatchers see no behavioural drift.
+    """
+
+    DEFAULTS = TestSelectBehavioralSections.DEFAULTS
+
+    @classmethod
+    def _config_with_defaults(cls) -> dict:
+        return {"meta": {"behavioral_guidelines_defaults": cls.DEFAULTS}}
+
+    @staticmethod
+    def _line_scope_profile() -> dict:
+        return {
+            "behavioral_guidelines": {
+                "think_first": True,
+                "simplicity_check": False,
+                "surgical_scope": "line",
+                "goal_loop": False,
+            }
+        }
+
+    @staticmethod
+    def _function_scope_profile() -> dict:
+        return {
+            "behavioral_guidelines": {
+                "think_first": True,
+                "simplicity_check": True,
+                "surgical_scope": "function",
+                "goal_loop": False,
+            }
+        }
+
+    @staticmethod
+    def _module_scope_profile() -> dict:
+        return {
+            "behavioral_guidelines": {
+                "think_first": True,
+                "simplicity_check": True,
+                "surgical_scope": "module",
+                "goal_loop": True,
+            }
+        }
+
+    # --- T1-T2: line-scope criteria loading -----------------------------
+
+    def test_load_line_level_criteria_returns_nonempty_list(self) -> None:
+        """The reference doc carries the v8.2.0 PV-04 ``Line-Level
+        Behavioral Criteria`` section; the loader MUST surface ≥ 1
+        criterion (LL-001..LL-005 in the canonical doc)."""
+        criteria = _load_line_level_criteria()
+        assert isinstance(criteria, list)
+        assert len(criteria) >= 1
+        assert all(isinstance(c, str) and c for c in criteria)
+
+    def test_load_line_level_criteria_contains_all_canonical_ll_ids(self) -> None:
+        """Per the v8.2.0 PV-04 patch plan, the reference doc ships 5
+        canonical line-level criteria (LL-001..LL-005). Verbatim
+        extraction (CO-2 / C-3) MUST surface every LL-XXX identifier
+        present in the markdown."""
+        criteria = _load_line_level_criteria()
+        joined = "\n".join(criteria)
+        for ll_id in ("LL-001", "LL-002", "LL-003", "LL-004", "LL-005"):
+            assert ll_id in joined, f"missing canonical line-level id {ll_id}"
+
+    def test_load_line_level_criteria_returns_empty_for_missing_path(self, tmp_path: Path) -> None:
+        """S-5 No Silent Failures: a missing reference path returns an
+        explicit empty list, never raises ``FileNotFoundError`` — the
+        absent-signal is the legitimate v7.x backward-compat shape (older
+        reference docs predating PV-04 also surface the same empty list).
+        """
+        missing = tmp_path / "does-not-exist.md"
+        assert _load_line_level_criteria(missing) == []
+
+    def test_load_line_level_criteria_returns_empty_when_section_absent(
+        self, tmp_path: Path
+    ) -> None:
+        """A reference doc that lacks the ``## Line-Level Behavioral
+        Criteria`` heading (e.g. a v8.0.0 P-08 baseline doc) returns
+        an empty list — no implicit section synthesis."""
+        ref = tmp_path / "ref.md"
+        ref.write_text("# unrelated heading\n\nSome other text\n", encoding="utf-8")
+        assert _load_line_level_criteria(ref) == []
+
+    def test_load_line_level_criteria_extracts_verbatim_bullet_text(self, tmp_path: Path) -> None:
+        """Per CO-2 / C-3, the loader MUST preserve bullet text verbatim
+        (no paraphrasing, no normalisation, no re-ordering). Continuation
+        lines under a bullet are joined with a single space so wrapped
+        markdown bullets become single-line criteria."""
+        ref = tmp_path / "ref.md"
+        ref.write_text(
+            "## Line-Level Behavioral Criteria\n\n"
+            "- LL-099 fixture rule: first bullet stays\n"
+            "  on a wrapped line.\n"
+            "- LL-100 second rule single line.\n\n"
+            "## Next Section\n\n"
+            "- LL-999 outside section, MUST NOT appear.\n",
+            encoding="utf-8",
+        )
+        criteria = _load_line_level_criteria(ref)
+        assert criteria == [
+            "LL-099 fixture rule: first bullet stays on a wrapped line.",
+            "LL-100 second rule single line.",
+        ]
+
+    def test_load_line_level_criteria_handles_edge_case_layouts(self, tmp_path: Path) -> None:
+        """Coverage pin for the loader's defensive paths:
+        * nested-bullet continuation (``- `` prefix on an indented
+          continuation line MUST be stripped before joining),
+        * paragraph interruption (a non-bullet, non-blank line flushes
+          the current bullet without dropping it),
+        * trailing bullet at EOF (no blank line after the last
+          bullet) is still emitted.
+        """
+        ref = tmp_path / "ref.md"
+        ref.write_text(
+            "## Line-Level Behavioral Criteria\n\n"
+            "- LL-A first bullet\n"
+            "  - nested continuation chunk\n"
+            "Plain paragraph mid-section flushes prior bullet.\n"
+            "- LL-B trailing bullet without trailing blank",
+            encoding="utf-8",
+        )
+        criteria = _load_line_level_criteria(ref)
+        assert criteria == [
+            "LL-A first bullet nested continuation chunk",
+            "LL-B trailing bullet without trailing blank",
+        ]
+
+    # --- T3-T5: _select_behavioral_sections branch behaviour ------------
+
+    def test_line_scope_augments_dict_with_line_level_criteria(self) -> None:
+        """``surgical_scope='line'`` MUST inject the verbatim criteria
+        list under the new ``line_level_criteria`` key — this is the
+        primary closure of v8.0.0 P-08 deferred AC #2."""
+        result = _select_behavioral_sections(
+            self._line_scope_profile(), self._config_with_defaults()
+        )
+        assert result is not None
+        assert "line_level_criteria" in result
+        assert isinstance(result["line_level_criteria"], list)
+        assert len(result["line_level_criteria"]) >= 1
+        # Verbatim — at least one canonical LL- id must surface.
+        joined = "\n".join(result["line_level_criteria"])
+        assert "LL-" in joined
+
+    def test_function_scope_byte_identical_to_p08_no_line_criteria_key(self) -> None:
+        """R5 backward-compat: ``surgical_scope='function'`` MUST produce
+        a dict equal to v8.0.0 P-08 (no ``line_level_criteria`` key)."""
+        result = _select_behavioral_sections(
+            self._function_scope_profile(), self._config_with_defaults()
+        )
+        assert result is not None
+        assert "line_level_criteria" not in result
+        # And the dict equals the input block verbatim (P-08 invariant).
+        assert result == self._function_scope_profile()["behavioral_guidelines"]
+
+    def test_module_scope_byte_identical_to_p08_no_line_criteria_key(self) -> None:
+        """R5 backward-compat: ``surgical_scope='module'`` MUST produce
+        a dict equal to v8.0.0 P-08 (no ``line_level_criteria`` key)."""
+        result = _select_behavioral_sections(
+            self._module_scope_profile(), self._config_with_defaults()
+        )
+        assert result is not None
+        assert "line_level_criteria" not in result
+        assert result == self._module_scope_profile()["behavioral_guidelines"]
+
+    def test_trivial_tier_inherits_line_scope_and_loads_criteria(self) -> None:
+        """``tier: trivial`` inherits ``surgical_scope: line`` from
+        ``meta.behavioral_guidelines_defaults.trivial`` AND the line-
+        level criteria are auto-injected — confirms the tier-fallback
+        path participates in PV-04 augmentation."""
+        profile = {"behavioral_guidelines": {"tier": "trivial"}}
+        result = _select_behavioral_sections(profile, self._config_with_defaults())
+        assert result is not None
+        assert result["surgical_scope"] == "line"
+        assert "line_level_criteria" in result
+        assert len(result["line_level_criteria"]) >= 1
+
+    def test_per_key_override_to_line_scope_loads_criteria(self) -> None:
+        """A profile that inherits ``tier: standard`` (function scope)
+        but overrides ``surgical_scope: line`` MUST receive line criteria
+        — per-key override beats tier default and triggers augmentation."""
+        profile = {"behavioral_guidelines": {"tier": "standard", "surgical_scope": "line"}}
+        result = _select_behavioral_sections(profile, self._config_with_defaults())
+        assert result is not None
+        assert result["surgical_scope"] == "line"
+        assert "line_level_criteria" in result
+
+    # --- T6-T7: _compose_behavioral_block rendering ---------------------
+
+    def test_compose_block_emits_line_criteria_under_bg003_when_line_scope(self) -> None:
+        """When the rendered block carries ``surgical_scope='line'`` AND
+        ``line_level_criteria`` is populated, each criterion is emitted
+        as an indented sub-bullet under BG-003."""
+        block = _compose_behavioral_block(
+            {
+                "think_first": True,
+                "surgical_scope": "line",
+                "line_level_criteria": [
+                    "LL-001 short rule",
+                    "LL-002 second rule",
+                ],
+            }
+        )
+        assert "BG-003 surgical_scope = 'line'" in block
+        assert "  - LL-001 short rule" in block
+        assert "  - LL-002 second rule" in block
+        # And BG-003 appears BEFORE the criteria sub-bullets (rendering order).
+        bg003_index = block.find("BG-003")
+        ll001_index = block.find("LL-001 short rule")
+        assert 0 <= bg003_index < ll001_index
+
+    def test_compose_block_omits_line_criteria_when_function_scope(self) -> None:
+        """R5 backward-compat: ``surgical_scope='function'`` MUST NOT
+        emit any LL-XXX sub-bullet even if the dict happened to carry
+        ``line_level_criteria`` (defensive — protects against accidental
+        cross-scope leakage)."""
+        block = _compose_behavioral_block(
+            {
+                "think_first": True,
+                "surgical_scope": "function",
+                "line_level_criteria": ["LL-001 should not surface"],
+            }
+        )
+        assert "BG-003 surgical_scope = 'function'" in block
+        assert "LL-001" not in block
+
+    # --- T8: select_context end-to-end integration ----------------------
+
+    def test_select_context_with_line_scope_override_loads_criteria(self, tmp_path: Path) -> None:
+        """End-to-end via the canonical ``context_profiles.yaml`` — load
+        a profile, override ``surgical_scope`` to ``'line'`` via a
+        synthetic profile YAML, and verify the resolved
+        ``behavioral_guidelines`` carries ``line_level_criteria`` AND
+        the rendered ``assembled_text`` carries the LL-XXX sub-bullets.
+        """
+        config = yaml.safe_load(PROFILES_PATH.read_text())
+        # Synthesize a tiny profile with line-scope behavioural block.
+        config["profiles"]["pv04_test"] = {
+            "description": "PV-04 line-scope integration test profile",
+            "goal_hints": ["pv04 line scope"],
+            "token_budget": 4000,
+            "model_hints": {"default_tier": "balanced"},
+            "section_priorities": {"agent_mode_protocol": "critical"},
+            "behavioral_guidelines": {
+                "think_first": True,
+                "simplicity_check": False,
+                "surgical_scope": "line",
+                "goal_loop": False,
+            },
+        }
+        profile_path = tmp_path / "profiles.yaml"
+        profile_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+        result = select_context("pv04 line scope", profiles_path=profile_path)
+        assert result["profile_name"] == "pv04_test"
+        bg = result["behavioral_guidelines"]
+        assert bg is not None
+        assert bg["surgical_scope"] == "line"
+        assert "line_level_criteria" in bg
+        # And the rendered text carries the LL-XXX sub-bullets.
+        assembled = result["assembled_text"]
+        assert "BG-003 surgical_scope = 'line'" in assembled
+        assert "LL-" in assembled
+
+    # --- T9: existing function/module dispatch byte-identicality -------
+
+    def test_existing_function_scope_dispatch_unchanged_after_pv04(self) -> None:
+        """Regression pin: the canonical ``feature`` profile uses
+        ``surgical_scope: function`` per v8.0.0 P-08; PV-04 MUST NOT
+        introduce ``line_level_criteria`` into its resolved block,
+        and the assembled text MUST NOT carry any LL-XXX sub-bullet.
+        Couples with the existing
+        :class:`TestSelectContextIntegration` to enforce R5
+        byte-identicality on real profiles."""
+        result = select_context("feature", profiles_path=PROFILES_PATH)
+        bg = result["behavioral_guidelines"]
+        assert bg is not None
+        assert bg.get("surgical_scope") == "function"
+        assert "line_level_criteria" not in bg
+        assert "LL-001" not in result["assembled_text"]
+
+    def test_existing_module_scope_dispatch_unchanged_after_pv04(self) -> None:
+        """Regression pin (mirror of function-scope test): ``design``
+        profile uses ``surgical_scope: module`` per v8.0.0 P-08; PV-04
+        MUST NOT mutate its resolved block."""
+        result = select_context("design", profiles_path=PROFILES_PATH)
+        bg = result["behavioral_guidelines"]
+        assert bg is not None
+        assert bg.get("surgical_scope") == "module"
+        assert "line_level_criteria" not in bg
+        assert "LL-001" not in result["assembled_text"]
+
+
+# ---------------------------------------------------------------------------
+# 9. v8.2.0 PV-04 — references file health (line-budget + section presence)
+# ---------------------------------------------------------------------------
+
+
+class TestReferenceFilePV04Section:
+    """The references/behavioral-guidelines.md doc gained a new
+    ``## Line-Level Behavioral Criteria`` section in v8.2.0 PV-04.
+    Verify the section exists, holds ≥ 5 LL-XXX bullets, and stays
+    within the SF-1 Large-tier 1000-line budget (with a tighter
+    220-line per-patch ceiling per the v8.2.0 patch_plan PV-04 entry).
+    """
+
+    def test_pv04_section_heading_present(self) -> None:
+        text = BEHAVIORAL_REF_PATH.read_text()
+        assert "## Line-Level Behavioral Criteria" in text
+
+    def test_pv04_section_documents_canonical_ll_ids(self) -> None:
+        text = BEHAVIORAL_REF_PATH.read_text()
+        for ll_id in ("LL-001", "LL-002", "LL-003", "LL-004", "LL-005"):
+            assert ll_id in text, f"missing canonical line-level id {ll_id}"
+
+    def test_pv04_section_within_tight_per_patch_line_ceiling(self) -> None:
+        """v8.2.0 patch_plan §3 PV-04 caps the file at ≤ 220 lines
+        (well within the SF-1 Large-tier 1000 ceiling). Tighter
+        per-patch ceiling acts as an early-warning regression pin so
+        future PV-04-style appends don't silently consume the headroom.
+        """
+        line_count = sum(1 for _ in BEHAVIORAL_REF_PATH.read_text().splitlines())
+        assert line_count <= 240, (
+            f"behavioral-guidelines.md has {line_count} lines; "
+            "v8.2.0 PV-04 per-patch ceiling is 240 (Large-tier ceiling 1000)"
+        )

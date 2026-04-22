@@ -135,8 +135,13 @@ the wave-level disjoint-ownership invariant (P2).
 2. Did every diff hunk stay inside the declared function (when applicable)?
 3. Did I escalate any required scope expansion BEFORE editing?
 
-**Note** (v8.0.0): `line`-tier verification is deferred to v8.2.0; in v8.0.0
-it is treated as `function`-tier per AC #2 of patch P-08.
+**Note** (v8.2.0 PV-04): `line`-tier verification is implemented. When the
+resolved `behavioral_guidelines` block carries `surgical_scope='line'`,
+`_select_behavioral_sections` augments the dispatch context with the
+verbatim list of criteria documented under
+[Line-Level Behavioral Criteria](#line-level-behavioral-criteria). The
+v8.0.0 P-08 deferred AC #2 closes here; `function` and `module` tier
+behaviour stays byte-identical to v8.0.0-p08 (R5 discipline).
 
 ## Rule 4 — goal_loop
 
@@ -181,10 +186,44 @@ golden baseline (``benchmarks/devolaflow_context/baselines/layout_invariant_v7.0
 and the v7.3.0 baseline (``...v7.3.0.yaml``). The schema bump
 ``layout_invariant.version: 2 → 3`` is purely additive per ADR-001 §2.
 
+## Line-Level Behavioral Criteria
+
+Added in v8.2.0 PV-04. Loaded verbatim by
+`_select_behavioral_sections` whenever the resolved behavioural block
+sets `surgical_scope='line'`. Each criterion below is a self-checkable
+rule that the L3 Task Agent MUST audit per touched line before commit;
+violations classify as a finding (severity follows BG-003 = blocker).
+
+- LL-001 per-line max length: every touched line stays at or below the
+  project's configured ruff/black line-length (default 100 chars); a
+  single touched line exceeding the ceiling is a blocker finding.
+- LL-002 per-line complexity delta: radon cyclomatic-complexity delta
+  per touched line MUST be `< +1`; a single touched line that bumps
+  the enclosing function's cc by `+1` or more must be split or
+  escalated via `ScopeEscalation`.
+- LL-003 per-line cohesion: every touched line MUST belong to a
+  single logical change (no piggyback edits — e.g. a line that both
+  fixes the bug AND renames a local must be split into two diff
+  hunks).
+- LL-004 declared-range adherence: every touched line MUST fall inside
+  a line range explicitly named in the task spec's
+  `owned_files[*].line_ranges` field; lines outside the declared
+  ranges are blocker findings, not stylistic choices.
+- LL-005 verbatim-line preservation: lines NOT explicitly named in the
+  task spec MUST remain byte-identical (no whitespace normalisation,
+  no quote-style flips, no import reordering); preserves CO-2 / C-3
+  verbatim-extraction discipline at the diff layer.
+
+These criteria compose with BG-003 — a `line`-scope task inherits BG-003
+(diff hunks stay within the tier) AND each of LL-001..LL-005. Failing
+any criterion is a blocker finding per the BG-003 severity classification.
+
 ## See Also
 
 - ``schemas/lean-dispatch.yaml#layout_invariant`` (canonical position 14)
 - ``workflow-system/agent/context_profiles.yaml`` (per-profile defaults)
 - ``src/devolaflow/task_adaptive_selector.py:_select_behavioral_sections``
+- ``src/devolaflow/task_adaptive_selector.py:_load_line_level_criteria`` (PV-04)
 - ``.local/research/v8.0.0_patch_plan.md`` §3 P-08
+- ``.local/research/v8.2.0_patch_plan.md`` §3 PV-04
 - ``https://github.com/forrestchang/andrej-karpathy-skills`` (upstream rules)
