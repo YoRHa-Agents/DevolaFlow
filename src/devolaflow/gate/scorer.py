@@ -14,6 +14,10 @@ from pathlib import Path
 import yaml
 
 from devolaflow.gate.budget import TokenBudgetBreaker
+from devolaflow.gate.complexity_detector import (
+    ComplexityDetector,
+    ComplexityEvaluation,
+)
 from devolaflow.gate.convergence import (
     compute_smoothed_trend,
     compute_trend,
@@ -28,6 +32,8 @@ from devolaflow.gate.models import (
     BudgetAction,
     BudgetDecision,
     CheckResult,
+    ComplexitySignals,
+    ComplexityVerdict,
     ConvergenceRound,
     CycleReport,
     Finding,
@@ -798,6 +804,9 @@ def _check_convergence(
     cumulative_tokens: int | None = None,
     ratchet: MonotonicRatchet | None = None,
     ratchet_artifact: dict[str, object] | None = None,
+    complexity_detector: ComplexityDetector | None = None,
+    complexity_signals: ComplexitySignals | None = None,
+    complexity_task_complexity: str = "standard",
     **_: object,
 ) -> LadderEvaluation:
     """R6 default checker — delegate to :func:`evaluate_gate` and translate
@@ -816,6 +825,9 @@ def _check_convergence(
         cumulative_tokens=cumulative_tokens,
         ratchet=ratchet,
         ratchet_artifact=ratchet_artifact,
+        complexity_detector=complexity_detector,
+        complexity_signals=complexity_signals,
+        complexity_task_complexity=complexity_task_complexity,
     )
     status = "pass" if verdict.decision == "PASS" else "fail"
     return LadderEvaluation(
@@ -965,6 +977,9 @@ def evaluate_ladder(
     cycle_detector: CycleDetector | None = None,
     ratchet: MonotonicRatchet | None = None,
     ratchet_artifact: dict[str, object] | None = None,
+    complexity_detector: ComplexityDetector | None = None,
+    complexity_signals: ComplexitySignals | None = None,
+    complexity_task_complexity: str = "standard",
 ) -> GateVerdict:
     """Evaluate a 6-rung verification ladder R1..R6 with short-circuit semantics.
 
@@ -1018,6 +1033,9 @@ def evaluate_ladder(
             cycle_detector=cycle_detector,
             ratchet=ratchet,
             ratchet_artifact=ratchet_artifact,
+            complexity_detector=complexity_detector,
+            complexity_signals=complexity_signals,
+            complexity_task_complexity=complexity_task_complexity,
         )
 
     results: list[LadderEvaluation] = []
@@ -1048,6 +1066,9 @@ def evaluate_ladder(
             extra_checks=extra_checks,
             ratchet=ratchet,
             ratchet_artifact=ratchet_artifact,
+            complexity_detector=complexity_detector,
+            complexity_signals=complexity_signals,
+            complexity_task_complexity=complexity_task_complexity,
         )
         evaluation = _normalise_rung_result(rung, raw)
         results.append(evaluation)
@@ -1132,6 +1153,72 @@ def _attach_ratchet_action(
     return verdict
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-09) — Overcomplexity Detector integration
+#
+# ``_attach_complexity_evaluation`` consults the optional
+# :class:`ComplexityDetector`, evaluates the supplied
+# :class:`ComplexitySignals` against the declared task complexity tier,
+# and surfaces the resulting :class:`ComplexityVerdict` in
+# ``verdict.details['complexity']``. ``complexity_detector=None`` is
+# byte-identical to pre-P-09 behaviour (per ``patch_plan §3 P-09 AC #6``
+# — supplying nothing must never silently change a PASS into a FAIL).
+#
+# The CRITICAL path (cc > 15 OR NineS ERROR finding) reduces the gate
+# composite by ``profile.complexity_weight * 100`` and flips the
+# verdict to FAIL when it was previously PASS, so the convergence
+# orchestrator routes through the next ITERATE round (S-5 — never
+# silently downgrade a CRITICAL signal into a PASS).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _attach_complexity_evaluation(
+    verdict: GateVerdict,
+    evaluation: ComplexityEvaluation,
+    profile: GateProfile,
+) -> GateVerdict:
+    """Attach a :class:`ComplexityEvaluation` to ``verdict.details``.
+
+    Mutates ``verdict.details`` in place. The decision is upgraded to
+    ``FAIL`` only when the verdict is currently ``PASS`` AND the
+    evaluation is :data:`ComplexityVerdict.CRITICAL` AND the profile
+    carries ``complexity_weight > 0`` (S-5 — never silently swallow a
+    CRITICAL signal). ``WARNING`` and ``OK`` paths surface metadata
+    without changing the gate decision.
+    """
+    weight = float(profile.complexity_weight)
+    verdict.details.setdefault("complexity", {})
+    verdict.details["complexity"] = {
+        "verdict": evaluation.verdict.value,
+        "task_complexity": evaluation.task_complexity,
+        "reasons": list(evaluation.reasons),
+        "rationale": evaluation.rationale,
+        "weight": weight,
+        "signals": {
+            "lines_changed": evaluation.signals.lines_changed,
+            "files_touched": evaluation.signals.files_touched,
+            "new_abstractions": evaluation.signals.new_abstractions,
+            "nesting_depth_max": evaluation.signals.nesting_depth_max,
+            "cyclomatic_complexity": evaluation.signals.cyclomatic_complexity,
+            "ratio_to_minimal": evaluation.signals.ratio_to_minimal,
+            "nines_error_findings": evaluation.signals.nines_error_findings,
+            "nines_warn_findings": evaluation.signals.nines_warn_findings,
+        },
+    }
+    if evaluation.verdict is ComplexityVerdict.CRITICAL and weight > 0.0:
+        if verdict.composite_score is not None:
+            penalty = round(weight * 100.0, 4)
+            verdict.composite_score = max(0.0, round(verdict.composite_score - penalty, 4))
+            verdict.details["complexity"]["composite_penalty"] = penalty
+        if verdict.decision == "PASS":
+            verdict.decision = "FAIL"
+            verdict.meets_threshold = False
+            verdict.rationale = (
+                f"{verdict.rationale} | Overcomplexity gate CRITICAL — {evaluation.rationale}"
+            )
+    return verdict
+
+
 def _attach_cycle_report(verdict: GateVerdict, report: CycleReport) -> GateVerdict:
     """Attach a detected :class:`CycleReport` to ``verdict.details``.
 
@@ -1181,6 +1268,9 @@ def evaluate_gate(
     cycle_detector: CycleDetector | None = None,
     ratchet: MonotonicRatchet | None = None,
     ratchet_artifact: dict[str, object] | None = None,
+    complexity_detector: ComplexityDetector | None = None,
+    complexity_signals: ComplexitySignals | None = None,
+    complexity_task_complexity: str = "standard",
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -1237,6 +1327,30 @@ def evaluate_gate(
         Optional ``{str: object}`` payload snapshot recorded into
         :pyattr:`MonotonicRatchet.best_artifact_snapshot` whenever the
         round becomes the new best. Ignored when ``ratchet is None``.
+    complexity_detector:
+        Optional :class:`devolaflow.gate.complexity_detector.ComplexityDetector`.
+        When ``None`` (the default), behaviour is byte-identical to
+        pre-P-09 (per ``patch_plan §3 P-09 AC #6``). When supplied with
+        ``complexity_signals``, the detector is consulted *after* the
+        standard verdict is computed; the resulting
+        :class:`ComplexityVerdict` is appended to
+        ``verdict.details['complexity']``. ``CRITICAL`` reduces the
+        composite by ``profile.complexity_weight * 100`` and flips a
+        previously-PASS verdict to ``FAIL`` (S-5 — never silently swallow
+        a CRITICAL signal). ``WARNING`` and ``OK`` paths attach metadata
+        without changing the gate decision.
+    complexity_signals:
+        Optional :class:`devolaflow.gate.models.ComplexitySignals`
+        consumed by the detector. When ``None`` and
+        ``complexity_detector`` is supplied, the wiring is a no-op
+        (still byte-identical) — gate consumers can defer signal
+        capture to the wave / task agent without forcing a synchronous
+        NineS subprocess on every gate call.
+    complexity_task_complexity:
+        Tier name ("trivial" / "simple" / "standard" / "complex") used
+        to look up the per-tier WARNING budgets. Defaults to
+        ``"standard"``. Ignored when ``complexity_detector`` or
+        ``complexity_signals`` is ``None``.
     """
     if history is None:
         history = []
@@ -1251,6 +1365,11 @@ def evaluate_gate(
                     _attach_cycle_report(verdict, cycle_report)
             if ratchet is not None:
                 _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
+            if complexity_detector is not None and complexity_signals is not None:
+                evaluation = complexity_detector.evaluate(
+                    complexity_signals, complexity_task_complexity
+                )
+                _attach_complexity_evaluation(verdict, evaluation, profile)
             return verdict
     else:
         decision = None
@@ -1277,6 +1396,10 @@ def evaluate_gate(
 
     if ratchet is not None:
         _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
+
+    if complexity_detector is not None and complexity_signals is not None:
+        evaluation = complexity_detector.evaluate(complexity_signals, complexity_task_complexity)
+        _attach_complexity_evaluation(verdict, evaluation, profile)
 
     return verdict
 

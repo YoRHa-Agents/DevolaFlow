@@ -16,6 +16,14 @@ controlling :func:`devolaflow.gate.scorer.evaluate_ladder`. STRICT/AUDIT
 default to ``True`` (high-quality work benefits from short-circuited
 fail-fast); STANDARD/RELAXED default to ``False`` (byte-identical
 pre-P-05 behaviour). See ``patch_plan §3 P-05`` AC #2/#3.
+
+v8.0.0 (P-09) — each profile carries a ``complexity_weight`` factor
+controlling how much an :class:`devolaflow.gate.complexity_detector.ComplexityDetector`
+WARNING / CRITICAL verdict steers the gate composite. STRICT/AUDIT
+default to ``0.10`` (Karpathy "Simplicity First" enforced when quality
+matters); STANDARD/RELAXED default to ``0.0`` (opt-in only — supplying
+``complexity_detector=None`` keeps :func:`devolaflow.gate.scorer.evaluate_gate`
+byte-identical to pre-P-09 behaviour). See ``patch_plan §3 P-09``.
 """
 
 from devolaflow.gate.models import GateProfile
@@ -37,6 +45,7 @@ STRICT = GateProfile(
     acceptance_verification_threshold=95,
     max_tokens=80_000,
     ladder_enabled=True,
+    complexity_weight=0.10,
 )
 
 STANDARD = GateProfile(
@@ -94,6 +103,7 @@ AUDIT = GateProfile(
     acceptance_verification_threshold=98,
     max_tokens=100_000,
     ladder_enabled=True,
+    complexity_weight=0.10,
 )
 
 PROFILES: dict[str, GateProfile] = {
