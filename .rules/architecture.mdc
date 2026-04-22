@@ -43,3 +43,20 @@ Context profiles (`workflow-system/agent/context_profiles.yaml`) must define exp
 | L3 Task | ~8K tokens | Task spec + owned files + rules |
 
 Source: CO-3, SI-6.
+
+## A-4 — Source-of-Truth Spec Location (M-004 ADR)
+
+`.local/memory/specs/<domain>/spec.md` is the source-of-truth for current
+system behavior. Per-change `.local/.agent/active/<id>/spec.md` files contain
+DELTAS (ADDED/MODIFIED/REMOVED Requirements) relative to source-of-truth.
+
+Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
+(W-3 / SI-3 composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The gate
+runs the explicit `mergeability_check` (v8.2.5 reporter module) before
+allowing the merge.
+
+Rationale: separates lifecycle of in-flight proposals from agreed contracts;
+preserves W-3 / SI-3 + W-4 / SI-4 invariants by NOT auto-merging on archive.
+
+Source: v8.3.0 design.md §3.4 — closes gap M-004 from v8.3.0_gap_analysis.md
+(in part — full closure happens when v8.2.5 ArchiveManager.propose_merge ships).

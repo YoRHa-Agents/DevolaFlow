@@ -76,3 +76,30 @@ Source: SF-4.
 ## C-8 — Always Use Braces for If
 
 Always use braces for if, else if, and else branches in C++. No single-line unbracketed bodies allowed.
+
+## C-9 — Lightweight Agent Workspace Artifacts
+
+Files inside `.local/.agent/active/<change-id>/` and
+`.local/.agent/archive/<date>-<id>/` are subject to per-artifact token
+budgets:
+
+| File | Soft budget | Hard ceiling |
+|------|-------------|--------------|
+| goal.md | 200 | 400 |
+| acceptance.md | 400 | 800 |
+| spec.md | 1500 | 3000 |
+| tasks.md | 800 | 1500 |
+| STATUS.yaml | 100 | 200 |
+| owned_files.txt | 50 | 100 |
+| Handoff envelope | 600 | 1200 |
+
+Verify with:
+```bash
+python -m devolaflow.agent_workspace.lint <change-id>
+```
+(The `lint` module ships in v8.2.5; until then, this rule is normative for
+human authors of `.local/.agent/active/` artifacts.)
+
+Soft budget over → warn. Hard ceiling over → fail commit.
+
+Source: v8.3.0 design.md §3.3 — closes gap H-003 from v8.3.0_gap_analysis.md.
