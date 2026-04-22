@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import warnings
 from pathlib import Path
 
@@ -2579,3 +2580,508 @@ class TestAbstractiveProfileWiring:
             assert mode == "extractive", (
                 f"{name}.summary.mode must remain 'extractive' to preserve v7.x bytewise behaviour"
             )
+
+
+# ---------------------------------------------------------------------------
+# v8.2.0 (PV-01) — Abstractive Stage B (LLM-assisted) tests.
+# ---------------------------------------------------------------------------
+
+
+class TestAbstractiveStageBLLM:
+    """v8.2.0 PV-01 — LLM-assisted Stage B refinement on top of v8.0.0 P-12 Stage A.
+
+    Pins the contract:
+      * ``summarise_predecessor(..., mode='abstractive', llm_assist=True)``
+        does NOT raise NotImplementedError (AC #1).
+      * The default ``LLMClient(provider='mock')`` produces a deterministic
+        Stage B output (AC #2).
+      * Each of the seven canonical :data:`STAGE_B_FAILURE_MODES`
+        triggers a fallback to the Stage A output AND emits a structured
+        WARNING via the ``devolaflow.compressor.stage_b`` logger (AC #3).
+      * ``llm_assist=False`` (the default) returns a 7-key dict that is
+        byte-identical to v8.0.0 P-12 Stage A behaviour (AC #7).
+    """
+
+    DENSE_DOC = (
+        "# Auth Middleware Refactor\n"
+        "\n"
+        "## Decision\n"
+        "\n"
+        "Use src/middleware/auth.py at version 9.0.2 - commit abc1234.\n"
+        "- MUST validate JWT on every protected route at task T07.\n"
+        "- SHOULD log failures with coverage 92% per acceptance ladder.\n"
+        "\n"
+        "## Files Touched\n"
+        "\n"
+        "Modified src/legacy/handler.py and src/middleware/auth.py.\n"
+    )
+
+    @staticmethod
+    def _write(tmp_path, name: str, content: str):
+        path = tmp_path / name
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    @staticmethod
+    def _failure_handler(error: str):
+        from devolaflow.llm_client import LLMResponse
+
+        def _handler(prompt: str, model: str) -> LLMResponse:
+            return LLMResponse(
+                text="",
+                model=model,
+                latency_ms=2.0,
+                tokens_in=10,
+                tokens_out=0,
+                error=error,
+            )
+
+        return _handler
+
+    @staticmethod
+    def _client_with_handler(handler):
+        from devolaflow.llm_client import LLMClient
+
+        return LLMClient(provider="mock", mock_handler=handler)
+
+    # --- AC #1 / AC #5 sanity ---------------------------------------------
+
+    def test_llm_assist_true_does_not_raise_not_implemented(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        try:
+            result = summarise_predecessor(
+                str(path), mode="abstractive", max_tokens=500, llm_assist=True
+            )
+        except NotImplementedError as exc:
+            raise AssertionError(
+                f"v8.2.0 PV-01 must wire Stage B; got NotImplementedError: {exc!r}"
+            ) from None
+        assert isinstance(result, dict)
+
+    def test_llm_assist_true_attaches_abstractive_stage_field(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        result = summarise_predecessor(
+            str(path), mode="abstractive", max_tokens=500, llm_assist=True
+        )
+        assert "abstractive_stage" in result
+        assert result["abstractive_stage"] in {"a", "b"}
+
+    # --- AC #2 mock provider determinism ----------------------------------
+
+    def test_mock_provider_returns_deterministic_text(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        a = summarise_predecessor(str(path), mode="abstractive", max_tokens=500, llm_assist=True)
+        b = summarise_predecessor(str(path), mode="abstractive", max_tokens=500, llm_assist=True)
+        assert a["summary_text"] == b["summary_text"]
+        assert a["abstractive_stage"] == b["abstractive_stage"]
+
+    def test_mock_provider_default_path_marks_stage_b_success(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        result = summarise_predecessor(
+            str(path), mode="abstractive", max_tokens=500, llm_assist=True
+        )
+        assert result["abstractive_stage"] == "b", (
+            "default mock provider must produce a successful Stage B refinement"
+        )
+
+    def test_mock_provider_preserves_verbatim_entities(self, tmp_path):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        result = summarise_predecessor(
+            str(path), mode="abstractive", max_tokens=500, llm_assist=True
+        )
+        assert "src/middleware/auth.py" in result["summary_text"]
+        assert "9.0.2" in result["summary_text"]
+        assert "abc1234" in result["summary_text"]
+
+    # --- AC #3 — all seven failure modes log + fall back to Stage A -------
+
+    def test_failure_mode_timeout_falls_back_to_stage_a(self, tmp_path, caplog):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(self._failure_handler("timeout"))
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=timeout" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_network_falls_back_to_stage_a(self, tmp_path, caplog):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(self._failure_handler("network"))
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=network" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_parse_falls_back_to_stage_a(self, tmp_path, caplog):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(self._failure_handler("parse"))
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=parse" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_schema_falls_back_to_stage_a(self, tmp_path, caplog):
+        """Schema failure: LLM dropped a verbatim entity."""
+        from devolaflow.llm_client import LLMResponse
+
+        def _entity_drop_handler(prompt: str, model: str) -> LLMResponse:
+            return LLMResponse(
+                text="## Stage B Mock Summary\n\n(no entities preserved here)",
+                model=model,
+                latency_ms=1.0,
+                tokens_in=10,
+                tokens_out=10,
+                error=None,
+            )
+
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(_entity_drop_handler)
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=schema" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_content_filter_falls_back_to_stage_a(self, tmp_path, caplog):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(self._failure_handler("content_filter"))
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=content_filter" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_rate_limit_falls_back_to_stage_a(self, tmp_path, caplog):
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(self._failure_handler("rate_limit"))
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=rate_limit" in r.getMessage() for r in caplog.records)
+
+    def test_failure_mode_fallback_disabled_via_abort_marker(self, tmp_path, caplog):
+        """STAGE_B_ABORT response triggers fallback_disabled fallback."""
+        from devolaflow.llm_client import LLMResponse
+
+        def _abort_handler(prompt: str, model: str) -> LLMResponse:
+            return LLMResponse(
+                text="STAGE_B_ABORT: cannot meet entity preservation",
+                model=model,
+                latency_ms=1.0,
+                tokens_in=10,
+                tokens_out=8,
+                error=None,
+            )
+
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(_abort_handler)
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=fallback_disabled" in r.getMessage() for r in caplog.records)
+
+    # --- Additional Stage B coverage --------------------------------------
+
+    def test_failure_via_client_raising_exception(self, tmp_path, caplog):
+        """A client whose .complete() raises is mapped to network fallback."""
+        from devolaflow.llm_client import LLMClient, LLMResponse
+
+        class _RaisingClient(LLMClient):
+            def complete(self, prompt: str) -> LLMResponse:  # type: ignore[override]
+                raise RuntimeError("network is down")
+
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = _RaisingClient(provider="mock")
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=network" in r.getMessage() for r in caplog.records)
+
+    def test_empty_response_text_is_parse_fallback(self, tmp_path, caplog):
+        from devolaflow.llm_client import LLMResponse
+
+        def _empty_handler(prompt: str, model: str) -> LLMResponse:
+            return LLMResponse(
+                text="   \n\n  ",
+                model=model,
+                latency_ms=1.0,
+                tokens_in=10,
+                tokens_out=0,
+                error=None,
+            )
+
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(_empty_handler)
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=500,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=parse" in r.getMessage() for r in caplog.records)
+
+    # --- AC #7 — llm_assist=False byte-identical to v8.0.0 Stage A --------
+
+    def test_llm_assist_false_byte_identical_to_stage_a(self, tmp_path):
+        """Default llm_assist=False MUST produce exactly the v8.0.0 P-12
+        Stage A 7-key dict — no abstractive_stage key, no other surface
+        change. This is the regression pin for AC #7.
+        """
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        baseline = summarise_predecessor(str(path), mode="abstractive", max_tokens=500)
+        explicit_off = summarise_predecessor(
+            str(path), mode="abstractive", max_tokens=500, llm_assist=False
+        )
+        assert baseline == explicit_off, (
+            "llm_assist=False (explicit) must equal llm_assist default (omitted)"
+        )
+        assert "abstractive_stage" not in baseline, (
+            "v8.0.0 P-12 Stage A return must NOT include abstractive_stage when llm_assist=False"
+        )
+        assert set(baseline.keys()) == {
+            "summary_text",
+            "mode",
+            "token_count",
+            "extracted_entities",
+            "covered_sections",
+            "dropped_sections",
+            "was_bounded",
+        }
+
+    def test_llm_assist_false_extractive_mode_unaffected(self, tmp_path):
+        """llm_assist kwarg has no effect on extractive mode (AC #7 corollary)."""
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        baseline = summarise_predecessor(str(path), mode="extractive", max_tokens=500)
+        with_kwarg = summarise_predecessor(
+            str(path), mode="extractive", max_tokens=500, llm_assist=True
+        )
+        assert baseline == with_kwarg, (
+            "extractive mode must ignore llm_assist (Stage B only refines abstractive)"
+        )
+        assert "abstractive_stage" not in with_kwarg
+
+    def test_stage_b_falls_back_when_llm_truncation_drops_entity(self, tmp_path, caplog):
+        """Token overshoot then post-truncation entity loss → schema fallback."""
+        from devolaflow.llm_client import LLMResponse
+
+        def _bloated_handler(prompt: str, model: str) -> LLMResponse:
+            text = "## Bloat\n\n" + (
+                "padding text that does not contain any preserved entities " * 200
+            )
+            return LLMResponse(
+                text=text,
+                model=model,
+                latency_ms=1.0,
+                tokens_in=10,
+                tokens_out=2000,
+                error=None,
+            )
+
+        path = self._write(tmp_path, "x.md", self.DENSE_DOC)
+        client = self._client_with_handler(_bloated_handler)
+        with caplog.at_level(logging.WARNING, logger="devolaflow.compressor.stage_b"):
+            result = summarise_predecessor(
+                str(path),
+                mode="abstractive",
+                max_tokens=80,
+                llm_assist=True,
+                llm_client=client,
+            )
+        assert result["abstractive_stage"] == "a"
+        assert any("mode=schema" in r.getMessage() for r in caplog.records)
+
+
+class TestAbstractiveLLMProfileWiring:
+    """v8.2.0 PV-01 — top-level ``abstractive_llm`` opt-in section in
+    context_profiles.yaml is the wiring surface; this class pins its shape.
+    """
+
+    @staticmethod
+    def _load_yaml() -> dict:
+        path = (
+            Path(__file__).resolve().parent.parent
+            / "workflow-system"
+            / "agent"
+            / "context_profiles.yaml"
+        )
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    def test_abstractive_llm_section_exists(self):
+        cfg = self._load_yaml()
+        assert "abstractive_llm" in cfg, (
+            "v8.2.0 PV-01 requires the ``abstractive_llm`` top-level "
+            "section in context_profiles.yaml"
+        )
+
+    def test_abstractive_llm_default_provider_is_mock(self):
+        cfg = self._load_yaml()
+        section = cfg["abstractive_llm"]
+        assert section["provider"] == "mock", (
+            "default provider MUST be 'mock' so unit tests are deterministic"
+        )
+
+    def test_abstractive_llm_carries_cost_and_latency_ceilings(self):
+        cfg = self._load_yaml()
+        section = cfg["abstractive_llm"]
+        assert section["cost_ceiling_usd"] == 0.05
+        assert section["latency_budget_ms"] == 800
+
+    def test_complex_feature_section_byte_identical_to_v8_0_0(self):
+        """v8.0.0 P-12 ``complex_feature`` section is BYTE-IDENTICAL across the PV-01 patch."""
+        cfg = self._load_yaml()
+        section = cfg["complex_feature"]
+        assert section["summary_mode"] == "abstractive"
+        assert section["max_tokens"] == 1200
+        assert section["low_density_threshold"] == 0.30
+        assert section["fallback_mode"] == "extractive"
+        assert "stage_b" not in section, (
+            "v8.0.0 complex_feature MUST NOT carry stage_b fields — those live "
+            "in the new abstractive_llm section"
+        )
+
+
+class TestStageBHelpers:
+    """Direct coverage for the v8.2.0 PV-01 Stage B private helpers.
+
+    These tests drive the defensive branches that public-API integration
+    tests cannot easily reach (unknown failure mode rejection, unknown
+    LLMClient error mapping, entity-list edge cases).
+    """
+
+    def test_log_stage_b_fallback_rejects_unknown_mode(self):
+        from devolaflow.compressor import _log_stage_b_fallback
+
+        with pytest.raises(ValueError) as exc_info:
+            _log_stage_b_fallback("not_a_mode", reason="x")
+        assert "unknown Stage B failure mode" in str(exc_info.value)
+
+    def test_check_response_error_maps_unknown_to_network(self):
+        from devolaflow.compressor import _stage_b_check_response_error
+
+        assert _stage_b_check_response_error(None) is None
+        assert _stage_b_check_response_error("timeout") == "timeout"
+        assert _stage_b_check_response_error("network") == "network"
+        assert _stage_b_check_response_error("nonsense") == "network"
+
+    def test_validate_entities_empty_list_returns_empty(self):
+        from devolaflow.compressor import _stage_b_validate_entities
+
+        assert _stage_b_validate_entities("anything", []) == []
+
+    def test_validate_entities_skips_empty_value_entries(self):
+        from devolaflow.compressor import _stage_b_validate_entities
+
+        entities = [{"value": ""}, {"value": "src/auth.py"}, {"value": "9.0.2"}]
+        text = "this contains src/auth.py and 9.0.2"
+        assert _stage_b_validate_entities(text, entities) == []
+
+    def test_validate_entities_skips_non_dict_entries(self):
+        from devolaflow.compressor import _stage_b_validate_entities
+
+        entities = ["not a dict", {"value": "src/auth.py"}]  # type: ignore[list-item]
+        text = "src/auth.py present"
+        assert _stage_b_validate_entities(text, entities) == []
+
+    def test_validate_entities_returns_missing_values(self):
+        from devolaflow.compressor import _stage_b_validate_entities
+
+        entities = [{"value": "src/auth.py"}, {"value": "9.0.2"}]
+        text = "only src/auth.py here"
+        missing = _stage_b_validate_entities(text, entities)
+        assert missing == ["9.0.2"]
+
+    def test_build_stage_b_prompt_handles_empty_entities(self):
+        from devolaflow.compressor import _build_stage_b_prompt
+
+        prompt = _build_stage_b_prompt(
+            artifact_path="x.md",
+            full_text="body",
+            stage_a_summary="snapshot",
+            entities=[],
+            max_tokens=500,
+        )
+        assert "VERBATIM ENTITIES" in prompt
+        assert "(no entities extracted)" in prompt
+        assert "STAGE_B_ABORT" in prompt
+
+    def test_build_stage_b_prompt_dedups_entities(self):
+        from devolaflow.compressor import _build_stage_b_prompt
+
+        entities = [
+            {"value": "src/auth.py"},
+            {"value": "src/auth.py"},
+            {"value": "9.0.2"},
+            {"value": ""},
+        ]
+        prompt = _build_stage_b_prompt(
+            artifact_path="x.md",
+            full_text="body",
+            stage_a_summary="snapshot",
+            entities=entities,
+            max_tokens=500,
+        )
+        assert prompt.count("src/auth.py") == 1
+        assert prompt.count("9.0.2") == 1
+
+    def test_invoke_stage_b_llm_uses_default_mock_when_client_is_none(self, tmp_path):
+        from devolaflow.compressor import _invoke_stage_b_llm
+
+        result = _invoke_stage_b_llm(
+            artifact_path="x.md",
+            full_text="body with src/auth.py and 9.0.2",
+            stage_a_summary="## Stage A\n\nsrc/auth.py 9.0.2",
+            entities=[{"value": "src/auth.py"}, {"value": "9.0.2"}],
+            max_tokens=500,
+            client=None,
+        )
+        assert result is not None
+        assert "src/auth.py" in result["summary_text"]
+        assert "9.0.2" in result["summary_text"]

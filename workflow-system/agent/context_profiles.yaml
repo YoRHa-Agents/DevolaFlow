@@ -1750,3 +1750,65 @@ complex_feature:
     high-density sections (named entities intact, ≤5 lines), freeing
     budget for additional predecessor sections. Falls back to
     extractive when Stage A output would be empty.
+
+# v8.2.0 (PV-01) — LLM-assisted Stage B opt-in for abstractive summarisation.
+#
+# Sibling top-level section to ``complex_feature`` (P-12) — preserves the
+# v8.0.0 P-12 surface byte-identical (the ``complex_feature`` section is
+# unchanged) while adding a separate, opt-in surface for callers that want
+# to flip Stage B on. Wired into
+# ``src/devolaflow/compressor.py::summarise_predecessor`` via the new
+# ``llm_assist=True`` kwarg + the new ``src/devolaflow/llm_client.py``
+# module's :class:`LLMClient`. The default ``llm_assist=False`` preserves
+# v8.0.0-p10 byte-identical behaviour (no schema bump, no log-line
+# appearance, no extra dict key) — pinned by
+# ``tests/test_compressor.py::TestAbstractiveStageBLLM
+# ::test_llm_assist_false_byte_identical_to_stage_a``.
+#
+# Stage B refines Stage A's heuristic output via a bounded LLM call,
+# preserving CO-2 verbatim entities and emitting structured logs for
+# all 7 canonical failure modes (timeout / network / parse / schema /
+# content_filter / rate_limit / fallback_disabled) per S-5. On any
+# failure Stage A is returned verbatim with
+# ``predecessor[i].abstractive_stage = 'a'`` set on the status report
+# (so SI-4 EvoBench attribution can distinguish "Stage B never invoked"
+# from "Stage B invoked then fell back" — Stage B design §4 last
+# paragraph).
+#
+# Cost / latency budgets default to conservative ceilings (per Stage B
+# design §5/§6): 800 ms per-dispatch P95 wall-clock, $0.05 per-dispatch
+# USD ceiling, 30 % min Stage A savings before escalation. Production
+# default is ``enabled: true`` here (this is the OPT-IN section — callers
+# that select this profile are explicitly opting into Stage B); the
+# global kill switch still lives at ``llm_assist=False`` (the
+# ``summarise_predecessor`` kwarg default).
+#
+# P6-safe: NESTED top-level section, NOT a new dispatch field.
+# canonical_order length stays 15, schemas/lean-dispatch.yaml version
+# stays 4 throughout v8.2.0 PV-01 per
+# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
+abstractive_llm:
+  enabled: true
+  provider: mock
+  model: null
+  max_tokens: 2000
+  timeout_s: 30.0
+  cost_ceiling_usd: 0.05
+  latency_budget_ms: 800
+  min_savings_pct: 30
+  on_failure: fallback_to_stage_a
+  fallback_mode: extractive
+  rationale: >
+    Opt-in LLM-assisted Stage B refinement of the P-12 Stage A heuristic.
+    Caller passes ``llm_assist=True`` to
+    ``summarise_predecessor(...)`` and supplies an ``LLMClient`` (or
+    accepts the deterministic ``mock`` provider for tests). All seven
+    canonical failure modes (timeout, network, parse, schema,
+    content_filter, rate_limit, fallback_disabled) trigger an immediate
+    fallback to the Stage A heuristic output and emit a structured
+    WARNING via the ``devolaflow.compressor.stage_b`` logger per S-5
+    (No Silent Failures). Production rollout follows the 4-PR plan in
+    ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` §9 —
+    PV-01 lands PR 1+2+3 (config + mock + opt-in flag). PR 4 (default
+    ``llm_assist=true`` for L0/L1 dispatch) is benched to v8.2.x
+    pending production telemetry.

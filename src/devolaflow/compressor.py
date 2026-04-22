@@ -10,11 +10,16 @@ Based on: CO-1 (lean format), CO-2 (verbatim extraction),
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from devolaflow.task_adaptive_selector import estimate_tokens
+
+if TYPE_CHECKING:
+    from devolaflow.llm_client import LLMClient
 
 __all__ = [
     "PRESERVE_LIST",
@@ -36,6 +41,8 @@ __all__ = [
     "ABSTRACTIVE_LOW_DENSITY_THRESHOLD",
     "ABSTRACTIVE_LOW_DENSITY_MAX_LINES",
     "ABSTRACTIVE_HIGH_DENSITY_MAX_LINES",
+    "STAGE_B_FAILURE_MODES",
+    "STAGE_B_ABORT_MARKER",
     "SUMMARY_TRUNCATION_MARKER",
     "SCHEMA_HINT_PRIORITIES",
     "validate_preserve_list",
@@ -54,6 +61,8 @@ __all__ = [
     "extract_named_entities",
     "directed_compact",
 ]
+
+_stage_b_logger = logging.getLogger("devolaflow.compressor.stage_b")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -1639,6 +1648,284 @@ def _assemble_abstractive_summary(
     return summary_text, covered, dropped, was_bounded
 
 
+# ---------------------------------------------------------------------------
+# v8.2.0 (PV-01) — Abstractive summariser Stage B (LLM-assisted refinement).
+#
+# Stage B is the LLM-assisted complement to v8.0.0 P-12's Stage A heuristic.
+# Stage A is ALWAYS computed first (it's both the fallback baseline AND the
+# LLM's hint per the design doc §7); Stage B is invoked only when the
+# caller passes ``llm_assist=True`` and supplies (or accepts the default
+# ``mock``) :class:`devolaflow.llm_client.LLMClient`.
+#
+# Seven failure modes (per v8.2.0 patch_plan §3 PV-01 AC #3 + Stage B
+# design §4) trigger fallback to Stage A heuristic + log the failure
+# structurally per S-5 (No Silent Failures):
+#
+#   * ``timeout``           — LLM call exceeded ``timeout_s`` budget
+#                             (covers design-doc F1).
+#   * ``network``           — HTTP / socket failure / API non-200
+#                             (covers design-doc F5).
+#   * ``parse``             — LLM output empty or failed JSON / markdown
+#                             shape parse (covers design-doc F7 partial).
+#   * ``schema``            — LLM output exceeded ``max_tokens`` AND
+#                             entity-preservation check failed after
+#                             truncation, OR dropped a verbatim entity
+#                             (covers design-doc F3 + F4).
+#   * ``content_filter``    — provider rejected for safety / policy
+#                             reasons (HTTP 400 / 422).
+#   * ``rate_limit``        — provider returned 429 OR cumulative cost
+#                             would exceed ceiling (covers design-doc F6).
+#   * ``fallback_disabled`` — model returned ``STAGE_B_ABORT: <reason>``
+#                             OR caller missing API key for non-mock
+#                             provider (covers design-doc F2).
+#
+# Each fallback emits a single WARNING log line via
+# ``logging.getLogger("devolaflow.compressor.stage_b")`` carrying
+# ``stage_b.fallback mode=<mode> reason=<detail>`` so SI-4 EvoBench
+# regression analysis can attribute the cause and so production
+# auditors can distinguish "Stage B never invoked" from "Stage B
+# invoked then fell back" (per Stage B design §4 last paragraph).
+#
+# P6-safe: this is a NESTED behaviour change to ``summarise_predecessor``
+# — no new top-level dispatch keys, no schema bump. ``llm_assist=False``
+# (the default) preserves byte-identical v8.0.0-p10 Stage A behaviour
+# (regression-pinned by ``TestAbstractiveStageBLLM.test_*_byte_identical``
+# in tests/test_compressor.py).
+# ---------------------------------------------------------------------------
+
+STAGE_B_FAILURE_MODES: tuple[str, ...] = (
+    "timeout",
+    "network",
+    "parse",
+    "schema",
+    "content_filter",
+    "rate_limit",
+    "fallback_disabled",
+)
+"""Canonical Stage B failure mode names (S-5 + PV-01 AC #3).
+
+Mirrors :data:`devolaflow.llm_client.FAILURE_MODES` exactly so the two
+modules stay in lock-step. Adding a mode is a CHANGELOG-visible behaviour
+change per CP-1 (No Ghost Features).
+"""
+
+STAGE_B_ABORT_MARKER: str = "STAGE_B_ABORT"
+"""Sentinel string the LLM emits when it cannot meet the prompt constraints.
+
+Per Stage B design §3 prompt template: when the LLM cannot produce a body
+that fits ``max_tokens`` AND preserves every verbatim entity, it must
+respond with the literal string ``STAGE_B_ABORT: <reason>`` and nothing
+else. The caller detects this and falls back to Stage A.
+"""
+
+
+def _build_stage_b_prompt(
+    *,
+    artifact_path: str,
+    full_text: str,
+    stage_a_summary: str,
+    entities: list[dict],
+    max_tokens: int,
+) -> str:
+    """Render the Stage B prompt per design doc §3 template.
+
+    The prompt includes the verbatim entities block (so the LLM has an
+    authoritative list of values it MUST keep), the Stage A snapshot
+    (used as a hint, not ground truth), and the full artifact body. The
+    prompt always ends with a 4-clause OUTPUT REQUIREMENTS block whose
+    last clause names the ``STAGE_B_ABORT:`` sentinel for graceful
+    refusal — the caller handles the abort case as ``fallback_disabled``.
+    """
+    entity_lines = []
+    seen_values: set[str] = set()
+    for entry in entities:
+        value = entry.get("value", "") if isinstance(entry, dict) else ""
+        if not value or value in seen_values:
+            continue
+        seen_values.add(value)
+        first_line = value.splitlines()[0] if value else ""
+        entity_lines.append(f"  - {first_line}")
+    entities_block = "\n".join(entity_lines) if entity_lines else "  (no entities extracted)"
+    return (
+        "SYSTEM:\n"
+        "You are a CO-2 verbatim summariser. Your job is to compress the "
+        f"predecessor artifact below into <= {max_tokens} tokens while preserving\n"
+        "EVERY entity from the verbatim list. Do NOT paraphrase entity values.\n"
+        "Do NOT introduce facts not present in the artifact. Output a single\n"
+        "markdown block with the same heading hierarchy as the input.\n"
+        "\n"
+        "VERBATIM ENTITIES (MUST appear character-for-character in your output):\n"
+        f"{entities_block}\n"
+        "\n"
+        "USER:\n"
+        f"Artifact: {artifact_path}\n"
+        "Mode: stage_b_abstractive\n"
+        "Stage A snapshot (use as a HINT, not as ground truth):\n"
+        f"{stage_a_summary}\n"
+        "\n"
+        "Full artifact body:\n"
+        f"{full_text}\n"
+        "\n"
+        "OUTPUT REQUIREMENTS:\n"
+        f"1. Single markdown block, <= {max_tokens} tokens.\n"
+        "2. Every entity from VERBATIM ENTITIES MUST appear unchanged.\n"
+        "3. Preserve heading hierarchy (do not flatten H2->H1).\n"
+        "4. If you cannot meet (1) AND (2), respond with the literal string\n"
+        f'   "{STAGE_B_ABORT_MARKER}: <reason>" and nothing else. The caller will fall\n'
+        "   back to Stage A.\n"
+    )
+
+
+def _log_stage_b_fallback(mode: str, *, reason: str) -> None:
+    """Emit a single S-5 structured WARNING for a Stage B fallback.
+
+    Validates ``mode`` against :data:`STAGE_B_FAILURE_MODES` to prevent
+    silent typos that would defeat the SI-4 EvoBench attribution chain.
+    Raises ValueError on unknown mode (S-5: explicit failure rather than
+    silent log of garbage).
+    """
+    if mode not in STAGE_B_FAILURE_MODES:
+        valid = sorted(STAGE_B_FAILURE_MODES)
+        raise ValueError(f"unknown Stage B failure mode {mode!r}; expected one of {valid}")
+    _stage_b_logger.warning("stage_b.fallback mode=%s reason=%s", mode, reason)
+
+
+def _stage_b_check_response_error(response_error: str | None) -> str | None:
+    """Map an :class:`LLMResponse.error` value to a Stage B failure mode.
+
+    Returns the canonical Stage B failure mode name when the response
+    carries an error the caller should treat as a fallback signal,
+    otherwise ``None`` (success path). Unknown / unexpected error
+    strings collapse to ``"network"`` rather than silently passing
+    through (S-5 conservative default).
+    """
+    if response_error is None:
+        return None
+    if response_error in STAGE_B_FAILURE_MODES:
+        return response_error
+    return "network"
+
+
+def _stage_b_validate_entities(text: str, entities: list[dict]) -> list[str]:
+    """Return the list of entity values dropped from ``text`` (CO-2 verbatim check).
+
+    Iterates :func:`extract_named_entities`-shaped dicts and returns the
+    subset whose ``value`` is NOT a substring of ``text``. Used by the
+    Stage B caller to detect F4 entity_drop fallbacks. Empty entities
+    list returns ``[]`` (no constraint to violate).
+    """
+    if not entities:
+        return []
+    missing: list[str] = []
+    for entry in entities:
+        value = entry.get("value", "") if isinstance(entry, dict) else ""
+        if not value:
+            continue
+        if value not in text:
+            missing.append(value)
+    return missing
+
+
+def _invoke_stage_b_llm(
+    *,
+    artifact_path: str,
+    full_text: str,
+    stage_a_summary: str,
+    entities: list[dict],
+    max_tokens: int,
+    client: LLMClient | None,
+) -> dict | None:
+    """Attempt Stage B LLM refinement; return refined summary OR None on any failure.
+
+    Wraps :meth:`devolaflow.llm_client.LLMClient.complete` with the seven
+    failure-mode dispatch chain documented in :data:`STAGE_B_FAILURE_MODES`.
+    On any failure, the caller MUST treat the ``None`` return as the
+    signal to fall back to ``stage_a_summary`` (the Stage A heuristic
+    output is ALWAYS the fallback baseline per design doc §7).
+
+    Failure-mode dispatch order (matches design doc §4 detection sequence):
+
+      1. ``parse``             — caller passed non-string artifact data
+      2. (``LLMResponse.error`` carries one of FAILURE_MODES → mapped
+         to that mode and logged)
+      3. ``parse``             — empty body
+      4. ``fallback_disabled`` — body starts with ``STAGE_B_ABORT:``
+      5. ``schema``            — body exceeded ``max_tokens`` AND
+         post-truncation entity check fails
+      6. ``schema``            — body dropped any verbatim entity
+      7. (success — return refined summary)
+
+    The function NEVER raises on LLM-side failures: every fallback is
+    routed through :func:`_log_stage_b_fallback` which validates the
+    mode and emits the canonical S-5 log line. Raises only on caller
+    misuse (TypeError on ``entities`` shape — defensive, not silenced).
+    """
+    if client is None:
+        from devolaflow.llm_client import LLMClient as _LLMClient
+
+        client = _LLMClient(provider="mock")
+    prompt = _build_stage_b_prompt(
+        artifact_path=artifact_path,
+        full_text=full_text,
+        stage_a_summary=stage_a_summary,
+        entities=entities,
+        max_tokens=max_tokens,
+    )
+    try:
+        response = client.complete(prompt)
+    except Exception as exc:  # noqa: BLE001 - S-5: never propagate raw exceptions
+        _log_stage_b_fallback("network", reason=f"client raised {type(exc).__name__}: {exc}")
+        return None
+    error_mode = _stage_b_check_response_error(response.error)
+    if error_mode is not None:
+        _log_stage_b_fallback(
+            error_mode,
+            reason=(
+                f"llm_client returned error={response.error} latency_ms={response.latency_ms:.1f}"
+            ),
+        )
+        return None
+    text = response.text or ""
+    if not text.strip():
+        _log_stage_b_fallback("parse", reason="empty LLM response body")
+        return None
+    if text.lstrip().startswith(STAGE_B_ABORT_MARKER):
+        first_line = text.lstrip().splitlines()[0]
+        _log_stage_b_fallback("fallback_disabled", reason=first_line)
+        return None
+    actual_tokens = estimate_tokens(text)
+    was_bounded = False
+    if actual_tokens > max_tokens:
+        text, _ = _truncate_to_tokens(text, max_tokens)
+        was_bounded = True
+        missing_after_trunc = _stage_b_validate_entities(text, entities)
+        if missing_after_trunc:
+            _log_stage_b_fallback(
+                "schema",
+                reason=(
+                    f"output exceeded max_tokens={max_tokens} and post-truncation "
+                    f"dropped {len(missing_after_trunc)} entities"
+                ),
+            )
+            return None
+    missing = _stage_b_validate_entities(text, entities)
+    if missing:
+        sample = missing[:3]
+        more = "..." if len(missing) > 3 else ""
+        _log_stage_b_fallback(
+            "schema",
+            reason=f"LLM output dropped {len(missing)} entities: {sample}{more}",
+        )
+        return None
+    return {
+        "summary_text": text,
+        "tokens_in": response.tokens_in,
+        "tokens_out": response.tokens_out,
+        "latency_ms": response.latency_ms,
+        "was_bounded": was_bounded,
+    }
+
+
 def summarise_predecessor(
     artifact_path: str,
     max_tokens: int = DEFAULT_SUMMARY_MAX_TOKENS,
@@ -1646,6 +1933,8 @@ def summarise_predecessor(
     schema_hint: str | None = None,
     retrieval_query: str | None = None,
     directive: dict | None = None,
+    llm_assist: bool = False,
+    llm_client: LLMClient | None = None,
 ) -> dict:
     """Produce a bounded-token summary of a predecessor artifact.
 
@@ -1664,9 +1953,24 @@ def summarise_predecessor(
     keeping every named entity intact (AC #4). Returns the same 7-key
     dict contract as extractive. The Stage A path falls back to
     extractive when its output would be empty (defensive: matches the
-    extractive byte-stable behaviour for empty-body artifacts). Stage
-    B (LLM-assisted) opt-in remains out of scope for v8.0.0; see
-    ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md``.
+    extractive byte-stable behaviour for empty-body artifacts).
+
+    v8.2.0 (PV-01) — ``llm_assist=True`` opts INTO the LLM-assisted
+    Stage B refinement path. Stage A is ALWAYS computed first (it's
+    the fallback baseline AND the LLM's hint per
+    ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` §7).
+    When Stage B succeeds the 7-key return adds an 8th
+    ``abstractive_stage='b'`` field so downstream status reports can
+    distinguish "Stage B succeeded" from "Stage B fell back" (per Stage
+    B design §4 SI-4 attribution requirement); when ANY of the seven
+    canonical :data:`STAGE_B_FAILURE_MODES` triggers, Stage A output is
+    returned with ``abstractive_stage='a'`` and a structured WARNING
+    line is emitted to the ``devolaflow.compressor.stage_b`` logger
+    (S-5 No Silent Failures). Default ``llm_assist=False`` preserves
+    byte-identical v8.0.0-p10 Stage A return shape (the 7-key dict has
+    no ``abstractive_stage`` key) — pinned by
+    :class:`tests.test_compressor.TestAbstractiveStageBLLM`
+    ``test_*_byte_identical_to_stage_a``.
 
     When ``retrieval_query`` is provided AND non-empty (after stopword strip
     via :func:`_tokenize_for_retrieval`) the section ranker switches from
@@ -1725,15 +2029,35 @@ def summarise_predecessor(
         if not summary_text.strip():
             mode = "extractive"
         else:
-            return {
-                "summary_text": summary_text,
+            stage_b_summary = summary_text
+            stage_b_was_bounded = was_bounded
+            stage_label: str | None = None
+            if llm_assist:
+                stage_label = "a"
+                stage_b_result = _invoke_stage_b_llm(
+                    artifact_path=artifact_path,
+                    full_text=text,
+                    stage_a_summary=summary_text,
+                    entities=entities,
+                    max_tokens=max_tokens,
+                    client=llm_client,
+                )
+                if stage_b_result is not None:
+                    stage_b_summary = stage_b_result["summary_text"]
+                    stage_b_was_bounded = stage_b_result.get("was_bounded", was_bounded)
+                    stage_label = "b"
+            result = {
+                "summary_text": stage_b_summary,
                 "mode": mode,
-                "token_count": estimate_tokens(summary_text),
+                "token_count": estimate_tokens(stage_b_summary),
                 "extracted_entities": entities,
                 "covered_sections": covered,
                 "dropped_sections": dropped,
-                "was_bounded": was_bounded,
+                "was_bounded": stage_b_was_bounded,
             }
+            if stage_label is not None:
+                result["abstractive_stage"] = stage_label
+            return result
 
     selected = _select_sections_for_summary(sections, schema_hint, retrieval_query, directive)
 

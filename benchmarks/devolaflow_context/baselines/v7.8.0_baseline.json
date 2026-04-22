@@ -1,4 +1,16 @@
 {
+  "abstractive_llm": {
+    "budget": 5300,
+    "budget_utilization": 0.9974,
+    "composite": 99.9,
+    "information_density": 0.9974,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "abstractive_llm",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5286
+  },
   "acceptance_verification_feature": {
     "budget": 4000,
     "budget_utilization": 0.5965,

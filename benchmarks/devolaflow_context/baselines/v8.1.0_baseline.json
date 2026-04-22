@@ -1,4 +1,16 @@
 {
+  "abstractive_llm": {
+    "budget": 5300,
+    "budget_utilization": 0.9974,
+    "composite": 99.9,
+    "information_density": 0.9974,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "abstractive_llm",
+    "section_relevance": 1.0,
+    "selected_count": 15,
+    "total_tokens": 5286
+  },
   "acceptance_verification_feature": {
     "budget": 4000,
     "budget_utilization": 0.6008,
@@ -359,6 +371,8 @@
     "selected_count": 13,
     "total_tokens": 4595
   },
+  "rebased_at": "2026-04-22",
+  "rebased_from": "v8.0.0",
   "refactor_tech_debt": {
     "budget": 5200,
     "budget_utilization": 0.9769,
@@ -479,6 +493,7 @@
     "selected_count": 9,
     "total_tokens": 2947
   },
+  "version": "8.1.0-rc.1",
   "visual_regression_webapp": {
     "budget": 4000,
     "budget_utilization": 0.5895,
@@ -490,8 +505,5 @@
     "section_relevance": 1.0,
     "selected_count": 7,
     "total_tokens": 2358
-  },
-  "version": "8.1.0-rc.1",
-  "rebased_from": "v8.0.0",
-  "rebased_at": "2026-04-22"
+  }
 }
