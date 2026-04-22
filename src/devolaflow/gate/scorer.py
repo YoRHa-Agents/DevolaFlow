@@ -60,6 +60,7 @@ from devolaflow.gate.reinforcement import (
     cycle_to_instruction,
     fence_to_instruction,
 )
+from devolaflow.legibility import LegibilityReport, LegibilityScorer
 
 SEVERITY_WEIGHTS: dict[str, int] = {
     "blocker": 25,
@@ -1223,6 +1224,102 @@ def _attach_complexity_evaluation(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# v8.2.0 (PV-02) — Agent Legibility Scoring integration
+#
+# ``_attach_legibility_evaluation`` consults the optional
+# :class:`devolaflow.legibility.LegibilityScorer`, scores every file in
+# ``legibility_files``, and surfaces the aggregate report on
+# ``verdict.details['legibility']``. ``legibility_scorer=None`` (or an
+# empty file list) is byte-identical to v8.1.0-rc.1 behaviour (per
+# ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-5).
+#
+# When the profile carries ``legibility_weight > 0`` AND at least one
+# file scored, the per-file mean (0-100) shifts the gate composite by
+# ``profile.legibility_weight * (mean_score - 50.0)`` — well-legible
+# code lifts the composite, illegible code drags it down. Default
+# weight is 0.0 in STANDARD/RELAXED, 0.05 in STRICT/AUDIT.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _aggregate_legibility_reports(
+    reports: list[LegibilityReport],
+) -> tuple[float, dict[str, float]]:
+    """Reduce a list of :class:`LegibilityReport` to ``(mean_score, mean_dims)``.
+
+    Empty list short-circuits to ``(0.0, {})``. Per-dimension means are
+    rounded to 2 decimal places so downstream serialisers produce
+    stable JSON without trailing-precision drift across rounds.
+    """
+    if not reports:
+        return 0.0, {}
+    n = len(reports)
+    mean_score = round(sum(r.score for r in reports) / n, 2)
+    dim_keys: set[str] = set()
+    for r in reports:
+        dim_keys.update(r.dimensions)
+    mean_dims = {
+        k: round(sum(r.dimensions.get(k, 0.0) for r in reports) / n, 2) for k in sorted(dim_keys)
+    }
+    return mean_score, mean_dims
+
+
+def _attach_legibility_evaluation(
+    verdict: GateVerdict,
+    legibility_scorer: LegibilityScorer,
+    legibility_files: Sequence[str],
+    profile: GateProfile,
+) -> GateVerdict:
+    """Score ``legibility_files`` and surface the aggregate on ``verdict.details``.
+
+    Mutates ``verdict.details`` in place. The verdict's ``decision`` is
+    NOT mutated by default — callers that want a hard gate can post-
+    process ``verdict.details['legibility']['mean_score']``. The
+    composite score is shifted by
+    ``profile.legibility_weight * (mean_score - 50.0)`` rounded to 4
+    decimal places and clamped to ``[0.0, 100.0]`` (so a perfectly
+    legible file lifts the composite by ``weight * 50``, a maximally
+    illegible file drags it by ``weight * 50``). When the file list is
+    empty, the entry is still written with ``file_count=0`` so callers
+    can log the "no files inspected" path uniformly per S-5.
+    """
+    weight = float(profile.legibility_weight)
+    reports: list[LegibilityReport] = []
+    errors: list[str] = []
+    for path in legibility_files:
+        try:
+            reports.append(legibility_scorer.score(path))
+        except (FileNotFoundError, IsADirectoryError, OSError) as exc:
+            errors.append(f"{path}: {type(exc).__name__}: {exc}")
+    mean_score, mean_dims = _aggregate_legibility_reports(reports)
+    composite_delta = 0.0
+    if reports and weight > 0.0 and verdict.composite_score is not None:
+        composite_delta = round(weight * (mean_score - 50.0), 4)
+        verdict.composite_score = max(
+            0.0,
+            min(100.0, round(verdict.composite_score + composite_delta, 4)),
+        )
+    findings = [
+        {
+            "file": r.file_path,
+            "score": r.score,
+            "dimensions": dict(r.dimensions),
+            "issues": list(r.findings),
+        }
+        for r in reports
+    ]
+    verdict.details["legibility"] = {
+        "weight": weight,
+        "file_count": len(reports),
+        "mean_score": mean_score,
+        "mean_dimensions": mean_dims,
+        "composite_delta": composite_delta,
+        "files": findings,
+        "errors": errors,
+    }
+    return verdict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # v8.0.0 (P-10) — Automatic Acceptance Criteria evaluation
 #
 # ``evaluate_acceptance_criteria_v2`` runs each
@@ -1524,6 +1621,8 @@ def evaluate_gate(
     complexity_detector: ComplexityDetector | None = None,
     complexity_signals: ComplexitySignals | None = None,
     complexity_task_complexity: str = "standard",
+    legibility_scorer: LegibilityScorer | None = None,
+    legibility_files: Sequence[str] | None = None,
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -1604,6 +1703,23 @@ def evaluate_gate(
         to look up the per-tier WARNING budgets. Defaults to
         ``"standard"``. Ignored when ``complexity_detector`` or
         ``complexity_signals`` is ``None``.
+    legibility_scorer:
+        Optional :class:`devolaflow.legibility.LegibilityScorer`. When
+        ``None`` (the default), behaviour is byte-identical to
+        v8.1.0-rc.1 — no legibility evaluation is performed (per
+        ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-5). When
+        supplied with a non-empty ``legibility_files`` list, every
+        listed file is scored and the aggregate report is appended to
+        ``verdict.details['legibility']``. The composite score is
+        shifted by ``profile.legibility_weight * (mean_score - 50)``
+        — well-legible code lifts the composite, illegible code drags
+        it down. Default weight is 0.0 in STANDARD/RELAXED, 0.05 in
+        STRICT/AUDIT (per ``profiles.py``).
+    legibility_files:
+        Optional sequence of file paths to score with
+        ``legibility_scorer``. ``None`` (or empty) is byte-identical
+        to omitting the scorer — no work performed, no details
+        appended. Ignored when ``legibility_scorer is None``.
     """
     if history is None:
         history = []
@@ -1623,6 +1739,8 @@ def evaluate_gate(
                     complexity_signals, complexity_task_complexity
                 )
                 _attach_complexity_evaluation(verdict, evaluation, profile)
+            if legibility_scorer is not None and legibility_files:
+                _attach_legibility_evaluation(verdict, legibility_scorer, legibility_files, profile)
             return verdict
     else:
         decision = None
@@ -1653,6 +1771,9 @@ def evaluate_gate(
     if complexity_detector is not None and complexity_signals is not None:
         evaluation = complexity_detector.evaluate(complexity_signals, complexity_task_complexity)
         _attach_complexity_evaluation(verdict, evaluation, profile)
+
+    if legibility_scorer is not None and legibility_files:
+        _attach_legibility_evaluation(verdict, legibility_scorer, legibility_files, profile)
 
     return verdict
 

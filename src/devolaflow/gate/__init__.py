@@ -105,6 +105,7 @@ from devolaflow.gate.scorer import (
     run_gate_cli,
     score_acceptance_readiness,
 )
+from devolaflow.legibility import LegibilityReport, LegibilityScorer
 
 __all__ = [
     "ARS_DIMENSION_WEIGHTS",
@@ -176,6 +177,8 @@ __all__ = [
     "LadderEvaluation",
     "LadderRung",
     "LadderRungStatus",
+    "LegibilityReport",
+    "LegibilityScorer",
     "aggregate_criterion_verdicts",
     "composite_score",
     "compute_deterministic_oracle_score",
