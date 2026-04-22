@@ -46,6 +46,44 @@ External tools and benchmarks MUST be referenced by their remote GitHub URL. Loc
 
 Sources: SF-6, SI-7.
 
+## S-8 — No Writes Outside Active Change Owned Files
+
+When an L3 Task Agent is operating inside a `change-driven` workflow with an
+active change folder (`.local/.agent/active/<change-id>/`), it MUST NOT modify
+any file outside the union of:
+1. paths listed in `.local/.agent/active/<change-id>/owned_files.txt`
+2. the change folder itself
+3. `.local/.agent/handoff/` (only its own outbox; append-only — see S-9)
+
+Violations:
+- Detected at file-write time via `lifecycle/check_file_ownership` hook
+- In `mode: lite` — warn + log
+- In `mode: full` (or STRICT) — block + escalate per P4
+
+Exceptions:
+- Trivial single-file edits < 20 lines (P1 trivial waiver also applies here)
+- L0/L1/L2 dispatcher reads (Read/Glob/Grep/SemanticSearch) are unrestricted
+
+Source: v8.3.0 design.md §3.1 — closes gap H-002 from v8.3.0_gap_analysis.md.
+The `change-driven` workflow ships in v8.2.6; this rule is forward-defined so
+that when v8.2.6 lands, agents already know the constraint.
+
+## S-9 — Handoff Envelopes Are Append-Only
+
+Once a `<from>__<to>__<change-id>__<seq>.yaml` envelope exists in
+`.local/.agent/handoff/`, it MUST NOT be modified or deleted by any agent.
+
+To convey new information, the agent MUST author a new envelope with `seq+1`.
+
+Rationale: append-only ledger prevents silent overwrites between agents
+operating in parallel. Mirrors P5 (Artifacts as Contracts).
+
+Enforcement: `tests/test_handoff_envelope_immutable.py` lints CI runs (lands
+in v8.2.4 with the schema package); `lifecycle/check_envelope_append_only`
+hook blocks at write time in STRICT mode.
+
+Source: v8.3.0 design.md §3.2 — closes gap H-002 from v8.3.0_gap_analysis.md.
+
 # Architecture Rules (P1) — Core Architectural Decisions
 
 ## A-1 — 4-Layer Agent Hierarchy (P1–P5)
@@ -85,6 +123,23 @@ Context profiles (`workflow-system/agent/context_profiles.yaml`) must define exp
 | L3 Task | ~8K tokens | Task spec + owned files + rules |
 
 Source: CO-3, SI-6.
+
+## A-4 — Source-of-Truth Spec Location (M-004 ADR)
+
+`.local/memory/specs/<domain>/spec.md` is the source-of-truth for current
+system behavior. Per-change `.local/.agent/active/<id>/spec.md` files contain
+DELTAS (ADDED/MODIFIED/REMOVED Requirements) relative to source-of-truth.
+
+Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
+(W-3 / SI-3 composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The gate
+runs the explicit `mergeability_check` (v8.2.5 reporter module) before
+allowing the merge.
+
+Rationale: separates lifecycle of in-flight proposals from agreed contracts;
+preserves W-3 / SI-3 + W-4 / SI-4 invariants by NOT auto-merging on archive.
+
+Source: v8.3.0 design.md §3.4 — closes gap M-004 from v8.3.0_gap_analysis.md
+(in part — full closure happens when v8.2.5 ArchiveManager.propose_merge ships).
 
 # Conventions Rules (P2) — Coding & Format Standards
 
@@ -158,6 +213,33 @@ Source: SF-4.
 ## C-8 — Always Use Braces for If
 
 Always use braces for if, else if, and else branches in C++. No single-line unbracketed bodies allowed.
+
+## C-9 — Lightweight Agent Workspace Artifacts
+
+Files inside `.local/.agent/active/<change-id>/` and
+`.local/.agent/archive/<date>-<id>/` are subject to per-artifact token
+budgets:
+
+| File | Soft budget | Hard ceiling |
+|------|-------------|--------------|
+| goal.md | 200 | 400 |
+| acceptance.md | 400 | 800 |
+| spec.md | 1500 | 3000 |
+| tasks.md | 800 | 1500 |
+| STATUS.yaml | 100 | 200 |
+| owned_files.txt | 50 | 100 |
+| Handoff envelope | 600 | 1200 |
+
+Verify with:
+```bash
+python -m devolaflow.agent_workspace.lint <change-id>
+```
+(The `lint` module ships in v8.2.5; until then, this rule is normative for
+human authors of `.local/.agent/active/` artifacts.)
+
+Soft budget over → warn. Hard ceiling over → fail commit.
+
+Source: v8.3.0 design.md §3.3 — closes gap H-003 from v8.3.0_gap_analysis.md.
 
 # Workflow Rules (P3) — Development Process
 

@@ -2,13 +2,15 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-| Layer | File | Priority | Always Apply | Description |
-|-------|------|----------|-------------|-------------|
-| Soul | `soul.mdc` | P0 | Yes | Immutable invariants — security red lines, coverage floor, no ghost features |
-| Architecture | `architecture.mdc` | P1 | Yes | Core architectural decisions — 4-layer hierarchy, context isolation, cache layout |
-| Conventions | `conventions.mdc` | P2 | Yes | Coding & format standards — line budgets, lean messages, version consistency |
-| Workflow | `workflow.mdc` | P3 | No | Development process — iteration planning, NineS analysis, benchmarks, version bumps |
-| Style | `style.mdc` | P4 | No | Documentation & presentation — doc sync, web experience, bilingual completeness |
+Total rules: **50** (v8.3.0 — added S-8, S-9, A-4, C-9 in v8.2.2 patch per `.local/research/v8.3.0_design.md` §3).
+
+| Layer | File | Priority | Always Apply | Rule count | Description |
+|-------|------|----------|-------------|------------|-------------|
+| Soul | `soul.mdc` | P0 | Yes | 9 (S-1..S-9) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8) + handoff append-only (S-9) |
+| Architecture | `architecture.mdc` | P1 | Yes | 4 (A-1..A-4) | Core architectural decisions — 4-layer hierarchy, context isolation, cache layout, source-of-truth spec location (A-4) |
+| Conventions | `conventions.mdc` | P2 | Yes | 9 (C-1..C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9) |
+| Workflow | `workflow.mdc` | P3 | No | 15 (W-1..W-15) | Development process — iteration planning, NineS analysis, benchmarks, version bumps |
+| Style | `style.mdc` | P4 | No | 13 (ST-1..ST-13) | Documentation & presentation — doc sync, web experience, bilingual completeness |
 
 ## Compilation
 

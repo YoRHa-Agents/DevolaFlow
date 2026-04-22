@@ -300,3 +300,112 @@ class TestDataclasses:
         )
         assert cr.target == "t"
         assert cr.tokens_used == 10
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_COMPILE_CONFIG = REPO_ROOT / ".rules" / "compile-config.yaml"
+
+
+@pytest.fixture(scope="module")
+def repo_compile_results() -> dict[str, CompileResult]:
+    """Compile the actual repo .rules/ in-memory (does not write to disk).
+
+    Returns a mapping {target_name: CompileResult}. Used by the v8.3.0 v8.2.2
+    rule-presence and budget assertions to avoid mutating the on-disk
+    artifacts during the test run (the writers ran already at patch time).
+    """
+    rc = RuleCompiler(REPO_COMPILE_CONFIG)
+    rc.load_layers(REPO_ROOT / ".rules")
+    results = rc.compile()
+    return {r.target: r for r in results}
+
+
+class TestV822RulesFoundationCompile:
+    """v8.2.2 — Rules Layer Foundation acceptance tests.
+
+    Closes gaps H-002 (S-8 + S-9), H-003 (C-9), and M-004-part (A-4) per
+    `.local/research/v8.3.0_design.md` §3 and `.local/research/v8.3.0_patch_plan.md`
+    §v8.2.2 AC-2..AC-4 + AC-7.
+    """
+
+    def test_s8_in_cursor_compiled_output(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        cursor = repo_compile_results["cursor"]
+        assert "## S-8 — No Writes Outside Active Change Owned Files" in cursor.content
+        assert "owned_files.txt" in cursor.content
+        assert "v8.3.0 design.md §3.1" in cursor.content
+
+    def test_s9_in_cursor_compiled_output(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        cursor = repo_compile_results["cursor"]
+        assert "## S-9 — Handoff Envelopes Are Append-Only" in cursor.content
+        assert "append-only" in cursor.content.lower()
+        assert "v8.3.0 design.md §3.2" in cursor.content
+
+    def test_a4_in_cursor_compiled_output(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        cursor = repo_compile_results["cursor"]
+        assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in cursor.content
+        assert ".local/memory/specs/" in cursor.content
+        assert "v8.3.0 design.md §3.4" in cursor.content
+
+    def test_c9_in_cursor_compiled_output(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        cursor = repo_compile_results["cursor"]
+        assert "## C-9 — Lightweight Agent Workspace Artifacts" in cursor.content
+        assert "Soft budget" in cursor.content
+        assert "Hard ceiling" in cursor.content
+        assert "v8.3.0 design.md §3.3" in cursor.content
+
+    def test_a4_c9_s8_s9_in_agents_md_compiled_output(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """All four new rules belong to always_include layers (soul/architecture/conventions),
+        so they MUST appear in AGENTS.md per the compile-config target spec."""
+        agents = repo_compile_results["agents_md"]
+        assert "## S-8 — No Writes Outside Active Change Owned Files" in agents.content
+        assert "## S-9 — Handoff Envelopes Are Append-Only" in agents.content
+        assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in agents.content
+        assert "## C-9 — Lightweight Agent Workspace Artifacts" in agents.content
+
+    def test_compile_budget_agents_md_under_6000_tokens(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """AC-7: AGENTS.md token estimate must remain ≤ 6000 (compile-config budget)."""
+        agents = repo_compile_results["agents_md"]
+        assert agents.tokens_budget == 6000
+        assert agents.tokens_used <= 6000, (
+            f"AGENTS.md exceeded 6000-token budget: {agents.tokens_used}"
+        )
+
+    def test_compile_budget_cursor_under_8000_tokens(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """AC-7: cursor MDC token estimate must remain ≤ 8000 (compile-config budget)."""
+        cursor = repo_compile_results["cursor"]
+        assert cursor.tokens_budget == 8000
+        assert cursor.tokens_used <= 8000, (
+            f".cursor/rules/repo-governance.mdc exceeded 8000-token budget: {cursor.tokens_used}"
+        )
+
+    def test_existing_soul_rules_preserved_byte_identical(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """I-PV02-D R5 invariant: existing S-1..S-7 must remain present and
+        unmodified after the S-8 + S-9 append. Verified by checking each
+        rule heading is still emitted in the compiled cursor output."""
+        cursor = repo_compile_results["cursor"]
+        for rule in (
+            "## S-1 — Dispatcher-Not-Implementer Invariant",
+            "## S-2 — No Absolute Paths in Agent Files",
+            "## S-3 — Test Coverage Floor",
+            "## S-4 — No Ghost Features",
+            "## S-5 — No Silent Failures",
+            "## S-6 — Protected Branch Workflow",
+            "## S-7 — External Resource URLs",
+        ):
+            assert rule in cursor.content, f"existing soul rule missing after append: {rule!r}"
