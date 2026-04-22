@@ -22,6 +22,21 @@ reflection" Learning entry that the next session can load via
 :func:`load_relevant_learnings`. Read-side already wired via v7.0.3
 ADR-005 (the ``session_id`` argument is recorded in ``source_task_id``
 so consumers can correlate reflections back to their originating session).
+
+v8.2.0 (PV-03 — Karpathy 4.8 Unified session state) introduces
+:mod:`devolaflow.session` as the canonical aggregation surface for
+session-derived state (learnings + lifecycle + legibility). This module's
+public API is **byte-identical** to v8.1.0-rc.1 — every existing function
+remains the source-of-truth for the JSONL substrate and is preserved as a
+**deprecated alias** in the sense of R5 (call sites keep working
+unchanged; new code SHOULD prefer :class:`devolaflow.session.SessionState`
+for cross-domain aggregation). PV-03 adds zero behavioural change here:
+SessionState reads from / writes to the same JSONL substrate via the
+helpers below, so legacy callers and SessionState-aware callers coexist
+on one store. Migration helper: :func:`build_session_state_for` lazily
+constructs a populated SessionState without forcing the import (avoids
+the obvious circular import risk between `learnings.py` and
+`session/state.py`).
 """
 
 from __future__ import annotations
@@ -38,6 +53,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "ExternalSourceReview",
     "Learning",
+    "build_session_state_for",
     "capture_learning",
     "capture_session_reflection",
     "consolidate_session",
@@ -826,3 +842,61 @@ def format_learnings_section(
         used_tokens += entry_tokens
 
     return "".join(lines)
+
+
+def build_session_state_for(
+    session_id: str,
+    task_type: str,
+    *,
+    jsonl_path: Path | None = None,
+    min_confidence: float = 0.5,
+    max_entries: int = 10,
+):
+    """Lazily build a populated :class:`devolaflow.session.SessionState`.
+
+    Bridges the v8.2.0 PV-03 unified session model with this module's
+    JSONL substrate without forcing an eager import (which would create a
+    circular dependency between :mod:`devolaflow.learnings` and
+    :mod:`devolaflow.session.state` at module-import time). Callers that
+    are still on the legacy direct-call path (``load_relevant_learnings``,
+    ``consolidate_session``) keep working unchanged — ``build_session_state_for``
+    is purely additive and does not alter the JSONL substrate.
+
+    Returns a :class:`SessionState` whose :pyattr:`SessionState.learnings`
+    block is hydrated via :func:`load_relevant_learnings` for the supplied
+    ``task_type`` (the same query the legacy callers use). The state is
+    in-memory only — call :class:`devolaflow.session.SessionStore.save`
+    to persist the JSON snapshot to disk.
+
+    Parameters
+    ----------
+    session_id:
+        Session identifier (typically a task UUID). Becomes
+        :pyattr:`SessionState.session_id`; also forwarded to
+        :func:`load_relevant_learnings` so pinned-for-session entries
+        surface in the hydrated learnings list.
+    task_type:
+        Task type filter for :func:`load_relevant_learnings`.
+    jsonl_path:
+        Optional override path to the JSONL substrate. Defaults to
+        :func:`resolve_learnings_path`.
+    min_confidence:
+        Forwarded to :func:`load_relevant_learnings`.
+    max_entries:
+        Forwarded to :func:`load_relevant_learnings`.
+
+    Notes
+    -----
+    The lazy import below is intentional — see module docstring for the
+    PV-03 design rationale.
+    """
+    from devolaflow.session import SessionState  # noqa: PLC0415  (lazy: avoid cycle)
+
+    state = SessionState.empty(session_id=session_id)
+    state.hydrate_learnings(
+        task_type=task_type,
+        jsonl_path=jsonl_path,
+        min_confidence=min_confidence,
+        max_entries=max_entries,
+    )
+    return state

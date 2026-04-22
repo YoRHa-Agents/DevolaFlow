@@ -286,6 +286,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- Learnings + compiler prefs (v7.7 memory system) ----
         "devolaflow.learnings:load_prefs",
         "devolaflow.local.compiler:compile_prefs",
+        # ---- Session-state bridge (v8.2.0 PV-03) ----
+        # Public migration helper that lazily constructs a populated
+        # :class:`devolaflow.session.SessionState` from the JSONL substrate
+        # without forcing an eager import (avoids circular import between
+        # ``devolaflow.learnings`` and ``devolaflow.session.state``).
+        # Consumed by L3 Task Agents and external orchestrators that opt
+        # into the unified session model; not wired into in-repo
+        # production at the v8.2.0 cut. Same allowlist pattern as
+        # ``devolaflow.entropy_manager:cleanup`` above.
+        "devolaflow.learnings:build_session_state_for",
         # ---- Entropy manager GC entrypoint (v8.0.0 P-11) ----
         # Public GC dispatcher exported via ``devolaflow.entropy_manager.__all__``
         # and consumed by L3 Task Agents executing the ``entropy-cleanup``

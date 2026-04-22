@@ -18,6 +18,16 @@ both ``schemas/lean-report.yaml`` and ``schemas/status-report.schema.yaml``.
 Permissive default — warns. Strict mode raises ``HookViolation``;
 callers (the wave-level retry classifier) can catch this and route the
 task back through a convergence round per P4.
+
+v8.2.0 (PV-03 — Karpathy 4.8 Unified session state) wires this hook to
+:mod:`devolaflow.session` as an opt-in unifier. When the payload carries
+a ``session_state_path`` key, ``test_on_complete`` additionally builds a
+:class:`devolaflow.session.SessionState` from the payload, records the
+hook outcome via :meth:`SessionState.record_lifecycle_event`, and
+persists the snapshot via :class:`devolaflow.session.SessionStore`. The
+legacy direct-:func:`devolaflow.learnings.consolidate_session` path
+remains unchanged so existing callers see byte-identical behaviour
+(R5 backward compatibility).
 """
 
 from __future__ import annotations
@@ -187,16 +197,126 @@ def _try_consolidate_learnings(payload: dict[str, Any]) -> None:
         logging.getLogger(__name__).debug("Session consolidation skipped", exc_info=True)
 
 
+def _try_persist_session_state(
+    payload: dict[str, Any],
+    *,
+    hook_passed: bool,
+) -> None:
+    """Opt-in: snapshot the session into a SessionStore JSON file.
+
+    PV-03 wiring. Activated when the payload carries a non-empty
+    ``session_state_path`` key — typically set by an L1/L2 orchestrator
+    that wants the unified session view persisted at task_stop. When
+    absent, this helper is a no-op so the legacy
+    :func:`_try_consolidate_learnings` path remains the only side effect
+    (R5 backward compatibility).
+
+    Records:
+
+    * Lifecycle event ``task_stop`` with ``passed=hook_passed`` (so the
+      snapshot reflects whether the hook accepted the report).
+    * Pending learnings are extracted from the same payload shape used
+      by :func:`_try_consolidate_learnings` for symmetry.
+    * Optional legibility verdicts sourced from
+      ``payload['legibility']['files']`` (PV-02 integration); each entry
+      is fed to :meth:`SessionState.attach_legibility`.
+
+    Errors are logged and swallowed (best-effort) per S-5 — the hook
+    must never fail the task because of an opt-in persistence layer.
+    """
+    if not isinstance(payload, dict):
+        return
+    state_path = payload.get("session_state_path")
+    if not state_path:
+        return
+
+    import logging
+
+    log = logging.getLogger(__name__)
+
+    try:
+        from devolaflow.learnings import Learning
+        from devolaflow.session import SessionStore
+
+        store = SessionStore(state_path)
+        session_id = str(payload.get("task_id", "unknown"))
+        state = store.load(default_session_id=session_id)
+        if not state.session_id:
+            state.session_id = session_id
+
+        for entry in payload.get("learnings", {}).get("entries", []) or []:
+            if not isinstance(entry, dict) or "insight" not in entry:
+                continue
+            try:
+                state.queue_learning(
+                    Learning(
+                        stage=entry.get("stage", "task"),
+                        task_type=entry.get("task_type", "general"),
+                        key=entry.get(
+                            "key",
+                            f"{session_id}:{entry.get('insight', '')[:30]}",
+                        ),
+                        insight=entry["insight"],
+                        confidence=float(entry.get("confidence", 0.7)),
+                        source_task_id=session_id,
+                        files=entry.get("files", []),
+                        source=entry.get("source", "task_completion"),
+                    )
+                )
+            except (TypeError, ValueError) as exc:
+                log.warning("PV-03 lifecycle: skipping malformed learning %r: %s", entry, exc)
+
+        legibility_block = payload.get("legibility") or {}
+        if isinstance(legibility_block, dict):
+            for legibility_file in legibility_block.get("files", []) or []:
+                if not isinstance(legibility_file, dict):
+                    continue
+                file_path = legibility_file.get("path")
+                score = legibility_file.get("score")
+                if not file_path or score is None:
+                    continue
+                try:
+                    state.attach_legibility(
+                        file_path=str(file_path),
+                        score=float(score),
+                        findings=list(legibility_file.get("findings") or []),
+                    )
+                except (TypeError, ValueError) as exc:
+                    log.warning(
+                        "PV-03 lifecycle: skipping malformed legibility entry %r: %s",
+                        legibility_file,
+                        exc,
+                    )
+
+        violation_codes = [str(code) for code in (payload.get("violation_codes") or []) if code]
+        state.record_lifecycle_event(
+            event=EVENT,
+            passed=hook_passed,
+            severity=payload.get("severity"),
+            violation_codes=violation_codes,
+        )
+
+        store.save(state)
+    except Exception:
+        log.debug("PV-03 lifecycle session-state persist skipped", exc_info=True)
+
+
 def test_on_complete(payload: dict[str, Any], *, strict: bool = False) -> HookResult:
     """Verify a status report shows tests-pass + lint-clean.
 
     On a clean pass (no violations), also persists any learnings entries
-    from the payload via :func:`consolidate_session`.
+    from the payload via :func:`consolidate_session`. Additionally, when
+    the payload carries a ``session_state_path`` key, snapshots the
+    unified :class:`devolaflow.session.SessionState` to disk via
+    :class:`devolaflow.session.SessionStore` (PV-03 opt-in routing —
+    the legacy ``consolidate_session`` direct call still runs first so
+    callers see no behavioural change).
     """
     violations = _collect_violations(payload)
     result = finalize(EVENT, violations, strict=strict)
     if result.passed:
         _try_consolidate_learnings(payload)
+    _try_persist_session_state(payload, hook_passed=result.passed)
     return result
 
 

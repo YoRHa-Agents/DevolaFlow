@@ -1892,3 +1892,57 @@ legibility_audit:
     falls below ``min_score``. Default disabled per the v8.0.0 retro
     §4.3 opt-in-by-default rule (every additive runtime primitive
     defaults to OFF / None / False / disabled).
+
+# v8.2.0 (PV-03) — Unified session state model opt-in.
+#
+# Sibling top-level section to ``complex_feature`` (P-12),
+# ``abstractive_llm`` (PV-01), and ``legibility_audit`` (PV-02). PV-03
+# closes the v8.0.0 patch_plan §1 row 8 deferral of "Unified session
+# state model" / Karpathy 4.8 — :class:`devolaflow.session.SessionState`
+# aggregates learnings + lifecycle + legibility into one in-memory view
+# plus a JSON snapshot at :data:`devolaflow.session.DEFAULT_SESSION_STATE_PATH`
+# (``.local/memory/session_state.json``).
+#
+# When ``session_state_enabled: false`` (the default for
+# STANDARD/RELAXED) the v8.1.0-rc.1 byte-stable behaviour is preserved
+# — :mod:`devolaflow.learnings` and :mod:`devolaflow.lifecycle`
+# continue to operate via their direct JSONL substrate paths and
+# nothing in the gate / dispatcher composition reads the SessionState
+# JSON file. STRICT and AUDIT default to ``session_state_enabled:
+# true`` so high-rigour profiles get cross-domain replay (learnings +
+# lifecycle hooks + legibility verdicts) for free; explicit override
+# is honoured per-profile via the ``profile.session_state_enabled``
+# sibling key (read by L1/L2 dispatchers when present).
+#
+# P6-safe: NESTED top-level section, NOT a new dispatch field.
+# canonical_order length stays 15, schemas/lean-dispatch.yaml version
+# stays 4 throughout v8.2.0 PV-03 per
+# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
+session_state:
+  enabled: false
+  default_path: ".local/memory/session_state.json"
+  schema_version: 1
+  # Flat one-key-per-profile defaults (kept inline to preserve the
+  # parent-block naming convention used by ``legibility_audit`` /
+  # ``abstractive_llm`` / ``complex_feature`` — every nested key has an
+  # inline scalar so static parsers like
+  # ``tests/test_doc_consistency.py::test_context_profiles_count`` do not
+  # mistake the block for a new entry under ``profiles:``).
+  profile_default_standard_enabled: false
+  profile_default_relaxed_enabled: false
+  profile_default_strict_enabled: true
+  profile_default_audit_enabled: true
+  rationale: >
+    Opt-in (default ``enabled: false``) unified session state model. When
+    enabled, the lifecycle ``task_stop`` hook persists a
+    :class:`devolaflow.session.SessionState` JSON snapshot to
+    ``default_path`` after each clean task_stop, capturing learnings +
+    lifecycle hook outcomes + legibility verdicts in one diffable file.
+    STRICT/AUDIT default to enabled; STANDARD/RELAXED default to
+    disabled per the v8.0.0 retro §4.3 opt-in-by-default rule. The
+    JSON is forward-compatible — :class:`devolaflow.session.SessionState.from_dict`
+    accepts unknown keys (logged at DEBUG) and tolerates higher
+    ``schema_version`` values for forward read. Migration from the
+    legacy direct-:func:`devolaflow.learnings.consolidate_session`
+    flow is a no-op: both flows write to the same JSONL substrate; the
+    SessionState snapshot is additive.
