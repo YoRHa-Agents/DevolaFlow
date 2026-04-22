@@ -619,6 +619,21 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # ``workflow-system/agent/references/behavioral-guidelines.md`` for the
     # full rule semantics, severity classification, and self-check questions.
     "behavioral_guidelines",
+    # v8.0.0 (P-10) — appended at position 15 per ADR-001 §2 additive rule.
+    # Schema version bumped 3 → 4 in schemas/lean-dispatch.yaml. Field shape:
+    #   [{id: str, description: str, verification_type: str,
+    #     verification_cmd: str, metric: str, threshold: str}]
+    # Optional — dispatches without structured acceptance criteria may
+    # omit it. The legacy ``acceptance_criteria: list[str]`` alias
+    # (recognised by ``src/devolaflow/lifecycle/validate_dispatch.py``)
+    # is PRESERVED unchanged for R5 backward compatibility per
+    # ``.local/research/v8.0.0_patch_plan.md`` §9. assert_dispatch_layout
+    # treats absence as canonical (preserves v7.x byte-stable dispatch
+    # shape — proves additivity holds across THREE schema generations).
+    # See ``src/devolaflow/ac_generator.py`` for the generator and
+    # ``src/devolaflow/gate/scorer.py::evaluate_acceptance_criteria_v2``
+    # for the auto-evaluator that produces per-criterion verdicts.
+    "acceptance_criteria_v2",
 ]
 
 

@@ -792,15 +792,23 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "lean-dispatc
 
 
 class TestSchemaInvariantP6Preserved:
-    """Per ``patch_plan §3 P-07``: schema canonical_order must NOT change."""
+    """Per ``patch_plan §3 P-07``: schema canonical_order must NOT change.
 
-    def test_layout_invariant_canonical_order_length_is_14(self) -> None:
-        schema = yaml.safe_load(SCHEMA_PATH.read_text())
-        assert len(schema["layout_invariant"]["canonical_order"]) == 14
+    P-07 itself does not touch the schema; this class verifies the
+    POST-P-07 invariant. As subsequent patches additively bump the
+    schema (P-08 → length 14 / version 3, P-10 → length 15 / version 4),
+    these assertions track the LATEST canonical state — additivity is
+    proven by the v7.0.0 + v7.3.0 byte-baseline tests in
+    ``tests/test_benchmarks.py::TestLayoutInvariantBaseline``.
+    """
 
-    def test_layout_invariant_version_is_3(self) -> None:
+    def test_layout_invariant_canonical_order_length_is_15(self) -> None:
         schema = yaml.safe_load(SCHEMA_PATH.read_text())
-        assert schema["layout_invariant"]["version"] == 3
+        assert len(schema["layout_invariant"]["canonical_order"]) == 15
+
+    def test_layout_invariant_version_is_4(self) -> None:
+        schema = yaml.safe_load(SCHEMA_PATH.read_text())
+        assert schema["layout_invariant"]["version"] == 4
 
     def test_assert_dispatch_layout_still_passes_canonical_payload(self) -> None:
         payload = {

@@ -844,7 +844,12 @@ class TestSchemaInvariants:
     """Verify P6 cache-layout invariant on lean-dispatch is preserved.
 
     P-06 only touches lean-report.yaml (no P6 invariant); lean-dispatch.yaml
-    must remain at canonical_order length=14, version=3 after P-08 set it.
+    is set by the latest P6 transition. P-08 raised it to length 14 /
+    version 3; P-10 raised it to length 15 / version 4 by APPENDING
+    ``acceptance_criteria_v2`` after ``behavioral_guidelines``. The
+    v7.0.0 + v7.3.0 byte-baselines in
+    ``tests/test_benchmarks.py::TestLayoutInvariantBaseline`` prove
+    additivity across all three generations.
     """
 
     @staticmethod
@@ -855,11 +860,11 @@ class TestSchemaInvariants:
 
     def test_canonical_order_length_unchanged(self) -> None:
         layout = self._lean_dispatch_layout()
-        assert len(layout["canonical_order"]) == 14
+        assert len(layout["canonical_order"]) == 15
 
     def test_canonical_order_version_unchanged(self) -> None:
         layout = self._lean_dispatch_layout()
-        assert layout["version"] == 3
+        assert layout["version"] == 4
 
     def test_lean_report_carries_cycle_fields(self) -> None:
         path = Path(__file__).resolve().parent.parent / "schemas" / "lean-report.yaml"

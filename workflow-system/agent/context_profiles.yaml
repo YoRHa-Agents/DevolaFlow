@@ -141,6 +141,32 @@ meta:
       surgical_scope: module
       goal_loop: true
 
+  # v8.0.0 (P-10) — Automatic acceptance-criteria generation defaults.
+  # Profiles that omit their own ``ac_generation`` block fall back to
+  # this meta default. Opt-in by design (``enabled: false`` default) —
+  # P-10 ships ``ACGenerator`` (``src/devolaflow/ac_generator.py``) and
+  # ``evaluate_acceptance_criteria_v2`` (``src/devolaflow/gate/scorer.py``)
+  # but does NOT silently rewrite the legacy ``acceptance_criteria:
+  # list[str]`` alias (R5 backward compatibility per
+  # ``.local/research/v8.0.0_patch_plan.md`` §9). Profiles that benefit
+  # from auto-AC (impl / refactor / feature) MAY override
+  # ``ac_generation: {enabled: true}`` per profile; trivial / docs-only
+  # profiles SHOULD leave it disabled to avoid noisy criteria for
+  # one-line edits.
+  #
+  # Field shape (when overridden per profile):
+  #   ac_generation:
+  #     enabled: bool                  # default false
+  #     min_quality_threshold: float   # 0.0-100.0; gate the criteria
+  #                                    # before injecting (skip when
+  #                                    # score_quality["completeness"] <
+  #                                    # threshold). Default 60.0.
+  #     id_prefix: str                 # default "AC"
+  ac_generation_defaults:
+    enabled: false
+    min_quality_threshold: 60.0
+    id_prefix: "AC"
+
 # SKILL.md section registry with line ranges and base token estimates
 sections:
   frontmatter:
@@ -421,6 +447,10 @@ profiles:
       simplicity_check: true          # explicit override; reject over-engineering
       surgical_scope: function        # function-level edit discipline (P2 disjoint ownership)
       goal_loop: false                # single-round impl; goal re-anchor not needed
+    ac_generation:                    # v8.0.0 P-10: feature impl benefits from auto-AC
+      enabled: true                   # ACGenerator.generate() runs by default
+      min_quality_threshold: 60.0     # reject criteria with score_quality < 60 % completeness
+      id_prefix: "AC"
     rationale: >
       Feature work needs the full hierarchy, stage primitives for planning,
       gate mechanism for quality control, and team roles for task dispatch.
@@ -574,6 +604,10 @@ profiles:
       simplicity_check: true
       surgical_scope: function        # refactor stays within function bodies; widen via escalation
       goal_loop: true                 # multi-round refactor needs goal re-anchor each round
+    ac_generation:                    # v8.0.0 P-10: refactor benefits from regression-guard AC
+      enabled: true                   # ACGenerator emits the "no regression" companion automatically
+      min_quality_threshold: 60.0
+      id_prefix: "AC"
     rationale: >
       Refactoring needs strong convergence loops and gates to ensure no
       regressions. Code review and test cycles are the primary quality mechanism.
