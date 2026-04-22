@@ -186,7 +186,48 @@ meta:
     min_quality_threshold: 60.0
     id_prefix: "AC"
 
+# v8.2.0 (PV-05) — Section-anchor registry. Symbolic anchor → file path
+# mapping consumed by ``devolaflow.section_registry.SectionAnchorRegistry``
+# and ``task_adaptive_selector._resolve_section_text``. Establishes the
+# canonical decoupling layer for section discovery so SKILL.md edits no
+# longer cascade through ``sections:`` line ranges and trigger unrelated
+# EvoBench scenario drift (closes gap analysis B1 / R7 per
+# ``.local/research/v8.1.0_gap_analysis.md`` §3.2). The ``sections:``
+# block below is kept as the deprecated fallback for sections not yet
+# migrated; lookups for those sections emit a one-shot
+# ``DeprecationWarning`` (S-5 — no silent legacy use).
+#
+# Two YAML forms are accepted (per ``src/devolaflow/section_registry.py``
+# module docstring):
+#   * Short:    ``<anchor>: <file_path>`` (heading auto-derived from anchor)
+#   * Extended: ``<anchor>: {file: <path>, heading: <markdown_heading>}``
+#
+# All paths are repo-root-relative per S-2 / SF-5. The
+# ``behavioral_guidelines_reference`` anchor is the canonical example
+# called out in ``.local/research/v8.2.0_patch_plan.md`` §3 PV-05 AC #1
+# — its content drives the v8.0.0-p08 BG-003 surgical_scope='line'
+# criteria injection in ``_load_line_level_criteria``.
+#
+# v8.2.0 (PV-05) intentionally migrates the EXTERNAL reference doc only;
+# SKILL.md sections remain on the line-based fallback this cycle so the
+# 36+ EvoBench scenarios stay byte-identical (PV-05 invariant per
+# ``.local/research/v8.2.0_patch_plan.md`` §1.1 hard constraint #4).
+# Future v8.2.x cycles will incrementally migrate SKILL.md sections by
+# pairing each migration with a fresh baseline regen + `<5pp drift`
+# verification per W-4 / SI-4. The infrastructure (registry, integration,
+# fallback) is in place — the migration itself is the bench item.
+section_anchors:
+  # External reference doc (the architectural decoupling carrier — its
+  # content drives the BG-003 surgical_scope='line' criteria injection).
+  behavioral_guidelines_reference: "workflow-system/agent/references/behavioral-guidelines.md"
+
 # SKILL.md section registry with line ranges and base token estimates
+# v8.2.0 (PV-05): DEPRECATED — superseded by the ``section_anchors:``
+# block above. Retained as the fallback for any anchor not yet migrated;
+# lookups via this block emit a one-shot ``DeprecationWarning`` per
+# anchor at runtime (S-5 — no silent legacy use). New section additions
+# MUST go through ``section_anchors:`` (anchor → file path) rather than
+# adding new ``lines: "X-Y"`` entries here.
 sections:
   frontmatter:
     lines: "1-30"

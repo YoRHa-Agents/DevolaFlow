@@ -359,6 +359,21 @@
     "selected_count": 13,
     "total_tokens": 4365
   },
+  "r7_section_anchor_registry_no_drift": {
+    "budget": 2400,
+    "budget_utilization": 0.9667,
+    "composite": 91.0,
+    "expected_count": 9,
+    "format_compliance": 1.0,
+    "information_density": 0.8593,
+    "matched_count": 8,
+    "noise_ratio": 0.0,
+    "profile_name": "hotfix",
+    "scenario_name": "r7_section_anchor_registry_no_drift",
+    "section_relevance": 0.8889,
+    "selected_count": 11,
+    "total_tokens": 2320
+  },
   "rdrr_design_loop": {
     "budget": 4650,
     "budget_utilization": 0.9882,

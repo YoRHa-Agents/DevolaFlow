@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,11 @@ from devolaflow.learnings import (
     format_learnings_section,
     load_relevant_learnings,
     resolve_learnings_path,
+)
+from devolaflow.section_registry import (
+    SectionAnchorRegistry,
+    discover_section_content,
+    extract_section_by_heading,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,15 +195,82 @@ def load_skill_md(config: dict[str, Any]) -> str:
 
 
 _LINE_RANGE_RE = re.compile(r"^\d+-\d+$")
+_DEPRECATION_WARNED_ANCHORS: set[str] = set()
 
 
 def extract_section(full_text: str, line_range: str) -> str:
-    """Extract lines from full_text given a range like '57-68'."""
+    """Extract lines from full_text given a range like '57-68'.
+
+    v8.2.0 (PV-05): retained as a **deprecated fallback** for sections
+    not yet migrated to the section-anchor registry. New section lookups
+    should go through :class:`devolaflow.section_registry.SectionAnchorRegistry`
+    + :func:`devolaflow.section_registry.discover_section_content`. The
+    deprecation surfaces via a one-shot ``DeprecationWarning`` per anchor
+    in :func:`_select_sections_within_budget` (S-5 — never silently use
+    the legacy path).
+    """
     if not line_range or not _LINE_RANGE_RE.match(line_range):
         return ""
     lines = full_text.splitlines()
     start, end = map(int, line_range.split("-"))
     return "\n".join(lines[start - 1 : end])
+
+
+def build_section_registry(config: dict[str, Any]) -> SectionAnchorRegistry:
+    """Build a :class:`SectionAnchorRegistry` from the loaded profiles config.
+
+    Parses the top-level ``section_anchors:`` mapping in
+    ``workflow-system/agent/context_profiles.yaml``. When the mapping
+    is absent (older configs predating PV-05) returns an empty registry
+    so :func:`_select_sections_within_budget` transparently falls back
+    to the deprecated line-based ``sections:`` lookup.
+    """
+    registry = SectionAnchorRegistry()
+    registry.register_from_yaml(config)
+    return registry
+
+
+def _resolve_section_text(
+    section_name: str,
+    registry: SectionAnchorRegistry,
+    sections_registry: dict[str, Any],
+    skill_text: str,
+) -> str:
+    """Resolve section content using the anchor registry first, falling back to lines.
+
+    v8.2.0 (PV-05) — primary path uses
+    :func:`devolaflow.section_registry.discover_section_content` so the
+    section text is sourced by markdown heading match (no SKILL.md line
+    numbers involved). When the anchor is not registered, falls back to
+    the legacy line-based lookup with a one-shot ``DeprecationWarning``
+    per anchor (S-5 — never silently swallow the deprecation signal).
+
+    Returns ``""`` when neither path resolves to content (the caller
+    treats this as a deliberate skip — e.g. ``nines_advisor`` whose
+    legacy ``lines: "N/A"`` value never extracted any content).
+    """
+    if registry.has(section_name):
+        text = discover_section_content(section_name, registry)
+        if text:
+            return text
+
+    sec_info = sections_registry.get(section_name)
+    if not isinstance(sec_info, dict):
+        return ""
+    line_range = sec_info.get("lines", "")
+    if not line_range or not _LINE_RANGE_RE.match(line_range):
+        return ""
+
+    if section_name not in _DEPRECATION_WARNED_ANCHORS:
+        _DEPRECATION_WARNED_ANCHORS.add(section_name)
+        warnings.warn(
+            f"section {section_name!r} resolved via deprecated line-based lookup "
+            f"(lines={line_range!r}); migrate to section_anchors registry per "
+            f"PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return extract_section(skill_text, line_range)
 
 
 def estimate_tokens(text: str) -> int:
@@ -364,6 +437,7 @@ def _select_sections_within_budget(
     section_budget: int,
     verbose: bool,
     directive: dict | None = None,
+    anchor_registry: SectionAnchorRegistry | None = None,
 ) -> tuple[list[tuple[str, str, int]], list[str], int]:
     """Pick sections in priority order until the token budget is exhausted.
 
@@ -373,20 +447,25 @@ def _select_sections_within_budget(
     ``directive=None`` preserves byte-stable v7.x behaviour for every
     existing caller (verified by :class:`tests.test_compressor.
     TestSelectorDirectiveBackwardCompat`).
+
+    v8.2.0 (PV-05) — accepts an optional ``anchor_registry`` so section
+    text is resolved via the symbolic anchor → file path mapping
+    (:func:`_resolve_section_text`) before falling back to the legacy
+    line-based lookup. Default ``anchor_registry=None`` instantiates an
+    empty registry so every section lookup goes through the deprecated
+    line-based path with a one-shot ``DeprecationWarning`` per anchor —
+    preserves byte-stable behaviour for any caller still on the
+    pre-PV-05 ``sections:`` registry.
     """
     selected: list[tuple[str, str, int]] = []
     overflow: list[str] = []
     used_tokens = 0
+    registry = anchor_registry if anchor_registry is not None else SectionAnchorRegistry()
 
     for section_name in _select_sections_by_priority(priority_buckets, directive):
-        if section_name not in sections_registry:
+        text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+        if not text:
             continue
-        sec_info = sections_registry[section_name]
-        line_range = sec_info.get("lines", "")
-        if not line_range or not _LINE_RANGE_RE.match(line_range):
-            continue
-
-        text = extract_section(skill_text, line_range)
         tok = estimate_tokens(text)
 
         if used_tokens + tok <= section_budget:
@@ -476,19 +555,43 @@ _BEHAVIORAL_REF_PATH: Path = (
 )
 _LINE_LEVEL_HEADING = "## Line-Level Behavioral Criteria"
 _LINE_LEVEL_BULLET_RE = re.compile(r"^[-*]\s+(.*\S)\s*$")
+_BEHAVIORAL_ANCHOR = "behavioral_guidelines_reference"
 
 
-def _load_line_level_criteria(ref_path: Path | None = None) -> list[str]:
+def _resolve_behavioral_ref_path(
+    anchor_registry: SectionAnchorRegistry | None = None,
+    ref_path: Path | None = None,
+) -> Path:
+    """Resolve the behavioral-guidelines reference doc path.
+
+    Lookup order (per PV-05 — anchors first, file paths second):
+      1. Explicit ``ref_path`` parameter (test / script override).
+      2. ``anchor_registry`` lookup of
+         :data:`_BEHAVIORAL_ANCHOR` when the registry is supplied AND
+         the anchor is registered.
+      3. Module-level :data:`_BEHAVIORAL_REF_PATH` (legacy fallback).
+    """
+    if ref_path is not None:
+        return ref_path
+    if anchor_registry is not None and anchor_registry.has(_BEHAVIORAL_ANCHOR):
+        rel = anchor_registry.lookup(_BEHAVIORAL_ANCHOR)
+        return Path(__file__).parents[2] / rel
+    return _BEHAVIORAL_REF_PATH
+
+
+def _load_line_level_criteria(
+    ref_path: Path | None = None,
+    anchor_registry: SectionAnchorRegistry | None = None,
+) -> list[str]:
     """Extract line-level behavioural criteria verbatim from the reference doc.
 
-    Walks ``references/behavioral-guidelines.md`` for the canonical
-    ``## Line-Level Behavioral Criteria`` heading (added in v8.2.0 PV-04)
-    and returns each ``- ...`` bullet from that section as a list of
-    strings. Returns ``[]`` when:
-      * ``ref_path`` does not exist (S-5 — explicit empty signal, never
-        a silent exception),
-      * the heading is absent (older reference docs predating PV-04),
-      * the section is empty.
+    v8.2.0 (PV-05): the ``ref_path`` is resolved through
+    :func:`_resolve_behavioral_ref_path` so callers can supply a
+    :class:`SectionAnchorRegistry` instead of hard-wiring the path. The
+    anchor registry path uses :func:`extract_section_by_heading` for
+    section discovery — no SKILL.md / reference-doc line numbers are
+    consulted. The legacy module-level path remains as the fallback so
+    callers that pre-date the registry continue to work byte-identically.
 
     Per CO-2 / C-3 (verbatim extraction), each bullet's text is preserved
     as-written in the markdown — no paraphrasing, normalisation, or
@@ -499,21 +602,25 @@ def _load_line_level_criteria(ref_path: Path | None = None) -> list[str]:
     after indentation) terminate the parent bullet and start a fresh
     entry — matches Markdown rendering semantics.
 
-    The default ``ref_path=None`` resolves the path relative to the
-    DevolaFlow checkout root so callers in tests / scripts inherit the
-    canonical reference doc without wiring boilerplate.
+    Returns ``[]`` when:
+      * the resolved file does not exist (S-5 — explicit empty signal,
+        never a silent exception),
+      * the heading is absent (older reference docs predating PV-04),
+      * the section is empty.
     """
-    path = ref_path if ref_path is not None else _BEHAVIORAL_REF_PATH
+    path = _resolve_behavioral_ref_path(anchor_registry=anchor_registry, ref_path=ref_path)
     if not path.exists():
         return []
 
     text = path.read_text(encoding="utf-8")
-    if _LINE_LEVEL_HEADING not in text:
+    section_body = extract_section_by_heading(text, _LINE_LEVEL_HEADING)
+    if not section_body:
         return []
-
-    after = text.split(_LINE_LEVEL_HEADING, 1)[1]
-    next_heading_match = re.search(r"^## ", after, flags=re.MULTILINE)
-    section_body = after[: next_heading_match.start()] if next_heading_match else after
+    section_body_lines = section_body.splitlines()
+    if section_body_lines and section_body_lines[0].lstrip("# ").strip().lower().startswith(
+        "line-level behavioral criteria"
+    ):
+        section_body = "\n".join(section_body_lines[1:])
 
     criteria: list[str] = []
     current: list[str] | None = None
@@ -546,6 +653,7 @@ def _load_line_level_criteria(ref_path: Path | None = None) -> list[str]:
 def _select_behavioral_sections(
     profile: dict[str, Any],
     profiles_config: dict[str, Any],
+    anchor_registry: SectionAnchorRegistry | None = None,
 ) -> dict[str, Any] | None:
     """Resolve the L3 behavioral_guidelines for ``profile``.
 
@@ -584,7 +692,7 @@ def _select_behavioral_sections(
         return None
 
     if base.get("surgical_scope") == "line":
-        criteria = _load_line_level_criteria()
+        criteria = _load_line_level_criteria(anchor_registry=anchor_registry)
         if criteria:
             base["line_level_criteria"] = criteria
 
@@ -795,6 +903,7 @@ def select_context(
     config = load_profiles(profiles_path)
     skill_text = load_skill_md(config)
     sections_registry = config.get("sections", {})
+    anchor_registry = build_section_registry(config)
 
     profile_name, profile, active_plan_mode = _resolve_active_profile(
         config, task_type, plan_mode, round_num, escalation_config
@@ -805,7 +914,7 @@ def select_context(
     learnings_config = profile.get("learnings", {})
     learnings_reserve = _compute_learnings_reserve(learnings_config, profiles_path, budget)
 
-    behavioral_guidelines = _select_behavioral_sections(profile, config)
+    behavioral_guidelines = _select_behavioral_sections(profile, config, anchor_registry)
     behavioral_text = _compose_behavioral_block(behavioral_guidelines)
     behavioral_reserve = estimate_tokens(behavioral_text) if behavioral_text else 0
 
@@ -818,6 +927,7 @@ def select_context(
         skill_text,
         section_budget,
         verbose,
+        anchor_registry=anchor_registry,
     )
     skipped.extend(overflow_skipped)
 
