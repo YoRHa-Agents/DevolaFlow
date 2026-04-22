@@ -24,6 +24,19 @@ metadata:
   fallback_workflow: full-pipeline
 
 stages:
+  - id: precondition
+    primitive: implement
+    description: >
+      Ensure nines plugin installed at >= min_version before the research stage
+      runs. Invokes devolaflow.plugins.ensure_plugin('nines'). Raises
+      PluginInstallError / PluginVersionMismatch loudly per S-5. Added in
+      v8.2.1 to close H-001 from .local/research/v8.3.0_gap_analysis.md.
+    team: implement
+    duration_class: quick
+    config:
+      ensure_plugins: [nines]
+    input_mapping: {}
+
   - id: research
     primitive: research
     description: >
@@ -165,6 +178,7 @@ stages:
 composition:
   compose: sequence
   stages:
+    - stage: precondition
     - stage: research
     - compose: gate
       ref: research_gate
