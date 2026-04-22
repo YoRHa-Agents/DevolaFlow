@@ -1,0 +1,107 @@
+# EvoBench Scenario: R7 Section-Anchor Registry No-Drift (v8.2.0 PV-05)
+#
+# Validates that the v8.2.0 PV-05 section-anchor registry refactor
+# (``src/devolaflow/section_registry.py`` + ``context_profiles.yaml
+# section_anchors:`` block) does NOT drift composite scores for
+# downstream section-selection scenarios. Pairs with
+# ``tests/test_section_registry.py`` to cover both the unit-test layer
+# (registry lookup / heading discovery / fallback) AND the EvoBench
+# regression-firewall layer (per ``.local/research/v8.2.0_patch_plan.md``
+# §1.1 hard constraint #4).
+#
+# Why ``hotfix`` profile? It carries a small, stable set of expected
+# critical sections (``quick_action_decision``, ``agent_mode_protocol``,
+# ``wave_task_constraints``, ``context_isolation``, ``dispatch_report``)
+# and has a tight 2400-token budget, so any drift in section text size
+# would manifest immediately as either a noise spike (over-budget
+# section dropped) or a relevance dip (expected section dropped). The
+# PV-05 refactor is benign here — the canonical ``hotfix`` selection
+# stays byte-identical because v8.2.0 PV-05 deliberately migrates only
+# the EXTERNAL ``behavioral_guidelines_reference`` anchor; SKILL.md
+# sections remain on the line-based fallback this cycle (the
+# infrastructure change without the migration content change keeps the
+# regression firewall valid).
+#
+# Composite floor 85 (above the 70 RELAXED floor) per PV-05 plan AC #6.
+#
+# Source plan: ``.local/research/v8.2.0_patch_plan.md`` §3 PV-05 row 5
+#              (B2 partial — 2 of 10 deferred scenarios authored this
+#              cycle for regression-firewall validation; the other one
+#              is ``abstractive_llm.yaml`` for PV-01).
+
+name: "r7_section_anchor_registry_no_drift"
+task_type: "hotfix"
+description: >
+  R7 section-anchor registry no-drift firewall — validates that the
+  v8.2.0 PV-05 section-anchor registry refactor preserves byte-stable
+  ``hotfix`` profile section selection. The new top-level
+  ``section_anchors:`` block in context_profiles.yaml registers the
+  ``behavioral_guidelines_reference`` external anchor (canonical AC #1
+  example); SKILL.md sections fall back to the deprecated line-based
+  ``sections:`` registry with a one-shot DeprecationWarning per
+  S-5 (No Silent Failures). The hotfix scenario locks in the
+  byte-identical baseline by re-running every standard hotfix dispatch
+  through the new resolver path. Composite floor 85 (PV-05 AC #6).
+
+expected_sections:
+  - quick_action_decision
+  - agent_mode_protocol
+  - wave_task_constraints
+  - rationalization_prevention
+  - gate_mechanism
+  - context_isolation
+  - dispatch_report
+  - lifecycle_hooks
+  - rules_dispatchers
+
+unwanted_sections:
+  - frontmatter
+  - version_update
+  - plan_mode_template
+  - quick_start_workflows
+  - hierarchy_diagram
+  - wave_coordination
+  - stage_primitives
+  - reference_navigation
+  - convergence_loop
+  - task_quality_score
+  - template_quick_ref
+
+quality_thresholds:
+  min_composite: 85.0
+  min_relevance: 0.85
+  max_noise_ratio: 0.20
+
+# Documentation only (not consumed by the runner). Records the v8.2.0
+# PV-05 contract surface so future cycle reviewers can verify the
+# regression-firewall did its job.
+section_anchor_contract:
+  description: >
+    The v8.2.0 PV-05 contract surface added by ``feat/v8.2.0-pv05-emergent``.
+    The new section-anchor registry decouples section content discovery
+    from concrete SKILL.md line numbers — the architectural unblocker
+    for any future SKILL.md edit per gap analysis B1 / R7. This cycle
+    only migrates the external ``behavioral_guidelines_reference``
+    anchor; SKILL.md anchor entries are queued for v8.2.x bench
+    (paired with EvoBench drift-verification per W-4 / SI-4).
+  new_module: "src/devolaflow/section_registry.py — SectionAnchorRegistry + extract_section_by_heading"
+  new_top_level_section: "section_anchors in context_profiles.yaml — anchor → file path mapping"
+  new_helper: "task_adaptive_selector._resolve_section_text — anchor-first resolver with line-based fallback"
+  preserved_invariants:
+    - "schemas/lean-dispatch.yaml canonical_order length = 15 (P6 invariant)"
+    - "schemas/lean-dispatch.yaml version = 4 (P6 invariant)"
+    - "workflow-system/agent/SKILL.md = 495 lines (line count UNCHANGED — PV-05 invariant)"
+    - "All 36 existing EvoBench scenarios show 0 regression > 5pp"
+    - "select_context() public API byte-identical to v8.1.0-rc.1"
+  opt_in_flips:
+    canonical_count: 2
+    spec: ["legibility_enabled", "cycle_detector_enabled"]
+    target_profile: "STRICT only (AUDIT/STANDARD/RELAXED unchanged this cycle)"
+  fallback_signal:
+    type: "DeprecationWarning"
+    scope: "one-shot per anchor name"
+    sentinel_module: "warnings.warn(..., DeprecationWarning, stacklevel=2)"
+  bench_for_v8_2_x:
+    - "Migrate SKILL.md sections to anchor registry (paired with baseline regen + <5pp drift verification)"
+    - "Auto-wire 5 remaining opt-in primitives (complexity_detector / acceptance_criteria_v2 / fence-instruction injection / entropy-cleanup workflow / ratchet)"
+    - "AUDIT profile flip for legibility_enabled + cycle_detector_enabled (currently STRICT-only)"

@@ -232,6 +232,23 @@ class GateProfile:
     # Profile-specific defaults: STRICT/AUDIT 0.05 (legibility-aware
     # quality work); STANDARD/RELAXED 0.0 (opt-in only).
     legibility_weight: float = 0.0
+    # v8.2.0 (PV-05) — opt-in primitive auto-wire flags (B3 partial per
+    # ``.local/research/v8.1.0_gap_analysis.md`` §3.2 B3 list). When
+    # set, downstream orchestrators that invoke
+    # :func:`devolaflow.gate.scorer.evaluate_gate` SHOULD instantiate
+    # default :class:`devolaflow.legibility.LegibilityScorer` and
+    # :class:`devolaflow.gate.cycle_detector.CycleDetector` instances
+    # automatically when explicit ones are not supplied. Default ``False``
+    # preserves byte-stable behaviour for STANDARD/RELAXED profiles
+    # (per the v8.0.0 retro §4.3 opt-in-by-default rule). STRICT
+    # profile defaults to ``True`` for both — the 2 v8.0.0 / v8.2.0
+    # opt-in primitives with strongest dogfooding signal flipped first
+    # (per gap analysis B3 partial). The remaining 5 primitives
+    # (complexity_detector, acceptance_criteria_v2, fence-instruction
+    # injection, entropy-cleanup workflow, ratchet) stay opt-in and
+    # are queued for v8.2.x bench.
+    legibility_enabled: bool = False
+    cycle_detector_enabled: bool = False
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )

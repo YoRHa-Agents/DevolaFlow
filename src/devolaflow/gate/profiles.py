@@ -34,6 +34,19 @@ score steers the gate composite. STRICT/AUDIT default to ``0.05``
 :func:`devolaflow.gate.scorer.evaluate_gate` byte-identical to
 pre-PV-02 behaviour). See
 ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-4 / AC-5.
+
+v8.2.0 (PV-05) — each profile carries two opt-in primitive auto-wire
+flags (``legibility_enabled`` + ``cycle_detector_enabled``) flipped to
+``True`` on STRICT only (B3 partial closure per
+``.local/research/v8.1.0_gap_analysis.md`` §3.2). The flags signal
+to downstream orchestrators that the primitive SHOULD be auto-wired
+(default scorer / detector instantiated when an explicit one is not
+supplied). STANDARD / RELAXED / AUDIT keep the v8.1.0-rc.1 defaults
+(``False``) — only STRICT flips this cycle. The other 5 v8.0.0 opt-in
+primitives (complexity_detector, acceptance_criteria_v2,
+fence-instruction injection, entropy-cleanup workflow, ratchet) stay
+opt-in and are queued for the v8.2.x bench. See
+``.local/research/v8.2.0_patch_plan.md`` §3 PV-05 AC-5.
 """
 
 from devolaflow.gate.models import GateProfile
@@ -57,6 +70,8 @@ STRICT = GateProfile(
     ladder_enabled=True,
     complexity_weight=0.10,
     legibility_weight=0.05,
+    legibility_enabled=True,
+    cycle_detector_enabled=True,
 )
 
 STANDARD = GateProfile(
