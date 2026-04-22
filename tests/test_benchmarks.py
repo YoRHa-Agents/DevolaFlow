@@ -404,11 +404,11 @@ class TestBaselineFile:
                 assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
 
     def test_runner_prefers_latest_baseline(self) -> None:
-        """load_baseline() picks the v7.4.0 baseline over older files, falls back as needed."""
+        """load_baseline() picks the latest baseline file over older ones, falls back as needed."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v7.8.0_baseline.json", (
-            f"Expected load_baseline() to prefer v7.8.0_baseline.json; got {newest.name}"
+        assert newest.name == "v8.0.0_baseline.json", (
+            f"Expected load_baseline() to prefer v8.0.0_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines
