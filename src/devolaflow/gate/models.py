@@ -222,6 +222,16 @@ class GateProfile:
     # Profile-specific defaults: STRICT/AUDIT 0.10 (Karpathy "Simplicity
     # First" enforced); STANDARD/RELAXED 0.0 (opt-in only).
     complexity_weight: float = 0.0
+    # v8.2.0 (PV-02) — agent legibility dimension weight. ``0.0`` (the
+    # default) means the optional
+    # :class:`devolaflow.legibility.LegibilityScorer` contributes
+    # nothing to the gate composite — supplying ``legibility_scorer=None``
+    # to :func:`devolaflow.gate.scorer.evaluate_gate` then keeps the
+    # behaviour byte-identical to v8.1.0-rc.1 (per
+    # ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-5).
+    # Profile-specific defaults: STRICT/AUDIT 0.05 (legibility-aware
+    # quality work); STANDARD/RELAXED 0.0 (opt-in only).
+    legibility_weight: float = 0.0
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )

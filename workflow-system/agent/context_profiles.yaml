@@ -1812,3 +1812,64 @@ abstractive_llm:
     PV-01 lands PR 1+2+3 (config + mock + opt-in flag). PR 4 (default
     ``llm_assist=true`` for L0/L1 dispatch) is benched to v8.2.x
     pending production telemetry.
+
+# v8.2.0 (PV-02) — Agent legibility scoring opt-in.
+#
+# Sibling top-level section to ``complex_feature`` (P-12) and
+# ``abstractive_llm`` (PV-01) — preserves the v8.1.0-rc.1 byte-stable
+# behaviour (the gate scorer is unchanged unless callers explicitly
+# pass ``legibility_scorer=...``). Wired into
+# :func:`devolaflow.gate.scorer.evaluate_gate` via the new
+# ``legibility_scorer`` / ``legibility_files`` kwargs + the new
+# :class:`devolaflow.legibility.LegibilityScorer`. The default
+# ``legibility_scorer=None`` preserves v8.1.0-rc.1 byte-identical
+# behaviour (no schema bump, no log-line appearance, no extra dict key)
+# — pinned by ``tests/test_legibility.py`` byte-identicality tests.
+#
+# When opt-in, the scorer rates each touched file 0-100 across three
+# dimensions (naming consistency / comment-to-code ratio / cyclomatic
+# flow) and the gate composite is shifted by
+# ``profile.legibility_weight * (mean_score - 50)``. STRICT/AUDIT
+# default to weight 0.05 (well-legible code lifts the composite by up
+# to 2.5 points; illegible code drags by up to 2.5 points);
+# STANDARD/RELAXED default to 0.0 (opt-in only).
+#
+# Three audit modes are pre-canned here so dispatchers can reference
+# them by name instead of re-deriving the file-set + weights:
+#
+#   * ``code_only``   — score touched ``src/**/*.py`` files only.
+#   * ``docs_only``   — score touched ``workflow-system/**/*.md`` files
+#                       only (useful for README / SKILL drift cycles).
+#   * ``mixed``       — score every touched text file (default — most
+#                       cycles touch a mix of code + docs).
+#
+# P6-safe: NESTED top-level section, NOT a new dispatch field.
+# canonical_order length stays 15, schemas/lean-dispatch.yaml version
+# stays 4 throughout v8.2.0 PV-02 per
+# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
+legibility_audit:
+  enabled: false
+  default_mode: mixed
+  audit_modes_code_only_globs: ["src/**/*.py", "tests/**/*.py"]
+  audit_modes_docs_only_globs: ["workflow-system/**/*.md", "README.md", "CHANGELOG.md"]
+  audit_modes_mixed_globs: ["src/**/*.py", "tests/**/*.py", "workflow-system/**/*.md", "schemas/**/*.yaml"]
+  weight_naming_consistency: 0.40
+  weight_comment_ratio: 0.30
+  weight_cyclomatic_flow: 0.30
+  threshold_min_score: 75.0
+  threshold_fail_below: 60.0
+  rationale: >
+    Opt-in (default ``enabled: false``) per-file legibility scoring.
+    When the dispatcher flips ``enabled: true`` and supplies
+    ``legibility_files`` to ``evaluate_gate``, every listed file is
+    rated 0-100 on naming consistency / comment-to-code ratio /
+    cyclomatic flow. The aggregate ``mean_score`` shifts the gate
+    composite via ``profile.legibility_weight * (mean_score - 50)``
+    (STRICT/AUDIT default weight 0.05). Three pre-canned audit modes
+    (``code_only`` / ``docs_only`` / ``mixed``) let L1/L2 dispatchers
+    pick a file set by name. The ``thresholds`` block is advisory —
+    consumers may post-process ``verdict.details['legibility']
+    ['mean_score']`` and emit a custom ReinforcementRule when the file
+    falls below ``min_score``. Default disabled per the v8.0.0 retro
+    §4.3 opt-in-by-default rule (every additive runtime primitive
+    defaults to OFF / None / False / disabled).

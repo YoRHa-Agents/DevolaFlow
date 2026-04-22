@@ -24,6 +24,16 @@ default to ``0.10`` (Karpathy "Simplicity First" enforced when quality
 matters); STANDARD/RELAXED default to ``0.0`` (opt-in only — supplying
 ``complexity_detector=None`` keeps :func:`devolaflow.gate.scorer.evaluate_gate`
 byte-identical to pre-P-09 behaviour). See ``patch_plan §3 P-09``.
+
+v8.2.0 (PV-02) — each profile carries a ``legibility_weight`` factor
+controlling how much an
+:class:`devolaflow.legibility.LegibilityScorer` per-file legibility
+score steers the gate composite. STRICT/AUDIT default to ``0.05``
+(legibility-aware quality work); STANDARD/RELAXED default to ``0.0``
+(opt-in only — supplying ``legibility_scorer=None`` keeps
+:func:`devolaflow.gate.scorer.evaluate_gate` byte-identical to
+pre-PV-02 behaviour). See
+``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-4 / AC-5.
 """
 
 from devolaflow.gate.models import GateProfile
@@ -46,6 +56,7 @@ STRICT = GateProfile(
     max_tokens=80_000,
     ladder_enabled=True,
     complexity_weight=0.10,
+    legibility_weight=0.05,
 )
 
 STANDARD = GateProfile(
@@ -104,6 +115,7 @@ AUDIT = GateProfile(
     max_tokens=100_000,
     ladder_enabled=True,
     complexity_weight=0.10,
+    legibility_weight=0.05,
 )
 
 PROFILES: dict[str, GateProfile] = {
