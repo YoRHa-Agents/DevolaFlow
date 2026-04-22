@@ -201,6 +201,16 @@ class GateProfile:
     # Profile-specific defaults: STRICT/AUDIT enable, STANDARD/RELAXED
     # remain disabled until the orchestrator opts in.
     ladder_enabled: bool = False
+    # v8.0.0 (P-09) — overcomplexity-detector dimension weight. ``0.0``
+    # (the default) means the optional
+    # :class:`devolaflow.gate.complexity_detector.ComplexityDetector`
+    # contributes nothing to the gate composite — supplying
+    # ``complexity_detector=None`` to
+    # :func:`devolaflow.gate.scorer.evaluate_gate` then keeps the
+    # behaviour byte-identical to pre-P-09 (per ``patch_plan §3 P-09``).
+    # Profile-specific defaults: STRICT/AUDIT 0.10 (Karpathy "Simplicity
+    # First" enforced); STANDARD/RELAXED 0.0 (opt-in only).
+    complexity_weight: float = 0.0
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )
@@ -543,3 +553,131 @@ class ArtifactSnapshot:
     score: float
     payload_hash: str = ""
     payload: dict[str, object] = field(default_factory=dict)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v8.0.0 (P-09) — Overcomplexity Detector
+#
+# Wraps a NineS subprocess (https://github.com/YoRHa-Agents/NineS) plus a
+# tier-aware verdict matrix to flag changes that exceed the complexity
+# budget for the declared ``task_complexity`` (Karpathy "Simplicity First"
+# per upstream tweet analysis ``v7.8`` §4.13).
+#
+# Three verdict paths (per ``patch_plan §3 P-09 AC #1-#3``):
+#
+#     OK        — every signal sits inside the tier's headroom; ratify.
+#     WARNING   — at least one signal crossed the tier's *soft* ceiling
+#                 (lines_changed, ratio_to_minimal, files_touched,
+#                 nesting_depth, new_abstractions, OR cyclomatic
+#                 complexity > 10). Inject a "may be overcomplicated"
+#                 ReinforcementRule but do NOT block.
+#     CRITICAL  — at least one *hard* invariant broken: cyclomatic
+#                 complexity > 15, OR NineS surfaces an ERROR-severity
+#                 finding. Decreases composite_score and flips the
+#                 verdict to ITERATE per ``patch_plan §3 P-09``.
+#
+# ``ComplexitySignals`` is the immutable per-task capture fed into
+# :meth:`devolaflow.gate.complexity_detector.ComplexityDetector.evaluate`
+# — frozen so it can be hashed / compared across rounds without
+# defensive copies (S-5 — no silent mutation).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+TaskComplexityTier = Literal["trivial", "simple", "standard", "complex"]
+
+
+VALID_TASK_COMPLEXITY_TIERS: frozenset[str] = frozenset(
+    {"trivial", "simple", "standard", "complex"},
+)
+
+
+class ComplexityVerdict(StrEnum):
+    """One of the 3 verdict paths emitted by :class:`ComplexityDetector`.
+
+    Ordered by escalation severity — ``OK`` is the happy path,
+    ``CRITICAL`` blocks the gate. The enum is exhaustive (S-5 — every
+    ``evaluate`` call MUST return one of these three values, never
+    ``None``). Per ``patch_plan §3 P-09``:
+
+    - ``OK`` — all signals within tier headroom.
+    - ``WARNING`` — at least one *soft* ceiling crossed; reinforcement
+      injected, gate stays ``PASS``.
+    - ``CRITICAL`` — at least one *hard* invariant broken (cc > 15 OR
+      NineS ERROR finding); composite_score reduced + ITERATE.
+    """
+
+    OK = "OK"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+@dataclass(frozen=True)
+class ComplexitySignals:
+    """Per-task signal bundle consumed by :class:`ComplexityDetector`.
+
+    Frozen + hashable so the detector can compare signals across rounds
+    without defensive copies (S-5 — no silent mutation across rounds).
+    All fields are non-negative; the constructor raises
+    :class:`ValueError` when invariants are broken.
+
+    Attributes
+    ----------
+    lines_changed:
+        Net lines of code touched in this change set (added + modified).
+        Compared against the tier's line budget ceiling.
+    files_touched:
+        Number of distinct source files modified.
+    new_abstractions:
+        Newly introduced classes, modules, or interfaces. Counted
+        separately from method additions because abstractions carry a
+        higher long-term complexity tax (Karpathy "minimal abstraction
+        budget" per upstream tweet analysis ``v7.8`` §4.13).
+    nesting_depth_max:
+        Worst-case block nesting depth observed in any new function.
+        Compared against the tier's nesting ceiling.
+    cyclomatic_complexity:
+        Maximum cyclomatic complexity across all new / modified
+        functions. ``> 10`` triggers WARNING, ``> 15`` triggers CRITICAL
+        (per ``patch_plan §3 P-09``).
+    ratio_to_minimal:
+        Ratio of the change-set complexity to the minimal-viable
+        solution. ``5.0`` for a ``complex`` tier task triggers WARNING
+        (per ``patch_plan §3 P-09 AC #3``). ``0.0`` is treated as
+        "unknown / not measured" and skipped from the ratio check.
+    nines_error_findings:
+        Count of ERROR-severity findings surfaced by NineS deep
+        analysis. Any value ``> 0`` triggers CRITICAL.
+    nines_warn_findings:
+        Count of WARN-severity findings surfaced by NineS. Used to
+        elevate WARNING evidence but does NOT trigger CRITICAL on its
+        own (the ``cc > 15`` / ERROR finding paths handle that).
+    """
+
+    lines_changed: int = 0
+    files_touched: int = 0
+    new_abstractions: int = 0
+    nesting_depth_max: int = 0
+    cyclomatic_complexity: int = 0
+    ratio_to_minimal: float = 0.0
+    nines_error_findings: int = 0
+    nines_warn_findings: int = 0
+
+    def __post_init__(self) -> None:
+        if self.lines_changed < 0:
+            raise ValueError(f"lines_changed must be >= 0 (got {self.lines_changed})")
+        if self.files_touched < 0:
+            raise ValueError(f"files_touched must be >= 0 (got {self.files_touched})")
+        if self.new_abstractions < 0:
+            raise ValueError(f"new_abstractions must be >= 0 (got {self.new_abstractions})")
+        if self.nesting_depth_max < 0:
+            raise ValueError(f"nesting_depth_max must be >= 0 (got {self.nesting_depth_max})")
+        if self.cyclomatic_complexity < 0:
+            raise ValueError(
+                f"cyclomatic_complexity must be >= 0 (got {self.cyclomatic_complexity})"
+            )
+        if self.ratio_to_minimal < 0.0:
+            raise ValueError(f"ratio_to_minimal must be >= 0.0 (got {self.ratio_to_minimal})")
+        if self.nines_error_findings < 0:
+            raise ValueError(f"nines_error_findings must be >= 0 (got {self.nines_error_findings})")
+        if self.nines_warn_findings < 0:
+            raise ValueError(f"nines_warn_findings must be >= 0 (got {self.nines_warn_findings})")
