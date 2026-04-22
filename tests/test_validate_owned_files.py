@@ -36,14 +36,19 @@ EXPECTED_REPO_INIT_PATHS = [
     ".local/memory/",
     ".local/index.md",
     ".rules/compile-config.yaml",
+    # v8.2.3 — A1 .agent/* substrate per .local/research/v8.3.0_design.md §1.1.
+    # MUST stay in this exact order — parity-locked with repo-init.yaml and SKILL.md.
+    ".local/.agent/active/",
+    ".local/.agent/handoff/",
+    ".local/.agent/archive/",
 ]
 
 
 class TestWorkflowManifests:
     """Tests for the WORKFLOW_MANIFESTS registry."""
 
-    def test_repo_init_manifest_has_five_paths(self):
-        assert len(WORKFLOW_MANIFESTS["repo-init"]) == 5
+    def test_repo_init_manifest_has_eight_paths(self):
+        assert len(WORKFLOW_MANIFESTS["repo-init"]) == 8
 
     def test_repo_init_manifest_paths_match_expected(self):
         assert WORKFLOW_MANIFESTS["repo-init"] == EXPECTED_REPO_INIT_PATHS
@@ -102,7 +107,8 @@ class TestValidateOwnedFiles:
         v = result.violations[0]
         assert v.code == "VOF001"
         assert v.severity == "blocker"
-        assert len(v.context["missing_paths"]) == 3
+        # 8 canonical - 2 supplied = 6 missing post v8.2.3 (was 3 pre-v8.2.3).
+        assert len(v.context["missing_paths"]) == 6
 
     def test_fails_when_all_paths_missing(self):
         payload = {
@@ -151,6 +157,11 @@ class TestValidateOwnedFiles:
                 ".local/memory/MEMORY.md",
                 ".local/index.md",
                 ".rules/compile-config.yaml",
+                # v8.2.3 — sub-paths under .agent/* directories prefix-cover the
+                # canonical manifest entries via _path_covered's startswith check.
+                ".local/.agent/active/README.md",
+                ".local/.agent/handoff/README.md",
+                ".local/.agent/archive/README.md",
             ],
         }
         result = validate_owned_files(payload)
@@ -180,7 +191,7 @@ class TestGetCanonicalManifest:
     def test_returns_list_for_known_workflow(self):
         result = get_canonical_manifest("repo-init")
         assert isinstance(result, list)
-        assert len(result) == 5
+        assert len(result) == 8
 
     def test_returns_empty_for_unknown_workflow(self):
         assert get_canonical_manifest("unknown") == []

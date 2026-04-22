@@ -80,10 +80,10 @@ def test_skill_md_contains_all_canonical_paths():
         )
 
 
-def test_skill_md_canonical_table_has_five_rows():
+def test_skill_md_canonical_table_has_eight_rows():
     skill_text = _load_skill_md()
     rows = _extract_canonical_table_rows(skill_text)
-    assert len(rows) == 5, f"Expected 5 canonical-manifest table rows, got {len(rows)}: {rows}"
+    assert len(rows) == 8, f"Expected 8 canonical-manifest table rows, got {len(rows)}: {rows}"
 
 
 def test_skill_md_canonical_table_matches_python():
@@ -126,7 +126,15 @@ def test_repo_init_yaml_mode_description_mentions_canonical():
 def test_manifest_paths_are_consistent_types():
     manifest = WORKFLOW_MANIFESTS["repo-init"]
 
-    expected_dirs = {".local/feedbacks/", ".local/tasks/", ".local/memory/"}
+    expected_dirs = {
+        ".local/feedbacks/",
+        ".local/tasks/",
+        ".local/memory/",
+        # v8.2.3 — A1 .agent/* substrate per .local/research/v8.3.0_design.md §1.1
+        ".local/.agent/active/",
+        ".local/.agent/handoff/",
+        ".local/.agent/archive/",
+    }
     expected_files = {".local/index.md", ".rules/compile-config.yaml"}
 
     for path in manifest:
@@ -138,9 +146,9 @@ def test_manifest_paths_are_consistent_types():
             raise AssertionError(f"Unexpected manifest path '{path}' — update this test")
 
 
-def test_canonical_count_is_five():
-    assert len(WORKFLOW_MANIFESTS["repo-init"]) == 5, (
-        f"Expected exactly 5 canonical paths, got {len(WORKFLOW_MANIFESTS['repo-init'])}. "
+def test_canonical_count_is_eight():
+    assert len(WORKFLOW_MANIFESTS["repo-init"]) == 8, (
+        f"Expected exactly 8 canonical paths, got {len(WORKFLOW_MANIFESTS['repo-init'])}. "
         "Adding or removing paths requires updating all 3 locations: "
         "validate_owned_files.py, repo-init.yaml, and SKILL.md"
     )

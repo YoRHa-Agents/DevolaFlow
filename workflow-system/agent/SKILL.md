@@ -176,7 +176,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 
 ### Repo-Init Pre-Dispatch Contract
 
-**Canonical manifest — ALL modes (core/standard/full) MUST create all 5 paths:**
+**Canonical manifest — ALL modes (core/standard/full) MUST create all 8 paths:**
 
 | # | Path | Source | Contents |
 |---|------|--------|----------|
@@ -185,10 +185,13 @@ Match user intent to workflow type, then load the corresponding stage template.
 | 3 | `.local/memory/` | `scaffold_local()` | MEMORY.md + dir README |
 | 4 | `.local/index.md` | `generate_index()` | auto-generated listing |
 | 5 | `.rules/compile-config.yaml` | `install_local()` | from packaged template |
+| 6 | `.local/.agent/active/` | `scaffold_local()` | dir README |
+| 7 | `.local/.agent/handoff/` | `scaffold_local()` | dir README |
+| 8 | `.local/.agent/archive/` | `scaffold_local()` | dir README |
 
-**Mode selects stages, NOT files.** `core` skips compile/interview/verify but scaffold MUST create all 5 paths. `standard` adds compile. `full` adds all stages.
+**Mode selects stages, NOT files.** `core` skips compile/interview/verify but scaffold MUST create all 8 paths. `standard` adds compile. `full` adds all stages.
 
-**Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 5 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 5 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
+**Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 8 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 8 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
 
 **Selection heuristics:**
 
