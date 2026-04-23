@@ -67,6 +67,12 @@ from devolaflow.lifecycle.format_on_edit import (
 from devolaflow.lifecycle.format_on_edit import (
     format_on_edit,
 )
+from devolaflow.lifecycle.pre_shell_call import (
+    EVENT as _PRE_SHELL_CALL_EVENT,
+)
+from devolaflow.lifecycle.pre_shell_call import (
+    pre_shell_call,
+)
 from devolaflow.lifecycle.test_on_complete import (
     EVENT as _TASK_STOP_EVENT,
 )
@@ -92,6 +98,7 @@ _set_default_hook(_PRE_DISPATCH_EVENT, validate_dispatch)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
+_set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -100,12 +107,14 @@ PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
 FILE_WRITE_EVENT: str = _FILE_WRITE_EVENT
 TASK_STOP_EVENT: str = _TASK_STOP_EVENT
 FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
+PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     FILE_WRITE_EVENT,
     TASK_STOP_EVENT,
     FORMAT_ON_EDIT_EVENT,
+    PRE_SHELL_CALL_EVENT,
 )
 
 __all__ = [
@@ -118,6 +127,7 @@ __all__ = [
     "HookResult",
     "HookViolation",
     "PRE_DISPATCH_EVENT",
+    "PRE_SHELL_CALL_EVENT",
     "Severity",
     "TASK_STOP_EVENT",
     "check_file_ownership",
@@ -128,6 +138,7 @@ __all__ = [
     "format_on_edit",
     "get_canonical_manifest",
     "list_handlers",
+    "pre_shell_call",
     "register_hook",
     "registered_events",
     "run_hooks",
