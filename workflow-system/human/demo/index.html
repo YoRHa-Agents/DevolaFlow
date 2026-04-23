@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v8.3.0 (Agent Workspace + Governance Trilogy; closes v8.2.0 feedback A1-A6 + PATCH) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v830">What's New</span> in v8.3.0 — Agent Workspace + Governance Trilogy (9 PV patches)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v830.desc">v8.3.0 — MINOR closure of v8.2.0 user feedback A1-A6 + PATCH (<code>.local/feedbacks/feedback_for_v8.2.0.md</code>). <strong>9 of 9 PV patches ACCEPT</strong> (continues v7.x trilogy 18/18 + v8.0.0 13/13 + v8.2.0 5/5 = <strong>45/45 lifetime PV cycles, 100% accept rate</strong>): PV-01 plugin runtime auto-install (nines + ui-pro), PV-02 rules layer foundation (S-8 / S-9 / A-4 / C-9 — rules layer grows 46 → 50), PV-03 <code>.local/.agent/{active,handoff,archive}/</code> scaffold + repo-init extension (8-path canonical manifest), PV-04 10 agent-workspace YAML schemas + Q-5 .gitignore policy, PV-05 <code>agent_workspace/</code> Python API (~4277 lines) + <strong>cache layout v4→v5 P6 transition</strong> (additive <code>change_context</code> at position 16; positions 1-15 byte-identical), PV-06 <code>change-driven</code> workflow template (22nd template; OpenSpec-inspired propose→apply→verify→archive), PV-07 auto-generated REPORT.md surface (4 reports), PV-08 memory bridge + change-aware learnings (<strong>R5 strict — 71 existing learnings tests byte-identical</strong>), PV-09 SKILL + 10th canonical reference <code>agent-workspace.md</code> + 2 EvoBench scenarios + frozenset closure. SI-3 release evaluation composite <strong>9.40/10</strong> ≥ G2 minor 8.5 (margin +0.90 pp) and ≥ stretch 9.0 (margin +0.40 pp). NineS post-cycle composite <strong>0.9050 (≈9.05/10)</strong> ≥ G3 0.90 (margin +0.50 pp). EvoBench 45/45 scenarios at 0 regression > 5pp. SKILL.md held at 498/500 throughout (3 micro-compressions in PV-09 absorbed the new section + workflow row). Test count grew 2367 → <strong>3110</strong> (+743 net new tests across 9 PVs — 4.7× the +159 forecast).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">WORKSPACE</span>
+          <h3>.local/.agent/{active,handoff,archive}/ + Python API</h3>
+          <p>PV-03 + PV-04 + PV-05 deliver the 3-tier agent workspace scaffold with 10 schemas + Python API package (<code>Change</code>, <code>ChangeStore</code>, <code>HandoffEnvelope</code> append-only with monotonic <code>seq</code> per S-9, <code>HandoffStore</code>, <code>ArchiveManager</code>, <code>lint</code>, <code>delta_parser</code>). 8 canonical paths in <code>repo-init.yaml</code> manifest (was 5).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/agent-workspace.md"><span data-i18n="btn.viewReference">View Reference</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">RULES</span>
+          <h3>Rules Layer 46 → 50 (Soul +2, Architecture +1, Conventions +1)</h3>
+          <p>PV-02 adds 4 new hard rules: <strong>S-8</strong> (no writes outside <code>owned_files.txt</code>), <strong>S-9</strong> (handoff envelopes append-only), <strong>A-4</strong> (source-of-truth spec ADR — <code>.local/memory/specs/&lt;domain&gt;/spec.md</code>), <strong>C-9</strong> (lightweight artifact budgets). Forward-defines for v8.2.6 + v8.2.5.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.cursor/rules/repo-governance.mdc"><span data-i18n="btn.viewRules">View Rules</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">SCHEMA</span>
+          <h3>P6 Cache Layout v4 → v5 (4th Successive Additive Transition)</h3>
+          <p>PV-05 appends <code>change_context</code> at position 16 of <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code>; positions 1-15 byte-identical; v7.0.0 + v7.3.0 + v8.0.0 P-08 + P-10 byte-baselines all continue passing. <strong>Additivity proven across 4 successive schema generations</strong> (13 → 14 → 15 → 16) plus 1 stable cycle (v8.2.0).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/lean-dispatch.yaml"><span data-i18n="btn.viewSchema">View Schema</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">METRICS</span>
+          <h3>9/9 PV ACCEPT, +743 Tests, 45 EvoBench Scenarios</h3>
+          <p>Test count 2367 → <strong>3110</strong> (+743 net; 4.7× the +159 forecast — driven by PV-05's ~60 tests for <code>agent_workspace/</code> + cache layout v5 round-trip). EvoBench: 43 → 45 scenarios (PV-09 added <code>agent_workspace_active.yaml</code> + <code>handoff_envelope_density.yaml</code>, both at composite 99.73). 0 regressions > 5 pp across the cycle. SI-10 6/6 PASS at every patch (54 individual gate steps, all green).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v8.2.0 (G3 final release; closes v8.x trilogy) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v820">What's New</span> in v8.2.0 — Karpathy Primitives Cycle (5 PV patches)</h2>

@@ -675,5 +675,31 @@
       "1181 tests pass (+60 net vs 1121 baseline); EvoBench 34 / 34 PASS, 0 pp drift vs v7.1.0 baseline; SI-10 5/5 (step 6 mirror-parity no-op per e44fa11)"
     ],
     "metrics": { "tests": 1181, "coverage_pct": 95.68, "nines": 0.8805 }
+  },
+  {
+    "version": "8.3.0",
+    "date": "2026-04-23",
+    "era": "agent-workspace-trilogy",
+    "headline": "Agent workspace + governance trilogy: .local/.agent/{active,handoff,archive}/ + change-driven lifecycle + REPORT.md surface + memory bridge — 9 PVs closing v8.2.0 feedback A1-A6 + PATCH",
+    "summary": "P6 schema v4→v5 transition (additive change_context at position 16); 22nd workflow template change-driven; 10th canonical reference agent-workspace.md; 2 new EvoBench scenarios; rules layer grows S-8/S-9/A-4/C-9; SI-3 composite ≥ 9.0 / NineS post-cycle ≥ 0.90.",
+    "highlights": [
+      "Plugin runtime: nines (pip) + ui-pro (npm) auto-install on demand (v8.2.1)",
+      "Rules layer +4 rules: S-8 (no writes outside owned_files), S-9 (handoff append-only), A-4 (source-of-truth spec ADR), C-9 (artifact budgets)",
+      ".local/.agent/{active,handoff,archive}/ scaffold + 10 YAML schemas + Python API",
+      "Cache layout v4→v5 (positions 1-15 byte-identical; v7.0.0 + v7.3.0 baselines still pass)",
+      "change-driven workflow template (22nd template; OpenSpec-inspired propose→apply→verify→archive)",
+      "REPORT.md surface (4 auto-generated reports: per-change, workspace, memory, rules)",
+      "Memory bridge: change-aware load_relevant_learnings + consolidate_change_on_archive + hydrate_change_context (R5 strict — 71 existing tests byte-identical)",
+      "SKILL.md + 10th reference agent-workspace.md (498/500 line ceiling held via 3 micro-compressions)",
+      "+2 EvoBench scenarios (45 total); 0 regressions across cycle",
+      "9 PVs / 100% accept rate (continues v7.x trilogy 18/18 + v8.0.0 13/13 + v8.2.0 5/5)"
+    ],
+    "metrics": {
+      "tests": "3110",
+      "scenarios": "45",
+      "templates": "22",
+      "references": "10",
+      "rules_total": "50"
+    }
   }
 ]
