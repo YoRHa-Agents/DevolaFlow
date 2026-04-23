@@ -1,16 +1,16 @@
 ---
 title: "Workflow Types Catalog"
-description: "17 built-in workflow types with selection guidance."
+description: "22 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-22T12:39:52Z"
+last_synced: "2026-04-23T07:12:20Z"
 source_version: "8.2.0"
 ---
 
 # Workflow Types Catalog
 
-17 built-in workflow types with selection guidance.
+22 built-in workflow types with selection guidance.
 
 ## Workflow Selection
 
@@ -22,7 +22,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 17 Built-in Workflow Types
+## All 22 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -140,6 +140,12 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Research, Implement, Test
 **Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
 
+#### `change-driven`
+**When to use**: Manage an in-flight change with structured `.local/.agent/active/<id>/` artifacts (goal, acceptance, spec, tasks, STATUS, owned_files); archive on success with auto-generated REPORT.md and propose delta merge to source-of-truth specs.
+**Stages**: propose → apply → verify → archive (mode: lite \| full)
+**Teams**: Design, Implement, Test
+**Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -161,3 +167,4 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `onboarding` | new to project, getting started | 4 | — |
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
 | `self-update` | update refs, self-update, check references | 6 | standard |
+| `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |

@@ -29,9 +29,9 @@ DOCS = [
     (
         "workflow-types",
         "Workflow Types Catalog",
-        "17 built-in workflow types with selection guidance.",
+        "22 built-in workflow types with selection guidance.",
         "工作流类型目录",
-        "17 种内置工作流类型及选择指南。",
+        "22 种内置工作流类型及选择指南。",
     ),
     (
         "agent-hierarchy-guide",
@@ -218,7 +218,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 17 workflow types: [Workflow Types](workflow-types.md)
+- See all 22 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
@@ -368,7 +368,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 17 Built-in Workflow Types
+## All 22 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -486,6 +486,12 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Research, Implement, Test
 **Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
 
+#### `change-driven`
+**When to use**: Manage an in-flight change with structured `.local/.agent/active/<id>/` artifacts (goal, acceptance, spec, tasks, STATUS, owned_files); archive on success with auto-generated REPORT.md and propose delta merge to source-of-truth specs.
+**Stages**: propose → apply → verify → archive (mode: lite \\| full)
+**Teams**: Design, Implement, Test
+**Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -507,6 +513,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `onboarding` | new to project, getting started | 4 | — |
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
 | `self-update` | update refs, self-update, check references | 6 | standard |
+| `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |
 """
 
 
@@ -637,7 +644,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 17 types
+- And so on for all 22 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
@@ -1202,7 +1209,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 ## 第四步：深入探索
 
-- 查看全部 17 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 22 种工作流：[工作流类型](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)
@@ -1324,7 +1331,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 17 种内置工作流类型
+## 全部 22 种内置工作流类型
 
 ### 发现类工作流
 
@@ -1425,6 +1432,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：check-refs → research-updates → decompose → integrate → test → evaluate
 **示例**：`"update refs"`、`"self-update"`、`"check references"`
 
+#### `change-driven`
+**适用场景**：以结构化 `.local/.agent/active/<id>/` 工件（goal、acceptance、spec、tasks、STATUS、owned_files）管理在制品变更；成功后归档并自动生成 REPORT.md，向 source-of-truth 规范提议增量合并。
+**阶段**：propose → apply → verify → archive（mode: lite \\| full）
+**示例**：`"propose change to add dark mode"`、`"apply v8.3.0-pv09"`、`"archive add-auth-bug"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -1446,6 +1458,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `onboarding` | 新加入项目, 入门 | 4 | — |
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
 | `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
+| `change-driven` | 变更, 提议, 应用, 归档, 生命周期, OpenSpec | 4 | convergence |
 """
 
 

@@ -2,8 +2,8 @@
 """Sync .cursor/skills/devola-flow/ to the canonical workflow-system/agent/ skill.
 
 This is the repo-local project-skill mirror that Cursor picks up when the user
-opens the DevolaFlow repo itself. It mirrors EXACTLY the 13 files that
-scripts/install.sh::install_cursor downloads (SKILL.md + 9 references + 3
+opens the DevolaFlow repo itself. It mirrors EXACTLY the 14 files that
+scripts/install.sh::install_cursor downloads (SKILL.md + 10 references + 3
 examples), plus a single-line .devola-flow-version stamp equal to
 src/devolaflow/__init__.py __version__.
 
@@ -29,16 +29,20 @@ import shutil
 import sys
 from pathlib import Path
 
-# Set must match scripts/install.sh::install_cursor (SKILL + 9 refs + 3 examples).
+# Set must match scripts/install.sh::install_cursor (SKILL + 10 refs + 3 examples).
 # Edit BOTH files in lockstep if you ever change what Cursor users receive.
 # v8.0.0 P-08 grew this set 12 -> 13 by appending references/behavioral-guidelines.md
 # (the L3 behavioral primitives reference wired through the new top-level
 # behavioral_guidelines dispatch field at canonical_order position 14, schema v3).
+# v8.3.0 PV-09 grew this set 13 -> 14 by appending references/agent-workspace.md
+# (the change-driven workspace reference covering .local/.agent/, append-only
+# handoff envelopes, source-of-truth specs, and per-artifact token budgets).
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
     "SKILL.md",
     "references/agent-hierarchy.md",
+    "references/agent-workspace.md",
     "references/meta-framework.md",
     "references/decomposition-gate.md",
     "references/repo-modes.md",
@@ -105,7 +109,7 @@ def check() -> int:
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         return 1
-    print(f"[.cursor mirror] ok (13 files, stamp {version})")
+    print(f"[.cursor mirror] ok (14 files, stamp {version})")
     return 0
 
 
@@ -144,7 +148,7 @@ def sync(*, allow_init: bool = False) -> int:
         print(f"  stamp {STAMP_FILE} -> {version}")
         changed += 1
     if changed == 0:
-        print(f"[.cursor mirror] already in sync (13 files, stamp {version})")
+        print(f"[.cursor mirror] already in sync (14 files, stamp {version})")
     else:
         print(f"[.cursor mirror] synced {changed} file(s) to v{version}")
     return 0

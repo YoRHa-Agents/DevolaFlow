@@ -232,6 +232,40 @@ active_tracking:
       - "skill format: plugin/skill architecture patterns"
     note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings). Relevant for research and analysis workflow patterns."
 
+  - id: openspec
+    repo_url: https://github.com/Fission-AI/OpenSpec
+    source_type: github_repo
+    last_checked: "2026-04-23"
+    last_known_version: "latest (2026-04)"
+    relevance_score: 5
+    key_patterns:
+      - "spec-driven change lifecycle: propose → apply → verify → archive"
+      - "ADDED/MODIFIED/REMOVED requirement delta sections per change"
+      - "change folders under .openspec/changes/<id>/ with goal+spec+tasks artifacts"
+      - "archive ledger preserving completed changes verbatim with date prefix"
+      - "RFC 2119 keyword discipline (MUST/MUST NOT/SHOULD/MAY) per requirement"
+      - "scenario blocks (GIVEN/WHEN/THEN) attached to ADDED requirements"
+    update_triggers:
+      - propose
+      - archive
+      - spec_format_change
+      - new lifecycle stages or gate criteria
+      - delta section grammar updates
+    devolaflow_integration_points:
+      - "schemas/agent-workspace/change-spec.yaml (delta format adoption)"
+      - "src/devolaflow/agent_workspace/delta_parser.py (M-003 closure)"
+      - "src/devolaflow/agent_workspace/archive.py (propose_merge, M-004 ADR)"
+      - "workflow-system/agent/templates/builtin/change-driven.yaml (workflow binding)"
+      - "workflow-system/agent/references/agent-workspace.md (10th SF-4 reference)"
+    gap_ids: [C-001, C-002, M-003, M-004]
+    note: >
+      Source for the v8.3.0 change-driven workflow + spec delta format
+      (ADDED/MODIFIED/REMOVED). Adopted in v8.3.0 per
+      .local/research/v8.3.0_openspec_deep_analysis.md. Slash commands
+      (/openspec/propose, /openspec/apply, /openspec/archive) deferred to
+      DevolaFlow v8.4.0+ per Q-3 in design.md §11.2; the lifecycle stages
+      are wired through the change-driven workflow template instead.
+
 periodic_monitoring:
 
   - id: google-scion

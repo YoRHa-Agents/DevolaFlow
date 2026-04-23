@@ -4,7 +4,7 @@ description: "10 分钟内开始使用 DevolaFlow。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-22T12:39:52Z"
+last_synced: "2026-04-23T07:12:10Z"
 source_version: "8.2.0"
 ---
 
@@ -104,7 +104,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 ## 第四步：深入探索
 
-- 查看全部 17 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 22 种工作流：[工作流类型](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)

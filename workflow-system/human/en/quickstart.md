@@ -4,7 +4,7 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-22T12:39:52Z"
+last_synced: "2026-04-23T07:12:20Z"
 source_version: "8.2.0"
 ---
 
@@ -104,7 +104,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 17 workflow types: [Workflow Types](workflow-types.md)
+- See all 22 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
