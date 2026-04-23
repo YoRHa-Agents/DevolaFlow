@@ -15,7 +15,7 @@ The RTK plugin entry pins `min_version: "0.37.2"` (Cargo.toml canonical, NOT REA
 
 `RuntimePluginSpec` gained an additive optional `verify_distinguish_cmd: str | None = None` field (R5 strict — `nines` + `ui-pro` entries are byte-identical pre/post v8.3.1; their `verify_distinguish_cmd` is `None`, so `_verify_distinguish()` is a no-op for them). `_SUPPORTED_BACKENDS` grows from `{pip, npm_then_init}` → `{pip, npm_then_init, curl_install_script}`. `_SUPPORTED_SCHEMA_VERSIONS` grows from implicit `{1}` → explicit `{1, 2}`. The pre-install distinguish-check (when `verify_distinguish_cmd` is set) protects against the wrong package masquerading on PATH — even if `rtk --version` returns a "valid-looking" version, `rtk gain` failing means the wrong package is installed and `ensure_plugin` raises loudly per S-5 (no silent failures). `tests/test_plugins.py` grows by **+14 net new tests** (97 → 111): 6 declarative RTK metadata tests (the `local_fallback_path` test also folds in the `invoked_by_workflows: [shell-proxy]` forward-declare assertion) + 3 mocked subprocess flows (curl install end-to-end happy path / dual-failure raise / distinguish-failure raise) + 2 schema-v2 acceptance tests + 3 unit tests for the new helpers (`_install_via_cargo` URL pinning + `canonical_url` requirement + `_verify_distinguish` no-op when field unset). All 97 pre-PV tests remain byte-identical for R5 strict (verified by full `pytest tests/test_plugins.py -q` PASS).
 
-SKILL.md is **untouched** at 498/500 (deferred to v8.4.0 rollup per cycle plan §4); `schemas/lean-dispatch.yaml#layout_invariant` is untouched (P6 cache layout stable at v5 / length 16 throughout v8.4.0 cycle per gap analysis §1 row "P6 cache layout"). EvoBench: 0 regressions vs `benchmarks/devolaflow_context/baselines/v8.3.0_baseline.json` (45 scenarios, all PASS). The cycle invariants (per gap analysis §5 I-1..I-10) are honored: I-1 real semver patch via `scripts/bump_version.py 8.3.1`; I-2 SI-10 6/6 PASS; I-3 SI-3 composite ≥ 8.5; I-4 NineS post-eval composite ≥ 0.85; I-5 EvoBench 0 regressions; I-6 SKILL.md 498/500; I-7 R5 strict (97/97 pre-PV tests byte-identical); I-8 P6 cache layout v5 stable; I-9 relative paths only in agent-facing files; I-10 100% PV accept rate continues (45 → 46/46 lifetime).
+SKILL.md is **untouched** at 498/500 (deferred to v8.4.0 rollup per cycle plan §4); `schemas/lean-dispatch.yaml#layout_invariant` is untouched (P6 cache layout stable at v5 / length 16 throughout v8.4.0 cycle per gap analysis §1 row "P6 cache layout"). EvoBench: 0 regressions vs `benchmarks/devolaflow_context/baselines/v8.3.0_baseline.json` (45 scenarios, all PASS). The cycle invariants (per gap analysis §5 I-1..I-10) are honored: I-1 real semver patch via `scripts/bump_version.py 8.3.1`; I-2 SI-10 6/6 PASS; I-3 SI-3 composite **9.10/10** ≥ 8.5; I-4 NineS post-PV composite **0.9050** ≥ 0.85; I-5 EvoBench 0 regressions; I-6 SKILL.md 498/500; I-7 R5 strict (97/97 pre-PV plugin tests byte-identical); I-8 P6 cache layout v5 stable; I-9 relative paths only in agent-facing files; I-10 100% PV accept rate continues (45 → 46/46 lifetime).
 
 ### Highlights
 
@@ -23,13 +23,13 @@ SKILL.md is **untouched** at 498/500 (deferred to v8.4.0 rollup per cycle plan �
 - **New `curl_install_script` backend** (schema_version 1 → 2) with pinned-canonical-URL cargo fallback (NEVER bare `cargo install <pkg>` per R-2 collision risk)
 - **Mandatory `verify_distinguish_cmd` enforcement** for RTK (`rtk gain`) — protects against the rtk-type-kit name-collision per upstream `INSTALL.md` warning; both pre-install AND post-install probes run, both raise loudly per S-5 on failure
 - **R5 strict additivity** — `nines` + `ui-pro` entries pass byte-identical post-v8.3.1; 97 pre-PV plugin tests pass byte-identical (verified)
-- **+9 net new tests** in `tests/test_plugins.py` (97 → 106: 6 declarative `TestRtkPluginRegistry` + 3 mocked-subprocess `TestRtkInstallSubprocess`); cycle-wide test count 3110 → **3119** (sits exactly at the per-PV cap of +9 from gap analysis §4.1; well within the v8.4.0 cycle-wide cap of +100)
+- **+14 net new tests** in `tests/test_plugins.py` (97 → 111: 6 declarative `TestRtkPluginRegistry` + 3 mocked-subprocess `TestRtkInstallSubprocess` + 2 schema-v2 acceptance `TestRtkSchemaV2` + 3 helper unit tests `TestRtkCurlScriptHelpers`); cycle-wide test count 3110 → **3124** (slight over-delivery vs the gap analysis §4.1 forecast of +9; the +5 extras cover the new `_install_via_cargo` URL-pinning helper, the canonical_url defensive raise, the `_verify_distinguish` no-op contract, and the schema-v2 backward-compat path; well within the v8.4.0 cycle-wide cap of +100)
 - **Default-off via existing `DEVOLAFLOW_AUTO_INSTALL=0` opt-out** — no behavior change for any workflow that does not declare `rtk` in `precondition.config.ensure_plugins`
 - **Per-PV gates PASS** — SI-10 6/6, SI-3 composite ≥ 8.5, NineS post-PV composite ≥ 0.85 (see `.local/research/v8.3.1_evaluation.md` and `.local/research/v8.3.1_nines.md`)
 
 ### Patch ledger (1 PV patch)
 
-- **[v8.3.1-pv01]** PV-01 — **RTK plugin entry — runtime auto-install + curl_install_script backend** (this commit, PR pending). Closes R-001 from v8.4.0 SI-1 gap analysis. Modified: `workflow-system/agent/knowledge/runtime-plugins.yaml` (schema 1 → 2, +rtk entry, +curl_install_script backend declaration); `src/devolaflow/plugins/installer.py` (+`verify_distinguish_cmd` field on `RuntimePluginSpec`, +`_install_via_curl_script` helper, +`_install_via_cargo` fallback helper, +`_verify_distinguish` pre/post-install probe, `_SUPPORTED_BACKENDS` grows by 1, `_SUPPORTED_SCHEMA_VERSIONS = {1, 2}`); `tests/test_plugins.py` (+9 new tests across 2 new classes — `TestRtkPluginRegistry` 6 / `TestRtkInstallSubprocess` 3); 7 canonical version-sync locations bumped 8.3.0 → 8.3.1 via `scripts/bump_version.py 8.3.1` per CP-3 / W-10. **Defers `SKILL.md` Workflow Selection row + `references/runtime-plugins.md` (would be 11th canonical reference) to v8.4.0 rollup per cycle plan §4** — RTK is install-only in this PV; the consumer-facing `shell_proxy` ships in v8.3.2 PV-02 and the SKILL.md surface change can be batched then.
+- **[v8.3.1-pv01]** PV-01 — **RTK plugin entry — runtime auto-install + curl_install_script backend** (this commit, PR pending). Closes R-001 from v8.4.0 SI-1 gap analysis. Modified: `workflow-system/agent/knowledge/runtime-plugins.yaml` (schema 1 → 2, +rtk entry, +curl_install_script backend declaration); `src/devolaflow/plugins/installer.py` (+`verify_distinguish_cmd` field on `RuntimePluginSpec`, +`_install_via_curl_script` helper, +`_install_via_cargo` fallback helper, +`_verify_distinguish` pre/post-install probe, `_SUPPORTED_BACKENDS` grows by 1, `_SUPPORTED_SCHEMA_VERSIONS = {1, 2}`); `tests/test_plugins.py` (+14 new tests across 4 new classes — `TestRtkPluginRegistry` 6 / `TestRtkInstallSubprocess` 3 / `TestRtkSchemaV2` 2 / `TestRtkCurlScriptHelpers` 3); 7 canonical version-sync locations bumped 8.3.0 → 8.3.1 via `scripts/bump_version.py 8.3.1` per CP-3 / W-10. **Defers `SKILL.md` Workflow Selection row + `references/runtime-plugins.md` (would be 11th canonical reference) to v8.4.0 rollup per cycle plan §4** — RTK is install-only in this PV; the consumer-facing `shell_proxy` ships in v8.3.2 PV-02 and the SKILL.md surface change can be batched then.
 
 ### Cross-references
 
@@ -40,48 +40,8 @@ SKILL.md is **untouched** at 498/500 (deferred to v8.4.0 rollup per cycle plan �
 - v8.3.1 NineS post-PV: `.local/research/v8.3.1_nines.json` + `.local/research/v8.3.1_nines.md` (composite ≥ 0.85)
 - RTK canonical URL: `https://github.com/rtk-ai/rtk` (per S-7; SI-2 reference clone path NOT hardcoded in any agent-facing file)
 - Predecessor cycle: v8.3.0 (commit `b056346` on main; SI-3 9.40/10; CHANGELOG entry below)
-- v8.3.1 PR (pending): see `feat/v8.3.1-rtk-plugin` branch
+- v8.3.1 PR: https://github.com/YoRHa-Agents/DevolaFlow/pull/90 (branch `feat/v8.3.1-rtk-plugin`)
 - Annotated git tag (pending post-merge): `v8.3.1`
-
-## [8.3.1] — 2026-04-23
-
-**PATCH — v8.4.0 PV-01: RTK (Rust Token Killer) plugin entry — runtime auto-install + new `curl_install_script` backend.** Closes R-001 from `.local/research/v8.4.0_gap_analysis.md` (the v8.4.0 SI-1 planning gate). RTK is now installable from DevolaFlow as the **3rd entry** in `workflow-system/agent/knowledge/runtime-plugins.yaml` alongside `nines` and `ui-pro`. The patch introduces the new `curl_install_script` backend (`schema_version: 1` → `2`, additive — load_registry continues to accept v1 fixtures for R5 strict). Backend runs the canonical RTK install script and verifies via the **mandatory** `rtk gain` distinguish-check (per the upstream RTK INSTALL.md collision warning vs `rtk-type-kit` Rust Type Kit). On primary failure the backend falls back to a pinned `cargo install --git https://github.com/rtk-ai/rtk` (NEVER bare `cargo install rtk` — would risk pulling the wrong package from crates.io). Failures on either the curl primary AND cargo fallback, OR on the `rtk gain` distinguish-check, raise `PluginInstallError` per S-5 with actionable text pointing at the upstream INSTALL.md. Default off via the existing `DEVOLAFLOW_AUTO_INSTALL=0` opt-out.
-
-This is the **first patch of the v8.4.0 cycle** (4 PVs + 1 release roll-up forecast per `.local/research/v8.4.0_gap_analysis.md` §4). Per the user's "通过 8.3.x 系列分别迭代,验证,如果有提升则合入并发布" mandate, each PV ships as a **real published patch version** (8.3.1 → 8.3.2 → 8.3.3 → 8.3.4) and goes through the full CP-3 / W-10 7-canonical-sync-location bump + W-9 / SI-10 6-step pre-commit gate. PV-02 (`v8.3.2 shell-proxy`), PV-03 (`v8.3.3 memory router cases/`), and PV-04 (`v8.3.4 memory commands/`) follow; v8.4.0 rollup aggregates the per-patch ledger.
-
-The `RuntimePluginSpec` dataclass gains a single optional field — `verify_distinguish_cmd: str | None = None` — used by the new `_verify_distinguish()` helper. For the existing `nines` and `ui-pro` entries the field defaults to `None` and the verify call is a no-op, preserving R5 strict (all 97 pre-existing `tests/test_plugins.py` tests pass byte-identical). For RTK the field is set to `"rtk gain"` per RTK INSTALL.md.
-
-Forward-declares the `shell-proxy` workflow id in the rtk plugin's `invoked_by_workflows` list — that workflow ships in PV-02 of v8.4.0. Forward-declaration is safe because runtime consumers iterate this list rather than validate it against a registry.
-
-Per the W-9 / SI-10 6-step pre-commit gate: pytest `3119 collected → 3102 passed + 15 skipped + 2 xfailed` (3110 v8.3.0 baseline + 9 RTK tests = 3119, **exactly matching the gap analysis §4.1 +9 forecast**); ruff check + format clean (168 files); version test 12 passed + 15 mirror-skipped (mirror absent — opt-in); benchmarks 36/36 passed (0 regressions > 5pp vs `v8.3.0_baseline.json`); `make check-cursor-skill` exit 0 (no-op when mirror absent). Per the W-3 / SI-3 evaluation: composite **9.05/10** ≥ minor threshold 8.5 by **+0.55 pp** (see `.local/research/v8.3.1_evaluation.md`). Per the W-2 / SI-2 NineS post-PV self-eval: composite **≥ 0.85** (see `.local/research/v8.3.1_nines.md` for synthesis; raw JSON in `.local/research/v8.3.1_nines.json`).
-
-**SKILL.md untouched** at 498/500 — the SKILL surface for memory router / shell-proxy is deferred to v8.4.0 rollup per the gap analysis §4.5. The 7 canonical sync locations (v8.3.0 → v8.3.1) include the SKILL.md banner + frontmatter + body line per `scripts/bump_version.py` (no functional SKILL content changed).
-
-### Highlights
-
-- **RTK 3rd plugin in `runtime-plugins.yaml`** alongside nines + ui-pro; new `curl_install_script` backend (schema_version 1 → 2 additive)
-- **Mandatory `rtk gain` distinguish-check** post-install (per RTK INSTALL.md vs rtk-type-kit collision warning) — `verify_distinguish_cmd` is a new optional `RuntimePluginSpec` field defaulting to `None` for additive R5 strict
-- **Cargo fallback** always pins `--git https://github.com/rtk-ai/rtk` (NEVER bare `cargo install rtk` per R-2 mitigation; tested via `tests/test_plugins.py::TestRtkInstallSubprocess::test_rtk_install_failure_raises_loud`)
-- **Default off** via existing `DEVOLAFLOW_AUTO_INSTALL=0` opt-out
-- **+9 net new tests** (3110 → 3119; **exactly the gap analysis §4.1 forecast** — first cycle in 4 to NOT over-deliver vs forecast)
-- **R5 strict preserved**: all 97 pre-existing `tests/test_plugins.py` tests pass byte-identical (verified); load_registry accepts BOTH schema_version 1 AND 2 so v8.3.0 fixtures continue working
-- **0 EvoBench regressions > 5pp** (36/36 scenarios pass vs `v8.3.0_baseline.json`; PV-01 does not change dispatch — plugin installer is preconditional)
-- **SKILL.md held at 498/500** (untouched — protected per gap analysis §6 R4); SKILL surface for memory router deferred to v8.4.0 rollup
-- **First PV of v8.4.0 cycle** (4 PVs + rollup forecast); 46/46 lifetime PV cycles ACCEPTED (45/45 v8.3.0 + 1/1 v8.3.1)
-
-### Patch ledger (1 PV, this patch)
-
-- **[v8.3.1-pv01]** PV-01 — **RTK plugin entry — runtime auto-install + curl_install_script backend** (this patch). Closes R-001 from `.local/research/v8.4.0_gap_analysis.md`. New rtk row in `workflow-system/agent/knowledge/runtime-plugins.yaml` (3rd entry, schema_version bumped 1→2); new `curl_install_script` backend declaration; new optional `RuntimePluginSpec.verify_distinguish_cmd` field (defaults `None`, R5 strict for nines + ui-pro); new `_install_via_curl_script()` + `_install_via_cargo()` + `_verify_distinguish()` helpers in `src/devolaflow/plugins/installer.py`; ensure_plugin extended to dispatch the new backend AND run distinguish-check at both pre-install and post-install version probe sites; 9 net new tests in `tests/test_plugins.py` (covers presence, backend support, min_version, distinguish cmd, canonical URL, local fallback, install failure with cargo pinning assertion, distinguish failure, end-to-end happy path). Forward-declares `shell-proxy` workflow id (PV-02 will register it). Default off via `DEVOLAFLOW_AUTO_INSTALL=0`.
-
-### Cross-references
-
-- v8.4.0 SI-1 planning gate: `.local/research/v8.4.0_gap_analysis.md` (R-001 row in §2.1; 4-item in-scope inventory; D-001 = SPLIT decision in §3)
-- v8.4.0 SI-2 NineS analysis on RTK: `.local/research/v8.4.0_rtk_nines_analysis.md` (§5 plugin recommendation + §7 risk register)
-- v8.3.1 SI-3 evaluation: `.local/research/v8.3.1_evaluation.md` (composite 9.05/10 ≥ 8.5)
-- v8.3.1 NineS post-PV: `.local/research/v8.3.1_nines.json` + `.md` synthesis
-- v8.4.0 cycle plan: `/root/.cursor/plans/v8.4.0_rtk_+_memory_router_e4ec076d.plan.md`
-- RTK source (per S-7): https://github.com/rtk-ai/rtk
-- v8.3.0 PV-01 precedent (plugin runtime auto-install, commit `dbf5433`): `## [8.3.0]` patch ledger entry below
 
 ## [8.3.0] — 2026-04-23
 
