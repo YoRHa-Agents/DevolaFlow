@@ -71,7 +71,7 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the SF-3 contract (10-refs / 3-examples since v8.3.0 PV-09).
+    """Sanity: shape matches the SF-3 contract (11-refs / 3-examples since v8.4.0 rollup).
 
     v8.0.0 P-08 grew the reference set 8 → 9 by appending
     ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
@@ -85,8 +85,15 @@ def test_canonical_lists_match_sf3_contract() -> None:
     covering ``.local/.agent/``, append-only handoff envelopes, source-of-truth
     specs, and per-artifact token budgets). Pairs with the change-driven workflow
     template (v8.2.6) and the ``devolaflow.agent_workspace`` Python API (v8.2.5+).
+
+    v8.4.0 rollup grew the reference set 10 → 11 by appending
+    ``references/shell-proxy.md`` (the RTK + memory-router stack reference
+    covering the runtime-plugins.yaml RTK row, the shell_proxy/ package, the
+    pre_shell_call lifecycle hook, the memory_router/ planning fast-path, and
+    the ``.local/memory/{cases,commands}/`` recipe layers). Pairs with the
+    v8.3.1..v8.3.4 PV-01..PV-04 surface area closing R-001+R-002+M-001+M-002.
     """
-    assert len(_REF_FILES) == 10, f"expected 10 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 11, f"expected 11 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

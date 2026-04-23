@@ -29,7 +29,7 @@ import shutil
 import sys
 from pathlib import Path
 
-# Set must match scripts/install.sh::install_cursor (SKILL + 10 refs + 3 examples).
+# Set must match scripts/install.sh::install_cursor (SKILL + 11 refs + 3 examples).
 # Edit BOTH files in lockstep if you ever change what Cursor users receive.
 # v8.0.0 P-08 grew this set 12 -> 13 by appending references/behavioral-guidelines.md
 # (the L3 behavioral primitives reference wired through the new top-level
@@ -37,6 +37,10 @@ from pathlib import Path
 # v8.3.0 PV-09 grew this set 13 -> 14 by appending references/agent-workspace.md
 # (the change-driven workspace reference covering .local/.agent/, append-only
 # handoff envelopes, source-of-truth specs, and per-artifact token budgets).
+# v8.4.0 rollup grew this set 14 -> 15 by appending references/shell-proxy.md
+# (the RTK + memory-router stack reference covering runtime-plugins.yaml RTK row,
+# the shell_proxy/ package, the pre_shell_call lifecycle hook, the memory_router/
+# planning fast-path, and the .local/memory/{cases,commands}/ recipe layers).
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
@@ -51,6 +55,7 @@ MIRRORED_FILES = [
     "references/team-roles.md",
     "references/context-isolation.md",
     "references/behavioral-guidelines.md",
+    "references/shell-proxy.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
@@ -109,7 +114,7 @@ def check() -> int:
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         return 1
-    print(f"[.cursor mirror] ok (14 files, stamp {version})")
+    print(f"[.cursor mirror] ok (15 files, stamp {version})")
     return 0
 
 
@@ -148,7 +153,7 @@ def sync(*, allow_init: bool = False) -> int:
         print(f"  stamp {STAMP_FILE} -> {version}")
         changed += 1
     if changed == 0:
-        print(f"[.cursor mirror] already in sync (14 files, stamp {version})")
+        print(f"[.cursor mirror] already in sync (15 files, stamp {version})")
     else:
         print(f"[.cursor mirror] synced {changed} file(s) to v{version}")
     return 0
