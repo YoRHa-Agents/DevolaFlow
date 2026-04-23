@@ -66,6 +66,11 @@ from devolaflow.agent_workspace.lint import (
     estimate_tokens,
     lint_change,
 )
+from devolaflow.agent_workspace.memory_bridge import (
+    MemoryBridgeError,
+    consolidate_change_on_archive,
+    hydrate_change_context,
+)
 from devolaflow.agent_workspace.reporter import (
     regenerate_all,
     render_change_report,
@@ -100,6 +105,10 @@ __all__ = [
     "BudgetViolation",
     "estimate_tokens",
     "lint_change",
+    # memory_bridge (v8.2.8 — closes H-006)
+    "MemoryBridgeError",
+    "consolidate_change_on_archive",
+    "hydrate_change_context",
     # reporter (v8.2.7 — opt-in REPORT.md surface; closes H-005)
     "regenerate_all",
     "render_change_report",

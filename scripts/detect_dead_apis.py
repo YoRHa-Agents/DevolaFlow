@@ -266,6 +266,18 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.agent_workspace.delta_parser:serialize_delta_spec",
         "devolaflow.agent_workspace.handoff:HandoffStore",
         "devolaflow.agent_workspace.handoff:make_envelope",
+        # ---- Memory bridge public API (v8.2.8 PV-08 — H-006 closure) ----
+        # Per .local/research/v8.3.0_design.md §4 and
+        # .local/research/v8.3.0_patch_plan.md §"v8.2.8 — Memory Bridge +
+        # Change-Aware Learnings". The two functions exposed by
+        # devolaflow.agent_workspace.memory_bridge are intentionally public
+        # so the v8.2.9 /devola:archive command (and L0/L1/L2/L3 dispatch
+        # context-injection in subsequent PVs of the v8.3.0 cycle) can
+        # invoke them without reaching into the package internals.
+        # Same allowlist pattern as the v8.2.5 PV-05 entries above —
+        # production callers ship in subsequent PVs per the cycle plan.
+        "devolaflow.agent_workspace.memory_bridge:consolidate_change_on_archive",
+        "devolaflow.agent_workspace.memory_bridge:hydrate_change_context",
         # ---- Pre-decision phase API ----
         # Exposed via devolaflow.pre_decision.__all__; called by detect-repo-mode
         # console_script and external pre-flight workflow agents.
