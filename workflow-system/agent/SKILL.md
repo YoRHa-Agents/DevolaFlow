@@ -35,8 +35,7 @@ description: >
 
 ## Version & Update
 **Current version:** 8.2.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
-If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`
-Only check when user explicitly requests via "update devola" / "update_devola" / "/update-devola".
+If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Quick Action Decision
 
@@ -138,8 +137,7 @@ Escalation: Task → Wave → Stage → Project → Human
 1. **ASSESS** complexity → Quick Action Decision table
 2. **SELECT** workflow type → Workflow Selection table below
 3. **DECOMPOSE** into stages → waves → tasks (disjoint file ownership per wave)
-4. **DISPATCH** each task → `Task` tool (subagent_type: `generalPurpose`)
-   - Prompt includes: role, task_id, description, owned_files, read_only, acceptance_criteria, predecessor summary (3-5 sentences max)
+4. **DISPATCH** each task → `Task` tool (subagent_type: `generalPurpose`); prompt includes role, task_id, description, owned_files, read_only, acceptance_criteria, predecessor summary (3-5 sentences max)
 5. **VERIFY** task output against acceptance criteria
 6. **GATE** stage → composite score ≥ threshold, 0 blockers → advance or converge
 7. **REPORT** final results + Task Quality Score
@@ -172,6 +170,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
+| change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 
 ### Repo-Init Pre-Dispatch Contract
@@ -351,8 +350,7 @@ context_injection:
 **MUST NOT leak:** conversation history, file contents from other tasks, full predecessor artifacts, error details from siblings, quality scores from unrelated tasks.
 **IS shared (via artifact summaries):** interface contracts, design decisions (ADRs), naming conventions, quality thresholds, acceptance criteria.
 Full context injection spec: `references/context-isolation.md`
-**Cache layout (v7.0.0+):** Top-of-payload key order is fixed by the canonical layout invariant (`schemas/lean-dispatch.yaml#layout_invariant`).
-See `references/context-isolation.md` Cache-Layout Invariant subsection for rationale + the `assert_dispatch_layout` validator API.
+**Cache layout (v7.0.0+):** Key order fixed by `schemas/lean-dispatch.yaml#layout_invariant`; see `references/context-isolation.md` Cache-Layout Invariant subsection for the `assert_dispatch_layout` validator API.
 
 ## Dispatch & Report Protocol
 
@@ -424,6 +422,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/team-roles.md` | Task agent config, team capabilities |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
+| `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
 
 **Tier 3 — On-demand** (load for specific tasks):
 
@@ -467,6 +466,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | self-update | 7 | convergence |
 | repo-init | 5 | standard |
 | entropy-cleanup | 4 | standard |
+| change-driven | 4 | convergence |
 
 ## Task Quality Score
 

@@ -92,11 +92,17 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 9 canonical reference files must be copied into ``references/``.
+    """All 10 canonical reference files must be copied into ``references/``.
 
     v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
     (the L3 behavioral primitives reference wired through the new top-level
-    ``behavioral_guidelines`` dispatch field at canonical_order position 14)."""
+    ``behavioral_guidelines`` dispatch field at canonical_order position 14).
+
+    v8.3.0 PV-09 grew this set 9 → 10 by appending ``agent-workspace.md``
+    (the change-driven workspace reference covering ``.local/.agent/``,
+    append-only handoff envelopes, source-of-truth specs, and per-artifact
+    token budgets — pairs with the change-driven workflow template v8.2.6
+    and the ``devolaflow.agent_workspace`` Python API v8.2.5+)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -107,7 +113,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 9, f"expected 9 reference files, got {len(actual)}"
+    assert len(actual) == 10, f"expected 10 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

@@ -9,18 +9,11 @@ import re
 from pathlib import Path
 
 # v8.3.0 PV-06 (v8.2.6) added the `change-driven` workflow template to the
-# registry + Python API surface. Its SKILL.md row, workflow-skill.yaml entry,
-# README.md table row, and EN/ZH workflow-types guide rows are DEFERRED to
-# v8.2.9 (see `.local/research/v8.3.0_patch_plan.md` §"v8.2.9 — SKILL.md +
-# References + Adapter Build + EvoBench Scenarios", which lists the
-# `change-driven` Workflow Selection row addition as part of that PV).
-#
-# Until v8.2.9 lands, names in this set are intentionally absent from
-# user-facing docs and must be excluded from the otherwise strict drift
-# checks below. v8.2.9 MUST empty this set in the same commit that adds the
-# missing rows; removing a name without shipping the doc update will cause
-# the relaxed checks to regress to the stricter equality.
-_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset({"change-driven"})
+# registry + Python API surface. v8.2.9 closure: change-driven row added to
+# README + SKILL + workflow-skill.yaml + EN/ZH workflow-types guides in this
+# PV; the deferral set is now empty. Kept as a typed sentinel so future
+# deferrals can re-populate it without changing call-site shapes.
+_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset()
 
 
 def _registry_template_names(project_root: Path) -> set[str]:

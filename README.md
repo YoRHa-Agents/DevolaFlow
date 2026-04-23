@@ -74,7 +74,7 @@ Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 1343 tests, 21 templates
+make test && make validate-templates   # 3092 tests, 22 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -169,7 +169,7 @@ The agent will compare your installed version against the latest on GitHub and t
 
 ## What's Inside
 
-### 21 Built-in Workflow Types
+### 22 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
@@ -193,6 +193,7 @@ The agent will compare your installed version against the latest on GitHub and t
 | `product-verification` | verify, visual, acceptance, uat, e2e, product | composite |
 | NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
 | `repo-init` | init repo, scaffold workspace, setup rules, 初始化仓库 | analyze → scaffold → compile → verify (mode: minimal \| standard \| deep) |
+| `change-driven` | OpenSpec-style in-flight change folder lifecycle | propose → apply → verify → archive (mode: lite \| full) |
 | `entropy-cleanup` | Periodic GC — stale docs, drift audit, retention rules | scan → propose → review → apply |
 
 ### 4-Layer Agent Hierarchy
@@ -219,17 +220,17 @@ ESCALATE: produce divergence report for human review
 
 ### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite (43 scenarios covering all 22 context profiles) that measures how effectively context is routed to agents:
+DevolaFlow includes a built-in benchmark suite (45 scenarios covering all 22 workflow types) that measures how effectively context is routed to agents:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 43 scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 45 scenarios
 python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
 python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
 python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 43 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 45 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Task Quality Score
 
@@ -326,8 +327,8 @@ DevolaFlow/
   workflow-system/
     agent/                    # Agent-consumed content (md + yaml only)
       SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
-      references/             #   Tier 2: 9 domain reference files (190-580 lines)
-      templates/builtin/      #   21 workflow template YAMLs
+      references/             #   Tier 2: 10 domain reference files (190-710 lines)
+      templates/builtin/      #   22 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs
       knowledge/              #   Tier 3: code-rules + principle mappings
       workflow-skill.yaml     #   canonical source for adapter pipeline
@@ -339,7 +340,7 @@ DevolaFlow/
     devolaflow_context/        # EvoBench context density benchmarks
       evaluator.py             #   scoring: relevance, density, noise, utilization
       runner.py                #   CLI runner with baseline comparison
-      scenarios/               #   39 benchmark scenarios (all 21 workflow types)
+      scenarios/               #   45 benchmark scenarios (all 22 workflow types)
       baselines/               #   stored baseline results for regression detection
   schemas/                    # All schema definitions (system + primitives)
     *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
@@ -348,7 +349,7 @@ DevolaFlow/
     primitives/               #   per-primitive I/O schemas (future)
   doc/designs/                # 15 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (1343 tests, 94.76% coverage)
+  tests/                      # pytest suite (3092+ tests, 94.76% coverage)
   .github/workflows/          # CI + Release + Pages
   .cursor/rules/              # always-on hard constraints (9 .mdc rule files)
 ```
@@ -376,7 +377,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |-----|-------------|
 | [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
 | [Architecture Overview](workflow-system/human/en/architecture-overview.md) | 4-layer hierarchy, primitives, gates, context isolation |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 21 workflow types with examples and selection guidance |
+| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 22 workflow types with examples and selection guidance |
 | [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
 | [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
 | [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
@@ -389,7 +390,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |------|------|
 | [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
 | [架构概述](workflow-system/human/zh/architecture-overview.md) | 4 层层级、原语、质量门、上下文隔离 |
-| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 21 种工作流类型，含示例和选择指南 |
+| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 22 种工作流类型，含示例和选择指南 |
 | [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
 | [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
 | [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |

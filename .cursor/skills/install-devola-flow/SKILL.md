@@ -142,8 +142,8 @@ installed. Do not report success until **all** applicable checks return
 
 ```bash
 test -f ~/.cursor/skills/devola-flow/SKILL.md      && echo "[PASS] Cursor SKILL.md"      || echo "[FAIL] Cursor SKILL.md"
-[ "$(ls ~/.cursor/skills/devola-flow/references 2>/dev/null | wc -l)" = "9" ] \
-                                                   && echo "[PASS] Cursor 9 references"  || echo "[FAIL] Cursor references"
+[ "$(ls ~/.cursor/skills/devola-flow/references 2>/dev/null | wc -l)" = "10" ] \
+                                                   && echo "[PASS] Cursor 10 references" || echo "[FAIL] Cursor references"
 [ "$(ls ~/.cursor/skills/devola-flow/examples   2>/dev/null | wc -l)" = "3" ] \
                                                    && echo "[PASS] Cursor 3 examples"    || echo "[FAIL] Cursor examples"
 test -f ~/.cursor/rules/devola-flow-rules.mdc      && echo "[PASS] Cursor rules"         || echo "[FAIL] Cursor rules"
@@ -158,8 +158,8 @@ LOCAL=$(head -1 ~/.cursor/skills/devola-flow/.devola-flow-version)
 
 ```bash
 test -f ~/.claude/skills/devola-flow/SKILL.md     && echo "[PASS] Claude SKILL.md"     || echo "[FAIL] Claude SKILL.md"
-[ "$(ls ~/.claude/skills/devola-flow/references 2>/dev/null | wc -l)" = "9" ] \
-                                                  && echo "[PASS] Claude 9 references" || echo "[FAIL] Claude references"
+[ "$(ls ~/.claude/skills/devola-flow/references 2>/dev/null | wc -l)" = "10" ] \
+                                                  && echo "[PASS] Claude 10 references" || echo "[FAIL] Claude references"
 [ "$(ls ~/.claude/skills/devola-flow/examples   2>/dev/null | wc -l)" = "3" ] \
                                                   && echo "[PASS] Claude 3 examples"   || echo "[FAIL] Claude examples"
 UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py \

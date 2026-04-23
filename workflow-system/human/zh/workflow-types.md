@@ -1,16 +1,16 @@
 ---
 title: "工作流类型目录"
-description: "17 种内置工作流类型及选择指南。"
+description: "22 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-22T12:39:52Z"
+last_synced: "2026-04-23T07:12:10Z"
 source_version: "8.2.0"
 ---
 
 # 工作流类型目录
 
-17 种内置工作流类型及选择指南。
+22 种内置工作流类型及选择指南。
 
 ## 工作流选择
 
@@ -22,7 +22,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 17 种内置工作流类型
+## 全部 22 种内置工作流类型
 
 ### 发现类工作流
 
@@ -123,6 +123,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：check-refs → research-updates → decompose → integrate → test → evaluate
 **示例**：`"update refs"`、`"self-update"`、`"check references"`
 
+#### `change-driven`
+**适用场景**：以结构化 `.local/.agent/active/<id>/` 工件（goal、acceptance、spec、tasks、STATUS、owned_files）管理在制品变更；成功后归档并自动生成 REPORT.md，向 source-of-truth 规范提议增量合并。
+**阶段**：propose → apply → verify → archive（mode: lite \| full）
+**示例**：`"propose change to add dark mode"`、`"apply v8.3.0-pv09"`、`"archive add-auth-bug"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -144,3 +149,4 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `onboarding` | 新加入项目, 入门 | 4 | — |
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
 | `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
+| `change-driven` | 变更, 提议, 应用, 归档, 生命周期, OpenSpec | 4 | convergence |

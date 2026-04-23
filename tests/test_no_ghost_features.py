@@ -20,18 +20,11 @@ import pytest
 import yaml
 
 # v8.3.0 PV-06 (v8.2.6) added the `change-driven` workflow template to the
-# registry + Python API surface. Its SKILL.md Workflow-Selection row,
-# Quick-Reference row, workflow-skill.yaml entry, and README.md / bilingual
-# guide rows are DEFERRED to v8.2.9 (see `.local/research/v8.3.0_patch_plan.md`
-# §"v8.2.9 — SKILL.md + References + Adapter Build + EvoBench Scenarios", which
-# explicitly schedules the `change-driven` Workflow Selection row addition).
-#
-# Until v8.2.9 lands, names in this set are intentionally absent from
-# user-facing surfaces and must be excluded from the otherwise strict
-# anti-ghost checks below. v8.2.9 MUST empty this set in the same commit
-# that adds the missing rows; removing a name without shipping the doc
-# update will cause the relaxed checks to regress to the stricter equality.
-_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset({"change-driven"})
+# registry + Python API surface. v8.2.9 closure: change-driven row added to
+# README + SKILL + workflow-skill.yaml + EN/ZH workflow-types guides in this
+# PV; the deferral set is now empty. Kept as a typed sentinel so future
+# deferrals can re-populate it without changing call-site shapes.
+_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset()
 
 
 @pytest.fixture(scope="module")
@@ -322,6 +315,14 @@ _SF4_REFERENCE_SET = frozenset(
         # wired through the new top-level ``behavioral_guidelines`` dispatch
         # field at canonical_order position 14 (schema version 3).
         "behavioral-guidelines.md",
+        # v8.3.0 PV-09 — agent workspace reference (Change folders, handoff
+        # envelopes, archive, source-of-truth specs). Documents the
+        # .local/.agent/ tree, append-only handoff envelopes (Rule S-9),
+        # file-ownership constraints (Rule S-8), per-artifact token budgets
+        # (Rule C-9), and the source-of-truth ADR (Rule A-4). Pairs with
+        # the change-driven workflow template (v8.2.6) and the
+        # devolaflow.agent_workspace Python API (v8.2.5+).
+        "agent-workspace.md",
     }
 )
 

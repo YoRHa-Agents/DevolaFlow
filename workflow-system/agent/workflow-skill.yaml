@@ -279,7 +279,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 21 builtin templates covering all workflow types.
+  # Registry + 22 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
@@ -390,6 +390,11 @@ content:
         file: "templates/builtin/entropy-cleanup.yaml"
         stages: ["scan", "propose", "review", "apply"]
         description: "Periodic entropy / GC pass — scan for stale docs and drift, propose retention actions, apply after review"
+
+      - id: "change-driven"
+        file: "templates/builtin/change-driven.yaml"
+        stages: ["propose", "apply", "verify", "archive"]
+        description: "OpenSpec-style in-flight change folder lifecycle — scaffold .local/.agent/active/<id>/ with goal+acceptance+spec+tasks+STATUS+owned_files, loop apply/verify until tasks ticked, archive with auto-generated REPORT.md and propose delta merge to source-of-truth (NOT auto-apply); mode: lite | full"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.

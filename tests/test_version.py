@@ -150,7 +150,7 @@ def test_cli_version_cmd():
 # The project-local skill mirror under .cursor/skills/devola-flow/ is now
 # gitignored (opt-in via `make sync-cursor-skill --init` or the project-local
 # installer). When present, it must stay bytewise identical to the canonical
-# skill under workflow-system/agent/ (SKILL + 9 refs + 3 examples, matching
+# skill under workflow-system/agent/ (SKILL + 10 refs + 3 examples, matching
 # what scripts/install.sh::install_cursor downloads for end users) and its
 # stamp .cursor/skills/devola-flow/.devola-flow-version must first-line equal
 # src/devolaflow/__init__.py __version__. When absent (fresh clones, CI), the
@@ -159,10 +159,14 @@ def test_cli_version_cmd():
 # v8.0.0 P-08 grew this set 12 -> 13 by appending references/behavioral-guidelines.md
 # (the L3 behavioral primitives reference wired through the new top-level
 # behavioral_guidelines dispatch field at canonical_order position 14, schema v3).
+# v8.3.0 PV-09 grew this set 13 -> 14 by appending references/agent-workspace.md
+# (the change-driven workspace reference covering .local/.agent/, append-only
+# handoff envelopes, source-of-truth specs, and per-artifact token budgets).
 
 _MIRRORED_SKILL_FILES = [
     "SKILL.md",
     "references/agent-hierarchy.md",
+    "references/agent-workspace.md",
     "references/meta-framework.md",
     "references/decomposition-gate.md",
     "references/repo-modes.md",

@@ -130,9 +130,10 @@ install_cursor() {
 
   dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -154,7 +155,7 @@ install_cursor() {
   dl "$BASE/.cursor/rules/workflow-rules.mdc" "$rdir/devola-flow-rules.mdc" || true
 
   stamp "$dir"
-  ok "Cursor installed (SKILL.md + 9 refs + 3 examples + rules)"
+  ok "Cursor installed (SKILL.md + 10 refs + 3 examples + rules)"
 }
 
 install_codex() {
@@ -163,9 +164,10 @@ install_codex() {
   mkdir -p "$dir/references"
   dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -176,7 +178,7 @@ install_codex() {
     "references/behavioral-guidelines.md"
 
   stamp "$dir"
-  ok "Codex installed (SKILL.md + 9 refs)"
+  ok "Codex installed (SKILL.md + 10 refs)"
 }
 
 install_claude() {
@@ -193,9 +195,10 @@ install_claude() {
 
   dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -212,7 +215,7 @@ install_claude() {
     "examples/convergence-loop-trace.md"
 
   stamp "$dir"
-  ok "Claude installed (SKILL.md + 9 refs + 3 examples)"
+  ok "Claude installed (SKILL.md + 10 refs + 3 examples)"
 }
 
 install_copilot() {
@@ -236,9 +239,10 @@ install_kimicode() {
 
   dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -255,7 +259,7 @@ install_kimicode() {
     "examples/convergence-loop-trace.md"
 
   stamp "$dir"
-  ok "KimiCode installed (SKILL.md + 9 refs + 3 examples)"
+  ok "KimiCode installed (SKILL.md + 10 refs + 3 examples)"
 }
 
 install_windsurf() {
@@ -303,9 +307,10 @@ install_zed() {
     return 1
   fi
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -316,7 +321,7 @@ install_zed() {
     "references/behavioral-guidelines.md"
 
   stamp "$dir"
-  ok "Zed installed (devola-flow.md + 9 refs)"
+  ok "Zed installed (devola-flow.md + 10 refs)"
 }
 
 install_cline() {
@@ -338,9 +343,10 @@ install_cline() {
     return 1
   fi
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -351,7 +357,7 @@ install_cline() {
     "references/behavioral-guidelines.md"
 
   stamp "$dir"
-  ok "Cline installed (devola-flow.md + 9 refs)"
+  ok "Cline installed (devola-flow.md + 10 refs)"
 }
 
 install_roo() {
@@ -373,9 +379,10 @@ install_roo() {
     return 1
   fi
 
-  info "references (9 files):"
+  info "references (10 files):"
   dl_batch "$dir" \
     "references/agent-hierarchy.md" \
+    "references/agent-workspace.md" \
     "references/meta-framework.md" \
     "references/decomposition-gate.md" \
     "references/repo-modes.md" \
@@ -386,7 +393,7 @@ install_roo() {
     "references/behavioral-guidelines.md"
 
   stamp "$dir"
-  ok "Roo Code installed (devola-flow.md + 9 refs)"
+  ok "Roo Code installed (devola-flow.md + 10 refs)"
 }
 
 install_local() {

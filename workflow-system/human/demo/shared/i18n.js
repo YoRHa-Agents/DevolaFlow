@@ -54,7 +54,7 @@
       'landing.layer.task.desc':   'the hands that build — writes code, runs tests, reviews. The ONLY layer that works.',
 
       /* -- Landing: Workflow Types -- */
-      'landing.workflows':         '17 Built-in Workflow Types',
+      'landing.workflows':         '22 Built-in Workflow Types',
       'landing.workflows.desc':    'Every task deserves the right approach. Each workflow is a different arrangement of the same 13 stage primitives.',
       'landing.workflow.col.name': 'Workflow',
       'landing.workflow.col.when': 'When to use',
@@ -115,7 +115,7 @@
       'card.designArch':        'Design Architecture',
       'card.designArch.desc':   'The complete framework map: every skill file, its design document source, tier, token budget, and the workflows it enables.',
       'card.visualizer':        'Workflow Visualizer',
-      'card.visualizer.desc':   'Select any of the 17 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.',
+      'card.visualizer.desc':   'Select any of the 22 workflow types and see its stage pipeline, teams, gate types, and loop structure rendered as a diagram.',
       'card.explorer':          'Stage Explorer',
       'card.explorer.desc':     'Deep-dive into any of the 13 stage primitives. See input/output types, delegation chains, and context budget allocation.',
       'card.userGuide':         'User Guide',
@@ -379,7 +379,7 @@
       'landing.layer.task.desc':   '建造之手——写代码、跑测试、做审查。唯一执行工作的层。',
 
       /* -- 首页：工作流类型 -- */
-      'landing.workflows':         '17 种内置工作流类型',
+      'landing.workflows':         '22 种内置工作流类型',
       'landing.workflows.desc':    '每项任务都值得最合适的方案。每种工作流是 13 个阶段原语的不同编排。',
       'landing.workflow.col.name': '工作流',
       'landing.workflow.col.when': '使用场景',
@@ -440,7 +440,7 @@
       'card.designArch':        '设计架构',
       'card.designArch.desc':   '完整的框架地图：每个技能文件、其设计文档来源、层级、Token 预算及其启用的工作流。',
       'card.visualizer':        '工作流可视化',
-      'card.visualizer.desc':   '选择 17 种工作流类型中的任何一种，查看其阶段流水线、团队、门控类型和循环结构图。',
+      'card.visualizer.desc':   '选择 22 种工作流类型中的任何一种，查看其阶段流水线、团队、门控类型和循环结构图。',
       'card.explorer':          '阶段探索器',
       'card.explorer.desc':     '深入了解 13 个阶段原语中的任何一个。查看输入/输出类型、委派链和上下文预算分配。',
       'card.userGuide':         '使用指南',
