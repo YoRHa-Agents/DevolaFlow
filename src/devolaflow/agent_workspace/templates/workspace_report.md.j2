@@ -1,0 +1,26 @@
+# Agent Workspace Status
+> Last updated: {{ last_updated }} | Active changes: {{ active_count }} | Archived (last {{ archive_window_days }} days): {{ archive_count }}
+
+## Active changes
+
+{% if active_changes -%}
+| ID | State | % | Owner | Last touch |
+|----|-------|---|-------|-----------|
+{% for c in active_changes -%}
+| {{ c.id }} | {{ c.state }} | {{ c.percent }}% | {{ c.owner }} | {{ c.last_touch }} |
+{% endfor -%}
+{% else -%}
+_No active changes._
+{% endif %}
+
+## Recently archived (last {{ archive_window_days }} days)
+
+{% if archived_changes -%}
+| ID | Archived | Duration | Gate score |
+|----|----------|----------|------------|
+{% for a in archived_changes -%}
+| {{ a.id }} | {{ a.archived_date }} | {{ a.duration }} | {{ a.gate_score }} |
+{% endfor -%}
+{% else -%}
+_No recent archives._
+{% endif %}

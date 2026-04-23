@@ -1,0 +1,36 @@
+# Memory & Knowledge State
+> Last updated: {{ last_updated }} | Total learnings: {{ total }} | Pinned: {{ pinned }}
+
+## By task type
+
+{% if by_task_type -%}
+| Task type | Count | Avg confidence | Pinned |
+|-----------|-------|----------------|--------|
+{% for row in by_task_type -%}
+| {{ row.task_type }} | {{ row.count }} | {{ "%.2f"|format(row.avg_confidence) }} | {{ row.pinned }} |
+{% endfor -%}
+{% else -%}
+_No learnings recorded._
+{% endif %}
+
+## Top 10 high-confidence learnings (last {{ window_days }} days)
+
+{% if top_learnings -%}
+{% for l in top_learnings -%}
+{{ loop.index }}. {{ l.insight }} — confidence {{ "%.2f"|format(l.confidence) }} (promoted {{ l.promotion_count }}×)
+{% endfor -%}
+{% else -%}
+_No high-confidence learnings._
+{% endif %}
+
+## Recent external source reviews
+
+{% if external_reviews -%}
+| Source ID | Date | Findings | Δ relevance |
+|-----------|------|----------|-------------|
+{% for r in external_reviews -%}
+| {{ r.source_id }} | {{ r.review_date }} | {{ r.findings_summary }} | {{ "%+g"|format(r.relevance_delta) }} |
+{% endfor -%}
+{% else -%}
+_No external source reviews recorded._
+{% endif %}

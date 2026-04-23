@@ -2,7 +2,7 @@
 # Design ref: design_dual_system.md §4.5
 
 .PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
-       build-site release-preflight release-dry-run scaffold-agent
+       build-site release-preflight release-dry-run scaffold-agent agent-reports
 
 all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill check-drift
 
@@ -52,6 +52,13 @@ check-cursor-skill:
 # substrate per .local/research/v8.3.0_design.md §1.1.
 scaffold-agent:
 	python -c "from devolaflow.local.workspace import scaffold_local; scaffold_local('.')"
+
+# v8.2.7 — opt-in REPORT.md surface (closes H-005). Regenerates the four
+# canonical reports (.local/.agent/REPORT.md, .local/memory/REPORT.md,
+# .rules/REPORT.md, plus per-archive REPORT.md files). Idempotent: with a
+# pinned clock, two consecutive invocations produce byte-identical files.
+agent-reports:
+	python -m devolaflow.agent_workspace.reporter --all
 
 check-drift:
 	check-drift
