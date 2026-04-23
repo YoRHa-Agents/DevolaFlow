@@ -148,3 +148,10 @@ templates:
     version: "1.0.0"
     category: control
     tags: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
+
+  - name: change-driven
+    path: builtin/change-driven.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [change, propose, apply, archive, lifecycle, agent-workspace, opsx]

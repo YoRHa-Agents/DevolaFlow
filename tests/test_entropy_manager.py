@@ -557,11 +557,11 @@ class TestEntropyCleanupTemplate:
         stage_ids = {s.id for s in tpl.stages}
         assert stage_ids == {"scan", "propose", "review", "apply"}
 
-    def test_template_count_is_21(self) -> None:
+    def test_template_count_is_22(self) -> None:
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
-        assert len(reg.discover()) == 21
+        assert len(reg.discover()) == 22
 
 
 # ── Regression: learnings refactor preserves public API ─────────────────

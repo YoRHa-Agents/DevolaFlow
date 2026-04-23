@@ -8,9 +8,40 @@ import json
 import re
 from pathlib import Path
 
+# v8.3.0 PV-06 (v8.2.6) added the `change-driven` workflow template to the
+# registry + Python API surface. Its SKILL.md row, workflow-skill.yaml entry,
+# README.md table row, and EN/ZH workflow-types guide rows are DEFERRED to
+# v8.2.9 (see `.local/research/v8.3.0_patch_plan.md` §"v8.2.9 — SKILL.md +
+# References + Adapter Build + EvoBench Scenarios", which lists the
+# `change-driven` Workflow Selection row addition as part of that PV).
+#
+# Until v8.2.9 lands, names in this set are intentionally absent from
+# user-facing docs and must be excluded from the otherwise strict drift
+# checks below. v8.2.9 MUST empty this set in the same commit that adds the
+# missing rows; removing a name without shipping the doc update will cause
+# the relaxed checks to regress to the stricter equality.
+_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset({"change-driven"})
+
+
+def _registry_template_names(project_root: Path) -> set[str]:
+    """Return template names from registry.yaml — used to size the deferred-set
+    drift allowance precisely (so a stray template doesn't sneak in)."""
+    import yaml
+
+    raw = yaml.safe_load(
+        (project_root / "workflow-system/agent/templates/registry.yaml").read_text()
+    )
+    return {entry["name"] for entry in raw.get("templates", [])}
+
 
 def test_readme_workflow_type_count(project_root: Path):
-    """README workflow types table rows must match template YAML file count."""
+    """README workflow types table rows must match template YAML file count.
+
+    Templates in ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` are excluded from this
+    check because their README rows are intentionally deferred to v8.2.9
+    (see module-level docstring); the table is permitted to lag the disk
+    count by exactly the size of the deferred set.
+    """
     readme = (project_root / "README.md").read_text()
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
@@ -26,14 +57,22 @@ def test_readme_workflow_type_count(project_root: Path):
 
     yaml_count = len(list(templates_dir.glob("*.yaml")))
 
-    # v7.4.2: 19 → 20 with repo-init added; v8.0.0 P-11: 20 → 21 with entropy-cleanup added
-    assert table_rows == yaml_count == 21, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates, expected 21"
+    # v7.4.2: 19 → 20 with repo-init added; v8.0.0 P-11: 20 → 21 with
+    # entropy-cleanup added; v8.2.6: 21 → 22 with change-driven added
+    # (README/SKILL rows deferred to v8.2.9 — see _DEFERRED_DOC_TEMPLATES_V8_2_9).
+    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
+    expected_table_rows = yaml_count - len(deferred_present)
+    assert table_rows == expected_table_rows, (
+        f"README table has {table_rows} rows, disk has {yaml_count} templates, "
+        f"expected {expected_table_rows} (= disk - {len(deferred_present)} deferred to v8.2.9: "
+        f"{sorted(deferred_present)})"
     )
 
 
 def test_readme_template_count_in_dev_setup(project_root: Path):
-    """Dev setup section template count must match actual template count."""
+    """Dev setup section template count must match actual template count
+    (modulo templates whose README integration is deferred to v8.2.9 —
+    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
     readme = (project_root / "README.md").read_text()
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
@@ -48,7 +87,12 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
     claimed = int(match.group(1))
     actual = len(list(templates_dir.glob("*.yaml")))
 
-    assert claimed == actual, f"README dev setup claims {claimed} templates, disk has {actual}"
+    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
+    expected_claim = actual - len(deferred_present)
+    assert claimed == expected_claim, (
+        f"README dev setup claims {claimed} templates, disk has {actual}, "
+        f"expected claim {expected_claim} (= disk - {len(deferred_present)} deferred to v8.2.9)"
+    )
 
 
 def test_readme_design_docs_count(project_root: Path):
@@ -115,15 +159,21 @@ def test_demo_benchmark_sample_data_scenarios(project_root: Path):
 
 
 def test_workflow_skill_yaml_template_count(project_root: Path):
-    """workflow-skill.yaml builtin template count must match disk."""
+    """workflow-skill.yaml builtin template count must match disk
+    (modulo templates whose workflow-skill.yaml entry is deferred to v8.2.9 —
+    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
     skill_yaml = (project_root / "workflow-system" / "agent" / "workflow-skill.yaml").read_text()
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
     yaml_entries = len(re.findall(r'file:\s*"templates/builtin/', skill_yaml))
     disk_count = len(list(templates_dir.glob("*.yaml")))
 
-    assert yaml_entries == disk_count, (
-        f"workflow-skill.yaml has {yaml_entries} builtin entries, disk has {disk_count}"
+    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
+    expected_entries = disk_count - len(deferred_present)
+    assert yaml_entries == expected_entries, (
+        f"workflow-skill.yaml has {yaml_entries} builtin entries, disk has "
+        f"{disk_count}, expected {expected_entries} (= disk - {len(deferred_present)} "
+        f"deferred to v8.2.9)"
     )
 
 
