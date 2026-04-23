@@ -1,0 +1,157 @@
+# -----------------------------------------------------------------------------
+# Schema: source-of-truth-spec
+# Target: .local/memory/specs/<domain>/spec.md
+# Design ref: .local/research/v8.3.0_design.md §1.1, §3.4 (Rule A-4)
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 2000 / hard 4000
+# -----------------------------------------------------------------------------
+# Per Rule A-4 (M-004 ADR), `.local/memory/specs/<domain>/spec.md` is the
+# AUTHORITATIVE source-of-truth for current system behavior in `<domain>`.
+# Per-change `change-spec.yaml` instances at `.local/.agent/active/<id>/spec.md`
+# carry DELTAS (ADDED / MODIFIED / REMOVED Requirements) relative to the
+# corresponding source-of-truth file.
+#
+# Source-of-truth files are MUTATED ONLY at archive time, AFTER the gate has
+# PASSED (W-3 / SI-3 composite ≥ 8.5 minor / ≥ 9.0 major). The mutation runs
+# the explicit `mergeability_check` reporter (ships v8.2.5) before applying
+# the delta merge.
+#
+# Format: Markdown with YAML frontmatter. Pure spec format (no delta sections);
+# the delta sections live in per-change spec.md files (see schemas/agent-workspace/change-spec.yaml).
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §3.4
+schema_name: source-of-truth-spec
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [A-4, W-3]
+
+instance_path_template: ".local/memory/specs/<domain>/spec.md"
+archive_path_template: null   # source-of-truth is per-domain, not per-change — never archived
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 2000
+  hard: 4000
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint --source-of-truth <domain>  # ships v8.2.5"
+    - line_count:  "wc -w <file>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required: [domain, schema_version, last_merged_change, last_merged_at]
+  fields:
+    domain:
+      type: string
+      description: "Domain name. MUST equal the parent directory name (e.g. `agent_workspace`, `plugins`, `gate`)."
+      pattern: "^[a-z0-9][a-z0-9_-]*$"
+    schema_version:
+      type: int
+      enum: [1]
+      description: "Schema version pin — bump on incompatible spec format changes."
+    last_merged_change:
+      type: string
+      nullable: true
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Change-id of the most recently merged delta (for audit traceability). Null for newly created specs."
+    last_merged_at:
+      type: string
+      nullable: true
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      description: "ISO-8601 UTC timestamp of the most recent successful delta merge. Null for newly created specs."
+
+# Markdown body contract — REQUIRED `# Spec: <Domain>` H1, then 1+ Requirement
+# sections. NO delta sections (those live in per-change spec.md files).
+body:
+  required_sections:
+    - heading: "# Spec: <Domain> — Source-of-Truth"
+      pattern: "^# Spec: .+ — Source-of-Truth\\s*$"
+      description: "H1 — verbatim 'Spec: ' prefix, the domain title (capitalised), then verbatim ' — Source-of-Truth' suffix."
+
+  requirement_sections:
+    description: "1+ requirement headings — H2 with verbatim 'Requirement: ' prefix and a stable heading. Stable heading text is the IDENTITY for delta merge — modifying a heading is itself a MODIFIED-or-REMOVED operation."
+    pattern: "^## Requirement: .+$"
+    requirement_pattern: "^## Requirement: .+$"
+    min_requirements: 0
+    rfc_2119_recommended: true
+    body_template: |
+      ## Requirement: <Stable heading>
+      The system MUST <RFC 2119 verb> <observable behavior>.
+
+      ### Scenario: <when this applies>
+      - GIVEN <precondition>
+      - WHEN <trigger>
+      - THEN <observable outcome>
+
+  scenario_format:
+    description: "Each Requirement MAY include one or more `### Scenario:` blocks. Bullet body uses GIVEN/WHEN/THEN markers."
+    pattern: "^### Scenario: .+$"
+    bullet_markers: [GIVEN, WHEN, THEN]
+    bullet_pattern: "^- (GIVEN|WHEN|THEN) .+$"
+
+# Mutation contract — per A-4, source-of-truth files are NEVER mutated outside
+# the archive-gate flow. The contract below documents the only legal mutation
+# path; ChangeArchive.propose_merge() (v8.2.5) is the sole writer.
+mutation_contract:
+  legal_writers: [ChangeArchive.propose_merge]
+  preconditions:
+    - "Active change for which the delta merge is proposed has state=VERIFYING (or just-transitioned to ARCHIVED)."
+    - "Verify-stage AC pass-rate == 1.0."
+    - "Gate composite score ≥ threshold (8.5 minor / 9.0 major)."
+    - "mergeability_check reporter (v8.2.5) PASS."
+  delta_application_rules:
+    ADDED:
+      - "Each ADDED Requirement is appended at end-of-file in canonical_order (alphabetical by stable heading)."
+      - "Stable heading uniqueness enforced — duplicate ADDED Requirement raises MergeConflict."
+    MODIFIED:
+      - "Each MODIFIED Requirement REPLACES the existing requirement body verbatim."
+      - "Stable heading match required — MODIFIED Requirement with no matching heading raises MergeConflict."
+    REMOVED:
+      - "Each REMOVED Requirement DELETES the matching requirement section verbatim."
+      - "Stable heading match required — REMOVED Requirement with no matching heading raises MergeConflict."
+  post_merge:
+    - "Frontmatter `last_merged_change` updated to the merging change-id."
+    - "Frontmatter `last_merged_at` updated to current UTC ISO-8601."
+    - "File saved atomically (temp file + rename) to avoid partial writes."
+
+# Lifecycle invariants
+invariants:
+  - "MUST NOT be mutated outside the archive-gate flow (mutation_contract.legal_writers)."
+  - "MUST NOT contain delta sections (## ADDED / ## MODIFIED / ## REMOVED Requirements) — those live in per-change spec.md files only."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+  - "External references MUST use canonical GitHub URLs (S-7 / SF-6)."
+  - "Stable heading text under `## Requirement:` is the IDENTITY for delta matching — renaming a heading is itself a MODIFIED-or-REMOVED operation in the next change."
+  - "MAY be empty (no Requirement sections) when the domain is newly created — agents author the first requirements via the next change's ADDED section."
+
+example: |
+  ---
+  domain: agent_workspace
+  schema_version: 1
+  last_merged_change: v8.3.0-pv04-agent-workspace-schemas
+  last_merged_at: "2026-04-22T16:30:00Z"
+  ---
+
+  # Spec: Agent Workspace — Source-of-Truth
+
+  ## Requirement: Per-artifact token budgets are declared in schema
+  The system MUST declare soft and hard token budgets in every per-artifact
+  schema (change-goal, change-acceptance, change-spec, change-tasks,
+  change-status, owned-files, handoff-envelope) per Rule C-9.
+
+  ### Scenario: Loading a schema for budget enforcement
+  - GIVEN an active change at `.local/.agent/active/<id>/`
+  - WHEN `python -m devolaflow.agent_workspace.lint <id>` runs
+  - THEN each artifact's actual token count is compared against the schema's
+    `token_budget.soft` (warn) and `token_budget.hard` (fail) values.
+
+  ## Requirement: Handoff envelopes carry a monotonic seq counter
+  The system MUST embed a `seq: <int>` field starting at 1 in every handoff
+  envelope. Once an envelope file exists at sequence N, the next message MUST
+  be authored at sequence N+1 — never overwrite (S-9).
+
+  ### Scenario: Author appends a new envelope
+  - GIVEN a handoff folder `.local/.agent/handoff/` with `L0__L2__<id>__0001.yaml` already present
+  - WHEN agent L2 needs to send a follow-up message
+  - THEN agent L2 MUST author `L2__L0__<id>__0002.yaml` (new seq) and MUST NOT modify the seq=0001 envelope.

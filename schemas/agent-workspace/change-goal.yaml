@@ -1,0 +1,114 @@
+# -----------------------------------------------------------------------------
+# Schema: change-goal
+# Target: .local/.agent/active/<change-id>/goal.md
+# Design ref: .local/research/v8.3.0_design.md §2.1
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 200 / hard 400 (per Rule C-9)
+# -----------------------------------------------------------------------------
+# A `goal.md` is a single-paragraph intent statement that opens an in-flight
+# change. It is the FIRST artifact authored when /devola:propose runs (lifecycle
+# FSM: PROPOSED state). The file is written ONCE at propose time and is frozen
+# at archive time (copied verbatim into `.local/.agent/archive/<date>-<id>/`).
+#
+# Format: Markdown with YAML frontmatter (delimited by `---` lines).
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2.1
+schema_name: change-goal
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/goal.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/goal.md"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 200
+  hard: 400
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint <change-id>  # ships v8.2.5"
+    - line_count:  "wc -w <file>  # rough proxy: 1 token ≈ 0.75 words"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+# YAML frontmatter contract — REQUIRED keys MUST appear between the opening
+# `---` and closing `---` markers at the very top of the file.
+frontmatter:
+  required: [id, created, priority, intent_class]
+  fields:
+    id:
+      type: string
+      description: "Change-id — lowercase-kebab-case (e.g. add-dark-mode, v8.3.0-pv04-agent-workspace-schemas)."
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+    created:
+      type: string
+      description: "ISO-8601 UTC timestamp at propose time, e.g. 2026-04-22T10:14:33Z."
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    priority:
+      type: string
+      enum: [P1, P2, P3, P4]
+      description: "Triage priority — P1 = blocker, P2 = critical, P3 = major, P4 = minor."
+    intent_class:
+      type: string
+      enum: [feature, bugfix, refactor, migration, spike, docs, ops]
+      description: "What kind of change this is — orthogonal to priority."
+
+# Markdown body contract — REQUIRED sections MUST appear in this exact order
+# below the closing frontmatter delimiter.
+body:
+  required_sections:
+    - heading: "# Goal: <one-line title>"
+      pattern: "^# Goal: .+$"
+      max_chars: 120
+      description: "H1 with verbatim 'Goal: ' prefix and a one-line summary (≤ 120 chars)."
+    - heading: "## Why"
+      pattern: "^## Why\\s*$"
+      max_chars: 400
+      description: "1–2 sentences naming the problem being solved (≤ 400 chars body)."
+    - heading: "## In scope"
+      pattern: "^## In scope\\s*$"
+      bullet_list: true
+      min_bullets: 1
+      max_bullets: 8
+      description: "Bulleted list of items explicitly inside scope (1–8 bullets)."
+    - heading: "## Out of scope"
+      pattern: "^## Out of scope\\s*$"
+      bullet_list: true
+      min_bullets: 0
+      max_bullets: 8
+      description: "Bulleted list of items explicitly OUT of scope (0–8 bullets; absence allowed but encouraged)."
+  prose_forbidden_outside_required_sections: true
+
+# Lifecycle invariants — what `goal.md` may NOT do.
+invariants:
+  - "MUST be written exactly once at propose time."
+  - "MUST NOT be modified after the change transitions to IN_PROGRESS (see change-status.state)."
+  - "MUST be copied byte-identical when archived (see lifecycle FSM in design.md §1.3)."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+  - "MUST reference external resources by URL, not local clone path (S-7 / SF-6)."
+
+# Worked example — illustrative only; not used by validators.
+example: |
+  ---
+  id: add-dark-mode
+  created: "2026-04-22T10:14:33Z"
+  priority: P2
+  intent_class: feature
+  ---
+
+  # Goal: Add user-toggleable dark mode to the demo dashboard
+
+  ## Why
+  Users on long-running benchmark sessions report eye strain on the
+  default light theme. A persistent dark-mode toggle is a 2-week ask.
+
+  ## In scope
+  - CSS custom properties for light/dark palettes
+  - localStorage-backed toggle in shared/nav.js
+  - Bilingual UI label (EN/ZH) per ST-3
+
+  ## Out of scope
+  - System-preference auto-detection (defer to v8.4.0)
+  - Per-page theme overrides

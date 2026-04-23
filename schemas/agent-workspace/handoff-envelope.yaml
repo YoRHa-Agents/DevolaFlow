@@ -1,0 +1,296 @@
+# -----------------------------------------------------------------------------
+# Schema: handoff-envelope
+# Target: .local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml
+# Design ref: .local/research/v8.3.0_design.md §2.7
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 600 / hard 1200 (per Rule C-9)
+# -----------------------------------------------------------------------------
+# A handoff envelope is the ONLY supported channel for inter-agent messaging
+# inside DevolaFlow's 4-layer hierarchy. Envelopes are append-only (Rule S-9):
+# once a file with sequence N exists, the next message MUST be authored at
+# sequence N+1 — never overwrite. The discriminator field `envelope_kind`
+# selects one of three variants:
+#
+#   - TaskDispatch     — parent → child work assignment (L0→L2, L2→L3, ...)
+#   - StatusReport     — child → parent completion / progress update
+#   - EscalationEvent  — child → parent (or upward) when local recovery fails
+#
+# Format: pure YAML.
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2.7
+schema_name: handoff-envelope
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [S-9, P3, P4, P5, C-9]
+
+instance_path_template: ".local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/handoff_chain.yaml"
+format: yaml
+
+token_budget:
+  soft: 600
+  hard: 1200
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint <change-id>  # ships v8.2.5"
+    - line_count:  "wc -w <file>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+# Filename contract — derived from envelope content; verified by HandoffStore
+# at write time (ships v8.2.5).
+filename_contract:
+  pattern: "^[A-Z0-9]+__[A-Z0-9]+__[a-z0-9][a-z0-9.-]*[a-z0-9]__\\d{4}\\.yaml$"
+  parts:
+    from_layer:
+      position: 0
+      separator: "__"
+      values: [L0, L1, L2, L3]
+    to_layer:
+      position: 1
+      values: [L0, L1, L2, L3]
+    change_id:
+      position: 2
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+    seq:
+      position: 3
+      type: int
+      zero_padded_width: 4
+      minimum: 1
+      monotonic: true
+      description: "MUST be exactly 4 digits, zero-padded (0001, 0002, …, 9999). Sort-correct directory listing depends on this."
+
+# Required envelope-level fields — present in EVERY variant.
+instance_top_level_required:
+  - schema_version
+  - seq
+  - from_layer
+  - to_layer
+  - change_id
+  - created
+  - envelope_kind
+
+# Variant-specific blocks are optional at the schema level; the discriminated
+# union (see `discriminated_union` block below) enforces "exactly one of
+# dispatch / report / escalation MUST be present, matching envelope_kind".
+instance_top_level_optional:
+  - dispatch
+  - report
+  - escalation
+
+fields:
+  schema_version:
+    type: int
+    enum: [1]
+    description: "Schema version pin — bump on incompatible changes only."
+
+  seq:
+    type: int
+    minimum: 1
+    monotonic: true
+    description: "Monotonic counter starting at 1. MUST equal the seq embedded in the filename."
+
+  from_layer:
+    type: string
+    enum: [L0, L1, L2, L3]
+    description: "Originating agent layer."
+
+  to_layer:
+    type: string
+    enum: [L0, L1, L2, L3]
+    description: "Destination agent layer. MUST differ from from_layer (no self-handoff)."
+
+  change_id:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+    description: "Change-id this envelope belongs to."
+
+  created:
+    type: string
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    description: "ISO-8601 UTC timestamp at envelope-write time."
+
+  envelope_kind:
+    type: string
+    enum: [TaskDispatch, StatusReport, EscalationEvent]
+    description: "Discriminator — selects which of dispatch / report / escalation blocks is present."
+
+# Discriminated union — declares the three variants. Validators MUST enforce
+# "exactly one of (dispatch | report | escalation) is present, AND the
+# selected block matches the envelope_kind discriminator value".
+discriminated_union:
+  discriminator: envelope_kind
+  semantics: "Exactly one of the three variant blocks below MUST be present in the envelope, and the block name MUST correspond to the envelope_kind value via the mapping below."
+  variant_block_mapping:
+    TaskDispatch: dispatch
+    StatusReport: report
+    EscalationEvent: escalation
+  variants:
+    - kind: TaskDispatch
+      block: dispatch
+      description: "Parent → child work assignment."
+      required_fields: [task_id, type, acceptance_criteria_ref, owned_files_ref]
+      fields:
+        task_id:
+          type: string
+          description: "Stable task id (e.g. T01, T02). Unique within the change."
+        type:
+          type: string
+          enum: [research, design, implement, review, test, verify]
+          description: "Task type — drives context profile selection (per task_adaptive_selector.py)."
+        acceptance_criteria_ref:
+          type: string
+          pattern: "^\\.local/\\.agent/active/[a-z0-9][a-z0-9.-]*[a-z0-9]/acceptance\\.md(#ac-\\d+)?$"
+          description: "Repo-relative path into the active change's acceptance.md, optionally pinned to a specific AC fragment (#ac-<n>)."
+        owned_files_ref:
+          type: string
+          pattern: "^\\.local/\\.agent/active/[a-z0-9][a-z0-9.-]*[a-z0-9]/owned_files\\.txt$"
+          description: "Repo-relative path to the active change's owned_files.txt manifest. The L3 receiver MUST honour this list (S-8)."
+        predecessor_artifact_refs:
+          type: list
+          optional: true
+          item_fields:
+            path:
+              type: string
+              description: "Repo-relative path to a predecessor artifact."
+            summary:
+              type: string
+              description: "Verbatim 3–5 sentence extract per CO-2 (NEVER paraphrase paths, error messages, metric values, commit hashes)."
+              max_chars: 800
+
+    - kind: StatusReport
+      block: report
+      description: "Child → parent completion / progress update."
+      required_fields: [task_id, state]
+      fields:
+        task_id:
+          type: string
+          description: "Task id this report covers — MUST match a prior dispatch's task_id."
+        state:
+          type: string
+          enum: [completed, failed, escalated]
+          description: "Terminal task state."
+        artifacts:
+          type: list
+          optional: true
+          item_fields:
+            path:
+              type: string
+              description: "Repo-relative path of an artifact produced by this task."
+            type:
+              type: string
+              enum: [source, test, doc, schema, config, report]
+              description: "Artifact category."
+            summary:
+              type: string
+              description: "Verbatim ≤ 25-word delta description (NEVER paraphrase per CO-2)."
+              max_chars: 200
+        metrics:
+          type: object
+          optional: true
+          children:
+            tests_passed:
+              type: int
+              minimum: 0
+            tests_failed:
+              type: int
+              minimum: 0
+            coverage_pct:
+              type: number
+              minimum: 0.0
+              maximum: 100.0
+            findings_by_severity:
+              type: object
+              children:
+                blocker: { type: int, minimum: 0 }
+                critical: { type: int, minimum: 0 }
+                major: { type: int, minimum: 0 }
+                minor: { type: int, minimum: 0, optional: true }
+                info: { type: int, minimum: 0, optional: true }
+
+    - kind: EscalationEvent
+      block: escalation
+      description: "Child → parent (or upward) when local recovery fails (P4 bounded retry exhausted)."
+      required_fields: [severity, trigger, proposed_action]
+      fields:
+        severity:
+          type: string
+          enum: [AUTO_RECOVER, PAUSE, HUMAN_INTERVENE, FULL_ROLLBACK]
+          description: "Escalation severity tier — AUTO_RECOVER (retry-able), PAUSE (transient block), HUMAN_INTERVENE (out of agent scope), FULL_ROLLBACK (state corrupted)."
+        trigger:
+          type: string
+          description: "Verbatim error message or finding text that triggered escalation (NEVER paraphrase per CO-2)."
+          max_chars: 600
+        proposed_action:
+          type: string
+          description: "One-sentence proposed next action for the receiving layer / human."
+          max_chars: 240
+
+# Lifecycle invariants — append-only ledger semantics.
+invariants:
+  - "MUST be written exactly ONCE — once the file exists, it is IMMUTABLE (S-9)."
+  - "MUST NOT be deleted — even superseded envelopes stay in `.local/.agent/handoff/` until archive time."
+  - "To convey new information, the agent MUST author a new envelope with seq+1; prior envelopes remain on disk verbatim."
+  - "seq MUST equal the seq embedded in the filename; mismatch is a schema violation."
+  - "from_layer MUST NOT equal to_layer (no self-handoff)."
+  - "envelope_kind MUST match exactly ONE present variant block (dispatch | report | escalation); presence of multiple variant blocks is a schema violation."
+  - "At archive time, all envelopes for the change-id are compacted into `.local/.agent/archive/<date>-<id>/handoff_chain.yaml` (frozen ledger; per design.md §1.1)."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+  - "External references MUST use canonical GitHub URLs (S-7 / SF-6)."
+
+# Worked examples — one per variant.
+examples:
+  task_dispatch: |
+    schema_version: 1
+    seq: 1
+    from_layer: L0
+    to_layer: L2
+    change_id: add-dark-mode
+    created: "2026-04-22T10:14:33Z"
+    envelope_kind: TaskDispatch
+    dispatch:
+      task_id: T01
+      type: implement
+      acceptance_criteria_ref: ".local/.agent/active/add-dark-mode/acceptance.md#ac-1"
+      owned_files_ref: ".local/.agent/active/add-dark-mode/owned_files.txt"
+      predecessor_artifact_refs:
+        - path: ".local/.agent/active/add-dark-mode/spec.md"
+          summary: "Spec ADDS dark-mode CSS palette via [data-theme=\"dark\"] selector and localStorage key devola.theme."
+
+  status_report: |
+    schema_version: 1
+    seq: 4
+    from_layer: L3
+    to_layer: L2
+    change_id: add-dark-mode
+    created: "2026-04-22T11:02:18Z"
+    envelope_kind: StatusReport
+    report:
+      task_id: T02
+      state: completed
+      artifacts:
+        - path: "workflow-system/human/demo/shared/styles.css"
+          type: source
+          summary: "Added --devola-bg-dark and --devola-fg-dark custom properties; gated behind [data-theme=\"dark\"]."
+      metrics:
+        tests_passed: 12
+        tests_failed: 0
+        coverage_pct: 88.5
+        findings_by_severity:
+          blocker: 0
+          critical: 0
+          major: 0
+
+  escalation_event: |
+    schema_version: 1
+    seq: 7
+    from_layer: L3
+    to_layer: L0
+    change_id: add-dark-mode
+    created: "2026-04-22T11:48:09Z"
+    envelope_kind: EscalationEvent
+    escalation:
+      severity: HUMAN_INTERVENE
+      trigger: "P4 bounded retry exhausted (5/5) — visual diff test failed with playwright Cannot find module 'pixelmatch'."
+      proposed_action: "Pause for human to install pixelmatch or relax visual-diff threshold."
