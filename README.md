@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-8.3.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-8.3.2-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -220,17 +220,17 @@ ESCALATE: produce divergence report for human review
 
 ### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite (45 scenarios covering all 22 workflow types) that measures how effectively context is routed to agents:
+DevolaFlow includes a built-in benchmark suite (46 scenarios covering all 22 workflow types) that measures how effectively context is routed to agents:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 45 scenarios
+python -m benchmarks.devolaflow_context.runner --scenario all              # run all 46 scenarios
 python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
 python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
 python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
 python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
 ```
 
-Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 45 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 46 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
 
 ### Task Quality Score
 
@@ -266,7 +266,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v8.3.1"
+devola-version                   # prints "DevolaFlow v8.3.2"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

@@ -69,6 +69,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.lifecycle.dispatcher:register_hook",
         "devolaflow.lifecycle.dispatcher:clear_hooks",
         "devolaflow.lifecycle.dispatcher:registered_events",
+        # v8.3.2 PV-02 — shell_proxy module-level convenience wrapper.
+        # ``proxy_command(cmd, env)`` is the flat-call equivalent of
+        # ``ShellProxy(env).wrap_command(cmd)``; advertised in
+        # ``src/devolaflow/shell_proxy/__init__.py::__all__`` for external
+        # callers (the lifecycle hook ``pre_shell_call`` constructs a
+        # ``ShellProxy`` instance directly because it needs the resolved
+        # ``ShellProxyConfig`` snapshot for hook metadata, so it does not
+        # use ``proxy_command``). External orchestrators that just need
+        # a single rewrite call without retaining the config can use this.
+        "devolaflow.shell_proxy.proxy:proxy_command",
         # ---- Adapter base API — subclassed/instantiated externally ----
         "devolaflow.adapters.base:BaseAdapter",
         "devolaflow.adapters.base:AdapterResult",

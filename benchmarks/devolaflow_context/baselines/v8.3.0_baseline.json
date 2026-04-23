@@ -131,6 +131,7 @@
     "selected_count": 10,
     "total_tokens": 2394
   },
+  "cycle": "agent-workspace-trilogy",
   "decomposition_feature": {
     "budget": 5300,
     "budget_utilization": 0.9932,
@@ -407,6 +408,8 @@
     "selected_count": 13,
     "total_tokens": 4611
   },
+  "rebased_at": "2026-04-23",
+  "rebased_from": "v8.2.0",
   "refactor_tech_debt": {
     "budget": 5200,
     "budget_utilization": 0.9969,
@@ -491,6 +494,18 @@
     "selected_count": 12,
     "total_tokens": 3029
   },
+  "shell_proxy_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9932,
+    "composite": 99.73,
+    "information_density": 0.9932,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "shell_proxy_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 14,
+    "total_tokens": 5264
+  },
   "simple_impl_budget": {
     "budget": 5300,
     "budget_utilization": 0.9932,
@@ -527,6 +542,7 @@
     "selected_count": 9,
     "total_tokens": 2975
   },
+  "version": "8.3.0",
   "visual_regression_webapp": {
     "budget": 4000,
     "budget_utilization": 0.613,
@@ -538,9 +554,5 @@
     "section_relevance": 1.0,
     "selected_count": 7,
     "total_tokens": 2452
-  },
-  "cycle": "agent-workspace-trilogy",
-  "rebased_at": "2026-04-23",
-  "rebased_from": "v8.2.0",
-  "version": "8.3.0"
+  }
 }
