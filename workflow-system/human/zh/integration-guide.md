@@ -4,8 +4,8 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-23T10:26:00Z"
-source_version: "8.3.2"
+last_synced: "2026-04-23T11:02:33Z"
+source_version: "8.3.3"
 ---
 
 # 集成指南

@@ -407,8 +407,8 @@ class TestBaselineFile:
         """load_baseline() picks the latest baseline file over older ones, falls back as needed."""
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v8.3.0_baseline.json", (
-            f"Expected load_baseline() to prefer v8.3.0_baseline.json; got {newest.name}"
+        assert newest.name == "v8.3.3_baseline.json", (
+            f"Expected load_baseline() to prefer v8.3.3_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines
