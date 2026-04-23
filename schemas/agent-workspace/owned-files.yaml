@@ -1,0 +1,104 @@
+# -----------------------------------------------------------------------------
+# Schema: owned-files
+# Target: .local/.agent/active/<change-id>/owned_files.txt
+# Design ref: .local/research/v8.3.0_design.md §2.6
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 50 / hard 100 (per Rule C-9)
+# -----------------------------------------------------------------------------
+# `owned_files.txt` is the file-ownership manifest for an in-flight change.
+# It is the authoritative source for Rule S-8 (No Writes Outside Active Change
+# Owned Files) — when an L3 Task Agent attempts to write to a path NOT in this
+# file (and NOT under `.local/.agent/active/<id>/` itself, and NOT a handoff
+# envelope outbox), the lifecycle hook blocks (mode: full) or warns (mode: lite).
+#
+# Format: plaintext, one repo-relative path per line. NO YAML, NO comments,
+# NO blank lines. Trailing newline REQUIRED.
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2.6
+schema_name: owned-files
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [S-8, C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/owned_files.txt"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/owned_files.txt"
+format: plaintext_lines
+
+token_budget:
+  soft: 50
+  hard: 100
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint <change-id>  # ships v8.2.5"
+    - line_count:  "wc -l <file>  # 1 line per path; max 6 paths per task"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+# File-format contract — strict.
+file_format:
+  encoding: utf-8
+  newline: "\\n"            # LF only; CRLF rejected
+  trailing_newline_required: true
+  empty_lines_allowed: false
+  comment_lines_allowed: false  # `#` lines are NOT supported — keep the file machine-trivial
+
+# Per-line constraints.
+line:
+  pattern: "^[A-Za-z0-9._/-]+$"   # repo-relative POSIX path; no spaces, no `..` segments
+  must_be_relative: true          # MUST NOT start with `/` (S-2)
+  must_not_contain_dotdot: true   # MUST NOT include `..` segments
+  must_not_contain_glob: true     # MUST NOT contain `*`, `?`, `[`, `]`
+  encoding_normalisation: nfc     # paths normalised to Unicode NFC before compare
+
+# Aggregate constraints — per-task ownership window.
+limits:
+  min_paths: 1
+  max_paths: 6                    # per Wave decomposition limit (design.md §2.6)
+  rationale: |
+    Wave decomposition mandates ≤ 6 writable files per task to keep L3 context
+    tight (~8K token L3 budget) and to enforce surgical scope (BG-003). Changes
+    that legitimately need > 6 owned files MUST be decomposed into multiple
+    L3 tasks (each with its own owned_files.txt subset) and orchestrated by L2.
+  enforcement: lint_fail_commit
+
+# Allowed roots — owned paths MUST live under one of these prefixes (defense
+# in depth; the actual S-8 enforcement is at write-time via the lifecycle
+# hook). Any path not under one of these prefixes raises a lint warning.
+allowed_path_prefixes:
+  - "src/"
+  - "tests/"
+  - "schemas/"
+  - "scripts/"
+  - "docs/"
+  - "doc/"
+  - "workflow-system/"
+  - "benchmarks/"
+  - "data/"
+  - ".cursor/"
+  - ".rules/"
+  - ".github/"
+  - "AGENTS.md"
+  - "CHANGELOG.md"
+  - "Makefile"
+  - "README.md"
+  - "pyproject.toml"
+  - ".gitignore"
+
+# Lifecycle invariants
+invariants:
+  - "MUST be written at propose time with the EXACT set of paths the L3 task may write."
+  - "MAY be appended to during IN_PROGRESS only via an explicit L0 dispatch update (S-8 mandate)."
+  - "MUST NOT contain duplicate paths (case-sensitive after NFC normalisation)."
+  - "MUST be copied byte-identical when archived."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+  - "MUST NOT contain glob patterns — list each path verbatim."
+  - "Total path count MUST stay ≤ 6 (decompose into multiple tasks if more files are needed)."
+  - "Files inside `.local/.agent/active/<change-id>/` itself are IMPLICITLY owned and MUST NOT be listed (S-8 exception 2)."
+  - "Files inside `.local/.agent/handoff/` are IMPLICITLY owned for the agent's own outbox only (S-8 exception 3, append-only S-9)."
+
+example: |
+  src/devolaflow/plugins/installer.py
+  src/devolaflow/plugins/__init__.py
+  tests/test_plugins.py
+  workflow-system/agent/knowledge/runtime-plugins.yaml

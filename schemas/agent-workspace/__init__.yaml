@@ -1,0 +1,130 @@
+# -----------------------------------------------------------------------------
+# Agent Workspace Schemas — Index
+# -----------------------------------------------------------------------------
+# Index of the 9 schema files that govern the agent workspace artifacts under
+# `.local/.agent/` and `.local/memory/specs/`. Source of truth: every schema
+# listed here MUST exist as a file in this directory.
+#
+# Design references:
+#   - .local/research/v8.3.0_design.md §2 (schema designs)
+#   - .local/research/v8.3.0_patch_plan.md §v8.2.4 (patch scope)
+#   - .local/research/v8.3.0_gap_analysis.md §2.1 C-002 (gap)
+#
+# Patch slot: v8.2.4 — Agent workspace schemas (pure YAML, no Python)
+# Predecessors: v8.2.1 (plugins), v8.2.2 (rules S-8/S-9/A-4/C-9), v8.2.3 (scaffold)
+# Successors: v8.2.5 (Python API consumes these schemas; cache layout v5)
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2
+schema_name: agent-workspace-index
+schema_version: 1
+last_updated: "2026-04-22"
+patch_slot: v8.2.4
+gap_ids: [C-002, M-003, M-005]
+governing_rules: [S-8, S-9, C-9, A-4]
+
+# 9 schema files declaring the artifact contracts. Verify count + presence with
+# tests/test_agent_workspace_schemas.py::test_all_nine_schemas_exist.
+schemas:
+  - id: change-goal
+    file: change-goal.yaml
+    target_path_template: ".local/.agent/active/<change-id>/goal.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/goal.md"
+    format: markdown_with_frontmatter
+    summary: "Single-paragraph intent statement for an in-flight change. Frontmatter + Why/InScope/OutOfScope sections."
+    token_budget: { soft: 200, hard: 400, units: tokens }
+
+  - id: change-acceptance
+    file: change-acceptance.yaml
+    target_path_template: ".local/.agent/active/<change-id>/acceptance.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/acceptance.md"
+    format: markdown_with_frontmatter
+    summary: "Testable acceptance criteria checklist (AC-N) — Functional / Quality / Backward-compat sections."
+    token_budget: { soft: 400, hard: 800, units: tokens }
+
+  - id: change-spec
+    file: change-spec.yaml
+    target_path_template: ".local/.agent/active/<change-id>/spec.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/spec.md"
+    format: markdown_with_frontmatter
+    delta_format: openspec
+    summary: "Operation spec in OpenSpec delta format — ADDED/MODIFIED/REMOVED Requirements relative to source-of-truth."
+    token_budget: { soft: 1500, hard: 3000, units: tokens }
+
+  - id: change-tasks
+    file: change-tasks.yaml
+    target_path_template: ".local/.agent/active/<change-id>/tasks.md"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/tasks.md"
+    format: markdown_with_frontmatter
+    summary: "Hierarchical numbered checklist (1.1, 1.2, 2.1, ...) — implementation TODOs."
+    token_budget: { soft: 800, hard: 1500, units: tokens }
+
+  - id: change-status
+    file: change-status.yaml
+    target_path_template: ".local/.agent/active/<change-id>/STATUS.yaml"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/STATUS.yaml"
+    format: yaml
+    summary: "Machine-readable FSM state block — PROPOSED/IN_PROGRESS/VERIFYING/ARCHIVED/ESCALATED."
+    token_budget: { soft: 100, hard: 200, units: tokens }
+
+  - id: owned-files
+    file: owned-files.yaml
+    target_path_template: ".local/.agent/active/<change-id>/owned_files.txt"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/owned_files.txt"
+    format: plaintext_lines
+    summary: "File ownership manifest — one repo-relative path per line; max 6 paths per task per Wave constraint."
+    token_budget: { soft: 50, hard: 100, units: tokens }
+
+  - id: handoff-envelope
+    file: handoff-envelope.yaml
+    target_path_template: ".local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml"
+    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/handoff_chain.yaml"
+    format: yaml
+    discriminated_union: true
+    append_only: true
+    summary: "Cross-agent handoff envelope with discriminated envelope_kind union (TaskDispatch/StatusReport/EscalationEvent)."
+    token_budget: { soft: 600, hard: 1200, units: tokens }
+
+  - id: agent-config
+    file: agent-config.yaml
+    target_path_template: ".local/.agent/config.yaml"
+    archive_path_template: null
+    format: yaml
+    summary: "Per-project DevolaFlow config — schema + context + per-artifact rules + mode (lite|full) + plugin_runtime."
+    token_budget: { soft: 400, hard: 800, units: tokens }
+
+  - id: source-of-truth-spec
+    file: source-of-truth-spec.yaml
+    target_path_template: ".local/memory/specs/<domain>/spec.md"
+    archive_path_template: null
+    format: markdown_with_frontmatter
+    summary: "Source-of-truth spec for current system behavior in a domain — mutated only at archive time after gate PASS (A-4)."
+    token_budget: { soft: 2000, hard: 4000, units: tokens }
+
+# Cross-references — each rule below cites the section of design.md that
+# motivates it. The verbatim rule text lives in `.rules/` and the compiled
+# adapter copies (`.cursor/rules/repo-governance.mdc`, `AGENTS.md`).
+cross_references:
+  rules_layer:
+    - id: S-8
+      description: "No writes outside owned_files (active change folder)"
+      design_ref: ".local/research/v8.3.0_design.md §3.1"
+    - id: S-9
+      description: "Handoff envelopes are append-only"
+      design_ref: ".local/research/v8.3.0_design.md §3.2"
+    - id: C-9
+      description: "Lightweight agent workspace artifacts (token budgets)"
+      design_ref: ".local/research/v8.3.0_design.md §3.3"
+    - id: A-4
+      description: "Source-of-truth spec location (M-004 ADR)"
+      design_ref: ".local/research/v8.3.0_design.md §3.4"
+  cache_layout:
+    note: >
+      v8.2.4 (this patch) does NOT modify schemas/lean-dispatch.yaml. The cache
+      layout v4 → v5 transition (appending `change_context` at position 16)
+      lands in v8.2.5 alongside the Python API that consumes it.
+  external:
+    - source: openspec
+      url: "https://github.com/Fission-AI/OpenSpec"
+      adopted_pattern: "Delta spec format (## ADDED / ## MODIFIED / ## REMOVED Requirements)"
+      adapted_in: change-spec

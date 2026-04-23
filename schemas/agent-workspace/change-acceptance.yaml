@@ -1,0 +1,117 @@
+# -----------------------------------------------------------------------------
+# Schema: change-acceptance
+# Target: .local/.agent/active/<change-id>/acceptance.md
+# Design ref: .local/research/v8.3.0_design.md §2.2
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 400 / hard 800 (per Rule C-9)
+# -----------------------------------------------------------------------------
+# An `acceptance.md` is the testable AC checklist for an in-flight change. It
+# is the second artifact authored at /devola:propose time, and the L0/L2 gate
+# at /devola:verify reads back its `[ ]` → `[x]` transitions to compute the
+# pass-rate that feeds the W-3 / SI-3 composite score.
+#
+# Format: Markdown with YAML frontmatter (delimited by `---` lines).
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2.2
+schema_name: change-acceptance
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [C-9, W-3]
+
+instance_path_template: ".local/.agent/active/<change-id>/acceptance.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/acceptance.md"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 400
+  hard: 800
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint <change-id>  # ships v8.2.5"
+    - line_count:  "wc -w <file>  # rough proxy: 1 token ≈ 0.75 words"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required: [parent, ac_count]
+  fields:
+    parent:
+      type: string
+      description: "Parent change-id — MUST match the active change folder name."
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+    ac_count:
+      type: int
+      minimum: 1
+      maximum: 30
+      description: "Total number of AC items declared in the body. Must equal the number of `- [ ]` or `- [x]` lines."
+
+# Markdown body contract — REQUIRED sections MUST appear in this exact order
+# below the closing frontmatter delimiter. Each section contains a list of
+# `- [ ] AC-<n>:` entries; an empty section is permitted but discouraged
+# (state explicit absence with a single bullet).
+body:
+  required_sections:
+    - heading: "# Acceptance Criteria"
+      pattern: "^# Acceptance Criteria\\s*$"
+      description: "H1 — verbatim 'Acceptance Criteria' (no embellishment)."
+    - heading: "## Functional"
+      pattern: "^## Functional\\s*$"
+      bullet_list: true
+      bullet_pattern: "^- \\[[ x]\\] AC-\\d+: .+$"
+      min_bullets: 1
+      description: "Functional AC items — each line MUST start with `- [ ] AC-<n>:` or `- [x] AC-<n>:` (verifiable condition with metric where applicable)."
+    - heading: "## Quality"
+      pattern: "^## Quality\\s*$"
+      bullet_list: true
+      bullet_pattern: "^- \\[[ x]\\] AC-\\d+: .+$"
+      min_bullets: 3
+      description: "Quality AC items — MUST include tests-pass, lint-clean, format-clean (3 minimum)."
+      mandatory_items_substr:
+        - "tests pass"
+        - "ruff check"
+        - "ruff format --check"
+    - heading: "## Backward-compat"
+      pattern: "^## Backward-compat\\s*$"
+      bullet_list: true
+      bullet_pattern: "^- \\[[ x]\\] AC-\\d+: .+$"
+      min_bullets: 0
+      description: "Backward-compat preservation claims (e.g. byte-identical for stable APIs). May be empty for greenfield changes."
+
+  ac_id_pattern:
+    description: "Each AC entry MUST be globally unique within this file."
+    pattern: "^AC-\\d+$"
+
+  ac_completion_states:
+    description: "AC checkbox state — `[ ]` (open) or `[x]` (closed). Mid-state values forbidden."
+    enum: [" ", "x"]
+
+# Lifecycle invariants
+invariants:
+  - "MUST be written exactly once at propose time; AC items MAY be added/refined during IN_PROGRESS."
+  - "AC checkbox state MAY transition `[ ]` → `[x]` at any time during IN_PROGRESS or VERIFYING."
+  - "AC checkbox state MUST NOT transition `[x]` → `[ ]` (regression marker — author a follow-up change instead)."
+  - "ac_count frontmatter field MUST equal the count of `- [ ] ` or `- [x] ` lines after every edit (re-derive on save)."
+  - "MUST be copied byte-identical when archived."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+
+example: |
+  ---
+  parent: add-dark-mode
+  ac_count: 7
+  ---
+
+  # Acceptance Criteria
+
+  ## Functional
+  - [ ] AC-1: Toggle button visible in nav bar at all viewport widths
+  - [ ] AC-2: localStorage key `devola.theme` persists across reloads
+  - [ ] AC-3: Dark mode applies dark CSS palette within 100 ms of toggle
+
+  ## Quality
+  - [ ] AC-4: tests pass — `python -m pytest tests/test_dark_mode.py -v`
+  - [ ] AC-5: lint clean — `ruff check src/ tests/`
+  - [ ] AC-6: format clean — `ruff format --check src/ tests/`
+
+  ## Backward-compat
+  - [ ] AC-7: light-mode default preserved byte-identical for users with no localStorage key

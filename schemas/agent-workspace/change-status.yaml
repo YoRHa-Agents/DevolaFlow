@@ -1,0 +1,146 @@
+# -----------------------------------------------------------------------------
+# Schema: change-status
+# Target: .local/.agent/active/<change-id>/STATUS.yaml
+# Design ref: .local/research/v8.3.0_design.md §2.5
+# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Token budget: soft 100 / hard 200 (per Rule C-9)
+# -----------------------------------------------------------------------------
+# `STATUS.yaml` is the machine-readable FSM state block for an in-flight
+# change. It is the only artifact that mutates frequently (every L3→L0 status
+# report touches it). The lifecycle FSM is documented in design.md §1.3:
+#
+#     PROPOSED ─▶ IN_PROGRESS ─┬─▶ VERIFYING ─▶ ARCHIVED
+#                              │       │
+#                              │       └─▶ IN_PROGRESS  (verify FAIL → bounded retry)
+#                              └─▶ ESCALATED  (P4 bounded retry exhausted)
+#
+# Format: pure YAML — NO frontmatter, NO body sections, NO prose.
+# -----------------------------------------------------------------------------
+
+design_reference: .local/research/v8.3.0_design.md §2.5
+schema_name: change-status
+schema_version: 1
+last_updated: "2026-04-22"
+governing_rules: [C-9, P4]
+
+instance_path_template: ".local/.agent/active/<change-id>/STATUS.yaml"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/STATUS.yaml"
+format: yaml
+
+token_budget:
+  soft: 100
+  hard: 200
+  units: tokens
+  enforcement:
+    - lint:        "python -m devolaflow.agent_workspace.lint <change-id>  # ships v8.2.5"
+    - line_count:  "wc -w <file>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+instance_top_level_required:
+  - schema_version
+  - change_id
+  - state
+  - percent_complete
+  - owner_layer
+  - owner_session_id
+  - last_updated
+  - last_handoff_seq
+  - gate_score
+  - verify_pass
+
+# Per design.md §2.5 — every field is required (gate_score / verify_pass MAY be
+# null in pre-VERIFYING states; explicit null is required, MUST NOT be omitted).
+fields:
+  schema_version:
+    type: int
+    enum: [1]
+    description: "Schema version pin — bump on incompatible changes only."
+
+  change_id:
+    type: string
+    description: "Change-id — MUST match the active change folder name."
+    pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+
+  state:
+    type: string
+    enum: [PROPOSED, IN_PROGRESS, VERIFYING, ARCHIVED, ESCALATED]
+    description: "FSM state — see lifecycle FSM in design.md §1.3."
+
+  percent_complete:
+    type: int
+    minimum: 0
+    maximum: 100
+    description: "Coarse-grained progress percentage. Re-computed from `tasks.md` checked/total ratio at every status update."
+
+  owner_layer:
+    type: string
+    enum: [L0, L1, L2, L3]
+    description: "Layer that currently owns the change. PROPOSED → L0; IN_PROGRESS → L3 (typically); VERIFYING → L2 or L0; ARCHIVED → L0; ESCALATED → human."
+
+  owner_session_id:
+    type: string
+    description: "Session UUID of the agent currently working the change. MUST be a non-empty string in PROPOSED/IN_PROGRESS/VERIFYING; MAY be the archiving session in ARCHIVED."
+    minLength: 1
+
+  last_updated:
+    type: string
+    description: "ISO-8601 UTC timestamp of the most recent edit to this file."
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+
+  last_handoff_seq:
+    type: int
+    minimum: 0
+    description: "Monotonic counter — `seq` of the most recent handoff envelope written for this change. Starts at 0 (no handoffs yet)."
+
+  gate_score:
+    type: number
+    nullable: true
+    minimum: 0.0
+    maximum: 10.0
+    description: "Composite gate score (W-3 / SI-3). Null until VERIFYING state. Float in [0, 10]."
+
+  verify_pass:
+    type: bool
+    nullable: true
+    description: "Verify-stage pass flag. Null until VERIFYING state. True iff AC pass-rate == 1.0 AND gate_score ≥ threshold (8.5 lite / 9.0 full)."
+
+# FSM state-transition matrix — declares which transitions are legal. Enforced
+# at runtime by ChangeStore.transition_state() (ships v8.2.5).
+state_transitions:
+  PROPOSED:
+    allowed_next: [IN_PROGRESS]
+    rationale: "First L3 dispatch starts work."
+  IN_PROGRESS:
+    allowed_next: [VERIFYING, ESCALATED]
+    rationale: "/devola:verify invoked OR P4 bounded retry exhausted."
+  VERIFYING:
+    allowed_next: [IN_PROGRESS, ARCHIVED]
+    rationale: "Verify FAIL → bounded retry (back to IN_PROGRESS); verify PASS + /devola:archive + gate PASS → ARCHIVED."
+  ARCHIVED:
+    allowed_next: []
+    rationale: "Terminal — change frozen in `.local/.agent/archive/<date>-<id>/`."
+  ESCALATED:
+    allowed_next: []
+    rationale: "Terminal — human intervention required. Resume requires authoring a new change with predecessor link."
+
+# Lifecycle invariants
+invariants:
+  - "MUST be written at propose time with state=PROPOSED, percent_complete=0, gate_score=null, verify_pass=null."
+  - "Every state mutation MUST follow the state_transitions matrix above; arbitrary jumps are forbidden."
+  - "last_updated MUST be refreshed on every edit to this file (UTC ISO-8601)."
+  - "When state=ARCHIVED, the file MUST be copied byte-identical into `.local/.agent/archive/<date>-<id>/STATUS.yaml`."
+  - "When state=ESCALATED, an exception-escalation envelope MUST exist in `.local/.agent/handoff/` with seq == last_handoff_seq."
+  - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+
+example: |
+  schema_version: 1
+  change_id: add-dark-mode
+  state: IN_PROGRESS
+  percent_complete: 60
+  owner_layer: L3
+  owner_session_id: "550e8400-e29b-41d4-a716-446655440042"
+  last_updated: "2026-04-22T11:02:18Z"
+  last_handoff_seq: 4
+  gate_score: null
+  verify_pass: null
