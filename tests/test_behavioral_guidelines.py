@@ -69,30 +69,34 @@ class TestSchemaAdditivity:
     def schema_spec(self) -> dict:
         return yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))
 
-    def test_canonical_order_length_is_15(self, schema_spec: dict) -> None:
-        """After P-08 + P-10, canonical_order length is 15 (P-08 added
-        ``behavioral_guidelines`` at position 14, P-10 added
-        ``acceptance_criteria_v2`` at position 15)."""
+    def test_canonical_order_length_is_16(self, schema_spec: dict) -> None:
+        """After P-08 + P-10 + PV-05, canonical_order length is 16 (P-08
+        added ``behavioral_guidelines`` at position 14, P-10 added
+        ``acceptance_criteria_v2`` at position 15, PV-05 added
+        ``change_context`` at position 16). Position 14 invariant remains
+        non-negotiable across the three generations."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
-        assert len(canonical) == 15, (
-            f"canonical_order length = {len(canonical)}; expected 15 after P-10"
+        assert len(canonical) == 16, (
+            f"canonical_order length = {len(canonical)}; expected 16 after PV-05"
         )
 
     def test_canonical_order_position_14_is_behavioral_guidelines(self, schema_spec: dict) -> None:
         """P-08 added ``behavioral_guidelines`` at position 14 (1-indexed).
-        P-10 MUST keep it there (the position-14 invariant is non-negotiable)."""
+        P-10 MUST keep it there (the position-14 invariant is non-negotiable);
+        PV-05 also MUST keep it (positions 1..15 byte-identical)."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[13] == "behavioral_guidelines"
 
     def test_canonical_order_position_13_is_repos(self, schema_spec: dict) -> None:
         """v7.2.6 P-06 placed ``repos`` at position 13 (1-indexed).
-        v8.0.0 P-08 MUST keep it there."""
+        v8.0.0 P-08 + P-10 + v8.3.0 PV-05 MUST keep it there."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[12] == "repos"
 
-    def test_layout_invariant_version_is_4(self, schema_spec: dict) -> None:
-        """P-08 bumped version 2→3, P-10 bumped 3→4 (additive transitions)."""
-        assert schema_spec["layout_invariant"]["version"] == 4
+    def test_layout_invariant_version_is_5(self, schema_spec: dict) -> None:
+        """P-08 bumped version 2→3, P-10 bumped 3→4, PV-05 bumped 4→5
+        (additive transitions across four schema generations)."""
+        assert schema_spec["layout_invariant"]["version"] == 5
 
     def test_canonical_order_first_12_keys_unchanged(self, schema_spec: dict) -> None:
         """Positions 1-12 (1-indexed) MUST be byte-identical to the v7.0.0

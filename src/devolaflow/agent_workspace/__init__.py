@@ -1,0 +1,91 @@
+"""Agent workspace — Python API for the v8.3.0 ``.local/.agent/`` tree.
+
+This package implements the C-003 + M-005 (Python half) + M-006 closures from
+``.local/research/v8.3.0_gap_analysis.md``. It is the runtime-side companion
+to the schemas that landed in v8.2.4 PV-04 under ``schemas/agent-workspace/``.
+
+Public surface (consumed by the ``change-driven`` workflow template that
+ships in v8.2.6 + the reporter that ships in v8.2.7 + the memory bridge
+that ships in v8.2.8):
+
+* :class:`Change` + :class:`ChangeStore` — list/get/move semantics on
+  ``.local/.agent/active/<change-id>/`` and ``.local/.agent/archive/``.
+* :class:`HandoffEnvelope` + :class:`HandoffStore` — append-only ledger
+  for inter-layer messages under ``.local/.agent/handoff/``. Enforces the
+  Rule S-9 invariant (envelopes are immutable; new info ⇒ ``seq+1``).
+* :class:`ArchiveManager` — moves ``active/<id>/`` → ``archive/<date>-<id>/``,
+  preserves all artifacts, calls ``consolidate_session`` for learnings,
+  and PROPOSES (does not write) the delta-merged source-of-truth spec.
+* :func:`parse_delta_spec` + :class:`DeltaSpec` — extract ADDED / MODIFIED /
+  REMOVED requirement sections from an OpenSpec-style ``spec.md``.
+* :func:`lint_change` — enforce per-artifact token budgets per Rule C-9.
+* :class:`EnvelopeImmutableError` — raised by ``HandoffStore.write_envelope``
+  when an existing ``seq`` would be overwritten.
+
+Backward-compat (R5):
+
+* This package adds NO new public symbol to ``devolaflow.__init__``.
+* ``learnings.py`` is NOT touched; the 14 existing public functions stay
+  byte-identical (verified by ``tests/test_learnings.py`` — invariant
+  I-PV05-B).
+* ``compressor.py::assert_dispatch_layout`` is extended to accept BOTH
+  v4 (15 keys, ``acceptance_criteria_v2`` last) and v5 (16 keys,
+  ``change_context`` appended) payloads — invariant I-PV05-C.
+"""
+
+from __future__ import annotations
+
+from devolaflow.agent_workspace.archive import ArchiveError, ArchiveManager, MergeConflict
+from devolaflow.agent_workspace.change import (
+    Change,
+    ChangeNotFoundError,
+    ChangeStore,
+    ChangeStoreError,
+)
+from devolaflow.agent_workspace.delta_parser import (
+    DeltaRequirement,
+    DeltaSpec,
+    DeltaSpecParseError,
+    parse_delta_spec,
+    serialize_delta_spec,
+)
+from devolaflow.agent_workspace.handoff import (
+    EnvelopeImmutableError,
+    HandoffEnvelope,
+    HandoffStore,
+    HandoffStoreError,
+)
+from devolaflow.agent_workspace.lint import (
+    BudgetReport,
+    BudgetViolation,
+    estimate_tokens,
+    lint_change,
+)
+
+__all__ = [
+    # archive
+    "ArchiveError",
+    "ArchiveManager",
+    "MergeConflict",
+    # change
+    "Change",
+    "ChangeNotFoundError",
+    "ChangeStore",
+    "ChangeStoreError",
+    # delta_parser
+    "DeltaRequirement",
+    "DeltaSpec",
+    "DeltaSpecParseError",
+    "parse_delta_spec",
+    "serialize_delta_spec",
+    # handoff
+    "EnvelopeImmutableError",
+    "HandoffEnvelope",
+    "HandoffStore",
+    "HandoffStoreError",
+    # lint
+    "BudgetReport",
+    "BudgetViolation",
+    "estimate_tokens",
+    "lint_change",
+]

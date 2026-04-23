@@ -247,6 +247,25 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.nines.researcher:run_self_improve_loop",
         "devolaflow.nines.researcher:refresh_reference_dependency",
         "devolaflow.nines.scorer:nines_dimension_scores",
+        # ---- Agent workspace public API (v8.2.5 PV-05) ----
+        # New in v8.3.0 PV-05 per .local/research/v8.3.0_design.md §1.1 + §4
+        # and .local/research/v8.3.0_patch_plan.md §v8.2.5. The package
+        # implements C-003 + M-005 (Python half) + M-006 closures from the
+        # gap analysis. Production callers land in:
+        #
+        #   - v8.2.6 (`change-driven` workflow template) — invokes
+        #     ChangeStore + ArchiveManager via the workflow runtime.
+        #   - v8.2.7 (reporter module) — invokes serialize_delta_spec +
+        #     ArchiveManager.propose_merge to render REPORT.md surfaces.
+        #   - v8.2.8 (memory_bridge.py) — invokes ChangeStore + HandoffStore
+        #     to hydrate change context for L0/L1/L2/L3 dispatch.
+        #
+        # Allowlisting these for v8.2.5 unblocks the patch ledger; the
+        # production callers ship in subsequent PVs per the cycle plan.
+        "devolaflow.agent_workspace.archive:ArchiveManager",
+        "devolaflow.agent_workspace.delta_parser:serialize_delta_spec",
+        "devolaflow.agent_workspace.handoff:HandoffStore",
+        "devolaflow.agent_workspace.handoff:make_envelope",
         # ---- Pre-decision phase API ----
         # Exposed via devolaflow.pre_decision.__all__; called by detect-repo-mode
         # console_script and external pre-flight workflow agents.
