@@ -640,9 +640,12 @@ class TestRuntimePluginsYamlContract:
 
     def test_registry_yaml_loads(self) -> None:
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
-        assert raw["schema_version"] == 1
+        # schema_version bumped 1 → 2 in v8.3.1 PV-01 to introduce the new
+        # curl_install_script backend (alongside the existing pip + npm_then_init).
+        assert raw["schema_version"] == 2
         assert isinstance(raw["plugins"], list)
-        assert len(raw["plugins"]) >= 2
+        # nines + ui-pro + rtk (rtk added in v8.3.1 PV-01).
+        assert len(raw["plugins"]) >= 3
 
     def test_registry_contains_nines_pip_backend(self) -> None:
         registry = load_registry(_RUNTIME_PLUGINS_YAML)
@@ -1390,3 +1393,295 @@ def test_smoke_ensure_plugin_nines_against_editable_install(tmp_path: Path) -> N
     # Either "plugin_already_installed" (common case on workstation) or
     # "plugin_installed" (fresh install) is acceptable.
     assert any(e["event"] in {"plugin_already_installed", "plugin_installed"} for e in events)
+
+
+# ===========================================================================
+# v8.3.1 PV-01 — RTK plugin entry (closes R-001 from v8.4.0_gap_analysis.md)
+# ---------------------------------------------------------------------------
+# Design ref: .local/research/v8.4.0_rtk_nines_analysis.md §5
+#             .local/research/v8.4.0_gap_analysis.md §2.1 R-001
+#
+# Coverage targets:
+#   - rtk presence in canonical runtime-plugins.yaml (3rd entry)
+#   - curl_install_script backend supported + resolves
+#   - min_version: 0.37.2 (Cargo.toml canonical, NOT README's stale 0.28.2)
+#   - verify_distinguish_cmd: "rtk gain" (vs rtk-type-kit collision warning)
+#   - canonical_url: https://github.com/rtk-ai/rtk
+#   - local_fallback_path: null (per S-7 — no hardcoded paths)
+#   - install failure raises loudly per S-5 (curl + cargo both fail)
+#   - distinguish-check failure raises loudly per S-5 (collision detected)
+#   - happy-path end-to-end (curl install → version probe → rtk gain → return)
+# ===========================================================================
+
+
+class TestRtkPluginRegistry:
+    """rtk row in the canonical runtime-plugins.yaml (v8.3.1 PV-01)."""
+
+    def test_rtk_in_registry(self) -> None:
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.id == "rtk"
+        assert spec.package == "rtk"
+
+    def test_rtk_curl_install_backend_supported(self) -> None:
+        # The new backend is in _SUPPORTED_BACKENDS and resolve_plugin returns
+        # the rtk spec WITHOUT raising PluginBackendUnsupported.
+        assert "curl_install_script" in _installer_mod._SUPPORTED_BACKENDS
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.backend == "curl_install_script"
+        # version_check_cmd is the first-line probe (rtk --version);
+        # verify_distinguish_cmd is the second-line probe (rtk gain).
+        assert spec.version_check_cmd == "rtk --version"
+
+    def test_rtk_min_version_037_or_above(self) -> None:
+        # Pinned to Cargo.toml canonical (NOT README's stale 0.28.2 — see
+        # NineS analysis §3 manual finding 7).
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.min_version == "0.37.2"
+
+    def test_rtk_distinguish_cmd_is_rtk_gain(self) -> None:
+        # `rtk gain` distinguishes Rust Token Killer (this project) from
+        # rtk-type-kit / Rust Type Kit per the upstream INSTALL.md collision
+        # warning. MANDATORY — not optional.
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.verify_distinguish_cmd == "rtk gain"
+
+    def test_rtk_canonical_url_correct(self) -> None:
+        # Per S-7: external resources by canonical GitHub URL. The cargo
+        # fallback ALWAYS pins this URL via `cargo install --git <url>`,
+        # never bare `cargo install rtk` (would pull the wrong package).
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.canonical_url == "https://github.com/rtk-ai/rtk"
+
+    def test_rtk_local_fallback_path_is_none(self) -> None:
+        # Per S-7: NEVER hardcode local clone paths in agent-facing files.
+        # /home/agent/reference/rtk is the runtime clone for SI-2 NineS
+        # analysis only — it is NOT installed via local_fallback_path.
+        # Also forward-declares shell-proxy workflow id (PV-02 will register).
+        registry = load_registry(_RUNTIME_PLUGINS_YAML)
+        spec = resolve_plugin("rtk", registry)
+        assert spec.local_fallback_path is None
+        assert "shell-proxy" in spec.invoked_by_workflows
+
+
+class TestRtkInstallSubprocess:
+    """End-to-end mocked subprocess flow for rtk install + verify_distinguish."""
+
+    @staticmethod
+    def _write_rtk_registry(tmp_path: Path) -> Path:
+        """Write a tmp registry containing only the rtk plugin (schema_version=2).
+
+        Mirrors the structure of _write_runtime_registry but limited to rtk so
+        each test exercises the curl_install_script backend in isolation.
+        """
+        content = textwrap.dedent(
+            f"""\
+            schema_version: 2
+            last_updated: "2026-04-23"
+
+            plugins:
+              - id: rtk
+                backend: curl_install_script
+                package: rtk
+                install_cmd: >-
+                  curl -fsSL
+                  https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh
+                  | sh
+                version_check_cmd: "rtk --version"
+                verify_distinguish_cmd: "rtk gain"
+                min_version: "0.37.2"
+                expected_sha256: null
+                canonical_url: "https://github.com/rtk-ai/rtk"
+                local_fallback_path: null
+                invoked_by_workflows:
+                  - shell-proxy
+
+            defaults:
+              auto_install: true
+              prefer_local_fallback: true
+              network_timeout_seconds: 90
+              install_log_path: "{tmp_path / "plugin_install.log"}"
+
+            backends:
+              - id: pip
+                description: "pip"
+              - id: npm_then_init
+                description: "npm + init"
+              - id: curl_install_script
+                description: "curl pipe sh + cargo fallback"
+            """
+        )
+        registry_file = tmp_path / "runtime-plugins.yaml"
+        registry_file.write_text(content)
+        return registry_file
+
+    @patch("devolaflow.plugins.installer.subprocess.run")
+    def test_rtk_install_failure_raises_loud(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        # Pre-install probe fails (rtk not present), curl primary fails
+        # (network down), cargo fallback also fails (no Rust toolchain).
+        # Result: PluginInstallError per S-5 with both reasons in details.
+        mock_run.side_effect = [
+            _mock_completed(returncode=1),  # pre-install probe (rtk --version)
+            _mock_completed(  # curl_install_script primary
+                returncode=1,
+                stderr="curl: (6) Could not resolve host: raw.githubusercontent.com",
+            ),
+            _mock_completed(  # cargo install fallback
+                returncode=1,
+                stderr="error: cannot find Rust toolchain — install via rustup",
+            ),
+        ]
+        registry_path = self._write_rtk_registry(tmp_path)
+        with pytest.raises(PluginInstallError) as exc:
+            ensure_plugin("rtk", registry_path=registry_path)
+        # Loud per S-5 — message must contain BOTH backend names
+        msg = str(exc.value)
+        assert "curl_install_script" in msg
+        assert "cargo" in msg
+        # details must contain structured info for downstream logging
+        assert exc.value.details["primary_backend"] == "curl_install_script"
+        assert exc.value.details["fallback_backend"] == "cargo"
+        # JSONL install-event journal records the failure (no silent failures)
+        assert "primary_failure" in exc.value.details
+        # R-2 mitigation: cargo MUST be invoked with --git <canonical_url>
+        # (NEVER bare `cargo install rtk` — would risk pulling rtk-type-kit
+        # from crates.io per RTK INSTALL.md collision warning).
+        cargo_call = " ".join(mock_run.call_args_list[2].args[0])
+        assert "cargo install --git https://github.com/rtk-ai/rtk" in cargo_call
+        assert " cargo install rtk " not in (" " + cargo_call + " ")
+
+    @patch("devolaflow.plugins.installer.subprocess.run")
+    def test_rtk_distinguish_failure_raises_loud(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        # Pre-install probe SUCCEEDS but `rtk gain` fails — this is the
+        # name-collision case (rtk-type-kit installed instead of Rust Token
+        # Killer). Per RTK INSTALL.md, this MUST raise loudly per S-5.
+        mock_run.side_effect = [
+            _mock_completed(stdout="rtk 0.37.2"),  # pre-install probe OK
+            _mock_completed(  # rtk gain FAILS — wrong package
+                returncode=1,
+                stderr="error: unrecognized subcommand 'gain'",
+            ),
+        ]
+        registry_path = self._write_rtk_registry(tmp_path)
+        with pytest.raises(PluginInstallError) as exc:
+            ensure_plugin("rtk", registry_path=registry_path)
+        msg = str(exc.value)
+        # Loud per S-5 — must surface the collision pointer
+        assert "distinguish-check FAILED" in msg
+        assert "rtk gain" in msg
+        # The actionable text MUST point operators at the upstream INSTALL.md
+        assert "INSTALL.md" in msg or "https://github.com/rtk-ai/rtk" in msg
+        # Structured details for downstream
+        assert exc.value.details["verify_distinguish_cmd"] == "rtk gain"
+        assert exc.value.details["returncode"] == 1
+
+    @patch("devolaflow.plugins.installer.subprocess.run")
+    def test_rtk_curl_install_succeeds_end_to_end(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
+        # Happy path: pre-install probe fails (not yet installed), curl
+        # primary succeeds, post-install version probe returns 0.37.2,
+        # `rtk gain` succeeds → ensure_plugin returns "0.37.2".
+        mock_run.side_effect = [
+            _mock_completed(returncode=1),  # pre-install probe — absent
+            _mock_completed(stdout="rtk 0.37.2 installed"),  # curl primary OK
+            _mock_completed(stdout="rtk 0.37.2"),  # post-install version probe
+            _mock_completed(stdout="rtk gain — savings stats"),  # rtk gain OK
+        ]
+        registry_path = self._write_rtk_registry(tmp_path)
+        version = ensure_plugin("rtk", registry_path=registry_path)
+        assert version == "0.37.2"
+        # Verify the curl install_cmd was the one invoked (not bare cargo)
+        install_call = " ".join(mock_run.call_args_list[1].args[0])
+        assert "curl" in install_call
+        assert "rtk-ai/rtk" in install_call
+        # Verify rtk gain ran post-install (the 4th subprocess call)
+        gain_call = " ".join(mock_run.call_args_list[3].args[0])
+        assert "rtk gain" in gain_call
+
+
+class TestRtkSchemaV2:
+    """schema_version 2 acceptance + backward-compat with schema_version 1."""
+
+    def test_canonical_registry_is_schema_v2(self) -> None:
+        # The canonical runtime-plugins.yaml shipped in v8.3.1 PV-01 is
+        # schema_version=2 (bumped from 1 to declare the curl_install_script
+        # backend + verify_distinguish_cmd field).
+        raw = load_registry(_RUNTIME_PLUGINS_YAML)
+        assert raw["schema_version"] == 2
+
+    def test_load_registry_accepts_schema_v1_for_backward_compat(self, tmp_path: Path) -> None:
+        # R5 strict: existing v8.3.0 fixtures use schema_version=1; they
+        # MUST keep loading without raising after the v8.3.1 schema bump.
+        # _SUPPORTED_SCHEMA_VERSIONS = {1, 2} so v1 entries pass v2 unchanged.
+        path = _write_runtime_registry(tmp_path)  # default schema_version=1
+        raw = load_registry(path)
+        assert raw["schema_version"] == 1
+
+
+class TestRtkCurlScriptHelpers:
+    """Direct unit tests for the new helper functions in installer.py."""
+
+    @patch("devolaflow.plugins.installer.subprocess.run")
+    def test_install_via_cargo_pins_canonical_url(self, mock_run: MagicMock) -> None:
+        # Cargo fallback MUST pass --git <canonical_url> (NEVER bare
+        # `cargo install rtk` per R-2 / RTK INSTALL.md collision warning
+        # vs rtk-type-kit Rust Type Kit).
+        mock_run.return_value = _mock_completed(stdout="installed")
+        spec = RuntimePluginSpec(
+            id="rtk",
+            backend="curl_install_script",
+            package="rtk",
+            install_cmd="curl ... | sh",
+            version_check_cmd="rtk --version",
+            min_version="0.37.2",
+            canonical_url="https://github.com/rtk-ai/rtk",
+            verify_distinguish_cmd="rtk gain",
+        )
+        _installer_mod._install_via_cargo(spec, timeout=30)
+        cmd_invoked = " ".join(mock_run.call_args.args[0])
+        assert "cargo install --git https://github.com/rtk-ai/rtk" in cmd_invoked
+        # Critical: NEVER the bare form
+        assert " cargo install rtk" not in cmd_invoked
+
+    def test_install_via_cargo_requires_canonical_url(self) -> None:
+        # Defensive: if a future plugin entry forgets canonical_url, the
+        # cargo fallback MUST refuse to run (would otherwise risk pulling
+        # the wrong package from crates.io).
+        spec = RuntimePluginSpec(
+            id="rtk",
+            backend="curl_install_script",
+            package="rtk",
+            install_cmd="curl ... | sh",
+            version_check_cmd="rtk --version",
+            min_version="0.37.2",
+            canonical_url="",  # missing — defensive raise expected
+            verify_distinguish_cmd="rtk gain",
+        )
+        with pytest.raises(PluginInstallError) as exc:
+            _installer_mod._install_via_cargo(spec, timeout=30)
+        assert "canonical_url" in str(exc.value)
+        # Pointer at R-2 collision risk in the loud message
+        assert "name-collision" in str(exc.value) or "collision" in str(exc.value)
+
+    def test_verify_distinguish_no_op_when_field_unset(self) -> None:
+        # R5 strict: when verify_distinguish_cmd is None (the case for
+        # nines + ui-pro pre-v8.3.1 plugins), _verify_distinguish is a
+        # no-op and does NOT spawn any subprocess.
+        spec = RuntimePluginSpec(
+            id="nines",
+            backend="pip",
+            package="nines",
+            install_cmd="pip install nines",
+            version_check_cmd="nines --version",
+            min_version="3.0.0",
+            canonical_url="https://github.com/YoRHa-Agents/NineS",
+            verify_distinguish_cmd=None,  # explicit
+        )
+        with patch("devolaflow.plugins.installer.subprocess.run") as mock_run:
+            _installer_mod._verify_distinguish(spec, timeout=30)
+            assert mock_run.call_count == 0

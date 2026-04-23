@@ -1,26 +1,39 @@
-# DevolaFlow runtime plugin registry — v8.2.1 auto-install surface.
+# DevolaFlow runtime plugin registry — v8.3.1 RTK extension.
 #
 # Loaded by:   devolaflow.plugins.installer.load_registry()
 # Consumed by: devolaflow.plugins.installer.ensure_plugin()
-# Design ref:  .local/research/v8.3.0_design.md §6.2
+# Design refs: .local/research/v8.3.0_design.md §6.2 (v1 schema, nines + ui-pro)
+#              .local/research/v8.4.0_rtk_nines_analysis.md §5 (v2 schema bump,
+#              curl_install_script backend, rtk entry, mandatory rtk gain
+#              distinguish-cmd per RTK INSTALL.md collision warning)
+#              .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (this PV closes)
 # Companion:   workflow-system/agent/plugins.yaml (legacy PluginRegistry catalog,
 #              kept intact for backward compatibility with pre-v8.2.1 callers).
 #
-# Schema (v1):
+# Schema (v2 — additive bump from v1):
 #   plugins:    list of plugin entries; each carries backend + install + verify
-#               metadata. See design.md §6.2 for the field contract.
+#               metadata. See design.md §6.2 for the v1 field contract.
+#               v2 additions (all optional; v1 entries pass v2 unchanged):
+#                 - verify_distinguish_cmd: optional second post-install probe
+#                   used when the primary version_check_cmd is ambiguous (e.g.
+#                   another package on PATH responds to `<bin> --version`).
+#                   Mandatory for `rtk` per its INSTALL.md collision warning
+#                   vs `rtk-type-kit` (reachingforthejack/rtk).
 #   defaults:   registry-wide defaults (auto_install, prefer_local_fallback,
 #               network_timeout_seconds, install_log_path).
 #   backends:   enumerates supported install backends. New backends require an
-#               installer.py implementation in the same patch.
+#               installer.py implementation in the same patch (v2 adds
+#               `curl_install_script`).
 #
 # Invariants:
 #   - All paths relative to repo root (S-2).
 #   - External resources referenced by their canonical GitHub URL (S-7).
-#   - No local clone paths hardcoded (S-7).
+#   - No local clone paths hardcoded (S-7). RTK reference clone at
+#     /home/agent/reference/rtk is a runtime SI-2 NineS analysis path; NOT
+#     hardcoded here per S-7.
 
-schema_version: 1
-last_updated: "2026-04-22"
+schema_version: 2
+last_updated: "2026-04-23"
 
 plugins:
   - id: nines
@@ -53,6 +66,19 @@ plugins:
     invoked_by_workflows:
       - product-verification
 
+  - id: rtk
+    backend: curl_install_script
+    package: rtk
+    install_cmd: "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
+    version_check_cmd: "rtk --version"
+    verify_distinguish_cmd: "rtk gain"
+    min_version: "0.37.2"
+    expected_sha256: null
+    canonical_url: "https://github.com/rtk-ai/rtk"
+    local_fallback_path: null
+    invoked_by_workflows:
+      - shell-proxy
+
 defaults:
   auto_install: true
   prefer_local_fallback: true
@@ -68,3 +94,12 @@ backends:
       install_cmd, then for each entry in init_targets runs init_cmd_template
       with {ai_platform} interpolated. Verifies via version_check_cmd at the
       end. Failure on any init_target raises PluginInstallError per S-5.
+  - id: curl_install_script
+    description: >
+      Single-command curl-fetched POSIX install script. Backend runs install_cmd
+      via bash, then verifies via version_check_cmd AND, when declared,
+      verify_distinguish_cmd (the second check protects against name-collisions
+      such as RTK vs rtk-type-kit per RTK INSTALL.md). Failure on either check
+      raises PluginInstallError per S-5 with actionable text identifying which
+      probe failed (collision-warning text included for the rtk distinguish
+      case).
