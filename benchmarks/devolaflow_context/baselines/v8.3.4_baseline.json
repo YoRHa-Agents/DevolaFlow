@@ -47,6 +47,18 @@
     "selected_count": 14,
     "total_tokens": 5264
   },
+  "command_mapping_density": {
+    "budget": 5300,
+    "budget_utilization": 0.9932,
+    "composite": 99.73,
+    "information_density": 0.9932,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "command_mapping_density",
+    "section_relevance": 1.0,
+    "selected_count": 14,
+    "total_tokens": 5264
+  },
   "complexity_tier_routing": {
     "budget": 5300,
     "budget_utilization": 0.9932,
@@ -310,18 +322,6 @@
     "section_relevance": 0.9,
     "selected_count": 11,
     "total_tokens": 3242
-  },
-  "command_mapping_density": {
-    "budget": 5300,
-    "budget_utilization": 0.9932,
-    "composite": 99.73,
-    "information_density": 0.9932,
-    "noise_ratio": 0.0,
-    "profile_name": "feature",
-    "scenario_name": "command_mapping_density",
-    "section_relevance": 1.0,
-    "selected_count": 14,
-    "total_tokens": 5264
   },
   "memory_router_fastpath": {
     "budget": 5300,

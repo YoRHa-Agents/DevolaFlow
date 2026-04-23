@@ -1,19 +1,32 @@
-"""RTK shell-proxy wrapper (v8.3.2 PV-02 — closes R-002).
+"""RTK shell-proxy wrapper (PV-02 R-002 + PV-04 M-002 layer integration).
 
-Closes ``R-002`` from ``.local/research/v8.4.0_gap_analysis.md`` §2.1:
-when the env-flag ``DEVOLAFLOW_RTK_PROXY=1`` is set AND the ``rtk``
-binary is on PATH AND ``rtk gain`` succeeds AND the command matches
+PV-02 (v8.3.2): closes ``R-002`` from
+``.local/research/v8.4.0_gap_analysis.md`` §2.1: when the env-flag
+``DEVOLAFLOW_RTK_PROXY=1`` is set AND the ``rtk`` binary is on PATH AND
+``rtk gain`` succeeds AND the command matches
 :mod:`devolaflow.shell_proxy.registry`'s whitelist, transparently
 rewrites the Shell-tool call as ``rtk <cmd>`` for the documented
 ~80% token-compression layer per ``.local/research/v8.4.0_rtk_nines_analysis.md``
-§6 (whitelist table cites RTK README's stated savings per command).
+§6.
+
+PV-04 (v8.3.4): closes ``M-002`` from the same gap analysis. Adds an
+optional :meth:`ShellProxy.apply_recipe_to_output` step that, when
+``.local/memory/commands/`` recipes exist for the matched command,
+applies the local recipe AFTER ``rtk rewrite`` runs. Precedence per
+the M-002 ask (verbatim): local recipe wins → RTK rewrite → passthrough.
+The new step is purely additive — :meth:`ShellProxy.wrap_command` is
+byte-identical pre/post v8.3.4 (the recipe layer operates on captured
+output, not on the dispatch command itself).
 
 R5 strict (per task spec): default OFF means ``wrap_command`` is a
 zero-overhead identity passthrough — when ``DEVOLAFLOW_RTK_PROXY``
 is unset OR set to ``"0"``, the function returns the input string
 unchanged WITHOUT spawning any subprocess (no ``shutil.which``, no
 ``rtk gain`` probe). All v8.3.1 baseline tests pass byte-identical
-when the flag is unset.
+when the flag is unset. The PV-04 :meth:`apply_recipe_to_output` is
+ALSO a no-op when the env-flag is unset OR when no recipes are
+present under ``.local/memory/commands/`` — the v8.3.3 baseline
+tests pass byte-identical in both cases.
 
 Loud failures (S-5): if the env-flag IS set but ``rtk`` is missing OR
 ``rtk gain`` returns a non-zero exit code (the latter is the rtk-type-kit
@@ -24,16 +37,17 @@ continues normally.
 
 Forward-declared workflow id: PV-01 (v8.3.1) registered ``shell-proxy``
 under ``runtime-plugins.yaml::plugins[rtk].invoked_by_workflows``;
-this PV is the activation surface (env-flag), not a workflow template.
-PV-02 does NOT need to register a workflow — the env-flag activation
-model is sufficient per the task spec.
+this module is the activation surface (env-flag), not a workflow template.
+PV-02 + PV-04 do NOT need to register a workflow — the env-flag
+activation model is sufficient per the task spec.
 
 Public API:
 
 * :func:`is_proxy_enabled` — pure env-flag read; no subprocess work
 * :func:`proxy_command` — module-level convenience equivalent to
   ``ShellProxy().wrap_command(cmd)``
-* :class:`ShellProxy` — the main wrapper
+* :class:`ShellProxy` — the main wrapper; see also
+  :meth:`ShellProxy.apply_recipe_to_output` (PV-04 hook)
 * :class:`ShellProxyConfig` — frozen dataclass capturing env-flag state
 """
 
@@ -283,6 +297,12 @@ class ShellProxy:
         to make the prefix obvious in logs and tests; the trailing
         whitespace handling is delegated to ``rtk rewrite``'s own
         parser per RTK's documented hook protocol.
+
+        v8.3.4 R5 strict: behavior is byte-identical to v8.3.3 — the
+        new PV-04 local-recipe layer (:meth:`apply_recipe_to_output`)
+        operates on captured output AFTER the rewrite runs, NOT on
+        the dispatch command itself. ``wrap_command`` does NOT touch
+        ``.local/memory/commands/``.
         """
         if not self.config.proxy_enabled:
             return cmd
@@ -295,6 +315,77 @@ class ShellProxy:
             return cmd
 
         return "rtk " + cmd
+
+    def apply_recipe_to_output(
+        self,
+        cmd: str,
+        output: str,
+        *,
+        repo_signal: str | None = None,
+    ) -> tuple[str, bool]:
+        """Apply the matching local recipe to a command's captured *output*.
+
+        v8.3.4 PV-04 — closes M-002. After ``wrap_command`` decides
+        whether to rewrite the command via ``rtk <cmd>`` (PV-02) and the
+        Shell tool actually executes it, the captured stdout/stderr can
+        be passed through this method to apply repo-specific compression
+        recipes layered ON TOP of RTK's built-in 100+ command rewrites.
+
+        Decision tree (precedence per gap analysis §2.1 M-002 verbatim):
+
+        1. Proxy disabled (env-flag off, rtk missing, distinguish failed)
+           → return ``(output, False)`` IMMEDIATELY. NO file IO.
+        2. *cmd* not whitelisted by the registry → return
+           ``(output, False)`` (the proxy didn't rewrite it; the local
+           recipe layer should not either).
+        3. No recipe matches *cmd*'s canonical id → return
+           ``(output, False)`` (caller falls back to RTK's already-applied
+           rewrite output, then to passthrough — the precedence chain).
+        4. Recipe matches AND apply succeeds → return
+           ``(rewritten_output, True)``.
+        5. Recipe matches BUT regex.sub raises (defensive) → log WARNING
+           and return ``(output, False)``. Loud per S-5.
+
+        R5 strict: when no ``.local/memory/commands/`` directory exists
+        OR no recipes match *cmd*, this method is byte-equivalent to
+        identity passthrough — :meth:`wrap_command` behavior is
+        unchanged from v8.3.3. The local-recipe layer is purely additive.
+
+        Args:
+            cmd: The shell command (the original *cmd* passed to
+                :meth:`wrap_command`, not the ``"rtk " + cmd`` rewrite —
+                the recipe matcher anchors on the canonical command
+                head, e.g. ``pytest`` not ``rtk pytest``).
+            output: The captured stdout/stderr text from running the
+                (possibly RTK-rewritten) command.
+            repo_signal: Optional namespace filter (forwarded to
+                :func:`apply_local_recipe`). When supplied, narrows the
+                recipe lookup to the matching ``repo_signal`` namespace
+                only.
+
+        Returns:
+            A tuple ``(output_after_recipe, was_applied)``. ``was_applied``
+            is True iff a local recipe matched AND the substitutions
+            ran without raising. When False, the caller sees the
+            original *output* unchanged and the precedence chain falls
+            through to RTK's pre-applied compression (already in
+            *output* when the proxy rewrote the command) → passthrough.
+        """
+        if not self.config.proxy_enabled:
+            return output, False
+        if not isinstance(cmd, str) or not cmd:
+            return output, False
+
+        tier: Tier | None = match_command(cmd, tier2_enabled=self.config.tier2_enabled)
+        if tier is None:
+            # Out-of-whitelist commands are not eligible for the local
+            # recipe layer either — preserves the v8.3.3 invariant that
+            # the proxy + recipe surfaces stay aligned.
+            return output, False
+
+        from devolaflow.shell_proxy.commands import apply_local_recipe  # noqa: PLC0415
+
+        return apply_local_recipe(cmd, output, repo_signal=repo_signal)
 
 
 def proxy_command(cmd: str, env: dict[str, str] | None = None) -> str:
