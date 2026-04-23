@@ -21,6 +21,11 @@ that ships in v8.2.8):
 * :func:`lint_change` — enforce per-artifact token budgets per Rule C-9.
 * :class:`EnvelopeImmutableError` — raised by ``HandoffStore.write_envelope``
   when an existing ``seq`` would be overwritten.
+* :func:`render_change_report` / :func:`render_workspace_report` /
+  :func:`render_memory_report` / :func:`render_rules_report` plus the
+  :func:`regenerate_all` orchestrator — v8.2.7 opt-in REPORT.md surface
+  (closes H-005). Per Rule I-PV07-A, callers must explicitly invoke;
+  no auto-trigger from existing workflows yet.
 
 Backward-compat (R5):
 
@@ -61,6 +66,13 @@ from devolaflow.agent_workspace.lint import (
     estimate_tokens,
     lint_change,
 )
+from devolaflow.agent_workspace.reporter import (
+    regenerate_all,
+    render_change_report,
+    render_memory_report,
+    render_rules_report,
+    render_workspace_report,
+)
 
 __all__ = [
     # archive
@@ -88,4 +100,10 @@ __all__ = [
     "BudgetViolation",
     "estimate_tokens",
     "lint_change",
+    # reporter (v8.2.7 — opt-in REPORT.md surface; closes H-005)
+    "regenerate_all",
+    "render_change_report",
+    "render_memory_report",
+    "render_rules_report",
+    "render_workspace_report",
 ]
