@@ -1,17 +1,29 @@
-"""Runtime plugin auto-install for DevolaFlow workflows (v8.2.1).
+"""Runtime plugin auto-install for DevolaFlow workflows (v8.2.1; v8.3.1 PV-01).
 
 Design ref: ``.local/research/v8.3.0_design.md`` §6.
 Closes gap H-001 from ``.local/research/v8.3.0_gap_analysis.md``.
+v8.3.1 PV-01 ref: ``.local/research/v8.4.0_rtk_nines_analysis.md`` §5 +
+``.local/research/v8.4.0_gap_analysis.md`` §2.1 R-001 — adds the
+``curl_install_script`` backend (with cargo fallback) and the optional
+``verify_distinguish_cmd`` field used to detect name-collisions like RTK
+(Rust Token Killer) vs rtk-type-kit (Rust Type Kit) per RTK INSTALL.md.
 
 Public API
 ----------
 :func:`load_registry`     Parse ``runtime-plugins.yaml`` into a mapping.
+                          Accepts both schema_version 1 (v8.2.1) and
+                          schema_version 2 (v8.3.1+).
 :func:`resolve_plugin`    Look up a plugin_id in a registry; raise loudly.
 :func:`ensure_plugin`     Ensure a plugin is installed at >= ``min_version``
-                          for the declared backend (``pip`` or
-                          ``npm_then_init``). Parses version via subprocess.
-                          Honours ``prefer_local_fallback``, ``expected_sha256``
-                          and ``network_timeout_seconds`` from the registry.
+                          for the declared backend (``pip``, ``npm_then_init``,
+                          or ``curl_install_script``). Parses version via
+                          subprocess. Honours ``prefer_local_fallback``,
+                          ``expected_sha256`` and ``network_timeout_seconds``
+                          from the registry. When ``verify_distinguish_cmd``
+                          is set on the spec, it is run after every
+                          successful version check (pre- and post-install)
+                          and a non-zero exit raises
+                          :class:`PluginInstallError` per S-5.
 
 Backends
 --------
@@ -25,11 +37,22 @@ Backends
     ``init_target`` raises :class:`PluginInstallError` with ALL failing targets
     listed (S-5 loud failure).
 
+``curl_install_script`` (v8.3.1)
+    Single-command curl-fetched POSIX shell script (piped to ``sh``) that
+    downloads a prebuilt binary (matches RTK's documented Quick Install
+    path). On primary failure, falls back to a pinned
+    ``cargo install --git <canonical_url>`` (NEVER bare
+    ``cargo install <pkg>`` — per the RTK INSTALL.md collision warning vs
+    rtk-type-kit). Failure on BOTH curl primary AND cargo fallback raises
+    :class:`PluginInstallError` per S-5 with actionable text. Used by ``rtk``.
+
 Invariants
 ----------
 - All raises are loud — no silent failures (S-5).
 - All paths relative to repo root (S-2).
 - External tools referenced by canonical URL (S-7).
+- ``verify_distinguish_cmd`` defaults to ``None`` for additive R5 strict —
+  existing nines + ui-pro entries are byte-identical pre/post v8.3.1.
 """
 
 from __future__ import annotations
@@ -56,7 +79,8 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_REGISTRY_PATH = Path("workflow-system/agent/knowledge/runtime-plugins.yaml")
 _VERSION_RX = re.compile(r"\d+\.\d+(?:\.\d+)?")
-_SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init"})
+_SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init", "curl_install_script"})
+_SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2})
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +108,7 @@ class RuntimePluginSpec:
     init_cmd_template: str | None = None
     init_targets: list[str] = field(default_factory=list)
     invoked_by_workflows: list[str] = field(default_factory=list)
+    verify_distinguish_cmd: str | None = None
 
 
 @dataclass(frozen=True)
@@ -150,10 +175,10 @@ def load_registry(path: Path | str | None = None) -> dict[str, Any]:
         )
 
     schema_version = raw.get("schema_version")
-    if schema_version != 1:
+    if schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
         raise PluginInstallError(
             f"runtime-plugins.yaml schema_version={schema_version!r} is unsupported; "
-            "installer requires schema_version: 1.",
+            f"installer requires schema_version in {sorted(_SUPPORTED_SCHEMA_VERSIONS)}.",
             details={"path": str(registry_path), "schema_version": schema_version},
         )
 
@@ -174,7 +199,8 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
     PluginNotFoundError
         When ``plugin_id`` is absent from the registry.
     PluginBackendUnsupported
-        When the entry declares a backend not in ``{pip, npm_then_init}``.
+        When the entry declares a backend not in
+        ``{pip, npm_then_init, curl_install_script}``.
     PluginInstallError
         When the entry is malformed (missing required keys).
     """
@@ -222,6 +248,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
                 init_cmd_template=entry.get("init_cmd_template"),
                 init_targets=list(entry.get("init_targets") or []),
                 invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
+                verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
             )
 
     raise PluginNotFoundError(
@@ -495,6 +522,205 @@ def _install_via_npm_then_init(
 
 
 # ---------------------------------------------------------------------------
+# v8.3.1 PV-01 — curl_install_script backend (with cargo fallback) +
+# verify_distinguish_cmd post-install probe.
+#
+# Closes R-001 from .local/research/v8.4.0_gap_analysis.md (RTK plugin).
+# Risk references:
+#   - R-1 / R-2 in .local/research/v8.4.0_rtk_nines_analysis.md §7 — name
+#     collision (RTK Rust Token Killer vs rtk-type-kit Rust Type Kit).
+#     Mitigated by ALWAYS pinning canonical_url for the cargo fallback
+#     (NEVER bare `cargo install <pkg>`) and by the mandatory
+#     verify_distinguish_cmd (`rtk gain`) post-install check.
+#   - R-2 — Rust toolchain availability. The primary curl path needs only
+#     curl + tar; the cargo fallback needs the Rust toolchain. Failure on
+#     BOTH paths raises PluginInstallError per S-5 with actionable text.
+# ---------------------------------------------------------------------------
+
+
+def _install_via_cargo(
+    spec: RuntimePluginSpec,
+    *,
+    timeout: int,
+) -> None:
+    """Cargo install fallback. Always pins ``--git <canonical_url>`` per R-2.
+
+    Raises :class:`PluginInstallError` on failure (no silent failures per S-5).
+    The exception message points at the rustup install command so the operator
+    can repair the toolchain when it is missing.
+    """
+    if not spec.canonical_url:
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} cargo fallback requires canonical_url to be set "
+            "(per R-2 — never bare `cargo install <pkg>` because of name-collision risk).",
+            details={"plugin_id": spec.id},
+        )
+
+    cmd = f"cargo install --git {spec.canonical_url}"
+    logger.info("Installing plugin %s via cargo fallback: %s", spec.id, cmd)
+    try:
+        proc = _run_cmd(cmd, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise PluginInstallError(
+            f"cargo install timeout for plugin {spec.id!r} after {timeout}s.",
+            details={"plugin_id": spec.id, "timeout_seconds": timeout, "cmd": cmd},
+        ) from exc
+    except OSError as exc:
+        raise PluginInstallError(
+            f"cargo install failed for plugin {spec.id!r} (os-error: {exc}). "
+            "Install the Rust toolchain via "
+            "`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` "
+            "and retry, or set DEVOLAFLOW_AUTO_INSTALL=0 to opt out.",
+            details={"plugin_id": spec.id, "cmd": cmd},
+        ) from exc
+
+    if proc.returncode != 0:
+        raise PluginInstallError(
+            f"cargo install failed for plugin {spec.id!r} "
+            f"(returncode={proc.returncode}): {proc.stderr[:400]!r}",
+            details={
+                "plugin_id": spec.id,
+                "cmd": cmd,
+                "returncode": proc.returncode,
+                "stderr": proc.stderr[:400],
+            },
+        )
+
+
+def _install_via_curl_script(
+    spec: RuntimePluginSpec,
+    *,
+    timeout: int,
+) -> None:
+    """Run the curl install script primary; fall back to cargo on failure.
+
+    Pipeline:
+
+    1. Run ``spec.install_cmd`` (typically ``curl ... | sh``) via bash.
+    2. If it succeeds (exit 0) → return; the caller will probe the version next.
+    3. If it fails (timeout / OSError / non-zero exit) → invoke
+       :func:`_install_via_cargo` as a fallback (always pinning canonical_url).
+    4. If the cargo fallback ALSO fails → raise :class:`PluginInstallError`
+       per S-5 with both error reasons aggregated into ``details``.
+    """
+    logger.info(
+        "Installing plugin %s via curl_install_script: %s",
+        spec.id,
+        spec.install_cmd,
+    )
+    primary_failure: str | None = None
+    try:
+        proc = _run_cmd(spec.install_cmd, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        primary_failure = f"timeout after {timeout}s"
+    except OSError as exc:
+        primary_failure = f"os-error: {exc}"
+    else:
+        if proc.returncode != 0:
+            primary_failure = f"returncode={proc.returncode} stderr={proc.stderr[:200]!r}"
+
+    if primary_failure is None:
+        return
+
+    logger.warning(
+        "curl_install_script failed for plugin %s (%s); attempting cargo fallback",
+        spec.id,
+        primary_failure,
+    )
+    try:
+        _install_via_cargo(spec, timeout=timeout)
+    except PluginInstallError as cargo_exc:
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} install FAILED via both backends: "
+            f"curl_install_script ({primary_failure}) AND cargo fallback "
+            f"({cargo_exc}). Verify network access to "
+            f"{spec.canonical_url} and Rust toolchain availability "
+            "(see https://rustup.rs).",
+            details={
+                "plugin_id": spec.id,
+                "primary_backend": "curl_install_script",
+                "primary_failure": primary_failure,
+                "fallback_backend": "cargo",
+                "fallback_failure": str(cargo_exc),
+                "fallback_details": cargo_exc.details,
+                "install_cmd": spec.install_cmd,
+                "canonical_url": spec.canonical_url,
+            },
+        ) from cargo_exc
+
+
+def _verify_distinguish(
+    spec: RuntimePluginSpec,
+    *,
+    timeout: int,
+) -> None:
+    """Run ``spec.verify_distinguish_cmd`` to detect plugin name-collisions.
+
+    No-op when ``spec.verify_distinguish_cmd`` is ``None`` (the case for all
+    pre-v8.3.1 plugins — nines + ui-pro — preserving R5 strict).
+
+    For RTK, the discriminator is ``rtk gain``: the Rust Token Killer's stats
+    command, which is NOT present in rtk-type-kit (Rust Type Kit). A failure
+    here means the wrong package was installed.
+
+    Raises :class:`PluginInstallError` per S-5 (loud) when the command fails;
+    error text points the operator at the upstream INSTALL.md collision
+    warning so they can repair the install.
+    """
+    if not spec.verify_distinguish_cmd:
+        return
+
+    logger.info(
+        "Running distinguish-check for plugin %s: %s",
+        spec.id,
+        spec.verify_distinguish_cmd,
+    )
+    try:
+        proc = _run_cmd(spec.verify_distinguish_cmd, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} distinguish-check timed out after {timeout}s "
+            f"({spec.verify_distinguish_cmd!r}). The plugin may be the wrong "
+            f"package — see {spec.canonical_url} INSTALL.md for the collision "
+            "warning (e.g., RTK Rust Token Killer vs rtk-type-kit Rust Type Kit).",
+            details={
+                "plugin_id": spec.id,
+                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+                "timeout_seconds": timeout,
+            },
+        ) from exc
+    except OSError as exc:
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} distinguish-check failed (os-error: {exc}). "
+            f"The binary {spec.verify_distinguish_cmd.split()[0]!r} appears to "
+            f"be missing from PATH after install. See {spec.canonical_url} "
+            "INSTALL.md.",
+            details={
+                "plugin_id": spec.id,
+                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+            },
+        ) from exc
+
+    if proc.returncode != 0:
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} distinguish-check FAILED: "
+            f"{spec.verify_distinguish_cmd!r} returned exit code "
+            f"{proc.returncode}. This typically means the WRONG package is "
+            f"installed (name collision — for RTK, this distinguishes "
+            f"Rust Token Killer from rtk-type-kit Rust Type Kit; see "
+            f"{spec.canonical_url} INSTALL.md). "
+            f"stderr: {proc.stderr[:300]!r}",
+            details={
+                "plugin_id": spec.id,
+                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+                "returncode": proc.returncode,
+                "stderr": proc.stderr[:300],
+                "canonical_url": spec.canonical_url,
+            },
+        )
+
+
+# ---------------------------------------------------------------------------
 # SHA-256 verification (best-effort heuristic — see design.md §6 implementation hints)
 # ---------------------------------------------------------------------------
 
@@ -539,21 +765,32 @@ def ensure_plugin(
 ) -> str:
     """Ensure ``plugin_id`` is installed at >= its declared ``min_version``.
 
-    Resolution chain (matches design.md §6.5 failure-mode catalog):
+    Resolution chain (matches design.md §6.5 failure-mode catalog +
+    v8.4.0_rtk_nines_analysis.md §5 distinguish-cmd protocol):
 
     1. Load + resolve registry entry.
-    2. Probe current version via ``version_check_cmd``; if present and
-       ``>= min_version`` → return version (INFO ``plugin_already_installed``).
+    2. Probe current version via ``version_check_cmd``; if present AND
+       ``>= min_version`` → run distinguish-check (no-op when
+       ``verify_distinguish_cmd`` is unset) → return version (INFO
+       ``plugin_already_installed``). If the pre-install distinguish-check
+       fails, raise :class:`PluginInstallError` loudly per S-5 (the wrong
+       package is on PATH).
     3. If ``auto_install`` is ``False`` → raise :class:`PluginVersionMismatch`
        loudly per S-5.
-    4. Invoke backend-specific install routine (``pip`` or
-       ``npm_then_init``); honour ``prefer_local_fallback`` when
-       ``local_fallback_path`` is set.
+    4. Invoke backend-specific install routine (``pip``, ``npm_then_init``, or
+       ``curl_install_script``); honour ``prefer_local_fallback`` when
+       ``local_fallback_path`` is set. The ``curl_install_script`` backend
+       falls back to ``cargo install --git <canonical_url>`` on primary
+       failure (never bare ``cargo install <pkg>`` per R-2 collision risk).
     5. Re-probe version; raise :class:`PluginVersionMismatch` if still below
        floor, or :class:`PluginInstallError` when the version command now
        returns nothing parseable.
-    6. Run SHA-256 verification (best-effort; see :func:`_verify_sha256`).
-    7. Append a JSONL install event to ``log_path`` (defaulted from registry).
+    6. Run distinguish-check (no-op when ``verify_distinguish_cmd`` is unset).
+       Failure raises :class:`PluginInstallError` per S-5 with collision
+       warning text (e.g., RTK Rust Token Killer vs rtk-type-kit Rust Type
+       Kit per RTK INSTALL.md).
+    7. Run SHA-256 verification (best-effort; see :func:`_verify_sha256`).
+    8. Append a JSONL install event to ``log_path`` (defaulted from registry).
 
     Parameters
     ----------
@@ -597,6 +834,23 @@ def ensure_plugin(
     t_start = time.monotonic()
     preinstall_version = _probe_version(spec, timeout=timeout)
     if preinstall_version and _meets_min(preinstall_version, spec.min_version):
+        # No-op for plugins without verify_distinguish_cmd (nines, ui-pro);
+        # for RTK, runs `rtk gain` to detect rtk-type-kit collisions even
+        # when the version probe accidentally matches the wrong package.
+        try:
+            _verify_distinguish(spec, timeout=timeout)
+        except PluginInstallError as exc:
+            _append_log(
+                effective_log,
+                "plugin_install_distinguish_failed_preinstall",
+                spec.id,
+                {
+                    "preinstall_version": preinstall_version,
+                    "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+                    "details": exc.details,
+                },
+            )
+            raise
         logger.info(
             "plugin_already_installed: %s at version %s (>= %s)",
             spec.id,
@@ -646,6 +900,8 @@ def ensure_plugin(
             )
         elif spec.backend == "npm_then_init":
             _install_via_npm_then_init(spec, timeout=timeout)
+        elif spec.backend == "curl_install_script":
+            _install_via_curl_script(spec, timeout=timeout)
         else:
             raise PluginBackendUnsupported(
                 f"Plugin {spec.id!r} backend {spec.backend!r} not supported.",
@@ -694,6 +950,25 @@ def ensure_plugin(
                 "min_version": spec.min_version,
             },
         )
+
+    # Distinguish-check is a no-op for plugins without verify_distinguish_cmd
+    # (nines, ui-pro); for RTK it runs `rtk gain` to detect rtk-type-kit
+    # name-collisions per the upstream INSTALL.md warning. Loud per S-5.
+    try:
+        _verify_distinguish(spec, timeout=timeout)
+    except PluginInstallError as exc:
+        _append_log(
+            effective_log,
+            "plugin_install_distinguish_failed_postinstall",
+            spec.id,
+            {
+                "postinstall_version": postinstall_version,
+                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+                "backend": spec.backend,
+                "details": exc.details,
+            },
+        )
+        raise
 
     try:
         _verify_sha256(spec)
