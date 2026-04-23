@@ -1341,3 +1341,255 @@ class TestCaptureSessionReflection:
         data = json.loads(p.read_text().strip())
         assert data["key"] == "research:session"
         assert data["files"] == []
+
+
+# ---------------------------------------------------------------------------
+# v8.2.8 — Change-aware learnings (closes H-006)
+#
+# These tests are APPEND-ONLY per Rule R5 / I-PV08-A. They exercise the
+# additive ``change_id`` parameters on :func:`load_relevant_learnings` and
+# :func:`capture_session_reflection`. Existing 71 tests above remain
+# byte-identical to v8.2.7.
+# ---------------------------------------------------------------------------
+
+
+def _write_change_jsonl(repo_root: Path, change_id: str, entries: list[dict]) -> Path:
+    """Write ``entries`` to ``.local/.agent/active/<change_id>/learnings.jsonl``.
+
+    Returns the absolute path of the per-change JSONL. Created relative to
+    ``repo_root`` so tests can sandbox under ``tmp_path``.
+    """
+    folder = repo_root / ".local" / ".agent" / "active" / change_id
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "learnings.jsonl"
+    target.write_text("".join(json.dumps(e) + "\n" for e in entries), encoding="utf-8")
+    return target
+
+
+class TestLoadRelevantLearningsChangeAware:
+    """v8.2.8 — :func:`load_relevant_learnings` with the additive ``change_id``.
+
+    Asserts:
+      * routing — ``change_id`` set ⇒ also reads per-change JSONL
+      * priority — in-change entries surface BEFORE global entries
+      * dedup — ``(stage, task_type, key)`` collision keeps in-change copy
+      * cap — merged result is capped at ``max_entries``
+      * back-compat — ``change_id=None`` ⇒ byte-identical to v8.1.0 path
+    """
+
+    def test_change_id_routes_to_per_change_jsonl(self, tmp_path: Path, monkeypatch) -> None:
+        """When ``change_id`` is set, per-change entries are loaded."""
+        monkeypatch.chdir(tmp_path)
+        global_p = tmp_path / "operational.jsonl"
+        _write_jsonl(global_p, [_entry(key="g1", task_type="impl")])
+        _write_change_jsonl(
+            tmp_path,
+            "add-foo",
+            [_entry(key="c1", task_type="impl", insight="in-change-only")],
+        )
+
+        results = load_relevant_learnings("impl", global_p, min_confidence=0.5, change_id="add-foo")
+
+        keys = {r.key for r in results}
+        assert "c1" in keys, "per-change entry must surface"
+        assert "g1" in keys, "global entry must also surface"
+
+    def test_in_change_entries_surface_first(self, tmp_path: Path, monkeypatch) -> None:
+        """In-change entries appear before global entries in the merged list."""
+        monkeypatch.chdir(tmp_path)
+        global_p = tmp_path / "operational.jsonl"
+        _write_jsonl(
+            global_p,
+            [
+                _entry(key="g_high", task_type="impl", confidence=0.95),
+                _entry(key="g_low", task_type="impl", confidence=0.6),
+            ],
+        )
+        _write_change_jsonl(
+            tmp_path,
+            "add-foo",
+            [_entry(key="c_mid", task_type="impl", confidence=0.7)],
+        )
+
+        results = load_relevant_learnings("impl", global_p, min_confidence=0.5, change_id="add-foo")
+
+        assert results[0].key == "c_mid", (
+            "in-change entry must be first regardless of global confidence "
+            f"(got order: {[r.key for r in results]})"
+        )
+
+    def test_dedup_across_scopes_keeps_in_change_copy(self, tmp_path: Path, monkeypatch) -> None:
+        """A ``(stage, task_type, key)`` collision keeps the in-change copy."""
+        monkeypatch.chdir(tmp_path)
+        global_p = tmp_path / "operational.jsonl"
+        _write_jsonl(
+            global_p,
+            [
+                _entry(
+                    key="shared",
+                    task_type="impl",
+                    confidence=0.95,
+                    insight="GLOBAL_VERSION",
+                )
+            ],
+        )
+        _write_change_jsonl(
+            tmp_path,
+            "add-foo",
+            [
+                _entry(
+                    key="shared",
+                    task_type="impl",
+                    confidence=0.6,
+                    insight="IN_CHANGE_VERSION",
+                )
+            ],
+        )
+
+        results = load_relevant_learnings("impl", global_p, min_confidence=0.5, change_id="add-foo")
+
+        shared_entries = [r for r in results if r.key == "shared"]
+        assert len(shared_entries) == 1, (
+            f"duplicate key must collapse to one entry; got {len(shared_entries)}"
+        )
+        assert shared_entries[0].insight == "IN_CHANGE_VERSION", (
+            "in-change copy must win the collision"
+        )
+
+    def test_max_entries_caps_merged_list(self, tmp_path: Path, monkeypatch) -> None:
+        """The merged result is capped at ``max_entries`` regardless of source."""
+        monkeypatch.chdir(tmp_path)
+        global_p = tmp_path / "operational.jsonl"
+        _write_jsonl(
+            global_p,
+            [_entry(key=f"g{i}", task_type="impl", confidence=0.9) for i in range(5)],
+        )
+        _write_change_jsonl(
+            tmp_path,
+            "add-foo",
+            [_entry(key=f"c{i}", task_type="impl", confidence=0.8) for i in range(5)],
+        )
+
+        results = load_relevant_learnings(
+            "impl",
+            global_p,
+            min_confidence=0.5,
+            max_entries=3,
+            change_id="add-foo",
+        )
+
+        assert len(results) == 3, f"max_entries=3 must cap merged list; got {len(results)}"
+        in_change_count = sum(1 for r in results if r.key.startswith("c"))
+        assert in_change_count == 3, (
+            "all 3 slots should go to in-change entries since they have priority "
+            f"(got {in_change_count} in-change of 3)"
+        )
+
+    def test_change_id_none_preserves_v810_behavior(self, tmp_path: Path) -> None:
+        """``change_id=None`` ⇒ byte-identical to the v8.1.0 path (R5 strict)."""
+        p = tmp_path / "operational.jsonl"
+        _write_jsonl(
+            p,
+            [
+                _entry(key="k1", task_type="impl", confidence=0.9),
+                _entry(key="k2", task_type="impl", confidence=0.7),
+                _entry(key="k3", task_type="other", confidence=0.95),
+            ],
+        )
+
+        without = load_relevant_learnings("impl", p, min_confidence=0.5)
+        with_none = load_relevant_learnings("impl", p, min_confidence=0.5, change_id=None)
+
+        assert [r.key for r in without] == [r.key for r in with_none], (
+            "explicit change_id=None must produce identical result to omission"
+        )
+        assert {r.key for r in without} == {"k1", "k2"}
+
+    def test_change_id_with_no_per_change_file_falls_back_to_global(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Missing per-change JSONL ⇒ merge yields global-only entries."""
+        monkeypatch.chdir(tmp_path)
+        global_p = tmp_path / "operational.jsonl"
+        _write_jsonl(global_p, [_entry(key="g1", task_type="impl", confidence=0.9)])
+
+        results = load_relevant_learnings(
+            "impl", global_p, min_confidence=0.5, change_id="absent-change"
+        )
+
+        assert len(results) == 1
+        assert results[0].key == "g1", "global entry surfaces when per-change is absent"
+
+
+class TestCaptureSessionReflectionChangeAware:
+    """v8.2.8 — :func:`capture_session_reflection` with the additive ``change_id``."""
+
+    def test_change_id_writes_to_per_change_jsonl(self, tmp_path: Path, monkeypatch) -> None:
+        """``change_id`` set, ``jsonl_path`` omitted ⇒ writes to per-change path."""
+        monkeypatch.chdir(tmp_path)
+        learning = capture_session_reflection(
+            session_id="sess-1",
+            task_type="impl",
+            files=["src/foo.py"],
+            insight="Test insight",
+            source="observed",
+            change_id="add-bar",
+        )
+
+        per_change_path = tmp_path / ".local" / ".agent" / "active" / "add-bar" / "learnings.jsonl"
+        assert per_change_path.exists(), f"per-change JSONL must be created at {per_change_path}"
+        data = json.loads(per_change_path.read_text().strip())
+        assert data["insight"] == "Test insight"
+        assert data["key"] == "impl:src/foo.py"
+        assert learning.insight == "Test insight"
+
+    def test_explicit_jsonl_path_overrides_change_id_routing(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Both ``jsonl_path`` and ``change_id`` set ⇒ ``jsonl_path`` wins (back-compat)."""
+        monkeypatch.chdir(tmp_path)
+        explicit_p = tmp_path / "explicit.jsonl"
+        capture_session_reflection(
+            session_id="sess-2",
+            task_type="impl",
+            files=["src/foo.py"],
+            insight="Routes to explicit path",
+            source="observed",
+            jsonl_path=explicit_p,
+            change_id="add-bar",
+        )
+
+        assert explicit_p.exists(), "explicit jsonl_path must receive the write"
+        per_change_path = tmp_path / ".local" / ".agent" / "active" / "add-bar" / "learnings.jsonl"
+        assert not per_change_path.exists(), (
+            "per-change path MUST NOT be touched when explicit jsonl_path wins"
+        )
+
+    def test_change_id_none_preserves_v723_behavior(self, tmp_path: Path) -> None:
+        """``change_id`` omitted ⇒ original v7.2.3 path (R5 strict)."""
+        p = tmp_path / "operational.jsonl"
+        learning = capture_session_reflection(
+            session_id="sess-baseline",
+            task_type="feature",
+            files=["src/api.py"],
+            insight="Baseline behavior preserved",
+            source="reasoning",
+            jsonl_path=p,
+        )
+        assert p.exists()
+        data = json.loads(p.read_text().strip())
+        assert data["insight"] == "Baseline behavior preserved"
+        assert learning.key == "feature:src/api.py"
+
+    def test_no_destination_raises_value_error(self) -> None:
+        """Both ``jsonl_path`` and ``change_id`` omitted ⇒ ValueError (S-5 loud)."""
+        import pytest
+
+        with pytest.raises(ValueError, match="at least one of jsonl_path or change_id"):
+            capture_session_reflection(
+                session_id="sess-bad",
+                task_type="impl",
+                files=["src/foo.py"],
+                insight="No destination",
+                source="observed",
+            )

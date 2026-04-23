@@ -285,6 +285,7 @@ def load_relevant_learnings(
     min_confidence: float = 0.5,
     max_entries: int = 10,
     session_id: str | None = None,
+    change_id: str | None = None,
 ) -> list[Learning]:
     """Load learnings filtered by task_type, confidence, and TTL expiry.
 
@@ -295,6 +296,64 @@ def load_relevant_learnings(
     are emitted first, preserving their relative ordering by confidence.
 
     See ADR-005 §2.3 for the filter contract.
+
+    v8.2.8 (additive — R5 backward-compat): when ``change_id`` is provided,
+    ALSO load per-change learnings from
+    ``.local/.agent/active/<change_id>/learnings.jsonl`` and merge them
+    with the global ``jsonl_path`` entries. In-change entries surface
+    first (highest priority — they are the most recent / scoped context),
+    then global entries fill the remainder, deduplicated by
+    ``(stage, task_type, key)``, capped at ``max_entries``. Within each
+    scope the same pinned-first / confidence-sort ordering applies.
+
+    When ``change_id`` is ``None`` the behaviour is byte-identical to
+    v8.1.0 — the original code path runs unchanged.
+    """
+    if change_id is not None:
+        return _load_relevant_learnings_change_aware(
+            task_type=task_type,
+            jsonl_path=jsonl_path,
+            min_confidence=min_confidence,
+            max_entries=max_entries,
+            session_id=session_id,
+            change_id=change_id,
+        )
+
+    entries = _read_lines(jsonl_path)
+    now = datetime.now(UTC)
+    pinned: list[Learning] = []
+    unpinned: list[Learning] = []
+
+    for entry in entries:
+        if entry.get("task_type") != task_type:
+            continue
+        if not _entry_ttl_valid(entry, now):
+            continue
+        learning = _entry_to_learning(entry)
+        if learning is None:
+            continue
+        if _is_pinned_for_session(learning, session_id):
+            pinned.append(learning)
+        elif learning.confidence >= min_confidence:
+            unpinned.append(learning)
+
+    return _merge_ranked_learnings(pinned, unpinned, max_entries)
+
+
+def _filter_learnings_for_task(
+    jsonl_path: Path,
+    task_type: str,
+    min_confidence: float,
+    max_entries: int,
+    session_id: str | None,
+) -> list[Learning]:
+    """Run the v8.1.0 filter pipeline on ``jsonl_path`` for ``task_type``.
+
+    Internal helper extracted in v8.2.8 so the change-aware merge code can
+    apply the same TTL / confidence / pinned-first ordering on each scope
+    independently before merging. The original public
+    :func:`load_relevant_learnings` path does NOT call this helper — its
+    body is preserved byte-identical to honour invariant I-PV08-A.
     """
     entries = _read_lines(jsonl_path)
     now = datetime.now(UTC)
@@ -315,6 +374,72 @@ def load_relevant_learnings(
             unpinned.append(learning)
 
     return _merge_ranked_learnings(pinned, unpinned, max_entries)
+
+
+def _per_change_learnings_path(change_id: str) -> Path:
+    """Return the canonical per-change JSONL path under ``.local/.agent/active/``.
+
+    Repo-relative per Rule S-2; resolved against ``Path.cwd()`` at call
+    time so callers can override via ``os.chdir`` in tests / sandboxes
+    (the ``.local/.agent/active/<id>/`` layout is the v8.2.6 contract).
+    """
+    return Path(".local") / ".agent" / "active" / change_id / "learnings.jsonl"
+
+
+def _load_relevant_learnings_change_aware(
+    *,
+    task_type: str,
+    jsonl_path: Path,
+    min_confidence: float,
+    max_entries: int,
+    session_id: str | None,
+    change_id: str,
+) -> list[Learning]:
+    """Merge per-change + global learnings; in-change entries surface first.
+
+    Both scopes are filtered through the v8.1.0 pipeline, then concatenated
+    in the order ``in_change → global`` and deduplicated by
+    ``(stage, task_type, key)`` so the highest-priority (in-change) entry
+    survives any cross-scope collision. The merged list is capped at
+    ``max_entries``.
+
+    Helper for :func:`load_relevant_learnings` (v8.2.8 — closes H-006).
+    """
+    per_change_path = _per_change_learnings_path(change_id)
+    in_change = _filter_learnings_for_task(
+        jsonl_path=per_change_path,
+        task_type=task_type,
+        min_confidence=min_confidence,
+        max_entries=max_entries,
+        session_id=session_id,
+    )
+    global_entries = _filter_learnings_for_task(
+        jsonl_path=jsonl_path,
+        task_type=task_type,
+        min_confidence=min_confidence,
+        max_entries=max_entries,
+        session_id=session_id,
+    )
+
+    seen: set[tuple[str, str, str]] = set()
+    merged: list[Learning] = []
+    for learning in in_change:
+        triple = (learning.stage, learning.task_type, learning.key)
+        if triple in seen:
+            continue
+        merged.append(learning)
+        seen.add(triple)
+        if len(merged) >= max_entries:
+            return merged
+    for learning in global_entries:
+        triple = (learning.stage, learning.task_type, learning.key)
+        if triple in seen:
+            continue
+        merged.append(learning)
+        seen.add(triple)
+        if len(merged) >= max_entries:
+            return merged
+    return merged
 
 
 def dedup_learnings(entries: list[Learning]) -> list[Learning]:
@@ -351,8 +476,9 @@ def capture_session_reflection(
     files: list[str],
     insight: str,
     source: str,
-    jsonl_path: Path,
+    jsonl_path: Path | None = None,
     key: str | None = None,
+    change_id: str | None = None,
 ) -> Learning:
     """Capture an L3-session reflective reflex into ``jsonl_path``.
 
@@ -377,8 +503,32 @@ def capture_session_reflection(
 
     Returns the newly constructed :class:`Learning` object.
 
-    Source: v7.3.0 plan §P-03 — ``.local/research/v7.3.0_patch_plan.md``.
+    v8.2.8 (additive — R5 backward-compat): when ``change_id`` is provided,
+    the per-change JSONL at ``.local/.agent/active/<change_id>/learnings.jsonl``
+    becomes the destination — UNLESS ``jsonl_path`` is also explicitly
+    provided, in which case ``jsonl_path`` wins (back-compat for callers
+    that pre-date v8.2.8). Routing precedence:
+
+    1. ``change_id`` set, ``jsonl_path`` is ``None`` → write to per-change path.
+    2. ``change_id`` set, ``jsonl_path`` is explicit → use ``jsonl_path``
+       (back-compat — caller's explicit choice wins).
+    3. ``change_id`` is ``None``, ``jsonl_path`` set → original v7.2.3 path.
+    4. Both ``None`` → ``ValueError`` (no destination — S-5 loud).
+
+    Source: v7.3.0 plan §P-03 — ``.local/research/v7.3.0_patch_plan.md``;
+    v8.3.0 design §4.1 — ``.local/research/v8.3.0_design.md``.
     """
+    target_path: Path
+    if jsonl_path is not None:
+        target_path = jsonl_path
+    elif change_id is not None:
+        target_path = _per_change_learnings_path(change_id)
+    else:
+        raise ValueError(
+            "capture_session_reflection: at least one of jsonl_path or "
+            "change_id must be provided (no destination otherwise)"
+        )
+
     if key is None:
         key = f"{task_type}:{files[0] if files else 'session'}"
 
@@ -394,7 +544,7 @@ def capture_session_reflection(
         source=source,
     )
 
-    existing_entries = _read_lines(jsonl_path)
+    existing_entries = _read_lines(target_path)
     existing_learnings: list[Learning] = []
     for entry in existing_entries:
         fields = {k: entry[k] for k in Learning.__dataclass_fields__ if k in entry}
@@ -408,9 +558,9 @@ def capture_session_reflection(
     deduped = dedup_learnings(combined)
 
     surviving_others = [item for item in deduped if item is not new_learning]
-    _write_entries(jsonl_path, [asdict(item) for item in surviving_others])
+    _write_entries(target_path, [asdict(item) for item in surviving_others])
 
-    capture_learning(new_learning, jsonl_path)
+    capture_learning(new_learning, target_path)
 
     logger.info(
         "Captured session reflection: session=%s task_type=%s key=%s",
