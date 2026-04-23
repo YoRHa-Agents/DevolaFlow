@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "8.3.4"
+version: "8.4.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v8.3.4**
+> **Now Using DevolaFlow v8.4.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 8.3.4 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 8.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Quick Action Decision
@@ -172,6 +172,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
+| shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
 
 ### Repo-Init Pre-Dispatch Contract
 
@@ -294,8 +295,7 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 |---|---|---|
 | `gate` | Quality checkpoint blocking progression unless criteria met | (orchestrator) |
 
-**Composition operators:** `sequence` (→), `parallel` (||), `choice` (⊕), `loop` (↻), `gate` (⊣).
-Full alias table and per-workflow stage sequences: `references/meta-framework.md`
+**Composition operators:** `sequence` (→), `parallel` (||), `choice` (⊕), `loop` (↻), `gate` (⊣). Full alias table + per-workflow sequences: `references/meta-framework.md`
 
 ## Gate Mechanism
 
@@ -423,6 +423,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 | `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
+| `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
 
 **Tier 3 — On-demand** (load for specific tasks):
 

@@ -323,6 +323,14 @@ _SF4_REFERENCE_SET = frozenset(
         # the change-driven workflow template (v8.2.6) and the
         # devolaflow.agent_workspace Python API (v8.2.5+).
         "agent-workspace.md",
+        # v8.4.0 rollup — RTK + memory-router stack reference. Documents the
+        # rtk runtime plugin (workflow-system/agent/knowledge/runtime-plugins.yaml),
+        # the shell_proxy/ package (registry + proxy + commands), the
+        # pre_shell_call lifecycle hook (5th canonical event), the
+        # memory_router/ planning fast-path, and the .local/memory/{cases,commands}/
+        # recipe layers. Pairs with the v8.3.1 PV-01 + v8.3.2 PV-02 +
+        # v8.3.3 PV-03 + v8.3.4 PV-04 surface area (R-001 + R-002 + M-001 + M-002).
+        "shell-proxy.md",
     }
 )
 

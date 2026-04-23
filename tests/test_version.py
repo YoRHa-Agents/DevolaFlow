@@ -162,6 +162,10 @@ def test_cli_version_cmd():
 # v8.3.0 PV-09 grew this set 13 -> 14 by appending references/agent-workspace.md
 # (the change-driven workspace reference covering .local/.agent/, append-only
 # handoff envelopes, source-of-truth specs, and per-artifact token budgets).
+# v8.4.0 rollup grew this set 14 -> 15 by appending references/shell-proxy.md
+# (the RTK + memory-router stack reference covering runtime-plugins.yaml RTK row,
+# the shell_proxy/ package, the pre_shell_call lifecycle hook, the memory_router/
+# planning fast-path, and the .local/memory/{cases,commands}/ recipe layers).
 
 _MIRRORED_SKILL_FILES = [
     "SKILL.md",
@@ -175,6 +179,7 @@ _MIRRORED_SKILL_FILES = [
     "references/team-roles.md",
     "references/context-isolation.md",
     "references/behavioral-guidelines.md",
+    "references/shell-proxy.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

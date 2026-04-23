@@ -92,7 +92,7 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 10 canonical reference files must be copied into ``references/``.
+    """All 11 canonical reference files must be copied into ``references/``.
 
     v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
     (the L3 behavioral primitives reference wired through the new top-level
@@ -102,7 +102,14 @@ def test_cursor_references_golden(cursor_build):
     (the change-driven workspace reference covering ``.local/.agent/``,
     append-only handoff envelopes, source-of-truth specs, and per-artifact
     token budgets — pairs with the change-driven workflow template v8.2.6
-    and the ``devolaflow.agent_workspace`` Python API v8.2.5+)."""
+    and the ``devolaflow.agent_workspace`` Python API v8.2.5+).
+
+    v8.4.0 rollup grew this set 10 → 11 by appending ``shell-proxy.md``
+    (the RTK + memory-router stack reference covering the runtime-plugins.yaml
+    RTK row, the shell_proxy/ package, the pre_shell_call lifecycle hook,
+    the memory_router/ planning fast-path, and the
+    ``.local/memory/{cases,commands}/`` recipe layers — pairs with the
+    v8.3.1..v8.3.4 PV-01..PV-04 surface area closing R-001+R-002+M-001+M-002)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -113,7 +120,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 10, f"expected 10 reference files, got {len(actual)}"
+    assert len(actual) == 11, f"expected 11 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):
