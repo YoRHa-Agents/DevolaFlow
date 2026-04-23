@@ -802,13 +802,15 @@ class TestSchemaInvariantP6Preserved:
     ``tests/test_benchmarks.py::TestLayoutInvariantBaseline``.
     """
 
-    def test_layout_invariant_canonical_order_length_is_15(self) -> None:
+    def test_layout_invariant_canonical_order_length_is_16(self) -> None:
+        # v8.3.0 PV-05 (v8.2.5) bumped 15 → 16 by appending ``change_context``.
         schema = yaml.safe_load(SCHEMA_PATH.read_text())
-        assert len(schema["layout_invariant"]["canonical_order"]) == 15
+        assert len(schema["layout_invariant"]["canonical_order"]) == 16
 
-    def test_layout_invariant_version_is_4(self) -> None:
+    def test_layout_invariant_version_is_5(self) -> None:
+        # v8.3.0 PV-05 (v8.2.5) bumped version 4 → 5; positions 1..15 byte-identical.
         schema = yaml.safe_load(SCHEMA_PATH.read_text())
-        assert schema["layout_invariant"]["version"] == 4
+        assert schema["layout_invariant"]["version"] == 5
 
     def test_assert_dispatch_layout_still_passes_canonical_payload(self) -> None:
         payload = {

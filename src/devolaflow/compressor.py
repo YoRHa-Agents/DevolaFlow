@@ -643,6 +643,31 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # ``src/devolaflow/gate/scorer.py::evaluate_acceptance_criteria_v2``
     # for the auto-evaluator that produces per-criterion verdicts.
     "acceptance_criteria_v2",
+    # v8.3.0 (PV-05 / v8.2.5) — appended at position 16 per ADR-001 §2
+    # additive rule. Schema version bumped 4 → 5 in
+    # schemas/lean-dispatch.yaml. Sources:
+    # ``.local/research/v8.3.0_design.md §9`` +
+    # ``.local/research/v8.3.0_patch_plan.md §v8.2.5`` +
+    # ``.local/research/v8.3.0_gap_analysis.md §2.3 M-006``.
+    #
+    # Field shape:
+    #   change_context:
+    #     change_id: str                      # lowercase-kebab-case
+    #     active_folder: str                  # ".local/.agent/active/<id>"
+    #     state: str                          # PROPOSED | IN_PROGRESS | VERIFYING
+    #     spec_delta_target: str              # source-of-truth domain
+    #     owned_files_ref: str                # ".local/.agent/active/<id>/owned_files.txt"
+    #     acceptance_ref: str                 # ".local/.agent/active/<id>/acceptance.md"
+    #
+    # Field is OPTIONAL — when absent, the dispatch is a "free-floating"
+    # workflow (current v4 behaviour preserved). assert_dispatch_layout
+    # treats absence as canonical, so v4-shape callers (and the
+    # v7.0.0 / v7.3.0 / v8.0.0-P-08 / v8.0.0-P-10 byte-baselines) ALL
+    # CONTINUE TO PASS without modification. R5 backward-compat invariant
+    # I-PV05-C / I-PV05-F is the cycle's largest-risk patch contract.
+    # See ``src/devolaflow/agent_workspace/change.py::ChangeStore`` for
+    # the dataclass + state machine that authors / mutates this payload.
+    "change_context",
 ]
 
 
@@ -661,6 +686,18 @@ def assert_dispatch_layout(
     Each spec key may be absent, but none may appear out of order. Unknown keys
     MUST appear after the last spec key (additive rule per ADR-001 §2). Raises
     :class:`DispatchLayoutError` identifying the first violating key.
+
+    P6 cache-layout invariant — backward-compat (R5):
+
+    * ``DEFAULT_DISPATCH_LAYOUT`` is the v5 canonical (16 keys, version 5).
+    * v4 payloads (15 keys, omitting ``change_context``) validate exactly
+      as before — the new key is optional and absent v4 dispatchers are
+      treated as canonical (v4-to-v5 additivity).
+    * v7.0.0 + v7.3.0 + v8.0.0-P-08 + v8.0.0-P-10 byte-baselines all
+      continue to PASS unchanged after the v4 → v5 schema bump.
+    * Callers MAY pass a custom ``layout_spec`` (e.g.
+      ``DEFAULT_DISPATCH_LAYOUT[:-1]`` to validate against the v4
+      canonical) for legacy interop without copying the canonical list.
     """
     if not isinstance(payload, dict):
         raise DispatchLayoutError(f"payload must be a dict, got {type(payload).__name__}")

@@ -511,17 +511,27 @@ class TestDefaultDispatchLayoutV730:
             "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
         }
 
-    def test_default_dispatch_layout_length_is_15(self):
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 15, (
+    def test_default_dispatch_layout_length_is_16(self):
+        # v8.3.0 PV-05 (v8.2.5) bumped 15 → 16 by appending ``change_context``.
+        # The v8.0.0 P-10 byte-baseline (positions 1..15) MUST stay unchanged
+        # — see TestDefaultDispatchLayoutV5 in tests/test_dispatch_layout_v5.py.
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 16, (
             f"DEFAULT_DISPATCH_LAYOUT length is {len(DEFAULT_DISPATCH_LAYOUT)}, "
-            "expected 15 after v8.0.0 P-10 (12 v7.0.0 keys + repos + "
-            "behavioral_guidelines + acceptance_criteria_v2)"
+            "expected 16 after v8.3.0 PV-05 (12 v7.0.0 keys + repos + "
+            "behavioral_guidelines + acceptance_criteria_v2 + change_context)"
         )
 
-    def test_default_dispatch_layout_last_entry_is_acceptance_criteria_v2(self):
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "acceptance_criteria_v2", (
+    def test_default_dispatch_layout_last_entry_is_change_context(self):
+        # v8.3.0 PV-05 (v8.2.5) appended ``change_context`` at position 16.
+        # Position 15 is still ``acceptance_criteria_v2`` (v8.0.0 P-10).
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "change_context", (
             f"DEFAULT_DISPATCH_LAYOUT[-1] is {DEFAULT_DISPATCH_LAYOUT[-1]!r}, "
-            "expected 'acceptance_criteria_v2' (v8.0.0 P-10 appends at position 15 per ADR-001 §2)"
+            "expected 'change_context' (v8.3.0 PV-05 appends at position 16 per ADR-001 §2)"
+        )
+        assert DEFAULT_DISPATCH_LAYOUT[14] == "acceptance_criteria_v2", (
+            "position 15 (0-indexed 14) drift; v8.0.0 P-10 byte-baseline "
+            "(acceptance_criteria_v2 at position 15) MUST stay unchanged "
+            "after PV-05 append"
         )
 
     def test_repos_remains_at_position_13(self):
@@ -1996,46 +2006,46 @@ class TestCompactDirectiveSchema:
 
     SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "lean-dispatch.yaml"
 
-    def test_layout_invariant_canonical_order_length_15(self):
-        """P6 invariant (post v8.0.0 P-10): canonical_order MUST be 15 keys
-        (12 v7.0.0 keys + repos appended by P-06 + behavioral_guidelines
-        appended by P-08 + acceptance_criteria_v2 appended by P-10, all
-        per ADR-001 §2 additive rule)."""
+    def test_layout_invariant_canonical_order_length_16(self):
+        """P6 invariant (post v8.3.0 PV-05): canonical_order MUST be 16 keys
+        (15 v8.0.0 P-10 keys + ``change_context`` appended at position 16
+        per ADR-001 §2 additive rule). Positions 1..15 are byte-identical
+        to v4 — backward-compat invariant I-PV05-A."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert len(spec["layout_invariant"]["canonical_order"]) == 15, (
+        assert len(spec["layout_invariant"]["canonical_order"]) == 16, (
             f"canonical_order length = {len(spec['layout_invariant']['canonical_order'])}; "
-            "expected 15 after v8.0.0 P-10 (additive append of acceptance_criteria_v2)"
+            "expected 16 after v8.3.0 PV-05 (additive append of change_context)"
         )
 
-    def test_layout_invariant_version_is_4(self):
-        """P6 invariant (post v8.0.0 P-10): schema version MUST be 4 (bumped
-        3 → 4 by P-10 to mark the schema generation; the v7.0.0 byte-baseline
-        AND v7.3.0 byte-baseline STILL pass — additivity proven across
-        THREE schema generations: v7.2.6 → P-08 → P-10)."""
+    def test_layout_invariant_version_is_5(self):
+        """P6 invariant (post v8.3.0 PV-05): schema version MUST be 5 (bumped
+        4 → 5 by PV-05 to mark the schema generation; the v7.0.0 + v7.3.0 +
+        v8.0.0 P-08 + v8.0.0 P-10 byte-baselines ALL CONTINUE TO PASS —
+        additivity proven across FOUR schema generations: v7.2.6 → P-08 →
+        P-10 → PV-05)."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert spec["layout_invariant"]["version"] == 4, (
+        assert spec["layout_invariant"]["version"] == 5, (
             f"layout_invariant.version = {spec['layout_invariant']['version']}; "
-            "expected 4 after v8.0.0 P-10 schema bump (per ADR-001 §2)"
+            "expected 5 after v8.3.0 PV-05 schema bump (per ADR-001 §2)"
         )
 
-    def test_layout_invariant_last_key_is_acceptance_criteria_v2(self):
-        """P6 invariant (post v8.0.0 P-10): position 15 (1-indexed) MUST be
-        ``acceptance_criteria_v2`` (added by v8.0.0 P-10, after
-        ``behavioral_guidelines`` at position 14). The v7.0.0 12-key
-        prefix, v7.3.0 13-key prefix, and the position-13 ``repos`` /
-        position-14 ``behavioral_guidelines`` slots all remain
-        byte-stable — assertions for those live in
-        ``TestLayoutInvariantBaseline``."""
+    def test_layout_invariant_last_key_is_change_context(self):
+        """P6 invariant (post v8.3.0 PV-05): position 16 (1-indexed) MUST be
+        ``change_context`` (added by v8.3.0 PV-05, after
+        ``acceptance_criteria_v2`` at position 15). The v8.0.0 P-10 prefix
+        (positions 1..15) remains byte-stable — assertions for the prior
+        baselines live in ``tests/test_dispatch_layout_v5.py``."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         canonical = spec["layout_invariant"]["canonical_order"]
-        assert canonical[-1] == "acceptance_criteria_v2"
+        assert canonical[-1] == "change_context"
+        assert canonical[14] == "acceptance_criteria_v2", (
+            "acceptance_criteria_v2 MUST stay at position 15 (1-indexed) after "
+            "the PV-05 append; PV-05 appends AFTER acceptance_criteria_v2, never before it"
+        )
         assert canonical[13] == "behavioral_guidelines", (
-            "behavioral_guidelines MUST stay at position 14 (1-indexed) after "
-            "the P-10 append; P-10 appends AFTER behavioral_guidelines, never before it"
+            "behavioral_guidelines MUST stay at position 14 (1-indexed) after PV-05"
         )
-        assert canonical[12] == "repos", (
-            "repos MUST stay at position 13 (1-indexed) after the P-10 append"
-        )
+        assert canonical[12] == "repos", "repos MUST stay at position 13 (1-indexed) after PV-05"
 
     def test_compact_directive_field_present_under_pred(self):
         """The new directive field MUST be NESTED under pred[*], not at top."""
@@ -2050,13 +2060,15 @@ class TestCompactDirectiveSchema:
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         assert "compact_directive" not in spec["layout_invariant"]["canonical_order"]
 
-    def test_default_dispatch_layout_grew_to_15(self):
-        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 15 keys after v8.0.0
-        P-10 (last entry == 'acceptance_criteria_v2';
-        ``behavioral_guidelines`` stays at position 14; ``repos`` stays at
-        position 13)."""
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 15
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "acceptance_criteria_v2"
+    def test_default_dispatch_layout_grew_to_16(self):
+        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 16 keys after v8.3.0
+        PV-05 (last entry == 'change_context'; ``acceptance_criteria_v2``
+        stays at position 15; ``behavioral_guidelines`` stays at position 14;
+        ``repos`` stays at position 13). Positions 1..15 are byte-identical
+        to v4 — backward-compat invariant I-PV05-A."""
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 16
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "change_context"
+        assert DEFAULT_DISPATCH_LAYOUT[14] == "acceptance_criteria_v2"
         assert DEFAULT_DISPATCH_LAYOUT[13] == "behavioral_guidelines"
         assert DEFAULT_DISPATCH_LAYOUT[12] == "repos"
 
@@ -2109,6 +2121,87 @@ class TestCompactDirectiveSchema:
         from tests.test_benchmarks import TestLayoutInvariantBaseline
 
         TestLayoutInvariantBaseline().test_layout_invariant_baseline()
+
+
+class TestChangeContextV5:
+    """v8.3.0 PV-05 (v8.2.5) — `change_context` cache-layout v4 → v5
+    transition (closes M-006 per ``.local/research/v8.3.0_gap_analysis.md``
+    §2.3 and AC-8 of v8.2.5 ``.local/research/v8.3.0_patch_plan.md``).
+
+    The full backward-compat surface is verified in
+    ``tests/test_dispatch_layout_v5.py``; this class smoke-tests the
+    end-to-end ``assert_dispatch_layout`` validator extension to confirm
+    R5 byte-identical behaviour for v4 callers (invariant I-PV05-C).
+    """
+
+    def test_v4_payload_validates_against_v5_default_layout(self):
+        """R5 / I-PV05-C: 15-key v4 payload (no change_context) validates."""
+        v4 = {
+            "hdr": {"id": "d-v4"},
+            "task": {"id": "T01"},
+            "gate": {"coverage": 85},
+            "acceptance_criteria_v2": [
+                {
+                    "id": "AC-1",
+                    "description": "x",
+                    "verification_type": "test",
+                    "verification_cmd": "pytest",
+                    "metric": "",
+                    "threshold": "",
+                },
+            ],
+        }
+        assert_dispatch_layout(v4)
+
+    def test_v5_payload_validates_with_change_context(self):
+        """v5 payloads with the new change_context field validate."""
+        v5 = {
+            "hdr": {"id": "d-v5"},
+            "task": {"id": "T01"},
+            "gate": {"coverage": 85},
+            "acceptance_criteria_v2": [
+                {
+                    "id": "AC-1",
+                    "description": "x",
+                    "verification_type": "test",
+                    "verification_cmd": "pytest",
+                    "metric": "",
+                    "threshold": "",
+                },
+            ],
+            "change_context": {
+                "change_id": "test-change",
+                "active_folder": ".local/.agent/active/test-change",
+                "state": "IN_PROGRESS",
+                "spec_delta_target": "agent_workspace",
+                "owned_files_ref": ".local/.agent/active/test-change/owned_files.txt",
+                "acceptance_ref": ".local/.agent/active/test-change/acceptance.md",
+            },
+        }
+        assert_dispatch_layout(v5)
+
+    def test_change_context_at_position_16(self):
+        assert DEFAULT_DISPATCH_LAYOUT[15] == "change_context", (
+            f"position 16 (0-indexed 15) is {DEFAULT_DISPATCH_LAYOUT[15]!r}; "
+            "expected 'change_context'"
+        )
+
+    def test_change_context_appears_after_acceptance_criteria_v2(self):
+        cc_idx = DEFAULT_DISPATCH_LAYOUT.index("change_context")
+        ac_idx = DEFAULT_DISPATCH_LAYOUT.index("acceptance_criteria_v2")
+        assert cc_idx > ac_idx, (
+            f"change_context canonical position {cc_idx} is not after "
+            f"acceptance_criteria_v2 position {ac_idx}; ADR-001 §2 additive rule"
+        )
+
+    def test_change_context_before_acceptance_criteria_v2_raises(self):
+        v5 = {
+            "hdr": {"id": "d"},
+            "change_context": {"change_id": "x"},  # mis-positioned
+            "acceptance_criteria_v2": [],
+        }
+        with pytest.raises(DispatchLayoutError):
+            assert_dispatch_layout(v5)
 
 
 class TestSelectorDirectiveBackwardCompat:
