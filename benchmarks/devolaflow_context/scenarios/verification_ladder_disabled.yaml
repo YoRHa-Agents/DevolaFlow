@@ -1,0 +1,55 @@
+# EvoBench Scenario: Verification Ladder Disabled — R5 Strict Byte-Identical Baseline
+# v9.0.0 PV-06 (v8.5.1 — closes Theme T5 #2 from `.local/research/v9.0.0_implementation_plan.md` §6.6).
+#
+# Codifies the R5 strict opt-out contract for the v8.0.0 P-05
+# 6-rung verification ladder (`src/devolaflow/gate/scorer.py::evaluate_ladder`).
+# The PV-06 flip turns the ladder ON by default for STRICT/AUDIT
+# decomposition profiles; this scenario validates the opt-out path:
+#
+#   * env-flag `DEVOLAFLOW_VERIFICATION_LADDER` set EXACTLY to "0" disables
+#     the ladder even on a flipped profile (R5 strict — NOT loose match).
+#   * `evaluate_ladder` then short-circuits to `evaluate_gate` (per the
+#     existing `if not profile.ladder_enabled: return evaluate_gate(...)`
+#     branch — preserving v7.x byte-identical behaviour).
+#   * The L3 dispatch surface that follows MUST receive byte-identical
+#     context to the pre-flip baseline.
+#
+# Composite floor 90 — confirms the opt-out path does not regress the
+# simple_implementation feature-profile section coverage. The ladder's
+# 6-rung short-circuit semantics are validated separately by
+# `tests/test_gate_scorer.py::TestEvaluateLadder` at the unit-test layer.
+#
+# External canonical URL (per S-7): https://github.com/YoRHa-Agents/DevolaFlow
+
+name: "verification_ladder_disabled"
+task_type: "simple_implementation"
+description: >
+  R5 strict opt-out baseline for v9.0.0 PV-06 (v8.5.1) Theme T5 #2
+  (verification_ladder default-on flip). When `DEVOLAFLOW_VERIFICATION_LADDER`
+  is set to "0", `evaluate_ladder` short-circuits to `evaluate_gate`
+  (R5 strict per env-flags.md §2 parsing). The L3 dispatch surface MUST
+  receive byte-identical context to the v8.5.0 pre-flip baseline.
+  Composite floor 90 confirms no section regression.
+
+expected_sections:
+  - quick_action_decision
+  - plan_mode_template
+  - agent_mode_protocol
+  - quick_start_workflows
+  - hierarchy_table
+  - wave_task_constraints
+  - rationalization_prevention
+  - stage_primitives
+  - gate_mechanism
+  - agent_teams
+  - context_isolation
+  - lifecycle_hooks
+  - convergence_loop
+  - dispatch_report
+
+unwanted_sections: []
+
+quality_thresholds:
+  min_composite: 90
+  min_relevance: 0.90
+  max_noise_ratio: 0.20

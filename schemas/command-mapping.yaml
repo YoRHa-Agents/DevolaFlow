@@ -60,11 +60,11 @@
 
 design_reference: .local/research/v8.4.0_gap_analysis.md §2.1 M-002
 schema_name: command-mapping
-schema_version: 1
-last_updated: "2026-04-23"
-patch_slot: v8.3.4
-gap_ids: [M-002]
-governing_rules: [S-2, S-5, S-7, P5, C-9, R5]
+schema_version: 2
+last_updated: "2026-04-24"
+patch_slot: v8.5.1
+gap_ids: [M-002, T3]
+governing_rules: [S-2, S-5, S-7, P5, C-9, R5, A-2]
 
 # Reference RTK's filter-format documentation by canonical URL only (per S-7).
 # The local clone path /home/agent/reference/rtk/.rtk/filters.toml was used
@@ -119,8 +119,15 @@ recipe_top_level_optional:
 recipe_fields:
   schema_version:
     type: int
-    enum: [1]
-    description: "Schema version pin — bump on incompatible changes only (mirrors RTK's `schema_version` field in filters.toml)."
+    enum: [1, 2]
+    description: >
+      Schema version pin — bump on incompatible changes only (mirrors RTK's
+      `schema_version` field in filters.toml). v8.5.1 PV-06 adds version 2,
+      which introduces the optional `compose: list[str]` field on filter
+      rules (T3 #5 multi-pass filter chain). Version 1 recipes remain
+      accepted: a v1 recipe is byte-identical to a v2 recipe whose filters
+      all omit `compose`. The loader normalises both shapes into the same
+      `FilterRule` tuple.
 
   command:
     type: string
@@ -171,12 +178,14 @@ recipe_fields:
     type: list
     description: >
       Substitutions applied to the command output BEFORE the post_filters
-      pass. Each entry is a mapping with `pattern` (regex) and `replacement`
-      (verbatim string, may use re.sub backreferences). Mirrors RTK's
-      `strip_lines_matching` but with replacement support (RTK's filter
-      schema only supports drop-by-regex; DevolaFlow extends this with
-      regex-substitution per the M-002 ask "extending RTK with repo-specific
-      compression recipes").
+      pass. Each entry is a mapping with `pattern` (regex), `replacement`
+      (verbatim string, may use re.sub backreferences), and (schema_version
+      ≥ 2) optional `compose: list[str]` listing additional rule
+      `pattern` ids that MUST run AFTER this rule on its intermediate
+      output. Mirrors RTK's `strip_lines_matching` with replacement
+      support (RTK's filter schema only supports drop-by-regex; DevolaFlow
+      extends this with regex-substitution per the M-002 ask + the v8.5.1
+      PV-06 T3 #5 multi-pass chain).
     item_fields:
       pattern:
         type: string
@@ -184,18 +193,36 @@ recipe_fields:
       replacement:
         type: string
         description: "Replacement string passed to re.sub. Empty string drops the match."
+      compose:
+        type: list
+        item_type: string
+        max_items: 8
+        optional: true
+        description: >
+          v8.5.1 PV-06 (T3 #5): ordered list of sibling rule `pattern` ids
+          that MUST run AFTER this rule on its intermediate output. Empty
+          (the default) preserves the v1 single-pass semantic byte-
+          identically. Cross-rule references are validated at recipe-load
+          time per S-5; an unknown reference raises a CommandMappingError
+          loudly.
 
   post_filters:
     type: list
     description: >
       Same shape as `pre_filters`, applied AFTER pre_filters. Use this to
       apply a final cleanup pass (e.g. collapse-multiple-blank-lines) after
-      the substantive substitutions in `pre_filters` have run.
+      the substantive substitutions in `pre_filters` have run. Supports
+      the same v8.5.1 PV-06 `compose` field as pre_filters.
     item_fields:
       pattern:
         type: string
       replacement:
         type: string
+      compose:
+        type: list
+        item_type: string
+        max_items: 8
+        optional: true
 
   truncate_lines:
     type: int

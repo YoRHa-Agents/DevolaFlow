@@ -393,6 +393,44 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.plugins.installer:load_registry",
         "devolaflow.plugins.installer:resolve_plugin",
         "devolaflow.plugins.installer:RuntimePluginSpec",
+        # ---- v9.0.0 PV-06 (v8.5.1) — CompressionPipeline unification ----
+        # The CompressionStage protocol + CompressionPipeline orchestrator
+        # ship as the canonical composition layer for the 6 pre-existing
+        # text-side transforms. The 5 stage-factory entry points
+        # (compression_pipeline_stages in compressor.py;
+        # compression_pipeline_stage in shell_proxy.commands +
+        # llm_client) wrap the existing functions for the unified
+        # pipeline; production callers (L0/L1 dispatchers using
+        # ``CompressionPipeline.run`` directly) ship in v9.x cycle PVs
+        # per .local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
+        # §"Migration". Allowlisted here until the dispatcher integration
+        # PV lands — matches the pattern used for v8.2.5 ChangeStore +
+        # v8.2.8 memory_bridge entries above. Tests exercise every entry
+        # point (tests/test_compression_pipeline.py).
+        "devolaflow.compression_pipeline:BYPASS_ALWAYS",
+        "devolaflow.compressor:compression_pipeline_stages",
+        "devolaflow.shell_proxy.commands:compression_pipeline_stage",
+        "devolaflow.llm_client:compression_pipeline_stage",
+        # ---- v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on
+        # flip helper functions ----
+        # The 5 ``is_<primitive>_active(profile, env)`` helpers combine
+        # the GateProfile flag (post-flip True for STRICT/AUDIT) with the
+        # corresponding R5 strict env-flag override (``DEVOLAFLOW_<NAME>``
+        # set EXACTLY ``"0"`` opts out, EXACTLY ``"1"`` forces on). They
+        # are the canonical "should this primitive run" predicate that
+        # downstream orchestrators consult before instantiating
+        # TokenBudgetBreaker / MonotonicRatchet / ComplexityDetector /
+        # ACGenerator / evaluate_ladder. Production callers (L0/L1/L2/L3
+        # gate-evaluation orchestrators) ship in subsequent v9.x PVs per
+        # the cycle plan (Theme T5 closure). Allowlisted here until those
+        # callers exist — verified by tests/test_pv06_primitive_flip.py
+        # which exercises all 5 helpers' R5 strict opt-out / opt-in /
+        # loose-value-rejection contract.
+        "devolaflow.gate.budget:is_token_budget_breaker_active",
+        "devolaflow.gate.scorer:is_verification_ladder_active",
+        "devolaflow.gate.ratchet:is_gate_ratchet_active",
+        "devolaflow.gate.complexity_detector:is_complexity_detector_active",
+        "devolaflow.ac_generator:is_ac_generator_active",
     }
 )
 

@@ -429,7 +429,10 @@ class TestCommandMappingValidation:
             ({"schema_version": 1, "command": "pytest"}, "version_stamp"),
             ({"command": "pytest", "version_stamp": "8.3.4"}, "schema_version"),
             (
-                {"schema_version": 2, "command": "pytest", "version_stamp": "8.3.4"},
+                # v8.5.1 PV-06 (T3 #5) bumped supported set 1 -> {1, 2}; a
+                # schema_version far above the supported range still triggers
+                # the actionable "not supported" diagnostic per S-5.
+                {"schema_version": 99, "command": "pytest", "version_stamp": "8.3.4"},
                 "not supported",
             ),
         ]
@@ -541,6 +544,116 @@ class TestCommandMappingValidation:
         assert rule.raw_pattern == r"^foo:\s+"
         assert rule.replacement == ""
         assert rule.pattern.sub(rule.replacement, "foo: bar") == "bar"
+
+
+class TestSchemaVersion2MultiPassChain:
+    """v8.5.1 PV-06 (T3 #5) — schema_version 2 + compose multi-pass filter chain."""
+
+    def test_schema_v2_recipe_loads_with_compose_chain(self) -> None:
+        """A schema_version 2 recipe with compose: list[str] loads cleanly."""
+        mapping = build_mapping_from_dict(
+            {
+                "schema_version": 2,
+                "command": "pytest",
+                "version_stamp": "8.3.4",
+                "pre_filters": [
+                    {
+                        "pattern": r"^FAILED:.*$",
+                        "replacement": "FAIL",
+                        "compose": [r"^pytest .* failed"],
+                    },
+                    {"pattern": r"^pytest .* failed", "replacement": "pytest: failed summary"},
+                ],
+            }
+        )
+        assert len(mapping.pre_filters) == 2
+        first, second = mapping.pre_filters
+        assert first.compose == (r"^pytest .* failed",)
+        assert second.compose == ()
+
+    def test_schema_v2_unknown_compose_reference_rejected(self) -> None:
+        """Composed child id that does not exist in the same list raises loudly."""
+        with pytest.raises(CommandMappingError) as exc:
+            build_mapping_from_dict(
+                {
+                    "schema_version": 2,
+                    "command": "pytest",
+                    "version_stamp": "8.3.4",
+                    "pre_filters": [
+                        {
+                            "pattern": r"^FAILED:.*$",
+                            "replacement": "FAIL",
+                            "compose": ["nonexistent-sibling"],
+                        }
+                    ],
+                }
+            )
+        assert "composes unknown sibling" in str(exc.value)
+        assert "nonexistent-sibling" in str(exc.value)
+
+    def test_schema_v2_multi_pass_apply_chains_two_filters(self) -> None:
+        """Two composed filters in a row both transform the same buffer."""
+        from devolaflow.shell_proxy.commands import _apply_filter_rules
+
+        mapping = build_mapping_from_dict(
+            {
+                "schema_version": 2,
+                "command": "pytest",
+                "version_stamp": "8.3.4",
+                "pre_filters": [
+                    {
+                        "pattern": r"^DeprecationWarning:.*$",
+                        "replacement": "[deprecated]",
+                        "compose": [r"^\[deprecated\]$"],
+                    },
+                    {"pattern": r"^\[deprecated\]$", "replacement": ""},
+                ],
+            }
+        )
+        sample = "test_foo PASSED\nDeprecationWarning: noisy\ntest_bar PASSED\n"
+        out = _apply_filter_rules(sample, mapping.pre_filters)
+        assert "DeprecationWarning" not in out
+        assert "[deprecated]" not in out
+        assert "test_foo PASSED" in out
+        assert "test_bar PASSED" in out
+
+    def test_schema_v1_recipe_still_loads_byte_identically(self) -> None:
+        """R5 strict: a v1 recipe with no compose loads identically to before."""
+        mapping = build_mapping_from_dict(
+            {
+                "schema_version": 1,
+                "command": "pytest",
+                "version_stamp": "8.3.4",
+                "pre_filters": [
+                    {"pattern": r"^FAIL\b", "replacement": "fail"},
+                ],
+            }
+        )
+        assert len(mapping.pre_filters) == 1
+        assert mapping.pre_filters[0].compose == ()
+
+
+class TestCompressionPipelineStageWrapper:
+    """v8.5.1 PV-06 — apply_local_recipe is exposed as a CompressionStage."""
+
+    def test_compression_pipeline_stage_factory_exists(self) -> None:
+        from devolaflow.shell_proxy.commands import compression_pipeline_stage
+
+        stage = compression_pipeline_stage()
+        assert stage.name == "apply_local_recipe"
+        assert stage.bypass_conditions == ("env_flag_unset", "no_recipe_match")
+        assert stage.telemetry_key == "local_recipe"
+
+    def test_stage_bypasses_when_env_flag_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from devolaflow.compression_pipeline import CompressionPipeline
+        from devolaflow.shell_proxy.commands import compression_pipeline_stage
+
+        monkeypatch.delenv("DEVOLAFLOW_RTK_PROXY", raising=False)
+        stage = compression_pipeline_stage()
+        pipeline = CompressionPipeline(stages=(stage,))
+        result = pipeline.run("test_foo PASSED\n")
+        assert result.bypassed_stages == ("apply_local_recipe",)
+        assert result.payload == "test_foo PASSED\n"
 
 
 # ---------------------------------------------------------------------------

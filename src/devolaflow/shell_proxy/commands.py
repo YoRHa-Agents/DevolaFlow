@@ -61,14 +61,28 @@ __all__ = [
     "DEFAULT_TTL_DAYS",
     "MAX_TTL_DAYS",
     "MIN_TTL_DAYS",
+    "SUPPORTED_SCHEMA_VERSIONS",
     "CommandMapping",
     "CommandMappingError",
     "FilterRule",
     "apply_local_recipe",
     "build_mapping_from_dict",
+    "compression_pipeline_stage",
     "is_command_mapping_active",
     "load_command_mappings",
 ]
+
+
+SUPPORTED_SCHEMA_VERSIONS: Final[tuple[int, ...]] = (1, 2)
+"""Recipe ``schema_version`` values the loader accepts.
+
+v8.5.1 PV-06 (T3 #5) adds **schema version 2** which introduces the optional
+``compose: list[str]`` field on filter rules. v1 remains accepted (backward-
+compat per R5 strict): a v1 recipe is byte-identical to a v2 recipe whose
+filters all omit ``compose``. The loader normalises both shapes into the
+same :class:`FilterRule` tuple so consumers (``apply_local_recipe`` +
+``CompressionPipeline`` stages) do not branch on schema version at runtime.
+"""
 
 
 DEFAULT_COMMANDS_DIR: Final[Path] = Path(".local/memory/commands")
@@ -134,11 +148,20 @@ class FilterRule:
             :meth:`re.Pattern.sub`. May contain backreferences (``\\1`` etc.).
         raw_pattern: The original pattern string before compilation; preserved
             for diagnostics + serialization back to YAML.
+        compose: v8.5.1 PV-06 (T3 #5) — optional ordered tuple of filter-rule
+            ids that MUST run AFTER this rule in the same pre/post pass.
+            Empty tuple (the default) preserves the v1 single-pass semantic
+            byte-identically. Non-empty values activate a multi-pass filter
+            chain: the parent's substitution runs first, then each composed
+            child runs against the parent's output, in declaration order.
+            Composed children MUST exist in the same recipe's pre/post list
+            (validated at recipe-load time per S-5).
     """
 
     pattern: re.Pattern[str]
     replacement: str
     raw_pattern: str
+    compose: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -309,12 +332,19 @@ def _build_filter_rule(
     command: str,
     source_path: str,
 ) -> FilterRule:
-    """Coerce one raw ``{pattern, replacement}`` dict into a :class:`FilterRule`.
+    """Coerce one raw ``{pattern, replacement, compose?}`` dict into a :class:`FilterRule`.
 
     Compiles the regex up-front so per-call apply cost is zero compile
     overhead. Loud per S-5 — invalid patterns surface a
     :class:`CommandMappingError` with the field label, the recipe id,
     and the source path so the operator can locate + repair the recipe.
+
+    v8.5.1 PV-06 (T3 #5) — accepts an optional ``compose: list[str]`` field
+    listing additional filter-rule ``raw_pattern`` ids that MUST run after
+    this rule in the same pre/post pass. Cross-rule existence is validated
+    at the parent ``build_mapping_from_dict`` level after both pre/post
+    rules are constructed (so a compose entry can reference a sibling that
+    has not yet been seen during list iteration).
     """
     if not isinstance(raw_rule, dict):
         raise CommandMappingError(
@@ -333,15 +363,14 @@ def _build_filter_rule(
             f"{source_path}: recipe {command!r} {field_label} entry has non-string "
             f"'replacement' ({type(replacement).__name__}={replacement!r})"
         )
+    raw_compose = raw_rule.get("compose", []) or []
+    if not isinstance(raw_compose, list):
+        raise CommandMappingError(
+            f"{source_path}: recipe {command!r} {field_label} entry has non-list "
+            f"'compose' ({type(raw_compose).__name__}={raw_compose!r})"
+        )
+    compose_tuple = tuple(str(child) for child in raw_compose if str(child))
     try:
-        # MULTILINE-only by default — lets `^` / `$` match at line boundaries
-        # while keeping `.` line-bounded (matching RTK's `strip_lines_matching`
-        # semantics). Recipes that need cross-line spans use `[\s\S]*?`
-        # (the standard Python idiom for "any character including newline"
-        # that does not pollute single-line `.*$` patterns elsewhere in the
-        # same recipe). DOTALL is intentionally NOT enabled — enabling it
-        # would make every `.*$` greedily span newlines and accidentally
-        # eat unrelated output.
         pattern = re.compile(pattern_str, flags=re.MULTILINE)
     except re.error as exc:
         raise CommandMappingError(
@@ -349,7 +378,12 @@ def _build_filter_rule(
             f"{pattern_str!r}: {exc}"
         ) from exc
 
-    return FilterRule(pattern=pattern, replacement=replacement, raw_pattern=pattern_str)
+    return FilterRule(
+        pattern=pattern,
+        replacement=replacement,
+        raw_pattern=pattern_str,
+        compose=compose_tuple,
+    )
 
 
 def build_mapping_from_dict(
@@ -400,10 +434,10 @@ def build_mapping_from_dict(
             f"{source_path}: recipe schema_version must be an int (got "
             f"{type(schema_version).__name__}={schema_version!r})"
         )
-    if schema_version != 1:
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise CommandMappingError(
             f"{source_path}: recipe schema_version {schema_version!r} not supported "
-            f"(only schema_version=1 is recognized at this release)"
+            f"(supported: {list(SUPPORTED_SCHEMA_VERSIONS)})"
         )
 
     command = str(payload["command"])
@@ -467,6 +501,19 @@ def build_mapping_from_dict(
             source_path=source_path,
         )
         for rule in raw_post
+    )
+
+    _validate_compose_references(
+        pre_rules,
+        field_label="pre_filters",
+        command=command,
+        source_path=source_path,
+    )
+    _validate_compose_references(
+        post_rules,
+        field_label="post_filters",
+        command=command,
+        source_path=source_path,
     )
 
     return CommandMapping(
@@ -695,11 +742,64 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_ESCAPE_RE.sub("", text)
 
 
+def _validate_compose_references(
+    rules: tuple[FilterRule, ...],
+    *,
+    field_label: str,
+    command: str,
+    source_path: str,
+) -> None:
+    """Verify every ``compose`` entry references a sibling rule's ``raw_pattern``.
+
+    v8.5.1 PV-06 (T3 #5): the multi-pass filter chain composes children by
+    raw-pattern id so recipe authors can reference siblings by their
+    pattern string verbatim. An unknown reference is a recipe-author bug
+    (typo / re-ordering) and surfaces as a :class:`CommandMappingError`
+    per S-5 (loud failure at load time, not silent skip at apply time).
+    """
+    if not rules:
+        return
+    known: set[str] = {rule.raw_pattern for rule in rules}
+    for rule in rules:
+        for child_id in rule.compose:
+            if child_id not in known:
+                raise CommandMappingError(
+                    f"{source_path}: recipe {command!r} {field_label} entry "
+                    f"with pattern {rule.raw_pattern!r} composes unknown sibling "
+                    f"{child_id!r} (must reference another rule's `pattern` in "
+                    f"the same {field_label} list)"
+                )
+
+
 def _apply_filter_rules(text: str, rules: tuple[FilterRule, ...]) -> str:
-    """Apply each :class:`FilterRule` in order, left-to-right."""
+    """Apply each :class:`FilterRule` in order, left-to-right.
+
+    v8.5.1 PV-06 (T3 #5) — when a rule carries ``compose: list[str]``, the
+    parent's substitution runs first, then each composed child runs against
+    the parent's intermediate output (in declaration order). The child
+    rules ALSO run in their own slot in the outer ``rules`` iteration, so
+    the multi-pass chain is purely additive: a recipe with no ``compose``
+    entries is byte-identical to the v1 single-pass behaviour.
+
+    R5 strict per v9-ADR-006: a child id that fails to resolve at apply
+    time is impossible because ``_validate_compose_references`` blocks
+    such recipes at load time. Defensive look-up here returns the
+    intermediate output unchanged when a child is missing (defensive
+    coding — never silently mutate).
+    """
+    if not rules:
+        return text
+    rule_by_id: dict[str, FilterRule] = {rule.raw_pattern: rule for rule in rules}
     out = text
     for rule in rules:
-        out = rule.pattern.sub(rule.replacement, out)
+        intermediate = rule.pattern.sub(rule.replacement, out)
+        if rule.compose:
+            for child_id in rule.compose:
+                child = rule_by_id.get(child_id)
+                if child is None:
+                    continue
+                intermediate = child.pattern.sub(child.replacement, intermediate)
+        out = intermediate
     return out
 
 
@@ -846,3 +946,59 @@ def _match_recipe(cmd: str, mappings: dict[str, CommandMapping]) -> CommandMappi
         if cmd.startswith(head) and cmd[len(head) : len(head) + 1] in (" ", "\t"):
             return mappings[prefix]
     return None
+
+
+# ---------------------------------------------------------------------------
+# v9.0.0 PV-06 (v8.5.1) — CompressionStage wrapper for apply_local_recipe.
+#
+# Per v9-ADR-006 D1 the RTK-pattern command-output mapping is the 6th
+# canonical transform exposed via the unified pipeline (Layers 1-3 are in
+# compressor.py; Layer 4 is the LLM-assisted Stage B in llm_client.py;
+# Layer 5 is the apply_local_recipe layer here). Stage activation is gated
+# by the existing PV-02 env-flag (``DEVOLAFLOW_RTK_PROXY=1``); when unset,
+# the stage's bypass predicate fires and the payload passes through
+# byte-identically (R5 strict — verified by
+# tests/test_compression_pipeline.py::test_apply_local_recipe_as_stage_bypassed_when_flag_unset).
+# ---------------------------------------------------------------------------
+
+
+def _stage_apply_local_recipe_transform(payload, ctx):
+    """Pipeline-wrapped wrapper for :func:`apply_local_recipe`."""
+    new_output, _was_applied = apply_local_recipe(
+        ctx.get("cmd", ""),
+        payload,
+        mappings=ctx.get("mappings"),
+        env=ctx.get("env"),
+        commands_dir=ctx.get("commands_dir"),
+        repo_signal=ctx.get("repo_signal"),
+    )
+    return new_output
+
+
+def _stage_apply_local_recipe_bypass(_payload, ctx):
+    """Bypass when the PV-02 env-flag is unset (R5 strict zero-IO)."""
+    return not is_command_mapping_active(ctx.get("env"))
+
+
+def compression_pipeline_stage():
+    """Return a :class:`CompressionStage` wrapping :func:`apply_local_recipe`.
+
+    Per v9-ADR-006 D1: this is the 6th canonical transform in the unified
+    CompressionPipeline. The stage's bypass predicate honours the existing
+    PV-02 env-flag (``DEVOLAFLOW_RTK_PROXY=1``) so a fresh checkout / CI
+    runner with the flag unset gets a byte-identical pass-through (R5
+    strict zero-overhead — no file IO, no PATH lookup).
+
+    The function imports :mod:`devolaflow.compression_pipeline` lazily so
+    ``shell_proxy.commands`` does not gain a hard dependency on it (the
+    pipeline module is the consumer, not a foundation library).
+    """
+    from devolaflow.compression_pipeline import make_stage
+
+    return make_stage(
+        name="apply_local_recipe",
+        transform=_stage_apply_local_recipe_transform,
+        bypass=_stage_apply_local_recipe_bypass,
+        bypass_conditions=("env_flag_unset", "no_recipe_match"),
+        telemetry_key="local_recipe",
+    )

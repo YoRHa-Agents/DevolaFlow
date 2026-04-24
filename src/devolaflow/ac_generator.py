@@ -20,15 +20,26 @@ alias remains the contract for v7.x dispatchers; this module supplies
 the structured ``acceptance_criteria_v2`` (canonical_order position 15,
 schema version 4) for v8.x consumers without breaking the old shape (R5
 mitigation per ``.local/research/v8.0.0_patch_plan.md`` §9).
+
+v9.0.0 PV-06 (v8.5.1) — Theme T5 #5 default-on flip. STRICT and AUDIT
+profiles default :pyattr:`GateProfile.ac_generator_enabled` to ``True``.
+Operators opt OUT via ``DEVOLAFLOW_AC_GEN=0`` per env-flags.md §2.10
+(R5 strict). The :func:`is_ac_generator_active` helper combines both
+signals so callers do not branch on the env-flag manually. The legacy
+``acceptance_criteria: list[str]`` alias remains the contract per the
+v8.0.0 P-10 R5 mitigation — opt-out preserves the exact pre-flip
+dispatch shape.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
 from devolaflow.gate.models import (
     AcceptanceCriterion,
+    GateProfile,
     VerificationType,
 )
 
@@ -38,8 +49,45 @@ __all__ = [
     "DEFAULT_PERFORMANCE_METRIC",
     "DEFAULT_PERFORMANCE_THRESHOLD",
     "DEFAULT_TEST_COMMAND",
+    "ENV_FLAG",
+    "is_ac_generator_active",
     "score_quality",
 ]
+
+
+ENV_FLAG: str = "DEVOLAFLOW_AC_GEN"
+"""v9.0.0 PV-06 (v8.5.1) — Theme T5 #5 env-flag (R5 strict).
+
+Per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
+
+* env value EXACTLY ``"1"`` → force ACGenerator active regardless of profile
+* env value EXACTLY ``"0"`` → force ACGenerator inactive regardless of profile
+* env value unset / any other → respect ``profile.ac_generator_enabled``
+"""
+
+
+def is_ac_generator_active(
+    profile: GateProfile,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """Return True iff the ACGenerator should run for *profile*.
+
+    Combines the v9.0.0 PV-06 default-on profile flag
+    (:pyattr:`GateProfile.ac_generator_enabled` — True for STRICT/AUDIT)
+    with the :data:`ENV_FLAG` per-process override (R5 strict). Operators
+    who want to disable the generator on a flipped profile set
+    ``DEVOLAFLOW_AC_GEN=0`` per env-flags.md §2.10. The legacy
+    ``acceptance_criteria: list[str]`` alias remains the contract path
+    when the generator is opted out — preserving the v8.0.0 P-10 R5
+    backward-compat shape.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return bool(getattr(profile, "ac_generator_enabled", False))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

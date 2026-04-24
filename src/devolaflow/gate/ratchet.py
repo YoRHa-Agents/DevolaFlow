@@ -36,19 +36,61 @@ findings (the S/O/R / Subjective Overrating Risk).
 Honors S-5 (No Silent Failures): every invalid input raises
 :class:`ValueError`; every recorded round returns a verdict (never
 ``None``).
+
+v9.0.0 PV-06 (v8.5.1) — Theme T5 #3 default-on flip. STRICT and AUDIT
+profiles default :pyattr:`GateProfile.ratchet_enabled` to ``True``.
+Operators opt OUT via ``DEVOLAFLOW_GATE_RATCHET=0`` per env-flags.md
+§2.8 (R5 strict). The :func:`is_gate_ratchet_active` helper combines
+both signals so callers do not branch on the env-flag manually.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 
 from devolaflow.gate.models import (
     ArtifactSnapshot,
     GateInput,
+    GateProfile,
     RatchetAction,
 )
+
+# v9.0.0 PV-06 (v8.5.1) — Theme T5 #3 env-flag (R5 strict).
+ENV_FLAG: str = "DEVOLAFLOW_GATE_RATCHET"
+"""Env-flag controlling the v9.0.0 PV-06 default-on flip override.
+
+R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
+
+* env value EXACTLY ``"1"`` → force the ratchet active regardless of profile
+* env value EXACTLY ``"0"`` → force the ratchet inactive regardless of profile
+* env value unset / any other → respect ``profile.ratchet_enabled``
+"""
+
+
+def is_gate_ratchet_active(
+    profile: GateProfile,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """Return True iff the monotonic ratchet should run for *profile*.
+
+    Combines the v9.0.0 PV-06 default-on profile flag
+    (:pyattr:`GateProfile.ratchet_enabled` — True for STRICT/AUDIT) with the
+    :data:`ENV_FLAG` per-process override (R5 strict — EXACTLY ``"0"`` opts
+    out, EXACTLY ``"1"`` forces on). Operators who want to disable the
+    ratchet on a flipped profile set ``DEVOLAFLOW_GATE_RATCHET=0`` per
+    env-flags.md §2.8.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return bool(getattr(profile, "ratchet_enabled", False))
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tunable defaults — see ``patch_plan §3 P-07 AC #2/#3``.

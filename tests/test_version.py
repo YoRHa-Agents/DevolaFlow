@@ -187,6 +187,9 @@ _MIRRORED_SKILL_FILES = [
     "references/plan-mode-enforcement.md",
     # v8.5.0 PV-05 — 13th SF-4 canonical reference (env-flag inventory).
     "references/env-flags.md",
+    # v8.5.1 PV-06 — 14th SF-4 canonical reference (CompressionPipeline protocol
+    # + 6-transform unification + multi-pass filter chain T3 #5).
+    "references/compression-pipeline.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

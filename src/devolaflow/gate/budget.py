@@ -25,11 +25,21 @@ helpers offer round-level state tracking for callers that want it
 Honors S-5 (No Silent Failures): every invalid input raises
 :class:`ValueError`; missing profile resolution falls back to ``STANDARD``
 with an explicit log via :func:`from_profile_name`.
+
+v9.0.0 PV-06 (v8.5.1) — Theme T5 #1 default-on flip. STRICT and AUDIT
+profiles now default :pyattr:`GateProfile.budget_breaker_enabled` to
+``True`` so downstream orchestrators auto-instantiate the breaker. The
+``DEVOLAFLOW_TOKEN_BUDGET_BREAKER`` env-flag (R5 strict — EXACTLY ``"0"``
+opts out, EXACTLY ``"1"`` forces on) is the per-process override
+documented in ``workflow-system/agent/references/env-flags.md`` §2.6.
+The :func:`is_token_budget_breaker_active` helper combines both signals
+so callers do not branch on the env-flag manually.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 
 from devolaflow.gate.models import (
     BudgetAction,
@@ -52,6 +62,40 @@ BREAK_UTILIZATION_THRESHOLD: float = 1.00
 # carry composite_threshold ≥ 90 — token exhaustion at that quality bar
 # is a human-attention signal per ``patch_plan §3 P-03 AC #6``.
 _ESCALATE_PROFILES: frozenset[str] = frozenset({"strict", "audit"})
+
+# v9.0.0 PV-06 (v8.5.1) — Theme T5 #1 env-flag (R5 strict).
+ENV_FLAG: str = "DEVOLAFLOW_TOKEN_BUDGET_BREAKER"
+"""Env-flag controlling the v9.0.0 PV-06 default-on flip override.
+
+R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
+
+* env value EXACTLY ``"1"`` → force the breaker active regardless of profile
+* env value EXACTLY ``"0"`` → force the breaker inactive regardless of profile
+* env value unset / any other → respect ``profile.budget_breaker_enabled``
+"""
+
+
+def is_token_budget_breaker_active(
+    profile: GateProfile,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """Return True iff the token-budget breaker should run for *profile*.
+
+    Combines the v9.0.0 PV-06 default-on profile flag
+    (:pyattr:`GateProfile.budget_breaker_enabled` — True for STRICT/AUDIT)
+    with the :data:`ENV_FLAG` per-process override (R5 strict — EXACTLY
+    ``"0"`` opts out, EXACTLY ``"1"`` forces on, anything else falls back
+    to the profile flag). Operators who want to disable the breaker on a
+    flipped profile set ``DEVOLAFLOW_TOKEN_BUDGET_BREAKER=0`` per
+    env-flags.md §2.6.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return bool(getattr(profile, "budget_breaker_enabled", False))
 
 
 def _resolve_max_tokens(profile: GateProfile, override: int | None) -> int:

@@ -1,22 +1,26 @@
 ---
 id: "agent/references/env-flags"
-version: "8.5.0"
+version: "8.5.1"
 purpose: >
   Canonical inventory of every `DEVOLAFLOW_*` environment variable consumed
-  by the runtime, the test fixtures, and the forward-declared gate primitives.
-  Pairs with Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every
-  L3 Task Agent that proposes a new env-flag MUST consult this reference
-  FIRST and prefer reuse of an existing flag whenever the data shape allows.
+  by the runtime, the test fixtures, and the gate primitives. Pairs with
+  Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every L3 Task
+  Agent that proposes a new env-flag MUST consult this reference FIRST
+  and prefer reuse of an existing flag whenever the data shape allows.
+  v9.0.0 PV-06 (v8.5.1) moved the 5 v8.0.0 gate-primitive flags from §4
+  (forward-declared) to §2 (active runtime flags) as Theme T5 default-on
+  flip closure; the 6th forward-declared flag (`LEGIBILITY_CHECK`) and the
+  `CYCLE_DETECTOR` flag remain pre-documented for a future cycle.
 triggers:
   - "introducing a new feature flag"
   - "adding a runtime env-var"
   - "auditing default-off / R5 strict surfaces"
-  - "wiring a v8.0.0 gate primitive (PV-06 prep)"
+  - "wiring a v8.0.0 gate primitive (PV-06 closed)"
   - "debugging a feature that should be off-by-default"
   - "investigating a `lookup_case is None` cache miss"
-  - "preparing T8 NineS hygiene closure"
+  - "opting OUT of a default-on gate primitive on STRICT/AUDIT"
 tier: 2
-token_estimate: 4200
+token_estimate: 4500
 dependencies:
   - "agent/SKILL.md"
   - "agent/references/shell-proxy.md"
@@ -115,12 +119,77 @@ These flags are read by production code paths. Tests in
 |---|---|
 | **Owner** | `src/devolaflow/plugins/installer.py` |
 | **Introduced** | v8.3.0 PV-01 (earlier baseline preserved) |
-| **Default** | `1` (auto-install ACTIVE) — this is the only flag in this reference that is **default-on** |
+| **Default** | `1` (auto-install ACTIVE) |
 | **Opt-out** | env value `"0"` (any truthy other-than-1 also disables) |
 | **Effect when enabled** | `installer.py::ensure_plugin('rtk' \| 'nines' \| 'ui-pro')` may invoke `curl` / `cargo install` / `npm install` / `pip install -e` from the workflow's `precondition.config.ensure_plugins` stage |
 | **Why default-on?** | The v8.3.0 PV-01 contract trades a one-time ~5-30s install latency for full workflow capability — operators who have offline / pinned-version requirements opt out by setting `0` |
 | **R5 strict?** | N/A — this flag governs an explicit subprocess (the install itself); R5 zero-overhead does not apply |
 | **Reference** | `CHANGELOG.md` §[v8.3.0-pv01] for the PV-01 contract; `runtime-plugins.yaml` for the plugin registry |
+
+### 2.6 `DEVOLAFLOW_TOKEN_BUDGET_BREAKER` — Theme T5 #1 default-on (STRICT/AUDIT)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/gate/budget.py::ENV_FLAG` (helper: `is_token_budget_breaker_active`) |
+| **Introduced** | v8.0.0 P-03 (forward-declared); promoted v9.0.0 PV-06 (v8.5.1) — moved from §4 to §2 |
+| **Default** | unset → respect profile flag (STRICT/AUDIT default ON, STANDARD/RELAXED default OFF) |
+| **Activation** | env value EXACTLY `"1"` → force ON; env value EXACTLY `"0"` → force OFF; otherwise fall back to `profile.budget_breaker_enabled` |
+| **Effect when active** | Downstream orchestrators auto-instantiate :class:`devolaflow.gate.budget.TokenBudgetBreaker` and pass it to :func:`devolaflow.gate.scorer.evaluate_gate` |
+| **R5 strict?** | YES — pure env-var read with NO file IO, NO subprocess, NO `shutil.which` lookup; codified in `tests/test_pv06_primitive_flip.py::test_loose_env_values_fall_back_to_profile_flag` |
+| **Opt-out path (post-flip)** | `export DEVOLAFLOW_TOKEN_BUDGET_BREAKER=0` — preserves v8.5.0 pre-flip behaviour byte-identically |
+| **Reference** | `references/decomposition-gate.md` §11 row 1; `benchmarks/devolaflow_context/scenarios/token_budget_disabled.yaml` (composite ≥ 90 floor when opted out) |
+
+### 2.7 `DEVOLAFLOW_VERIFICATION_LADDER` — Theme T5 #2 default-on (STRICT/AUDIT)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/gate/scorer.py::VERIFICATION_LADDER_ENV_FLAG` (helper: `is_verification_ladder_active`) |
+| **Introduced** | v8.0.0 P-05 as `profile.ladder_enabled`; flag added v9.0.0 PV-06 (v8.5.1) |
+| **Default** | unset → respect `profile.ladder_enabled` (STRICT/AUDIT default ON; STANDARD/RELAXED default OFF) |
+| **Activation** | env value EXACTLY `"1"` → force ON; EXACTLY `"0"` → force OFF; otherwise profile flag wins |
+| **Effect when active** | `evaluate_ladder` runs the full 6-rung short-circuit ladder; opt-out short-circuits to `evaluate_gate` byte-identically |
+| **R5 strict?** | YES — pure env-var read; no IO when opted out (the ladder simply delegates to the existing `evaluate_gate` codepath) |
+| **Opt-out path (post-flip)** | `export DEVOLAFLOW_VERIFICATION_LADDER=0` |
+| **Reference** | `benchmarks/devolaflow_context/scenarios/verification_ladder_disabled.yaml` |
+
+### 2.8 `DEVOLAFLOW_GATE_RATCHET` — Theme T5 #3 default-on (STRICT/AUDIT)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/gate/ratchet.py::ENV_FLAG` (helper: `is_gate_ratchet_active`) |
+| **Introduced** | v8.0.0 P-07 (forward-declared); promoted v9.0.0 PV-06 (v8.5.1) — moved from §4 to §2 |
+| **Default** | unset → respect `profile.ratchet_enabled` (STRICT/AUDIT default ON) |
+| **Activation** | env value EXACTLY `"1"` → force ON; EXACTLY `"0"` → force OFF; otherwise profile flag wins |
+| **Effect when active** | Downstream orchestrators instantiate :class:`devolaflow.gate.ratchet.MonotonicRatchet` and feed per-round scores to it (4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE machinery) |
+| **R5 strict?** | YES |
+| **Opt-out path (post-flip)** | `export DEVOLAFLOW_GATE_RATCHET=0` |
+| **Reference** | `benchmarks/devolaflow_context/scenarios/ratchet_disabled.yaml` |
+
+### 2.9 `DEVOLAFLOW_COMPLEXITY_DETECTOR` — Theme T5 #4 default-on (STRICT/AUDIT)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/gate/complexity_detector.py::ENV_FLAG` (helper: `is_complexity_detector_active`) |
+| **Introduced** | v8.0.0 P-09 (forward-declared); promoted v9.0.0 PV-06 (v8.5.1) — moved from §4 to §2 |
+| **Default** | unset → respect `profile.complexity_detector_enabled` (STRICT/AUDIT default ON) |
+| **Activation** | env value EXACTLY `"1"` → force ON; EXACTLY `"0"` → force OFF; otherwise profile flag wins |
+| **Effect when active** | Downstream orchestrators instantiate :class:`devolaflow.gate.complexity_detector.ComplexityDetector` and pair it with `profile.complexity_weight=0.10` so the gate composite reflects an overcomplexity penalty |
+| **R5 strict?** | YES — pure env-var read; the actual NineS subprocess + MOCK fallback only run when the gate scorer is invoked with `complexity_detector` set |
+| **Opt-out path (post-flip)** | `export DEVOLAFLOW_COMPLEXITY_DETECTOR=0` |
+| **Reference** | `benchmarks/devolaflow_context/scenarios/complexity_detector_disabled.yaml` |
+
+### 2.10 `DEVOLAFLOW_AC_GEN` — Theme T5 #5 default-on (STRICT/AUDIT)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/ac_generator.py::ENV_FLAG` (helper: `is_ac_generator_active`) |
+| **Introduced** | v8.0.0 P-10 (forward-declared); promoted v9.0.0 PV-06 (v8.5.1) — moved from §4 to §2 |
+| **Default** | unset → respect `profile.ac_generator_enabled` (STRICT/AUDIT default ON) |
+| **Activation** | env value EXACTLY `"1"` → force ON; EXACTLY `"0"` → force OFF; otherwise profile flag wins |
+| **Effect when active** | The :class:`devolaflow.ac_generator.ACGenerator` synthesises structured `acceptance_criteria_v2` from the dispatch task description (11 deterministic patterns + 3-dim quality scoring); the legacy `acceptance_criteria: list[str]` alias remains the contract path so opt-out preserves v7.x byte-stable dispatch shape per R5 |
+| **R5 strict?** | YES |
+| **Opt-out path (post-flip)** | `export DEVOLAFLOW_AC_GEN=0` |
+| **Reference** | `benchmarks/devolaflow_context/scenarios/ac_generator_disabled.yaml` |
 
 ## 3. Test-fixture flags (NOT runtime flags)
 
@@ -157,34 +226,29 @@ them in CI configs and need to know they have NO production effect.
 | **Effect** | When the LLM Stage B client runs with `provider="mock"`, this env var is consulted as the API key; tests use any non-empty value, production uses provider-specific keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) |
 | **Production effect** | Test-only path — production never selects `provider="mock"` |
 
-## 4. Forward-declared gate-primitive flags (PV-06 flip target)
+## 4. Forward-declared gate-primitive flags (residual after PV-06)
 
-These flags are **declared in this reference** (and in
-`references/decomposition-gate.md` §11) but **NOT yet wired** in
-`src/devolaflow/`. They ship as part of v9.0.0 Theme T5 (PV-06 = v8.5.1).
-Codifying them here in v8.5.0 PV-05 means:
+The v9.0.0 PV-06 (v8.5.1) Theme T5 flip moved 5 of the 6 originally
+forward-declared flags into §2 (active runtime flags) — see §2.6..§2.10.
+The 2 rows below remain forward-declared for a future cycle:
 
-* W-20 (env-flag reuse vs new-flag policy) has a complete inventory at
-  the moment T5 starts, so PV-06 cannot accidentally re-use a flag name
-  for a different purpose.
-* Operators reading SKILL.md → `references/env-flags.md` get the full
-  surface in one place rather than chasing the gate-primitive table in
-  `decomposition-gate.md`.
-
-| # | Flag | Owner module (PV-06 target) | Per-profile default | Companion config key |
+| # | Flag | Owner module (target) | Per-profile default | Companion config key |
 |---|------|------------------------------|---------------------|----------------------|
-| 1 | `DEVOLAFLOW_TOKEN_BUDGET_BREAKER` | `src/devolaflow/gate/budget.py::TokenBudgetBreaker` | OFF on standard/relaxed; ESCALATE on strict/audit | `gate.budget_breaker_enabled` |
-| 2 | `DEVOLAFLOW_CYCLE_DETECTOR`       | `src/devolaflow/gate/cycle_detector.py`               | OFF (opt-in)                                    | `gate.cycle_detection`         |
-| 3 | `DEVOLAFLOW_GATE_RATCHET`         | `src/devolaflow/gate/ratchet.py`                      | OFF (opt-in)                                    | `gate.ratchet_enabled`         |
-| 4 | `DEVOLAFLOW_COMPLEXITY_DETECTOR`  | `src/devolaflow/gate/complexity_detector.py`          | OFF (opt-in)                                    | `gate.complexity_detection`    |
-| 5 | `DEVOLAFLOW_AC_GEN`               | `src/devolaflow/ac_generator.py`                      | OFF (opt-in companion to legacy `accept` list)  | `ac_generator.enabled`         |
-| 6 | `DEVOLAFLOW_LEGIBILITY_CHECK`     | `src/devolaflow/legibility/scorer.py`                 | OFF (opt-in)                                    | `decomposition.legibility_check` |
+| 1 | `DEVOLAFLOW_CYCLE_DETECTOR`       | `src/devolaflow/gate/cycle_detector.py`               | OFF (opt-in)                                    | `gate.cycle_detection`         |
+| 2 | `DEVOLAFLOW_LEGIBILITY_CHECK`     | `src/devolaflow/legibility/scorer.py`                 | OFF (opt-in)                                    | `decomposition.legibility_check` |
 
-**Theme T5 PV-06 flip plan**: primitives 1, 3, 4, 5, 6 are scheduled to
-flip to ON for `audit` + `strict` decomposition-enabled profiles when the
-post-flip composite EvoBench score (≥ 90 floor per W-4) holds. Primitive
-2 stays opt-in (the legacy `accept` list remains the default-on path).
-The flip is the v9.0.0 PV-06 deliverable per playbook §6.6.
+**Why these stayed forward-declared in PV-06**: cycle-detector overlaps
+the legacy `accept` list semantically (the v7.x `accept` path already
+catches most cycle conditions); legibility-check is an additive scorer
+whose default-on impact requires its own EvoBench `_disabled.yaml`
+scenario set before flip. Both are tracked for the v9.x cycle's TBD
+"completion theme".
+
+**Cross-reference**: the PV-06 flip plan + acceptance criteria + opt-out
+path live in `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
+The 5 promoted flags' R5 strict opt-out contract is pinned by
+`tests/test_pv06_primitive_flip.py` and verified end-to-end by the 5 new
+`benchmarks/devolaflow_context/scenarios/*_disabled.yaml` EvoBench scenarios.
 
 ## 5. Karpathy 4-primitive defaults (default-ON, no flag)
 
@@ -210,8 +274,9 @@ BG-001..BG-004 spec.
 ## 6. R5 strict pattern — the conjunction contract
 
 For the R5 strict flags (#2.2 `DEVOLAFLOW_RTK_PROXY`, #2.3
-`DEVOLAFLOW_RTK_PROXY_TIER2`, #2.4 `DEVOLAFLOW_MEMORY_ROUTER`) the
-"feature is active" predicate is the **conjunction** of:
+`DEVOLAFLOW_RTK_PROXY_TIER2`, #2.4 `DEVOLAFLOW_MEMORY_ROUTER`, and the
+5 v8.5.1 PV-06 promotions §2.6..§2.10) the "feature is active"
+predicate is the **conjunction** of:
 
 1. env-var read returns EXACTLY `"1"` (rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`)
 2. The companion runtime probe succeeds (e.g. `shutil.which("rtk")` for #2.2, `Path.exists` for #2.4's index file)
@@ -275,7 +340,10 @@ or document the orthogonality argument explicitly.
 ---
 
 > Maintenance contract — this reference is the **single source of
-> truth** for env-flag inventory. PV-06 (Theme T5 5-primitive flip)
-> MUST update §4 to move the flipped primitives from "forward-declared"
-> to "active runtime flags" (§2). The W-20 checklist (§7) MUST stay
-> current with the cycle-N inventory.
+> truth** for env-flag inventory. v9.0.0 PV-06 (v8.5.1) closed the §4 →
+> §2 promotion for 5 of the 6 forward-declared gate-primitive flags
+> (`TOKEN_BUDGET_BREAKER`, `VERIFICATION_LADDER`, `GATE_RATCHET`,
+> `COMPLEXITY_DETECTOR`, `AC_GEN`) per Theme T5. Two flags
+> (`CYCLE_DETECTOR`, `LEGIBILITY_CHECK`) remain in §4 for a future
+> cycle. The W-20 checklist (§7) MUST stay current with the cycle-N
+> inventory.
