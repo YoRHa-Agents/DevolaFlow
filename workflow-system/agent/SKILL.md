@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "8.4.0"
+version: "8.4.1"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v8.4.0**
+> **Now Using DevolaFlow v8.4.1**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 8.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 8.4.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Quick Action Decision
@@ -58,65 +58,7 @@ If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 
-**You are L0 (Project Agent), designing an execution plan.** The plan must be structured so that L0 can dispatch it through L1→L2→L3 without L0-L2 performing work. The plan is the delegation contract the execution agent inherits.
-
-**Plan output format:**
-
-```
-# [Plan Title]
-## Overview
-[1-2 sentences] | Workflow: [type] | Gate: [standard/strict/relaxed]
-Escalation: Task → Wave → Stage → Project → Human
-
-## Execution Model
-| Plan Element | Layer | Role |
-|---|---|---|
-| Stage dispatch | L0 Project | Selects workflow, sequences stages |
-| Stage execution | L1 Stage | Decomposes into waves, runs gate |
-| Wave dispatch | L2 Wave | Dispatches parallel tasks, checks conflicts |
-| Task execution | L3 Task | **Only layer that does work** |
-
-## Stages (gate-before-advance: no stage starts until predecessor gate PASS)
-
-### S01: [primitive] — [name] [L0 dispatches → L1 executes]
-- gate_type: [standard|convergence|passthrough] | threshold: [N] | coverage: [N]%
-- max_rounds: [N] (convergence only) | on_stagnation: escalate
-- context_profile: [type] | deliverables: [artifact paths → consumed by S02]
-- L1_receives: stage definition, predecessor gate results, token budget ~5K
-
-#### W01 (parallel | <=5 tasks | disjoint ownership) [L2 dispatches tasks]
-| ID | Layer | Type | Task | Team | Writable (<=6) | Read-only | Est. | AC |
-|----|-------|------|------|------|----------------|-----------|------|-----|
-| T01 | L3 | impl | ... | Implement | ... | ... | ... | ... |
-
-## Constraints Checklist
-- [ ] Every task row is L3 (no L0-L2 performing work — P1 enforced)
-- [ ] Stage headers specify L1 agent constraints (MUST NOT write code)
-- [ ] Execution model section present with per-layer delegation rules
-- [ ] Each wave: <=5 tasks, pairwise disjoint writable files
-- [ ] Each stage: <=7 waves
-- [ ] Task limits: impl <=30min, research <=45min, <=6 writable files
-- [ ] Stage DAG: no cycles, gate-before-advance (D4)
-- [ ] Convergence stages: max_rounds + stagnation rule specified
-- [ ] Predecessors referenced by artifact path, not content copy
-
-## Invariants (ALL enforced)
-- P1: L0-L2 dispatch only; only L3 Tasks execute work
-- P2: Token budgets — L0: ~3K, L1: ~5K, L2: ~4K, L3: ~8K
-- P3: Inter-layer messages use typed YAML (TaskDispatch/StatusReport)
-- P4: Every loop has max_iterations; failures: retry/escalate/abort
-- P5: Layers communicate through artifact files, not conversation history
-```
-
-**PLAN MODE rules:**
-- DO use read-only tools (search, read, glob) for research
-- DO use `create_plan` tool (Cursor) or write `plan.md` (Claude) for output
-- DO embed stage→wave→task decomposition with file ownership and acceptance criteria
-- DO annotate each stage's gate_type, context profile, and convergence parameters
-- DO annotate every plan element with its delegation layer (L0/L1/L2/L3)
-- DO verify constraints checklist (including P1 enforcement items) before finalizing
-- DO NOT dispatch tasks, write code, run tests, or modify files
-- DO NOT start execution until the user explicitly approves the plan
+**You are L0 (Project Agent).** Design the execution plan as a delegation contract; L0 dispatches → L1 → L2 → L3 (only L3 implements). Plan output template (title → overview → execution model → stages → waves × ≤5 tasks → tasks × {writable, read-only, AC}), Constraints Checklist (9 items incl. P1 enforcement), Invariants P1–P5, and DO / DO NOT rules: see `references/plan-mode-enforcement.md`.
 
 ### AGENT MODE — Full Orchestration
 
@@ -316,10 +258,7 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 Full gate specification: `references/decomposition-gate.md`
 
 ### Reinforcement Rules (v5.1+)
-
-When a stage gate FAILS, the next round's dispatch carries `applicable_rules.reinforcement` — top 5 prior-round findings (severity ≥ major) injected as MUST-fix mandates.
-
-**L3 obligation:** Address ALL listed reinforcement rules before any new work; failure = automatic blocker in next gate.
+When a stage gate FAILS, next round's dispatch carries top-5 prior-round findings (severity ≥ major) as `applicable_rules.reinforcement` MUST-fix mandates; L3 MUST address all before any new work (failure = automatic blocker next gate). Mechanism + L3 obligation matrix + round-aware escalation table: `references/plan-mode-enforcement.md` §"Reinforcement Rules".
 
 ## AgentTeam Quick Reference
 
@@ -415,15 +354,17 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | File | Load When |
 |---|---|
 | `references/agent-hierarchy.md` | Layer setup, delegation debugging, per-layer contracts |
-| `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
-| `references/repo-modes.md` | Repo detection, mode-specific behavior |
-| `references/meta-framework.md` | Workflow instantiation, stage ordering |
-| `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
-| `references/team-roles.md` | Task agent config, team capabilities |
-| `references/context-isolation.md` | Context injection setup, debugging leaks |
-| `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 | `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
+| `references/behavioral-guidelines.md` | L3 think_first / simplicity_check / surgical_scope / goal_loop primitives |
+| `references/context-isolation.md` | Context injection setup, debugging leaks |
+| `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
+| `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
+| `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
+| `references/meta-framework.md` | Workflow instantiation, stage ordering |
+| `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
+| `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
+| `references/team-roles.md` | Task agent config, team capabilities |
 
 **Tier 3 — On-demand** (load for specific tasks):
 

@@ -28,4 +28,4 @@ unwanted_sections: []
 quality_thresholds:
   min_composite: 90
   min_relevance: 0.90
-  max_noise_ratio: 0.15
+  max_noise_ratio: 0.20    # v9.0.0 PV-01: bumped 0.15 → 0.20 — SKILL.md compression freed budget room so the feature profile now also picks up `mode_detection` / `repo_mode` / `reference_navigation` (all `supplementary`); 17 selected vs 14 expected = 0.1765 noise. W-16 wholesale rebase precedent.
