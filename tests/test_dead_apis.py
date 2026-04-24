@@ -313,6 +313,56 @@ def test_dead_api_script_exits_strict(tmp_path: Path) -> None:
     assert "dangling" in result.stdout
 
 
+def test_default_allowlist_no_ssot_overlap() -> None:
+    """A-5: ``DEFAULT_ALLOWLIST`` must not contain any domain-SSOT registry symbol.
+
+    Per Architecture Rule A-5.2 (``.rules/architecture.mdc``), every
+    qualified name in :data:`scripts.detect_dead_apis.SSOT_REGISTRY_QUALIFIED_NAMES`
+    has in-repo production callers in its owner module's siblings, so it
+    cannot be allowlisted as "no production caller". The script-import-time
+    guard would already have raised :class:`AssertionError` before this
+    test runs; this test pins the contract explicitly so a clear failure
+    message surfaces if the import-time check is ever weakened.
+    """
+    overlap = detect._check_allowlist_domain_overlap(detect.DEFAULT_ALLOWLIST)
+    assert overlap == set(), (
+        f"A-5 violation: DEFAULT_ALLOWLIST contains domain-SSOT registry "
+        f"symbol(s) {sorted(overlap)}; per .rules/architecture.mdc::A-5.2, "
+        f"remove them and route consumers through the owner module."
+    )
+
+
+def test_check_allowlist_domain_overlap_helper_detects_collisions() -> None:
+    """A-5: helper returns the intersection of allowlist with registry names.
+
+    Verifies the helper's behaviour against synthetic fixtures (the live
+    DEFAULT_ALLOWLIST is exercised by
+    :func:`test_default_allowlist_no_ssot_overlap`). The helper must:
+
+    * Return a non-empty set whose members are exactly the colliding names.
+    * Return an empty set when no collision exists.
+    * Default ``registry_names`` to :data:`SSOT_REGISTRY_QUALIFIED_NAMES`
+      so callers in the rest of the codebase can call it positionally.
+    """
+    fake_allowlist = {
+        "devolaflow.shell_proxy.registry:WHITELIST",
+        "devolaflow.harmless:public_helper",
+    }
+    fake_registries = {"devolaflow.shell_proxy.registry:WHITELIST"}
+    assert detect._check_allowlist_domain_overlap(fake_allowlist, fake_registries) == {
+        "devolaflow.shell_proxy.registry:WHITELIST"
+    }
+
+    assert (
+        detect._check_allowlist_domain_overlap({"devolaflow.harmless:x"}, fake_registries) == set()
+    )
+
+    # Default registry_names argument resolves to SSOT_REGISTRY_QUALIFIED_NAMES.
+    assert detect._check_allowlist_domain_overlap(
+        {"devolaflow.shell_proxy.registry:WHITELIST"}
+    ) == {"devolaflow.shell_proxy.registry:WHITELIST"}
+
+
 def test_dead_api_json_output_valid(tmp_path: Path) -> None:
     """``--format json`` produces a valid JSON document with the expected schema."""
     _write_src(tmp_path, "mod_json.py", "def jdangling():\n    return 0\n")

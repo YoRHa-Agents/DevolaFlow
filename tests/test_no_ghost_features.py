@@ -13,6 +13,7 @@ Category F SF-4 reference compliance) are pinned with NO xfail.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -709,3 +710,121 @@ def test_claude_md_version_tracking_note(project_root: Path) -> None:
         f"CLAUDE.md claims {match.group(1)} canonical sync locations, "
         f"expected 7 per CP-3 / SF-3 — G-K12 regressed"
     )
+
+
+# ── Architecture Rule A-5 — Single-Source-of-Truth Registry Pattern ──────
+# v8.4.3 PV-03 of v9.0.0 cycle. Codifies the "every domain registry surface
+# has exactly ONE owner module" invariant. The 5 baseline registries are
+# pinned by name + canonical owner path; the parity test fails when an AST
+# walk finds more than one module-level definition for the same registry
+# name (the M-002 / M-001 anti-pattern: half a whitelist in one file + half
+# in another). YAML-backed registries are guarded by file-path uniqueness.
+
+# Python-backed SSOT registries: symbol_name -> canonical owner relpath.
+_SSOT_PYTHON_REGISTRIES: dict[str, str] = {
+    "WHITELIST": "src/devolaflow/shell_proxy/registry.py",
+    "MemoryCase": "src/devolaflow/memory_router/cache.py",
+    "CommandMapping": "src/devolaflow/shell_proxy/commands.py",
+}
+
+# YAML-backed SSOT registries: registry display name -> canonical relpath.
+_SSOT_YAML_REGISTRIES: dict[str, str] = {
+    "plugins.yaml": "workflow-system/agent/plugins.yaml",
+    "runtime-plugins.yaml": "workflow-system/agent/knowledge/runtime-plugins.yaml",
+}
+
+
+def _module_level_definers(symbol_name: str, src_root: Path) -> list[Path]:
+    """Return every ``.py`` file under *src_root* with a module-level definition of *symbol_name*.
+
+    A "module-level definition" is one of:
+
+    * ``class <symbol_name>:`` — covers ``MemoryCase`` / ``CommandMapping``.
+    * ``def <symbol_name>(...):`` / ``async def <symbol_name>(...):`` —
+      defensive coverage for callables ever promoted to SSOT status.
+    * ``<symbol_name> = ...`` (``ast.Assign`` with ``ast.Name`` target) —
+      covers ``WHITELIST = {...}``.
+    * ``<symbol_name>: <Annotation> = ...`` (``ast.AnnAssign``) — defensive
+      coverage for annotated module-level constants.
+
+    Files that fail to parse are skipped (not silently ignored — the parse
+    failure surfaces in the linter / unit tests for that file).
+    """
+    definers: list[Path] = []
+    for f in sorted(src_root.rglob("*.py")):
+        if any(part == "__pycache__" for part in f.parts):
+            continue
+        try:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+        except (SyntaxError, OSError):
+            continue
+        for node in tree.body:
+            if _node_defines_symbol(node, symbol_name):
+                definers.append(f)
+                break
+    return definers
+
+
+def _node_defines_symbol(node: ast.AST, symbol_name: str) -> bool:
+    """Return True iff *node* is a module-level definition of *symbol_name*.
+
+    Recognises ``class`` / ``def`` / ``async def`` (named definitions) and
+    ``Name = ...`` / ``Name: T = ...`` (constant assignments). Anything
+    else (imports, expression statements, conditional re-exports) is not
+    a definition and returns False.
+    """
+    if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+        return node.name == symbol_name
+    if isinstance(node, ast.Assign):
+        return any(
+            isinstance(target, ast.Name) and target.id == symbol_name for target in node.targets
+        )
+    if isinstance(node, ast.AnnAssign):
+        return isinstance(node.target, ast.Name) and node.target.id == symbol_name
+    return False
+
+
+def test_registry_single_owner(project_root: Path) -> None:
+    """A-5: each domain-SSOT registry must have exactly one owner module.
+
+    Per Architecture Rule A-5 (`.rules/architecture.mdc` §A-5.1), splitting
+    registration data across two modules invalidates cache reasoning and is
+    a release blocker. This test AST-walks ``src/devolaflow/`` and asserts:
+
+    1. Each Python-backed registry symbol (`WHITELIST`, `MemoryCase`,
+       `CommandMapping`) has exactly ONE module-level definer.
+    2. The single definer matches the canonical owner path declared above.
+    3. Each YAML-backed registry (`plugins.yaml`, `runtime-plugins.yaml`)
+       lives at exactly its canonical path (file-path uniqueness — there
+       is no `find` step because the registry-loading helpers in
+       ``devolaflow.plugins.{loader,installer}`` import these via verbatim
+       paths, not glob patterns).
+
+    Failure means a NEW module shadowed an SSOT registration without
+    routing through the owner module — the M-001 / M-002 anti-pattern
+    that A-5 forbids.
+    """
+    src_root = project_root / "src" / "devolaflow"
+    assert src_root.is_dir(), f"src/devolaflow/ missing — cannot audit (looked under {src_root})"
+
+    for symbol_name, expected_relpath in _SSOT_PYTHON_REGISTRIES.items():
+        definers = _module_level_definers(symbol_name, src_root)
+        rel_definers = sorted(d.relative_to(project_root).as_posix() for d in definers)
+        assert len(definers) == 1, (
+            f"A-5 violation: registry symbol {symbol_name!r} has {len(definers)} "
+            f"module-level owners {rel_definers}; expected exactly 1 "
+            f"({expected_relpath})"
+        )
+        actual_relpath = definers[0].relative_to(project_root).as_posix()
+        assert actual_relpath == expected_relpath, (
+            f"A-5 violation: registry {symbol_name!r} owner is {actual_relpath} "
+            f"but the canonical owner per .rules/architecture.mdc::A-5 is "
+            f"{expected_relpath}"
+        )
+
+    for yaml_name, expected_relpath in _SSOT_YAML_REGISTRIES.items():
+        yaml_path = project_root / expected_relpath
+        assert yaml_path.is_file(), (
+            f"A-5 violation: YAML SSOT registry {yaml_name!r} expected at "
+            f"{expected_relpath} but file is missing"
+        )

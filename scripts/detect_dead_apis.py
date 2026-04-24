@@ -386,6 +386,63 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
 )
 
 
+# A-5 — Single-Source-of-Truth Registry Pattern (.rules/architecture.mdc).
+# These qualified names denote the Python-backed domain-SSOT registries that
+# currently ship in DevolaFlow (v8.4.3 baseline). Each one HAS in-repo
+# production callers in the owner module's siblings (e.g. ``WHITELIST`` is
+# consumed by ``shell_proxy.proxy`` + ``lifecycle.pre_shell_call``), so they
+# are NOT eligible for ``DEFAULT_ALLOWLIST``. The two YAML-backed registries
+# (``plugins.yaml`` + ``runtime-plugins.yaml``) have no Python symbol to
+# guard at this layer; they are guarded by file-path uniqueness in
+# ``tests/test_no_ghost_features.py::test_registry_single_owner``.
+SSOT_REGISTRY_QUALIFIED_NAMES: frozenset[str] = frozenset(
+    {
+        "devolaflow.shell_proxy.registry:WHITELIST",
+        "devolaflow.memory_router.cache:MemoryCase",
+        "devolaflow.shell_proxy.commands:CommandMapping",
+    }
+)
+
+
+def _check_allowlist_domain_overlap(
+    allowlist: Iterable[str],
+    registry_names: Iterable[str] = SSOT_REGISTRY_QUALIFIED_NAMES,
+) -> set[str]:
+    """Return the set of ``allowlist`` entries that name a domain-SSOT registry.
+
+    Per Architecture Rule A-5 (`.rules/architecture.mdc` §A-5.2), a
+    domain-SSOT registry symbol MUST NOT appear in ``DEFAULT_ALLOWLIST``
+    because, by definition, such symbols ARE consumed in-repo by their
+    owner module's siblings. An overlap means either the allowlist entry
+    is stale OR the registry surface lost its only caller — both warrant
+    operator attention.
+
+    The empty-set return value is the success signal; a non-empty return
+    enumerates the offending qualified names so the caller (the script
+    import-time guard + ``tests/test_dead_apis.py``) can format a precise
+    error message.
+    """
+    return set(allowlist) & set(registry_names)
+
+
+# A-5.2 — script-import-time strict guard. Importing the module evaluates
+# this assertion immediately so a stale or accidentally-added domain-SSOT
+# entry surfaces as an ``AssertionError`` at the first import (under
+# pytest, this fails the whole ``tests/test_dead_apis.py`` module load
+# with a clear A-5 message; under direct CLI invocation, the script
+# refuses to start). Per Soul Rule S-5 (No Silent Failures), the guard
+# never swallows the violation.
+_DEFAULT_ALLOWLIST_OVERLAP = _check_allowlist_domain_overlap(DEFAULT_ALLOWLIST)
+if _DEFAULT_ALLOWLIST_OVERLAP:
+    raise AssertionError(
+        "A-5 violation: DEFAULT_ALLOWLIST contains domain-SSOT registry "
+        f"symbol(s) {sorted(_DEFAULT_ALLOWLIST_OVERLAP)}; per "
+        ".rules/architecture.mdc::A-5.2 these names denote SSOT registries "
+        "with in-repo production callers and must not be allowlisted as "
+        "'no production caller'. Remove them from DEFAULT_ALLOWLIST."
+    )
+
+
 @dataclass(frozen=True)
 class PublicSymbol:
     """A public function or class definition discovered at module level."""
