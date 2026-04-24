@@ -452,3 +452,87 @@ Context optimization changes must demonstrate improvement (or no regression) via
 ## W-15 — Section Relevance (CO-6)
 
 Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
+
+## W-16 — Wholesale Baseline Regen on Cycle Start
+
+Per the v8.3.0 PV-09 precedent: when a new MAJOR or MINOR cycle starts, the FIRST PV MUST regenerate ALL EvoBench / golden-test baselines wholesale rather than per-PV piecemeal. Running `python -m pytest tests/test_benchmarks.py --regenerate-baselines` (or equivalent per-suite refresh script) at cycle-start prevents intra-cycle drift where each PV's micro-baseline accumulates floating-point / formatter delta that the cumulative end-of-cycle audit then has to chase.
+
+Cycle start = the first PV after a tag bumps the MINOR or MAJOR digit (e.g. v8.4.0 → v8.5.0 → v9.0.0). Patch-level PVs (v8.4.X → v8.4.Y) do NOT trigger wholesale regen.
+
+The wholesale regen artifact lives in `benchmarks/devolaflow_context/baselines/<cycle>_baseline.json` (e.g. `v8.5.0_baseline.json` for the PV-05 baseline that underpins PV-06..PV-N). All subsequent PVs in the cycle compare against this single baseline; per-PV regression is the delta from the wholesale baseline, not an incremental delta from the previous PV.
+
+Source: `.local/research/v8.4.0_retrospective.md` §"R-7 wholesale-vs-piecemeal baseline lesson".
+
+## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
+
+Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `data/golden_test_set/*.toml` fixture surfacing through 5 parametrized assertions in `tests/test_golden_test_set.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the v8.X.0 → v8.(X+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern flagged by the v8.0.0 retrospective §3.4 (where the cycle added 743 tests but coverage stayed at 80% — many tests were redundant scaffolding).
+
+**Mid-cycle audit at PV-05** (or the cycle's halfway point if the PV count differs from 10): the cycle-lead L0 MUST report cumulative NEW test function delta against the cycle baseline and forecast the remaining-PV budget. If the projection exceeds +150, defer non-essential tests to the next cycle.
+
+Verify with:
+```bash
+# total collected (includes parametrize expansions) — for trend monitoring
+python -m pytest tests/ --collect-only -q | tail -1
+
+# NEW test functions in this PV — what the cap actually counts
+git diff <previous-tag>..HEAD --stat -- tests/ | grep -cE "test_[a-z_]+\(.*\):"
+```
+
+Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §5.
+
+## W-18 — Ghost-Audit Refresh Precondition
+
+Per S-4 (No Ghost Features), every CHANGELOG entry mentioning a feature MUST have working code + tests. W-18 sharpens S-4 with a **PRECONDITION**: before a PV authors a CHANGELOG entry mentioning a feature, the **ghost-audit** (`tests/test_no_ghost_features.py`) MUST be refreshed to include a coverage check for that feature's code path.
+
+Refresh mechanism:
+
+1. Add the new feature's primary symbol to the ghost-audit's coverage set (a new test function or a parametrize entry).
+2. Run `python -m pytest tests/test_no_ghost_features.py -v` to confirm the new entry passes.
+3. ONLY THEN add the CHANGELOG entry that mentions the feature.
+
+This sequencing prevents the v8.4.x-era pattern where CHANGELOG entries cited "feature X ships in PV-N" but `test_no_ghost_features.py` had no coverage assertion for X — the audit silently passed because it was never asked. The new `test_ghost_audit_refresh_present` lint enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
+
+Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + ADR-005 D2.
+
+## W-19 — Research Artifact Archive at Cycle End
+
+After a MAJOR or MINOR cycle ships, the L0 cycle-lead MUST run `python scripts/archive_research_artifacts.py <cycle-version>` to copy the `.local/research/<cycle-prefix>*` artifacts into `docs/cycle-archive/<cycle-version>/`. The archive is COMMITTED to the repo so that:
+
+* Future cycle-N+1 SI-1 planning gates can reference cycle-N research without depending on `.local/` (which is gitignored on most clones).
+* External reviewers / new contributors can read the design history without needing the cycle author's local clone.
+* The retrospective (W-7 / SI-8) has a stable archive URL to cite from `CHANGELOG.md`.
+
+Archive format (per cycle):
+
+```
+docs/cycle-archive/v<MAJOR>.<MINOR>.0/
+├── README.md             # auto-generated index
+├── gap_analysis.md       # copy of .local/research/v<MAJOR>.<MINOR>.0_gap_analysis.md
+├── implementation_plan.md
+├── design/               # copy of .local/research/v<MAJOR>.<MINOR>.0_pv*_design.md
+├── nines/                # copy of .local/research/v<MAJOR>.<MINOR>.*_nines.{json,md}
+├── evaluation/           # copy of .local/research/v<MAJOR>.<MINOR>.*_evaluation.md
+└── retrospective.md      # copy of .local/research/v<MAJOR>.<MINOR>.0_retrospective.md
+```
+
+The archive is created at cycle CLOSE (after the final patch of a MINOR series ships) and committed as part of the cycle-rollup release commit. Mid-cycle archive runs are no-ops if the destination already exists (idempotent).
+
+Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3.
+
+## W-20 — Env-Flag Reuse vs New-Flag Policy
+
+Before authoring a NEW `DEVOLAFLOW_*` environment variable, the proposing L3 Task Agent MUST consult `workflow-system/agent/references/env-flags.md` (the canonical inventory) and apply the **reuse-first** test:
+
+1. Does an existing flag activate the SAME runtime surface? → REUSE the existing flag (the v8.3.4 PV-04 command-mapping layer is the canonical example: it REUSES `DEVOLAFLOW_RTK_PROXY` rather than adding `DEVOLAFLOW_COMMAND_MAPPING` because the activation surface is the same).
+2. Does an existing flag's R5 strict pattern apply (env-var read EXACTLY `"1"` + companion runtime probe)? → If yes, the new flag MUST adopt the same parsing + zero-IO design.
+3. Is the new behaviour BEHAVIOURALLY ORTHOGONAL to every existing flag (i.e. would activate independently regardless of any other flag's state)? → ONLY THEN may a new flag be authored.
+
+A NEW flag PR that fails the orthogonality test is a **W-20 violation**. The reviewer MUST either reject (REUSE) or require the orthogonality argument to be documented inline in the PR body + cross-linked to the `references/env-flags.md` §7 checklist.
+
+Authoring requirements for a justified new flag:
+
+* Add the flag to `references/env-flags.md` §2 (active runtime flags) IN THE SAME PR as the handler implementation.
+* Author an R5-strict zero-IO test in `tests/test_<feature>_disabled_is_noop.py`.
+* Cite the new flag by name in the CHANGELOG `## [vX.Y.Z]` entry under "Operator-visible behaviour change".
+
+Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + `references/env-flags.md` §7.

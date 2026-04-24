@@ -32,9 +32,16 @@ targets:
       description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
       alwaysApply: true
   agents_md:
+    # v9.0.0 PV-05 (v8.5.0) — token_budget bumped 6000 → 8000 (parity with
+    # cursor target above) so W-16..W-20 rule additions fit without
+    # truncating any existing layer. Pre-PV-05 utilization was 5857/6000
+    # (97.6%); the bump leaves headroom for PV-06..PV-N additions and
+    # mirrors the cursor-target ceiling so AGENTS.md-aware tools (Codex,
+    # KimiCode, Cline, Roo) get the same rule corpus as Cursor users.
+    # Documented in .local/research/adr/v9-ADR-005-nines-hygiene-and-w-rules.md D5.
     output: "AGENTS.md"
     format: markdown
-    token_budget: 6000
+    token_budget: 8000
     include_layers: [soul, architecture, conventions, workflow]
 
 drift_detection:

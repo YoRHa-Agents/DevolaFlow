@@ -56,6 +56,17 @@ CLI_ENTRY_SUFFIX: str = "_cmd"
 
 DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
     {
+        # v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild_index() is the
+        # Python entry-point invoked by the Makefile target
+        # `make nines-index-rebuild` via a `python -c "from devolaflow.nines.researcher
+        # import rebuild_index; ..."` subprocess. The dead-API detector only
+        # sees Python callers; the Makefile subprocess invocation does NOT
+        # register as a caller in the AST walk. Allowlisted with this
+        # comment so the W-19 / Workflow Rule W-18 ghost-audit refresh
+        # contract is satisfied. NOT a domain-SSOT registry symbol per
+        # A-5.2 — `rebuild_index` is a pure CLI wrapper around
+        # `nines analyze --target-path . --depth deep --agent-impact --keypoints`.
+        "devolaflow.nines.researcher:rebuild_index",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
         # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
         # P-05 dispatch directive, the lifecycle package is intentionally

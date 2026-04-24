@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-env-016"
+name = "env-flag-inventory-size-v8.5.0"
+description = "v8.5.0 PV-05 (T8 NineS Hygiene A4) — env-flag inventory has 8 active runtime flags + 6 forward-declared gate-primitive flags + 4 BG defaults + 3 test-fixture flags per references/env-flags.md"
+dimension = "code_quality"
+difficulty = 2
+
+[task.input]
+type = "code"
+language = "python"
+source = "active_env_flags = 8; forward_declared = 6; bg_primitives = 4; test_fixtures = 3"
+
+[task.expected]
+type = "text"
+value = "active_env_flags = 8; forward_declared = 6; bg_primitives = 4; test_fixtures = 3"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

@@ -83,7 +83,11 @@ def rules_dir(tmp_path: Path) -> Path:
             "agents_md": {
                 "output": "AGENTS.md",
                 "format": "markdown",
-                "token_budget": 6000,
+                # v8.5.0 PV-05 — bumped 6000 → 8000 (parity with cursor target)
+                # so W-16..W-20 rule additions fit; matches the canonical
+                # .rules/compile-config.yaml budget. ADR-005 D5 records the
+                # rationale.
+                "token_budget": 8000,
                 "include_layers": ["soul", "architecture", "conventions", "workflow"],
             },
         },
@@ -372,14 +376,19 @@ class TestV822RulesFoundationCompile:
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in agents.content
         assert "## C-9 — Lightweight Agent Workspace Artifacts" in agents.content
 
-    def test_compile_budget_agents_md_under_6000_tokens(
+    def test_compile_budget_agents_md_under_8000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """AC-7: AGENTS.md token estimate must remain ≤ 6000 (compile-config budget)."""
+        """AC-7: AGENTS.md token estimate must remain ≤ 8000 (compile-config budget).
+
+        v8.5.0 PV-05 bumped the AGENTS.md target from 6000 → 8000 to match
+        the cursor target (parity), allowing W-16..W-20 rule additions to
+        fit without truncation. See ADR-005 D5 for the rationale.
+        """
         agents = repo_compile_results["agents_md"]
-        assert agents.tokens_budget == 6000
-        assert agents.tokens_used <= 6000, (
-            f"AGENTS.md exceeded 6000-token budget: {agents.tokens_used}"
+        assert agents.tokens_budget == 8000
+        assert agents.tokens_used <= 8000, (
+            f"AGENTS.md exceeded 8000-token budget: {agents.tokens_used}"
         )
 
     def test_compile_budget_cursor_under_8000_tokens(

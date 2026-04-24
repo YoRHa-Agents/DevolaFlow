@@ -8,6 +8,44 @@ from pathlib import Path
 import pytest
 
 
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """v8.5.0 PV-05 (M-05) — honour ``@pytest.mark.deferred`` markers.
+
+    Walks the collected test items; for any item carrying
+    ``@pytest.mark.deferred(strict=True, reason=...)`` (the marker
+    declared in ``pyproject.toml [tool.pytest.ini_options] markers``),
+    apply ``pytest.mark.skip`` so the test is skipped at runtime with a
+    clear message that surfaces the deferral reason in the pytest -v
+    summary.
+
+    Why a second marker class (alongside ``persistence_probe``):
+    ``persistence_probe`` is a SELECTOR (collector filters by the marker
+    in CI configs); ``deferred`` is a SIGNAL (the marker carries WHY a
+    test is intentionally inactive in the current cycle, with a
+    cite-able ``reason`` string). The two classes have orthogonal
+    purposes and MUST NOT be conflated — the M-05 ADR-005 D2 records
+    the rationale.
+
+    Strict mode (default ``strict=True``): the marker asserts that the
+    test is currently skipped. If a future PV inadvertently flips a
+    deferred test back ON without removing the marker, the test runs
+    and either passes (the deferred condition resolved — remove the
+    marker) or fails (the deferred work still pending — restore the
+    skip). Either way the strict mode forces the author to revisit the
+    deferral, preventing silent re-activation.
+    """
+    for item in items:
+        marker = item.get_closest_marker("deferred")
+        if marker is None:
+            continue
+        reason = marker.kwargs.get("reason", "deferred without reason — see ADR-005 D2")
+        strict = marker.kwargs.get("strict", True)
+        if strict:
+            item.add_marker(pytest.mark.skip(reason=f"DEFERRED: {reason}"))
+        else:
+            item.add_marker(pytest.mark.xfail(reason=f"DEFERRED (xfail): {reason}", strict=False))
+
+
 @pytest.fixture(autouse=True)
 def _force_fallback_token_estimator(request, monkeypatch):
     """Make ``estimate_tokens`` deterministic for benchmark tests.
