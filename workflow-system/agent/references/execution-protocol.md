@@ -15,7 +15,7 @@ tier: 2
 token_estimate: 4600
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Execution Protocol Reference
@@ -576,3 +576,155 @@ round N gate FAIL → _evaluate_checks(...) → ReinforcementBlock
                   → round N+1 L3 sees applicable_rules.reinforcement.rules[*]
                     with deterministic F-{type}-NNN ids and MUST-fix mandates
 ```
+
+## 10. Memory Router Fast-Path Lookup (v8.3.3+)
+
+The memory router is an L0/L1 dispatch-time cache that short-circuits
+~3K tokens of planning re-derivation when prior cycles have already
+shaped the workflow. Lives in `src/devolaflow/memory_router/` (cache.py +
+router.py); operator-local recipes live in `.local/memory/cases/` (gitignored
+under `.local/*` per v8.3.0 PV-04 Q-5 policy).
+
+**Activation surface** — opt-in via env-flag (R5 strict default-OFF):
+
+```python
+from devolaflow.memory_router import lookup_case, is_router_enabled
+
+if is_router_enabled():                        # checks DEVOLAFLOW_MEMORY_ROUTER=1
+    case = lookup_case(
+        workflow_type="full-pipeline",
+        task_type="implement",
+        repo_signal=None,                      # optional namespace narrowing
+    )
+    if case is not None:                        # cache hit — short-circuit
+        summary = case.summary                  # CO-2 verbatim
+        recipe_path = case.recipe_path
+        version_stamp = case.version_stamp
+    else:                                       # cache miss — fall through
+        derive_from_skill_md(...)
+```
+
+`lookup_case()` is the **safe variant**: NEVER raises; degrades to
+`None` on schema break / IO error / missing file (cache-miss-is-safe
+discipline per R5 + S-5). `lookup_case_strict()` is the **CI/inspection
+variant**: raises `MemoryRouterError` on the same conditions for
+verification scripts.
+
+**Env-flag**: `DEVOLAFLOW_MEMORY_ROUTER=1`. When unset (R5 strict
+default), `is_router_enabled()` returns False and `lookup_case()` returns
+`None` without IO; the caller falls through to the existing planner
+unchanged. Zero cost when disabled.
+
+**TTL constants** (per `src/devolaflow/memory_router/cache.py`):
+
+* `DEFAULT_TTL_DAYS = 30` — applied when a case index row omits `ttl_days`
+* Per-route override via the index row's `ttl_days` field (range 1-365)
+* Anchor priority for TTL clock: `last_accessed` (most recent hit) →
+  `last_updated` (index-row authoring date) — both empty: fresh-but-undated
+  treated as not-expired (returns False to avoid spurious expiry)
+
+**Invalidation predicates** (run for every match BEFORE returning a hit):
+
+| Predicate | Rule | Failure mode |
+|-----------|------|--------------|
+| `is_version_stale(case, current_version)` | exact string equality with `devolaflow.__version__` | Pre-release tags (`8.3.4-rc.1`) DO trigger invalidation (the safe behaviour — recipes invalidate automatically when `__version__` bumps) |
+| `is_ttl_expired(case, today=...)` | `today - anchor_date > timedelta(days=ttl_days)` where anchor = `last_accessed or last_updated` | both anchors empty → returns False (no expiry on undated entries) |
+
+Both predicates degrade to **cache-miss** if they detect drift; the
+caller falls through to the existing planner unchanged. Operators can
+list all stale entries via `python -m devolaflow.memory_router.cli list --stale`
+(forward-defined for v8.5.0 PV-05).
+
+## 11. Shell Proxy + Pre-Shell-Call Hook (v8.3.2+)
+
+The shell proxy is a runtime-opt-in compression layer that wraps Shell
+tool calls in `rtk rewrite` (and a local-recipe layer) for whitelisted
+commands. The activation env-flag is `DEVOLAFLOW_RTK_PROXY=1` (R5 strict
+default-OFF). Lives in `src/devolaflow/shell_proxy/` (registry +
+proxy + commands); the lifecycle hook lives in
+`src/devolaflow/lifecycle/pre_shell_call.py` (148 lines, 5th canonical
+lifecycle event).
+
+**5th canonical lifecycle event** — `pre_shell_call`. The other 4
+events: `pre_dispatch` (forward-defined v8.4.4 PV-04), `pre_review`,
+`pre_test`, `pre_verify`. The `pre_shell_call` event fires immediately
+before every Shell tool invocation; the hook signature is
+`pre_shell_call(command: str, args: list[str], cwd: Path) -> Verdict`
+where Verdict is one of `ACCEPT`, `REWRITE`, `BLOCK`. Rewrites flow
+through `apply_local_recipe()` then RTK; blocks raise
+`PreShellCallError`.
+
+**4 PSC violation codes** — operators triaging shell-proxy violations
+consult these codes in StatusReport `findings[*].rule_id`:
+
+| Code | Trigger condition | Severity | Recovery |
+|------|-------------------|----------|----------|
+| **PSC001** | command not in WHITELIST (`shell_proxy/registry.py::WHITELIST` Tier 1 / Tier 2 sets) | blocker (mode: full) / warn (mode: lite) | Either add command to WHITELIST via PR, or run with the hook bypassed (CI-only escape hatch) |
+| **PSC002** | RTK rewrite fails (subprocess error, RTK binary missing, RTK schema mismatch) | warn | Falls through to passthrough; no execution blocked |
+| **PSC003** | destructive operation detected without explicit `--force` (matches `BYPASS_PATTERNS["destructive_operation"]` regex from `src/devolaflow/compressor.py`) | blocker | Re-issue with `--force` flag explicitly; otherwise authoring requires CI-only escape hatch |
+| **PSC004** | local recipe schema validation failure on `.local/memory/commands/<repo>/<cmd>.yaml` | warn (with cache-miss fallback) | Repair the recipe (see `references/shell-proxy.md` §6.3); recipe loader skips bad rows + logs |
+
+All 4 codes are emitted via `_log_pre_shell_call_violation()` per S-5
+(structured WARNING / ERROR — never silent). The `mode: lite` vs
+`mode: full` knob is set in `workflow-system/agent/context_profiles.yaml`
+under `shell_proxy.enforcement_mode`. CI is strict by default
+(`mode: full` in `tests/test_pre_shell_call.py` fixtures).
+
+## 12. Change-Driven Workflow Envelope Lifecycle (v8.3.0+)
+
+The 22nd builtin template `change-driven.yaml` (introduced v8.3.0 PV-06,
+commit `6bb83fa`) is the standard pattern for in-flight changes that
+mutate source-of-truth specs. It binds a dispatch payload to the
+`.local/.agent/active/<change-id>/` workspace folder per the
+`change_context` top-level dispatch key (canonical position 16, schema
+version 5).
+
+**4-stage lifecycle**: `propose → (apply ↔ verify) → archive`.
+
+| Stage | Primitive | Input | Output |
+|-------|-----------|-------|--------|
+| propose | research + design | user request + relevant SoT specs | `.local/.agent/active/<id>/{goal.md, acceptance.md, spec.md, owned_files.txt, STATUS.yaml=PROPOSED}` |
+| apply | implement | spec.md DELTAs + owned_files.txt | source code edits within owned_files; `STATUS.yaml=IN_PROGRESS` |
+| verify | review + test | apply output + acceptance.md | `STATUS.yaml=VERIFYING`; on FAIL → loop back to apply |
+| archive | release | gate-PASSED change | `.local/.agent/archive/<YYYY-MM-DD>-<id>/` + spec merge proposal to `.local/memory/specs/<domain>/spec.md` |
+
+**`apply ↔ verify` convergence loop** with `max_rounds=5` per W-8 /
+SI-9. Each round builds reinforcement rules from the prior round's gate
+findings via `findings_to_reinforcement()`; round-N L3 task agents MUST
+address all reinforcement rules before other work. Stagnation (2+
+rounds with no improvement despite reinforcement) escalates to human
+per P4.
+
+**Append-only handoff envelopes** (Soul Rule **S-9**): inter-stage
+handoff lives in `.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml`.
+Once an envelope is written it MUST NOT be modified or deleted; new
+information requires a new envelope at `seq+1`. The `seq` integer is
+the append-only ledger key per the v8.3.0 design.md §3.2 closure of
+gap H-002. CI lints envelope immutability via
+`tests/test_handoff_envelope_immutable.py`.
+
+**File-ownership constraint** (Soul Rule **S-8**): an L3 Task Agent
+operating inside a change-driven workflow MUST NOT modify any file
+outside the union of: (1) paths listed in `owned_files.txt`, (2) the
+change folder itself, (3) `.local/.agent/handoff/` (only its own
+outbox; append-only per S-9). Detected at file-write time via the
+`lifecycle/check_file_ownership` hook (forward-defined v8.2.6); in
+`mode: lite` it warns + logs; in `mode: full` (or STRICT) it blocks +
+escalates per P4. Trivial-tier waiver applies: single-file < 20 lines
+edits per S-1 / P1 are exempt.
+
+**Source-of-truth contract** (Architecture Rule **A-4**): per-change
+`spec.md` files contain DELTAs (ADDED/MODIFIED/REMOVED Requirements)
+relative to `.local/memory/specs/<domain>/spec.md`. Source-of-truth is
+mutated ONLY at archive time, after the gate has PASSED (W-3 / SI-3
+composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The archive runs
+the explicit `mergeability_check` (v8.2.5 reporter module) before
+allowing the merge.
+
+**Schemas + APIs**:
+* Dispatch field: `change_context` (16th canonical key, v8.3.0 PV-05)
+* Python API: `devolaflow.agent_workspace.{change, handoff, archive,
+  reporter, lint}` (v8.2.5+)
+* CLI: `python -m devolaflow.agent_workspace.lint <change-id>` (v8.2.5)
+* Reference: `references/agent-workspace.md` (canonical reference for
+  the substrate)

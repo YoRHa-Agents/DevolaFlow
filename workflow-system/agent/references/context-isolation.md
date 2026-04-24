@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 3400
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Context Isolation Reference
@@ -317,12 +317,22 @@ long sessions).
 
 DevolaFlow declares a single canonical top-level key order for every lean
 dispatch. The order is **additive**: each key may be absent, none may be
-reordered, and new top-level keys MUST be appended after `gate` (position 12).
+reordered. Positions 1-12 form the **FROZEN PREFIX** — reordering any of
+the v7.0.0 baseline slots invalidates the LLM cache prefix and is a release
+blocker per `v9-ADR-002` (and Soul Rule S-2 / Architecture Rule A-2
+nest-vs-append clause). Positions 13-16 are **append-only** — new top-level
+keys land at position N+1 where N is the current `len(canonical_order)`,
+never inserted into a lower slot. Authors choosing between adding a new
+top-level key vs. nesting under an existing one apply the nest-vs-append
+decision rule (`v9-ADR-002` D3) — the bias is toward NEST whenever the
+data shape allows.
 
-**Canonical order (12 keys):** `hdr` → `task` → `goal` → `assumptions` →
-`pred` → `files` → `rules` → `shared` → `accept` → `reinforce` (round 2+
-only) → `verify_cfg` → `gate`. Source of truth:
-`schemas/lean-dispatch.yaml#layout_invariant`.
+**Canonical order (16 keys, `version: 5`):** `hdr` → `task` → `goal` →
+`assumptions` → `pred` → `files` → `rules` → `shared` → `accept` →
+`reinforce` (round 2+ only) → `verify_cfg` → `gate` → `repos` (v7.2.6 P-06)
+→ `behavioral_guidelines` (v8.0.0 P-08) → `acceptance_criteria_v2` (v8.0.0
+P-10) → `change_context` (v8.3.0 PV-05). Source of truth:
+`schemas/lean-dispatch.yaml#layout_invariant.canonical_order`.
 
 **Validator:** `devolaflow.compressor.assert_dispatch_layout(payload)` raises
 `DispatchLayoutError` on any out-of-order or pre-spec-end unknown key.
@@ -507,7 +517,7 @@ active scope; rows downstream of a row do not disturb rows upstream.
 
 | Stage                   | Round | Primitive                              | Reference | Scope                                                                          |
 |-------------------------|-------|----------------------------------------|-----------|--------------------------------------------------------------------------------|
-| Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 12-key top-level order so round-N reuses round-(N−1)'s KV prefix.  |
+| Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 16-key top-level order (positions 1-12 frozen, 13-16 append-only) so round-N reuses round-(N−1)'s KV prefix. |
 | Predecessor embed       | 1+    | Hierarchical summariser                | §12       | Collapses pred artifact > 25 % of layer budget via `summarise_predecessor()`.  |
 | Predecessor embed       | 1+    | Preserve-list extraction               | §12 / §13 | `extract_named_entities()` surfaces 8 structured classes verbatim.             |
 | L3 status → L2 context  | ≥ 2   | Tool-output truncation                 | §11       | `clear_old_tool_uses(keep=3, exclude=["Read"])` elides prior-round payloads.   |
@@ -532,7 +542,7 @@ primitive does NOT require a version rollback — only the coupled bundle
 which the `scripts/bump_version.py` harness and SI-5 coupling already
 gate.
 
-## 15. Abstractive summariser Stage A (P-12, v8.0.0)
+## 16. Abstractive summariser Stage A (P-12, v8.0.0)
 
 `summarise_predecessor(..., mode='abstractive')` is now wired via a
 deterministic Stage A heuristic (no LLM). It complements the extractive
