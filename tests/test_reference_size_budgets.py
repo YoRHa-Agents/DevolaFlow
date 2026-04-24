@@ -71,7 +71,7 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the SF-3 contract (11-refs / 3-examples since v8.4.0 rollup).
+    """Sanity: shape matches the SF-3 contract (12-refs / 3-examples since v8.4.1 PV-01).
 
     v8.0.0 P-08 grew the reference set 8 → 9 by appending
     ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
@@ -92,8 +92,15 @@ def test_canonical_lists_match_sf3_contract() -> None:
     pre_shell_call lifecycle hook, the memory_router/ planning fast-path, and
     the ``.local/memory/{cases,commands}/`` recipe layers). Pairs with the
     v8.3.1..v8.3.4 PV-01..PV-04 surface area closing R-001+R-002+M-001+M-002.
+
+    v9.0.0 PV-01 (v8.4.1) grew the reference set 11 → 12 by appending
+    ``references/plan-mode-enforcement.md`` (the plan-mode L0 operating
+    contract reference absorbing SKILL.md §"Mode Awareness" PLAN MODE detail
+    + §"Reinforcement Rules" mechanism, freeing ~57 lines of SKILL.md
+    headroom and closing R7 carry-forward + B-01 SKILL.md ceiling crisis
+    from .local/research/v9.0.0_gap_analysis.md §3.1).
     """
-    assert len(_REF_FILES) == 11, f"expected 11 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 12, f"expected 12 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

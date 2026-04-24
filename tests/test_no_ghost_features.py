@@ -331,6 +331,15 @@ _SF4_REFERENCE_SET = frozenset(
         # recipe layers. Pairs with the v8.3.1 PV-01 + v8.3.2 PV-02 +
         # v8.3.3 PV-03 + v8.3.4 PV-04 surface area (R-001 + R-002 + M-001 + M-002).
         "shell-proxy.md",
+        # v9.0.0 PV-01 (v8.4.1) — Plan-mode L0 operating contract reference.
+        # Absorbs SKILL.md §"Mode Awareness" PLAN MODE detail + §"Reinforcement
+        # Rules" mechanism into a single Tier-2 reference, freeing ~57 lines of
+        # SKILL.md headroom (closes B-01 + R7 carry-forward). Documents the
+        # plan output template, Constraints Checklist, P1-P5 invariants,
+        # _PLAN_MODE_OVERRIDES runtime hook, reinforcement payload shape,
+        # convergence loop mechanics, and stagnation-escalation protocol.
+        # Pairs with src/devolaflow/gate/reinforcement.py (W-8 / SI-9).
+        "plan-mode-enforcement.md",
     }
 )
 
@@ -356,6 +365,53 @@ def test_skill_examples_paths_exist(project_root: Path) -> None:
     base = project_root / "workflow-system/agent"
     missing = sorted(p for p in cited if not (base / p).exists())
     assert not missing, f"SKILL Tier-3 examples missing on disk: {missing}"
+
+
+def _skill_tier2_reference_names(project_root: Path) -> set[str]:
+    """Extract `references/<name>.md` paths from SKILL.md's Tier-2 sub-table.
+
+    Parses the ``## Reference Navigation Guide`` section, finds the
+    ``**Tier 2 — Domain references**`` sub-table, and harvests every
+    ``references/<name>.md`` cell value. Used by the parity test below
+    to detect drift between SKILL.md's Tier-2 nav and the canonical
+    ``_SF4_REFERENCE_SET`` declared above.
+    """
+    skill = _read(project_root / "workflow-system/agent/SKILL.md")
+    nav = re.search(r"## Reference Navigation Guide\n(.*?)(?:\n## |\Z)", skill, re.DOTALL)
+    if nav is None:
+        return set()
+    body = nav.group(1)
+    tier2 = re.search(r"\*\*Tier 2.*?\n(.*?)(?:\n\*\*Tier 3|\Z)", body, re.DOTALL)
+    if tier2 is None:
+        return set()
+    return set(re.findall(r"`references/([a-z][a-z0-9-]*\.md)`", tier2.group(1)))
+
+
+def test_reference_skill_md_tier2_parity(project_root: Path) -> None:
+    """v9.0.0 PV-01 NEW (closes F-04 SKILL.md ↔ SF-4 parity gap permanently).
+
+    Asserts that the set of `references/<name>.md` rows in SKILL.md's
+    ``## Reference Navigation Guide`` Tier-2 sub-table EXACTLY equals
+    ``_SF4_REFERENCE_SET``. Drift in either direction (SKILL adds a row
+    not in SF-4, or SF-4 adds an entry not surfaced in SKILL) is a
+    blocker — this is the F-04 root-cause prevention test.
+
+    F-04 history: ``behavioral-guidelines.md`` was added to ``_SF4_REFERENCE_SET``
+    in v8.0.0 P-08 but the SKILL.md Tier-2 nav table was never updated until
+    v8.4.1 (this PV); operators discovered the orphaned reference only via
+    the dispatch payload's ``behavioral_guidelines`` field schema. PV-01
+    inserted the missing row + adds this CI test so the gap cannot reopen.
+    """
+    nav_set = _skill_tier2_reference_names(project_root)
+    canonical_set = set(_SF4_REFERENCE_SET)
+    missing_in_nav = canonical_set - nav_set
+    extra_in_nav = nav_set - canonical_set
+    assert nav_set == canonical_set, (
+        f"SKILL.md Reference Navigation Guide Tier-2 sub-table drifted from "
+        f"_SF4_REFERENCE_SET — missing rows: {sorted(missing_in_nav)}, "
+        f"extra rows: {sorted(extra_in_nav)}. Canonical SF-4 set has "
+        f"{len(canonical_set)} entries; SKILL.md Tier-2 nav has {len(nav_set)}."
+    )
 
 
 # ── Category G: composer / parameters wiring ────────────────────────

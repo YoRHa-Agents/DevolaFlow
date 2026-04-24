@@ -221,6 +221,54 @@ section_anchors:
   # content drives the BG-003 surgical_scope='line' criteria injection).
   behavioral_guidelines_reference: "workflow-system/agent/references/behavioral-guidelines.md"
 
+  # v9.0.0 PV-01 (v8.4.1) — R7 carry-forward partial closure. Eliminates
+  # the runtime deprecation warnings that fire from
+  # ``_resolve_section_text`` for ``frontmatter`` + ``version_update``
+  # (the user-visible ones flagged by the v9.0.0 SI-1 gap analysis), and
+  # migrates the two SKILL.md sections whose content moved into
+  # ``references/plan-mode-enforcement.md`` (PLAN MODE + Reinforcement
+  # Rules / Convergence Loop). The rest of the SKILL.md anchors are
+  # intentionally left on the legacy line-based fallback path because
+  # their heading-based extraction is significantly larger than the
+  # historical line slice (e.g. ``mode_detection`` heading-extract
+  # returns Mode Awareness + PLAN MODE + AGENT MODE = 670 tokens vs the
+  # legacy line slice of 91 tokens), which would push critical sections
+  # out of the per-profile section_budget allocator and break
+  # ``tests/test_behavioral_guidelines.py::test_behavioral_block_does_not_displace_critical_sections``.
+  # Full migration is deferred to a future PV that pairs each anchor
+  # bump with a per-profile budget recalibration + EvoBench wholesale
+  # baseline regen — out of scope for PV-01 (R7 narrowed to "warning
+  # cleanup + content-move-driven anchors only").
+  #
+  # Per S-5 the legacy fall-through path still emits a DeprecationWarning
+  # for any anchor not registered here, so the cleanup signal remains
+  # visible for the deferred migration.
+  frontmatter:
+    file: "workflow-system/agent/SKILL.md"
+    heading: "## Version & Update"      # nearest extractable heading; YAML frontmatter has none
+  version_update:
+    file: "workflow-system/agent/SKILL.md"
+    heading: "## Version & Update"
+  # plan_mode_template resolves to the compressed SKILL.md PLAN MODE
+  # summary that points at references/plan-mode-enforcement.md for the
+  # full template. The reference holds the verbatim 45-line plan template
+  # extracted from SKILL.md by v9.0.0 PV-01 (closes B-01). Anchoring at
+  # the compressed SKILL.md section keeps the section_budget impact
+  # predictable (≈ 116 tokens vs legacy 820 tokens) while preserving
+  # discoverability of the full template via the cross-link.
+  plan_mode_template:
+    file: "workflow-system/agent/SKILL.md"
+    heading: "### PLAN MODE — Design the Plan, Do NOT Execute"
+  # convergence_loop resolves to the SKILL.md Wave Coordination Modes
+  # section (which carries the Gen-Verify loop description). Full
+  # convergence-loop mechanics + max_rounds defaults + stagnation
+  # detection + verifier criteria sourcing live in
+  # references/plan-mode-enforcement.md §7 — the compressed SKILL.md
+  # surface points there for full detail.
+  convergence_loop:
+    file: "workflow-system/agent/SKILL.md"
+    heading: "### Wave Coordination Modes"
+
 # SKILL.md section registry with line ranges and base token estimates
 # v8.2.0 (PV-05): DEPRECATED — superseded by the ``section_anchors:``
 # block above. Retained as the fallback for any anchor not yet migrated;
@@ -229,123 +277,136 @@ section_anchors:
 # MUST go through ``section_anchors:`` (anchor → file path) rather than
 # adding new ``lines: "X-Y"`` entries here.
 sections:
+  # Line ranges below were re-anchored in v9.0.0 PV-01 (v8.4.1) after the
+  # SKILL.md compression reclaimed 57 lines (499 → 440). Sections that
+  # the v9.0.0 PV-01 ``section_anchors:`` block migrated to symbolic
+  # heading-based discovery (``frontmatter`` / ``version_update`` /
+  # ``plan_mode_template`` / ``convergence_loop``) keep these ``lines:``
+  # entries as a backward-compat fallback only — the registry takes
+  # precedence per ``_resolve_section_text``. The remaining sections
+  # continue resolving via the legacy line-based path with one-shot
+  # ``DeprecationWarning`` per anchor (S-5 — never silently swallow
+  # the deprecation signal). Full anchor migration is deferred per
+  # ``.local/research/v9.0.0_pv01_compression_plan.md`` §3 — pairing
+  # each migration with a per-profile budget recalibration is
+  # out of scope for PV-01.
   frontmatter:
     lines: "1-30"
     tokens_est: 231
     content_type: metadata
 
   version_update:
-    lines: "36-40"
+    lines: "36-39"
     tokens_est: 109
     content_type: prose
 
   quick_action_decision:
-    lines: "42-51"
+    lines: "40-49"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "53-59"
+    lines: "51-58"
     tokens_est: 91
     content_type: prose
 
   plan_mode_template:
-    lines: "61-122"
-    tokens_est: 820
+    lines: "59-62"
+    tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "123-149"
+    lines: "63-89"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "151-184"
+    lines: "90-118"
     tokens_est: 612
     content_type: table
 
   hierarchy_table:
-    lines: "185-195"
+    lines: "147-161"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "185-195"
+    lines: "147-161"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "194-198"
+    lines: "157-161"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "200-211"
+    lines: "162-174"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "213-228"
+    lines: "175-191"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "229-277"
+    lines: "192-241"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "279-291"
+    lines: "242-259"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "293-324"
+    lines: "263-273"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "344-363"
+    lines: "275-293"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "364-395"
+    lines: "294-326"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "397-407"
+    lines: "327-338"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "409-418"
+    lines: "339-349"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "420-448"
+    lines: "350-385"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "420-448"
+    lines: "350-385"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "420-448"
-    tokens_est: 343
-    content_type: navigation
+    lines: "260-262"
+    tokens_est: 100
+    content_type: spec
 
   task_quality_score:
-    lines: "473-497"
+    lines: "413-438"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "450-472"
+    lines: "386-412"
     tokens_est: 188
     content_type: table
 

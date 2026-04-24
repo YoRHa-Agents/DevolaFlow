@@ -298,9 +298,12 @@ case = lookup_case(
     repo_signal=None,                # optional namespace narrowing
 )
 if case is not None:
-    # Hit — short-circuit the planning re-derivation
-    dispatch_template = case.dispatch_template
-    expected_savings_pp = case.expected_savings_pp
+    # Hit — short-circuit the planning re-derivation. Operators load the
+    # verbatim recipe body from case.recipe_path; the summary + version
+    # stamp are the L0 audit trail for which recipe routed which dispatch.
+    summary = case.summary
+    recipe_path = case.recipe_path
+    version_stamp = case.version_stamp
 else:
     # Miss — fall through to existing planner (R5 strict safe path)
     dispatch_template = derive_from_skill_md(...)
@@ -315,20 +318,19 @@ variant so a corrupt index can NEVER block production work.
 ### 5.3 `MemoryCase` value type (cache.py)
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MemoryCase:
     case_id: str
     workflow_type: str
     task_type: str
+    summary: str             # one-sentence verbatim summary, <= 160 chars
     recipe_path: str         # MUST start with .local/memory/cases/
-    dispatch_template: str
-    expected_savings_pp: int
-    ttl_days: int = 30
-    tags: tuple[str, ...] = ()
-    repo_signal: str | None = None
-    last_updated: str = ""    # ISO-8601 yyyy-mm-dd
-    last_accessed: str = ""   # ISO-8601 yyyy-mm-dd
-    version_stamp: str = ""   # MUST equal devolaflow.__version__
+    version_stamp: str       # MUST equal devolaflow.__version__
+    ttl_days: int = DEFAULT_TTL_DAYS
+    last_accessed: str = ""  # ISO-8601 yyyy-mm-dd
+    last_updated: str = ""   # ISO-8601 yyyy-mm-dd
+    repo_signal: str = ""
+    tags: tuple[str, ...] = field(default_factory=tuple)
 ```
 
 ### 5.4 Invalidation predicates (per cycle plan §6 R3)
@@ -364,18 +366,19 @@ cases:
   - case_id: "rtk-plugin-entry"
     workflow_type: "feature-enhancement"
     task_type: "implement"
+    summary: "RTK runtime auto-install via curl_install_script with cargo fallback."
     recipe_path: ".local/memory/cases/rtk-plugin-entry.md"
-    dispatch_template: "rtk-plugin-runtime-install"
-    expected_savings_pp: 35
-    ttl_days: 30
-    tags: ["rtk", "plugin", "v8.4.0-cycle"]
     version_stamp: "8.3.3"
+    ttl_days: 30
     last_updated: "2026-04-23"
+    tags: ["rtk", "plugin", "v8.4.0-cycle"]
 ```
 
 The recipe markdown carries free-form playbook content (Trigger / Dispatch
 shape / Predecessor refs / Owned files / Gate hints / Notes). The schema
-permits any markdown body; only the index.yaml row is validated.
+permits any markdown body; only the index.yaml row is validated. Required
+fields per `schemas/memory-case.yaml` `item_required_fields`: `case_id`,
+`workflow_type`, `task_type`, `summary`, `recipe_path`, `version_stamp`.
 
 ### 5.7 Operator-local seed kit
 
@@ -429,10 +432,10 @@ ttl_days: 30
 strip_ansi: true
 pre_filters:
   - pattern: "^DeprecationWarning:.*$"
-    note: "v8.3.3 PV-03 test output"
+    replacement: ""    # drop matched lines outright (verbatim re.sub semantics)
 post_filters:
-  - pattern: "^.*\\[*\\] [0-9]+ fixable.*$"
-    note: "ruff fixable hint"
+  - pattern: "^.*\\[\\*\\] [0-9]+ fixable.*$"
+    replacement: ""    # drop ruff "[*] N fixable" hints from final output
 truncate_lines: 200
 max_lines: 200                  # alias for truncate_lines (precedence: explicit truncate_lines wins)
 on_empty: "(no relevant output)"
@@ -651,7 +654,6 @@ the unit test alone is insufficient.
 
 ## 10. Cross-References
 
-- **Cycle plan:** `/root/.cursor/plans/v8.4.0_rtk_+_memory_router_e4ec076d.plan.md`
 - **SI-1 gap analysis:** `.local/research/v8.4.0_gap_analysis.md` (R-001 / R-002 / M-001 / M-002 in §2.1; D-001 split decision in §3; cycle invariants in §5)
 - **SI-2 NineS analysis on RTK:** `.local/research/v8.4.0_rtk_nines_analysis.md` (§4.1 single-source-of-truth pattern; §4.3 RTK `[filters.<name>]` schema; §6.1 Tier 1/Tier 2 whitelist; §6.2 hook delegator; §5.2 collision-warning enforcement)
 - **Per-PV evaluations (W-3 / SI-3):**

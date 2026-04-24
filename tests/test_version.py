@@ -166,6 +166,10 @@ def test_cli_version_cmd():
 # (the RTK + memory-router stack reference covering runtime-plugins.yaml RTK row,
 # the shell_proxy/ package, the pre_shell_call lifecycle hook, the memory_router/
 # planning fast-path, and the .local/memory/{cases,commands}/ recipe layers).
+# v9.0.0 PV-01 (v8.4.1) grew this set 15 -> 16 by appending references/plan-mode-enforcement.md
+# (the plan-mode L0 operating contract reference absorbing SKILL.md §"Mode
+# Awareness" PLAN MODE detail + §"Reinforcement Rules" mechanism, freeing
+# ~57 lines of SKILL.md headroom and closing R7 carry-forward + B-01).
 
 _MIRRORED_SKILL_FILES = [
     "SKILL.md",
@@ -180,6 +184,7 @@ _MIRRORED_SKILL_FILES = [
     "references/context-isolation.md",
     "references/behavioral-guidelines.md",
     "references/shell-proxy.md",
+    "references/plan-mode-enforcement.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
