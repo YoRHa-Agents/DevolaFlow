@@ -1,0 +1,25 @@
+# JetBrains IDE adapter — IntelliJ / PyCharm / WebStorm / GoLand family
+# Per-project config lands under .idea/ which is the canonical JetBrains
+# workspace scope; devola-flow ships as a sibling bundle consumable by the
+# IDE-side plugin (when authored) or the built-in AI Assistant rules reader.
+name: jetbrains
+display_name: JetBrains IDE
+version_added: "9.0.1"
+tier: tier_2
+output:
+  base_dir: ".idea/devola-flow"
+  files:
+    - source: "SKILL.md"
+      target: "SKILL.md"
+      transform: copy_with_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+frontmatter:
+  inject:
+    platform: jetbrains
+    compatible_with: "[cursor, codex, claude]"
+budget:
+  type: lines
+  max: 800
+  target_file: "SKILL.md"

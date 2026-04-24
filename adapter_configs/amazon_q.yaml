@@ -1,0 +1,21 @@
+# Amazon Q Developer adapter — AWS AI coding assistant (formerly CodeWhisperer)
+# Amazon Q reads workspace-level rules from .amazonq/rules/*.md; DevolaFlow
+# mirrors its SKILL body + references there with frontmatter stripped so the
+# Q runtime parses the markdown directly without YAML preamble noise.
+name: amazon_q
+display_name: Amazon Q Developer
+version_added: "9.0.1"
+tier: tier_2
+output:
+  base_dir: ".amazonq/rules"
+  files:
+    - source: "SKILL.md"
+      target: "devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "devola-flow.md"

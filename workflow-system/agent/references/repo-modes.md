@@ -42,8 +42,11 @@ From §1:
 |---------|----------|-----------|-------------|----------|
 | `gitlab` | GitLab (cloud/self-hosted) | `.gitlab-ci.yml` | Merge Request | GitLab Package/Container Registry |
 | `gitea` | Gitea / Forgejo | `.gitea/workflows/` | Pull Request | Gitea Packages |
+| `codeberg` | Codeberg (Forgejo-hosted) | `.forgejo/workflows/` or `.gitea/workflows/` | Pull Request | Codeberg Pages / attachments |
 | `bitbucket` | Bitbucket | `bitbucket-pipelines.yml` | Pull Request | Bitbucket Downloads |
 | `generic` | Any other Git host | Manual / Makefile | Email patches / Web UI | Manual upload |
+
+> **Note on Codeberg**: Codeberg is a managed Forgejo instance operated by a non-profit. Treat it as a `codeberg` variant (detection regex `codeberg\.org[:/]` in §3) that inherits Gitea/Forgejo pipeline semantics but pins `.forgejo/workflows/` as the preferred CI config path.
 
 ## 2. Feature Matrix (20 Features × 3 Modes)
 From §2:
@@ -248,6 +251,8 @@ From §6:
 | **Gate** | Local gate script | CI status checks | CI pipeline status |
 | **Release** | Skip (no release) | Tag → Actions → Release | Tag → CI → Registry |
 | **Deploy** | Skip (no deploy) | Pages deployment | Pages / self-hosted |
+| **+verify** | `make check` local | CI status + branch protection assertions | CI status + MR/PR approval assertions |
+| **+monitor** | Skip (no telemetry) | `.github/workflows/monitor.yml` + Actions metrics | Platform-native webhooks + Grafana/self-hosted |
 
 ### Configuration Schema
 
@@ -280,3 +285,25 @@ platform_config:
     - aarch64-apple-darwin
     - x86_64-pc-windows-msvc
 ```
+
+## 7. Plugin / Tool Interaction with Mode Detection
+
+DevolaFlow plugins and tooling consult the detected repo mode to gate
+platform-specific behaviour. Mode detection runs once per agent session and
+caches the result in `.workflow/repo-mode.yaml`; plugins read this file (or
+the in-memory `RepoModeProfile`) rather than re-running detection.
+
+**Canonical consumers (v9.0.0 baseline):**
+
+| Plugin / Tool | Mode-gated behaviour | Fallback when mode absent |
+|---|---|---|
+| `agent_workspace` | Records `repo_mode` in change-folder `STATUS.yaml`; skips GitHub-specific PR metadata emission in `local` / `other-git` | Treat as `local` (safe default) |
+| `shell_proxy` | Enables `gh` command recipes only in `github` mode; enables `glab` recipes in `other-git` `gitlab` variant | Skip platform-specific recipes |
+| `mergeability_check` | Probes `gh pr view` / `glab mr show` / `tea pr list` based on mode variant | Reject the probe (no remote API) |
+| Adapter build | Selects default release channel per mode (`github` → GitHub Releases; `other-git gitlab` → GitLab Package Registry; `local` → artifact archive only) | Fall through to archive-only |
+| EvoBench harness | Enables `--upload-baseline` only in `github` mode with CI token; local runs keep baselines on disk | Disk-only mode |
+
+Plugins MUST degrade gracefully when mode detection returns `local` or when
+a mode-specific tool (`gh`, `glab`, `tea`) is unavailable — per Soul rule
+S-5 (No Silent Failures), the plugin logs the skip reason and returns a
+structured no-op result rather than crashing the parent dispatch.

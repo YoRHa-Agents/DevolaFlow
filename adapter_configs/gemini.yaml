@@ -1,0 +1,21 @@
+# Google Gemini Code Assist adapter — workspace rules under .gemini/
+# Gemini Code Assist consumes repository-level guidance from .gemini/*.md;
+# DevolaFlow ships its SKILL body + references there with frontmatter stripped
+# so the Gemini runtime sees only the consumable markdown body.
+name: gemini
+display_name: Google Gemini Code Assist
+version_added: "9.0.1"
+tier: tier_2
+output:
+  base_dir: ".gemini"
+  files:
+    - source: "SKILL.md"
+      target: "devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "devola-flow.md"

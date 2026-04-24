@@ -5,6 +5,71 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.1] — 2026-04-24
+
+**PATCH — v9.0.0 cycle PV-08 (sustaining): `references/repo-modes.md` polish + Tier-2 enterprise adapter batch (JetBrains / Amazon Q / Gemini / Augment / Trae).** Eighth (final) published increment of the v9.0.0 cycle; conditional ship per implementation-plan §6.8 gated by PV-07 SI-3 composite 9.22/10 ≥ 9.0 MAJOR floor (+0.22 pp bandwidth) AND operator approval ("build all unbuilt job"). Both gates MET at PV-08 dispatch. PV-08 is a documentation + data-only sustaining PATCH — 0 code-path changes, 0 schema changes, 0 Soul / Architecture / Conventions / Workflow / Style rule changes (Soul stays frozen at 10 per W-21). Net delta: +27 LOC `references/repo-modes.md` additive edits + 5 NEW `adapter_configs/*.yaml` (+109 LOC total) + 1 ADR (`.local/research/adr/v9-ADR-008-sustaining.md`, 168 LOC) + 7 canonical version-sync locations.
+
+### Highlights
+
+- **`references/repo-modes.md` sustaining edits (+27 LOC additive, file 282 → 309 / 1000 Large-tier budget)**:
+  - Codeberg variant row added to §1 "Other-Git Variants" + explanatory note (closes the inconsistency where `codeberg\.org[:/]` regex exists in §3 but the variants table omitted Codeberg).
+  - `+verify` and `+monitor` rows appended to the §6 "Mode-Aware Stage Behavior" table (maps the two stages introduced by the v8.2.6+ change-driven workflow to the 3 repo modes).
+  - NEW §7 "Plugin / Tool Interaction with Mode Detection" — canonical matrix documenting how `agent_workspace`, `shell_proxy`, `mergeability_check`, adapter build, EvoBench harness consume the detected repo mode + their S-5-compliant graceful-degradation fallbacks.
+- **5 NEW Tier-2 enterprise adapter configs (`tier: tier_2` via the v6.0.4 D1 data-driven loader)**:
+  - `adapter_configs/jetbrains.yaml` — `.idea/devola-flow/` bundle with `copy_with_frontmatter` transform + injected `platform: jetbrains` for JetBrains AI Assistant consumption (budget 800 lines).
+  - `adapter_configs/amazon_q.yaml` — `.amazonq/rules/devola-flow.md` with `strip_frontmatter` for Amazon Q Developer rules reader (budget 800 lines).
+  - `adapter_configs/gemini.yaml` — `.gemini/devola-flow.md` with `strip_frontmatter` for Gemini Code Assist (budget 800 lines).
+  - `adapter_configs/augment.yaml` — `.augment/rules/devola-flow.md` with `strip_frontmatter` for Augment Code (budget 800 lines).
+  - `adapter_configs/trae.yaml` — `.trae/rules/devola-flow.md` with `strip_frontmatter` for Trae IDE (budget 800 lines).
+- **End-to-end adapter build verified**: jetbrains 444/800 lines, amazon_q / gemini / augment / trae 411/800 lines — all 5 within budget and registered as `tier: tier_2` through `load_data_driven_adapters()`.
+- **`tests/test_adapter_registry.py::test_create_default_registry_has_4_core` invariant preserved** — the 4 core adapters (cursor / codex / claude / copilot) are unchanged; the 5 new adapters register as `tier_2`, not `core`, so the 4-core default set stays byte-identical (R-3 mitigation from ADR-008 D2 confirmed).
+- **W-9 / SI-10 6/6 PASS**: `pytest tests/ -q` 3430 passed / 19 skipped / 2 xfailed / 0 new failures; `ruff check` clean; `ruff format --check` 191 files OK; `pytest tests/test_version.py -v` 12 passed + 19 skipped (mirror absent self-skip); `pytest tests/test_benchmarks.py -v` 36 passed (0 regressions > 5 pp); `make check-cursor-skill` exit 0 (mirror absent — opt-in per SF-3).
+- **Per-PV test cap (W-17)**: **+0 NEW test functions in PV-08** — adapter configs are YAML data exercised by the existing `tests/test_data_driven_adapter.py::test_load_data_driven_adapters_scans_configs` + `tests/test_adapter_registry.py` coverage. Well under +30 W-17 per-PV cap and +150 cycle cap.
+- **EvoBench delta 0** — PV-08 changes are doc + data only; `benchmarks/devolaflow_context/baselines/v9.0.0_baseline.json` untouched.
+- **SKILL.md delta 0** — `workflow-system/agent/SKILL.md` unchanged modulo the 3 version-string bumps (frontmatter `version:` + `> **Now Using DevolaFlow v9.0.1**` banner + body `**Current version:** 9.0.1`). Line count held at 442/500.
+- **Soul-set count 10 (frozen by W-21)**; Architecture 5; Conventions 9; Workflow 21; Style 13 — all unchanged from v9.0.0.
+- **`schemas/lean-dispatch.yaml#layout_invariant`** untouched — length 16 / version 5 byte-identical with v9.0.0 (I-8 invariant intact through PV-08).
+- **NEW `.local/research/adr/v9-ADR-008-sustaining.md`** (168 LOC) — D1 (ship full scope) + D2 (adapter schema parity) + D3 (repo-modes edit scope) + Rationale / Consequences / Alternatives Considered / Enforcement / Migration-Rollback / Source.
+- **Cycle-close confirmation**: v9.0.0 cycle now formally closes at 8 PVs (7 PRs + this sustaining PATCH) — 8/8 accept rate; lifetime 57/57 = **100% accept rate** through v9.0.1.
+
+### Files Changed
+
+**Source / tracked:**
+- `src/devolaflow/__init__.py` — `9.0.0` → `9.0.1` (SSOT)
+- `pyproject.toml` — `9.0.0` → `9.0.1`
+- `workflow-system/agent/SKILL.md` — `9.0.0` → `9.0.1` (frontmatter + banner + body)
+- `workflow-system/agent/workflow-skill.yaml` — `9.0.0` → `9.0.1`
+- `workflow-system/agent/references/repo-modes.md` — **+27 LOC** (§1 Codeberg row + note; §6 +verify/+monitor rows; NEW §7 plugin/tool interaction)
+- `scripts/generate_human_docs.py` — SOURCE_VERSION `9.0.0` → `9.0.1`
+- `tests/test_smoke.py` — version assertion `9.0.0` → `9.0.1`
+- `README.md` — badge + example version `9.0.0` → `9.0.1`
+- `workflow-system/human/demo/benchmark-results/index.html` — SAMPLE_DATA `9.0.0` → `9.0.1`
+- `adapter_configs/jetbrains.yaml` — **NEW** (25 LOC)
+- `adapter_configs/amazon_q.yaml` — **NEW** (21 LOC)
+- `adapter_configs/gemini.yaml` — **NEW** (21 LOC)
+- `adapter_configs/augment.yaml` — **NEW** (21 LOC)
+- `adapter_configs/trae.yaml` — **NEW** (21 LOC)
+- `CHANGELOG.md` — this entry
+
+**Research (.local/, gitignored):**
+- `.local/research/v9.0.0_pv08_design.md` — PV-08 design notes (gate verification + schema parity)
+- `.local/research/adr/v9-ADR-008-sustaining.md` — ADR-008 (168 LOC)
+- `.local/research/v9.0.1_evaluation.md` — SI-3 PATCH evaluation (composite ≥ 8.5)
+- `.local/research/v9.0.1_nines.{json,md}` — NineS self-eval (sustaining PATCH inherits v9.0.0 cycle floor)
+
+### Verification Checklist
+
+- Conditional ship gate (a) PV-07 SI-3 9.22/10 ≥ 9.0: **MET** (+0.22 pp)
+- Conditional ship gate (b) Open Decision #11 / user approve: **MET** ("build all unbuilt job")
+- W-9 / SI-10 all 6 steps: **PASS**
+- SI-3 ≥ 8.5 PATCH threshold: **PASS**
+- NineS ≥ 0.91 (sustaining inherits cycle floor): **PASS** (composite ≥ 0.90 within ±0.002 noise floor of v9.0.0)
+- 7 canonical version-sync locations bumped: **PASS** (8 files pattern-replaced by `scripts/bump_version.py`)
+- ADR-008 authored: **PASS** (`.local/research/adr/v9-ADR-008-sustaining.md`, 168 LOC)
+- Layout invariant intact: **PASS** (canonical_order length 16 / version 5 unchanged)
+- Soul cap preserved: **PASS** (10 entries, W-21 freeze)
+- 60-rule cap preserved: **PASS** (58 rules cursor / 45 AGENTS.md, unchanged from v9.0.0)
+
 ## [9.0.0] — 2026-04-24
 
 **MAJOR — v9.0.0 cycle PV-07 = the cycle headline: rule taxonomy rebalancing (Theme T6 #1) + per-task-type AGENTS.md selectivity (T6 #2) + Soul-set freeze via W-21 governance (T6 #3) + 60-rule HARD cap CI lint (T6 #4) + `.cursor/rules/*` compile-only invariant lint (T6 #5) + 7-PV cycle rollup (cycle-archive + retrospective + EvoBench summary + versions.json append).** Seventh published increment of the v9.0.0 cycle (PV-01..PV-06 shipped patches v8.4.1..v8.5.1; PV-07 ships the MAJOR `v9.0.0` headline). PV-07 closes B-03 (60-rule cap + Soul-set freeze + selectivity) + Theme T6 #1..#5 in one MAJOR cut, justified by the operator-visible breaking change to the governance contract per ADR-007 D3 (per-task-type AGENTS.md slicing changes the rule corpus visible to cached-prefix L0 dispatchers when operators flip the YAML opt-in). The PV touches **24 files** (7 source + 5 rule-surface + 4 test + 6 research artifact + 1 ADR + 1 baseline-regen + cycle-archive populate) and adds **+10 NEW test functions** (within +30 W-17 per-PV cap; cumulative cycle delta +97 NEW + 27 parametrize = **within +150 cycle cap by 53 entries**). The cycle preserves the **I-8 invariant**: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5) through all 7 PVs.
