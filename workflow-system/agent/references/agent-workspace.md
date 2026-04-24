@@ -50,11 +50,22 @@ Load when the task involves any of:
 | Lint-checking artifact token budgets | Need Rule C-9 budget table + `lint_change` API |
 | Proposing a delta merge into source-of-truth | Need ADDED/MODIFIED/REMOVED format + A-4 ADR |
 | Hydrating L3 context from an active change | Need `hydrate_change_context()` API |
+| Wiring shell-proxy / memory-router into a change | Cross-link to `references/shell-proxy.md` + `references/execution-protocol.md` §10/§11 |
+| Composing change-driven with the convergence loop | Cross-link to `references/decomposition-gate.md` §6 + `references/execution-protocol.md` §12 |
 
 If the task is a generic feature/bugfix that does NOT touch
 `.local/.agent/`, this reference is OPTIONAL — load only when the
 delegation chain explicitly opts into the `change-driven` workflow
 template (registered in `templates/registry.yaml` since v8.2.6).
+
+**Envelope policy clarification (S-9 reminder)**: every envelope under
+`.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml` is
+append-only. To convey new information, author a NEW envelope at
+`seq+1`. NEVER edit or delete an existing envelope. The append-only
+ledger is the contract that prevents silent overwrites between agents
+operating in parallel; mirrors P5 (Artifacts as Contracts). CI enforces
+immutability via `tests/test_handoff_envelope_immutable.py` (lands with
+the v8.2.4 schema package).
 
 ## 2. The `.local/.agent/` Tree Layout
 

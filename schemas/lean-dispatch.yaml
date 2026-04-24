@@ -424,9 +424,48 @@ compression_rules:
 # validate cleanly without modification (R5 backward-compat invariant
 # I-PV05-C; verified by tests/test_dispatch_layout_v5.py and the
 # regression sweep in tests/test_compressor.py).
+#
+# v9.0.0 PV-02 (v8.4.2) — Cache-Layout Governance v2 (nest-vs-append rule).
+# Per .local/research/adr/v9-ADR-002-cache-layout-governance-v2.md:
+#
+# D1 — FROZEN PREFIX (positions 1-12). The first 12 positions of
+#      canonical_order are FROZEN at the v7.0.0 baseline. Reordering /
+#      renaming / removing ANY of these 12 keys invalidates the LLM cache
+#      prefix and is a release blocker. Enforced by
+#      `devolaflow.compressor.assert_layout_spec_invariant` (D5).
+#
+# D2 — APPEND-ONLY TAIL (positions 13+). New top-level dispatch keys MUST
+#      land at position N+1 where N is the current `len(canonical_order)`,
+#      never inserted into a lower slot. Historical APPEND decisions:
+#      `repos` (v7.2.6 P-06 -> pos 13), `behavioral_guidelines` (v8.0.0
+#      P-08 -> pos 14), `acceptance_criteria_v2` (v8.0.0 P-10 -> pos 15),
+#      `change_context` (v8.3.0 PV-05 -> pos 16).
+#
+# D3 — NEST-vs-APPEND DECISION RULE. When introducing a new dispatch
+#      behaviour, authors choose between NEST under an existing canonical
+#      key and APPEND a new canonical key. Bias toward NEST whenever the
+#      data shape allows; APPEND is reserved for orthogonal payload that
+#      does not nest naturally. Historical NEST decisions: `gate.token_budget`
+#      (v8.0.0 P-03), `pred[*].compact_directive` (v8.0.0 P-02),
+#      `pred[*].summary_mode` / `summary_max_tokens` (v7.0.2+ ADR-003 §2.5),
+#      `compression_rules.bypass_conditions` (v7.2.0 C-002),
+#      `compression_rules.data_envelope_required` (v7.2.4 P-02).
+#
+# D4 — MULTI-BASELINE BYTE TEST. CI enforcement via
+#      `tests/test_layout_invariant_multi_baseline.py` pins ALL 6 historical
+#      baselines (v7.0.0 / v7.3.0 / v8.0.0 P-08 / v8.0.0 P-10 / v8.3.0
+#      PV-05 / v8.4.0). Any drift fails CI immediately.
+#
+# D6 — This block (the YAML data structure below) is byte-identical to its
+#      v8.3.0 PV-05 / v8.4.0 / v8.4.1 form. ONLY doc comments were added
+#      in v9.0.0 PV-02 — `version` STAYS AT 5 and `canonical_order`
+#      STAYS AT LENGTH 16 with the same 16 keys in the same order
+#      (I-8 invariant per .cursor/rules/repo-governance.mdc A-2).
+#
 layout_invariant:
   version: 5
   canonical_order:
+    # --- FROZEN PREFIX (positions 1-12, v7.0.0 baseline, FROZEN per D1) ---
     - hdr
     - task
     - goal
@@ -439,13 +478,17 @@ layout_invariant:
     - reinforce
     - verify_cfg
     - gate
-    - repos
-    - behavioral_guidelines
-    - acceptance_criteria_v2
-    - change_context
+    # --- APPEND-ONLY TAIL (positions 13+, append-only per D2) ---
+    - repos                    # pos 13 — v7.2.6 P-06 (multi-repo coord)
+    - behavioral_guidelines    # pos 14 — v8.0.0 P-08 (Karpathy primitives)
+    - acceptance_criteria_v2   # pos 15 — v8.0.0 P-10 (structured AC)
+    - change_context           # pos 16 — v8.3.0 PV-05 (agent workspace bind)
   enforcement:
     validator: "devolaflow.compressor.assert_dispatch_layout"
+    spec_invariant: "devolaflow.compressor.assert_layout_spec_invariant"  # v9-ADR-002 D5
+    frozen_prefix: "devolaflow.compressor.FROZEN_PREFIX_V7"               # v9-ADR-002 D1
     stability_test: "tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds"
+    multi_baseline_test: "tests/test_layout_invariant_multi_baseline.py"  # v9-ADR-002 D4
     lcp_threshold_round_1_to_2: 0.80
     lcp_threshold_round_1_to_3: 0.70
     backward_compat:
@@ -455,3 +498,5 @@ layout_invariant:
       v7_3_0_baseline_passes: true
       v8_0_0_p08_baseline_passes: true
       v8_0_0_p10_baseline_passes: true
+      v8_3_0_pv05_baseline_passes: true
+      v8_4_0_baseline_passes: true

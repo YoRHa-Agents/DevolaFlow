@@ -16,7 +16,7 @@ tier: 2
 token_estimate: 1100
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-21"
+last_updated: "2026-04-23"
 ---
 
 # Behavioral Guidelines (L3 Task Agent)
@@ -217,6 +217,70 @@ violations classify as a finding (severity follows BG-003 = blocker).
 These criteria compose with BG-003 — a `line`-scope task inherits BG-003
 (diff hunks stay within the tier) AND each of LL-001..LL-005. Failing
 any criterion is a blocker finding per the BG-003 severity classification.
+
+## S-8 Composition Rule
+
+`surgical_scope` (BG-003) interacts directly with Soul Rule **S-8** ("No
+Writes Outside Active Change Owned Files" per `AGENTS.md`). When the
+dispatch payload carries BOTH a `change_context.owned_files_ref` AND a
+`behavioral_guidelines.surgical_scope` value, the L3 Task Agent MUST
+honour the **stricter** of the two:
+
+| `surgical_scope` | `change_context.owned_files_ref` present | Effective constraint |
+|------------------|------------------------------------------|----------------------|
+| `line` | YES | Edits restricted to declared line ranges within owned_files (S-8 ∩ BG-003 line tier) |
+| `function` | YES | Edits restricted to declared function bodies in owned_files (S-8 ∩ BG-003 function tier) |
+| `module` | YES | Edits restricted to owned_files (S-8 ≡ BG-003 module tier) |
+| (any) | NO (free-floating) | BG-003 alone applies; no S-8 enforcement |
+
+Violations classify per BG-003 severity (= **blocker**). The
+`lifecycle/check_file_ownership` hook (v8.2.6 forward-defined) enforces
+S-8 at write time; in `mode: lite` it warns + logs, in `mode: full` (or
+STRICT) it blocks + escalates per P4. Trivial-tier exception (single file
+< 20 lines per S-1 / P1) applies symmetrically — both S-8 and BG-003 are
+waived for trivial edits.
+
+## Severity Matrix
+
+| Rule ID | Field / Tier | Severity | On-violation behaviour |
+|---------|--------------|----------|------------------------|
+| BG-001 | `think_first=true` | warn | Append finding to StatusReport `findings`; no block |
+| BG-002 | `simplicity_check=true` (1 YES) | minor | Append finding |
+| BG-002 | `simplicity_check=true` (2 YES) | major | Append finding + reduce score |
+| BG-002 | `simplicity_check=true` (3 YES) | blocker | Append finding + halt commit |
+| BG-003 | `surgical_scope` (any tier) | blocker | Halt commit; require ScopeEscalation |
+| BG-004 | `goal_loop=true` (round ≥ 2) | warn | Append `GoalDriftWarning` finding |
+| LL-001 | per-line max length | blocker | (line tier) Halt commit |
+| LL-002 | per-line cyclomatic delta < +1 | blocker | (line tier) Halt commit |
+| LL-003 | per-line cohesion (single logical change) | blocker | (line tier) Halt commit |
+| LL-004 | declared-range adherence | blocker | (line tier) Halt commit |
+| LL-005 | verbatim-line preservation | blocker | (line tier) Halt commit |
+| S-8 | owned_files write | blocker (mode: full) / warn (mode: lite) | Block + escalate per P4 |
+
+The matrix is the single-source-of-truth for L3 self-audit; agents MUST
+classify findings using this exact severity wording (no inflation, no
+deflation per CO-2 verbatim-extraction discipline).
+
+## v8.2.x Primitive References
+
+The behavioral primitives compose with the runtime primitives shipped in
+the v8.x cycle. Each cross-link below identifies the runtime surface that
+backs the prompt-side guidance:
+
+| Primitive | Runtime surface | Cycle |
+|-----------|-----------------|-------|
+| `surgical_scope='line'` verifier | `src/devolaflow/task_adaptive_selector.py:_load_line_level_criteria` | v8.2.0 PV-04 |
+| `select_context()` integration | `src/devolaflow/task_adaptive_selector.py:_select_behavioral_sections` | v8.0.0 P-08 |
+| `change_context.owned_files_ref` honoring | `src/devolaflow/agent_workspace/change.py::ChangeStore` | v8.2.5 PV-05 |
+| Append-only handoff envelope (S-9) | `src/devolaflow/agent_workspace/handoff.py` | v8.2.4+ |
+| `lifecycle/check_file_ownership` hook | `src/devolaflow/lifecycle/` (forward-defined v8.2.6) | v8.2.6 |
+| Plan-mode prompt-side embedding (S-10) | `references/plan-mode-enforcement.md` (forward-defined v8.4.4 PV-04) | v8.4.4 |
+| Reinforcement injection | `src/devolaflow/gate/reinforcement.py::merge_reinforcement_into_dispatch` | v8.0.0 P-04 |
+| Token-budget breaker | `src/devolaflow/gate/budget.py::TokenBudgetBreaker` | v8.0.0 P-03 |
+
+Operators triaging behavioral-rule violations consult the runtime surface
+for the canonical implementation; the prompt-side guidance documented
+above is the L3 contract surface.
 
 ## See Also
 

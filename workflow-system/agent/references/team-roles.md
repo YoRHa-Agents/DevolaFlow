@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 4200
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Team Roles Reference
@@ -431,6 +431,11 @@ A finding of severity `major` is raised for each violation. This prevents scope 
 ## 7. Team Participation Matrix
 From §4.6:
 
+The matrix below covers all 22 builtin templates (verbatim from
+`workflow-system/agent/templates/builtin/*.yaml`). Workflow-type names
+match the template `.yaml` basename so a Wave/Task agent loading a
+specific template can route directly to the correct team boundary.
+
 | Workflow Type | Research | Design | Implement | Test | Review |
 |---------------|----------|--------|-----------|------|--------|
 | research-only | **Primary** | — | — | — | — |
@@ -439,13 +444,27 @@ From §4.6:
 | refactoring | — | — | **Primary** | **Primary** | Optional |
 | migration | Active | — | **Primary** | Active | Optional |
 | spike-poc | Active | — | Active | — | — |
-| documentation | Active | — | — | — | Active |
+| documentation-only | Active | — | — | — | Active |
 | security-audit | Active | — | Active | Active | Active |
-| RDRR | **Primary** | **Primary** | — | — | **Primary** |
+| research-design-review-refine | **Primary** | **Primary** | — | — | **Primary** |
 | full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
 | product-verification | — | Active | — | **Primary** | Active |
+| feature-enhancement | Active | Active | **Primary** | Active | Active |
+| demo-showcase | — | Active | **Primary** | Active | Active |
+| performance-optimization | Active | — | **Primary** | **Primary** | Active |
+| dependency-setup | Active | — | **Primary** | Active | — |
+| onboarding | Active | — | **Primary** | — | — |
+| skill-optimization | — | Active | **Primary** | Active | Active |
+| nines-assisted | **Primary** | — | Active | Active | **Primary** |
+| self-update | — | — | **Primary** | Active | Active |
+| repo-init | Active | — | **Primary** | Active | — |
+| entropy-cleanup | Active | — | **Primary** | Active | Active |
+| change-driven | Active | Active | **Primary** | Active | Active |
 
-**Primary** = drives the stage. **Active** = participates. **—** = not involved.
+**Primary** = drives the stage. **Active** = participates. **Minimal** =
+participates with reduced ceremony (e.g., hotfix Review). **Optional** =
+participates only when a wave-specific gate flag enables it (e.g.,
+`refactoring` review). **—** = not involved.
 
 ## 8. Handoff Protocol
 From §5:

@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 3800
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Repository Modes Reference

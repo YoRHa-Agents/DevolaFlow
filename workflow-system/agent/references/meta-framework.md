@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 4500
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Meta-Framework Reference
@@ -258,6 +258,10 @@ Templates may override with explicit `allow_transition` annotations.
 ## 4. Alias Mapping Table
 From §2.3:
 
+The 22 builtin templates live in `workflow-system/agent/templates/builtin/*.yaml`.
+The alias table below covers the workflow-specific names each template
+exposes plus the mapping back to the canonical primitive surface from §2.
+
 | Workflow-Specific Name | Maps To Primitive | Workflow Type |
 |------------------------|-------------------|---------------|
 | bug-triage | analyze | hotfix |
@@ -288,6 +292,56 @@ From §2.3:
 | user-verification | verify | feature-enhancement, full-pipeline |
 | visual-test | verify | demo-showcase, full-pipeline |
 | acceptance-check | verify | feature-enhancement, full-pipeline |
+| propose | research + design | change-driven |
+| apply | implement | change-driven |
+| archive | release | change-driven |
+| storyboard | design | demo-showcase |
+| demo | release + deploy | demo-showcase |
+| install | implement | dependency-setup |
+| init-deps | analyze + implement | dependency-setup |
+| sweep | analyze + refine | entropy-cleanup |
+| consolidate | implement + release | entropy-cleanup |
+| triage | analyze | feature-enhancement |
+| enhance | implement | feature-enhancement |
+| nines-analyze | analyze | nines-assisted |
+| nines-eval | review + validate | nines-assisted |
+| onboard | implement | onboarding |
+| bootstrap-skill | release | onboarding |
+| product-verify | verify | product-verification |
+| acceptance-verify | verify | product-verification |
+| upgrade-skill | refine | self-update |
+| skill-bump | release | self-update |
+| skill-extract | refine | skill-optimization |
+| skill-compress | implement | skill-optimization |
+
+### Per-Workflow Template Catalog
+
+The 22 builtin templates and their canonical primitive sequence:
+
+| # | Template (`.yaml` basename) | Canonical primitive sequence | Notes |
+|---|-----------------------------|------------------------------|-------|
+| 1 | `change-driven` | propose → (apply ↔ verify) → archive | v8.3.0 PV-06; 4-stage with `apply ↔ verify` convergence loop (max_rounds=5 per W-8) |
+| 2 | `demo-showcase` | design → storyboard → implement → verify → demo | visual-test + acceptance-check flavours |
+| 3 | `dependency-setup` | analyze → install → verify | init-deps lifecycle |
+| 4 | `design-only` | requirements → design → review | gate-passed design doc |
+| 5 | `documentation-only` | audit → write → publish | terminal release primitive |
+| 6 | `entropy-cleanup` | sweep → consolidate → release | v8.0.0 P-11; refine + implement |
+| 7 | `feature-enhancement` | triage → scope → design → implement → test → review → verify | acceptance-check + user-verification flavours |
+| 8 | `full-pipeline` | research → design → plan → implement → review → test → testgate → release | gate-guarded; visual-test + user-verification + acceptance-check flavours |
+| 9 | `hotfix` | bug-triage → fix → test | trivial scope; minimal review |
+| 10 | `migration` | assess → migrate → cutover → verify | analyze + implement + deploy + validate |
+| 11 | `nines-assisted` | nines-analyze → nines-eval → review → validate | external NineS subprocess; analyze + review primitives |
+| 12 | `onboarding` | onboard → bootstrap-skill | implement + release |
+| 13 | `performance-optimization` | profile → optimize → benchmark | analyze + implement + test |
+| 14 | `product-verification` | design → product-verify → acceptance-verify | verify primitive (visual + acceptance + interaction + a11y) |
+| 15 | `refactoring` | refactor → verify | implement + validate; no new features |
+| 16 | `repo-init` | analyze → scaffold → compile → verify | initial repo bootstrap |
+| 17 | `research-design-review-refine` (RDRR) | research → design → review → refine | knowledge-loop pattern |
+| 18 | `research-only` | research → compare → report | validate + release |
+| 19 | `security-audit` | scan → prioritize → fix → verify | analyze + plan + implement + validate |
+| 20 | `self-update` | upgrade-skill → skill-bump | refine + release |
+| 21 | `skill-optimization` | skill-extract → skill-compress | refine + implement |
+| 22 | `spike-poc` | hypothesis → prototype → evaluate → decide | research + implement + review + gate |
 
 ### repo-init
 

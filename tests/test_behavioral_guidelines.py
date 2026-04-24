@@ -896,13 +896,21 @@ class TestReferenceFilePV04Section:
             assert ll_id in text, f"missing canonical line-level id {ll_id}"
 
     def test_pv04_section_within_tight_per_patch_line_ceiling(self) -> None:
-        """v8.2.0 patch_plan §3 PV-04 caps the file at ≤ 220 lines
+        """v8.2.0 patch_plan §3 PV-04 originally capped the file at ≤ 220 lines
         (well within the SF-1 Large-tier 1000 ceiling). Tighter
         per-patch ceiling acts as an early-warning regression pin so
         future PV-04-style appends don't silently consume the headroom.
+
+        v9.0.0 PV-02 (v8.4.2) closure of F-04 body extension added the
+        S-8 Composition Rule + Severity Matrix + v8.2.x Primitive
+        References sections (~+64 LOC). Per-patch ceiling bumped 240 →
+        320 to absorb the documented PV-02 extension; still 32% of the
+        SF-1 Large-tier 1000 ceiling so the early-warning function is
+        preserved. See `.local/research/v9.0.0_reference_review.md` F-04
+        + `.local/research/v9.0.0_implementation_plan.md` §6.2.
         """
         line_count = sum(1 for _ in BEHAVIORAL_REF_PATH.read_text().splitlines())
-        assert line_count <= 240, (
+        assert line_count <= 320, (
             f"behavioral-guidelines.md has {line_count} lines; "
-            "v8.2.0 PV-04 per-patch ceiling is 240 (Large-tier ceiling 1000)"
+            "v9.0.0 PV-02 per-patch ceiling is 320 (Large-tier ceiling 1000)"
         )

@@ -104,9 +104,38 @@ Every loop has a max_iterations ceiling. Every failure triggers a classified res
 ### P5 Artifacts as Contracts
 Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
 
-## A-2 — P6 Preserve Cached Prefix
+## A-2 — P6 Preserve Cached Prefix (Cache-Layout Governance v2)
 
-Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after `gate` (position 12). Reordering existing keys is a release blocker.
+Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dispatch.yaml#layout_invariant`. Use `devolaflow.compressor.assert_dispatch_layout(payload)` before send. New top-level keys MUST be appended after the last canonical slot (position 16 as of v8.3.0 PV-05). Reordering existing keys is a release blocker.
+
+### A-2.1 — Frozen Prefix (positions 1-12)
+
+Per `.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2/L3 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+
+### A-2.2 — Append-Only Tail (positions 13+)
+
+Per v9-ADR-002 D2, positions 13 onward are **APPEND-ONLY**. New top-level dispatch keys land at position N+1 where N is the current `len(canonical_order)`, never inserted into a lower slot. Each schema-version bump (12 → 13 → 14 → 15 → 16) added exactly ONE key at the tail in chronological order (`repos` → `behavioral_guidelines` → `acceptance_criteria_v2` → `change_context`).
+
+### A-2.3 — Nest-vs-Append Decision Rule
+
+Per v9-ADR-002 D3, when introducing a new dispatch behaviour, authors choose between **NEST** under an existing canonical key and **APPEND** a new canonical key. The bias is toward **NEST** whenever the data shape allows — every nest preserves cache-prefix length while every append adds a position the runtime must serialise. APPEND is reserved for orthogonal payload that does not nest naturally. Decision matrix:
+
+| Test | Verdict |
+|------|---------|
+| Does the behaviour modify how an existing block is interpreted? | NEST under that block |
+| Does the behaviour reuse an existing block's data shape? | NEST as a new field |
+| Does the behaviour add an orthogonal concern unrelated to existing blocks? | APPEND a new top-level key |
+| Does the behaviour reference cross-block state? | APPEND a new top-level key |
+| Is the new field always present together with an existing block? | NEST as a sub-field |
+| Is the new field independently optional? | Either is acceptable; prefer NEST when the data shape allows |
+
+Historical NEST decisions (correct because each modified an existing block's interpretation): `gate.token_budget` (v8.0.0 P-03), `pred[*].compact_directive` (v8.0.0 P-02), `pred[*].summary_mode` (v7.0.2+ ADR-003 §2.5), `compression_rules.bypass_conditions` (v7.2.0 C-002), `compression_rules.data_envelope_required` (v7.2.4 P-02).
+
+Historical APPEND decisions (correct because each carried orthogonal cross-block payload): `repos` → pos 13 (v7.2.6 P-06), `behavioral_guidelines` → pos 14 (v8.0.0 P-08), `acceptance_criteria_v2` → pos 15 (v8.0.0 P-10), `change_context` → pos 16 (v8.3.0 PV-05).
+
+### A-2.4 — Multi-Baseline Byte Test
+
+Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseline.py` which pins ALL 6 historical baselines (v7.0.0, v7.3.0, v8.0.0 P-08, v8.0.0 P-10, v8.3.0 PV-05, v8.4.0). Any drift in any baseline fails CI immediately. Future schema bumps MUST add a new golden YAML for the new baseline AND keep all prior baselines passing.
 
 ## A-3 — Context Token Budgets
 

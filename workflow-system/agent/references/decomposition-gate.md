@@ -15,7 +15,7 @@ tier: 2
 token_estimate: 4800
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-04"
+last_updated: "2026-04-23"
 ---
 
 # Decomposition & Gate Mechanism Reference
@@ -323,6 +323,42 @@ From §5.4:
 Visual/Interaction/Acceptance thresholds apply only when the extended composite
 (7-dimension) formula is active. A dash (—) means user-facing verification is
 not enforced at that profile level.
+
+### 5.5 Gate Primitive Composition (v8.0.0+)
+
+The Gate Quality Mechanism is composed of 7 runtime primitives shipped
+across the v8.x cycle. Each primitive is independently opt-in (R5
+default-OFF) and verified by its own EvoBench scenario; the table below
+maps each to its module, introduction version, default state per gate
+profile, regression scenario, and opt-in env-flag. Theme T5 (v9.0.0
+PV-06 default-on flip) requires this enumeration as a precondition.
+
+| # | Module | Introduced | Default state per profile | EvoBench scenario | Opt-in env-flag |
+|---|--------|------------|---------------------------|-------------------|-----------------|
+| 1 | `gate/budget.py::TokenBudgetBreaker` | v8.0.0 P-03 | OFF on standard/relaxed; ESCALATE on strict/audit | `decomposition_feature` | `DEVOLAFLOW_TOKEN_BUDGET_BREAKER` |
+| 2 | `gate/scorer.py::evaluate_ladder` | v8.0.0 P-05 | ON for decomposition profiles; 6 rungs R1..R6 short-circuit | `gate_ladder_score` | (default-on, no flag) |
+| 3 | `gate/cycle_detector.py` | v8.0.0 P-06 | OFF (opt-in via `gate_cycle_detection`); exact_match / fuzzy_match ≥ 80% / edit_oscillation A→B→A→B | `cycle_detection_round_2` | `DEVOLAFLOW_CYCLE_DETECTOR` |
+| 4 | `gate/ratchet.py` | v8.0.0 P-07 | OFF (opt-in via `gate_ratchet_enabled`); 4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE; deterministic oracle excludes review_findings per S/O/R-resistance | `ratchet_round_3` | `DEVOLAFLOW_GATE_RATCHET` |
+| 5 | `gate/complexity_detector.py` | v8.0.0 P-09 | OFF (opt-in); nines analyze subprocess + MOCK fallback | `complexity_subprocess` | `DEVOLAFLOW_COMPLEXITY_DETECTOR` |
+| 6 | `ac_generator.py` | v8.0.0 P-10 | OFF (opt-in; companion to legacy `accept` list); 11 deterministic patterns; 3-dim quality scoring | `ac_generator_density` | `DEVOLAFLOW_AC_GEN` |
+| 7 | `legibility/scorer.py` | v8.2.0 PV-02 | OFF (opt-in via `decomposition.legibility_check`) | `legibility_score` | `DEVOLAFLOW_LEGIBILITY_CHECK` |
+
+**Composition rule**: primitives compose multiplicatively at the gate
+verdict level — a gate FAIL by ANY enabled primitive blocks advancement;
+a gate PASS requires ALL enabled primitives to pass. The `evaluate_ladder`
+primitive (#2) is the orchestrator that short-circuits via the 6-rung
+ladder (R1 quality → R2 coverage → R3 blockers → R4 budget → R5 cycle →
+R6 ratchet) — failures at lower rungs preempt evaluation of higher
+rungs. Per W-4 / SI-4, any change to a primitive's module triggers the
+EvoBench scenario for that primitive plus the composite scenarios that
+exercise it (`decomposition_feature`, `gate_ladder_score`).
+
+**v9.0.0 PV-06 flip plan** (forward-defined per Theme T5): primitives
+1, 3, 4, 5, 7 are scheduled to flip to ON for decomposition-enabled
+profiles when the post-flip composite EvoBench score (≥ 90 floor per
+W-4) holds. Primitive 6 stays opt-in (legacy `accept` list remains the
+canonical surface; `acceptance_criteria_v2` is the structured successor
+per `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` position 15).
 
 ### Gate Evaluation Flowchart
 
