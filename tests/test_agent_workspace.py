@@ -33,6 +33,7 @@ import pytest
 import yaml
 
 from devolaflow.agent_workspace import (
+    AppliedMerge,
     ArchiveError,
     ArchiveManager,
     BudgetReport,
@@ -42,6 +43,7 @@ from devolaflow.agent_workspace import (
     ChangeStoreError,
     DeltaSpecParseError,
     EnvelopeImmutableError,
+    GateThresholdNotMet,
     HandoffEnvelope,
     HandoffStore,
     HandoffStoreError,
@@ -1200,3 +1202,300 @@ class TestProposeMergeAgainstActiveChange:
         proposal = manager.propose_merge("active-merge")
         assert proposal.delta_target == "my_domain"
         assert "Live one" in proposal.content
+
+
+# ---------------------------------------------------------------------------
+# v8.4.4 PV-04 — TestApplyMerge (M-004 / A-4 ADR full closure)
+# ---------------------------------------------------------------------------
+
+
+class TestApplyMerge:
+    """``ArchiveManager.apply_merge`` — write side of the source-of-truth merge.
+
+    Per Rule A-4 (`.cursor/rules/repo-governance.mdc` §"A-4 — Source-of-
+    Truth Spec Location"), source-of-truth files are mutated ONLY at
+    archive time AFTER the gate has PASSED. These tests pin the
+    PATCH/MINOR threshold (≥ 8.5), the MAJOR threshold (≥ 9.0), the
+    explicit-override path, and the atomic-write contract.
+    """
+
+    def _scaffold_archived_with_score(
+        self,
+        workspace: Path,
+        change_id: str,
+        gate_score: float,
+        *,
+        delta_target: str = "agent_workspace",
+    ) -> Path:
+        """Scaffold an archived change with a controllable gate_score."""
+        spec = textwrap.dedent(
+            f"""\
+            ---
+            parent: {change_id}
+            delta_target: {delta_target}
+            delta_kind: lite
+            ---
+
+            # Operation Spec for {change_id}
+
+            ## Purpose
+            Apply-merge fixture.
+
+            ## ADDED Requirements
+
+            ### Requirement: Apply-merge feature
+            The system MUST support apply_merge writes.
+            """
+        )
+        _scaffold_active(
+            workspace,
+            change_id,
+            spec_md=spec,
+            status={
+                "schema_version": 1,
+                "change_id": change_id,
+                "state": "VERIFYING",
+                "percent_complete": 100,
+                "owner_layer": "L0",
+                "owner_session_id": "test",
+                "last_updated": "2026-04-24T12:00:00Z",
+                "last_handoff_seq": 0,
+                "gate_score": gate_score,
+                "verify_pass": True,
+            },
+        )
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        result = manager.archive(
+            change_id, archive_date="2026-04-24", auto_regenerate_reports=False
+        )
+        return result.archive_path
+
+    def test_apply_merge_happy_path_patch_threshold(self, workspace: Path):
+        self._scaffold_archived_with_score(workspace, "apply-1", gate_score=8.5)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        target_path = workspace / ".local" / "memory" / "specs" / "agent_workspace" / "spec.md"
+        assert not target_path.exists(), "test pre-condition: target spec MUST be absent"
+        result = manager.apply_merge("apply-1")
+        assert isinstance(result, AppliedMerge)
+        assert target_path.exists(), "apply_merge MUST write the source-of-truth spec"
+        assert result.gate_score == 8.5
+        assert result.threshold == 8.5
+        assert result.delta_target == "agent_workspace"
+        assert result.bytes_written > 0
+        text = target_path.read_text(encoding="utf-8")
+        assert "Apply-merge feature" in text
+
+    def test_apply_merge_below_patch_threshold_raises(self, workspace: Path):
+        self._scaffold_archived_with_score(workspace, "apply-low", gate_score=8.4)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        with pytest.raises(GateThresholdNotMet) as exc_info:
+            manager.apply_merge("apply-low")
+        assert "8.40" in str(exc_info.value)
+        assert "8.50" in str(exc_info.value)
+        assert "PATCH/MINOR" in str(exc_info.value)
+        target_path = workspace / ".local" / "memory" / "specs" / "agent_workspace" / "spec.md"
+        assert not target_path.exists(), (
+            "A-4 VIOLATED: apply_merge wrote despite gate score below threshold"
+        )
+
+    def test_apply_merge_major_threshold_path(self, workspace: Path):
+        self._scaffold_archived_with_score(workspace, "apply-major", gate_score=8.7)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        # 8.7 < 9.0 (MAJOR threshold) → must raise.
+        with pytest.raises(GateThresholdNotMet) as exc_info:
+            manager.apply_merge("apply-major", is_major_change=True)
+        assert "MAJOR" in str(exc_info.value)
+        assert "9.00" in str(exc_info.value)
+        # But 8.7 >= 8.5 (PATCH/MINOR threshold) → succeeds without the flag.
+        result = manager.apply_merge("apply-major")
+        assert result.gate_score == 8.7
+        assert result.threshold == 8.5
+
+    def test_apply_merge_explicit_threshold_override(self, workspace: Path):
+        self._scaffold_archived_with_score(workspace, "apply-override", gate_score=7.0)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        result = manager.apply_merge("apply-override", require_gate_score=6.0)
+        assert result.threshold == 6.0
+        assert result.gate_score == 7.0
+
+    def test_apply_merge_missing_gate_score_raises(self, workspace: Path):
+        spec = textwrap.dedent(
+            """\
+            ---
+            parent: no-score
+            delta_target: agent_workspace
+            delta_kind: lite
+            ---
+
+            # Operation Spec for no-score
+
+            ## Purpose
+            No gate score recorded.
+
+            ## ADDED Requirements
+
+            ### Requirement: A thing
+            The system MUST do a thing.
+            """
+        )
+        _scaffold_active(
+            workspace,
+            "no-score",
+            spec_md=spec,
+            status={
+                "schema_version": 1,
+                "change_id": "no-score",
+                "state": "VERIFYING",
+                "percent_complete": 100,
+                "owner_layer": "L0",
+                "owner_session_id": "test",
+                "last_updated": "2026-04-24T12:00:00Z",
+                "last_handoff_seq": 0,
+                "verify_pass": True,
+                # gate_score intentionally absent.
+            },
+        )
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        manager.archive("no-score", archive_date="2026-04-24", auto_regenerate_reports=False)
+        with pytest.raises(ArchiveError) as exc_info:
+            manager.apply_merge("no-score")
+        msg = str(exc_info.value)
+        assert "gate_score" in msg
+        assert "A-4" in msg
+
+    def test_apply_merge_atomic_via_tmp(self, workspace: Path):
+        """Confirm the .tmp sibling is cleaned up after a successful write."""
+        self._scaffold_archived_with_score(workspace, "apply-atomic", gate_score=9.5)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        manager.apply_merge("apply-atomic")
+        target_path = workspace / ".local" / "memory" / "specs" / "agent_workspace" / "spec.md"
+        tmp_path = target_path.with_suffix(target_path.suffix + ".tmp")
+        assert target_path.exists(), "applied path must exist"
+        assert not tmp_path.exists(), (
+            "atomic-rename contract: .tmp sibling MUST be gone after successful apply"
+        )
+
+    def test_apply_merge_re_apply_raises_merge_conflict(self, workspace: Path):
+        """Re-applying the same ADDED Requirement MUST raise MergeConflict.
+
+        Per ``schemas/agent-workspace/source-of-truth-spec.yaml#mutation_contract``
+        ADDED Requirements MUST be unique by stable heading. A successful
+        first ``apply_merge`` writes the section; a second ``apply_merge``
+        for the same change would try to ADD the same heading and is
+        correctly rejected as a conflict (use a separate MODIFIED change
+        for follow-up edits).
+        """
+        self._scaffold_archived_with_score(workspace, "apply-reapply", gate_score=9.5)
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        result1 = manager.apply_merge("apply-reapply")
+        assert result1.applied_path.exists()
+        with pytest.raises(MergeConflict) as exc_info:
+            manager.apply_merge("apply-reapply")
+        assert "Apply-merge feature" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# v8.4.4 PV-04 — REPORT.md auto-trigger (I-PV07-A closure)
+# ---------------------------------------------------------------------------
+
+
+class TestArchiveAutoRegenerateReports:
+    """``archive(auto_regenerate_reports=True)`` MUST write per-change + workspace REPORT.md.
+
+    Per I-PV07-A from the v9.0.0 gap analysis §3.1, archive() now opts
+    into REPORT.md regeneration by default. The opt-out flag
+    ``auto_regenerate_reports=False`` exists for tests that need
+    byte-pinned filesystem state.
+    """
+
+    def _scaffold(self, workspace: Path, change_id: str = "report-1") -> None:
+        spec = textwrap.dedent(
+            f"""\
+            ---
+            parent: {change_id}
+            delta_target: agent_workspace
+            delta_kind: lite
+            ---
+
+            # Operation Spec for {change_id}
+
+            ## Purpose
+            REPORT.md auto-trigger fixture.
+
+            ## ADDED Requirements
+
+            ### Requirement: A trigger
+            The system MUST auto-regenerate.
+            """
+        )
+        _scaffold_active(
+            workspace,
+            change_id,
+            spec_md=spec,
+            status={
+                "schema_version": 1,
+                "change_id": change_id,
+                "state": "VERIFYING",
+                "percent_complete": 100,
+                "owner_layer": "L0",
+                "owner_session_id": "test",
+                "last_updated": "2026-04-24T12:00:00Z",
+                "last_handoff_seq": 0,
+                "gate_score": 9.0,
+                "verify_pass": True,
+            },
+        )
+
+    def test_archive_auto_regenerates_per_change_report(self, workspace: Path):
+        self._scaffold(workspace, "report-perchange")
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        result = manager.archive("report-perchange", archive_date="2026-04-24")
+        per_change_report = result.archive_path / "REPORT.md"
+        assert per_change_report.exists(), (
+            "I-PV07-A VIOLATED: archive must auto-regenerate per-change REPORT.md by default"
+        )
+        text = per_change_report.read_text(encoding="utf-8")
+        assert "report-perchange" in text
+
+    def test_archive_auto_regenerates_workspace_report(self, workspace: Path):
+        self._scaffold(workspace, "report-workspace")
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        manager.archive("report-workspace", archive_date="2026-04-24")
+        workspace_report = workspace / ".local" / ".agent" / "REPORT.md"
+        assert workspace_report.exists(), (
+            "I-PV07-A VIOLATED: archive must auto-regenerate workspace-wide REPORT.md"
+        )
+
+    def test_archive_opt_out_skips_report_regen(self, workspace: Path):
+        self._scaffold(workspace, "report-optout")
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+        result = manager.archive(
+            "report-optout",
+            archive_date="2026-04-24",
+            auto_regenerate_reports=False,
+        )
+        per_change_report = result.archive_path / "REPORT.md"
+        assert not per_change_report.exists(), (
+            "auto_regenerate_reports=False MUST skip per-change REPORT.md write"
+        )
+        workspace_report = workspace / ".local" / ".agent" / "REPORT.md"
+        assert not workspace_report.exists(), (
+            "auto_regenerate_reports=False MUST skip workspace REPORT.md write"
+        )
+
+    def test_archive_render_failure_does_not_raise(self, workspace: Path, monkeypatch) -> None:
+        """A render failure inside auto_regenerate_reports MUST be logged not raised."""
+        self._scaffold(workspace, "report-failboom")
+        manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("synthetic Jinja render failure")
+
+        # Patch the symbol where it's imported (inside the helper).
+        monkeypatch.setattr(
+            "devolaflow.agent_workspace.reporter.render_change_report",
+            boom,
+        )
+        # Must NOT raise — REPORT.md is presentation, not integrity.
+        result = manager.archive("report-failboom", archive_date="2026-04-24")
+        assert result.archive_path.exists()

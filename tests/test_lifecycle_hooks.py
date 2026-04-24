@@ -31,6 +31,7 @@ import pytest
 from devolaflow.lifecycle import (
     DEFAULT_EVENTS,
     FILE_WRITE_EVENT,
+    POST_DISPATCH_EVENT,
     PRE_DISPATCH_EVENT,
     TASK_STOP_EVENT,
     HookResult,
@@ -38,6 +39,7 @@ from devolaflow.lifecycle import (
     check_file_ownership,
     clear_hooks,
     list_handlers,
+    post_dispatch,
     register_hook,
     registered_events,
     run_hooks,
@@ -135,17 +137,53 @@ class TestHookResult:
 
 
 def test_default_events_match_skill_md_table() -> None:
-    """Package must wire all canonical events (3 original + format_on_edit + pre_shell_call)."""
+    """Package must wire all canonical events.
+
+    v8.4.4 PV-04 — bumped from 5 → 6 with the addition of the ``post_dispatch``
+    event (symmetric tail to ``pre_dispatch``). The new slot is wired to a
+    permissive no-op default in ``post_dispatch.py``; the actual governance-
+    contract handler (Soul Rule S-10) lands in PV-07 with the rule-corpus
+    selectivity slice. R5 strict byte-identical: zero behaviour change with
+    no extras registered.
+    """
     assert PRE_DISPATCH_EVENT == "pre_dispatch"
+    assert POST_DISPATCH_EVENT == "post_dispatch"
     assert FILE_WRITE_EVENT == "file_write"
     assert TASK_STOP_EVENT == "task_stop"
     assert set(DEFAULT_EVENTS) == {
         "pre_dispatch",
+        "post_dispatch",
         "file_write",
         "task_stop",
         "format_on_edit",
         "pre_shell_call",
     }
+    assert len(DEFAULT_EVENTS) == 6
+
+
+def test_post_dispatch_default_is_permissive_no_op() -> None:
+    """The ``post_dispatch`` default handler MUST be a permissive no-op.
+
+    Per Soul Rule S-10 + the v8.4.0 retro §4.1 #4 R5 strict pattern,
+    adding ``post_dispatch`` to ``DEFAULT_EVENTS`` MUST NOT change the
+    returned dispatch payload when no extras register. The default
+    handler returns a clean :class:`HookResult` with ``passed=True`` and
+    a metadata ``reason`` string indicating no-op-by-design.
+    """
+    payload: dict = {"task_id": "noop-1", "accept": ["criterion that runs"]}
+    result = post_dispatch(payload)
+    assert result.passed is True
+    assert result.violations == []
+    assert "no-op" in result.metadata.get("reason", "")
+    # Strict mode also no-op (handler emits zero violations).
+    result_strict = post_dispatch(payload, strict=True)
+    assert result_strict.passed is True
+
+
+def test_post_dispatch_event_routes_through_default_handler() -> None:
+    """``run_hooks('post_dispatch', ...)`` must route to the ``post_dispatch`` default."""
+    handlers = list_handlers(POST_DISPATCH_EVENT)
+    assert handlers == (post_dispatch,)
 
 
 def test_registered_events_includes_all_defaults() -> None:

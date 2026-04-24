@@ -63,9 +63,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "AppliedMerge",
     "ArchiveError",
     "ArchiveManager",
     "ArchiveResult",
+    "GateThresholdNotMet",
     "MergeConflict",
     "ProposedMerge",
 ]
@@ -74,9 +76,31 @@ __all__ = [
 SOURCE_OF_TRUTH_ROOT_DEFAULT: Path = Path(".local") / "memory" / "specs"
 GLOBAL_LEARNINGS_DEFAULT: Path = Path(".local") / "memory" / "operational.jsonl"
 
+# v8.4.4 PV-04 — apply_merge gate thresholds aligned with W-3 / SI-3
+# composite-score policy. PATCH/MINOR changes require ≥ 8.5; MAJOR
+# changes require ≥ 9.0. See `.local/research/v9.0.0_pv04_design.md` §2.
+GATE_THRESHOLD_DEFAULT: float = 8.5
+GATE_THRESHOLD_MAJOR: float = 9.0
+
 
 class ArchiveError(RuntimeError):
     """Generic error raised by :class:`ArchiveManager`."""
+
+
+class GateThresholdNotMet(ArchiveError):  # noqa: N818 — public API name pinned by v8.4.4 PV-04 design.md §2.3 + symmetry with sibling MergeConflict per the v8.3.0 patch_plan §v8.2.5 naming convention; ArchiveError suffix is implicit through the parent class.
+    """Raised by :meth:`ArchiveManager.apply_merge` when gate score is below threshold.
+
+    Per Rule A-4 (`.cursor/rules/repo-governance.mdc` §"A-4 — Source-of-
+    Truth Spec Location"), source-of-truth files (.local/memory/specs/
+    <domain>/spec.md) are mutated ONLY at archive time AFTER the gate
+    has PASSED. The default thresholds match W-3 / SI-3:
+
+    - PATCH/MINOR change → composite ≥ 8.5
+    - MAJOR change       → composite ≥ 9.0
+
+    Raised verbatim with the gate score + threshold so callers can
+    surface the exact gap to the operator (S-5 — no silent failures).
+    """
 
 
 class MergeConflict(ArchiveError):  # noqa: N818 — public API name pinned by v8.3.0 patch_plan §v8.2.5 + schemas/agent-workspace/source-of-truth-spec.yaml#mutation_contract.delta_application_rules
@@ -140,6 +164,37 @@ class ProposedMerge:
 
 
 @dataclass
+class AppliedMerge:
+    """Result returned by :meth:`ArchiveManager.apply_merge`.
+
+    Carries the on-disk path that received the new source-of-truth
+    content + the verbatim ``gate_score`` consulted to authorise the
+    write. Per A-4 + W-3 / SI-3, the gate score MUST be ≥ 8.5 (PATCH/
+    MINOR) or ≥ 9.0 (MAJOR) for the write to occur — see
+    :exc:`GateThresholdNotMet` for the failure path.
+
+    Attributes:
+      change_id: id of the change whose spec.md was applied.
+      delta_target: ``frontmatter.delta_target`` from the change spec.
+      applied_path: on-disk path of the written source-of-truth spec
+        (``.local/memory/specs/<delta_target>/spec.md`` by default).
+      gate_score: verbatim gate composite score consulted at apply time.
+      threshold: the threshold the gate score had to clear (8.5 or 9.0).
+      summary: per-section counters (added / modified / removed) from
+        :func:`_merge_delta_into_source` — useful for audit-trail logs.
+      bytes_written: number of bytes written to ``applied_path``.
+    """
+
+    change_id: str
+    delta_target: str
+    applied_path: Path
+    gate_score: float
+    threshold: float
+    summary: dict = field(default_factory=dict)
+    bytes_written: int = 0
+
+
+@dataclass
 class ArchiveManager:
     """Orchestrates the active → archive lifecycle move + delta-merge proposal.
 
@@ -182,6 +237,7 @@ class ArchiveManager:
         archive_date: str | None = None,
         propose_merge: bool = False,
         require_state: str | None = "VERIFYING",
+        auto_regenerate_reports: bool = True,
     ) -> ArchiveResult:
         """Archive an active change.
 
@@ -195,6 +251,13 @@ class ArchiveManager:
           require_state: required pre-archive state (default ``"VERIFYING"``
             per the design FSM §1.3). Pass ``None`` to skip the check —
             useful for tests that bypass the verify stage.
+          auto_regenerate_reports: when True (default — v8.4.4 PV-04
+            I-PV07-A closure), automatically regenerates the per-change
+            ``REPORT.md`` (in the archive folder) AND the workspace-wide
+            ``.local/.agent/REPORT.md`` after the move + consolidation.
+            Permissive — render failures are logged but do NOT raise so
+            the archive itself stays atomic. Set to ``False`` for tests
+            that need byte-pinned filesystem state.
 
         Returns:
           :class:`ArchiveResult` with the destination path + consolidation
@@ -253,12 +316,85 @@ class ArchiveManager:
                 )
                 proposal = None
 
+        # Step 5 (v8.4.4 PV-04 I-PV07-A closure): auto-regenerate the
+        # per-change + workspace REPORT.md so the human-readable audit
+        # surface reflects the new ARCHIVED state without requiring an
+        # explicit `python -m devolaflow.agent_workspace.reporter --all`
+        # invocation. Permissive: render failures are logged but never
+        # raise (REPORT.md is a presentation surface, not an integrity
+        # contract).
+        if auto_regenerate_reports:
+            self._auto_regenerate_reports(change_id, archive_target)
+
         return ArchiveResult(
             change_id=change_id,
             archive_path=archive_target,
             consolidated_counts=counts,
             proposed_merge=proposal,
         )
+
+    def _auto_regenerate_reports(self, change_id: str, archive_path: Path) -> None:
+        """Auto-regenerate per-change + workspace REPORT.md after archive.
+
+        v8.4.4 PV-04 — I-PV07-A closure. Permissive: any render failure
+        is logged at WARNING level via ``logger.warning`` but NEVER
+        raises out of :meth:`archive`. Two writes are attempted:
+
+        1. ``<archive_path>/REPORT.md`` — the per-change report rendered
+           by :func:`devolaflow.agent_workspace.reporter.render_change_report`.
+        2. ``.local/.agent/REPORT.md`` — the aggregate workspace report
+           rendered by
+           :func:`devolaflow.agent_workspace.reporter.render_workspace_report`.
+
+        S-5 (no silent failures): every failure path emits an explicit
+        WARNING log; no exceptions are silently swallowed.
+        """
+        try:
+            from devolaflow.agent_workspace.reporter import (
+                WORKSPACE_REPORT_PATH_DEFAULT,
+                render_change_report,
+                render_workspace_report,
+            )
+        except ImportError as exc:  # pragma: no cover - defensive only
+            logger.warning(
+                "auto_regenerate_reports: reporter unavailable for %s: %s",
+                change_id,
+                exc,
+            )
+            return
+
+        repo_root = self.store.repo_root
+
+        try:
+            change_text = render_change_report(change_id, repo_root=repo_root)
+            change_report_path = archive_path / "REPORT.md"
+            change_report_path.write_text(
+                change_text if change_text.endswith("\n") else change_text + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "auto_regenerate_reports: per-change REPORT.md for %s failed: %s",
+                change_id,
+                exc,
+            )
+
+        try:
+            workspace_text = render_workspace_report(repo_root=repo_root)
+            workspace_path = repo_root / WORKSPACE_REPORT_PATH_DEFAULT
+            workspace_path.parent.mkdir(parents=True, exist_ok=True)
+            workspace_path.write_text(
+                workspace_text if workspace_text.endswith("\n") else workspace_text + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "auto_regenerate_reports: workspace REPORT.md after %s failed: %s",
+                change_id,
+                exc,
+            )
 
     def _consolidate_change_learnings(self, change_id: str, archive_path: Path) -> dict:
         """Promote per-change learnings to global memory via ``consolidate_session``.
@@ -310,9 +446,11 @@ class ArchiveManager:
     def propose_merge(self, change_id: str) -> ProposedMerge:
         """Produce the proposed delta-merged source-of-truth spec content.
 
-        Does NOT write to disk — write-side ships in v8.2.7 reporter per
-        design.md §3.4 (Rule A-4: source-of-truth mutated ONLY at archive
-        time AFTER the gate has PASSED).
+        Does NOT write to disk — write-side is :meth:`apply_merge` (v8.4.4
+        PV-04, M-004 / A-4 closure). Per design.md §3.4 (Rule A-4),
+        source-of-truth is mutated ONLY at archive time AFTER the gate
+        has PASSED; ``propose_merge`` is the read-side companion that
+        builds the merged content for review BEFORE the gate runs.
 
         Args:
           change_id: id of an archived (or VERIFYING) change with a
@@ -335,6 +473,119 @@ class ArchiveManager:
                 f"propose_merge: change {change_id!r} has no resolvable source folder"
             )
         return self._propose_merge_from_archive(change_id, change_path, change=change)
+
+    def apply_merge(
+        self,
+        change_id: str,
+        *,
+        is_major_change: bool = False,
+        require_gate_score: float | None = None,
+    ) -> AppliedMerge:
+        """Write the proposed delta-merged source-of-truth spec to disk.
+
+        v8.4.4 PV-04 — closes M-004 + A-4 ADR full closure. Per Rule A-4
+        (`.cursor/rules/repo-governance.mdc` §"A-4 — Source-of-Truth
+        Spec Location"), source-of-truth files at
+        ``.local/memory/specs/<domain>/spec.md`` are mutated ONLY at
+        archive time AFTER the gate has PASSED. This method enforces
+        that contract:
+
+        1. Calls :meth:`propose_merge` to build the merged content.
+        2. Reads ``change.status['gate_score']`` (verbatim, no synthesis).
+        3. Compares against the threshold:
+           - PATCH/MINOR change → ``GATE_THRESHOLD_DEFAULT`` (8.5)
+           - MAJOR change       → ``GATE_THRESHOLD_MAJOR`` (9.0)
+           - Caller override    → ``require_gate_score`` parameter
+        4. If gate < threshold → raises :exc:`GateThresholdNotMet` with
+           verbatim score + threshold; nothing is written.
+        5. Otherwise: atomic write (POSIX ``rename``) to ``target_path``
+           via a ``.tmp`` sibling, so readers never see a half-written
+           spec. Returns :class:`AppliedMerge` with bytes written +
+           audit summary.
+
+        Args:
+          change_id: id of an archived (or VERIFYING) change.
+          is_major_change: when ``True``, requires ``gate_score >= 9.0``
+            (MAJOR-bump threshold). Defaults to ``False`` (PATCH/MINOR
+            threshold of 8.5).
+          require_gate_score: explicit threshold override (use when the
+            calling workflow has its own gate policy). When ``None``,
+            the default tier-based threshold applies.
+
+        Returns:
+          :class:`AppliedMerge` with the on-disk path + gate metadata.
+
+        Raises:
+          GateThresholdNotMet: when the change's gate score is below the
+            threshold (PATCH/MINOR ≥ 8.5; MAJOR ≥ 9.0).
+          ChangeNotFoundError: when the change is unknown.
+          DeltaSpecParseError: when the change's ``spec.md`` is malformed.
+          MergeConflict: on stable-heading collisions (delegated from
+            :meth:`propose_merge`).
+          ArchiveError: when the spec is missing ``delta_target``
+            frontmatter or the change has no ``gate_score`` recorded
+            (S-5 — no silent fallback to a default score).
+        """
+        proposal = self.propose_merge(change_id)
+
+        change = self.store.get(change_id)
+        gate_score_raw = change.status.get("gate_score")
+        if gate_score_raw is None:
+            raise ArchiveError(
+                f"apply_merge: change {change_id!r} has no gate_score in STATUS.yaml; "
+                f"cannot authorise source-of-truth mutation per Rule A-4 "
+                f"(see .cursor/rules/repo-governance.mdc §A-4)"
+            )
+        try:
+            gate_score = float(gate_score_raw)
+        except (TypeError, ValueError) as exc:
+            raise ArchiveError(
+                f"apply_merge: change {change_id!r} has invalid gate_score "
+                f"{gate_score_raw!r} (must be float)"
+            ) from exc
+
+        if require_gate_score is not None:
+            threshold = float(require_gate_score)
+        elif is_major_change:
+            threshold = GATE_THRESHOLD_MAJOR
+        else:
+            threshold = GATE_THRESHOLD_DEFAULT
+
+        if gate_score < threshold:
+            tier_label = "MAJOR" if is_major_change else "PATCH/MINOR"
+            raise GateThresholdNotMet(
+                f"apply_merge: change {change_id!r} gate_score {gate_score:.2f} "
+                f"is below the {tier_label} threshold {threshold:.2f}; "
+                f"source-of-truth NOT mutated per Rule A-4"
+            )
+
+        applied_path = proposal.target_path
+        applied_path.parent.mkdir(parents=True, exist_ok=True)
+        # Atomic write: stage to .tmp sibling, then POSIX rename.
+        tmp_path = applied_path.with_suffix(applied_path.suffix + ".tmp")
+        content = proposal.content if proposal.content.endswith("\n") else proposal.content + "\n"
+        tmp_path.write_text(content, encoding="utf-8", newline="\n")
+        tmp_path.replace(applied_path)
+        bytes_written = len(content.encode("utf-8"))
+
+        logger.info(
+            "apply_merge: change %s applied to %s (gate=%.2f >= %.2f, %d bytes)",
+            change_id,
+            applied_path,
+            gate_score,
+            threshold,
+            bytes_written,
+        )
+
+        return AppliedMerge(
+            change_id=change_id,
+            delta_target=proposal.delta_target,
+            applied_path=applied_path,
+            gate_score=gate_score,
+            threshold=threshold,
+            summary=dict(proposal.summary),
+            bytes_written=bytes_written,
+        )
 
     def _propose_merge_from_archive(
         self,

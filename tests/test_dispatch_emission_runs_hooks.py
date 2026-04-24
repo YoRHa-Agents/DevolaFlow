@@ -1,0 +1,272 @@
+"""Regression test: feedback.py wires lifecycle hooks on every dispatch return path.
+
+v8.4.4 PV-04 — Soul Rule S-10 enforcement.
+
+Pins the dead-wire fix that closes C-03 from
+``.local/research/v9.0.0_gap_analysis.md`` §3.1: prior to v8.4.4,
+``src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch``
+constructed dispatch payloads but never invoked
+``lifecycle.run_hooks("pre_dispatch", ...)`` even though
+``src/devolaflow/lifecycle/__init__.py`` had registered ``pre_dispatch``
++ ``validate_dispatch`` + ``validate_owned_files`` for years. This test
+asserts the wiring is now active and remains active across all 3 return
+paths of ``generate_round_dispatch``:
+
+1. Round 1 / no verdict — pure pass-through.
+2. No reinforcement findings (verdict.details["findings"] empty).
+3. Reinforcement applied (round ≥ 2 + non-empty findings).
+
+All three paths MUST invoke ``lifecycle.run_hooks("pre_dispatch", ...)``
+followed by ``lifecycle.run_hooks("post_dispatch", ...)`` exactly once
+each, in PERMISSIVE mode (``strict=False``).
+
+Tests also assert R5 strict byte-identical: when no extra handlers are
+registered, the returned dispatch payload is byte-identical to the
+pre-PV-04 control (golden snapshot built from pure deepcopy +
+``merge_reinforcement_into_dispatch``). This protects callers that have
+not yet adopted the v8.4.4 schema from any silent mutation through the
+hook chain.
+"""
+
+from __future__ import annotations
+
+import copy
+from unittest.mock import patch
+
+import pytest
+
+from devolaflow.feedback import ProposalGenerator
+from devolaflow.gate.models import Finding, GateVerdict
+from devolaflow.gate.reinforcement import merge_reinforcement_into_dispatch
+from devolaflow.lifecycle import (
+    POST_DISPATCH_EVENT,
+    PRE_DISPATCH_EVENT,
+    HookResult,
+    clear_hooks,
+)
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_extra_hooks():
+    """Ensure each test starts/ends with NO extra hook handlers registered.
+
+    The lifecycle module installs canonical defaults at import time
+    (``validate_dispatch`` for ``pre_dispatch``, ``post_dispatch`` no-op
+    for ``post_dispatch``, etc.) and pins ``validate_owned_files`` as
+    an extra on ``pre_dispatch``. We do NOT clear those — the test
+    fixtures only clear extras THIS test added.
+    """
+    yield
+    clear_hooks()
+
+
+def _base_dispatch() -> dict:
+    """Minimal dispatch shape that satisfies the existing ``validate_dispatch`` hook."""
+    return {
+        "task_id": "T-PV04",
+        "task_type": "refactor",
+        "accept": ["the dispatch payload runs through the hook chain"],
+        "context": {
+            "applicable_rules": {"loading_strategy": "standard"},
+            "target_files": ["src/foo.py"],
+        },
+    }
+
+
+def _verdict_with_findings(findings: list, score: float = 65.0) -> GateVerdict:
+    return GateVerdict(
+        decision="FAIL",
+        rationale="test",
+        composite_score=score,
+        details={"findings": findings},
+    )
+
+
+def _blocker_finding() -> Finding:
+    return Finding(
+        finding_id="F-PV04-1",
+        severity="blocker",
+        category="security",
+        location="src/foo.py",
+        description="dead-wire regression",
+        suggestion="run lifecycle.run_hooks on every dispatch path",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Hook-invocation regression — the dead-wire fix
+# ---------------------------------------------------------------------------
+
+
+class TestHookInvocation:
+    """Assert ``lifecycle.run_hooks`` fires on every dispatch return path."""
+
+    def _make_call_recorder(self) -> tuple[list[tuple], callable]:
+        calls: list[tuple] = []
+
+        def fake_run_hooks(event, payload, *, strict=False):
+            calls.append((event, copy.deepcopy(payload), strict))
+            return HookResult(event=event, passed=True)
+
+        return calls, fake_run_hooks
+
+    def test_round1_passthrough_invokes_both_hooks(self) -> None:
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=1,
+            )
+        events = [c[0] for c in calls]
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
+            "round-1 pass-through must invoke pre_dispatch then post_dispatch exactly once"
+        )
+
+    def test_no_findings_path_invokes_both_hooks(self) -> None:
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([]),
+                round_num=2,
+            )
+        events = [c[0] for c in calls]
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
+            "empty-findings path must still invoke the hook chain"
+        )
+
+    def test_reinforcement_applied_path_invokes_both_hooks(self) -> None:
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+            )
+        events = [c[0] for c in calls]
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
+            "reinforcement-applied path must invoke the hook chain exactly once"
+        )
+
+    def test_hook_invoked_in_permissive_mode(self) -> None:
+        """All hook invocations from feedback.py MUST use ``strict=False``."""
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+            )
+        for event, _payload, strict in calls:
+            assert strict is False, (
+                f"event {event!r} was invoked with strict={strict!r} — "
+                f"feedback.py must always use permissive mode"
+            )
+
+
+# ---------------------------------------------------------------------------
+# R5 strict byte-identical: dispatch payload unchanged when no extras register
+# ---------------------------------------------------------------------------
+
+
+class TestR5ByteIdentical:
+    """Pre-PV-04 control bytes must equal post-PV-04 bytes when no extras register.
+
+    Per the v8.4.0 retro §4.1 #4 R5 strict pattern, adding the hook
+    chain MUST NOT mutate the dispatch payload. The default handlers
+    (``validate_dispatch`` + ``post_dispatch`` no-op +
+    ``validate_owned_files``) only inspect the payload; they never
+    write to it.
+    """
+
+    def test_round1_payload_unchanged(self) -> None:
+        gen = ProposalGenerator()
+        base = _base_dispatch()
+        control = copy.deepcopy(base)
+        actual = gen.generate_round_dispatch(
+            base,
+            _verdict_with_findings([_blocker_finding()]),
+            round_num=1,
+        )
+        assert actual == control, (
+            "round-1 pass-through must return a deep copy of base, byte-identical"
+        )
+        assert actual is not base, "result must be a new object (deepcopy contract)"
+
+    def test_no_findings_payload_unchanged(self) -> None:
+        gen = ProposalGenerator()
+        base = _base_dispatch()
+        control = copy.deepcopy(base)
+        actual = gen.generate_round_dispatch(
+            base,
+            _verdict_with_findings([]),
+            round_num=2,
+        )
+        assert actual == control, (
+            "empty-findings path must return a byte-identical deep copy of base"
+        )
+
+    def test_reinforcement_payload_matches_control(self) -> None:
+        gen = ProposalGenerator()
+        base = _base_dispatch()
+        verdict = _verdict_with_findings([_blocker_finding()])
+
+        # Build the control: same logic as feedback.py minus the hook chain.
+        control_dispatch = copy.deepcopy(base)
+        block = gen.generate_reinforcement(verdict, round_num=2)
+        assert block is not None
+        control_dispatch = merge_reinforcement_into_dispatch(control_dispatch, block)
+
+        actual = gen.generate_round_dispatch(base, verdict, round_num=2)
+        assert actual == control_dispatch, (
+            "reinforcement-applied path must produce a byte-identical payload "
+            "to the pre-PV-04 control (no hook side-effects in the payload)"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Defensive: a buggy custom handler must not crash dispatch emission (S-5)
+# ---------------------------------------------------------------------------
+
+
+class TestHandlerExceptionsAreSwallowed:
+    """A buggy custom handler raising mid-call MUST NOT bring down dispatch.
+
+    Per the design doc §1.3 and Soul Rule S-5 (no silent failures), a
+    custom hook handler that raises is caught, logged at WARNING, and
+    the dispatch is returned unchanged. This protects the round-N+1
+    emission path from third-party hook bugs.
+    """
+
+    def test_handler_raise_is_logged_and_swallowed(self, caplog) -> None:
+        gen = ProposalGenerator()
+
+        def boom(event, payload, *, strict=False):
+            del payload, strict
+            raise RuntimeError(f"{event} handler exploded")
+
+        with (
+            patch("devolaflow.lifecycle.run_hooks", side_effect=boom),
+            caplog.at_level("WARNING", logger="devolaflow.feedback"),
+        ):
+            result = gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+            )
+        # Dispatch is still returned (S-5 — no silent failures, but no propagation).
+        assert "task_id" in result
+        # And we logged the failure at WARNING level (S-5).
+        warnings = [rec for rec in caplog.records if rec.levelname == "WARNING"]
+        assert any("hook raised" in rec.message for rec in warnings), (
+            "handler raise must be logged at WARNING level via logger.warning"
+        )

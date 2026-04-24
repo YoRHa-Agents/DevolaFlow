@@ -67,6 +67,12 @@ from devolaflow.lifecycle.format_on_edit import (
 from devolaflow.lifecycle.format_on_edit import (
     format_on_edit,
 )
+from devolaflow.lifecycle.post_dispatch import (
+    EVENT as _POST_DISPATCH_EVENT,
+)
+from devolaflow.lifecycle.post_dispatch import (
+    post_dispatch,
+)
 from devolaflow.lifecycle.pre_shell_call import (
     EVENT as _PRE_SHELL_CALL_EVENT,
 )
@@ -95,6 +101,7 @@ from devolaflow.lifecycle.validate_owned_files import (
 
 # Wire the canonical defaults.
 _set_default_hook(_PRE_DISPATCH_EVENT, validate_dispatch)
+_set_default_hook(_POST_DISPATCH_EVENT, post_dispatch)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
@@ -104,13 +111,22 @@ _set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
 
 PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
+POST_DISPATCH_EVENT: str = _POST_DISPATCH_EVENT
 FILE_WRITE_EVENT: str = _FILE_WRITE_EVENT
 TASK_STOP_EVENT: str = _TASK_STOP_EVENT
 FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
 PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 
+# v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
+# symmetric tail event to `pre_dispatch`). The new slot is wired to a
+# permissive no-op default in `post_dispatch.py`; the actual governance-
+# contract handler (Soul Rule S-10) lands in PV-07 with the rule-corpus
+# selectivity slice. R5 strict byte-identical: zero behaviour change with
+# no extras registered (verified by
+# `tests/test_dispatch_emission_runs_hooks.py`).
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
+    POST_DISPATCH_EVENT,
     FILE_WRITE_EVENT,
     TASK_STOP_EVENT,
     FORMAT_ON_EDIT_EVENT,
@@ -126,6 +142,7 @@ __all__ = [
     "HookHandler",
     "HookResult",
     "HookViolation",
+    "POST_DISPATCH_EVENT",
     "PRE_DISPATCH_EVENT",
     "PRE_SHELL_CALL_EVENT",
     "Severity",
@@ -138,6 +155,7 @@ __all__ = [
     "format_on_edit",
     "get_canonical_manifest",
     "list_handlers",
+    "post_dispatch",
     "pre_shell_call",
     "register_hook",
     "registered_events",

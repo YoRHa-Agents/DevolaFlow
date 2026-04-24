@@ -2,11 +2,11 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-Total rules: **50** (v8.3.0 — added S-8, S-9, A-4, C-9 in v8.2.2 patch per `.local/research/v8.3.0_design.md` §3).
+Total rules: **51** (v8.4.4 — added S-10 in PV-04 per `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`).
 
 | Layer | File | Priority | Always Apply | Rule count | Description |
 |-------|------|----------|-------------|------------|-------------|
-| Soul | `soul.mdc` | P0 | Yes | 9 (S-1..S-9) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8) + handoff append-only (S-9) |
+| Soul | `soul.mdc` | P0 | Yes | 10 (S-1..S-10) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8), handoff append-only (S-9), prompt-side governance contract embedding (S-10) |
 | Architecture | `architecture.mdc` | P1 | Yes | 4 (A-1..A-4) | Core architectural decisions — 4-layer hierarchy, context isolation, cache layout, source-of-truth spec location (A-4) |
 | Conventions | `conventions.mdc` | P2 | Yes | 9 (C-1..C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9) |
 | Workflow | `workflow.mdc` | P3 | No | 15 (W-1..W-15) | Development process — iteration planning, NineS analysis, benchmarks, version bumps |

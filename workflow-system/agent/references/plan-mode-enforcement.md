@@ -490,8 +490,8 @@ Default routing (configurable per `context_profiles.yaml::profiles.<name>.escala
 
 - `tests/test_no_ghost_features.py::test_round_aware_dispatch_escalation_exists` — pins the round-aware dispatch wiring.
 - `tests/test_no_ghost_features.py::test_reinforcement_findings_function_exists` — pins `findings_to_reinforcement()` callable.
-- `tests/test_dispatch_emission_runs_hooks.py` — end-to-end pre_dispatch / post_dispatch hook coverage; will land in PV-04 per
-  `.local/research/v9.0.0_implementation_plan.md` §6.4.
+- `tests/test_dispatch_emission_runs_hooks.py` — end-to-end pre_dispatch / post_dispatch hook coverage; landed in v8.4.4 PV-04 per
+  `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.
 - `tests/test_task_adaptive_selector_plan_mode.py` — `_detect_plan_mode()`
   + `_PLAN_MODE_OVERRIDES` application coverage.
 
@@ -499,3 +499,51 @@ Default routing (configurable per `context_profiles.yaml::profiles.<name>.escala
 
 - DevolaFlow repository: https://github.com/YoRHa-Agents/DevolaFlow
 - NineS evaluator (used for SI-2 self-eval): https://github.com/YoRHa-Agents/NineS
+
+## 10. Soul Rule S-10 — Prompt-Side Governance Contract Embedding (v8.4.4 PV-04)
+
+Every dispatch payload returned by
+`src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch`
+MUST be visible to the lifecycle hook chain
+(`pre_dispatch` → `post_dispatch`) via
+`devolaflow.lifecycle.run_hooks(event, payload, strict=False)`.
+
+### 10.1 Why this rule
+
+Prior to v8.4.4 the dispatcher ran the hook chain only at validation
+checkpoints (manual invocations from tests + CLI ops). Round-N+1
+dispatches emitted from `generate_round_dispatch` bypassed it entirely
+— a dead-wire identified in v6.0.3's highest-ROI retro precedent and
+escalated to BLOCKER C-03 in `.local/research/v9.0.0_gap_analysis.md`
+§3.1. S-10 codifies the wired-up state and lifts it into the Soul-set
+so future refactors cannot regress.
+
+### 10.2 Hook chain semantics
+
+| Slot | Default handler | Role |
+|---|---|---|
+| `pre_dispatch` | `validate_dispatch` (+ `validate_owned_files` extra) | validate dispatch CONTENT (acceptance criteria, owned files, schema compliance) |
+| `post_dispatch` | `post_dispatch` permissive no-op | future-extensibility slot for governance contracts (Soul-set version embedding, rule-manifest URL, reinforcement state) — actual content lands in PV-07 with the rule-corpus selectivity slice |
+
+### 10.3 R5 strict triple codification
+
+1. **Hook**: `lifecycle/__init__.py::DEFAULT_EVENTS` includes both
+   `pre_dispatch` and `post_dispatch`; both wired to permissive
+   defaults that NEVER mutate the payload.
+2. **Schema**: `feedback.py::generate_round_dispatch` calls the hook
+   chain on every return path (round-1 pass-through, no-reinforcement,
+   reinforcement-applied).
+3. **Test**: `tests/test_dispatch_emission_runs_hooks.py` asserts the
+   hook is invoked exactly once per dispatch in permissive mode AND
+   that the returned dispatch is byte-identical to the control when no
+   extras register.
+
+### 10.4 L3 obligation
+
+L3 Task Agents do NOT need to interact with the hook chain directly —
+the wiring is an L0/L1/L2 dispatcher concern. L3 Task Agents may
+register custom `post_dispatch` extras when they need to inject
+observability or governance side-effects, but the registration is
+runtime-ephemeral and MUST clean up after the task completes
+(`lifecycle.clear_hooks(POST_DISPATCH_EVENT)`) so future dispatches
+see the canonical no-op default.
