@@ -56,6 +56,47 @@ CLI_ENTRY_SUFFIX: str = "_cmd"
 
 DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
     {
+        # v9.0.0 PV-07 (ADR-007 D5) — count_agents_md_rules is the canonical
+        # rule-census helper consumed by
+        # `tests/test_no_ghost_features.py::test_rule_count_under_cap` (the
+        # 60-rule HARD cap lint) and by
+        # `tests/test_pv07_agents_md_slice.py::test_count_agents_md_rules_matches_layer_split`
+        # (the slice-vs-census parity test). The function exists solely to
+        # surface the rule-count invariant — its in-repo "production caller"
+        # IS the CI lint. NOT a domain-SSOT registry symbol per A-5.2 —
+        # `count_agents_md_rules` is a pure read-only helper that walks the
+        # compiled AGENTS.md file.
+        "devolaflow.task_adaptive_selector:count_agents_md_rules",
+        # v9.0.0 PV-07 (ADR-007 D2) — check_stub_drift verifies the 2
+        # deprecated `.cursor/rules/{devola-flow,workflow}-rules.mdc` stubs
+        # match the pinned fingerprints in `.rules/.compile-hashes.json`.
+        # Consumed by `tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`
+        # (the ADR-007 D2 stub-drift lint). Like `check_rules_drift` (which
+        # is also test-only), it exists solely to surface the deprecation
+        # invariant. NOT a domain-SSOT registry symbol per A-5.2 — it's a
+        # pure SHA-256 comparison helper paired with the
+        # `RuleCompiler.compile_all()` writer.
+        "devolaflow.local.drift:check_stub_drift",
+        # v9.0.0 PV-07 (ADR-007 D2) — compute_stub_fingerprints is the
+        # SHA-256 helper that the rule compiler invokes when emitting
+        # the `.rules/.compile-hashes.json` store. Public so external
+        # tooling that wants to verify stub fingerprints without
+        # invoking the full `compile_all()` pipeline can do so.
+        # NOT a domain-SSOT registry symbol per A-5.2 — pure
+        # read-only fingerprint helper.
+        "devolaflow.local.drift:compute_stub_fingerprints",
+        # v9.0.0 PV-07 (ADR-007 D3) — select_agents_md_slice is the OPERATOR-
+        # FACING per-task-type AGENTS.md slicing entry point. Default behavior
+        # (`meta.agents_md_slice.enabled: false`) returns the full AGENTS.md
+        # byte-identical to v8.5.1. When operators flip the YAML knob to
+        # `true`, the function filters AGENTS.md per the per-profile layer
+        # mapping. Currently consumed by `tests/test_pv07_agents_md_slice.py`
+        # and the `--show-slice` CLI flag in `task_adaptive_selector.main()`;
+        # the L0/L1/L2/L3 dispatch wiring is intentionally OPT-IN per ADR-007
+        # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR
+        # semver — see CHANGELOG `## [9.0.0]` "Adoption notes"). NOT a
+        # domain-SSOT registry symbol per A-5.2 — pure read-only filter.
+        "devolaflow.task_adaptive_selector:select_agents_md_slice",
         # v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild_index() is the
         # Python entry-point invoked by the Makefile target
         # `make nines-index-rebuild` via a `python -c "from devolaflow.nines.researcher

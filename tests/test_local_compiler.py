@@ -376,29 +376,41 @@ class TestV822RulesFoundationCompile:
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in agents.content
         assert "## C-9 — Lightweight Agent Workspace Artifacts" in agents.content
 
-    def test_compile_budget_agents_md_under_8000_tokens(
+    def test_compile_budget_agents_md_under_12000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """AC-7: AGENTS.md token estimate must remain ≤ 8000 (compile-config budget).
+        """AC-7: AGENTS.md token estimate must remain ≤ 12000 (compile-config budget).
 
         v8.5.0 PV-05 bumped the AGENTS.md target from 6000 → 8000 to match
         the cursor target (parity), allowing W-16..W-20 rule additions to
-        fit without truncation. See ADR-005 D5 for the rationale.
+        fit without truncation. See ADR-005 D5 for the v8.5.0 rationale.
+
+        v9.0.0 PV-07 bumped 8000 → 12000 to absorb the W-21 Soul-set freeze
+        governance rule (~+30 LOC source). Pre-PV-07 utilization was
+        ~8180/8000 (over budget — silently dropped the workflow layer);
+        the bump preserves the full 4-layer corpus and gives ~46% headroom
+        for v9.x sustaining additions per ADR-007 D5.
         """
         agents = repo_compile_results["agents_md"]
-        assert agents.tokens_budget == 8000
-        assert agents.tokens_used <= 8000, (
-            f"AGENTS.md exceeded 8000-token budget: {agents.tokens_used}"
+        assert agents.tokens_budget == 12000
+        assert agents.tokens_used <= 12000, (
+            f"AGENTS.md exceeded 12000-token budget: {agents.tokens_used}"
         )
 
-    def test_compile_budget_cursor_under_8000_tokens(
+    def test_compile_budget_cursor_under_12000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """AC-7: cursor MDC token estimate must remain ≤ 8000 (compile-config budget)."""
+        """AC-7: cursor MDC token estimate must remain ≤ 12000 (compile-config budget).
+
+        v9.0.0 PV-07 bumped 8000 → 12000 (parity with agents_md target) to
+        absorb the W-21 Soul-set freeze governance rule. Pre-PV-07 utilization
+        was ~9210/8000 (over budget — dropped the workflow layer); the bump
+        preserves the canonical 5-layer corpus per ADR-007 D5.
+        """
         cursor = repo_compile_results["cursor"]
-        assert cursor.tokens_budget == 8000
-        assert cursor.tokens_used <= 8000, (
-            f".cursor/rules/repo-governance.mdc exceeded 8000-token budget: {cursor.tokens_used}"
+        assert cursor.tokens_budget == 12000
+        assert cursor.tokens_used <= 12000, (
+            f".cursor/rules/repo-governance.mdc exceeded 12000-token budget: {cursor.tokens_used}"
         )
 
     def test_existing_soul_rules_preserved_byte_identical(
