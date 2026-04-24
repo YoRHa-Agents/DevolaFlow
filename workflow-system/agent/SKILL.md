@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "8.4.3"
+version: "8.4.4"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v8.4.3**
+> **Now Using DevolaFlow v8.4.4**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 8.4.3 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 8.4.4 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Quick Action Decision
@@ -334,7 +334,7 @@ Permissive default (warn + log); strict opt-in raises HookViolation.
 | `check_file_ownership` | File write | File ∈ `owned_files` | Reject + log (P1) |
 | `test_on_complete` | Task stop | Tests pass, lint clean | Auto-retry ≤ P4 limit |
 
-API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/`.
+API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/`. v8.4.4 adds `post_dispatch` (no-op default) wired by S-10 — see `references/plan-mode-enforcement.md` §10.
 
 ## Repo Mode Detection
 

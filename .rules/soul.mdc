@@ -84,3 +84,47 @@ in v8.2.4 with the schema package); `lifecycle/check_envelope_append_only`
 hook blocks at write time in STRICT mode.
 
 Source: v8.3.0 design.md §3.2 — closes gap H-002 from v8.3.0_gap_analysis.md.
+
+## S-10 — Prompt-Side Governance Contract Embedding
+
+Every dispatch payload returned by
+`src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch`
+MUST be visible to the lifecycle hook chain
+(`pre_dispatch` → `post_dispatch`) via
+`devolaflow.lifecycle.run_hooks(event, payload, strict=False)`. The
+hook chain is the canonical prompt-side enforcement surface for
+governance contracts:
+
+- `pre_dispatch` validates dispatch CONTENT (acceptance criteria,
+  owned files, schema compliance).
+- `post_dispatch` is the future-extensibility slot for governance
+  contracts (Soul-set version embedding, rule-manifest URL,
+  reinforcement state). v8.4.4 ships a permissive no-op default to
+  preserve cache bytes; the actual content lands in PV-07 with the
+  rule-corpus selectivity slice.
+
+R5 strict triple codification:
+1. **Hook**: `lifecycle/__init__.py::DEFAULT_EVENTS` includes both
+   `pre_dispatch` and `post_dispatch`; both wired to permissive
+   defaults that NEVER mutate the payload.
+2. **Schema**: `feedback.py::generate_round_dispatch` calls the hook
+   chain on every return path (round-1 pass-through, no-reinforcement,
+   reinforcement-applied).
+3. **Test**: `tests/test_dispatch_emission_runs_hooks.py` asserts the
+   hook is invoked exactly once per dispatch in permissive mode AND
+   that the returned dispatch is byte-identical to the control when no
+   extras register.
+
+Enforcement: a dispatch path that bypasses the hook chain is a release
+blocker. Detected at test time via the regression suite above; the
+permissive try/except in `feedback._emit_dispatch` ensures a buggy
+custom handler raises a WARNING log (per S-5) without aborting the
+dispatch.
+
+Exceptions:
+- None. The hook chain MUST run on every dispatch — even when there
+  are no extras to invoke (the default no-op handlers run in O(1)).
+
+Source: v9.0.0 PV-04 — closes C-03 from
+`.local/research/v9.0.0_gap_analysis.md` §3.1; full rationale in
+`.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.

@@ -40,7 +40,13 @@ Backward-compat (R5):
 
 from __future__ import annotations
 
-from devolaflow.agent_workspace.archive import ArchiveError, ArchiveManager, MergeConflict
+from devolaflow.agent_workspace.archive import (
+    AppliedMerge,
+    ArchiveError,
+    ArchiveManager,
+    GateThresholdNotMet,
+    MergeConflict,
+)
 from devolaflow.agent_workspace.change import (
     Change,
     ChangeNotFoundError,
@@ -81,8 +87,10 @@ from devolaflow.agent_workspace.reporter import (
 
 __all__ = [
     # archive
+    "AppliedMerge",
     "ArchiveError",
     "ArchiveManager",
+    "GateThresholdNotMet",
     "MergeConflict",
     # change
     "Change",

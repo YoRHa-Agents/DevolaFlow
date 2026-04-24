@@ -27,6 +27,20 @@ from devolaflow.learnings import _now_iso, _read_lines
 
 logger = logging.getLogger(__name__)
 
+# v8.4.4 PV-04 — Soul Rule S-10 enforcement: every dispatch payload returned
+# by ``generate_round_dispatch`` is run through the lifecycle hook chain
+# (`pre_dispatch` → `post_dispatch`) so prompt-side governance contracts can
+# observe / validate / annotate the payload without coupling
+# ``feedback.py`` to specific handlers. The hook is invoked in PERMISSIVE
+# mode (``strict=False``) per the v8.4.0 retro §4.1 #4 R5 strict pattern —
+# byte-output is identical when no extras are registered, and a buggy
+# custom handler MUST NOT bring down the round-N+1 dispatch emission.
+#
+# Closes the dead-wire identified in v6.0.3 retro precedent + C-03 from
+# `.local/research/v9.0.0_gap_analysis.md` §3.1.
+_HOOK_PRE_DISPATCH = "pre_dispatch"
+_HOOK_POST_DISPATCH = "post_dispatch"
+
 LOCKED_FILES = frozenset(
     {
         "__init__.py",
@@ -430,13 +444,20 @@ class ProposalGenerator:
         ≥ 2.  Round 1 is a pure pass-through — the first attempt has no
         prior round to learn from.
 
+        v8.4.4 PV-04 wiring: the FINAL dispatch payload of every return
+        path is run through the lifecycle hook chain
+        (``pre_dispatch`` → ``post_dispatch``) per Soul Rule S-10
+        ("Prompt-Side Governance Contract Embedding"). Hooks run in
+        permissive mode — see ``_emit_dispatch`` docstring for R5
+        strict-byte-identical contract.
+
         The input ``base_dispatch`` is never mutated; a deep copy is
         returned in all cases.
         """
         dispatch = copy.deepcopy(base_dispatch)
 
         if round_num <= 1 or verdict is None:
-            return dispatch
+            return self._emit_dispatch(dispatch)
 
         block = self.generate_reinforcement(
             verdict,
@@ -445,6 +466,51 @@ class ProposalGenerator:
             severity_floor=severity_floor,
         )
         if block is None:
+            return self._emit_dispatch(dispatch)
+
+        return self._emit_dispatch(merge_reinforcement_into_dispatch(dispatch, block))
+
+    def _emit_dispatch(self, dispatch: dict[str, Any]) -> dict[str, Any]:
+        """Run the lifecycle hook chain on ``dispatch`` and return it unchanged.
+
+        v8.4.4 PV-04 — Soul Rule S-10 enforcement point. Fires
+        ``pre_dispatch`` then ``post_dispatch`` against the dispatch
+        payload via :func:`devolaflow.lifecycle.run_hooks`; both calls
+        run in permissive mode (``strict=False``) so a violation only
+        emits a WARNING via the lifecycle logger and never raises out
+        of the dispatch path.
+
+        R5 strict-byte-identical invariant (v8.4.0 retro §4.1 #4): when
+        no extra handlers are registered for either event, the returned
+        ``dispatch`` is byte-identical to the pre-PV-04 behaviour. The
+        permissive default handlers either return cleanly
+        (``post_dispatch`` is a no-op) or emit a WARNING log without
+        mutating the payload (``pre_dispatch`` /
+        ``validate_dispatch``).
+
+        S-5 (no silent failures): a buggy custom handler that raises
+        from inside the dispatch path is caught here, logged at
+        WARNING level via ``logger.warning``, and the dispatch is
+        returned unchanged — the round-N+1 emission MUST NOT crash on a
+        third-party hook bug.
+        """
+        try:
+            from devolaflow import lifecycle
+        except ImportError as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "feedback._emit_dispatch: lifecycle module unavailable (%s); "
+                "skipping pre_dispatch / post_dispatch hooks",
+                exc,
+            )
             return dispatch
 
-        return merge_reinforcement_into_dispatch(dispatch, block)
+        for event in (_HOOK_PRE_DISPATCH, _HOOK_POST_DISPATCH):
+            try:
+                lifecycle.run_hooks(event, dispatch, strict=False)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "feedback._emit_dispatch: %s hook raised %s; dispatch returned unchanged",
+                    event,
+                    exc,
+                )
+        return dispatch

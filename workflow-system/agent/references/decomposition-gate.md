@@ -422,6 +422,23 @@ Each phase dispatched as a Wave with 1 Task.
 Stage Agent orchestrates — never executes phases.
 ```
 
+### 6.1 Lifecycle hook chain on round-N+1 dispatch (v8.4.4 PV-04 / Soul S-10)
+
+Every round-N+1 dispatch emitted by
+`src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch`
+runs through the lifecycle hook chain
+(`pre_dispatch` → `post_dispatch`) via
+`devolaflow.lifecycle.run_hooks(event, payload, strict=False)` per
+Soul Rule S-10 ("Prompt-Side Governance Contract Embedding"). The
+chain fires on every return path — round-1 pass-through,
+no-reinforcement, and reinforcement-applied — so verifier-injected
+governance contracts (Soul-set version, rule-manifest URL,
+reinforcement state) reach the L3 dispatch payload deterministically.
+
+See `references/plan-mode-enforcement.md` §10 for the S-10 contract
+detail and `tests/test_dispatch_emission_runs_hooks.py` for the
+regression suite that pins the wiring.
+
 ## 7. Failure Handling Chain
 From §7:
 

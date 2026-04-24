@@ -5,6 +5,69 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.4.4] — 2026-04-24
+
+**PATCH — v9.0.0 cycle PV-04: wire `pre_dispatch` lifecycle hook + Soul Rule S-10 + `ArchiveManager.apply_merge` + REPORT.md auto-trigger.** Fourth published patch of the v9.0.0 MAJOR cycle, closing 3 BLOCKER gaps in a single coordinated PR per `.local/research/v9.0.0_implementation_plan.md` §6.4: **C-03** (lifecycle wiring + S-10) + **M-004** (`ArchiveManager.apply_merge` write side, A-4 ADR full closure) + **I-PV07-A** (REPORT.md auto-trigger from `archive()`). The 3 closures share the dispatch / archive lifecycle as the integration surface, allowing 1 SI-3 evaluation pass to cover all of them. The PV touches **15 files** and adds **+21 net new tests** (under the +20 forecast cap): 3 NEW (`tests/test_dispatch_emission_runs_hooks.py` + `src/devolaflow/lifecycle/post_dispatch.py` + `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`) + 12 MODIFIED (`src/devolaflow/feedback.py` + `src/devolaflow/lifecycle/__init__.py` + `src/devolaflow/agent_workspace/__init__.py` + `src/devolaflow/agent_workspace/archive.py` + `tests/test_lifecycle_hooks.py` + `tests/test_agent_workspace.py` + `.rules/soul.mdc` + `.rules/index.md` + `.cursor/rules/repo-governance.mdc` (regen) + `AGENTS.md` (regen) + `workflow-system/agent/SKILL.md` + `workflow-system/agent/references/plan-mode-enforcement.md` + `workflow-system/agent/references/decomposition-gate.md` + 7 canonical version-sync locations). The cycle preserves the **I-8 invariant**: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5).
+
+**C-03 dead-wire fix.** Before v8.4.4, `src/devolaflow/feedback.py::ProposalGenerator.generate_round_dispatch` constructed dispatch payloads on 3 distinct return paths but never invoked `lifecycle.run_hooks("pre_dispatch", ...)` even though the lifecycle module had registered `pre_dispatch` + `validate_dispatch` (default) + `validate_owned_files` (extra) since v7.0.x. Round-N+1 dispatches reached L3 task agents without acceptance-criteria validation, schema compliance, or owned-files checks. PV-04 routes ALL 3 return paths through a private helper `_emit_dispatch(dispatch)` that calls `lifecycle.run_hooks("pre_dispatch", dispatch, strict=False)` followed by `lifecycle.run_hooks("post_dispatch", dispatch, strict=False)`. The helper catches any custom-handler exception, logs it at WARNING via `logger.warning`, and returns the dispatch unchanged so a buggy third-party hook cannot bring down the round-N+1 emission (S-5 satisfied — failure is logged, not silently swallowed). The wiring fix mirrors the v6.0.3 retro highest-ROI dead-wire precedent.
+
+**Soul Rule S-10 — Prompt-Side Governance Contract Embedding (Soul-set 9 → 10).** Codified in `.rules/soul.mdc` and auto-mirrored to `.cursor/rules/repo-governance.mdc` + `AGENTS.md` via `RuleCompiler.compile_all()`. The rule requires every dispatch payload returned by `feedback.py::generate_round_dispatch` to be visible to the lifecycle hook chain (`pre_dispatch` → `post_dispatch`). The hook chain now has TWO slots: `pre_dispatch` validates dispatch CONTENT (existing semantics — acceptance criteria, owned files, schema compliance), and the NEW `post_dispatch` is the future-extensibility slot for governance contracts (Soul-set version embedding, rule-manifest URL, reinforcement state). v8.4.4 ships `post_dispatch` with a permissive no-op default in `src/devolaflow/lifecycle/post_dispatch.py` so the actual handler can land in PV-07 with the rule-corpus selectivity slice (V-PV07-A) without re-touching `DEFAULT_EVENTS`. R5 strict triple codification: hook (`DEFAULT_EVENTS` length 5 → 6) + schema (`feedback.py::_emit_dispatch` 3 call sites) + test (`tests/test_dispatch_emission_runs_hooks.py` 8 tests) — byte-identical existing behavior when no extras register, verified by `TestR5ByteIdentical` golden control comparisons.
+
+**M-004 / A-4 ADR full closure — `ArchiveManager.apply_merge`.** `src/devolaflow/agent_workspace/archive.py` adds `apply_merge(change_id, *, is_major_change=False, require_gate_score=None) -> AppliedMerge` plus the new `AppliedMerge` dataclass and `GateThresholdNotMet(ArchiveError)` exception. The method wraps `propose_merge` with the gate-threshold check (defaults `GATE_THRESHOLD_DEFAULT=8.5` for PATCH/MINOR, `GATE_THRESHOLD_MAJOR=9.0` for MAJOR — both aligned with W-3 / SI-3 composite thresholds) and an atomic write via `.tmp` sibling + POSIX `rename`. A change with `gate_score < threshold` raises `GateThresholdNotMet` with verbatim score + threshold; nothing is written. A change with no `gate_score` recorded in STATUS.yaml raises `ArchiveError` with explicit reference to A-4 (no silent fallback to a default score per S-5). The `require_gate_score: float | None = None` parameter is the explicit override path for callers with custom gate policies. Closes the v8.2.5 deferral that A-4 ADR has been waiting on.
+
+**I-PV07-A closure — REPORT.md auto-trigger.** `archive()` gains a new keyword argument `auto_regenerate_reports: bool = True` (defaults to `True`). When True, the helper `_auto_regenerate_reports(change_id, archive_path)` runs at the end of the archive sequence and renders both the per-change `REPORT.md` (to `<archive_path>/REPORT.md`) and the workspace-wide `REPORT.md` (to `.local/.agent/REPORT.md`) via the v8.2.7 reporter module. Both renders are wrapped in try/except that log failures at WARNING but never raise — REPORT.md is a presentation surface, not an integrity contract. Tests that need byte-pinned filesystem state (e.g. `TestApplyMerge`) opt out via `auto_regenerate_reports=False`.
+
+### Highlights
+
+- **PV-04 of v9.0.0 cycle ACCEPT** (4/8 PVs scheduled; lifetime 53/53 = 100% accept rate; v9.0.0 cycle theme: consolidate 8-cycle Karpathy-emergence platform per `.local/research/v9.0.0_gap_analysis.md` §1.4)
+- **0 P6 cache-layout transitions** — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical (length 16 / version 5); I-8 invariant intact
+- **C-03 closed** — Lifecycle hook chain (`pre_dispatch` → `post_dispatch`) wired into every `feedback.py::generate_round_dispatch` return path; dead-wire identified in v6.0.3 retro precedent now closed by S-10 (Soul-set 9 → 10)
+- **M-004 closed** — `ArchiveManager.apply_merge` ships with gate-threshold guard (PATCH/MINOR ≥ 8.5, MAJOR ≥ 9.0) + atomic write; A-4 ADR full closure
+- **I-PV07-A closed** — `archive(auto_regenerate_reports=True)` is the new default; per-archive + workspace REPORT.md regenerate as a side effect of every successful archive
+- **S-10 codified** — Soul-set 9 → 10 with "Prompt-Side Governance Contract Embedding"; R5 strict triple (hook + schema + test); future PV-07 governance handler registers as an extra on `post_dispatch` without re-touching `DEFAULT_EVENTS`
+- **+21 NEW tests** (3282 → 3303 total): 8 in `test_dispatch_emission_runs_hooks.py` (3 invocation + 3 R5 byte-identical + 1 permissive-mode + 1 handler-exception swallowing) + 11 in `test_agent_workspace.py` (7 `TestApplyMerge` + 4 `TestArchiveAutoRegenerateReports`) + 2 in `test_lifecycle_hooks.py` (`post_dispatch` no-op + `DEFAULT_EVENTS` length 6); under the +20 PV-04 forecast cap (1.05× over-delivery; well within the 1.2× ceiling)
+- **EvoBench composite holds** (`v8.4.0_baseline.json` floor preserved per W-4); `tests/test_benchmarks.py` 36/36 PASS; no scenario drift > 5% vs baseline
+- **NEW v9-ADR-004-lifecycle-wiring-and-s10.md** (~+330 LOC) codifies the 4 sub-decisions D1-D4 + R5 strict triple codification + Rationale + Consequences + 4 Alternatives Considered + cross-references to v6.0.3 retro precedent / v8.4.0 retro §4.1 #4 / A-4 ADR
+
+### Files Changed (per PV-04 owned-files manifest)
+
+**NEW (3 files):**
+
+- `src/devolaflow/lifecycle/post_dispatch.py` — NEW lifecycle event handler module (~+57 LOC); permissive no-op default for the `post_dispatch` event (Soul Rule S-10's future-extensibility slot)
+- `tests/test_dispatch_emission_runs_hooks.py` — NEW regression test suite (~+250 LOC, 8 tests across 3 classes); pins the dead-wire fix + R5 byte-identical invariant + S-5 handler-exception swallowing
+- `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md` — NEW ADR-004 (~+330 LOC; Context + 4 Decisions D1-D4 + R5 Strict Triple Codification + Rationale + 5 Consequences + 4 Alternatives Considered + Cross-References)
+
+**MODIFIED:**
+
+- `src/devolaflow/feedback.py` — NEW `_emit_dispatch(dispatch)` private helper + 3 call-site replacements in `generate_round_dispatch` (~+50 LOC including imports + safety wrapper)
+- `src/devolaflow/lifecycle/__init__.py` — `DEFAULT_EVENTS` 5 → 6 (added `POST_DISPATCH_EVENT`) + `post_dispatch` import + `_set_default_hook` wiring (~+15 LOC)
+- `src/devolaflow/agent_workspace/__init__.py` — re-export `AppliedMerge` + `GateThresholdNotMet` (~+5 LOC)
+- `src/devolaflow/agent_workspace/archive.py` — NEW `apply_merge` method + `AppliedMerge` dataclass + `GateThresholdNotMet(ArchiveError)` + `_auto_regenerate_reports` helper + `auto_regenerate_reports` kwarg on `archive()` (~+200 LOC)
+- `tests/test_lifecycle_hooks.py` — DEFAULT_EVENTS length 6 expectation + 2 new tests for `post_dispatch` no-op + handler routing (~+35 LOC)
+- `tests/test_agent_workspace.py` — NEW `TestApplyMerge` class (7 tests) + `TestArchiveAutoRegenerateReports` class (4 tests) (~+220 LOC)
+- `.rules/soul.mdc` — NEW ## S-10 section (~+45 LOC of source rule body)
+- `.rules/index.md` — Soul layer count 9 → 10 (S-1..S-10); total rules 50 → 51
+- `.cursor/rules/repo-governance.mdc` — auto-regenerated via `RuleCompiler.compile_all()` to mirror the soul layer (~+45 LOC); file growth 488 → ~533 lines
+- `AGENTS.md` — auto-regenerated via the same compiler call (~+45 LOC); file growth 410 → ~455 lines; `agents_md: 5857/6000 tokens` (98% budget utilisation, no truncation triggered — flagged for v9.0.0 retrospective as the 5358 → 5857 token jump narrows headroom from 642 to 143)
+- `workflow-system/agent/SKILL.md` — Lifecycle Hooks section gains a 1-sentence pointer to `references/plan-mode-enforcement.md` §10 + S-10 reference; SKILL.md stays at 440 lines (well under the 480 cap)
+- `workflow-system/agent/references/plan-mode-enforcement.md` — NEW §10 "Soul Rule S-10 — Prompt-Side Governance Contract Embedding" section (~+47 LOC); test surface §9.5 reference updated from "will land in PV-04" to "landed in v8.4.4 PV-04"
+- `workflow-system/agent/references/decomposition-gate.md` — NEW §6.1 "Lifecycle hook chain on round-N+1 dispatch" cross-link (~+15 LOC) under existing §6 Convergence Loop Detail
+- 7 canonical version-sync locations per CP-3 / W-10 — `8.4.3` → `8.4.4` (`__init__.py`, `pyproject.toml`, SKILL.md frontmatter + banner + body, `workflow-skill.yaml`, `generate_human_docs.py`, `test_smoke.py`, `README.md` badge + version example, `benchmark-results/index.html` SAMPLE_DATA version)
+
+**DELETED:** none.
+
+### Cross-references
+
+- v9.0.0 SI-1 planning gate: `.local/research/v9.0.0_gap_analysis.md` §3.1 + §5.4 (PV-04 closes C-03 + M-004 + I-PV07-A)
+- v9.0.0 PV-04 implementation plan: `.local/research/v9.0.0_implementation_plan.md` §6.4 (5 stages, 7 waves, 12 tasks)
+- v9.0.0 PV-04 design doc: `.local/research/v9.0.0_pv04_design.md` (§1 hook insertion contract + §2 apply_merge API + §3 REPORT auto-trigger + §6 ADR-004 outline)
+- v9.0.0 PV-04 ADR: `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md` (D1-D4 + R5 triple + Rationale + 5 Consequences + 4 Alternatives Considered)
+- v9.0.0 PV-03 ADR (predecessor): `.local/research/adr/v9-ADR-003-a5-ssot-registry.md` (sister codification PATCH ADR)
+- A-4 ADR (source-of-truth spec location, closed by M-004 herein): `.cursor/rules/repo-governance.mdc` §"A-4 — Source-of-Truth Spec Location"
+- Precedent: v6.0.3 retro highest-ROI dead-wire fix (cited verbatim in ADR-004 Context); v8.4.0 retro §4.1 #4 R5 strict pattern (re-applied in D1)
+- DevolaFlow canonical URL (per S-7): https://github.com/YoRHa-Agents/DevolaFlow
+- NineS canonical URL (per S-7): https://github.com/YoRHa-Agents/NineS
+
 ## [8.4.3] — 2026-04-24
 
 **PATCH — v9.0.0 cycle PV-03: codify Architecture Rule A-5 (Single-Source-of-Truth Registry Pattern) + DEFAULT_ALLOWLIST parity test.** Third published patch of the v9.0.0 MAJOR cycle, closing **C-02** (Theme T2 deliverable) from `.local/research/v9.0.0_gap_analysis.md` §5.3. Codifies the "every domain registry surface has exactly ONE owner module" pattern that has been applied informally across 5 registry generations (v8.2.1 plugins.yaml + v8.3.1 runtime-plugins.yaml + v8.3.2 shell-proxy WHITELIST + v8.3.3 memory-router MemoryCase + v8.3.4 shell-proxy CommandMapping). Per the v9.0.0 SI-1 reference review F-13 trail, the discipline was already documented in module docstrings and the v8.4.0 RTK NineS analysis, but never lifted to a binding architecture rule with CI enforcement. PV-03 lifts it. The PV touches **10 files** in a single coordinated PR per `.local/research/v9.0.0_implementation_plan.md` §6.3: 1 NEW test function (`test_registry_single_owner` in `tests/test_no_ghost_features.py`) + 1 NEW ADR (`v9-ADR-003-a5-ssot-registry.md`) + 8 MODIFIED (`.cursor/rules/repo-governance.mdc` + `.rules/architecture.mdc` + `AGENTS.md` + `scripts/detect_dead_apis.py` + `tests/test_dead_apis.py` + `workflow-system/agent/references/shell-proxy.md` + 7 canonical version-sync locations + `CHANGELOG.md`). The cycle preserves the **I-8 invariant** rigorously: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5); A-5 is a `.rules/architecture.mdc` extension, not a schema or runtime touch.
