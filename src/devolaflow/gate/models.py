@@ -249,6 +249,29 @@ class GateProfile:
     # are queued for v8.2.x bench.
     legibility_enabled: bool = False
     cycle_detector_enabled: bool = False
+    # v9.0.0 PV-06 (v8.5.1) — Theme T5 primitive auto-wire flags. The 5
+    # v8.0.0 gate primitives (token_budget_breaker, verification_ladder via
+    # ladder_enabled, ratchet, complexity_detector via complexity_weight,
+    # ac_generator) flip from opt-in (default OFF) to default-ON for STRICT
+    # / AUDIT decomposition profiles. The flags below complement the
+    # existing per-primitive opt-ins: when set, downstream orchestrators
+    # that invoke :func:`devolaflow.gate.scorer.evaluate_gate` SHOULD
+    # instantiate default :class:`devolaflow.gate.budget.TokenBudgetBreaker`,
+    # :class:`devolaflow.gate.ratchet.MonotonicRatchet`,
+    # :class:`devolaflow.gate.complexity_detector.ComplexityDetector`, and
+    # :class:`devolaflow.ac_generator.ACGenerator` instances automatically
+    # when explicit ones are not supplied. Default ``False`` preserves
+    # byte-stable behaviour for STANDARD/RELAXED profiles (per the v8.0.0
+    # retro §4.3 opt-in-by-default rule). STRICT and AUDIT default to
+    # ``True`` for all five — see :data:`devolaflow.gate.profiles.STRICT`
+    # and :data:`devolaflow.gate.profiles.AUDIT`. Operators opt OUT of any
+    # individual primitive via the env-flag listed in
+    # ``workflow-system/agent/references/env-flags.md`` §2.6..§2.10
+    # (each set EXACTLY to ``"0"`` per R5 strict parsing).
+    budget_breaker_enabled: bool = False
+    ratchet_enabled: bool = False
+    complexity_detector_enabled: bool = False
+    ac_generator_enabled: bool = False
     abort_categories: list[str] = field(
         default_factory=lambda: ["security", "data_loss"],
     )

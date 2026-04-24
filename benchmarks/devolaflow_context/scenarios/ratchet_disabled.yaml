@@ -1,0 +1,55 @@
+# EvoBench Scenario: Gate Ratchet Disabled — R5 Strict Byte-Identical Baseline
+# v9.0.0 PV-06 (v8.5.1 — closes Theme T5 #3 from `.local/research/v9.0.0_implementation_plan.md` §6.6).
+#
+# Codifies the R5 strict opt-out contract for the v8.0.0 P-07 monotonic
+# gate ratchet (`src/devolaflow/gate/ratchet.py::MonotonicRatchet`).
+# The PV-06 flip turns the ratchet ON by default for STRICT/AUDIT
+# decomposition profiles; this scenario validates the opt-out path:
+#
+#   * env-flag `DEVOLAFLOW_GATE_RATCHET` set EXACTLY to "0" disables the
+#     4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE machinery on the
+#     flipped profile (R5 strict — NOT loose match).
+#   * The optional `ratchet=...` kwarg on `evaluate_gate` defaults to
+#     `None`, preserving v7.x byte-identical behaviour when unset.
+#   * The L3 dispatch surface that follows MUST receive byte-identical
+#     context to the pre-flip baseline.
+#
+# Composite floor 90 — confirms the opt-out path does not regress the
+# simple_implementation feature-profile section coverage. The ratchet's
+# 4-verdict semantics are validated separately by
+# `tests/test_gate_ratchet.py` at the unit-test layer.
+#
+# External canonical URL (per S-7): https://github.com/YoRHa-Agents/DevolaFlow
+
+name: "ratchet_disabled"
+task_type: "simple_implementation"
+description: >
+  R5 strict opt-out baseline for v9.0.0 PV-06 (v8.5.1) Theme T5 #3
+  (ratchet default-on flip). When `DEVOLAFLOW_GATE_RATCHET` is set to
+  "0", the MonotonicRatchet's 4-verdict machinery is bypassed (R5 strict
+  per env-flags.md §2 parsing). The L3 dispatch surface MUST receive
+  byte-identical context to the v8.5.0 pre-flip baseline. Composite
+  floor 90 confirms no section regression.
+
+expected_sections:
+  - quick_action_decision
+  - plan_mode_template
+  - agent_mode_protocol
+  - quick_start_workflows
+  - hierarchy_table
+  - wave_task_constraints
+  - rationalization_prevention
+  - stage_primitives
+  - gate_mechanism
+  - agent_teams
+  - context_isolation
+  - lifecycle_hooks
+  - convergence_loop
+  - dispatch_report
+
+unwanted_sections: []
+
+quality_thresholds:
+  min_composite: 90
+  min_relevance: 0.90
+  max_noise_ratio: 0.20

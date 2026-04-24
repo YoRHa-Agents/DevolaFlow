@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "8.5.0"
+version: "8.5.1"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v8.5.0**
+> **Now Using DevolaFlow v8.5.1**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 8.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 8.5.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Quick Action Decision
@@ -356,6 +356,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/agent-hierarchy.md` | Layer setup, delegation debugging, per-layer contracts |
 | `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
 | `references/behavioral-guidelines.md` | L3 think_first / simplicity_check / surgical_scope / goal_loop primitives |
+| `references/compression-pipeline.md` | CompressionStage protocol, 6-transform unification, multi-pass filter chain |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
 | `references/env-flags.md` | DEVOLAFLOW_* env-var inventory, R5 strict patterns, W-20 reuse policy |

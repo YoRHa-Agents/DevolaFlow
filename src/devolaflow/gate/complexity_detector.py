@@ -4,6 +4,14 @@ v8.0.0 (P-09) — implements primitive 4.13 from
 ``.local/research/tweet_analysis_harness_engineering_v7.8.md`` §4.13 and
 ``.local/research/v8.0.0_patch_plan.md`` §3 P-09.
 
+v9.0.0 PV-06 (v8.5.1) — Theme T5 #4 default-on flip. STRICT and AUDIT
+profiles default :pyattr:`GateProfile.complexity_detector_enabled` to
+``True`` (paired with the existing ``complexity_weight=0.10``).
+Operators opt OUT via ``DEVOLAFLOW_COMPLEXITY_DETECTOR=0`` per
+env-flags.md §2.9 (R5 strict). The :func:`is_complexity_detector_active`
+helper combines both signals so callers do not branch on the env-flag
+manually.
+
 The detector reads :class:`devolaflow.gate.models.ComplexitySignals` and
 returns one of three :class:`devolaflow.gate.models.ComplexityVerdict`
 values:
@@ -40,6 +48,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -50,12 +59,46 @@ from devolaflow.gate.models import (
     VALID_TASK_COMPLEXITY_TIERS,
     ComplexitySignals,
     ComplexityVerdict,
+    GateProfile,
 )
 
 if TYPE_CHECKING:
     from devolaflow.gate.models import TaskComplexityTier
 
 logger = logging.getLogger(__name__)
+
+# v9.0.0 PV-06 (v8.5.1) — Theme T5 #4 env-flag (R5 strict).
+ENV_FLAG: str = "DEVOLAFLOW_COMPLEXITY_DETECTOR"
+"""Env-flag controlling the v9.0.0 PV-06 default-on flip override.
+
+R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
+
+* env value EXACTLY ``"1"`` → force the detector active regardless of profile
+* env value EXACTLY ``"0"`` → force the detector inactive regardless of profile
+* env value unset / any other → respect ``profile.complexity_detector_enabled``
+"""
+
+
+def is_complexity_detector_active(
+    profile: GateProfile,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """Return True iff the overcomplexity detector should run for *profile*.
+
+    Combines the v9.0.0 PV-06 default-on profile flag
+    (:pyattr:`GateProfile.complexity_detector_enabled` — True for STRICT/AUDIT)
+    with the :data:`ENV_FLAG` per-process override (R5 strict). Operators
+    who want to disable the detector on a flipped profile set
+    ``DEVOLAFLOW_COMPLEXITY_DETECTOR=0`` per env-flags.md §2.9.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return bool(getattr(profile, "complexity_detector_enabled", False))
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Verdict thresholds — see ``patch_plan §3 P-09 AC #1-#3``.

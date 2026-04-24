@@ -48,6 +48,7 @@ __all__ = [
     "LLMClientError",
     "LLMResponse",
     "LLMClient",
+    "compression_pipeline_stage",
 ]
 
 FAILURE_MODES: tuple[str, ...] = (
@@ -487,4 +488,56 @@ def _parse_anthropic_response(data: dict[str, Any], model: str) -> LLMResponse:
         tokens_in=int(usage.get("input_tokens", 0)),
         tokens_out=int(usage.get("output_tokens", 0)),
         error=None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.0.0 PV-06 (v8.5.1) — CompressionStage wrapper for LLMClient.complete.
+#
+# Per v9-ADR-006 D1, Stage B abstractive (LLM-assisted refinement) is the
+# 5th canonical transform exposed via the unified pipeline. The stage's
+# bypass predicate fires when the context dict carries no ``llm_client``
+# (caller did not opt in) so the pipeline degrades gracefully to a Stage A
+# heuristic-only run (R5 strict — no silent network calls when the kill
+# switch is unset).
+# ---------------------------------------------------------------------------
+
+
+def _stage_llm_complete_transform(payload, ctx):
+    """Pipeline-wrapped wrapper for :meth:`LLMClient.complete`.
+
+    Expects ``payload`` to be the prompt string. Returns the
+    :class:`LLMResponse` carrying ``text`` / ``error`` / token counts so
+    downstream stages can branch on the failure mode without re-querying.
+    """
+    client: LLMClient = ctx["llm_client"]
+    return client.complete(payload)
+
+
+def _stage_llm_complete_bypass(_payload, ctx):
+    """Bypass when no LLMClient was provided (kill switch / fallback default)."""
+    return ctx.get("llm_client") is None
+
+
+def compression_pipeline_stage():
+    """Return a :class:`CompressionStage` wrapping :meth:`LLMClient.complete`.
+
+    Per v9-ADR-006 D1: this is the 5th canonical transform in the unified
+    CompressionPipeline (Stage B abstractive — LLM-assisted refinement of
+    the heuristic Stage A summary). The stage bypasses when the caller
+    omits ``llm_client`` from the pipeline ``context`` dict, preserving
+    the v8.0.0-p10 byte-identical behaviour for callers that have not
+    opted into LLM assistance.
+
+    The function imports :mod:`devolaflow.compression_pipeline` lazily so
+    ``llm_client.py`` stays dependency-free at module-load time.
+    """
+    from devolaflow.compression_pipeline import make_stage
+
+    return make_stage(
+        name="llm_stage_b_complete",
+        transform=_stage_llm_complete_transform,
+        bypass=_stage_llm_complete_bypass,
+        bypass_conditions=("llm_client_unset", "stage_b_disabled"),
+        telemetry_key="stage_b",
     )

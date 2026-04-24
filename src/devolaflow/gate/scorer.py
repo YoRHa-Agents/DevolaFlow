@@ -1,11 +1,22 @@
 """Gate composite scorer and quality scorer.
 
 Design ref: design_decomposition_gate.md §5.3, §5.7
+
+v9.0.0 PV-06 (v8.5.1) — Theme T5 #2 default-on flip. STRICT and AUDIT
+profiles default :pyattr:`GateProfile.ladder_enabled` to ``True`` and the
+new :func:`is_verification_ladder_active` helper combines that with the
+``DEVOLAFLOW_VERIFICATION_LADDER`` env-flag (R5 strict — EXACTLY ``"0"``
+opts out, EXACTLY ``"1"`` forces on) so callers do not branch on the
+env-flag manually. The flip preserves the existing
+``if not profile.ladder_enabled: return evaluate_gate(...)`` short-circuit
+in :func:`evaluate_ladder` byte-identically — operators who set
+``DEVOLAFLOW_VERIFICATION_LADDER=0`` get the v8.5.0 pre-flip behaviour.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
@@ -61,6 +72,39 @@ from devolaflow.gate.reinforcement import (
     fence_to_instruction,
 )
 from devolaflow.legibility import LegibilityReport, LegibilityScorer
+
+# v9.0.0 PV-06 (v8.5.1) — Theme T5 #2 env-flag (R5 strict).
+VERIFICATION_LADDER_ENV_FLAG: str = "DEVOLAFLOW_VERIFICATION_LADDER"
+"""Env-flag controlling the v9.0.0 PV-06 default-on flip override.
+
+R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
+
+* env value EXACTLY ``"1"`` → force the ladder active regardless of profile
+* env value EXACTLY ``"0"`` → force the ladder inactive regardless of profile
+* env value unset / any other → respect ``profile.ladder_enabled``
+"""
+
+
+def is_verification_ladder_active(
+    profile: GateProfile,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """Return True iff the 6-rung verification ladder should run for *profile*.
+
+    Combines the v9.0.0 PV-06 default-on profile flag
+    (:pyattr:`GateProfile.ladder_enabled` — True for STRICT/AUDIT) with the
+    :data:`VERIFICATION_LADDER_ENV_FLAG` per-process override (R5 strict).
+    Operators who want to disable the ladder on a flipped profile set
+    ``DEVOLAFLOW_VERIFICATION_LADDER=0`` per env-flags.md §2.7.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(VERIFICATION_LADDER_ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return bool(profile.ladder_enabled)
+
 
 SEVERITY_WEIGHTS: dict[str, int] = {
     "blocker": 25,

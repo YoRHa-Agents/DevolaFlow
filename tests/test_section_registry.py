@@ -421,10 +421,17 @@ class TestStrictProfileOptInFlips:
         assert RELAXED.legibility_enabled is False
         assert RELAXED.cycle_detector_enabled is False
 
-    def test_audit_keeps_both_opt_in_for_v8_2_x_bench(self) -> None:
-        # AUDIT is intentionally NOT flipped this cycle — the two flags
-        # stay False per PV-05's "STRICT only this cycle" decision so
-        # AUDIT users can opt-in explicitly when their pipeline is
-        # ready. Bench item for v8.2.x.
-        assert AUDIT.legibility_enabled is False
-        assert AUDIT.cycle_detector_enabled is False
+    def test_audit_flipped_in_pv06_to_match_strict(self) -> None:
+        # v9.0.0 PV-06 (v8.5.1) Theme T5 closure: AUDIT flipped to match
+        # STRICT for both legibility_enabled AND cycle_detector_enabled
+        # (the v8.2.0 PV-05 "STRICT only this cycle" decision was lifted
+        # — the v8.5.1 5-primitive flip set the precedent that high-
+        # rigour AUDIT should not lag STRICT). The 5 PV-06 primitives
+        # (budget_breaker, ladder, ratchet, complexity_detector,
+        # ac_generator) flipped on the same PR; the legibility +
+        # cycle_detector pair came along by symmetry. Operators who
+        # want the v8.2.0 audit-opt-in semantic set
+        # ``DEVOLAFLOW_LEGIBILITY_CHECK=0`` per env-flags.md §4 row 2
+        # (the residual forward-declared flag).
+        assert AUDIT.legibility_enabled is True
+        assert AUDIT.cycle_detector_enabled is True

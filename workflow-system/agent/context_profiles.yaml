@@ -186,6 +186,57 @@ meta:
     min_quality_threshold: 60.0
     id_prefix: "AC"
 
+  # v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on flip.
+  # Defaults that downstream orchestrators consult when instantiating
+  # gate primitives. STRICT and AUDIT decomposition profiles flip the 5
+  # v8.0.0 gate primitives to default-ON; STANDARD and RELAXED keep
+  # them opt-in (byte-identical pre-flip behaviour).
+  #
+  # Source-of-truth for the default values lives in
+  # ``src/devolaflow/gate/profiles.py`` (the GateProfile dataclass
+  # fields ``budget_breaker_enabled``, ``ladder_enabled``,
+  # ``ratchet_enabled``, ``complexity_detector_enabled``,
+  # ``ac_generator_enabled``); the block below is the dispatcher-side
+  # mirror so L0/L1/L2 agents see the effective per-profile default
+  # without importing the gate package. Per-process opt-out goes
+  # through the env-flag listed against each row (R5 strict — set
+  # EXACTLY ``"0"`` to disable; per env-flags.md §2.6..§2.10).
+  #
+  # Schema: { primitive_name: { profile_name: bool } }. Adding a new
+  # gate-profile name (e.g. "audit-light") requires adding a row here
+  # AND updating the corresponding dataclass default in profiles.py.
+  gate_primitive_defaults:
+    token_budget_breaker:
+      env_flag: "DEVOLAFLOW_TOKEN_BUDGET_BREAKER"
+      strict: true
+      audit: true
+      standard: false
+      relaxed: false
+    verification_ladder:
+      env_flag: "DEVOLAFLOW_VERIFICATION_LADDER"
+      strict: true
+      audit: true
+      standard: false
+      relaxed: false
+    ratchet:
+      env_flag: "DEVOLAFLOW_GATE_RATCHET"
+      strict: true
+      audit: true
+      standard: false
+      relaxed: false
+    complexity_detector:
+      env_flag: "DEVOLAFLOW_COMPLEXITY_DETECTOR"
+      strict: true
+      audit: true
+      standard: false
+      relaxed: false
+    ac_generator:
+      env_flag: "DEVOLAFLOW_AC_GEN"
+      strict: true
+      audit: true
+      standard: false
+      relaxed: false
+
 # v8.2.0 (PV-05) — Section-anchor registry. Symbolic anchor → file path
 # mapping consumed by ``devolaflow.section_registry.SectionAnchorRegistry``
 # and ``task_adaptive_selector._resolve_section_text``. Establishes the

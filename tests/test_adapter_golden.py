@@ -92,7 +92,7 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 13 canonical reference files must be copied into ``references/``.
+    """All 14 canonical reference files must be copied into ``references/``.
 
     v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
     (the L3 behavioral primitives reference wired through the new top-level
@@ -122,7 +122,14 @@ def test_cursor_references_golden(cursor_build):
     ``env-flags.md`` (the canonical DEVOLAFLOW_* env-var inventory:
     8 active runtime flags + 6 forward-declared gate-primitive flags
     + 4 BG defaults + 3 test-fixture flags). Pairs with Workflow Rule
-    W-20 (env-flag reuse vs new-flag policy)."""
+    W-20 (env-flag reuse vs new-flag policy).
+
+    v9.0.0 PV-06 (v8.5.1) grew this set 13 → 14 by appending
+    ``compression-pipeline.md`` (the CompressionStage protocol
+    + CompressionPipeline orchestrator + 6-transform unification
+    + multi-pass filter chain T3 #5 reference). Pairs with
+    ``src/devolaflow/compression_pipeline.py`` and
+    ``schemas/compression-pipeline.yaml``."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -133,7 +140,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 13, f"expected 13 reference files, got {len(actual)}"
+    assert len(actual) == 14, f"expected 14 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

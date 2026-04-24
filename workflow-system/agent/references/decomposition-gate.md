@@ -327,21 +327,22 @@ not enforced at that profile level.
 ### 5.5 Gate Primitive Composition (v8.0.0+)
 
 The Gate Quality Mechanism is composed of 7 runtime primitives shipped
-across the v8.x cycle. Each primitive is independently opt-in (R5
-default-OFF) and verified by its own EvoBench scenario; the table below
-maps each to its module, introduction version, default state per gate
-profile, regression scenario, and opt-in env-flag. Theme T5 (v9.0.0
-PV-06 default-on flip) requires this enumeration as a precondition.
+across the v8.x cycle. The v9.0.0 PV-06 (v8.5.1) Theme T5 flip moved
+5 of the 6 historically opt-in primitives to default-ON for STRICT and
+AUDIT decomposition profiles; STANDARD and RELAXED profiles preserve
+the v8.5.0 byte-stable opt-in defaults. The table below maps each to
+its module, introduction version, post-PV-06 default state per gate
+profile, regression scenario, and opt-out env-flag.
 
-| # | Module | Introduced | Default state per profile | EvoBench scenario | Opt-in env-flag |
-|---|--------|------------|---------------------------|-------------------|-----------------|
-| 1 | `gate/budget.py::TokenBudgetBreaker` | v8.0.0 P-03 | OFF on standard/relaxed; ESCALATE on strict/audit | `decomposition_feature` | `DEVOLAFLOW_TOKEN_BUDGET_BREAKER` |
-| 2 | `gate/scorer.py::evaluate_ladder` | v8.0.0 P-05 | ON for decomposition profiles; 6 rungs R1..R6 short-circuit | `gate_ladder_score` | (default-on, no flag) |
-| 3 | `gate/cycle_detector.py` | v8.0.0 P-06 | OFF (opt-in via `gate_cycle_detection`); exact_match / fuzzy_match ≥ 80% / edit_oscillation A→B→A→B | `cycle_detection_round_2` | `DEVOLAFLOW_CYCLE_DETECTOR` |
-| 4 | `gate/ratchet.py` | v8.0.0 P-07 | OFF (opt-in via `gate_ratchet_enabled`); 4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE; deterministic oracle excludes review_findings per S/O/R-resistance | `ratchet_round_3` | `DEVOLAFLOW_GATE_RATCHET` |
-| 5 | `gate/complexity_detector.py` | v8.0.0 P-09 | OFF (opt-in); nines analyze subprocess + MOCK fallback | `complexity_subprocess` | `DEVOLAFLOW_COMPLEXITY_DETECTOR` |
-| 6 | `ac_generator.py` | v8.0.0 P-10 | OFF (opt-in; companion to legacy `accept` list); 11 deterministic patterns; 3-dim quality scoring | `ac_generator_density` | `DEVOLAFLOW_AC_GEN` |
-| 7 | `legibility/scorer.py` | v8.2.0 PV-02 | OFF (opt-in via `decomposition.legibility_check`) | `legibility_score` | `DEVOLAFLOW_LEGIBILITY_CHECK` |
+| # | Module | Introduced | Default state per profile (post-PV-06) | EvoBench scenario | Env-flag |
+|---|--------|------------|----------------------------------------|-------------------|----------|
+| 1 | `gate/budget.py::TokenBudgetBreaker` | v8.0.0 P-03; flipped v8.5.1 PV-06 | **ON** for strict/audit; OFF for standard/relaxed | `decomposition_feature` + `token_budget_disabled` | `DEVOLAFLOW_TOKEN_BUDGET_BREAKER` (=0 opts out) |
+| 2 | `gate/scorer.py::evaluate_ladder` | v8.0.0 P-05; flipped v8.5.1 PV-06 | **ON** for strict/audit (was already True via `ladder_enabled`; PV-06 added explicit env-flag override) | `gate_ladder_score` + `verification_ladder_disabled` | `DEVOLAFLOW_VERIFICATION_LADDER` (=0 opts out) |
+| 3 | `gate/cycle_detector.py` | v8.0.0 P-06 | OFF (opt-in via `gate_cycle_detection`); exact_match / fuzzy_match ≥ 80% / edit_oscillation A→B→A→B | `cycle_detection_round_2` | `DEVOLAFLOW_CYCLE_DETECTOR` (forward-declared, not yet wired) |
+| 4 | `gate/ratchet.py` | v8.0.0 P-07; flipped v8.5.1 PV-06 | **ON** for strict/audit; OFF for standard/relaxed; 4-verdict ADVANCE/TOLERATE/ROLLBACK/ESCALATE; deterministic oracle excludes review_findings per S/O/R-resistance | `ratchet_round_3` + `ratchet_disabled` | `DEVOLAFLOW_GATE_RATCHET` (=0 opts out) |
+| 5 | `gate/complexity_detector.py` | v8.0.0 P-09; flipped v8.5.1 PV-06 | **ON** for strict/audit (paired with `complexity_weight=0.10`); OFF for standard/relaxed | `complexity_subprocess` + `complexity_detector_disabled` | `DEVOLAFLOW_COMPLEXITY_DETECTOR` (=0 opts out) |
+| 6 | `ac_generator.py` | v8.0.0 P-10; flipped v8.5.1 PV-06 | **ON** for strict/audit (legacy `accept` list still the contract path; opt-out preserves byte-stable v7.x dispatch shape per R5) | `ac_generator_density` + `ac_generator_disabled` | `DEVOLAFLOW_AC_GEN` (=0 opts out) |
+| 7 | `legibility/scorer.py` | v8.2.0 PV-02 | OFF (opt-in via `decomposition.legibility_check`) | `legibility_score` | `DEVOLAFLOW_LEGIBILITY_CHECK` (forward-declared, not yet wired) |
 
 **Composition rule**: primitives compose multiplicatively at the gate
 verdict level — a gate FAIL by ANY enabled primitive blocks advancement;
@@ -353,12 +354,14 @@ rungs. Per W-4 / SI-4, any change to a primitive's module triggers the
 EvoBench scenario for that primitive plus the composite scenarios that
 exercise it (`decomposition_feature`, `gate_ladder_score`).
 
-**v9.0.0 PV-06 flip plan** (forward-defined per Theme T5): primitives
-1, 3, 4, 5, 7 are scheduled to flip to ON for decomposition-enabled
-profiles when the post-flip composite EvoBench score (≥ 90 floor per
-W-4) holds. Primitive 6 stays opt-in (legacy `accept` list remains the
-canonical surface; `acceptance_criteria_v2` is the structured successor
-per `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` position 15).
+**v9.0.0 PV-06 flip closure**: primitives 1, 2, 4, 5, 6 flipped to ON
+for STRICT and AUDIT decomposition profiles per
+`.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
+Primitives 3 and 7 stayed opt-in for a future cycle (legacy `accept`
+list remains the canonical cycle-detection surface; legibility_check
+needs its own `_disabled.yaml` scenario set before flip). Per-primitive
+opt-out per env-flag (R5 strict — set EXACTLY `"0"` to disable; see
+`references/env-flags.md` §2.6..§2.10).
 
 ### Gate Evaluation Flowchart
 

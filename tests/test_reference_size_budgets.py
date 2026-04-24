@@ -71,7 +71,7 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the SF-3 contract (13-refs / 3-examples since v8.5.0 PV-05).
+    """Sanity: shape matches the SF-3 contract (14-refs / 3-examples since v8.5.1 PV-06).
 
     v8.0.0 P-08 grew the reference set 8 → 9 by appending
     ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
@@ -106,8 +106,16 @@ def test_canonical_lists_match_sf3_contract() -> None:
     flags + 4 BG default-on primitives + 3 test-fixture flags). Pairs with
     Workflow Rule W-20 (env-flag reuse vs new-flag policy) so the rule has
     a single source of truth to enforce against.
+
+    v9.0.0 PV-06 (v8.5.1) grew the reference set 13 → 14 by appending
+    ``references/compression-pipeline.md`` (the CompressionStage protocol
+    + CompressionPipeline orchestrator + 6-transform unification +
+    multi-pass filter chain T3 #5 reference — ~408 lines, within Large
+    tier 1000 ceiling per SF-1). Pairs with
+    ``src/devolaflow/compression_pipeline.py`` and
+    ``schemas/compression-pipeline.yaml``.
     """
-    assert len(_REF_FILES) == 13, f"expected 13 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 14, f"expected 14 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

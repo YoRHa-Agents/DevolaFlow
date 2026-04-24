@@ -352,6 +352,16 @@ _SF4_REFERENCE_SET = frozenset(
         # Workflow Rule W-20 (env-flag reuse vs new-flag policy) so the
         # rule has an actionable inventory to enforce against.
         "env-flags.md",
+        # v9.0.0 PV-06 (v8.5.1) — CompressionPipeline protocol + 6-transform
+        # unification + multi-pass filter chain (T3 #5). Documents the
+        # CompressionStage ABC, the CompressionPipeline orchestrator (with
+        # R5 strict byte-identical bypass invariant), the three canonical
+        # compositions (predecessor extractive / predecessor + Stage B LLM /
+        # command-mapping + directed_compact + truncate), and the
+        # compose: list[str] field semantics for command-mapping recipes
+        # schema_version 2. Pairs with src/devolaflow/compression_pipeline.py
+        # and schemas/compression-pipeline.yaml.
+        "compression-pipeline.md",
     }
 )
 

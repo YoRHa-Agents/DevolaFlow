@@ -47,6 +47,19 @@ primitives (complexity_detector, acceptance_criteria_v2,
 fence-instruction injection, entropy-cleanup workflow, ratchet) stay
 opt-in and are queued for the v8.2.x bench. See
 ``.local/research/v8.2.0_patch_plan.md`` §3 PV-05 AC-5.
+
+v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on flip closure.
+The 5 v8.0.0 gate primitives (``budget_breaker_enabled`` +
+``ladder_enabled`` + ``ratchet_enabled`` + ``complexity_detector_enabled``
++ ``ac_generator_enabled``) flip from opt-in to default-ON for STRICT
+AND AUDIT decomposition profiles. Per env-flags.md §4 the flip moves
+the 5 forward-declared flags from §4 (forward-declared) to §2 (active
+runtime flags) — operators opt OUT per-primitive via the env-flag
+listed in env-flags.md §2.6..§2.10 (each set EXACTLY to ``"0"`` per R5
+strict parsing). Composite ≥ 90 floor preserved by the 5 new
+``benchmarks/devolaflow_context/scenarios/*_disabled.yaml`` scenarios.
+See ``.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``
+for the full rationale and the rollback plan.
 """
 
 from devolaflow.gate.models import GateProfile
@@ -72,6 +85,12 @@ STRICT = GateProfile(
     legibility_weight=0.05,
     legibility_enabled=True,
     cycle_detector_enabled=True,
+    # v9.0.0 PV-06 (v8.5.1) Theme T5 — 5 primitives default-ON for STRICT.
+    # Operators opt OUT per env-flags.md §2 (each EXACTLY "0" per R5 strict).
+    budget_breaker_enabled=True,
+    ratchet_enabled=True,
+    complexity_detector_enabled=True,
+    ac_generator_enabled=True,
 )
 
 STANDARD = GateProfile(
@@ -131,6 +150,16 @@ AUDIT = GateProfile(
     ladder_enabled=True,
     complexity_weight=0.10,
     legibility_weight=0.05,
+    # v9.0.0 PV-06 (v8.5.1) Theme T5 — 5 primitives default-ON for AUDIT.
+    # AUDIT inherits the same legibility / cycle_detector defaults as STRICT
+    # (B3 partial closure surface — no behaviour drift between the two
+    # high-rigour profiles). Operators opt OUT per env-flags.md §2.
+    legibility_enabled=True,
+    cycle_detector_enabled=True,
+    budget_breaker_enabled=True,
+    ratchet_enabled=True,
+    complexity_detector_enabled=True,
+    ac_generator_enabled=True,
 )
 
 PROFILES: dict[str, GateProfile] = {

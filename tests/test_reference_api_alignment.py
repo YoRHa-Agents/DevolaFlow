@@ -274,9 +274,13 @@ class TestRecipeYamlAlignment:
 
     def test_recipe_filter_items_use_canonical_fields(self) -> None:
         """All pre_filters / post_filters items in the §6.3 YAML MUST
-        carry only `pattern` and `replacement` keys (per schema). F-06
-        regression guard: the original violation used `note:` instead
-        of `replacement:`."""
+        carry only canonical keys (per schema). F-06 regression guard:
+        the original violation used `note:` instead of `replacement:`.
+
+        v8.5.1 PV-06 (T3 #5) bumped schema_version 1 → 2 and added
+        optional `compose: list[str]` for the multi-pass filter chain.
+        The canonical set is therefore {pattern, replacement, compose}.
+        """
         markdown = self.SHELL_PROXY_PATH.read_text(encoding="utf-8")
         section = _section_text(markdown, "6.3 Recipe YAML format (mirrors RTK `[filters.<name>]`)")
         yaml_blocks = _fenced_blocks(section, "yaml")
@@ -286,7 +290,7 @@ class TestRecipeYamlAlignment:
         )
         parsed = yaml.safe_load(recipe_yaml_clean)
         canonical_filter_fields = self._canonical_filter_item_fields()
-        assert canonical_filter_fields == {"pattern", "replacement"}, (
+        assert canonical_filter_fields == {"pattern", "replacement", "compose"}, (
             f"schema declares filter item fields {sorted(canonical_filter_fields)}; "
             "test expectation needs update"
         )

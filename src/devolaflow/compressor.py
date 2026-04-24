@@ -6,6 +6,15 @@ where compression previously depended on LLM compliance alone.
 
 Based on: CO-1 (lean format), CO-2 (verbatim extraction),
           LLM Scaling Paradox (compaction > summarization).
+
+v9.0.0 PV-06 (v8.5.1) — the four canonical text-side transforms in this
+module (``truncate_tool_output``, ``summarise_predecessor`` extractive,
+``summarise_predecessor`` abstractive Stage A, ``directed_compact``) are
+also exposed as :class:`devolaflow.compression_pipeline.CompressionStage`
+wrappers via the module-level :func:`compression_pipeline_stages` factory.
+The wrappers preserve the existing function signatures byte-identically
+(same kwargs, same return shapes); the pipeline is an additive composition
+layer per v9-ADR-006 D1.
 """
 
 from __future__ import annotations
@@ -19,6 +28,9 @@ from typing import TYPE_CHECKING
 from devolaflow.task_adaptive_selector import estimate_tokens
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from devolaflow.compression_pipeline import CompressionStage
     from devolaflow.llm_client import LLMClient
 
 __all__ = [
@@ -64,6 +76,7 @@ __all__ = [
     "summarise_predecessor",
     "extract_named_entities",
     "directed_compact",
+    "compression_pipeline_stages",
 ]
 
 _stage_b_logger = logging.getLogger("devolaflow.compressor.stage_b")
@@ -2423,3 +2436,106 @@ def directed_compact(
 
     kept = [para for idx, para in enumerate(paragraphs) if idx not in drop_idx]
     return "\n\n".join(kept)
+
+
+# ---------------------------------------------------------------------------
+# v9.0.0 PV-06 (v8.5.1) — CompressionPipeline stage factories.
+#
+# Per v9-ADR-006 D1, the four canonical text-side transforms are exposed as
+# CompressionStage wrappers so callers can compose them via
+# :class:`devolaflow.compression_pipeline.CompressionPipeline.run`. The
+# factory returns a freshly-constructed list so callers can mutate the order
+# / drop stages without affecting other callers (the dataclass instances
+# themselves are frozen — cheap to share but explicit copy here for safety).
+#
+# R5 strict invariants (verified by tests/test_compression_pipeline.py):
+#   * Each stage's ``transform`` calls the existing module function with the
+#     same kwargs; a stage that returns its input verbatim is reported as
+#     ``applied=False``.
+#   * The default bypass predicates are the no-op :data:`BYPASS_NEVER` —
+#     callers that want runtime gating supply their own predicate via the
+#     ``stage = stage; stage.bypass = ...`` pattern OR construct a fresh
+#     stage via :func:`devolaflow.compression_pipeline.make_stage`.
+#   * The factory does NOT touch the dispatch layout invariant — it adds NO
+#     new top-level keys (canonical_order length stays 16, version 5).
+# ---------------------------------------------------------------------------
+
+
+def _stage_truncate_tool_output_transform(payload, ctx: Mapping):
+    """Pipeline-wrapped wrapper for :func:`truncate_tool_output`."""
+    head = ctx.get("head_chars", DEFAULT_TRUNCATION_HEAD_CHARS)
+    tail = ctx.get("tail_chars", DEFAULT_TRUNCATION_TAIL_CHARS)
+    placeholder = ctx.get("placeholder_template", DEFAULT_TRUNCATION_PLACEHOLDER)
+    new_text, _removed = truncate_tool_output(
+        payload,
+        head_chars=head,
+        tail_chars=tail,
+        placeholder_template=placeholder,
+    )
+    return new_text
+
+
+def _stage_summarise_predecessor_transform(payload, ctx: Mapping):
+    """Pipeline-wrapped wrapper for :func:`summarise_predecessor`.
+
+    The stage expects ``payload`` to be the artifact path string (matching
+    the existing ``summarise_predecessor(artifact_path, ...)`` signature)
+    and returns the dict result verbatim.
+    """
+    return summarise_predecessor(
+        payload,
+        max_tokens=ctx.get("max_tokens", DEFAULT_SUMMARY_MAX_TOKENS),
+        mode=ctx.get("mode", DEFAULT_SUMMARY_MODE),
+        schema_hint=ctx.get("schema_hint"),
+        retrieval_query=ctx.get("retrieval_query"),
+        directive=ctx.get("directive"),
+        llm_assist=bool(ctx.get("llm_assist", False)),
+        llm_client=ctx.get("llm_client"),
+    )
+
+
+def _stage_directed_compact_transform(payload, ctx: Mapping):
+    """Pipeline-wrapped wrapper for :func:`directed_compact`."""
+    return directed_compact(
+        payload,
+        focus_keywords=ctx.get("focus_keywords"),
+        max_drop_pct=ctx.get("max_drop_pct", DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT),
+    )
+
+
+def compression_pipeline_stages() -> list[CompressionStage]:
+    """Return a fresh list of :class:`CompressionStage` for the 4 module transforms.
+
+    The default ordering matches the v8.0.0 layered-pipeline reference
+    (Layer 1 truncate / Layer 2 summarise / Layer 3 directed_compact). All
+    four stages default to :data:`devolaflow.compression_pipeline.BYPASS_NEVER`
+    (always run); callers that want activation gating attach their own
+    bypass predicate by constructing a fresh stage via
+    :func:`devolaflow.compression_pipeline.make_stage` and substituting it
+    into the returned list.
+
+    Per v9-ADR-006 D1 + Cycle Plan §6.6.2 T07: this is the canonical entry
+    point for the v9.0.0 PV-06 unification. The function imports the
+    pipeline module lazily so ``compressor.py`` does not gain a hard
+    dependency on it (preserves the existing import graph + lets tests
+    reach into compressor.py without dragging the pipeline runtime).
+    """
+    from devolaflow.compression_pipeline import make_stage
+
+    return [
+        make_stage(
+            name="truncate_tool_output",
+            transform=_stage_truncate_tool_output_transform,
+            telemetry_key="truncate",
+        ),
+        make_stage(
+            name="summarise_predecessor",
+            transform=_stage_summarise_predecessor_transform,
+            telemetry_key="summarise",
+        ),
+        make_stage(
+            name="directed_compact",
+            transform=_stage_directed_compact_transform,
+            telemetry_key="compact",
+        ),
+    ]

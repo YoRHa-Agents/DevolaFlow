@@ -11,6 +11,18 @@
     "selected_count": 17,
     "total_tokens": 5237
   },
+  "ac_generator_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9894,
+    "composite": 96.05,
+    "information_density": 0.9894,
+    "noise_ratio": 0.1765,
+    "profile_name": "feature",
+    "scenario_name": "ac_generator_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 17,
+    "total_tokens": 5244
+  },
   "acceptance_verification_feature": {
     "budget": 4000,
     "budget_utilization": 0.55,
@@ -58,6 +70,18 @@
     "section_relevance": 1.0,
     "selected_count": 17,
     "total_tokens": 5237
+  },
+  "complexity_detector_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9894,
+    "composite": 96.05,
+    "information_density": 0.9894,
+    "noise_ratio": 0.1765,
+    "profile_name": "feature",
+    "scenario_name": "complexity_detector_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 17,
+    "total_tokens": 5244
   },
   "complexity_tier_routing": {
     "budget": 5300,
@@ -419,6 +443,18 @@
     "selected_count": 9,
     "total_tokens": 2363
   },
+  "ratchet_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9894,
+    "composite": 96.05,
+    "information_density": 0.9894,
+    "noise_ratio": 0.1765,
+    "profile_name": "feature",
+    "scenario_name": "ratchet_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 17,
+    "total_tokens": 5244
+  },
   "rdrr_design_loop": {
     "budget": 4650,
     "budget_utilization": 0.9901,
@@ -562,6 +598,30 @@
     "section_relevance": 1.0,
     "selected_count": 9,
     "total_tokens": 2801
+  },
+  "token_budget_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9894,
+    "composite": 96.05,
+    "information_density": 0.9894,
+    "noise_ratio": 0.1765,
+    "profile_name": "feature",
+    "scenario_name": "token_budget_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 17,
+    "total_tokens": 5244
+  },
+  "verification_ladder_disabled": {
+    "budget": 5300,
+    "budget_utilization": 0.9894,
+    "composite": 96.05,
+    "information_density": 0.9894,
+    "noise_ratio": 0.1765,
+    "profile_name": "feature",
+    "scenario_name": "verification_ladder_disabled",
+    "section_relevance": 1.0,
+    "selected_count": 17,
+    "total_tokens": 5244
   },
   "visual_regression_webapp": {
     "budget": 4000,

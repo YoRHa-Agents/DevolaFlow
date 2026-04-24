@@ -1,18 +1,18 @@
 [task]
 id = "devolaflow-sf4-018"
-name = "sf4-reference-set-cardinality-v8.5.0"
-description = "v8.5.0 PV-05 — SF-4 canonical reference set grows from 12 → 13 with the addition of references/env-flags.md as the 13th canonical (per Open Decision §9.2 #2 = both A1 + A2 land)"
+name = "sf4-reference-set-cardinality-v8.5.1"
+description = "v8.5.1 PV-06 — SF-4 canonical reference set grows from 13 → 14 with the addition of references/compression-pipeline.md as the 14th canonical (per Open Decision §9.2 #10 default-yes APPROVE stance; pairs with src/devolaflow/compression_pipeline.py and schemas/compression-pipeline.yaml)"
 dimension = "code_quality"
 difficulty = 1
 
 [task.input]
 type = "code"
 language = "python"
-source = "len(_SF4_REFERENCE_SET) == 13"
+source = "len(_SF4_REFERENCE_SET) == 14"
 
 [task.expected]
 type = "text"
-value = "len(_SF4_REFERENCE_SET) == 13"
+value = "len(_SF4_REFERENCE_SET) == 14"
 
 [task.golden]
 expected_score = 1.0
