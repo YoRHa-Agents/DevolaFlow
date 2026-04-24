@@ -170,6 +170,62 @@ preserves W-3 / SI-3 + W-4 / SI-4 invariants by NOT auto-merging on archive.
 Source: v8.3.0 design.md §3.4 — closes gap M-004 from v8.3.0_gap_analysis.md
 (in part — full closure happens when v8.2.5 ArchiveManager.propose_merge ships).
 
+## A-5 — Single-Source-of-Truth Registry Pattern
+
+Every domain registry surface (whitelist / recipe / value-type cache /
+plugin manifest) MUST have **exactly one owner module** — the canonical
+source-of-truth for the registration data. Cross-cutting consumers
+import from the owner module; they never re-define or shadow the
+registration data locally.
+
+The current 5 SSOT registries (v8.4.3 baseline):
+
+| # | Registry surface | Owner module / file |
+|---|---|---|
+| 1 | Plugin catalog | `workflow-system/agent/plugins.yaml` (loaded by `devolaflow.plugins.loader`) |
+| 2 | Runtime plugin registry | `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by `devolaflow.plugins.installer.load_registry`) |
+| 3 | Shell-proxy whitelist | `src/devolaflow/shell_proxy/registry.py::WHITELIST` |
+| 4 | Memory-router case type | `src/devolaflow/memory_router/cache.py::MemoryCase` |
+| 5 | Command-mapping recipe type | `src/devolaflow/shell_proxy/commands.py::CommandMapping` |
+
+### A-5.1 — Single-Owner Invariant
+
+Adding a NEW whitelist / recipe / registry surface requires picking
+**ONE** owner module and routing every consumer through it. Splitting
+the registration data across two modules (e.g. half the whitelist in
+`shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
+invalidates cache reasoning and is a release blocker. Enforced by
+`tests/test_no_ghost_features.py::test_registry_single_owner` which
+fails when an AST walk over `src/devolaflow/` finds more than one
+module-level definition for the same registry name.
+
+### A-5.2 — DEFAULT_ALLOWLIST Hygiene
+
+`scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST` is the registry of
+public APIs that intentionally lack an in-repo production caller. A
+domain-SSOT registry symbol (anything in the table above) MUST NOT
+appear in `DEFAULT_ALLOWLIST` — by definition such symbols ARE
+consumed in-repo by their owner module's siblings. Enforced at script
+import time by `_check_allowlist_domain_overlap(DEFAULT_ALLOWLIST)`
+and at test time by
+`tests/test_dead_apis.py::test_default_allowlist_no_ssot_overlap`.
+
+### A-5.3 — Staged Rollout
+
+A-5 ships **strict** at v8.4.3 (PV-03 of v9.0.0 cycle): the parity
+tests are wired and pass green against the existing 5 registries
+because no current `DEFAULT_ALLOWLIST` entry collides with a domain-
+SSOT name (R-3 mitigation NOT required at v8.4.3 cut). Per
+`.local/research/adr/v9-ADR-003-a5-ssot-registry.md` §"Staged
+rollout", the contingency informational-then-strict path documented
+there fires only if a future PV introduces an existing-allowlist /
+new-registry collision; at v8.4.3 the strict guard is the live
+default.
+
+Source: v9.0.0 SI-1 gap analysis §5.3 (PV-03 owned-files manifest);
+v9.0.0 reference review F-13 closure (3 of the 5 registries surface
+in `references/shell-proxy.md` §11).
+
 # Conventions Rules (P2) — Coding & Format Standards
 
 ## C-1 — Pre-Commit Verification Checklist

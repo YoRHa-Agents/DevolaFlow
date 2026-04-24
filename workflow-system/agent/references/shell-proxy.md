@@ -681,3 +681,40 @@ the unit test alone is insufficient.
   - RTK: https://github.com/rtk-ai/rtk
   - DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
   - NineS: https://github.com/YoRHa-Agents/NineS
+
+---
+
+## 11. Registry SSOT (A-5)
+
+Per Architecture Rule **A-5 — Single-Source-of-Truth Registry Pattern**
+(`AGENTS.md` §"A-5"; `.cursor/rules/repo-governance.mdc` §A-5;
+`.rules/architecture.mdc` §A-5), the shell-proxy + memory-router stack
+ships **3 of the 5 domain-SSOT registries** in DevolaFlow. Each surface
+has exactly one owner module — cross-cutting consumers import from the
+owner; they never re-declare the registration data locally.
+
+| # | Registry symbol | Owner module | In-repo consumers |
+|---|---|---|---|
+| 1 | `WHITELIST: dict[str, Tier]` | `src/devolaflow/shell_proxy/registry.py` | `src/devolaflow/shell_proxy/proxy.py::ShellProxy.wrap_command` (delegates via `match_command`); `src/devolaflow/lifecycle/pre_shell_call.py` (re-uses `match_command` for hook-level enforcement) |
+| 2 | `MemoryCase` (frozen dataclass) | `src/devolaflow/memory_router/cache.py` | `src/devolaflow/memory_router/router.py::MemoryRouter.lookup_case` (constructs via `build_case_from_dict` + invalidates via `is_ttl_expired` / `is_version_stale`) |
+| 3 | `CommandMapping` (frozen dataclass) | `src/devolaflow/shell_proxy/commands.py` | `src/devolaflow/shell_proxy/commands.py::apply_local_recipe` (sibling-module consumer; loads + matches recipes against `WHITELIST` heads via `_match_recipe`) |
+
+The remaining 2 SSOT registries live outside this stack:
+`workflow-system/agent/plugins.yaml` (loaded by `devolaflow.plugins.loader`)
+and `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by
+`devolaflow.plugins.installer.load_registry`).
+
+**A-5 enforcement (CI guards)**
+
+- `tests/test_no_ghost_features.py::test_registry_single_owner` —
+  AST-walks `src/devolaflow/` and fails when more than one module-level
+  definition (`class`, `def`, `Assign`, `AnnAssign`) exists for any
+  registry name above. Adding a NEW whitelist / recipe / cache surface
+  MUST pick a single owner per A-5.1.
+- `scripts/detect_dead_apis.py::_check_allowlist_domain_overlap` +
+  `tests/test_dead_apis.py::test_default_allowlist_no_ssot_overlap` —
+  reject any `DEFAULT_ALLOWLIST` entry that names a domain-SSOT symbol
+  per A-5.2 (such symbols HAVE in-repo callers, so they are not eligible
+  for the "no production caller" allowlist).
+- ADR: `.local/research/adr/v9-ADR-003-a5-ssot-registry.md` (rationale,
+  alternatives considered, staged rollout).

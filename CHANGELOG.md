@@ -5,6 +5,60 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.4.3] — 2026-04-24
+
+**PATCH — v9.0.0 cycle PV-03: codify Architecture Rule A-5 (Single-Source-of-Truth Registry Pattern) + DEFAULT_ALLOWLIST parity test.** Third published patch of the v9.0.0 MAJOR cycle, closing **C-02** (Theme T2 deliverable) from `.local/research/v9.0.0_gap_analysis.md` §5.3. Codifies the "every domain registry surface has exactly ONE owner module" pattern that has been applied informally across 5 registry generations (v8.2.1 plugins.yaml + v8.3.1 runtime-plugins.yaml + v8.3.2 shell-proxy WHITELIST + v8.3.3 memory-router MemoryCase + v8.3.4 shell-proxy CommandMapping). Per the v9.0.0 SI-1 reference review F-13 trail, the discipline was already documented in module docstrings and the v8.4.0 RTK NineS analysis, but never lifted to a binding architecture rule with CI enforcement. PV-03 lifts it. The PV touches **10 files** in a single coordinated PR per `.local/research/v9.0.0_implementation_plan.md` §6.3: 1 NEW test function (`test_registry_single_owner` in `tests/test_no_ghost_features.py`) + 1 NEW ADR (`v9-ADR-003-a5-ssot-registry.md`) + 8 MODIFIED (`.cursor/rules/repo-governance.mdc` + `.rules/architecture.mdc` + `AGENTS.md` + `scripts/detect_dead_apis.py` + `tests/test_dead_apis.py` + `workflow-system/agent/references/shell-proxy.md` + 7 canonical version-sync locations + `CHANGELOG.md`). The cycle preserves the **I-8 invariant** rigorously: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5); A-5 is a `.rules/architecture.mdc` extension, not a schema or runtime touch.
+
+**A-5 single-owner invariant + DEFAULT_ALLOWLIST hygiene** ship strict at v8.4.3 because R-3 (the rollout-blocking contingency for "parity test rejects EXISTING DEFAULT_ALLOWLIST entries") was NOT triggered: a pre-implementation audit confirmed that NONE of the 3 Python-backed SSOT registry qualified names (`devolaflow.shell_proxy.registry:WHITELIST`, `devolaflow.memory_router.cache:MemoryCase`, `devolaflow.shell_proxy.commands:CommandMapping`) appears in the live 188-entry `DEFAULT_ALLOWLIST`. The contingency informational-then-strict rollout path is documented in `v9-ADR-003` §"D3 Staged Rollout" for posterity but is not invoked at the v8.4.3 cut. The strict guard runs at TWO independent checkpoints: (1) `tests/test_no_ghost_features.py::test_registry_single_owner` AST-walks `src/devolaflow/**/*.py` and asserts each Python-backed registry symbol has exactly ONE module-level definer matching the canonical owner path (file-path uniqueness suffices for the YAML-backed pair); (2) `scripts/detect_dead_apis.py` declares `SSOT_REGISTRY_QUALIFIED_NAMES: frozenset[str]` + helper `_check_allowlist_domain_overlap(allowlist, registry_names)` and asserts at IMPORT TIME that `DEFAULT_ALLOWLIST` has empty overlap; the helper is also exercised explicitly by `tests/test_dead_apis.py::test_default_allowlist_no_ssot_overlap` and `::test_check_allowlist_domain_overlap_helper_detects_collisions`.
+
+**`references/shell-proxy.md` §11 NEW "Registry SSOT (A-5)" cross-link** closes the F-13 documentation gap from `.local/research/v9.0.0_reference_review.md` (the original F-13 entry flagged the absence of a "5th canonical lifecycle hook" discoverability surface; the §11 cross-link addresses the parallel "3 SSOT registries" discoverability surface that F-13 also called out implicitly via the `single-source-of-truth pattern` term used in the RTK NineS analysis evidence). The new section enumerates the 3 shell-proxy + memory-router registries with per-registry consumer lists, names the remaining 2 SSOT registries (the YAML pair), and documents the 2 CI guards by full path so a triage operator can re-run them locally. The reference grows 683 → 720 lines, still 72% of the SF-1 Large tier 1000-line ceiling — no headroom risk.
+
+**Auto-regenerated AGENTS.md + `.cursor/rules/repo-governance.mdc`** via `RuleCompiler.compile_all()` after the `.rules/architecture.mdc` A-5 source append (~+56 lines of source rule body produces ~+56 lines of mirrored output in each target). Compiler reports `cursor: 6391/8000 tokens, layers: ['soul', 'architecture', 'conventions', 'workflow', 'style']` and `agents_md: 5358/6000 tokens, layers: ['soul', 'architecture', 'conventions', 'workflow']` — both well within budget; AGENTS.md at 89% headroom utilisation tracked as deferred for the v9.0.0 retrospective should the next major rule addition need a ceiling bump or compression pass.
+
+### Highlights
+
+- **PV-03 of v9.0.0 cycle ACCEPT** (3/8 PVs scheduled; lifetime 52/52 = 100% accept rate; v9.0.0 cycle theme: consolidate 8-cycle Karpathy-emergence platform per `.local/research/v9.0.0_gap_analysis.md` §1.4)
+- **0 P6 cache-layout transitions** — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical (length 16 / version 5); I-8 invariant intact
+- **C-02 closed** — Architecture Rule A-5 codified in `.rules/architecture.mdc` + auto-mirrored to `.cursor/rules/repo-governance.mdc` + `AGENTS.md` (3 sub-clauses: A-5.1 Single-Owner Invariant, A-5.2 DEFAULT_ALLOWLIST Hygiene, A-5.3 Staged Rollout); 5-row registry table enumerates all 5 SSOT surfaces (3 Python + 2 YAML)
+- **F-13 closed** — `references/shell-proxy.md` NEW §11 "Registry SSOT (A-5)" cross-links the 3 stack-local registries with per-registry consumer lists (~+37 LOC); discoverability gap resolved
+- **R-3 NOT triggered** — pre-implementation audit confirmed empty overlap between `DEFAULT_ALLOWLIST` (188 entries) and `SSOT_REGISTRY_QUALIFIED_NAMES` (3 entries); A-5 ships strict from v8.4.3 with no migration path required; staged rollout documented in `v9-ADR-003` §D3 for posterity
+- **+3 NEW tests** (3279 → 3282 total): `test_registry_single_owner` (test_no_ghost_features.py) + `test_default_allowlist_no_ssot_overlap` + `test_check_allowlist_domain_overlap_helper_detects_collisions` (test_dead_apis.py); under the +5 PV-03 cap forecast
+- **2 NEW reusable surfaces in `scripts/detect_dead_apis.py`**: `SSOT_REGISTRY_QUALIFIED_NAMES: frozenset[str]` constant + `_check_allowlist_domain_overlap(allowlist, registry_names) -> set[str]` helper; the script-import-time guard raises `AssertionError` with a precise A-5.2 message on any future violation (per Soul Rule S-5, no silent failure)
+- **NEW v9-ADR-003-a5-ssot-registry.md** (423 LOC) codifies the pattern definition + parity-test enforcement + staged rollout in 4 sections (Context, Decision D1-D4, Rationale, Consequences) + 4 Alternatives Considered (defer to v9.0.0 release / promote to Soul Rule / skip rule-level codification / decorator-based marking — all rejected with reasoning)
+- **EvoBench composite holds** (`v9.0.0_baseline.json` floor preserved per W-4); `tests/test_benchmarks.py` 36/36 PASS; no scenario drift > 5% vs baseline
+- **Test cap honored**: ≤ +5 tests forecast → 3 actual NEW tests; well within budget
+
+### Files Changed (per PV-03 owned-files manifest)
+
+**NEW (2 files):**
+
+- `tests/test_no_ghost_features.py::test_registry_single_owner` — NEW CI guard for A-5.1 single-owner invariant (~+50 LOC of test function; +~70 LOC of supporting `_SSOT_PYTHON_REGISTRIES` / `_SSOT_YAML_REGISTRIES` declarations + `_module_level_definers` AST helper + `_node_defines_symbol` predicate; total file growth 711 → 830 lines)
+- `.local/research/adr/v9-ADR-003-a5-ssot-registry.md` — NEW ADR-003 (423 LOC; D1 Pattern Definition + D2 Parity-Test Enforcement + D3 Staged Rollout + D4 §11 Cross-Link + Rationale + 5 Consequences + 4 Alternatives Considered + Migration + Test Plan + A-5 Compliance for the Rule Itself + Cross-References)
+
+**MODIFIED:**
+
+- `.rules/architecture.mdc` — A-5 source body appended (~+56 LOC; the rule + 3 sub-clauses + 5-row registry table); compiler input layer; file growth 91 → 147 lines
+- `.cursor/rules/repo-governance.mdc` — auto-regenerated via `RuleCompiler.compile_all()` to mirror the architecture layer (~+56 LOC); file growth 432 → 488 lines
+- `AGENTS.md` — auto-regenerated via the same compiler call (~+56 LOC); file growth 354 → 410 lines; `agents_md: 5358/6000 tokens` (89% budget utilisation, no truncation triggered)
+- `scripts/detect_dead_apis.py` — NEW `SSOT_REGISTRY_QUALIFIED_NAMES: frozenset[str]` constant + NEW `_check_allowlist_domain_overlap(allowlist, registry_names)` helper + NEW import-time `AssertionError` guard (~+57 LOC including docstrings + comments; file growth 687 → 744 lines)
+- `tests/test_dead_apis.py` — NEW `test_default_allowlist_no_ssot_overlap` + `test_check_allowlist_domain_overlap_helper_detects_collisions` (~+48 LOC; file growth 345 → 395 lines)
+- `workflow-system/agent/references/shell-proxy.md` — NEW §11 "Registry SSOT (A-5)" section cross-linking the 3 shell-proxy + memory-router registries (~+37 LOC; file growth 683 → 720 lines)
+- 7 canonical version-sync locations per CP-3 / W-10 — `8.4.2` → `8.4.3` (`__init__.py`, `pyproject.toml`, SKILL.md frontmatter + banner + body, `workflow-skill.yaml`, `generate_human_docs.py`, `test_smoke.py`, `README.md` badge + version example, `benchmark-results/index.html` SAMPLE_DATA version)
+
+**DELETED:** none.
+
+### Cross-references
+
+- v9.0.0 SI-1 planning gate: `.local/research/v9.0.0_gap_analysis.md` §5.3 (PV-03 closes C-02)
+- v9.0.0 SI-1 reference review: `.local/research/v9.0.0_reference_review.md` §F-13 (the `single-source-of-truth pattern` evidence trail in the RTK NineS analysis)
+- v9.0.0 PV-03 implementation plan: `.local/research/v9.0.0_implementation_plan.md` §6.3 (5 stages, 5 waves, 7 tasks)
+- v9.0.0 PV-03 ADR: `.local/research/adr/v9-ADR-003-a5-ssot-registry.md` (D1-D4 + Rationale + 5 Consequences + 4 Alternatives Considered)
+- v9.0.0 PV-02 ADR (sister codification): `.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md` (A-2 generalisation; same pattern: codify-informal-practice as binding architecture rule)
+- v9.0.0 PV-01 ADR (predecessor): `.local/research/adr/v9-ADR-001-skill-headroom-reclamation.md`
+- Predecessor analysis: `.local/research/v8.4.0_rtk_nines_analysis.md` §4.1 (RTK `src/discover/registry.rs` single-source-of-truth pattern that originally inspired the shell-proxy whitelist design)
+- DevolaFlow canonical URL (per S-7): https://github.com/YoRHa-Agents/DevolaFlow
+- NineS canonical URL (per S-7): https://github.com/YoRHa-Agents/NineS
+
 ## [8.4.2] — 2026-04-24
 
 **PATCH — v9.0.0 cycle PV-02: 9-reference coordinated refresh + 11 frontmatter bumps + cache-layout governance v2 + drift CI guards.** Second published patch of the v9.0.0 MAJOR cycle, closing the **B-02 BLOCKER** (cache-layout governance v2 — codification of the nest-vs-append decision rule that has been applied informally across 5 prior schema generations) plus **9 reference findings** (F-02 / F-03 / F-04 body / F-07 / F-08 / F-09 short+long term / F-10 / F-11 / F-12 / F-13 / F-15) from `.local/research/v9.0.0_reference_review.md`. The PV touches 23 files in a single coordinated PR per `.local/research/v9.0.0_implementation_plan.md` §6.2: 7 NEW (`tests/test_layout_invariant_multi_baseline.py` + 3 NEW golden YAMLs + `tests/test_reference_frontmatter_freshness.py` + `tests/test_reference_api_alignment.py` + `.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md`) + 16 MODIFIED (10 SF-4 references + `schemas/lean-dispatch.yaml#layout_invariant` doc comments + `src/devolaflow/compressor.py::assert_dispatch_layout` + `.cursor/rules/repo-governance.mdc` A-2 + `.rules/architecture.mdc` A-2 + `AGENTS.md` regen + 7 canonical version-sync locations + `CHANGELOG.md`). The cycle achieves **0 P6 cache-layout invariant transitions** as planned — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical pre/post v8.4.2 (length 16 / version 5).
