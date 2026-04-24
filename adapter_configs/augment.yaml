@@ -1,0 +1,21 @@
+# Augment Code adapter — .augment/rules/ workspace rules surface
+# Augment Code reads .augment/rules/*.md (single-file or multi-file) for
+# repo-scoped AI guidance; DevolaFlow ships its SKILL body + references there
+# with frontmatter stripped per Augment's consumption convention.
+name: augment
+display_name: Augment Code
+version_added: "9.0.1"
+tier: tier_2
+output:
+  base_dir: ".augment/rules"
+  files:
+    - source: "SKILL.md"
+      target: "devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "devola-flow.md"

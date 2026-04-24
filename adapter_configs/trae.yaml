@@ -1,0 +1,21 @@
+# Trae adapter — ByteDance AI IDE, Cursor-compatible rules surface
+# Trae mirrors the Cursor rules convention at .trae/rules/*.md for repo-scoped
+# AI guidance; DevolaFlow ships its SKILL body + references there with
+# frontmatter stripped so the Trae runtime parses the markdown body directly.
+name: trae
+display_name: Trae
+version_added: "9.0.1"
+tier: tier_2
+output:
+  base_dir: ".trae/rules"
+  files:
+    - source: "SKILL.md"
+      target: "devola-flow.md"
+      transform: strip_frontmatter
+    - source: "references"
+      target: "references"
+      transform: copy_tree
+budget:
+  type: lines
+  max: 800
+  target_file: "devola-flow.md"
