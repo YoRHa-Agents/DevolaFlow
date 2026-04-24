@@ -60,6 +60,18 @@ scaffold-agent:
 agent-reports:
 	python -m devolaflow.agent_workspace.reporter --all
 
+# v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild NineS index.
+# Wraps `nines analyze --target-path . --depth deep --agent-impact --keypoints`
+# via `devolaflow.nines.researcher.rebuild_index`. Refreshes the NineS
+# index so `index_recall` recovers from the v8.4.x baseline of 0.8 to
+# the cycle target 0.85+ (per .local/research/v9.0.0_pv05_design.md §1.2).
+# Re-run after a `data/golden_test_set/` refresh or a fresh checkout.
+.PHONY: nines-index-rebuild
+nines-index-rebuild:
+	python -c "from devolaflow.nines.researcher import rebuild_index; \
+import json; r = rebuild_index(project_root='.', src_dir='src/devolaflow', timeout=300); \
+print(json.dumps({'ok': True, 'keys': sorted(r.keys()) if isinstance(r, dict) else 'non-dict'}))"
+
 check-drift:
 	check-drift
 

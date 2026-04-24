@@ -71,7 +71,7 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the SF-3 contract (12-refs / 3-examples since v8.4.1 PV-01).
+    """Sanity: shape matches the SF-3 contract (13-refs / 3-examples since v8.5.0 PV-05).
 
     v8.0.0 P-08 grew the reference set 8 → 9 by appending
     ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
@@ -99,8 +99,15 @@ def test_canonical_lists_match_sf3_contract() -> None:
     + §"Reinforcement Rules" mechanism, freeing ~57 lines of SKILL.md
     headroom and closing R7 carry-forward + B-01 SKILL.md ceiling crisis
     from .local/research/v9.0.0_gap_analysis.md §3.1).
+
+    v9.0.0 PV-05 (v8.5.0) grew the reference set 12 → 13 by appending
+    ``references/env-flags.md`` (the canonical DEVOLAFLOW_* env-var
+    inventory: 8 active runtime flags + 6 forward-declared gate-primitive
+    flags + 4 BG default-on primitives + 3 test-fixture flags). Pairs with
+    Workflow Rule W-20 (env-flag reuse vs new-flag policy) so the rule has
+    a single source of truth to enforce against.
     """
-    assert len(_REF_FILES) == 12, f"expected 12 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 13, f"expected 13 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

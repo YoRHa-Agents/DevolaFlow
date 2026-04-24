@@ -2,8 +2,8 @@
 """Sync .cursor/skills/devola-flow/ to the canonical workflow-system/agent/ skill.
 
 This is the repo-local project-skill mirror that Cursor picks up when the user
-opens the DevolaFlow repo itself. It mirrors EXACTLY the 16 files that
-scripts/install.sh::install_cursor downloads (SKILL.md + 12 references + 3
+opens the DevolaFlow repo itself. It mirrors EXACTLY the 17 files that
+scripts/install.sh::install_cursor downloads (SKILL.md + 13 references + 3
 examples), plus a single-line .devola-flow-version stamp equal to
 src/devolaflow/__init__.py __version__.
 
@@ -29,7 +29,7 @@ import shutil
 import sys
 from pathlib import Path
 
-# Set must match scripts/install.sh::install_cursor (SKILL + 12 refs + 3 examples).
+# Set must match scripts/install.sh::install_cursor (SKILL + 13 refs + 3 examples).
 # Edit BOTH files in lockstep if you ever change what Cursor users receive.
 # v8.0.0 P-08 grew this set 12 -> 13 by appending references/behavioral-guidelines.md
 # (the L3 behavioral primitives reference wired through the new top-level
@@ -46,6 +46,10 @@ from pathlib import Path
 # Awareness" PLAN MODE detail + §"Reinforcement Rules" mechanism, freeing
 # ~57 lines of SKILL.md headroom and closing R7 carry-forward + B-01 from
 # .local/research/v9.0.0_gap_analysis.md).
+# v9.0.0 PV-05 (v8.5.0) grew this set 16 -> 17 by appending references/env-flags.md
+# (the canonical DEVOLAFLOW_* env-var inventory: 8 active runtime flags + 6
+# forward-declared gate-primitive flags + 4 BG defaults + 3 test-fixture flags).
+# Pairs with Workflow Rule W-20 (env-flag reuse vs new-flag policy).
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
@@ -62,6 +66,8 @@ MIRRORED_FILES = [
     "references/behavioral-guidelines.md",
     "references/shell-proxy.md",
     "references/plan-mode-enforcement.md",
+    # v8.5.0 PV-05 — 13th SF-4 canonical reference (env-flag inventory).
+    "references/env-flags.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

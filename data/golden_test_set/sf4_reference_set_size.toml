@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-sf4-018"
+name = "sf4-reference-set-cardinality-v8.5.0"
+description = "v8.5.0 PV-05 — SF-4 canonical reference set grows from 12 → 13 with the addition of references/env-flags.md as the 13th canonical (per Open Decision §9.2 #2 = both A1 + A2 land)"
+dimension = "code_quality"
+difficulty = 1
+
+[task.input]
+type = "code"
+language = "python"
+source = "len(_SF4_REFERENCE_SET) == 13"
+
+[task.expected]
+type = "text"
+value = "len(_SF4_REFERENCE_SET) == 13"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

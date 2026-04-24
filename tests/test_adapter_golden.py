@@ -92,7 +92,7 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 12 canonical reference files must be copied into ``references/``.
+    """All 13 canonical reference files must be copied into ``references/``.
 
     v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
     (the L3 behavioral primitives reference wired through the new top-level
@@ -116,7 +116,13 @@ def test_cursor_references_golden(cursor_build):
     reference absorbing SKILL.md §"Mode Awareness" PLAN MODE detail +
     §"Reinforcement Rules" mechanism into a single Tier-2 reference,
     freeing ~57 lines of SKILL.md headroom and closing R7 carry-forward
-    + B-01 SKILL.md ceiling crisis from v9.0.0 SI-1 gap analysis)."""
+    + B-01 SKILL.md ceiling crisis from v9.0.0 SI-1 gap analysis).
+
+    v9.0.0 PV-05 (v8.5.0) grew this set 12 → 13 by appending
+    ``env-flags.md`` (the canonical DEVOLAFLOW_* env-var inventory:
+    8 active runtime flags + 6 forward-declared gate-primitive flags
+    + 4 BG defaults + 3 test-fixture flags). Pairs with Workflow Rule
+    W-20 (env-flag reuse vs new-flag policy)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -127,7 +133,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 12, f"expected 12 reference files, got {len(actual)}"
+    assert len(actual) == 13, f"expected 13 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

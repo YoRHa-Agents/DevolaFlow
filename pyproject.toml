@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devolaflow"
-version = "8.4.4"
+version = "8.5.0"
 description = "Composable workflow meta-framework with 4-layer agent hierarchy, gate quality mechanisms, and multi-tool skill delivery."
 readme = "README.md"
 license = {text = "MIT"}
@@ -49,6 +49,15 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "persistence_probe: v7.0.3 cross-stage persistence probe (ADR-004)",
+    # v8.5.0 PV-05 — second marker class per M-05 (T10). Use
+    # `@pytest.mark.deferred(strict=True, reason="...")` on a test the
+    # owner explicitly wants to defer to a future PV. `strict=True`
+    # makes the marker assert that the test is currently skipped (so
+    # it cannot silently be flipped back ON without ADR-005 sign-off).
+    # Pairs with `tests/conftest.py::pytest_collection_modifyitems`
+    # which honours the marker by skipping with a clear xfail-like
+    # message that surfaces the deferral reason in the pytest summary.
+    "deferred: opt-in skip with deferral reason (PV-05 W-rules surface)",
 ]
 
 [tool.ruff]
@@ -64,6 +73,15 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
 [tool.coverage.run]
 source = ["devolaflow"]
 omit = ["tests/*"]
+# v8.5.0 PV-05 (T8 NineS Hygiene A1 closure, path-a) — `parallel = false`
+# explicitly disables coverage.py's parallel mode so a NineS-spawned
+# `pytest --cov` invocation does NOT collect into a separate `.coverage.*`
+# data file that the host run subsequently fails to combine. Path (b)
+# (drop nested cov collection in `src/devolaflow/nines/scorer.py`) was
+# rejected because that module is a thin CLI wrapper and the cov call is
+# internal to the NineS binary — the host-side fix here is the safe one.
+# See .local/research/v9.0.0_pv05_design.md §2 for the full rationale.
+parallel = false
 
 [tool.coverage.report]
 fail_under = 80

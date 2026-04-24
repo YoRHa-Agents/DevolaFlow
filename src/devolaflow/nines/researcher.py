@@ -186,6 +186,54 @@ def run_skill_iteration(
     return _run_cli(cmd, timeout)
 
 
+def rebuild_index(
+    *,
+    project_root: str | None = None,
+    src_dir: str | None = None,
+    timeout: int = 300,
+) -> dict:
+    """v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild NineS index.
+
+    Wraps ``nines analyze --target-path <project_root> --depth deep
+    --agent-impact --keypoints`` to force a full re-walk of the source
+    tree. The v3.3.0 NineS CLI does not expose a dedicated
+    ``--rebuild-index`` flag, so the deep-analyze-with-keypoints
+    invocation is the canonical equivalent — it discards any cached
+    index and walks every file referenced by the project root.
+
+    Used by the ``Makefile`` ``nines-index-rebuild`` target so operators
+    have a single command to refresh ``index_recall`` after a
+    ``data/golden_test_set/`` update or a fresh checkout.
+
+    Parameters
+    ----------
+    project_root:
+        Project root to index. Defaults to ``"."`` if not provided.
+    src_dir:
+        Optional source directory hint passed via ``--src-dir`` for
+        environments where the project root and source root differ.
+    timeout:
+        CLI timeout in seconds (default 300 — matches the NineS deep
+        analyze upper bound after the ``[eval] timeout = 180`` bump in
+        v8.5.0 PV-05).
+    """
+    cmd = [
+        "nines",
+        "-f",
+        "json",
+        "analyze",
+        "--target-path",
+        project_root or ".",
+        "--depth",
+        "deep",
+        "--agent-impact",
+        "--keypoints",
+    ]
+    if src_dir:
+        cmd.extend(["--src-dir", src_dir])
+    return _run_cli(cmd, timeout)
+
+
 def run_nines_benchmark(
     target_path: str,
     *,

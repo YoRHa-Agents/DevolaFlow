@@ -341,6 +341,17 @@ _SF4_REFERENCE_SET = frozenset(
         # convergence loop mechanics, and stagnation-escalation protocol.
         # Pairs with src/devolaflow/gate/reinforcement.py (W-8 / SI-9).
         "plan-mode-enforcement.md",
+        # v9.0.0 PV-05 (v8.5.0) — DEVOLAFLOW_* env-flag inventory reference.
+        # Single source of truth for the 8 active runtime flags
+        # (PLAN_MODE, RTK_PROXY, RTK_PROXY_TIER2, MEMORY_ROUTER, AUTO_INSTALL,
+        # NINES_EDITABLE_PATH, PROBE_SCENARIO, MOCK_KEY) + the 6 forward-
+        # declared gate-primitive flags scheduled for v8.5.1 PV-06 flip
+        # (TOKEN_BUDGET_BREAKER, CYCLE_DETECTOR, GATE_RATCHET,
+        # COMPLEXITY_DETECTOR, AC_GEN, LEGIBILITY_CHECK) + the 4 Karpathy
+        # default-on behavioral primitives (BG-001..BG-004). Pairs with
+        # Workflow Rule W-20 (env-flag reuse vs new-flag policy) so the
+        # rule has an actionable inventory to enforce against.
+        "env-flags.md",
     }
 )
 
@@ -412,6 +423,94 @@ def test_reference_skill_md_tier2_parity(project_root: Path) -> None:
         f"_SF4_REFERENCE_SET — missing rows: {sorted(missing_in_nav)}, "
         f"extra rows: {sorted(extra_in_nav)}. Canonical SF-4 set has "
         f"{len(canonical_set)} entries; SKILL.md Tier-2 nav has {len(nav_set)}."
+    )
+
+
+def test_ghost_audit_refresh_present(project_root: Path) -> None:
+    """v9.0.0 PV-05 NEW (Workflow Rule W-18 enforcement).
+
+    Asserts that the latest CHANGELOG `## [vX.Y.Z]` entry references at
+    least one identifier that surfaces in this ghost-audit module — the
+    W-18 contract: every CHANGELOG entry mentioning a feature MUST have
+    a corresponding ghost-audit lint somewhere in this file (per S-4
+    "no ghost features" + the W-18 sharpening that adds the SEQUENCING
+    requirement: refresh the audit BEFORE landing the CHANGELOG entry).
+
+    Mechanism (intentionally lightweight to avoid regex / NLP coupling):
+
+    1. Read the current `__version__` from ``src/devolaflow/__init__.py``.
+    2. Find the corresponding ``## [<version>]`` block in CHANGELOG.md
+       (or fall back to the most recent ``## [vX.Y.Z]`` block if the
+       block for the current version has not yet been authored).
+    3. Confirm the block is NON-EMPTY and has at least one bullet that
+       cites a feature (rough heuristic: at least one bullet contains a
+       backticked code identifier or a CamelCase symbol).
+    4. Confirm THIS module (test_no_ghost_features.py) is non-empty —
+       the existence + structure of this file is the W-18 audit
+       artifact.
+
+    The test is intentionally LENIENT — its purpose is to catch the
+    case where a future PV silently empties the audit module or skips
+    the CHANGELOG entry entirely. It is NOT a substitute for the per-
+    feature lint tests above; those carry the strict pass/fail
+    semantics. This test is the meta-guarantee that the audit-as-a-set
+    stays alive at every PV.
+    """
+    init_text = _read(project_root / "src/devolaflow/__init__.py")
+    version_match = re.search(r'__version__\s*=\s*"([^"]+)"', init_text)
+    assert version_match, "Cannot find __version__ in src/devolaflow/__init__.py"
+    current_version = version_match.group(1)
+
+    changelog = _read(project_root / "CHANGELOG.md")
+    block_re = re.compile(rf"## \[{re.escape(current_version)}\](.*?)(?=\n## \[|\Z)", re.DOTALL)
+    m = block_re.search(changelog)
+    if m is None:
+        any_block_re = re.compile(r"## \[\d+\.\d+\.\d+[^\]]*\](.*?)(?=\n## \[|\Z)", re.DOTALL)
+        m = any_block_re.search(changelog)
+    assert m is not None, "CHANGELOG.md has no ## [vX.Y.Z] block at all"
+
+    block = m.group(1)
+    has_feature_citation = bool(
+        re.search(r"`[A-Za-z_][A-Za-z0-9_./-]+`", block)
+        or re.search(r"\b[A-Z][a-zA-Z0-9]+[A-Z][a-zA-Z0-9]+\b", block)
+    )
+    assert has_feature_citation, (
+        f"CHANGELOG block for {current_version!r} (or most-recent fallback) "
+        f"has no feature citation (backticked identifier or CamelCase symbol). "
+        f"W-18: every CHANGELOG entry mentioning a feature MUST have a "
+        f"ghost-audit lint backing it."
+    )
+
+    audit_path = Path(__file__)
+    audit_text = audit_path.read_text(encoding="utf-8")
+    assert len(audit_text) > 0, "ghost-audit module is empty — W-18 violation"
+    assert "_SF4_REFERENCE_SET" in audit_text, (
+        "ghost-audit module is missing the _SF4_REFERENCE_SET pin — W-18 violation"
+    )
+
+
+def test_deferred_marker_class_registered(project_root: Path) -> None:
+    """v9.0.0 PV-05 NEW (M-05 ``@pytest.mark.deferred`` marker class).
+
+    Asserts that the second marker class (alongside ``persistence_probe``)
+    is declared in ``pyproject.toml [tool.pytest.ini_options] markers``
+    and honoured by the ``pytest_collection_modifyitems`` hook in
+    ``tests/conftest.py``. The M-05 ADR-005 D2 records the rationale.
+    """
+    pyproject = _read(project_root / "pyproject.toml")
+    assert "markers = [" in pyproject, "pyproject.toml has no [tool.pytest] markers section"
+    assert '"deferred:' in pyproject, (
+        "pyproject.toml [tool.pytest] markers list missing the 'deferred' marker class — "
+        "M-05 ADR-005 D2 violation"
+    )
+    conftest = _read(project_root / "tests/conftest.py")
+    assert "pytest_collection_modifyitems" in conftest, (
+        "tests/conftest.py missing pytest_collection_modifyitems hook — "
+        "the deferred marker has no runtime honour mechanism"
+    )
+    assert 'get_closest_marker("deferred")' in conftest, (
+        "tests/conftest.py pytest_collection_modifyitems does not consult the "
+        "deferred marker — M-05 violation"
     )
 
 

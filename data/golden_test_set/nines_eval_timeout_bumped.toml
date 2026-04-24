@@ -1,0 +1,19 @@
+[task]
+id = "devolaflow-nines-020"
+name = "nines-eval-timeout-bumped-180s"
+description = "v8.5.0 PV-05 (T8 NineS Hygiene A1 closure path-a) — nines.toml [eval] timeout bumped from 60s to 180s so the upstream pytest --cov collector has 3.3× the previous budget and stops reporting code_coverage: 0.0 timeout artifacts"
+dimension = "code_quality"
+difficulty = 2
+
+[task.input]
+type = "code"
+language = "toml"
+source = "[eval] timeout = 180"
+
+[task.expected]
+type = "text"
+value = "[eval] timeout = 180"
+
+[task.golden]
+expected_score = 1.0
+scorer = "exact"

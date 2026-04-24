@@ -185,6 +185,8 @@ _MIRRORED_SKILL_FILES = [
     "references/behavioral-guidelines.md",
     "references/shell-proxy.md",
     "references/plan-mode-enforcement.md",
+    # v8.5.0 PV-05 — 13th SF-4 canonical reference (env-flag inventory).
+    "references/env-flags.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
