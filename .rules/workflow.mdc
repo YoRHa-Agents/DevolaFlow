@@ -173,3 +173,47 @@ Authoring requirements for a justified new flag:
 * Cite the new flag by name in the CHANGELOG `## [vX.Y.Z]` entry under "Operator-visible behaviour change".
 
 Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + `references/env-flags.md` §7.
+
+## W-21 — Soul-Set Freeze Governance
+
+The Soul rule layer (S-1..S-N) is FROZEN at the count established by the
+most recent MAJOR or MINOR cycle release. Any proposed addition (S-(N+1))
+MUST satisfy ALL of the following BEFORE landing:
+
+1. **2-cycle telegraph**: the proposing L0 / human authors a deferral note
+   in cycle N's retrospective (§3 "What was deferred and why") flagging
+   the proposed S-(N+1) for cycle N+2 review. Cycle N+1 explicitly
+   does NOT consider the addition — the 2-cycle gap is mandatory and
+   forces deliberate consideration across at least one full release
+   cadence.
+2. **SI-1 gap-analysis entry in cycle N+2** documenting: (a) the
+   immutable invariant the new rule enforces, (b) why no existing
+   S-* / A-* / W-* rule covers the invariant, (c) the proposed CI-time
+   enforcement surface (test name + module path), (d) the per-cycle
+   review trail (the §3 deferral note from cycle N).
+3. **SI-3 evaluation §3.2 architecture-rationality score ≥ 9.5/10**
+   from cycle N+2's L0. Soul additions are architectural decisions of
+   the highest priority — the score floor is stricter than the
+   minor-release composite ≥ 8.5 / major ≥ 9.0 thresholds because
+   every Soul rule is an immutable invariant whose lifetime cost is
+   the multiplicative product of (every future agent dispatch) ×
+   (every future code change) × (every future audit).
+4. **Soul cap**: post-addition Soul layer count MUST stay ≤ 12. Beyond
+   that the immutable-invariant semantics weaken because the cumulative
+   invariant set becomes unmemorable. Future invariants beyond cap 12
+   move to Architecture (P1) instead.
+
+Current Soul-set freeze locks at **10 entries** (S-1..S-10) at v9.0.0
+release. Any proposed S-11 must be telegraphed in v9.0.0's retrospective
+(deferred to v9.2.0 — cycle N+2), gap-analysed in v9.2.0 SI-1, and pass
+v9.2.0 L0's SI-3 §3.2 ≥ 9.5/10.
+
+Enforcement: W-21 is a HUMAN-side gating rule (no automated CI lint —
+the gating IS the multi-cycle deliberation requirement). The
+`tests/test_no_ghost_features.py::test_rule_count_under_cap` lint
+enforces the broader 60-rule cap (per ADR-007 D5) but does NOT separately
+enforce the Soul-specific 12-cap; that gate IS the SI-3 review.
+
+Source: v9.0.0 PV-07 — codified per
+`.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4
+(Soul-set freeze governance).

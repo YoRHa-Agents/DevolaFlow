@@ -237,6 +237,101 @@ meta:
       standard: false
       relaxed: false
 
+  # v9.0.0 PV-07 (v9.0.0) — Per-task-type AGENTS.md slicing.
+  #
+  # Codified per .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md
+  # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
+  #
+  # When ``enabled: true``, select_agents_md_slice(task_type) (in
+  # task_adaptive_selector.py) filters the compiled AGENTS.md content per
+  # the per-profile layer-prefix mapping below, hiding rules irrelevant
+  # to the task type. Default ``enabled: false`` preserves v8.5.1
+  # byte-identical full-AGENTS.md behaviour for every dispatcher that
+  # has not opted in (R5 strict — pinned by tests/test_pv07_agents_md_slice.py).
+  #
+  # The slice never reorders or rewrites canonical rules — it only
+  # HIDES rules irrelevant to the task type. Top-level layer headings
+  # (# Soul Rules, # Architecture Rules, ...) are preserved if any rule
+  # in that layer survives; layers with all rules dropped are skipped
+  # entirely (header dropped too).
+  #
+  # Layer values:
+  #   "all"           — keep every rule in the layer
+  #   ["A-1", "A-2"]  — keep only the listed rule IDs
+  #   (key omitted)   — skip the entire layer (drop the layer header too)
+  #
+  # The 9 canonical task-profile slices are documented verbatim in
+  # .local/research/v9.0.0_pv07_rule_audit.md §2.2. Operators with custom
+  # profiles add new entries under ``profiles.<profile_name>``.
+  #
+  # MAJOR semver justification: when an operator opts into slicing, the
+  # cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70%
+  # depending on task type. For long-running L0 sessions that cache the
+  # AGENTS.md prefix between dispatches, this is an observable change in
+  # the input prompt — downstream tools that audit / log prompts will
+  # see different content.
+  agents_md_slice:
+    enabled: false
+    fallback: full
+    profiles:
+      hotfix:
+        soul: all
+        architecture: ["A-1", "A-2"]
+        conventions: ["C-1", "C-2", "C-3", "C-8"]
+        workflow: ["W-9", "W-11"]
+      feature:
+        soul: all
+        architecture: all
+        conventions: all
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-10", "W-11", "W-12", "W-13", "W-14", "W-15"]
+        style: ["ST-1", "ST-3", "ST-4", "ST-7"]
+      research:
+        soul: all
+        architecture: ["A-1"]
+        conventions: ["C-1", "C-2", "C-3"]
+        workflow: ["W-1", "W-2"]
+      refactor:
+        soul: all
+        architecture: all
+        conventions: all
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-10", "W-11", "W-12", "W-13", "W-14", "W-15", "W-18"]
+        style: ["ST-1", "ST-3", "ST-4"]
+      review:
+        soul: all
+        architecture: ["A-1", "A-2"]
+        conventions: ["C-1", "C-2", "C-3", "C-8"]
+        workflow: ["W-3", "W-9", "W-11"]
+      design:
+        soul: all
+        architecture: all
+        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-7"]
+        workflow: ["W-1", "W-2", "W-7"]
+        style: ["ST-1", "ST-3", "ST-7"]
+      convergence:
+        soul: all
+        architecture: all
+        conventions: all
+        workflow: all
+        style: all
+      rdrr:
+        soul: all
+        architecture: all
+        conventions: all
+        workflow: all
+        style: all
+      documentation:
+        soul: ["S-1", "S-2", "S-4", "S-5", "S-7"]
+        architecture: ["A-1", "A-3"]
+        conventions: ["C-1", "C-2", "C-3", "C-4", "C-5", "C-6", "C-7"]
+        workflow: ["W-7"]
+        style: all
+      default:
+        soul: all
+        architecture: all
+        conventions: all
+        workflow: all
+        style: all
+
 # v8.2.0 (PV-05) — Section-anchor registry. Symbolic anchor → file path
 # mapping consumed by ``devolaflow.section_registry.SectionAnchorRegistry``
 # and ``task_adaptive_selector._resolve_section_text``. Establishes the

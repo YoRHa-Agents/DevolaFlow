@@ -701,5 +701,33 @@
       "references": "10",
       "rules_total": "50"
     }
+  },
+  {
+    "version": "9.0.0",
+    "date": "2026-04-24",
+    "era": "rule-rebalancing",
+    "headline": "MAJOR — rule taxonomy rebalancing + per-task-type AGENTS.md selectivity + Soul-set freeze (W-21) + 7-PV cycle rollup",
+    "summary": "Cycle headline of the v9.0.0 MAJOR (PV-01..PV-07 across v8.4.1..v8.5.1..v9.0.0). PV-07 closes B-03 (60-rule cap + Soul-set freeze + per-task-type selectivity) + Theme T6 #1..#5: rule promotion (.rules/ as canonical 5-layer source) + .cursor/rules/{devola-flow,workflow}-rules.mdc deprecated to ≤50-line cross-reference stubs + per-task-type AGENTS.md slicing (OPT-IN, default OFF preserves v8.5.1 byte-identical) + Soul-set frozen at 10 entries via W-21 governance + 60-rule HARD cap CI lint (test_rule_count_under_cap) + compile-only invariant lint for .cursor/rules/* (test_rule_surfaces_compile_only). The MAJOR semver justification: per-task-type slicing changes the rule corpus visible to cached-prefix L0 dispatchers when operators flip the YAML opt-in. Composite SI-3 9.22/10 (≥ 9.0 MAJOR threshold by +0.22 pp). NineS 0.9037 (within ±0.002 noise floor of v8.4.0 baseline 0.9050 — upstream A1/A3 NineS v3.3 binary blockers persist per ADR-005 D1).",
+    "highlights": [
+      "PV-07 of v9.0.0 cycle ACCEPT (7/7 PVs shipped; lifetime 56/56 = 100% accept rate; 1st MAJOR bump in 5 cycles)",
+      "0 P6 cache-layout transitions — schemas/lean-dispatch.yaml#layout_invariant byte-identical (length 16 / version 5); I-8 invariant intact through PV-01..PV-07",
+      "T6 #1 — rule promotion: .rules/{soul,architecture,conventions,workflow,style}.mdc as canonical 5-layer source (8 ADRs in cycle: v9-ADR-001..007 + bench v9-ADR-008)",
+      "T6 #2 — per-task-type AGENTS.md slicing: select_agents_md_slice() + 9 canonical task-profile mappings (hotfix 62%, research 73%, feature 29%, design 30%, convergence 0% — full set); OPT-IN default OFF preserves v8.5.1 byte-identical",
+      "T6 #3 — W-21 Soul-set freeze governance: locks Soul layer at 10 entries (S-1..S-10); future S-11+ requires 2-cycle telegraph + retrospective entry + SI-3 §3.2 ≥ 9.5/10",
+      "T6 #4 — 60-rule HARD cap CI lint (test_rule_count_under_cap): 58/60 with +2 headroom (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13)",
+      "T6 #5 — .cursor/rules/* compile-only invariant: SHA-256 drift detection via .rules/.compile-hashes.json; 2 deprecated stubs (.cursor/rules/{devola-flow,workflow}-rules.mdc) cut to 47/48 lines as cross-reference scaffolds",
+      "AGENTS.md token-budget bumped 8000 → 12000 to absorb W-21 without truncating workflow layer (previously dropped silently)",
+      "+10 NEW test functions in PV-07 (within +30 W-17 per-PV cap; cumulative cycle delta +97 NEW + 27 parametrize = within +150 cycle cap by 53 entries)",
+      "EvoBench: 53 scenarios (5 added in PV-06); 0 regressions > 5pp vs v9.0.0_baseline.json",
+      "Cycle archive (W-19) populated: docs/cycle-archive/v9.0.0/ with 34 research artifacts (gap analysis + implementation plan + 7 ADRs + per-PV evaluations + cycle nines + retrospective + EvoBench summary)",
+      "7-PV cycle: PV-01 (B-01 SKILL headroom) + PV-02 (B-02 cache layout v2) + PV-03 (M-001 A-5 SSOT) + PV-04 (T1 lifecycle wiring + S-10) + PV-05 (T8 NineS hygiene + W-16..W-20) + PV-06 (T3 CompressionPipeline + T5 5-primitive flip) + PV-07 (B-03 + T6 — this MAJOR)"
+    ],
+    "metrics": {
+      "tests": "3430",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "58"
+    }
   }
 ]

@@ -5,6 +5,85 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0] — 2026-04-24
+
+**MAJOR — v9.0.0 cycle PV-07 = the cycle headline: rule taxonomy rebalancing (Theme T6 #1) + per-task-type AGENTS.md selectivity (T6 #2) + Soul-set freeze via W-21 governance (T6 #3) + 60-rule HARD cap CI lint (T6 #4) + `.cursor/rules/*` compile-only invariant lint (T6 #5) + 7-PV cycle rollup (cycle-archive + retrospective + EvoBench summary + versions.json append).** Seventh published increment of the v9.0.0 cycle (PV-01..PV-06 shipped patches v8.4.1..v8.5.1; PV-07 ships the MAJOR `v9.0.0` headline). PV-07 closes B-03 (60-rule cap + Soul-set freeze + selectivity) + Theme T6 #1..#5 in one MAJOR cut, justified by the operator-visible breaking change to the governance contract per ADR-007 D3 (per-task-type AGENTS.md slicing changes the rule corpus visible to cached-prefix L0 dispatchers when operators flip the YAML opt-in). The PV touches **24 files** (7 source + 5 rule-surface + 4 test + 6 research artifact + 1 ADR + 1 baseline-regen + cycle-archive populate) and adds **+10 NEW test functions** (within +30 W-17 per-PV cap; cumulative cycle delta +97 NEW + 27 parametrize = **within +150 cycle cap by 53 entries**). The cycle preserves the **I-8 invariant**: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5) through all 7 PVs.
+
+**Adoption notes — operator-visible breaking change (the MAJOR semver justification per ADR-007 D3).**
+
+The v9.0.0 MAJOR bump rests on **3 operator-facing semantic changes** that downstream tools may need to adopt:
+
+(a) **Per-task-type AGENTS.md slicing** is now available behind an OPT-IN YAML knob. Operators flip `meta.agents_md_slice.enabled: true` in `workflow-system/agent/context_profiles.yaml` to enable the slicer; default `enabled: false` preserves v8.5.1 byte-identical full-AGENTS.md behaviour. When enabled, the cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70% depending on task type — for long-running L0 sessions that cache the AGENTS.md prefix between dispatches, this is an observable change in the input prompt. Slice savings per the 9 canonical task profiles: hotfix 62%, research 73%, feature 29%, refactor 20%, review 50%, design 30%, convergence 0% (full set), documentation 40%, default (unmatched) 0% (full set, safe fallback). Per-profile layer mappings documented verbatim in `.local/research/v9.0.0_pv07_rule_audit.md` §2.2; operators with custom profiles add new entries under `meta.agents_md_slice.profiles.<profile_name>`. The selector function `devolaflow.task_adaptive_selector.select_agents_md_slice(task_type) -> dict` returns `sliced_text` + `included_rules` + `skipped_rules` + `slice_enabled` + `slice_savings_pct`. CLI: `python -m devolaflow.task_adaptive_selector <task_type> --show-slice` prints the per-task-type slice summary.
+
+(b) **`.cursor/rules/devola-flow-rules.mdc` and `.cursor/rules/workflow-rules.mdc` are DEPRECATED** as of v9.0.0. Both files are cut from their full P1-P6 / P1-P5 dispatcher-invariant content (~270 / ~125 LOC respectively) to **≤ 50-line cross-reference scaffolds** pointing operators at `.rules/` for the canonical 5-layer rule source. The actual rule body is unchanged — it lives in `.rules/architecture.mdc` §A-1 (4-layer hierarchy P1-P5) + §A-2 (P6 cache-layout governance v2). Migration: switch tooling that reads either deprecated stub to read either `.cursor/rules/repo-governance.mdc` (the compiled full corpus, MDC format, 12000-token budget) OR `.rules/architecture.mdc` (the canonical Architecture rule body). The deprecated stubs remain as discoverable scaffolds so existing `.cursor/rules/` auto-load paths still surface a pointer to the canonical source — zero-downtime upgrade for cursor-only flows. Drift detection: `tests/test_no_ghost_features.py::test_rule_surfaces_compile_only` verifies the stub SHA-256 matches the pinned fingerprint in `.rules/.compile-hashes.json` (a hand-edit to either stub fails CI).
+
+(c) **The Soul rule layer is FROZEN at 10 entries (S-1..S-10)** by **W-21 — Soul-Set Freeze Governance** in `.rules/workflow.mdc` per ADR-007 D4. Any future Soul addition (S-11+) MUST satisfy ALL of: (1) 2-cycle telegraph (cycle N retrospective deferral note → cycle N+2 review; cycle N+1 explicitly does NOT consider the addition), (2) cycle N+2 SI-1 gap-analysis entry documenting the immutable invariant + why no existing rule covers it + the proposed CI enforcement surface, (3) cycle N+2 SI-3 §3.2 architecture-rationality score ≥ 9.5/10, (4) post-addition Soul layer count ≤ 12 absolute cap. W-21 is a HUMAN-side gating rule (no automated CI lint — the gating IS the multi-cycle deliberation requirement); the broader 60-rule cap is enforced by `tests/test_no_ghost_features.py::test_rule_count_under_cap` per ADR-007 D5.
+
+**T6 #1 closure — `.rules/` 5-layer source promotion + W-21 addition.** `.rules/{soul,architecture,conventions,workflow,style}.mdc` is confirmed as the sole canonical rule source (5 layer files compile into 2 targets: `.cursor/rules/repo-governance.mdc` MDC + `AGENTS.md` Markdown via `RuleCompiler.compile_all()`). `.rules/workflow.mdc` gains W-21 Soul-set freeze governance (~+50 LOC source). `.rules/index.md` rule-count comment updated 51 → 58 (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13).
+
+**T6 #2 closure — Per-task-type AGENTS.md slicing.** NEW `select_agents_md_slice(task_type)` function in `src/devolaflow/task_adaptive_selector.py` (~+250 LOC including helpers `_split_agents_md_into_layers`, `_filter_agents_md_by_profile`, `_match_slice_profile`, `_resolve_agents_md_path`, `_read_agents_md`, `count_agents_md_rules`). NEW `meta.agents_md_slice` block in `workflow-system/agent/context_profiles.yaml` (~+85 LOC) with 9 canonical task profiles + `enabled: false` default + `fallback: full` semantics. NEW CLI `--show-slice` flag in `task_adaptive_selector.main()`. R5 strict invariant pinned: `tests/test_pv07_agents_md_slice.py::test_slice_disabled_returns_full_byte_identical` (default OFF preserves v8.5.1 byte-identical AGENTS.md).
+
+**T6 #3 closure — Soul-set freeze governance W-21.** Codified in `.rules/workflow.mdc` (~+50 LOC source) + auto-mirrored to `AGENTS.md` (538 → 582 lines, 7612 → 8199 tokens after the 12000 budget bump). HUMAN-side gating per ADR-007 D4 — no automated CI lint enforces the 2-cycle telegraph; the gating IS the multi-cycle deliberation. Locks Soul layer at 10 entries (S-1..S-10) at v9.0.0 release.
+
+**T6 #4 closure — 60-rule HARD cap CI lint.** NEW `tests/test_no_ghost_features.py::test_rule_count_under_cap` walks `^## ([SACW]|ST)-\d+` headings in compiled AGENTS.md and asserts (a) total ≤ 60 HARD, (b) Soul count == 10 (W-21 freeze), (c) per-layer breakdown matches ADR-007 D5 expectations. Current state: 45 rules in AGENTS.md (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21; Style excluded from AGENTS.md per `compile-config.yaml#agents_md.include_layers`), 58 rules in cursor target (+ Style 13), within 60 cap by **+2 headroom** for v9.x sustaining additions.
+
+**T6 #5 closure — `.cursor/rules/*` compile-only invariant lint.** NEW `tests/test_no_ghost_features.py::test_rule_surfaces_compile_only` verifies (a) `.cursor/rules/repo-governance.mdc` SHA-256 matches the `cursor` entry in `.rules/.compile-hashes.json` (drift detection — a hand-edit to the compiled file fails this assertion); (b) the 2 deprecated `.cursor/rules/{devola-flow,workflow}-rules.mdc` stubs match the pinned `stub_devola_flow_rules` / `stub_workflow_rules` fingerprints; (c) each stub has line count ≤ 50 (cross-reference scaffold ceiling). NEW `devolaflow.local.drift::check_stub_drift()` + `compute_stub_fingerprints()` + `DEPRECATED_STUB_FILES` constant in `src/devolaflow/local/drift.py` (~+90 LOC). NEW `compile_all()` extension in `src/devolaflow/local/compiler.py` writes stub fingerprints into `.compile-hashes.json` alongside compile-target hashes (~+15 LOC).
+
+**AGENTS.md token-budget bump 8000 → 12000 (per ADR-007 D5).** PV-07's W-21 addition pushed the AGENTS.md compile output to ~8199 tokens, exceeding the pre-PV-07 8000-token budget — the compiler's `_truncate_to_budget` SILENTLY DROPPED the workflow layer (priority 3) without an error. The 12000 budget bump preserves the full 4-layer AGENTS.md corpus (Soul + Architecture + Conventions + Workflow = 45 rules) and gives ~46% headroom for v9.x sustaining additions. The cursor target is also bumped 8000 → 12000 for parity (5-layer = 58 rules / 9231 tokens).
+
+**Cycle rollup deliverables (PV-07 closure of W-7 / W-16 / W-19 / ST-7).** Per the v9.0.0 implementation plan §6.7 cycle rollup checklist:
+
+* `.local/research/v9.0.0_evaluation.md` — SI-3 cycle-rollup evaluation (composite **9.22/10** ≥ MAJOR threshold 9.0 by +0.22 pp; below stretch 9.5 by -0.28 pp due to upstream NineS A1/A3 blockers documented in §6 R-6).
+* `.local/research/v9.0.0_retrospective.md` — SI-8 4-section retrospective (gaps identified / what was implemented / what was deferred / key learnings) covering all 7 PVs.
+* `.local/research/v9.0.0_evobench_summary.md` — per-scenario delta + 7-PV cumulative (53 scenarios, 0 regressions > 5 pp vs `v9.0.0_baseline.json`).
+* `.local/research/v9.0.0_nines.{json,md}` — NineS post-cycle composite **0.9037** (within ±0.002 noise floor of v8.4.0 baseline 0.9050; 7-PV average 0.9048; cycle target 0.91 short by -0.7 pp due to persistent upstream A1/A3 blockers per ADR-005 D1).
+* `.local/research/v9.0.0_pv07_rule_audit.md` — PV-07 S01 deliverable (T01 rule deprecation audit + T02 per-task-type slice design).
+* `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` — the cycle's 7th ADR (~+650 LOC: Context + 5 Decisions D1-D5 + Rationale + Consequences + Alternatives Considered (6) + Migration + Rollback + Enforcement + Source).
+* `docs/cycle-archive/v9.0.0/` — populated by `python scripts/archive_research_artifacts.py 9.0.0` (34 files: gap_analysis + implementation_plan + 7 ADRs + 2 design docs + cycle nines + 2 evaluations + retrospective + 21 supporting research artifacts in `other/`) per W-19.
+* `workflow-system/human/demo/version-timeline/versions.json` — v9.0.0 entry appended per ST-7 (43 total entries; required fields: version, date, era="rule-rebalancing", headline, summary, highlights, metrics).
+* `benchmarks/devolaflow_context/baselines/v9.0.0_baseline.json` — wholesale regenerated post-version-bump per W-16 (53 scenarios; 0 regressions > 5 pp).
+
+### Highlights
+
+- **PV-07 of v9.0.0 cycle ACCEPT** (7/7 PVs shipped; lifetime **56/56 = 100% accept rate**; 1st MAJOR bump in 5 cycles since v8.0.0)
+- **0 P6 cache-layout transitions** — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical (length 16 / version 5); I-8 invariant intact through PV-01..PV-07
+- **T6 #1** — rule promotion: `.rules/` as canonical 5-layer source confirmed; W-21 Soul-set freeze added (~+50 LOC)
+- **T6 #2** — per-task-type AGENTS.md slicing: `select_agents_md_slice()` + 9 canonical task-profile mappings; OPT-IN default OFF preserves v8.5.1 byte-identical
+- **T6 #3** — W-21 Soul-set freeze governance (HUMAN-side gating: 2-cycle telegraph + retrospective entry + SI-3 §3.2 ≥ 9.5/10)
+- **T6 #4** — 60-rule HARD cap CI lint (`test_rule_count_under_cap`): 58/60 with +2 headroom (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13)
+- **T6 #5** — `.cursor/rules/*` compile-only invariant (`test_rule_surfaces_compile_only`): SHA-256 drift detection on `repo-governance.mdc` + stub fingerprints for the 2 deprecated stubs
+- **AGENTS.md token-budget bumped 8000 → 12000** (cursor target also bumped for parity) to absorb W-21 without truncating workflow layer (previously dropped silently)
+- **+10 NEW test functions in PV-07** (within +30 W-17 per-PV cap): 2 in `test_no_ghost_features.py` (rule cap + drift) + 8 in `test_pv07_agents_md_slice.py` (R5 strict + per-profile semantics + fallback + layer dropping + helper unit tests)
+- **EvoBench: 0 regressions > 5pp vs v9.0.0_baseline.json** (53 scenarios; PV-07 changes are AGENTS.md-only, EvoBench-neutral)
+- **NineS post-cycle composite 0.9037** (real `nines self-eval` run; 7-PV average 0.9048 ± 0.001 byte-stable modulo upstream A1/A3 blockers)
+- **NEW `v9-ADR-007-rule-rebalancing-and-rollup.md`** (~+650 LOC) codifies the 5 sub-decisions D1-D5 + 6 Alternatives Considered + Migration + Rollback + Enforcement
+- **Cycle archive populated** (W-19): `docs/cycle-archive/v9.0.0/` with 34 research artifacts
+- **`versions.json` v9.0.0 entry appended** (ST-7) — 43rd entry on the public release timeline
+- **Per-PV cycle ledger** (this MAJOR is the rollup of 7 PVs):
+  * PV-01 v8.4.1 — B-01 SKILL headroom + R7 partial (composite 9.20)
+  * PV-02 v8.4.2 — B-02 cache layout governance v2 (composite 9.10)
+  * PV-03 v8.4.3 — M-001 A-5 SSOT registry codified (composite 9.10)
+  * PV-04 v8.4.4 — T1 lifecycle wiring + S-10 (composite 9.10)
+  * PV-05 v8.5.0 — T8 NineS hygiene + W-16..W-20 + 13th SF-4 reference env-flags.md (composite 9.20)
+  * PV-06 v8.5.1 — T3 CompressionPipeline + T5 5-primitive flip + 14th SF-4 reference compression-pipeline.md (composite 9.18)
+  * **PV-07 v9.0.0 — B-03 + T6 — rule rebalancing + per-task slicing + Soul-set freeze (composite 9.30 / cycle rollup 9.22)**
+
+**SKILL.md edit**: 0 lines (PV-07 is AGENTS.md-only — the rule rebalancing operates on the compiled output of `.rules/*.mdc`, not on the per-agent skill prompt). SKILL.md held at **442/500** through the cycle (PV-01 reclaimed +57 lines from 499 via B-01 / ADR-001).
+
+**Per-PV test cap (W-17)**: +10 NEW test functions in PV-07 (within +30 cap by 20 entries). Cumulative cycle delta v8.4.0 baseline (3216) → v9.0.0 (3430 collected) = +214 collected; NEW test functions cumulative across PV-01..PV-07 = **+97** (well under +150 cycle cap by **53 entries**).
+
+**Rules layer (cycle-wide net delta + 8)**: Soul 9 → **10** (S-10 in PV-04, frozen at 10 by W-21), Architecture 4 → **5** (A-5 in PV-03), Conventions 9 → **9** (unchanged), Workflow 15 → **21** (W-16..W-20 in PV-05 + W-21 in PV-07), Style 13 → **13** (unchanged). **Total 50 → 58, within 60 HARD cap by +2 headroom**.
+
+**Rollback plan** (per playbook §6.7.6 — informational only since cycle ACCEPTed at composite 9.22):
+
+- **R-1** (MAJOR justification fails) → propose downgrade to v8.6.0 MINOR; T6 deferred to v9.x sustaining; PV-07 becomes "additive selectivity only" minor scope
+- **R-8** (rule count > 60) → defer 1-2 W-rules from PV-05 to v9.x sustaining; `test_rule_count_under_cap` as `xfail(strict=False)` + retrospective entry
+- **R-9** (cached-prefix break) → selector falls back to full AGENTS.md; CHANGELOG adds "selector is opt-in for v9.0.0; default = full AGENTS.md" (already the case per D3 default)
+
+All three rollback paths are ≤ 5-line reverts per file (or one git revert on the offending commit), preserving the bulk of the cycle's other improvements.
+
+---
+
 ## [8.5.1] — 2026-04-24
 
 **MINOR — v9.0.0 cycle PV-06: CompressionPipeline protocol unification (Theme T3) + 5-primitive default-on flip in STRICT/AUDIT (Theme T5) + `schemas/command-mapping.yaml` v1→v2 multi-pass filter chain.** Sixth published patch of the v9.0.0 MAJOR cycle and the second MINOR bump in the cycle, justified by an operator-visible default-on flip for STRICT/AUDIT profile users. PV-06 closes both structural debts outstanding since v8.0.0: (1) the 6 scattered text-side compression transforms (`truncate_tool_output`, `summarise_predecessor` extractive + Stage A, Stage B LLM, `directed_compact`, `apply_local_recipe`) converge behind a single `CompressionStage` protocol + `CompressionPipeline` orchestrator; (2) the 5 v8.0.0 gate primitives (`token_budget_breaker`, `verification_ladder`, `ratchet`, `complexity_detector`, `ac_generator`) flip from opt-in to default-ON for STRICT and AUDIT decomposition profiles, with per-primitive R5 strict env-flag opt-outs. The PV touches **27 files** and adds **+27 NEW test functions** (within the +30 per-PV cap per W-17): 5 NEW source/schema files (`src/devolaflow/compression_pipeline.py`, `schemas/compression-pipeline.yaml`, `tests/test_compression_pipeline.py`, `tests/test_pv06_primitive_flip.py`, `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`) + 5 NEW EvoBench disabled-scenarios + 17 MODIFIED (compressor refactor + 5 gate modules + `context_profiles.yaml` + `env-flags.md` §4→§2 promotion + `decomposition-gate.md` §5.5 flip-state update + cascading test-count / scenario-count doc-consistency updates + 7 canonical version-sync locations). The cycle preserves the **I-8 invariant**: `schemas/lean-dispatch.yaml#layout_invariant` is untouched (length 16 / version 5).

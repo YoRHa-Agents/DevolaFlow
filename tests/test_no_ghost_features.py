@@ -937,3 +937,169 @@ def test_registry_single_owner(project_root: Path) -> None:
             f"A-5 violation: YAML SSOT registry {yaml_name!r} expected at "
             f"{expected_relpath} but file is missing"
         )
+
+
+# ── v9.0.0 PV-07 — Rule Taxonomy Rebalancing (ADR-007) ─────────────────
+# Two new lints enforce the PV-07 governance contract:
+#
+#   * test_rule_count_under_cap — total compiled-AGENTS.md rule count ≤ 60
+#     (HARD per ADR-007 D5). Rule count = sum of `^## ([SACW]|ST)-\d+`
+#     headings in AGENTS.md (the operator-facing canonical compile output).
+#   * test_rule_surfaces_compile_only — `.cursor/rules/repo-governance.mdc`
+#     SHA-256 matches the value stored in `.rules/.compile-hashes.json`
+#     (drift detection); the 2 deprecated `.cursor/rules/{devola-flow,workflow}-
+#     rules.mdc` stubs match expected stub-template fingerprints (preventing
+#     hand-edits). Failure means the canonical-vs-compiled invariant is broken
+#     OR a stub was hand-edited to drift from the deprecation scaffold.
+
+# v9.0.0 PV-07 (ADR-007 D5) — HARD cap on the total rule count surfaced by
+# the compiled AGENTS.md. The 60 cap derives from improvements_zh.md
+# §"Rule cap" + the cumulative additions across the v9.0.0 cycle (PV-03
+# A-5 + PV-04 S-10 + PV-05 W-16..W-20 + PV-07 W-21 = 7 net additions on top
+# of the v8.4.0 baseline of 50). Post-PV-07 rule census: Soul 10 + Arch 5 +
+# Conv 9 + Workflow 21 = 45 rules in AGENTS.md (Style is excluded from
+# AGENTS.md per `compile-config.yaml#agents_md.include_layers`); the
+# repo-governance.mdc target additionally surfaces Style 13 → 58 total
+# in the cursor target. The cap is enforced on the AGENTS.md surface (the
+# operator-facing canonical compile output).
+_RULE_COUNT_CAP_HARD: int = 60
+_SOUL_FREEZE_COUNT: int = 10  # post-W-21 Soul-set freeze (ADR-007 D4)
+
+
+def test_rule_count_under_cap(project_root: Path) -> None:
+    """ADR-007 D5: AGENTS.md compiled rule count ≤ 60 HARD.
+
+    Counts every ``^## ([SACW]|ST)-\\d+`` heading in the compiled AGENTS.md
+    file and asserts the total stays at or below the 60-rule HARD cap from
+    `improvements_zh.md` §"Rule cap" + ADR-007 D5. Also pins:
+
+    1. The Soul-set count at exactly 10 (S-1..S-10, frozen by W-21 Soul-set
+       freeze governance per ADR-007 D4).
+    2. The Architecture count at exactly 5 (A-1..A-5).
+    3. The total stays ≤ 60.
+
+    Future cycles proposing a new rule MUST first confirm `total + 1 ≤ 60`
+    before authoring; if the projection exceeds 60, the proposing PV must
+    either (a) defer an existing rule, OR (b) explicitly raise the cap via
+    a new ADR. Soul additions further require the W-21 2-cycle telegraph
+    protocol (deferral note in cycle N retrospective → SI-1 in cycle N+2 →
+    SI-3 §3.2 ≥ 9.5/10 in cycle N+2) before bumping past 10.
+    """
+    from devolaflow.task_adaptive_selector import count_agents_md_rules
+
+    agents_md = project_root / "AGENTS.md"
+    assert agents_md.is_file(), (
+        f"AGENTS.md missing at {agents_md.relative_to(project_root)} — "
+        f"run `python -c 'from devolaflow.local.compiler import RuleCompiler; "
+        f'RuleCompiler(".rules/compile-config.yaml").compile_all()\'` to regenerate'
+    )
+
+    census = count_agents_md_rules(agents_md_path=agents_md)
+    total = census["total"]
+    by_layer = census["by_layer"]
+
+    assert total <= _RULE_COUNT_CAP_HARD, (
+        f"ADR-007 D5 violation: AGENTS.md rule count {total} exceeds "
+        f"the 60 HARD cap. Per-layer breakdown: {by_layer}. "
+        f"Future PVs adding rules MUST either defer an existing rule OR "
+        f"explicitly raise the cap via a new ADR."
+    )
+
+    soul_count = by_layer.get("soul", 0)
+    assert soul_count == _SOUL_FREEZE_COUNT, (
+        f"ADR-007 D4 violation: Soul-set count {soul_count} != frozen count "
+        f"{_SOUL_FREEZE_COUNT} (S-1..S-10). Soul additions require the W-21 "
+        f"2-cycle telegraph protocol (cycle N retrospective deferral → cycle "
+        f"N+2 SI-1 gap analysis → cycle N+2 SI-3 §3.2 ≥ 9.5/10) before landing."
+    )
+
+
+def test_rule_surfaces_compile_only(project_root: Path) -> None:
+    """ADR-007 D2 + D5: `.cursor/rules/*.mdc` files must be compile-only.
+
+    Two-part invariant per ADR-007:
+
+    1. **D5** — `.cursor/rules/repo-governance.mdc` (the compiled full corpus)
+       SHA-256 matches the `cursor` entry in `.rules/.compile-hashes.json`.
+       A hand-edit to the compiled file shifts the SHA-256 and fails this
+       assertion — operators MUST regenerate via
+       `RuleCompiler('.rules/compile-config.yaml').compile_all()` instead
+       of editing the compiled output directly.
+
+    2. **D2** — the 2 deprecated stubs
+       (`.cursor/rules/devola-flow-rules.mdc` + `.cursor/rules/workflow-rules.mdc`)
+       must match the stub-template fingerprints stored under
+       `stub_devola_flow_rules` / `stub_workflow_rules` in
+       `.rules/.compile-hashes.json`. The stubs are pinned cross-reference
+       scaffolds per ADR-007 D2 — a hand-edit either drifts the SHA-256 OR
+       grows the stub past the ≤ 50-line ceiling enforced by the inline
+       length check below.
+
+    Failure modes:
+      * "compiled file SHA-256 mismatch" → operator hand-edited
+        `repo-governance.mdc`; re-run `RuleCompiler.compile_all()`.
+      * "stub SHA-256 mismatch" → operator hand-edited a deprecated stub;
+        the stubs are intentionally frozen as cross-reference scaffolds.
+      * "stub line count > 50" → a stub grew past the deprecation ceiling;
+        either compress back or re-evaluate the deprecation decision.
+      * "compile-hashes.json missing key" → drift store wasn't regenerated
+        with the v9.0.0 PV-07 stub fingerprints; re-run
+        `RuleCompiler.compile_all()` after the v9.0.0 update.
+    """
+    from devolaflow.local.drift import (
+        DEPRECATED_STUB_FILES,
+        check_rules_drift,
+        check_stub_drift,
+    )
+
+    rules_dir = project_root / ".rules"
+    hash_file = rules_dir / ".compile-hashes.json"
+    assert hash_file.is_file(), (
+        f"compile hash store missing at {hash_file.relative_to(project_root)} — "
+        f"run RuleCompiler('.rules/compile-config.yaml').compile_all() to populate it"
+    )
+
+    compiled_results = check_rules_drift(rules_dir=rules_dir)
+    drifted = [r for r in compiled_results if r.status == "drifted"]
+    assert not drifted, (
+        f"ADR-007 D5 violation: compiled .cursor/rules/* targets drifted from "
+        f"the .rules/ source: {[(r.target, r.expected_hash, r.actual_hash) for r in drifted]}. "
+        f"Re-run RuleCompiler.compile_all() to regenerate."
+    )
+
+    missing_compiled = [r for r in compiled_results if r.status == "missing"]
+    assert not missing_compiled, (
+        f"ADR-007 D5 violation: compiled .cursor/rules/* targets missing on "
+        f"disk: {[r.target for r in missing_compiled]}. Re-run "
+        f"RuleCompiler.compile_all() to regenerate."
+    )
+
+    stub_results = check_stub_drift(repo_root=project_root, hash_file=hash_file)
+    drifted_stubs = [r for r in stub_results if r.status == "drifted"]
+    assert not drifted_stubs, (
+        f"ADR-007 D2 violation: deprecated stub fingerprints drifted from "
+        f".rules/.compile-hashes.json: "
+        f"{[(r.target, r.expected_hash, r.actual_hash) for r in drifted_stubs]}. "
+        f"The stubs at .cursor/rules/{{devola-flow,workflow}}-rules.mdc are "
+        f"PINNED cross-reference scaffolds — re-run "
+        f"RuleCompiler.compile_all() after re-applying the canonical stub "
+        f"template, OR investigate why the stubs were hand-edited."
+    )
+
+    missing_stubs = [r for r in stub_results if r.status == "missing"]
+    assert not missing_stubs, (
+        f"ADR-007 D2 violation: deprecated stub or fingerprint missing: "
+        f"{[r.target for r in missing_stubs]}. Re-run RuleCompiler.compile_all() "
+        f"after restoring the deprecated stub files."
+    )
+
+    for _key, relpath in DEPRECATED_STUB_FILES:
+        stub_path = project_root / relpath
+        assert stub_path.is_file(), f"Deprecated stub missing: {relpath}"
+        line_count = stub_path.read_text(encoding="utf-8").count("\n") + 1
+        assert line_count <= 50, (
+            f"ADR-007 D2 violation: deprecated stub {relpath} has {line_count} "
+            f"lines — must be ≤ 50 (cross-reference scaffold ceiling). The stub "
+            f"is intentionally minimal; expand canonical content under .rules/ "
+            f"instead and let the compiler re-emit the full corpus."
+        )

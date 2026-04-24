@@ -140,7 +140,18 @@ class RuleCompiler:
         return [self._compile_target(tc) for tc in self.targets.values()]
 
     def compile_all(self) -> list[CompileResult]:
-        """Compile all targets and write outputs to disk."""
+        """Compile all targets and write outputs to disk.
+
+        v9.0.0 PV-07 (ADR-007 D2 + D5): when drift detection is enabled
+        AND the v9.0.0 stub fingerprints exist, the saved hash store
+        also includes ``stub_<name>`` entries pinning the deprecated
+        cursor-rule stubs (`.cursor/rules/devola-flow-rules.mdc` +
+        `.cursor/rules/workflow-rules.mdc`). Operators MUST NOT
+        hand-edit either stub — drift detection via
+        :func:`devolaflow.local.drift.check_stub_drift` (CI-enforced
+        by ``tests/test_no_ghost_features.py::test_rule_surfaces_compile_only``)
+        will fail.
+        """
         results = self.compile()
         repo_root = self.config_path.parent.parent
 
@@ -155,7 +166,7 @@ class RuleCompiler:
             from devolaflow.local.drift import save_hashes
 
             hash_file = repo_root / drift_cfg["hash_file"]
-            save_hashes(results, hash_file)
+            save_hashes(results, hash_file, repo_root=repo_root)
 
         return results
 

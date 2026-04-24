@@ -1113,15 +1113,369 @@ def apply_round_escalation(
     return result
 
 
+# ---------------------------------------------------------------------------
+# v9.0.0 (PV-07) — Per-task-type AGENTS.md slicing.
+#
+# Codified per ``.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md``
+# D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
+#
+# select_agents_md_slice(task_type) filters the compiled AGENTS.md content by
+# layer-prefix (Soul / Architecture / Conventions / Workflow / Style) per
+# the ``meta.agents_md_slice.profiles[<profile>]`` configuration in
+# context_profiles.yaml. Default ``meta.agents_md_slice.enabled: false``
+# preserves v8.5.1 byte-identical full-AGENTS.md behaviour for every
+# dispatcher that has not opted in (R5 strict — pinned by
+# ``tests/test_pv07_agents_md_slice.py``).
+#
+# The slice is a POST-COMPILE filter — never reorders or rewrites canonical
+# rules; only HIDES rules irrelevant to the task type. The canonical
+# AGENTS.md surface (compiled from ``.rules/*.mdc`` via
+# ``devolaflow.local.compiler.RuleCompiler``) remains the single source of
+# truth per the A-5 SSOT registry pattern (PV-03 ADR-003).
+#
+# MAJOR semver justification: when an operator opts into slicing, the
+# cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70%
+# depending on task type. For long-running L0 sessions that cache the
+# AGENTS.md prefix between dispatches, this is an observable change in
+# the input prompt — downstream tools that audit / log prompts will see
+# different content. Default ``enabled: false`` keeps the behavioural
+# break opt-in.
+# ---------------------------------------------------------------------------
+
+
+_AGENTS_MD_PATH: Path = Path(__file__).parents[2] / "AGENTS.md"
+_RULE_HEADING_RE = re.compile(r"^## ((?:S|A|C|W|ST)-\d+)\b", re.MULTILINE)
+_TOP_LEVEL_HEADING_RE = re.compile(
+    r"^# (Soul Rules|Architecture Rules|Conventions Rules|Workflow Rules|Style Rules)\b",
+    re.MULTILINE,
+)
+_LAYER_PREFIX_BY_HEADING: dict[str, str] = {
+    "Soul Rules": "soul",
+    "Architecture Rules": "architecture",
+    "Conventions Rules": "conventions",
+    "Workflow Rules": "workflow",
+    "Style Rules": "style",
+}
+_RULE_LAYER_BY_PREFIX: dict[str, str] = {
+    "S": "soul",
+    "A": "architecture",
+    "C": "conventions",
+    "W": "workflow",
+    "ST": "style",
+}
+
+
+def _resolve_agents_md_path(agents_md_path: Path | None = None) -> Path:
+    """Resolve the AGENTS.md path with optional override.
+
+    Lookup order:
+      1. Explicit ``agents_md_path`` parameter (test / script override).
+      2. Module-level :data:`_AGENTS_MD_PATH` (parents[2] / AGENTS.md —
+         the canonical compile target of `.rules/compile-config.yaml`
+         per `RuleCompiler.compile_all()`).
+    """
+    if agents_md_path is not None:
+        return agents_md_path
+    return _AGENTS_MD_PATH
+
+
+def _read_agents_md(agents_md_path: Path | None = None) -> str:
+    """Read AGENTS.md verbatim. Returns "" when file is missing.
+
+    Per S-5: missing file is an explicit empty signal returned with a
+    DEBUG log line, NOT a silent exception.
+    """
+    path = _resolve_agents_md_path(agents_md_path)
+    if not path.exists():
+        logger.debug("AGENTS.md not found at %s — returning empty", path)
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def _split_agents_md_into_layers(text: str) -> list[tuple[str, str, list[tuple[str, str]]]]:
+    """Split AGENTS.md text into ordered (layer_name, layer_header_line, [(rule_id, rule_text)]).
+
+    Each layer block starts at a ``^# <layer> Rules`` line and contains all
+    ``^## <prefix>-<N>`` rule sub-blocks until the next layer header (or
+    EOF). The ``layer_header_line`` carries the verbatim ``# Soul Rules
+    (P0) — ...`` line + the immediately-following blurb until the first
+    rule heading. Rule text is the verbatim ``## S-1 — ...`` block plus
+    its body until the next ``## `` or ``# `` boundary.
+
+    Used by :func:`select_agents_md_slice` and by
+    :func:`count_agents_md_rules` (the latter is the ground-truth used by
+    ``tests/test_no_ghost_features.py::test_rule_count_under_cap``).
+    """
+    layers: list[tuple[str, str, list[tuple[str, str]]]] = []
+
+    # Find every top-level layer heading. Each layer spans from one heading
+    # to the next (or EOF).
+    layer_matches: list[re.Match[str]] = list(_TOP_LEVEL_HEADING_RE.finditer(text))
+    if not layer_matches:
+        return layers
+
+    for i, match in enumerate(layer_matches):
+        layer_name = match.group(1)
+        layer_start = match.start()
+        layer_end = layer_matches[i + 1].start() if i + 1 < len(layer_matches) else len(text)
+        layer_block = text[layer_start:layer_end]
+
+        # Within the layer block, find every ``^## <prefix>-<N>`` sub-block.
+        rule_matches = list(_RULE_HEADING_RE.finditer(layer_block))
+        if not rule_matches:
+            # Layer header with no rules — preserve header line, no rules.
+            layers.append((layer_name, layer_block.rstrip() + "\n", []))
+            continue
+
+        # Layer header = everything before the first rule heading.
+        header_line = layer_block[: rule_matches[0].start()].rstrip() + "\n"
+        rules: list[tuple[str, str]] = []
+        for j, rule_match in enumerate(rule_matches):
+            rule_id = rule_match.group(1)
+            rule_start = rule_match.start()
+            rule_end = (
+                rule_matches[j + 1].start() if j + 1 < len(rule_matches) else len(layer_block)
+            )
+            rule_text = layer_block[rule_start:rule_end].rstrip() + "\n"
+            rules.append((rule_id, rule_text))
+
+        layers.append((layer_name, header_line, rules))
+
+    return layers
+
+
+def count_agents_md_rules(agents_md_path: Path | None = None) -> dict[str, int | list[str]]:
+    """Count total rules in compiled AGENTS.md, partitioned by layer prefix.
+
+    Returns dict with:
+      - ``total``: int — total ``^## ([SACW]|ST)-\\d+`` headings.
+      - ``by_layer``: dict[str, int] — counts keyed by layer name
+        (``"soul"`` / ``"architecture"`` / ``"conventions"`` / ``"workflow"`` / ``"style"``).
+      - ``rule_ids``: list[str] — ordered list of every rule ID seen.
+
+    The ground-truth source for the v9.0.0 60-rule HARD cap enforced by
+    ``tests/test_no_ghost_features.py::test_rule_count_under_cap`` (per
+    ADR-007 D5).
+    """
+    text = _read_agents_md(agents_md_path)
+    layers = _split_agents_md_into_layers(text)
+
+    by_layer: dict[str, int] = {prefix: 0 for prefix in _LAYER_PREFIX_BY_HEADING.values()}
+    rule_ids: list[str] = []
+
+    for layer_name, _header, rules in layers:
+        layer_prefix = _LAYER_PREFIX_BY_HEADING.get(layer_name)
+        if layer_prefix is None:
+            continue
+        by_layer[layer_prefix] += len(rules)
+        rule_ids.extend(rid for rid, _ in rules)
+
+    return {
+        "total": sum(by_layer.values()),
+        "by_layer": by_layer,
+        "rule_ids": rule_ids,
+    }
+
+
+def _match_slice_profile(task_type: str, slice_cfg: dict[str, Any]) -> str:
+    """Match ``task_type`` to a slice-profile name with goal-hint fallback.
+
+    Lookup order (mirrors :func:`match_profile`):
+      1. Exact key match on ``slice_cfg["profiles"]``.
+      2. Goal-hint substring match against an existing :func:`match_profile`
+         resolution (so the slice profile follows the section profile
+         when both share a hint vocabulary).
+      3. ``slice_cfg["fallback"]`` — when set to ``"full"`` the caller
+         returns the unsliced AGENTS.md; when set to a profile name,
+         that profile's slice is used.
+    """
+    profiles = slice_cfg.get("profiles", {})
+
+    if task_type in profiles:
+        return task_type
+
+    task_lower = task_type.lower()
+    for profile_name in profiles:
+        if profile_name.lower() == task_lower:
+            return profile_name
+
+    return ""  # caller honours fallback semantics
+
+
+def _filter_agents_md_by_profile(
+    text: str,
+    profile_layers: dict[str, Any],
+) -> tuple[str, list[str], list[str]]:
+    """Filter AGENTS.md text per a per-profile layer mapping.
+
+    Args:
+      text: full AGENTS.md content.
+      profile_layers: dict like
+        ``{"soul": "all", "architecture": ["A-1"], "workflow": ["W-9"], ...}``.
+        Layer values are either the literal ``"all"`` (keep every rule
+        in that layer) OR a list of rule IDs (keep only those). Missing
+        keys SKIP the entire layer (drop the layer header too).
+
+    Returns:
+      (sliced_text, included_rule_ids, skipped_rule_ids)
+    """
+    layers = _split_agents_md_into_layers(text)
+    out_parts: list[str] = []
+    included: list[str] = []
+    skipped: list[str] = []
+
+    if text.startswith("<!--"):
+        head_end = text.find("-->\n")
+        if head_end != -1:
+            out_parts.append(text[: head_end + len("-->\n")])
+        else:
+            head_end = text.find("-->")
+            if head_end != -1:
+                out_parts.append(text[: head_end + len("-->")])
+        out_parts.append("\n")
+
+    for layer_name, header_line, rules in layers:
+        layer_prefix = _LAYER_PREFIX_BY_HEADING.get(layer_name)
+        if layer_prefix is None:
+            continue
+
+        layer_spec = profile_layers.get(layer_prefix)
+        if layer_spec is None:
+            for rid, _ in rules:
+                skipped.append(rid)
+            continue
+
+        if layer_spec == "all":
+            allowed_ids: set[str] | None = None
+        else:
+            allowed_ids = set(layer_spec)
+
+        kept_rules: list[tuple[str, str]] = []
+        for rid, rtext in rules:
+            if allowed_ids is None or rid in allowed_ids:
+                kept_rules.append((rid, rtext))
+                included.append(rid)
+            else:
+                skipped.append(rid)
+
+        if not kept_rules:
+            continue
+
+        out_parts.append(header_line)
+        out_parts.append("\n")
+        for _rid, rtext in kept_rules:
+            out_parts.append(rtext)
+            out_parts.append("\n")
+
+    sliced_text = "".join(out_parts).rstrip() + "\n"
+    return sliced_text, included, skipped
+
+
+def select_agents_md_slice(
+    task_type: str,
+    profiles_path: Path | None = None,
+    agents_md_path: Path | None = None,
+) -> dict[str, Any]:
+    """Filter AGENTS.md to the rule slice for ``task_type``.
+
+    v9.0.0 (PV-07) — per ADR-007 D3, the OPERATOR-VISIBLE breaking-change
+    facet of v9.0.0 MAJOR semver. Default behaviour preserves v8.5.1
+    byte-identical full AGENTS.md when ``meta.agents_md_slice.enabled:
+    false`` (the OPT-IN default).
+
+    Returns dict with:
+      - ``sliced_text``: filtered AGENTS.md text.
+      - ``included_rules``: list[str] of rule IDs preserved (e.g.
+        ``["S-1", ..., "A-1", "W-9"]``) OR the literal ``"all"`` when
+        slicing is OFF (the byte-stable fast path).
+      - ``skipped_rules``: list[str] of rule IDs hidden (empty when
+        slicing OFF).
+      - ``profile_name``: matched ``agents_md_slice.profiles`` key, or
+        ``""`` when slicing OFF or no match (fallback applied).
+      - ``slice_enabled``: bool — true when the slice was actually applied.
+      - ``total_tokens``: estimated token count of returned text.
+      - ``full_tokens``: estimated token count of the unsliced AGENTS.md.
+      - ``slice_savings_pct``: percentage reduction (0.0 when slicing OFF).
+    """
+    config = load_profiles(profiles_path)
+    full_text = _read_agents_md(agents_md_path)
+    full_tokens = estimate_tokens(full_text) if full_text else 0
+
+    slice_cfg = config.get("meta", {}).get("agents_md_slice", {})
+
+    if not slice_cfg.get("enabled", False):
+        return {
+            "sliced_text": full_text,
+            "included_rules": "all",
+            "skipped_rules": [],
+            "profile_name": "",
+            "slice_enabled": False,
+            "total_tokens": full_tokens,
+            "full_tokens": full_tokens,
+            "slice_savings_pct": 0.0,
+        }
+
+    profile_name = _match_slice_profile(task_type, slice_cfg)
+    profile_layers = slice_cfg.get("profiles", {}).get(profile_name, {}) if profile_name else {}
+
+    if not profile_layers:
+        fallback = slice_cfg.get("fallback", "full")
+        if fallback == "full":
+            return {
+                "sliced_text": full_text,
+                "included_rules": "all",
+                "skipped_rules": [],
+                "profile_name": "",
+                "slice_enabled": False,
+                "total_tokens": full_tokens,
+                "full_tokens": full_tokens,
+                "slice_savings_pct": 0.0,
+            }
+        # Named-profile fallback
+        profile_name = fallback
+        profile_layers = slice_cfg.get("profiles", {}).get(profile_name, {})
+        if not profile_layers:
+            return {
+                "sliced_text": full_text,
+                "included_rules": "all",
+                "skipped_rules": [],
+                "profile_name": "",
+                "slice_enabled": False,
+                "total_tokens": full_tokens,
+                "full_tokens": full_tokens,
+                "slice_savings_pct": 0.0,
+            }
+
+    sliced_text, included, skipped = _filter_agents_md_by_profile(full_text, profile_layers)
+    sliced_tokens = estimate_tokens(sliced_text)
+    savings_pct = (
+        round((full_tokens - sliced_tokens) / full_tokens * 100, 1) if full_tokens else 0.0
+    )
+
+    return {
+        "sliced_text": sliced_text,
+        "included_rules": included,
+        "skipped_rules": skipped,
+        "profile_name": profile_name,
+        "slice_enabled": True,
+        "total_tokens": sliced_tokens,
+        "full_tokens": full_tokens,
+        "slice_savings_pct": savings_pct,
+    }
+
+
 def _print_cli_usage() -> None:
     """Print the CLI usage banner shown when no task_type is supplied."""
     print(
         "Usage: task_adaptive_selector.py <task_type> "
-        "[--verbose] [--full] [--round N] [--plan-mode|--no-plan-mode]"
+        "[--verbose] [--full] [--round N] [--plan-mode|--no-plan-mode] "
+        "[--show-slice]"
     )
     print()
     print("Task types: hotfix, feature, research, refactor, review, design")
     print("Also matches goal hints: 'fix bug', 'implement feature', etc.")
+    print()
+    print("--show-slice: print the per-task-type AGENTS.md slice (PV-07 ADR-007 D3)")
 
 
 def _parse_round_arg(argv: list[str]) -> int:
@@ -1184,6 +1538,33 @@ def _print_cli_assembled(result: dict[str, Any]) -> None:
     print(result["assembled_text"])
 
 
+def _print_cli_slice(slice_result: dict[str, Any]) -> None:
+    """Print the per-task-type AGENTS.md slice summary (PV-07 ADR-007 D3)."""
+    print()
+    print("=" * 72)
+    print("AGENTS.md SLICE")
+    print("=" * 72)
+    enabled = slice_result.get("slice_enabled", False)
+    print(f"Slice enabled: {enabled}")
+    print(f"Profile matched: {slice_result.get('profile_name', '') or '(none)'}")
+    print(
+        f"Tokens: {slice_result.get('total_tokens', 0)} / {slice_result.get('full_tokens', 0)} "
+        f"(savings {slice_result.get('slice_savings_pct', 0.0)}%)"
+    )
+    included = slice_result.get("included_rules", "all")
+    if included == "all":
+        print("Included rules: ALL (slice OFF — byte-stable v8.5.1 fast path)")
+    else:
+        sample = ", ".join(included[:10])
+        ellipsis = "..." if len(included) > 10 else ""
+        print(f"Included rules: {len(included)} — {sample}{ellipsis}")
+    skipped = slice_result.get("skipped_rules", [])
+    if skipped:
+        sample = ", ".join(skipped[:10])
+        ellipsis = "..." if len(skipped) > 10 else ""
+        print(f"Skipped rules ({len(skipped)}): {sample}{ellipsis}")
+
+
 def main():
     """CLI entry point for the task-adaptive context selector."""
     if len(sys.argv) < 2:
@@ -1193,6 +1574,7 @@ def main():
     task_type = sys.argv[1]
     verbose = "--verbose" in sys.argv
     show_full = "--full" in sys.argv
+    show_slice = "--show-slice" in sys.argv
     round_num = _parse_round_arg(sys.argv)
     plan_mode_flag = _parse_plan_mode_flag(sys.argv)
 
@@ -1208,6 +1590,10 @@ def main():
 
     if show_full:
         _print_cli_assembled(result)
+
+    if show_slice:
+        slice_result = select_agents_md_slice(task_type)
+        _print_cli_slice(slice_result)
 
 
 if __name__ == "__main__":

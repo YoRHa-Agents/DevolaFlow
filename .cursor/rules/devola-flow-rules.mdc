@@ -1,34 +1,47 @@
 ---
-description: "Hard constraints for DevolaFlow workflow orchestration — 5 invariants from design_agent_hierarchy.md §1"
+description: "DEPRECATED — see .rules/ for canonical 5-layer rule source"
 alwaysApply: true
 ---
 
-## Rule 1 — P1 Dispatcher-Not-Implementer
+# Deprecated — see `.rules/` and `.cursor/rules/repo-governance.mdc`
 
-Dispatcher agents (Project, Stage, Wave) MUST NOT perform work directly. Only Task Agents execute actual work — writing code, running tests, authoring documents, performing reviews.
+This file used to carry P1-P6 dispatcher invariants. As of v9.0.0
+(PV-07 ADR-007), the canonical rule source is `.rules/architecture.mdc`
+(A-1 4-layer hierarchy + A-2 cache-layout governance v2). This stub
+remains as a discoverable cross-reference so existing `.cursor/rules/`
+auto-load paths still surface a pointer to the canonical source.
 
-**Tool enforcement**: L0-L2 agents MAY use Read, Glob, Grep, SemanticSearch for planning/orchestration. L0-L2 MUST NOT use Write, StrReplace, Shell (for code/test/build), or EditNotebook to implement — delegate to L3 Task Agents via the `Task` tool. **Trivial exception**: Single file, < 20 lines — P1 waived.
+## Canonical rule source
 
-## Rule 2 — P2 Minimal Context
+| Layer | Canonical `.mdc` file | Compiled into |
+|---|---|---|
+| Soul (P0) | `.rules/soul.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Architecture (P1) | `.rules/architecture.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Conventions (P2) | `.rules/conventions.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Workflow (P3) | `.rules/workflow.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Style (P4) | `.rules/style.mdc` | `repo-governance.mdc` (Cursor only) |
 
-Each agent layer receives only the context it needs. Project Agent: ~3K tokens (workflow template + status). Stage Agent: ~5K tokens (stage def + predecessor summaries). Wave Agent: ~4K tokens (task list + status). Task Agent: ~8K tokens (task spec + owned files + rules).
+The compiled full corpus lives at `.cursor/rules/repo-governance.mdc`
+(MDC format, 8K budget) — that is the file every Cursor agent loads at
+session start. AGENTS.md (Markdown, 8K budget) is the parallel target
+loaded by Codex / KimiCode / Cline / Roo.
 
-## Rule 3 — P3 Structured Messages
+## Regenerate after editing `.rules/*.mdc`
 
-All inter-layer communication uses typed YAML message schemas (TaskDispatch, StatusReport, ExceptionEscalation). Free-form natural language between layers is prohibited.
+```bash
+python -c "from devolaflow.local.compiler import RuleCompiler; \
+RuleCompiler('.rules/compile-config.yaml').compile_all()"
+```
 
-## Rule 4 — P4 Bounded Retry
+Drift detection (lint enforced by
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`):
+hand-edits to `.cursor/rules/repo-governance.mdc` or to either of the
+two deprecated stubs (this file + `.cursor/rules/workflow-rules.mdc`)
+fail the lint at CI-time.
 
-Every loop has a max_iterations ceiling. Every failure triggers a classified response (retry / escalate / abort). No infinite loops. Escalation always moves upward: Task→Wave→Stage→Project→Human.
+## Migration
 
-## Rule 5 — P5 Artifacts as Contracts
+Switch any tooling that reads this file to read either:
 
-Layers communicate through artifact files, not shared memory or conversation history. Each artifact has a defined schema. The producing layer writes; the consuming layer reads. No bidirectional shared state.
-
-## Rule 6 — P6 Preserve Cached Prefix
-
-Dispatch payloads MUST honour the canonical layout declared in
-`schemas/lean-dispatch.yaml#layout_invariant`. Use
-`devolaflow.compressor.assert_dispatch_layout(payload)` before send. New
-top-level keys MUST be appended after `gate` (position 12). Reordering
-existing keys is a release blocker per `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.
+* `.cursor/rules/repo-governance.mdc` — compiled full corpus, OR
+* `.rules/architecture.mdc` — canonical Architecture rule body (A-1 + A-2).

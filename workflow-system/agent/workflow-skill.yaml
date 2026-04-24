@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "8.5.1"
+  version: "9.0.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.

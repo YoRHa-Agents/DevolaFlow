@@ -2,14 +2,14 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-Total rules: **51** (v8.4.4 — added S-10 in PV-04 per `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`).
+Total rules: **58** (v9.0.0 — added W-21 in PV-07 per `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4; cap 60 HARD per ADR-007 D5).
 
 | Layer | File | Priority | Always Apply | Rule count | Description |
 |-------|------|----------|-------------|------------|-------------|
-| Soul | `soul.mdc` | P0 | Yes | 10 (S-1..S-10) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8), handoff append-only (S-9), prompt-side governance contract embedding (S-10) |
-| Architecture | `architecture.mdc` | P1 | Yes | 4 (A-1..A-4) | Core architectural decisions — 4-layer hierarchy, context isolation, cache layout, source-of-truth spec location (A-4) |
+| Soul | `soul.mdc` | P0 | Yes | 10 (S-1..S-10) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8), handoff append-only (S-9), prompt-side governance contract embedding (S-10). **Frozen at 10 entries per W-21 (ADR-007 D4).** |
+| Architecture | `architecture.mdc` | P1 | Yes | 5 (A-1..A-5) | Core architectural decisions — 4-layer hierarchy (A-1), cache layout governance v2 (A-2), token budgets (A-3), source-of-truth spec location (A-4), single-source-of-truth registry pattern (A-5 — added v8.4.3 PV-03 per ADR-003) |
 | Conventions | `conventions.mdc` | P2 | Yes | 9 (C-1..C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9) |
-| Workflow | `workflow.mdc` | P3 | No | 15 (W-1..W-15) | Development process — iteration planning, NineS analysis, benchmarks, version bumps |
+| Workflow | `workflow.mdc` | P3 | No | 21 (W-1..W-21) | Development process — iteration planning, NineS analysis, benchmarks, version bumps; W-16..W-20 added v8.5.0 PV-05 per ADR-005 (cycle baseline regen / per-PV test cap / ghost-audit refresh / cycle archive / env-flag reuse); W-21 added v9.0.0 PV-07 per ADR-007 D4 (Soul-set freeze governance). |
 | Style | `style.mdc` | P4 | No | 13 (ST-1..ST-13) | Documentation & presentation — doc sync, web experience, bilingual completeness |
 
 ## Compilation
