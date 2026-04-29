@@ -1,6 +1,6 @@
 # .agent/active/
 
-In-flight changes managed by the `change-driven` workflow (lands v8.2.6).
+In-flight changes managed by the `change-driven` workflow (shipped v8.2.6+, see `workflow-system/agent/templates/builtin/change-driven.yaml`).
 Each subfolder is `<change-id>/` with the per-change artifact set:
 
 - `goal.md` — intent statement (<= 200 tokens, hard ceiling 400)

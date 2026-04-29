@@ -729,5 +729,31 @@
       "references": "14",
       "rules_total": "58"
     }
+  },
+  {
+    "version": "9.1.0",
+    "date": "2026-04-29",
+    "era": "rule-rebalancing",
+    "headline": "MINOR — `.local/` & `.rules/` utilization: close the clean-context activation gap + codify Soul Rule S-9 enforcement on disk + ghost-free CHANGELOG surfaces",
+    "summary": "First PV of the v9.1.0 cycle, triggered by user feedback `feedback_for_v9.0.1.md` — `.local/` & `.rules/` were underutilized when DevolaFlow ran in an independent clean context because three distinct gaps let the invariants silently decay: (1) Doc-vs-code lies — `.rules/soul.mdc` §S-9 cited `tests/test_handoff_envelope_immutable.py` + `lifecycle/check_envelope_append_only.py` as enforcement surfaces, but neither existed on disk through v9.0.1; (2) Lifecycle activation gap — `devola-init local` scaffolded `.local/` + `.rules/` sources but never auto-compiled them into `.cursor/rules/repo-governance.mdc` / `AGENTS.md`; (3) Discoverability gap — `CLAUDE.md` + `README.md` had no pointer to the `.rules/` edit-then-recompile workflow, and `Makefile` had no `compile-rules` / `check-rules-drift` targets. The v9.1.0 cycle closes 12 of 18 catalogued gap items (G-001..G-004, G-007..G-011, G-013..G-014, G-016) as MUST-fixes; 6 deferred to v9.2.0 per priority ranking in `.local/research/v9.1.0_gap_analysis.md` §3.2. Soul-set stays frozen at 10 per W-21; no S-11 candidate. Total rule count unchanged at 58.",
+    "highlights": [
+      "G-001 closure — `tests/test_handoff_envelope_immutable.py` authored (203 LOC, 3 tests): pins Soul Rule S-9 at the `HandoffStore` API boundary; previously the rule CITED this file but it did not exist on disk",
+      "G-002 closure — `src/devolaflow/lifecycle/check_envelope_append_only.py` authored (150 LOC): new lifecycle hook binding S-9 to the `envelope_write` event; emits CEA001 blocker on path collision, strict opt-in raises `HookViolation`",
+      "G-003 closure — `.rules/index.md` token-budget table corrected (cursor 8000 → 12000, agents_md 6000 → 12000) to match `compile-config.yaml` after v9.0.0 PV-07 budget bump",
+      "G-007 closure — `devola-init local` auto-compiles `.rules/` into `.cursor/rules/repo-governance.mdc` + `AGENTS.md` so fresh repos ship with their compiled governance corpus immediately (`--no-compile` opt-out preserves legacy flow); S-5 graceful degradation on compile exceptions",
+      "G-008/009 closure — NEW Makefile targets `compile-rules` + `check-rules-drift`; `make all` and `make release-preflight` now invoke both automatically",
+      "G-010/011 + G-004 closure — `CLAUDE.md` gains `## Rules` section; `README.md` gains \"Editing rules\" subsection; `_DIR_README_CONTENT['.agent/active']` stale text corrected",
+      "G-013 + G-014 closure — `tests/test_rules_index_accuracy.py` (164 LOC, 4 tests) + `tests/test_local_layer_completeness.py` (211 LOC, 4 tests) lint `.rules/index.md` + compiled outputs against layer config",
+      "Lifecycle `DEFAULT_EVENTS` 6 → 7 (A-2.4-compliant append): `envelope_write` APPENDED at position 7 after `pre_shell_call`; positions 1-6 byte-stable (I-8 invariant intact)",
+      "W-16 wholesale baseline regen — `benchmarks/devolaflow_context/baselines/v9.1.0_baseline.json` generated from scratch covering all 53 scenarios; 0 regressions > 5pp vs v9.0.0",
+      "W-9 / SI-10 6/6 PASS — 3457 passed / 19 skipped / 2 xfailed; +27 NEW test functions in PV-01 (within +30 W-17 cap); rules layer unchanged at 58 (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13)"
+    ],
+    "metrics": {
+      "tests": "3457",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "58"
+    }
   }
 ]

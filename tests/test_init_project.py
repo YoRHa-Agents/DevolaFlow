@@ -267,6 +267,138 @@ def test_install_local_then_sync_rules_does_not_dead_end(tmp_path: Path, monkeyp
     sync_rules_cmd()
 
 
+def test_install_local_compiles_rules(tmp_path: Path):
+    """G-007 + G-016 closure (v9.1.0 W2-02): install_local auto-compiles .rules/.
+
+    Pre-v9.1.0: ``devola-init local`` only seeded the compile config and
+    left compilation as a separate ``devola-init sync-rules`` step that
+    fresh-repo operators frequently missed, leaving Cursor and Codex
+    agents without compiled governance. Post-v9.1.0: install_local
+    chains ``RuleCompiler.compile_all()`` so the cursor target
+    (``.cursor/rules/repo-governance.mdc``) and the agents_md target
+    (``AGENTS.md``) materialise on the same invocation.
+
+    This test pre-seeds a richer compile-config.yaml (cursor + agents_md
+    targets, single soul layer) into ``tmp_path/.rules/`` BEFORE calling
+    install_local — the install_local config-seeding step then SKIPs
+    template overwrite (idempotent) and the new auto-compile step writes
+    both target outputs.
+    """
+    import yaml
+
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_local
+
+    rules_dir = tmp_path / ".rules"
+    rules_dir.mkdir()
+    (rules_dir / "soul.mdc").write_text(
+        '---\ndescription: "Soul"\nalwaysApply: true\n---\n\n'
+        "# Soul\n\n## S-1 — Test rule\n\nMinimal content for compile.\n",
+        encoding="utf-8",
+    )
+    config = {
+        "version": "1.0",
+        "source_dir": ".rules",
+        "layers": [
+            {"name": "soul", "priority": 0, "always_include": True},
+        ],
+        "targets": {
+            "cursor": {
+                "output": ".cursor/rules/repo-governance.mdc",
+                "format": "mdc",
+                "token_budget": 8000,
+                "include_layers": ["soul"],
+                "frontmatter": {
+                    "description": "Compiled governance rules",
+                    "alwaysApply": True,
+                },
+            },
+            "agents_md": {
+                "output": "AGENTS.md",
+                "format": "markdown",
+                "token_budget": 6000,
+                "include_layers": ["soul"],
+            },
+        },
+    }
+    (rules_dir / "compile-config.yaml").write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    install_local(agent_dir, tmp_path)
+
+    cursor_out = tmp_path / ".cursor" / "rules" / "repo-governance.mdc"
+    agents_out = tmp_path / "AGENTS.md"
+    assert cursor_out.exists(), "install_local must auto-compile the cursor target"
+    assert agents_out.exists(), "install_local must auto-compile the agents_md target"
+    assert cursor_out.stat().st_size > 0, "cursor output must not be empty"
+    assert agents_out.stat().st_size > 0, "AGENTS.md must not be empty"
+
+
+def test_install_local_no_compile_flag_skips(tmp_path: Path):
+    """G-007 + G-016 escape hatch: ``compile_rules=False`` skips auto-compile.
+
+    Mirrors the ``devola-init local --no-compile`` CLI path. Asserts that
+    scaffold + config seeding still run (so the operator can hand-edit
+    the seeded ``compile-config.yaml`` before any compile happens) but
+    the cursor + AGENTS.md targets are NOT written, proving the
+    ``--no-compile`` opt-out is wired through to the compile step.
+    """
+    import yaml
+
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        return
+
+    from devolaflow.init_project import install_local
+
+    rules_dir = tmp_path / ".rules"
+    rules_dir.mkdir()
+    (rules_dir / "soul.mdc").write_text(
+        '---\ndescription: "Soul"\nalwaysApply: true\n---\n\n'
+        "# Soul\n\n## S-1 — Test rule\n\nMinimal content.\n",
+        encoding="utf-8",
+    )
+    config = {
+        "version": "1.0",
+        "source_dir": ".rules",
+        "layers": [{"name": "soul", "priority": 0, "always_include": True}],
+        "targets": {
+            "cursor": {
+                "output": ".cursor/rules/repo-governance.mdc",
+                "format": "mdc",
+                "token_budget": 8000,
+                "include_layers": ["soul"],
+            },
+            "agents_md": {
+                "output": "AGENTS.md",
+                "format": "markdown",
+                "token_budget": 6000,
+                "include_layers": ["soul"],
+            },
+        },
+    }
+    (rules_dir / "compile-config.yaml").write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    install_local(agent_dir, tmp_path, compile_rules=False)
+
+    assert (tmp_path / ".local").is_dir(), "scaffold must still run with compile_rules=False"
+    assert (tmp_path / ".rules" / "compile-config.yaml").is_file(), (
+        "config seeding must still run with compile_rules=False"
+    )
+    assert not (tmp_path / "AGENTS.md").exists(), (
+        "compile_rules=False must skip the AGENTS.md auto-compile"
+    )
+    assert not (tmp_path / ".cursor" / "rules" / "repo-governance.mdc").exists(), (
+        "compile_rules=False must skip the cursor auto-compile"
+    )
+
+
 def test_main_list_flag(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(tmp_path / "_home"))

@@ -58,7 +58,8 @@ Files:
     ".agent/active": """\
 # .agent/active/
 
-In-flight changes managed by the `change-driven` workflow (lands v8.2.6).
+In-flight changes managed by the `change-driven` workflow (shipped v8.2.6+; see
+`workflow-system/agent/templates/builtin/change-driven.yaml` for the stage definition).
 Each subfolder is `<change-id>/` with the per-change artifact set:
 
 - `goal.md` — intent statement (<= 200 tokens, hard ceiling 400)
@@ -83,7 +84,7 @@ Naming: `<from>__<to>__<change-id>__<seq>.yaml`
 - Once an envelope file exists, it MUST NOT be modified or deleted
 - New information goes in `seq + 1`
 
-Schema lands in v8.2.4 under `schemas/agent-workspace/handoff-envelope.yaml`.
+Schema shipped in v8.2.4 under `schemas/agent-workspace/handoff-envelope.yaml`.
 Append-only enforcement: `tests/test_handoff_envelope_immutable.py` (CI lint)
 plus the `lifecycle/check_envelope_append_only` hook (block in STRICT mode).
 """,
@@ -97,7 +98,7 @@ Archive is the read-mostly half of the lifecycle FSM
 (see `.local/research/v8.3.0_design.md` Section 1.3). Source-of-truth specs
 in `.local/memory/specs/` are mutated only after the change-gate composite
 score >= 8.5 PASSES (W-3 / SI-3 for minor, >= 9.0 for major) per Rule A-4.
-The mergeability check (lands v8.2.5) gates the merge.
+The mergeability check (shipped v8.2.5+) gates the merge.
 """,
     "memory/specs": """\
 # memory/specs/

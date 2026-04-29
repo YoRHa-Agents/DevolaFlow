@@ -30,6 +30,25 @@ python -m pytest tests/test_benchmarks.py -v  # EvoBench benchmarks
 - `schemas/` — YAML message schemas
 - `scripts/` — Version bump, doc generation, install
 
+## Rules
+
+DevolaFlow's governance rules live in **`.rules/`** (5 layered `.mdc` files: soul, architecture,
+conventions, workflow, style). They are compiled to two distribution targets:
+
+- **`AGENTS.md`** (repo root) — the canonical Markdown corpus loaded by Claude Code, Codex,
+  KimiCode, Cline, Roo, and any AGENTS.md-aware tool. Read this for the full rule body.
+- **`.cursor/rules/repo-governance.mdc`** — the same corpus rendered as MDC for Cursor.
+
+To edit a rule: modify the relevant `.rules/<layer>.mdc` source, then recompile:
+
+```bash
+make compile-rules    # wraps the sync-rules console script
+```
+
+`make all` and `make release-preflight` invoke `compile-rules` automatically; CI's
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only` blocks any merge
+that hand-edits the compiled outputs (drift detection via `.rules/.compile-hashes.json`).
+
 ## Conventions
 
 - Python 3.11+, ruff for lint/format, pytest for tests

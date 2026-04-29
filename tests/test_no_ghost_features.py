@@ -1103,3 +1103,180 @@ def test_rule_surfaces_compile_only(project_root: Path) -> None:
             f"is intentionally minimal; expand canonical content under .rules/ "
             f"instead and let the compiler re-emit the full corpus."
         )
+
+
+# ── v9.1.0 W3-04 — W-18 ghost-audit refresh for v9.1.0 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.0 introduces
+# the surfaces below; this block adds presence + import-smoke + signature
+# coverage for all of them as the W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/lifecycle/check_envelope_append_only.py — new module
+#     binding the S-9 invariant (handoff envelopes are append-only) to
+#     the `envelope_write` lifecycle event.
+#   * lifecycle/ENVELOPE_WRITE_EVENT — new exported event constant
+#     (canonical name `"envelope_write"`).
+#   * lifecycle/DEFAULT_EVENTS length 6 → 7 (envelope_write APPENDED at
+#     position 7 to preserve the A-2.4 cache-prefix invariant — existing
+#     event positions 1-6 stay byte-stable per the lifecycle/__init__.py
+#     v9.1.0 W1-02 changelog comment).
+#   * tests/test_handoff_envelope_immutable.py — new test file pinning
+#     the S-9 invariant against the envelope writer.
+#   * tests/test_lifecycle_envelope_append_only.py — new test file
+#     covering the envelope-write hook unit semantics.
+#   * tests/test_rules_index_accuracy.py — new test file covering the
+#     G-013 lint (rules index accuracy).
+#   * tests/test_local_layer_completeness.py — new test file covering
+#     the G-014 lint (local-layer completeness audit).
+#   * init_project.install_local(compile_rules=True) — new keyword-only
+#     parameter wired to the `--no-compile` CLI flag (closes G-007 +
+#     G-016: `devola-init local` now auto-compiles `.rules/` →
+#     `.cursor/rules/repo-governance.mdc` + `AGENTS.md` immediately).
+
+_V9_1_0_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/lifecycle/check_envelope_append_only.py",
+    "tests/test_handoff_envelope_immutable.py",
+    "tests/test_lifecycle_envelope_append_only.py",
+    "tests/test_rules_index_accuracy.py",
+    "tests/test_local_layer_completeness.py",
+)
+
+# Minimum byte size for a v9.1.0 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_0_FILE_MIN_BYTES: int = 50
+
+# Expected DEFAULT_EVENTS tuple length after the v9.1.0 W1-02 bump.
+# Before W1-02: 6 (pre_dispatch, post_dispatch, file_write, task_stop,
+# format_on_edit, pre_shell_call). After W1-02: 7 (above + envelope_write
+# APPENDED at position 7 per A-2.4 cache-prefix invariant).
+_V9_1_0_DEFAULT_EVENTS_COUNT: int = 7
+
+
+def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.0: every NEW v9.1.0 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.0 introduces the surfaces
+    enumerated in the comment block above this test; this lint asserts
+    each one as a cheap presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_0_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_0_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``ENVELOPE_WRITE_EVENT`` and
+       ``check_envelope_append_only`` are importable from
+       :mod:`devolaflow.lifecycle` and the event constant equals
+       ``"envelope_write"`` (the canonical name re-exported from
+       :mod:`devolaflow.lifecycle.check_envelope_append_only`).
+    3. **DEFAULT_EVENTS** tuple length is exactly
+       ``_V9_1_0_DEFAULT_EVENTS_COUNT`` (7 — the v9.1.0 W1-02 bump from
+       6 → 7 with ``envelope_write`` APPENDED at position 7 per the
+       A-2.4 cache-prefix invariant) and contains
+       ``ENVELOPE_WRITE_EVENT``.
+
+    Failure modes:
+      * "missing on disk" → a v9.1.0 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_0_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "DEFAULT_EVENTS length != 7" → the lifecycle event tuple was
+        edited in violation of the A-2.4 append-only contract; verify
+        ``envelope_write`` is still appended at position 7.
+    """
+    for relpath in _V9_1_0_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.0 violation: NEW v9.1.0 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_0_FILE_MIN_BYTES, (
+            f"W-18 v9.1.0 violation: NEW v9.1.0 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_0_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.lifecycle import (
+        DEFAULT_EVENTS,
+        ENVELOPE_WRITE_EVENT,
+        check_envelope_append_only,
+    )
+
+    assert ENVELOPE_WRITE_EVENT == "envelope_write", (
+        f"W-18 v9.1.0 violation: ENVELOPE_WRITE_EVENT exported value "
+        f"{ENVELOPE_WRITE_EVENT!r} != 'envelope_write' (the canonical event "
+        f"name from check_envelope_append_only.EVENT)"
+    )
+    assert callable(check_envelope_append_only), (
+        "W-18 v9.1.0 violation: check_envelope_append_only is not callable — "
+        "the export from devolaflow.lifecycle must be the hook function itself"
+    )
+    assert len(DEFAULT_EVENTS) == _V9_1_0_DEFAULT_EVENTS_COUNT, (
+        f"W-18 v9.1.0 violation: lifecycle.DEFAULT_EVENTS length is "
+        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_0_DEFAULT_EVENTS_COUNT} "
+        f"(v9.1.0 W1-02 bumped 6 → 7 with envelope_write APPENDED at "
+        f"position 7 per A-2.4 cache-prefix invariant). Current events: "
+        f"{DEFAULT_EVENTS!r}"
+    )
+    assert ENVELOPE_WRITE_EVENT in DEFAULT_EVENTS, (
+        f"W-18 v9.1.0 violation: ENVELOPE_WRITE_EVENT not registered in "
+        f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the W1-02 append step "
+        f"was incomplete"
+    )
+
+
+def test_install_local_has_compile_rules_kwarg() -> None:
+    """W-18 v9.1.0: install_local() exposes the compile_rules keyword.
+
+    Asserts the v9.1.0 W2-02 (G-007 + G-016 closure) signature change:
+    :func:`devolaflow.init_project.install_local` MUST accept a
+    ``compile_rules`` parameter that:
+
+    * is present in :func:`inspect.signature(install_local).parameters`,
+    * defaults to ``True`` (auto-compile on by default — fresh repos
+      receive their compiled ``.cursor/rules/repo-governance.mdc`` +
+      ``AGENTS.md`` on the first ``devola-init local`` run instead of
+      requiring a separate ``devola-init sync-rules`` invocation),
+    * is ``KEYWORD_ONLY`` (the function signature uses ``*`` as the
+      separator so positional callers are forbidden — keeps the call
+      site explicit and prevents the kwarg from drifting into the
+      positional-argument cache prefix per A-2.4 reasoning).
+
+    The kwarg is wired to the ``--no-compile`` CLI flag in
+    :func:`devolaflow.init_project.main` so operators can disable
+    auto-compile without mocking ``sys.argv`` in tests.
+    """
+    import inspect
+
+    from devolaflow.init_project import install_local
+
+    sig = inspect.signature(install_local)
+    params = sig.parameters
+
+    assert "compile_rules" in params, (
+        f"W-18 v9.1.0 violation: install_local() signature missing "
+        f"compile_rules parameter — present parameters: {sorted(params)}. "
+        f"v9.1.0 W2-02 (G-007 + G-016) requires the kwarg to wire "
+        f"`devola-init local --no-compile`."
+    )
+
+    cr = params["compile_rules"]
+    assert cr.default is True, (
+        f"W-18 v9.1.0 violation: install_local(compile_rules=...) default is "
+        f"{cr.default!r}, expected True (auto-compile is the v9.1.0 W2-02 "
+        f"default — fresh repos receive their compiled rules immediately; "
+        f"--no-compile is the explicit opt-out)"
+    )
+    assert cr.kind == inspect.Parameter.KEYWORD_ONLY, (
+        f"W-18 v9.1.0 violation: install_local(compile_rules=...) kind is "
+        f"{cr.kind.name}, expected KEYWORD_ONLY (the function signature uses "
+        f"`*` as the separator so positional callers are forbidden — keeps "
+        f"the call site explicit per A-2.4 cache-prefix reasoning)"
+    )
