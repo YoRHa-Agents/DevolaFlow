@@ -145,11 +145,21 @@ def test_default_events_match_skill_md_table() -> None:
     contract handler (Soul Rule S-10) lands in PV-07 with the rule-corpus
     selectivity slice. R5 strict byte-identical: zero behaviour change with
     no extras registered.
+
+    v9.1.0 W1-02 — bumped 6 → 7 with the addition of ``envelope_write``
+    (Soul Rule S-9 enforcement hook). The new slot is wired to
+    ``check_envelope_append_only.py`` which blocks overwrites of existing
+    handoff envelopes in STRICT mode. The new event is APPENDED at the
+    END of the tuple so existing event positions 1–6 remain byte-stable
+    (preserves A-2.4 cache-prefix invariants).
     """
+    from devolaflow.lifecycle import ENVELOPE_WRITE_EVENT
+
     assert PRE_DISPATCH_EVENT == "pre_dispatch"
     assert POST_DISPATCH_EVENT == "post_dispatch"
     assert FILE_WRITE_EVENT == "file_write"
     assert TASK_STOP_EVENT == "task_stop"
+    assert ENVELOPE_WRITE_EVENT == "envelope_write"
     assert set(DEFAULT_EVENTS) == {
         "pre_dispatch",
         "post_dispatch",
@@ -157,8 +167,9 @@ def test_default_events_match_skill_md_table() -> None:
         "task_stop",
         "format_on_edit",
         "pre_shell_call",
+        "envelope_write",
     }
-    assert len(DEFAULT_EVENTS) == 6
+    assert len(DEFAULT_EVENTS) == 7
 
 
 def test_post_dispatch_default_is_permissive_no_op() -> None:

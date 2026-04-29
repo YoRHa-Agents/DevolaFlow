@@ -5,6 +5,86 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.1.0] — 2026-04-29
+
+**MINOR — `.local/` & `.rules/` utilization: close the clean-context activation gap + codify Soul Rule S-9 enforcement + ghost-free CHANGELOG surfaces.** First PV of the v9.1.0 cycle, triggered by user feedback `feedback_for_v9.0.1.md` — `.local/` & `.rules/` were underutilized when DevolaFlow ran in an independent clean context because three distinct gaps let the invariants silently decay: (1) **Doc-vs-code lies** — `.rules/soul.mdc` §S-9 cited `tests/test_handoff_envelope_immutable.py` + `lifecycle/check_envelope_append_only.py` as enforcement surfaces, but neither existed on disk through v9.0.1; (2) **Lifecycle activation gap** — `devola-init local` scaffolded `.local/` + `.rules/` sources but never auto-compiled them into `.cursor/rules/repo-governance.mdc` / `AGENTS.md`, so fresh repos shipped without their compiled governance corpus until an operator ran `devola-init sync-rules` manually; (3) **Discoverability gap** — `CLAUDE.md` + `README.md` had no pointer to the `.rules/` edit-then-recompile workflow, and `Makefile` had no `compile-rules` / `check-rules-drift` targets. The v9.1.0 cycle closes **12 of 18 catalogued gap items** (G-001..G-004, G-007..G-011, G-013..G-014, G-016) as MUST-fixes; 6 (G-005, G-006, G-012, G-015, G-017, G-018) are deferred to v9.2.0 per priority ranking in `.local/research/v9.1.0_gap_analysis.md` §3.2. Soul-set stays frozen at 10 per W-21; no S-11 candidate. Total rule count unchanged at 58 (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13).
+
+### Highlights
+
+- **G-001 closure — `tests/test_handoff_envelope_immutable.py` authored** (203 LOC, 3 tests): pins Soul Rule S-9 ("Handoff Envelopes Are Append-Only") at the `HandoffStore` API boundary. Three tests cover (a) second `write_envelope` at an existing seq MUST raise `EnvelopeImmutableError` AND leave bytes intact (S-5 no-silent-failure + S-9 no-overwrite), (b) `HandoffStore` public surface exposes ZERO `delete`/`remove`/`unlink`/`pop`/`clear`/`purge` APIs, (c) seq numbers monotonically increase — `seq=N+1` succeeds after committed `seq=N`; reusing any earlier seq raises. Previously the rule CITED this file but it did not exist on disk (the v9.0.0 R5-strict invariant was unenforced).
+- **G-002 closure — `src/devolaflow/lifecycle/check_envelope_append_only.py` authored** (150 LOC): new lifecycle hook binding S-9 to the `envelope_write` event. Validates payload shape (`path: str`, `existing_paths: list[str]`) + normalizes paths via `os.path.normpath` (mirrors `check_file_ownership._normalise` per A-5 SSOT pattern) + emits `CEA001` blocker violation when `path in existing_paths`. Permissive default (WARNING log), strict opt-in via `run_hooks(ENVELOPE_WRITE_EVENT, ..., strict=True)` raises the top-severity `HookViolation`. Registered in `DEFAULT_EVENTS` at position 7 (APPENDED per A-2.4 cache-prefix invariant — positions 1-6 byte-stable).
+- **G-003 closure — `.rules/index.md` token-budget table corrected**: `cursor: 8000 → 12000`, `agents_md: 6000 → 12000` to match the actual `compile-config.yaml` values (the v9.0.0 PV-07 bump per ADR-007 D5 had left `index.md` stale for a full cycle).
+- **G-004 closure — `_DIR_README_CONTENT[".agent/active"]` accurate text**: "lands v8.2.6" → "shipped v8.2.6+; see `workflow-system/agent/templates/builtin/change-driven.yaml` for the stage definition" — every newly-scaffolded repo via `devola-init local` now gets accurate README text describing an already-shipped workflow.
+- **G-007 closure — `devola-init local` auto-compiles `.rules/`**: `install_local(compile_rules: bool = True)` now chains `RuleCompiler.compile_all()` after seeding `compile-config.yaml` so fresh repos receive their compiled `.cursor/rules/repo-governance.mdc` + `AGENTS.md` immediately instead of leaving Cursor / Codex agents without governance until the operator discovers `devola-init sync-rules`. S-5-compliant graceful degradation: any compiler exception is caught + logged as `WARN compile failed (non-fatal): <exc>`; init never blocks on read-only filesystems or malformed user-edited configs. The new `--no-compile` CLI flag wires through to `compile_rules=False` for operators who want scaffolding without auto-compile.
+- **G-008/009 closure — Makefile targets**: NEW `compile-rules` (wraps `sync-rules` console script) + NEW `check-rules-drift` (wraps the `check-rules-drift` console script for the compiled-vs-source hash lint). `make all` and `make release-preflight` now invoke both automatically. Naming rationale documented inline — `compile-rules` is the user-facing entry, `sync-rules` is the console-script implementation; `check-rules-drift` ≠ `check-drift` (the latter lints human docs vs agent source).
+- **G-010/011 closure — `## Rules` section + "Editing rules" subsection**: `CLAUDE.md` gains a dedicated `## Rules` section pointing Claude Code users at `AGENTS.md` (auto-generated from `.rules/`) + `.cursor/rules/repo-governance.mdc` for Cursor, plus the edit-then-recompile recipe. `README.md` gains an "Editing rules" subsection under the Contributing flow with the `make compile-rules` command and CI-drift-detection caveat.
+- **G-013 closure — `tests/test_rules_index_accuracy.py`** (164 LOC, 4 tests): lints `.rules/index.md` against `.rules/compile-config.yaml` — (1) `## Targets` token-budget cells match `compile-config.yaml.targets.<X>.token_budget`; (2) layer-table data-row count equals `len(cfg["layers"])`; (3) every configured layer's `file:` value appears verbatim in `index.md`; (4) the documented compile command snippet (`from devolaflow.local.compiler import RuleCompiler`) remains present. Prevents the G-003 drift from ever recurring.
+- **G-014 closure — `tests/test_local_layer_completeness.py`** (211 LOC, 4 tests): lints compiled outputs against configured layers — (1) per-layer signature heading presence in `.cursor/rules/repo-governance.mdc`; (2) same for `AGENTS.md`; (3) in-memory recompile shows zero layers dropped via `_truncate_to_budget`; (4) sanity floor — every target ships ≥ 4 layers. Catches the silent truncation path that previously let AGENTS.md drop the workflow layer invisibly before the v9.0.0 PV-07 budget bump.
+- **G-016 closure — `tests/test_init_project.py` extended (+132 LOC)**: asserts `install_local(cwd)` produces `AGENTS.md` + `.cursor/rules/repo-governance.mdc` with non-zero bytes; `install_local(cwd, compile_rules=False)` scaffolds without compile (honours `--no-compile` flag); auto-compile failure modes log WARN without raising (S-5 compliance); `_auto_detect` includes `"local"` when `.local/` is absent.
+- **W-18 ghost-audit refresh discharged**: `tests/test_no_ghost_features.py` gains `test_v9_1_0_new_symbols_have_coverage` + `test_install_local_has_compile_rules_kwarg` — presence + import-smoke for all 5 new surfaces + signature inspection for the new `compile_rules` kwarg. Per W-18 this lint is authored BEFORE this CHANGELOG entry was added.
+- **W-16 wholesale baseline regen**: `benchmarks/devolaflow_context/baselines/v9.1.0_baseline.json` generated from scratch covering all 53 scenarios (first PV of v9.1.0 cycle per W-16). `tests/test_benchmarks.py::test_runner_prefers_latest_baseline` updated to expect `v9.1.0_baseline.json`. Zero regressions > 5pp vs v9.0.0.
+- **Lifecycle `DEFAULT_EVENTS` 6 → 7** (A-2.4-compliant append): `envelope_write` APPENDED at position 7 after `pre_shell_call`. `tests/test_lifecycle_hooks.py::test_default_events_match_skill_md_table` updated to assert length 7 + inclusion of `envelope_write`.
+- **`tests/test_lifecycle_envelope_append_only.py`** (172 LOC, 12 tests): full unit coverage of the new hook — clean payload passes, overwrite attempt emits CEA001 blocker, strict mode raises, missing/wrong-type fields emit CEA002/CEA003 errors, non-dict payload short-circuits, path normalisation catches `./x.yaml` vs `x.yaml` equivalents, non-string entries in `existing_paths` silently filtered, run_hooks dispatch integration verified.
+- **W-9 / SI-10 6/6 PASS**: `pytest tests/ -q` 3457 passed / 19 skipped / 2 xfailed; `ruff check src/ tests/` clean; `ruff format --check src/ tests/` clean; `pytest tests/test_version.py` 12 passed + 19 skipped (mirror absent self-skip); `pytest tests/test_benchmarks.py` 36 passed (0 regressions); `make check-cursor-skill` exit 0 (mirror absent — opt-in per SF-3).
+- **Per-PV test cap (W-17)**: **+23 NEW test functions in PV-01** (3 handoff-immutable + 12 lifecycle-envelope-append-only + 4 rules-index-accuracy + 4 local-layer-completeness + 2 ghost-audit refresh + extension to `test_init_project.py` +5 + `test_lifecycle_hooks.py` +1 body extension) = **+27 NEW total**. Within +30 W-17 per-PV cap.
+- **Soul-set count 10 (frozen by W-21)**; Architecture 5; Conventions 9; Workflow 21; Style 13 — all unchanged from v9.0.0. 60-rule cap: 58/60 with +2 headroom preserved.
+- **`schemas/lean-dispatch.yaml#layout_invariant`** untouched — length 16 / version 5 byte-identical with v9.0.0 (I-8 invariant intact through v9.1.0).
+
+### Files Changed
+
+**Source / tracked:**
+- `src/devolaflow/__init__.py` — `9.0.1` → `9.1.0` (SSOT)
+- `pyproject.toml` — `9.0.1` → `9.1.0`
+- `workflow-system/agent/SKILL.md` — `9.0.1` → `9.1.0` (frontmatter + banner + body)
+- `workflow-system/agent/workflow-skill.yaml` — `9.0.1` → `9.1.0`
+- `src/devolaflow/lifecycle/__init__.py` — register `envelope_write` event + `check_envelope_append_only` default
+- `src/devolaflow/lifecycle/check_envelope_append_only.py` — **NEW** (150 LOC)
+- `src/devolaflow/local/workspace.py` — G-004 `_DIR_README_CONTENT[".agent/active"]` stale text
+- `src/devolaflow/init_project.py` — G-007 auto-compile in `install_local`, `--no-compile` CLI flag
+- `.rules/index.md` — G-003 token-budget table + footnote
+- `.local/.agent/active/README.md` — accurate "shipped v8.2.6+" text
+- `.local/.agent/handoff/README.md` — minor clarification
+- `.local/.agent/archive/README.md` — minor clarification
+- `Makefile` — G-008/009 `compile-rules` + `check-rules-drift` targets
+- `CLAUDE.md` — G-010 `## Rules` section
+- `README.md` — G-011 "Editing rules" subsection + version-badge bump
+- `scripts/generate_human_docs.py` — SOURCE_VERSION `9.0.1` → `9.1.0`
+- `tests/test_smoke.py` — version assertion `9.0.1` → `9.1.0`
+- `workflow-system/human/demo/benchmark-results/index.html` — SAMPLE_DATA `9.0.1` → `9.1.0`
+- `workflow-system/human/demo/version-timeline/versions.json` — v9.1.0 entry appended per ST-7
+- `CHANGELOG.md` — this entry
+
+**Tests (all NEW unless noted):**
+- `tests/test_handoff_envelope_immutable.py` — **NEW** (203 LOC, 3 tests) — G-001
+- `tests/test_lifecycle_envelope_append_only.py` — **NEW** (172 LOC, 12 tests) — G-002
+- `tests/test_rules_index_accuracy.py` — **NEW** (164 LOC, 4 tests) — G-013
+- `tests/test_local_layer_completeness.py` — **NEW** (211 LOC, 4 tests) — G-014
+- `tests/test_init_project.py` — **EXTENDED** (+132 LOC, +5 tests) — G-016
+- `tests/test_lifecycle_hooks.py` — **EXTENDED** (+1 test body assertion) — DEFAULT_EVENTS length 6→7
+- `tests/test_no_ghost_features.py` — **EXTENDED** (+177 LOC, +2 tests) — W-18 refresh
+- `tests/test_benchmarks.py` — `test_runner_prefers_latest_baseline` expects `v9.1.0_baseline.json`
+
+**Benchmarks:**
+- `benchmarks/devolaflow_context/baselines/v9.1.0_baseline.json` — **NEW** (wholesale regen per W-16)
+
+**Research (.local/, gitignored):**
+- `.local/research/v9.1.0_gap_analysis.md` — SI-1 planning gate (213 LOC; 18 cataloged gaps)
+
+### Verification Checklist
+
+- W-1 SI-1 planning gate artifact: **PASS** (`.local/research/v9.1.0_gap_analysis.md` authored)
+- W-9 / SI-10 all 6 steps: **PASS** (tests / lint / format / version / benchmarks / check-cursor-skill)
+- W-16 wholesale baseline regen (MINOR cycle start): **PASS** (`v9.1.0_baseline.json` 53 scenarios)
+- W-17 per-PV test cap ≤ +30: **PASS** (+27 NEW functions)
+- W-18 ghost-audit refresh precondition: **PASS** (2 new test functions authored BEFORE this CHANGELOG entry)
+- W-21 Soul-set freeze (cap 10): **PASS** (10 Soul rules unchanged)
+- 60-rule cap: **PASS** (58/60 with +2 headroom)
+- Layout invariant intact: **PASS** (`canonical_order` length 16 / version 5 byte-identical)
+- `DEFAULT_EVENTS` A-2.4 append-only: **PASS** (envelope_write appended at position 7; positions 1-6 byte-stable)
+- Doc-vs-code lies resolved: **PASS** (3 rule-cited files now exist on disk: S-9 test, S-9 hook, updated index.md)
+- Version-timeline entry: **PASS** (v9.1.0 appended per ST-7)
+- W-3 / SI-3 composite evaluation: **PASS** (composite 9.09/10 ≥ 8.5 MINOR floor; margin +0.59 pp — see `.local/research/v9.1.0_evaluation.md`)
+
 ## [9.0.1] — 2026-04-24
 
 **PATCH — v9.0.0 cycle PV-08 (sustaining): `references/repo-modes.md` polish + Tier-2 enterprise adapter batch (JetBrains / Amazon Q / Gemini / Augment / Trae).** Eighth (final) published increment of the v9.0.0 cycle; conditional ship per implementation-plan §6.8 gated by PV-07 SI-3 composite 9.22/10 ≥ 9.0 MAJOR floor (+0.22 pp bandwidth) AND operator approval ("build all unbuilt job"). Both gates MET at PV-08 dispatch. PV-08 is a documentation + data-only sustaining PATCH — 0 code-path changes, 0 schema changes, 0 Soul / Architecture / Conventions / Workflow / Style rule changes (Soul stays frozen at 10 per W-21). Net delta: +27 LOC `references/repo-modes.md` additive edits + 5 NEW `adapter_configs/*.yaml` (+109 LOC total) + 1 ADR (`.local/research/adr/v9-ADR-008-sustaining.md`, 168 LOC) + 7 canonical version-sync locations.

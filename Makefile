@@ -2,9 +2,10 @@
 # Design ref: design_dual_system.md §4.5
 
 .PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
-       build-site release-preflight release-dry-run scaffold-agent agent-reports
+       build-site release-preflight release-dry-run scaffold-agent agent-reports \
+       compile-rules check-rules-drift
 
-all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill check-drift
+all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift
 
 install:
 	pip install -e ".[dev]"
@@ -75,13 +76,40 @@ print(json.dumps({'ok': True, 'keys': sorted(r.keys()) if isinstance(r, dict) el
 check-drift:
 	check-drift
 
+# v9.1.0 (G-008 + G-009) — .rules/ corpus targets.
+#
+# Naming distinction (kept deliberate so future readers don't conflate them):
+#   * `compile-rules` (Makefile alias, this section) wraps the `sync-rules`
+#     console script (defined by pyproject.toml [project.scripts]). The
+#     Makefile name is the user-facing entry point; the console script is
+#     the implementation. Two names exist so `make all` reads naturally
+#     ("compile rules") while pyproject keeps the verb-first script name
+#     consistent with `sync-cursor-skill` / `sync-human-docs`.
+#   * `check-rules-drift` (this section) ≠ `check-drift` (above).
+#     `check-drift` lints HUMAN docs vs agent source; `check-rules-drift`
+#     lints COMPILED .rules/ outputs vs the pinned hashes in
+#     .rules/.compile-hashes.json. Both run in `make all` because they
+#     cover complementary surfaces.
+
+# v9.1.0 (G-008) — Compile .rules/*.mdc → .cursor/rules/repo-governance.mdc + AGENTS.md.
+# Wraps the `sync-rules` console script (defined by pyproject.toml [project.scripts]).
+# Run after editing any .rules/*.mdc to refresh compiled outputs.
+compile-rules:
+	sync-rules
+
+# v9.1.0 (G-009) — Check that compiled .rules/ outputs match the pinned
+# hashes in .rules/.compile-hashes.json. Distinct from `check-drift`
+# (which lints human docs vs agent source).
+check-rules-drift:
+	check-rules-drift
+
 detect-repo-mode:
 	bash scripts/detect-repo-mode.sh
 
 build-site:
 	bash scripts/build-site.sh
 
-release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill check-drift
+release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill compile-rules check-drift check-rules-drift
 	@echo "--- Release preflight PASSED ---"
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"

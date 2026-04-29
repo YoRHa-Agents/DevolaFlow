@@ -41,6 +41,12 @@ Public API
 
 from __future__ import annotations
 
+from devolaflow.lifecycle.check_envelope_append_only import (
+    EVENT as _ENVELOPE_WRITE_EVENT,
+)
+from devolaflow.lifecycle.check_envelope_append_only import (
+    check_envelope_append_only,
+)
 from devolaflow.lifecycle.check_file_ownership import (
     EVENT as _FILE_WRITE_EVENT,
 )
@@ -106,6 +112,7 @@ _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
 _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
 _set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
+_set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -116,6 +123,7 @@ FILE_WRITE_EVENT: str = _FILE_WRITE_EVENT
 TASK_STOP_EVENT: str = _TASK_STOP_EVENT
 FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
 PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
+ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
 
 # v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
 # symmetric tail event to `pre_dispatch`). The new slot is wired to a
@@ -124,6 +132,14 @@ PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 # selectivity slice. R5 strict byte-identical: zero behaviour change with
 # no extras registered (verified by
 # `tests/test_dispatch_emission_runs_hooks.py`).
+#
+# v9.1.0 W1-02: bumped 6 → 7 with the addition of `envelope_write` per
+# Soul Rule S-9 closure (handoff envelopes are append-only). The new
+# slot is wired to `check_envelope_append_only.py` which blocks
+# overwrites of existing handoff envelopes in STRICT mode. The new
+# event is APPENDED at the END of the tuple to preserve A-2.4 /
+# cache-prefix invariants — existing event positions 1-6 remain
+# byte-stable.
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -131,12 +147,14 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     TASK_STOP_EVENT,
     FORMAT_ON_EDIT_EVENT,
     PRE_SHELL_CALL_EVENT,
+    ENVELOPE_WRITE_EVENT,
 )
 
 __all__ = [
     "DEFAULT_EVENTS",
     "DoctorFinding",
     "DoctorReport",
+    "ENVELOPE_WRITE_EVENT",
     "FILE_WRITE_EVENT",
     "FORMAT_ON_EDIT_EVENT",
     "HookHandler",
@@ -147,6 +165,7 @@ __all__ = [
     "PRE_SHELL_CALL_EVENT",
     "Severity",
     "TASK_STOP_EVENT",
+    "check_envelope_append_only",
     "check_file_ownership",
     "check_init_health",
     "clear_hooks",

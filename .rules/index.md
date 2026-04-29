@@ -22,8 +22,10 @@ python -c "from devolaflow.local.compiler import RuleCompiler; RuleCompiler('.ru
 
 | Target | Output | Format | Token Budget |
 |--------|--------|--------|-------------|
-| cursor | `.cursor/rules/repo-governance.mdc` | MDC | 8000 |
-| agents_md | `AGENTS.md` | Markdown | 6000 |
+| cursor | `.cursor/rules/repo-governance.mdc` | MDC | 12000 |
+| agents_md | `AGENTS.md` | Markdown | 12000 |
+
+> Token budgets are sourced from `.rules/compile-config.yaml` — bumped from 8000/6000 to 12000/12000 in v9.0.0 PV-07 per ADR-007 D5.
 
 ## Source Mapping
 

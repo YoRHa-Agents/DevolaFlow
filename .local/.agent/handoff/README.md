@@ -7,6 +7,6 @@ Naming: `<from>__<to>__<change-id>__<seq>.yaml`
 - Once an envelope file exists, it MUST NOT be modified or deleted
 - New information goes in `seq + 1`
 
-Schema lands in v8.2.4 under `schemas/agent-workspace/handoff-envelope.yaml`.
+Schema shipped in v8.2.4 under `schemas/agent-workspace/handoff-envelope.yaml`.
 Append-only enforcement: `tests/test_handoff_envelope_immutable.py` (CI lint)
 plus the `lifecycle/check_envelope_append_only` hook (block in STRICT mode).

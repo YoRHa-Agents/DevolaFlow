@@ -4,8 +4,8 @@ description: "创建自定义工作流模板和派生配置。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-04-24T20:16:58Z"
-source_version: "9.0.1"
+last_synced: "2026-04-29T04:07:05Z"
+source_version: "9.1.0"
 ---
 
 # 自定义指南

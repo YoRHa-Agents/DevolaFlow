@@ -1,13 +1,16 @@
 """Initialize DevolaFlow skill files in the current project or user scope.
 
 Usage:
-  devola-init                  Auto-detect tools and install
-  devola-init cursor           Install for Cursor only
-  devola-init claude           Install for Claude Code only
-  devola-init claude --global  Install Claude Code globally
-  devola-init copilot          Install for Copilot only
-  devola-init local            Initialize .local/ workspace + .rules/
-  devola-init --list           Show what would be installed
+  devola-init                       Auto-detect tools and install
+  devola-init cursor                Install for Cursor only
+  devola-init claude                Install for Claude Code only
+  devola-init claude --global       Install Claude Code globally
+  devola-init copilot               Install for Copilot only
+  devola-init local                 Initialize .local/ workspace + .rules/
+                                    (auto-compiles .rules/ to .cursor/rules/
+                                    repo-governance.mdc + AGENTS.md)
+  devola-init local --no-compile    Same as above, but skip the auto-compile
+  devola-init --list                Show what would be installed
 """
 
 from __future__ import annotations
@@ -69,6 +72,19 @@ def _parse_scope(argv: list[str]) -> str:
     return scope
 
 
+def _parse_no_compile(argv: list[str]) -> bool:
+    """Return True iff ``--no-compile`` is present in argv.
+
+    Closes G-007 + G-016 (v9.1.0 W2-02): operators who want
+    ``devola-init local`` to scaffold ``.local/`` + ``.rules/`` WITHOUT
+    auto-running the rule compiler can pass ``--no-compile``. The flag
+    is propagated to :func:`install_local` via ``compile_rules=False``
+    so test fixtures can exercise the same skip path without mocking
+    argv.
+    """
+    return "--no-compile" in argv
+
+
 def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     """Install DevolaFlow skill files and rules for Cursor IDE."""
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
@@ -116,7 +132,13 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     print(f"  ({refs} references)")
 
 
-def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
+def install_local(
+    agent_dir: Path,
+    cwd: Path,
+    scope: str = "project",
+    *,
+    compile_rules: bool = True,
+) -> None:
     """Initialize .local/ workspace and .rules/ governance structure.
 
     Closes audit ghost G-J1 (v7.4.10 P-08): scaffolds a default
@@ -126,6 +148,20 @@ def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     from ``devolaflow/local/compile_config_template.yaml`` (packaged via
     ``importlib.resources``). Idempotent — never overwrites an existing
     config.
+
+    Auto-compile (v9.1.0 W2-02 — closes G-007 + G-016): after seeding the
+    config, ``install_local`` chains ``RuleCompiler.compile_all()`` so
+    that fresh repos receive their compiled ``.cursor/rules/repo-governance.mdc``
+    + ``AGENTS.md`` immediately, instead of leaving Cursor / Codex agents
+    without governance until the operator discovers ``devola-init sync-rules``.
+
+    The compile step honours **S-5 (No Silent Failures)** with graceful
+    degradation: any exception raised by ``RuleCompiler`` is caught,
+    printed as ``WARN compile failed (non-fatal): <exc>``, and execution
+    continues so that ``init`` itself never blocks on a read-only
+    filesystem or a malformed user-edited ``compile-config.yaml``. Pass
+    ``compile_rules=False`` (or the CLI flag ``--no-compile``) to skip
+    the auto-compile entirely while preserving scaffolding behaviour.
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
 
@@ -144,6 +180,25 @@ def install_local(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
         print(f"  OK   {config_path} (template created)")
     else:
         print(f"  SKIP {config_path} (already exists)")
+
+    if not compile_rules:
+        print("  SKIP compile (--no-compile flag set)")
+        return
+
+    if config_path.exists():
+        try:
+            from devolaflow.local.compiler import RuleCompiler
+
+            compiler = RuleCompiler(config_path)
+            compiler.compile_all()
+            print("  OK   compiled .rules/ → .cursor/rules/repo-governance.mdc + AGENTS.md")
+        except Exception as exc:
+            # S-5 graceful degradation: log + continue. Init must still
+            # succeed even when the compiler hits a read-only FS, a
+            # malformed user-edited compile-config.yaml, or any other
+            # non-fatal issue. Operators can re-run `devola-init sync-rules`
+            # to retry the compile step in isolation.
+            print(f"  WARN compile failed (non-fatal): {exc}")
 
 
 TOOLS = {
@@ -182,6 +237,7 @@ def main() -> None:
     cwd = Path.cwd()
     agent_dir = _find_agent_dir()
     scope = _parse_scope(sys.argv[1:])
+    no_compile = _parse_no_compile(sys.argv[1:])
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
 
     if "--list" in sys.argv:
@@ -215,7 +271,9 @@ def main() -> None:
 
     for t in targets:
         if t in TOOLS:
-            TOOLS[t](agent_dir, cwd, scope)
+            # `--no-compile` is local-only; other installers don't accept the kwarg.
+            extra = {"compile_rules": False} if (t == "local" and no_compile) else {}
+            TOOLS[t](agent_dir, cwd, scope, **extra)
         else:
             print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, local, all)")
 
