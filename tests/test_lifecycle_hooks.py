@@ -152,14 +152,24 @@ def test_default_events_match_skill_md_table() -> None:
     handoff envelopes in STRICT mode. The new event is APPENDED at the
     END of the tuple so existing event positions 1–6 remain byte-stable
     (preserves A-2.4 cache-prefix invariants).
+
+    v9.1.3 PV-03 — bumped 7 → 8 with the addition of ``pre_handoff``
+    (G-005 closure: ``HandoffStore.write_envelope`` gains its FIRST
+    production caller via ``auto_write_handoff``). The new slot is
+    APPENDED at the END of the tuple to preserve A-2.4 cache-prefix
+    invariants — positions 1-7 stay byte-stable. The default handler
+    is a no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset (R5 strict
+    byte-identical), so adding the eighth event preserves byte output
+    for operators who haven't opted into the agent-workspace surface.
     """
-    from devolaflow.lifecycle import ENVELOPE_WRITE_EVENT
+    from devolaflow.lifecycle import ENVELOPE_WRITE_EVENT, PRE_HANDOFF_EVENT
 
     assert PRE_DISPATCH_EVENT == "pre_dispatch"
     assert POST_DISPATCH_EVENT == "post_dispatch"
     assert FILE_WRITE_EVENT == "file_write"
     assert TASK_STOP_EVENT == "task_stop"
     assert ENVELOPE_WRITE_EVENT == "envelope_write"
+    assert PRE_HANDOFF_EVENT == "pre_handoff"
     assert set(DEFAULT_EVENTS) == {
         "pre_dispatch",
         "post_dispatch",
@@ -168,8 +178,25 @@ def test_default_events_match_skill_md_table() -> None:
         "format_on_edit",
         "pre_shell_call",
         "envelope_write",
+        "pre_handoff",
     }
-    assert len(DEFAULT_EVENTS) == 7
+    assert len(DEFAULT_EVENTS) == 8
+
+    # A-2.4 cache-prefix invariant: positions 1-7 byte-identical with the
+    # v9.1.2 DEFAULT_EVENTS tuple. The PV-03 bump appended `pre_handoff`
+    # at position 8 only — any drift in positions 1-7 is a release blocker.
+    assert DEFAULT_EVENTS[:7] == (
+        "pre_dispatch",
+        "post_dispatch",
+        "file_write",
+        "task_stop",
+        "format_on_edit",
+        "pre_shell_call",
+        "envelope_write",
+    )
+    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
+        "v9.1.3 PV-03: pre_handoff MUST be appended at the tail (A-2.4)"
+    )
 
 
 def test_post_dispatch_default_is_permissive_no_op() -> None:

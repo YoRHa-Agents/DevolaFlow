@@ -1,6 +1,7 @@
 """Regression test: feedback.py wires lifecycle hooks on every dispatch return path.
 
 v8.4.4 PV-04 — Soul Rule S-10 enforcement.
+v9.1.3 PV-03 — extends the chain to include ``pre_handoff`` (G-005 closure).
 
 Pins the dead-wire fix that closes C-03 from
 ``.local/research/v9.0.0_gap_analysis.md`` §3.1: prior to v8.4.4,
@@ -17,15 +18,21 @@ paths of ``generate_round_dispatch``:
 3. Reinforcement applied (round ≥ 2 + non-empty findings).
 
 All three paths MUST invoke ``lifecycle.run_hooks("pre_dispatch", ...)``
-followed by ``lifecycle.run_hooks("post_dispatch", ...)`` exactly once
-each, in PERMISSIVE mode (``strict=False``).
+followed by ``lifecycle.run_hooks("post_dispatch", ...)`` followed by
+``lifecycle.run_hooks("pre_handoff", ...)`` exactly once each, in
+PERMISSIVE mode (``strict=False``). The v9.1.3 PV-03 ``pre_handoff``
+slot lands AFTER the governance tail because the dispatch payload is
+fully-formed + lint-validated at that point — the correct moment to
+consider materialising a handoff envelope under
+``.local/.agent/handoff/``.
 
 Tests also assert R5 strict byte-identical: when no extra handlers are
 registered, the returned dispatch payload is byte-identical to the
 pre-PV-04 control (golden snapshot built from pure deepcopy +
 ``merge_reinforcement_into_dispatch``). This protects callers that have
 not yet adopted the v8.4.4 schema from any silent mutation through the
-hook chain.
+hook chain. The v9.1.3 PV-03 ``auto_write_handoff`` default is also
+byte-stable when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset.
 """
 
 from __future__ import annotations
@@ -41,6 +48,7 @@ from devolaflow.gate.reinforcement import merge_reinforcement_into_dispatch
 from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     PRE_DISPATCH_EVENT,
+    PRE_HANDOFF_EVENT,
     HookResult,
     clear_hooks,
 )
@@ -114,7 +122,7 @@ class TestHookInvocation:
 
         return calls, fake_run_hooks
 
-    def test_round1_passthrough_invokes_both_hooks(self) -> None:
+    def test_round1_passthrough_invokes_all_hooks(self) -> None:
         gen = ProposalGenerator()
         calls, fake = self._make_call_recorder()
         with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
@@ -124,11 +132,12 @@ class TestHookInvocation:
                 round_num=1,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
-            "round-1 pass-through must invoke pre_dispatch then post_dispatch exactly once"
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
+            "round-1 pass-through must invoke pre_dispatch, post_dispatch, then "
+            "pre_handoff exactly once each (v9.1.3 PV-03 chain)"
         )
 
-    def test_no_findings_path_invokes_both_hooks(self) -> None:
+    def test_no_findings_path_invokes_all_hooks(self) -> None:
         gen = ProposalGenerator()
         calls, fake = self._make_call_recorder()
         with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
@@ -138,11 +147,12 @@ class TestHookInvocation:
                 round_num=2,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
-            "empty-findings path must still invoke the hook chain"
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
+            "empty-findings path must still invoke the full hook chain "
+            "(pre_dispatch → post_dispatch → pre_handoff)"
         )
 
-    def test_reinforcement_applied_path_invokes_both_hooks(self) -> None:
+    def test_reinforcement_applied_path_invokes_all_hooks(self) -> None:
         gen = ProposalGenerator()
         calls, fake = self._make_call_recorder()
         with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
@@ -152,8 +162,34 @@ class TestHookInvocation:
                 round_num=2,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT], (
-            "reinforcement-applied path must invoke the hook chain exactly once"
+        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
+            "reinforcement-applied path must invoke the full hook chain "
+            "(pre_dispatch → post_dispatch → pre_handoff) exactly once"
+        )
+
+    def test_pre_handoff_invoked_after_post_dispatch(self) -> None:
+        """v9.1.3 PV-03: ``pre_handoff`` MUST fire AFTER the governance tail.
+
+        At this point the dispatch payload is fully-formed and
+        lint-validated, making it the correct moment to consider
+        materialising a handoff envelope. Pinning the order prevents a
+        future refactor from re-ordering the chain and breaking the
+        S-10 governance contract.
+        """
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+            )
+        events = [c[0] for c in calls]
+        post_idx = events.index(POST_DISPATCH_EVENT)
+        handoff_idx = events.index(PRE_HANDOFF_EVENT)
+        assert handoff_idx == post_idx + 1, (
+            f"pre_handoff (idx {handoff_idx}) must immediately follow "
+            f"post_dispatch (idx {post_idx}); chain={events!r}"
         )
 
     def test_hook_invoked_in_permissive_mode(self) -> None:

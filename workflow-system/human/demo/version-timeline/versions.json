@@ -809,5 +809,33 @@
       "references": "14",
       "rules_total": "59"
     }
+  },
+  {
+    "version": "9.1.3",
+    "date": "2026-05-01",
+    "era": "rule-rebalancing",
+    "headline": "PATCH — PV-03 of v9.2.0 cycle: pre_handoff lifecycle hook + auto_write_handoff default handler (closes G-005)",
+    "summary": "Third PV of the v9.2.0 MINOR cycle. Closes G-005 deferred from v9.1.0 by creating the FIRST production caller of HandoffStore.write_envelope outside the module itself. Adds a new pre_handoff lifecycle event (DEFAULT_EVENTS 7 -> 8, APPENDED at position 8 per A-2.4 cache-prefix invariant — positions 1-7 byte-stable) and an auto_write_handoff default handler that materialises a handoff envelope under .local/.agent/handoff/ when DEVOLAFLOW_AGENT_WORKSPACE=1 (W-20 reuse — same env-flag surface as v9.1.1 PV-01 workspace scan and v9.1.2 PV-02 Architecture rule A-6) AND the dispatch payload carries a populated change_context block. R5 strict byte-identical when env-flag absent (no filesystem writes; HookResult empty). S-5 compliant error surfacing: AWH001 HookViolation (error severity) on payload-missing-fields or HandoffStoreError; AWH002 (warning) on EnvelopeImmutableError in permissive, re-raise in strict. feedback._emit_dispatch hook chain extended pre_dispatch -> post_dispatch -> pre_handoff (Soul Rule S-10 governance tail then handoff decision). Soul-set frozen at 10 per W-21; rule count unchanged at 59. R5 strict additive: schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.3).",
+    "highlights": [
+      "G-005 CLOSED: rg 'write_envelope(' src/devolaflow/ now returns ≥ 2 hits (1 definition + 1 production caller) — was exactly 1 through v9.1.2",
+      "NEW src/devolaflow/lifecycle/auto_write_handoff.py (~270 LOC, 96% coverage): permissive default handler bound to the new pre_handoff event; double-gate (env-flag OFF + missing change_context = no-op); writes handoff envelope via HandoffStore.write_envelope when both gates open; honours Rule S-9 append-only ledger via EnvelopeImmutableError surfacing",
+      "EXTEND src/devolaflow/lifecycle/__init__.py: DEFAULT_EVENTS 7 -> 8 (pre_handoff APPENDED at position 8 per A-2.4 — positions 1-7 byte-stable); PRE_HANDOFF_EVENT exported; auto_write_handoff wired as the canonical default for the new event",
+      "EXTEND src/devolaflow/feedback.py::_emit_dispatch hook chain: pre_dispatch -> post_dispatch -> pre_handoff (3 events) per Soul Rule S-10; per-event try/except so one bug doesn't break the others",
+      "NEW tests/test_handoff_auto_write.py (20 tests) — env-flag OFF noop R5 proof, env-flag ON happy path, seq monotonic, AWH001 error surfacing, AWH002 warning surfacing, strict-mode raise propagation, defensive layer extraction (change_context / hdr / header / top-level), S-5 unexpected-exception WARNING+raise",
+      "EXTEND tests/test_dispatch_emission_runs_hooks.py: 4 new test functions assert the 3-event chain fires on every dispatch return path AND that pre_handoff lands AFTER post_dispatch (S-10 governance tail invariant)",
+      "EXTEND tests/test_lifecycle_hooks.py: test_default_events_match_skill_md_table asserts length 8 + positions 1-7 byte-stable + pre_handoff at tail (A-2.4 strict)",
+      "W-18 ghost-audit refresh — tests/test_no_ghost_features.py::test_v9_1_3_new_symbols_have_coverage + test_v9_1_3_handoff_production_caller_exists authored BEFORE this CHANGELOG entry per W-18 precondition (the second test is the headline G-005 closure lint)",
+      "W-2 NineS gate (planning + close): planning at .local/research/v9.1.3_nines_planning.json; close at .local/research/v9.1.3_nines.json + Markdown summary",
+      "W-20 reuse-first: DEVOLAFLOW_AGENT_WORKSPACE flag REUSED (no new env flag); auto_write_handoff.ENV_FLAG and ENV_FLAG_TRUTHY pin the contract",
+      "Layout invariant intact — schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.3)",
+      "Soul-set count 10 (frozen by W-21); Architecture 6; Conventions 9; Workflow 21; Style 13 — total 59 / 60 (+1 headroom)"
+    ],
+    "metrics": {
+      "tests": "3510",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59"
+    }
   }
 ]

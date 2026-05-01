@@ -41,6 +41,12 @@ Public API
 
 from __future__ import annotations
 
+from devolaflow.lifecycle.auto_write_handoff import (
+    EVENT as _PRE_HANDOFF_EVENT,
+)
+from devolaflow.lifecycle.auto_write_handoff import (
+    auto_write_handoff,
+)
 from devolaflow.lifecycle.check_envelope_append_only import (
     EVENT as _ENVELOPE_WRITE_EVENT,
 )
@@ -113,6 +119,7 @@ _set_default_hook(_TASK_STOP_EVENT, test_on_complete)
 _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
 _set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 _set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
+_set_default_hook(_PRE_HANDOFF_EVENT, auto_write_handoff)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -124,6 +131,7 @@ TASK_STOP_EVENT: str = _TASK_STOP_EVENT
 FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
 PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
+PRE_HANDOFF_EVENT: str = _PRE_HANDOFF_EVENT
 
 # v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
 # symmetric tail event to `pre_dispatch`). The new slot is wired to a
@@ -140,6 +148,18 @@ ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
 # event is APPENDED at the END of the tuple to preserve A-2.4 /
 # cache-prefix invariants — existing event positions 1-6 remain
 # byte-stable.
+#
+# v9.1.3 PV-03: bumped 7 → 8 with the addition of `pre_handoff` per
+# G-005 closure (HandoffStore.write_envelope gains its FIRST production
+# caller — `auto_write_handoff`). The new slot is wired to
+# `auto_write_handoff.py` which materialises a handoff envelope under
+# `.local/.agent/handoff/` when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND the
+# dispatch payload carries a populated `change_context` block. The
+# event is APPENDED at the END of the tuple to preserve A-2.4 /
+# cache-prefix invariants — existing event positions 1-7 remain
+# byte-stable. The env-flag is REUSED per Workflow Rule W-20 (same
+# activation surface as v9.1.1 PV-01 SKILL.md §"Workspace Engagement"
+# and v9.1.2 PV-02 Architecture rule A-6).
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -148,6 +168,7 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     FORMAT_ON_EDIT_EVENT,
     PRE_SHELL_CALL_EVENT,
     ENVELOPE_WRITE_EVENT,
+    PRE_HANDOFF_EVENT,
 )
 
 __all__ = [
@@ -162,9 +183,11 @@ __all__ = [
     "HookViolation",
     "POST_DISPATCH_EVENT",
     "PRE_DISPATCH_EVENT",
+    "PRE_HANDOFF_EVENT",
     "PRE_SHELL_CALL_EVENT",
     "Severity",
     "TASK_STOP_EVENT",
+    "auto_write_handoff",
     "check_envelope_append_only",
     "check_file_ownership",
     "check_init_health",

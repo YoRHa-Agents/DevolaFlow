@@ -38,8 +38,20 @@ logger = logging.getLogger(__name__)
 #
 # Closes the dead-wire identified in v6.0.3 retro precedent + C-03 from
 # `.local/research/v9.0.0_gap_analysis.md` §3.1.
+#
+# v9.1.3 PV-03 — extends the chain to include `pre_handoff` AFTER the
+# governance tail. At this point the dispatch payload is fully-formed +
+# lint-validated, making it the correct moment to consider materialising
+# a handoff envelope under `.local/.agent/handoff/`. The default
+# handler (`auto_write_handoff`) is a no-op when
+# `DEVOLAFLOW_AGENT_WORKSPACE` is unset (R5 strict byte-identical), so
+# adding the third event preserves the byte-output guarantee for
+# operators who haven't opted into the agent-workspace activation
+# surface. Closes G-005 deferred from v9.1.0 by giving
+# `HandoffStore.write_envelope` its FIRST production caller.
 _HOOK_PRE_DISPATCH = "pre_dispatch"
 _HOOK_POST_DISPATCH = "post_dispatch"
+_HOOK_PRE_HANDOFF = "pre_handoff"
 
 LOCKED_FILES = frozenset(
     {
@@ -474,37 +486,51 @@ class ProposalGenerator:
         """Run the lifecycle hook chain on ``dispatch`` and return it unchanged.
 
         v8.4.4 PV-04 — Soul Rule S-10 enforcement point. Fires
-        ``pre_dispatch`` then ``post_dispatch`` against the dispatch
-        payload via :func:`devolaflow.lifecycle.run_hooks`; both calls
-        run in permissive mode (``strict=False``) so a violation only
-        emits a WARNING via the lifecycle logger and never raises out
-        of the dispatch path.
+        ``pre_dispatch`` → ``post_dispatch`` → ``pre_handoff`` against
+        the dispatch payload via :func:`devolaflow.lifecycle.run_hooks`;
+        all three calls run in permissive mode (``strict=False``) so a
+        violation only emits a WARNING via the lifecycle logger and
+        never raises out of the dispatch path.
+
+        v9.1.3 PV-03 — added ``pre_handoff`` AFTER the governance tail
+        (Soul Rule S-10) so the payload is fully-formed + lint-validated
+        before the handoff-write decision runs. The default
+        ``auto_write_handoff`` handler is a no-op when
+        ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset (R5 strict
+        byte-identical), so adding the third event preserves the
+        byte-output guarantee for operators who haven't opted into the
+        agent-workspace activation surface. Closes G-005 from v9.1.0
+        by giving ``HandoffStore.write_envelope`` its FIRST production
+        caller.
 
         R5 strict-byte-identical invariant (v8.4.0 retro §4.1 #4): when
         no extra handlers are registered for either event, the returned
         ``dispatch`` is byte-identical to the pre-PV-04 behaviour. The
         permissive default handlers either return cleanly
-        (``post_dispatch`` is a no-op) or emit a WARNING log without
-        mutating the payload (``pre_dispatch`` /
-        ``validate_dispatch``).
+        (``post_dispatch`` is a no-op; ``pre_handoff`` is a no-op when
+        the env-flag is OFF) or emit a WARNING log without mutating
+        the payload (``pre_dispatch`` / ``validate_dispatch``).
 
         S-5 (no silent failures): a buggy custom handler that raises
         from inside the dispatch path is caught here, logged at
         WARNING level via ``logger.warning``, and the dispatch is
         returned unchanged — the round-N+1 emission MUST NOT crash on a
-        third-party hook bug.
+        third-party hook bug. Each event is wrapped in its own
+        try/except so a failure on one does NOT short-circuit the
+        others (the hook chain is collectively a contract; per-event
+        independence is intentional).
         """
         try:
             from devolaflow import lifecycle
         except ImportError as exc:  # pragma: no cover - defensive
             logger.warning(
                 "feedback._emit_dispatch: lifecycle module unavailable (%s); "
-                "skipping pre_dispatch / post_dispatch hooks",
+                "skipping pre_dispatch / post_dispatch / pre_handoff hooks",
                 exc,
             )
             return dispatch
 
-        for event in (_HOOK_PRE_DISPATCH, _HOOK_POST_DISPATCH):
+        for event in (_HOOK_PRE_DISPATCH, _HOOK_POST_DISPATCH, _HOOK_PRE_HANDOFF):
             try:
                 lifecycle.run_hooks(event, dispatch, strict=False)
             except Exception as exc:  # noqa: BLE001

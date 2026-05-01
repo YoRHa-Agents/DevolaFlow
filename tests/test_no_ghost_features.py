@@ -1146,10 +1146,14 @@ _V9_1_0_NEW_FILES: tuple[str, ...] = (
 # stub silently slipping through and satisfying mere file-presence.
 _V9_1_0_FILE_MIN_BYTES: int = 50
 
-# Expected DEFAULT_EVENTS tuple length after the v9.1.0 W1-02 bump.
+# Expected DEFAULT_EVENTS tuple length floor after the v9.1.0 W1-02 bump.
 # Before W1-02: 6 (pre_dispatch, post_dispatch, file_write, task_stop,
 # format_on_edit, pre_shell_call). After W1-02: 7 (above + envelope_write
-# APPENDED at position 7 per A-2.4 cache-prefix invariant).
+# APPENDED at position 7 per A-2.4 cache-prefix invariant). Future PVs
+# may append additional events at the tail (e.g. v9.1.3 PV-03 appended
+# `pre_handoff` at position 8); the v9.1.0 invariant is that
+# envelope_write STAYS at position 7 — this lint asserts the floor +
+# the position pin, NOT exact equality on length.
 _V9_1_0_DEFAULT_EVENTS_COUNT: int = 7
 
 
@@ -1218,9 +1222,9 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v9.1.0 violation: check_envelope_append_only is not callable — "
         "the export from devolaflow.lifecycle must be the hook function itself"
     )
-    assert len(DEFAULT_EVENTS) == _V9_1_0_DEFAULT_EVENTS_COUNT, (
+    assert len(DEFAULT_EVENTS) >= _V9_1_0_DEFAULT_EVENTS_COUNT, (
         f"W-18 v9.1.0 violation: lifecycle.DEFAULT_EVENTS length is "
-        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_0_DEFAULT_EVENTS_COUNT} "
+        f"{len(DEFAULT_EVENTS)}, expected ≥ {_V9_1_0_DEFAULT_EVENTS_COUNT} "
         f"(v9.1.0 W1-02 bumped 6 → 7 with envelope_write APPENDED at "
         f"position 7 per A-2.4 cache-prefix invariant). Current events: "
         f"{DEFAULT_EVENTS!r}"
@@ -1229,6 +1233,14 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v9.1.0 violation: ENVELOPE_WRITE_EVENT not registered in "
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the W1-02 append step "
         f"was incomplete"
+    )
+    # A-2.4 position pin: envelope_write MUST stay at position 7 (the
+    # v9.1.0 W1-02 contract). Future appends extend the tuple to
+    # position 8+ but never disturb earlier positions.
+    assert DEFAULT_EVENTS[6] == ENVELOPE_WRITE_EVENT, (
+        f"A-2.4 violation: envelope_write must STAY at position 7 of "
+        f"DEFAULT_EVENTS (the v9.1.0 W1-02 invariant). Got "
+        f"DEFAULT_EVENTS[6]={DEFAULT_EVENTS[6]!r}; full tuple: {DEFAULT_EVENTS!r}"
     )
 
 
@@ -1562,4 +1574,216 @@ def test_v9_1_2_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v9.1.2 violation: ARCHIVE_GATE_THRESHOLD is "
         f"{ARCHIVE_GATE_THRESHOLD!r} (expected 8.5) — the W-3 / SI-3 "
         f"PATCH/MINOR composite floor per Rule A-4"
+    )
+
+
+# ── v9.1.3 PV-03 — W-18 ghost-audit refresh for v9.1.3 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.3 PV-03
+# (cycle v9.2.0 third PV) closes G-005 deferred from v9.1.0 by creating
+# the FIRST production caller of `HandoffStore.write_envelope` outside
+# the module itself; this block adds presence + import-smoke + signature
+# coverage for all new surfaces as the W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/lifecycle/auto_write_handoff.py — new module
+#     binding the auto-write decision to the new `pre_handoff` lifecycle
+#     event. Permissive no-op when `DEVOLAFLOW_AGENT_WORKSPACE` is unset
+#     (R5 strict byte-identical); writes a handoff envelope when the
+#     env-flag is set AND the dispatch payload carries a populated
+#     `change_context` block. Honours Rule S-9 append-only ledger via
+#     EnvelopeImmutableError surfacing (AWH002 warning in permissive,
+#     re-raise in strict).
+#   * lifecycle/PRE_HANDOFF_EVENT — new exported event constant
+#     (canonical name `"pre_handoff"`).
+#   * lifecycle/DEFAULT_EVENTS length 7 → 8 (pre_handoff APPENDED at
+#     position 8 to preserve the A-2.4 cache-prefix invariant — existing
+#     event positions 1-7 stay byte-stable per the lifecycle/__init__.py
+#     v9.1.3 PV-03 changelog comment).
+#   * tests/test_handoff_auto_write.py — new test file pinning the
+#     auto-write hook contract (env-flag OFF noop, AWH001/AWH002 codes,
+#     seq monotonic, strict-mode raise propagation).
+
+_V9_1_3_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/lifecycle/auto_write_handoff.py",
+    "tests/test_handoff_auto_write.py",
+)
+
+# Minimum byte size for a v9.1.3 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_3_FILE_MIN_BYTES: int = 50
+
+# Expected DEFAULT_EVENTS tuple length after the v9.1.3 PV-03 bump.
+# Before PV-03: 7 (pre_dispatch, post_dispatch, file_write, task_stop,
+# format_on_edit, pre_shell_call, envelope_write). After PV-03: 8 (above
+# + pre_handoff APPENDED at position 8 per A-2.4 cache-prefix invariant).
+_V9_1_3_DEFAULT_EVENTS_COUNT: int = 8
+
+
+def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.3: every NEW v9.1.3 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.3 PV-03 (the third PV of the
+    v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_3_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_3_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``auto_write_handoff``, ``PRE_HANDOFF_EVENT``
+       are importable from :mod:`devolaflow.lifecycle`,
+       ``auto_write_handoff`` is callable, and the event constant
+       equals ``"pre_handoff"`` (the canonical name re-exported from
+       :mod:`devolaflow.lifecycle.auto_write_handoff`).
+    3. **DEFAULT_EVENTS** tuple length is exactly
+       ``_V9_1_3_DEFAULT_EVENTS_COUNT`` (8 — the v9.1.3 PV-03 bump from
+       7 → 8 with ``pre_handoff`` APPENDED at position 8 per the
+       A-2.4 cache-prefix invariant) and contains
+       ``PRE_HANDOFF_EVENT`` AT THE TAIL.
+    4. **W-20 reuse-first** — the auto-write module's ``ENV_FLAG``
+       constant equals ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (REUSED from
+       v9.1.1 PV-01 + v9.1.2 PV-02; no new flag) AND
+       ``ENV_FLAG_TRUTHY == "1"`` (R5 strict literal-only opt-in).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.3 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_3_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "DEFAULT_EVENTS length != 8" → the lifecycle event tuple was
+        edited in violation of the A-2.4 append-only contract; verify
+        ``pre_handoff`` is still appended at position 8.
+      * "ENV_FLAG mismatch" → a NEW env flag was authored, violating
+        W-20 reuse-first; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+    """
+    for relpath in _V9_1_3_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.3 violation: NEW v9.1.3 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_3_FILE_MIN_BYTES, (
+            f"W-18 v9.1.3 violation: NEW v9.1.3 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_3_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.lifecycle import (
+        DEFAULT_EVENTS,
+        PRE_HANDOFF_EVENT,
+        auto_write_handoff,
+    )
+    from devolaflow.lifecycle.auto_write_handoff import (
+        ENV_FLAG,
+        ENV_FLAG_TRUTHY,
+    )
+
+    assert PRE_HANDOFF_EVENT == "pre_handoff", (
+        f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT exported value "
+        f"{PRE_HANDOFF_EVENT!r} != 'pre_handoff' (the canonical event "
+        f"name from auto_write_handoff.EVENT)"
+    )
+    assert callable(auto_write_handoff), (
+        "W-18 v9.1.3 violation: auto_write_handoff is not callable — "
+        "the export from devolaflow.lifecycle must be the hook function itself"
+    )
+    assert len(DEFAULT_EVENTS) == _V9_1_3_DEFAULT_EVENTS_COUNT, (
+        f"W-18 v9.1.3 violation: lifecycle.DEFAULT_EVENTS length is "
+        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_3_DEFAULT_EVENTS_COUNT} "
+        f"(v9.1.3 PV-03 bumped 7 → 8 with pre_handoff APPENDED at "
+        f"position 8 per A-2.4 cache-prefix invariant). Current events: "
+        f"{DEFAULT_EVENTS!r}"
+    )
+    assert PRE_HANDOFF_EVENT in DEFAULT_EVENTS, (
+        f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT not registered in "
+        f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the PV-03 append step "
+        f"was incomplete"
+    )
+    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
+        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[-1] is {DEFAULT_EVENTS[-1]!r}, "
+        f"expected {PRE_HANDOFF_EVENT!r}; pre_handoff MUST be appended at "
+        f"the tail per A-2.4 (positions 1-7 byte-stable)"
+    )
+
+    # W-20 reuse-first lint: same activation surface as v9.1.1 PV-01 +
+    # v9.1.2 PV-02. Authoring a new env flag here would violate W-20.
+    assert ENV_FLAG == "DEVOLAFLOW_AGENT_WORKSPACE", (
+        f"W-20 violation: auto_write_handoff.ENV_FLAG is {ENV_FLAG!r}, "
+        f"expected 'DEVOLAFLOW_AGENT_WORKSPACE' (REUSE per Workflow Rule "
+        f"W-20 — same activation surface as v9.1.1 PV-01 SKILL.md "
+        f"§'Workspace Engagement' and v9.1.2 PV-02 Architecture rule A-6)"
+    )
+    assert ENV_FLAG_TRUTHY == "1", (
+        f"R5 strict violation: auto_write_handoff.ENV_FLAG_TRUTHY is "
+        f"{ENV_FLAG_TRUTHY!r}, expected '1' (R5 strict opt-in REQUIRES "
+        f"the literal '1' string — every other variant treated as OFF)"
+    )
+
+
+def test_v9_1_3_handoff_production_caller_exists(project_root: Path) -> None:
+    """G-005 closure proof: ``HandoffStore.write_envelope`` has ≥ 2 callers.
+
+    The headline acceptance criterion of v9.1.3 PV-03 (cycle plan
+    §PV-03 AC #1): ``rg "write_envelope\\(" src/devolaflow/`` MUST
+    return at least 2 hits — the definition site at
+    ``src/devolaflow/agent_workspace/handoff.py:281`` AND the new
+    production caller in
+    ``src/devolaflow/lifecycle/auto_write_handoff.py``.
+
+    Through v9.1.2, the audit returned exactly 1 hit (the definition
+    site only) — ``HandoffStore`` and ``ChangeStore`` were both
+    "registered but never engaged" surfaces, which is the smoking-gun
+    diagnosis from the v9.2.0 cycle plan §"Diagnosis — capability is
+    taught but never engaged". v9.1.3 PV-03 closes that gap by
+    materialising the FIRST production caller. This lint pins the
+    closure so a future regression that deletes the auto-write module
+    fails CI immediately.
+
+    Implementation: AST-walks every Python file under
+    ``src/devolaflow/`` and counts module-level + nested attribute
+    accesses of the form ``write_envelope(`` (any expression containing
+    that substring). The 2-hit floor catches both the definition (a
+    method ``def write_envelope(...)``) and the call site (a function
+    invocation like ``store.write_envelope(envelope)``). The single
+    file ``handoff.py`` carries the definition; ``auto_write_handoff.py``
+    carries the call.
+    """
+    src_root = project_root / "src" / "devolaflow"
+    assert src_root.is_dir(), f"src/devolaflow/ missing — cannot audit (looked under {src_root})"
+
+    callers: list[tuple[str, int]] = []
+    for py_file in sorted(src_root.rglob("*.py")):
+        if any(part == "__pycache__" for part in py_file.parts):
+            continue
+        text = _read(py_file)
+        for line_num, line in enumerate(text.splitlines(), start=1):
+            if "write_envelope(" in line:
+                callers.append((py_file.relative_to(project_root).as_posix(), line_num))
+
+    assert len(callers) >= 2, (
+        f"G-005 NOT closed: rg 'write_envelope\\(' src/devolaflow/ found "
+        f"only {len(callers)} hit(s) — expected ≥ 2 (1 definition + ≥ 1 caller). "
+        f"Hits: {callers!r}. The v9.1.3 PV-03 production caller must live in "
+        f"src/devolaflow/lifecycle/auto_write_handoff.py."
+    )
+    relpaths = {relpath for relpath, _line in callers}
+    assert "src/devolaflow/agent_workspace/handoff.py" in relpaths, (
+        "Definition site missing: src/devolaflow/agent_workspace/handoff.py "
+        "MUST contain the canonical write_envelope definition"
+    )
+    assert "src/devolaflow/lifecycle/auto_write_handoff.py" in relpaths, (
+        f"v9.1.3 PV-03 production caller missing: "
+        f"src/devolaflow/lifecycle/auto_write_handoff.py MUST contain the "
+        f"FIRST production caller of HandoffStore.write_envelope (G-005 "
+        f"closure). Found callers in: {sorted(relpaths)}"
     )
