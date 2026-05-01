@@ -549,6 +549,33 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # presence + import-smoke + W-20 reuse env-flag pin + return-type
         # callable).
         "devolaflow.memory_router.cache:consult_for_dispatch",
+        # ---- v9.1.5 PV-05 (cycle v9.2.0) — agent_workspace.spec_bootstrap ----
+        # `seed_initial_spec(domain, archive_id, repo_root, *, force=False) -> Path`
+        # closes M-004 deferred from the v9.0.0 retrospective §3.3 (source-
+        # of-truth first-time seed surface). Given a verified archive folder
+        # under `.local/.agent/archive/<archive_id>/` and a target `domain`,
+        # the function bootstraps `.local/memory/specs/<domain>/spec.md` from
+        # the archive's spec.md ADDED Requirements via the existing
+        # `ArchiveManager.propose_merge` machinery; A-4 invariant honoured
+        # (refuses overwrite without `force=True`; `force=True` logs a
+        # WARNING per S-5 and wipes the stale target before re-seeding).
+        # NOT a domain-SSOT registry symbol per A-5.2 — pure pathlib +
+        # archive-engine glue with no module-level state. The first in-repo
+        # Python production caller lands in v9.2.0 PV-06 (the repo-init
+        # `--with-examples` seed flow + `tests/test_capability_e2e.py`);
+        # v9.1.5 PV-05 ships the function only as the prerequisite. Mirrors
+        # the `consult_for_dispatch` / `scan_workspace` allowlist precedents
+        # above (public surface advertised in
+        # `workflow-system/agent/SKILL.md` companion docs, in-repo caller
+        # lands in a subsequent PV per the v9.2.0 cycle plan §"Execution
+        # model"). Verified by `tests/test_spec_bootstrap.py` (6 tests
+        # covering happy path / A-4 refusal / force=True overwrite-with-
+        # WARNING / missing-archive error / gate-score independence /
+        # MergeConflict surface) + `tests/test_no_ghost_features.py::
+        # test_v9_1_5_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse env-flag pin + force kwarg
+        # default).
+        "devolaflow.agent_workspace.spec_bootstrap:seed_initial_spec",
     }
 )
 

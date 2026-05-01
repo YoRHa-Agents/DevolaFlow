@@ -1122,10 +1122,18 @@ def apply_round_escalation(
 # select_agents_md_slice(task_type) filters the compiled AGENTS.md content by
 # layer-prefix (Soul / Architecture / Conventions / Workflow / Style) per
 # the ``meta.agents_md_slice.profiles[<profile>]`` configuration in
-# context_profiles.yaml. Default ``meta.agents_md_slice.enabled: false``
-# preserves v8.5.1 byte-identical full-AGENTS.md behaviour for every
-# dispatcher that has not opted in (R5 strict — pinned by
-# ``tests/test_pv07_agents_md_slice.py``).
+# context_profiles.yaml.
+#
+# v9.1.5 PV-05 default-ON flip: ``meta.agents_md_slice.enabled`` flips
+# from ``false`` to ``true``. R5 strict env-flag opt-out
+# ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` reverts to the v9.1.4 byte-identical
+# full-AGENTS.md behaviour for operators that have not yet adopted the
+# sliced surface (the only NEW operator-visible behaviour change of the
+# v9.2.0 cycle; W-20 reuses an existing-but-unwired flag rather than
+# adding a new one). EXACTLY ``"0"`` forces opt-out; EXACTLY ``"1"``
+# forces opt-in (overriding a hypothetical YAML opt-out); any other env
+# value falls through to the YAML default. Pinned by
+# ``tests/test_pv07_agents_md_slice.py``.
 #
 # The slice is a POST-COMPILE filter — never reorders or rewrites canonical
 # rules; only HIDES rules irrelevant to the task type. The canonical
@@ -1138,9 +1146,44 @@ def apply_round_escalation(
 # depending on task type. For long-running L0 sessions that cache the
 # AGENTS.md prefix between dispatches, this is an observable change in
 # the input prompt — downstream tools that audit / log prompts will see
-# different content. Default ``enabled: false`` keeps the behavioural
-# break opt-in.
+# different content.
 # ---------------------------------------------------------------------------
+
+
+# v9.1.5 PV-05 — env-flag override for the agents_md_slice default-ON flip.
+# Per W-20 reuse-first: the flag was telegraphed in the v9.0.0 PV-07 ADR-007
+# D3 design but the runtime read landed in v9.1.5 PV-05 alongside the
+# YAML default flip. R5 strict — EXACTLY "0" / "1" matched; anything else
+# (including "true" / "yes" / "on" / " 1 " / "0.0") falls through to the
+# YAML default per references/env-flags.md §6 conjunction contract.
+_AGENTS_MD_SLICE_ENV_FLAG: str = "DEVOLAFLOW_AGENTS_MD_SLICE"
+
+
+def _agents_md_slice_env_override(env: dict[str, str] | None = None) -> bool | None:
+    """Return ``True`` / ``False`` / ``None`` for the env-flag override.
+
+    Returns:
+      * ``True`` when ``DEVOLAFLOW_AGENTS_MD_SLICE`` is EXACTLY ``"1"``
+        (force opt-in).
+      * ``False`` when ``DEVOLAFLOW_AGENTS_MD_SLICE`` is EXACTLY ``"0"``
+        (force opt-out — the v9.1.5 PV-05 default-ON escape hatch).
+      * ``None`` when the env var is unset or any other value
+        (fall through to ``meta.agents_md_slice.enabled`` in
+        context_profiles.yaml).
+
+    R5 strict: pure dict.get with no IO; safe to call from import-time
+    contexts. Per ``references/env-flags.md`` §6 the conjunction contract
+    requires literal-only matching — loose variants like ``"true"`` /
+    ``"yes"`` / ``"on"`` / ``"01"`` / leading-trailing whitespace fall
+    through to the YAML default.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get(_AGENTS_MD_SLICE_ENV_FLAG, "")
+    if raw == "0":
+        return False
+    if raw == "1":
+        return True
+    return None
 
 
 _AGENTS_MD_PATH: Path = Path(__file__).parents[2] / "AGENTS.md"
@@ -1375,13 +1418,33 @@ def select_agents_md_slice(
     task_type: str,
     profiles_path: Path | None = None,
     agents_md_path: Path | None = None,
+    env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Filter AGENTS.md to the rule slice for ``task_type``.
 
     v9.0.0 (PV-07) — per ADR-007 D3, the OPERATOR-VISIBLE breaking-change
-    facet of v9.0.0 MAJOR semver. Default behaviour preserves v8.5.1
-    byte-identical full AGENTS.md when ``meta.agents_md_slice.enabled:
-    false`` (the OPT-IN default).
+    facet of v9.0.0 MAJOR semver. v9.1.5 PV-05 flipped
+    ``meta.agents_md_slice.enabled`` from ``false`` to ``true`` —
+    operators on the YAML default now receive sliced AGENTS.md
+    automatically. The R5 strict env-flag opt-out
+    ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` reverts to the v9.1.4 byte-identical
+    full-AGENTS.md behaviour for operators that have not yet adopted
+    slicing.
+
+    Override precedence (highest wins):
+      1. ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` — force opt-out (full text).
+      2. ``DEVOLAFLOW_AGENTS_MD_SLICE=1`` — force opt-in (slice always on).
+      3. ``meta.agents_md_slice.enabled`` from the YAML profile.
+
+    Args:
+      task_type: dispatch task type used for profile match.
+      profiles_path: override for ``context_profiles.yaml`` location
+        (test fixture override; production resolves to the canonical
+        repo path).
+      agents_md_path: override for ``AGENTS.md`` location (test fixture
+        override; production resolves to the canonical compile target).
+      env: override for ``os.environ`` — used by tests to exercise the
+        env-flag override path without mutating process state.
 
     Returns dict with:
       - ``sliced_text``: filtered AGENTS.md text.
@@ -1403,7 +1466,24 @@ def select_agents_md_slice(
 
     slice_cfg = config.get("meta", {}).get("agents_md_slice", {})
 
-    if not slice_cfg.get("enabled", False):
+    env_override = _agents_md_slice_env_override(env)
+    if env_override is False:
+        # R5 strict opt-out: env=0 → byte-identical full AGENTS.md.
+        return {
+            "sliced_text": full_text,
+            "included_rules": "all",
+            "skipped_rules": [],
+            "profile_name": "",
+            "slice_enabled": False,
+            "total_tokens": full_tokens,
+            "full_tokens": full_tokens,
+            "slice_savings_pct": 0.0,
+        }
+
+    yaml_enabled = bool(slice_cfg.get("enabled", False))
+    effective_enabled = env_override if env_override is True else yaml_enabled
+
+    if not effective_enabled:
         return {
             "sliced_text": full_text,
             "included_rules": "all",

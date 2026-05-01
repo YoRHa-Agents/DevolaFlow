@@ -238,16 +238,24 @@ meta:
       relaxed: false
 
   # v9.0.0 PV-07 (v9.0.0) — Per-task-type AGENTS.md slicing.
+  # v9.1.5 PV-05 — DEFAULT-ON FLIP (operator-visible behaviour change).
   #
   # Codified per .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md
   # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
   #
-  # When ``enabled: true``, select_agents_md_slice(task_type) (in
-  # task_adaptive_selector.py) filters the compiled AGENTS.md content per
+  # When ``enabled: true`` (the v9.1.5+ default), select_agents_md_slice(task_type)
+  # (in task_adaptive_selector.py) filters the compiled AGENTS.md content per
   # the per-profile layer-prefix mapping below, hiding rules irrelevant
-  # to the task type. Default ``enabled: false`` preserves v8.5.1
-  # byte-identical full-AGENTS.md behaviour for every dispatcher that
-  # has not opted in (R5 strict — pinned by tests/test_pv07_agents_md_slice.py).
+  # to the task type.
+  #
+  # OPT-OUT (R5 strict): set ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` to revert to
+  # the v9.1.4 byte-identical full-AGENTS.md behaviour. Per W-20, this
+  # flag was telegraphed in the v9.0.0 PV-07 ADR-007 D3 design but the
+  # runtime read landed in v9.1.5 PV-05 alongside this default flip
+  # (existing-but-unwired flag — REUSE, not new). EXACTLY ``"0"`` forces
+  # opt-out; EXACTLY ``"1"`` forces opt-in (overriding any future YAML
+  # opt-out); any other env value falls through to this YAML default.
+  # Pinned by tests/test_pv07_agents_md_slice.py.
   #
   # The slice never reorders or rewrites canonical rules — it only
   # HIDES rules irrelevant to the task type. Top-level layer headings
@@ -264,14 +272,15 @@ meta:
   # .local/research/v9.0.0_pv07_rule_audit.md §2.2. Operators with custom
   # profiles add new entries under ``profiles.<profile_name>``.
   #
-  # MAJOR semver justification: when an operator opts into slicing, the
-  # cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70%
-  # depending on task type. For long-running L0 sessions that cache the
-  # AGENTS.md prefix between dispatches, this is an observable change in
-  # the input prompt — downstream tools that audit / log prompts will
-  # see different content.
+  # MAJOR semver justification: with v9.1.5 default-ON, the cached prefix
+  # that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70% depending on
+  # task type. For long-running L0 sessions that cache the AGENTS.md
+  # prefix between dispatches, this is an observable change in the input
+  # prompt — downstream tools that audit / log prompts will see different
+  # content. The opt-out env flag (DEVOLAFLOW_AGENTS_MD_SLICE=0) lets
+  # operators retain v9.1.4 byte-stable behaviour during migration.
   agents_md_slice:
-    enabled: false
+    enabled: true
     fallback: full
     profiles:
       hotfix:

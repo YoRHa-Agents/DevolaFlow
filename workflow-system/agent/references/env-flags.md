@@ -1,6 +1,6 @@
 ---
 id: "agent/references/env-flags"
-version: "8.5.1"
+version: "9.1.5"
 purpose: >
   Canonical inventory of every `DEVOLAFLOW_*` environment variable consumed
   by the runtime, the test fixtures, and the gate primitives. Pairs with
@@ -11,6 +11,10 @@ purpose: >
   (forward-declared) to §2 (active runtime flags) as Theme T5 default-on
   flip closure; the 6th forward-declared flag (`LEGIBILITY_CHECK`) and the
   `CYCLE_DETECTOR` flag remain pre-documented for a future cycle.
+  v9.1.5 PV-05 wired `DEVOLAFLOW_AGENTS_MD_SLICE` (telegraphed v9.0.0
+  PV-07; runtime read added v9.1.5 PV-05 alongside the YAML default flip)
+  as the operator-visible escape hatch for the per-task-type AGENTS.md
+  slicing default-ON.
 triggers:
   - "introducing a new feature flag"
   - "adding a runtime env-var"
@@ -190,6 +194,21 @@ These flags are read by production code paths. Tests in
 | **R5 strict?** | YES |
 | **Opt-out path (post-flip)** | `export DEVOLAFLOW_AC_GEN=0` |
 | **Reference** | `benchmarks/devolaflow_context/scenarios/ac_generator_disabled.yaml` |
+
+### 2.11 `DEVOLAFLOW_AGENTS_MD_SLICE` — v9.1.5 PV-05 default-on (per-task-type AGENTS.md slicing)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/task_adaptive_selector.py::_AGENTS_MD_SLICE_ENV_FLAG` (helper: `_agents_md_slice_env_override`) |
+| **Introduced** | telegraphed v9.0.0 PV-07 ADR-007 D3; runtime read landed v9.1.5 PV-05 alongside the YAML default flip |
+| **Default** | unset → respect `meta.agents_md_slice.enabled` in `workflow-system/agent/context_profiles.yaml` (v9.1.5 canonical default: `true`) |
+| **Activation** | env value EXACTLY `"1"` → force opt-IN; EXACTLY `"0"` → force opt-OUT; otherwise YAML default wins |
+| **Effect when active** | `select_agents_md_slice(task_type)` filters the compiled AGENTS.md by per-task-type rule slice (Soul / Architecture / Conventions / Workflow / Style layer-prefix mapping in `meta.agents_md_slice.profiles`); typically reduces L3 dispatch cache prefix by 15-70% |
+| **Effect when opted out** | Returns AGENTS.md byte-identical to the v9.1.4 unsliced surface — preserves the cache prefix every L3 dispatcher keys on |
+| **R5 strict?** | YES — pure dict.get with no IO; `references/env-flags.md` §6 conjunction contract pins literal-only matching (`"true"` / `"yes"` / `"on"` / `" 1 "` / `"01"` / `"0.0"` all fall through to YAML default) |
+| **Why default-on?** | The v9.0.0 MAJOR cycle telegraphed the slice in PV-07 ADR-007 D3 but kept it OFF until operators had time to adopt; v9.1.5 PV-05 flips the canonical default ON now that two cycles of ADR review + retrospective coverage have closed the migration gap. The opt-out env flag preserves byte-stable behaviour for operators who still need the v9.1.4 surface. |
+| **Opt-out path** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
+| **Reference** | `tests/test_pv07_agents_md_slice.py::test_agents_md_slice_env_flag_0_opts_out`; `workflow-system/agent/context_profiles.yaml#meta.agents_md_slice` |
 
 ## 3. Test-fixture flags (NOT runtime flags)
 

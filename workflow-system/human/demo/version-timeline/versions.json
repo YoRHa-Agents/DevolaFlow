@@ -1002,5 +1002,34 @@
       "references": "14",
       "rules_total": "59"
     }
+  },
+  {
+    "version": "9.1.5",
+    "date": "2026-05-01",
+    "era": "rule-rebalancing",
+    "headline": "PATCH — PV-05 of v9.2.0 cycle: spec_bootstrap + agents_md_slice flips default-ON (operator-visible behaviour change)",
+    "summary": "Fifth PV of the v9.2.0 MINOR cycle — the most behaviour-flipping one. Closes TWO deferred items from the v9.0.0 retrospective §3.3: M-004 (source-of-truth first-time seed via NEW seed_initial_spec from a verified change archive's ADDED Requirements; A-4 invariant honoured — refuses overwrite without force=True) and M-007 / per-task-type agents_md_slice dispatch wiring (context_profiles.yaml flips meta.agents_md_slice.enabled from false to true; L3 dispatches now receive per-task-type sliced AGENTS.md content by default). OPERATOR-VISIBLE BEHAVIOUR CHANGE: dispatchers that have not set DEVOLAFLOW_AGENTS_MD_SLICE=0 will see trimmed AGENTS.md content scoped to their task_type starting with v9.1.5; the env flag was telegraphed in v9.0.0 PV-07 ADR-007 D3 and the runtime read landed in v9.1.5 PV-05 (W-20 reuse — 0 new env flags across the entire 7-PV cycle). R5 strict byte-stable proof: with DEVOLAFLOW_AGENTS_MD_SLICE=0 the dispatch is byte-identical to v9.1.4. layout_invariant byte-identical at length 16 / version 5; Soul-set frozen at 10 per W-21; rule count unchanged at 59 / 60 (+1 headroom).",
+    "highlights": [
+      "OPERATOR-VISIBLE: agents_md_slice.enabled flips false → true in workflow-system/agent/context_profiles.yaml (line 274); L3 dispatches receive per-task-type sliced AGENTS.md by default starting with v9.1.5",
+      "R5 strict opt-out: export DEVOLAFLOW_AGENTS_MD_SLICE=0 reverts to v9.1.4 byte-identical full-AGENTS.md behaviour; the env flag was telegraphed in v9.0.0 PV-07 ADR-007 D3 — runtime read landed v9.1.5 PV-05 (W-20 reuse, 0 new flags in the 7-PV cycle)",
+      "NEW src/devolaflow/agent_workspace/spec_bootstrap.py (~150 LOC, 88% coverage on the new module): seed_initial_spec(domain, archive_id, repo_root, *, force=False) -> Path bootstraps .local/memory/specs/<domain>/spec.md from a verified .local/.agent/archive/<archive_id>/ folder via the existing ArchiveManager.propose_merge machinery. SpecBootstrapError(RuntimeError) wraps underlying ArchiveError / MergeConflict / DeltaSpecParseError / ChangeNotFoundError causes via __cause__ (S-5 — never silent)",
+      "A-4 invariant honoured: force=False (default) refuses to overwrite an existing source-of-truth (subsequent updates go through ArchiveManager.propose_merge → apply_merge with gate-score gating ≥ 8.5 PATCH/MINOR or ≥ 9.0 MAJOR); force=True logs a WARNING per S-5 and wholesale-replaces (disaster-recovery / repo-init reset path)",
+      "EXTEND src/devolaflow/task_adaptive_selector.py with _AGENTS_MD_SLICE_ENV_FLAG = 'DEVOLAFLOW_AGENTS_MD_SLICE' constant + _agents_md_slice_env_override() helper (R5 strict — EXACTLY '0' / '1' matched; loose variants like 'true' / 'yes' / 'on' / ' 1 ' / '0.0' fall through to YAML default per references/env-flags.md §6 conjunction contract); select_agents_md_slice() now accepts an `env` kwarg for test-time override",
+      "EXTEND src/devolaflow/agent_workspace/__init__.py to re-export seed_initial_spec + SpecBootstrapError from the package facade; archive.py docstring clarifies the v9.1.5 PV-05 wiring (archive(propose_merge=True) computes ProposedMerge but does NOT auto-apply; first-time-seed path uses spec_bootstrap.seed_initial_spec, update path uses propose_merge → apply_merge)",
+      "NEW tests/test_spec_bootstrap.py (6 tests): valid archive seed creates spec, A-4 overwrite-refusal without force=True, force=True wholesale-replaces with WARNING, missing-archive raises, gate-score independence (bootstrap bypasses ≥ 8.5 / ≥ 9.0 gate that apply_merge enforces), MergeConflict surfaces as SpecBootstrapError with __cause__ preserved",
+      "EXTEND tests/test_pv07_agents_md_slice.py (3 NEW tests): test_slice_yaml_disabled_returns_full_byte_identical (operator YAML-override path), test_agents_md_slice_default_on_in_v9_1_5 (canonical YAML pin), test_agents_md_slice_env_flag_0_opts_out (R5 strict byte-stable opt-out proof across 5 task types + 9 loose-variant rejections)",
+      "EXTEND scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST with 'devolaflow.agent_workspace.spec_bootstrap:seed_initial_spec' + multi-paragraph rationale comment (mirrors v9.1.4 PV-04 consult_for_dispatch + v9.1.1 PV-01 scan_workspace allowlist precedents — public surface ships in v9.1.5 PV-05, in-repo Python production caller lands in v9.2.0 PV-06)",
+      "W-18 ghost-audit refresh — tests/test_no_ghost_features.py::test_v9_1_5_new_symbols_have_coverage (presence + import-smoke + facade-vs-module identity + force kwarg default + W-20 env-flag pin) + test_v9_1_5_agents_md_slice_default_on (canonical YAML default-ON pin + fallback='full' invariant). Authored BEFORE this CHANGELOG entry per W-18 precondition",
+      "EXTEND workflow-system/agent/references/env-flags.md §2.11 with the DEVOLAFLOW_AGENTS_MD_SLICE entry (telegraphed v9.0.0 PV-07 ADR-007 D3; runtime read landed v9.1.5 PV-05); env-flags.md version frontmatter bumped 8.5.1 → 9.1.5",
+      "Layout invariant intact — schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.5 — PV-05 ships a YAML default flip + a bootstrap module + an env-flag wiring; no schema-side changes)",
+      "Soul-set count 10 (frozen by W-21); Architecture 6; Conventions 9; Workflow 21; Style 13 — total 59 / 60 (+1 headroom)"
+    ],
+    "metrics": {
+      "tests": "3549",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59"
+    }
   }
 ]

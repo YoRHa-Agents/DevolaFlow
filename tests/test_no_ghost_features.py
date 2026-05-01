@@ -2039,3 +2039,221 @@ def test_v9_1_4_nest_preserves_canonical_order_length(project_root: Path) -> Non
         "tests/test_layout_invariant_multi_baseline.py::"
         "test_v9_2_0_baseline_byte_identical_to_v8_4_0 for the wider context."
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.1.5 PV-05 — spec_bootstrap + agents_md_slice default-ON ghost-audit
+# ---------------------------------------------------------------------------
+
+# v9.1.5 PV-05 introduces TWO operator-visible deliverables that the W-18
+# precondition pins BEFORE the CHANGELOG entry mentioning them:
+#
+# 1. NEW src/devolaflow/agent_workspace/spec_bootstrap.py with
+#    seed_initial_spec() + SpecBootstrapError — closes M-004 deferred
+#    from v9.0.0 retrospective §3.3 (source-of-truth first-time seed).
+# 2. context_profiles.yaml#meta.agents_md_slice.enabled flips false → true
+#    (operator-visible default-ON; opt-out via DEVOLAFLOW_AGENTS_MD_SLICE=0
+#    per W-20 reuse — telegraphed v9.0.0 PV-07 ADR-007 D3, runtime read
+#    landed v9.1.5 PV-05).
+_V9_1_5_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/agent_workspace/spec_bootstrap.py",
+    "tests/test_spec_bootstrap.py",
+)
+
+# Minimum byte size for a v9.1.5 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_5_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_5_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.5: every NEW v9.1.5 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.5 PV-05 (the fifth PV of the
+    v9.2.0 cycle, the most behaviour-flipping one) introduces:
+
+    1. ``src/devolaflow/agent_workspace/spec_bootstrap.py`` — closes
+       M-004 deferred from v9.0.0 retrospective §3.3 (source-of-truth
+       first-time seed via :func:`seed_initial_spec`).
+    2. ``tests/test_spec_bootstrap.py`` — 6 NEW tests pinning the
+       seed contract.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_5_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_5_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — :func:`seed_initial_spec` and
+       :exc:`SpecBootstrapError` are importable from BOTH the package
+       facade :mod:`devolaflow.agent_workspace` AND the owning module
+       :mod:`devolaflow.agent_workspace.spec_bootstrap`; ``facade is
+       module`` (catches the regression where one re-export path is
+       dropped) and the function is callable.
+    3. **W-20 reuse-first** — :data:`_AGENTS_MD_SLICE_ENV_FLAG` equals
+       ``"DEVOLAFLOW_AGENTS_MD_SLICE"`` (NO new env-flag introduced in
+       PV-05; the flag was telegraphed in v9.0.0 PV-07 ADR-007 D3).
+    4. **A-4 invariant signature** — :func:`seed_initial_spec` accepts
+       ``force=False`` as the canonical default (the A-4 first-time
+       seed gate); operator overrides via ``force=True`` only.
+
+    Failure modes:
+      * "missing on disk" → a v9.1.5 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_5_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "seed_initial_spec not callable" → the spec_bootstrap module
+        broke its public surface contract.
+      * "env-flag mismatch" → a NEW env-flag was authored in violation
+        of W-20; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+      * "force kwarg default mismatch" → the A-4 first-time-seed gate
+        was relaxed; restore ``force=False`` or document the override
+        with an ADR.
+    """
+    import inspect
+
+    for relpath in _V9_1_5_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.5 violation: NEW v9.1.5 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_5_FILE_MIN_BYTES, (
+            f"W-18 v9.1.5 violation: NEW v9.1.5 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_5_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke from BOTH the package facade and the owning module —
+    # catches a regression where one re-export path is dropped. The
+    # `as facade_*` / `as module_*` rebinds intentionally use lowercase
+    # because they are not used as types — they are used as identity
+    # comparison handles for the `facade is module` invariant. ruff N813
+    # is suppressed at the import-block level.
+    from devolaflow.agent_workspace import (  # noqa: N813
+        SpecBootstrapError as facade_error,
+    )
+    from devolaflow.agent_workspace import (
+        seed_initial_spec as facade_seed,
+    )
+    from devolaflow.agent_workspace.spec_bootstrap import (  # noqa: N813
+        SpecBootstrapError as module_error,
+    )
+    from devolaflow.agent_workspace.spec_bootstrap import (
+        seed_initial_spec as module_seed,
+    )
+
+    assert callable(facade_seed), (
+        "W-18 v9.1.5 violation: devolaflow.agent_workspace.seed_initial_spec "
+        "is not callable — the export from devolaflow.agent_workspace/__init__.py "
+        "must be the function itself"
+    )
+    assert callable(module_seed), (
+        "W-18 v9.1.5 violation: devolaflow.agent_workspace.spec_bootstrap."
+        "seed_initial_spec is not callable — the function definition is "
+        "missing or shadowed"
+    )
+    assert facade_seed is module_seed, (
+        "W-18 v9.1.5 violation: facade vs module export of seed_initial_spec "
+        "diverge — the package __init__.py must re-export the spec_bootstrap.py "
+        "symbol directly without wrapping"
+    )
+    assert facade_error is module_error, (
+        "W-18 v9.1.5 violation: facade vs module export of SpecBootstrapError "
+        "diverge — the package __init__.py must re-export the spec_bootstrap.py "
+        "exception directly without aliasing"
+    )
+    assert issubclass(facade_error, RuntimeError), (
+        "W-18 v9.1.5 violation: SpecBootstrapError must subclass RuntimeError "
+        "(per S-5 explicit error states; allows callers to catch RuntimeError "
+        "without importing the agent_workspace package)"
+    )
+
+    # A-4 invariant signature lint — `force` defaults to False so the
+    # first-time-seed gate is the canonical entry path.
+    sig = inspect.signature(module_seed)
+    force_param = sig.parameters.get("force")
+    assert force_param is not None, (
+        "W-18 v9.1.5 violation: seed_initial_spec must accept a `force` kwarg "
+        "(the A-4 first-time-seed override hatch documented in the cycle plan §PV-05)"
+    )
+    assert force_param.default is False, (
+        f"W-18 v9.1.5 violation: seed_initial_spec(force=...) default is "
+        f"{force_param.default!r}, expected False (A-4 first-time-seed gate "
+        f"defaults to refuse-overwrite — operators opt into wholesale "
+        f"replacement explicitly via force=True)"
+    )
+
+    # W-20 reuse-first lint — PV-05 MUST reuse DEVOLAFLOW_AGENTS_MD_SLICE
+    # (the v9.0.0 PV-07 ADR-007 D3 telegraphed flag) per the v9.2.0 cycle
+    # plan §"Self-iteration constraint compliance matrix" "0 new flags
+    # across the entire 7-PV cycle".
+    from devolaflow.task_adaptive_selector import (
+        _AGENTS_MD_SLICE_ENV_FLAG,
+        _agents_md_slice_env_override,
+    )
+
+    assert _AGENTS_MD_SLICE_ENV_FLAG == "DEVOLAFLOW_AGENTS_MD_SLICE", (
+        f"W-20 violation: _AGENTS_MD_SLICE_ENV_FLAG is "
+        f"{_AGENTS_MD_SLICE_ENV_FLAG!r}, expected 'DEVOLAFLOW_AGENTS_MD_SLICE' "
+        f"(REUSE per Workflow Rule W-20 — the flag was telegraphed in v9.0.0 "
+        f"PV-07 ADR-007 D3; v9.1.5 PV-05 is the runtime-wiring landing PV; "
+        f"NO new env-flag introduced in the entire v9.2.0 7-PV cycle)"
+    )
+    assert _agents_md_slice_env_override({"DEVOLAFLOW_AGENTS_MD_SLICE": "0"}) is False, (
+        "R5 strict violation: env-flag value '0' must force opt-out (return False); "
+        "this is the headline v9.1.5 PV-05 escape hatch for the default-ON flip"
+    )
+    assert _agents_md_slice_env_override({"DEVOLAFLOW_AGENTS_MD_SLICE": "1"}) is True, (
+        "R5 strict violation: env-flag value '1' must force opt-in (return True)"
+    )
+
+
+def test_v9_1_5_agents_md_slice_default_on(project_root: Path) -> None:
+    """W-18 v9.1.5: context_profiles.yaml#agents_md_slice.enabled is True.
+
+    Pins the headline operator-visible behaviour change of v9.1.5 PV-05.
+    Pre-v9.1.5 the canonical YAML default was ``enabled: false`` (the
+    v9.0.0 MAJOR-cycle telegraphed flip with a 2-cycle lead time per
+    W-21 governance precedent applied to operator-visible defaults).
+    v9.1.5 PV-05 flips the canonical default to ``true``, so dispatchers
+    on the unmodified YAML receive sliced AGENTS.md content automatically.
+
+    This lint catches a regression where the canonical YAML is
+    accidentally reverted to ``enabled: false`` (would silently revert
+    the operator-visible behaviour change without bumping the
+    CHANGELOG). It is paired with
+    ``tests/test_pv07_agents_md_slice.py::test_agents_md_slice_default_on_in_v9_1_5``
+    which loads the YAML directly + with
+    ``test_agents_md_slice_env_flag_0_opts_out`` which proves the R5
+    strict opt-out is byte-stable.
+    """
+    import yaml as yaml_module
+
+    profiles_path = project_root / "workflow-system" / "agent" / "context_profiles.yaml"
+    assert profiles_path.is_file(), (
+        f"W-18 v9.1.5 violation: context_profiles.yaml missing at {profiles_path}"
+    )
+    config = yaml_module.safe_load(profiles_path.read_text(encoding="utf-8"))
+    slice_cfg = config.get("meta", {}).get("agents_md_slice", {})
+
+    assert slice_cfg.get("enabled") is True, (
+        f"W-18 v9.1.5 violation: context_profiles.yaml#meta.agents_md_slice."
+        f"enabled is {slice_cfg.get('enabled')!r}, expected True (v9.1.5 PV-05 "
+        f"default-ON flip — the headline operator-visible behaviour change). "
+        f"If the flip was rolled back, also remove the [9.1.5] CHANGELOG "
+        f"entry citing the flip."
+    )
+    # The fallback strategy must remain "full" so unmatched task types
+    # still see byte-identical AGENTS.md (W-20 R5 strict — the slice is
+    # additive opt-in for matched profiles; unmatched falls through).
+    assert slice_cfg.get("fallback") == "full", (
+        f"W-18 v9.1.5 violation: agents_md_slice.fallback must be 'full' "
+        f"(unmatched task types fall through to byte-identical AGENTS.md per "
+        f"R5 strict); got {slice_cfg.get('fallback')!r}"
+    )

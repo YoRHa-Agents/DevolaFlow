@@ -26,6 +26,12 @@ that ships in v8.2.8):
   :func:`regenerate_all` orchestrator — v8.2.7 opt-in REPORT.md surface
   (closes H-005). Per Rule I-PV07-A, callers must explicitly invoke;
   no auto-trigger from existing workflows yet.
+* :func:`seed_initial_spec` + :exc:`SpecBootstrapError` — v9.1.5 PV-05
+  first-time source-of-truth seed (closes M-004 deferred from v9.0.0
+  retro §3.3). Bootstraps ``.local/memory/specs/<domain>/spec.md`` from
+  a verified archive's ``spec.md`` ADDED Requirements; A-4 invariant
+  enforced (refuses overwrite without ``force=True``); subsequent
+  updates go through ``ArchiveManager.propose_merge → apply_merge``.
 
 Backward-compat (R5):
 
@@ -84,6 +90,10 @@ from devolaflow.agent_workspace.reporter import (
     render_rules_report,
     render_workspace_report,
 )
+from devolaflow.agent_workspace.spec_bootstrap import (
+    SpecBootstrapError,
+    seed_initial_spec,
+)
 
 __all__ = [
     # archive
@@ -123,4 +133,7 @@ __all__ = [
     "render_memory_report",
     "render_rules_report",
     "render_workspace_report",
+    # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
+    "SpecBootstrapError",
+    "seed_initial_spec",
 ]

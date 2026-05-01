@@ -22,17 +22,25 @@ Closes the C-003 archive half + part of M-004 per
 
 :meth:`ArchiveManager.propose_merge` produces the proposed delta-merged
 source-of-truth spec content WITHOUT writing it to disk. The write-side
-(``ArchiveManager.apply_merge``) is intentionally deferred to v8.2.7
-reporter — per design.md §3.4 (Rule A-4), source-of-truth files are
-mutated ONLY at archive time AFTER the gate has PASSED, and the gate's
-``mergeability_check`` lives in the v8.2.7 reporter module.
+:meth:`ArchiveManager.apply_merge` (v8.4.4 PV-04 closure) writes the
+proposed content atomically AFTER verifying the gate score clears the
+W-3 / SI-3 threshold (≥ 8.5 PATCH/MINOR; ≥ 9.0 MAJOR) per Rule A-4.
+
+v9.1.5 PV-05 — when :meth:`ArchiveManager.archive` is invoked with
+``propose_merge=True``, the resulting :class:`ArchiveResult` carries the
+:class:`ProposedMerge` for caller inspection but does NOT auto-apply
+(callers explicitly invoke :meth:`apply_merge` or use the dedicated
+``seed_initial_spec`` first-time seed surface — see
+:mod:`devolaflow.agent_workspace.spec_bootstrap`).
 
 Public API:
 
-* :class:`ArchiveManager` — archive + propose_merge.
+* :class:`ArchiveManager` — archive + propose_merge + apply_merge.
 * :class:`ArchiveResult` — return value of ``archive()``.
 * :class:`ProposedMerge` — return value of ``propose_merge()``.
+* :class:`AppliedMerge` — return value of ``apply_merge()``.
 * :exc:`ArchiveError` — generic archive-side error.
+* :exc:`GateThresholdNotMet` — raised by ``apply_merge`` when gate < threshold.
 * :exc:`MergeConflict` — raised by ``propose_merge`` on stable-heading collision.
 """
 
@@ -248,6 +256,17 @@ class ArchiveManager:
             replay.
           propose_merge: when True, run :meth:`propose_merge` after the
             move and attach the result to the returned :class:`ArchiveResult`.
+            v9.1.5 PV-05 wiring clarification: ``archive(propose_merge=True)``
+            ONLY computes the merged content — it does NOT auto-apply. The
+            caller decides whether to invoke :meth:`apply_merge` (which
+            enforces the W-3 / SI-3 gate-score threshold per Rule A-4) or
+            to inspect ``ArchiveResult.proposed_merge.content`` for review.
+            For first-time source-of-truth seeding (NEW domain, no existing
+            spec on disk), use
+            :func:`devolaflow.agent_workspace.spec_bootstrap.seed_initial_spec`
+            instead — it gates on filesystem absence (the A-4 first-time-seed
+            invariant) rather than gate-score, and is the canonical surface
+            for repo-init / new-domain bootstrap.
           require_state: required pre-archive state (default ``"VERIFYING"``
             per the design FSM §1.3). Pass ``None`` to skip the check —
             useful for tests that bypass the verify stage.
