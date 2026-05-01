@@ -1787,3 +1787,255 @@ def test_v9_1_3_handoff_production_caller_exists(project_root: Path) -> None:
         f"FIRST production caller of HandoffStore.write_envelope (G-005 "
         f"closure). Found callers in: {sorted(relpaths)}"
     )
+
+
+# ── v9.1.4 PV-04 — W-18 ghost-audit refresh for v9.1.4 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.4 PV-04
+# (the fourth PV of the v9.2.0 cycle) introduces the surfaces enumerated
+# in the comment block above this test; this lint asserts each one as a
+# cheap presence + import-smoke check.
+#
+#   * src/devolaflow/memory_router/cache.py — EXTENDED with the new
+#     consult_for_dispatch() pure function. The advisory companion to
+#     MemoryRouter.lookup_case (which is the planner-replacement
+#     fast-path); consult_for_dispatch is keyword-scored and surfaces
+#     the top-3 MemoryCase hits in the dispatch payload's
+#     `change_context.memory_case_hits` NEST sub-field.
+#   * tests/test_memory_consult_for_dispatch.py — new test file pinning
+#     the consult_for_dispatch contract (5 tests covering env-flag OFF
+#     zero-IO, missing index, malformed YAML WARNING, keyword overlap
+#     ranking, TTL+version-stamp filtering).
+#   * tests/test_feedback_ingestion_plan_mode.py — new test file pinning
+#     the plan-mode feedback ingestion contract (4 tests covering empty
+#     dir, S-2 repo-relative paths, 3-feedback cap, plan-mode doc cite).
+#   * benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml
+#     — NEW witness baseline (byte-identical to v8.4.0); proves the
+#     v9.1.4 PV-04 NEST extension preserved canonical_order length 16
+#     and version 5 (the headline I-8 invariant for PV-04).
+#   * schemas/lean-dispatch.yaml — EXTENDED change_context.fields with
+#     3 NEW OPTIONAL sub-fields: prior_feedback_themes / memory_case_hits
+#     / source_of_truth_excerpt (NEST per A-2.3 — canonical_order length
+#     STAYS at 16, version STAYS at 5).
+
+_V9_1_4_NEW_FILES: tuple[str, ...] = (
+    "tests/test_memory_consult_for_dispatch.py",
+    "tests/test_feedback_ingestion_plan_mode.py",
+    "benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml",
+)
+
+# Minimum byte size for a v9.1.4 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_4_FILE_MIN_BYTES: int = 50
+
+# Expected length / version of `schemas/lean-dispatch.yaml#layout_invariant`
+# AFTER the v9.1.4 PV-04 NEST extension. The headline I-8 invariant for
+# PV-04 — the NEST extension MUST preserve canonical_order at 16 keys and
+# the schema version at 5 (positions 1-16 byte-stable; v9-ADR-002 D2
+# append-only contract preserved; v8.3.0 PV-05 + v8.4.0 multi-baseline
+# byte tests continue to PASS without modification).
+_V9_1_4_CANONICAL_ORDER_LENGTH: int = 16
+_V9_1_4_LAYOUT_VERSION: int = 5
+
+# The 3 NEW change_context sub-fields added in v9.1.4 PV-04 per the
+# A-2.3 nest-vs-append decision rule. Each is OPTIONAL (so absence is
+# canonical and the v8.3.0 PV-05 + v8.4.0 + v9.2.0 baseline byte tests
+# continue to PASS). The schema documents per-field caps (≤ 5 / ≤ 30 /
+# ≤ 3 / ≤ 200) but those caps are NOT runtime-enforced in PV-04 — they
+# are normative for L0 agents per references/plan-mode-enforcement.md
+# §5.5 + the v9.2.0 PV-06 e2e test that will exercise them.
+_V9_1_4_NEW_CHANGE_CONTEXT_FIELDS: tuple[str, ...] = (
+    "prior_feedback_themes",
+    "memory_case_hits",
+    "source_of_truth_excerpt",
+)
+
+
+def test_v9_1_4_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.4: every NEW v9.1.4 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.4 PV-04 (the fourth PV of the
+    v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_4_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_4_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``consult_for_dispatch`` is importable from
+       :mod:`devolaflow.memory_router` AND from
+       :mod:`devolaflow.memory_router.cache`, and is callable.
+    3. **W-20 reuse-first** — ``consult_for_dispatch`` is gated by the
+       SAME env-flag the existing :class:`MemoryRouter` consults
+       (``DEVOLAFLOW_MEMORY_ROUTER``); no new env-flag was introduced.
+       This is the headline W-20 lint for PV-04: the v9.2.0 cycle plan
+       §"Self-iteration constraint compliance matrix" pins "0 new flags
+       across the entire 7-PV cycle".
+    4. **change_context schema NEST extension** — the 3 NEW OPTIONAL
+       sub-fields (``prior_feedback_themes`` / ``memory_case_hits`` /
+       ``source_of_truth_excerpt``) are documented in
+       ``schemas/lean-dispatch.yaml#lean_format_spec.change_context.fields``.
+       Their presence in the schema documents the contract surfaced by
+       :func:`consult_for_dispatch` (memory_case_hits) and by the
+       plan-mode feedback ingestion (prior_feedback_themes).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.4 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_4_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "consult_for_dispatch not callable" → the cache.py module
+        broke its public surface contract.
+      * "env-flag mismatch" → a NEW env-flag was authored in violation
+        of W-20; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+      * "missing schema sub-field" → the lean-dispatch.yaml NEST
+        extension was reverted; restore the 3 sub-fields OR document
+        the de-NEST decision.
+    """
+    for relpath in _V9_1_4_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.4 violation: NEW v9.1.4 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_4_FILE_MIN_BYTES, (
+            f"W-18 v9.1.4 violation: NEW v9.1.4 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_4_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke from BOTH the package facade and the owning module —
+    # catches a regression where one re-export path is dropped.
+    from devolaflow.memory_router import consult_for_dispatch as facade_consult
+    from devolaflow.memory_router.cache import (
+        consult_for_dispatch as module_consult,
+    )
+
+    assert callable(facade_consult), (
+        "W-18 v9.1.4 violation: devolaflow.memory_router.consult_for_dispatch "
+        "is not callable — the export from devolaflow.memory_router/__init__.py "
+        "must be the function itself"
+    )
+    assert callable(module_consult), (
+        "W-18 v9.1.4 violation: devolaflow.memory_router.cache.consult_for_dispatch "
+        "is not callable — the function definition is missing or shadowed"
+    )
+    assert facade_consult is module_consult, (
+        "W-18 v9.1.4 violation: facade vs module export of consult_for_dispatch "
+        "diverge — the package __init__.py must re-export the cache.py symbol "
+        "directly without wrapping"
+    )
+
+    # W-20 reuse-first lint: PV-04 MUST reuse DEVOLAFLOW_MEMORY_ROUTER (the
+    # existing MemoryRouter activation surface) per the v9.2.0 cycle plan
+    # §"Self-iteration constraint compliance matrix". Authoring a new env
+    # flag here would violate W-20.
+    from devolaflow.memory_router.cache import (
+        _CONSULT_ENV_FLAG,
+        _CONSULT_ENV_TRUTHY,
+    )
+
+    assert _CONSULT_ENV_FLAG == "DEVOLAFLOW_MEMORY_ROUTER", (
+        f"W-20 violation: consult_for_dispatch._CONSULT_ENV_FLAG is "
+        f"{_CONSULT_ENV_FLAG!r}, expected 'DEVOLAFLOW_MEMORY_ROUTER' (REUSE per "
+        f"Workflow Rule W-20 — same activation surface as the existing "
+        f"MemoryRouter.lookup_case fast-path; no new env-flag introduced "
+        f"in the entire v9.2.0 7-PV cycle)"
+    )
+    assert _CONSULT_ENV_TRUTHY == "1", (
+        f"R5 strict violation: consult_for_dispatch._CONSULT_ENV_TRUTHY is "
+        f"{_CONSULT_ENV_TRUTHY!r}, expected '1' (R5 strict opt-in REQUIRES "
+        f"the literal '1' string — every other variant treated as OFF)"
+    )
+
+    # Schema NEST extension lint — the 3 NEW change_context sub-fields
+    # MUST be documented in `schemas/lean-dispatch.yaml`.
+    schema_path = project_root / "schemas" / "lean-dispatch.yaml"
+    assert schema_path.is_file(), f"missing schemas/lean-dispatch.yaml at {schema_path}"
+    schema = _load_yaml(schema_path)
+    change_context_fields = (
+        schema.get("lean_format_spec", {}).get("change_context", {}).get("fields", {})
+    )
+    for new_field in _V9_1_4_NEW_CHANGE_CONTEXT_FIELDS:
+        assert new_field in change_context_fields, (
+            f"W-18 v9.1.4 violation: NEST sub-field {new_field!r} missing from "
+            f"`schemas/lean-dispatch.yaml#lean_format_spec.change_context.fields`. "
+            f"The v9.1.4 PV-04 NEST extension (per A-2.3 nest-vs-append rule) "
+            f"requires all 3 sub-fields (prior_feedback_themes / memory_case_hits "
+            f"/ source_of_truth_excerpt). Present sub-fields: "
+            f"{sorted(change_context_fields)}"
+        )
+
+
+def test_v9_1_4_nest_preserves_canonical_order_length(project_root: Path) -> None:
+    """W-18 v9.1.4: NEST extension preserved canonical_order at 16 / version 5.
+
+    The headline I-8 invariant proof for PV-04 — the v9.1.4 PV-04 NEST
+    extension (3 NEW OPTIONAL sub-fields under ``change_context``) MUST
+    NOT bump the canonical_order length nor the schema version. Per
+    A-2.3 nest-vs-append decision rule, NEST is byte-stable wrt the
+    LLM cache prefix (the historical baselines from v7.0.0 through
+    v8.4.0 continue to render byte-identically because the new
+    sub-fields are OPTIONAL and absent from those baselines).
+
+    A future PV that wants to add a TRULY orthogonal new payload
+    (cannot be expressed as a sub-field of an existing block) would
+    APPEND a new top-level key — that PV would update both this
+    expected length AND the
+    ``tests/test_layout_invariant_multi_baseline.py`` golden YAML.
+    """
+    schema_path = project_root / "schemas" / "lean-dispatch.yaml"
+    assert schema_path.is_file(), f"missing schemas/lean-dispatch.yaml at {schema_path}"
+    schema = _load_yaml(schema_path)
+
+    layout_invariant = schema.get("layout_invariant", {})
+    canonical_order = layout_invariant.get("canonical_order", [])
+    layout_version = layout_invariant.get("version")
+
+    assert isinstance(canonical_order, list), (
+        f"layout_invariant.canonical_order must be a list; got {type(canonical_order).__name__}"
+    )
+    assert len(canonical_order) == _V9_1_4_CANONICAL_ORDER_LENGTH, (
+        f"v9.1.4 PV-04 I-8 invariant violation: "
+        f"`schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length is "
+        f"{len(canonical_order)}, expected {_V9_1_4_CANONICAL_ORDER_LENGTH} "
+        f"(NEST extension MUST preserve canonical_order length per A-2.3 +  "
+        f"v9-ADR-002 D2). Current order: {canonical_order!r}"
+    )
+    assert layout_version == _V9_1_4_LAYOUT_VERSION, (
+        f"v9.1.4 PV-04 I-8 invariant violation: "
+        f"`schemas/lean-dispatch.yaml#layout_invariant.version` is "
+        f"{layout_version!r}, expected {_V9_1_4_LAYOUT_VERSION} (NEST "
+        f"extension MUST NOT bump schema version per A-2.3 + v9-ADR-002 D2)"
+    )
+
+    # The NEW v9.2.0 baseline witness MUST exist + be byte-identical to
+    # v8.4.0. This couples the I-8 invariant proof to the on-disk
+    # fixture so a renamed/moved baseline file fails CI immediately.
+    baselines_dir = project_root / "benchmarks" / "devolaflow_context" / "baselines"
+    v9_2_0_path = baselines_dir / "layout_invariant_v9.2.0.yaml"
+    v8_4_0_path = baselines_dir / "layout_invariant_v8.4.0.yaml"
+    assert v9_2_0_path.is_file(), (
+        f"v9.1.4 PV-04 missing baseline witness at {v9_2_0_path}. "
+        f"NEST extension proof requires this file to be byte-identical "
+        f"to {v8_4_0_path}."
+    )
+    assert v8_4_0_path.is_file(), f"v8.4.0 baseline missing at {v8_4_0_path}"
+    assert v9_2_0_path.read_text() == v8_4_0_path.read_text(), (
+        "v9.1.4 PV-04 I-8 invariant violation: the v9.2.0 baseline witness "
+        "diverged from the v8.4.0 baseline. The NEST extension was supposed "
+        "to be byte-identical (the new sub-fields are OPTIONAL — their "
+        "absence is canonical). See "
+        "tests/test_layout_invariant_multi_baseline.py::"
+        "test_v9_2_0_baseline_byte_identical_to_v8_4_0 for the wider context."
+    )

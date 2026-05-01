@@ -291,10 +291,71 @@ proposals against the user's accumulated voice.
 
 **v9.1.1 PV-01 ships the discovery API only — automatic ingestion at
 plan-mode entry is the v9.1.4 PV-04 deliverable** (per the v9.2.0
-cycle plan). Until PV-04 lands, L0 agents in plan mode SHOULD perform
-the read-and-cite manually using the `recent_feedbacks` paths returned
-by the discovery API. The S-5-compliant default — no auto-write side
-effects — applies regardless of PV.
+cycle plan). The S-5-compliant default — no auto-write side effects —
+applies regardless of PV.
+
+#### Automatic Ingestion at Plan-Mode Entry (v9.1.4+)
+
+Starting in v9.1.4 (PV-04 of the v9.2.0 cycle), L0 plan mode MUST
+automatically ingest the `WorkspaceContext.recent_feedbacks` summary
+when entering plan mode AND surface ≤ 5 extracted themes (≤ 30 chars
+each) in the dispatch payload's `change_context.prior_feedback_themes`
+NEST sub-field (per A-2.3 — the canonical_order length stays at 16,
+no new top-level dispatch key was added). The contract:
+
+1. **Discovery call** — at plan-mode entry, L0 calls
+   `devolaflow.workspace_context.scan_workspace(repo_root)` and reads
+   `WorkspaceContext.recent_feedbacks` (the tuple is already capped at
+   `MAX_FEEDBACKS_RETURNED == 3` per the v9.1.1 PV-01 design — older
+   feedbacks remain on disk but are not auto-loaded).
+2. **Read with the standard `Read` tool** — for each of the (≤ 3)
+   feedback paths, L0 reads the file with the standard `Read` tool
+   (allowed under plan mode per §5.1 — no new tool permission needed).
+3. **Theme extraction (L0 LLM contract — normative)** — extract ≤ 5
+   short noun/verb phrases (each ≤ 30 chars; lowercase
+   `snake_case` preferred) from the H1/H2 headings, key bullet
+   markers, and recurring concept terms across the feedback bodies.
+   Examples: `handoff_auto_write`, `slash_commands_cli`,
+   `workspace_discovery`, `memory_consultation`,
+   `spec_bootstrap`. Themes that are NOT short noun/verb phrases
+   (e.g., full sentences, prose paragraphs) violate the
+   `prior_feedback_themes` schema cap.
+4. **Surfacing** — populate the dispatch payload's
+   `change_context.prior_feedback_themes` sub-field (NEST per A-2.3 —
+   schema documented in
+   `schemas/lean-dispatch.yaml#lean_format_spec.change_context.prior_feedback_themes`)
+   with the extracted theme list. Cite each source by repo-relative
+   POSIX path per S-2 (e.g.,
+   `.local/feedbacks/feedback_for_v9.1.3.md` §"What's New"). NEVER
+   embed absolute filesystem paths.
+
+**Why a NEST extension and not an APPEND?** Per A-2.3 nest-vs-append
+decision rule, the new sub-field rides the existing `change_context`
+position 16 block — the sub-field is independently optional and
+modifies how an existing block is interpreted (the L3 task agent
+treats `change_context` as the binding for in-flight workspace state
+PLUS, when present, the user-voice anchors). This preserves the I-8
+invariant: `canonical_order` length STAYS AT 16 and `version` STAYS
+AT 5. The v8.3.0 PV-05 + v8.4.0 + v9.2.0 multi-baseline byte tests
+in `tests/test_layout_invariant_multi_baseline.py` continue to PASS
+without modification.
+
+**Activation gate (W-20 reuse)** — feedback ingestion auto-runs in
+plan mode by default (no env-flag required for the read-only
+discovery + theme extraction; the activity is a `Read` operation L0
+already performs in plan mode). The companion memory-case
+consultation (`change_context.memory_case_hits`) is gated by
+`DEVOLAFLOW_MEMORY_ROUTER=1` (REUSED per W-20 — no new env-flag).
+The third sub-field, `source_of_truth_excerpt`, is L0-discretion
+(reads `.local/memory/specs/<domain>/spec.md` when `spec_delta_target`
+is set on the change folder).
+
+**Coverage anchor** — `tests/test_feedback_ingestion_plan_mode.py`
+pins this contract: empty-feedbacks → empty list, S-2 repo-relative
+paths via `WorkspaceContext.to_summary_dict()`, the 3-feedback cap
+honored, AND the §5.5 sub-section content asserted verbatim (so a
+future doc rewrite that drops the contract markers fails CI
+immediately).
 
 ## 6. Reinforcement Rules (W-8 / SI-9) — Mechanism + L3 Obligation
 

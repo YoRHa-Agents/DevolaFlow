@@ -518,6 +518,37 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.skills.change_activation:classify_complexity",
         "devolaflow.skills.change_activation:activation_verdict",
         "devolaflow.skills.change_activation:from_env",
+        # ---- v9.1.4 PV-04 (cycle v9.2.0) — memory_router.consult_for_dispatch ----
+        # `consult_for_dispatch(payload, repo_root, *, max_hits=3) -> list[MemoryCase]`
+        # is the advisory companion to `MemoryRouter.lookup_case`. Where
+        # `lookup_case` is the planner-replacement fast-path keyed on
+        # workflow_type+task_type, `consult_for_dispatch` is keyword-scored
+        # against the dispatch payload's task description and surfaces the
+        # top-3 matched MemoryCase IDs in the dispatch payload's
+        # `change_context.memory_case_hits` sub-field (NEST extension per
+        # A-2.3 — schema documented in
+        # `schemas/lean-dispatch.yaml#lean_format_spec.change_context`).
+        # The function is REUSE-gated by `DEVOLAFLOW_MEMORY_ROUTER` (NOT a
+        # new env-flag — per the v9.2.0 cycle plan §"Self-iteration
+        # constraint compliance matrix" W-20 row, "0 new flags across the
+        # entire 7-PV cycle"). The first in-repo Python production caller
+        # lands in v9.2.0 PV-06 (`tests/test_capability_e2e.py` + the
+        # repo-init seed examples that the E2E test exercises);
+        # v9.1.4 PV-04 ships the function only as the prerequisite. NOT a
+        # domain-SSOT registry symbol per A-5.2 — pure read-only YAML-
+        # parser + keyword-overlap scorer (no module-level state); mirrors
+        # the `workspace_context.scan_workspace` allowlist precedent above
+        # (public surface advertised in `references/plan-mode-enforcement.md`
+        # §5.5 "Automatic Ingestion at Plan-Mode Entry (v9.1.4+)", in-repo
+        # caller lands in a subsequent PV per the v9.2.0 cycle plan).
+        # Verified by `tests/test_memory_consult_for_dispatch.py` (5 tests
+        # covering env-flag OFF zero-IO noop / missing index fallback /
+        # malformed YAML WARNING / keyword overlap scoring / TTL+version
+        # filtering) + `tests/test_no_ghost_features.py::
+        # test_v9_1_4_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse env-flag pin + return-type
+        # callable).
+        "devolaflow.memory_router.cache:consult_for_dispatch",
     }
 )
 

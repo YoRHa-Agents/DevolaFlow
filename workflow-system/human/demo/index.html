@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.1.4 (PATCH — PV-04 of v9.2.0 cycle: memory_router.consult_for_dispatch + feedback ingestion + change_context NEST extension) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v914">What's New</span> in v9.1.4 — PATCH, PV-04 of the v9.2.0 cycle: <code>memory_router.consult_for_dispatch()</code> + plan-mode feedback ingestion + <code>change_context</code> NEST extension (3 OPTIONAL sub-fields)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v914.desc">v9.1.4 is the fourth PV of the v9.2.0 MINOR cycle (PATCH; composes <code>.local/memory/cases/index.yaml</code> + <code>.local/feedbacks/</code> into the dispatch payload's <code>change_context</code> block via 3 NEW OPTIONAL sub-fields added per A-2.3 NEST decision rule). <strong>The headline I-8 invariant proof</strong>: <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code> length STAYS at 16 AND <code>version</code> STAYS at 5 — zero cache-prefix disturbance. All 6 historical baselines (v7.0.0 → v8.4.0) continue to PASS without modification, plus a NEW v9.2.0 witness baseline pinned at <code>benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml</code> (byte-identical to v8.4.0). NEW <code>src/devolaflow/memory_router/cache.py::consult_for_dispatch()</code> is the keyword-scored hint companion to the existing <code>MemoryRouter.lookup_case</code> fast-path; gated by <code>DEVOLAFLOW_MEMORY_ROUTER</code> (REUSED per W-20 — 0 new env flags introduced, matching the v9.2.0 cycle plan §"Self-iteration constraint compliance matrix" pin). EXTEND <code>references/plan-mode-enforcement.md</code> §5.5 with the v9.1.4+ "Automatic Ingestion at Plan-Mode Entry" sub-section as normative L0 guidance (no new Python module — the L0 LLM extracts ≤ 5 themes from the latest 3 feedbacks via the standard <code>Read</code> tool). NineS composite <strong>0.9073</strong> ≥ 0.85 (margin +0.0573); SI-3 weighted <strong>9.89/10</strong>. Soul-set frozen at 10 per W-21; rule count unchanged at 59 / 60 (+1 headroom). W-18 ghost-audit refresh discharged BEFORE this CHANGELOG entry per the W-18 precondition (<code>test_v9_1_4_new_symbols_have_coverage</code> + <code>test_v9_1_4_nest_preserves_canonical_order_length</code> — the headline I-8 invariant proof at CI time).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">CONSULTATION</span>
+          <h3>memory_router.consult_for_dispatch (R5 strict, W-20 reuse)</h3>
+          <p>NEW <code>src/devolaflow/memory_router/cache.py::consult_for_dispatch(payload, repo_root, *, max_hits=3)</code>: keyword-scored hint companion to <code>MemoryRouter.lookup_case</code>. Returns top-3 <code>MemoryCase</code> hits matched against <code>payload.task.{description,title,goal}</code>. Env-flag gated (<code>DEVOLAFLOW_MEMORY_ROUTER=1</code> — REUSED per W-20; no new flag); R5 strict zero-IO when disabled. Malformed YAML → <code>[]</code> + WARNING (S-5). 84% joint coverage on cache.py.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/memory_router/cache.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">NEST</span>
+          <h3>change_context Extended with 3 OPTIONAL Sub-Fields (A-2.3)</h3>
+          <p>EXTEND <code>schemas/lean-dispatch.yaml</code> <code>change_context</code> (position 16) per A-2.3 NEST decision: <code>prior_feedback_themes: list[str]</code> (≤ 5 items, ≤ 30 chars), <code>memory_case_hits: list[str]</code> (≤ 3 case_ids), <code>source_of_truth_excerpt: str</code> (≤ 200 tokens). NEST chosen over APPEND because new fields are independently optional + modify how an existing block is interpreted. <code>canonical_order</code> length STAYS 16; <code>version</code> STAYS 5.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/lean-dispatch.yaml"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">INGESTION</span>
+          <h3>Plan-Mode Feedback Ingestion (v9.1.4+)</h3>
+          <p>EXTEND <code>references/plan-mode-enforcement.md</code> §5.5 with the v9.1.4+ "Automatic Ingestion at Plan-Mode Entry" sub-section: L0 calls <code>scan_workspace(repo_root).recent_feedbacks</code> at plan-mode entry; reads each path with the standard <code>Read</code> tool (no new tool permission); extracts ≤ 5 short noun/verb themes (e.g. <code>handoff_auto_write</code>, <code>workspace_discovery</code>); surfaces in <code>change_context.prior_feedback_themes</code>. Cites paths repo-relative per S-2.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/plan-mode-enforcement.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">METRICS</span>
+          <h3>I-8 Invariant Intact, NineS 0.9073, SI-3 9.89/10</h3>
+          <p>W-9 / SI-10 6/6 PASS. +12 NEW test functions in PV-04 (within +30 W-17 per-PV cap). Cumulative cycle delta v9.1.0 → v9.1.4: +71 of +150 cap (+79 headroom). I-8 invariant intact: <code>canonical_order</code> length 16 + <code>version</code> 5 byte-identical; all 6 historical baselines PASS + NEW v9.2.0 pin PASS. NineS composite <strong>0.9073</strong> (≥ 0.85; margin +0.0573); <code>index_recall: 0.80</code> at upstream A3 ceiling. SI-3 weighted <strong>9.89/10</strong> (≥ 8.5 PATCH floor by +1.39).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.1.2 (PATCH — PV-02 of v9.2.0 cycle: change-driven activation heuristic + /devola:* slash commands + Architecture rule A-6) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v912">What's New</span> in v9.1.2 — PATCH, PV-02 of the v9.2.0 cycle: change-driven activation heuristic + <code>/devola:*</code> slash commands + Architecture rule A-6 "Workspace Engagement Auto-Activation"</h2>

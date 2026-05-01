@@ -43,7 +43,9 @@
       "EvoBench Integration at /benchmarks/devolaflow_context/",
       "Task Completion Quality +15.4%, Task Clarity +32.3%, Focus Efficiency +32.1%"
     ],
-    "metrics": { "tests": 254 }
+    "metrics": {
+      "tests": 254
+    }
   },
   {
     "version": "3.0.0",
@@ -59,9 +61,15 @@
       "Task-Adaptive Selector Tests raising coverage 0% → 90%",
       "EvoBench: 3/3 scenarios PASS, 0 regressions against baseline"
     ],
-    "metrics": { "tests": 309, "coverage_pct": 88.31 },
+    "metrics": {
+      "tests": 309,
+      "coverage_pct": 88.31
+    },
     "links": [
-      { "href": "../framework-chain/index.html#fc-gate", "label": "Gate Mechanism →" }
+      {
+        "href": "../framework-chain/index.html#fc-gate",
+        "label": "Gate Mechanism →"
+      }
     ]
   },
   {
@@ -93,7 +101,11 @@
       "EvoBench avg composite 94.4/100 (up from 80.5 baseline, +17.3%)",
       "All 17 scenarios: 100% relevance, 0% noise"
     ],
-    "metrics": { "tests": 312, "coverage_pct": 88.49, "composite": 94.4 }
+    "metrics": {
+      "tests": 312,
+      "coverage_pct": 88.49,
+      "composite": 94.4
+    }
   },
   {
     "version": "3.5.0",
@@ -108,7 +120,10 @@
       ".github/PULL_REQUEST_TEMPLATE.md with adapter budget + EvoBench checklist",
       "16 version locations across 11 files (was 9)"
     ],
-    "metrics": { "tests": 316, "coverage_pct": 88.49 }
+    "metrics": {
+      "tests": 316,
+      "coverage_pct": 88.49
+    }
   },
   {
     "version": "3.6.0",
@@ -123,9 +138,15 @@
       "Tool permissions: ALLOWED (Read/Glob/Grep/SemanticSearch) vs DELEGATE (Write/StrReplace/Shell)",
       "7-step execution protocol: ASSESS → SELECT → DECOMPOSE → DISPATCH → VERIFY → GATE → REPORT"
     ],
-    "metrics": { "tests": 316, "coverage_pct": 88.49 },
+    "metrics": {
+      "tests": 316,
+      "coverage_pct": 88.49
+    },
     "links": [
-      { "href": "../framework-chain/index.html#fc-hierarchy", "label": "4-Layer Hierarchy →" }
+      {
+        "href": "../framework-chain/index.html#fc-hierarchy",
+        "label": "4-Layer Hierarchy →"
+      }
     ]
   },
   {
@@ -140,9 +161,16 @@
       "Plan template embeds 4-layer delegation model explicitly with Execution Model table (L0→L1→L2→L3)",
       "EvoBench optimization: 3 rounds (97.08 → 98.99 → 99.43, converged)"
     ],
-    "metrics": { "tests": 316, "coverage_pct": 88.49, "composite": 99.43 },
+    "metrics": {
+      "tests": 316,
+      "coverage_pct": 88.49,
+      "composite": 99.43
+    },
     "links": [
-      { "href": "../framework-chain/index.html#fc-loops", "label": "Wave Coordination →" }
+      {
+        "href": "../framework-chain/index.html#fc-loops",
+        "label": "Wave Coordination →"
+      }
     ]
   },
   {
@@ -158,9 +186,16 @@
       "EvoBench avg composite 99.73 (+0.30 vs v3.7.0, +0.60 vs v3.6.0)",
       "Promoted convergence_loop to critical for security-audit profile"
     ],
-    "metrics": { "tests": 316, "coverage_pct": 88.49, "composite": 99.73 },
+    "metrics": {
+      "tests": 316,
+      "coverage_pct": 88.49,
+      "composite": 99.73
+    },
     "links": [
-      { "href": "../framework-chain/index.html#fc-gate", "label": "Gate Mechanism →" }
+      {
+        "href": "../framework-chain/index.html#fc-gate",
+        "label": "Gate Mechanism →"
+      }
     ]
   },
   {
@@ -179,9 +214,15 @@
       "Rationalization Prevention 8-row table",
       "Self-Update Workflow (17th) + reference-dependencies.yaml tracking 17 external repos"
     ],
-    "metrics": { "tests": 423, "coverage_pct": 89.21 },
+    "metrics": {
+      "tests": 423,
+      "coverage_pct": 89.21
+    },
     "links": [
-      { "href": "../framework-chain/index.html#fc-rationalization", "label": "Rationalization Prevention →" }
+      {
+        "href": "../framework-chain/index.html#fc-rationalization",
+        "label": "Rationalization Prevention →"
+      }
     ]
   },
   {
@@ -197,9 +238,15 @@
       "Glassmorphism shared nav with logo, 6 page links, theme toggle, language switcher, mobile hamburger",
       "Page-specific translations via addTranslations()"
     ],
-    "metrics": { "tests": 438, "coverage_pct": 89.21 },
+    "metrics": {
+      "tests": 438,
+      "coverage_pct": 89.21
+    },
     "links": [
-      { "href": "../design-system/index.html#ds-palette", "label": "Palette →" }
+      {
+        "href": "../design-system/index.html#ds-palette",
+        "label": "Palette →"
+      }
     ]
   },
   {
@@ -215,7 +262,9 @@
       "decomposition_mode + compression_intensity in TaskDispatch schema",
       "3 new EvoBench scenarios (compression_hotfix, decomposition_feature, model_routing_feature)"
     ],
-    "metrics": { "tests": 451 }
+    "metrics": {
+      "tests": 451
+    }
   },
   {
     "version": "4.1.0",
@@ -230,7 +279,10 @@
       "EvoBench format_compliance dimension (1.00 across all 23 scenarios)",
       "Expanded preserve list (12 items) and drop list (9 items) with 3 intensity tiers"
     ],
-    "metrics": { "tests": 495, "composite": 99.20 }
+    "metrics": {
+      "tests": 495,
+      "composite": 99.2
+    }
   },
   {
     "version": "4.3.0",
@@ -245,7 +297,10 @@
       "NineS-Assisted Workflow Template (research-driven workflows)",
       "task_adaptive_selector handles non-numeric line ranges gracefully"
     ],
-    "metrics": { "tests": 643, "coverage_pct": 90.45 }
+    "metrics": {
+      "tests": 643,
+      "coverage_pct": 90.45
+    }
   },
   {
     "version": "4.5.0",
@@ -262,7 +317,10 @@
     ],
     "metrics": {},
     "links": [
-      { "href": "../design-system/index.html#ds-palette", "label": "Palette →" }
+      {
+        "href": "../design-system/index.html#ds-palette",
+        "label": "Palette →"
+      }
     ]
   },
   {
@@ -279,7 +337,12 @@
       "Verification-first micro-plan in execution-protocol.md",
       "Decomposed select_context() from CC=23 to CC≈7 via 5 extracted helpers"
     ],
-    "metrics": { "tests": 681, "coverage_pct": 90.90, "nines": 0.7405, "composite": 99.50 }
+    "metrics": {
+      "tests": 681,
+      "coverage_pct": 90.9,
+      "nines": 0.7405,
+      "composite": 99.5
+    }
   },
   {
     "version": "5.1.0-pre",
@@ -295,9 +358,14 @@
       "Critical fix: NineS install command corrected to uv pip install git+https://github.com/YoRHa-Agents/NineS.git",
       "Critical fix: 11 NineS CLI v1→v2 commands updated"
     ],
-    "metrics": { "tests": 704 },
+    "metrics": {
+      "tests": 704
+    },
     "links": [
-      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+      {
+        "href": "../context-flow/index.html#cf-reinforcement",
+        "label": "Round-Reinforcement →"
+      }
     ]
   },
   {
@@ -313,7 +381,9 @@
       "Rule count: 24 → 34 (10 new SI rules)",
       "Reference tracking: 10 active + 9 periodic = 19 total"
     ],
-    "metrics": { "tests": 782 }
+    "metrics": {
+      "tests": 782
+    }
   },
   {
     "version": "5.3.0",
@@ -328,9 +398,14 @@
       "P3: Schema Validation Tests (test_schema_validation.py) — no v1 NineS patterns, schema structure",
       "P1: _BUILTIN_SPECS stage_mapping unified via STAGE_MAPPING import from nines/commands.py"
     ],
-    "metrics": { "tests": 803 },
+    "metrics": {
+      "tests": 803
+    },
     "links": [
-      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+      {
+        "href": "../context-flow/index.html#cf-reinforcement",
+        "label": "Round-Reinforcement →"
+      }
     ]
   },
   {
@@ -347,7 +422,9 @@
       "Full-Pipeline updated with verify stage between test and refine",
       "4 new context profiles + 4 new EvoBench scenarios"
     ],
-    "metrics": { "tests": 822 }
+    "metrics": {
+      "tests": 822
+    }
   },
   {
     "version": "5.4.2",
@@ -361,7 +438,9 @@
       "bump_version.py reduced from 14 to 11 version locations",
       "Parity achieved: all 4 tools (Cursor, Codex, Claude, Copilot) use identical skill directory structure"
     ],
-    "metrics": { "tests": 818 }
+    "metrics": {
+      "tests": 818
+    }
   },
   {
     "version": "6.0.1",
@@ -376,7 +455,9 @@
       "Rule reconciliation: CP-3 rewritten to reference SF-3 as authoritative version-location list",
       "Net LOC: −295 (+156 / −451 across 16 files + 1 deletion)"
     ],
-    "metrics": { "tests": 820 }
+    "metrics": {
+      "tests": 820
+    }
   },
   {
     "version": "6.0.2",
@@ -392,7 +473,9 @@
       "DeprecationWarnings: 12 → 0",
       "5 test classes retired (29 tests)"
     ],
-    "metrics": { "tests": 791 }
+    "metrics": {
+      "tests": 791
+    }
   },
   {
     "version": "6.0.3",
@@ -407,9 +490,15 @@
       "tests/test_e2e_convergence.py — 7 E2E tests for full template→gate→reinforcement integration",
       "Round 1 → 3: budget 4800 → 5760 exactly (+20%), model_hint balanced → quality"
     ],
-    "metrics": { "tests": 812, "nines": 0.7405 },
+    "metrics": {
+      "tests": 812,
+      "nines": 0.7405
+    },
     "links": [
-      { "href": "../context-flow/index.html#cf-reinforcement", "label": "Round-Reinforcement →" }
+      {
+        "href": "../context-flow/index.html#cf-reinforcement",
+        "label": "Round-Reinforcement →"
+      }
     ]
   },
   {
@@ -425,7 +514,9 @@
       "+Windsurf adapter — single .windsurfrules at repo root with frontmatter stripped (8000-char budget)",
       "--tools cursor,windsurf CLI flag for selective build"
     ],
-    "metrics": { "tests": 858 }
+    "metrics": {
+      "tests": 858
+    }
   },
   {
     "version": "6.0.5",
@@ -440,7 +531,9 @@
       "load_baseline() prefers newest baseline by numeric-version order",
       "Staleness guard test (±5pp tolerance)"
     ],
-    "metrics": { "tests": 871 }
+    "metrics": {
+      "tests": 871
+    }
   },
   {
     "version": "6.1.0",
@@ -456,7 +549,10 @@
       "SI-8 retrospective at .local/research/retrospective_v6.0_to_v6.1.md (SI-3 composite 9.23/10)",
       "v6.1.0 baseline regenerated for SKILL.md growth from 496 → 498 lines"
     ],
-    "metrics": { "tests": 896, "coverage_pct": 94.08 }
+    "metrics": {
+      "tests": 896,
+      "coverage_pct": 94.08
+    }
   },
   {
     "version": "6.1.1",
@@ -472,7 +568,10 @@
       "Rule SI-2 updated with canonical self-eval invocation (--golden-dir + --samples-dir)",
       "NineS overall +18.9% — biggest single jump in DevolaFlow history"
     ],
-    "metrics": { "tests": 954, "nines": 0.8805 }
+    "metrics": {
+      "tests": 954,
+      "nines": 0.8805
+    }
   },
   {
     "version": "6.1.2",
@@ -487,7 +586,9 @@
       "Compromise: 4 of 6 task-suggested sections fit (dropped Mode Awareness 4945 chars + Context Isolation)",
       "8/8 adapters report [OK]"
     ],
-    "metrics": { "tests": 966 }
+    "metrics": {
+      "tests": 966
+    }
   },
   {
     "version": "6.1.3",
@@ -503,7 +604,9 @@
       "~75 LOC of YAML (avg 25 per adapter, vs ~80 LOC of Python in v6.0.4)",
       "install.sh extended with zed/cline/roo targets + dl_skill_no_frontmatter helper"
     ],
-    "metrics": { "tests": 985 }
+    "metrics": {
+      "tests": 985
+    }
   },
   {
     "version": "6.1.4",
@@ -519,7 +622,9 @@
       "--strict exit 2, --format json schema",
       "Detection runtime: 143ms on 50 modules"
     ],
-    "metrics": { "tests": 999 }
+    "metrics": {
+      "tests": 999
+    }
   },
   {
     "version": "6.1.5",
@@ -535,9 +640,14 @@
       "10 new tests in TestPlanModeDetection covering all 3 signals + composition + invalid values",
       "Tests: 999 → 1009 (+10)"
     ],
-    "metrics": { "tests": 1009 },
+    "metrics": {
+      "tests": 1009
+    },
     "links": [
-      { "href": "../context-flow/index.html#cf-dispatch", "label": "Dispatch route →" }
+      {
+        "href": "../context-flow/index.html#cf-dispatch",
+        "label": "Dispatch route →"
+      }
     ]
   },
   {
@@ -556,7 +666,11 @@
       "SI-3 weighted composite 9.43/10 (threshold ≥ 8.5) — READY for stable release",
       "SKILL.md 498/500 lines"
     ],
-    "metrics": { "tests": 1009, "coverage_pct": 93.93, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1009,
+      "coverage_pct": 93.93,
+      "nines": 0.8805
+    }
   },
   {
     "version": "6.2.1",
@@ -571,7 +685,10 @@
       "Regenerated v6.1.0_baseline.json under deterministic fallback estimator (hotfix_jwt baseline composite now 99.52, 0pp drift)",
       "Tests: 1009 passed (no count change), Lint clean, NineS stable"
     ],
-    "metrics": { "tests": 1009, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1009,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.0.0",
@@ -588,7 +705,10 @@
       "Rule P6 (Preserve Cached Prefix) added to .cursor/rules/devola-flow-rules.mdc + layout_invariant: block in schemas/lean-dispatch.yaml",
       "SKILL.md stays at 498 / 500 lines (SF-1 budget honoured)"
     ],
-    "metrics": { "tests": 1015, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1015,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.0.1",
@@ -605,7 +725,10 @@
       "New EvoBench scenario compression_tool_output (composite 98.33); v7.0.1_baseline.json regenerated (30 scenarios full coverage)",
       "schemas/lean-report.yaml: tool_results: { policy, summary } appended at file end (P6 additive)"
     ],
-    "metrics": { "tests": 1023, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1023,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.0.2",
@@ -622,7 +745,10 @@
       "+10 unit tests; meta.summary_trigger_pct = 25 in workflow-system/agent/context_profiles.yaml (resolves K.1)",
       "abstractive mode wired at schema level (NotImplementedError at v7.0.2) — flip-ready for v7.2+"
     ],
-    "metrics": { "tests": 1033, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1033,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.0.3",
@@ -639,7 +765,11 @@
       "Telemetry at .local/research/v7.0.3_probe_telemetry.json — carry-through 1.0 across all 3 tiers, elapsed 0.011 / 0.049 / 0.122 s",
       "Resolves K.5 (JSONL + confidence decay + session pinning; no file-system memory tool)"
     ],
-    "metrics": { "tests": 1090, "coverage_pct": 95.68, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1090,
+      "coverage_pct": 95.68,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.1.0",
@@ -656,7 +786,11 @@
       "retrospective_v7.0_to_v7.1.md authored (SI-8) + v7.1.0_evaluation_report.md authored (SI-3)",
       "SKILL.md stays at 498 / 500 lines; 1100 tests, 94 % compressor coverage, NineS 0.8805 stable"
     ],
-    "metrics": { "tests": 1100, "coverage_pct": 95.68, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1100,
+      "coverage_pct": 95.68,
+      "nines": 0.8805
+    }
   },
   {
     "version": "7.2.0",
@@ -674,7 +808,11 @@
       "SKILL.md 499 / 500 (zero headroom; v7.3 follow-up tracked); references max 517 / 1000; examples max 408 / 1600",
       "1181 tests pass (+60 net vs 1121 baseline); EvoBench 34 / 34 PASS, 0 pp drift vs v7.1.0 baseline; SI-10 5/5 (step 6 mirror-parity no-op per e44fa11)"
     ],
-    "metrics": { "tests": 1181, "coverage_pct": 95.68, "nines": 0.8805 }
+    "metrics": {
+      "tests": 1181,
+      "coverage_pct": 95.68,
+      "nines": 0.8805
+    }
   },
   {
     "version": "8.3.0",
@@ -748,7 +886,7 @@
       "W-16 wholesale baseline regen — `benchmarks/devolaflow_context/baselines/v9.1.0_baseline.json` generated from scratch covering all 53 scenarios; 0 regressions > 5pp vs v9.0.0",
       "W-9 / SI-10 6/6 PASS — 3457 passed / 19 skipped / 2 xfailed; +27 NEW test functions in PV-01 (within +30 W-17 cap); rules layer unchanged at 58 (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13)"
     ],
-      "metrics": {
+    "metrics": {
       "tests": "3457",
       "scenarios": "53",
       "templates": "22",
@@ -832,6 +970,33 @@
     ],
     "metrics": {
       "tests": "3510",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59"
+    }
+  },
+  {
+    "version": "9.1.4",
+    "date": "2026-05-01",
+    "era": "rule-rebalancing",
+    "headline": "PATCH — PV-04 of v9.2.0 cycle: memory_router.consult_for_dispatch + feedback ingestion + change_context NEST extension",
+    "summary": "Fourth PV of the v9.2.0 MINOR cycle. Composes .local/memory/cases/ + .local/feedbacks/ into the dispatch payload's change_context block via 3 NEW OPTIONAL sub-fields (prior_feedback_themes / memory_case_hits / source_of_truth_excerpt) added as a NEST extension per A-2.3 (nest-vs-append decision rule). canonical_order length STAYS at 16 and schema version STAYS at 5 — zero cache-prefix disturbance (I-8 invariant intact through v9.1.4). All 6 historical baselines (v7.0.0 through v8.4.0) continue to PASS without modification, plus a NEW v9.2.0 witness baseline pinned (byte-identical to v8.4.0). NEW src/devolaflow/memory_router/cache.py::consult_for_dispatch — keyword-scored advisory companion to the existing MemoryRouter.lookup_case fast-path; gated by DEVOLAFLOW_MEMORY_ROUTER (REUSED per W-20 — no new env flag in the entire 7-PV v9.2.0 cycle). EXTEND references/plan-mode-enforcement.md §5.5 with the v9.1.4+ 'Automatic Ingestion at Plan-Mode Entry' contract. Soul-set frozen at 10 per W-21; rule count unchanged at 59 / 60 (+1 headroom).",
+    "highlights": [
+      "NEW src/devolaflow/memory_router/cache.py::consult_for_dispatch (~250 LOC): keyword-scored advisory hint surface; env-flag OFF returns [] with zero IO (R5 strict); env-flag ON reads .local/memory/cases/index.yaml and returns top-3 MemoryCase hits matched against payload.task.{description,title} keywords; TTL + version-stamp filters honoured; malformed YAML logs WARNING and returns [] (S-5 compliance)",
+      "EXTEND schemas/lean-dispatch.yaml change_context (position 16) with 3 NEW OPTIONAL sub-fields per A-2.3 NEST: prior_feedback_themes (≤ 5 items, ≤ 30 chars) / memory_case_hits (≤ 3 case_ids) / source_of_truth_excerpt (≤ 200 tokens); canonical_order length STAYS at 16 / version STAYS at 5",
+      "NEW benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml — byte-identical to v8.4.0 baseline (NEST preserved canonical layout); pinned in tests/test_layout_invariant_multi_baseline.py via 2 NEW test methods (test_v9_2_0_baseline_byte_identical + test_v9_2_0_baseline_byte_identical_to_v8_4_0)",
+      "EXTEND references/plan-mode-enforcement.md §5.5 with v9.1.4+ 'Automatic Ingestion at Plan-Mode Entry' sub-section: L0 plan mode reads scan_workspace().recent_feedbacks (top 3 by mtime) via standard Read tool; extracts ≤ 5 themes (≤ 30 chars each) into change_context.prior_feedback_themes; cites paths repo-relative per S-2",
+      "NEW tests/test_memory_consult_for_dispatch.py (5 tests): env-flag OFF byte-stable noop with Path.read_text watcher (R5 strict), missing index DEBUG-only fallback, malformed YAML WARNING (3 shapes), keyword overlap top-3 ranking with last_accessed tie-break, TTL + version-stamp filtering",
+      "NEW tests/test_feedback_ingestion_plan_mode.py (4 tests): empty .local/feedbacks/ → empty tuple, S-2 repo-relative paths via to_summary_dict() + JSON round-trip, MAX_FEEDBACKS_RETURNED == 3 cap with mtime-desc ordering, plan-mode-enforcement.md §5.5 contract content asserted (cap citations + Read tool + S-2 + MAX_FEEDBACKS_RETURNED)",
+      "W-18 ghost-audit refresh — tests/test_no_ghost_features.py::test_v9_1_4_new_symbols_have_coverage (file presence + import-smoke + W-20 reuse env-flag pin + 3 NEW change_context sub-fields documented) + test_v9_1_4_nest_preserves_canonical_order_length (the headline I-8 invariant proof: canonical_order length == 16 AND version == 5 AND v9.2.0 baseline byte-identical to v8.4.0). Authored BEFORE this CHANGELOG entry per W-18 precondition",
+      "W-2 NineS gate (planning): .local/research/v9.1.4_nines_planning.json from `nines analyze --target-path src/devolaflow/memory_router/ --depth deep --agent-impact --keypoints`. Close: .local/research/v9.1.4_nines.json from `nines self-eval --baseline-version 9.1.3` + Markdown rendering at .local/research/v9.1.4_nines.md",
+      "W-20 reuse-first: DEVOLAFLOW_MEMORY_ROUTER REUSED for consult_for_dispatch (NOT a new flag — the v9.2.0 cycle plan §'Self-iteration constraint compliance matrix' pins '0 new flags across the entire 7-PV cycle'); _CONSULT_ENV_FLAG and _CONSULT_ENV_TRUTHY pin the contract",
+      "Layout invariant intact — schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.4 — NEST extension is OPTIONAL sub-fields under change_context; absence is canonical so v8.3.0 PV-05 + v8.4.0 baseline byte tests continue to PASS without modification)",
+      "Soul-set count 10 (frozen by W-21); Architecture 6; Conventions 9; Workflow 21; Style 13 — total 59 / 60 (+1 headroom)"
+    ],
+    "metrics": {
+      "tests": "3525",
       "scenarios": "53",
       "templates": "22",
       "references": "14",
