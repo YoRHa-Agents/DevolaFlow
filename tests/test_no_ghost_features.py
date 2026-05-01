@@ -2642,3 +2642,622 @@ def test_v9_2_1_new_symbols_have_coverage(project_root: Path) -> None:
     # cycle archive has not been committed yet; the separate
     # `test_v9_2_0_cycle_archive_and_extra_prefix` lint fails loudly for
     # that case and this PV-07 lint stays permissive on the v9.2.1 half.
+
+
+# ---------------------------------------------------------------------------
+# v9.2.2 PV-01 — W-18 ghost-audit refresh for the I-001 critical CLI fix.
+# ---------------------------------------------------------------------------
+#
+# v9.2.2 PV-01 is the first PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 -> v9.2.3 -> v9.2.4) addressing the 4 issues catalogued in
+# `.local/feedbacks/feedback_for_v9.2.1.md`. PV-01 ships:
+#
+# 1. NEW tests/test_init_project_pip_wheel.py — 6 NEW test functions
+#    (one parametrized x4 = 9 test cases) pinning the deferred-check
+#    surface, the informative error message, the `--list` regression,
+#    the multi-target dispatch ordering invariant, the canonical
+#    8-path scaffold smoke, and the no-pip-install-recommendation
+#    regression lint.
+# 2. EDIT src/devolaflow/init_project.py — surgical I-001 fix:
+#    introduces `AGENT_DIR_REQUIRED_TARGETS` (frozenset) and defers
+#    the SKILL.md existence check to inside the per-target dispatch
+#    loop. `local` is exempt because `install_local` uses
+#    `scaffold_local` + `importlib.resources`. The error message no
+#    longer recommends `pip install devolaflow` (the misleading
+#    recommendation that landed users in I-001).
+# 3. EDIT workflow-system/agent/SKILL.md §"Version & Update" — I-004
+#    one-line note about the wheel/CLI mismatch + `local` fallback.
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.2 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+_V9_2_2_NEW_FILES: tuple[str, ...] = ("tests/test_init_project_pip_wheel.py",)
+
+# Minimum byte size for a v9.2.2 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_2_FILE_MIN_BYTES: int = 50
+
+# The pip-wheel test file ships with EXACTLY 6 test FUNCTIONS per the
+# PV-01 W-17 budget pin (one of which is parametrized x4 -> 9 cases at
+# collection time). The function-count floor catches regression below
+# the W-17 ledger; collection-time case count is intentionally NOT
+# pinned because parametrize expansions don't count against the cap.
+_V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS: int = 6
+
+# AGENT_DIR_REQUIRED_TARGETS — the deferred-check gate surface. Pinning
+# the exact membership here catches a silent widening / narrowing of
+# which dispatch paths require the on-disk workflow-system/agent/ tree.
+_V9_2_2_AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset(
+    {"cursor", "claude", "copilot", "codex"}
+)
+
+
+def test_v9_2_2_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.2: every NEW v9.2.2 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.2 PATCH — every
+    CHANGELOG entry mentioning a v9.2.2 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.2 PV-01 is the I-001 critical-fix PV; the surfaces this lint
+    pins are:
+
+    1. ``tests/test_init_project_pip_wheel.py`` exists on disk and
+       carries ≥ 6 test FUNCTIONS (the PV-01 W-17 budget pin —
+       parametrize expansions don't count against the cap, so the floor
+       is on the ``def test_*`` count, not the collection-time case
+       count).
+    2. ``AGENT_DIR_REQUIRED_TARGETS`` is importable from
+       :mod:`devolaflow.init_project`, equals exactly the 4-element
+       frozenset ``{"cursor", "claude", "copilot", "codex"}``, and does
+       NOT contain ``"local"`` (the I-001 closure invariant —
+       ``install_local`` uses ``scaffold_local`` + ``importlib.resources``
+       and has zero dependency on ``agent_dir``).
+
+    Failure modes:
+      * "missing on disk" → a v9.2.2 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_2_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "AGENT_DIR_REQUIRED_TARGETS membership drift" → the deferred-
+        check surface was silently widened or narrowed; either restore
+        the original 4-element set OR document the operator-visible
+        change with an ADR.
+      * "test function count regressed" → a PV-01 test was deleted;
+        restore it.
+    """
+    import ast
+
+    for relpath in _V9_2_2_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.2 violation: NEW v9.2.2 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_2_FILE_MIN_BYTES, (
+            f"W-18 v9.2.2 violation: NEW v9.2.2 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_2_FILE_MIN_BYTES} byte minimum); empty/stub "
+            f"files do not satisfy the W-18 precondition"
+        )
+
+    pip_wheel_test_file = project_root / "tests" / "test_init_project_pip_wheel.py"
+    pip_wheel_ast = ast.parse(pip_wheel_test_file.read_text(encoding="utf-8"))
+    test_functions = [
+        node
+        for node in pip_wheel_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(test_functions) >= _V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.2 violation: tests/test_init_project_pip_wheel.py declares "
+        f"{len(test_functions)} test_* functions; the PV-01 W-17 budget pin "
+        f"requires at least {_V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS}"
+    )
+
+    from devolaflow.init_project import AGENT_DIR_REQUIRED_TARGETS
+
+    assert AGENT_DIR_REQUIRED_TARGETS == _V9_2_2_AGENT_DIR_REQUIRED_TARGETS, (
+        f"W-18 v9.2.2 violation: AGENT_DIR_REQUIRED_TARGETS = "
+        f"{AGENT_DIR_REQUIRED_TARGETS!r}; expected "
+        f"{_V9_2_2_AGENT_DIR_REQUIRED_TARGETS!r} (exactly the 4 historical "
+        f"agent-dir consumers — cursor / claude / copilot / codex). "
+        f"`local` is intentionally absent — the I-001 closure invariant"
+    )
+    assert "local" not in AGENT_DIR_REQUIRED_TARGETS, (
+        "W-18 v9.2.2 violation: `local` MUST NOT appear in "
+        "AGENT_DIR_REQUIRED_TARGETS — install_local uses scaffold_local + "
+        "importlib.resources and has ZERO dependency on agent_dir. "
+        "Adding `local` here would re-introduce the I-001 abort scenario "
+        "for wheel-only installs."
+    )
+    assert isinstance(AGENT_DIR_REQUIRED_TARGETS, frozenset), (
+        f"W-18 v9.2.2 violation: AGENT_DIR_REQUIRED_TARGETS must be a "
+        f"frozenset (immutable surface); got "
+        f"{type(AGENT_DIR_REQUIRED_TARGETS).__name__!r}"
+    )
+
+
+def test_v9_2_2_local_target_no_workflow_system_dependency(project_root: Path) -> None:
+    """W-18 v9.2.2: install_local body MUST NOT reference agent_dir.
+
+    The I-001 closure invariant — ``install_local`` is the ONE per-target
+    installer that does NOT consume ``agent_dir``. The deferred-check
+    fix relies on this invariant: if ``install_local`` ever starts
+    reading from ``agent_dir`` (e.g. copying a file from
+    ``agent_dir / "templates" / "..."``), the I-001 abort scenario
+    re-emerges for wheel-only installs even when the user explicitly
+    requests ``devola-init local``.
+
+    This lint walks the ``install_local`` function body via AST and
+    asserts no ``Name`` node references the ``agent_dir`` parameter
+    (other than the parameter declaration itself, which the AST walk
+    distinguishes via ``ast.arg`` vs ``ast.Name``).
+
+    Failure modes:
+      * "install_local body references agent_dir" → the agent-dir-
+        independence invariant regressed; either remove the new
+        agent_dir reference (recommended) OR add ``"local"`` to
+        ``AGENT_DIR_REQUIRED_TARGETS`` AND update the W-18 v9.2.2
+        ghost-audit lint above to reflect the operator-visible change.
+        The latter path RE-INTRODUCES the I-001 wheel-install regression
+        and requires explicit ADR documentation per W-21 governance.
+    """
+    import ast
+
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    tree = ast.parse(init_module_path.read_text(encoding="utf-8"))
+
+    install_local_node = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "install_local"
+        ),
+        None,
+    )
+    assert install_local_node is not None, (
+        "W-18 v9.2.2 violation: install_local function definition missing "
+        "from src/devolaflow/init_project.py — the I-001 fix depends on this "
+        "function existing as the agent-dir-independent installer"
+    )
+
+    agent_dir_references: list[ast.Name] = []
+    for child in ast.walk(install_local_node):
+        if isinstance(child, ast.Name) and child.id == "agent_dir":
+            agent_dir_references.append(child)
+
+    assert agent_dir_references == [], (
+        f"W-18 v9.2.2 violation: install_local body references `agent_dir` "
+        f"on lines {[n.lineno for n in agent_dir_references]} — the I-001 "
+        f"closure invariant requires install_local to be agent-dir-"
+        f"independent (uses scaffold_local + importlib.resources only). "
+        f"If a new agent_dir consumer was intentionally added, also "
+        f"register `local` in AGENT_DIR_REQUIRED_TARGETS (which RE-INTRODUCES "
+        f"the I-001 wheel-install scenario for `devola-init local`) and "
+        f"document the operator-visible change with an ADR."
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.3 PV-02 — W-18 ghost-audit refresh for the DX-improvement cluster.
+# ---------------------------------------------------------------------------
+#
+# v9.2.3 PV-02 is the second PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 → v9.2.3 → v9.2.4). PV-02 ships:
+#
+# 1. NEW tests/test_scaffold_gitignore_audit.py — 6 NEW test functions
+#    pinning the I-003 `_audit_gitignore_coverage` surface in
+#    `src/devolaflow/local/workspace.py` (logs WARN per scaffold path
+#    that an existing .gitignore rule already covers; quiet on
+#    absent / unrelated rules; conservative on negation rules).
+# 2. NEW tests/test_init_project_mode_flag.py — 5 NEW test functions
+#    pinning the `--mode={core,standard,full}` shorthand surface
+#    + the explicit-beats-implicit precedence rule + the invalid-mode
+#    exit path.
+# 3. EDIT src/devolaflow/local/workspace.py — added `_read_gitignore_rules`,
+#    `_path_matches_gitignore`, `_audit_gitignore_coverage` helpers,
+#    `last_gitignore_audit` accessor, and integrated the audit at the
+#    tail of `scaffold_local`.
+# 4. EDIT src/devolaflow/init_project.py — added `VALID_MODES` constant,
+#    `_parse_mode` resolver, and the mode-derived default wiring in
+#    `main()`. `_parse_no_compile` + `_parse_with_examples` gained
+#    keyword-only `default=` kwargs (backward-compat preserved by the
+#    default value on each).
+# 5. EDIT README.md — new "Troubleshooting installs" subsection
+#    documenting I-002 (baidubce mirror), I-001 closure (v9.2.2), and
+#    the `--mode=core` shorthand discovery hint.
+# 6. EDIT workflow-system/agent/SKILL.md §"Version & Update" —
+#    install note refreshed to cite v9.2.3 `--mode=core` shorthand.
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.3 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+_V9_2_3_NEW_FILES: tuple[str, ...] = (
+    "tests/test_scaffold_gitignore_audit.py",
+    "tests/test_init_project_mode_flag.py",
+)
+
+# Minimum byte size for a v9.2.3 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_3_FILE_MIN_BYTES: int = 50
+
+# Test-function floor per file — pinned by the dispatch's PV-02 budget
+# (5 named acceptance tests + 1 helper-edge-cases on the gitignore side;
+# 5 named acceptance tests on the mode side).
+_V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS: int = 5
+_V9_2_3_MODE_MIN_TEST_FUNCTIONS: int = 5
+
+# VALID_MODES — the `--mode=` shorthand surface. Pinning the exact
+# membership here catches a silent widening (e.g. a new mode added
+# without operator-facing docs) or narrowing (e.g. a mode dropped
+# without a deprecation cycle).
+_V9_2_3_VALID_MODES: frozenset[str] = frozenset({"core", "standard", "full"})
+
+
+def test_v9_2_3_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.3: every NEW v9.2.3 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.3 PATCH — every
+    CHANGELOG entry mentioning a v9.2.3 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.3 PV-02 surfaces this lint pins:
+
+    1. ``tests/test_scaffold_gitignore_audit.py`` and
+       ``tests/test_init_project_mode_flag.py`` exist on disk and
+       carry ≥ 5 test FUNCTIONS each (the PV-02 dispatch budget pin —
+       parametrize expansions don't count against the cap).
+    2. ``_audit_gitignore_coverage`` and ``last_gitignore_audit`` are
+       importable from :mod:`devolaflow.local.workspace`.
+    3. ``_parse_mode`` and ``VALID_MODES`` are importable from
+       :mod:`devolaflow.init_project`, and ``VALID_MODES`` equals
+       exactly the 3-element frozenset
+       ``{"core", "standard", "full"}``.
+
+    Failure modes:
+      * "missing on disk" → a v9.2.3 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_3_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "VALID_MODES membership drift" → the `--mode=` surface was
+        silently widened or narrowed; either restore the original
+        3-element set OR document the operator-visible change with
+        an ADR.
+      * "test function count regressed" → a PV-02 test was deleted;
+        restore it.
+    """
+    import ast
+
+    for relpath in _V9_2_3_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.3 violation: NEW v9.2.3 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_3_FILE_MIN_BYTES, (
+            f"W-18 v9.2.3 violation: NEW v9.2.3 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_3_FILE_MIN_BYTES} byte minimum); empty/stub "
+            f"files do not satisfy the W-18 precondition"
+        )
+
+    gitignore_test_file = project_root / "tests" / "test_scaffold_gitignore_audit.py"
+    gitignore_ast = ast.parse(gitignore_test_file.read_text(encoding="utf-8"))
+    gitignore_test_functions = [
+        node
+        for node in gitignore_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(gitignore_test_functions) >= _V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.3 violation: tests/test_scaffold_gitignore_audit.py "
+        f"declares {len(gitignore_test_functions)} test_* functions; the "
+        f"PV-02 dispatch budget pin requires at least "
+        f"{_V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS}"
+    )
+
+    mode_test_file = project_root / "tests" / "test_init_project_mode_flag.py"
+    mode_ast = ast.parse(mode_test_file.read_text(encoding="utf-8"))
+    mode_test_functions = [
+        node
+        for node in mode_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(mode_test_functions) >= _V9_2_3_MODE_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.3 violation: tests/test_init_project_mode_flag.py "
+        f"declares {len(mode_test_functions)} test_* functions; the "
+        f"PV-02 dispatch budget pin requires at least "
+        f"{_V9_2_3_MODE_MIN_TEST_FUNCTIONS}"
+    )
+
+    from devolaflow.init_project import VALID_MODES, _parse_mode
+    from devolaflow.local.workspace import (
+        _audit_gitignore_coverage,
+        last_gitignore_audit,
+    )
+
+    assert callable(_audit_gitignore_coverage), (
+        "W-18 v9.2.3 violation: _audit_gitignore_coverage must be importable "
+        "from devolaflow.local.workspace"
+    )
+    assert callable(last_gitignore_audit), (
+        "W-18 v9.2.3 violation: last_gitignore_audit accessor must be importable "
+        "from devolaflow.local.workspace"
+    )
+    assert callable(_parse_mode), (
+        "W-18 v9.2.3 violation: _parse_mode must be importable from devolaflow.init_project"
+    )
+
+    assert VALID_MODES == _V9_2_3_VALID_MODES, (
+        f"W-18 v9.2.3 violation: VALID_MODES = {VALID_MODES!r}; expected "
+        f"exactly {_V9_2_3_VALID_MODES!r} (the 3-mode dispatch contract: "
+        f"core / standard / full)"
+    )
+    assert isinstance(VALID_MODES, frozenset), (
+        f"W-18 v9.2.3 violation: VALID_MODES must be a frozenset (immutable "
+        f"surface); got {type(VALID_MODES).__name__!r}"
+    )
+
+
+def test_v9_2_3_mode_flag_surface_complete(project_root: Path) -> None:
+    """W-18 v9.2.3: `_parse_mode` returns one of {core, standard, full, None}.
+
+    AST walk over `_parse_mode` asserts the function body's `return`
+    statements yield only valid mode strings (the elements of
+    `VALID_MODES`) or `None`. A future PV that introduces a 4th mode
+    MUST also update `VALID_MODES` AND this lint's expected set —
+    catching a regression where the parser silently accepts a value
+    that the docstring + README never advertised.
+    """
+    import ast
+
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    tree = ast.parse(init_module_path.read_text(encoding="utf-8"))
+
+    parse_mode_node = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_parse_mode"
+        ),
+        None,
+    )
+    assert parse_mode_node is not None, (
+        "W-18 v9.2.3 violation: _parse_mode function definition missing "
+        "from src/devolaflow/init_project.py — the PV-02 mode shorthand "
+        "depends on this resolver existing"
+    )
+
+    # Walk the body; collect every `return <expr>` and assert each one
+    # is either `return None`, `return mode` (the validated variable),
+    # or `return <Name>` referring to one of the local mode-derivation
+    # variables. The intent: the function must NEVER return a literal
+    # string outside VALID_MODES (catches a silent widening like
+    # `return "lite"` slipped into the body).
+    return_nodes = [node for node in ast.walk(parse_mode_node) if isinstance(node, ast.Return)]
+    assert len(return_nodes) >= 2, (
+        f"W-18 v9.2.3 violation: _parse_mode must have ≥ 2 return statements "
+        f"(the None-fallback + the validated mode return); got "
+        f"{len(return_nodes)}"
+    )
+
+    for ret in return_nodes:
+        if ret.value is None:
+            continue  # bare `return` — equivalent to `return None`, fine
+        if isinstance(ret.value, ast.Constant) and ret.value.value is None:
+            continue  # `return None`
+        if isinstance(ret.value, ast.Name):
+            continue  # `return mode` (validated variable) — fine
+        if (
+            isinstance(ret.value, ast.Constant)
+            and isinstance(ret.value.value, str)
+            and ret.value.value in {"core", "standard", "full"}
+        ):
+            continue
+        raise AssertionError(
+            f"W-18 v9.2.3 violation: _parse_mode returns an unexpected "
+            f"expression at line {ret.lineno}: {ast.dump(ret.value)!r}. "
+            f"Expected `return None` or `return <variable>` or `return "
+            f'"core"/"standard"/"full"`. Adding a new mode requires '
+            f"updating BOTH VALID_MODES AND this lint's expected set."
+        )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.4 PV-03 — W-18 ghost-audit refresh for the cycle-close validation.
+# ---------------------------------------------------------------------------
+#
+# v9.2.4 PV-03 is the FINAL PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 -> v9.2.3 -> v9.2.4). PV-03 ships ZERO new code paths — only
+# cycle-close validation artefacts:
+#
+# 1. EXTEND tests/test_init_project_pip_wheel.py with
+#    test_cycle_close_e2e_local_mode_core_works — parametrized across
+#    4 fixture shapes (empty / with_gitignore_local / with_gitignore_all /
+#    full_pip_wheel_install). Each shape validates: `devola-init local
+#    --mode=core` exits 0; 8 canonical paths created; --mode=core implies
+#    --no-compile so cursor-rules + AGENTS.md compile artefacts NOT
+#    written; gitignore-covered paths emit per-path WARN; absent /
+#    unrelated rules emit ZERO WARN.
+#
+# 2. NEW .local/research/v9.2.2_retrospective.md — W-7 / SI-8 cycle-
+#    close retrospective with the 4 mandatory sections (Gaps Identified
+#    / What was Implemented / What was Deferred / Key Learnings) +
+#    the W-21 Soul-set freeze telegraph for v9.4.0.
+#
+# 3. W-19 archive refresh: docs/cycle-archive/v9.2.0/ now contains
+#    v9.2.2_retrospective.md (post `python scripts/archive_research_artifacts.py
+#    9.2.0 --extra-prefix v9.2.`), making the retrospective accessible
+#    from a fresh clone (where .local/ is gitignored).
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.4 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+# The 4 mandatory W-7 retrospective section headings — must ALL appear
+# in the retrospective for it to be a valid W-7 / SI-8 artefact.
+_V9_2_4_W7_MANDATORY_SECTIONS: tuple[str, ...] = (
+    "## 1. Gaps identified",
+    "## 2. What was implemented",
+    "## 3. What was deferred and why",
+    "## 4. Key learnings",
+)
+
+# The exact parametrize cardinality on the cycle-close E2E test —
+# pinned by the cycle plan §PV-03 contract (4 representative install
+# fixture shapes). A future PV that drops a shape MUST update this
+# constant + document the operator-visible scope reduction.
+_V9_2_4_E2E_PARAMETRIZE_CASES: int = 4
+
+_V9_2_4_E2E_FIXTURE_SHAPES: frozenset[str] = frozenset(
+    {"empty", "with_gitignore_local", "with_gitignore_all", "full_pip_wheel_install"}
+)
+
+
+def test_v9_2_4_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.4: every NEW v9.2.4 surface has presence + structural coverage.
+
+    Discharges the W-18 precondition for the v9.2.4 cycle-close PATCH —
+    every CHANGELOG entry mentioning a v9.2.4 feature MUST have a
+    backing ghost-audit lint in THIS file BEFORE the CHANGELOG entry
+    is authored.
+
+    v9.2.4 PV-03 surfaces this lint pins:
+
+    1. ``.local/research/v9.2.2_retrospective.md`` exists (the
+       canonical write-target — gitignored on most clones, so we
+       prefer the W-19 archive copy under ``docs/cycle-archive/v9.2.0/``
+       for the load-bearing assertion below) and contains all 4 W-7
+       mandatory section headings.
+    2. ``tests/test_init_project_pip_wheel.py`` declares
+       ``test_cycle_close_e2e_local_mode_core_works`` and parametrizes
+       it across exactly 4 fixture shapes (the cycle plan §PV-03
+       contract — empty / with_gitignore_local / with_gitignore_all /
+       full_pip_wheel_install).
+    3. ``docs/cycle-archive/v9.2.0/v9.2.2_retrospective.md`` exists
+       (the W-19 archive contract — PATCH series rolls into the parent
+       MINOR cycle archive), making the retrospective visible to a
+       fresh-clone reviewer who doesn't carry ``.local/``.
+
+    Failure modes:
+      * "retrospective missing on disk" → the W-7 / SI-8 artefact was
+        not authored; cycle-close PATCH is incomplete.
+      * "missing mandatory section heading" → the retrospective is
+        partial; W-7 §"4 mandatory sections" requires ALL of Gaps /
+        Implemented / Deferred / Learnings.
+      * "parametrize cardinality drift" → the cycle-close E2E lost
+        a fixture shape; either restore it OR update both the cycle
+        plan §PV-03 contract AND this lint's pinned constant.
+      * "archive missing the retrospective" → run
+        ``python scripts/archive_research_artifacts.py 9.2.0
+        --extra-prefix v9.2.`` to populate (idempotent).
+    """
+    import ast
+
+    archived_retrospective = (
+        project_root / "docs" / "cycle-archive" / "v9.2.0" / "v9.2.2_retrospective.md"
+    )
+    assert archived_retrospective.is_file(), (
+        f"W-18 v9.2.4 violation: W-19 archive contract — "
+        f"{archived_retrospective.relative_to(project_root)} missing. "
+        f"Run `python scripts/archive_research_artifacts.py 9.2.0 "
+        f"--extra-prefix v9.2.` to populate (idempotent)."
+    )
+    archived_size = archived_retrospective.stat().st_size
+    assert archived_size >= 1000, (
+        f"W-18 v9.2.4 violation: archived retrospective is "
+        f"{archived_size} bytes (< 1000 byte minimum); empty/stub "
+        f"retrospective does not satisfy the W-7 4-section contract"
+    )
+
+    archived_text = archived_retrospective.read_text(encoding="utf-8")
+    for heading in _V9_2_4_W7_MANDATORY_SECTIONS:
+        assert heading in archived_text, (
+            f"W-18 v9.2.4 violation: retrospective missing mandatory "
+            f"W-7 section heading {heading!r}; the W-7 / SI-8 contract "
+            f"requires ALL of {list(_V9_2_4_W7_MANDATORY_SECTIONS)!r}"
+        )
+
+    pip_wheel_test_file = project_root / "tests" / "test_init_project_pip_wheel.py"
+    pip_wheel_ast = ast.parse(pip_wheel_test_file.read_text(encoding="utf-8"))
+    e2e_node = next(
+        (
+            node
+            for node in pip_wheel_ast.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "test_cycle_close_e2e_local_mode_core_works"
+        ),
+        None,
+    )
+    assert e2e_node is not None, (
+        "W-18 v9.2.4 violation: tests/test_init_project_pip_wheel.py "
+        "MUST declare test_cycle_close_e2e_local_mode_core_works; the "
+        "cycle plan §PV-03 contract requires this multi-fixture E2E "
+        "validation surface"
+    )
+
+    parametrize_decorators = [
+        dec
+        for dec in e2e_node.decorator_list
+        if (
+            isinstance(dec, ast.Call)
+            and isinstance(dec.func, ast.Attribute)
+            and dec.func.attr == "parametrize"
+        )
+    ]
+    assert len(parametrize_decorators) == 1, (
+        f"W-18 v9.2.4 violation: test_cycle_close_e2e_local_mode_core_works "
+        f"must carry exactly ONE @pytest.mark.parametrize decorator; "
+        f"got {len(parametrize_decorators)}"
+    )
+
+    parametrize_call = parametrize_decorators[0]
+    shape_list_arg = parametrize_call.args[1] if len(parametrize_call.args) >= 2 else None
+    assert shape_list_arg is not None and isinstance(shape_list_arg, ast.List), (
+        "W-18 v9.2.4 violation: parametrize values argument must be a "
+        "literal list of fixture shapes"
+    )
+    shape_values = {
+        elt.value
+        for elt in shape_list_arg.elts
+        if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+    }
+    assert len(shape_values) == _V9_2_4_E2E_PARAMETRIZE_CASES, (
+        f"W-18 v9.2.4 violation: cycle plan §PV-03 contract requires "
+        f"exactly {_V9_2_4_E2E_PARAMETRIZE_CASES} parametrize cases on "
+        f"test_cycle_close_e2e_local_mode_core_works; got "
+        f"{len(shape_values)} ({sorted(shape_values)!r})"
+    )
+    assert shape_values == _V9_2_4_E2E_FIXTURE_SHAPES, (
+        f"W-18 v9.2.4 violation: parametrize fixture shapes drifted "
+        f"from the cycle plan §PV-03 contract. Got {sorted(shape_values)!r}; "
+        f"expected exactly {sorted(_V9_2_4_E2E_FIXTURE_SHAPES)!r}"
+    )
+
+    # The .local/research/ retrospective is the canonical write-target
+    # but is gitignored on most clones. Skip the local-presence assertion
+    # gracefully when the file is absent — the load-bearing W-7 contract
+    # was already verified above against the archived copy under
+    # docs/cycle-archive/v9.2.0/, which IS committed.
+    local_retrospective = project_root / ".local" / "research" / "v9.2.2_retrospective.md"
+    if local_retrospective.is_file():
+        # When present, the local copy MUST match the same 4-section
+        # contract (catches a future bug where the local + archived
+        # copies drift apart).
+        local_text = local_retrospective.read_text(encoding="utf-8")
+        local_rel = local_retrospective.relative_to(project_root)
+        for heading in _V9_2_4_W7_MANDATORY_SECTIONS:
+            assert heading in local_text, (
+                f"W-18 v9.2.4 violation: local retrospective {local_rel} "
+                f"is missing mandatory section heading {heading!r}; "
+                f"the local + archived copies have drifted (re-run "
+                f"`python scripts/archive_research_artifacts.py 9.2.0 "
+                f"--extra-prefix v9.2.` to refresh the archive)"
+            )

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import fnmatch
+import logging
 from pathlib import Path
+
+_LOGGER = logging.getLogger(__name__)
 
 REQUIRED_DIRS = [
     "feedbacks",
@@ -156,11 +160,25 @@ def scaffold_local(
     generate_tracker(local_dir / "feedbacks")
     generate_memory_index(local_dir / "memory")
 
+    on_demand_created: list[Path] = []
     for d in dirs or []:
         if d in ON_DEMAND_DIRS:
-            (local_dir / d).mkdir(exist_ok=True)
+            target = local_dir / d
+            target.mkdir(exist_ok=True)
+            on_demand_created.append(target)
 
     generate_index(local_dir)
+
+    # v9.2.3 PV-02 — I-003 closure: advise the operator when a freshly
+    # scaffolded path is shadowed by an existing .gitignore rule. Pure
+    # WARNING log per match — never raises (S-5 graceful degradation).
+    created_roots: list[Path] = (
+        [local_dir / d for d in REQUIRED_DIRS]
+        + [local_dir / d for d in MEMORY_SUBDIRS]
+        + on_demand_created
+    )
+    _audit_gitignore_coverage(Path(cwd), created_roots)
+
     return local_dir
 
 
@@ -237,6 +255,184 @@ def generate_dir_readme(dir_path: Path, dir_name: str) -> Path:
         if content is not None:
             path.write_text(content, encoding="utf-8")
     return path
+
+
+# ---------------------------------------------------------------------------
+# v9.2.3 PV-02 — I-003 .gitignore coverage audit.
+# ---------------------------------------------------------------------------
+#
+# When ``scaffold_local(cwd)`` materialises a path that an EXISTING
+# ``.gitignore`` rule already covers, the README anchor we just wrote
+# (e.g. ``.local/.agent/active/README.md``) is invisible to ``git status``
+# and to every reviewer browsing the repo on GitHub. Pre-v9.2.3 this was
+# a silent surprise — operators who carried a ``.local/`` ignore rule
+# from a prior session got the new convention docs but never saw them
+# in version control until they opened the working tree directly.
+#
+# v9.2.3 closes the gap with a tail-call audit: after every path is
+# materialised, walk the cwd-relative ``.gitignore`` rules and emit a
+# WARNING per match enumerating the path, the README that won't be
+# tracked, and the recommended ``!<path>/README.md`` whitelist line.
+#
+# Design constraints (S-5 strict):
+# - Zero ``raise`` paths. Failures (unreadable .gitignore, permission
+#   error, malformed UTF-8) log a WARNING and short-circuit to the
+#   "no rules" branch — the audit is advisory; it MUST NOT block the
+#   scaffold.
+# - Negation rules (``!pattern``) are intentionally skipped — the audit
+#   only needs to detect the "written but hidden" case; a negation is
+#   the operator's explicit whitelist that the audit would only muddy.
+# - The most-recent audit result is cached at module level so callers
+#   that need programmatic access (test fixtures, CI hooks, the
+#   forthcoming v9.3.0 ``devola-init doctor`` surface) can read it
+#   without re-walking the disk via :func:`last_gitignore_audit`.
+#
+# Source: v9.2.3 PV-02 dispatch — closes I-003 from
+# ``.local/feedbacks/feedback_for_v9.2.1.md`` §3 and
+# ``.local/research/v9.2.2_gap_analysis.md`` §2 PV-02 scope.
+
+VALID_GITIGNORE_AUDIT_REASON: tuple[str, ...] = (
+    "directory_ignore_rule",
+    "wildcard_pattern_match",
+)
+
+_LAST_GITIGNORE_AUDIT: list[Path] = []
+
+
+def _read_gitignore_rules(cwd: Path) -> list[str]:
+    """Return non-comment non-empty lines from ``cwd/.gitignore``.
+
+    Pure filter — no interpretation of directory / negation / anchor
+    semantics is performed at this layer; callers (specifically
+    :func:`_path_matches_gitignore`) own that logic.
+
+    The audit is advisory (S-5 graceful degradation): if the file
+    exists but cannot be read (permission denied, IO error, decode
+    error) the helper logs a single WARNING and returns ``[]`` — the
+    scaffold MUST NOT block on a malformed ``.gitignore``.
+
+    Returns an empty list when no ``.gitignore`` is present at the
+    repo root (the common case for fresh repos — DEBUG-only log).
+    """
+    gi = cwd / ".gitignore"
+    if not gi.is_file():
+        _LOGGER.debug("scaffold_local: no .gitignore at %s; audit skipped", gi)
+        return []
+    try:
+        text = gi.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        _LOGGER.warning(
+            "scaffold_local: could not read %s: %s; gitignore audit skipped",
+            gi,
+            exc,
+        )
+        return []
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def _path_matches_gitignore(rel_posix: str, rules: list[str]) -> bool:
+    """Return True iff any non-negation gitignore rule matches ``rel_posix``.
+
+    Conservative gitignore semantics (intentionally NOT a full
+    re-implementation of `gitignore(5)`):
+
+    * Trailing ``/`` rules are treated as directory-prefix rules — a
+      rule ``.local/`` matches both the path ``.local`` and any path
+      that starts with ``.local/``.
+    * Leading ``/`` rules are root-anchored — the leading slash is
+      stripped here because the audit only ever tests repo-relative
+      paths (already anchored at the repo root).
+    * Wildcards are dispatched through :func:`fnmatch.fnmatch` — note
+      Python's ``fnmatch`` does NOT special-case ``/`` so ``*`` matches
+      across path separators (close enough for the audit's purpose).
+    * Negation rules (``!pattern``) are skipped — the audit only
+      detects the "written but hidden" case; a negation is the
+      operator's explicit whitelist that the audit would only muddy.
+    """
+    for rule in rules:
+        if rule.startswith("!"):
+            continue
+        cleaned = rule.lstrip("/").rstrip("/")
+        if not cleaned:
+            continue
+        if rel_posix == cleaned:
+            return True
+        if rel_posix.startswith(cleaned + "/"):
+            return True
+        if fnmatch.fnmatch(rel_posix, cleaned):
+            return True
+        if "/" not in cleaned and any(
+            fnmatch.fnmatch(part, cleaned) for part in rel_posix.split("/") if part
+        ):
+            return True
+    return False
+
+
+def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
+    """Return the subset of ``created`` covered by an existing gitignore rule.
+
+    Side effect — emits one WARNING log per match enumerating:
+
+    1. the ignored path (repo-relative POSIX)
+    2. the README the operator won't see in version control
+    3. the recommended ``!<rel>/README.md`` whitelist line
+
+    Caches the returned list at module level so :func:`last_gitignore_audit`
+    can return it without re-walking the disk.
+    """
+    global _LAST_GITIGNORE_AUDIT
+    rules = _read_gitignore_rules(cwd)
+    if not rules:
+        _LAST_GITIGNORE_AUDIT = []
+        return []
+
+    cwd_resolved = cwd.resolve()
+    covered: list[Path] = []
+    for path in created:
+        try:
+            rel = path.resolve().relative_to(cwd_resolved)
+        except ValueError:
+            # Path is outside cwd (defensive — should never happen for the
+            # scaffold's own outputs, but log + skip per S-5).
+            _LOGGER.warning(
+                "scaffold_local: created path %s is outside cwd %s; "
+                "gitignore audit skipped for this entry",
+                path,
+                cwd_resolved,
+            )
+            continue
+        rel_posix = rel.as_posix()
+        if _path_matches_gitignore(rel_posix, rules):
+            covered.append(path)
+            _LOGGER.warning(
+                "scaffold_local: %s is covered by an existing .gitignore rule "
+                "— the generated README at %s/README.md will not be visible "
+                "in version control. Whitelist it with `!%s/README.md` in "
+                ".gitignore to keep the convention docs tracked while still "
+                "ignoring runtime contents.",
+                rel_posix,
+                rel_posix,
+                rel_posix,
+            )
+
+    _LAST_GITIGNORE_AUDIT = covered
+    return covered
+
+
+def last_gitignore_audit() -> list[Path]:
+    """Return the result of the most recent ``_audit_gitignore_coverage`` call.
+
+    Empty list when ``scaffold_local`` has not yet been called OR when
+    the most recent invocation found no matching paths. Provides a
+    programmatic surface for callers that need the audit result without
+    re-walking the disk (test fixtures, CI hooks, the forthcoming
+    v9.3.0 ``devola-init doctor`` surface).
+    """
+    return list(_LAST_GITIGNORE_AUDIT)
 
 
 def generate_index(local_dir: str | Path) -> Path:

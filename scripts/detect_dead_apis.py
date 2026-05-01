@@ -576,6 +576,27 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # presence + import-smoke + W-20 reuse env-flag pin + force kwarg
         # default).
         "devolaflow.agent_workspace.spec_bootstrap:seed_initial_spec",
+        # v9.2.3 PV-02 — `last_gitignore_audit` is the public read-only
+        # accessor over the module-level `_LAST_GITIGNORE_AUDIT` cache
+        # written by `_audit_gitignore_coverage` at the tail of
+        # `scaffold_local`. Allowed-listed because the in-repo production
+        # caller lands in v9.3.0 (`devola-init doctor` will surface the
+        # most-recent audit result without re-walking the disk). The
+        # accessor is exercised today by
+        # `tests/test_scaffold_gitignore_audit.py::test_no_gitignore_emits_no_warning`
+        # + `test_gitignore_with_agent_active_rule_warns` (and their
+        # siblings) so the surface is non-vestigial; the W-18 v9.2.3
+        # ghost-audit lint
+        # (`tests/test_no_ghost_features.py::test_v9_2_3_new_symbols_have_coverage`)
+        # pins the `callable(last_gitignore_audit)` import-smoke. NOT a
+        # domain-SSOT registry symbol per A-5.2 — pure pathlib accessor
+        # over a module-private list with no module-level state beyond
+        # the cache. Mirrors the `consult_for_dispatch` / `scan_workspace`
+        # / `seed_initial_spec` allowlist precedents above (public surface
+        # advertised in
+        # `workflow-system/agent/references/agent-workspace.md` companion
+        # docs once the v9.3.0 doctor surface lands).
+        "devolaflow.local.workspace:last_gitignore_audit",
     }
 )
 

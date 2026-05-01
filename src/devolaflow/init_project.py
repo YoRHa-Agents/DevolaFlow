@@ -16,7 +16,17 @@ Usage:
                                     change-driven pattern out-of-the-box
                                     (default ON for full-mode installs;
                                     pass --no-with-examples to skip)
+  devola-init local --mode=core     Equivalent to --no-compile --no-with-examples
+                                    (lean install — scaffolding only)
+  devola-init local --mode=standard Default — compile rules, no example seeds
+  devola-init local --mode=full     Equivalent to --with-examples (compile + seeds)
   devola-init --list                Show what would be installed
+
+Mode + individual flags: when both ``--mode=X`` and individual
+``--no-compile`` / ``--with-examples`` / ``--no-with-examples`` flags are
+present, the individual flags OVERRIDE the mode-derived default
+(explicit-beats-implicit). This prevents subtle conflicts in CI scripts
+that compose both surfaces.
 """
 
 from __future__ import annotations
@@ -78,8 +88,8 @@ def _parse_scope(argv: list[str]) -> str:
     return scope
 
 
-def _parse_no_compile(argv: list[str]) -> bool:
-    """Return True iff ``--no-compile`` is present in argv.
+def _parse_no_compile(argv: list[str], *, default: bool = False) -> bool:
+    """Return True iff ``--no-compile`` is present in argv (else ``default``).
 
     Closes G-007 + G-016 (v9.1.0 W2-02): operators who want
     ``devola-init local`` to scaffold ``.local/`` + ``.rules/`` WITHOUT
@@ -87,33 +97,98 @@ def _parse_no_compile(argv: list[str]) -> bool:
     is propagated to :func:`install_local` via ``compile_rules=False``
     so test fixtures can exercise the same skip path without mocking
     argv.
+
+    v9.2.3 PV-02 — added the ``default`` keyword-only kwarg so
+    :func:`_parse_mode` can feed a mode-derived default (e.g. ``--mode=core``
+    sets ``default=True`` to imply ``--no-compile``). The default value
+    ``default=False`` preserves the pre-v9.2.3 behaviour byte-identically
+    for every existing direct caller.
     """
-    return "--no-compile" in argv
+    if "--no-compile" in argv:
+        return True
+    return default
 
 
-def _parse_with_examples(argv: list[str], targets: list[str]) -> bool:
+def _parse_with_examples(
+    argv: list[str], targets: list[str], *, default: bool | None = None
+) -> bool:
     """Return ``True`` iff the example-seed artefacts should be installed.
 
     Resolves the v9.2.0 PV-06 ``with_examples`` boolean:
 
     * ``--with-examples`` explicitly requests the seed artefacts → True.
     * ``--no-with-examples`` explicitly opts out → False.
-    * Neither flag set → default ``True`` for ``mode: full`` (i.e. when
-      ``targets`` includes the ``"all"`` keyword OR exactly mirrors the
-      auto-detect ``full`` set), and ``False`` otherwise (``mode: core``
-      = a narrow target list like ``["cursor"]`` or ``["local"]`` only).
+    * Neither flag set → return ``default`` if not None; else fall back
+      to the pre-v9.2.3 implicit matrix (``True`` when ``"all"`` is in
+      ``targets``, ``False`` otherwise — preserves the v9.2.0 PV-06
+      contract for every existing direct caller).
 
     The cycle plan §"PV-06 — repo-init seed examples" pins the default
     matrix: "default ON for ``mode: full``, OFF for ``mode: core``".
     Operators who run ``devola-init local`` alone get the lean core
     install (no examples) while operators who run ``devola-init all``
     or pass ``--with-examples`` explicitly get the worked trace.
+
+    v9.2.3 PV-02 — added the ``default`` keyword-only kwarg so
+    :func:`_parse_mode` can feed a mode-derived default (e.g.
+    ``--mode=full`` sets ``default=True``). ``default=None`` preserves
+    the pre-v9.2.3 ``"all" in targets`` fallback byte-identically for
+    every existing direct caller.
     """
     if "--no-with-examples" in argv:
         return False
     if "--with-examples" in argv:
         return True
-    return "all" in targets
+    if default is None:
+        return "all" in targets
+    return default
+
+
+# v9.2.3 PV-02 — `--mode=core|standard|full` shorthand CLI flag.
+#
+# Closes the v9.2.1 feedback note "Mode dispatch shorthand suggestion"
+# (`.local/feedbacks/feedback_for_v9.2.1.md` §Notes). The shorthand
+# consolidates the existing `--no-compile` / `--with-examples` pair per
+# the v9.2.0 PV-06 default matrix:
+#
+#   `--mode=core`     → `--no-compile --no-with-examples` (lean scaffolding)
+#   `--mode=standard` → default behaviour (compile rules, no examples)
+#   `--mode=full`     → `--with-examples` + compile-on (full demonstration)
+#
+# Individual flags STILL override `--mode` (explicit-beats-implicit) so
+# CI scripts that compose both surfaces are protected against subtle
+# conflicts. The membership of `VALID_MODES` is pinned by
+# `tests/test_no_ghost_features.py::test_v9_2_3_mode_flag_surface_complete`
+# so a future PV cannot silently widen / narrow the set without
+# refreshing the W-18 ghost-audit.
+
+VALID_MODES: frozenset[str] = frozenset({"core", "standard", "full"})
+
+
+def _parse_mode(argv: list[str]) -> str | None:
+    """Return the ``--mode={core,standard,full}`` value or ``None`` if absent.
+
+    Closes the v9.2.1 feedback note "Mode dispatch shorthand suggestion".
+    When both ``--mode=X`` and individual ``--no-compile`` /
+    ``--with-examples`` flags are present, the individual flags OVERRIDE
+    ``--mode`` (explicit-beats-implicit; prevents subtle conflicts in
+    CI scripts). Precedence is documented in the module docstring + the
+    README "Troubleshooting installs" section.
+
+    Invalid mode values (anything outside :data:`VALID_MODES`) print an
+    informative error and exit 1 — S-5 explicit-error-state, NEVER a
+    silent fallback to standard. The error message lists the valid
+    values so the operator can fix the typo without consulting docs.
+    """
+    for arg in argv:
+        if arg.startswith("--mode="):
+            mode = arg.removeprefix("--mode=")
+            if mode not in VALID_MODES:
+                valid = ", ".join(sorted(VALID_MODES))
+                print(f"  Error: --mode must be one of {valid} (got {mode!r})")
+                sys.exit(1)
+            return mode
+    return None
 
 
 def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
@@ -605,6 +680,30 @@ TOOLS = {
 }
 
 
+# v9.2.2 PV-01 — I-001 critical fix.
+#
+# The set of `devola-init` targets that consume the on-disk
+# `workflow-system/agent/` source tree (specifically `agent_dir / "SKILL.md"`
+# and the `references/` + `examples/` siblings). The pip wheel does NOT
+# bundle `workflow-system/` (excluded from `MANIFEST.in` / wheel
+# `data_files`), so a wheel-only install lacks these paths — every target
+# in this set MUST raise an informative error in that scenario instead of
+# aborting the whole CLI before any per-target dispatch can run.
+#
+# `local` is intentionally absent: `install_local` uses
+# `devolaflow.local.workspace.scaffold_local` + `importlib.resources` for
+# the `compile_config_template.yaml` — it has ZERO dependency on
+# `agent_dir`, so a wheel-only `devola-init local` MUST succeed (this is
+# the I-001 closure). See `.local/feedbacks/feedback_for_v9.2.1.md` §1
+# for the user-side reproduction and `.local/research/v9.2.2_gap_analysis.md`
+# §1 for the cycle-side decomposition.
+#
+# Membership is pinned by `tests/test_no_ghost_features.py::
+# test_v9_2_2_new_symbols_have_coverage` so future PVs cannot silently
+# add a target to the set without bumping the W-18 ghost-audit lint.
+AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset({"cursor", "claude", "copilot", "codex"})
+
+
 def _auto_detect(cwd: Path) -> list[str]:
     """Detect which AI coding tools are present in the project directory.
 
@@ -632,7 +731,26 @@ def main() -> None:
     cwd = Path.cwd()
     agent_dir = _find_agent_dir()
     scope = _parse_scope(sys.argv[1:])
-    no_compile = _parse_no_compile(sys.argv[1:])
+    # v9.2.3 PV-02 — `--mode={core,standard,full}` shorthand resolves
+    # FIRST so its mode-derived defaults can feed the per-flag resolvers.
+    # Invalid `--mode=` values exit 1 inside `_parse_mode` (S-5 explicit
+    # error state) so we never reach the per-target dispatch loop with an
+    # ambiguous configuration.
+    mode = _parse_mode(sys.argv[1:])
+    if mode == "core":
+        default_no_compile = True
+        default_with_examples: bool | None = False
+    elif mode == "full":
+        default_no_compile = False
+        default_with_examples = True
+    elif mode == "standard":
+        default_no_compile = False
+        default_with_examples = False
+    else:  # mode is None — preserve pre-v9.2.3 implicit behaviour
+        default_no_compile = False
+        default_with_examples = None  # signals "use 'all' in targets" fallback
+
+    no_compile = _parse_no_compile(sys.argv[1:], default=default_no_compile)
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
 
     if "--list" in sys.argv:
@@ -648,18 +766,15 @@ def main() -> None:
 
     print(f"\n  DevolaFlow Quick Setup (v{__version__})\n")
 
-    if not (agent_dir / "SKILL.md").exists():
-        print(f"  Error: Agent source not found at {agent_dir}")
-        print("  Run from the DevolaFlow repo root, or install with:")
-        print("    pip install devolaflow")
-        sys.exit(1)
-
     targets = args if args else _auto_detect(cwd)
 
     # `with_examples` resolves BEFORE the `all` keyword expansion so the
     # default-matrix decision sees the user's verbatim choice (the
-    # cycle plan §PV-06 default-ON-for-full matrix).
-    with_examples = _parse_with_examples(sys.argv[1:], targets)
+    # cycle plan §PV-06 default-ON-for-full matrix). Mode-derived
+    # default (default_with_examples) is overridden when the operator
+    # passes `--with-examples` / `--no-with-examples` explicitly
+    # (explicit-beats-implicit; v9.2.3 PV-02 dispatch contract).
+    with_examples = _parse_with_examples(sys.argv[1:], targets, default=default_with_examples)
 
     # `all` excludes `local` (explicit-opt-in via auto-detect or `local` arg).
     if "all" in targets:
@@ -671,6 +786,34 @@ def main() -> None:
 
     for t in targets:
         if t in TOOLS:
+            # v9.2.2 PV-01 — I-001 critical fix: deferred SKILL.md
+            # existence check. Per-target dispatch only requires the
+            # `workflow-system/agent/` tree for the targets in
+            # `AGENT_DIR_REQUIRED_TARGETS`; `local` is exempt because
+            # `install_local` is fully pip-wheel-portable (uses
+            # `scaffold_local` + `importlib.resources`). Pre-v9.2.2
+            # `main()` aborted unconditionally before this loop on any
+            # missing SKILL.md, so every operator with a wheel-only
+            # install hit a misleading error that recommended the same
+            # `pip install` they had already run. The deferred check
+            # exits 1 only for genuinely-required targets and never
+            # recommends `pip install devolaflow` (the recommendation
+            # that landed users in I-001 in the first place).
+            if t in AGENT_DIR_REQUIRED_TARGETS and not (agent_dir / "SKILL.md").exists():
+                print(f"  Error: target {t!r} needs the workflow-system/agent/ source tree.")
+                print(f"    Searched: {agent_dir}")
+                print("    The pip wheel does not bundle workflow-system/.")
+                print(
+                    "    Either install from a clone "
+                    "(`git clone https://github.com/YoRHa-Agents/DevolaFlow "
+                    "&& pip install -e ./DevolaFlow`)"
+                )
+                print("    or run `devola-init local` (which does not require workflow-system/).")
+                print(
+                    "    See: https://github.com/YoRHa-Agents/DevolaFlow "
+                    "(track I-001 — v9.2.2 surgical fix)."
+                )
+                sys.exit(1)
             # `--no-compile` and `--with-examples` are local-only — other
             # installers don't accept the kwargs. Build the extras dict
             # conditionally so the cursor / claude / codex / copilot

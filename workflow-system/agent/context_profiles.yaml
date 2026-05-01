@@ -435,6 +435,10 @@ sections:
   # Line ranges below were re-anchored in v9.1.1 PV-01 (cycle v9.2.0 start)
   # after the SKILL.md "Workspace Engagement" insertion at lines 40-55
   # (+16 line shift for everything from quick_action_decision onward).
+  # v9.2.2 PV-01 (I-001 + I-004) re-anchored again after the I-004
+  # one-line note inserted into §"Version & Update" at lines 40-41
+  # (+2 line shift for everything from workspace_engagement onward;
+  # the v9.1.1 +16 shift is preserved on top of that).
   # Sections that the v9.0.0 PV-01 ``section_anchors:`` block migrated to
   # symbolic heading-based discovery (``frontmatter`` / ``version_update``
   # / ``plan_mode_template`` / ``convergence_loop``) keep these ``lines:``
@@ -452,122 +456,122 @@ sections:
     content_type: metadata
 
   version_update:
-    lines: "36-39"
+    lines: "36-41"
     tokens_est: 109
     content_type: prose
 
   workspace_engagement:
-    lines: "40-55"
+    lines: "42-57"
     tokens_est: 240
     content_type: table
 
   quick_action_decision:
-    lines: "56-65"
+    lines: "58-67"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "67-74"
+    lines: "69-76"
     tokens_est: 91
     content_type: prose
 
   plan_mode_template:
-    lines: "75-78"
+    lines: "77-80"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "79-105"
+    lines: "81-107"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "106-134"
+    lines: "108-136"
     tokens_est: 612
     content_type: table
 
   hierarchy_table:
-    lines: "163-177"
+    lines: "165-179"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "163-177"
+    lines: "165-179"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "173-177"
+    lines: "175-179"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "178-190"
+    lines: "180-192"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "191-207"
+    lines: "193-209"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "208-257"
+    lines: "210-259"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "258-275"
+    lines: "260-277"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "279-289"
+    lines: "281-291"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "291-309"
+    lines: "293-311"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "310-342"
+    lines: "312-344"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "343-354"
+    lines: "345-356"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "355-365"
+    lines: "357-367"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "366-402"
+    lines: "368-404"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "366-402"
+    lines: "368-404"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "276-278"
+    lines: "278-280"
     tokens_est: 100
     content_type: spec
 
   task_quality_score:
-    lines: "431-456"
+    lines: "433-458"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "404-430"
+    lines: "406-432"
     tokens_est: 188
     content_type: table
 
