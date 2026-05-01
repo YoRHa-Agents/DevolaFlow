@@ -259,6 +259,43 @@ side panel. The user-approval signal is a follow-up message containing
 "approve" / "go ahead" / "execute" — at which point L0 transitions to
 AGENT MODE and starts dispatch.
 
+### 5.5 Feedback Ingestion (v9.1.1+)
+
+L0 plan mode MUST consume `WorkspaceContext.recent_feedbacks`
+automatically when scanning the consumer repo. The latest 3 feedbacks
+(by mtime descending) are surfaced in plan-mode reasoning to anchor
+proposals against the user's accumulated voice.
+
+**Mechanism:**
+
+1. At plan-mode entry, L0 calls
+   `devolaflow.workspace_context.scan_workspace(repo_root)` (the
+   read-only discovery API shipped in v9.1.1 PV-01 — see
+   `references/agent-workspace.md` §"When to Engage").
+2. The returned `WorkspaceContext.recent_feedbacks` tuple holds up to 3
+   `Path` objects pointing at `.local/feedbacks/feedback_for_v*.md`,
+   ordered by `os.stat().st_mtime` descending (newest first). The cap
+   matches `_RECENT_FEEDBACKS_LIMIT = 3` in
+   `src/devolaflow/workspace_context.py` — older feedback files
+   remain on disk but are not auto-loaded into the dispatch context
+   (token-budget reason: the 3 newest carry the highest signal-to-noise
+   for the imminent plan).
+3. L0 reads each path with the standard `Read` tool (allowed under
+   plan mode per §5.1) and extracts the user's themes. The themes feed
+   the plan's "Overview" + "Stages" sections so the plan output reflects
+   the user's accumulated voice rather than a fresh interpretation of
+   the latest prompt only.
+4. Themes are NOT copied verbatim into the plan body (P5 / S-2 /
+   no-content-copy invariant). Cite by repo-relative path
+   (`.local/feedbacks/feedback_for_vX.Y.Z.md` §<heading>) instead.
+
+**v9.1.1 PV-01 ships the discovery API only — automatic ingestion at
+plan-mode entry is the v9.1.4 PV-04 deliverable** (per the v9.2.0
+cycle plan). Until PV-04 lands, L0 agents in plan mode SHOULD perform
+the read-and-cite manually using the `recent_feedbacks` paths returned
+by the discovery API. The S-5-compliant default — no auto-write side
+effects — applies regardless of PV.
+
 ## 6. Reinforcement Rules (W-8 / SI-9) — Mechanism + L3 Obligation
 
 When a stage gate FAILS (composite_score < threshold OR blocker count > 0

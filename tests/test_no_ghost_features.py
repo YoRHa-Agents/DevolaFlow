@@ -1280,3 +1280,140 @@ def test_install_local_has_compile_rules_kwarg() -> None:
         f"`*` as the separator so positional callers are forbidden — keeps "
         f"the call site explicit per A-2.4 cache-prefix reasoning)"
     )
+
+
+# ── v9.1.1 PV-01 — W-18 ghost-audit refresh for v9.1.1 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.1 PV-01
+# (cycle v9.2.0 start) introduces the surfaces below; this block adds
+# presence + import-smoke + signature coverage for all of them as the
+# W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/workspace_context.py — new module exposing
+#     scan_workspace() + WorkspaceContext frozen dataclass (the
+#     discovery API for `.local/` + `.rules/` + `.local/.agent/`
+#     surfaces in a consumer repo).
+#   * tests/test_workspace_context_scan.py — new test file pinning
+#     the scan_workspace() detection contract (6 tests).
+#   * benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json —
+#     W-16 wholesale baseline regen (cycle-start MINOR per W-16).
+
+_V9_1_1_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/workspace_context.py",
+    "tests/test_workspace_context_scan.py",
+    "benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json",
+)
+
+# Minimum byte size for a v9.1.1 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_1_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_1_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.1: every NEW v9.1.1 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.1 PV-01 (the v9.2.0 cycle
+    start) introduces the surfaces enumerated in the comment block above
+    this test; this lint asserts each one as a cheap presence +
+    import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_1_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_1_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``scan_workspace`` and ``WorkspaceContext``
+       are importable from :mod:`devolaflow.workspace_context`,
+       ``scan_workspace`` is callable, and ``WorkspaceContext`` is a
+       :func:`dataclasses.is_dataclass`-true frozen dataclass.
+    3. **Public summary surface** — :data:`MAX_FEEDBACKS_RETURNED` is
+       importable and equals ``3`` (matching
+       ``references/plan-mode-enforcement.md`` §"Feedback Ingestion"),
+       AND :meth:`WorkspaceContext.to_summary_dict` exists and is
+       callable (the JSON-serialisable rendering used by dispatch
+       context injection).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.1 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_1_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "WorkspaceContext is not frozen" → the dataclass dropped
+        ``frozen=True`` (the design contract — consumers cannot mutate
+        a snapshot in flight); restore the freeze.
+    """
+    import dataclasses
+
+    for relpath in _V9_1_1_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.1 violation: NEW v9.1.1 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_1_FILE_MIN_BYTES, (
+            f"W-18 v9.1.1 violation: NEW v9.1.1 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_1_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.workspace_context import (
+        MAX_FEEDBACKS_RETURNED,
+        WorkspaceContext,
+        scan_workspace,
+    )
+
+    assert scan_workspace is not None, "W-18 v9.1.1 violation: scan_workspace import yielded None"
+    assert callable(scan_workspace), (
+        "W-18 v9.1.1 violation: scan_workspace is not callable — the export "
+        "from devolaflow.workspace_context must be the function itself"
+    )
+    assert WorkspaceContext is not None, (
+        "W-18 v9.1.1 violation: WorkspaceContext import yielded None"
+    )
+    assert dataclasses.is_dataclass(WorkspaceContext), (
+        "W-18 v9.1.1 violation: WorkspaceContext is not a dataclass — the "
+        "discovery API contract requires a structured frozen dataclass"
+    )
+    assert MAX_FEEDBACKS_RETURNED == 3, (
+        f"W-18 v9.1.1 violation: MAX_FEEDBACKS_RETURNED is "
+        f"{MAX_FEEDBACKS_RETURNED!r} (expected 3) — the public constant pins "
+        f"the plan-mode feedback ingestion default per "
+        f"references/plan-mode-enforcement.md §'Feedback Ingestion'"
+    )
+    assert hasattr(WorkspaceContext, "to_summary_dict"), (
+        "W-18 v9.1.1 violation: WorkspaceContext is missing the "
+        "to_summary_dict() method — the JSON-serialisable summary contract "
+        "is part of the v9.1.1 PV-01 public surface"
+    )
+    assert callable(WorkspaceContext.to_summary_dict), (
+        "W-18 v9.1.1 violation: WorkspaceContext.to_summary_dict is not callable"
+    )
+
+    # Frozen invariant: instantiating + attempting to mutate raises
+    # FrozenInstanceError. Pins the design contract that consumers cannot
+    # mutate a snapshot in flight (the snapshot is a value type — derive
+    # a new one via dataclasses.replace if you need a modified copy).
+    sample = WorkspaceContext(
+        repo_root=project_root,
+        has_local=False,
+        has_rules=False,
+        has_agent_dir=False,
+    )
+    try:
+        sample.has_local = True  # type: ignore[misc]
+    except dataclasses.FrozenInstanceError:
+        pass
+    else:  # pragma: no cover — the assert below catches the regression
+        raise AssertionError(
+            "W-18 v9.1.1 violation: WorkspaceContext is not frozen — "
+            "attribute assignment did not raise FrozenInstanceError. "
+            "The dataclass MUST be declared with frozen=True so consumers "
+            "cannot mutate a snapshot in flight."
+        )

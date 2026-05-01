@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "9.1.0"
+version: "9.1.1"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,29 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v9.1.0**
+> **Now Using DevolaFlow v9.1.1**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 9.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 9.1.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
+
+## Workspace Engagement (Read at Session Start)
+
+Before applying the Quick Action Decision table, **scan the consumer repo's workspace surfaces** so dispatch context reflects the project's accumulated state. Use `devolaflow.workspace_context.scan_workspace(repo_root)` (returns a frozen `WorkspaceContext` snapshot) — pure-function, zero side effects, safe to call repeatedly.
+
+| Surface | When present | What L0 does |
+|---|---|---|
+| `.local/feedbacks/feedback_for_v*.md` | User has accumulated cross-version feedback | READ the latest 3 (`recent_feedbacks`) and surface themes in plan-mode reasoning |
+| `.local/memory/specs/<domain>/spec.md` | Source-of-truth specs exist (A-4) | TREAT as ground truth; per-change `spec.md` files express deltas relative to these |
+| `.local/memory/cases/*.md` | Prior decisions cached | When `DEVOLAFLOW_MEMORY_CONSULT=1`, surface relevant cases as dispatch hints |
+| `.local/.agent/active/<id>/` | In-flight changes exist | RESUME the change rather than opening a new one (check `STATUS.yaml.state`) |
+| `.rules/*.mdc` + compiled `AGENTS.md` | Layered governance corpus present | TRUST the compiled corpus as the rule contract; opt-in `agents_md_slice` slices per task type |
+
+**Defaults**: Workspace scanning is read-only and ALWAYS performed. Auto-write side effects (handoff envelopes, change folder scaffolding) are R5-strict default-OFF; opt in via `DEVOLAFLOW_AGENT_WORKSPACE=1`.
+
+See `references/agent-workspace.md` §"When to Engage" for the full activation contract and `references/plan-mode-enforcement.md` §"Feedback Ingestion" for plan-mode consumption rules.
 
 ## Quick Action Decision
 

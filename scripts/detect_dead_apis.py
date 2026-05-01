@@ -472,6 +472,27 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.gate.ratchet:is_gate_ratchet_active",
         "devolaflow.gate.complexity_detector:is_complexity_detector_active",
         "devolaflow.ac_generator:is_ac_generator_active",
+        # ---- v9.1.1 PV-01 (cycle v9.2.0) — workspace_context discovery API ----
+        # `scan_workspace(repo_root) -> WorkspaceContext` is the pure-function
+        # discovery API for `.local/` + `.local/.agent/` + `.rules/` surfaces
+        # in a consumer repo. SKILL.md §"Workspace Engagement (Read at Session
+        # Start)" instructs L0 to call it at session start; the prompt-side
+        # consumer is the dispatcher itself, not an in-repo Python module.
+        # The first in-repo Python production caller lands in v9.1.4 PV-04
+        # (memory_router.consult_for_dispatch + plan-mode feedback ingestion
+        # per the v9.2.0 cycle plan §PV-04); v9.1.1 PV-01 ships the
+        # discovery API only as the prerequisite. NOT a domain-SSOT registry
+        # symbol per A-5.2 — pure read-only filesystem-walk helper, mirrors
+        # the `lifecycle.run_hooks` / `directed_compact` allowlist precedent
+        # above (public surface advertised in SKILL.md, in-repo caller lands
+        # in a subsequent PV per the cycle plan). Verified by
+        # `tests/test_workspace_context_scan.py` (6 tests covering
+        # presence/detection/sort/freeze contract) +
+        # `tests/test_no_ghost_features.py::test_v9_1_1_new_symbols_have_coverage`
+        # (W-18 ghost-audit refresh: presence + import-smoke + frozen
+        # dataclass invariant).
+        "devolaflow.workspace_context:scan_workspace",
+        "devolaflow.workspace_context:WorkspaceContext",
     }
 )
 

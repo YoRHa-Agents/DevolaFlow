@@ -748,8 +748,35 @@
       "W-16 wholesale baseline regen — `benchmarks/devolaflow_context/baselines/v9.1.0_baseline.json` generated from scratch covering all 53 scenarios; 0 regressions > 5pp vs v9.0.0",
       "W-9 / SI-10 6/6 PASS — 3457 passed / 19 skipped / 2 xfailed; +27 NEW test functions in PV-01 (within +30 W-17 cap); rules layer unchanged at 58 (Soul 10 + Architecture 5 + Conventions 9 + Workflow 21 + Style 13)"
     ],
-    "metrics": {
+      "metrics": {
       "tests": "3457",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "58"
+    }
+  },
+  {
+    "version": "9.1.1",
+    "date": "2026-04-30",
+    "era": "rule-rebalancing",
+    "headline": "PATCH — PV-01 of v9.2.0 cycle: Workspace Awareness section + scan_workspace discovery API + W-16 wholesale baseline regen for v9.2.0 cycle start",
+    "summary": "First PV (cycle-start PATCH) of the v9.2.0 MINOR cycle: ships the Workspace Awareness section in SKILL.md (`Read at Session Start` table covering `.local/` + `.local/.agent/` + `.rules/` surfaces) plus a new pure-function discovery API at `src/devolaflow/workspace_context.py::scan_workspace(repo_root) -> WorkspaceContext`. The discovery API is a frozen dataclass snapshot with zero side effects (S-5 explicit defaults on missing paths, WARNING on PermissionError) and is the prerequisite for the v9.1.3 PV-03 production handoff caller (closes the discovery half of v9.1.0 G-005). W-16 cycle-start wholesale baseline regen produces `benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json` (53 scenarios) — the prior v9.1.0 baseline stays on disk for cumulative drift detection. Zero changes to `schemas/lean-dispatch.yaml#layout_invariant` (length 16 / version 5 byte-identical — A-2 invariant intact). Soul-set frozen at 10 per W-21; rule count unchanged at 58. R5 strict additive: no existing public symbol changes.",
+    "highlights": [
+      "NEW `src/devolaflow/workspace_context.py` (~150 LOC): `scan_workspace(repo_root)` returns frozen `WorkspaceContext` dataclass with `has_local`, `has_rules`, `has_agent_dir`, `active_changes`, `recent_feedbacks` (top 3 by mtime), `source_of_truth_specs`, `memory_cases_count`, `rules_layer_set`, `compiled_corpora`",
+      "NEW SKILL.md §`Workspace Engagement (Read at Session Start)` (~16 lines, before Quick Action Decision) — 5-row guidance table mapping each workspace surface to the L0 action; defaults read-only, auto-write side effects gated by `DEVOLAFLOW_AGENT_WORKSPACE=1`",
+      "EXTEND `references/agent-workspace.md` §1 with NEW \"When to Engage (v9.1.1+)\" subsection — activation matrix per (workspace surface, complexity); cites SKILL.md as canonical entry point; cross-links to v9.1.3 PV-03 pre_handoff hook",
+      "EXTEND `references/plan-mode-enforcement.md` §5.5 \"Feedback Ingestion (v9.1.1+)\" clause — L0 plan mode MUST consume `WorkspaceContext.recent_feedbacks` automatically, with explicit deferral note: ingestion automation lands in v9.1.4 PV-04 (this PV ships discovery API only)",
+      "NEW `tests/test_workspace_context_scan.py` (6 tests, 230 LOC): empty-repo defaults / full-stack-repo detection / `recent_feedbacks` 3-cap newest-first / README + dot-file exclusion in `active_changes` / PermissionError absorbed into WARNING (S-5; POSIX-only) / frozen dataclass invariant",
+      "W-16 wholesale baseline regen — `benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json` generated from scratch covering all 53 scenarios (cycle-start MINOR baseline per W-16 / v8.4.0 retro §R-7). Prior `v9.1.0_baseline.json` UNTOUCHED for cumulative drift detection. `tests/test_benchmarks.py::test_runner_prefers_latest_baseline` updated to expect `v9.2.0_baseline.json`",
+      "W-18 ghost-audit refresh — `tests/test_no_ghost_features.py::test_v9_1_1_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per W-18 precondition (presence + import-smoke + frozen-dataclass invariant for `scan_workspace` + `WorkspaceContext` + `v9.2.0_baseline.json`)",
+      "W-9 / SI-10 6/6 PASS; W-17 +7 NEW test functions (6 workspace_context_scan + 1 ghost-audit refresh) — well within +30 per-PV cap; cumulative cycle delta +7 of +150 cap",
+      "Layout invariant intact — `schemas/lean-dispatch.yaml#layout_invariant` byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.1; PV-04 will NEST into the existing `change_context` per A-2.3 nest-vs-append decision rule)",
+      "W-2 NineS gate (planning + close): planning `nines analyze --target-path src/devolaflow/workspace_context.py --depth deep --agent-impact --keypoints` + close `nines self-eval --baseline-version 9.1.0`; both stored at `.local/research/v9.1.1_nines*.json`",
+      "Soul-set count 10 (frozen by W-21); Architecture 5; Conventions 9; Workflow 21; Style 13 — all unchanged from v9.1.0. 60-rule cap: 58/60 with +2 headroom preserved"
+    ],
+    "metrics": {
+      "tests": "3464",
       "scenarios": "53",
       "templates": "22",
       "references": "14",
