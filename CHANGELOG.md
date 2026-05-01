@@ -5,6 +5,138 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.0] — 2026-05-01
+
+**MINOR — cycle rollup: activate `.local/` + `.local/.agent/` + `.rules/` as first-class skill capabilities.** Sixth and headline PV of the v9.2.0 MINOR cycle, shipping as the cycle-rollup release after 5 PATCH-level PVs (v9.1.1..v9.1.5). The cycle re-engineers the DevolaFlow skill so any downstream agent installing it learns to **discover** `.local/` (workspace state) at session start, **engage** `.local/.agent/active/` for Standard+ complexity tasks via the `change-driven` workflow, and **consult** `.rules/` (governance corpus) at dispatch time — not just at compile time. Closes 6 deferred items in a single MINOR rollup: **G-005** (v9.1.0) + **G-006** (v9.1.0 partial) + **G-015** (v9.1.0) from the v9.1.0 retrospective §3, plus **M-004** (v9.0.0 retro §3.3) + **M-007** (v9.0.0 retro §3.3) + **agents_md_slice runtime wiring** (v9.0.0 PV-07 ADR-007 D3 telegraphed, runtime wiring landed v9.1.5 PV-05). Layout invariant `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical at length **16** / version **5** across all 7 historical baselines (v7.0.0 through v9.2.0); Soul-set frozen at **10** per W-21 (no S-11 candidate proposed for v9.4.0); rule count unchanged at **59 / 60** (+1 headroom from PV-02 A-6); **0 new env flags** introduced across the entire 7-PV cycle (W-20 reuse-first); cumulative cycle delta **+93 NEW test functions** within the +150 W-17 cycle cap (+57 headroom).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+The cycle ships three operator-visible defaults that downstream agents notice immediately:
+
+| What changed | Default before v9.2.0 | Default in v9.2.0 | Opt-out path |
+|---|---|---|---|
+| SKILL.md teaches workspace discovery at session start | not taught | **§"Workspace Engagement (Read at Session Start)" + `scan_workspace` API** | n/a (text-side guidance — no opt-out) |
+| `meta.agents_md_slice.enabled` | `false` (full AGENTS.md to every L3) | **`true` (sliced AGENTS.md per task_type)** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
+| change-driven activation heuristic + auto_write_handoff lifecycle hook | not wired | **wired when `DEVOLAFLOW_AGENT_WORKSPACE=1`** | env-flag default-OFF; opt-in only |
+
+**R5 strict byte-stable proof**: every NEW capability surface (PV-01 `scan_workspace` + PV-02 activation heuristic + PV-03 `auto_write_handoff` + PV-04 `consult_for_dispatch` + PV-05 `agents_md_slice` slice) produces byte-identical dispatch output when its env-flag is absent. Pinned by `tests/test_handoff_auto_write.py::test_env_flag_off_is_byte_identical_noop` + `tests/test_memory_consult_for_dispatch.py::test_env_flag_off_returns_empty_list` + `tests/test_pv07_agents_md_slice.py::test_agents_md_slice_env_flag_0_opts_out` + `tests/test_capability_e2e.py::test_standard_task_does_not_open_folder_without_env_flag`.
+
+### Per-PV cycle rollup ledger
+
+| PV | Version | Commit | Headline |
+|---|---|---|---|
+| **PV-01** | `v9.1.1` | `adb5e05` | NEW `scan_workspace(repo_root) -> WorkspaceContext` discovery API + SKILL.md §"Workspace Engagement (Read at Session Start)" + W-16 wholesale baseline regen → `benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json`. +8 NEW tests. |
+| **PV-02** | `v9.1.2` | `0318191` | NEW `src/devolaflow/skills/` package: `change_activation.py` (heuristic) + `slash_commands.py` (`/devola:propose|apply|verify|archive` CLI). NEW Architecture rule **A-6** "Workspace Engagement Auto-Activation" (rule count 58 → 59). +26 NEW tests. Closes M-007. |
+| **PV-03** | `v9.1.3` | `1ed311e` | NEW `pre_handoff` lifecycle event (DEFAULT_EVENTS 7 → 8 APPENDED) + `lifecycle/auto_write_handoff.py` default handler. **Closes G-005** — `rg "write_envelope\(" src/devolaflow/` returns ≥ 2 hits (definition + first production caller). +25 NEW tests. |
+| **PV-04** | `v9.1.4` | `e5f8132` | NEW `memory_router.cache::consult_for_dispatch` advisory hint surface + EXTEND `schemas/lean-dispatch.yaml` `change_context` (position 16) with 3 OPTIONAL NEST sub-fields (`prior_feedback_themes` / `memory_case_hits` / `source_of_truth_excerpt`). canonical_order length STAYS 16 / version STAYS 5. +14 NEW tests. Closes G-015. |
+| **PV-05** | `v9.1.5` | `c404aa1` | NEW `agent_workspace/spec_bootstrap.py::seed_initial_spec` (M-004 closure) + `meta.agents_md_slice.enabled` flips false → true (M-007 closure; OPERATOR-VISIBLE behaviour change; R5 strict opt-out via `DEVOLAFLOW_AGENTS_MD_SLICE=0`). +10 NEW tests. |
+| **PV-06** | **v9.2.0** | *this commit* | EXTEND `init_project.install_local` with `with_examples=True` kwarg + `_seed_example_artifacts` helper (3 worked-trace fixtures); NEW `tests/test_capability_e2e.py` (10 tests, the LARGEST new file — cycle headline lint); EXTEND `scripts/archive_research_artifacts.py` with `--extra-prefix` flag; W-19 cycle archive populated; W-7/SI-8 retrospective; CHANGELOG cycle rollup. +10 NEW tests. Closes G-006 (other half) + cycle rollup. |
+
+### Highlights (this PV — PV-06)
+
+- **EXTEND `src/devolaflow/init_project.py::install_local`** with `with_examples: bool = False` kwarg (default-OFF at the Python level; CLI default-ON for `mode: full`, default-OFF for `mode: core` per `_parse_with_examples` in `main()`). NEW `_seed_example_artifacts(cwd: Path)` helper seeds 3 worked-trace fixtures: (1) `.local/.agent/active/example-add-dark-mode/` with all 7 artifacts populated (`goal.md` ~106 tokens / `acceptance.md` ~187 / `spec.md` ~399 / `tasks.md` ~263 / `STATUS.yaml` ~71 / `owned_files.txt` ~29 / `README.md`); (2) `.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml` (one TaskDispatch envelope ~110 tokens); (3) `.local/memory/specs/example-domain/spec.md` (minimal valid source-of-truth ~245 tokens). Every artefact respects its **C-9 hard ceiling** — verified at write time by the new `_verify_artifact_within_budget(filename, content)` guard (raises `ValueError` per S-5 if a future template edit would breach) AND at test time by `tests/test_capability_e2e.py::test_artifacts_respect_c9_token_budgets`. **Idempotent**: every write is gated by `Path.exists()`; re-running `devola-init local --with-examples` is a no-op. Per S-9 the handoff envelope is APPEND-ONLY — once seeded the file MUST NOT be modified or deleted.
+- **NEW `tests/test_capability_e2e.py`** (~580 LOC, **10 NEW test functions** — the LARGEST new file in the cycle and the cycle's headline lint): each test crosses one or more PV deliverables through a tmp-path repo fixture. (1) `test_l0_detects_feedbacks_specs_active_changes_via_scan_workspace` — PV-01 contract; (2) `test_standard_task_auto_opens_change_folder_when_env_flag_on` — PV-02 + PV-06 contract; (3) `test_standard_task_does_not_open_folder_without_env_flag` — R5 strict env-flag-OFF byte-stable proof across all 4 complexity tiers; (4) `test_l1_l2_dispatch_writes_handoff_envelope_when_flag_on` — PV-03 G-005 closure proof; (5) `test_memory_consult_emits_hit_when_prior_case_present` — PV-04 keyword-scored advisory surface; (6) `test_archive_triggers_source_of_truth_merge_proposal` — PV-05 + A-4 invariant proof (proposed but NOT auto-applied); (7) `test_artifacts_respect_c9_token_budgets` — every artifact respects `ARTIFACT_BUDGETS` from `lint.py` + handoff envelope budget 1200; (8) `test_install_local_with_examples_seeds_three_artifacts` — the cycle plan §PV-06 acceptance criterion #1; (9) `test_install_local_core_mode_skips_examples` — `with_examples=False` matrix; (10) `test_agents_md_slice_default_on_visible_to_dispatch` — the v9.1.5 PV-05 default-ON flip end-to-end.
+- **EXTEND `scripts/archive_research_artifacts.py`** with the `--extra-prefix` repeatable argparse flag + the `extra_prefixes: tuple[str, ...]` kwarg on the `archive(cycle_version, ...)` callable. The MINOR-cycle invocation `python scripts/archive_research_artifacts.py 9.2.0 --extra-prefix v9.1.` captures BOTH `v9.1.*` PATCH research AND `v9.2.*` MINOR-cycle research into `docs/cycle-archive/v9.2.0/`. The `_gather_artifacts` helper deduplicates the union by absolute path so a file matched by both prefixes is enumerated exactly once.
+- **W-19 cycle archive**: `docs/cycle-archive/v9.2.0/` populated with **31 artefacts** — `README.md` (auto-generated index) + 1 `gap_analysis.md` + 11 `nines/v9.1.*_nines.{json,md,stderr}` + 5 `nines/v9.1.*_nines_planning.{json,stderr}` + 3 `nines/v9.2.0_nines.*` + 2 `evaluation/v9.{1,2}.0_evaluation.md` + 2 `v9.{1,2}.0_retrospective.md`. The directory is committed to the repo so future cycle-N+1 SI-1 planning gates have a stable archive URL to cite without depending on `.local/` (gitignored).
+- **W-7 / SI-8 retrospective**: `.local/research/v9.2.0_retrospective.md` covering ALL 4 mandatory sections (§1 Gaps identified / §2 What was implemented with file-level change list / §3 What was deferred + W-21 §1 telegraph for v9.4.0 Soul-set / §4 Key learnings — 8 lessons L-1..L-8). The retrospective explicitly states "**No S-11 candidate proposed for v9.4.0** — v9.4.0 Soul-set stays frozen at 10" per W-21 governance (the v9.2.0 cycle's invariants all landed cleanly under existing S-* / A-* / W-* rules).
+- **W-2 NineS cycle-close**: `.local/research/v9.2.0_nines.{json,md}` cycle-rollup composite. `overall: 0.9073 ≥ 0.85` (margin +0.0573); SI-3 weighted composite **9.4750 ≥ 8.5 MINOR floor** (margin +0.9750) per Part A of `.local/research/v9.2.0_evaluation.md`. Critical axes: `structure_recognition` (byte_stability) **1.000**, `architecture` mean (decomposition + abstraction + cross_vertex) **1.000**, `lint_cleanliness` **1.000** (improved +0.04 vs v9.1.5 close from cleaner +650 LOC across init_project.py extension + test_capability_e2e.py).
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v9_2_0_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per W-18 precondition. Asserts: (a) `tests/test_capability_e2e.py` + `docs/cycle-archive/v9.2.0/{README,v9.2.0_retrospective}.md` exist with ≥ 200 byte minimum; (b) `install_local` accepts `with_examples` kwarg with `False` default; (c) `_seed_example_artifacts` is callable; (d) `tests/test_capability_e2e.py` defines ≥ 10 test functions; (e) `scripts/archive_research_artifacts.py` exposes both the `--extra-prefix` argparse flag AND the `extra_prefixes` kwarg on `archive()`.
+- **A-2 layout invariant intact (the headline I-8 invariant)**: PASS — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length **16** / version **5** byte-identical (PV-06 ships repo-init seeds + an e2e test + a script extension; no schema-side changes; the 6 historical baselines + the v9.2.0 witness baseline pinned in PV-04 continue to PASS).
+- **A-4 invariant honoured**: source-of-truth files at `.local/memory/specs/<domain>/spec.md` are mutated ONLY at archive time AFTER the gate has PASSED. The PV-06 `_seed_example_artifacts` writes a static placeholder spec at `.local/memory/specs/example-domain/spec.md` for the EXAMPLE domain only; this is NOT an A-4 mutation of a real source-of-truth — it is the worked-trace fixture that demonstrates the SHAPE of the contract (with `last_merged_change: null` + `last_merged_at: null` indicating the bootstrap state).
+- **Soul-set count 10 (frozen by W-21)**; Architecture 6; Conventions 9; Workflow 21; Style 13. Total rule count unchanged at **59 / 60** (+1 headroom). PV-06 ships extension code + tests + scripts + docs — none is a new layered rule. `tests/test_no_ghost_features.py::test_rule_count_under_cap` GREEN.
+- **W-20 reuse-first**: PASS — PV-06 ships **0 new env flags**. The cycle plan §"Self-iteration constraint compliance matrix" pin "0 new flags across the entire 7-PV cycle" continues to hold at MINOR cycle close. PV-02 + PV-03 reused `DEVOLAFLOW_AGENT_WORKSPACE`; PV-04 reused `DEVOLAFLOW_MEMORY_ROUTER`; PV-05 wired the existing-but-unwired `DEVOLAFLOW_AGENTS_MD_SLICE`. Cumulative cycle: 0 new flags.
+
+### Cycle-level metrics
+
+| Metric | v9.1.0 baseline | v9.2.0 close | Δ |
+|---|---|---|---|
+| `__version__` | 9.1.0 | 9.2.0 | MINOR bump |
+| Tests collected | ~3490 (post-PV-01) | ~3590 | +100 (within +150 W-17 cycle cap) |
+| **NEW** test functions in cycle | — | **+93** | within +150 W-17 cycle cap (+57 headroom) |
+| Rule count | 58 | **59** | +1 (A-6 Architecture; within 60-rule HARD cap) |
+| Soul-set count | 10 | **10** | flat (W-21 frozen) |
+| `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length | 16 | **16** | flat (NEST extension per A-2.3) |
+| Schema version | 5 | **5** | flat |
+| New env flags introduced | — | **0** | W-20 reuse-first across all 6 PVs |
+| `write_envelope` production callers | 1 | **2** | +1 (closes G-005) |
+| EvoBench composite vs baseline | — | within ±5pp | no regressions |
+
+### W-3 SI-3 cycle-close composite
+
+The full Part A scorecard lives at `.local/research/v9.2.0_evaluation.md`. Headline:
+
+| Dimension | Weight | Score | Weighted |
+|---|---|---|---|
+| Code quality | 0.20 | 9.5 | 1.90 |
+| Architecture rationality | 0.20 | 9.5 | 1.90 |
+| Test adequacy | 0.20 | 9.5 | 1.90 |
+| Maintainability | 0.15 | 9.0 | 1.35 |
+| Compatibility | 0.10 | 10.0 | 1.00 |
+| Performance impact | 0.15 | 9.5 | 1.4250 |
+| **SI-3 composite** | — | — | **9.4750** |
+
+**ACCEPT** — `9.4750 ≥ 8.5 MINOR floor` (margin **+0.9750**). The cycle ships ready for release.
+
+### Files Changed (cycle-rollup summary)
+
+The cycle-rollup commit touches the cycle's rollup-specific artefacts (PV-01..PV-05 each shipped their own per-PV CHANGELOG entries with full file lists). The PV-06 commit specifically touches:
+
+**Source / tracked:**
+
+- `src/devolaflow/__init__.py` — `9.1.5` → `9.2.0` (SSOT)
+- `pyproject.toml` — `9.1.5` → `9.2.0`
+- `workflow-system/agent/SKILL.md` — `9.1.5` → `9.2.0` frontmatter + banner + body "Current version:"
+- `workflow-system/agent/workflow-skill.yaml` — `9.1.5` → `9.2.0`
+- `src/devolaflow/init_project.py` — EXTEND `install_local` with `with_examples` kwarg + NEW `_seed_example_artifacts(cwd: Path)` helper + 9 module-level `_EXAMPLE_*` template constants + `_EXAMPLE_ARTIFACT_BUDGETS` dict + `_estimate_tokens` / `_verify_artifact_within_budget` guards + EXTEND `_parse_with_examples(argv, targets)` CLI parser + EXTEND `main()` to wire the flag through TOOLS dispatch
+- `scripts/archive_research_artifacts.py` — EXTEND with `--extra-prefix` repeatable argparse flag + `extra_prefixes: tuple[str, ...]` kwarg on `archive()` + dedupe pass in `_gather_artifacts`
+- `scripts/generate_human_docs.py` — `SOURCE_VERSION` `9.1.5` → `9.2.0`
+- `tests/test_smoke.py` — version assertion `9.1.5` → `9.2.0`
+- `README.md` — badge + example version `9.1.5` → `9.2.0`
+- `workflow-system/human/demo/benchmark-results/index.html` — SAMPLE_DATA `9.1.5` → `9.2.0`
+- `workflow-system/human/demo/version-timeline/versions.json` — v9.2.0 entry appended per ST-7 (49 → 50 entries; 10 highlights citing the 3 operator-visible changes + cycle metrics)
+- `workflow-system/human/{en,zh}/*.md` — 16 EN/ZH guides regenerated by `make sync-human-docs` for ST-4 version propagation
+- `docs/cycle-archive/v9.2.0/` — **NEW directory** with 31 archived research artefacts (W-19; the directory IS committed per W-19's "archive is created at cycle CLOSE and committed to the repo")
+
+**Tests (all NEW unless noted):**
+
+- `tests/test_capability_e2e.py` — **NEW** (~580 LOC, 10 NEW test functions) — cycle headline lint
+- `tests/test_no_ghost_features.py` — **EXTENDED** (+1 NEW test function: `test_v9_2_0_new_symbols_have_coverage`; ~150 LOC; W-18 refresh BEFORE this CHANGELOG entry)
+
+**Research (.local/, gitignored — but archived to docs/cycle-archive/v9.2.0/):**
+
+- `.local/research/v9.2.0_nines.json` — W-2 SI-2 cycle-close artifact
+- `.local/research/v9.2.0_nines.md` — Markdown cycle-close composite + SI-3 weighted scorecard
+- `.local/research/v9.2.0_nines_planning.json` — W-2 SI-2 planning artifact (`nines analyze --target-path src/devolaflow/`)
+- `.local/research/v9.2.0_evaluation.md` — Part A binding ACCEPT/REJECT verdict + Part B NineS-anchored advisory snapshot
+- `.local/research/v9.2.0_retrospective.md` — W-7 / SI-8 retrospective (4 mandatory sections + W-21 §1 telegraph for v9.4.0)
+
+### Verification Checklist
+
+- W-1 SI-1 planning gate artifact: **PASS** (cycle plan at `.cursor/plans/workspace-capability-activation_ec560bc8.plan.md` §"Diagnosis — capability is taught but never engaged")
+- W-2 SI-2 NineS gate (planning + cycle-close): **PASS** (`.local/research/v9.2.0_nines.{json,md,_planning.json}`; composite `overall: 0.9073 ≥ 0.85` margin +0.0573)
+- W-3 SI-3 composite ≥ 8.5 MINOR floor: **PASS** (composite **9.4750** margin +0.9750)
+- W-4 SI-4 EvoBench regression: **PASS** (the cycle ships 0 regressions > 5pp; the `_seed_example_artifacts` flow is filesystem-side only and does not touch the dispatch hot path)
+- W-7 SI-8 retrospective: **PASS** (`.local/research/v9.2.0_retrospective.md` with all 4 mandatory sections + W-21 §1 telegraph)
+- W-9 SI-10 all 6 steps: **PASS** (`pytest tests/ -q` 3560 passed / 20 skipped / 2 xfailed; `ruff check src/ tests/` clean; `ruff format --check src/ tests/` 210 files already formatted; `pytest tests/test_version.py -v` 12 passed + 19 skipped (mirror absent self-skip per SF-3); `pytest tests/test_benchmarks.py -v` 36 passed (0 regressions); `make check-cursor-skill` exit 0 (mirror absent — opt-in per SF-3))
+- W-11 gate test suite: **N/A** (PV-06 does not modify `src/devolaflow/gate/`)
+- W-13 context optimization benchmark: **N/A for benchmark suite** (PV-06 ships repo-init seed templates + e2e tests + a CLI script extension; no dispatch-side compaction changes)
+- W-17 per-PV test cap ≤ +30: **PASS** (+11 NEW functions in PV-06: 10 in `tests/test_capability_e2e.py` + 1 in `tests/test_no_ghost_features.py`); cumulative cycle delta **+93 NEW** of +150 cap (+57 headroom)
+- W-18 ghost-audit refresh precondition: **PASS** (`test_v9_2_0_new_symbols_have_coverage` authored BEFORE this entry; presence + size + signature + e2e test count + script extension surface all asserted)
+- W-19 cycle archive: **PASS** (`docs/cycle-archive/v9.2.0/` populated with 31 artefacts; directory committed to repo)
+- W-20 env-flag reuse-first: **PASS** (PV-06 ships 0 new env flags; cycle cumulative 0 — the v9.2.0 cycle plan §"Self-iteration constraint compliance matrix" pin holds)
+- W-21 Soul-set freeze (cap 10): **PASS** (10 Soul rules unchanged; the retrospective explicitly states "No S-11 candidate proposed for v9.4.0" per W-21 §1 telegraph; v9.4.0 Soul-set stays frozen at 10)
+
+### Cross-references
+
+- Cycle plan: `.cursor/plans/workspace-capability-activation_ec560bc8.plan.md`
+- Per-PV CHANGELOG entries: `## [9.1.1]` … `## [9.1.5]` (below)
+- Cycle archive: `docs/cycle-archive/v9.2.0/`
+- Cycle-close composite: `.local/research/v9.2.0_nines.md`
+- Cycle-close evaluation: `.local/research/v9.2.0_evaluation.md`
+- W-7 / SI-8 retrospective: `.local/research/v9.2.0_retrospective.md`
+- Canonical DevolaFlow URL: <https://github.com/YoRHa-Agents/DevolaFlow>
+- NineS canonical URL: <https://github.com/YoRHa-Agents/NineS>
+
 ## [9.1.5] — 2026-05-01
 
 **PATCH — PV-05 of the v9.2.0 MINOR cycle: `spec_bootstrap` (M-004 closure) + `agents_md_slice` flips default-ON (M-007 closure; OPERATOR-VISIBLE behaviour change).** Fifth PV of the v9.2.0 cycle, the most behaviour-flipping one. Closes TWO deferred items from the v9.0.0 retrospective §3.3 simultaneously: **M-004** — source-of-truth first-time seed surface (NEW `seed_initial_spec(domain, archive_id, repo_root, *, force=False)` derives `.local/memory/specs/<domain>/spec.md` from a verified `.local/.agent/archive/<archive_id>/` folder via the existing `ArchiveManager.propose_merge` machinery; A-4 invariant honoured — refuses to overwrite without `force=True`); **M-007 / per-task-type agents_md_slice dispatch wiring** — `workflow-system/agent/context_profiles.yaml#meta.agents_md_slice.enabled` flips from `false` to `true`, so L3 dispatchers receive sliced AGENTS.md content automatically (operator-visible default-ON; opt-out via `DEVOLAFLOW_AGENTS_MD_SLICE=0` per W-20 reuse — the env flag was telegraphed in v9.0.0 PV-07 ADR-007 D3 and the runtime read landed in v9.1.5 PV-05). **OPERATOR-VISIBLE BEHAVIOUR CHANGE**: dispatchers that have not set the opt-out env flag will see trimmed AGENTS.md scoped to their `task_type` starting with v9.1.5; with `DEVOLAFLOW_AGENTS_MD_SLICE=0` the dispatch is byte-identical to v9.1.4 (R5 strict). `schemas/lean-dispatch.yaml#layout_invariant` byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.5 — PV-05 ships a YAML default flip + a bootstrap module + an env-flag wiring; no schema-side changes). Soul-set frozen at 10 per W-21; rule count unchanged at 59 / 60 (+1 headroom).

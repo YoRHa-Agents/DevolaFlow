@@ -12,6 +12,17 @@ Usage::
 
     python scripts/archive_research_artifacts.py 9.0.0
     python scripts/archive_research_artifacts.py 9.0.0 --dry-run
+    python scripts/archive_research_artifacts.py 9.2.0 --extra-prefix v9.1.
+
+The ``--extra-prefix`` flag was added in v9.2.0 PV-06 so the headline
+MINOR-cycle archive can capture artefacts from the in-cycle PATCH
+versions whose research files are named under the pre-rollup prefix.
+Example: the v9.2.0 cycle ships PV-01..PV-05 as v9.1.1..v9.1.5
+artefacts (prefix ``v9.1.``) and PV-06 + PV-07 as v9.2.0 / v9.2.1
+artefacts (prefix ``v9.2.``); a single
+``archive_research_artifacts.py 9.2.0 --extra-prefix v9.1.`` invocation
+copies BOTH prefix sets into ``docs/cycle-archive/v9.2.0/``. Multiple
+``--extra-prefix`` values are accepted (the flag may be repeated).
 
 The script is idempotent — re-running it is a no-op when the
 destination already exists (no overwrites). Per the W-19 spec, the
@@ -72,9 +83,25 @@ def _copy_one(src: Path, dst: Path, *, dry_run: bool) -> str:
     return f"  COPIED  {dst.relative_to(_find_root())}"
 
 
-def _gather_artifacts(research_dir: Path, prefix: str) -> dict[str, list[Path]]:
-    """Categorize research files by W-19 archive bucket."""
-    files = sorted(research_dir.glob(f"{prefix}*"))
+def _gather_artifacts(
+    research_dir: Path, prefix: str, *, extra_prefixes: tuple[str, ...] = ()
+) -> dict[str, list[Path]]:
+    """Categorize research files by W-19 archive bucket.
+
+    Walks ``research_dir`` once for each prefix (the canonical ``prefix``
+    plus any ``extra_prefixes`` from the ``--extra-prefix`` CLI flag) and
+    deduplicates the union by absolute path so a file matched by both
+    prefixes is enumerated exactly once.
+    """
+    seen: set[Path] = set()
+    files: list[Path] = []
+    for current in (prefix, *extra_prefixes):
+        for f in sorted(research_dir.glob(f"{current}*")):
+            if f.resolve() in seen:
+                continue
+            seen.add(f.resolve())
+            files.append(f)
+    files.sort(key=lambda p: p.name)
     buckets: dict[str, list[Path]] = {
         "gap_analysis": [],
         "implementation_plan": [],
@@ -146,8 +173,21 @@ def _write_readme(archive_dir: Path, cycle_version: str, buckets: dict[str, list
     return f"  COPIED  {readme_path.relative_to(_find_root())}"
 
 
-def archive(cycle_version: str, *, dry_run: bool = False) -> int:
-    """Archive .local/research/<prefix>* into docs/cycle-archive/v<cycle>/."""
+def archive(
+    cycle_version: str,
+    *,
+    dry_run: bool = False,
+    extra_prefixes: tuple[str, ...] = (),
+) -> int:
+    """Archive .local/research/<prefix>* into docs/cycle-archive/v<cycle>/.
+
+    ``extra_prefixes`` (added v9.2.0 PV-06) lets the caller archive
+    additional prefix ranges in the same invocation — useful for the
+    cycle-rollup PV that needs to capture both ``v9.1.*`` PATCH research
+    AND ``v9.2.*`` MINOR-cycle research into a single
+    ``docs/cycle-archive/v9.2.0/`` destination. Each prefix is searched
+    independently and the union deduplicated by absolute path.
+    """
     root = _find_root()
     research_dir = root / ".local" / "research"
     if not research_dir.is_dir():
@@ -159,6 +199,8 @@ def archive(cycle_version: str, *, dry_run: bool = False) -> int:
 
     print(f"Archiving cycle v{cycle_version}")
     print(f"  source: {research_dir.relative_to(root)} (prefix '{prefix}')")
+    if extra_prefixes:
+        print(f"  extra:  {list(extra_prefixes)!r}")
     print(f"  dest:   {archive_dir.relative_to(root)}")
     if dry_run:
         print("  (dry run — no files will be copied)\n")
@@ -166,9 +208,10 @@ def archive(cycle_version: str, *, dry_run: bool = False) -> int:
         archive_dir.mkdir(parents=True, exist_ok=True)
         print()
 
-    buckets = _gather_artifacts(research_dir, prefix)
+    buckets = _gather_artifacts(research_dir, prefix, extra_prefixes=extra_prefixes)
     if not any(buckets.values()):
-        print(f"  WARN: no research artifacts found matching '{prefix}*'")
+        searched = ", ".join(repr(p) for p in (prefix, *extra_prefixes))
+        print(f"  WARN: no research artifacts found matching {searched}")
         return 0
 
     print(_write_readme(archive_dir, cycle_version, buckets, dry_run=dry_run))
@@ -203,13 +246,31 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("version", help="cycle version to archive (e.g. 9.0.0)")
     parser.add_argument("--dry-run", action="store_true", help="show planned copies without writing")
+    parser.add_argument(
+        "--extra-prefix",
+        action="append",
+        default=[],
+        metavar="PREFIX",
+        help=(
+            "Additional research-file prefix to also archive "
+            "(may be repeated). Example: --extra-prefix v9.1. "
+            "captures PATCH-level research into the MINOR-cycle archive. "
+            "Added v9.2.0 PV-06 for the cycle-rollup MINOR archive."
+        ),
+    )
     args = parser.parse_args()
 
     if not SEMVER_RE.match(args.version):
         print(f"Error: '{args.version}' is not a valid semver (expected X.Y.Z)")
         sys.exit(1)
 
-    sys.exit(archive(args.version, dry_run=args.dry_run))
+    sys.exit(
+        archive(
+            args.version,
+            dry_run=args.dry_run,
+            extra_prefixes=tuple(args.extra_prefix),
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -2257,3 +2257,252 @@ def test_v9_1_5_agents_md_slice_default_on(project_root: Path) -> None:
         f"(unmatched task types fall through to byte-identical AGENTS.md per "
         f"R5 strict); got {slice_cfg.get('fallback')!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.0 PV-06 — repo-init seed examples + e2e capability test ghost-audit
+# ---------------------------------------------------------------------------
+
+# v9.2.0 PV-06 (the cycle-rollup MINOR headline) introduces TWO operator-visible
+# deliverables that the W-18 precondition pins BEFORE the [9.2.0] CHANGELOG
+# entry mentioning them:
+#
+# 1. EXTEND src/devolaflow/init_project.py::install_local with the new
+#    `with_examples: bool = False` kwarg + the `_seed_example_artifacts(cwd)`
+#    helper that materialises 3 worked-trace fixtures under
+#    `.local/.agent/active/example-add-dark-mode/` + `.local/.agent/handoff/
+#    L0__L2__example-add-dark-mode__0001.yaml` + `.local/memory/specs/
+#    example-domain/spec.md` so new repos demonstrate the change-driven
+#    pattern out-of-the-box. Closes G-006 deferred from v9.1.0 retro §3.
+# 2. NEW tests/test_capability_e2e.py — 10 end-to-end capability tests that
+#    cross every PV's deliverable through a tmp-path repo fixture. Closes
+#    G-015 deferred from v9.1.0 retro §3.
+_V9_2_0_NEW_FILES: tuple[str, ...] = ("tests/test_capability_e2e.py",)
+
+# Minimum byte size for a v9.2.0 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_0_FILE_MIN_BYTES: int = 1000
+
+# The e2e test file ships with EXACTLY 10 test functions per the cycle
+# plan §PV-06 W-17 budget pin (the headline lint of the v9.2.0 cycle).
+# A regression below this count means a test was deleted; a regression
+# above means a test was added without bumping the W-17 ledger.
+_V9_2_0_CAPABILITY_E2E_MIN_TESTS: int = 10
+
+
+def test_v9_2_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.0: every NEW v9.2.0 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.2.0 PV-06 (the sixth and
+    headline PV of the cycle, the cycle rollup) introduces:
+
+    1. ``install_local(*, with_examples: bool = False)`` kwarg in
+       :mod:`devolaflow.init_project` plus the
+       ``_seed_example_artifacts(cwd: Path) -> None`` helper. Closes
+       G-006 deferred from the v9.1.0 retrospective §3.
+    2. ``tests/test_capability_e2e.py`` (10 tests) — the cycle's
+       headline lint that crosses every PV's deliverable through a
+       tmp-path repo fixture. Closes G-015 deferred from the v9.1.0
+       retrospective §3.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_2_0_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_2_0_FILE_MIN_BYTES`` (1000 bytes
+       — the e2e test file is the largest single new file in the
+       cycle so the floor is intentionally above the 50-byte v9.1.5
+       stub-guard).
+    2. **Import-smoke (install_local)** — :func:`install_local` is
+       importable from :mod:`devolaflow.init_project` AND its
+       :func:`inspect.signature` reports ``with_examples`` as a
+       keyword-only parameter with default ``False`` (the A-4 / W-20
+       contract — additive opt-in, default OFF for compatibility).
+    3. **Import-smoke (_seed_example_artifacts)** — the helper is
+       importable from the same module and is callable.
+    4. **Import-smoke (test_capability_e2e)** — the e2e test module
+       importable AND its ``__all__`` lists ≥ 10 test functions
+       (matches ``_V9_2_0_CAPABILITY_E2E_MIN_TESTS``); each name in
+       ``__all__`` is a callable test function in the module.
+    5. **W-20 reuse-first** — no new env-flag introduced (the
+       v9.2.0 cycle plan §"Self-iteration constraint compliance
+       matrix" pin "0 new flags across the entire 7-PV cycle" is
+       upheld). The 5 env flags touched (DEVOLAFLOW_AGENT_WORKSPACE
+       for PV-01/02/03; DEVOLAFLOW_MEMORY_ROUTER for PV-04;
+       DEVOLAFLOW_AGENTS_MD_SLICE for PV-05) ALL existed before
+       this cycle started.
+
+    Failure modes:
+      * "missing on disk" → a v9.2.0 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_0_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 1000 byte minimum" → the file regressed to a stub;
+        re-author the contents.
+      * "with_examples kwarg signature mismatch" → ``install_local``
+        lost its ``with_examples`` keyword-only parameter or the
+        default flipped from ``False``; restore the original
+        signature OR document the operator-visible change with an
+        ADR.
+      * "_seed_example_artifacts not callable" → the seed helper
+        regressed; restore it.
+      * "< 10 test functions in test_capability_e2e __all__" → the
+        cycle's headline lint regressed below the W-17 budget pin;
+        restore the deleted test(s).
+    """
+    import inspect
+
+    for relpath in _V9_2_0_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.0 violation: NEW v9.2.0 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_0_FILE_MIN_BYTES, (
+            f"W-18 v9.2.0 violation: NEW v9.2.0 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_0_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke: install_local exists with the new with_examples
+    # keyword-only parameter (default False).
+    from devolaflow.init_project import _seed_example_artifacts, install_local
+
+    sig = inspect.signature(install_local)
+    assert "with_examples" in sig.parameters, (
+        "W-18 v9.2.0 violation: install_local() lost its with_examples "
+        "keyword-only parameter — the v9.2.0 PV-06 example-seed surface "
+        "regressed; restore the kwarg per cycle plan §PV-06"
+    )
+    with_examples_param = sig.parameters["with_examples"]
+    assert with_examples_param.kind == inspect.Parameter.KEYWORD_ONLY, (
+        f"W-18 v9.2.0 violation: install_local(with_examples=...) must be "
+        f"keyword-only (after the * marker); got kind={with_examples_param.kind!r}"
+    )
+    assert with_examples_param.default is False, (
+        f"W-18 v9.2.0 violation: install_local(with_examples=...) default must "
+        f"be False (additive opt-in for backward compatibility per W-20); got "
+        f"default={with_examples_param.default!r}"
+    )
+
+    assert callable(_seed_example_artifacts), (
+        "W-18 v9.2.0 violation: devolaflow.init_project._seed_example_artifacts "
+        "is not callable — the seed helper regressed"
+    )
+
+    # Import-smoke: tests/test_capability_e2e.py module + __all__ lists
+    # at least the W-17 budget pin of test functions.
+    import tests.test_capability_e2e as e2e_module
+
+    assert hasattr(e2e_module, "__all__"), (
+        "W-18 v9.2.0 violation: tests/test_capability_e2e.py must declare "
+        "__all__ with the cycle's headline test names (per cycle plan §PV-06 "
+        "W-17 budget pin)"
+    )
+    e2e_tests = e2e_module.__all__
+    assert len(e2e_tests) >= _V9_2_0_CAPABILITY_E2E_MIN_TESTS, (
+        f"W-18 v9.2.0 violation: tests/test_capability_e2e.py.__all__ has "
+        f"{len(e2e_tests)} entries; the cycle's W-17 budget pin requires at "
+        f"least {_V9_2_0_CAPABILITY_E2E_MIN_TESTS} (per cycle plan §PV-06)"
+    )
+    for name in e2e_tests:
+        assert callable(getattr(e2e_module, name, None)), (
+            f"W-18 v9.2.0 violation: tests/test_capability_e2e.py.__all__ "
+            f"entry {name!r} is not a callable test function in the module"
+        )
+
+    # W-20 reuse-first proof: PV-06 specifically does NOT introduce a
+    # new DEVOLAFLOW_* env-flag. The seed helper writes static template
+    # content + reads no env-vars — the entire flow is filesystem-only.
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    init_source = init_module_path.read_text(encoding="utf-8")
+    assert "DEVOLAFLOW_" not in init_source, (
+        "W-20 v9.2.0 violation: src/devolaflow/init_project.py introduced a "
+        "new DEVOLAFLOW_* env-flag during PV-06 — the cycle plan §"
+        '"Self-iteration constraint compliance matrix" pins "0 new flags '
+        'across the entire 7-PV cycle". Either remove the new flag or '
+        "document the W-20 §3 orthogonality argument in the PR body."
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.0 PV-06 — supplementary lint for the W-19 cycle archive + the
+# scripts/archive_research_artifacts.py --extra-prefix extension.
+# ---------------------------------------------------------------------------
+#
+# The primary v9.2.0 ghost-audit ``test_v9_2_0_new_symbols_have_coverage``
+# above pins the install_local(with_examples) kwarg + the
+# tests/test_capability_e2e.py module ``__all__`` ≥ 10 + the W-20 reuse
+# proof. This supplementary lint pins the OTHER PV-06 cycle-rollup
+# surfaces — the W-19 archive directory presence and the
+# scripts/archive_research_artifacts.py ``--extra-prefix`` flag the
+# rollup invocation depends on. Splitting the audit into two test
+# functions keeps each one focused on a single deliverable per the
+# v8.0.0 retro §3.4 lesson "tests should be small + named after their
+# specific contract".
+
+
+def test_v9_2_0_cycle_archive_and_extra_prefix(project_root: Path) -> None:
+    """W-18 v9.2.0: W-19 cycle archive directory + --extra-prefix flag wired.
+
+    Pins the two cycle-rollup deliverables NOT covered by the primary
+    ``test_v9_2_0_new_symbols_have_coverage`` lint:
+
+    1. ``docs/cycle-archive/v9.2.0/`` directory exists with the W-19
+       auto-generated ``README.md`` index AND the cycle's
+       ``v9.2.0_retrospective.md`` copy. Both files are ≥ 200 bytes
+       (catches an empty-stub regression that would silently pass a
+       mere existence check).
+    2. ``scripts/archive_research_artifacts.py`` exposes the
+       ``--extra-prefix`` argparse flag AND the corresponding
+       ``extra_prefixes`` kwarg on the ``archive(cycle_version, ...)``
+       callable. Without this extension the cycle-rollup invocation
+       ``archive_research_artifacts.py 9.2.0 --extra-prefix v9.1.``
+       cannot capture both PATCH-cycle and MINOR-cycle research
+       artefacts in a single run.
+
+    Failure modes:
+      * "v9.2.0 archive missing" → W-19 archive run was skipped or
+        rolled back; re-run ``python scripts/archive_research_artifacts.py
+        9.2.0 --extra-prefix v9.1.`` and commit the directory.
+      * "no extra-prefix argument" → the v9.2.0 PV-06 archive-script
+        extension was rolled back; restore it.
+    """
+    archive_dir = project_root / "docs" / "cycle-archive" / "v9.2.0"
+    assert archive_dir.is_dir(), (
+        f"W-18 v9.2.0 violation: W-19 cycle archive at "
+        f"{archive_dir.relative_to(project_root)} missing — the cycle-rollup "
+        f"CHANGELOG entry MUST be backed by a populated archive directory"
+    )
+
+    for relpath in (
+        "docs/cycle-archive/v9.2.0/README.md",
+        "docs/cycle-archive/v9.2.0/v9.2.0_retrospective.md",
+    ):
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.0 violation: required archive artefact {relpath!r} missing"
+        )
+        size = full.stat().st_size
+        assert size >= 200, (
+            f"W-18 v9.2.0 violation: archive artefact {relpath!r} is {size} "
+            f"bytes (< 200 byte minimum); empty/stub files do not satisfy "
+            f"the W-19 archive contract"
+        )
+
+    archive_script = project_root / "scripts" / "archive_research_artifacts.py"
+    archive_text = archive_script.read_text(encoding="utf-8")
+    assert "--extra-prefix" in archive_text, (
+        "W-18 v9.2.0 violation: scripts/archive_research_artifacts.py must "
+        "expose the --extra-prefix argparse flag (added v9.2.0 PV-06 to let "
+        "the MINOR-cycle archive capture both v9.1.* and v9.2.* prefixes "
+        "into docs/cycle-archive/v9.2.0/)"
+    )
+    assert "extra_prefixes" in archive_text, (
+        "W-18 v9.2.0 violation: scripts/archive_research_artifacts.py::archive "
+        "must accept an `extra_prefixes` kwarg (the runtime contract behind "
+        "the --extra-prefix CLI flag)"
+    )
