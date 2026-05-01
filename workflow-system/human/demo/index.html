@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.1.2 (PATCH — PV-02 of v9.2.0 cycle: change-driven activation heuristic + /devola:* slash commands + Architecture rule A-6) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v912">What's New</span> in v9.1.2 — PATCH, PV-02 of the v9.2.0 cycle: change-driven activation heuristic + <code>/devola:*</code> slash commands + Architecture rule A-6 "Workspace Engagement Auto-Activation"</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v912.desc">v9.1.2 is the second PV of the v9.2.0 MINOR cycle (PATCH; PV-01 v9.1.1 shipped the discovery half; PV-02 ships the activation half). Steers L0 to engage the <code>change-driven</code> workflow for Standard+ complexity tasks when <code>DEVOLAFLOW_AGENT_WORKSPACE=1</code> is set (W-20 reuse — same env-flag surface as v9.1.1 PV-01 workspace scan and as the v9.1.3 PV-03 <code>pre_handoff</code> hook will use; no new flag introduced). NEW <code>src/devolaflow/skills/</code> package with two modules: <code>change_activation.py</code> ships the pure-function classifier (<code>classify_complexity</code> → TRIVIAL / SIMPLE / STANDARD / COMPLEX) + verdict (<code>activation_verdict</code> → MUST_OPEN_CHANGE / SHOULD_OPEN_CHANGE / NO_CHANGE); <code>slash_commands.py</code> ships <code>/devola:propose &lt;topic&gt;</code> / <code>/devola:apply &lt;id&gt;</code> / <code>/devola:verify &lt;id&gt;</code> / <code>/devola:archive &lt;id&gt;</code> as thin CLI wrappers around the existing <code>agent_workspace.ChangeStore</code> + <code>ArchiveManager</code> APIs (closes M-007 from the v9.0.0 retrospective §3.3 — operator-facing slash command surface was telegraphed). NEW Architecture rule <strong>A-6 "Workspace Engagement Auto-Activation"</strong> in <code>.rules/architecture.mdc</code>; <code>AGENTS.md</code> + <code>.cursor/rules/repo-governance.mdc</code> recompiled. Rule count grows 58 → 59 (Soul 10 + Architecture 6 + Conventions 9 + Workflow 21 + Style 13) — within the 60 cap. SKILL.md gains an A-6 activation hint on the existing <code>change-driven</code> row in <code>## Quick Start — Workflow Selection</code> (line count unchanged at 458 — preserves byte layout for EvoBench compression scenarios + Windsurf 8000-char <code>.windsurfrules</code> budget). R5 strict additive: <code>schemas/lean-dispatch.yaml#layout_invariant</code> byte-identical at length 16 / version 5 (I-8 invariant intact); Soul-set frozen at 10 per W-21; <code>/devola:archive</code> gates on <code>state == VERIFYING</code> AND <code>gate_score &gt;= 8.5</code> per W-3 / SI-3 + Rule A-4. W-18 ghost-audit refresh (<code>tests/test_no_ghost_features.py::test_v9_1_2_new_symbols_have_coverage</code>) authored BEFORE this CHANGELOG entry per the W-18 precondition.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">ACTIVATION</span>
+          <h3>change-driven Auto-Activation Heuristic</h3>
+          <p>NEW <code>src/devolaflow/skills/change_activation.py</code>: pure-function classifier (<code>classify_complexity</code>) + verdict (<code>activation_verdict</code>) + single env-var read site (<code>from_env</code>). Verdict matrix per A-6: COMPLEX + env=True → MUST_OPEN_CHANGE; STANDARD + env=True → SHOULD_OPEN_CHANGE; SIMPLE/TRIVIAL or env=False or opt_out=True → NO_CHANGE. R5 strict — only the literal <code>"1"</code> is truthy.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/skills/change_activation.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">CLI</span>
+          <h3>/devola:propose · /devola:apply · /devola:verify · /devola:archive</h3>
+          <p>NEW <code>src/devolaflow/skills/slash_commands.py</code>: 4 operator slash commands invokable via <code>python -m devolaflow.skills.slash_commands</code>. <code>propose</code> scaffolds <code>.local/.agent/active/&lt;slug&gt;/</code> with all 7 artifacts; <code>apply</code> flips state PROPOSED → IN_PROGRESS; <code>verify</code> runs pytest on owned tests + flips to VERIFYING on PASS; <code>archive</code> requires gate PASS (state == VERIFYING AND gate_score ≥ 8.5).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/skills/slash_commands.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">RULE</span>
+          <h3>A-6 Workspace Engagement Auto-Activation</h3>
+          <p>NEW Architecture rule A-6 in <code>.rules/architecture.mdc</code>: when <code>DEVOLAFLOW_AGENT_WORKSPACE=1</code> AND complexity ≥ STANDARD, L0 MUST scaffold <code>.local/.agent/active/&lt;id&gt;/</code> before dispatching the first L1 stage. Default-OFF; rule is normative for opted-in operators. <code>--no-change</code> opt-out is the sole escape hatch (A-6.3). Rule count 58 → 59 within 60 cap.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/.rules/architecture.mdc"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">METRICS</span>
+          <h3>59 Rules, 26 NEW Tests in PV-02, M-007 Closed</h3>
+          <p>W-9 / SI-10 6/6 PASS. +26 NEW test functions in PV-02 (13 heuristic + 12 slash CLI + 1 ghost-audit refresh; within +30 W-17 per-PV cap). Cumulative cycle delta: PV-01 +8 + PV-02 +26 = +34 of +150 cap. Rule count 58 → 59 (Architecture 5 → 6); Soul-set frozen at 10 per W-21. M-007 closure (operator-facing slash commands telegraphed in v9.0.0 retro §3.3).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.1.0 (MINOR — .local/ & .rules/ utilization: close the clean-context activation gap + codify Soul Rule S-9 enforcement on disk + ghost-free CHANGELOG surfaces; first PV of v9.1.0 cycle closing 12 of 18 catalogued gap items from feedback_for_v9.0.1.md) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v910">What's New</span> in v9.1.0 — MINOR, `.local/` &amp; `.rules/` utilization: close the clean-context activation gap + codify Soul Rule S-9 enforcement on disk + ghost-free CHANGELOG surfaces (first PV of v9.1.0 cycle; closes 12 of 18 catalogued gap items per `.local/research/v9.1.0_gap_analysis.md`)</h2>

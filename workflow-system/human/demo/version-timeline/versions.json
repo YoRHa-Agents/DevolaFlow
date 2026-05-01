@@ -782,5 +782,32 @@
       "references": "14",
       "rules_total": "58"
     }
+  },
+  {
+    "version": "9.1.2",
+    "date": "2026-05-01",
+    "era": "rule-rebalancing",
+    "headline": "PATCH — PV-02 of v9.2.0 cycle: change-driven activation heuristic + /devola:* slash commands + A-6 rule",
+    "summary": "Second PV of the v9.2.0 MINOR cycle. Steers L0 to engage the change-driven workflow for Standard+ complexity tasks when DEVOLAFLOW_AGENT_WORKSPACE=1 (W-20 reuse — same env-flag surface as v9.1.1 PV-01 workspace scan and the v9.1.3 PV-03 pre_handoff hook). Ships the new src/devolaflow/skills/ package with two modules: change_activation.py (pure-function classifier + verdict) and slash_commands.py (operator CLI wrappers around ChangeStore + ArchiveManager). Adds Architecture rule A-6 'Workspace Engagement Auto-Activation' to .rules/architecture.mdc; rule count grows 58 -> 59 (within 60 cap). SKILL.md gains a 'When to engage change-driven' sub-table under Quick Action Decision (458 -> 469 within C-4 Default <= 500). Closes M-007 from v9.0.0 retrospective §3.3 (operator-facing slash commands telegraphed). R5 strict additive: schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5; Soul-set frozen at 10 per W-21.",
+    "highlights": [
+      "NEW src/devolaflow/skills/ package: __init__.py + change_activation.py (heuristic) + slash_commands.py (CLI)",
+      "NEW change_activation.classify_complexity (TRIVIAL/SIMPLE/STANDARD/COMPLEX) + activation_verdict (MUST/SHOULD/NO) + from_env (R5 strict, only literal '1' is truthy)",
+      "NEW /devola:propose <topic>, /devola:apply <id>, /devola:verify <id>, /devola:archive <id> CLI commands invokable via `python -m devolaflow.skills.slash_commands`; archive gated on state == VERIFYING AND gate_score >= 8.5 per W-3 / SI-3 + A-4",
+      "NEW Architecture rule A-6 'Workspace Engagement Auto-Activation' in .rules/architecture.mdc; AGENTS.md + .cursor/rules/repo-governance.mdc recompiled; rule count 58 -> 59 (Soul 10 + Architecture 6 + Conventions 9 + Workflow 21 + Style 13)",
+      "EXTEND SKILL.md change-driven row in '## Quick Start — Workflow Selection' with A-6 activation hint (line count unchanged at 458 — preserves byte layout for EvoBench compression scenarios + Windsurf 8000-char budget)",
+      "NEW tests/test_change_activation_heuristic.py (13 tests) + NEW tests/test_slash_commands.py (12 tests) — heuristic verdict matrix + CLI happy paths + S-5 explicit error states",
+      "W-18 ghost-audit refresh — tests/test_no_ghost_features.py::test_v9_1_2_new_symbols_have_coverage authored BEFORE this CHANGELOG entry per W-18 precondition (presence + import-smoke + W-20 reuse assertion)",
+      "W-2 NineS gate (planning + close): planning at .local/research/v9.1.2_nines_planning.json; close at .local/research/v9.1.2_nines.json + Markdown summary",
+      "W-20 reuse-first: DEVOLAFLOW_AGENT_WORKSPACE flag REUSED (no new env flag); A-6.2 codifies the reuse rationale + the v9.1.3 PV-03 pre_handoff hook will REUSE the same surface",
+      "Layout invariant intact — schemas/lean-dispatch.yaml#layout_invariant byte-identical at length 16 / version 5 (I-8 invariant intact through v9.1.2)",
+      "Soul-set count 10 (frozen by W-21); Architecture 6 (was 5; +A-6); Conventions 9; Workflow 21; Style 13 — total 59 / 60 (+1 headroom)"
+    ],
+    "metrics": {
+      "tests": "3490",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59"
+    }
   }
 ]

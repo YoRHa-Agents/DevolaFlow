@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "9.1.1"
+version: "9.1.2"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v9.1.1**
+> **Now Using DevolaFlow v9.1.2**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 9.1.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 9.1.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ## Workspace Engagement (Read at Session Start)
@@ -128,7 +128,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
-| change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode) |
+| change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 | shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
 

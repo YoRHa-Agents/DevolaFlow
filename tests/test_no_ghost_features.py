@@ -1417,3 +1417,149 @@ def test_v9_1_1_new_symbols_have_coverage(project_root: Path) -> None:
             "The dataclass MUST be declared with frozen=True so consumers "
             "cannot mutate a snapshot in flight."
         )
+
+
+# ── v9.1.2 PV-02 — W-18 ghost-audit refresh for v9.1.2 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.2 PV-02
+# (cycle v9.2.0 second PV) introduces the surfaces below; this block
+# adds presence + import-smoke + signature coverage for all of them as
+# the W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/skills/__init__.py — new package marker.
+#   * src/devolaflow/skills/change_activation.py — pure-function
+#     classifier + activation verdict (the heuristic codified by
+#     Architecture rule A-6 "Workspace Engagement Auto-Activation"
+#     per `.rules/architecture.mdc`).
+#   * src/devolaflow/skills/slash_commands.py — `/devola:propose` /
+#     `/devola:apply` / `/devola:verify` / `/devola:archive` thin
+#     wrappers around `agent_workspace.ChangeStore` +
+#     `ArchiveManager` (closes M-007 from v9.0.0 retro §3.3).
+#   * tests/test_change_activation_heuristic.py — heuristic contract
+#     pin (5+ tests covering the 3 verdict cases + opt-out + R5
+#     strict env-flag parsing).
+#   * tests/test_slash_commands.py — CLI happy-path pin (6+ tests
+#     covering propose / apply / verify / archive + main entry).
+
+_V9_1_2_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/skills/__init__.py",
+    "src/devolaflow/skills/change_activation.py",
+    "src/devolaflow/skills/slash_commands.py",
+    "tests/test_change_activation_heuristic.py",
+    "tests/test_slash_commands.py",
+)
+
+# Minimum byte size for a v9.1.2 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_2_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_2_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.2: every NEW v9.1.2 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.2 PV-02 (the second PV of
+    the v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_2_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_2_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Heuristic import-smoke** — ``classify_complexity`` and
+       ``activation_verdict`` are importable from
+       :mod:`devolaflow.skills.change_activation`, both are callable,
+       and the ``ENV_FLAG_NAME`` constant equals
+       ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (W-20 reuse — same surface as
+       v9.1.1 PV-01 SKILL.md §"Workspace Engagement").
+    3. **Slash-command import-smoke** — ``main`` and ``slugify`` and
+       ``scaffold_change_folder`` are importable from
+       :mod:`devolaflow.skills.slash_commands`, ``main`` is callable
+       (the ``python -m devolaflow.skills.slash_commands`` entry
+       point), and ``REQUIRE_VERIFY_STATE == "VERIFYING"`` (the
+       canonical FSM state name per
+       ``schemas/agent-workspace/change-status.yaml#fsm_states``).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.2 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_2_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "ENV_FLAG_NAME mismatch" → a NEW env flag was authored,
+        violating W-20 reuse-first; either restore the REUSE or
+        document the orthogonality argument per W-20 §3.
+      * "REQUIRE_VERIFY_STATE mismatch" → the slash command drifted
+        from the canonical FSM state; restore the contract.
+    """
+    for relpath in _V9_1_2_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.2 violation: NEW v9.1.2 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_2_FILE_MIN_BYTES, (
+            f"W-18 v9.1.2 violation: NEW v9.1.2 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_2_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.skills.change_activation import (
+        ENV_FLAG_NAME,
+        ENV_FLAG_TRUTHY,
+        activation_verdict,
+        classify_complexity,
+        from_env,
+    )
+
+    assert callable(classify_complexity), (
+        "W-18 v9.1.2 violation: classify_complexity is not callable — the "
+        "heuristic export from devolaflow.skills.change_activation must be "
+        "the function itself"
+    )
+    assert callable(activation_verdict), "W-18 v9.1.2 violation: activation_verdict is not callable"
+    assert callable(from_env), "W-18 v9.1.2 violation: from_env is not callable"
+    assert ENV_FLAG_NAME == "DEVOLAFLOW_AGENT_WORKSPACE", (
+        f"W-18 v9.1.2 violation: ENV_FLAG_NAME is {ENV_FLAG_NAME!r} (expected "
+        f"'DEVOLAFLOW_AGENT_WORKSPACE') — W-20 reuse-first MUST hold; the "
+        f"v9.1.2 PV-02 activation surface MUST REUSE the v9.1.1 PV-01 flag, "
+        f"not author a new one"
+    )
+    assert ENV_FLAG_TRUTHY == "1", (
+        f"W-18 v9.1.2 violation: ENV_FLAG_TRUTHY is {ENV_FLAG_TRUTHY!r} "
+        f"(expected '1') — R5 strict opt-in REQUIRES the literal '1' string"
+    )
+
+    from devolaflow.skills.slash_commands import (
+        ARCHIVE_GATE_THRESHOLD,
+        REQUIRE_VERIFY_STATE,
+        main,
+        scaffold_change_folder,
+        slugify,
+    )
+
+    assert callable(main), (
+        "W-18 v9.1.2 violation: slash_commands.main is not callable — the "
+        "`python -m devolaflow.skills.slash_commands` entry point requires it"
+    )
+    assert callable(slugify), "W-18 v9.1.2 violation: slugify is not callable"
+    assert callable(scaffold_change_folder), (
+        "W-18 v9.1.2 violation: scaffold_change_folder is not callable"
+    )
+    assert REQUIRE_VERIFY_STATE == "VERIFYING", (
+        f"W-18 v9.1.2 violation: REQUIRE_VERIFY_STATE is "
+        f"{REQUIRE_VERIFY_STATE!r} (expected 'VERIFYING') — the canonical "
+        f"FSM state name per schemas/agent-workspace/change-status.yaml"
+    )
+    assert ARCHIVE_GATE_THRESHOLD == 8.5, (
+        f"W-18 v9.1.2 violation: ARCHIVE_GATE_THRESHOLD is "
+        f"{ARCHIVE_GATE_THRESHOLD!r} (expected 8.5) — the W-3 / SI-3 "
+        f"PATCH/MINOR composite floor per Rule A-4"
+    )

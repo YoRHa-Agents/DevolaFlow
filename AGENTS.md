@@ -267,6 +267,43 @@ Source: v9.0.0 SI-1 gap analysis §5.3 (PV-03 owned-files manifest);
 v9.0.0 reference review F-13 closure (3 of the 5 registries surface
 in `references/shell-proxy.md` §11).
 
+## A-6 — Workspace Engagement Auto-Activation
+
+When `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ STANDARD per the
+SKILL.md §"Quick Action Decision" table, L0 MUST scaffold
+`.local/.agent/active/<id>/` before dispatching the first L1 stage.
+Default-OFF; rule is normative for opted-in operators.
+
+### A-6.1 — Classification surface
+Complexity classification is the output of
+`devolaflow.skills.change_activation.classify_complexity(...)`; the
+activation verdict is `activation_verdict(complexity, env_flag,
+opt_out)`. The three-valued verdict (MUST_OPEN_CHANGE /
+SHOULD_OPEN_CHANGE / NO_CHANGE) is the sole public contract —
+operators rely on the string values.
+
+### A-6.2 — Opt-in gate
+`DEVOLAFLOW_AGENT_WORKSPACE=1` is REUSED per W-20 (same activation
+surface as v9.1.1 PV-01 SKILL.md §"Workspace Engagement (Read at
+Session Start)" and as the v9.1.3 PV-03 `pre_handoff` hook will use).
+NO new env flag. Absent or any value other than the literal string
+"1" = default-OFF (R5 strict).
+
+### A-6.3 — Opt-out escape hatch
+Users may pass `--no-change` to `/devola:propose` to suppress
+scaffolding even when the env flag is ON. No other opt-out channel
+exists (keeps the surface auditable).
+
+### A-6.4 — Enforcement
+Prompt-side: SKILL.md §"Quick Action Decision" sub-table cites this
+rule. CI-side: `tests/test_change_activation_heuristic.py` pins the
+three verdict cases + opt-out behaviour + byte-stable no-op when env
+flag absent.
+
+Source: v9.2.0 cycle plan §PV-02 (v9.1.2 PATCH). Closes M-007 from
+the v9.0.0 retrospective §3.3 (operator-facing slash command surface
+was telegraphed).
+
 # Conventions Rules (P2) — Coding & Format Standards
 
 ## C-1 — Pre-Commit Verification Checklist

@@ -493,6 +493,31 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # dataclass invariant).
         "devolaflow.workspace_context:scan_workspace",
         "devolaflow.workspace_context:WorkspaceContext",
+        # ---- v9.1.2 PV-02 (cycle v9.2.0) — change-driven activation skill ----
+        # `classify_complexity(files_count, loc_estimate, is_cross_cutting=False)
+        # -> Complexity` and `activation_verdict(complexity, env_agent_workspace,
+        # opt_out=False) -> ActivationVerdict` and `from_env(env=None) -> bool`
+        # are the public heuristic surface that Architecture rule A-6
+        # ("Workspace Engagement Auto-Activation" per `.rules/architecture.mdc`)
+        # cites. SKILL.md §"When to engage `change-driven` (Rule A-6)" instructs
+        # L0 to call them at dispatch decision time; the prompt-side consumer
+        # is the dispatcher itself, not an in-repo Python module. Slash commands
+        # (`devolaflow.skills.slash_commands`) DO consume the contract via the
+        # `--no-change` opt-out path documented by A-6.3, but do not call the
+        # heuristic functions directly (they are activation-side, the slash
+        # commands are lifecycle-side). NOT domain-SSOT registry symbols per
+        # A-5.2 — pure functions with zero side effects, mirrors the
+        # `workspace_context.scan_workspace` allowlist precedent above
+        # (public surface advertised in SKILL.md, in-repo Python caller lands
+        # in a subsequent PV per the v9.2.0 cycle plan §"Execution model").
+        # Verified by `tests/test_change_activation_heuristic.py` (13 tests
+        # covering classifier thresholds + verdict matrix + R5 strict env
+        # parsing) + `tests/test_no_ghost_features.py::
+        # test_v9_1_2_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse + R5 strict assertions).
+        "devolaflow.skills.change_activation:classify_complexity",
+        "devolaflow.skills.change_activation:activation_verdict",
+        "devolaflow.skills.change_activation:from_env",
     }
 )
 

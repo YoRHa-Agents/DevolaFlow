@@ -256,7 +256,9 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     assert soul_rules == [f"S-{i}" for i in range(1, 11)], f"Soul rule IDs drift: {soul_rules}"
 
     arch_rules = [rid for rid, _ in layers[1][2]]
-    assert arch_rules == [f"A-{i}" for i in range(1, 6)], (
+    # v9.1.2 PV-02 (Architecture rule A-6 "Workspace Engagement Auto-Activation"
+    # per `.rules/architecture.mdc` §A-6) bumped Architecture from 5 → 6 rules.
+    assert arch_rules == [f"A-{i}" for i in range(1, 7)], (
         f"Architecture rule IDs drift: {arch_rules}"
     )
 
