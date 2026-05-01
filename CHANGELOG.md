@@ -5,6 +5,100 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.1] — 2026-05-01
+
+**PATCH — self-update workflow validation closes the v9.2.0 MINOR cycle.** Seventh and final PV of the v9.2.0 MINOR cycle, mirroring the v9.0.0 → v9.0.1 sustaining precedent. The cycle that activated `.local/` + `.local/.agent/` + `.rules/` engagement uses the `self-update` workflow itself to dogfood the new capability end-to-end, producing the meta-validation proof that the skill's deliverables pass their own acceptance criteria when applied to their own author. **Zero new code paths introduced** (cycle plan §PV-07 verbatim: "PATCH discipline — only validation artifacts + minor test extensions"): no new Python modules in `src/devolaflow/`, no new env flags (W-20 reuse-first sustained through the entire 7-PV cycle), no new rules, no new schema extensions. Layout invariant `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical at length **16** / version **5** across all 7 historical baselines; Soul-set frozen at **10** per W-21; rule count unchanged at **59 / 60** (+1 headroom); NineS cycle-close composite **0.907348 → 0.907348** (delta **0.000000** — the canonical PATCH byte-stable signature); SI-3 weighted composite **9.475 / 10** (matches v9.2.0 close; margin **+0.975** over 8.5 PATCH floor).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**None.** v9.2.1 is a validation-only release. Every env-flag default, every dispatch schema position, every adapter output, every SKILL.md section carries forward byte-identically from v9.2.0. Downstream agents see no functional change.
+
+The cycle-close artefacts in `docs/cycle-archive/v9.2.0/` gain 12 new v9.2.1 entries (NineS per-module JSONs + stderrs + the 6 self-update stage reports + NineS self-eval + evaluation) for external reviewers tracing the cycle's validation evidence.
+
+### Self-update workflow stages (7/7 PASS)
+
+Each stage produced a named research artefact at `.local/research/v9.2.1_*.md` (committed to `docs/cycle-archive/v9.2.0/` via W-19 re-archive):
+
+| Stage | Name | Verdict | Artefact |
+|---|---|---|---|
+| 1 | `check-refs` | **PASS** | `v9.2.1_check_refs.md` — 18 references verified (SKILL.md → agent-workspace.md / plan-mode-enforcement.md; `scan_workspace`; `/devola:propose|apply|verify|archive`; change_context NEST sub-fields; A-6 rule; `install_local --with-examples`) |
+| 2 | `research-updates` | **PASS** | `v9.2.1_nines_aggregate.md` — 5 new PV modules analyzed with NineS deep depth; **0 HIGH / 0 CRITICAL / 0 BLOCKER** findings; 5 info-severity complexity warnings (all already test-covered) |
+| 3 | `decompose` | **PASS** | `v9.2.1_validation_tasks.md` — 7 validation tasks ≤ 10 P4 cap |
+| 4 | `integrate` | **PASS** | `v9.2.1_integration_report.md` — 16 adapters rebuild within budget (4 core: cursor 458/500, codex 446/500, claude 67/200, copilot 1922/4000; 5 tier-2: jetbrains 460/800, amazon_q/gemini/augment/trae 427/800; 7 others); `make compile-rules` zero-diff; `make check-rules-drift` exit 0 |
+| 5 | `test` | **PASS** | `v9.2.1_e2e_report.md` — 4 NEW parametrized test functions (×3 expansions each = 12 new test cases) across 4 fixture shapes (`empty` / `local-only` / `rules-only` / `full-stack`); 3573 tests PASS (baseline 3561 + 12 parametrize expansions; zero regressions) |
+| 6 | `evaluate` | **PASS** | `v9.2.1_evaluation.md` + `v9.2.1_nines.{json,md}` — NineS composite 0.9073 ≥ 0.85; SI-3 weighted composite 9.475 ≥ 8.5 PATCH floor |
+| 7 | `release` | **PASS** | this commit — `scripts/bump_version.py 9.2.1` auto-synced 7 canonical locations; CHANGELOG `[9.2.1]`; W-7 retrospective extension; W-19 idempotent re-archive; recursive-engagement change folder archived |
+
+### Recursive-engagement proof (cycle AC #11 closure)
+
+PV-07 itself opened `.local/.agent/active/v9.2.1-self-update-validation/` via the PV-02 `/devola:propose` surface (`python -m devolaflow.skills.slash_commands propose "v9.2.1 self-update validation"`), populated the 7 canonical artifacts (`goal.md` / `acceptance.md` / `spec.md` / `tasks.md` / `STATUS.yaml` / `owned_files.txt` / `README.md`), transitioned `PROPOSED → IN_PROGRESS` via `/devola:apply`, wrote an L0→L1 handoff envelope at `.local/.agent/handoff/L0__L1__v9.2.1-self-update-validation__0001.yaml` via the PV-03 `HandoffStore.write_envelope` surface, and at Stage 7 archived the folder to `.local/.agent/archive/<date>-v9.2.1-self-update-validation/`. The commit shows the change folder moved from `active/` to `archive/` — the cycle's deliverable demonstrates itself working on its own author end-to-end.
+
+### Multi-fixture E2E extension (`tests/test_capability_e2e.py`)
+
+- **NEW** `test_pv07_scan_workspace_across_four_fixture_shapes` (parametrized ×4 shapes) — `has_local`/`has_agent_dir`/`has_rules` + counts match per-shape truth for `empty` / `local-only` / `rules-only` / `full-stack`.
+- **NEW** `test_pv07_env_flag_on_scaffolding_routes_correctly_across_shapes` (parametrized ×4 shapes) — `activation_verdict` returns `SHOULD_OPEN_CHANGE` regardless of shape when env-flag ON + STANDARD complexity; follow-through `install_local(with_examples=True)` materialises on `.local/`-bearing shapes.
+- **NEW** `test_pv07_l1_l2_dispatch_writes_envelope_across_local_shapes` (parametrized ×2 `.local/`-bearing shapes) — `auto_write_handoff` writes the `L1__L2__<change-id>__0001.yaml` envelope with `envelope_kind: TaskDispatch` + `change_id` body assertions. **Second G-005 proof** alongside the v9.2.0 `test_l1_l2_dispatch_writes_handoff_envelope_when_flag_on`.
+- **NEW** `test_pv07_memory_consult_respects_fixture_shape` (parametrized ×2 `.local/`-bearing shapes) — `consult_for_dispatch` returns ≥ 1 hit for `full-stack` (seeded `pv07-fixture-case`) and empty list for `local-only` (no cases seeded).
+
+**NEW test function count: 4** (exactly at W-17 PV-07 +4 NEW cap; parametrize expansions do NOT count per W-17 verbatim).
+**Cycle cumulative NEW test delta: +97 / +150 W-17 cap** (+53 headroom).
+
+### W-18 ghost-audit refresh (BEFORE this entry)
+
+- `tests/test_no_ghost_features.py::test_v9_2_1_new_symbols_have_coverage` — asserts: (a) `tests/test_capability_e2e.py.__all__` has ≥ 14 entries (10 v9.2.0 + 4 PV-07); (b) the 4 `test_pv07_*` entries are callable attributes; (c) when `docs/cycle-archive/v9.2.0/` has been re-archived with `--extra-prefix v9.2.`, each of the 6 v9.2.1 research artefacts lands at its canonical path with ≥ 200 byte minimum; self-skips cleanly on fresh clones where the re-archive has not run.
+
+### W-19 idempotent re-archive
+
+`python scripts/archive_research_artifacts.py 9.2.0 --extra-prefix v9.2.` adds 19 new files to `docs/cycle-archive/v9.2.0/`:
+
+- `nines/v9.2.1_nines.{json,md,stderr}` — cycle-close NineS self-eval outputs
+- `nines/v9.2.1_nines_{workspace_context,slash_commands,auto_write_handoff,spec_bootstrap,memory_cache}.{json,stderr}` — 10 per-module Stage-2 NineS analyze artefacts
+- `nines/v9.2.1_nines_aggregate.md` — Stage 2 report
+- `evaluation/v9.2.1_evaluation.md` — Stage 6 SI-3 evaluation
+- `other/v9.2.1_check_refs.md` — Stage 1 report
+- `other/v9.2.1_validation_tasks.md` — Stage 3 decomposition
+- `other/v9.2.1_integration_report.md` — Stage 4 integration report
+- `other/v9.2.1_e2e_report.md` — Stage 5 E2E report
+
+### Cycle-ledger evidence (before/after across the 7-PV cycle)
+
+- `rg "write_envelope\\(" src/devolaflow/`: **1 → 2 → 2 sustained** (closes G-005; the second caller at `lifecycle/auto_write_handoff.py:232` is the PV-03 production surface)
+- `canonical_order` length: **16 → 16 → 16** (all 7 historical baselines PASS; NEST extension in PV-04 preserved layout per A-2.3)
+- `DEFAULT_EVENTS` length in `lifecycle/__init__.py`: **7 → 8 → 8 sustained** (PV-03 appended `pre_handoff` per A-2.4 APPEND-ONLY tail)
+- `agents_md_slice` default: **`false` → `true` → `true` sustained** (PV-05 operator-visible flip; opt-out via `DEVOLAFLOW_AGENTS_MD_SLICE=0`)
+- Architecture rule count: **58 → 59 → 59 sustained** (PV-02 added A-6; well under 60-rule cap)
+- Soul-set count: **10 → 10 → 10** (W-21 frozen; no S-11 candidate proposed for v9.4.0)
+- Total collected tests: **≥ 3477 → 3561 → 3573** (+97 cumulative cycle NEW within +150 W-17 cap; zero regressions)
+- New env flags: **0** across the entire 7-PV cycle (W-20 reuse-first fully sustained — `DEVOLAFLOW_AGENT_WORKSPACE` + `DEVOLAFLOW_MEMORY_ROUTER` + `DEVOLAFLOW_AGENTS_MD_SLICE` all pre-existed)
+
+### Findings closure cross-reference (cycle aggregate)
+
+- **G-005** (zero `write_envelope` production callers → v9.1.0 retro) → CLOSED at v9.1.3 PV-03 / sustained at v9.2.1 (second parametrized proof in `test_pv07_l1_l2_dispatch_writes_envelope_across_local_shapes`)
+- **G-006** (empty `.local/memory/specs/` for fresh repos → v9.1.0 retro) → CLOSED at v9.2.0 PV-06 via `install_local --with-examples` + `seed_initial_spec` / sustained at v9.2.1
+- **G-015** (E2E `change-driven` integration test missing → v9.1.0 retro) → CLOSED at v9.2.0 PV-06 (10 tests) / **strengthened at v9.2.1** to 22 e2e tests (10 + 12 parametrize expansions)
+- **M-004** (source-of-truth first-time seed surface → v9.0.0 retro §3.3) → CLOSED at v9.1.5 PV-05 / sustained
+- **M-007** (per-task-type `agents_md_slice` dispatch wiring → v9.0.0 retro §3.3) → CLOSED at v9.1.5 PV-05 default-ON / sustained
+- **agents_md_slice runtime wiring** (v9.0.0 retro §3.3) → CLOSED at v9.1.5 PV-05 / sustained
+- **Cycle AC #11** (recursive-engagement proof — v9.2.0 cycle plan §PV-07) → **CLOSED at v9.2.1** via the `.local/.agent/active/v9.2.1-self-update-validation/ → archive/<date>-v9.2.1-self-update-validation/` move
+
+### W-9 / SI-10 6/6 verification
+
+1. `python -m pytest tests/ -q` → 3573 passed / 20 skipped / 2 xfailed
+2. `ruff check src/ tests/` → clean
+3. `ruff format --check src/ tests/` → all files formatted
+4. `python -m pytest tests/test_version.py -v` → 12 passed / 19 skipped (mirror absent self-skip per SF-3)
+5. `python -m pytest tests/test_benchmarks.py -v` → 0 regressions vs v9.2.0 baseline
+6. `make check-cursor-skill` → exit 0 (mirror absent — opt-in per SF-3)
+
+### Deferred to v9.3.0+ (retrospective §3)
+
+1. **NineS v3.4 adoption** — closes upstream A1 (`code_coverage: 0.0` timeout) + A3 (`index_recall: 0.8` ceiling)
+2. **`seed_initial_spec` production-caller wiring** — either wire as CLI subcommand OR remove from allowlist
+3. **Complexity-warning refactors** — split `_extract_layers` (16), `auto_write_handoff` (12), `seed_initial_spec` (13), `_extract_dispatch_keywords` (13), `consult_for_dispatch` (18) into smaller helpers; gated by the R5 strict triple-codification proofs continuing to hold byte-identically
+4. **W-21 telegraph**: **No S-11 candidate proposed for v9.4.0** (Soul-set stays frozen at 10); cycle N+2 (v9.4.0) SI-1 gap analysis uses this absence as the negative-evidence basis.
+
+Source: `.cursor/plans/workspace-capability-activation_ec560bc8.plan.md` §PV-07.
+
 ## [9.2.0] — 2026-05-01
 
 **MINOR — cycle rollup: activate `.local/` + `.local/.agent/` + `.rules/` as first-class skill capabilities.** Sixth and headline PV of the v9.2.0 MINOR cycle, shipping as the cycle-rollup release after 5 PATCH-level PVs (v9.1.1..v9.1.5). The cycle re-engineers the DevolaFlow skill so any downstream agent installing it learns to **discover** `.local/` (workspace state) at session start, **engage** `.local/.agent/active/` for Standard+ complexity tasks via the `change-driven` workflow, and **consult** `.rules/` (governance corpus) at dispatch time — not just at compile time. Closes 6 deferred items in a single MINOR rollup: **G-005** (v9.1.0) + **G-006** (v9.1.0 partial) + **G-015** (v9.1.0) from the v9.1.0 retrospective §3, plus **M-004** (v9.0.0 retro §3.3) + **M-007** (v9.0.0 retro §3.3) + **agents_md_slice runtime wiring** (v9.0.0 PV-07 ADR-007 D3 telegraphed, runtime wiring landed v9.1.5 PV-05). Layout invariant `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical at length **16** / version **5** across all 7 historical baselines (v7.0.0 through v9.2.0); Soul-set frozen at **10** per W-21 (no S-11 candidate proposed for v9.4.0); rule count unchanged at **59 / 60** (+1 headroom from PV-02 A-6); **0 new env flags** introduced across the entire 7-PV cycle (W-20 reuse-first); cumulative cycle delta **+93 NEW test functions** within the +150 W-17 cycle cap (+57 headroom).

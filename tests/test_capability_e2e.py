@@ -579,6 +579,316 @@ def test_agents_md_slice_default_on_visible_to_dispatch(
     )
 
 
+# ---------------------------------------------------------------------------
+# v9.2.1 PV-07 — Multi-fixture E2E validation (the cycle-close meta-validation)
+# ---------------------------------------------------------------------------
+#
+# PV-07 extends the 10 v9.2.0 headline tests above with 4 NEW parametrized
+# tests that cross the 4 canonical consumer-repo fixture shapes defined in
+# the v9.2.0 cycle plan §PV-07 Stage 5. Each of the 4 NEW tests counts as
+# ONE test function against the W-17 PV-07 budget (`+4 NEW`); parametrize
+# expansions over the 4 fixture shapes do NOT count per W-17 verbatim.
+#
+# Fixture shapes (cycle plan §PV-07 Stage 5 verbatim):
+#   1. ``empty``      — no ``.local/``, no ``.rules/``
+#   2. ``local-only`` — ``.local/`` present, no ``.rules/``
+#   3. ``rules-only`` — ``.rules/`` present, no ``.local/``
+#   4. ``full-stack`` — both present + active changes + memory cases
+#
+# The cycle plan §PV-07 acceptance criterion #2 reads: "4-fixture E2E test
+# PASSES across all 4 fixture shapes". The 4 NEW tests below discharge that
+# criterion end-to-end.
+#
+# Source: v9.2.0 cycle plan §PV-07 Stage 5 — codified per the meta-validation
+# contract (closes cycle AC #11 recursive-engagement proof).
+
+
+_PV07_MEMORY_CASE_ID: str = "pv07-fixture-case"
+
+
+def _build_fixture_repo(tmp_path: Path, shape: str) -> Path:
+    """Materialise one of the 4 PV-07 fixture-repo shapes under ``tmp_path``.
+
+    Args:
+      tmp_path: The pytest-managed temp directory (each call gets its own).
+      shape: One of ``"empty"``, ``"local-only"``, ``"rules-only"``, ``"full-stack"``.
+
+    Returns:
+      The resolved ``tmp_path`` with the requested shape's directories
+      and seed fixtures in place. The factory is pure — no env vars set,
+      no external writes outside ``tmp_path``.
+
+    Shape recipes:
+      * ``empty`` — bare ``tmp_path`` with no DevolaFlow surfaces.
+      * ``local-only`` — ``.local/`` scaffolded via :func:`scaffold_local`
+        (creates ``feedbacks/``, ``memory/``, ``.agent/active``, etc.).
+      * ``rules-only`` — only a ``.rules/soul.mdc`` file is written.
+      * ``full-stack`` — ``.local/`` scaffolded + one active change folder
+        under ``.local/.agent/active/pv07-fixture-change/`` + one memory
+        case in ``.local/memory/cases/index.yaml`` + ``.rules/`` with three
+        layer files to pin ``rules_layer_set`` assertions.
+    """
+    if shape == "empty":
+        pass
+    elif shape == "local-only":
+        scaffold_local(tmp_path)
+    elif shape == "rules-only":
+        rules_dir = tmp_path / ".rules"
+        rules_dir.mkdir(parents=True, exist_ok=True)
+        (rules_dir / "soul.mdc").write_text(
+            "# Soul (P0) — minimal fixture stub\n",
+            encoding="utf-8",
+        )
+    elif shape == "full-stack":
+        scaffold_local(tmp_path)
+        active = tmp_path / ".local" / ".agent" / "active" / "pv07-fixture-change"
+        active.mkdir(parents=True, exist_ok=True)
+        (active / "STATUS.yaml").write_text(
+            "schema_version: 1\nchange_id: pv07-fixture-change\n"
+            "state: IN_PROGRESS\npercent_complete: 50\n"
+            'created_at: "2026-05-01T00:00:00Z"\n'
+            'last_updated: "2026-05-01T00:00:00Z"\n'
+            "last_handoff_seq: 0\n",
+            encoding="utf-8",
+        )
+        feedback = tmp_path / ".local" / "feedbacks" / "feedback_for_v9.2.0.md"
+        feedback.write_text("# pv07 fixture feedback\n", encoding="utf-8")
+        spec_dir = tmp_path / ".local" / "memory" / "specs" / "pv07-fixture-domain"
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        (spec_dir / "spec.md").write_text(
+            "---\ndomain: pv07-fixture-domain\nschema_version: 1\n"
+            "last_merged_change: null\nlast_merged_at: null\n---\n"
+            "# Spec: pv07-fixture-domain — Source-of-Truth\n",
+            encoding="utf-8",
+        )
+        cases_dir = tmp_path / ".local" / "memory" / "cases"
+        cases_dir.mkdir(parents=True, exist_ok=True)
+        case_row = {
+            "case_id": _PV07_MEMORY_CASE_ID,
+            "workflow_type": "feature-implementation",
+            "task_type": "implement",
+            "summary": "pv07 fixture case for memory-router consultation",
+            "recipe_path": f".local/memory/cases/{_PV07_MEMORY_CASE_ID}.md",
+            "version_stamp": _devolaflow_pkg.__version__,
+            "ttl_days": 30,
+            "last_accessed": _today_iso(),
+            "tags": ["memory", "router", "consultation"],
+        }
+        (cases_dir / "index.yaml").write_text(
+            yaml.safe_dump({"last_updated": _today_iso(), "cases": [case_row]}, sort_keys=False),
+            encoding="utf-8",
+        )
+        rules_dir = tmp_path / ".rules"
+        rules_dir.mkdir(parents=True, exist_ok=True)
+        for layer in ("soul", "architecture", "workflow"):
+            (rules_dir / f"{layer}.mdc").write_text(
+                f"# {layer.title()} (fixture stub)\n", encoding="utf-8"
+            )
+    else:
+        raise ValueError(f"unknown fixture shape {shape!r}")
+    return tmp_path
+
+
+_PV07_SCAN_EXPECTATIONS: dict[str, dict[str, object]] = {
+    "empty": {
+        "has_local": False,
+        "has_agent_dir": False,
+        "has_rules": False,
+        "active_changes_count": 0,
+        "feedbacks_count": 0,
+        "specs_count": 0,
+    },
+    "local-only": {
+        "has_local": True,
+        "has_agent_dir": True,
+        "has_rules": False,
+        "active_changes_count": 0,
+        "feedbacks_count": 0,
+        "specs_count": 0,
+    },
+    "rules-only": {
+        "has_local": False,
+        "has_agent_dir": False,
+        "has_rules": True,
+        "active_changes_count": 0,
+        "feedbacks_count": 0,
+        "specs_count": 0,
+    },
+    "full-stack": {
+        "has_local": True,
+        "has_agent_dir": True,
+        "has_rules": True,
+        "active_changes_count": 1,
+        "feedbacks_count": 1,
+        "specs_count": 1,
+    },
+}
+
+
+@pytest.mark.parametrize("shape", ["empty", "local-only", "rules-only", "full-stack"])
+def test_pv07_scan_workspace_across_four_fixture_shapes(tmp_path: Path, shape: str) -> None:
+    """PV-07 AC #2 — ``scan_workspace`` returns correct presence/counts across 4 shapes.
+
+    The v9.2.1 meta-validation pins that ``scan_workspace`` discriminates
+    correctly between the 4 canonical consumer-repo fixture shapes. The
+    assertion table (``_PV07_SCAN_EXPECTATIONS``) encodes the
+    per-shape-truth that downstream dispatch-context composition relies on.
+    """
+    repo = _build_fixture_repo(tmp_path, shape)
+    expectations = _PV07_SCAN_EXPECTATIONS[shape]
+
+    ctx = scan_workspace(repo)
+
+    assert ctx.has_local is expectations["has_local"], (
+        f"shape={shape!r}: has_local expected {expectations['has_local']!r}; got {ctx.has_local!r}"
+    )
+    assert ctx.has_agent_dir is expectations["has_agent_dir"], (
+        f"shape={shape!r}: has_agent_dir expected "
+        f"{expectations['has_agent_dir']!r}; got {ctx.has_agent_dir!r}"
+    )
+    assert ctx.has_rules is expectations["has_rules"], (
+        f"shape={shape!r}: has_rules expected {expectations['has_rules']!r}; got {ctx.has_rules!r}"
+    )
+    assert len(ctx.active_changes) == expectations["active_changes_count"], (
+        f"shape={shape!r}: active_changes_count expected "
+        f"{expectations['active_changes_count']!r}; got {len(ctx.active_changes)} "
+        f"({ctx.active_changes!r})"
+    )
+    assert len(ctx.recent_feedbacks) == expectations["feedbacks_count"], (
+        f"shape={shape!r}: feedbacks_count expected "
+        f"{expectations['feedbacks_count']!r}; got {len(ctx.recent_feedbacks)}"
+    )
+    assert len(ctx.source_of_truth_specs) == expectations["specs_count"], (
+        f"shape={shape!r}: specs_count expected "
+        f"{expectations['specs_count']!r}; got {len(ctx.source_of_truth_specs)}"
+    )
+    if shape == "full-stack":
+        assert "pv07-fixture-change" in ctx.active_changes
+        assert len(ctx.rules_layer_set) == 3
+    elif shape == "rules-only":
+        assert len(ctx.rules_layer_set) == 1
+
+
+@pytest.mark.parametrize("shape", ["empty", "local-only", "rules-only", "full-stack"])
+def test_pv07_env_flag_on_scaffolding_routes_correctly_across_shapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """PV-07 AC #2 — env-flag + Standard+ complexity routes consistently across shapes.
+
+    Regardless of fixture shape, ``activation_verdict`` with
+    ``env_agent_workspace=True`` and a STANDARD complexity MUST yield
+    ``SHOULD_OPEN_CHANGE`` — the heuristic is pure-function and does not
+    consult the fixture's ``.local/``/``.rules/`` state. On shapes with
+    ``.local/`` present, the follow-through (actual scaffold) materialises
+    under ``.local/.agent/active/``; on shapes without, no scaffold lands.
+    """
+    monkeypatch.setenv("DEVOLAFLOW_AGENT_WORKSPACE", "1")
+    monkeypatch.delenv("DEVOLAFLOW_AGENTS_MD_SLICE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    repo = _build_fixture_repo(tmp_path, shape)
+
+    complexity = classify_complexity(files_count=5, loc_estimate=120)
+    verdict = activation_verdict(complexity, env_agent_workspace=from_env())
+    assert verdict == "SHOULD_OPEN_CHANGE", (
+        f"shape={shape!r}: STANDARD + env=ON must route to SHOULD_OPEN_CHANGE; got {verdict!r}"
+    )
+
+    if shape in ("local-only", "full-stack"):
+        install_local(_agent_dir(), repo, compile_rules=False, with_examples=True)
+        active = repo / ".local" / ".agent" / "active" / _EXAMPLE_CHANGE_ID
+        assert active.is_dir(), f"shape={shape!r}: with_examples=True MUST scaffold {active}"
+        assert (active / "STATUS.yaml").is_file()
+    elif shape == "rules-only":
+        install_local(_agent_dir(), repo, compile_rules=False, with_examples=False)
+        assert (repo / ".local").is_dir(), (
+            f"shape={shape!r}: install_local must still scaffold .local/ even when "
+            f".rules/ pre-existed"
+        )
+    else:
+        install_local(_agent_dir(), repo, compile_rules=False, with_examples=False)
+        assert (repo / ".local").is_dir(), (
+            f"shape={shape!r}: install_local must scaffold .local/ from empty"
+        )
+
+
+@pytest.mark.parametrize("shape", ["local-only", "full-stack"])
+def test_pv07_l1_l2_dispatch_writes_envelope_across_local_shapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """PV-07 AC #2 — L1→L2 dispatch writes a handoff envelope across `.local/` shapes.
+
+    Restricts to shapes that carry ``.local/`` (``local-only`` +
+    ``full-stack``) because ``auto_write_handoff`` writes under
+    ``.local/.agent/handoff/`` and needs the scaffold. This is the G-005
+    closure evidence that survives across fixture shapes, not just the
+    empty-tmp fixture.
+    """
+    from devolaflow.lifecycle.auto_write_handoff import (
+        ENV_FLAG,
+        ENV_FLAG_TRUTHY,
+        auto_write_handoff,
+    )
+
+    monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+    monkeypatch.chdir(tmp_path)
+    repo = _build_fixture_repo(tmp_path, shape)
+
+    change_id = f"pv07-{shape}-envelope"
+    payload = _make_payload(change_id, from_layer="L1", to_layer="L2")
+
+    result = auto_write_handoff(payload)
+    assert result.passed is True, (
+        f"shape={shape!r}: hook must pass; violations={result.violations!r}"
+    )
+
+    expected = repo / ".local" / ".agent" / "handoff" / f"L1__L2__{change_id}__0001.yaml"
+    assert expected.is_file(), (
+        f"shape={shape!r}: PV-07 AC#2 violation — L1→L2 dispatch MUST write {expected}"
+    )
+    body = expected.read_text(encoding="utf-8")
+    assert f"change_id: {change_id}" in body
+    assert "envelope_kind: TaskDispatch" in body
+
+
+@pytest.mark.parametrize("shape", ["local-only", "full-stack"])
+def test_pv07_memory_consult_respects_fixture_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """PV-07 AC #2 — ``consult_for_dispatch`` returns fixture-shape-appropriate hits.
+
+    On ``local-only`` (no seeded cases), consult returns an empty list —
+    the absence is not a defect, it is the correct behaviour when
+    ``.local/memory/cases/index.yaml`` has not been populated. On
+    ``full-stack`` (seeded with one case by ``_build_fixture_repo``),
+    consult returns ≥ 1 hit whose ``case_id`` matches the fixture seed.
+    """
+    monkeypatch.setenv("DEVOLAFLOW_MEMORY_ROUTER", "1")
+    monkeypatch.delenv("DEVOLAFLOW_AGENT_WORKSPACE", raising=False)
+    repo = _build_fixture_repo(tmp_path, shape)
+
+    payload = _make_payload(f"pv07-{shape}-memory")
+    # Tune the task description so the keyword-scored consult matches the
+    # fixture case's summary "pv07 fixture case for memory-router consultation".
+    payload["task"]["description"] = (
+        "memory router consultation for dispatch context (pv07 fixture)"
+    )
+
+    hits = consult_for_dispatch(payload, repo)
+
+    if shape == "full-stack":
+        assert len(hits) >= 1, (
+            f"shape={shape!r}: seeded fixture case MUST surface at least one hit; got {hits!r}"
+        )
+        assert any(h.case_id == _PV07_MEMORY_CASE_ID for h in hits), (
+            f"shape={shape!r}: seeded case_id {_PV07_MEMORY_CASE_ID!r} MUST appear in "
+            f"hits; got {[h.case_id for h in hits]!r}"
+        )
+    else:
+        assert hits == [], (
+            f"shape={shape!r}: no memory cases seeded — consult MUST return empty; got {hits!r}"
+        )
+
+
 __all__ = [
     "test_agents_md_slice_default_on_visible_to_dispatch",
     "test_archive_triggers_source_of_truth_merge_proposal",
@@ -590,4 +900,10 @@ __all__ = [
     "test_memory_consult_emits_hit_when_prior_case_present",
     "test_standard_task_auto_opens_change_folder_when_env_flag_on",
     "test_standard_task_does_not_open_folder_without_env_flag",
+    # v9.2.1 PV-07 multi-fixture E2E (≤ 4 NEW tests per W-17 PV-07 budget;
+    # parametrize expansions over 4 fixture shapes do NOT count per W-17).
+    "test_pv07_env_flag_on_scaffolding_routes_correctly_across_shapes",
+    "test_pv07_l1_l2_dispatch_writes_envelope_across_local_shapes",
+    "test_pv07_memory_consult_respects_fixture_shape",
+    "test_pv07_scan_workspace_across_four_fixture_shapes",
 ]

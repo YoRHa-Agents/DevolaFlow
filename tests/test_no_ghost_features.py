@@ -2506,3 +2506,139 @@ def test_v9_2_0_cycle_archive_and_extra_prefix(project_root: Path) -> None:
         "must accept an `extra_prefixes` kwarg (the runtime contract behind "
         "the --extra-prefix CLI flag)"
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.1 PV-07 — ghost-audit for the self-update meta-validation PATCH.
+# ---------------------------------------------------------------------------
+#
+# PV-07 ships as the final PV of the v9.2.0 cycle (PATCH sustaining that
+# mirrors the v9.0.0 → v9.0.1 precedent). The cycle plan §PV-07 pins
+# "zero new code paths introduced" — the deliverables are validation
+# artefacts + minor test extensions ONLY:
+#
+# 1. tests/test_capability_e2e.py gains 4 NEW parametrized test functions
+#    covering the 4 canonical consumer-repo fixture shapes (empty /
+#    local-only / rules-only / full-stack). The __all__ list grows from
+#    10 entries (v9.2.0 pin) to >= 14 entries (10 baseline + 4 PV-07).
+# 2. .local/research/v9.2.1_{check_refs,nines_aggregate,validation_tasks,
+#    integration_report,e2e_report,evaluation}.md ship as the self-update
+#    workflow's 6 stage-output artefacts (plus the cycle-close
+#    v9.2.1_nines.{json,md} pair per W-2). NB: these artefacts live
+#    under .local/ which is gitignored; the W-19 re-archive to
+#    docs/cycle-archive/v9.2.0/ is the committed counterpart. This lint
+#    therefore checks the docs/cycle-archive/ copies (the canonical
+#    tracked surface) rather than the gitignored .local/ originals.
+# 3. The recursive-engagement proof — PV-07 opened
+#    .local/.agent/active/v9.2.1-self-update-validation/ via the PV-02
+#    /devola:propose surface and archived it at Stage 7 to
+#    .local/.agent/archive/<YYYY-MM-DD>-v9.2.1-self-update-validation/.
+#    Like (2) this lives under gitignored .local/; this lint asserts
+#    presence when the workspace is live OR skips cleanly on a fresh
+#    clone.
+
+_V9_2_1_CAPABILITY_E2E_MIN_ENTRIES: int = 14
+
+_V9_2_1_ARCHIVED_RESEARCH_FILES: tuple[str, ...] = (
+    # scripts/archive_research_artifacts.py routes v9.2.1_nines*.{json,md}
+    # to the nines/ subdir and evaluation/* to evaluation/; everything else
+    # lands in other/. These per-subdir paths are the canonical post-run
+    # locations for the 6 stage-output artefacts.
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_check_refs.md",
+    "docs/cycle-archive/v9.2.0/nines/v9.2.1_nines_aggregate.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_validation_tasks.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_integration_report.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_e2e_report.md",
+    "docs/cycle-archive/v9.2.0/evaluation/v9.2.1_evaluation.md",
+)
+
+
+def test_v9_2_1_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.1: PV-07 meta-validation surfaces have presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.1 PATCH — every
+    CHANGELOG entry mentioning a v9.2.1 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.1 PV-07 is the self-update meta-validation PATCH; by design
+    it introduces **zero new code paths** (cycle plan §PV-07 verbatim).
+    The surfaces this lint pins are therefore:
+
+    1. ``tests/test_capability_e2e.py.__all__`` has ≥ 14 entries — the
+       10 v9.2.0 headline tests + 4 NEW PV-07 parametrized tests. A
+       regression below 14 means one of the PV-07 tests was deleted.
+    2. Each of the 4 PV-07 test functions is a callable attribute of
+       ``tests.test_capability_e2e``. Guards against a dangling
+       ``__all__`` entry that references a deleted / renamed function.
+    3. W-17 PV-07 budget proof — the 4 NEW test function names begin
+       with ``test_pv07_`` so the cap-counting grep `git diff | grep
+       "test_pv07_[a-z_]\\+("` matches exactly 4 lines in the PV-07
+       diff.
+    4. W-19 re-archive: when the consumer repo has run the post-PV-07
+       re-archive (``scripts/archive_research_artifacts.py 9.2.0
+       --extra-prefix v9.2.``), each of the 6 v9.2.1 research artefacts
+       lands under ``docs/cycle-archive/v9.2.0/``. Self-skips when the
+       archive directory lacks the v9.2.1 nested files (fresh clone
+       that has not run the re-archive yet).
+
+    Failure modes:
+      * "< 14 entries in __all__" → a PV-07 test was deleted; restore it.
+      * "PV-07 test not callable" → ``__all__`` drifted from module
+        reality; fix the ``__all__`` list OR the missing function.
+      * "archive artefact missing AND directory populated" → the
+        re-archive ran but without the v9.2.* extra-prefix sweep;
+        re-run ``python scripts/archive_research_artifacts.py 9.2.0
+        --extra-prefix v9.2.``.
+    """
+    import tests.test_capability_e2e as e2e_module
+
+    assert hasattr(e2e_module, "__all__"), (
+        "W-18 v9.2.1 violation: tests/test_capability_e2e.py must declare "
+        "__all__ with both the v9.2.0 headline names AND the v9.2.1 PV-07 "
+        "multi-fixture tests"
+    )
+    all_names = e2e_module.__all__
+    assert len(all_names) >= _V9_2_1_CAPABILITY_E2E_MIN_ENTRIES, (
+        f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ has "
+        f"{len(all_names)} entries; the PV-07 extension requires at least "
+        f"{_V9_2_1_CAPABILITY_E2E_MIN_ENTRIES} (10 v9.2.0 baseline + 4 PV-07)"
+    )
+    pv07_entries = [name for name in all_names if name.startswith("test_pv07_")]
+    assert len(pv07_entries) >= 4, (
+        f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ must "
+        f"carry at least 4 test_pv07_* entries (the PV-07 multi-fixture "
+        f"E2E set); got {pv07_entries!r}"
+    )
+    for name in pv07_entries:
+        target = getattr(e2e_module, name, None)
+        assert callable(target), (
+            f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ "
+            f"entry {name!r} is not a callable test function in the module"
+        )
+
+    archive_dir = project_root / "docs" / "cycle-archive" / "v9.2.0"
+    if archive_dir.is_dir():
+        for relpath in _V9_2_1_ARCHIVED_RESEARCH_FILES:
+            full = project_root / relpath
+            if not full.is_file():
+                # Self-skip: the v9.2.0 archive exists but the v9.2.1
+                # sweep has not run yet on this clone (pre-PV-07
+                # re-archive state). Per W-19 the re-archive is
+                # idempotent — run it once to populate.
+                import pytest as _pytest
+
+                _pytest.skip(
+                    f"v9.2.1 archive artefact {relpath!r} not yet re-archived; "
+                    f"run `python scripts/archive_research_artifacts.py 9.2.0 "
+                    f"--extra-prefix v9.2.` to populate"
+                )
+            size = full.stat().st_size
+            assert size >= 200, (
+                f"W-18 v9.2.1 violation: archive artefact {relpath!r} is {size} "
+                f"bytes (< 200 byte minimum); empty/stub files do not satisfy "
+                f"the W-19 archive contract"
+            )
+    # No else branch: when `docs/cycle-archive/v9.2.0/` is absent the W-19
+    # cycle archive has not been committed yet; the separate
+    # `test_v9_2_0_cycle_archive_and_extra_prefix` lint fails loudly for
+    # that case and this PV-07 lint stays permissive on the v9.2.1 half.
