@@ -605,6 +605,30 @@ TOOLS = {
 }
 
 
+# v9.2.2 PV-01 — I-001 critical fix.
+#
+# The set of `devola-init` targets that consume the on-disk
+# `workflow-system/agent/` source tree (specifically `agent_dir / "SKILL.md"`
+# and the `references/` + `examples/` siblings). The pip wheel does NOT
+# bundle `workflow-system/` (excluded from `MANIFEST.in` / wheel
+# `data_files`), so a wheel-only install lacks these paths — every target
+# in this set MUST raise an informative error in that scenario instead of
+# aborting the whole CLI before any per-target dispatch can run.
+#
+# `local` is intentionally absent: `install_local` uses
+# `devolaflow.local.workspace.scaffold_local` + `importlib.resources` for
+# the `compile_config_template.yaml` — it has ZERO dependency on
+# `agent_dir`, so a wheel-only `devola-init local` MUST succeed (this is
+# the I-001 closure). See `.local/feedbacks/feedback_for_v9.2.1.md` §1
+# for the user-side reproduction and `.local/research/v9.2.2_gap_analysis.md`
+# §1 for the cycle-side decomposition.
+#
+# Membership is pinned by `tests/test_no_ghost_features.py::
+# test_v9_2_2_new_symbols_have_coverage` so future PVs cannot silently
+# add a target to the set without bumping the W-18 ghost-audit lint.
+AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset({"cursor", "claude", "copilot", "codex"})
+
+
 def _auto_detect(cwd: Path) -> list[str]:
     """Detect which AI coding tools are present in the project directory.
 
@@ -648,12 +672,6 @@ def main() -> None:
 
     print(f"\n  DevolaFlow Quick Setup (v{__version__})\n")
 
-    if not (agent_dir / "SKILL.md").exists():
-        print(f"  Error: Agent source not found at {agent_dir}")
-        print("  Run from the DevolaFlow repo root, or install with:")
-        print("    pip install devolaflow")
-        sys.exit(1)
-
     targets = args if args else _auto_detect(cwd)
 
     # `with_examples` resolves BEFORE the `all` keyword expansion so the
@@ -671,6 +689,34 @@ def main() -> None:
 
     for t in targets:
         if t in TOOLS:
+            # v9.2.2 PV-01 — I-001 critical fix: deferred SKILL.md
+            # existence check. Per-target dispatch only requires the
+            # `workflow-system/agent/` tree for the targets in
+            # `AGENT_DIR_REQUIRED_TARGETS`; `local` is exempt because
+            # `install_local` is fully pip-wheel-portable (uses
+            # `scaffold_local` + `importlib.resources`). Pre-v9.2.2
+            # `main()` aborted unconditionally before this loop on any
+            # missing SKILL.md, so every operator with a wheel-only
+            # install hit a misleading error that recommended the same
+            # `pip install` they had already run. The deferred check
+            # exits 1 only for genuinely-required targets and never
+            # recommends `pip install devolaflow` (the recommendation
+            # that landed users in I-001 in the first place).
+            if t in AGENT_DIR_REQUIRED_TARGETS and not (agent_dir / "SKILL.md").exists():
+                print(f"  Error: target {t!r} needs the workflow-system/agent/ source tree.")
+                print(f"    Searched: {agent_dir}")
+                print("    The pip wheel does not bundle workflow-system/.")
+                print(
+                    "    Either install from a clone "
+                    "(`git clone https://github.com/YoRHa-Agents/DevolaFlow "
+                    "&& pip install -e ./DevolaFlow`)"
+                )
+                print("    or run `devola-init local` (which does not require workflow-system/).")
+                print(
+                    "    See: https://github.com/YoRHa-Agents/DevolaFlow "
+                    "(track I-001 — v9.2.2 surgical fix)."
+                )
+                sys.exit(1)
             # `--no-compile` and `--with-examples` are local-only — other
             # installers don't accept the kwargs. Build the extras dict
             # conditionally so the cursor / claude / codex / copilot

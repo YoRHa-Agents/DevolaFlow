@@ -3,7 +3,15 @@
 import sys
 from pathlib import Path
 
-from devolaflow.init_project import _auto_detect, _find_agent_dir, _parse_scope
+import pytest
+
+from devolaflow import init_project
+from devolaflow.init_project import (
+    AGENT_DIR_REQUIRED_TARGETS,
+    _auto_detect,
+    _find_agent_dir,
+    _parse_scope,
+)
 
 
 def test_find_agent_dir():
@@ -412,3 +420,73 @@ def test_main_list_flag(tmp_path: Path, monkeypatch, capsys):
     assert "Detected tools:" in out
     assert "local" in out
     assert "Available targets:" in out
+
+
+# ── v9.2.2 PV-01 — I-001 deferred-check regression assertions ───────
+
+
+def test_main_local_target_succeeds_without_skill_md(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    """v9.2.2 I-001 closure: `devola-init local` MUST succeed when SKILL.md is absent.
+
+    Pre-v9.2.2 ``main()`` aborted unconditionally on a missing
+    ``agent_dir / "SKILL.md"`` BEFORE dispatching to any per-target
+    installer. This assertion pins the deferred-check fix: when the
+    user requests only the ``local`` target — which uses
+    ``scaffold_local`` + ``importlib.resources`` and has zero
+    dependency on ``agent_dir`` — the call must complete successfully
+    even though SKILL.md is genuinely absent.
+
+    This is a regression sentinel for the I-001 critical fix; the
+    parallel parametrized + explicit-message assertions live in
+    ``tests/test_init_project_pip_wheel.py``.
+    """
+    fake_agent_dir = tmp_path / "_no_skill_md_here"
+    fake_agent_dir.mkdir()
+    assert not (fake_agent_dir / "SKILL.md").exists()
+
+    monkeypatch.setattr(init_project, "_find_agent_dir", lambda: fake_agent_dir)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "_home"))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    monkeypatch.setattr(sys, "argv", ["devola-init", "local", "--no-compile"])
+
+    from devolaflow.init_project import main
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "Now Using DevolaFlow" in out, (
+        "I-001 regression: `local` target must run to completion when "
+        "SKILL.md is absent (deferred-check fix)"
+    )
+    assert (tmp_path / ".local").is_dir(), (
+        "I-001 regression: scaffold_local must run for the `local` target "
+        "even without workflow-system/"
+    )
+
+
+def test_agent_dir_required_targets_membership_pinned():
+    """v9.2.2 I-001 surface pin: AGENT_DIR_REQUIRED_TARGETS = exact 4 targets.
+
+    The deferred-check gate is keyed off this constant; adding (or
+    removing) a target here changes which dispatch paths require the
+    on-disk ``workflow-system/agent/`` tree. Membership MUST stay at
+    exactly the 4 historical agent-dir consumers (cursor / claude /
+    copilot / codex). ``local`` is intentionally absent (the I-001
+    closure invariant).
+
+    A regression here would silently widen or narrow the deferred-check
+    surface — caught here BEFORE the W-18 ghost-audit lint runs.
+    """
+    assert frozenset({"cursor", "claude", "copilot", "codex"}) == AGENT_DIR_REQUIRED_TARGETS, (
+        f"v9.2.2 I-001 surface drift: AGENT_DIR_REQUIRED_TARGETS = "
+        f"{AGENT_DIR_REQUIRED_TARGETS!r}; expected exactly "
+        f"frozenset({{'cursor', 'claude', 'copilot', 'codex'}})"
+    )
+    assert "local" not in AGENT_DIR_REQUIRED_TARGETS, (
+        "v9.2.2 I-001 invariant violation: `local` MUST NOT appear in "
+        "AGENT_DIR_REQUIRED_TARGETS — install_local uses scaffold_local + "
+        "importlib.resources and has zero dependency on agent_dir"
+    )

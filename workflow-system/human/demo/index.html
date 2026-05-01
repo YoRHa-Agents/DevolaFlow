@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.2.2 (PATCH — PV-01 of v9.2.2 cycle: I-001 critical CLI fix — devola-init local works on pip-wheel-only installs) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v922">What's New</span> in v9.2.2 — PATCH, PV-01 of the v9.2.2 cycle: I-001 critical fix — <code>devola-init local</code> works on pip-wheel-only installs (<code>workflow-system/</code> no longer required)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v922.desc">v9.2.2 is the first PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the 4 issues catalogued in <code>.local/feedbacks/feedback_for_v9.2.1.md</code>. Closes <strong>I-001 (critical)</strong>: <code>devola-init</code> aborted on pip-wheel installs because <code>main()</code> called <code>_find_agent_dir()</code> and unconditionally hard-failed when SKILL.md was missing — but the <code>local</code> installer uses <code>scaffold_local</code> + <code>importlib.resources</code> and does NOT need <code>workflow-system/</code>. The wheel does not bundle <code>workflow-system/</code> (excluded from MANIFEST.in / package-data), so every operator following the documented <code>pip install --upgrade git+...</code> flow got a CLI that couldn't run AND a misleading error that recommended the same <code>pip install</code> they had just executed. Surgical fix: defer the <code>agent_dir</code> / SKILL.md existence check to INSIDE the per-target dispatch loop, gated on a new module-level constant <code>AGENT_DIR_REQUIRED_TARGETS = frozenset({'cursor', 'claude', 'copilot', 'codex'})</code>. The <code>local</code> target now succeeds on pip-only installs; <code>cursor</code> / <code>claude</code> / <code>codex</code> / <code>copilot</code> now emit an explicit error mentioning the wheel limitation + pointing operators at the <code>local</code> fallback (no longer recommends the same <code>pip install</code> they already ran). Also closes <strong>I-004 (minor)</strong>: SKILL.md §"Version & Update" gains a one-line note about the wheel/CLI mismatch + the <code>local</code> fallback. Cycle invariants intact: Soul-set frozen at <strong>10</strong> (W-21); rule count unchanged at <strong>59 / 60</strong> (+1 headroom); <code>DEFAULT_EVENTS</code> length 8; <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code> length 16 / version 5 byte-identical (untouched in PV-01); <strong>0 new env flags</strong> (W-20 reuse-first sustained — the I-001 fix is a behaviour CORRECTION, not an opt-in surface); NineS overall composite <strong>0.9073</strong> ≥ 0.85 (margin +0.0573); SI-3 weighted composite <strong>9.475/10</strong> (matches v9.2.0 / v9.2.1 close; margin +0.975 over 8.5 PATCH floor); <code>byte_stability</code> axis (<code>structure_recognition</code>) <strong>1.00</strong>. W-9 SI-10 6/6 PASS. W-18 ghost-audit refresh discharged BEFORE this CHANGELOG entry per the W-18 precondition (<code>test_v9_2_2_new_symbols_have_coverage</code> + <code>test_v9_2_2_local_target_no_workflow_system_dependency</code>).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">CRITICAL CLI FIX</span>
+          <h3>devola-init local works on pip-wheel-only installs (I-001)</h3>
+          <p>NEW <code>AGENT_DIR_REQUIRED_TARGETS = frozenset({'cursor', 'claude', 'copilot', 'codex'})</code> in <code>src/devolaflow/init_project.py</code>; the SKILL.md existence check is deferred to INSIDE the per-target dispatch loop. <code>local</code> is intentionally absent (it's agent-dir-independent — uses <code>scaffold_local</code> + <code>importlib.resources</code>). Pre-v9.2.2: <code>devola-init local --no-compile</code> on a pip-wheel install → exit 1 with misleading "<code>pip install devolaflow</code>" recommendation. Post-v9.2.2 → exit 0 with all 8 canonical scaffold paths created.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/init_project.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">DOC NOTE</span>
+          <h3>SKILL.md install hint warns about wheel/CLI mismatch (I-004)</h3>
+          <p>One-line note in <code>workflow-system/agent/SKILL.md</code> §"Version & Update": <code>pip install</code> ships the package but the <code>devola-init</code> CLI's <code>cursor</code> / <code>claude</code> / <code>codex</code> / <code>copilot</code> targets need the <code>workflow-system/agent/</code> source tree (not bundled in the wheel). For most install scenarios <code>devola-init local</code> works on a wheel-only install. SKILL.md size 458 → 460 lines (within C-4 Default ≤ 500 ceiling).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">REGRESSION-PROOF TESTS</span>
+          <h3>tests/test_init_project_pip_wheel.py (6 functions, 9 cases)</h3>
+          <p>NEW test file simulating the pip-wheel install scenario via <code>_find_agent_dir</code> monkeypatch. Pins: (1) <code>local --no-compile</code> succeeds on wheel install, (2) cursor/claude/codex/copilot each exits 1 with informative message (parametrized × 4), (3) <code>--list</code> always succeeds (regression preserved), (4) multi-target dispatch ordering — <code>local</code> dispatched before <code>cursor</code> deferred check fires, (5) full 8-path canonical scaffold smoke, (6) regression lint asserting error message does NOT contain <code>pip install devolaflow</code>.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/tests/test_init_project_pip_wheel.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">METRICS</span>
+          <h3>NineS 0.9073 byte-stable · +10 NEW tests · 6/6 PASS</h3>
+          <p>NineS overall composite <strong>0.907348 → 0.907348</strong> (delta 0.000000 — canonical PATCH byte-stable signature); <code>structure_recognition</code> (byte_stability axis) <strong>1.00</strong>. SI-3 weighted composite <strong>9.475/10</strong> (margin +0.975 over 8.5 PATCH floor). +10 NEW test functions (within +30 W-17 PV cap; +20 headroom). W-18 ghost-audit refreshed BEFORE CHANGELOG entry: <code>test_v9_2_2_new_symbols_have_coverage</code> + <code>test_v9_2_2_local_target_no_workflow_system_dependency</code> (AST walk asserting <code>install_local</code> body has no <code>agent_dir</code> reference — the I-001 closure invariant).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.2.0 (MINOR cycle rollup — activate .local/ + .local/.agent/ + .rules/ as first-class skill capabilities) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v920">What's New</span> in v9.2.0 — MINOR cycle headline: activate <code>.local/</code> + <code>.local/.agent/</code> + <code>.rules/</code> as first-class skill capabilities (rolls up PV-01..PV-06; closes G-005 / G-006 / G-015 + M-004 / M-007 / agents_md_slice runtime wiring)</h2>

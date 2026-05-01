@@ -5,6 +5,148 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.2] — 2026-05-02
+
+**PATCH — I-001 critical CLI fix: `devola-init local` now works on pip-wheel-only installs (workflow-system/ no longer required).** First PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the 4 issues catalogued in `.local/feedbacks/feedback_for_v9.2.1.md`. v9.2.2 closes I-001 (critical) — `devola-init` aborted on pip-wheel installs because `main()` called `_find_agent_dir()` and unconditionally hard-failed when `agent_dir / "SKILL.md"` was missing, but the `local` installer uses `scaffold_local` + `importlib.resources` and has zero dependency on `agent_dir`. The wheel does not bundle `workflow-system/` (excluded from `MANIFEST.in` / wheel `data_files`), so every operator following the documented `pip install --upgrade git+...` flow got a CLI that couldn't run AND a misleading error that recommended the same `pip install` they had just executed. v9.2.2 also closes I-004 (minor) with a one-line note in `workflow-system/agent/SKILL.md` §"Version & Update". Cycle invariants intact: Soul-set frozen at **10** (W-21); rule count unchanged at **59 / 60** (+1 headroom); `DEFAULT_EVENTS` length **8**; `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length **16** / version **5** byte-identical (untouched in PV-01); 0 new env flags (W-20 reuse-first sustained — the I-001 fix is a behaviour CORRECTION, not an opt-in surface); NineS overall composite **0.907348 → 0.907348** (delta **0.000000** — canonical PATCH byte-stable signature); SI-3 weighted composite **9.475 / 10** (matches v9.2.0 / v9.2.1 close; margin **+0.975** over 8.5 PATCH floor); `byte_stability` axis (`structure_recognition`) **1.00** (margin +0.05 over PV-01 AC ≥ 0.95 floor).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**One change**: the `devola-init` CLI now succeeds on pip-wheel-only installs for the `local` target. Pre-v9.2.2 every invocation hard-failed on the SKILL.md gate before any per-target dispatch. Post-v9.2.2:
+
+| Target | Pre-v9.2.2 (pip-wheel install) | Post-v9.2.2 (pip-wheel install) |
+|---|---|---|
+| `local` | exit 1 with misleading "pip install devolaflow" recommendation | **exit 0**, all 8 canonical scaffold paths created |
+| `cursor` / `claude` / `codex` / `copilot` | exit 1 with misleading "pip install devolaflow" recommendation | **exit 1** with informative error — names the failing target, cites the wheel limitation, points at the `local` fallback + the `git clone + pip install -e .` install path, references the I-001 issue ID for tracking |
+| `--list` | succeeds (regression preserved) | succeeds (regression preserved) |
+| Any target on a clone install (with `workflow-system/` present) | byte-identical behaviour to v9.2.1 | byte-identical behaviour to v9.2.1 (regression-tested) |
+
+The new informative error message NEVER recommends `pip install devolaflow` — that's the install path that landed operators in I-001 in the first place. The `tests/test_init_project_pip_wheel.py::test_error_message_does_not_recommend_pip_install` lint pins this invariant.
+
+### I-001 evidence of closure
+
+Reproduction (verbatim from `.local/feedbacks/feedback_for_v9.2.1.md` §1):
+
+```text
+$ pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git    # wheel install
+$ devola-init local --no-compile
+
+  DevolaFlow Quick Setup (v9.2.1)
+
+  Error: Agent source not found at /root/miniforge/lib/python3.12/workflow-system/agent
+  Run from the DevolaFlow repo root, or install with:
+    pip install devolaflow      <-- misleading; user already did exactly this
+$ echo $?
+1
+```
+
+Post-v9.2.2 behaviour (verified by `tests/test_init_project_pip_wheel.py::test_local_target_succeeds_without_workflow_system` + `test_local_with_no_compile_pip_wheel_install_full_smoke`):
+
+```text
+$ pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git    # wheel install
+$ devola-init local --no-compile
+
+  DevolaFlow Quick Setup (v9.2.2)
+
+  Local workspace -> /tmp/x/.local/
+  ... 8 canonical paths scaffolded (.local/feedbacks/, .local/tasks/,
+      .local/memory/specs/, .local/.agent/active/, .local/.agent/handoff/,
+      .local/.agent/archive/, .local/index.md, .rules/compile-config.yaml) ...
+  SKIP compile (--no-compile flag set)
+
+  Now Using DevolaFlow v9.2.2
+$ echo $?
+0
+```
+
+The agent-dir-required targets continue to fail loudly but informatively:
+
+```text
+$ devola-init cursor
+
+  DevolaFlow Quick Setup (v9.2.2)
+
+  Error: target 'cursor' needs the workflow-system/agent/ source tree.
+    Searched: /root/miniforge/lib/python3.12/workflow-system/agent
+    The pip wheel does not bundle workflow-system/.
+    Either install from a clone (`git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`)
+    or run `devola-init local` (which does not require workflow-system/).
+    See: https://github.com/YoRHa-Agents/DevolaFlow (track I-001 — v9.2.2 surgical fix).
+$ echo $?
+1
+```
+
+### Highlights
+
+* **EDIT `src/devolaflow/init_project.py`** — surgical I-001 fix:
+    * Added new module-level constant `AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset({"cursor", "claude", "copilot", "codex"})` adjacent to the `TOOLS` registry. Documents which dispatch paths consume the on-disk `workflow-system/agent/` tree; `local` is intentionally absent (the I-001 closure invariant).
+    * Removed the unconditional SKILL.md abort at `main()` line 651–655 (pre-v9.2.2 behaviour).
+    * Added a deferred check INSIDE the per-target dispatch loop that only triggers when `t in AGENT_DIR_REQUIRED_TARGETS and not (agent_dir / "SKILL.md").exists()`. The error message names the failing target, cites the wheel limitation explicitly, points at the `local` fallback that works on wheel-only installs, gives the `git clone + pip install -e .` install path for operators who genuinely need cursor/claude/codex/copilot, and references the I-001 issue ID for follow-up tracking.
+* **EDIT `workflow-system/agent/SKILL.md` §"Version & Update"** — I-004 closure: one-line note about the wheel/CLI mismatch + the `local` fallback + the `git clone + pip install -e .` install path. SKILL.md size: 458 → 460 lines (within C-4 Default ≤ 500 ceiling with **+40** headroom).
+* **NEW `tests/test_init_project_pip_wheel.py`** — 6 NEW test functions (one parametrized × 4 → 9 collected cases) simulating the pip-wheel install scenario via `_find_agent_dir` monkeypatch:
+    * `test_local_target_succeeds_without_workflow_system` — the headline I-001 closure assertion (exit 0; all 8 scaffold paths)
+    * `test_required_target_fails_clearly_without_workflow_system[claude|codex|copilot|cursor]` — parametrized across the full `AGENT_DIR_REQUIRED_TARGETS` set (4 cases) asserting exit 1 + informative-message contract
+    * `test_list_succeeds_without_workflow_system` — `--list` regression preserved
+    * `test_local_then_cursor_dispatches_local_before_cursor_fails` — multi-target dispatch ordering: local scaffolds before the cursor deferred check fires
+    * `test_local_with_no_compile_pip_wheel_install_full_smoke` — full 8-path canonical scaffold smoke + `--no-compile` escape-hatch regression
+    * `test_error_message_does_not_recommend_pip_install` — regression lint asserting the v9.2.2 error message does NOT contain `pip install devolaflow` or `pip install --upgrade git+`
+* **EXTEND `tests/test_init_project.py`** — 2 NEW regression sentinels:
+    * `test_main_local_target_succeeds_without_skill_md` — deferred-check path proof
+    * `test_agent_dir_required_targets_membership_pinned` — 4-element frozenset surface pin
+* **W-18 ghost-audit refresh** in `tests/test_no_ghost_features.py` (authored BEFORE this CHANGELOG entry per W-18 precondition):
+    * `test_v9_2_2_new_symbols_have_coverage` — presence (≥ 50 bytes) + AST parse asserting `tests/test_init_project_pip_wheel.py` declares ≥ 6 `def test_*` functions + import-smoke for `AGENT_DIR_REQUIRED_TARGETS` + frozenset membership pin + `local` exclusion invariant + `frozenset` type pin
+    * `test_v9_2_2_local_target_no_workflow_system_dependency` — AST walk over `install_local` body asserts NO `Name` node references `agent_dir` (the I-001 closure invariant — install_local must stay agent-dir-independent)
+* **W-1 SI-1 planning artefact** at `.local/research/v9.2.2_gap_analysis.md` — verbatim issue list from `feedback_for_v9.2.1.md` (I-001 + I-002 + I-003 + I-004 + 2 enhancement notes) decomposed into 3-PV PATCH cycle with per-PV scope, AC, and cycle-invariants matrix.
+* **W-2 NineS gate** at `.local/research/v9.2.2_nines_planning.json` (planning) + `.local/research/v9.2.2_nines.json` + `.local/research/v9.2.2_nines.md` (close):
+    * Planning: `nines analyze --target-path src/devolaflow/init_project.py --depth deep --agent-impact --keypoints` reports 740 lines / 16 functions / 0 classes / avg complexity 3.5 / 0 HIGH / 0 CRITICAL / 0 BLOCKER findings.
+    * Close: `nines self-eval --baseline-version 9.2.1` overall composite **0.907348** (byte-identical to v9.2.1 — canonical PATCH signature). `structure_recognition` (byte_stability axis) **1.00**. capability_mean 0.955 / hygiene_mean 0.796 unchanged from v9.2.1.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.2.1 → 9.2.2 |
+| EDIT | `src/devolaflow/init_project.py` | I-001 surgical fix (deferred check + `AGENT_DIR_REQUIRED_TARGETS` + improved error message) |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| NEW | `tests/test_init_project_pip_wheel.py` | 6 new test functions (9 collected cases) — I-001 closure proof |
+| EDIT | `tests/test_init_project.py` | +2 regression sentinels (deferred-check path + `AGENT_DIR_REQUIRED_TARGETS` membership pin) |
+| EDIT | `tests/test_no_ghost_features.py` | +2 W-18 ghost-audit lints (`test_v9_2_2_new_symbols_have_coverage` + `test_v9_2_2_local_target_no_workflow_system_dependency`) |
+| EDIT | `workflow-system/agent/SKILL.md` | I-004 one-line note + version triple sync |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.2.2 entry |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen (16 files) |
+| EDIT | `README.md` | badge + version example sync |
+| NEW | `.local/research/v9.2.2_gap_analysis.md` (gitignored) | W-1 SI-1 planning artefact |
+| NEW | `.local/research/v9.2.2_nines_planning.json` (gitignored) | W-2 NineS planning |
+| NEW | `.local/research/v9.2.2_nines.json` + `v9.2.2_nines.md` (gitignored) | W-2 NineS close |
+
+### Verification Checklist (W-9 SI-10 6-step + cycle invariants)
+
+| # | Step | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 3609 collected (+13 vs v9.2.1 baseline 3596 = 9 new pip_wheel + 2 init_project + 2 ghost-audit cases) |
+| 2 | `ruff check src/ tests/` | **PASS** — 0 violations |
+| 3 | `ruff format --check src/ tests/` | **PASS** — formatting correct |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12/12 (mirror parity self-skipped per SF-3 since `.cursor/skills/devola-flow/` absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 0 regressions (no benchmark-touching changes in PV-01) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (mirror absent → no-op per SF-3) |
+
+| Invariant | Threshold | v9.2.2 result |
+|---|---|---|
+| C-4 SKILL.md line budget | ≤ 500 | **460** (+40 headroom) |
+| W-17 PV NEW test functions cap | ≤ +30 | **+10** (+20 headroom) |
+| W-18 ghost-audit refresh BEFORE CHANGELOG | required | **discharged** (verified by git diff order: `tests/test_no_ghost_features.py` appears in the same commit as the CHANGELOG entry) |
+| W-20 new env flags | 0 | **0** (no new `DEVOLAFLOW_*` symbols introduced) |
+| W-21 Soul-set count | frozen at 10 | **10** (no S-11 candidate) |
+| Rule count | ≤ 60 hard cap | **59** (+1 headroom) |
+| `DEFAULT_EVENTS` length | byte-stable at 8 | **8** (untouched) |
+| `canonical_order` length / version | 16 / 5 byte-stable | **16 / 5** (untouched) |
+| W-2 NineS overall composite | ≥ 0.85 | **0.9073** (margin +0.0573) |
+| W-2 NineS `structure_recognition` (byte_stability) | ≥ 0.95 | **1.00** (margin +0.05) |
+| W-3 SI-3 weighted composite | ≥ 8.5 PATCH floor | **9.475** (margin +0.975) |
+
 ## [9.2.1] — 2026-05-01
 
 **PATCH — self-update workflow validation closes the v9.2.0 MINOR cycle.** Seventh and final PV of the v9.2.0 MINOR cycle, mirroring the v9.0.0 → v9.0.1 sustaining precedent. The cycle that activated `.local/` + `.local/.agent/` + `.rules/` engagement uses the `self-update` workflow itself to dogfood the new capability end-to-end, producing the meta-validation proof that the skill's deliverables pass their own acceptance criteria when applied to their own author. **Zero new code paths introduced** (cycle plan §PV-07 verbatim: "PATCH discipline — only validation artifacts + minor test extensions"): no new Python modules in `src/devolaflow/`, no new env flags (W-20 reuse-first sustained through the entire 7-PV cycle), no new rules, no new schema extensions. Layout invariant `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-identical at length **16** / version **5** across all 7 historical baselines; Soul-set frozen at **10** per W-21; rule count unchanged at **59 / 60** (+1 headroom); NineS cycle-close composite **0.907348 → 0.907348** (delta **0.000000** — the canonical PATCH byte-stable signature); SI-3 weighted composite **9.475 / 10** (matches v9.2.0 close; margin **+0.975** over 8.5 PATCH floor).

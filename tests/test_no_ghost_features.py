@@ -2642,3 +2642,201 @@ def test_v9_2_1_new_symbols_have_coverage(project_root: Path) -> None:
     # cycle archive has not been committed yet; the separate
     # `test_v9_2_0_cycle_archive_and_extra_prefix` lint fails loudly for
     # that case and this PV-07 lint stays permissive on the v9.2.1 half.
+
+
+# ---------------------------------------------------------------------------
+# v9.2.2 PV-01 — W-18 ghost-audit refresh for the I-001 critical CLI fix.
+# ---------------------------------------------------------------------------
+#
+# v9.2.2 PV-01 is the first PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 -> v9.2.3 -> v9.2.4) addressing the 4 issues catalogued in
+# `.local/feedbacks/feedback_for_v9.2.1.md`. PV-01 ships:
+#
+# 1. NEW tests/test_init_project_pip_wheel.py — 6 NEW test functions
+#    (one parametrized x4 = 9 test cases) pinning the deferred-check
+#    surface, the informative error message, the `--list` regression,
+#    the multi-target dispatch ordering invariant, the canonical
+#    8-path scaffold smoke, and the no-pip-install-recommendation
+#    regression lint.
+# 2. EDIT src/devolaflow/init_project.py — surgical I-001 fix:
+#    introduces `AGENT_DIR_REQUIRED_TARGETS` (frozenset) and defers
+#    the SKILL.md existence check to inside the per-target dispatch
+#    loop. `local` is exempt because `install_local` uses
+#    `scaffold_local` + `importlib.resources`. The error message no
+#    longer recommends `pip install devolaflow` (the misleading
+#    recommendation that landed users in I-001).
+# 3. EDIT workflow-system/agent/SKILL.md §"Version & Update" — I-004
+#    one-line note about the wheel/CLI mismatch + `local` fallback.
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.2 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+_V9_2_2_NEW_FILES: tuple[str, ...] = ("tests/test_init_project_pip_wheel.py",)
+
+# Minimum byte size for a v9.2.2 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_2_FILE_MIN_BYTES: int = 50
+
+# The pip-wheel test file ships with EXACTLY 6 test FUNCTIONS per the
+# PV-01 W-17 budget pin (one of which is parametrized x4 -> 9 cases at
+# collection time). The function-count floor catches regression below
+# the W-17 ledger; collection-time case count is intentionally NOT
+# pinned because parametrize expansions don't count against the cap.
+_V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS: int = 6
+
+# AGENT_DIR_REQUIRED_TARGETS — the deferred-check gate surface. Pinning
+# the exact membership here catches a silent widening / narrowing of
+# which dispatch paths require the on-disk workflow-system/agent/ tree.
+_V9_2_2_AGENT_DIR_REQUIRED_TARGETS: frozenset[str] = frozenset(
+    {"cursor", "claude", "copilot", "codex"}
+)
+
+
+def test_v9_2_2_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.2: every NEW v9.2.2 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.2 PATCH — every
+    CHANGELOG entry mentioning a v9.2.2 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.2 PV-01 is the I-001 critical-fix PV; the surfaces this lint
+    pins are:
+
+    1. ``tests/test_init_project_pip_wheel.py`` exists on disk and
+       carries ≥ 6 test FUNCTIONS (the PV-01 W-17 budget pin —
+       parametrize expansions don't count against the cap, so the floor
+       is on the ``def test_*`` count, not the collection-time case
+       count).
+    2. ``AGENT_DIR_REQUIRED_TARGETS`` is importable from
+       :mod:`devolaflow.init_project`, equals exactly the 4-element
+       frozenset ``{"cursor", "claude", "copilot", "codex"}``, and does
+       NOT contain ``"local"`` (the I-001 closure invariant —
+       ``install_local`` uses ``scaffold_local`` + ``importlib.resources``
+       and has zero dependency on ``agent_dir``).
+
+    Failure modes:
+      * "missing on disk" → a v9.2.2 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_2_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "AGENT_DIR_REQUIRED_TARGETS membership drift" → the deferred-
+        check surface was silently widened or narrowed; either restore
+        the original 4-element set OR document the operator-visible
+        change with an ADR.
+      * "test function count regressed" → a PV-01 test was deleted;
+        restore it.
+    """
+    import ast
+
+    for relpath in _V9_2_2_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.2 violation: NEW v9.2.2 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_2_FILE_MIN_BYTES, (
+            f"W-18 v9.2.2 violation: NEW v9.2.2 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_2_FILE_MIN_BYTES} byte minimum); empty/stub "
+            f"files do not satisfy the W-18 precondition"
+        )
+
+    pip_wheel_test_file = project_root / "tests" / "test_init_project_pip_wheel.py"
+    pip_wheel_ast = ast.parse(pip_wheel_test_file.read_text(encoding="utf-8"))
+    test_functions = [
+        node
+        for node in pip_wheel_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(test_functions) >= _V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.2 violation: tests/test_init_project_pip_wheel.py declares "
+        f"{len(test_functions)} test_* functions; the PV-01 W-17 budget pin "
+        f"requires at least {_V9_2_2_PIP_WHEEL_MIN_TEST_FUNCTIONS}"
+    )
+
+    from devolaflow.init_project import AGENT_DIR_REQUIRED_TARGETS
+
+    assert AGENT_DIR_REQUIRED_TARGETS == _V9_2_2_AGENT_DIR_REQUIRED_TARGETS, (
+        f"W-18 v9.2.2 violation: AGENT_DIR_REQUIRED_TARGETS = "
+        f"{AGENT_DIR_REQUIRED_TARGETS!r}; expected "
+        f"{_V9_2_2_AGENT_DIR_REQUIRED_TARGETS!r} (exactly the 4 historical "
+        f"agent-dir consumers — cursor / claude / copilot / codex). "
+        f"`local` is intentionally absent — the I-001 closure invariant"
+    )
+    assert "local" not in AGENT_DIR_REQUIRED_TARGETS, (
+        "W-18 v9.2.2 violation: `local` MUST NOT appear in "
+        "AGENT_DIR_REQUIRED_TARGETS — install_local uses scaffold_local + "
+        "importlib.resources and has ZERO dependency on agent_dir. "
+        "Adding `local` here would re-introduce the I-001 abort scenario "
+        "for wheel-only installs."
+    )
+    assert isinstance(AGENT_DIR_REQUIRED_TARGETS, frozenset), (
+        f"W-18 v9.2.2 violation: AGENT_DIR_REQUIRED_TARGETS must be a "
+        f"frozenset (immutable surface); got "
+        f"{type(AGENT_DIR_REQUIRED_TARGETS).__name__!r}"
+    )
+
+
+def test_v9_2_2_local_target_no_workflow_system_dependency(project_root: Path) -> None:
+    """W-18 v9.2.2: install_local body MUST NOT reference agent_dir.
+
+    The I-001 closure invariant — ``install_local`` is the ONE per-target
+    installer that does NOT consume ``agent_dir``. The deferred-check
+    fix relies on this invariant: if ``install_local`` ever starts
+    reading from ``agent_dir`` (e.g. copying a file from
+    ``agent_dir / "templates" / "..."``), the I-001 abort scenario
+    re-emerges for wheel-only installs even when the user explicitly
+    requests ``devola-init local``.
+
+    This lint walks the ``install_local`` function body via AST and
+    asserts no ``Name`` node references the ``agent_dir`` parameter
+    (other than the parameter declaration itself, which the AST walk
+    distinguishes via ``ast.arg`` vs ``ast.Name``).
+
+    Failure modes:
+      * "install_local body references agent_dir" → the agent-dir-
+        independence invariant regressed; either remove the new
+        agent_dir reference (recommended) OR add ``"local"`` to
+        ``AGENT_DIR_REQUIRED_TARGETS`` AND update the W-18 v9.2.2
+        ghost-audit lint above to reflect the operator-visible change.
+        The latter path RE-INTRODUCES the I-001 wheel-install regression
+        and requires explicit ADR documentation per W-21 governance.
+    """
+    import ast
+
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    tree = ast.parse(init_module_path.read_text(encoding="utf-8"))
+
+    install_local_node = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "install_local"
+        ),
+        None,
+    )
+    assert install_local_node is not None, (
+        "W-18 v9.2.2 violation: install_local function definition missing "
+        "from src/devolaflow/init_project.py — the I-001 fix depends on this "
+        "function existing as the agent-dir-independent installer"
+    )
+
+    agent_dir_references: list[ast.Name] = []
+    for child in ast.walk(install_local_node):
+        if isinstance(child, ast.Name) and child.id == "agent_dir":
+            agent_dir_references.append(child)
+
+    assert agent_dir_references == [], (
+        f"W-18 v9.2.2 violation: install_local body references `agent_dir` "
+        f"on lines {[n.lineno for n in agent_dir_references]} — the I-001 "
+        f"closure invariant requires install_local to be agent-dir-"
+        f"independent (uses scaffold_local + importlib.resources only). "
+        f"If a new agent_dir consumer was intentionally added, also "
+        f"register `local` in AGENT_DIR_REQUIRED_TARGETS (which RE-INTRODUCES "
+        f"the I-001 wheel-install scenario for `devola-init local`) and "
+        f"document the operator-visible change with an ADR."
+    )

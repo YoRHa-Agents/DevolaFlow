@@ -247,7 +247,15 @@ def test_init_project_all_target(monkeypatch, tmp_path, capsys):
 
 
 def test_init_project_missing_agent_dir(monkeypatch, tmp_path, capsys):
-    """When SKILL.md source cannot be found, main exits with code 1."""
+    """When SKILL.md source cannot be found for an agent-dir target, main exits 1.
+
+    v9.2.2 PV-01 (I-001 closure) re-anchored the error message contract:
+    pre-v9.2.2 the message said "Agent source not found at <path>"; post-
+    v9.2.2 the message names the failing target explicitly and points
+    operators at the `local` fallback + the clone-install path. This
+    assertion tracks the new contract; the deferred-check surface is
+    pinned by ``tests/test_init_project_pip_wheel.py``.
+    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["devola-init", "cursor"])
     fake_missing = tmp_path / "no_such_dir"
@@ -259,7 +267,9 @@ def test_init_project_missing_agent_dir(monkeypatch, tmp_path, capsys):
         ip.main()
     assert exc.value.code == 1
     out = capsys.readouterr().out
-    assert "Agent source not found" in out
+    assert "target 'cursor' needs the workflow-system/agent/ source tree" in out, (
+        "v9.2.2 I-001 error-message contract regression"
+    )
 
 
 def test_init_project_copilot_global_note(monkeypatch, tmp_path, capsys):

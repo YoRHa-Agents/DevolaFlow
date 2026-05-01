@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "9.2.1"
+version: "9.2.2"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,15 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v9.2.1**
+> **Now Using DevolaFlow v9.2.2**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 9.2.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 9.2.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
+
+**Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local` works on a wheel-only install. For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked as I-001 (v9.2.2 surgical fix; full bundle deferred to v9.3.0).
 
 ## Workspace Engagement (Read at Session Start)
 
