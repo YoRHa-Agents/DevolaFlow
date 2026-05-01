@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-9.2.2-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-9.2.3-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -55,7 +55,38 @@ devola-init              # auto-detect tools and install
 devola-init cursor       # Cursor only (project-local)
 devola-init claude --global  # Claude Code only (user-global)
 devola-init all          # all tools
+
+# v9.2.3 mode shorthand (consolidates --no-compile / --with-examples)
+devola-init local --mode=core      # lean install — scaffolding only
+devola-init local --mode=standard  # default — compile rules, no examples
+devola-init local --mode=full      # full demo — compile + seed examples
 ```
+
+### Troubleshooting installs
+
+**`pip install` failing on a corporate mirror?** Some internal mirrors
+(e.g. `https://*.baidubce.com/pypi/...`) ship `setuptools` versions older
+than the `>=68.0` floor required to install DevolaFlow's editable build
+backend. Override the index URL while keeping the corporate proxy active:
+
+```bash
+pip install --index-url https://pypi.org/simple/ \
+    git+https://github.com/YoRHa-Agents/DevolaFlow.git
+```
+
+**`devola-init` exits with `Error: Agent source not found ...` after a
+pip install?** Resolved in **v9.2.2** (I-001). `devola-init local` now
+succeeds on pip-wheel-only installs (the wheel does not bundle
+`workflow-system/` and `install_local` doesn't need it). The other
+targets (`cursor` / `claude` / `codex` / `copilot`) still require a
+clone install — `git clone https://github.com/YoRHa-Agents/DevolaFlow
+&& pip install -e ./DevolaFlow` — because they copy the
+`workflow-system/agent/` source tree into the consumer-side skill
+directory.
+
+**Want the shortest possible bootstrap?** `devola-init local --mode=core`
+is the lean recipe (skips rule compilation + example seeds; works on
+wheel-only installs from v9.2.3 onward).
 
 ### Manual (copy one file)
 
@@ -266,7 +297,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v9.2.2"
+devola-version                   # prints "DevolaFlow v9.2.3"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

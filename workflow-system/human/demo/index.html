@@ -234,6 +234,38 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.2.3 (PATCH — PV-02 of v9.2.2 cycle: DX cluster — scaffold .gitignore audit + --mode shorthand + README troubleshooting) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v923">What's New</span> in v9.2.3 — PATCH, PV-02 of the v9.2.2 cycle: DX cluster — scaffold <code>.gitignore</code> audit + <code>--mode={core,standard,full}</code> shorthand + README "Troubleshooting installs" subsection</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v923.desc">v9.2.3 is the second PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the DX-improvement cluster from <code>.local/feedbacks/feedback_for_v9.2.1.md</code> §2 + §3 + Notes. Closes <strong>I-002 (major, external)</strong> by documenting the baidubce corporate-mirror workaround in a new README "Troubleshooting installs" subsection (override <code>--index-url</code> to upstream PyPI while keeping the corporate proxy active). Closes <strong>I-003 (minor)</strong> with a <code>_audit_gitignore_coverage</code> helper at the tail of <code>scaffold_local</code>: when a freshly scaffolded path is shadowed by an existing <code>.gitignore</code> rule (e.g. <code>.local/.agent/active/</code>), a single WARNING per match is logged naming the path + recommending <code>!&lt;rel&gt;/README.md</code> whitelist. Adds the operator-visible <code>--mode={core,standard,full}</code> CLI shorthand consolidating <code>--no-compile</code> / <code>--with-examples</code> per the v9.2.0 PV-06 default matrix; individual flags ALWAYS override the mode-derived default (explicit-beats-implicit) so CI scripts that compose both surfaces are protected against subtle conflicts. Refreshes SKILL.md §"Version & Update" to cite the new <code>--mode=core</code> shorthand as the shortest pip-wheel install recipe (<strong>I-004 doc carry-forward</strong>). Cycle invariants intact: Soul-set frozen at <strong>10</strong> (W-21); rule count unchanged at <strong>59 / 60</strong> (+1 headroom); <code>DEFAULT_EVENTS</code> length 8 (untouched); <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code> length 16 / version 5 byte-identical (untouched in PV-02); <strong>0 new env flags</strong> (W-20 reuse-first sustained — <code>--mode</code> is a CLI argument, NOT a runtime opt-in surface). NineS overall composite <strong>0.907350</strong> (delta <strong>+0.000002</strong> vs v9.2.2 — byte-stable PATCH signature); <code>structure_recognition</code> (byte_stability axis) <strong>1.00</strong>. SI-3 weighted composite <strong>9.475/10</strong> (matches v9.2.2 close; margin +0.975 over 8.5 PATCH floor). W-9 SI-10 6/6 PASS. W-18 ghost-audit refresh discharged BEFORE this CHANGELOG entry per the W-18 precondition (<code>test_v9_2_3_new_symbols_have_coverage</code> + <code>test_v9_2_3_mode_flag_surface_complete</code>).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">SCAFFOLD AUDIT</span>
+          <h3>scaffold_local now audits .gitignore (I-003)</h3>
+          <p>NEW <code>_read_gitignore_rules</code> + <code>_path_matches_gitignore</code> + <code>_audit_gitignore_coverage</code> helpers in <code>src/devolaflow/local/workspace.py</code>; integrated at the tail of <code>scaffold_local</code>. When a freshly scaffolded path is covered by an existing rule, a single WARNING per path is emitted naming the path + recommending <code>!&lt;rel&gt;/README.md</code> whitelist. S-5 graceful degradation: every failure path logs WARNING; never raises. NEW <code>last_gitignore_audit() -&gt; list[Path]</code> public accessor for callers that need programmatic access without re-walking the disk.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/local/workspace.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">CLI SHORTHAND</span>
+          <h3>devola-init local --mode={core,standard,full}</h3>
+          <p>NEW <code>--mode</code> CLI flag consolidates <code>--no-compile</code> / <code>--with-examples</code> per the v9.2.0 PV-06 default matrix: <code>core</code> → no-compile + no-examples (lean install); <code>standard</code> → default (compile, no examples); <code>full</code> → compile + examples (full demo). Individual flags ALWAYS override the mode-derived default (explicit-beats-implicit). Backward-compatible via keyword-only <code>default=</code> kwargs on <code>_parse_no_compile</code> + <code>_parse_with_examples</code> — every pre-v9.2.3 caller resolves to the same boolean byte-identically.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/init_project.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">DOC NOTE</span>
+          <h3>README "Troubleshooting installs" subsection (I-002)</h3>
+          <p>NEW subsection under "pip install + init" in <code>README.md</code>: documents the baidubce mirror workaround (<code>pip install --index-url https://pypi.org/simple/ git+...</code>) + the I-001 closure reference (v9.2.2: <code>devola-init local</code> works on pip-wheel installs) + the <code>--mode=core</code> shorthand discovery hint. SKILL.md §"Version & Update" install note refreshed to cite the new <code>--mode=core</code> shorthand as the shortest pip-wheel install recipe (I-004 doc carry-forward).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/README.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">METRICS</span>
+          <h3>NineS 0.9074 byte-stable · +19 NEW tests · 6/6 PASS</h3>
+          <p>NineS overall composite <strong>0.907348 → 0.907350</strong> (delta +0.000002 — byte-stable PATCH signature); <code>structure_recognition</code> (byte_stability axis) <strong>1.00</strong>. SI-3 weighted composite <strong>9.475/10</strong> (margin +0.975 over 8.5 PATCH floor). +19 NEW test functions (within +30 W-17 PV cap; +11 headroom). Cumulative cycle delta +29 / +150 W-17 cycle cap (+121 headroom). W-18 ghost-audit refreshed BEFORE this CHANGELOG entry: <code>test_v9_2_3_new_symbols_have_coverage</code> + <code>test_v9_2_3_mode_flag_surface_complete</code> (AST walk asserting <code>_parse_mode</code> never silently widens the mode surface).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.2.2 (PATCH — PV-01 of v9.2.2 cycle: I-001 critical CLI fix — devola-init local works on pip-wheel-only installs) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v922">What's New</span> in v9.2.2 — PATCH, PV-01 of the v9.2.2 cycle: I-001 critical fix — <code>devola-init local</code> works on pip-wheel-only installs (<code>workflow-system/</code> no longer required)</h2>

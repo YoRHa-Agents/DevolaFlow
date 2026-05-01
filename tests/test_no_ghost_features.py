@@ -2840,3 +2840,231 @@ def test_v9_2_2_local_target_no_workflow_system_dependency(project_root: Path) -
         f"the I-001 wheel-install scenario for `devola-init local`) and "
         f"document the operator-visible change with an ADR."
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.3 PV-02 — W-18 ghost-audit refresh for the DX-improvement cluster.
+# ---------------------------------------------------------------------------
+#
+# v9.2.3 PV-02 is the second PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 → v9.2.3 → v9.2.4). PV-02 ships:
+#
+# 1. NEW tests/test_scaffold_gitignore_audit.py — 6 NEW test functions
+#    pinning the I-003 `_audit_gitignore_coverage` surface in
+#    `src/devolaflow/local/workspace.py` (logs WARN per scaffold path
+#    that an existing .gitignore rule already covers; quiet on
+#    absent / unrelated rules; conservative on negation rules).
+# 2. NEW tests/test_init_project_mode_flag.py — 5 NEW test functions
+#    pinning the `--mode={core,standard,full}` shorthand surface
+#    + the explicit-beats-implicit precedence rule + the invalid-mode
+#    exit path.
+# 3. EDIT src/devolaflow/local/workspace.py — added `_read_gitignore_rules`,
+#    `_path_matches_gitignore`, `_audit_gitignore_coverage` helpers,
+#    `last_gitignore_audit` accessor, and integrated the audit at the
+#    tail of `scaffold_local`.
+# 4. EDIT src/devolaflow/init_project.py — added `VALID_MODES` constant,
+#    `_parse_mode` resolver, and the mode-derived default wiring in
+#    `main()`. `_parse_no_compile` + `_parse_with_examples` gained
+#    keyword-only `default=` kwargs (backward-compat preserved by the
+#    default value on each).
+# 5. EDIT README.md — new "Troubleshooting installs" subsection
+#    documenting I-002 (baidubce mirror), I-001 closure (v9.2.2), and
+#    the `--mode=core` shorthand discovery hint.
+# 6. EDIT workflow-system/agent/SKILL.md §"Version & Update" —
+#    install note refreshed to cite v9.2.3 `--mode=core` shorthand.
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.3 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+_V9_2_3_NEW_FILES: tuple[str, ...] = (
+    "tests/test_scaffold_gitignore_audit.py",
+    "tests/test_init_project_mode_flag.py",
+)
+
+# Minimum byte size for a v9.2.3 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_3_FILE_MIN_BYTES: int = 50
+
+# Test-function floor per file — pinned by the dispatch's PV-02 budget
+# (5 named acceptance tests + 1 helper-edge-cases on the gitignore side;
+# 5 named acceptance tests on the mode side).
+_V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS: int = 5
+_V9_2_3_MODE_MIN_TEST_FUNCTIONS: int = 5
+
+# VALID_MODES — the `--mode=` shorthand surface. Pinning the exact
+# membership here catches a silent widening (e.g. a new mode added
+# without operator-facing docs) or narrowing (e.g. a mode dropped
+# without a deprecation cycle).
+_V9_2_3_VALID_MODES: frozenset[str] = frozenset({"core", "standard", "full"})
+
+
+def test_v9_2_3_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.3: every NEW v9.2.3 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.3 PATCH — every
+    CHANGELOG entry mentioning a v9.2.3 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.3 PV-02 surfaces this lint pins:
+
+    1. ``tests/test_scaffold_gitignore_audit.py`` and
+       ``tests/test_init_project_mode_flag.py`` exist on disk and
+       carry ≥ 5 test FUNCTIONS each (the PV-02 dispatch budget pin —
+       parametrize expansions don't count against the cap).
+    2. ``_audit_gitignore_coverage`` and ``last_gitignore_audit`` are
+       importable from :mod:`devolaflow.local.workspace`.
+    3. ``_parse_mode`` and ``VALID_MODES`` are importable from
+       :mod:`devolaflow.init_project`, and ``VALID_MODES`` equals
+       exactly the 3-element frozenset
+       ``{"core", "standard", "full"}``.
+
+    Failure modes:
+      * "missing on disk" → a v9.2.3 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_3_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "VALID_MODES membership drift" → the `--mode=` surface was
+        silently widened or narrowed; either restore the original
+        3-element set OR document the operator-visible change with
+        an ADR.
+      * "test function count regressed" → a PV-02 test was deleted;
+        restore it.
+    """
+    import ast
+
+    for relpath in _V9_2_3_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.3 violation: NEW v9.2.3 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_3_FILE_MIN_BYTES, (
+            f"W-18 v9.2.3 violation: NEW v9.2.3 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_3_FILE_MIN_BYTES} byte minimum); empty/stub "
+            f"files do not satisfy the W-18 precondition"
+        )
+
+    gitignore_test_file = project_root / "tests" / "test_scaffold_gitignore_audit.py"
+    gitignore_ast = ast.parse(gitignore_test_file.read_text(encoding="utf-8"))
+    gitignore_test_functions = [
+        node
+        for node in gitignore_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(gitignore_test_functions) >= _V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.3 violation: tests/test_scaffold_gitignore_audit.py "
+        f"declares {len(gitignore_test_functions)} test_* functions; the "
+        f"PV-02 dispatch budget pin requires at least "
+        f"{_V9_2_3_GITIGNORE_MIN_TEST_FUNCTIONS}"
+    )
+
+    mode_test_file = project_root / "tests" / "test_init_project_mode_flag.py"
+    mode_ast = ast.parse(mode_test_file.read_text(encoding="utf-8"))
+    mode_test_functions = [
+        node
+        for node in mode_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+    ]
+    assert len(mode_test_functions) >= _V9_2_3_MODE_MIN_TEST_FUNCTIONS, (
+        f"W-18 v9.2.3 violation: tests/test_init_project_mode_flag.py "
+        f"declares {len(mode_test_functions)} test_* functions; the "
+        f"PV-02 dispatch budget pin requires at least "
+        f"{_V9_2_3_MODE_MIN_TEST_FUNCTIONS}"
+    )
+
+    from devolaflow.init_project import VALID_MODES, _parse_mode
+    from devolaflow.local.workspace import (
+        _audit_gitignore_coverage,
+        last_gitignore_audit,
+    )
+
+    assert callable(_audit_gitignore_coverage), (
+        "W-18 v9.2.3 violation: _audit_gitignore_coverage must be importable "
+        "from devolaflow.local.workspace"
+    )
+    assert callable(last_gitignore_audit), (
+        "W-18 v9.2.3 violation: last_gitignore_audit accessor must be importable "
+        "from devolaflow.local.workspace"
+    )
+    assert callable(_parse_mode), (
+        "W-18 v9.2.3 violation: _parse_mode must be importable from devolaflow.init_project"
+    )
+
+    assert VALID_MODES == _V9_2_3_VALID_MODES, (
+        f"W-18 v9.2.3 violation: VALID_MODES = {VALID_MODES!r}; expected "
+        f"exactly {_V9_2_3_VALID_MODES!r} (the 3-mode dispatch contract: "
+        f"core / standard / full)"
+    )
+    assert isinstance(VALID_MODES, frozenset), (
+        f"W-18 v9.2.3 violation: VALID_MODES must be a frozenset (immutable "
+        f"surface); got {type(VALID_MODES).__name__!r}"
+    )
+
+
+def test_v9_2_3_mode_flag_surface_complete(project_root: Path) -> None:
+    """W-18 v9.2.3: `_parse_mode` returns one of {core, standard, full, None}.
+
+    AST walk over `_parse_mode` asserts the function body's `return`
+    statements yield only valid mode strings (the elements of
+    `VALID_MODES`) or `None`. A future PV that introduces a 4th mode
+    MUST also update `VALID_MODES` AND this lint's expected set —
+    catching a regression where the parser silently accepts a value
+    that the docstring + README never advertised.
+    """
+    import ast
+
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    tree = ast.parse(init_module_path.read_text(encoding="utf-8"))
+
+    parse_mode_node = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_parse_mode"
+        ),
+        None,
+    )
+    assert parse_mode_node is not None, (
+        "W-18 v9.2.3 violation: _parse_mode function definition missing "
+        "from src/devolaflow/init_project.py — the PV-02 mode shorthand "
+        "depends on this resolver existing"
+    )
+
+    # Walk the body; collect every `return <expr>` and assert each one
+    # is either `return None`, `return mode` (the validated variable),
+    # or `return <Name>` referring to one of the local mode-derivation
+    # variables. The intent: the function must NEVER return a literal
+    # string outside VALID_MODES (catches a silent widening like
+    # `return "lite"` slipped into the body).
+    return_nodes = [node for node in ast.walk(parse_mode_node) if isinstance(node, ast.Return)]
+    assert len(return_nodes) >= 2, (
+        f"W-18 v9.2.3 violation: _parse_mode must have ≥ 2 return statements "
+        f"(the None-fallback + the validated mode return); got "
+        f"{len(return_nodes)}"
+    )
+
+    for ret in return_nodes:
+        if ret.value is None:
+            continue  # bare `return` — equivalent to `return None`, fine
+        if isinstance(ret.value, ast.Constant) and ret.value.value is None:
+            continue  # `return None`
+        if isinstance(ret.value, ast.Name):
+            continue  # `return mode` (validated variable) — fine
+        if (
+            isinstance(ret.value, ast.Constant)
+            and isinstance(ret.value.value, str)
+            and ret.value.value in {"core", "standard", "full"}
+        ):
+            continue
+        raise AssertionError(
+            f"W-18 v9.2.3 violation: _parse_mode returns an unexpected "
+            f"expression at line {ret.lineno}: {ast.dump(ret.value)!r}. "
+            f"Expected `return None` or `return <variable>` or `return "
+            f'"core"/"standard"/"full"`. Adding a new mode requires '
+            f"updating BOTH VALID_MODES AND this lint's expected set."
+        )

@@ -490,3 +490,160 @@ def test_agent_dir_required_targets_membership_pinned():
         "AGENT_DIR_REQUIRED_TARGETS — install_local uses scaffold_local + "
         "importlib.resources and has zero dependency on agent_dir"
     )
+
+
+# ── v9.2.3 PV-02 — `default=` kwarg backward-compat regressions ─────
+
+
+def test_parse_no_compile_default_kwarg_signature() -> None:
+    """v9.2.3 PV-02: ``_parse_no_compile`` accepts ``default=`` keyword-only.
+
+    The shorthand ``--mode={core,standard,full}`` resolver feeds a
+    mode-derived default (e.g. ``--mode=core`` sets ``default=True``
+    to imply ``--no-compile``). The new kwarg is keyword-only and
+    defaults to ``False`` so every pre-v9.2.3 direct caller continues
+    to behave byte-identically.
+
+    Sanity-pinned cases:
+
+    * ``argv=[]`` + ``default=False`` → ``False`` (legacy default).
+    * ``argv=[]`` + ``default=True`` → ``True`` (mode-derived path).
+    * ``argv=["--no-compile"]`` + ``default=False`` → ``True``
+      (explicit flag wins).
+    * ``argv=["--no-compile"]`` + ``default=True`` → ``True``
+      (explicit flag agrees with mode-derived default — both paths
+      converge on ``True``; redundant but legal).
+    """
+    from devolaflow.init_project import _parse_no_compile
+
+    assert _parse_no_compile([]) is False, (
+        "regression: bare argv must keep the pre-v9.2.3 False default"
+    )
+    assert _parse_no_compile([], default=False) is False, (
+        "explicit default=False must match the legacy default"
+    )
+    assert _parse_no_compile([], default=True) is True, (
+        "v9.2.3 PV-02: --mode=core sets default=True to imply --no-compile"
+    )
+    assert _parse_no_compile(["--no-compile"]) is True, (
+        "regression: --no-compile must still resolve to True"
+    )
+    assert _parse_no_compile(["--no-compile"], default=False) is True, (
+        "explicit flag must beat default=False"
+    )
+    assert _parse_no_compile(["--no-compile"], default=True) is True, (
+        "explicit flag agrees with default=True; both resolve to True"
+    )
+
+
+def test_parse_with_examples_default_kwarg_signature() -> None:
+    """v9.2.3 PV-02: ``_parse_with_examples`` accepts ``default=`` keyword-only.
+
+    The kwarg is ``bool | None`` because the legacy fallback uses
+    ``"all" in targets`` as the implicit default. ``default=None``
+    preserves the pre-v9.2.3 behaviour byte-identically:
+
+    * ``argv=[]``, ``targets=["local"]``, ``default=None`` → ``False``
+      (no ``"all"`` in targets → fallback returns False)
+    * ``argv=[]``, ``targets=["all"]``, ``default=None`` → ``True``
+      (the implicit-matrix default-ON for ``mode: full``).
+    * ``argv=[]``, ``targets=["local"]``, ``default=True`` → ``True``
+      (mode-derived default — bypasses the fallback).
+    * ``argv=["--with-examples"]`` + any default → ``True`` (explicit
+      wins).
+    * ``argv=["--no-with-examples"]`` + any default → ``False``
+      (explicit wins; AC #5 explicit-beats-implicit).
+    """
+    from devolaflow.init_project import _parse_with_examples
+
+    assert _parse_with_examples([], ["local"]) is False, (
+        "regression: no flag + no `all` + no default → False (legacy fallback)"
+    )
+    assert _parse_with_examples([], ["all"]) is True, (
+        "regression: no flag + `all` in targets → True (legacy fallback)"
+    )
+    assert _parse_with_examples([], ["local"], default=None) is False, (
+        "explicit default=None must match the legacy fallback"
+    )
+    assert _parse_with_examples([], ["local"], default=False) is False, (
+        "v9.2.3 PV-02: --mode=core / --mode=standard set default=False"
+    )
+    assert _parse_with_examples([], ["local"], default=True) is True, (
+        "v9.2.3 PV-02: --mode=full sets default=True to imply --with-examples"
+    )
+
+    for default_val in (None, False, True):
+        assert _parse_with_examples(["--with-examples"], ["local"], default=default_val) is True, (
+            f"explicit --with-examples must beat default={default_val!r}"
+        )
+        assert (
+            _parse_with_examples(["--no-with-examples"], ["all"], default=default_val) is False
+        ), f"explicit --no-with-examples must beat default={default_val!r}"
+
+
+# ── v9.2.3 PV-02 — backward-compat regressions for the new default= kwargs ──
+
+
+def test_parse_no_compile_default_kwarg_preserves_pre_v9_2_3_behavior():
+    """v9.2.3 PV-02: `_parse_no_compile(argv)` returns False without `--no-compile`.
+
+    The `default=` kwarg landed in PV-02 to let `_parse_mode` feed
+    mode-derived defaults into the per-flag resolver. The default value
+    `default=False` MUST preserve the pre-v9.2.3 behaviour for every
+    direct caller that omits the kwarg — when this test passes, every
+    pre-v9.2.3 call site (CLI, fixtures, downstream tooling) gets the
+    same boolean it always did.
+    """
+    from devolaflow.init_project import _parse_no_compile
+
+    assert _parse_no_compile([]) is False, (
+        "v9.2.3 backward-compat: `_parse_no_compile([])` MUST return False "
+        "(the pre-v9.2.3 default; caller passes no `default=` kwarg)"
+    )
+    assert _parse_no_compile(["local"]) is False, (
+        "v9.2.3 backward-compat: argv without `--no-compile` MUST return False"
+    )
+    assert _parse_no_compile(["local", "--no-compile"]) is True, (
+        "v9.2.3 contract: explicit `--no-compile` overrides the default"
+    )
+    assert _parse_no_compile([], default=True) is True, (
+        "v9.2.3 contract: mode-derived `default=True` (mode=core) is honoured"
+    )
+    assert _parse_no_compile(["--no-compile"], default=False) is True, (
+        "v9.2.3 contract: explicit `--no-compile` beats default=False"
+    )
+
+
+def test_parse_with_examples_default_kwarg_preserves_pre_v9_2_3_behavior():
+    """v9.2.3 PV-02: `_parse_with_examples` falls back to `"all" in targets` by default.
+
+    The `default=None` sentinel preserves the pre-v9.2.3 PV-06 fallback
+    — when the operator passes neither `--with-examples` nor
+    `--no-with-examples` AND no `--mode=` flag, the resolver falls back
+    to the historical "True iff `all` is in the targets list" rule.
+    Mode-derived defaults (`default=True` / `default=False`) override
+    the fallback per the PV-02 dispatch contract.
+    """
+    from devolaflow.init_project import _parse_with_examples
+
+    # default=None (omitted): pre-v9.2.3 "all in targets" behaviour
+    assert _parse_with_examples([], ["local"]) is False, (
+        "v9.2.3 backward-compat: narrow targets without `all` → False (default)"
+    )
+    assert _parse_with_examples([], ["all"]) is True, (
+        "v9.2.3 backward-compat: `all` keyword target → True (default)"
+    )
+    assert _parse_with_examples(["--with-examples"], ["local"]) is True, (
+        "v9.2.3 contract: explicit `--with-examples` beats narrow targets"
+    )
+    assert _parse_with_examples(["--no-with-examples"], ["all"]) is False, (
+        "v9.2.3 contract: explicit `--no-with-examples` beats `all` keyword"
+    )
+    # Mode-derived defaults override the "all in targets" fallback
+    assert _parse_with_examples([], ["local"], default=True) is True, (
+        "v9.2.3 contract: mode-derived default=True (mode=full) is honoured"
+    )
+    assert _parse_with_examples([], ["all"], default=False) is False, (
+        "v9.2.3 contract: mode-derived default=False (mode=core/standard) is "
+        "honoured even when `all` would otherwise have implied True"
+    )

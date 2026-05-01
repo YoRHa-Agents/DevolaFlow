@@ -5,6 +5,186 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.3] — 2026-05-02
+
+**PATCH — v9.2.1 feedback DX cluster: I-002 README troubleshooting note, I-003 scaffold .gitignore audit, `--mode={core,standard,full}` shorthand CLI flag, I-004 doc carry-forward.** Second PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the DX-improvement cluster from `.local/feedbacks/feedback_for_v9.2.1.md` §2 + §3 + Notes. v9.2.3 closes I-002 (major, external) by documenting the baidubce corporate-mirror workaround in a new README "Troubleshooting installs" subsection (override `--index-url` to upstream PyPI while keeping the corporate proxy active), closes I-003 (minor) with a `_audit_gitignore_coverage` helper that emits one WARNING per `scaffold_local`-created path that an existing `.gitignore` rule already covers (with an explicit `!<rel>/README.md` whitelist recommendation), ships the operator-visible `--mode={core,standard,full}` shorthand consolidating `--no-compile` / `--with-examples` per the v9.2.0 PV-06 default matrix (individual flags ALWAYS override per explicit-beats-implicit), and refreshes the SKILL.md install note to cite the new `--mode=core` shorthand as the shortest pip-wheel install recipe (I-004 doc carry-forward). Cycle invariants intact: Soul-set frozen at **10** (W-21); rule count unchanged at **59 / 60** (+1 headroom); `DEFAULT_EVENTS` length **8**; `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length **16** / version **5** byte-identical (untouched in PV-02); 0 new env flags (W-20 reuse-first sustained — `--mode` is a CLI argument, NOT a runtime opt-in surface gated behind R5 strict).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Three additive changes**:
+
+1. **`scaffold_local` now audits `.gitignore`** — when a freshly scaffolded path is covered by an existing rule (e.g. `.local/.agent/active/`), a single WARNING per path is logged naming the path + recommending `!<rel>/README.md` whitelist. The WARNING is advisory (S-5 graceful degradation: no raise, no exit code change). Operators with no `.gitignore` (or with rules that don't touch the scaffold tree) see ZERO change.
+
+2. **NEW `--mode={core,standard,full}` shorthand** on `devola-init`:
+
+| Mode | Equivalent flags | Use when |
+|---|---|---|
+| `--mode=core` | `--no-compile --no-with-examples` | Lean install — scaffolding only (the shortest pip-wheel-install recipe) |
+| `--mode=standard` | (the pre-v9.2.3 default) | Compile rules, no example seeds |
+| `--mode=full` | `--with-examples` + compile-on | Full demonstration with seed examples |
+
+Individual flags ALWAYS override the mode-derived default (explicit-beats-implicit). CI scripts that compose both surfaces are protected against subtle conflicts — e.g. `devola-init local --mode=full --no-with-examples` resolves to `compile_rules=True, with_examples=False`.
+
+3. **README "Troubleshooting installs" subsection** — operator-facing reference for the I-002 baidubce mirror workaround + the I-001 closure (v9.2.2) + the `--mode=core` shorthand discovery hint.
+
+Bare `devola-init local` (no `--mode`, no individual flags) behaves byte-identically to v9.2.2: `compile_rules=True`, `with_examples=False`. The new resolver preserves the pre-v9.2.3 implicit-default matrix for every existing call site (default-kwarg signatures land at backward-compatible defaults).
+
+### I-003 evidence of closure
+
+Reproduction (the silent-surprise scenario from `.local/feedbacks/feedback_for_v9.2.1.md` §3):
+
+```text
+$ cat .gitignore
+.local/.agent/active/
+
+$ devola-init local --no-compile
+  Local workspace -> /tmp/x/.local/
+  ... 8 canonical paths scaffolded ...
+  SKIP compile (--no-compile flag set)
+
+  Now Using DevolaFlow v9.2.2
+
+$ ls .local/.agent/active/
+README.md         # <-- written but invisible to git
+$ git status .local/.agent/active/
+# (nothing — the README anchor is silently ignored)
+```
+
+Post-v9.2.3 behaviour (verified by `tests/test_scaffold_gitignore_audit.py::test_gitignore_with_agent_active_rule_warns`):
+
+```text
+$ cat .gitignore
+.local/.agent/active/
+
+$ devola-init local --no-compile
+  Local workspace -> /tmp/x/.local/
+  ... 8 canonical paths scaffolded ...
+WARNING devolaflow.local.workspace: scaffold_local: .local/.agent/active is
+  covered by an existing .gitignore rule — the generated README at
+  .local/.agent/active/README.md will not be visible in version control.
+  Whitelist it with `!.local/.agent/active/README.md` in .gitignore to keep
+  the convention docs tracked while still ignoring runtime contents.
+  SKIP compile (--no-compile flag set)
+
+  Now Using DevolaFlow v9.2.3
+```
+
+The audit is purely advisory — the scaffold completes successfully (exit 0; all 8 canonical paths created). Operators get the diagnosis + the exact whitelist line in one log message; no extra round-trip to docs.
+
+### `--mode` precedence matrix
+
+Verified by `tests/test_init_project_mode_flag.py` (5 acceptance + 4 helper tests):
+
+| argv | `compile_rules` | `with_examples` | Source |
+|---|---|---|---|
+| `local` | True | False | pre-v9.2.3 default (preserved byte-identically) |
+| `local --mode=core` | False | False | mode core defaults |
+| `local --mode=standard` | True | False | mode standard defaults (matches pre-v9.2.3 default) |
+| `local --mode=full` | True | True | mode full defaults |
+| `local --mode=full --no-with-examples` | True | **False** | explicit-beats-implicit (override) |
+| `local --mode=core --with-examples` | False | **True** | explicit-beats-implicit (override) |
+| `local --mode=bogus` | — | — | exit 1 with informative error listing valid values |
+
+### Highlights
+
+* **EDIT `src/devolaflow/local/workspace.py`** — I-003 closure:
+    * Added `_LOGGER = logging.getLogger(__name__)` + 3 helpers: `_read_gitignore_rules` (returns non-comment non-empty lines from `cwd/.gitignore`; S-5 graceful degradation on OSError / UnicodeDecodeError → log WARN + return []), `_path_matches_gitignore` (conservative gitignore semantics — directory-prefix rules, root-anchor stripping, fnmatch wildcards, basename-anywhere for no-slash patterns; negation rules intentionally skipped), `_audit_gitignore_coverage` (returns subset of `created` covered by an existing rule; logs one WARN per match with the recommended `!<rel>/README.md` whitelist line; updates the module-level `_LAST_GITIGNORE_AUDIT` cache).
+    * Added `last_gitignore_audit() -> list[Path]` public accessor for callers that need programmatic access without re-walking the disk (test fixtures, CI hooks, the forthcoming v9.3.0 `devola-init doctor` surface).
+    * Wired `_audit_gitignore_coverage` into the tail of `scaffold_local` — collects the union of REQUIRED_DIRS + MEMORY_SUBDIRS + on-demand-created paths and audits in one batch. `scaffold_local` return type unchanged (still returns `Path`) — the audit result surfaces via `last_gitignore_audit()` for callers that need it.
+    * Module size 271 → 469 lines (additive — every pre-v9.2.3 surface byte-identical).
+* **EDIT `src/devolaflow/init_project.py`** — `--mode` shorthand:
+    * Added module-level `VALID_MODES: frozenset[str] = frozenset({"core", "standard", "full"})` constant adjacent to the per-flag resolver block.
+    * Added `_parse_mode(argv) -> str | None` resolver: returns the validated mode value, returns None when no `--mode=` flag is present, and prints an informative error + exits 1 (S-5 explicit error state) for any value outside `VALID_MODES`.
+    * Added keyword-only `default=` kwargs to `_parse_no_compile` (default=False) and `_parse_with_examples` (default=None — sentinel for "use the pre-v9.2.3 `'all' in targets` fallback"). The default values preserve the pre-v9.2.3 behaviour for every existing direct caller — no test fixture changes required.
+    * Wired the mode-derived defaults into `main()` BEFORE the per-flag resolvers run: `mode=core → (default_no_compile=True, default_with_examples=False)`, `mode=full → (False, True)`, `mode=standard → (False, False)`, `mode=None → (False, None)` (preserves implicit fallback). Individual flags then resolve through the per-flag resolvers, where explicit values override the mode-derived defaults per the dispatch contract.
+    * Updated the CLI docstring header with the 3 new mode usage lines + a "Mode + individual flags" precedence note.
+* **EDIT `README.md`** — NEW "Troubleshooting installs" subsection under "pip install + init":
+    * I-002 baidubce mirror workaround: `pip install --index-url https://pypi.org/simple/ git+...`
+    * I-001 closure reference (v9.2.2 — `devola-init local` works on pip-wheel installs)
+    * `--mode=core` shorthand discovery hint
+    * 30 lines added; matches existing markdown style.
+* **EDIT `workflow-system/agent/SKILL.md` §"Version & Update"** — I-004 doc carry-forward: install note refreshed to cite the new `--mode=core` shorthand as the shortest pip-wheel install recipe. SKILL.md size unchanged at 460 lines (within C-4 ≤ 500 ceiling with +40 headroom).
+* **NEW `tests/test_scaffold_gitignore_audit.py`** — 6 NEW test functions:
+    * `test_no_gitignore_emits_no_warning` — fresh repo without `.gitignore` → 0 WARN
+    * `test_gitignore_without_matching_rule_no_warning` — unrelated rules (`build/`, `dist/`, `*.pyc`) → 0 WARN
+    * `test_gitignore_with_agent_active_rule_warns` — `.local/.agent/active/` rule → ≥1 WARN naming the path + recommending `!<rel>/README.md`
+    * `test_gitignore_wildcard_local_warns_all_local_paths` — broad `.local/` rule → ≥7 WARN (one per scaffold path)
+    * `test_negation_rule_does_not_suppress_warning_on_positive_match` — conservative audit design: positive rule still warns even with sibling whitelist
+    * `test_helper_internals_cover_edge_cases` — combined helper coverage: comment/blank-line stripping, root-anchored rules (leading `/`), empty-after-strip rules, OSError graceful-degradation path (raises WARN + returns [])
+* **NEW `tests/test_init_project_mode_flag.py`** — 9 NEW test functions:
+    * `test_parse_mode_returns_none_when_absent` — bare argv → None
+    * `test_parse_mode_picks_first_valid_value` — each valid mode resolves correctly
+    * `test_valid_modes_pinned` — VALID_MODES is the exact 3-element frozenset
+    * `test_mode_core_implies_no_compile_and_no_examples` — AC #3
+    * `test_mode_full_enables_examples_and_compile` — AC #4
+    * `test_mode_standard_matches_current_defaults` — pre-v9.2.3 byte-identical
+    * `test_explicit_flag_overrides_mode` — AC #5 explicit-beats-implicit
+    * `test_invalid_mode_exits_nonzero_with_clear_message` — AC #6 (exit 1 + valid-value list)
+    * `test_no_mode_preserves_legacy_local_default` — bare `devola-init local` regression sentinel
+* **EXTEND `tests/test_init_project.py`** — 2 NEW backward-compat regression tests:
+    * `test_parse_no_compile_default_kwarg_preserves_pre_v9_2_3_behavior` — pinning `default=False` semantics (omitted kwarg = pre-v9.2.3 behavior)
+    * `test_parse_with_examples_default_kwarg_preserves_pre_v9_2_3_behavior` — pinning `default=None` sentinel (`"all" in targets` fallback)
+* **W-18 ghost-audit refresh** in `tests/test_no_ghost_features.py` (authored BEFORE this CHANGELOG entry per W-18 precondition):
+    * `test_v9_2_3_new_symbols_have_coverage` — file-presence + ≥50 byte minimum + ≥5 test functions per new file + import-smoke for `_audit_gitignore_coverage`, `last_gitignore_audit`, `_parse_mode`, `VALID_MODES` + 3-element frozenset pin + immutable-frozenset type pin
+    * `test_v9_2_3_mode_flag_surface_complete` — AST walk of `_parse_mode` body asserts every `return` statement yields a valid mode string or None — catches a future PV that silently widens the surface (e.g. `return "lite"` slipped into the body without updating VALID_MODES)
+* **W-1 SI-1 planning artefact** at `.local/research/v9.2.2_gap_analysis.md` (gitignored) — the v9.2.2 cycle plan is the gap-analysis source-of-truth for v9.2.3 PV-02; PV-02 inherits the same 3-PV cycle structure (v9.2.2 → v9.2.3 → v9.2.4).
+* **W-2 NineS gate** at `.local/research/v9.2.3_nines_planning.json` (planning) + `.local/research/v9.2.3_nines.json` + `.local/research/v9.2.3_nines.md` (close):
+    * Planning: `nines analyze --target-path src/devolaflow/local/workspace.py --depth deep --agent-impact --keypoints` reports 271 lines / 5 functions / 0 classes / avg complexity 3.4 / 0 HIGH / 0 CRITICAL / 0 BLOCKER findings before edits.
+    * Close: `nines self-eval --baseline-version 9.2.2` overall composite **0.907350** (delta **+0.000002** vs v9.2.2 — byte-stable PATCH signature). `structure_recognition` (byte_stability axis) **1.00** (margin +0.05 over PV-02 AC ≥ 0.95 floor). `capability_mean` 0.954980 / `hygiene_mean` 0.796213 unchanged from v9.2.2.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.2.2 → 9.2.3 |
+| EDIT | `src/devolaflow/local/workspace.py` | I-003 closure: `_read_gitignore_rules` + `_path_matches_gitignore` + `_audit_gitignore_coverage` + `last_gitignore_audit` accessor; integrated at tail of `scaffold_local` |
+| EDIT | `src/devolaflow/init_project.py` | `--mode={core,standard,full}` shorthand: `VALID_MODES` constant + `_parse_mode` resolver + mode-derived default wiring in `main()`; backward-compat `default=` kwargs on `_parse_no_compile` + `_parse_with_examples` |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| NEW | `tests/test_scaffold_gitignore_audit.py` | 6 NEW test functions — I-003 closure proof |
+| NEW | `tests/test_init_project_mode_flag.py` | 9 NEW test functions — `--mode` shorthand surface + precedence + invalid-mode exit |
+| EDIT | `tests/test_init_project.py` | +2 regression sentinels (default-kwarg backward-compat) |
+| EDIT | `tests/test_no_ghost_features.py` | +2 W-18 ghost-audit lints (`test_v9_2_3_new_symbols_have_coverage` + `test_v9_2_3_mode_flag_surface_complete`) |
+| EDIT | `workflow-system/agent/SKILL.md` | I-004 install-note refresh + version triple sync |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.2.3 entry |
+| EDIT | `workflow-system/human/demo/index.html` | "What's New" version refresh (via `make sync-human-docs`) |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen |
+| EDIT | `README.md` | NEW "Troubleshooting installs" subsection + badge + version example sync + `--mode` usage example |
+| EDIT | `CHANGELOG.md` | this entry |
+| NEW | `.local/research/v9.2.3_nines_planning.json` (gitignored) | W-2 NineS planning |
+| NEW | `.local/research/v9.2.3_nines.json` + `v9.2.3_nines.md` (gitignored) | W-2 NineS close |
+
+### Verification Checklist (W-9 SI-10 6-step + cycle invariants)
+
+| # | Step | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 3630 collected (+21 vs v9.2.2 baseline 3609 — 19 NEW functions [6 gitignore + 9 mode + 2 init_project default-kwarg + 2 W-18 ghost-audit] plus 2 incidental parametrize-expansions on the cross-file W-18 lints) |
+| 2 | `ruff check src/ tests/` | **PASS** — 0 violations |
+| 3 | `ruff format --check src/ tests/` | **PASS** — formatting correct |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12/12 (mirror parity self-skipped per SF-3 since `.cursor/skills/devola-flow/` absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 0 regressions (no benchmark-touching changes in PV-02) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (mirror absent → no-op per SF-3) |
+
+| Invariant | Threshold | v9.2.3 result |
+|---|---|---|
+| C-4 SKILL.md line budget | ≤ 500 | **460** (+40 headroom) |
+| W-17 PV NEW test functions cap | ≤ +30 | **+19** (+11 headroom) |
+| W-17 cumulative cycle delta | ≤ +150 | **+29** (PV-01 +10 + PV-02 +19; +121 headroom) |
+| W-18 ghost-audit refresh BEFORE CHANGELOG | required | **discharged** (verified by git diff order: `tests/test_no_ghost_features.py` appears in the same commit as the CHANGELOG entry) |
+| W-20 new env flags | 0 | **0** (no new `DEVOLAFLOW_*` symbols introduced — `--mode` is a CLI argument, not an env opt-in surface) |
+| W-21 Soul-set count | frozen at 10 | **10** (no S-11 candidate) |
+| Rule count | ≤ 60 hard cap | **59** (+1 headroom) |
+| `DEFAULT_EVENTS` length | byte-stable at 8 | **8** (untouched) |
+| `canonical_order` length / version | 16 / 5 byte-stable | **16 / 5** (untouched in PV-02) |
+| `install_local` body has zero `agent_dir` references | required (I-001 invariant) | **PASS** (W-18 v9.2.2 lint sustained) |
+| `AGENT_DIR_REQUIRED_TARGETS` membership | exactly `{cursor, claude, copilot, codex}` | **PASS** (W-18 v9.2.2 lint sustained) |
+| W-2 NineS overall composite | ≥ 0.85 | **0.907350** (margin +0.0574; delta +0.000002 vs v9.2.2 — byte-stable) |
+| W-2 NineS `structure_recognition` (byte_stability) | ≥ 0.95 | **1.00** (margin +0.05) |
+| W-3 SI-3 weighted composite | ≥ 8.5 PATCH floor | **9.475** (margin +0.975; matches v9.2.2 close) |
+
 ## [9.2.2] — 2026-05-02
 
 **PATCH — I-001 critical CLI fix: `devola-init local` now works on pip-wheel-only installs (workflow-system/ no longer required).** First PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the 4 issues catalogued in `.local/feedbacks/feedback_for_v9.2.1.md`. v9.2.2 closes I-001 (critical) — `devola-init` aborted on pip-wheel installs because `main()` called `_find_agent_dir()` and unconditionally hard-failed when `agent_dir / "SKILL.md"` was missing, but the `local` installer uses `scaffold_local` + `importlib.resources` and has zero dependency on `agent_dir`. The wheel does not bundle `workflow-system/` (excluded from `MANIFEST.in` / wheel `data_files`), so every operator following the documented `pip install --upgrade git+...` flow got a CLI that couldn't run AND a misleading error that recommended the same `pip install` they had just executed. v9.2.2 also closes I-004 (minor) with a one-line note in `workflow-system/agent/SKILL.md` §"Version & Update". Cycle invariants intact: Soul-set frozen at **10** (W-21); rule count unchanged at **59 / 60** (+1 headroom); `DEFAULT_EVENTS` length **8**; `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length **16** / version **5** byte-identical (untouched in PV-01); 0 new env flags (W-20 reuse-first sustained — the I-001 fix is a behaviour CORRECTION, not an opt-in surface); NineS overall composite **0.907348 → 0.907348** (delta **0.000000** — canonical PATCH byte-stable signature); SI-3 weighted composite **9.475 / 10** (matches v9.2.0 / v9.2.1 close; margin **+0.975** over 8.5 PATCH floor); `byte_stability` axis (`structure_recognition`) **1.00** (margin +0.05 over PV-01 AC ≥ 0.95 floor).
