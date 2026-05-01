@@ -3068,3 +3068,196 @@ def test_v9_2_3_mode_flag_surface_complete(project_root: Path) -> None:
             f'"core"/"standard"/"full"`. Adding a new mode requires '
             f"updating BOTH VALID_MODES AND this lint's expected set."
         )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.4 PV-03 — W-18 ghost-audit refresh for the cycle-close validation.
+# ---------------------------------------------------------------------------
+#
+# v9.2.4 PV-03 is the FINAL PV of the v9.2.2 PATCH cycle (3 PVs:
+# v9.2.2 -> v9.2.3 -> v9.2.4). PV-03 ships ZERO new code paths — only
+# cycle-close validation artefacts:
+#
+# 1. EXTEND tests/test_init_project_pip_wheel.py with
+#    test_cycle_close_e2e_local_mode_core_works — parametrized across
+#    4 fixture shapes (empty / with_gitignore_local / with_gitignore_all /
+#    full_pip_wheel_install). Each shape validates: `devola-init local
+#    --mode=core` exits 0; 8 canonical paths created; --mode=core implies
+#    --no-compile so cursor-rules + AGENTS.md compile artefacts NOT
+#    written; gitignore-covered paths emit per-path WARN; absent /
+#    unrelated rules emit ZERO WARN.
+#
+# 2. NEW .local/research/v9.2.2_retrospective.md — W-7 / SI-8 cycle-
+#    close retrospective with the 4 mandatory sections (Gaps Identified
+#    / What was Implemented / What was Deferred / Key Learnings) +
+#    the W-21 Soul-set freeze telegraph for v9.4.0.
+#
+# 3. W-19 archive refresh: docs/cycle-archive/v9.2.0/ now contains
+#    v9.2.2_retrospective.md (post `python scripts/archive_research_artifacts.py
+#    9.2.0 --extra-prefix v9.2.`), making the retrospective accessible
+#    from a fresh clone (where .local/ is gitignored).
+#
+# This W-18 refresh discharges the precondition: every CHANGELOG entry
+# mentioning a v9.2.4 feature MUST have a backing ghost-audit lint in
+# THIS file BEFORE the CHANGELOG entry is authored.
+
+# The 4 mandatory W-7 retrospective section headings — must ALL appear
+# in the retrospective for it to be a valid W-7 / SI-8 artefact.
+_V9_2_4_W7_MANDATORY_SECTIONS: tuple[str, ...] = (
+    "## 1. Gaps identified",
+    "## 2. What was implemented",
+    "## 3. What was deferred and why",
+    "## 4. Key learnings",
+)
+
+# The exact parametrize cardinality on the cycle-close E2E test —
+# pinned by the cycle plan §PV-03 contract (4 representative install
+# fixture shapes). A future PV that drops a shape MUST update this
+# constant + document the operator-visible scope reduction.
+_V9_2_4_E2E_PARAMETRIZE_CASES: int = 4
+
+_V9_2_4_E2E_FIXTURE_SHAPES: frozenset[str] = frozenset(
+    {"empty", "with_gitignore_local", "with_gitignore_all", "full_pip_wheel_install"}
+)
+
+
+def test_v9_2_4_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.4: every NEW v9.2.4 surface has presence + structural coverage.
+
+    Discharges the W-18 precondition for the v9.2.4 cycle-close PATCH —
+    every CHANGELOG entry mentioning a v9.2.4 feature MUST have a
+    backing ghost-audit lint in THIS file BEFORE the CHANGELOG entry
+    is authored.
+
+    v9.2.4 PV-03 surfaces this lint pins:
+
+    1. ``.local/research/v9.2.2_retrospective.md`` exists (the
+       canonical write-target — gitignored on most clones, so we
+       prefer the W-19 archive copy under ``docs/cycle-archive/v9.2.0/``
+       for the load-bearing assertion below) and contains all 4 W-7
+       mandatory section headings.
+    2. ``tests/test_init_project_pip_wheel.py`` declares
+       ``test_cycle_close_e2e_local_mode_core_works`` and parametrizes
+       it across exactly 4 fixture shapes (the cycle plan §PV-03
+       contract — empty / with_gitignore_local / with_gitignore_all /
+       full_pip_wheel_install).
+    3. ``docs/cycle-archive/v9.2.0/v9.2.2_retrospective.md`` exists
+       (the W-19 archive contract — PATCH series rolls into the parent
+       MINOR cycle archive), making the retrospective visible to a
+       fresh-clone reviewer who doesn't carry ``.local/``.
+
+    Failure modes:
+      * "retrospective missing on disk" → the W-7 / SI-8 artefact was
+        not authored; cycle-close PATCH is incomplete.
+      * "missing mandatory section heading" → the retrospective is
+        partial; W-7 §"4 mandatory sections" requires ALL of Gaps /
+        Implemented / Deferred / Learnings.
+      * "parametrize cardinality drift" → the cycle-close E2E lost
+        a fixture shape; either restore it OR update both the cycle
+        plan §PV-03 contract AND this lint's pinned constant.
+      * "archive missing the retrospective" → run
+        ``python scripts/archive_research_artifacts.py 9.2.0
+        --extra-prefix v9.2.`` to populate (idempotent).
+    """
+    import ast
+
+    archived_retrospective = (
+        project_root / "docs" / "cycle-archive" / "v9.2.0" / "v9.2.2_retrospective.md"
+    )
+    assert archived_retrospective.is_file(), (
+        f"W-18 v9.2.4 violation: W-19 archive contract — "
+        f"{archived_retrospective.relative_to(project_root)} missing. "
+        f"Run `python scripts/archive_research_artifacts.py 9.2.0 "
+        f"--extra-prefix v9.2.` to populate (idempotent)."
+    )
+    archived_size = archived_retrospective.stat().st_size
+    assert archived_size >= 1000, (
+        f"W-18 v9.2.4 violation: archived retrospective is "
+        f"{archived_size} bytes (< 1000 byte minimum); empty/stub "
+        f"retrospective does not satisfy the W-7 4-section contract"
+    )
+
+    archived_text = archived_retrospective.read_text(encoding="utf-8")
+    for heading in _V9_2_4_W7_MANDATORY_SECTIONS:
+        assert heading in archived_text, (
+            f"W-18 v9.2.4 violation: retrospective missing mandatory "
+            f"W-7 section heading {heading!r}; the W-7 / SI-8 contract "
+            f"requires ALL of {list(_V9_2_4_W7_MANDATORY_SECTIONS)!r}"
+        )
+
+    pip_wheel_test_file = project_root / "tests" / "test_init_project_pip_wheel.py"
+    pip_wheel_ast = ast.parse(pip_wheel_test_file.read_text(encoding="utf-8"))
+    e2e_node = next(
+        (
+            node
+            for node in pip_wheel_ast.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "test_cycle_close_e2e_local_mode_core_works"
+        ),
+        None,
+    )
+    assert e2e_node is not None, (
+        "W-18 v9.2.4 violation: tests/test_init_project_pip_wheel.py "
+        "MUST declare test_cycle_close_e2e_local_mode_core_works; the "
+        "cycle plan §PV-03 contract requires this multi-fixture E2E "
+        "validation surface"
+    )
+
+    parametrize_decorators = [
+        dec
+        for dec in e2e_node.decorator_list
+        if (
+            isinstance(dec, ast.Call)
+            and isinstance(dec.func, ast.Attribute)
+            and dec.func.attr == "parametrize"
+        )
+    ]
+    assert len(parametrize_decorators) == 1, (
+        f"W-18 v9.2.4 violation: test_cycle_close_e2e_local_mode_core_works "
+        f"must carry exactly ONE @pytest.mark.parametrize decorator; "
+        f"got {len(parametrize_decorators)}"
+    )
+
+    parametrize_call = parametrize_decorators[0]
+    shape_list_arg = parametrize_call.args[1] if len(parametrize_call.args) >= 2 else None
+    assert shape_list_arg is not None and isinstance(shape_list_arg, ast.List), (
+        "W-18 v9.2.4 violation: parametrize values argument must be a "
+        "literal list of fixture shapes"
+    )
+    shape_values = {
+        elt.value
+        for elt in shape_list_arg.elts
+        if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+    }
+    assert len(shape_values) == _V9_2_4_E2E_PARAMETRIZE_CASES, (
+        f"W-18 v9.2.4 violation: cycle plan §PV-03 contract requires "
+        f"exactly {_V9_2_4_E2E_PARAMETRIZE_CASES} parametrize cases on "
+        f"test_cycle_close_e2e_local_mode_core_works; got "
+        f"{len(shape_values)} ({sorted(shape_values)!r})"
+    )
+    assert shape_values == _V9_2_4_E2E_FIXTURE_SHAPES, (
+        f"W-18 v9.2.4 violation: parametrize fixture shapes drifted "
+        f"from the cycle plan §PV-03 contract. Got {sorted(shape_values)!r}; "
+        f"expected exactly {sorted(_V9_2_4_E2E_FIXTURE_SHAPES)!r}"
+    )
+
+    # The .local/research/ retrospective is the canonical write-target
+    # but is gitignored on most clones. Skip the local-presence assertion
+    # gracefully when the file is absent — the load-bearing W-7 contract
+    # was already verified above against the archived copy under
+    # docs/cycle-archive/v9.2.0/, which IS committed.
+    local_retrospective = project_root / ".local" / "research" / "v9.2.2_retrospective.md"
+    if local_retrospective.is_file():
+        # When present, the local copy MUST match the same 4-section
+        # contract (catches a future bug where the local + archived
+        # copies drift apart).
+        local_text = local_retrospective.read_text(encoding="utf-8")
+        local_rel = local_retrospective.relative_to(project_root)
+        for heading in _V9_2_4_W7_MANDATORY_SECTIONS:
+            assert heading in local_text, (
+                f"W-18 v9.2.4 violation: local retrospective {local_rel} "
+                f"is missing mandatory section heading {heading!r}; "
+                f"the local + archived copies have drifted (re-run "
+                f"`python scripts/archive_research_artifacts.py 9.2.0 "
+                f"--extra-prefix v9.2.` to refresh the archive)"
+            )

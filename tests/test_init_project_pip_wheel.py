@@ -25,6 +25,7 @@ Source artefacts:
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -315,3 +316,197 @@ def test_error_message_does_not_recommend_pip_install(
         "`pip install --upgrade git+...` path either — same misleading "
         "loop reason"
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.4 PV-03 — multi-fixture cycle-close E2E validation.
+# ---------------------------------------------------------------------------
+#
+# This is the FINAL PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 ->
+# v9.2.3 -> v9.2.4). Per the cycle-close discipline (mirroring v9.2.0
+# -> v9.2.1 sustaining-PATCH precedent), PV-03 ships ZERO new code
+# paths — only validation artefacts proving the v9.2.2 I-001 fix +
+# v9.2.3 I-003 fix + v9.2.3 ``--mode={core,standard,full}`` shorthand
+# COMPOSE correctly across representative install scenarios.
+#
+# The four fixture shapes simulate the matrix an operator can land
+# in after `pip install --upgrade git+...` (the install path that
+# triggered the entire cycle):
+#
+#   1. ``empty`` — fresh tmp repo, no .gitignore, no parent
+#      ``workflow-system/`` (the canonical pip-wheel-only install).
+#   2. ``with_gitignore_local`` — tmp repo whose existing .gitignore
+#      contains ``.local/.agent/active/`` (the headline I-003
+#      reproduction from feedback_for_v9.2.1.md §3).
+#   3. ``with_gitignore_all`` — tmp repo whose .gitignore broadly
+#      ignores ``.local/`` (a stricter session-private convention).
+#   4. ``full_pip_wheel_install`` — a clean pip-wheel install with
+#      no .gitignore (canonical "I-001 closure" scenario; verifies
+#      the surgical fix continues to hold post v9.2.3).
+#
+# For each shape ``devola-init local --mode=core``:
+#   * exits 0 (the I-001 closure),
+#   * scaffolds all 8 canonical paths (the SKILL.md Pre-Dispatch
+#     Contract),
+#   * skips the auto-compile (``--mode=core`` implies ``--no-compile``
+#     per v9.2.3 PV-02 dispatch contract),
+#   * emits a WARNING per gitignore-covered scaffold path (the I-003
+#     audit) when an ignore rule applies, and stays quiet otherwise.
+#
+# Source: v9.2.2 cycle plan §PV-03 + v9.2.4 dispatch.
+
+# Pinned scaffold-path counts per shape — see comment block above for
+# the full per-shape rationale. The audit is conservative (S-5
+# graceful degradation) so we assert >= floors rather than exact
+# counts; a future PV that adds another REQUIRED_DIR would shift the
+# floors upward but never violate the sentinel.
+_SCAFFOLD_AUDIT_TARGETS: int = 7  # 6 REQUIRED_DIRS + 1 MEMORY_SUBDIR
+
+# The 8 canonical scaffold paths — mirrors the SKILL.md "Repo-Init
+# Pre-Dispatch Contract" enumerated in the user's manual verification
+# in feedback_for_v9.2.1.md (8/8 paths created).
+_CYCLE_CLOSE_E2E_CANONICAL_PATHS: tuple[str, ...] = (
+    ".local",
+    ".local/feedbacks",
+    ".local/tasks",
+    ".local/memory",
+    ".local/memory/specs",
+    ".local/.agent",
+    ".local/.agent/active",
+    ".local/.agent/handoff",
+)
+
+
+@pytest.mark.parametrize(
+    "shape",
+    ["empty", "with_gitignore_local", "with_gitignore_all", "full_pip_wheel_install"],
+)
+def test_cycle_close_e2e_local_mode_core_works(
+    shape: str,
+    isolated_pip_wheel_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """v9.2.2 PATCH cycle-close E2E — composition across 4 fixture shapes.
+
+    Validates that the three v9.2.2 cycle deliverables compose
+    correctly against representative pip-wheel-install scenarios:
+
+    * v9.2.2 I-001 fix (deferred ``agent_dir`` / SKILL.md gate),
+    * v9.2.3 I-003 fix (``scaffold_local`` gitignore audit),
+    * v9.2.3 ``--mode=core`` shorthand (no-compile + no-examples).
+
+    For each fixture shape the assertion contract is uniform:
+
+    1. ``devola-init local --mode=core`` MUST exit 0 (no
+       ``SystemExit`` raised) — the I-001 closure invariant for
+       wheel-only installs.
+    2. The 8 canonical Pre-Dispatch Contract paths MUST exist on
+       disk (matches the user's manual verification ledger from
+       ``feedback_for_v9.2.1.md`` §1).
+    3. The cursor-rules + AGENTS.md compile artefacts MUST NOT be
+       written — ``--mode=core`` implies ``--no-compile`` per the
+       v9.2.3 PV-02 dispatch contract.
+    4. The ``devolaflow.local.workspace`` WARNING budget per shape:
+
+       * ``empty`` / ``full_pip_wheel_install`` (no .gitignore) →
+         ZERO audit warnings.
+       * ``with_gitignore_local`` (rule covers
+         ``.local/.agent/active/``) → at least 1 WARN naming the
+         covered path + the ``!<rel>/README.md`` whitelist
+         recommendation.
+       * ``with_gitignore_all`` (broad ``.local/`` rule) → at least
+         7 WARNs (one per scaffold target — the audit walks
+         REQUIRED_DIRS + MEMORY_SUBDIRS in one pass).
+
+    Failure modes:
+      * Exit nonzero on ``--mode=core`` → I-001 / I-003 regression
+        (or ``--mode`` precedence regression).
+      * Missing canonical path → scaffold drift; check
+        ``REQUIRED_DIRS`` + ``MEMORY_SUBDIRS`` parity with this list.
+      * Compile artefact present → ``--mode=core`` precedence
+        regression (v9.2.3 PV-02 contract violated).
+      * Wrong WARN count for a shape → audit semantics drifted; check
+        ``_path_matches_gitignore`` and the audit cache.
+    """
+    cwd = isolated_pip_wheel_repo
+
+    if shape == "with_gitignore_local":
+        (cwd / ".gitignore").write_text(".local/.agent/active/\n", encoding="utf-8")
+    elif shape == "with_gitignore_all":
+        (cwd / ".gitignore").write_text(".local/\n", encoding="utf-8")
+    # `empty` and `full_pip_wheel_install` intentionally leave the
+    # repo without a `.gitignore` — they exercise the canonical
+    # "fresh wheel install" path (no prior-session scaffolding state).
+
+    caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
+    monkeypatch.setattr(sys, "argv", ["devola-init", "local", "--mode=core"])
+
+    main()  # MUST NOT raise SystemExit — the headline cycle-close invariant.
+
+    out = capsys.readouterr().out
+    assert "DevolaFlow Quick Setup" in out, (
+        f"shape={shape!r}: setup banner missing — `devola-init local "
+        f"--mode=core` must complete the same dispatch loop as the "
+        f"PV-01 baseline test"
+    )
+    assert "Now Using DevolaFlow" in out, (
+        f"shape={shape!r}: closing banner missing — the dispatch loop must run to completion"
+    )
+    assert "SKIP compile" in out, (
+        f"shape={shape!r}: --mode=core should derive --no-compile "
+        f"(per v9.2.3 PV-02 dispatch contract); SKIP compile banner "
+        f"missing from stdout"
+    )
+
+    for relpath in _CYCLE_CLOSE_E2E_CANONICAL_PATHS:
+        full = cwd / relpath
+        assert full.is_dir(), (
+            f"shape={shape!r}: Pre-Dispatch Contract violation — "
+            f"required scaffold path {relpath!r} missing after "
+            f"`devola-init local --mode=core`"
+        )
+
+    assert not (cwd / ".cursor" / "rules" / "repo-governance.mdc").exists(), (
+        f"shape={shape!r}: --mode=core implies --no-compile — the "
+        f"compile artefact must NOT be written"
+    )
+    assert not (cwd / "AGENTS.md").exists(), (
+        f"shape={shape!r}: --mode=core implies --no-compile — AGENTS.md must NOT be written"
+    )
+
+    audit_warnings = [
+        record
+        for record in caplog.records
+        if record.name == "devolaflow.local.workspace" and record.levelno == logging.WARNING
+    ]
+    if shape in {"empty", "full_pip_wheel_install"}:
+        assert audit_warnings == [], (
+            f"shape={shape!r}: no .gitignore present — the audit must "
+            f"emit ZERO WARNs (got "
+            f"{[w.getMessage() for w in audit_warnings]!r})"
+        )
+    elif shape == "with_gitignore_local":
+        assert len(audit_warnings) >= 1, (
+            f"shape={shape!r}: `.gitignore: .local/.agent/active/` rule "
+            f"must trigger at least one I-003 audit WARN (got "
+            f"{len(audit_warnings)})"
+        )
+        assert any(".local/.agent/active" in record.getMessage() for record in audit_warnings), (
+            f"shape={shape!r}: I-003 audit WARN must name the covered "
+            f"path explicitly so the operator can act on it"
+        )
+        assert any(
+            "!.local/.agent/active/README.md" in record.getMessage() for record in audit_warnings
+        ), (
+            f"shape={shape!r}: I-003 audit WARN must include the exact "
+            f"`!<rel>/README.md` whitelist recommendation"
+        )
+    elif shape == "with_gitignore_all":
+        assert len(audit_warnings) >= _SCAFFOLD_AUDIT_TARGETS, (
+            f"shape={shape!r}: broad `.gitignore: .local/` rule must "
+            f"trigger at least {_SCAFFOLD_AUDIT_TARGETS} WARNs (one per "
+            f"scaffold target — REQUIRED_DIRS + MEMORY_SUBDIRS); got "
+            f"{len(audit_warnings)}"
+        )
