@@ -41,8 +41,12 @@ before touching :mod:`devolaflow.memory_router.cache`.
 
 from __future__ import annotations
 
+import logging
+import os
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any, Final
 
 __all__ = [
@@ -52,10 +56,13 @@ __all__ = [
     "MemoryCacheError",
     "MemoryCase",
     "build_case_from_dict",
+    "consult_for_dispatch",
     "is_ttl_expired",
     "is_version_stale",
     "today_iso",
 ]
+
+_logger = logging.getLogger(__name__)
 
 
 DEFAULT_TTL_DAYS: Final[int] = 30
@@ -327,3 +334,373 @@ def build_case_from_dict(
         repo_signal=str(row.get("repo_signal", "") or ""),
         tags=tags_tuple,
     )
+
+
+# ---------------------------------------------------------------------------
+# v9.1.4 PV-04 — consult_for_dispatch (advisory hint surface)
+# ---------------------------------------------------------------------------
+#
+# Surfaces matched MemoryCase entries as ADVISORY hints in the dispatch
+# payload's `change_context.memory_case_hits` sub-field (NEST extension per
+# A-2.3). Distinct from `MemoryRouter.lookup_case()` (the planner-replacement
+# fast-path keyed on workflow_type+task_type). consult_for_dispatch is keyword-
+# scored — caller passes a partially-formed dispatch payload and gets back
+# the top-K MemoryCase hits whose summary/tags overlap the task description.
+#
+# W-20 reuse: gated by the SAME env-flag as MemoryRouter
+# (DEVOLAFLOW_MEMORY_ROUTER) — both surfaces consume `.local/memory/cases/
+# index.yaml` and are activated on the same operator opt-in. Per the v9.2.0
+# cycle plan §"Self-iteration constraint compliance matrix" W-20 row,
+# DEVOLAFLOW_MEMORY_CONSULT was discussed by name but ultimately REUSED
+# DEVOLAFLOW_MEMORY_ROUTER ("0 new flags across the entire 7-PV cycle").
+
+_CONSULT_ENV_FLAG: Final[str] = "DEVOLAFLOW_MEMORY_ROUTER"
+"""Activation flag — REUSED from :mod:`devolaflow.memory_router.router`.
+
+Set to the literal string ``"1"`` to enable. Per W-20 reuse-first this is
+the SAME flag the fast-path :class:`MemoryRouter` consults — the two
+surfaces share the same operator opt-in and the same
+``.local/memory/cases/index.yaml`` source-of-truth, so introducing a
+separate ``DEVOLAFLOW_MEMORY_CONSULT`` flag would have failed the
+behavioural-orthogonality test in
+``workflow-system/agent/references/env-flags.md`` §7.
+"""
+
+_CONSULT_ENV_TRUTHY: Final[str] = "1"
+"""R5 strict — only the literal ``"1"`` activates; everything else is OFF."""
+
+_DEFAULT_CONSULT_INDEX_PATH: Final[Path] = Path(".local/memory/cases/index.yaml")
+"""Resolved against ``Path.cwd()`` at call time (NOT import time) so tests
+using ``monkeypatch.chdir(tmp_path)`` get fresh resolution."""
+
+_CONSULT_STOPWORDS: Final[frozenset[str]] = frozenset(
+    {
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "into",
+        "this",
+        "that",
+        "have",
+        "will",
+    }
+)
+"""≤ 10 hardcoded English stopwords. Intentionally small — overlap scoring
+is lightweight, and growing the list inflates the symbol's surface area
+without measurable recall improvement on the canonical .local/memory/cases/
+index shape."""
+
+_CONSULT_KEYWORD_SPLIT_RE: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9]+")
+"""Lowercase-only tokenizer; matches word-boundaries on any non-alnum run."""
+
+_CONSULT_DEFAULT_MAX_HITS: Final[int] = 3
+"""Caps the returned hit list at 3 entries (matches the documented
+``change_context.memory_case_hits`` schema cap of ≤ 3)."""
+
+
+def _extract_dispatch_keywords(payload: Any) -> set[str]:
+    """Return a lowercased keyword set from ``payload.task.{description,title}``.
+
+    Defensive against missing keys / non-dict structures so a malformed
+    payload returns an empty keyword set rather than raising. Matches the
+    lean dispatch shape (``payload['task']['title']`` per
+    ``schemas/lean-dispatch.yaml#lean_format_spec.task``) AND the verbose
+    shape (``payload['task']['description']`` per the original_example).
+    Stopwords + tokens shorter than 3 characters are dropped.
+    """
+    if not isinstance(payload, dict):
+        return set()
+    task = payload.get("task")
+    if not isinstance(task, dict):
+        return set()
+
+    sources: list[str] = []
+    for key in ("description", "title", "goal"):
+        value = task.get(key)
+        if isinstance(value, str) and value.strip():
+            sources.append(value)
+    top_goal = payload.get("goal")
+    if isinstance(top_goal, str) and top_goal.strip():
+        sources.append(top_goal)
+    if not sources:
+        return set()
+
+    tokens: set[str] = set()
+    for src in sources:
+        for raw in _CONSULT_KEYWORD_SPLIT_RE.split(src.lower()):
+            if len(raw) < 3:
+                continue
+            if raw in _CONSULT_STOPWORDS:
+                continue
+            tokens.add(raw)
+    return tokens
+
+
+def _case_keyword_corpus(case: MemoryCase) -> set[str]:
+    """Lowercased keyword set extracted from a case's matchable fields.
+
+    Mirrors :func:`_extract_dispatch_keywords` tokenisation so overlap
+    scoring is symmetric. Pulls from ``summary`` + ``tags`` +
+    ``workflow_type`` + ``task_type``; ``case_id`` and ``recipe_path`` are
+    intentionally excluded — they leak filename noise that would inflate
+    spurious matches.
+    """
+    sources: list[str] = [case.summary, case.workflow_type, case.task_type]
+    sources.extend(str(tag) for tag in case.tags)
+    tokens: set[str] = set()
+    for src in sources:
+        for raw in _CONSULT_KEYWORD_SPLIT_RE.split(src.lower()):
+            if len(raw) < 3:
+                continue
+            if raw in _CONSULT_STOPWORDS:
+                continue
+            tokens.add(raw)
+    return tokens
+
+
+def _resolve_current_version_lazy() -> str:
+    """Lazy-import :data:`devolaflow.__version__` (avoids import cycle).
+
+    Mirrors :func:`devolaflow.memory_router.router._resolve_current_version`.
+    Kept as a separate helper so :func:`consult_for_dispatch` stays pure
+    function (no module-level side effects).
+    """
+    from devolaflow import __version__ as _devolaflow_version  # noqa: PLC0415
+
+    return _devolaflow_version
+
+
+def _is_consult_enabled(env: dict[str, str] | None) -> bool:
+    """Pure env-flag read — NO file IO, NO subprocess.
+
+    R5 strict: only the literal string ``"1"`` activates the consultation
+    surface. Every other value (unset, ``"0"``, ``""``, ``"true"``,
+    ``"yes"``, etc.) is treated as OFF.
+    """
+    source = env if env is not None else os.environ
+    return source.get(_CONSULT_ENV_FLAG, "") == _CONSULT_ENV_TRUTHY
+
+
+def consult_for_dispatch(
+    payload: dict[str, Any],
+    repo_root: Path | str,
+    *,
+    max_hits: int = _CONSULT_DEFAULT_MAX_HITS,
+    env: dict[str, str] | None = None,
+    current_version: str | None = None,
+    today: str | None = None,
+) -> list[MemoryCase]:
+    """Return up to ``max_hits`` :class:`MemoryCase` hits matched against ``payload``.
+
+    The advisory companion to :meth:`devolaflow.memory_router.router.MemoryRouter.lookup_case`
+    (the planner-replacement fast-path). ``consult_for_dispatch`` does NOT
+    short-circuit a planner decision — it returns case_id / summary
+    candidates that the L0 dispatcher can surface in the dispatch payload's
+    ``change_context.memory_case_hits`` sub-field (NEST extension per
+    A-2.3, schema documented in ``schemas/lean-dispatch.yaml#lean_format_spec.change_context``).
+
+    Decision tree (cache-miss is ALWAYS the safe path per R5 strict):
+
+    1. Env-flag ``DEVOLAFLOW_MEMORY_ROUTER`` not set to literal ``"1"`` →
+       return ``[]`` immediately. NO file IO. NO YAML parse. NO version
+       resolve. (R5 strict zero-overhead — verified by
+       ``tests/test_memory_consult_for_dispatch.py::test_env_flag_off_returns_empty_list``.)
+    2. ``.local/memory/cases/index.yaml`` missing → log DEBUG (NOT
+       WARNING — empty cases dir is a legitimate new-repo state) and
+       return ``[]``.
+    3. Index file present but malformed (YAML parse error / wrong shape)
+       → log WARNING via :mod:`logging`, return ``[]`` (S-5 explicit error
+       state — operator sees the path + the failing key). Caller continues
+       normally with no advisory hints.
+    4. Index well-formed → score every non-stale, non-expired
+       :class:`MemoryCase` against the dispatch keywords; return top
+       ``max_hits`` by overlap score (ties broken by ``last_accessed``
+       desc, then ``case_id`` ascending for determinism).
+
+    Match heuristic:
+
+    * Extract keywords from ``payload['task']['description']`` +
+      ``payload['task']['title']`` + ``payload['task']['goal']`` +
+      ``payload['goal']`` (defensive — missing keys are skipped, never
+      raise). Lowercase; drop stopwords (10 common English) and tokens
+      shorter than 3 characters.
+    * For each :class:`MemoryCase`, compute a corpus from
+      ``summary + tags + workflow_type + task_type``. Score = size of
+      keyword-set intersection.
+    * Skip cases with score 0, with ``is_version_stale(current_version)``,
+      or with ``is_ttl_expired(today=today)``.
+    * Sort surviving cases by ``(-score, -last_accessed, +case_id)`` and
+      return the first ``max_hits``.
+
+    Args:
+        payload: Lean or verbose dispatch payload (any dict shape — the
+            extractor is defensive). Reads only; never mutates.
+        repo_root: Path to the consumer repo root. Tests pass
+            ``tmp_path``; production passes the L0 cwd.
+        max_hits: Cap on returned hits. Defaults to 3 (matches the
+            documented schema cap on ``memory_case_hits``).
+        env: Optional env dict for tests; defaults to :data:`os.environ`.
+        current_version: Optional override for the version-stale check;
+            defaults to :data:`devolaflow.__version__` resolved lazily so
+            this module stays import-cycle-free.
+        today: Optional ISO date override for the TTL check; defaults to
+            :func:`today_iso`.
+
+    Returns:
+        List of up to ``max_hits`` :class:`MemoryCase` instances ordered
+        by descending overlap score. Empty list when env-flag is OFF, the
+        index is missing, the index is malformed, or no case scored > 0.
+
+    Production callers: surface the returned ``case_id`` strings in the
+    dispatch payload's ``change_context.memory_case_hits`` block (PV-06
+    end-to-end test ``tests/test_capability_e2e.py`` will exercise the
+    full dispatch-side wire-up; in v9.1.4 PV-04 this function is added to
+    ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` with the comment
+    pointing at the upcoming PV-06 caller).
+    """
+    if not _is_consult_enabled(env):
+        return []
+
+    cap = max(0, int(max_hits))
+    if cap == 0:
+        return []
+
+    keywords = _extract_dispatch_keywords(payload)
+    if not keywords:
+        return []
+
+    root = Path(repo_root)
+    index_path = root / _DEFAULT_CONSULT_INDEX_PATH
+    if not index_path.exists():
+        _logger.debug(
+            "[memory_router.consult] index file %s not present — returning [] "
+            "(legitimate new-repo state)",
+            index_path,
+        )
+        return []
+
+    try:
+        text = index_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        _logger.warning(
+            "[memory_router.consult] cannot read index at %s: %s — returning [] "
+            "(S-5 explicit error state; caller continues without advisory hints)",
+            index_path,
+            exc,
+        )
+        return []
+
+    try:
+        import yaml  # noqa: PLC0415
+
+        payload_yaml = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        _logger.warning(
+            "[memory_router.consult] index at %s is not valid YAML: %s — "
+            "returning [] (S-5 explicit error state)",
+            index_path,
+            exc,
+        )
+        return []
+    except ImportError as exc:  # pragma: no cover — defensive
+        _logger.warning(
+            "[memory_router.consult] PyYAML not installed: %s — returning []",
+            exc,
+        )
+        return []
+
+    if payload_yaml is None:
+        return []
+    if not isinstance(payload_yaml, dict):
+        _logger.warning(
+            "[memory_router.consult] index at %s top-level must be a mapping; "
+            "got %s — returning [] (S-5 explicit error state)",
+            index_path,
+            type(payload_yaml).__name__,
+        )
+        return []
+
+    raw_cases = payload_yaml.get("cases", [])
+    if not isinstance(raw_cases, list):
+        _logger.warning(
+            "[memory_router.consult] index at %s 'cases' key must be a list; "
+            "got %s — returning [] (S-5 explicit error state)",
+            index_path,
+            type(raw_cases).__name__,
+        )
+        return []
+
+    index_last_updated = str(payload_yaml.get("last_updated", "") or "")
+    runtime_version = (
+        current_version if current_version is not None else _resolve_current_version_lazy()
+    )
+
+    scored: list[tuple[int, str, str, MemoryCase]] = []
+    for idx, row in enumerate(raw_cases):
+        try:
+            case = build_case_from_dict(
+                row,
+                index_last_updated=index_last_updated,
+                source_path=str(index_path),
+            )
+        except MemoryCacheError as exc:
+            row_hint = (
+                row.get("case_id", f"<row#{idx}>") if isinstance(row, dict) else f"<row#{idx}>"
+            )
+            _logger.warning(
+                "[memory_router.consult] dropping malformed case row %r in %s: %s",
+                row_hint,
+                index_path,
+                exc,
+            )
+            continue
+
+        if is_version_stale(case, runtime_version):
+            continue
+        try:
+            expired = is_ttl_expired(case, today=today)
+        except MemoryCacheError as exc:
+            _logger.warning(
+                "[memory_router.consult] case %r has malformed date field; skipping: %s",
+                case.case_id,
+                exc,
+            )
+            continue
+        if expired:
+            continue
+
+        case_corpus = _case_keyword_corpus(case)
+        score = len(keywords & case_corpus)
+        if score <= 0:
+            continue
+
+        # Sort key tuple: (-score, -last_accessed_str, +case_id) so highest
+        # score wins; ties broken by most-recent access (descending), then
+        # lexicographic case_id ascending. The string-sort on dates works
+        # because ISO YYYY-MM-DD is lexicographically chronological.
+        scored.append((-score, _negate_iso_date(case.last_accessed), case.case_id, case))
+
+    scored.sort(key=lambda triple: (triple[0], triple[1], triple[2]))
+    return [case for _score, _neg_date, _cid, case in scored[:cap]]
+
+
+def _negate_iso_date(value: str) -> str:
+    """Return a string sort key that orders newer ISO dates first.
+
+    Empty strings sort AFTER any real date (so undated cases lose ties
+    against dated cases). For real dates, we negate by subtracting from
+    a sentinel year far in the future and emitting the result as
+    ``YYYY-MM-DD`` again so plain ``sorted()`` (ascending) places newer
+    dates first — pure-string indirection avoids importing :mod:`datetime`
+    here for what is otherwise a hot-path tie breaker.
+    """
+    if not value:
+        return "9999-12-31"
+    try:
+        anchor = date.fromisoformat(value)
+    except ValueError:
+        return "9999-12-31"
+    delta = date(9999, 12, 31).toordinal() - anchor.toordinal()
+    return f"{delta:08d}"

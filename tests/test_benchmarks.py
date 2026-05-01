@@ -404,11 +404,18 @@ class TestBaselineFile:
                 assert required_field in entry, f"{name} baseline entry missing '{required_field}'"
 
     def test_runner_prefers_latest_baseline(self) -> None:
-        """load_baseline() picks the latest baseline file over older ones, falls back as needed."""
+        """load_baseline() picks the latest baseline file over older ones, falls back as needed.
+
+        v9.1.1 PV-01 (cycle v9.2.0 start) wholesale-regenerated all 53
+        EvoBench scenarios per W-16 — the cycle-start MINOR baseline is
+        ``v9.2.0_baseline.json``. The prior ``v9.1.0_baseline.json``
+        stays on disk for cumulative drift detection per W-16 / v8.4.0
+        retro §"R-7 wholesale-vs-piecemeal baseline lesson".
+        """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v9.1.0_baseline.json", (
-            f"Expected load_baseline() to prefer v9.1.0_baseline.json; got {newest.name}"
+        assert newest.name == "v9.2.0_baseline.json", (
+            f"Expected load_baseline() to prefer v9.2.0_baseline.json; got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

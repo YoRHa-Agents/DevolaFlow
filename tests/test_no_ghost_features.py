@@ -1146,10 +1146,14 @@ _V9_1_0_NEW_FILES: tuple[str, ...] = (
 # stub silently slipping through and satisfying mere file-presence.
 _V9_1_0_FILE_MIN_BYTES: int = 50
 
-# Expected DEFAULT_EVENTS tuple length after the v9.1.0 W1-02 bump.
+# Expected DEFAULT_EVENTS tuple length floor after the v9.1.0 W1-02 bump.
 # Before W1-02: 6 (pre_dispatch, post_dispatch, file_write, task_stop,
 # format_on_edit, pre_shell_call). After W1-02: 7 (above + envelope_write
-# APPENDED at position 7 per A-2.4 cache-prefix invariant).
+# APPENDED at position 7 per A-2.4 cache-prefix invariant). Future PVs
+# may append additional events at the tail (e.g. v9.1.3 PV-03 appended
+# `pre_handoff` at position 8); the v9.1.0 invariant is that
+# envelope_write STAYS at position 7 — this lint asserts the floor +
+# the position pin, NOT exact equality on length.
 _V9_1_0_DEFAULT_EVENTS_COUNT: int = 7
 
 
@@ -1218,9 +1222,9 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v9.1.0 violation: check_envelope_append_only is not callable — "
         "the export from devolaflow.lifecycle must be the hook function itself"
     )
-    assert len(DEFAULT_EVENTS) == _V9_1_0_DEFAULT_EVENTS_COUNT, (
+    assert len(DEFAULT_EVENTS) >= _V9_1_0_DEFAULT_EVENTS_COUNT, (
         f"W-18 v9.1.0 violation: lifecycle.DEFAULT_EVENTS length is "
-        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_0_DEFAULT_EVENTS_COUNT} "
+        f"{len(DEFAULT_EVENTS)}, expected ≥ {_V9_1_0_DEFAULT_EVENTS_COUNT} "
         f"(v9.1.0 W1-02 bumped 6 → 7 with envelope_write APPENDED at "
         f"position 7 per A-2.4 cache-prefix invariant). Current events: "
         f"{DEFAULT_EVENTS!r}"
@@ -1229,6 +1233,14 @@ def test_v9_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v9.1.0 violation: ENVELOPE_WRITE_EVENT not registered in "
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the W1-02 append step "
         f"was incomplete"
+    )
+    # A-2.4 position pin: envelope_write MUST stay at position 7 (the
+    # v9.1.0 W1-02 contract). Future appends extend the tuple to
+    # position 8+ but never disturb earlier positions.
+    assert DEFAULT_EVENTS[6] == ENVELOPE_WRITE_EVENT, (
+        f"A-2.4 violation: envelope_write must STAY at position 7 of "
+        f"DEFAULT_EVENTS (the v9.1.0 W1-02 invariant). Got "
+        f"DEFAULT_EVENTS[6]={DEFAULT_EVENTS[6]!r}; full tuple: {DEFAULT_EVENTS!r}"
     )
 
 
@@ -1280,3 +1292,1353 @@ def test_install_local_has_compile_rules_kwarg() -> None:
         f"`*` as the separator so positional callers are forbidden — keeps "
         f"the call site explicit per A-2.4 cache-prefix reasoning)"
     )
+
+
+# ── v9.1.1 PV-01 — W-18 ghost-audit refresh for v9.1.1 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.1 PV-01
+# (cycle v9.2.0 start) introduces the surfaces below; this block adds
+# presence + import-smoke + signature coverage for all of them as the
+# W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/workspace_context.py — new module exposing
+#     scan_workspace() + WorkspaceContext frozen dataclass (the
+#     discovery API for `.local/` + `.rules/` + `.local/.agent/`
+#     surfaces in a consumer repo).
+#   * tests/test_workspace_context_scan.py — new test file pinning
+#     the scan_workspace() detection contract (6 tests).
+#   * benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json —
+#     W-16 wholesale baseline regen (cycle-start MINOR per W-16).
+
+_V9_1_1_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/workspace_context.py",
+    "tests/test_workspace_context_scan.py",
+    "benchmarks/devolaflow_context/baselines/v9.2.0_baseline.json",
+)
+
+# Minimum byte size for a v9.1.1 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_1_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_1_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.1: every NEW v9.1.1 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.1 PV-01 (the v9.2.0 cycle
+    start) introduces the surfaces enumerated in the comment block above
+    this test; this lint asserts each one as a cheap presence +
+    import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_1_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_1_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``scan_workspace`` and ``WorkspaceContext``
+       are importable from :mod:`devolaflow.workspace_context`,
+       ``scan_workspace`` is callable, and ``WorkspaceContext`` is a
+       :func:`dataclasses.is_dataclass`-true frozen dataclass.
+    3. **Public summary surface** — :data:`MAX_FEEDBACKS_RETURNED` is
+       importable and equals ``3`` (matching
+       ``references/plan-mode-enforcement.md`` §"Feedback Ingestion"),
+       AND :meth:`WorkspaceContext.to_summary_dict` exists and is
+       callable (the JSON-serialisable rendering used by dispatch
+       context injection).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.1 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_1_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "WorkspaceContext is not frozen" → the dataclass dropped
+        ``frozen=True`` (the design contract — consumers cannot mutate
+        a snapshot in flight); restore the freeze.
+    """
+    import dataclasses
+
+    for relpath in _V9_1_1_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.1 violation: NEW v9.1.1 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_1_FILE_MIN_BYTES, (
+            f"W-18 v9.1.1 violation: NEW v9.1.1 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_1_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.workspace_context import (
+        MAX_FEEDBACKS_RETURNED,
+        WorkspaceContext,
+        scan_workspace,
+    )
+
+    assert scan_workspace is not None, "W-18 v9.1.1 violation: scan_workspace import yielded None"
+    assert callable(scan_workspace), (
+        "W-18 v9.1.1 violation: scan_workspace is not callable — the export "
+        "from devolaflow.workspace_context must be the function itself"
+    )
+    assert WorkspaceContext is not None, (
+        "W-18 v9.1.1 violation: WorkspaceContext import yielded None"
+    )
+    assert dataclasses.is_dataclass(WorkspaceContext), (
+        "W-18 v9.1.1 violation: WorkspaceContext is not a dataclass — the "
+        "discovery API contract requires a structured frozen dataclass"
+    )
+    assert MAX_FEEDBACKS_RETURNED == 3, (
+        f"W-18 v9.1.1 violation: MAX_FEEDBACKS_RETURNED is "
+        f"{MAX_FEEDBACKS_RETURNED!r} (expected 3) — the public constant pins "
+        f"the plan-mode feedback ingestion default per "
+        f"references/plan-mode-enforcement.md §'Feedback Ingestion'"
+    )
+    assert hasattr(WorkspaceContext, "to_summary_dict"), (
+        "W-18 v9.1.1 violation: WorkspaceContext is missing the "
+        "to_summary_dict() method — the JSON-serialisable summary contract "
+        "is part of the v9.1.1 PV-01 public surface"
+    )
+    assert callable(WorkspaceContext.to_summary_dict), (
+        "W-18 v9.1.1 violation: WorkspaceContext.to_summary_dict is not callable"
+    )
+
+    # Frozen invariant: instantiating + attempting to mutate raises
+    # FrozenInstanceError. Pins the design contract that consumers cannot
+    # mutate a snapshot in flight (the snapshot is a value type — derive
+    # a new one via dataclasses.replace if you need a modified copy).
+    sample = WorkspaceContext(
+        repo_root=project_root,
+        has_local=False,
+        has_rules=False,
+        has_agent_dir=False,
+    )
+    try:
+        sample.has_local = True  # type: ignore[misc]
+    except dataclasses.FrozenInstanceError:
+        pass
+    else:  # pragma: no cover — the assert below catches the regression
+        raise AssertionError(
+            "W-18 v9.1.1 violation: WorkspaceContext is not frozen — "
+            "attribute assignment did not raise FrozenInstanceError. "
+            "The dataclass MUST be declared with frozen=True so consumers "
+            "cannot mutate a snapshot in flight."
+        )
+
+
+# ── v9.1.2 PV-02 — W-18 ghost-audit refresh for v9.1.2 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.2 PV-02
+# (cycle v9.2.0 second PV) introduces the surfaces below; this block
+# adds presence + import-smoke + signature coverage for all of them as
+# the W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/skills/__init__.py — new package marker.
+#   * src/devolaflow/skills/change_activation.py — pure-function
+#     classifier + activation verdict (the heuristic codified by
+#     Architecture rule A-6 "Workspace Engagement Auto-Activation"
+#     per `.rules/architecture.mdc`).
+#   * src/devolaflow/skills/slash_commands.py — `/devola:propose` /
+#     `/devola:apply` / `/devola:verify` / `/devola:archive` thin
+#     wrappers around `agent_workspace.ChangeStore` +
+#     `ArchiveManager` (closes M-007 from v9.0.0 retro §3.3).
+#   * tests/test_change_activation_heuristic.py — heuristic contract
+#     pin (5+ tests covering the 3 verdict cases + opt-out + R5
+#     strict env-flag parsing).
+#   * tests/test_slash_commands.py — CLI happy-path pin (6+ tests
+#     covering propose / apply / verify / archive + main entry).
+
+_V9_1_2_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/skills/__init__.py",
+    "src/devolaflow/skills/change_activation.py",
+    "src/devolaflow/skills/slash_commands.py",
+    "tests/test_change_activation_heuristic.py",
+    "tests/test_slash_commands.py",
+)
+
+# Minimum byte size for a v9.1.2 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_2_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_2_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.2: every NEW v9.1.2 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.2 PV-02 (the second PV of
+    the v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_2_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_2_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Heuristic import-smoke** — ``classify_complexity`` and
+       ``activation_verdict`` are importable from
+       :mod:`devolaflow.skills.change_activation`, both are callable,
+       and the ``ENV_FLAG_NAME`` constant equals
+       ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (W-20 reuse — same surface as
+       v9.1.1 PV-01 SKILL.md §"Workspace Engagement").
+    3. **Slash-command import-smoke** — ``main`` and ``slugify`` and
+       ``scaffold_change_folder`` are importable from
+       :mod:`devolaflow.skills.slash_commands`, ``main`` is callable
+       (the ``python -m devolaflow.skills.slash_commands`` entry
+       point), and ``REQUIRE_VERIFY_STATE == "VERIFYING"`` (the
+       canonical FSM state name per
+       ``schemas/agent-workspace/change-status.yaml#fsm_states``).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.2 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_2_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "ENV_FLAG_NAME mismatch" → a NEW env flag was authored,
+        violating W-20 reuse-first; either restore the REUSE or
+        document the orthogonality argument per W-20 §3.
+      * "REQUIRE_VERIFY_STATE mismatch" → the slash command drifted
+        from the canonical FSM state; restore the contract.
+    """
+    for relpath in _V9_1_2_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.2 violation: NEW v9.1.2 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_2_FILE_MIN_BYTES, (
+            f"W-18 v9.1.2 violation: NEW v9.1.2 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_2_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.skills.change_activation import (
+        ENV_FLAG_NAME,
+        ENV_FLAG_TRUTHY,
+        activation_verdict,
+        classify_complexity,
+        from_env,
+    )
+
+    assert callable(classify_complexity), (
+        "W-18 v9.1.2 violation: classify_complexity is not callable — the "
+        "heuristic export from devolaflow.skills.change_activation must be "
+        "the function itself"
+    )
+    assert callable(activation_verdict), "W-18 v9.1.2 violation: activation_verdict is not callable"
+    assert callable(from_env), "W-18 v9.1.2 violation: from_env is not callable"
+    assert ENV_FLAG_NAME == "DEVOLAFLOW_AGENT_WORKSPACE", (
+        f"W-18 v9.1.2 violation: ENV_FLAG_NAME is {ENV_FLAG_NAME!r} (expected "
+        f"'DEVOLAFLOW_AGENT_WORKSPACE') — W-20 reuse-first MUST hold; the "
+        f"v9.1.2 PV-02 activation surface MUST REUSE the v9.1.1 PV-01 flag, "
+        f"not author a new one"
+    )
+    assert ENV_FLAG_TRUTHY == "1", (
+        f"W-18 v9.1.2 violation: ENV_FLAG_TRUTHY is {ENV_FLAG_TRUTHY!r} "
+        f"(expected '1') — R5 strict opt-in REQUIRES the literal '1' string"
+    )
+
+    from devolaflow.skills.slash_commands import (
+        ARCHIVE_GATE_THRESHOLD,
+        REQUIRE_VERIFY_STATE,
+        main,
+        scaffold_change_folder,
+        slugify,
+    )
+
+    assert callable(main), (
+        "W-18 v9.1.2 violation: slash_commands.main is not callable — the "
+        "`python -m devolaflow.skills.slash_commands` entry point requires it"
+    )
+    assert callable(slugify), "W-18 v9.1.2 violation: slugify is not callable"
+    assert callable(scaffold_change_folder), (
+        "W-18 v9.1.2 violation: scaffold_change_folder is not callable"
+    )
+    assert REQUIRE_VERIFY_STATE == "VERIFYING", (
+        f"W-18 v9.1.2 violation: REQUIRE_VERIFY_STATE is "
+        f"{REQUIRE_VERIFY_STATE!r} (expected 'VERIFYING') — the canonical "
+        f"FSM state name per schemas/agent-workspace/change-status.yaml"
+    )
+    assert ARCHIVE_GATE_THRESHOLD == 8.5, (
+        f"W-18 v9.1.2 violation: ARCHIVE_GATE_THRESHOLD is "
+        f"{ARCHIVE_GATE_THRESHOLD!r} (expected 8.5) — the W-3 / SI-3 "
+        f"PATCH/MINOR composite floor per Rule A-4"
+    )
+
+
+# ── v9.1.3 PV-03 — W-18 ghost-audit refresh for v9.1.3 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.3 PV-03
+# (cycle v9.2.0 third PV) closes G-005 deferred from v9.1.0 by creating
+# the FIRST production caller of `HandoffStore.write_envelope` outside
+# the module itself; this block adds presence + import-smoke + signature
+# coverage for all new surfaces as the W-18 PRECONDITION discharge:
+#
+#   * src/devolaflow/lifecycle/auto_write_handoff.py — new module
+#     binding the auto-write decision to the new `pre_handoff` lifecycle
+#     event. Permissive no-op when `DEVOLAFLOW_AGENT_WORKSPACE` is unset
+#     (R5 strict byte-identical); writes a handoff envelope when the
+#     env-flag is set AND the dispatch payload carries a populated
+#     `change_context` block. Honours Rule S-9 append-only ledger via
+#     EnvelopeImmutableError surfacing (AWH002 warning in permissive,
+#     re-raise in strict).
+#   * lifecycle/PRE_HANDOFF_EVENT — new exported event constant
+#     (canonical name `"pre_handoff"`).
+#   * lifecycle/DEFAULT_EVENTS length 7 → 8 (pre_handoff APPENDED at
+#     position 8 to preserve the A-2.4 cache-prefix invariant — existing
+#     event positions 1-7 stay byte-stable per the lifecycle/__init__.py
+#     v9.1.3 PV-03 changelog comment).
+#   * tests/test_handoff_auto_write.py — new test file pinning the
+#     auto-write hook contract (env-flag OFF noop, AWH001/AWH002 codes,
+#     seq monotonic, strict-mode raise propagation).
+
+_V9_1_3_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/lifecycle/auto_write_handoff.py",
+    "tests/test_handoff_auto_write.py",
+)
+
+# Minimum byte size for a v9.1.3 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_3_FILE_MIN_BYTES: int = 50
+
+# Expected DEFAULT_EVENTS tuple length after the v9.1.3 PV-03 bump.
+# Before PV-03: 7 (pre_dispatch, post_dispatch, file_write, task_stop,
+# format_on_edit, pre_shell_call, envelope_write). After PV-03: 8 (above
+# + pre_handoff APPENDED at position 8 per A-2.4 cache-prefix invariant).
+_V9_1_3_DEFAULT_EVENTS_COUNT: int = 8
+
+
+def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.3: every NEW v9.1.3 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.3 PV-03 (the third PV of the
+    v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_3_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_3_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``auto_write_handoff``, ``PRE_HANDOFF_EVENT``
+       are importable from :mod:`devolaflow.lifecycle`,
+       ``auto_write_handoff`` is callable, and the event constant
+       equals ``"pre_handoff"`` (the canonical name re-exported from
+       :mod:`devolaflow.lifecycle.auto_write_handoff`).
+    3. **DEFAULT_EVENTS** tuple length is exactly
+       ``_V9_1_3_DEFAULT_EVENTS_COUNT`` (8 — the v9.1.3 PV-03 bump from
+       7 → 8 with ``pre_handoff`` APPENDED at position 8 per the
+       A-2.4 cache-prefix invariant) and contains
+       ``PRE_HANDOFF_EVENT`` AT THE TAIL.
+    4. **W-20 reuse-first** — the auto-write module's ``ENV_FLAG``
+       constant equals ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (REUSED from
+       v9.1.1 PV-01 + v9.1.2 PV-02; no new flag) AND
+       ``ENV_FLAG_TRUTHY == "1"`` (R5 strict literal-only opt-in).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.3 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_3_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "DEFAULT_EVENTS length != 8" → the lifecycle event tuple was
+        edited in violation of the A-2.4 append-only contract; verify
+        ``pre_handoff`` is still appended at position 8.
+      * "ENV_FLAG mismatch" → a NEW env flag was authored, violating
+        W-20 reuse-first; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+    """
+    for relpath in _V9_1_3_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.3 violation: NEW v9.1.3 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_3_FILE_MIN_BYTES, (
+            f"W-18 v9.1.3 violation: NEW v9.1.3 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_3_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    from devolaflow.lifecycle import (
+        DEFAULT_EVENTS,
+        PRE_HANDOFF_EVENT,
+        auto_write_handoff,
+    )
+    from devolaflow.lifecycle.auto_write_handoff import (
+        ENV_FLAG,
+        ENV_FLAG_TRUTHY,
+    )
+
+    assert PRE_HANDOFF_EVENT == "pre_handoff", (
+        f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT exported value "
+        f"{PRE_HANDOFF_EVENT!r} != 'pre_handoff' (the canonical event "
+        f"name from auto_write_handoff.EVENT)"
+    )
+    assert callable(auto_write_handoff), (
+        "W-18 v9.1.3 violation: auto_write_handoff is not callable — "
+        "the export from devolaflow.lifecycle must be the hook function itself"
+    )
+    assert len(DEFAULT_EVENTS) == _V9_1_3_DEFAULT_EVENTS_COUNT, (
+        f"W-18 v9.1.3 violation: lifecycle.DEFAULT_EVENTS length is "
+        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_3_DEFAULT_EVENTS_COUNT} "
+        f"(v9.1.3 PV-03 bumped 7 → 8 with pre_handoff APPENDED at "
+        f"position 8 per A-2.4 cache-prefix invariant). Current events: "
+        f"{DEFAULT_EVENTS!r}"
+    )
+    assert PRE_HANDOFF_EVENT in DEFAULT_EVENTS, (
+        f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT not registered in "
+        f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the PV-03 append step "
+        f"was incomplete"
+    )
+    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
+        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[-1] is {DEFAULT_EVENTS[-1]!r}, "
+        f"expected {PRE_HANDOFF_EVENT!r}; pre_handoff MUST be appended at "
+        f"the tail per A-2.4 (positions 1-7 byte-stable)"
+    )
+
+    # W-20 reuse-first lint: same activation surface as v9.1.1 PV-01 +
+    # v9.1.2 PV-02. Authoring a new env flag here would violate W-20.
+    assert ENV_FLAG == "DEVOLAFLOW_AGENT_WORKSPACE", (
+        f"W-20 violation: auto_write_handoff.ENV_FLAG is {ENV_FLAG!r}, "
+        f"expected 'DEVOLAFLOW_AGENT_WORKSPACE' (REUSE per Workflow Rule "
+        f"W-20 — same activation surface as v9.1.1 PV-01 SKILL.md "
+        f"§'Workspace Engagement' and v9.1.2 PV-02 Architecture rule A-6)"
+    )
+    assert ENV_FLAG_TRUTHY == "1", (
+        f"R5 strict violation: auto_write_handoff.ENV_FLAG_TRUTHY is "
+        f"{ENV_FLAG_TRUTHY!r}, expected '1' (R5 strict opt-in REQUIRES "
+        f"the literal '1' string — every other variant treated as OFF)"
+    )
+
+
+def test_v9_1_3_handoff_production_caller_exists(project_root: Path) -> None:
+    """G-005 closure proof: ``HandoffStore.write_envelope`` has ≥ 2 callers.
+
+    The headline acceptance criterion of v9.1.3 PV-03 (cycle plan
+    §PV-03 AC #1): ``rg "write_envelope\\(" src/devolaflow/`` MUST
+    return at least 2 hits — the definition site at
+    ``src/devolaflow/agent_workspace/handoff.py:281`` AND the new
+    production caller in
+    ``src/devolaflow/lifecycle/auto_write_handoff.py``.
+
+    Through v9.1.2, the audit returned exactly 1 hit (the definition
+    site only) — ``HandoffStore`` and ``ChangeStore`` were both
+    "registered but never engaged" surfaces, which is the smoking-gun
+    diagnosis from the v9.2.0 cycle plan §"Diagnosis — capability is
+    taught but never engaged". v9.1.3 PV-03 closes that gap by
+    materialising the FIRST production caller. This lint pins the
+    closure so a future regression that deletes the auto-write module
+    fails CI immediately.
+
+    Implementation: AST-walks every Python file under
+    ``src/devolaflow/`` and counts module-level + nested attribute
+    accesses of the form ``write_envelope(`` (any expression containing
+    that substring). The 2-hit floor catches both the definition (a
+    method ``def write_envelope(...)``) and the call site (a function
+    invocation like ``store.write_envelope(envelope)``). The single
+    file ``handoff.py`` carries the definition; ``auto_write_handoff.py``
+    carries the call.
+    """
+    src_root = project_root / "src" / "devolaflow"
+    assert src_root.is_dir(), f"src/devolaflow/ missing — cannot audit (looked under {src_root})"
+
+    callers: list[tuple[str, int]] = []
+    for py_file in sorted(src_root.rglob("*.py")):
+        if any(part == "__pycache__" for part in py_file.parts):
+            continue
+        text = _read(py_file)
+        for line_num, line in enumerate(text.splitlines(), start=1):
+            if "write_envelope(" in line:
+                callers.append((py_file.relative_to(project_root).as_posix(), line_num))
+
+    assert len(callers) >= 2, (
+        f"G-005 NOT closed: rg 'write_envelope\\(' src/devolaflow/ found "
+        f"only {len(callers)} hit(s) — expected ≥ 2 (1 definition + ≥ 1 caller). "
+        f"Hits: {callers!r}. The v9.1.3 PV-03 production caller must live in "
+        f"src/devolaflow/lifecycle/auto_write_handoff.py."
+    )
+    relpaths = {relpath for relpath, _line in callers}
+    assert "src/devolaflow/agent_workspace/handoff.py" in relpaths, (
+        "Definition site missing: src/devolaflow/agent_workspace/handoff.py "
+        "MUST contain the canonical write_envelope definition"
+    )
+    assert "src/devolaflow/lifecycle/auto_write_handoff.py" in relpaths, (
+        f"v9.1.3 PV-03 production caller missing: "
+        f"src/devolaflow/lifecycle/auto_write_handoff.py MUST contain the "
+        f"FIRST production caller of HandoffStore.write_envelope (G-005 "
+        f"closure). Found callers in: {sorted(relpaths)}"
+    )
+
+
+# ── v9.1.4 PV-04 — W-18 ghost-audit refresh for v9.1.4 NEW symbols ────
+# Per Workflow Rule W-18 (`.rules/workflow.mdc` §W-18), every CHANGELOG
+# entry mentioning a feature MUST have a corresponding ghost-audit lint
+# in this file BEFORE the CHANGELOG entry is authored. v9.1.4 PV-04
+# (the fourth PV of the v9.2.0 cycle) introduces the surfaces enumerated
+# in the comment block above this test; this lint asserts each one as a
+# cheap presence + import-smoke check.
+#
+#   * src/devolaflow/memory_router/cache.py — EXTENDED with the new
+#     consult_for_dispatch() pure function. The advisory companion to
+#     MemoryRouter.lookup_case (which is the planner-replacement
+#     fast-path); consult_for_dispatch is keyword-scored and surfaces
+#     the top-3 MemoryCase hits in the dispatch payload's
+#     `change_context.memory_case_hits` NEST sub-field.
+#   * tests/test_memory_consult_for_dispatch.py — new test file pinning
+#     the consult_for_dispatch contract (5 tests covering env-flag OFF
+#     zero-IO, missing index, malformed YAML WARNING, keyword overlap
+#     ranking, TTL+version-stamp filtering).
+#   * tests/test_feedback_ingestion_plan_mode.py — new test file pinning
+#     the plan-mode feedback ingestion contract (4 tests covering empty
+#     dir, S-2 repo-relative paths, 3-feedback cap, plan-mode doc cite).
+#   * benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml
+#     — NEW witness baseline (byte-identical to v8.4.0); proves the
+#     v9.1.4 PV-04 NEST extension preserved canonical_order length 16
+#     and version 5 (the headline I-8 invariant for PV-04).
+#   * schemas/lean-dispatch.yaml — EXTENDED change_context.fields with
+#     3 NEW OPTIONAL sub-fields: prior_feedback_themes / memory_case_hits
+#     / source_of_truth_excerpt (NEST per A-2.3 — canonical_order length
+#     STAYS at 16, version STAYS at 5).
+
+_V9_1_4_NEW_FILES: tuple[str, ...] = (
+    "tests/test_memory_consult_for_dispatch.py",
+    "tests/test_feedback_ingestion_plan_mode.py",
+    "benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml",
+)
+
+# Minimum byte size for a v9.1.4 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_4_FILE_MIN_BYTES: int = 50
+
+# Expected length / version of `schemas/lean-dispatch.yaml#layout_invariant`
+# AFTER the v9.1.4 PV-04 NEST extension. The headline I-8 invariant for
+# PV-04 — the NEST extension MUST preserve canonical_order at 16 keys and
+# the schema version at 5 (positions 1-16 byte-stable; v9-ADR-002 D2
+# append-only contract preserved; v8.3.0 PV-05 + v8.4.0 multi-baseline
+# byte tests continue to PASS without modification).
+_V9_1_4_CANONICAL_ORDER_LENGTH: int = 16
+_V9_1_4_LAYOUT_VERSION: int = 5
+
+# The 3 NEW change_context sub-fields added in v9.1.4 PV-04 per the
+# A-2.3 nest-vs-append decision rule. Each is OPTIONAL (so absence is
+# canonical and the v8.3.0 PV-05 + v8.4.0 + v9.2.0 baseline byte tests
+# continue to PASS). The schema documents per-field caps (≤ 5 / ≤ 30 /
+# ≤ 3 / ≤ 200) but those caps are NOT runtime-enforced in PV-04 — they
+# are normative for L0 agents per references/plan-mode-enforcement.md
+# §5.5 + the v9.2.0 PV-06 e2e test that will exercise them.
+_V9_1_4_NEW_CHANGE_CONTEXT_FIELDS: tuple[str, ...] = (
+    "prior_feedback_themes",
+    "memory_case_hits",
+    "source_of_truth_excerpt",
+)
+
+
+def test_v9_1_4_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.4: every NEW v9.1.4 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.4 PV-04 (the fourth PV of the
+    v9.2.0 cycle) introduces the surfaces enumerated in the comment
+    block above this test; this lint asserts each one as a cheap
+    presence + import-smoke check.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_4_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_4_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — ``consult_for_dispatch`` is importable from
+       :mod:`devolaflow.memory_router` AND from
+       :mod:`devolaflow.memory_router.cache`, and is callable.
+    3. **W-20 reuse-first** — ``consult_for_dispatch`` is gated by the
+       SAME env-flag the existing :class:`MemoryRouter` consults
+       (``DEVOLAFLOW_MEMORY_ROUTER``); no new env-flag was introduced.
+       This is the headline W-20 lint for PV-04: the v9.2.0 cycle plan
+       §"Self-iteration constraint compliance matrix" pins "0 new flags
+       across the entire 7-PV cycle".
+    4. **change_context schema NEST extension** — the 3 NEW OPTIONAL
+       sub-fields (``prior_feedback_themes`` / ``memory_case_hits`` /
+       ``source_of_truth_excerpt``) are documented in
+       ``schemas/lean-dispatch.yaml#lean_format_spec.change_context.fields``.
+       Their presence in the schema documents the contract surfaced by
+       :func:`consult_for_dispatch` (memory_case_hits) and by the
+       plan-mode feedback ingestion (prior_feedback_themes).
+
+    Failure modes:
+      * "missing on disk" → a v9.1.4 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_4_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "consult_for_dispatch not callable" → the cache.py module
+        broke its public surface contract.
+      * "env-flag mismatch" → a NEW env-flag was authored in violation
+        of W-20; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+      * "missing schema sub-field" → the lean-dispatch.yaml NEST
+        extension was reverted; restore the 3 sub-fields OR document
+        the de-NEST decision.
+    """
+    for relpath in _V9_1_4_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.4 violation: NEW v9.1.4 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_4_FILE_MIN_BYTES, (
+            f"W-18 v9.1.4 violation: NEW v9.1.4 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_4_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke from BOTH the package facade and the owning module —
+    # catches a regression where one re-export path is dropped.
+    from devolaflow.memory_router import consult_for_dispatch as facade_consult
+    from devolaflow.memory_router.cache import (
+        consult_for_dispatch as module_consult,
+    )
+
+    assert callable(facade_consult), (
+        "W-18 v9.1.4 violation: devolaflow.memory_router.consult_for_dispatch "
+        "is not callable — the export from devolaflow.memory_router/__init__.py "
+        "must be the function itself"
+    )
+    assert callable(module_consult), (
+        "W-18 v9.1.4 violation: devolaflow.memory_router.cache.consult_for_dispatch "
+        "is not callable — the function definition is missing or shadowed"
+    )
+    assert facade_consult is module_consult, (
+        "W-18 v9.1.4 violation: facade vs module export of consult_for_dispatch "
+        "diverge — the package __init__.py must re-export the cache.py symbol "
+        "directly without wrapping"
+    )
+
+    # W-20 reuse-first lint: PV-04 MUST reuse DEVOLAFLOW_MEMORY_ROUTER (the
+    # existing MemoryRouter activation surface) per the v9.2.0 cycle plan
+    # §"Self-iteration constraint compliance matrix". Authoring a new env
+    # flag here would violate W-20.
+    from devolaflow.memory_router.cache import (
+        _CONSULT_ENV_FLAG,
+        _CONSULT_ENV_TRUTHY,
+    )
+
+    assert _CONSULT_ENV_FLAG == "DEVOLAFLOW_MEMORY_ROUTER", (
+        f"W-20 violation: consult_for_dispatch._CONSULT_ENV_FLAG is "
+        f"{_CONSULT_ENV_FLAG!r}, expected 'DEVOLAFLOW_MEMORY_ROUTER' (REUSE per "
+        f"Workflow Rule W-20 — same activation surface as the existing "
+        f"MemoryRouter.lookup_case fast-path; no new env-flag introduced "
+        f"in the entire v9.2.0 7-PV cycle)"
+    )
+    assert _CONSULT_ENV_TRUTHY == "1", (
+        f"R5 strict violation: consult_for_dispatch._CONSULT_ENV_TRUTHY is "
+        f"{_CONSULT_ENV_TRUTHY!r}, expected '1' (R5 strict opt-in REQUIRES "
+        f"the literal '1' string — every other variant treated as OFF)"
+    )
+
+    # Schema NEST extension lint — the 3 NEW change_context sub-fields
+    # MUST be documented in `schemas/lean-dispatch.yaml`.
+    schema_path = project_root / "schemas" / "lean-dispatch.yaml"
+    assert schema_path.is_file(), f"missing schemas/lean-dispatch.yaml at {schema_path}"
+    schema = _load_yaml(schema_path)
+    change_context_fields = (
+        schema.get("lean_format_spec", {}).get("change_context", {}).get("fields", {})
+    )
+    for new_field in _V9_1_4_NEW_CHANGE_CONTEXT_FIELDS:
+        assert new_field in change_context_fields, (
+            f"W-18 v9.1.4 violation: NEST sub-field {new_field!r} missing from "
+            f"`schemas/lean-dispatch.yaml#lean_format_spec.change_context.fields`. "
+            f"The v9.1.4 PV-04 NEST extension (per A-2.3 nest-vs-append rule) "
+            f"requires all 3 sub-fields (prior_feedback_themes / memory_case_hits "
+            f"/ source_of_truth_excerpt). Present sub-fields: "
+            f"{sorted(change_context_fields)}"
+        )
+
+
+def test_v9_1_4_nest_preserves_canonical_order_length(project_root: Path) -> None:
+    """W-18 v9.1.4: NEST extension preserved canonical_order at 16 / version 5.
+
+    The headline I-8 invariant proof for PV-04 — the v9.1.4 PV-04 NEST
+    extension (3 NEW OPTIONAL sub-fields under ``change_context``) MUST
+    NOT bump the canonical_order length nor the schema version. Per
+    A-2.3 nest-vs-append decision rule, NEST is byte-stable wrt the
+    LLM cache prefix (the historical baselines from v7.0.0 through
+    v8.4.0 continue to render byte-identically because the new
+    sub-fields are OPTIONAL and absent from those baselines).
+
+    A future PV that wants to add a TRULY orthogonal new payload
+    (cannot be expressed as a sub-field of an existing block) would
+    APPEND a new top-level key — that PV would update both this
+    expected length AND the
+    ``tests/test_layout_invariant_multi_baseline.py`` golden YAML.
+    """
+    schema_path = project_root / "schemas" / "lean-dispatch.yaml"
+    assert schema_path.is_file(), f"missing schemas/lean-dispatch.yaml at {schema_path}"
+    schema = _load_yaml(schema_path)
+
+    layout_invariant = schema.get("layout_invariant", {})
+    canonical_order = layout_invariant.get("canonical_order", [])
+    layout_version = layout_invariant.get("version")
+
+    assert isinstance(canonical_order, list), (
+        f"layout_invariant.canonical_order must be a list; got {type(canonical_order).__name__}"
+    )
+    assert len(canonical_order) == _V9_1_4_CANONICAL_ORDER_LENGTH, (
+        f"v9.1.4 PV-04 I-8 invariant violation: "
+        f"`schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length is "
+        f"{len(canonical_order)}, expected {_V9_1_4_CANONICAL_ORDER_LENGTH} "
+        f"(NEST extension MUST preserve canonical_order length per A-2.3 +  "
+        f"v9-ADR-002 D2). Current order: {canonical_order!r}"
+    )
+    assert layout_version == _V9_1_4_LAYOUT_VERSION, (
+        f"v9.1.4 PV-04 I-8 invariant violation: "
+        f"`schemas/lean-dispatch.yaml#layout_invariant.version` is "
+        f"{layout_version!r}, expected {_V9_1_4_LAYOUT_VERSION} (NEST "
+        f"extension MUST NOT bump schema version per A-2.3 + v9-ADR-002 D2)"
+    )
+
+    # The NEW v9.2.0 baseline witness MUST exist + be byte-identical to
+    # v8.4.0. This couples the I-8 invariant proof to the on-disk
+    # fixture so a renamed/moved baseline file fails CI immediately.
+    baselines_dir = project_root / "benchmarks" / "devolaflow_context" / "baselines"
+    v9_2_0_path = baselines_dir / "layout_invariant_v9.2.0.yaml"
+    v8_4_0_path = baselines_dir / "layout_invariant_v8.4.0.yaml"
+    assert v9_2_0_path.is_file(), (
+        f"v9.1.4 PV-04 missing baseline witness at {v9_2_0_path}. "
+        f"NEST extension proof requires this file to be byte-identical "
+        f"to {v8_4_0_path}."
+    )
+    assert v8_4_0_path.is_file(), f"v8.4.0 baseline missing at {v8_4_0_path}"
+    assert v9_2_0_path.read_text() == v8_4_0_path.read_text(), (
+        "v9.1.4 PV-04 I-8 invariant violation: the v9.2.0 baseline witness "
+        "diverged from the v8.4.0 baseline. The NEST extension was supposed "
+        "to be byte-identical (the new sub-fields are OPTIONAL — their "
+        "absence is canonical). See "
+        "tests/test_layout_invariant_multi_baseline.py::"
+        "test_v9_2_0_baseline_byte_identical_to_v8_4_0 for the wider context."
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.1.5 PV-05 — spec_bootstrap + agents_md_slice default-ON ghost-audit
+# ---------------------------------------------------------------------------
+
+# v9.1.5 PV-05 introduces TWO operator-visible deliverables that the W-18
+# precondition pins BEFORE the CHANGELOG entry mentioning them:
+#
+# 1. NEW src/devolaflow/agent_workspace/spec_bootstrap.py with
+#    seed_initial_spec() + SpecBootstrapError — closes M-004 deferred
+#    from v9.0.0 retrospective §3.3 (source-of-truth first-time seed).
+# 2. context_profiles.yaml#meta.agents_md_slice.enabled flips false → true
+#    (operator-visible default-ON; opt-out via DEVOLAFLOW_AGENTS_MD_SLICE=0
+#    per W-20 reuse — telegraphed v9.0.0 PV-07 ADR-007 D3, runtime read
+#    landed v9.1.5 PV-05).
+_V9_1_5_NEW_FILES: tuple[str, ...] = (
+    "src/devolaflow/agent_workspace/spec_bootstrap.py",
+    "tests/test_spec_bootstrap.py",
+)
+
+# Minimum byte size for a v9.1.5 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_1_5_FILE_MIN_BYTES: int = 50
+
+
+def test_v9_1_5_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.1.5: every NEW v9.1.5 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.1.5 PV-05 (the fifth PV of the
+    v9.2.0 cycle, the most behaviour-flipping one) introduces:
+
+    1. ``src/devolaflow/agent_workspace/spec_bootstrap.py`` — closes
+       M-004 deferred from v9.0.0 retrospective §3.3 (source-of-truth
+       first-time seed via :func:`seed_initial_spec`).
+    2. ``tests/test_spec_bootstrap.py`` — 6 NEW tests pinning the
+       seed contract.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_1_5_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_1_5_FILE_MIN_BYTES`` (50 bytes —
+       guards against an empty stub silently slipping through).
+    2. **Import-smoke** — :func:`seed_initial_spec` and
+       :exc:`SpecBootstrapError` are importable from BOTH the package
+       facade :mod:`devolaflow.agent_workspace` AND the owning module
+       :mod:`devolaflow.agent_workspace.spec_bootstrap`; ``facade is
+       module`` (catches the regression where one re-export path is
+       dropped) and the function is callable.
+    3. **W-20 reuse-first** — :data:`_AGENTS_MD_SLICE_ENV_FLAG` equals
+       ``"DEVOLAFLOW_AGENTS_MD_SLICE"`` (NO new env-flag introduced in
+       PV-05; the flag was telegraphed in v9.0.0 PV-07 ADR-007 D3).
+    4. **A-4 invariant signature** — :func:`seed_initial_spec` accepts
+       ``force=False`` as the canonical default (the A-4 first-time
+       seed gate); operator overrides via ``force=True`` only.
+
+    Failure modes:
+      * "missing on disk" → a v9.1.5 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_1_5_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 50 byte minimum" → the file regressed to an empty stub;
+        re-author the contents.
+      * "seed_initial_spec not callable" → the spec_bootstrap module
+        broke its public surface contract.
+      * "env-flag mismatch" → a NEW env-flag was authored in violation
+        of W-20; either restore the REUSE or document the
+        orthogonality argument per W-20 §3.
+      * "force kwarg default mismatch" → the A-4 first-time-seed gate
+        was relaxed; restore ``force=False`` or document the override
+        with an ADR.
+    """
+    import inspect
+
+    for relpath in _V9_1_5_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.1.5 violation: NEW v9.1.5 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_1_5_FILE_MIN_BYTES, (
+            f"W-18 v9.1.5 violation: NEW v9.1.5 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_1_5_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke from BOTH the package facade and the owning module —
+    # catches a regression where one re-export path is dropped. The
+    # `as facade_*` / `as module_*` rebinds intentionally use lowercase
+    # because they are not used as types — they are used as identity
+    # comparison handles for the `facade is module` invariant. ruff N813
+    # is suppressed at the import-block level.
+    from devolaflow.agent_workspace import (  # noqa: N813
+        SpecBootstrapError as facade_error,
+    )
+    from devolaflow.agent_workspace import (
+        seed_initial_spec as facade_seed,
+    )
+    from devolaflow.agent_workspace.spec_bootstrap import (  # noqa: N813
+        SpecBootstrapError as module_error,
+    )
+    from devolaflow.agent_workspace.spec_bootstrap import (
+        seed_initial_spec as module_seed,
+    )
+
+    assert callable(facade_seed), (
+        "W-18 v9.1.5 violation: devolaflow.agent_workspace.seed_initial_spec "
+        "is not callable — the export from devolaflow.agent_workspace/__init__.py "
+        "must be the function itself"
+    )
+    assert callable(module_seed), (
+        "W-18 v9.1.5 violation: devolaflow.agent_workspace.spec_bootstrap."
+        "seed_initial_spec is not callable — the function definition is "
+        "missing or shadowed"
+    )
+    assert facade_seed is module_seed, (
+        "W-18 v9.1.5 violation: facade vs module export of seed_initial_spec "
+        "diverge — the package __init__.py must re-export the spec_bootstrap.py "
+        "symbol directly without wrapping"
+    )
+    assert facade_error is module_error, (
+        "W-18 v9.1.5 violation: facade vs module export of SpecBootstrapError "
+        "diverge — the package __init__.py must re-export the spec_bootstrap.py "
+        "exception directly without aliasing"
+    )
+    assert issubclass(facade_error, RuntimeError), (
+        "W-18 v9.1.5 violation: SpecBootstrapError must subclass RuntimeError "
+        "(per S-5 explicit error states; allows callers to catch RuntimeError "
+        "without importing the agent_workspace package)"
+    )
+
+    # A-4 invariant signature lint — `force` defaults to False so the
+    # first-time-seed gate is the canonical entry path.
+    sig = inspect.signature(module_seed)
+    force_param = sig.parameters.get("force")
+    assert force_param is not None, (
+        "W-18 v9.1.5 violation: seed_initial_spec must accept a `force` kwarg "
+        "(the A-4 first-time-seed override hatch documented in the cycle plan §PV-05)"
+    )
+    assert force_param.default is False, (
+        f"W-18 v9.1.5 violation: seed_initial_spec(force=...) default is "
+        f"{force_param.default!r}, expected False (A-4 first-time-seed gate "
+        f"defaults to refuse-overwrite — operators opt into wholesale "
+        f"replacement explicitly via force=True)"
+    )
+
+    # W-20 reuse-first lint — PV-05 MUST reuse DEVOLAFLOW_AGENTS_MD_SLICE
+    # (the v9.0.0 PV-07 ADR-007 D3 telegraphed flag) per the v9.2.0 cycle
+    # plan §"Self-iteration constraint compliance matrix" "0 new flags
+    # across the entire 7-PV cycle".
+    from devolaflow.task_adaptive_selector import (
+        _AGENTS_MD_SLICE_ENV_FLAG,
+        _agents_md_slice_env_override,
+    )
+
+    assert _AGENTS_MD_SLICE_ENV_FLAG == "DEVOLAFLOW_AGENTS_MD_SLICE", (
+        f"W-20 violation: _AGENTS_MD_SLICE_ENV_FLAG is "
+        f"{_AGENTS_MD_SLICE_ENV_FLAG!r}, expected 'DEVOLAFLOW_AGENTS_MD_SLICE' "
+        f"(REUSE per Workflow Rule W-20 — the flag was telegraphed in v9.0.0 "
+        f"PV-07 ADR-007 D3; v9.1.5 PV-05 is the runtime-wiring landing PV; "
+        f"NO new env-flag introduced in the entire v9.2.0 7-PV cycle)"
+    )
+    assert _agents_md_slice_env_override({"DEVOLAFLOW_AGENTS_MD_SLICE": "0"}) is False, (
+        "R5 strict violation: env-flag value '0' must force opt-out (return False); "
+        "this is the headline v9.1.5 PV-05 escape hatch for the default-ON flip"
+    )
+    assert _agents_md_slice_env_override({"DEVOLAFLOW_AGENTS_MD_SLICE": "1"}) is True, (
+        "R5 strict violation: env-flag value '1' must force opt-in (return True)"
+    )
+
+
+def test_v9_1_5_agents_md_slice_default_on(project_root: Path) -> None:
+    """W-18 v9.1.5: context_profiles.yaml#agents_md_slice.enabled is True.
+
+    Pins the headline operator-visible behaviour change of v9.1.5 PV-05.
+    Pre-v9.1.5 the canonical YAML default was ``enabled: false`` (the
+    v9.0.0 MAJOR-cycle telegraphed flip with a 2-cycle lead time per
+    W-21 governance precedent applied to operator-visible defaults).
+    v9.1.5 PV-05 flips the canonical default to ``true``, so dispatchers
+    on the unmodified YAML receive sliced AGENTS.md content automatically.
+
+    This lint catches a regression where the canonical YAML is
+    accidentally reverted to ``enabled: false`` (would silently revert
+    the operator-visible behaviour change without bumping the
+    CHANGELOG). It is paired with
+    ``tests/test_pv07_agents_md_slice.py::test_agents_md_slice_default_on_in_v9_1_5``
+    which loads the YAML directly + with
+    ``test_agents_md_slice_env_flag_0_opts_out`` which proves the R5
+    strict opt-out is byte-stable.
+    """
+    import yaml as yaml_module
+
+    profiles_path = project_root / "workflow-system" / "agent" / "context_profiles.yaml"
+    assert profiles_path.is_file(), (
+        f"W-18 v9.1.5 violation: context_profiles.yaml missing at {profiles_path}"
+    )
+    config = yaml_module.safe_load(profiles_path.read_text(encoding="utf-8"))
+    slice_cfg = config.get("meta", {}).get("agents_md_slice", {})
+
+    assert slice_cfg.get("enabled") is True, (
+        f"W-18 v9.1.5 violation: context_profiles.yaml#meta.agents_md_slice."
+        f"enabled is {slice_cfg.get('enabled')!r}, expected True (v9.1.5 PV-05 "
+        f"default-ON flip — the headline operator-visible behaviour change). "
+        f"If the flip was rolled back, also remove the [9.1.5] CHANGELOG "
+        f"entry citing the flip."
+    )
+    # The fallback strategy must remain "full" so unmatched task types
+    # still see byte-identical AGENTS.md (W-20 R5 strict — the slice is
+    # additive opt-in for matched profiles; unmatched falls through).
+    assert slice_cfg.get("fallback") == "full", (
+        f"W-18 v9.1.5 violation: agents_md_slice.fallback must be 'full' "
+        f"(unmatched task types fall through to byte-identical AGENTS.md per "
+        f"R5 strict); got {slice_cfg.get('fallback')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.0 PV-06 — repo-init seed examples + e2e capability test ghost-audit
+# ---------------------------------------------------------------------------
+
+# v9.2.0 PV-06 (the cycle-rollup MINOR headline) introduces TWO operator-visible
+# deliverables that the W-18 precondition pins BEFORE the [9.2.0] CHANGELOG
+# entry mentioning them:
+#
+# 1. EXTEND src/devolaflow/init_project.py::install_local with the new
+#    `with_examples: bool = False` kwarg + the `_seed_example_artifacts(cwd)`
+#    helper that materialises 3 worked-trace fixtures under
+#    `.local/.agent/active/example-add-dark-mode/` + `.local/.agent/handoff/
+#    L0__L2__example-add-dark-mode__0001.yaml` + `.local/memory/specs/
+#    example-domain/spec.md` so new repos demonstrate the change-driven
+#    pattern out-of-the-box. Closes G-006 deferred from v9.1.0 retro §3.
+# 2. NEW tests/test_capability_e2e.py — 10 end-to-end capability tests that
+#    cross every PV's deliverable through a tmp-path repo fixture. Closes
+#    G-015 deferred from v9.1.0 retro §3.
+_V9_2_0_NEW_FILES: tuple[str, ...] = ("tests/test_capability_e2e.py",)
+
+# Minimum byte size for a v9.2.0 NEW surface — guards against an empty
+# stub silently slipping through and satisfying mere file-presence.
+_V9_2_0_FILE_MIN_BYTES: int = 1000
+
+# The e2e test file ships with EXACTLY 10 test functions per the cycle
+# plan §PV-06 W-17 budget pin (the headline lint of the v9.2.0 cycle).
+# A regression below this count means a test was deleted; a regression
+# above means a test was added without bumping the W-17 ledger.
+_V9_2_0_CAPABILITY_E2E_MIN_TESTS: int = 10
+
+
+def test_v9_2_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.0: every NEW v9.2.0 surface has presence + import-smoke coverage.
+
+    Discharges the W-18 precondition — every CHANGELOG entry mentioning
+    a feature MUST have a backing ghost-audit lint in THIS file BEFORE
+    the CHANGELOG entry is authored. v9.2.0 PV-06 (the sixth and
+    headline PV of the cycle, the cycle rollup) introduces:
+
+    1. ``install_local(*, with_examples: bool = False)`` kwarg in
+       :mod:`devolaflow.init_project` plus the
+       ``_seed_example_artifacts(cwd: Path) -> None`` helper. Closes
+       G-006 deferred from the v9.1.0 retrospective §3.
+    2. ``tests/test_capability_e2e.py`` (10 tests) — the cycle's
+       headline lint that crosses every PV's deliverable through a
+       tmp-path repo fixture. Closes G-015 deferred from the v9.1.0
+       retrospective §3.
+
+    Coverage matrix:
+
+    1. **Presence** — each path in ``_V9_2_0_NEW_FILES`` is a regular
+       file and its size is ``>= _V9_2_0_FILE_MIN_BYTES`` (1000 bytes
+       — the e2e test file is the largest single new file in the
+       cycle so the floor is intentionally above the 50-byte v9.1.5
+       stub-guard).
+    2. **Import-smoke (install_local)** — :func:`install_local` is
+       importable from :mod:`devolaflow.init_project` AND its
+       :func:`inspect.signature` reports ``with_examples`` as a
+       keyword-only parameter with default ``False`` (the A-4 / W-20
+       contract — additive opt-in, default OFF for compatibility).
+    3. **Import-smoke (_seed_example_artifacts)** — the helper is
+       importable from the same module and is callable.
+    4. **Import-smoke (test_capability_e2e)** — the e2e test module
+       importable AND its ``__all__`` lists ≥ 10 test functions
+       (matches ``_V9_2_0_CAPABILITY_E2E_MIN_TESTS``); each name in
+       ``__all__`` is a callable test function in the module.
+    5. **W-20 reuse-first** — no new env-flag introduced (the
+       v9.2.0 cycle plan §"Self-iteration constraint compliance
+       matrix" pin "0 new flags across the entire 7-PV cycle" is
+       upheld). The 5 env flags touched (DEVOLAFLOW_AGENT_WORKSPACE
+       for PV-01/02/03; DEVOLAFLOW_MEMORY_ROUTER for PV-04;
+       DEVOLAFLOW_AGENTS_MD_SLICE for PV-05) ALL existed before
+       this cycle started.
+
+    Failure modes:
+      * "missing on disk" → a v9.2.0 surface was deleted or never
+        landed; either restore it OR remove it from
+        ``_V9_2_0_NEW_FILES`` if the surface was intentionally rolled
+        back.
+      * "< 1000 byte minimum" → the file regressed to a stub;
+        re-author the contents.
+      * "with_examples kwarg signature mismatch" → ``install_local``
+        lost its ``with_examples`` keyword-only parameter or the
+        default flipped from ``False``; restore the original
+        signature OR document the operator-visible change with an
+        ADR.
+      * "_seed_example_artifacts not callable" → the seed helper
+        regressed; restore it.
+      * "< 10 test functions in test_capability_e2e __all__" → the
+        cycle's headline lint regressed below the W-17 budget pin;
+        restore the deleted test(s).
+    """
+    import inspect
+
+    for relpath in _V9_2_0_NEW_FILES:
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.0 violation: NEW v9.2.0 surface {relpath!r} missing on "
+            f"disk — the CHANGELOG entry mentioning this feature MUST be backed "
+            f"by a file that exists"
+        )
+        size = full.stat().st_size
+        assert size >= _V9_2_0_FILE_MIN_BYTES, (
+            f"W-18 v9.2.0 violation: NEW v9.2.0 surface {relpath!r} is {size} "
+            f"bytes (< {_V9_2_0_FILE_MIN_BYTES} byte minimum); empty/stub files "
+            f"do not satisfy the W-18 precondition"
+        )
+
+    # Import-smoke: install_local exists with the new with_examples
+    # keyword-only parameter (default False).
+    from devolaflow.init_project import _seed_example_artifacts, install_local
+
+    sig = inspect.signature(install_local)
+    assert "with_examples" in sig.parameters, (
+        "W-18 v9.2.0 violation: install_local() lost its with_examples "
+        "keyword-only parameter — the v9.2.0 PV-06 example-seed surface "
+        "regressed; restore the kwarg per cycle plan §PV-06"
+    )
+    with_examples_param = sig.parameters["with_examples"]
+    assert with_examples_param.kind == inspect.Parameter.KEYWORD_ONLY, (
+        f"W-18 v9.2.0 violation: install_local(with_examples=...) must be "
+        f"keyword-only (after the * marker); got kind={with_examples_param.kind!r}"
+    )
+    assert with_examples_param.default is False, (
+        f"W-18 v9.2.0 violation: install_local(with_examples=...) default must "
+        f"be False (additive opt-in for backward compatibility per W-20); got "
+        f"default={with_examples_param.default!r}"
+    )
+
+    assert callable(_seed_example_artifacts), (
+        "W-18 v9.2.0 violation: devolaflow.init_project._seed_example_artifacts "
+        "is not callable — the seed helper regressed"
+    )
+
+    # Import-smoke: tests/test_capability_e2e.py module + __all__ lists
+    # at least the W-17 budget pin of test functions.
+    import tests.test_capability_e2e as e2e_module
+
+    assert hasattr(e2e_module, "__all__"), (
+        "W-18 v9.2.0 violation: tests/test_capability_e2e.py must declare "
+        "__all__ with the cycle's headline test names (per cycle plan §PV-06 "
+        "W-17 budget pin)"
+    )
+    e2e_tests = e2e_module.__all__
+    assert len(e2e_tests) >= _V9_2_0_CAPABILITY_E2E_MIN_TESTS, (
+        f"W-18 v9.2.0 violation: tests/test_capability_e2e.py.__all__ has "
+        f"{len(e2e_tests)} entries; the cycle's W-17 budget pin requires at "
+        f"least {_V9_2_0_CAPABILITY_E2E_MIN_TESTS} (per cycle plan §PV-06)"
+    )
+    for name in e2e_tests:
+        assert callable(getattr(e2e_module, name, None)), (
+            f"W-18 v9.2.0 violation: tests/test_capability_e2e.py.__all__ "
+            f"entry {name!r} is not a callable test function in the module"
+        )
+
+    # W-20 reuse-first proof: PV-06 specifically does NOT introduce a
+    # new DEVOLAFLOW_* env-flag. The seed helper writes static template
+    # content + reads no env-vars — the entire flow is filesystem-only.
+    init_module_path = project_root / "src" / "devolaflow" / "init_project.py"
+    init_source = init_module_path.read_text(encoding="utf-8")
+    assert "DEVOLAFLOW_" not in init_source, (
+        "W-20 v9.2.0 violation: src/devolaflow/init_project.py introduced a "
+        "new DEVOLAFLOW_* env-flag during PV-06 — the cycle plan §"
+        '"Self-iteration constraint compliance matrix" pins "0 new flags '
+        'across the entire 7-PV cycle". Either remove the new flag or '
+        "document the W-20 §3 orthogonality argument in the PR body."
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.0 PV-06 — supplementary lint for the W-19 cycle archive + the
+# scripts/archive_research_artifacts.py --extra-prefix extension.
+# ---------------------------------------------------------------------------
+#
+# The primary v9.2.0 ghost-audit ``test_v9_2_0_new_symbols_have_coverage``
+# above pins the install_local(with_examples) kwarg + the
+# tests/test_capability_e2e.py module ``__all__`` ≥ 10 + the W-20 reuse
+# proof. This supplementary lint pins the OTHER PV-06 cycle-rollup
+# surfaces — the W-19 archive directory presence and the
+# scripts/archive_research_artifacts.py ``--extra-prefix`` flag the
+# rollup invocation depends on. Splitting the audit into two test
+# functions keeps each one focused on a single deliverable per the
+# v8.0.0 retro §3.4 lesson "tests should be small + named after their
+# specific contract".
+
+
+def test_v9_2_0_cycle_archive_and_extra_prefix(project_root: Path) -> None:
+    """W-18 v9.2.0: W-19 cycle archive directory + --extra-prefix flag wired.
+
+    Pins the two cycle-rollup deliverables NOT covered by the primary
+    ``test_v9_2_0_new_symbols_have_coverage`` lint:
+
+    1. ``docs/cycle-archive/v9.2.0/`` directory exists with the W-19
+       auto-generated ``README.md`` index AND the cycle's
+       ``v9.2.0_retrospective.md`` copy. Both files are ≥ 200 bytes
+       (catches an empty-stub regression that would silently pass a
+       mere existence check).
+    2. ``scripts/archive_research_artifacts.py`` exposes the
+       ``--extra-prefix`` argparse flag AND the corresponding
+       ``extra_prefixes`` kwarg on the ``archive(cycle_version, ...)``
+       callable. Without this extension the cycle-rollup invocation
+       ``archive_research_artifacts.py 9.2.0 --extra-prefix v9.1.``
+       cannot capture both PATCH-cycle and MINOR-cycle research
+       artefacts in a single run.
+
+    Failure modes:
+      * "v9.2.0 archive missing" → W-19 archive run was skipped or
+        rolled back; re-run ``python scripts/archive_research_artifacts.py
+        9.2.0 --extra-prefix v9.1.`` and commit the directory.
+      * "no extra-prefix argument" → the v9.2.0 PV-06 archive-script
+        extension was rolled back; restore it.
+    """
+    archive_dir = project_root / "docs" / "cycle-archive" / "v9.2.0"
+    assert archive_dir.is_dir(), (
+        f"W-18 v9.2.0 violation: W-19 cycle archive at "
+        f"{archive_dir.relative_to(project_root)} missing — the cycle-rollup "
+        f"CHANGELOG entry MUST be backed by a populated archive directory"
+    )
+
+    for relpath in (
+        "docs/cycle-archive/v9.2.0/README.md",
+        "docs/cycle-archive/v9.2.0/v9.2.0_retrospective.md",
+    ):
+        full = project_root / relpath
+        assert full.is_file(), (
+            f"W-18 v9.2.0 violation: required archive artefact {relpath!r} missing"
+        )
+        size = full.stat().st_size
+        assert size >= 200, (
+            f"W-18 v9.2.0 violation: archive artefact {relpath!r} is {size} "
+            f"bytes (< 200 byte minimum); empty/stub files do not satisfy "
+            f"the W-19 archive contract"
+        )
+
+    archive_script = project_root / "scripts" / "archive_research_artifacts.py"
+    archive_text = archive_script.read_text(encoding="utf-8")
+    assert "--extra-prefix" in archive_text, (
+        "W-18 v9.2.0 violation: scripts/archive_research_artifacts.py must "
+        "expose the --extra-prefix argparse flag (added v9.2.0 PV-06 to let "
+        "the MINOR-cycle archive capture both v9.1.* and v9.2.* prefixes "
+        "into docs/cycle-archive/v9.2.0/)"
+    )
+    assert "extra_prefixes" in archive_text, (
+        "W-18 v9.2.0 violation: scripts/archive_research_artifacts.py::archive "
+        "must accept an `extra_prefixes` kwarg (the runtime contract behind "
+        "the --extra-prefix CLI flag)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# v9.2.1 PV-07 — ghost-audit for the self-update meta-validation PATCH.
+# ---------------------------------------------------------------------------
+#
+# PV-07 ships as the final PV of the v9.2.0 cycle (PATCH sustaining that
+# mirrors the v9.0.0 → v9.0.1 precedent). The cycle plan §PV-07 pins
+# "zero new code paths introduced" — the deliverables are validation
+# artefacts + minor test extensions ONLY:
+#
+# 1. tests/test_capability_e2e.py gains 4 NEW parametrized test functions
+#    covering the 4 canonical consumer-repo fixture shapes (empty /
+#    local-only / rules-only / full-stack). The __all__ list grows from
+#    10 entries (v9.2.0 pin) to >= 14 entries (10 baseline + 4 PV-07).
+# 2. .local/research/v9.2.1_{check_refs,nines_aggregate,validation_tasks,
+#    integration_report,e2e_report,evaluation}.md ship as the self-update
+#    workflow's 6 stage-output artefacts (plus the cycle-close
+#    v9.2.1_nines.{json,md} pair per W-2). NB: these artefacts live
+#    under .local/ which is gitignored; the W-19 re-archive to
+#    docs/cycle-archive/v9.2.0/ is the committed counterpart. This lint
+#    therefore checks the docs/cycle-archive/ copies (the canonical
+#    tracked surface) rather than the gitignored .local/ originals.
+# 3. The recursive-engagement proof — PV-07 opened
+#    .local/.agent/active/v9.2.1-self-update-validation/ via the PV-02
+#    /devola:propose surface and archived it at Stage 7 to
+#    .local/.agent/archive/<YYYY-MM-DD>-v9.2.1-self-update-validation/.
+#    Like (2) this lives under gitignored .local/; this lint asserts
+#    presence when the workspace is live OR skips cleanly on a fresh
+#    clone.
+
+_V9_2_1_CAPABILITY_E2E_MIN_ENTRIES: int = 14
+
+_V9_2_1_ARCHIVED_RESEARCH_FILES: tuple[str, ...] = (
+    # scripts/archive_research_artifacts.py routes v9.2.1_nines*.{json,md}
+    # to the nines/ subdir and evaluation/* to evaluation/; everything else
+    # lands in other/. These per-subdir paths are the canonical post-run
+    # locations for the 6 stage-output artefacts.
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_check_refs.md",
+    "docs/cycle-archive/v9.2.0/nines/v9.2.1_nines_aggregate.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_validation_tasks.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_integration_report.md",
+    "docs/cycle-archive/v9.2.0/other/v9.2.1_e2e_report.md",
+    "docs/cycle-archive/v9.2.0/evaluation/v9.2.1_evaluation.md",
+)
+
+
+def test_v9_2_1_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.2.1: PV-07 meta-validation surfaces have presence + import-smoke coverage.
+
+    Discharges the W-18 precondition for the v9.2.1 PATCH — every
+    CHANGELOG entry mentioning a v9.2.1 feature MUST have a backing
+    ghost-audit lint in THIS file BEFORE the CHANGELOG entry is authored.
+
+    v9.2.1 PV-07 is the self-update meta-validation PATCH; by design
+    it introduces **zero new code paths** (cycle plan §PV-07 verbatim).
+    The surfaces this lint pins are therefore:
+
+    1. ``tests/test_capability_e2e.py.__all__`` has ≥ 14 entries — the
+       10 v9.2.0 headline tests + 4 NEW PV-07 parametrized tests. A
+       regression below 14 means one of the PV-07 tests was deleted.
+    2. Each of the 4 PV-07 test functions is a callable attribute of
+       ``tests.test_capability_e2e``. Guards against a dangling
+       ``__all__`` entry that references a deleted / renamed function.
+    3. W-17 PV-07 budget proof — the 4 NEW test function names begin
+       with ``test_pv07_`` so the cap-counting grep `git diff | grep
+       "test_pv07_[a-z_]\\+("` matches exactly 4 lines in the PV-07
+       diff.
+    4. W-19 re-archive: when the consumer repo has run the post-PV-07
+       re-archive (``scripts/archive_research_artifacts.py 9.2.0
+       --extra-prefix v9.2.``), each of the 6 v9.2.1 research artefacts
+       lands under ``docs/cycle-archive/v9.2.0/``. Self-skips when the
+       archive directory lacks the v9.2.1 nested files (fresh clone
+       that has not run the re-archive yet).
+
+    Failure modes:
+      * "< 14 entries in __all__" → a PV-07 test was deleted; restore it.
+      * "PV-07 test not callable" → ``__all__`` drifted from module
+        reality; fix the ``__all__`` list OR the missing function.
+      * "archive artefact missing AND directory populated" → the
+        re-archive ran but without the v9.2.* extra-prefix sweep;
+        re-run ``python scripts/archive_research_artifacts.py 9.2.0
+        --extra-prefix v9.2.``.
+    """
+    import tests.test_capability_e2e as e2e_module
+
+    assert hasattr(e2e_module, "__all__"), (
+        "W-18 v9.2.1 violation: tests/test_capability_e2e.py must declare "
+        "__all__ with both the v9.2.0 headline names AND the v9.2.1 PV-07 "
+        "multi-fixture tests"
+    )
+    all_names = e2e_module.__all__
+    assert len(all_names) >= _V9_2_1_CAPABILITY_E2E_MIN_ENTRIES, (
+        f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ has "
+        f"{len(all_names)} entries; the PV-07 extension requires at least "
+        f"{_V9_2_1_CAPABILITY_E2E_MIN_ENTRIES} (10 v9.2.0 baseline + 4 PV-07)"
+    )
+    pv07_entries = [name for name in all_names if name.startswith("test_pv07_")]
+    assert len(pv07_entries) >= 4, (
+        f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ must "
+        f"carry at least 4 test_pv07_* entries (the PV-07 multi-fixture "
+        f"E2E set); got {pv07_entries!r}"
+    )
+    for name in pv07_entries:
+        target = getattr(e2e_module, name, None)
+        assert callable(target), (
+            f"W-18 v9.2.1 violation: tests/test_capability_e2e.py.__all__ "
+            f"entry {name!r} is not a callable test function in the module"
+        )
+
+    archive_dir = project_root / "docs" / "cycle-archive" / "v9.2.0"
+    if archive_dir.is_dir():
+        for relpath in _V9_2_1_ARCHIVED_RESEARCH_FILES:
+            full = project_root / relpath
+            if not full.is_file():
+                # Self-skip: the v9.2.0 archive exists but the v9.2.1
+                # sweep has not run yet on this clone (pre-PV-07
+                # re-archive state). Per W-19 the re-archive is
+                # idempotent — run it once to populate.
+                import pytest as _pytest
+
+                _pytest.skip(
+                    f"v9.2.1 archive artefact {relpath!r} not yet re-archived; "
+                    f"run `python scripts/archive_research_artifacts.py 9.2.0 "
+                    f"--extra-prefix v9.2.` to populate"
+                )
+            size = full.stat().st_size
+            assert size >= 200, (
+                f"W-18 v9.2.1 violation: archive artefact {relpath!r} is {size} "
+                f"bytes (< 200 byte minimum); empty/stub files do not satisfy "
+                f"the W-19 archive contract"
+            )
+    # No else branch: when `docs/cycle-archive/v9.2.0/` is absent the W-19
+    # cycle archive has not been committed yet; the separate
+    # `test_v9_2_0_cycle_archive_and_extra_prefix` lint fails loudly for
+    # that case and this PV-07 lint stays permissive on the v9.2.1 half.

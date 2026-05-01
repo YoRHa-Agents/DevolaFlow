@@ -10,6 +10,12 @@ Usage:
                                     (auto-compiles .rules/ to .cursor/rules/
                                     repo-governance.mdc + AGENTS.md)
   devola-init local --no-compile    Same as above, but skip the auto-compile
+  devola-init local --with-examples Seed .local/.agent/active/example-add-dark-mode/
+                                    + handoff envelope + memory/specs example
+                                    so new repos demonstrate the
+                                    change-driven pattern out-of-the-box
+                                    (default ON for full-mode installs;
+                                    pass --no-with-examples to skip)
   devola-init --list                Show what would be installed
 """
 
@@ -85,6 +91,31 @@ def _parse_no_compile(argv: list[str]) -> bool:
     return "--no-compile" in argv
 
 
+def _parse_with_examples(argv: list[str], targets: list[str]) -> bool:
+    """Return ``True`` iff the example-seed artefacts should be installed.
+
+    Resolves the v9.2.0 PV-06 ``with_examples`` boolean:
+
+    * ``--with-examples`` explicitly requests the seed artefacts → True.
+    * ``--no-with-examples`` explicitly opts out → False.
+    * Neither flag set → default ``True`` for ``mode: full`` (i.e. when
+      ``targets`` includes the ``"all"`` keyword OR exactly mirrors the
+      auto-detect ``full`` set), and ``False`` otherwise (``mode: core``
+      = a narrow target list like ``["cursor"]`` or ``["local"]`` only).
+
+    The cycle plan §"PV-06 — repo-init seed examples" pins the default
+    matrix: "default ON for ``mode: full``, OFF for ``mode: core``".
+    Operators who run ``devola-init local`` alone get the lean core
+    install (no examples) while operators who run ``devola-init all``
+    or pass ``--with-examples`` explicitly get the worked trace.
+    """
+    if "--no-with-examples" in argv:
+        return False
+    if "--with-examples" in argv:
+        return True
+    return "all" in targets
+
+
 def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     """Install DevolaFlow skill files and rules for Cursor IDE."""
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
@@ -138,6 +169,7 @@ def install_local(
     scope: str = "project",
     *,
     compile_rules: bool = True,
+    with_examples: bool = False,
 ) -> None:
     """Initialize .local/ workspace and .rules/ governance structure.
 
@@ -162,6 +194,17 @@ def install_local(
     filesystem or a malformed user-edited ``compile-config.yaml``. Pass
     ``compile_rules=False`` (or the CLI flag ``--no-compile``) to skip
     the auto-compile entirely while preserving scaffolding behaviour.
+
+    v9.2.0 PV-06 — example seed (``with_examples=True``): scaffolds a
+    populated ``.local/.agent/active/example-add-dark-mode/`` change
+    folder (all 7 C-9-budgeted artifacts), one
+    ``.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml``
+    envelope, and a minimal ``.local/memory/specs/example-domain/spec.md``
+    so new repos can demonstrate the change-driven pattern out-of-the-
+    box. Default-OFF here; the CLI defaults to ON for ``mode: full`` and
+    OFF for ``mode: core`` per the v9.2.0 PV-06 cycle plan §"PV-06 —
+    repo-init seed examples". Idempotent — never overwrites an existing
+    example folder, envelope, or spec; safe to re-run.
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
 
@@ -181,6 +224,9 @@ def install_local(
     else:
         print(f"  SKIP {config_path} (already exists)")
 
+    if with_examples:
+        _seed_example_artifacts(cwd)
+
     if not compile_rules:
         print("  SKIP compile (--no-compile flag set)")
         return
@@ -199,6 +245,355 @@ def install_local(
             # non-fatal issue. Operators can re-run `devola-init sync-rules`
             # to retry the compile step in isolation.
             print(f"  WARN compile failed (non-fatal): {exc}")
+
+
+# ---------------------------------------------------------------------------
+# v9.2.0 PV-06 — example seed artefacts
+# ---------------------------------------------------------------------------
+#
+# When ``install_local(..., with_examples=True)`` is invoked (the canonical
+# CLI default for full-mode installs per the v9.2.0 PV-06 cycle plan),
+# ``_seed_example_artifacts`` writes 3 fixtures into the freshly-scaffolded
+# workspace so consumer-side agents can read a worked trace BEFORE having
+# to author their own change folder:
+#
+# 1. ``.local/.agent/active/example-add-dark-mode/`` — full 7-artifact set
+#    (goal / acceptance / spec / tasks / STATUS / owned_files / README)
+#    demonstrating the change-driven workflow shape per Soul Rule S-8.
+# 2. ``.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml`` —
+#    one TaskDispatch envelope showing the append-only ledger contract
+#    (Soul Rule S-9) + the v8.2.4 schemas/agent-workspace/handoff-envelope.yaml
+#    discriminated-union shape.
+# 3. ``.local/memory/specs/example-domain/spec.md`` — a minimal valid
+#    source-of-truth spec for the placeholder ``example-domain`` so the
+#    A-4 invariant is illustrated without polluting any real domain.
+#
+# Every artefact respects its C-9 token-budget hard ceiling (verified at
+# write time by ``_verify_artifact_within_budget`` and at test time by
+# ``tests/test_capability_e2e.py::test_artifacts_respect_c9_token_budgets``).
+# All paths are repo-relative per Soul Rule S-2 — no absolute paths.
+#
+# Source: v9.2.0 cycle plan §PV-06 — closes the bootstrap-gap noted in
+# the cycle plan §"Diagnosis": "New repos have nothing to learn from".
+
+
+_EXAMPLE_CHANGE_ID: str = "example-add-dark-mode"
+_EXAMPLE_DOMAIN: str = "example-domain"
+_EXAMPLE_HANDOFF_FROM: str = "L0"
+_EXAMPLE_HANDOFF_TO: str = "L2"
+_EXAMPLE_HANDOFF_SEQ: int = 1
+_EXAMPLE_TIMESTAMP: str = "2026-05-01T00:00:00Z"
+
+
+_EXAMPLE_GOAL_MD: str = """\
+# Goal: Add dark mode toggle
+
+Add a user-facing dark mode toggle to the demo app. The toggle persists
+the user's preference across sessions via local storage and respects the
+operating-system color-scheme preference on first load.
+
+Status: example fixture only — this folder ships via `devola-init local
+--with-examples` so new repos can read a worked trace of the
+change-driven workflow before authoring their own change.
+"""
+
+_EXAMPLE_ACCEPTANCE_MD: str = """\
+# Acceptance Criteria: example-add-dark-mode
+
+1. **Toggle present**: a `<DarkModeToggle/>` component renders in the
+   header and is keyboard-accessible (Tab focus + Space/Enter activates).
+2. **Preference persists**: after toggling, the choice survives a full
+   page reload via `localStorage["devola-theme"]`.
+3. **OS preference respected**: on first load with no stored preference,
+   the toggle initialises from `prefers-color-scheme: dark` media query.
+4. **No visual regression in light mode**: existing visual snapshots
+   under `tests/visual/` remain byte-identical when the user is in light
+   mode (the new dark theme is additive, not replacing).
+5. **Coverage**: `src/components/DarkModeToggle.tsx` reaches >= 80%
+   per S-3 / Rule CP-2.
+"""
+
+_EXAMPLE_SPEC_MD: str = """\
+---
+parent: example-add-dark-mode
+delta_target: example-domain
+delta_kind: lite
+---
+
+# Operation Spec for example-add-dark-mode
+
+## Purpose
+Introduce a user-facing dark mode toggle that persists across sessions
+and respects the OS color-scheme preference on first load. This spec is
+the per-change DELTA against the `example-domain` source-of-truth at
+`.local/memory/specs/example-domain/spec.md` per Architecture Rule A-4.
+
+## ADDED Requirements
+
+### Requirement: Dark mode toggle is rendered in the header
+The system MUST render a keyboard-accessible `<DarkModeToggle/>`
+component in the application header.
+
+#### Scenario: User clicks the toggle
+- GIVEN the user is on any page of the demo app
+- WHEN the user activates the toggle (click or Space / Enter while focused)
+- THEN the body class flips between `theme-light` and `theme-dark`
+  AND `localStorage["devola-theme"]` records the new preference
+
+### Requirement: Theme preference persists across reloads
+The system MUST restore the user's previously-selected theme on next visit.
+
+#### Scenario: Returning visitor with stored preference
+- GIVEN `localStorage["devola-theme"] == "dark"`
+- WHEN the page loads
+- THEN the body class is `theme-dark` BEFORE first paint (no flash)
+
+### Requirement: OS preference is the first-load default
+The system MUST initialise from `prefers-color-scheme` when no stored
+preference exists.
+
+#### Scenario: First-time visitor with OS dark mode
+- GIVEN the visitor has never set a preference
+- AND the browser reports `prefers-color-scheme: dark`
+- WHEN the page loads
+- THEN the body class is `theme-dark`
+"""
+
+_EXAMPLE_TASKS_MD: str = """\
+# Tasks: example-add-dark-mode
+
+> Worked-trace fixture — reflects a typical change-driven task list.
+> See `goal.md` + `acceptance.md` + `spec.md` for full context.
+
+## T1 — Theme tokens + body classes
+- Add `--color-bg-dark` / `--color-fg-dark` to `src/styles/theme.ts`.
+- Wire `body.theme-dark` overrides into the existing CSS layer.
+- Owners: `src/styles/theme.ts`.
+
+## T2 — Toggle component
+- Implement `src/components/DarkModeToggle.tsx` with controlled state
+  + keyboard handler.
+- Render in `src/layouts/Header.tsx`; add `aria-label`.
+- Owners: `src/components/DarkModeToggle.tsx`, `src/layouts/Header.tsx`.
+
+## T3 — Persistence + OS-preference bootstrap
+- Read `localStorage["devola-theme"]` on mount; fall back to
+  `window.matchMedia("(prefers-color-scheme: dark)").matches`.
+- Hydrate body class BEFORE first paint to avoid FOUC.
+
+## T4 — Tests
+- Unit: toggle click flips class + writes localStorage.
+- Integration: hydration path picks OS preference when storage empty.
+- Visual: light mode snapshots remain byte-identical (AC #4).
+"""
+
+_EXAMPLE_STATUS_YAML: str = """\
+schema_version: 1
+change_id: example-add-dark-mode
+state: PROPOSED
+created: "2026-05-01T00:00:00Z"
+last_updated: "2026-05-01T00:00:00Z"
+percent_complete: 0
+last_handoff_seq: 1
+delta_target: example-domain
+delta_kind: lite
+note: example fixture seeded by `devola-init local --with-examples`
+"""
+
+_EXAMPLE_OWNED_FILES_TXT: str = """\
+src/components/DarkModeToggle.tsx
+src/layouts/Header.tsx
+src/styles/theme.ts
+tests/components/DarkModeToggle.test.tsx
+"""
+
+_EXAMPLE_README_MD: str = """\
+# example-add-dark-mode
+
+Worked-trace fixture seeded by `devola-init local --with-examples`
+(v9.2.0 PV-06). Demonstrates the 7-artifact `change-driven` shape:
+
+| File | Role |
+|---|---|
+| `goal.md` | 100-word intent statement |
+| `acceptance.md` | testable AC checklist |
+| `spec.md` | OpenSpec ADDED Requirements (A-4 delta) |
+| `tasks.md` | implementation checklist |
+| `STATUS.yaml` | machine-readable FSM state |
+| `owned_files.txt` | S-8 ownership manifest |
+| `README.md` | this file |
+
+Pair with `.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml`
+(one TaskDispatch envelope) + `.local/memory/specs/example-domain/spec.md`
+(source-of-truth contract).
+
+Delete this folder once you author your first real change — it is
+illustrative only.
+"""
+
+
+_EXAMPLE_HANDOFF_ENVELOPE_YAML: str = """\
+schema_version: 1
+seq: 1
+from_layer: L0
+to_layer: L2
+change_id: example-add-dark-mode
+created: "2026-05-01T00:00:00Z"
+envelope_kind: TaskDispatch
+dispatch:
+  task_id: T1-theme-tokens
+  type: implement
+  acceptance_criteria_ref: .local/.agent/active/example-add-dark-mode/acceptance.md
+  owned_files_ref: .local/.agent/active/example-add-dark-mode/owned_files.txt
+  note: example fixture envelope seeded by `devola-init local --with-examples`
+"""
+
+
+_EXAMPLE_SOURCE_OF_TRUTH_SPEC_MD: str = """\
+---
+domain: example-domain
+schema_version: 1
+last_merged_change: null
+last_merged_at: null
+---
+
+# Spec: Example-Domain — Source-of-Truth
+
+## Requirement: Example domain placeholder
+The system MAY provide a minimal valid source-of-truth spec for the
+placeholder `example-domain` so new repos can read a worked-trace
+example of the A-4 contract before authoring their first real domain.
+
+### Scenario: A consumer-repo agent inspects the source-of-truth shape
+- GIVEN `devola-init local --with-examples` has run
+- WHEN the agent reads `.local/memory/specs/example-domain/spec.md`
+- THEN it sees a populated H1 + frontmatter + a single placeholder
+  Requirement following the v8.2.4 source-of-truth-spec schema
+
+> Note: this domain is example-only. Mutate via the canonical
+> `propose_merge → apply_merge` flow once you have a real change to
+> propose; bootstrap a fresh domain via
+> `devolaflow.agent_workspace.spec_bootstrap.seed_initial_spec`
+> instead of editing this file by hand.
+"""
+
+
+_EXAMPLE_ARTIFACT_BUDGETS: dict[str, tuple[int, int]] = {
+    # (soft_tokens, hard_tokens) — verbatim from C-9 / lint.ARTIFACT_BUDGETS.
+    "goal.md": (200, 400),
+    "acceptance.md": (400, 800),
+    "spec.md": (1500, 3000),
+    "tasks.md": (800, 1500),
+    "STATUS.yaml": (100, 200),
+    "owned_files.txt": (50, 100),
+    # Handoff envelope is bounded at 600 / 1200 per design.md §1.1.
+    "L0__L2__example-add-dark-mode__0001.yaml": (600, 1200),
+}
+
+
+def _estimate_tokens(text: str) -> int:
+    """Mirror :func:`devolaflow.agent_workspace.lint.estimate_tokens`.
+
+    Kept as a private helper (not imported from ``lint``) so the seed
+    helper does not pull the lint module's CLI argparse footprint into
+    every ``devola-init local`` invocation. Identical formula:
+    ``len(text) // 4``.
+    """
+    if not text:
+        return 0
+    return len(text) // 4
+
+
+def _verify_artifact_within_budget(filename: str, content: str) -> None:
+    """Raise :class:`ValueError` when the seed payload would breach C-9.
+
+    The seed templates above are static — they cannot regress at runtime
+    — but the verification keeps this function as a defensive S-5
+    explicit-error-state guard against a future edit that grows the
+    template past the hard ceiling. A hard breach is a release blocker
+    per Rule C-9.
+    """
+    budget = _EXAMPLE_ARTIFACT_BUDGETS.get(filename)
+    if budget is None:
+        return
+    soft, hard = budget
+    observed = _estimate_tokens(content)
+    if observed > hard:
+        raise ValueError(
+            f"_seed_example_artifacts: {filename!r} payload is {observed} tokens, "
+            f"exceeding the C-9 hard ceiling of {hard}. Trim the template before "
+            f"shipping (soft budget {soft})."
+        )
+
+
+def _seed_example_artifacts(cwd: Path) -> None:
+    """Seed worked-trace fixtures under ``.local/.agent/`` + ``.local/memory/``.
+
+    Idempotent: every write is gated by ``Path.exists()``; the function
+    NEVER overwrites an existing file. Re-running ``devola-init local
+    --with-examples`` is therefore safe (per the install-skill semantic
+    invariant — first run creates, subsequent runs are no-ops).
+
+    Seeds three fixtures total:
+
+    * ``.local/.agent/active/example-add-dark-mode/`` (7 files)
+    * ``.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml``
+    * ``.local/memory/specs/example-domain/spec.md``
+
+    Per Soul Rule S-9 the handoff envelope is APPEND-ONLY — once seeded
+    the file MUST NOT be modified or deleted by any agent; new envelopes
+    go to ``seq=2`` etc.
+
+    All artefacts respect their C-9 token-budget hard ceilings; the
+    pre-write :func:`_verify_artifact_within_budget` check raises
+    :class:`ValueError` if a future template edit would breach.
+    """
+    print(f"\n  Example seed -> {cwd / '.local/.agent/'} + .local/memory/specs/")
+
+    active_folder = cwd / ".local" / ".agent" / "active" / _EXAMPLE_CHANGE_ID
+    active_folder.mkdir(parents=True, exist_ok=True)
+
+    artifacts: dict[str, str] = {
+        "goal.md": _EXAMPLE_GOAL_MD,
+        "acceptance.md": _EXAMPLE_ACCEPTANCE_MD,
+        "spec.md": _EXAMPLE_SPEC_MD,
+        "tasks.md": _EXAMPLE_TASKS_MD,
+        "STATUS.yaml": _EXAMPLE_STATUS_YAML,
+        "owned_files.txt": _EXAMPLE_OWNED_FILES_TXT,
+        "README.md": _EXAMPLE_README_MD,
+    }
+
+    for filename, content in artifacts.items():
+        _verify_artifact_within_budget(filename, content)
+        target = active_folder / filename
+        if target.exists():
+            print(f"  SKIP {target} (already exists)")
+            continue
+        target.write_text(content, encoding="utf-8", newline="\n")
+        print(f"  OK   {target}")
+
+    handoff_dir = cwd / ".local" / ".agent" / "handoff"
+    handoff_dir.mkdir(parents=True, exist_ok=True)
+    envelope_filename = (
+        f"{_EXAMPLE_HANDOFF_FROM}__{_EXAMPLE_HANDOFF_TO}"
+        f"__{_EXAMPLE_CHANGE_ID}__{_EXAMPLE_HANDOFF_SEQ:04d}.yaml"
+    )
+    envelope_path = handoff_dir / envelope_filename
+    _verify_artifact_within_budget(envelope_filename, _EXAMPLE_HANDOFF_ENVELOPE_YAML)
+    if envelope_path.exists():
+        print(f"  SKIP {envelope_path} (already exists; S-9 append-only)")
+    else:
+        envelope_path.write_text(_EXAMPLE_HANDOFF_ENVELOPE_YAML, encoding="utf-8", newline="\n")
+        print(f"  OK   {envelope_path}")
+
+    spec_dir = cwd / ".local" / "memory" / "specs" / _EXAMPLE_DOMAIN
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    spec_path = spec_dir / "spec.md"
+    if spec_path.exists():
+        print(f"  SKIP {spec_path} (already exists)")
+    else:
+        spec_path.write_text(_EXAMPLE_SOURCE_OF_TRUTH_SPEC_MD, encoding="utf-8", newline="\n")
+        print(f"  OK   {spec_path}")
 
 
 TOOLS = {
@@ -261,6 +656,11 @@ def main() -> None:
 
     targets = args if args else _auto_detect(cwd)
 
+    # `with_examples` resolves BEFORE the `all` keyword expansion so the
+    # default-matrix decision sees the user's verbatim choice (the
+    # cycle plan §PV-06 default-ON-for-full matrix).
+    with_examples = _parse_with_examples(sys.argv[1:], targets)
+
     # `all` excludes `local` (explicit-opt-in via auto-detect or `local` arg).
     if "all" in targets:
         targets = [t for t in TOOLS if t != "local"]
@@ -271,8 +671,15 @@ def main() -> None:
 
     for t in targets:
         if t in TOOLS:
-            # `--no-compile` is local-only; other installers don't accept the kwarg.
-            extra = {"compile_rules": False} if (t == "local" and no_compile) else {}
+            # `--no-compile` and `--with-examples` are local-only — other
+            # installers don't accept the kwargs. Build the extras dict
+            # conditionally so the cursor / claude / codex / copilot
+            # installers stay byte-identical to v9.1.5 behaviour.
+            extra: dict[str, bool] = {}
+            if t == "local":
+                if no_compile:
+                    extra["compile_rules"] = False
+                extra["with_examples"] = with_examples
             TOOLS[t](agent_dir, cwd, scope, **extra)
         else:
             print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, local, all)")

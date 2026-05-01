@@ -1,10 +1,19 @@
 """v9.0.0 PV-07 (ADR-007 D3) — Per-task-type AGENTS.md slicing tests.
 
-Pins the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver:
+Pins the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver +
+the v9.1.5 PV-05 default-ON flip:
 
-* **R5 strict default-OFF**: when ``meta.agents_md_slice.enabled: false``
-  (the v9.0.0 default), ``select_agents_md_slice(task_type)`` returns the
-  full AGENTS.md byte-identical to the v8.5.1 surface.
+* **v9.1.5 PV-05 default-ON**: ``meta.agents_md_slice.enabled`` defaults
+  to ``true`` in ``context_profiles.yaml``; L3 dispatches automatically
+  receive the per-task-type slice. Pinned by
+  :func:`test_agents_md_slice_default_on_in_v9_1_5`.
+* **R5 strict env-flag opt-out**: ``DEVOLAFLOW_AGENTS_MD_SLICE=0``
+  reverts to the v9.1.4 byte-identical full-AGENTS.md behaviour. Pinned
+  by :func:`test_agents_md_slice_env_flag_0_opts_out`.
+* **YAML opt-out path**: when ``meta.agents_md_slice.enabled`` is set
+  to ``false`` (operator-authored override), the function returns full
+  AGENTS.md byte-identical. Pinned by
+  :func:`test_slice_yaml_disabled_returns_full_byte_identical`.
 * **Per-profile slicing semantics**: when enabled, the slicer filters
   AGENTS.md by layer-prefix per the per-profile mapping in
   ``context_profiles.yaml#meta.agents_md_slice.profiles``.
@@ -28,6 +37,8 @@ import pytest
 import yaml
 
 from devolaflow.task_adaptive_selector import (
+    _AGENTS_MD_SLICE_ENV_FLAG,
+    _agents_md_slice_env_override,
     _filter_agents_md_by_profile,
     _read_agents_md,
     _split_agents_md_into_layers,
@@ -46,10 +57,11 @@ def project_root() -> Path:
 def slice_enabled_profiles_path(project_root: Path) -> Path:
     """Return a temp profiles YAML with `agents_md_slice.enabled: true`.
 
-    Per ADR-007 D3, the slice defaults to OFF — operators opt in via
-    config. The fixture writes a temp config that flips the slice ON,
-    so the slicing semantics tests can exercise the actual filter.
-    The temp file is cleaned up after the test.
+    Pre-v9.1.5 the canonical YAML default was ``enabled: false`` and this
+    fixture flipped it ON for the slicing-semantics tests. v9.1.5 PV-05
+    flipped the canonical default to ``true``, so the fixture is now a
+    no-op transformation — but it stays in place to keep the tests
+    independent of any future YAML default change.
     """
     base = yaml.safe_load(
         (project_root / "workflow-system/agent/context_profiles.yaml").read_text(encoding="utf-8")
@@ -62,27 +74,134 @@ def slice_enabled_profiles_path(project_root: Path) -> Path:
     path.unlink(missing_ok=True)
 
 
-def test_slice_disabled_returns_full_byte_identical(project_root: Path) -> None:
-    """ADR-007 D3 R5 strict: default OFF returns full AGENTS.md byte-identical.
+@pytest.fixture
+def slice_yaml_disabled_profiles_path(project_root: Path) -> Path:
+    """Return a temp profiles YAML with ``agents_md_slice.enabled: false``.
 
-    Pins the v9.0.0 byte-stable invariant — operators on the default
-    `meta.agents_md_slice.enabled: false` see the full AGENTS.md surface
-    bit-for-bit identical to the v8.5.1 v9.0.0 PV-07 compile output.
+    v9.1.5 PV-05 flipped the canonical YAML default to ``true``. This
+    fixture creates a temp YAML that opts out at the YAML layer (the
+    operator-authored override path), so the byte-identical full-
+    AGENTS.md test stays valid even after the canonical default flip.
+    The temp file is cleaned up after the test.
+    """
+    base = yaml.safe_load(
+        (project_root / "workflow-system/agent/context_profiles.yaml").read_text(encoding="utf-8")
+    )
+    base["meta"]["agents_md_slice"]["enabled"] = False
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False, encoding="utf-8") as f:
+        yaml.safe_dump(base, f)
+        path = Path(f.name)
+    yield path
+    path.unlink(missing_ok=True)
+
+
+def test_slice_yaml_disabled_returns_full_byte_identical(
+    project_root: Path,
+    slice_yaml_disabled_profiles_path: Path,
+) -> None:
+    """ADR-007 D3 + v9.1.5 PV-05: YAML opt-out (enabled: false) returns full text.
+
+    With ``meta.agents_md_slice.enabled: false`` the selector returns
+    full AGENTS.md byte-identical to the unsliced surface — preserving
+    the v9.1.4 byte-stable behaviour for operators who explicitly set
+    the YAML flag back to ``false``. Pre-v9.1.5 this test exercised the
+    canonical YAML default; post-v9.1.5 the canonical default is
+    ``true`` and the explicit YAML override is the byte-stable path.
     """
     full_text = _read_agents_md()
     assert full_text, "AGENTS.md must be present and non-empty"
 
     for task_type in ("hotfix", "feature", "research", "convergence", "unknown_task"):
-        result = select_agents_md_slice(task_type)
+        result = select_agents_md_slice(
+            task_type,
+            profiles_path=slice_yaml_disabled_profiles_path,
+            env={},
+        )
         assert result["slice_enabled"] is False, (
-            f"slice should be OFF by default for {task_type!r} (ADR-007 D3 R5 strict)"
+            f"slice should be OFF when YAML enabled=false for {task_type!r}"
         )
         assert result["sliced_text"] == full_text, (
-            f"slice OFF must return full AGENTS.md byte-identical for {task_type!r}"
+            f"YAML opt-out must return full AGENTS.md byte-identical for {task_type!r}"
         )
         assert result["included_rules"] == "all"
         assert result["skipped_rules"] == []
         assert result["slice_savings_pct"] == 0.0
+
+
+def test_agents_md_slice_default_on_in_v9_1_5(project_root: Path) -> None:
+    """v9.1.5 PV-05 — canonical YAML default flipped to ``enabled: true``.
+
+    Pins the operator-visible behaviour change of v9.1.5 PV-05: the
+    canonical ``workflow-system/agent/context_profiles.yaml`` ships with
+    ``meta.agents_md_slice.enabled: true``, so dispatchers on the
+    default config receive sliced AGENTS.md content automatically.
+    Operators who want the prior v9.1.4 byte-stable behaviour set
+    ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` (the W-20 reuse opt-out flag).
+    """
+    profiles_path = project_root / "workflow-system/agent/context_profiles.yaml"
+    config = yaml.safe_load(profiles_path.read_text(encoding="utf-8"))
+    slice_cfg = config.get("meta", {}).get("agents_md_slice", {})
+
+    assert slice_cfg.get("enabled") is True, (
+        "v9.1.5 PV-05 contract: canonical context_profiles.yaml MUST ship with "
+        "agents_md_slice.enabled: true (the operator-visible default-ON flip). "
+        f"Current YAML value: {slice_cfg.get('enabled')!r}"
+    )
+
+
+def test_agents_md_slice_env_flag_0_opts_out(project_root: Path) -> None:
+    """v9.1.5 PV-05 — DEVOLAFLOW_AGENTS_MD_SLICE=0 forces byte-identical full AGENTS.md.
+
+    R5 strict opt-out proof — with the env flag set to ``"0"`` the
+    selector returns the unsliced AGENTS.md byte-identical to the
+    v9.1.4 surface, regardless of the canonical YAML default
+    (``enabled: true`` post-v9.1.5). The headline operator-visible
+    behaviour change of v9.1.5 PV-05 is reversible via this env flag
+    (W-20 reuse — no new env flag introduced).
+
+    This test EXPLICITLY covers all 5 canonical task types in §"Quick
+    Action Decision" plus an unknown-task fallback because the cache-
+    prefix bytes are the contract — every dispatcher MUST see the same
+    AGENTS.md byte-string when opted out.
+    """
+    full_text = _read_agents_md()
+    assert full_text, "AGENTS.md must be present and non-empty"
+
+    for task_type in ("hotfix", "feature", "research", "convergence", "unknown_task"):
+        result = select_agents_md_slice(
+            task_type,
+            env={_AGENTS_MD_SLICE_ENV_FLAG: "0"},
+        )
+        assert result["slice_enabled"] is False, (
+            f"DEVOLAFLOW_AGENTS_MD_SLICE=0 must force opt-out for {task_type!r} "
+            f"(R5 strict — the headline v9.1.5 escape hatch); slice_enabled was "
+            f"{result['slice_enabled']!r}"
+        )
+        assert result["sliced_text"] == full_text, (
+            f"env-flag opt-out MUST return full AGENTS.md byte-identical for "
+            f"{task_type!r} (the v9.1.4 byte-stable invariant; downstream tools "
+            f"that audit the cache prefix MUST see the same bytes)"
+        )
+        assert result["included_rules"] == "all"
+        assert result["skipped_rules"] == []
+        assert result["slice_savings_pct"] == 0.0
+
+    # R5 strict — env-flag override helper returns False ONLY for the
+    # literal "0"; loose variants ("0.0", " 0 ", "false") fall through
+    # to YAML default. The v9.1.5 PV-05 conjunction contract per
+    # references/env-flags.md §6.
+    assert _agents_md_slice_env_override({_AGENTS_MD_SLICE_ENV_FLAG: "0"}) is False
+    assert _agents_md_slice_env_override({_AGENTS_MD_SLICE_ENV_FLAG: "1"}) is True
+    for loose in ("0.0", " 0 ", "false", "0\n", "00", "1.0", "true", "yes", "on"):
+        assert _agents_md_slice_env_override({_AGENTS_MD_SLICE_ENV_FLAG: loose}) is None, (
+            f"R5 strict violation: env-flag value {loose!r} must fall through "
+            f"to YAML default (return None), not be coerced to True/False"
+        )
+    assert _agents_md_slice_env_override({}) is None
+    assert _agents_md_slice_env_override(None) is not False, (
+        "env=None must defer to os.environ rather than returning False; "
+        "the explicit empty-dict path is the safe test override"
+    )
 
 
 def test_slice_hotfix_includes_only_relevant_layers(
@@ -256,7 +375,9 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     assert soul_rules == [f"S-{i}" for i in range(1, 11)], f"Soul rule IDs drift: {soul_rules}"
 
     arch_rules = [rid for rid, _ in layers[1][2]]
-    assert arch_rules == [f"A-{i}" for i in range(1, 6)], (
+    # v9.1.2 PV-02 (Architecture rule A-6 "Workspace Engagement Auto-Activation"
+    # per `.rules/architecture.mdc` §A-6) bumped Architecture from 5 → 6 rules.
+    assert arch_rules == [f"A-{i}" for i in range(1, 7)], (
         f"Architecture rule IDs drift: {arch_rules}"
     )
 

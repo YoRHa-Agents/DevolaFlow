@@ -472,6 +472,110 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.gate.ratchet:is_gate_ratchet_active",
         "devolaflow.gate.complexity_detector:is_complexity_detector_active",
         "devolaflow.ac_generator:is_ac_generator_active",
+        # ---- v9.1.1 PV-01 (cycle v9.2.0) — workspace_context discovery API ----
+        # `scan_workspace(repo_root) -> WorkspaceContext` is the pure-function
+        # discovery API for `.local/` + `.local/.agent/` + `.rules/` surfaces
+        # in a consumer repo. SKILL.md §"Workspace Engagement (Read at Session
+        # Start)" instructs L0 to call it at session start; the prompt-side
+        # consumer is the dispatcher itself, not an in-repo Python module.
+        # The first in-repo Python production caller lands in v9.1.4 PV-04
+        # (memory_router.consult_for_dispatch + plan-mode feedback ingestion
+        # per the v9.2.0 cycle plan §PV-04); v9.1.1 PV-01 ships the
+        # discovery API only as the prerequisite. NOT a domain-SSOT registry
+        # symbol per A-5.2 — pure read-only filesystem-walk helper, mirrors
+        # the `lifecycle.run_hooks` / `directed_compact` allowlist precedent
+        # above (public surface advertised in SKILL.md, in-repo caller lands
+        # in a subsequent PV per the cycle plan). Verified by
+        # `tests/test_workspace_context_scan.py` (6 tests covering
+        # presence/detection/sort/freeze contract) +
+        # `tests/test_no_ghost_features.py::test_v9_1_1_new_symbols_have_coverage`
+        # (W-18 ghost-audit refresh: presence + import-smoke + frozen
+        # dataclass invariant).
+        "devolaflow.workspace_context:scan_workspace",
+        "devolaflow.workspace_context:WorkspaceContext",
+        # ---- v9.1.2 PV-02 (cycle v9.2.0) — change-driven activation skill ----
+        # `classify_complexity(files_count, loc_estimate, is_cross_cutting=False)
+        # -> Complexity` and `activation_verdict(complexity, env_agent_workspace,
+        # opt_out=False) -> ActivationVerdict` and `from_env(env=None) -> bool`
+        # are the public heuristic surface that Architecture rule A-6
+        # ("Workspace Engagement Auto-Activation" per `.rules/architecture.mdc`)
+        # cites. SKILL.md §"When to engage `change-driven` (Rule A-6)" instructs
+        # L0 to call them at dispatch decision time; the prompt-side consumer
+        # is the dispatcher itself, not an in-repo Python module. Slash commands
+        # (`devolaflow.skills.slash_commands`) DO consume the contract via the
+        # `--no-change` opt-out path documented by A-6.3, but do not call the
+        # heuristic functions directly (they are activation-side, the slash
+        # commands are lifecycle-side). NOT domain-SSOT registry symbols per
+        # A-5.2 — pure functions with zero side effects, mirrors the
+        # `workspace_context.scan_workspace` allowlist precedent above
+        # (public surface advertised in SKILL.md, in-repo Python caller lands
+        # in a subsequent PV per the v9.2.0 cycle plan §"Execution model").
+        # Verified by `tests/test_change_activation_heuristic.py` (13 tests
+        # covering classifier thresholds + verdict matrix + R5 strict env
+        # parsing) + `tests/test_no_ghost_features.py::
+        # test_v9_1_2_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse + R5 strict assertions).
+        "devolaflow.skills.change_activation:classify_complexity",
+        "devolaflow.skills.change_activation:activation_verdict",
+        "devolaflow.skills.change_activation:from_env",
+        # ---- v9.1.4 PV-04 (cycle v9.2.0) — memory_router.consult_for_dispatch ----
+        # `consult_for_dispatch(payload, repo_root, *, max_hits=3) -> list[MemoryCase]`
+        # is the advisory companion to `MemoryRouter.lookup_case`. Where
+        # `lookup_case` is the planner-replacement fast-path keyed on
+        # workflow_type+task_type, `consult_for_dispatch` is keyword-scored
+        # against the dispatch payload's task description and surfaces the
+        # top-3 matched MemoryCase IDs in the dispatch payload's
+        # `change_context.memory_case_hits` sub-field (NEST extension per
+        # A-2.3 — schema documented in
+        # `schemas/lean-dispatch.yaml#lean_format_spec.change_context`).
+        # The function is REUSE-gated by `DEVOLAFLOW_MEMORY_ROUTER` (NOT a
+        # new env-flag — per the v9.2.0 cycle plan §"Self-iteration
+        # constraint compliance matrix" W-20 row, "0 new flags across the
+        # entire 7-PV cycle"). The first in-repo Python production caller
+        # lands in v9.2.0 PV-06 (`tests/test_capability_e2e.py` + the
+        # repo-init seed examples that the E2E test exercises);
+        # v9.1.4 PV-04 ships the function only as the prerequisite. NOT a
+        # domain-SSOT registry symbol per A-5.2 — pure read-only YAML-
+        # parser + keyword-overlap scorer (no module-level state); mirrors
+        # the `workspace_context.scan_workspace` allowlist precedent above
+        # (public surface advertised in `references/plan-mode-enforcement.md`
+        # §5.5 "Automatic Ingestion at Plan-Mode Entry (v9.1.4+)", in-repo
+        # caller lands in a subsequent PV per the v9.2.0 cycle plan).
+        # Verified by `tests/test_memory_consult_for_dispatch.py` (5 tests
+        # covering env-flag OFF zero-IO noop / missing index fallback /
+        # malformed YAML WARNING / keyword overlap scoring / TTL+version
+        # filtering) + `tests/test_no_ghost_features.py::
+        # test_v9_1_4_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse env-flag pin + return-type
+        # callable).
+        "devolaflow.memory_router.cache:consult_for_dispatch",
+        # ---- v9.1.5 PV-05 (cycle v9.2.0) — agent_workspace.spec_bootstrap ----
+        # `seed_initial_spec(domain, archive_id, repo_root, *, force=False) -> Path`
+        # closes M-004 deferred from the v9.0.0 retrospective §3.3 (source-
+        # of-truth first-time seed surface). Given a verified archive folder
+        # under `.local/.agent/archive/<archive_id>/` and a target `domain`,
+        # the function bootstraps `.local/memory/specs/<domain>/spec.md` from
+        # the archive's spec.md ADDED Requirements via the existing
+        # `ArchiveManager.propose_merge` machinery; A-4 invariant honoured
+        # (refuses overwrite without `force=True`; `force=True` logs a
+        # WARNING per S-5 and wipes the stale target before re-seeding).
+        # NOT a domain-SSOT registry symbol per A-5.2 — pure pathlib +
+        # archive-engine glue with no module-level state. The first in-repo
+        # Python production caller lands in v9.2.0 PV-06 (the repo-init
+        # `--with-examples` seed flow + `tests/test_capability_e2e.py`);
+        # v9.1.5 PV-05 ships the function only as the prerequisite. Mirrors
+        # the `consult_for_dispatch` / `scan_workspace` allowlist precedents
+        # above (public surface advertised in
+        # `workflow-system/agent/SKILL.md` companion docs, in-repo caller
+        # lands in a subsequent PV per the v9.2.0 cycle plan §"Execution
+        # model"). Verified by `tests/test_spec_bootstrap.py` (6 tests
+        # covering happy path / A-4 refusal / force=True overwrite-with-
+        # WARNING / missing-archive error / gate-score independence /
+        # MergeConflict surface) + `tests/test_no_ghost_features.py::
+        # test_v9_1_5_new_symbols_have_coverage` (W-18 ghost-audit refresh:
+        # presence + import-smoke + W-20 reuse env-flag pin + force kwarg
+        # default).
+        "devolaflow.agent_workspace.spec_bootstrap:seed_initial_spec",
     }
 )
 

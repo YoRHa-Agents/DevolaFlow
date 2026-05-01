@@ -58,6 +58,32 @@ If the task is a generic feature/bugfix that does NOT touch
 delegation chain explicitly opts into the `change-driven` workflow
 template (registered in `templates/registry.yaml` since v8.2.6).
 
+### When to Engage (v9.1.1+)
+
+The SKILL.md §"Workspace Engagement (Read at Session Start)" section is
+the canonical entry point: every L0 dispatcher MUST call
+`devolaflow.workspace_context.scan_workspace(repo_root)` at session
+start to obtain a frozen `WorkspaceContext` snapshot, then route per
+the activation matrix below. The scan itself is read-only (S-2 / S-7
+relative-paths-only) and ALWAYS performed; auto-write side effects are
+gated by `DEVOLAFLOW_AGENT_WORKSPACE=1` per W-20 (REUSED env-flag —
+no new variable per the cycle plan §"Two-axis activation").
+
+| Workspace surface (snapshot field) | Complexity ≤ Simple | Standard | Complex |
+|---|---|---|---|
+| `has_local=False` AND `has_rules=False` | proceed without engagement | scaffold via `devola-init local` then re-scan | scaffold + `--with-examples` (v9.2.0+) |
+| `recent_feedbacks` non-empty | optional read | READ latest 3, surface themes in plan | READ latest 3 + cite verbatim in design ADR |
+| `source_of_truth_specs` non-empty | inherit as ground truth | TREAT each as A-4 contract; per-change `spec.md` writes deltas | same + `propose_merge` at archive time |
+| `active_changes` non-empty | inspect `STATUS.yaml.state` | RESUME the change unless user explicitly opts out (`--no-change`) | MUST resume; opening a parallel change is a S-8 violation |
+| `rules_layer_set` non-empty + `compiled_corpora` complete | trust the compiled corpus | same + opt-in `agents_md_slice` for L3 task slices | same + cite layer headings in dispatch context |
+
+**Default-OFF auto-write contract** (R5 strict): even when
+`scan_workspace` reports `has_agent_dir=True`, NO handoff envelope is
+written automatically until `DEVOLAFLOW_AGENT_WORKSPACE=1`. The
+v9.1.3 `pre_handoff` hook (PV-03 of this cycle) is the production
+caller that flips on under the env-flag; v9.1.1 PV-01 ships the
+discovery API as the prerequisite.
+
 **Envelope policy clarification (S-9 reminder)**: every envelope under
 `.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml` is
 append-only. To convey new information, author a NEW envelope at

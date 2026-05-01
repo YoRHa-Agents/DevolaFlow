@@ -15,6 +15,11 @@ Baselines covered:
 * v8.0.0 P-10 — length 15 (P-10: appended ``acceptance_criteria_v2``)
 * v8.3.0 PV-05 — length 16 (PV-05: appended ``change_context``)
 * v8.4.0 — length 16 stable (no schema bump; v8.4.0 cycle was 0 P6 transitions)
+* v9.2.0 — length 16 stable (v9.1.4 PV-04 NEST extension inside
+  ``change_context`` sub-fields; canonical_order length unchanged at 16,
+  version unchanged at 5 — the witness baseline is byte-identical to
+  v8.4.0; absence of the new OPTIONAL sub-fields is the canonical
+  rendering per the v9.1.4 PV-04 NEST decision per A-2.3)
 
 Each test renders the canonical payload via
 ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
@@ -199,6 +204,23 @@ def _v8_4_0_payload() -> dict:
     return payload
 
 
+def _v9_2_0_payload() -> dict:
+    """v9.2.0 16-key stable payload — v8.4.0 byte-identical witness.
+
+    PV-04 (v9.1.4) introduced 3 NEW OPTIONAL sub-fields under
+    ``change_context`` (``prior_feedback_themes`` / ``memory_case_hits`` /
+    ``source_of_truth_excerpt``) per A-2.3 nest-vs-append decision. The
+    witness payload here OMITS the new sub-fields — that is the canonical
+    rendering per the OPTIONAL contract — so the resulting YAML is
+    byte-identical to ``layout_invariant_v8.4.0.yaml`` and proves that
+    callers who do NOT yet emit the new sub-fields continue to see the
+    same cache-prefix bytes (the headline I-8 invariant proof for v9.1.4
+    PV-04). The constructor reuses ``_v8_4_0_payload()`` directly to make
+    the byte-identical contract obvious to any reader.
+    """
+    return _v8_4_0_payload()
+
+
 def _render(payload: dict) -> str:
     """Canonical rendering for byte-comparison (matches v7.0.0 baseline test)."""
     return yaml.safe_dump(payload, sort_keys=False, default_flow_style=False)
@@ -288,6 +310,66 @@ class TestMultiBaselineByteStability:
         assert rendered == recorded, (
             f"v8.4.0 baseline drift in {path} — v8.4.0 cycle was 0 P6 transitions; "
             "see v9-ADR-002 D4"
+        )
+
+    def test_v9_2_0_baseline_byte_identical(self) -> None:
+        """v9.2.0 mid-cycle witness — v9.1.4 PV-04 NEST extension proof.
+
+        PV-04 (v9.1.4) added 3 OPTIONAL sub-fields under
+        ``change_context`` (``prior_feedback_themes`` /
+        ``memory_case_hits`` / ``source_of_truth_excerpt``) per A-2.3
+        nest-vs-append rule. Since the new sub-fields are OPTIONAL and
+        their absence is canonical, a payload that omits them MUST
+        render byte-identical to the v8.4.0 baseline (no canonical
+        ordering disturbance — the I-8 invariant the entire v9.0.0
+        cycle's cache-layout governance protects). The witness file at
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml``
+        is committed as a byte-identical copy of the v8.4.0 baseline so
+        a future renamer / re-orderer / sneaky inserter that disturbs
+        the v8.4.0 layout would also break this v9.2.0 pin AND any
+        future PV that lands legitimate sub-field content can keep this
+        baseline as the "no-sub-fields canonical" pin while adding a
+        sibling pin for the populated case.
+        """
+        path = BASELINES_DIR / "layout_invariant_v9.2.0.yaml"
+        assert path.exists(), (
+            f"missing baseline {path} — v9.1.4 PV-04 requires this fixture "
+            "(witness for the NEST extension I-8 invariant)"
+        )
+        recorded = path.read_text()
+        rendered = _render(_v9_2_0_payload())
+        assert rendered == recorded, (
+            f"v9.2.0 baseline drift in {path} — the v9.1.4 PV-04 NEST "
+            "extension was supposed to be byte-identical to the v8.4.0 "
+            "baseline (the OPTIONAL sub-fields are absent in canonical "
+            "rendering); see v9-ADR-002 D4 + the v9.1.4 PV-04 schema "
+            "comment in schemas/lean-dispatch.yaml"
+        )
+
+    def test_v9_2_0_baseline_byte_identical_to_v8_4_0(self) -> None:
+        """The v9.2.0 baseline file is a verbatim copy of v8.4.0.
+
+        The PV-04 commit ships
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml``
+        as a byte-identical copy of
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v8.4.0.yaml``.
+        This pin catches any future drift where one file is updated and
+        the other is forgotten — both files must move together OR the
+        v9.2.0 file must gain its own dedicated payload constructor and
+        this guard test must be removed in the same PR.
+        """
+        v8_4_0_path = BASELINES_DIR / "layout_invariant_v8.4.0.yaml"
+        v9_2_0_path = BASELINES_DIR / "layout_invariant_v9.2.0.yaml"
+        assert v8_4_0_path.exists(), f"missing baseline {v8_4_0_path}"
+        assert v9_2_0_path.exists(), f"missing baseline {v9_2_0_path}"
+        v8_4_0_text = v8_4_0_path.read_text()
+        v9_2_0_text = v9_2_0_path.read_text()
+        assert v8_4_0_text == v9_2_0_text, (
+            "v9.2.0 baseline file diverged from v8.4.0 — the v9.1.4 PV-04 "
+            "contract requires byte-identical copy (NEST extension preserved "
+            "the canonical layout). Either restore the byte-identical copy "
+            "OR introduce a dedicated v9.2.0 payload constructor and remove "
+            "this guard test in the same PR."
         )
 
 

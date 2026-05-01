@@ -238,16 +238,24 @@ meta:
       relaxed: false
 
   # v9.0.0 PV-07 (v9.0.0) — Per-task-type AGENTS.md slicing.
+  # v9.1.5 PV-05 — DEFAULT-ON FLIP (operator-visible behaviour change).
   #
   # Codified per .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md
   # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
   #
-  # When ``enabled: true``, select_agents_md_slice(task_type) (in
-  # task_adaptive_selector.py) filters the compiled AGENTS.md content per
+  # When ``enabled: true`` (the v9.1.5+ default), select_agents_md_slice(task_type)
+  # (in task_adaptive_selector.py) filters the compiled AGENTS.md content per
   # the per-profile layer-prefix mapping below, hiding rules irrelevant
-  # to the task type. Default ``enabled: false`` preserves v8.5.1
-  # byte-identical full-AGENTS.md behaviour for every dispatcher that
-  # has not opted in (R5 strict — pinned by tests/test_pv07_agents_md_slice.py).
+  # to the task type.
+  #
+  # OPT-OUT (R5 strict): set ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` to revert to
+  # the v9.1.4 byte-identical full-AGENTS.md behaviour. Per W-20, this
+  # flag was telegraphed in the v9.0.0 PV-07 ADR-007 D3 design but the
+  # runtime read landed in v9.1.5 PV-05 alongside this default flip
+  # (existing-but-unwired flag — REUSE, not new). EXACTLY ``"0"`` forces
+  # opt-out; EXACTLY ``"1"`` forces opt-in (overriding any future YAML
+  # opt-out); any other env value falls through to this YAML default.
+  # Pinned by tests/test_pv07_agents_md_slice.py.
   #
   # The slice never reorders or rewrites canonical rules — it only
   # HIDES rules irrelevant to the task type. Top-level layer headings
@@ -264,14 +272,15 @@ meta:
   # .local/research/v9.0.0_pv07_rule_audit.md §2.2. Operators with custom
   # profiles add new entries under ``profiles.<profile_name>``.
   #
-  # MAJOR semver justification: when an operator opts into slicing, the
-  # cached prefix that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70%
-  # depending on task type. For long-running L0 sessions that cache the
-  # AGENTS.md prefix between dispatches, this is an observable change in
-  # the input prompt — downstream tools that audit / log prompts will
-  # see different content.
+  # MAJOR semver justification: with v9.1.5 default-ON, the cached prefix
+  # that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70% depending on
+  # task type. For long-running L0 sessions that cache the AGENTS.md
+  # prefix between dispatches, this is an observable change in the input
+  # prompt — downstream tools that audit / log prompts will see different
+  # content. The opt-out env flag (DEVOLAFLOW_AGENTS_MD_SLICE=0) lets
+  # operators retain v9.1.4 byte-stable behaviour during migration.
   agents_md_slice:
-    enabled: false
+    enabled: true
     fallback: full
     profiles:
       hotfix:
@@ -423,19 +432,20 @@ section_anchors:
 # MUST go through ``section_anchors:`` (anchor → file path) rather than
 # adding new ``lines: "X-Y"`` entries here.
 sections:
-  # Line ranges below were re-anchored in v9.0.0 PV-01 (v8.4.1) after the
-  # SKILL.md compression reclaimed 57 lines (499 → 440). Sections that
-  # the v9.0.0 PV-01 ``section_anchors:`` block migrated to symbolic
-  # heading-based discovery (``frontmatter`` / ``version_update`` /
-  # ``plan_mode_template`` / ``convergence_loop``) keep these ``lines:``
+  # Line ranges below were re-anchored in v9.1.1 PV-01 (cycle v9.2.0 start)
+  # after the SKILL.md "Workspace Engagement" insertion at lines 40-55
+  # (+16 line shift for everything from quick_action_decision onward).
+  # Sections that the v9.0.0 PV-01 ``section_anchors:`` block migrated to
+  # symbolic heading-based discovery (``frontmatter`` / ``version_update``
+  # / ``plan_mode_template`` / ``convergence_loop``) keep these ``lines:``
   # entries as a backward-compat fallback only — the registry takes
   # precedence per ``_resolve_section_text``. The remaining sections
   # continue resolving via the legacy line-based path with one-shot
   # ``DeprecationWarning`` per anchor (S-5 — never silently swallow
   # the deprecation signal). Full anchor migration is deferred per
   # ``.local/research/v9.0.0_pv01_compression_plan.md`` §3 — pairing
-  # each migration with a per-profile budget recalibration is
-  # out of scope for PV-01.
+  # each migration with a per-profile budget recalibration is out of
+  # scope for v9.1.1 PV-01 (v9.2.0 cycle plan §"Two-axis activation").
   frontmatter:
     lines: "1-30"
     tokens_est: 231
@@ -446,113 +456,118 @@ sections:
     tokens_est: 109
     content_type: prose
 
+  workspace_engagement:
+    lines: "40-55"
+    tokens_est: 240
+    content_type: table
+
   quick_action_decision:
-    lines: "40-49"
+    lines: "56-65"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "51-58"
+    lines: "67-74"
     tokens_est: 91
     content_type: prose
 
   plan_mode_template:
-    lines: "59-62"
+    lines: "75-78"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "63-89"
+    lines: "79-105"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "90-118"
+    lines: "106-134"
     tokens_est: 612
     content_type: table
 
   hierarchy_table:
-    lines: "147-161"
+    lines: "163-177"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "147-161"
+    lines: "163-177"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "157-161"
+    lines: "173-177"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "162-174"
+    lines: "178-190"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "175-191"
+    lines: "191-207"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "192-241"
+    lines: "208-257"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "242-259"
+    lines: "258-275"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "263-273"
+    lines: "279-289"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "275-293"
+    lines: "291-309"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "294-326"
+    lines: "310-342"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "327-338"
+    lines: "343-354"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "339-349"
+    lines: "355-365"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "350-385"
+    lines: "366-402"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "350-385"
+    lines: "366-402"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "260-262"
+    lines: "276-278"
     tokens_est: 100
     content_type: spec
 
   task_quality_score:
-    lines: "413-438"
+    lines: "431-456"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "386-412"
+    lines: "404-430"
     tokens_est: 188
     content_type: table
 
