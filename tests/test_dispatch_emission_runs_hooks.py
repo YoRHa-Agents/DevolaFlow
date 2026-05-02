@@ -2,6 +2,8 @@
 
 v8.4.4 PV-04 — Soul Rule S-10 enforcement.
 v9.1.3 PV-03 — extends the chain to include ``pre_handoff`` (G-005 closure).
+v9.4.0 PV-03 — extends the chain to include ``pre_plugin_invocation``
+(D-P-2 closure: closes the ``ensure_plugin()`` dead-wire ghost).
 
 Pins the dead-wire fix that closes C-03 from
 ``.local/research/v9.0.0_gap_analysis.md`` §3.1: prior to v8.4.4,
@@ -17,14 +19,18 @@ paths of ``generate_round_dispatch``:
 2. No reinforcement findings (verdict.details["findings"] empty).
 3. Reinforcement applied (round ≥ 2 + non-empty findings).
 
-All three paths MUST invoke ``lifecycle.run_hooks("pre_dispatch", ...)``
-followed by ``lifecycle.run_hooks("post_dispatch", ...)`` followed by
-``lifecycle.run_hooks("pre_handoff", ...)`` exactly once each, in
-PERMISSIVE mode (``strict=False``). The v9.1.3 PV-03 ``pre_handoff``
-slot lands AFTER the governance tail because the dispatch payload is
-fully-formed + lint-validated at that point — the correct moment to
-consider materialising a handoff envelope under
-``.local/.agent/handoff/``.
+All three paths MUST invoke the FOUR-event hook chain in this exact
+order, exactly once each, in PERMISSIVE mode (``strict=False``):
+
+  ``pre_dispatch`` → ``post_dispatch`` → ``pre_handoff`` → ``pre_plugin_invocation``
+
+The v9.1.3 PV-03 ``pre_handoff`` slot lands AFTER the governance tail
+because the dispatch payload is fully-formed + lint-validated at that
+point. The v9.4.0 PV-03 ``pre_plugin_invocation`` slot lands AFTER
+``pre_handoff`` because the dispatch payload's plugin candidates are
+typically resolved against the ``runtime-plugins.yaml`` registry AFTER
+the handoff envelope has been written (so the L3 receiver sees the
+authoritative payload before the auto-install fires).
 
 Tests also assert R5 strict byte-identical: when no extra handlers are
 registered, the returned dispatch payload is byte-identical to the
@@ -32,7 +38,9 @@ pre-PV-04 control (golden snapshot built from pure deepcopy +
 ``merge_reinforcement_into_dispatch``). This protects callers that have
 not yet adopted the v8.4.4 schema from any silent mutation through the
 hook chain. The v9.1.3 PV-03 ``auto_write_handoff`` default is also
-byte-stable when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset.
+byte-stable when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset; the v9.4.0
+PV-03 ``pre_plugin_invocation`` default is also byte-stable when
+``DEVOLAFLOW_AUTO_INSTALL_PLUGINS`` is unset.
 """
 
 from __future__ import annotations
@@ -49,6 +57,7 @@ from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     PRE_DISPATCH_EVENT,
     PRE_HANDOFF_EVENT,
+    PRE_PLUGIN_INVOCATION_EVENT,
     HookResult,
     clear_hooks,
 )
@@ -132,9 +141,15 @@ class TestHookInvocation:
                 round_num=1,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
-            "round-1 pass-through must invoke pre_dispatch, post_dispatch, then "
-            "pre_handoff exactly once each (v9.1.3 PV-03 chain)"
+        assert events == [
+            PRE_DISPATCH_EVENT,
+            POST_DISPATCH_EVENT,
+            PRE_HANDOFF_EVENT,
+            PRE_PLUGIN_INVOCATION_EVENT,
+        ], (
+            "round-1 pass-through must invoke pre_dispatch, post_dispatch, "
+            "pre_handoff, then pre_plugin_invocation exactly once each "
+            "(v9.4.0 PV-03 chain)"
         )
 
     def test_no_findings_path_invokes_all_hooks(self) -> None:
@@ -147,9 +162,15 @@ class TestHookInvocation:
                 round_num=2,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
+        assert events == [
+            PRE_DISPATCH_EVENT,
+            POST_DISPATCH_EVENT,
+            PRE_HANDOFF_EVENT,
+            PRE_PLUGIN_INVOCATION_EVENT,
+        ], (
             "empty-findings path must still invoke the full hook chain "
-            "(pre_dispatch → post_dispatch → pre_handoff)"
+            "(pre_dispatch → post_dispatch → pre_handoff → "
+            "pre_plugin_invocation)"
         )
 
     def test_reinforcement_applied_path_invokes_all_hooks(self) -> None:
@@ -162,9 +183,15 @@ class TestHookInvocation:
                 round_num=2,
             )
         events = [c[0] for c in calls]
-        assert events == [PRE_DISPATCH_EVENT, POST_DISPATCH_EVENT, PRE_HANDOFF_EVENT], (
+        assert events == [
+            PRE_DISPATCH_EVENT,
+            POST_DISPATCH_EVENT,
+            PRE_HANDOFF_EVENT,
+            PRE_PLUGIN_INVOCATION_EVENT,
+        ], (
             "reinforcement-applied path must invoke the full hook chain "
-            "(pre_dispatch → post_dispatch → pre_handoff) exactly once"
+            "(pre_dispatch → post_dispatch → pre_handoff → "
+            "pre_plugin_invocation) exactly once"
         )
 
     def test_pre_handoff_invoked_after_post_dispatch(self) -> None:
@@ -190,6 +217,32 @@ class TestHookInvocation:
         assert handoff_idx == post_idx + 1, (
             f"pre_handoff (idx {handoff_idx}) must immediately follow "
             f"post_dispatch (idx {post_idx}); chain={events!r}"
+        )
+
+    def test_pre_plugin_invocation_invoked_after_pre_handoff(self) -> None:
+        """v9.4.0 PV-03: ``pre_plugin_invocation`` MUST fire AFTER ``pre_handoff``.
+
+        At this point the dispatch payload is fully-formed and the
+        handoff envelope has been written (in workspace-engaged
+        operation), making it the correct moment to auto-install
+        plugins cited by the dispatch's workflow. Pinning the order
+        prevents a future refactor from re-ordering the chain and
+        breaking the v9.4.0 PV-03 dispatch-wiring contract.
+        """
+        gen = ProposalGenerator()
+        calls, fake = self._make_call_recorder()
+        with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
+            gen.generate_round_dispatch(
+                _base_dispatch(),
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=2,
+            )
+        events = [c[0] for c in calls]
+        handoff_idx = events.index(PRE_HANDOFF_EVENT)
+        plugin_idx = events.index(PRE_PLUGIN_INVOCATION_EVENT)
+        assert plugin_idx == handoff_idx + 1, (
+            f"pre_plugin_invocation (idx {plugin_idx}) must immediately "
+            f"follow pre_handoff (idx {handoff_idx}); chain={events!r}"
         )
 
     def test_hook_invoked_in_permissive_mode(self) -> None:

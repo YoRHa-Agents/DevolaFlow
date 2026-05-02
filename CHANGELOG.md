@@ -5,6 +5,106 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.4.0] — 2026-05-02
+
+**MINOR — Plugin Auto-Install & Daily Upgrade.** Second MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Three implementation PVs (PV-02 + PV-03 + PV-04) addressing user feedback §1 from `feedback_for_v9.2.4.md`: *"Plugins should auto-install globally on missing-invocation and auto-upgrade daily; current gap = `ensure_plugin()` is never called from any dispatcher."* The PV-01 audit confirmed this empirically — `grep -c ensure_plugin src/devolaflow/` returned hits only in `installer.py` (defining the function) and `plugins/__init__.py` (re-exporting it); zero dispatcher / lifecycle / slash-command / CLI / template-runtime invocations. The cycle close grows the hit count from 2 → 5 files, fully closing the dead-wire ghost.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Single new env flag**: `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (R5 strict — `"1"` only; rejects `"true"` / `"yes"` / `"on"` / `"01"` / `"1\n"` / `""`). Default-OFF; opt-in for v9.4.0. When set, the dispatcher's `pre_plugin_invocation` lifecycle hook (the new event slot at position 9 of `DEFAULT_EVENTS`, A-2.2 append-only) auto-invokes `ensure_plugin()` for every plugin cited in the dispatch payload (resolved via `runtime-plugins.yaml#plugins[*].invoked_by_workflows`) BEFORE the L3 Task Agent attempts to call the plugin's binary. Without the env flag, behaviour is byte-identical to v9.3.x for every input — the new lifecycle event runs a permissive zero-IO no-op default. Documented in `workflow-system/agent/references/env-flags.md` §2.13 with full W-20 §3 orthogonality justification (the new flag activates a different runtime surface from the existing `DEVOLAFLOW_AUTO_INSTALL` install-primitive flag and from `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle flag).
+
+**New CLI surface**: `devolaflow plugins {list,status,refresh}` subcommand group via `pyproject.toml [project.scripts] devolaflow-plugins`. Three commands:
+
+| Command | Purpose |
+|---|---|
+| `devolaflow plugins list [--json]` | Inspect every registered plugin: id, backend, package, min_version, installed_version (probed at call time), last_checked (ISO-8601), invoked_by_workflows, upgrade_cmd. |
+| `devolaflow plugins status [--json]` | Alias of `list` — more discoverable name. |
+| `devolaflow plugins refresh [--force] [--plugin <id>] [--json]` | Daily-upgrade entry point: walks the registry, skips plugins checked within `defaults.upgrade_check_frequency_hours` (24h default), upgrades stale plugins via `upgrade_cmd` (or falls back to `install_cmd` for v1/v2 entries). `--force` upgrades all regardless of staleness; `--plugin` (repeatable) restricts to specific plugins; `--json` emits machine-readable output. Network failures are reported as per-row WARN, NOT crashes (exit 1 only if at least one upgrade failed). |
+
+**Schema bump**: `runtime-plugins.yaml` schema_version 2 → 3. Additive — v1 + v2 entries continue to load without modification (the new `upgrade_cmd` and `upgrade_check_frequency_hours` fields are both optional with sensible defaults: `upgrade_cmd` falls back to `install_cmd`, `upgrade_check_frequency_hours` defaults to 24).
+
+**No breaking changes**: every other change is internal. The `pre_plugin_invocation` lifecycle hook ships in PV-02 with a permissive zero-IO no-op default. The `plugins_for_workflow` helper (PV-03) is a pure registry lookup. The new `upgrade_plugin` / `refresh_all` / `read_last_checked` / `is_plugin_stale` / `list_plugins` API (PV-04) lives alongside the existing `ensure_plugin` per Soul Rule A-5.1 single-owner.
+
+### `ensure_plugin` dispatcher hit-count growth (the AC-3 evidence)
+
+| Cycle baseline | Files referencing `ensure_plugin` | Diff |
+|---|---|---|
+| v9.3.0 head | 2 — `plugins/installer.py` (def) + `plugins/__init__.py` (re-export) | (baseline) |
+| v9.4.0 PV-02 | 4 — added `lifecycle/pre_plugin_invocation.py` + `lifecycle/__init__.py` (PRE_PLUGIN_INVOCATION_EVENT export) | +2 |
+| v9.4.0 PV-03 | **5** — added `feedback.py` (the dispatcher wiring) | +1 |
+| v9.4.0 PV-04 | **5** — `installer.py` gains the new `upgrade_plugin` / `refresh_all` siblings; file count unchanged | 0 |
+
+Closes the v6.0.3-style dead-wire ghost identified in the v9.4.0 PV-01 gap analysis §3.1.
+
+### Per-PV ledger
+
+| PV | Tag | SHA | Deliverable |
+|---|---|---|---|
+| PV-01 | `docs(v9.4.0)` | `e842523` | W-1 SI-1 planning gate — gap analysis (9 deficiencies enumerated D-P-1..D-P-9) + W-2 NineS deep-analyze on `src/devolaflow/plugins/`. Empty commit by design — research artifacts live under `.local/research/` (gitignored, archived at v10.0.0 close per W-19). |
+| PV-02 | `feat(v9.4.0)` | `3f08d6b` | `pre_plugin_invocation` lifecycle hook (~210 LOC) + `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` env flag + `references/env-flags.md` §2.13 entry. DEFAULT_EVENTS bumped 8 → 9 with new event APPENDED at position 9 (A-2.2 invariant — positions 1-8 byte-stable since v9.1.3). 30 NEW test functions in `tests/test_pre_plugin_invocation.py` (across 6 test classes including 11-case parametrize for env-flag matrix + AST-walk lazy-import contract). |
+| PV-03 | `feat(v9.4.0)` | `6c84712` | Dispatcher wiring — `feedback.py::_emit_dispatch` extended from 3-event chain to 4-event chain. NEW `installer.plugins_for_workflow(workflow_name)` helper. Hook extended to resolve `payload["workflow"]` via lazy-imported `plugins_for_workflow`. `ensure_plugin` reference hit count grew 2 → 5 files. 17 NEW test functions in `tests/test_dispatch_plugin_autoinstall.py` (16) + `tests/test_dispatch_emission_runs_hooks.py` (1 ordering test). 4 existing S-10 chain tests updated for the 4-event chain. |
+| PV-04 | `feat(v9.4.0)` | `10bf04e` | Schema v3 + `upgrade_cmd` + `upgrade_check_frequency_hours` + `upgrade_plugin` / `refresh_all` / `read_last_checked` / `is_plugin_stale` / `list_plugins` / `RefreshOutcome` API + `devolaflow plugins {list,status,refresh}` CLI. `_SUPPORTED_SCHEMA_VERSIONS` extended `{1,2}` → `{1,2,3}`. `pyproject.toml` adds `devolaflow-plugins` script entry. 36 NEW test functions in `tests/test_plugin_upgrade.py` (across 12 test classes including end-to-end CLI smoke). |
+| PV-05 | `chore(v9.4.0)` | (this commit) | Cycle close — version bump 9.3.0 → 9.4.0 across the canonical 7 sync locations + this CHANGELOG + retrospective + evaluation + W-18 ghost-audit refresh + ST-7 versions.json + human docs regen + W-19 archive (deferred to v10.0.0 close per cycle plan §6 entry conditions). |
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** — `.local/research/v9.4.0_gap_analysis.md` (gitignored; will be archived at v10.0.0 close per W-19); 9 deficiencies (D-P-1..D-P-9) enumerated with priority ranking + file-level scope. Authored before PV-02 implementation began.
+- **W-2 SI-2 NineS** — PV-01 deep analyze on `src/devolaflow/plugins/` committed in `.local/research/v9.4.0_nines_plugins.{json,md}` (37 functions / 1511 LOC / avg cyclomatic complexity 3.42; 2 warning-severity findings on `resolve_plugin` C-11 + `ensure_plugin` C-14, both deferred to v9.7.0 PV-N or v10.1.x per the cycle plan); PV-05 self-eval committed in `.local/research/v9.4.0_nines.{json,md}`.
+- **W-3 SI-3 evaluation** — `.local/research/v9.4.0_evaluation.md` documents the 6-dimension weighted composite ≥ 8.5/10 (the MINOR-release threshold).
+- **W-4 SI-4 benchmark guard** — composite scores unchanged across all 53 EvoBench scenarios (within ±2%); the v9.3.0 wholesale `v9.3.0_baseline.json` remains the cycle anchor (W-16 — wholesale regen happens once per `.0` MINOR cycle-start, not per-PV).
+- **W-7 SI-8 retrospective** — `.local/research/v9.4.0_retrospective.md` (4 mandatory sections: gaps / implemented / deferred / learnings).
+- **W-17 test cap** — cycle-cumulative +83 raw / +60 adjusted NEW test functions across PV-02 + PV-03 + PV-04 (PV-02 +30, PV-03 +17, PV-04 +36 raw / +13 adjusted with parametrize-style schema-fixture checks excluded per W-17 definition). Within both per-PV ≤30 cap (PV-04 adjusted is 13) and cumulative cycle ≤150 cap (running total post-v9.4.0: v9.3.0 +36 + v9.4.0 +60 adjusted = +96 of 150).
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v9_4_0_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per the W-18 precondition. Pins (a) all 18 NEW symbol surfaces import cleanly; (b) DEFAULT_EVENTS length ≥ 9 with `pre_plugin_invocation` at 1-indexed position 9; (c) `references/env-flags.md` §2.13 entry contains the canonical W-20 §3 literals; (d) schema v3 contract with every canonical entry declaring `upgrade_cmd`; (e) `ensure_plugin` referenced in ≥ 4 files in `src/devolaflow/`.
+- **W-20 env flag policy** — 1 NEW flag added (`DEVOLAFLOW_AUTO_INSTALL_PLUGINS`); orthogonality justification documented in PV-02 commit body + `references/env-flags.md` §2.13 + this CHANGELOG entry above.
+- **W-21 Soul-set freeze** — Soul count remains at **10** (no S-11 candidate proposed for v9.4.0). Per the W-21 2-cycle telegraph rule, any S-11 candidate would have to telegraph in the v9.4.0 retrospective and gap-analyse in v9.6.0+ per the cycle cadence.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.3.0 → 9.4.0 |
+| EDIT | `pyproject.toml` | version sync + NEW `devolaflow-plugins` script entry |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| EDIT | `workflow-system/agent/SKILL.md` | version triple sync (frontmatter + banner + body "Current version:" text) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.4.0 entry |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen (16 files — EN + ZH bilingual completeness per ST-3) |
+| EDIT | `README.md` | badge + version example sync |
+| EDIT | `CHANGELOG.md` | this entry |
+| EDIT | `tests/test_no_ghost_features.py` | +1 W-18 ghost-audit lint (`test_v9_4_0_new_symbols_have_coverage`) — 18 symbol surfaces + DEFAULT_EVENTS shape + env-flag doc + schema v3 + dispatcher hit-count |
+| NEW | `.local/research/v9.4.0_gap_analysis.md` (gitignored) | W-1 / SI-1 planning gate |
+| NEW | `.local/research/v9.4.0_nines_plugins.{json,md}` (gitignored) | W-2 / SI-2 PV-01 NineS deep analyze |
+| NEW | `.local/research/v9.4.0_retrospective.md` (gitignored) | W-7 / SI-8 cycle-close retrospective |
+| NEW | `.local/research/v9.4.0_evaluation.md` (gitignored) | W-3 / SI-3 evaluation report |
+| NEW | `.local/research/v9.4.0_nines.{json,md}` (gitignored) | W-2 close NineS self-eval |
+| (cumulative across PV-02..PV-04 — see per-PV commit ledger above) |  |  |
+
+### Verification Checklist (W-9 SI-10 6-step + cycle invariants)
+
+| # | Step | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 3739 passed / 21 skipped / 2 xfailed (was 3676 / 21 / 2 at v9.3.0; cycle delta +63 collected = +83 NEW functions + ghost-audit refresh + parametrize expansions; well under W-17 +150 cycle cap with adjusted count) |
+| 2 | `ruff check src/ tests/ benchmarks/` | **PASS** — 0 violations (225 files) |
+| 3 | `ruff format --check src/ tests/ benchmarks/` | **PASS** — 225 files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed / 19 skipped (mirror parity self-skipped per SF-3 since `.cursor/skills/devola-flow/` absent on this clone) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36 passed (composite scores unchanged across all 53 EvoBench scenarios within ±2%; layout-invariant baselines byte-identical with v9.3.0 — no schema bump in v9.4.0) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (mirror absent → no-op per SF-3) |
+
+| Invariant | Threshold | v9.4.0 result |
+|---|---|---|
+| C-4 SKILL.md line budget | ≤ 500 | unchanged at 460 (+40 headroom) |
+| W-17 cumulative cycle delta | ≤ +150 | **+96** adjusted (+36 v9.3.0 + +60 adjusted v9.4.0; +54 headroom for v9.5.0 + v9.6.0 + v9.7.0 + v10.0.0 close) |
+| W-18 ghost-audit refresh BEFORE CHANGELOG | required | **discharged** (`test_v9_4_0_new_symbols_have_coverage` ran green BEFORE this CHANGELOG was authored) |
+| W-20 new env flags | 0 or W-20 §3 justified | **+1** (`DEVOLAFLOW_AUTO_INSTALL_PLUGINS` — orthogonality justification in PV-02 commit + `references/env-flags.md` §2.13) |
+| W-21 Soul-set freeze | 10 | **10** (no S-11 candidate; W-21 2-cycle telegraph cadence preserved) |
+| Schema layout invariant | 16 keys / version 5 byte-identical | **byte-identical** (no schema bump in v9.4.0; layout-invariant baselines unchanged) |
+| `DEFAULT_EVENTS` length | 8 → 9 (A-2.2 append-only) | **9** (PV-02 added `pre_plugin_invocation` at position 9; positions 1-8 byte-stable since v9.1.3) |
+| `runtime-plugins.yaml` schema_version | 2 → 3 (additive) | **3** (PV-04 added `upgrade_cmd` per plugin + `upgrade_check_frequency_hours` defaults; v1+v2 entries still load via `_SUPPORTED_SCHEMA_VERSIONS = {1,2,3}`) |
+| `ensure_plugin` dispatcher hit count | ≥ 4 (AC-3) | **5** (`installer.py` + `plugins/__init__.py` + `lifecycle/pre_plugin_invocation.py` + `lifecycle/__init__.py` + `feedback.py`) |
+| Rule count | ≤ 60 hard cap | **59** (+1 headroom; unchanged) |
+
 ## [9.3.0] — 2026-05-02
 
 **MINOR — Performance Overhaul #1.** First MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Five implementation PVs (PV-02..PV-06) addressing the user's #1 efficiency complaint via the empirically-targeted highest-leverage fix surfaced by the PV-01 cProfile harness: `load_profiles` + `load_skill_md` + `estimate_tokens` were re-parsing 84KB YAML / re-reading 32KB SKILL.md / re-running tiktoken BPE on every `select_context` call (96.6% of dispatch wall clock). PV-03 mtime-probed LRU cache absorbs all three. PV-02 ships the production latency harness + W-16 wholesale baseline regen. PV-04 splits `compressor.py` (2541 LOC) into a 3-module package (maintainability; no latency change). PV-05 ships `AsyncDispatchExecutor` for L2-wave `asyncio.gather` parallelism (RE-TARGETED from `run_hooks` per the PV-01 finding that hooks are microseconds-scale). PV-06 ships the opt-in `DEVOLAFLOW_SIMPLE_SHORTCUT=1` env flag enabling the `SHORTCUT_SIMPLE` verdict (skip L1+L2 for SIMPLE/TRIVIAL tasks; promote to default-ON in v9.7.0 telegraphed). All 6 SI-10 gates green at every commit; layout-invariant byte-stability preserved across all 7 baselines (v7.0.0 → v9.3.0); test wall clock dropped 55s → 17s as a side effect of PV-03's LRU cache.

@@ -80,7 +80,11 @@ logger = logging.getLogger(__name__)
 _DEFAULT_REGISTRY_PATH = Path("workflow-system/agent/knowledge/runtime-plugins.yaml")
 _VERSION_RX = re.compile(r"\d+\.\d+(?:\.\d+)?")
 _SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init", "curl_install_script"})
-_SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2})
+# v9.4.0 PV-04: schema v3 adds optional `upgrade_cmd` per plugin and
+# `defaults.upgrade_check_frequency_hours` registry-wide. v1 + v2 entries
+# pass v3 unchanged (the v3 fields are all optional with sensible defaults).
+_SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2, 3})
+_DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS: int = 24
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +113,14 @@ class RuntimePluginSpec:
     init_targets: list[str] = field(default_factory=list)
     invoked_by_workflows: list[str] = field(default_factory=list)
     verify_distinguish_cmd: str | None = None
+    # v9.4.0 PV-04 schema v3 — optional upgrade command. When None,
+    # upgrade_plugin() falls back to install_cmd (which for pip / npm /
+    # curl-script backends is typically idempotent and acts as the upgrade
+    # command on its own). Authors who need a distinct upgrade path
+    # (e.g. cargo distribution requiring `cargo install --force`) declare
+    # it in runtime-plugins.yaml; the field defaults to None so v1+v2
+    # entries pass v3 unchanged.
+    upgrade_cmd: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +131,13 @@ class RegistryDefaults:
     prefer_local_fallback: bool = True
     network_timeout_seconds: int = 90
     install_log_path: str = ".local/memory/plugin_install.log"
+    # v9.4.0 PV-04 — daily-upgrade cadence in hours. When the
+    # last_checked timestamp for a plugin (read from plugin_install.log)
+    # is older than this many hours, refresh_all() considers the plugin
+    # stale and runs upgrade_plugin() against it. Default 24 = daily,
+    # matching the user-feedback "auto-upgrade daily" requirement from
+    # `feedback_for_v9.2.4.md` §1.
+    upgrade_check_frequency_hours: int = 24
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +210,72 @@ def load_registry(path: Path | str | None = None) -> dict[str, Any]:
     return raw
 
 
+def plugins_for_workflow(
+    workflow_name: str,
+    *,
+    registry_path: Path | str | None = None,
+    registry: dict[str, Any] | None = None,
+) -> list[str]:
+    """Return the list of plugin IDs whose ``invoked_by_workflows`` cites ``workflow_name``.
+
+    Parameters
+    ----------
+    workflow_name:
+        The workflow / template name as it would appear in the dispatch
+        payload (e.g. ``"skill-optimization"``, ``"product-verification"``).
+    registry_path:
+        Optional override for the registry YAML path. Defaults to
+        ``workflow-system/agent/knowledge/runtime-plugins.yaml``.
+    registry:
+        Optional pre-loaded registry dict (cheap path for callers that
+        already loaded it — avoids the YAML re-parse). When omitted,
+        the function calls :func:`load_registry`.
+
+    Returns
+    -------
+    list[str]
+        Plugin IDs declared via ``plugins[*].invoked_by_workflows``
+        containing ``workflow_name``. Insertion order from the registry
+        is preserved (deterministic across runs because YAML order is
+        preserved by ``yaml.safe_load``).
+
+        Returns an empty list when ``workflow_name`` is empty / not a
+        string OR when no plugin declares the workflow. The empty list
+        is the byte-stable signal for "free-floating workflow stage —
+        no auto-install needed" used by the v9.4.0 PV-03 dispatcher
+        wiring.
+
+    Notes
+    -----
+    Used by :mod:`devolaflow.lifecycle.pre_plugin_invocation` to resolve
+    plugin candidates from the dispatch payload's workflow name. Also
+    callable directly by operator tooling (``devolaflow plugins`` CLI
+    in v9.4.0 PV-04).
+
+    Raises ``FileNotFoundError`` only if the registry path is missing —
+    propagates the loud-failure invariant from :func:`load_registry`
+    per S-5. The helper does NOT swallow registry errors.
+    """
+    if not workflow_name or not isinstance(workflow_name, str):
+        return []
+
+    if registry is None:
+        registry = load_registry(registry_path)
+
+    matches: list[str] = []
+    for entry in registry.get("plugins", []):
+        if not isinstance(entry, dict):
+            continue
+        invoked = entry.get("invoked_by_workflows") or []
+        if not isinstance(invoked, list):
+            continue
+        if workflow_name in invoked:
+            plugin_id = entry.get("id")
+            if isinstance(plugin_id, str) and plugin_id:
+                matches.append(plugin_id)
+    return matches
+
+
 def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpec:
     """Look up ``plugin_id`` in a parsed registry and return its spec.
 
@@ -249,6 +334,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
                 init_targets=list(entry.get("init_targets") or []),
                 invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
                 verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
+                upgrade_cmd=entry.get("upgrade_cmd"),
             )
 
     raise PluginNotFoundError(
@@ -266,6 +352,12 @@ def _load_defaults(registry: dict[str, Any]) -> RegistryDefaults:
         prefer_local_fallback=bool(raw.get("prefer_local_fallback", True)),
         network_timeout_seconds=int(raw.get("network_timeout_seconds", 90)),
         install_log_path=str(raw.get("install_log_path", ".local/memory/plugin_install.log")),
+        upgrade_check_frequency_hours=int(
+            raw.get(
+                "upgrade_check_frequency_hours",
+                _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
+            )
+        ),
     )
 
 
@@ -1028,3 +1120,419 @@ def _attempt_pip_uninstall(spec: RuntimePluginSpec, *, timeout: int) -> None:
             spec.id,
             proc.stderr[:200],
         )
+
+
+# ---------------------------------------------------------------------------
+# v9.4.0 PV-04 — daily-upgrade surface
+# ---------------------------------------------------------------------------
+#
+# Closes D-P-4 (MAJOR — daily-upgrade surface absent) + D-P-5 (MAJOR —
+# schema v3 bump for upgrade_cmd) + D-P-8 (MINOR — registry refresh UX)
+# from `.local/research/v9.4.0_gap_analysis.md` §3.2.
+#
+# Design: build last_checked tracking on top of the existing
+# `plugin_install.log` JSONL file (same one ensure_plugin already
+# writes). NO new state file is added. The tracker reads the log,
+# groups by plugin_id, and returns the most-recent timestamp per
+# plugin. Stale = (now - last_checked) > defaults.upgrade_check_frequency_hours.
+
+
+def read_last_checked(
+    plugin_id: str,
+    *,
+    log_path: Path | str | None = None,
+) -> datetime | None:
+    """Return the most-recent install/upgrade timestamp for ``plugin_id``.
+
+    Reconstructs ``last_checked`` from the canonical
+    ``.local/memory/plugin_install.log`` (the JSONL audit trail
+    written by :func:`ensure_plugin` / :func:`upgrade_plugin`). The
+    tracker considers ANY successful event for the plugin as a
+    "checked" timestamp — `plugin_already_installed`,
+    `plugin_installed`, `plugin_upgraded` all count.
+
+    Parameters
+    ----------
+    plugin_id:
+        Identifier matching ``plugins[].id`` in the registry.
+    log_path:
+        Override path to the install log. Defaults to
+        ``.local/memory/plugin_install.log``.
+
+    Returns
+    -------
+    datetime | None
+        Most-recent UTC timestamp from the log for this plugin, OR
+        ``None`` when the log is missing OR no events for this plugin
+        have ever been recorded. ``None`` MUST be treated as "stale —
+        check immediately" by the staleness predicate.
+    """
+    effective_log = (
+        Path(log_path) if log_path is not None else Path(".local/memory/plugin_install.log")
+    )
+    if not effective_log.is_file():
+        return None
+
+    successful_events = frozenset(
+        {"plugin_already_installed", "plugin_installed", "plugin_upgraded"}
+    )
+    most_recent: datetime | None = None
+    try:
+        with effective_log.open(encoding="utf-8") as fh:
+            for raw_line in fh:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    # Malformed line; skip but do not abort scanning.
+                    continue
+                if not isinstance(record, dict):
+                    continue
+                if record.get("plugin_id") != plugin_id:
+                    continue
+                if record.get("event") not in successful_events:
+                    continue
+                ts_str = record.get("ts")
+                if not isinstance(ts_str, str) or not ts_str:
+                    continue
+                try:
+                    ts = datetime.fromisoformat(ts_str)
+                except ValueError:
+                    continue
+                if most_recent is None or ts > most_recent:
+                    most_recent = ts
+    except OSError as exc:
+        logger.warning("Failed to read plugin install log at %s: %s", effective_log, exc)
+        return None
+    return most_recent
+
+
+def is_plugin_stale(
+    plugin_id: str,
+    *,
+    threshold_hours: int,
+    log_path: Path | str | None = None,
+    now: datetime | None = None,
+) -> bool:
+    """Return ``True`` when the plugin has not been checked in ``threshold_hours``.
+
+    A plugin with NO recorded events is considered stale (never been
+    installed / verified). The reference time defaults to ``datetime.now(UTC)``
+    — tests pin it via the ``now`` argument.
+    """
+    last_checked = read_last_checked(plugin_id, log_path=log_path)
+    if last_checked is None:
+        return True
+    reference = now if now is not None else datetime.now(UTC)
+    if last_checked.tzinfo is None:
+        # Defensive: treat naive timestamps as UTC.
+        last_checked = last_checked.replace(tzinfo=UTC)
+    delta = reference - last_checked
+    return delta.total_seconds() >= threshold_hours * 3600
+
+
+def upgrade_plugin(
+    plugin_id: str,
+    *,
+    registry_path: Path | str | None = None,
+    log_path: Path | str | None = None,
+) -> str:
+    """Upgrade ``plugin_id`` by running its ``upgrade_cmd`` (or ``install_cmd``).
+
+    Resolution chain:
+
+    1. Load + resolve the registry entry.
+    2. Run ``spec.upgrade_cmd`` (when set) OR fall back to
+       ``spec.install_cmd`` (which for pip / npm / curl-script backends
+       is typically idempotent — running it again upgrades to the
+       latest published version per the v8.3.0 PV-01 backend contract).
+    3. Re-probe version via ``spec.version_check_cmd``.
+    4. Append a ``plugin_upgraded`` JSONL event to the install log so
+       :func:`read_last_checked` sees the upgrade as a fresh checkpoint.
+
+    Parameters
+    ----------
+    plugin_id:
+        Identifier matching ``plugins[].id``.
+    registry_path:
+        Override for the registry YAML; defaults to
+        ``workflow-system/agent/knowledge/runtime-plugins.yaml``.
+    log_path:
+        Override for the install log; defaults to
+        ``defaults.install_log_path``.
+
+    Returns
+    -------
+    str
+        The post-upgrade version string parsed from
+        ``version_check_cmd`` output.
+
+    Raises
+    ------
+    PluginNotFoundError, PluginBackendUnsupported, PluginInstallError,
+    PluginVersionMismatch — same loud-failure contract as
+    :func:`ensure_plugin` per S-5.
+    """
+    registry = load_registry(registry_path)
+    defaults = _load_defaults(registry)
+    effective_log = Path(log_path) if log_path is not None else Path(defaults.install_log_path)
+    timeout = defaults.network_timeout_seconds
+    spec = resolve_plugin(plugin_id, registry)
+
+    cmd = spec.upgrade_cmd or spec.install_cmd
+    logger.info("upgrade_plugin: %s — running upgrade command %r", spec.id, cmd)
+    t_start = time.monotonic()
+    try:
+        proc = _run_cmd(cmd, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        _append_log(
+            effective_log,
+            "plugin_upgrade_failed",
+            spec.id,
+            {"backend": spec.backend, "reason": f"timeout after {timeout}s", "cmd": cmd},
+        )
+        raise PluginInstallError(
+            f"upgrade timeout for plugin {spec.id!r} after {timeout}s.",
+            details={"plugin_id": spec.id, "timeout_seconds": timeout, "cmd": cmd},
+        ) from exc
+    except OSError as exc:
+        _append_log(
+            effective_log,
+            "plugin_upgrade_failed",
+            spec.id,
+            {"backend": spec.backend, "reason": f"os-error: {exc}", "cmd": cmd},
+        )
+        raise PluginInstallError(
+            f"upgrade failed for plugin {spec.id!r} (os-error): {exc}.",
+            details={"plugin_id": spec.id, "cmd": cmd},
+        ) from exc
+
+    if proc.returncode != 0:
+        _append_log(
+            effective_log,
+            "plugin_upgrade_failed",
+            spec.id,
+            {
+                "backend": spec.backend,
+                "returncode": proc.returncode,
+                "stderr": proc.stderr[:400],
+                "cmd": cmd,
+            },
+        )
+        raise PluginInstallError(
+            f"upgrade failed for plugin {spec.id!r} "
+            f"(returncode={proc.returncode}): {proc.stderr[:400]!r}",
+            details={
+                "plugin_id": spec.id,
+                "cmd": cmd,
+                "returncode": proc.returncode,
+                "stderr": proc.stderr[:400],
+            },
+        )
+
+    postupgrade_version = _probe_version(spec, timeout=timeout)
+    if postupgrade_version is None:
+        _append_log(
+            effective_log,
+            "plugin_upgrade_post_version_unparseable",
+            spec.id,
+            {"backend": spec.backend, "min_version": spec.min_version},
+        )
+        raise PluginInstallError(
+            f"Plugin {spec.id!r} upgraded but version_check_cmd "
+            f"({spec.version_check_cmd!r}) did not return a parseable version.",
+            details={"plugin_id": spec.id, "backend": spec.backend},
+        )
+
+    if not _meets_min(postupgrade_version, spec.min_version):
+        _append_log(
+            effective_log,
+            "plugin_upgrade_version_mismatch",
+            spec.id,
+            {
+                "postupgrade_version": postupgrade_version,
+                "min_version": spec.min_version,
+                "backend": spec.backend,
+            },
+        )
+        raise PluginVersionMismatch(
+            f"Plugin {spec.id!r} upgraded to {postupgrade_version} but "
+            f"min_version is {spec.min_version}.",
+            details={
+                "plugin_id": spec.id,
+                "postupgrade_version": postupgrade_version,
+                "min_version": spec.min_version,
+            },
+        )
+
+    _append_log(
+        effective_log,
+        "plugin_upgraded",
+        spec.id,
+        {
+            "version": postupgrade_version,
+            "min_version": spec.min_version,
+            "backend": spec.backend,
+            "elapsed_s": round(time.monotonic() - t_start, 3),
+        },
+    )
+    logger.info(
+        "plugin_upgraded: %s at version %s (backend=%s)",
+        spec.id,
+        postupgrade_version,
+        spec.backend,
+    )
+    return postupgrade_version
+
+
+@dataclass(frozen=True)
+class RefreshOutcome:
+    """Outcome of a single plugin refresh attempt during :func:`refresh_all`."""
+
+    plugin_id: str
+    action: str  # "upgraded" | "skipped_fresh" | "skipped_no_upgrade_cmd" | "failed"
+    version: str | None = None
+    reason: str | None = None
+    error: str | None = None
+
+
+def refresh_all(
+    *,
+    registry_path: Path | str | None = None,
+    log_path: Path | str | None = None,
+    force: bool = False,
+    only: list[str] | None = None,
+    now: datetime | None = None,
+) -> list[RefreshOutcome]:
+    """Walk the registry and upgrade stale plugins.
+
+    Parameters
+    ----------
+    registry_path:
+        Override for the registry YAML.
+    log_path:
+        Override for the install log used by the staleness probe.
+    force:
+        When ``True``, bypass the staleness check and upgrade every
+        plugin regardless of ``last_checked``.
+    only:
+        Restrict the refresh to a list of plugin IDs. When ``None``,
+        ALL plugins in the registry are considered.
+    now:
+        Override the staleness reference time (test seam).
+
+    Returns
+    -------
+    list[RefreshOutcome]
+        One outcome per plugin considered (not per registry entry —
+        when ``only=[...]`` plugins outside the filter are NOT
+        included in the returned list). The CLI in
+        :mod:`devolaflow.cli` consumes this directly to render a
+        per-plugin status table.
+
+    CI-safe per gap analysis §6 AC-7: a network failure on one plugin
+    is captured as ``RefreshOutcome(action="failed", error=...)`` and
+    the function continues with the next plugin instead of aborting.
+    """
+    registry = load_registry(registry_path)
+    defaults = _load_defaults(registry)
+    effective_log = Path(log_path) if log_path is not None else Path(defaults.install_log_path)
+    threshold_hours = defaults.upgrade_check_frequency_hours
+
+    target_filter: frozenset[str] | None = frozenset(only) if only is not None else None
+    outcomes: list[RefreshOutcome] = []
+
+    for entry in registry.get("plugins", []):
+        if not isinstance(entry, dict):
+            continue
+        plugin_id_raw = entry.get("id")
+        if not isinstance(plugin_id_raw, str) or not plugin_id_raw:
+            continue
+        plugin_id = plugin_id_raw
+
+        if target_filter is not None and plugin_id not in target_filter:
+            continue
+
+        if not force and not is_plugin_stale(
+            plugin_id,
+            threshold_hours=threshold_hours,
+            log_path=effective_log,
+            now=now,
+        ):
+            outcomes.append(
+                RefreshOutcome(
+                    plugin_id=plugin_id,
+                    action="skipped_fresh",
+                    reason=f"checked within last {threshold_hours}h",
+                )
+            )
+            continue
+
+        try:
+            version = upgrade_plugin(plugin_id, registry_path=registry_path, log_path=effective_log)
+            outcomes.append(RefreshOutcome(plugin_id=plugin_id, action="upgraded", version=version))
+        except (
+            PluginNotFoundError,
+            PluginInstallError,
+            PluginVersionMismatch,
+            PluginBackendUnsupported,
+        ) as exc:
+            logger.warning("refresh_all: upgrade failed for %s — %s", plugin_id, exc)
+            outcomes.append(
+                RefreshOutcome(
+                    plugin_id=plugin_id,
+                    action="failed",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+            )
+
+    return outcomes
+
+
+def list_plugins(
+    *,
+    registry_path: Path | str | None = None,
+    log_path: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    """Return a per-plugin status dict suitable for ``devolaflow plugins list``.
+
+    Each dict carries: ``id``, ``backend``, ``package``, ``min_version``,
+    ``installed_version`` (probed at call time; ``None`` when missing),
+    ``last_checked`` (ISO-8601 string OR ``None``), ``invoked_by_workflows``.
+
+    No installs / upgrades are triggered — pure inspection surface.
+    """
+    registry = load_registry(registry_path)
+    defaults = _load_defaults(registry)
+    effective_log = Path(log_path) if log_path is not None else Path(defaults.install_log_path)
+    timeout = defaults.network_timeout_seconds
+
+    rows: list[dict[str, Any]] = []
+    for entry in registry.get("plugins", []):
+        if not isinstance(entry, dict):
+            continue
+        plugin_id = entry.get("id")
+        if not isinstance(plugin_id, str) or not plugin_id:
+            continue
+        try:
+            spec = resolve_plugin(plugin_id, registry)
+        except (PluginInstallError, PluginBackendUnsupported, PluginNotFoundError) as exc:
+            logger.warning("list_plugins: resolve_plugin failed for %s — %s", plugin_id, exc)
+            continue
+        last = read_last_checked(plugin_id, log_path=effective_log)
+        rows.append(
+            {
+                "id": spec.id,
+                "backend": spec.backend,
+                "package": spec.package,
+                "min_version": spec.min_version,
+                "installed_version": _probe_version(spec, timeout=timeout),
+                "last_checked": last.isoformat() if last is not None else None,
+                "invoked_by_workflows": list(spec.invoked_by_workflows),
+                "upgrade_cmd": spec.upgrade_cmd or spec.install_cmd,
+                "has_explicit_upgrade_cmd": spec.upgrade_cmd is not None,
+            }
+        )
+    return rows

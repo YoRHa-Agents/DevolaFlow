@@ -85,6 +85,12 @@ from devolaflow.lifecycle.post_dispatch import (
 from devolaflow.lifecycle.post_dispatch import (
     post_dispatch,
 )
+from devolaflow.lifecycle.pre_plugin_invocation import (
+    EVENT as _PRE_PLUGIN_INVOCATION_EVENT,
+)
+from devolaflow.lifecycle.pre_plugin_invocation import (
+    pre_plugin_invocation,
+)
 from devolaflow.lifecycle.pre_shell_call import (
     EVENT as _PRE_SHELL_CALL_EVENT,
 )
@@ -120,6 +126,7 @@ _set_default_hook(_FORMAT_ON_EDIT_EVENT, format_on_edit)
 _set_default_hook(_PRE_SHELL_CALL_EVENT, pre_shell_call)
 _set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
 _set_default_hook(_PRE_HANDOFF_EVENT, auto_write_handoff)
+_set_default_hook(_PRE_PLUGIN_INVOCATION_EVENT, pre_plugin_invocation)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -132,6 +139,7 @@ FORMAT_ON_EDIT_EVENT: str = _FORMAT_ON_EDIT_EVENT
 PRE_SHELL_CALL_EVENT: str = _PRE_SHELL_CALL_EVENT
 ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
 PRE_HANDOFF_EVENT: str = _PRE_HANDOFF_EVENT
+PRE_PLUGIN_INVOCATION_EVENT: str = _PRE_PLUGIN_INVOCATION_EVENT
 
 # v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
 # symmetric tail event to `pre_dispatch`). The new slot is wired to a
@@ -160,6 +168,19 @@ PRE_HANDOFF_EVENT: str = _PRE_HANDOFF_EVENT
 # byte-stable. The env-flag is REUSED per Workflow Rule W-20 (same
 # activation surface as v9.1.1 PV-01 SKILL.md §"Workspace Engagement"
 # and v9.1.2 PV-02 Architecture rule A-6).
+#
+# v9.4.0 PV-02: bumped 8 → 9 with the addition of `pre_plugin_invocation`
+# per D-P-1 closure (the `ensure_plugin()` dead-wire from
+# `.local/research/v9.4.0_gap_analysis.md` §3.1). The new slot is
+# wired to `pre_plugin_invocation.py` which auto-installs plugins
+# cited in the dispatch payload BEFORE the L3 dispatch fires when
+# `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`. The event is APPENDED at the
+# END of the tuple to preserve A-2.4 / cache-prefix invariants —
+# existing event positions 1-8 remain byte-stable. NEW env-flag
+# justified per Workflow Rule W-20 §3 orthogonality (different
+# activation surface from `DEVOLAFLOW_AUTO_INSTALL` install primitive
+# AND from `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle); see
+# `references/env-flags.md` §2.13 for the full argument.
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -169,6 +190,7 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_SHELL_CALL_EVENT,
     ENVELOPE_WRITE_EVENT,
     PRE_HANDOFF_EVENT,
+    PRE_PLUGIN_INVOCATION_EVENT,
 )
 
 __all__ = [
@@ -184,6 +206,7 @@ __all__ = [
     "POST_DISPATCH_EVENT",
     "PRE_DISPATCH_EVENT",
     "PRE_HANDOFF_EVENT",
+    "PRE_PLUGIN_INVOCATION_EVENT",
     "PRE_SHELL_CALL_EVENT",
     "Severity",
     "TASK_STOP_EVENT",
@@ -198,6 +221,7 @@ __all__ = [
     "get_canonical_manifest",
     "list_handlers",
     "post_dispatch",
+    "pre_plugin_invocation",
     "pre_shell_call",
     "register_hook",
     "registered_events",

@@ -1617,7 +1617,15 @@ _V9_1_3_FILE_MIN_BYTES: int = 50
 # Before PV-03: 7 (pre_dispatch, post_dispatch, file_write, task_stop,
 # format_on_edit, pre_shell_call, envelope_write). After PV-03: 8 (above
 # + pre_handoff APPENDED at position 8 per A-2.4 cache-prefix invariant).
-_V9_1_3_DEFAULT_EVENTS_COUNT: int = 8
+# Per A-2.2 append-only governance, future cycles MAY bump this number
+# higher (v9.4.0 PV-02 bumped 8 → 9 with pre_plugin_invocation appended
+# at position 9; v9.4.0 W-18 lint pins the new tail). The v9.1.3 lint
+# below uses ``>= _V9_1_3_DEFAULT_EVENTS_MIN`` so future appends do not
+# break this historic ghost-audit — the v9.1.3 contract is "pre_handoff
+# must be in the tuple at position 8 OR LATER (depending on subsequent
+# appends)", not "the tuple is exactly 8 long forever".
+_V9_1_3_DEFAULT_EVENTS_MIN: int = 8
+_V9_1_3_PRE_HANDOFF_POSITION: int = 8  # 1-indexed; tuple index 7 (zero-based)
 
 
 def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
@@ -1640,11 +1648,15 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
        ``auto_write_handoff`` is callable, and the event constant
        equals ``"pre_handoff"`` (the canonical name re-exported from
        :mod:`devolaflow.lifecycle.auto_write_handoff`).
-    3. **DEFAULT_EVENTS** tuple length is exactly
-       ``_V9_1_3_DEFAULT_EVENTS_COUNT`` (8 — the v9.1.3 PV-03 bump from
+    3. **DEFAULT_EVENTS** tuple length is at least
+       ``_V9_1_3_DEFAULT_EVENTS_MIN`` (8 — the v9.1.3 PV-03 bump from
        7 → 8 with ``pre_handoff`` APPENDED at position 8 per the
-       A-2.4 cache-prefix invariant) and contains
-       ``PRE_HANDOFF_EVENT`` AT THE TAIL.
+       A-2.4 cache-prefix invariant) AND ``PRE_HANDOFF_EVENT`` is at
+       the v9.1.3-frozen position 8 (1-indexed; tuple index 7).
+       Subsequent A-2.2 append-only bumps (v9.4.0 PV-02 added
+       ``pre_plugin_invocation`` at position 9) do NOT invalidate this
+       lint — the v9.1.3 contract is the historic position freeze for
+       ``pre_handoff``, not the tuple length.
     4. **W-20 reuse-first** — the auto-write module's ``ENV_FLAG``
        constant equals ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (REUSED from
        v9.1.1 PV-01 + v9.1.2 PV-02; no new flag) AND
@@ -1657,9 +1669,11 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         back.
       * "< 50 byte minimum" → the file regressed to an empty stub;
         re-author the contents.
-      * "DEFAULT_EVENTS length != 8" → the lifecycle event tuple was
+      * "DEFAULT_EVENTS length < 8" → the lifecycle event tuple was
         edited in violation of the A-2.4 append-only contract; verify
-        ``pre_handoff`` is still appended at position 8.
+        ``pre_handoff`` is still present at position 8 (1-indexed).
+        Append-only growth (length > 8) is permitted per A-2.2 — see
+        the v9.4.0 PV-02 ``pre_plugin_invocation`` precedent.
       * "ENV_FLAG mismatch" → a NEW env flag was authored, violating
         W-20 reuse-first; either restore the REUSE or document the
         orthogonality argument per W-20 §3.
@@ -1697,22 +1711,28 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v9.1.3 violation: auto_write_handoff is not callable — "
         "the export from devolaflow.lifecycle must be the hook function itself"
     )
-    assert len(DEFAULT_EVENTS) == _V9_1_3_DEFAULT_EVENTS_COUNT, (
+    assert len(DEFAULT_EVENTS) >= _V9_1_3_DEFAULT_EVENTS_MIN, (
         f"W-18 v9.1.3 violation: lifecycle.DEFAULT_EVENTS length is "
-        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_3_DEFAULT_EVENTS_COUNT} "
+        f"{len(DEFAULT_EVENTS)}, expected >= {_V9_1_3_DEFAULT_EVENTS_MIN} "
         f"(v9.1.3 PV-03 bumped 7 → 8 with pre_handoff APPENDED at "
-        f"position 8 per A-2.4 cache-prefix invariant). Current events: "
-        f"{DEFAULT_EVENTS!r}"
+        f"position 8 per A-2.4 cache-prefix invariant; A-2.2 permits "
+        f"future append-only growth). Current events: {DEFAULT_EVENTS!r}"
     )
     assert PRE_HANDOFF_EVENT in DEFAULT_EVENTS, (
         f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT not registered in "
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the PV-03 append step "
         f"was incomplete"
     )
-    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
-        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[-1] is {DEFAULT_EVENTS[-1]!r}, "
-        f"expected {PRE_HANDOFF_EVENT!r}; pre_handoff MUST be appended at "
-        f"the tail per A-2.4 (positions 1-7 byte-stable)"
+    # v9.1.3 historic position freeze: pre_handoff at 1-indexed position 8
+    # (tuple index 7). v9.4.0 PV-02 appended pre_plugin_invocation at
+    # position 9 without disturbing this freeze.
+    handoff_idx = _V9_1_3_PRE_HANDOFF_POSITION - 1
+    assert DEFAULT_EVENTS[handoff_idx] == PRE_HANDOFF_EVENT, (
+        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[{handoff_idx}] is "
+        f"{DEFAULT_EVENTS[handoff_idx]!r}, expected {PRE_HANDOFF_EVENT!r}; "
+        f"pre_handoff MUST stay frozen at 1-indexed position "
+        f"{_V9_1_3_PRE_HANDOFF_POSITION} per the v9.1.3 PV-03 + A-2.4 "
+        f"cache-prefix invariant (positions 1-7 + position 8 byte-stable)"
     )
 
     # W-20 reuse-first lint: same activation surface as v9.1.1 PV-01 +
@@ -3451,4 +3471,203 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v9.3.0 violation: compressor package total LOC is "
         f"{package_total} (cap 3000). The pre-PV-04 single-file compressor.py "
         f"was 2541 LOC; the post-split overhead should stay ≤ 18% bloat."
+    )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v9.4.0 ghost-audit refresh — Plugin Auto-Install & Daily Upgrade.
+# ---------------------------------------------------------------------------
+
+
+# v9.4.0 NEW symbols (PV-02..PV-04). Each entry is the minimum import-smoke
+# contract that must hold for the symbol to be considered "alive" — i.e. the
+# CHANGELOG cites it AND it imports cleanly from its canonical module path.
+_V9_4_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
+    # PV-02 lifecycle hook + env flag
+    ("devolaflow.lifecycle.pre_plugin_invocation", "pre_plugin_invocation"),
+    ("devolaflow.lifecycle.pre_plugin_invocation", "is_auto_install_active"),
+    ("devolaflow.lifecycle.pre_plugin_invocation", "ENV_FLAG"),
+    ("devolaflow.lifecycle.pre_plugin_invocation", "ENV_FLAG_TRUTHY"),
+    ("devolaflow.lifecycle", "PRE_PLUGIN_INVOCATION_EVENT"),
+    # PV-03 dispatcher wiring + workflow→plugin helper
+    ("devolaflow.plugins.installer", "plugins_for_workflow"),
+    ("devolaflow.plugins", "plugins_for_workflow"),
+    # PV-04 schema v3 + upgrade surface
+    ("devolaflow.plugins.installer", "upgrade_plugin"),
+    ("devolaflow.plugins.installer", "refresh_all"),
+    ("devolaflow.plugins.installer", "RefreshOutcome"),
+    ("devolaflow.plugins.installer", "read_last_checked"),
+    ("devolaflow.plugins.installer", "is_plugin_stale"),
+    ("devolaflow.plugins.installer", "list_plugins"),
+    ("devolaflow.plugins", "upgrade_plugin"),
+    ("devolaflow.plugins", "refresh_all"),
+    ("devolaflow.plugins", "RefreshOutcome"),
+    ("devolaflow.plugins", "list_plugins"),
+    ("devolaflow.cli", "plugins_cmd"),
+)
+
+# v9.4.0 PV-02 + PV-03 + PV-04 frozen DEFAULT_EVENTS shape. PV-02 bumped
+# 8 → 9 with `pre_plugin_invocation` APPENDED at position 9 per A-2.2
+# append-only invariant. The v9.4.0 W-18 lint pins the new tail (the
+# v9.1.3 lint relaxed its length check to "≥ 8" with pre_handoff frozen
+# at position 8 — see _V9_1_3_DEFAULT_EVENTS_MIN above).
+_V9_4_0_DEFAULT_EVENTS_LEN: int = 9
+_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION: int = 9  # 1-indexed; tuple index 8
+
+# v9.4.0 PV-02 env-flag W-20 §3 documentation contract. The PV-02
+# orthogonality justification ships in references/env-flags.md §2.13.
+_V9_4_0_ENV_FLAG_DOC_LITERALS: tuple[str, ...] = (
+    "### 2.13 `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`",
+    "DEVOLAFLOW_AUTO_INSTALL_PLUGINS",
+    "is_auto_install_active",
+    "pre_plugin_invocation",
+)
+
+# v9.4.0 PV-04 schema v3 contract: canonical registry must be at
+# schema_version 3 AND every plugin must declare an `upgrade_cmd`. The
+# `_SUPPORTED_SCHEMA_VERSIONS` constant must include {1, 2, 3} for
+# backward-compat with v8.2.x + v8.3.x fixtures.
+_V9_4_0_REGISTRY_SCHEMA_VERSION: int = 3
+
+
+def test_v9_4_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.4.0: every NEW v9.4.0 surface has presence + structural coverage.
+
+    Discharges the W-18 precondition for the v9.4.0 cycle-close MINOR —
+    every CHANGELOG entry mentioning a v9.4.0 feature MUST have a
+    backing ghost-audit lint in THIS file BEFORE the CHANGELOG entry
+    is authored.
+
+    v9.4.0 PV-05 cycle close pins:
+
+    1. **Symbol import smoke** — every NEW public symbol from
+       PV-02..PV-04 imports cleanly from its canonical module path.
+       Catches accidental name collisions, circular imports, and the
+       v6.0.3-style "feature mentioned in CHANGELOG but never wired"
+       anti-pattern. 18 symbols enumerated in
+       ``_V9_4_0_NEW_SYMBOL_SURFACES``.
+    2. **DEFAULT_EVENTS A-2.2 append-only at position 9** — the new
+       `pre_plugin_invocation` event must be at 1-indexed position 9
+       (tuple index 8); the v9.1.3 frozen position 8 (`pre_handoff`)
+       must remain.
+    3. **W-20 §3 env-flag doc contract** — the new
+       `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` flag MUST appear in
+       `references/env-flags.md` §2.13 with the canonical
+       orthogonality argument + helper function names.
+    4. **Schema v3 contract** — `runtime-plugins.yaml` is at
+       schema_version 3 AND every plugin declares an `upgrade_cmd`
+       AND `_SUPPORTED_SCHEMA_VERSIONS` includes {1, 2, 3} (backward
+       compat preserved).
+    5. **`ensure_plugin` dispatcher hit count** — the dead-wire ghost
+       is closed: `ensure_plugin` is now referenced from at least 4
+       distinct files in `src/devolaflow/` (the AC-3 acceptance
+       criterion from the v9.4.0 gap analysis §6).
+
+    Failure modes:
+      * "symbol import failed" → CHANGELOG cites a non-existent
+        feature; either land it OR remove the entry.
+      * "DEFAULT_EVENTS bad position" → the A-2.2 append-only
+        contract was violated; restore `pre_plugin_invocation` to
+        the tail.
+      * "missing env-flag doc literal" → W-20 §7 checklist failed;
+        author the §2.13 entry.
+      * "schema_version mismatch" → either the v3 bump was lost OR a
+        future PV bumped to v4 without updating this lint (acceptable
+        — update the constant).
+      * "ensure_plugin hit count regression" → the dispatcher wiring
+        from PV-03 was removed; restore the `feedback.py` chain.
+    """
+    import importlib
+
+    # §1 — Symbol import smoke.
+    for module_name, symbol_name in _V9_4_0_NEW_SYMBOL_SURFACES:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as exc:
+            pytest.fail(
+                f"W-18 v9.4.0 violation: module {module_name!r} failed to "
+                f"import: {exc}. The CHANGELOG cites symbols from this "
+                f"module; either land the module OR remove the CHANGELOG entry."
+            )
+        assert hasattr(module, symbol_name), (
+            f"W-18 v9.4.0 violation: {module_name}.{symbol_name} missing. "
+            f"The v9.4.0 CHANGELOG cites this symbol; ghost-audit blocks "
+            f"the merge until either the symbol is landed OR the CHANGELOG "
+            f"entry is removed."
+        )
+
+    # §2 — DEFAULT_EVENTS shape.
+    from devolaflow.lifecycle import DEFAULT_EVENTS, PRE_PLUGIN_INVOCATION_EVENT
+
+    assert len(DEFAULT_EVENTS) >= _V9_4_0_DEFAULT_EVENTS_LEN, (
+        f"W-18 v9.4.0 violation: DEFAULT_EVENTS length is "
+        f"{len(DEFAULT_EVENTS)}, expected >= {_V9_4_0_DEFAULT_EVENTS_LEN} "
+        f"(v9.4.0 PV-02 bumped 8 → 9 with pre_plugin_invocation APPENDED "
+        f"at position {_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION} per A-2.2; "
+        f"future PVs may extend further). Current events: {DEFAULT_EVENTS!r}"
+    )
+    plugin_idx = _V9_4_0_PRE_PLUGIN_INVOCATION_POSITION - 1
+    assert DEFAULT_EVENTS[plugin_idx] == PRE_PLUGIN_INVOCATION_EVENT, (
+        f"W-18 v9.4.0 violation: DEFAULT_EVENTS[{plugin_idx}] is "
+        f"{DEFAULT_EVENTS[plugin_idx]!r}, expected {PRE_PLUGIN_INVOCATION_EVENT!r}; "
+        f"pre_plugin_invocation MUST stay at 1-indexed position "
+        f"{_V9_4_0_PRE_PLUGIN_INVOCATION_POSITION} per A-2.2 cache-prefix invariant"
+    )
+
+    # §3 — Env-flag W-20 §3 documentation contract.
+    env_flags_path = project_root / "workflow-system" / "agent" / "references" / "env-flags.md"
+    assert env_flags_path.is_file(), (
+        f"W-18 v9.4.0 violation: {env_flags_path.relative_to(project_root)} "
+        f"missing — PV-02 W-20 §3 contract requires the env-flag inventory"
+    )
+    env_flags_text = env_flags_path.read_text(encoding="utf-8")
+    for literal in _V9_4_0_ENV_FLAG_DOC_LITERALS:
+        assert literal in env_flags_text, (
+            f"W-18 v9.4.0 violation: env-flags.md missing literal {literal!r}. "
+            f"The PV-02 W-20 §7 checklist requires the §2.13 entry to "
+            f"document the new flag with both the flag name and the helper "
+            f"function names. Add the §2.13 block."
+        )
+
+    # §4 — Schema v3 contract.
+    from devolaflow.plugins import load_registry
+    from devolaflow.plugins.installer import _SUPPORTED_SCHEMA_VERSIONS
+
+    assert {1, 2, 3}.issubset(_SUPPORTED_SCHEMA_VERSIONS), (
+        f"W-18 v9.4.0 violation: _SUPPORTED_SCHEMA_VERSIONS = "
+        f"{_SUPPORTED_SCHEMA_VERSIONS!r}; v9.4.0 PV-04 requires {{1, 2, 3}} "
+        f"(v1 + v2 backward compat + v3 new bump)"
+    )
+    registry = load_registry()
+    assert registry["schema_version"] >= _V9_4_0_REGISTRY_SCHEMA_VERSION, (
+        f"W-18 v9.4.0 violation: canonical runtime-plugins.yaml is at "
+        f"schema_version {registry['schema_version']!r}; v9.4.0 PV-04 "
+        f"requires >= {_V9_4_0_REGISTRY_SCHEMA_VERSION}"
+    )
+    for entry in registry["plugins"]:
+        assert "upgrade_cmd" in entry, (
+            f"W-18 v9.4.0 violation: plugin {entry.get('id')!r} missing "
+            f"upgrade_cmd in v3 canonical registry. The PV-04 contract "
+            f"requires every canonical entry to declare upgrade_cmd "
+            f"(legacy v1 + v2 fixtures may omit it; the canonical v3 "
+            f"file MUST include it)."
+        )
+
+    # §5 — ensure_plugin dispatcher hit count (the AC-3 acceptance criterion).
+    src_dir = project_root / "src" / "devolaflow"
+    files_with_hits: list[Path] = []
+    for py_file in src_dir.rglob("*.py"):
+        try:
+            text = py_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "ensure_plugin" in text:
+            files_with_hits.append(py_file)
+    assert len(files_with_hits) >= 4, (
+        f"W-18 v9.4.0 violation: `ensure_plugin` referenced in only "
+        f"{len(files_with_hits)} files; v9.4.0 PV-03 contract requires >= 4 "
+        f"(installer.py + plugins/__init__.py + lifecycle/pre_plugin_invocation.py + "
+        f"≥ 1 dispatcher). The dead-wire ghost reopened — restore the "
+        f"feedback.py wiring from PV-03. Files found: "
+        f"{[str(p.relative_to(project_root)) for p in files_with_hits]!r}"
     )

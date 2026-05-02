@@ -52,6 +52,19 @@ logger = logging.getLogger(__name__)
 _HOOK_PRE_DISPATCH = "pre_dispatch"
 _HOOK_POST_DISPATCH = "post_dispatch"
 _HOOK_PRE_HANDOFF = "pre_handoff"
+# v9.4.0 PV-03 — extends the chain to include `pre_plugin_invocation`
+# AFTER the v9.1.3 PV-03 `pre_handoff` slot. At this point the dispatch
+# payload is fully-formed + lint-validated + handoff-resolved, making
+# it the correct moment to consider auto-installing plugins cited in
+# the dispatch's `workflow` / `plugin_id` / `plugin_ids` fields. The
+# default handler is a no-op when `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` is
+# unset (R5 strict byte-identical), so adding the fourth event
+# preserves the byte-output guarantee for operators who have not opted
+# into the dispatcher pre-flight plugin install surface. Closes the
+# PV-01 dead-wire ghost (D-P-2 from
+# `.local/research/v9.4.0_gap_analysis.md` §3.1) by giving the
+# `ensure_plugin()` chain its first dispatcher caller.
+_HOOK_PRE_PLUGIN_INVOCATION = "pre_plugin_invocation"
 
 LOCKED_FILES = frozenset(
     {
@@ -503,11 +516,28 @@ class ProposalGenerator:
         by giving ``HandoffStore.write_envelope`` its FIRST production
         caller.
 
+        v9.4.0 PV-03 — added ``pre_plugin_invocation`` AFTER
+        ``pre_handoff`` so the dispatch's plugin candidates can be
+        auto-installed BEFORE the L3 Task Agent attempts to call the
+        plugin's binary. The default ``pre_plugin_invocation`` handler
+        is a no-op when ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS`` is unset
+        (R5 strict byte-identical), so adding the fourth event
+        preserves the byte-output guarantee for operators who have not
+        opted into the dispatcher pre-flight surface. Closes the
+        PV-01 dead-wire ghost (D-P-2 from
+        ``.local/research/v9.4.0_gap_analysis.md`` §3.1) by giving
+        the ``ensure_plugin()`` chain its FIRST dispatcher caller.
+        The hook resolves plugin candidates from the dispatch's
+        ``workflow`` / ``plugin_id`` / ``plugin_ids`` fields via the
+        ``runtime-plugins.yaml#plugins[*].invoked_by_workflows``
+        registry mapping (see :func:`devolaflow.plugins.installer.plugins_for_workflow`).
+
         R5 strict-byte-identical invariant (v8.4.0 retro §4.1 #4): when
         no extra handlers are registered for either event, the returned
         ``dispatch`` is byte-identical to the pre-PV-04 behaviour. The
         permissive default handlers either return cleanly
         (``post_dispatch`` is a no-op; ``pre_handoff`` is a no-op when
+        the env-flag is OFF; ``pre_plugin_invocation`` is a no-op when
         the env-flag is OFF) or emit a WARNING log without mutating
         the payload (``pre_dispatch`` / ``validate_dispatch``).
 
@@ -525,12 +555,18 @@ class ProposalGenerator:
         except ImportError as exc:  # pragma: no cover - defensive
             logger.warning(
                 "feedback._emit_dispatch: lifecycle module unavailable (%s); "
-                "skipping pre_dispatch / post_dispatch / pre_handoff hooks",
+                "skipping pre_dispatch / post_dispatch / pre_handoff / "
+                "pre_plugin_invocation hooks",
                 exc,
             )
             return dispatch
 
-        for event in (_HOOK_PRE_DISPATCH, _HOOK_POST_DISPATCH, _HOOK_PRE_HANDOFF):
+        for event in (
+            _HOOK_PRE_DISPATCH,
+            _HOOK_POST_DISPATCH,
+            _HOOK_PRE_HANDOFF,
+            _HOOK_PRE_PLUGIN_INVOCATION,
+        ):
             try:
                 lifecycle.run_hooks(event, dispatch, strict=False)
             except Exception as exc:  # noqa: BLE001

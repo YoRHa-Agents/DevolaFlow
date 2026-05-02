@@ -1,29 +1,42 @@
-# DevolaFlow runtime plugin registry — v8.3.1 RTK extension.
+# DevolaFlow runtime plugin registry — v9.4.0 PV-04 daily-upgrade extension.
 #
 # Loaded by:   devolaflow.plugins.installer.load_registry()
 # Consumed by: devolaflow.plugins.installer.ensure_plugin()
+#              devolaflow.plugins.installer.upgrade_plugin()       (v9.4.0 PV-04)
+#              devolaflow.plugins.installer.refresh_all()          (v9.4.0 PV-04)
+#              devolaflow.cli::plugins_cmd                         (v9.4.0 PV-04)
 # Design refs: .local/research/v8.3.0_design.md §6.2 (v1 schema, nines + ui-pro)
 #              .local/research/v8.4.0_rtk_nines_analysis.md §5 (v2 schema bump,
 #              curl_install_script backend, rtk entry, mandatory rtk gain
 #              distinguish-cmd per RTK INSTALL.md collision warning)
-#              .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (this PV closes)
+#              .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (v2 closure)
+#              .local/research/v9.4.0_gap_analysis.md §3.2 D-P-4 + D-P-5
+#              (v9.4.0 PV-04 daily-upgrade surface — THIS bump)
 # Companion:   workflow-system/agent/plugins.yaml (legacy PluginRegistry catalog,
 #              kept intact for backward compatibility with pre-v8.2.1 callers).
 #
-# Schema (v2 — additive bump from v1):
+# Schema (v3 — additive bump from v2; v1+v2 entries pass v3 unchanged):
 #   plugins:    list of plugin entries; each carries backend + install + verify
-#               metadata. See design.md §6.2 for the v1 field contract.
-#               v2 additions (all optional; v1 entries pass v2 unchanged):
-#                 - verify_distinguish_cmd: optional second post-install probe
-#                   used when the primary version_check_cmd is ambiguous (e.g.
-#                   another package on PATH responds to `<bin> --version`).
-#                   Mandatory for `rtk` per its INSTALL.md collision warning
-#                   vs `rtk-type-kit` (reachingforthejack/rtk).
+#               metadata. See design.md §6.2 for the v1 field contract; the
+#               v8.4.0 RTK analysis for v2 additions; this header for v3.
+#               v3 additions (all optional; v2 entries pass v3 unchanged):
+#                 - upgrade_cmd: optional shell command run by upgrade_plugin().
+#                   When omitted, falls back to install_cmd (which for pip /
+#                   npm / curl-script backends is typically idempotent + acts
+#                   as the upgrade command on its own per the v8.3.0 PV-01
+#                   contract). Authors who need a distinct upgrade path
+#                   (e.g. cargo distribution that requires `cargo install
+#                   --force`) declare it here.
 #   defaults:   registry-wide defaults (auto_install, prefer_local_fallback,
 #               network_timeout_seconds, install_log_path).
+#               v3 additions:
+#                 - upgrade_check_frequency_hours: integer N. refresh_all()
+#                   considers a plugin "stale" when last_checked > N hours
+#                   ago. Defaults to 24 (daily upgrade cadence per the
+#                   v9.4.0 user-feedback "auto-upgrade daily" requirement).
 #   backends:   enumerates supported install backends. New backends require an
-#               installer.py implementation in the same patch (v2 adds
-#               `curl_install_script`).
+#               installer.py implementation in the same patch (v3 adds no
+#               new backends — extends behaviour on existing 3 backends).
 #
 # Invariants:
 #   - All paths relative to repo root (S-2).
@@ -31,15 +44,20 @@
 #   - No local clone paths hardcoded (S-7). RTK reference clone at
 #     /home/agent/reference/rtk is a runtime SI-2 NineS analysis path; NOT
 #     hardcoded here per S-7.
+#   - last_checked is NOT a stored field — it is RECONSTRUCTED at runtime
+#     from .local/memory/plugin_install.log (the canonical JSONL audit
+#     trail). v9.4.0 PV-04 deliberately avoids adding a second write
+#     surface for plugin state per the gap analysis §3.2 D-P-4 fix.
 
-schema_version: 2
-last_updated: "2026-04-23"
+schema_version: 3
+last_updated: "2026-05-02"
 
 plugins:
   - id: nines
     backend: pip
     package: nines
     install_cmd: "pip install --upgrade nines"
+    upgrade_cmd: "pip install --upgrade nines"
     version_check_cmd: "nines --version"
     min_version: "3.0.0"
     expected_sha256: null
@@ -53,6 +71,7 @@ plugins:
     backend: npm_then_init
     package: uipro-cli
     install_cmd: "npm install -g uipro-cli"
+    upgrade_cmd: "npm install -g uipro-cli@latest"
     init_cmd_template: "uipro init --ai {ai_platform} --global"
     init_targets:
       - cursor
@@ -70,6 +89,7 @@ plugins:
     backend: curl_install_script
     package: rtk
     install_cmd: "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
+    upgrade_cmd: "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
     version_check_cmd: "rtk --version"
     verify_distinguish_cmd: "rtk gain"
     min_version: "0.37.2"
@@ -84,6 +104,7 @@ defaults:
   prefer_local_fallback: true
   network_timeout_seconds: 90
   install_log_path: ".local/memory/plugin_install.log"
+  upgrade_check_frequency_hours: 24
 
 backends:
   - id: pip
