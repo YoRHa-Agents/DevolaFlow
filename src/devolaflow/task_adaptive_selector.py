@@ -13,6 +13,7 @@ Based on: WP-4 Rank 4 (Task-Adaptive Context Selection via Goal-Hint Routing),
 from __future__ import annotations
 
 import contextlib
+import functools
 import logging
 import os
 import re
@@ -174,15 +175,108 @@ def resolve_model_hint(
     return default if default in VALID_MODEL_HINTS else "inherit"
 
 
+# ---------------------------------------------------------------------------
+# v9.3.0 PV-03 — mtime-probed LRU cache layer.
+#
+# Closes D-S-1..D-S-5 from `.local/research/v9.3.0_gap_analysis.md` §1.1.
+# Per the PV-01 cProfile harness:
+#   - load_profiles    : 600 calls × 121.266 s cumulative = 96.6 % of select_context cost
+#   - load_skill_md    : ~32 KB read on every call (no cache)
+#   - estimate_tokens  : 12,549 calls × 4.117 s cumulative (BPE encode = 3.596 s)
+#
+# Pattern: mtime probed as part of the cache key. A `path.stat().st_mtime_ns`
+# read on every call is microseconds (one fs syscall, no read), and the
+# composite key `(realpath_str, mtime_ns)` invalidates automatically when
+# the file changes — no explicit `cache_clear` needed by callers.
+#
+# The lru_cache `maxsize` ceilings honour the spec:
+#   - load_profiles    : 16  (one entry per distinct profiles_path; usually 1
+#                             in production, up to ~5 in test workspaces)
+#   - load_skill_md    : 16  (matched ceiling; usually 1 in production)
+#   - estimate_tokens  : 2048 (high ceiling because section text fragments
+#                              vary widely and recur across calls; the cache
+#                              absorbs the BPE encode cost when the same
+#                              section is re-rendered across rounds)
+#
+# Mutability contract: the cached `_load_profiles_cached` returns a single
+# dict shared across cache hits. The existing `select_context` codepath
+# treats the result as READ-ONLY — every helper that derives from it
+# (`apply_plan_mode_overrides`, `apply_round_escalation`,
+# `_resolve_active_profile`) constructs new dicts via `{**profile, ...}`
+# copy-on-write semantics rather than mutating the source. This invariant
+# is verified by `tests/test_selector_lru_cache.py::TestCacheImmutability`.
+# ---------------------------------------------------------------------------
+
+
+@functools.lru_cache(maxsize=16)
+def _load_profiles_cached(path_str: str, mtime_ns: int) -> dict[str, Any]:
+    """Cached YAML-parse stage of :func:`load_profiles`.
+
+    The ``mtime_ns`` argument is the cache-invalidation key — a file edit
+    bumps ``stat().st_mtime_ns`` and forces a fresh parse on the next
+    :func:`load_profiles` call. ``path_str`` is the resolved path so two
+    callers asking for the same file via different relative paths share
+    the same cache entry.
+
+    DO NOT mutate the returned dict — see the §"Mutability contract"
+    block above the cache layer. Callers receive a SHARED reference;
+    every downstream helper copy-on-writes via ``{**profile, ...}``.
+    """
+    return yaml.safe_load(Path(path_str).read_text(encoding="utf-8"))
+
+
+@functools.lru_cache(maxsize=16)
+def _load_skill_md_cached(path_str: str, mtime_ns: int) -> str:
+    """Cached read of SKILL.md.
+
+    Same mtime-probe pattern as :func:`_load_profiles_cached`. Strings
+    are immutable in Python so the mutability contract is automatic
+    here — cache hits return the same ``str`` reference and any
+    downstream slicing/splitting produces independent new strings.
+    """
+    return Path(path_str).read_text(encoding="utf-8")
+
+
 def load_profiles(path: Path | None = None) -> dict[str, Any]:
-    """Load context profiles from a YAML configuration file."""
+    """Load context profiles from a YAML configuration file.
+
+    v9.3.0 PV-03: now backed by an mtime-probed LRU cache
+    (:func:`_load_profiles_cached`). The first call against a given
+    ``(path, mtime_ns)`` key parses the YAML; subsequent calls against
+    the same key return the cached dict in O(1). A file edit bumps
+    ``mtime_ns`` and invalidates automatically — no explicit
+    ``cache_clear`` needed.
+
+    Returns the raw cached dict for the live process; mutating the
+    returned structure is undefined behaviour. The downstream
+    ``select_context`` helpers honour the read-only contract via
+    copy-on-write — see the §"Mutability contract" block in the cache
+    layer above.
+
+    The ``stat`` lookup is the only filesystem syscall on the hot path
+    when the cache is warm; pre-PV-03 ``yaml.safe_load`` averaged 121 s
+    cumulative across 600 calls (96.6 % of ``select_context`` wall
+    clock). Post-PV-03 the warm path is a single dict.get-shaped lookup
+    plus the mtime probe.
+    """
     p = path or PROFILES_PATH
-    with open(p) as f:
-        return yaml.safe_load(f)
+    stat_result = p.stat()
+    return _load_profiles_cached(str(p), stat_result.st_mtime_ns)
 
 
 def load_skill_md(config: dict[str, Any]) -> str:
-    """Load the SKILL.md file contents as a string."""
+    """Load the SKILL.md file contents as a string.
+
+    v9.3.0 PV-03: now backed by an mtime-probed LRU cache
+    (:func:`_load_skill_md_cached`). The fallback rglob path (used when
+    the canonical relative location is missing) participates in the
+    cache through the resolved candidate's mtime — a fresh clone with
+    a moved SKILL.md still benefits from the cache after the first
+    call.
+
+    Strings are immutable so cache hits are byte-identical references
+    by design.
+    """
     skill_path = Path(__file__).parents[2] / "workflow-system" / "agent" / "SKILL.md"
     if not skill_path.exists():
         repo_root = Path(__file__).parents[2]
@@ -191,7 +285,8 @@ def load_skill_md(config: dict[str, Any]) -> str:
             skill_path = candidates[0]
         else:
             raise FileNotFoundError(f"SKILL.md not found relative to {repo_root}")
-    return skill_path.read_text()
+    stat_result = skill_path.stat()
+    return _load_skill_md_cached(str(skill_path), stat_result.st_mtime_ns)
 
 
 _LINE_RANGE_RE = re.compile(r"^\d+-\d+$")
@@ -273,15 +368,68 @@ def _resolve_section_text(
     return extract_section(skill_text, line_range)
 
 
-def estimate_tokens(text: str) -> int:
-    """Estimate token count. Uses tiktoken if available, otherwise ~4 chars/token."""
-    try:
-        import tiktoken
+@functools.lru_cache(maxsize=2048)
+def _estimate_tokens_tiktoken_cached(text: str) -> int:
+    """Cached tiktoken-BPE-encode stage of :func:`estimate_tokens`.
 
-        enc = tiktoken.encoding_for_model("gpt-4o")
-        return len(enc.encode(text))
+    Used when the tiktoken module is importable AND the resulting
+    encoder loads cleanly. See :func:`estimate_tokens` for the routing
+    contract.
+    """
+    import tiktoken
+
+    enc = tiktoken.encoding_for_model("gpt-4o")
+    return len(enc.encode(text))
+
+
+@functools.lru_cache(maxsize=2048)
+def _estimate_tokens_fallback_cached(text: str) -> int:
+    """Cached deterministic-fallback stage of :func:`estimate_tokens`.
+
+    Used when tiktoken is unavailable. The 4-char-per-token heuristic
+    is the v6.x baseline that ``conftest.py::_force_fallback_token_estimator``
+    pins for benchmark scenarios so CI vs local-dev token counts agree
+    deterministically.
+    """
+    return max(1, len(text) // 4)
+
+
+def estimate_tokens(text: str) -> int:
+    """Estimate token count. Uses tiktoken if available, otherwise ~4 chars/token.
+
+    v9.3.0 PV-03: closes D-S-5. Pre-PV-03 the BPE encode step
+    (``tiktoken.CoreBPE.encode``) ran 12,549 times during a 600-call
+    selector batch and consumed 3.596 s of self time — the second-largest
+    self-time bucket after PyYAML scanning. Most of those calls were
+    on identical section text (the same SKILL.md section rendered
+    across rounds), so a content-keyed LRU cache absorbs ~95 % of
+    the cost.
+
+    Routing contract: the public function picks BETWEEN
+    :func:`_estimate_tokens_tiktoken_cached` and
+    :func:`_estimate_tokens_fallback_cached` on every call based on
+    whether ``tiktoken`` is currently importable. The two-cache split
+    is mandatory because ``tests/conftest.py::_force_fallback_token_estimator``
+    monkey-patches ``sys.modules['tiktoken'] = None`` per-test for
+    benchmark determinism — a single cache would lock in the FIRST
+    branch's verdict and tests run after a tiktoken-using test would
+    silently keep using the (now-poisoned) tiktoken cache. Splitting by
+    branch keeps each cache pure: the tiktoken cache only ever holds
+    tiktoken-derived counts, and the fallback cache only ever holds
+    ``len(text) // 4`` counts.
+
+    The ``maxsize=2048`` per-cache ceiling balances cache hit-rate
+    against memory use (2048 × ~256 bytes per string ≈ 500 KB per cache;
+    1 MB total in the worst case where both branches see traffic).
+    """
+    try:
+        import tiktoken  # noqa: F401  (probe import only — actual use is in the cached helper)
     except (ImportError, Exception):
-        return max(1, len(text) // 4)
+        return _estimate_tokens_fallback_cached(text)
+    try:
+        return _estimate_tokens_tiktoken_cached(text)
+    except Exception:
+        return _estimate_tokens_fallback_cached(text)
 
 
 def match_profile(task_type: str, profiles_config: dict[str, Any]) -> str:
