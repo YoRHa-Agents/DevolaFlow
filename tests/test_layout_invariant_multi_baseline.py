@@ -20,6 +20,12 @@ Baselines covered:
   version unchanged at 5 — the witness baseline is byte-identical to
   v8.4.0; absence of the new OPTIONAL sub-fields is the canonical
   rendering per the v9.1.4 PV-04 NEST decision per A-2.3)
+* v9.3.0 — length 16 stable (v9.3.0 perf-overhaul cycle shipped LRU caching
+  but no schema change; the witness baseline is byte-identical to v8.4.0
+  / v9.2.0 — wired into this multi-baseline test by v9.7.0 PV-02)
+* v9.7.0 — length 17 (v9.7.0 PV-02: appended ``predecessor_dedup_ledger`` at
+  position 17 per A-2.2; schema version bumped 5 → 6; the new field carries
+  hash-based dedup state for round-N>1 convergence dispatches)
 
 Each test renders the canonical payload via
 ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
@@ -221,6 +227,66 @@ def _v9_2_0_payload() -> dict:
     return _v8_4_0_payload()
 
 
+def _v9_3_0_payload() -> dict:
+    """v9.3.0 16-key stable payload — v8.4.0 byte-identical witness.
+
+    The v9.3.0 perf-overhaul cycle shipped LRU caching for
+    ``select_context`` / ``load_profiles`` / ``load_skill_md`` /
+    ``estimate_tokens`` plus the library-only ``AsyncDispatchExecutor``,
+    but did NOT change the dispatch schema — canonical_order length
+    stayed at 16 and version stayed at 5. The fixture
+    ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.3.0.yaml``
+    is byte-identical to ``layout_invariant_v8.4.0.yaml`` and
+    ``layout_invariant_v9.2.0.yaml``. v9.7.0 PV-02 wires this baseline
+    into the multi-baseline test (gap D-T-1 from
+    ``.local/research/v9.7.0_gap_analysis.md``).
+    """
+    return _v8_4_0_payload()
+
+
+def _v9_7_0_payload() -> dict:
+    """v9.7.0 17-key payload — v9.3.0 + ``predecessor_dedup_ledger`` at position 17.
+
+    v9.7.0 PV-02 (Performance Overhaul #2) appended
+    ``predecessor_dedup_ledger`` at position 17 of ``canonical_order``
+    per A-2.2 append-only rule. Schema version bumped 5 → 6 in
+    ``schemas/lean-dispatch.yaml``. The new field carries hash-based
+    dedup state for round-N>1 convergence dispatches — when a round
+    N>1 dispatches, summaries that hash-match a prior round's summary
+    are replaced by an ``"@round-N-1:pred-K"`` reference and the
+    ledger records the dedup hit so the receiver can decompress.
+
+    Field shape:
+        predecessor_dedup_ledger:
+          round_num: int                       # current round number (>= 2)
+          entries:                             # one per dedup hit
+            - pred_index: int                  # 0-based index into pred[]
+              hash: str                        # 12-char sha256 prefix
+              ref: str                         # "@round-N-1:pred-K" reference
+
+    Field is OPTIONAL — when absent (round 1, or no dedup hits in
+    round N>1), the dispatch is byte-identical to the v9.3.0 / v8.4.0
+    / v8.3.0 PV-05 baselines. The 8 historical multi-baseline
+    byte-tests above CONTINUE TO PASS unchanged because the new
+    field's absence is canonical.
+
+    The fixture demonstrates a round-2 dispatch with a single dedup
+    hit (the canonical demo per the v9.7.0 PV-02 spec).
+    """
+    payload = _v9_3_0_payload()
+    payload["predecessor_dedup_ledger"] = {
+        "round_num": 2,
+        "entries": [
+            {
+                "pred_index": 0,
+                "hash": "abc123def456",
+                "ref": "@round-1:pred-0",
+            },
+        ],
+    }
+    return payload
+
+
 def _render(payload: dict) -> str:
     """Canonical rendering for byte-comparison (matches v7.0.0 baseline test)."""
     return yaml.safe_dump(payload, sort_keys=False, default_flow_style=False)
@@ -344,6 +410,102 @@ class TestMultiBaselineByteStability:
             "baseline (the OPTIONAL sub-fields are absent in canonical "
             "rendering); see v9-ADR-002 D4 + the v9.1.4 PV-04 schema "
             "comment in schemas/lean-dispatch.yaml"
+        )
+
+    def test_v9_3_0_baseline_byte_identical(self) -> None:
+        """v9.3.0 perf-overhaul witness — byte-identical to v8.4.0 / v9.2.0.
+
+        v9.3.0 PV-02..PV-05 shipped the latency harness, the LRU cache
+        landing, and the library-only AsyncDispatchExecutor — none of
+        which mutate the dispatch schema. canonical_order length stays
+        at 16 and version stays at 5; the v9.3.0 baseline file is a
+        verbatim copy of the v8.4.0 / v9.2.0 file so any future
+        renamer / re-orderer / sneaky inserter that disturbs the
+        v8.4.0 layout would also break this v9.3.0 pin. Wired into
+        the multi-baseline test by v9.7.0 PV-02 per gap D-T-1 from
+        ``.local/research/v9.7.0_gap_analysis.md``.
+        """
+        path = BASELINES_DIR / "layout_invariant_v9.3.0.yaml"
+        assert path.exists(), (
+            f"missing baseline {path} — v9.7.0 PV-02 wires v9.3.0 fixture into the test"
+        )
+        recorded = path.read_text()
+        rendered = _render(_v9_3_0_payload())
+        assert rendered == recorded, (
+            f"v9.3.0 baseline drift in {path} — v9.3.0 cycle was 0 P6 transitions; "
+            "see .local/research/v9.3.0_gap_analysis.md + v9-ADR-002 D4"
+        )
+
+    def test_v9_3_0_baseline_byte_identical_to_v8_4_0(self) -> None:
+        """The v9.3.0 baseline file is a verbatim copy of v8.4.0 (gap D-T-1 closure).
+
+        v9.3.0 PV-02 / PV-05 introduced runtime improvements only — no
+        schema change. The fixture
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.3.0.yaml``
+        ships as a byte-identical copy of
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v8.4.0.yaml``.
+        This pin catches any future drift where one file is updated and
+        the other is forgotten — both files must move together OR the
+        v9.3.0 file must gain its own dedicated payload constructor and
+        this guard test must be removed in the same PR.
+        """
+        v8_4_0_path = BASELINES_DIR / "layout_invariant_v8.4.0.yaml"
+        v9_3_0_path = BASELINES_DIR / "layout_invariant_v9.3.0.yaml"
+        assert v8_4_0_path.exists(), f"missing baseline {v8_4_0_path}"
+        assert v9_3_0_path.exists(), f"missing baseline {v9_3_0_path}"
+        v8_4_0_text = v8_4_0_path.read_text()
+        v9_3_0_text = v9_3_0_path.read_text()
+        assert v8_4_0_text == v9_3_0_text, (
+            "v9.3.0 baseline file diverged from v8.4.0 — the v9.3.0 cycle "
+            "shipped runtime improvements only (LRU cache + library-only "
+            "executor), no schema change. Either restore the byte-identical "
+            "copy OR introduce a dedicated v9.3.0 payload constructor and "
+            "remove this guard test in the same PR."
+        )
+
+    def test_v9_7_0_baseline_byte_identical(self) -> None:
+        """v9.7.0 schema-v6 17-key baseline — APPEND of ``predecessor_dedup_ledger``.
+
+        v9.7.0 PV-02 (Performance Overhaul #2) appended
+        ``predecessor_dedup_ledger`` at position 17 per A-2.2 append-only
+        rule. Schema version bumped 5 → 6. The fixture
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml``
+        pins the schema-v6 17-element canonical_order with the ledger
+        populated (round-2 dedup demo) so any future renamer /
+        re-orderer / sneaky inserter that disturbs positions 1-17
+        breaks this pin. Per A-2.4 multi-baseline byte test, all
+        9 historical baselines (v7.0.0 → v9.7.0) MUST pass — drift
+        in any one fails CI immediately.
+        """
+        path = BASELINES_DIR / "layout_invariant_v9.7.0.yaml"
+        assert path.exists(), (
+            f"missing baseline {path} — v9.7.0 PV-02 ships this fixture; see "
+            ".local/research/v9.7.0_perf_research.md §2.6 + v9-ADR-002 D4"
+        )
+        recorded = path.read_text()
+        rendered = _render(_v9_7_0_payload())
+        assert rendered == recorded, (
+            f"v9.7.0 baseline drift in {path} — v9.7.0 PV-02 appended "
+            "predecessor_dedup_ledger at position 17 (schema v6); see "
+            ".local/research/v9.7.0_perf_research.md §2.3 + v9-ADR-002 D4"
+        )
+
+    def test_v9_7_0_baseline_starts_with_v9_3_0_prefix(self) -> None:
+        """v9.7.0 render MUST be a strict byte-extension of v9.3.0 render.
+
+        Per A-2.2 append-only contract (D2): the v9.7.0 17-key payload
+        was constructed by appending ``predecessor_dedup_ledger`` at
+        position 17 to the v9.3.0 16-key payload. Therefore rendering
+        v9.7.0 MUST start with the byte sequence of v9.3.0 — the cache
+        prefix is preserved across the schema-v5 → schema-v6 boundary
+        (the headline P6 invariant for the v9.7.0 PV-02 schema bump).
+        """
+        v9_3_0_render = _render(_v9_3_0_payload())
+        v9_7_0_render = _render(_v9_7_0_payload())
+        assert v9_7_0_render.startswith(v9_3_0_render), (
+            "v9.7.0 render is NOT a byte-prefix-extension of v9.3.0 — the "
+            "schema-v5 → schema-v6 cache-prefix preservation guarantee is "
+            "broken; see v9-ADR-002 D2 + .local/research/v9.7.0_perf_research.md §2"
         )
 
     def test_v9_2_0_baseline_byte_identical_to_v8_4_0(self) -> None:
@@ -516,6 +678,16 @@ class TestMultiBaselineLCP:
             (_v7_3_0_payload, _v8_0_0_p08_payload, "v7.3.0 → v8.0.0 P-08"),
             (_v8_0_0_p08_payload, _v8_0_0_p10_payload, "v8.0.0 P-08 → v8.0.0 P-10"),
             (_v8_0_0_p10_payload, _v8_3_0_pv05_payload, "v8.0.0 P-10 → v8.3.0 PV-05"),
+            # v9.7.0 PV-02 — schema-v6 baseline extends v9.3.0 (which is
+            # byte-identical to v8.4.0 / v9.2.0). The v8.3.0 PV-05 fixture
+            # uses a DIFFERENT change_context.change_id ('v9-pv02-...' vs
+            # 'v8.4.0-rtk-...') so the prefix property holds chain-wise
+            # only through v8.4.0 → v9.3.0 → v9.7.0; the v8.3.0 PV-05 →
+            # v9.7.0 step is NOT a byte prefix (different change_id) and
+            # is therefore omitted from this chain assertion. The v9.7.0
+            # byte-extension proof lives in
+            # ``test_v9_7_0_baseline_starts_with_v9_3_0_prefix``.
+            (_v9_3_0_payload, _v9_7_0_payload, "v9.3.0 → v9.7.0"),
         ],
     )
     def test_each_baseline_is_byte_prefix_of_next(self, smaller, larger, name: str) -> None:

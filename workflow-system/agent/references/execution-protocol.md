@@ -755,3 +755,64 @@ allowing the merge.
 * CLI: `python -m devolaflow.agent_workspace.lint <change-id>` (v8.2.5)
 * Reference: `references/agent-workspace.md` (canonical reference for
   the substrate)
+
+## 13. L2-Wave Async Dispatch Auto-Wire (v9.7.0+)
+
+v9.3.0 PV-05 shipped `AsyncDispatchExecutor` as a pure library — the
+class machinery (asyncio.gather + bounded `asyncio.Semaphore` +
+per-task `TaskOutcome` capture) was complete but no production caller
+actually invoked it. v9.7.0 PV-03 closes the gap by wiring it into a
+public dispatch entry point at the L2-wave boundary via
+`devolaflow.feedback.dispatch_wave_tasks(wave_definition,
+dispatch_factory)`.
+
+**Entry point**:
+
+```python
+from devolaflow.feedback import dispatch_wave_tasks
+
+outcomes = dispatch_wave_tasks(
+    wave_definition,    # parsed wave-definition.schema.yaml dict
+    dispatch_factory,   # callable: task_dict -> zero-arg callable
+    max_concurrency=4,  # optional override
+)
+```
+
+**Mode resolution** (per `wave_definition['sync_barrier']['mode']`):
+
+| Mode | Tasks | Path | Concurrency cap |
+|------|-------|------|-----------------|
+| `parallel` | ≥ 2 | `dispatch_parallel` (asyncio.gather + Semaphore) | `max_concurrency` keyword > `sync_barrier.max_parallelism` > `DEFAULT_MAX_CONCURRENCY` (4) |
+| `parallel` | 1 | `dispatch_sequential` (no asyncio.run cost) | n/a |
+| `all` (default) | any | `dispatch_sequential` | n/a |
+| `any` / `n_of(k)` | any | `dispatch_sequential` (executor TODO for quorum) | n/a |
+
+**P1 invariant — Dispatcher-Not-Implementer (Soul Rule S-1)**:
+`dispatch_wave_tasks` does NOT execute work itself — it only schedules
+the caller-provided callables. The factory pattern (factory builds
+the per-task callable; executor runs it) preserves the architectural
+boundary: the L2-wave dispatcher is an orchestrator, never an
+implementer. Verified at test time by
+`tests/test_async_wave_dispatch_wired.py::test_dispatch_wave_tasks_preserves_p1`.
+
+**S-5 exception isolation**: failed tasks carry their exception inside
+`TaskOutcome.exception` rather than raising out of the wave. Other
+tasks in the same wave continue running. The caller decides whether
+to escalate per P4 (Bounded Retry — escalate up the layer hierarchy
+on any blocker-level failure). The wave-level dispatch itself never
+raises on individual task failure; only callable-shape errors
+(non-callable factory output, malformed wave_definition) raise
+eagerly so the caller can fail fast on contract violations.
+
+**Expected gain** (v9.7.0 PV-03 perf research §3.4): a 4-parallel-task
+wave wall-clock collapses from `4 × ~3 ms = 12 ms` (sequential per-task
+prep) to `max(~3 ms) = ~3 ms` (asyncio.gather under the bounded
+Semaphore) — roughly **4× speedup** on the wave dispatch latency.
+The absolute saving is small post-LRU (PV-03 of the v9.3.0 cycle
+already collapsed `select_context` from ~80 ms to ~2 ms), but the
+architectural pattern unlocks future asyncio extension at every
+layer of the dispatcher.
+
+**Source**: v9.7.0 PV-03 spec — closes D-N-3 (AsyncDispatchExecutor
+library-only carry-forward) from `.local/research/v9.7.0_gap_analysis.md`
+§1.2.

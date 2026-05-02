@@ -99,6 +99,7 @@ from devolaflow.compressor.transforms import (
     ABSTRACTIVE_HIGH_DENSITY_MAX_LINES,
     ABSTRACTIVE_LOW_DENSITY_MAX_LINES,
     ABSTRACTIVE_LOW_DENSITY_THRESHOLD,
+    DEDUP_HASH_PREFIX_LENGTH,
     DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT,
     DEFAULT_SUMMARY_MAX_TOKENS,
     DEFAULT_SUMMARY_MODE,
@@ -112,6 +113,7 @@ from devolaflow.compressor.transforms import (
     clear_old_tool_uses,
     compress_message,
     compression_pipeline_stages,
+    dedup_predecessor_summaries,
     detect_bypass_conditions,
     detect_data_channel_instructions,
     detect_drop_violations,
@@ -146,6 +148,9 @@ from devolaflow.compressor.transforms import (
     _assemble_summary_body as _assemble_summary_body,
 )
 from devolaflow.compressor.transforms import (
+    _build_dedup_index as _build_dedup_index,
+)
+from devolaflow.compressor.transforms import (
     _build_stage_b_prompt as _build_stage_b_prompt,
 )
 from devolaflow.compressor.transforms import (
@@ -153,6 +158,9 @@ from devolaflow.compressor.transforms import (
 )
 from devolaflow.compressor.transforms import (
     _compute_information_density as _compute_information_density,
+)
+from devolaflow.compressor.transforms import (
+    _hash_summary as _hash_summary,
 )
 from devolaflow.compressor.transforms import (
     _invoke_stage_b_llm as _invoke_stage_b_llm,
@@ -271,6 +279,15 @@ _dead_api_pins = (
     detect_data_channel_instructions,
     clear_old_tool_uses,
     compression_pipeline_stages,
+    # v9.7.0 PV-02 — non-import references that mark
+    # ``dedup_predecessor_summaries`` as "alive" for
+    # ``scripts/detect_dead_apis.py``. The dedup helper ships as a library
+    # in PV-02 (matching the v9.3.0 PV-05 ``AsyncDispatchExecutor``
+    # pattern); a future PV will wire it into the actual L0/L1/L2 dispatch
+    # path via ``feedback.py::generate_round_dispatch``. Until then the
+    # only in-repo callers are the test suite (excluded from the dead-API
+    # check by ``test_dirs``) and this explicit pin.
+    dedup_predecessor_summaries,
 )
 
 __all__ = [
@@ -317,4 +334,6 @@ __all__ = [
     "extract_named_entities",
     "directed_compact",
     "compression_pipeline_stages",
+    "dedup_predecessor_summaries",
+    "DEDUP_HASH_PREFIX_LENGTH",
 ]

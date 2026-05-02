@@ -69,15 +69,15 @@ class TestSchemaAdditivity:
     def schema_spec(self) -> dict:
         return yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))
 
-    def test_canonical_order_length_is_16(self, schema_spec: dict) -> None:
-        """After P-08 + P-10 + PV-05, canonical_order length is 16 (P-08
-        added ``behavioral_guidelines`` at position 14, P-10 added
-        ``acceptance_criteria_v2`` at position 15, PV-05 added
-        ``change_context`` at position 16). Position 14 invariant remains
-        non-negotiable across the three generations."""
+    def test_canonical_order_length_is_17(self, schema_spec: dict) -> None:
+        """After P-08 + P-10 + PV-05 + v9.7.0 PV-02, canonical_order length
+        is 17 (P-08 added ``behavioral_guidelines`` at 14, P-10 added
+        ``acceptance_criteria_v2`` at 15, PV-05 added ``change_context``
+        at 16, v9.7.0 PV-02 added ``predecessor_dedup_ledger`` at 17).
+        Position 14 invariant remains non-negotiable across all generations."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
-        assert len(canonical) == 16, (
-            f"canonical_order length = {len(canonical)}; expected 16 after PV-05"
+        assert len(canonical) == 17, (
+            f"canonical_order length = {len(canonical)}; expected 17 after v9.7.0 PV-02"
         )
 
     def test_canonical_order_position_14_is_behavioral_guidelines(self, schema_spec: dict) -> None:
@@ -93,10 +93,11 @@ class TestSchemaAdditivity:
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[12] == "repos"
 
-    def test_layout_invariant_version_is_5(self, schema_spec: dict) -> None:
-        """P-08 bumped version 2→3, P-10 bumped 3→4, PV-05 bumped 4→5
-        (additive transitions across four schema generations)."""
-        assert schema_spec["layout_invariant"]["version"] == 5
+    def test_layout_invariant_version_is_6(self, schema_spec: dict) -> None:
+        """P-08 bumped version 2→3, P-10 bumped 3→4, PV-05 bumped 4→5,
+        v9.7.0 PV-02 bumped 5→6 (additive transitions across SIX
+        schema generations)."""
+        assert schema_spec["layout_invariant"]["version"] == 6
 
     def test_canonical_order_first_12_keys_unchanged(self, schema_spec: dict) -> None:
         """Positions 1-12 (1-indexed) MUST be byte-identical to the v7.0.0

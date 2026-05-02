@@ -263,6 +263,27 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.feedback:FeedbackCollector",
         "devolaflow.feedback:FeedbackAnalyzer",
         "devolaflow.feedback:ProposalGenerator",
+        # v9.7.0 PV-03 — auto-wired L2-wave async dispatch entry point.
+        # Wraps the v9.3.0 PV-05 ``AsyncDispatchExecutor`` (also a public
+        # API surface that's pinned via ``_dispatch_executor_dead_api_pins``
+        # in ``src/devolaflow/agent_workspace/__init__.py``). This is the
+        # canonical caller for L2 Wave dispatchers in repos that opt into
+        # the Python-driven dispatch path; LLM-orchestrated workflows
+        # invoke the Task tool directly without going through this helper,
+        # so the in-repo "production caller" IS the ``Task`` tool surface
+        # exposed via the SKILL.md dispatch contract. Documented in
+        # ``workflow-system/agent/references/execution-protocol.md`` §13.
+        "devolaflow.feedback:dispatch_wave_tasks",
+        # v9.7.0 PV-04 — opt-in selector LRU cache pre-warmup. Activated
+        # by ``DEVOLAFLOW_WARMUP=1`` per W-20 §3 orthogonality test (no
+        # existing flag activates this surface). The function is a
+        # session-start hook for operators who opt in; the in-repo
+        # "production caller" is ``__main__`` of the
+        # ``task_adaptive_selector`` CLI when run with the env flag set,
+        # NOT a sibling module call. Documented in
+        # ``workflow-system/agent/references/env-flags.md`` §2.15 +
+        # ``.local/research/v9.7.0_perf_research.md`` §4.
+        "devolaflow.task_adaptive_selector:warmup_selector_cache",
         # ---- Gate report generators ----
         # Exported via devolaflow.gate.__all__; consumed by external CI tools
         # and validate-gate console_script via direct module access.

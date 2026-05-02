@@ -76,25 +76,36 @@ def _load_schema() -> dict:
 
 
 class TestSchemaFileShape:
-    def test_canonical_order_length_is_16(self):
+    def test_canonical_order_length_is_17(self):
         schema = _load_schema()
-        assert len(schema["layout_invariant"]["canonical_order"]) == 16, (
+        assert len(schema["layout_invariant"]["canonical_order"]) == 17, (
             f"canonical_order length = {len(schema['layout_invariant']['canonical_order'])}; "
-            "expected 16 after v8.3.0 PV-05 (additive append of change_context)"
+            "expected 17 after v9.7.0 PV-02 (additive append of predecessor_dedup_ledger)"
         )
 
-    def test_layout_invariant_version_is_5(self):
+    def test_layout_invariant_version_is_6(self):
         schema = _load_schema()
-        assert schema["layout_invariant"]["version"] == 5, (
+        assert schema["layout_invariant"]["version"] == 6, (
             f"layout_invariant.version = {schema['layout_invariant']['version']}; "
-            "expected 5 after v8.3.0 PV-05 schema bump (per ADR-001 §2)"
+            "expected 6 after v9.7.0 PV-02 schema bump (per ADR-001 §2)"
         )
 
-    def test_last_key_is_change_context(self):
+    def test_last_key_is_predecessor_dedup_ledger(self):
         schema = _load_schema()
         canonical = schema["layout_invariant"]["canonical_order"]
-        assert canonical[-1] == "change_context", (
-            f"canonical_order[-1] is {canonical[-1]!r}, expected 'change_context'"
+        assert canonical[-1] == "predecessor_dedup_ledger", (
+            f"canonical_order[-1] is {canonical[-1]!r}, expected 'predecessor_dedup_ledger'"
+        )
+
+    def test_position_16_remains_change_context(self):
+        """v8.3.0 PV-05 invariant: ``change_context`` MUST stay at position 16
+        (1-indexed) even after v9.7.0 PV-02 appends ``predecessor_dedup_ledger``."""
+        schema = _load_schema()
+        canonical = schema["layout_invariant"]["canonical_order"]
+        assert canonical[15] == "change_context", (
+            f"position 16 (0-indexed 15) is {canonical[15]!r}; "
+            "expected 'change_context' to stay at position 16 "
+            "after v9.7.0 PV-02 append (additivity rule, ADR-001 §2)"
         )
 
     def test_position_15_remains_acceptance_criteria_v2(self):
@@ -167,11 +178,15 @@ class TestSchemaFileShape:
 
 
 class TestDefaultDispatchLayoutV5:
-    def test_default_dispatch_layout_length_is_16(self):
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 16
+    def test_default_dispatch_layout_length_is_17(self):
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 17
 
-    def test_default_dispatch_layout_last_entry_is_change_context(self):
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "change_context"
+    def test_default_dispatch_layout_last_entry_is_predecessor_dedup_ledger(self):
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "predecessor_dedup_ledger"
+
+    def test_default_dispatch_layout_position_16_remains_change_context(self):
+        """v9.7.0 PV-02 invariant: ``change_context`` stays at position 16."""
+        assert DEFAULT_DISPATCH_LAYOUT[15] == "change_context"
 
     def test_default_dispatch_layout_first_15_unchanged(self):
         assert tuple(DEFAULT_DISPATCH_LAYOUT[:15]) == V8_0_0_P10_CANONICAL_ORDER, (

@@ -88,26 +88,43 @@ class TestSchemaAdditivity:
     def schema_spec(self) -> dict:
         return yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))
 
-    def test_canonical_order_length_is_16(self, schema_spec: dict) -> None:
-        # v8.3.0 PV-05 (v8.2.5) bumped 15 → 16 by appending ``change_context``.
+    def test_canonical_order_length_is_17(self, schema_spec: dict) -> None:
+        # v9.7.0 PV-02 bumped 16 → 17 by appending ``predecessor_dedup_ledger``.
+        # Prior history: v7.0.0 (12) → v7.3.0 (13, +repos) → v8.0.0 P-08 (14,
+        # +behavioral_guidelines) → v8.0.0 P-10 (15, +acceptance_criteria_v2)
+        # → v8.3.0 PV-05 (16, +change_context) → v9.7.0 PV-02 (17,
+        # +predecessor_dedup_ledger). Positions 1-16 stay byte-identical;
+        # the v8.3.0 PV-05 / v8.4.0 / v9.2.0 / v9.3.0 multi-baseline byte
+        # tests CONTINUE TO PASS unchanged (additivity proof across SIX
+        # schema generations).
         canonical = schema_spec["layout_invariant"]["canonical_order"]
-        assert len(canonical) == 16, (
-            f"canonical_order length = {len(canonical)}; expected 16 after PV-05"
+        assert len(canonical) == 17, (
+            f"canonical_order length = {len(canonical)}; expected 17 after v9.7.0 PV-02"
         )
 
     def test_canonical_order_position_15_is_acceptance_criteria_v2(self, schema_spec: dict) -> None:
-        """P-10 placed ``acceptance_criteria_v2`` at position 15. PV-05 MUST
-        keep it there (positions 1..15 byte-identical to v4)."""
+        """P-10 placed ``acceptance_criteria_v2`` at position 15. PV-05 +
+        v9.7.0 PV-02 MUST keep it there (positions 1..15 byte-identical to v4)."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[14] == "acceptance_criteria_v2"
 
-    def test_canonical_order_last_entry_is_change_context(self, schema_spec: dict) -> None:
+    def test_canonical_order_position_16_is_change_context(self, schema_spec: dict) -> None:
+        """v8.3.0 PV-05 placed ``change_context`` at position 16. v9.7.0
+        PV-02 MUST keep it there (positions 1..16 byte-identical to v5)."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
-        assert canonical[-1] == "change_context"
+        assert canonical[15] == "change_context"
+
+    def test_canonical_order_last_entry_is_predecessor_dedup_ledger(
+        self, schema_spec: dict
+    ) -> None:
+        """v9.7.0 PV-02 appended ``predecessor_dedup_ledger`` at position 17."""
+        canonical = schema_spec["layout_invariant"]["canonical_order"]
+        assert canonical[-1] == "predecessor_dedup_ledger"
+        assert canonical[16] == "predecessor_dedup_ledger"
 
     def test_canonical_order_position_14_is_behavioral_guidelines(self, schema_spec: dict) -> None:
         """v8.0.0 P-08 placed ``behavioral_guidelines`` at position 14
-        (1-indexed). v8.0.0 P-10 + v8.3.0 PV-05 MUST keep it there."""
+        (1-indexed). v8.0.0 P-10 + v8.3.0 PV-05 + v9.7.0 PV-02 MUST keep it there."""
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[13] == "behavioral_guidelines"
 
@@ -115,10 +132,11 @@ class TestSchemaAdditivity:
         canonical = schema_spec["layout_invariant"]["canonical_order"]
         assert canonical[12] == "repos"
 
-    def test_layout_invariant_version_is_5(self, schema_spec: dict) -> None:
-        # v8.3.0 PV-05 (v8.2.5) bumped 4 → 5; v7.0.0 + v7.3.0 + v8.0.0 P-08
-        # + v8.0.0 P-10 byte-baselines all continue passing (additivity).
-        assert schema_spec["layout_invariant"]["version"] == 5
+    def test_layout_invariant_version_is_6(self, schema_spec: dict) -> None:
+        # v9.7.0 PV-02 bumped 5 → 6; v7.0.0 + v7.3.0 + v8.0.0 P-08 + v8.0.0
+        # P-10 + v8.3.0 PV-05 + v8.4.0 + v9.2.0 + v9.3.0 byte-baselines all
+        # continue passing (additivity proof across SIX schema generations).
+        assert schema_spec["layout_invariant"]["version"] == 6
 
     def test_canonical_order_first_14_keys_unchanged(self, schema_spec: dict) -> None:
         """Positions 1-14 (1-indexed) MUST be byte-identical to the

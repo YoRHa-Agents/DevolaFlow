@@ -576,3 +576,149 @@ class ProposalGenerator:
                     exc,
                 )
         return dispatch
+
+
+# ---------------------------------------------------------------------------
+# v9.7.0 (PV-03 — Performance Overhaul #2) — Auto-wire AsyncDispatchExecutor
+# for L2-wave parallel L3 dispatches.
+#
+# The v9.3.0 PV-05 ``AsyncDispatchExecutor`` shipped library-only — the
+# class machinery was complete but no production caller actually invoked
+# it. v9.7.0 PV-03 closes the gap by wiring it into a public dispatch
+# entry point at the L2-wave boundary.
+#
+# ``dispatch_wave_tasks(wave_definition, dispatch_factory)`` is the
+# canonical caller: pass a parsed wave-definition dict (the YAML loaded
+# from ``schemas/wave-definition.schema.yaml``) plus a factory that
+# accepts a per-task spec dict and returns a zero-arg callable to run
+# that task. The function inspects ``sync_barrier.mode``:
+#
+# * ``"parallel"`` with ≥ 2 tasks → :meth:`AsyncDispatchExecutor.dispatch_parallel`
+#   under :func:`asyncio.run`. Concurrency is capped at
+#   ``sync_barrier.max_parallelism`` when set, else
+#   :data:`DEFAULT_MAX_CONCURRENCY`. The executor schedules the
+#   callables via :func:`asyncio.gather` + a bounded
+#   :class:`asyncio.Semaphore`; sync callables go through
+#   :func:`asyncio.to_thread` so a slow sync call does not block the
+#   loop.
+# * ``"all"`` (the default sync barrier — wait for every branch) /
+#   single-task waves / non-parallel modes → :meth:`AsyncDispatchExecutor.dispatch_sequential`.
+#   Same TaskOutcome capture contract; no asyncio loop init cost.
+#
+# P1 invariant — Dispatcher-Not-Implementer (Soul Rule S-1):
+# :func:`dispatch_wave_tasks` does NOT perform any work itself. It only
+# schedules the caller-provided callables. The actual L3 Task work
+# happens inside each callable (typically a ``Task`` tool invocation
+# or a cached :func:`select_context` call). The executor is a pure
+# orchestration layer with zero domain knowledge of compression,
+# dispatch payload validation, gate scoring, etc. Verified at test
+# time by
+# :func:`tests.test_async_wave_dispatch_wired.test_dispatch_wave_tasks_preserves_p1`.
+#
+# Exception isolation: per S-5 (no silent failures), failed tasks
+# carry their exception inside :class:`TaskOutcome` rather than
+# raising out of the wave. The caller decides whether to escalate
+# per P4 (Bounded Retry — escalate up the layer hierarchy on any
+# blocker-level failure). The wave-level dispatch itself never raises
+# on individual task failure; only callable-shape errors (non-callable
+# factory output, malformed wave_definition) raise eagerly so the
+# caller can fail fast on contract violations.
+#
+# Source: v9.7.0 PV-03 spec — closes D-N-3 (AsyncDispatchExecutor
+# library-only carry-forward) from
+# ``.local/research/v9.7.0_gap_analysis.md`` §1.2.
+# ---------------------------------------------------------------------------
+
+
+def dispatch_wave_tasks(
+    wave_definition: dict[str, Any],
+    dispatch_factory: Any,
+    *,
+    max_concurrency: int | None = None,
+) -> list[Any]:
+    """Dispatch an L2 wave's L3 tasks via :class:`AsyncDispatchExecutor`.
+
+    Auto-wires v9.3.0 PV-05's library-only :class:`AsyncDispatchExecutor`
+    into the L2-wave dispatch path per v9.7.0 PV-03. Inspects
+    ``wave_definition['sync_barrier']['mode']``:
+
+    * ``"parallel"`` with ≥ 2 tasks →
+      :meth:`AsyncDispatchExecutor.dispatch_parallel` (asyncio.gather +
+      bounded semaphore). Concurrency is capped at
+      ``sync_barrier.max_parallelism`` when set; falls back to
+      :data:`DEFAULT_MAX_CONCURRENCY` (4) otherwise. The
+      ``max_concurrency`` keyword overrides both.
+    * ``"all"`` / single-task waves / unrecognised modes →
+      :meth:`AsyncDispatchExecutor.dispatch_sequential` (sync fallback
+      path; identical TaskOutcome capture).
+
+    Args:
+      wave_definition: Parsed wave-definition dict (loaded from a YAML
+        instance of ``schemas/wave-definition.schema.yaml``). MUST
+        carry ``tasks: list[dict]`` and SHOULD carry ``sync_barrier``
+        with ``mode`` and optionally ``max_parallelism``.
+      dispatch_factory: Callable that accepts a task spec dict (one
+        element of ``wave_definition['tasks']``) and returns a zero-arg
+        callable executing that task. The factory's return value is
+        the unit of work scheduled by the executor. P1 preserved —
+        ``dispatch_wave_tasks`` itself does NOT execute the returned
+        callable; it only schedules.
+      max_concurrency: Optional override for the parallel-mode
+        concurrency cap. When ``None`` (default), reads
+        ``sync_barrier.max_parallelism`` then falls back to
+        :data:`DEFAULT_MAX_CONCURRENCY`. Must be ≥ 1.
+
+    Returns:
+      ``list[TaskOutcome]`` — one per task in input order. Failed tasks
+      carry their exception in ``outcome.exception`` and never raise
+      out of this function (S-5). Empty ``tasks`` returns ``[]``
+      immediately without spawning a loop.
+
+    Raises:
+      TypeError: when ``wave_definition`` is not a dict, ``tasks`` is
+        not a list, or ``dispatch_factory`` is not callable. S-5 —
+        contract violations are explicit, never silent.
+      ExecutorError: when the resolved ``max_concurrency`` is < 1.
+    """
+    from devolaflow.agent_workspace.dispatch_executor import (
+        DEFAULT_MAX_CONCURRENCY,
+        AsyncDispatchExecutor,
+    )
+
+    if not isinstance(wave_definition, dict):
+        raise TypeError(f"wave_definition must be a dict, got {type(wave_definition).__name__}")
+    if not callable(dispatch_factory):
+        raise TypeError(f"dispatch_factory must be callable, got {type(dispatch_factory).__name__}")
+
+    tasks_raw = wave_definition.get("tasks", [])
+    if not isinstance(tasks_raw, list):
+        raise TypeError(f"wave_definition['tasks'] must be a list, got {type(tasks_raw).__name__}")
+    if not tasks_raw:
+        return []
+
+    sync_barrier = wave_definition.get("sync_barrier") or {}
+    if not isinstance(sync_barrier, dict):
+        sync_barrier = {}
+    mode = sync_barrier.get("mode", "all")
+
+    if max_concurrency is None:
+        max_concurrency = sync_barrier.get("max_parallelism") or DEFAULT_MAX_CONCURRENCY
+
+    callables: list[tuple[str, Any]] = []
+    for idx, task in enumerate(tasks_raw):
+        if not isinstance(task, dict):
+            raise TypeError(
+                f"wave_definition['tasks'][{idx}] must be a dict, got {type(task).__name__}"
+            )
+        task_id = str(task.get("task_id") or task.get("id") or f"wave-task-{idx}")
+        fn = dispatch_factory(task)
+        if not callable(fn):
+            raise TypeError(
+                f"dispatch_factory(task[{idx}]) must return a callable, got {type(fn).__name__}"
+            )
+        callables.append((task_id, fn))
+
+    executor = AsyncDispatchExecutor(max_concurrency=max_concurrency)
+    if mode == "parallel" and len(callables) > 1:
+        return executor.dispatch_parallel(callables)
+    return executor.dispatch_sequential(callables)

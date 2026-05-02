@@ -1824,5 +1824,135 @@ def main():
         _print_cli_slice(slice_result)
 
 
+# ---------------------------------------------------------------------------
+# v9.7.0 (PV-04 — Performance Overhaul #2) — Selector cache warmup.
+#
+# The v9.3.0 PV-03 LRU cache on ``load_profiles`` / ``load_skill_md`` /
+# ``estimate_tokens`` is COLD on session start. A fresh
+# ``select_context(...)`` pays the full pre-LRU cost for ``load_profiles``
+# (~80 ms YAML re-parse) on the first call until the cache populates.
+# After ~5 calls the steady-state pattern is covered, but the first 5
+# dispatches of a session experience a "warm-up tax."
+#
+# :func:`warmup_selector_cache` pre-populates the LRU caches for the top-5
+# task_types × 3 round_nums (15 cache entries) at session start. Opt-in
+# via ``DEVOLAFLOW_WARMUP=1`` per W-20 §3 orthogonality test (no existing
+# flag activates this surface; new flag justified). When the env flag is
+# unset, the function is a STRICT no-op (zero IO, zero CPU) — preserves
+# byte-stable v9.6.0 behaviour for operators who haven't opted in.
+#
+# R5 strict env-flag pattern (v8.3.4 PV-04 RTK_PROXY precedent): the
+# function reads ``os.environ.get("DEVOLAFLOW_WARMUP")`` EXACTLY against
+# the literal string ``"1"`` — no truthy-coercion (``"true"`` / ``"yes"``
+# / ``"on"`` are all DEFAULT-OFF, only ``"1"`` activates). This keeps
+# the activation surface auditable and prevents ambiguity when the
+# operator means "off" but typed "false" / "0" / etc.
+#
+# Source: v9.7.0 PV-04 spec — closes D-N-2 (selector LRU cache cold on
+# session start) from ``.local/research/v9.7.0_gap_analysis.md`` §1.3.
+# ---------------------------------------------------------------------------
+
+WARMUP_ENV_FLAG: str = "DEVOLAFLOW_WARMUP"
+"""Env-flag name. Activates :func:`warmup_selector_cache` when set EXACTLY
+to the literal string ``"1"`` (R5 strict pattern). Any other value
+(unset, ``""``, ``"true"``, ``"0"``, ...) is DEFAULT-OFF."""
+
+WARMUP_TRUTHY_VALUE: str = "1"
+"""The single literal env-flag value that activates warmup. Surfaces the
+R5 strict contract so callers / tests can branch on the same constant."""
+
+WARMUP_TASK_TYPES: tuple[str, ...] = (
+    "implement",
+    "research",
+    "design",
+    "hotfix",
+    "review",
+)
+"""Top-5 task_types pre-populated by :func:`warmup_selector_cache`.
+
+These match the canonical task-type set declared in
+``workflow-system/agent/context_profiles.yaml#profiles`` and the
+``select_context`` matrix used by
+``benchmarks/devolaflow_context/latency_harness.py``. A future PV that
+adds / renames task_types SHOULD update this tuple in the same PR
+(silent drift would mean warmup misses entries the harness measures)."""
+
+WARMUP_ROUND_NUMS: tuple[int, ...] = (1, 2, 3)
+"""Round numbers pre-populated by :func:`warmup_selector_cache`.
+
+Round 1 is the most common (~80 % of dispatches); rounds 2 and 3 cover
+the convergence-loop hot path. Higher rounds are rarer and not worth
+the warmup cost."""
+
+
+def warmup_selector_cache(
+    task_types: tuple[str, ...] = WARMUP_TASK_TYPES,
+    round_nums: tuple[int, ...] = WARMUP_ROUND_NUMS,
+    *,
+    force: bool = False,
+) -> int:
+    """Pre-populate the LRU caches for the top-N task_types × M round_nums.
+
+    Opt-in via ``DEVOLAFLOW_WARMUP=1`` (R5 strict — only the literal
+    string ``"1"`` activates; any other value is DEFAULT-OFF). When the
+    env flag is unset, this function is a STRICT no-op (returns ``0``
+    without spending any IO or CPU). When the flag IS set, the function
+    iterates the cartesian product of ``task_types`` and ``round_nums``
+    and calls :func:`select_context` once for each pair, populating the
+    v9.3.0 PV-03 LRU caches on ``load_profiles`` / ``load_skill_md`` /
+    ``estimate_tokens``. Returns the number of warmup calls that
+    completed (so callers can log / verify the warmup actually ran).
+
+    The ``force=True`` keyword bypasses the env-flag check — used by
+    tests to assert the warmup mechanism without requiring the env
+    var. Production callers should NEVER pass ``force=True`` (it
+    defeats the opt-in contract).
+
+    Idempotency: a second call against an already-warm cache is
+    cheap (each ``select_context`` call hits the LRU cache in O(1)).
+    Calling repeatedly is safe and bounded by ``len(task_types) ×
+    len(round_nums)`` cache lookups.
+
+    S-5 graceful: if a single warmup call raises (e.g. profiles.yaml
+    missing for a transient reason), the helper logs a WARNING and
+    continues with the next pair. The warmup is best-effort by
+    contract — a partial warmup is still strictly better than a cold
+    cache, and a hard-raise on the first transient failure would
+    block session startup unnecessarily.
+
+    Args:
+      task_types: Tuple of task_type names to warm. Default
+        :data:`WARMUP_TASK_TYPES` (top-5 canonical).
+      round_nums: Tuple of round numbers to warm. Default
+        :data:`WARMUP_ROUND_NUMS` ((1, 2, 3)).
+      force: When ``True``, bypasses the env-flag check. ONLY for
+        test code — production callers MUST NOT pass ``force=True``.
+
+    Returns:
+      Number of warmup calls that completed successfully (S-5 partial
+      warmup is reported via this count; a cold-cache run with
+      ``force=True`` would return ``len(task_types) * len(round_nums)``
+      on success).
+    """
+    if not force and os.environ.get(WARMUP_ENV_FLAG) != WARMUP_TRUTHY_VALUE:
+        return 0
+
+    completed = 0
+    for task_type in task_types:
+        for round_num in round_nums:
+            try:
+                select_context(task_type=task_type, round_num=round_num)
+                completed += 1
+            except Exception as exc:  # noqa: BLE001 - S-5 graceful warmup
+                logger.warning(
+                    "warmup_selector_cache: select_context(task_type=%r, "
+                    "round_num=%d) raised %s; continuing with next pair",
+                    task_type,
+                    round_num,
+                    exc,
+                )
+    return completed
+
+
 if __name__ == "__main__":
     main()
