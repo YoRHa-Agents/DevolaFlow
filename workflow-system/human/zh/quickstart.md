@@ -64,7 +64,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 打开你的 AI 工具，尝试以下提示词：
 
-### 示例：修复一个 Bug（热修复工作流）
+示例：修复一个 Bug（热修复工作流）
 
 ```
 修复登录超时 bug — 用户在 30 秒不活动后报告 500 错误
@@ -77,7 +77,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 4. **测试阶段**：Agent 对受影响代码运行聚焦测试
 5. **发布阶段**：Agent 准备补丁部署
 
-### 示例：构建新功能（完整流水线）
+示例：构建新功能（完整流水线）
 
 ```
 实现一个用户通知系统，支持邮件和应用内消息两种渠道
@@ -92,7 +92,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 6. **质量门**：复合评分须达到 ≥85 且零阻断问题
 7. **发布**：打包和标签
 
-### 示例：快速调研（无代码）
+示例：快速调研（无代码）
 
 ```
 调研实时通知的最佳方案 — 对比 WebSocket、SSE 和轮询
@@ -104,10 +104,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 ## 第四步：深入探索
 
-- 查看全部 22 种工作流：[工作流类型](workflow-types.md)
-- 了解架构：[架构概述](architecture-overview.md)
-- 为你的工具进行设置：[集成指南](integration-guide.md)
-- 自定义工作流：[自定义指南](customization-guide.md)
+查看全部 22 种工作流：[工作流类型](workflow-types.md)了解架构：[架构概述](architecture-overview.md)为你的工具进行设置：[集成指南](integration-guide.md)自定义工作流：[自定义指南](customization-guide.md)
 
 ## 检查更新
 

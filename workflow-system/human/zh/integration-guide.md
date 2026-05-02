@@ -34,11 +34,11 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 ```
 
 安装内容：
-- `.cursor/skills/devola-flow/SKILL.md` — 主 skill 文件
-- `.cursor/skills/devola-flow/references/` — 9 个领域参考文件
-- `.cursor/skills/devola-flow/examples/` — 3 个执行追踪示例
+- `.cursor/skills/devola-flow/SKILL.md`, 主 skill 文件
+- `.cursor/skills/devola-flow/references/`, 9 个领域参考文件
+- `.cursor/skills/devola-flow/examples/`, 3 个执行追踪示例
 
-### 在 Cursor 中如何工作
+在 Cursor 中如何工作
 
 DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到代理上下文中。DevolaFlow 的工作流选择启发式规则根据你的意图关键词激活。
 
@@ -55,22 +55,22 @@ DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提�
 4. DevolaFlow 激活，Agent 将：
    - 选择 `full-pipeline` 工作流
    - **设计阶段**：定义 API 端点、数据模型、认证流程
-   - **规划阶段**：分解为批次 — 认证模块（批次 1）、CRUD 端点（批次 2）、RBAC（批次 3）
+   - **规划阶段**：分解为批次, 认证模块（批次 1）、CRUD 端点（批次 2）、RBAC（批次 3）
    - **实现阶段**：通过并行任务代理创建源文件和测试
    - **审查阶段**：检查代码质量、安全性、风格
    - **测试阶段**：运行单元 + 集成测试，测量覆盖率
    - **质量门**：验证复合评分 ≥ 85、覆盖率 ≥ 80%
    - **发布阶段**：更新 changelog，准备提交
 
-### Cursor 使用技巧
+Cursor 使用技巧
 
-- **手动附加 skill**：输入 `@devola-flow` 显式引用
+**手动附加 skill**：输入`@devola-flow` 显式引用
 - **使用 Plan 模式**：Agent 会生成结构化计划而不执行
 - **子代理支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 Wave→Task 委托
 
-## Claude Code — 详细设置
+## Claude Code, 详细设置
 
-### 安装
+安装
 
 ```bash
 # 项目级
@@ -82,11 +82,11 @@ curl -fsSL $INSTALLER | bash -s claude --global
 
 安装一个自包含的 `CLAUDE.md` 文件。Claude Code 在每个会话开始时自动读取。
 
-### 在 Claude Code 中如何工作
+在 Claude Code 中如何工作
 
-`CLAUDE.md` 始终生效 — Claude Code 自动加载。每个提示词都受益于 DevolaFlow 的工作流结构。
+`CLAUDE.md` 始终生效, Claude Code 自动加载。每个提示词都受益于 DevolaFlow 的工作流结构。
 
-### 示例会话
+示例会话
 
 ```bash
 claude
@@ -100,25 +100,25 @@ Claude Code 将：
 3. 遵循收敛循环确保质量
 4. 最后报告任务质量评分
 
-## GitHub Copilot — 详细设置
+## GitHub Copilot, 详细设置
 
-### 安装
+安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
 ```
 
 安装内容：
-- `.github/copilot-instructions.md` — 根指令
-- `.github/instructions/workflow.instructions.md` — 工作流指令
+- `.github/copilot-instructions.md`, 根指令
+- `.github/instructions/workflow.instructions.md`, 工作流指令
 
-### 在 Copilot 中如何工作
+在 Copilot 中如何工作
 
 Copilot 为每个请求读取 `copilot-instructions.md`。工作流启发式规则引导 Copilot 的代码建议和聊天回复遵循结构化模式。
 
-## OpenAI Codex — 详细设置
+## OpenAI Codex, 详细设置
 
-### 安装
+安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex

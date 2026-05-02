@@ -72,8 +72,8 @@ Primitives compose via 5 operators: **sequence** (→), **parallel** (||), **cho
 Each task type has a **context profile** that selects only relevant SKILL.md sections, keeping the context window lean:
 
 - A **hotfix** agent receives: triage procedures, fix guidelines, test requirements — but skips design primitives
-- A **research** agent receives: research methodology, comparison frameworks — but skips convergence loops
-- A **design** agent receives: architecture patterns, ADR templates — but skips release procedures
+- A **research** agent receives: research methodology, comparison frameworks, but skips convergence loops
+- A **design** agent receives: architecture patterns, ADR templates, but skips release procedures
 
 Profiles are defined in `workflow-system/agent/context_profiles.yaml`.
 

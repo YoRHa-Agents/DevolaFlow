@@ -39,9 +39,9 @@ def test_readme_workflow_type_count(project_root: Path):
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
     section_match = re.search(
-        r"### \d+ Built-in Workflow Types\n(.*?)(?=\n### |\n## |\Z)",
+        r"(?:### |\*\*|^)\d+ Built-in Workflow Types(?:\*\*)?\n(.*?)(?=\n### |\n## |\Z)",
         readme,
-        re.DOTALL,
+        re.DOTALL | re.MULTILINE,
     )
     assert section_match, "Could not find 'Built-in Workflow Types' section in README"
     section = section_match.group(1)
@@ -70,9 +70,9 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
     section_match = re.search(
-        r"### Full Development Setup\n(.*?)(?=\n## |\n### |\Z)",
+        r"(?:### |\*\*|^)Full Development Setup(?:\*\*)?\n(.*?)(?=\n## |\n### |\Z)",
         readme,
-        re.DOTALL,
+        re.DOTALL | re.MULTILINE,
     )
     assert section_match, "Could not find 'Full Development Setup' section in README"
     match = re.search(r"(\d+)\s+templates", section_match.group(1))

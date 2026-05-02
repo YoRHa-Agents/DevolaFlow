@@ -33,10 +33,11 @@ from __future__ import annotations
 import re
 
 from ..profiles import ToneProfile
-from ..regions import apply_to_prose
 
 _HEADER_RE = re.compile(r"^(?P<hash>#{2,6})\s+(?P<title>.+?)(?P<anchor>\s*\{#[^}]+\})?\s*$")
+_FENCE_RE = re.compile(r"^```")
 _MIN_PROSE_WORDS = 40
+_MIN_DEPTH_TO_DEMOTE = 3
 _WORD_RE = re.compile(r"[A-Za-z\u4e00-\u9fa5][A-Za-z'\u4e00-\u9fa5-]*")
 _BOLD_RE = re.compile(r"\*\*[^*\n]{1,80}\*\*")
 
@@ -56,12 +57,38 @@ def _doc_is_bold_saturated(text: str) -> bool:
     return per_1k > BOLD_SATURATION_PER_1K
 
 
-def _transform_prose_with_flag(text: str, bold_saturated: bool) -> str:
+def apply(text: str, profile: ToneProfile) -> str:
+    """Run the T-S4 header-demotion transform at document scope.
+
+    Unlike the other four transforms, T-S4 operates on the whole
+    document rather than per-prose-region. Region-walking caused
+    short headers to be counted as orphans because protected spans
+    (inline code, markdown links) break the doc into small prose
+    slices that lose the context of the following body. Since
+    header lines themselves are pure markdown syntax (no protected
+    spans can appear inside a ``## Foo`` line), operating at doc
+    scope is safe.
+
+    Headers inside fenced code blocks are skipped via a simple
+    line-level fence tracker.
+    """
+    del profile
+    bold_saturated = _doc_is_bold_saturated(text)
     lines = text.split("\n")
+    in_code_fence = False
     out_lines: list[str] = []
     i = 0
     while i < len(lines):
         line = lines[i]
+        if _FENCE_RE.match(line):
+            in_code_fence = not in_code_fence
+            out_lines.append(line)
+            i += 1
+            continue
+        if in_code_fence:
+            out_lines.append(line)
+            i += 1
+            continue
         m = _HEADER_RE.match(line)
         if not m:
             out_lines.append(line)
@@ -72,9 +99,23 @@ def _transform_prose_with_flag(text: str, bold_saturated: bool) -> str:
             i += 1
             continue
         depth = len(m.group("hash"))
+        if depth < _MIN_DEPTH_TO_DEMOTE:
+            out_lines.append(line)
+            i += 1
+            continue
         j = i + 1
         body_lines: list[str] = []
         while j < len(lines):
+            if _FENCE_RE.match(lines[j]):
+                body_lines.append(lines[j])
+                j += 1
+                while j < len(lines) and not _FENCE_RE.match(lines[j]):
+                    body_lines.append(lines[j])
+                    j += 1
+                if j < len(lines):
+                    body_lines.append(lines[j])
+                    j += 1
+                continue
             nxt = _HEADER_RE.match(lines[j])
             if nxt and len(nxt.group("hash")) <= depth:
                 break
@@ -92,23 +133,6 @@ def _transform_prose_with_flag(text: str, bold_saturated: bool) -> str:
             out_lines.append(line)
             i += 1
     return "\n".join(out_lines)
-
-
-def apply(text: str, profile: ToneProfile) -> str:
-    """Run the T-S4 header-demotion transform over prose regions.
-
-    Demotes orphan headers to inline bold by default, or to plain
-    text when the document is already bold-saturated. This avoids
-    pushing bold-heavy docs further into the scorer's saturation
-    zone.
-    """
-    del profile
-    bold_saturated = _doc_is_bold_saturated(text)
-
-    def _transform(prose: str) -> str:
-        return _transform_prose_with_flag(prose, bold_saturated)
-
-    return apply_to_prose(text, _transform)
 
 
 __all__ = ["apply", "BOLD_SATURATION_PER_1K"]

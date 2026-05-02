@@ -38,7 +38,7 @@ _EMDASH = "\u2014"
 _PARAGRAPH_SEP_RE = re.compile(r"\n\s*\n")
 _WORD_RE = re.compile(r"[A-Za-z\u4e00-\u9fa5][A-Za-z'\u4e00-\u9fa5-]*")
 
-TARGET_EMDASH_PER_1K = 12.0
+TARGET_EMDASH_PER_1K = 8.0
 
 
 def _normalise_dashes(text: str) -> str:

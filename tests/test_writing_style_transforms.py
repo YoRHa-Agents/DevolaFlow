@@ -117,18 +117,26 @@ def test_signposts_idempotent() -> None:
 
 def test_headers_demotes_orphan_short_section() -> None:
     long_body = " ".join(f"word{i}" for i in range(60))
-    text = f"## Tiny Header\n\nJust three words here.\n\n## Next Section\n\n{long_body}\n"
+    text = f"### Tiny Header\n\nJust three words here.\n\n### Next Section\n\n{long_body}\n"
     out = headers.apply(text, DOCUMENTATION_NATURAL)
-    assert "## Tiny Header" not in out
+    assert "### Tiny Header" not in out
     assert "**Tiny Header**" in out
-    assert "## Next Section" in out
+    assert "### Next Section" in out
 
 
 def test_headers_preserves_long_section() -> None:
     body = " ".join(f"word{i}" for i in range(60))
-    text = f"## Real Section\n\n{body}\n"
+    text = f"### Real Section\n\n{body}\n"
     out = headers.apply(text, DOCUMENTATION_NATURAL)
-    assert "## Real Section" in out
+    assert "### Real Section" in out
+
+
+def test_headers_preserves_h2_as_real_landmark() -> None:
+    """H2 headers are never demoted — they are the coarse section
+    structure authors deliberately set up."""
+    text = "## Short H2\n\nOnly a couple of words here.\n"
+    out = headers.apply(text, DOCUMENTATION_NATURAL)
+    assert "## Short H2" in out
 
 
 def test_headers_preserves_h1_document_title() -> None:
