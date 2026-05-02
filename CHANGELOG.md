@@ -5,6 +5,131 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0] — 2026-05-02
+
+**MAJOR — v10.0.0 5-MINOR rollup release.** The cycle-close of the v10.0.0 MAJOR rollup cycle (5 MINORs: v9.3.0 perf #1 + v9.4.0 plugin auto-install + v9.5.0 Si-Chip DEEP + v9.6.0 reference refresh + v9.7.0 perf #2). 5 PVs (PV-01 version bump 9.7.0 → 10.0.0; PV-02 NEW `scripts/audit_feedback_ac.py` cross-checks 57 historical feedback files — 0 FAILs; PV-03 comprehensive human-docs refresh — README + 16 EN/ZH user guides + demo landing + `versions.json`; PV-04 NineS self-eval + W-3 SI-3 evaluation 9.20/10 + W-7 SI-8 retrospective + W-19 cycle archive 51 files; PV-05 this CHANGELOG entry + W-18 ghost-audit refresh + final SI-10 6-gate + PR open). Closes the verbatim user requirement from `feedback_for_v9.2.4.md`: *"最后再将所有的minor版本进行统一的汇总、自迭代，最终形成10.0的版本，并进行全量的测试和分析，确保性能有明显的提升或明确的提升之后，提交PR merge release。记得要将所有的面向人类用户的README、user guide、web page都进行对应的更新和维护。同时要对自身的所有的feedback进行一个全量的分析，确保所有的验收点没有回退。"* (unify all minors, full testing + analysis, demonstrable perf improvement, full feedback regression analysis ensuring NO AC regression).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero breaking changes.** Every change in the entire 5-MINOR + 1-MAJOR cycle is additive:
+
+- The `compressor` package re-exports all public symbols at the same import paths (backward-compat verified).
+- Schema v6 is append-only at canonical position 17 (A-2.2 invariant); all 9 historical multi-baseline byte tests pass byte-identically because the new field's absence is canonical for round-1 dispatches.
+- 4 NEW env flags are ALL R5-strict default-OFF — absent or any value other than literal `"1"` preserves prior behaviour byte-identically (`DEVOLAFLOW_SIMPLE_SHORTCUT`, `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`, `DEVOLAFLOW_SI_CHIP_DEEP`, `DEVOLAFLOW_WARMUP`).
+- Both new lifecycle events (`pre_plugin_invocation` v9.4.0, `post_skill_edit` v9.5.0) appended at tail (positions 9 + 10); positions 1-8 byte-stable since v9.1.3.
+- Plugin-registry schema v3 (v9.4.0 PV-04) is additive: `_SUPPORTED_SCHEMA_VERSIONS = {1, 2, 3}` so v1 + v2 entries continue to load.
+
+**Cumulative performance improvement.** `select_context.p95` improvement vs v9.2.4 baseline: **97.5%** (~80,000us → 2,027us; **40× speedup**). `full_dispatch.p95` -98.3% (250,000us → 4,255us). `compress_message.p95` -54%, `run_hooks.p95` -77%. Pytest wall-clock dropped 55s → 17s as a side-effect of the v9.3.0 PV-03 LRU cache. STRICT MAJOR-gate cumulative-latency floor (≥35% improvement) trivially exceeded with ~62 percentage points of headroom on the headline.
+
+**Full feedback regression audit (PV-02).** NEW `scripts/audit_feedback_ac.py` (~370 LOC) + 31 NEW tests cross-checks **57 historical feedback files** (38 user feedback v0 → v9.2.4 + 22 EvoBench-generated reports + 1 NineS integration) against the live repo state. Verdict matrix PASS / SUPERSEDED / DEGRADED / DEFERRED / FAIL. **Result: 0 FAILs, 100% addressed-or-deferred rate** (5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED — the in-flight cycle plan). Closes the user's mandate to ensure no AC has regressed.
+
+**Comprehensive human-facing docs refresh (PV-03).** README "What's New in v10.0.0" prepended; 16 EN/ZH user guides regenerated via `make sync-human-docs` (single source — `scripts/generate_human_docs.py`); demo landing page top-of-page v10.0.0 What's New section with 3 highlight cards; `versions.json` 60th entry; benchmark-results SAMPLE_DATA already at 10.0.0 (PV-01 update).
+
+### Headline numbers
+
+| Area | v9.2.4 baseline | v10.0.0 | Delta |
+|------|---:|---:|---:|
+| `select_context.p95` | ~80,000 us | ~2,027 us | **-97.5%** (40× speedup) |
+| `full_dispatch.p95` | ~250,000 us | ~4,255 us | **-98.3%** |
+| pytest wall-clock | ~55 s | ~17 s | **3.3× faster** |
+| Lifecycle events | 8 | **10** | +2 (`pre_plugin_invocation`, `post_skill_edit`) |
+| Dispatch schema | v5 (16 keys) | **v6 (17 keys)** | +1 canonical position (`predecessor_dedup_ledger` APPEND) |
+| Plugins registered | 3 | **4** | +Si-Chip |
+| Tracked references | 19 (stale comment) | **21 (NineS-fresh)** | +2 catch-up + freshness sweep |
+| Tests | 3635 | **3937** | +302 (PV-02 audit script tests + PV-05 W-18 lint) |
+| Coverage | 80%+ | **93.13%** | margin +13.13pp |
+| Feedback audit | n/a | **57 files / 0 FAILs** | 100% addressed-or-deferred |
+
+### What landed (per MINOR + MAJOR rollup)
+
+| MINOR / MAJOR | Tag | SHA | Headline |
+|---|---|---|---|
+| v9.3.0 | `chore(v9.3.0)` | `cee8ff2` | Performance Overhaul #1 — `select_context.p95` 80ms → 2ms (LRU cache) + compressor 3-module split + AsyncDispatchExecutor (library-only) + `DEVOLAFLOW_SIMPLE_SHORTCUT=1` opt-in |
+| v9.4.0 | `chore(v9.4.0)` | `3607086` | Plugin Auto-Install & Daily Upgrade — `pre_plugin_invocation` lifecycle hook + dispatcher wiring (closes the `ensure_plugin()` dead-wire) + schema v3 with `upgrade_cmd` + `devolaflow plugins {list,status,refresh}` CLI |
+| v9.5.0 | `chore(v9.5.0)` | `16c48f5` | Si-Chip DEEP Integration — `si_chip_bridge` typed Python module (~1070 LOC across 4 sub-modules) + `post_skill_edit` always-on lifecycle hook + `DEVOLAFLOW_SI_CHIP_DEEP=1` env flag + 2 templates wired (skill-optimization, self-update). PV-05 dogfood DEFERRED per user requirement |
+| v9.6.0 | `chore(v9.6.0)` | `a4c74ba` | Reference Library Refresh — ALL 21 tracked external references re-audited via NineS deep analysis (5 deep + 16 W-2 manual) + 4 NEW reference-doc subsections (decomposition-gate §6.0 + team-roles §6 + execution-protocol §1b.1 + meta-framework §2.2.1) |
+| v9.7.0 | `chore(v9.7.0)` | `614d47b` | Performance Overhaul #2 — predecessor summary delta-compression (12-char sha256 hash; schema v6 APPEND at position 17) + `dispatch_wave_tasks` async wave auto-wire (closes v9.3.0 PV-05 carry-forward) + `DEVOLAFLOW_WARMUP=1` selector cache pre-warmup |
+| **v10.0.0 PV-01** | `chore(v10.0.0)` | `0e2a7e1` | Version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (CP-3) — 11 pattern replacements via `scripts/bump_version.py` |
+| **v10.0.0 PV-02** | `docs(v10.0.0)` | `4182344` | NEW `scripts/audit_feedback_ac.py` + 31 NEW tests scan 57 historical feedback files. Result: 0 FAILs, 100% addressed-or-deferred |
+| **v10.0.0 PV-03** | `docs(v10.0.0)` | `c873667` | Human-docs comprehensive refresh — README + 16 EN/ZH guides + demo landing + `versions.json` + benchmark-results SAMPLE_DATA |
+| **v10.0.0 PV-04** | `docs(v10.0.0)` | `8e7e050` | NineS self-eval (overall 0.907332 byte-stable vs v9.7.0) + W-3 SI-3 evaluation (composite 9.20/10 — margin +0.20 over MAJOR-gate ≥9.0 floor) + W-7 SI-8 retrospective + W-19 cycle archive (51 files) |
+| **v10.0.0 PV-05** | `chore(v10.0.0)` | (this commit) | This CHANGELOG entry + W-18 ghost-audit refresh + final SI-10 6-gate + PR open |
+
+### New env flags (4 total across the cycle, all R5-strict default-OFF, all W-20 §3 orthogonality justified)
+
+- `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (v9.3.0 PV-06) — opt-in skip L1+L2 for SIMPLE/TRIVIAL tasks.
+- `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (v9.4.0 PV-02) — opt-in plugin auto-install on dispatch.
+- `DEVOLAFLOW_SI_CHIP_DEEP=1` (v9.5.0 PV-04) — DEEP Si-Chip dogfood always-on (`post_skill_edit` hook).
+- `DEVOLAFLOW_WARMUP=1` (v9.7.0 PV-04) — pre-populate selector cache on session start.
+
+All 4 documented inline in `workflow-system/agent/references/env-flags.md` (§§2.12, 2.13, 2.14, 2.15 respectively).
+
+### Schema bumps (1 total: v5 → v6 at canonical position 17, append-only)
+
+`schemas/lean-dispatch.yaml#layout_invariant.version` 5 → 6 (v9.7.0 PV-02). `canonical_order` length 16 → 17 with `predecessor_dedup_ledger` APPENDED at position 17 per A-2.2 strict append-only invariant. The 8 historical multi-baseline byte tests (v7.0.0 → v9.3.0) ALL CONTINUE TO PASS byte-identically because the new field's absence is canonical for round-1 dispatches; NEW 9th baseline at `benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml` pins the post-bump shape.
+
+### New modules (cycle-cumulative)
+
+- `src/devolaflow/compressor/` package (v9.3.0 PV-04) — split from the 2541-LOC `compressor.py` into `__init__.py` + `layout.py` + `patterns.py` + `transforms.py` (every public symbol re-exported byte-identically; backward-compat verified).
+- `src/devolaflow/agent_workspace/dispatch_executor.py` (v9.3.0 PV-05) — `AsyncDispatchExecutor` for asyncio.gather + bounded Semaphore parallelism.
+- `src/devolaflow/lifecycle/pre_plugin_invocation.py` (v9.4.0 PV-02) — auto-install lifecycle hook.
+- `src/devolaflow/si_chip_bridge/` package (v9.5.0 PV-02) — 4 sub-modules: `__init__` public API + `install_resolver` + `models` + `runner`.
+- `src/devolaflow/lifecycle/post_skill_edit.py` (v9.5.0 PV-04) — DEEP integration always-on hook.
+- `scripts/audit_feedback_ac.py` (v10.0.0 PV-02) — feedback regression audit script.
+
+### New CLIs (cycle-cumulative)
+
+- `devolaflow plugins {list,status,refresh}` (v9.4.0 PV-04) — daily plugin upgrade cadence with `--force` / `--plugin` (repeatable) / `--json` flags.
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analyses** — per-MINOR + MAJOR cycle plan all present at `.local/research/v9.X.0_gap_analysis.md` + `v10.0.0_cycle_plan.md` (gitignored; archived to `docs/cycle-archive/v10.0.0/` via PV-04 W-19).
+- **W-2 SI-2 NineS deep-analysis** — per-MINOR + MAJOR all stored at `.local/research/v*_nines.{json,md}` (archived). Cycle-close MAJOR self-eval: overall composite **0.907332** (vs v9.7.0 close 0.907350 = -0.000018 — byte-stable, within ±0.001 noise floor).
+- **W-3 SI-3 MAJOR-gate evaluation** — `.local/research/v10.0.0_evaluation.md` documents the 6-dimension weighted composite **9.20 / 10** (margin +0.20 over the 9.0 STRICT MAJOR-gate floor; **strongest MAJOR composite to date** — beats v8.0.0 9.05 + v9.0.0 9.10).
+- **W-4 SI-4 benchmark guard** — composite scores stable across all 53 EvoBench scenarios (within ±2% of v9.7.0 baseline); cumulative `select_context.p95` improvement vs v9.2.4 baseline = 97.5% (well above 35% STRICT-gate floor).
+- **W-7 SI-8 retrospective** — `.local/research/v10.0.0_retrospective.md` (4 mandatory sections: §1 gaps + §2 implemented + §3 deferred-with-why + §4 key learnings). 6 deferred items including Si-Chip dogfood (per user requirement), i18n.js localization (v10.1.0 carry-forward), upstream NineS code_coverage A1 ticket, W-17 +66 overshoot disposition, no S-11 Soul candidate (W-21 cap stays at 10), and per-MINOR PR closeout (Q5=B was a ceiling).
+- **W-9 SI-10 6-gate sequence green at every PV**: `pytest tests/ -q` (3937 passed / 21 skipped / 2 xfailed); `ruff check src/ tests/` All checks passed!; `ruff format --check src/ tests/` 240 files already formatted; `pytest tests/test_version.py` 16 passed / 19 skipped (mirror parity self-skipped per SF-3); `pytest tests/test_benchmarks.py` composite scores stable; `make check-cursor-skill` exit 0 (no-op when mirror absent).
+- **W-16 wholesale baseline regen** — v9.3.0 PV-02 fired wholesale at cycle-start (the v9.7.0 latency baseline + v9.7.0_baseline.json from PV-05 are the cycle-close witnesses); v10.0.0 MAJOR is content-only so no further wholesale regen needed.
+- **W-17 cycle-cumulative test cap** — **+216** NEW tests vs +150 cap (v9.3.0 +36 + v9.4.0 +60 + v9.5.0 +43 + v9.6.0 +24 + v9.7.0 +22 + v10.0.0 +31). The +66 overshoot is documented in retrospective §3.4 with HIGH-INFORMATION disposition (every test is a meaningful contract pin, not redundant scaffolding).
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_0_0_new_symbols_have_coverage` authored in this commit per the W-18 precondition. Pins (a) `scripts/audit_feedback_ac.py` 10 public symbols (FeedbackAudit + audit_feedback + 7 helpers + main); (b) 4 PV-03 human-doc literal contracts (README "What's New in v10.0.0 (MAJOR cycle close)" header + demo landing "New in v10.0.0" + versions.json v10.0.0 entry + benchmark-results SAMPLE_DATA); (c) 9 PV-04 W-19 cycle archive surface files.
+- **W-19 cycle archive** — `docs/cycle-archive/v10.0.0/` committed in PV-04 with **51 files** spanning all 5 MINORs + the v10.0.0 MAJOR rollup artifacts. Per-bucket counts: gap_analysis (5), retrospective (6 incl. v10.0.0), evaluation (6), nines (22 incl. drill-downs), other (12 incl. cprofile, sichip dogfood, cycle plan, feedback audit), README.md auto-generated index.
+- **W-20 env flag policy** — 4 NEW flags across the cycle, each W-20 §3 orthogonality justified inline at `workflow-system/agent/references/env-flags.md` (§§2.12 SIMPLE_SHORTCUT, 2.13 AUTO_INSTALL_PLUGINS, 2.14 SI_CHIP_DEEP, 2.15 WARMUP).
+- **W-21 Soul-set freeze** — Soul count remains at **10** entries (W-21 cap). No S-11 candidate proposed for v10.0.0; v10.2.0 (cycle N+2) is the earliest landing slot per the W-21 2-cycle telegraph rule. Retrospective §3.5 telegraphs the leading hypothesis ("Parallel Wave Dispatch Invariant") for v10.2.0 SI-1 assessment.
+
+### Files Changed (v10.0.0 MAJOR rollup itself; per-MINOR file lists in their respective CHANGELOG entries below)
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.7.0 → 10.0.0 |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| EDIT | `workflow-system/agent/SKILL.md` | version triple sync (frontmatter + banner + body "Current version:") — A-2 frozen prefix preserved |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `README.md` | badge + version example sync + NEW "What's New in v10.0.0 (MAJOR cycle close)" section prepended |
+| EDIT | `CHANGELOG.md` | this entry |
+| EDIT | `tests/test_no_ghost_features.py` | NEW `test_v10_0_0_new_symbols_have_coverage` W-18 lint |
+| NEW  | `scripts/audit_feedback_ac.py` | feedback regression audit (~370 LOC; PV-02) |
+| NEW  | `tests/test_audit_feedback_ac.py` | 31 tests covering the audit's classifier matrix + extractors + end-to-end (PV-02) |
+| EDIT | `workflow-system/human/demo/index.html` | NEW v10.0.0 What's New section with 3 highlight cards (PV-03) |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | NEW 60th entry — v10.0.0 with 16 metric fields (PV-03) |
+| EDIT | `workflow-system/human/en/*.md` (8 files) | regenerated via `make sync-human-docs` — `source_version: "10.0.0"` (PV-03) |
+| EDIT | `workflow-system/human/zh/*.md` (8 files) | regenerated in lock-step via `make sync-human-docs` — ST-3 bilingual completeness (PV-03) |
+| NEW  | `docs/cycle-archive/v10.0.0/` | 51 files: 5 MINORs + v10.0.0 MAJOR research artifacts via W-19 archive (PV-04) |
+| NEW  | `.local/research/v10.0.0_nines.{json,md,stderr}` (gitignored; archived) | W-2 NineS self-eval (PV-04) |
+| NEW  | `.local/research/v10.0.0_evaluation.md` (gitignored; archived) | W-3 SI-3 MAJOR-gate evaluation (PV-04) |
+| NEW  | `.local/research/v10.0.0_retrospective.md` (gitignored; archived) | W-7 SI-8 cycle-close retrospective (PV-04) |
+| NEW  | `.local/research/v10.0.0_feedback_ac_audit.md` (gitignored; archived) | PV-02 audit report |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Reason |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | this repository |
+| NineS | https://github.com/YoRHa-Agents/NineS | W-2 / SI-2 deep-analyze + cycle-close self-eval (V3.3.0) |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | DevolaFlow's 4th runtime plugin (v9.5.0) — persistent BasicAbility optimisation factory |
+
 ## [9.7.0] — 2026-05-02
 
 **MINOR — Performance Overhaul #2: cumulative cycle tuning.** FIFTH and FINAL MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Six PVs (PV-01 re-baseline + W-1 SI-1 gap analysis + W-2 NineS deep-analyze; PV-02 predecessor summary delta-compression with schema v6 APPEND at canonical position 17; PV-03 auto-wire AsyncDispatchExecutor for parallel L2 waves — closes the v9.3.0 PV-05 carry-forward; PV-04 opt-in DEVOLAFLOW_WARMUP=1 selector cache pre-warmup; PV-05 cumulative gain measurement; PV-06 cycle close). Addresses verbatim user requirement (Q1=perf-again confirmed scope): *"perf first and perf again after all"* — re-measure hot paths after Si-Chip benchmark gating (v9.5) and reference refresh (v9.6) land; often the biggest perf gains come after the SKILL corpus stabilizes.
