@@ -619,6 +619,16 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # (W-18 ghost-audit refresh shipping in PV-06 cycle close).
         "devolaflow.si_chip_bridge.runner:count_tokens",
         "devolaflow.si_chip_bridge.runner:run_dogfood_cycle",
+        # ---- v9.5.0 PV-04 — post_skill_edit operator-facing convenience ----
+        # `metadata_to_json(result)` serialises the HookResult.metadata
+        # to a deterministic single-line JSON string. Used by operators
+        # tailing the lifecycle log AND by the v9.5.0 PV-05 dogfood
+        # pass when capturing the run-log to .local/research/. Not
+        # consumed by any in-repo Python production caller — it is
+        # exposed for external observers (mirrors the v8.4.4 PV-04
+        # post_dispatch convenience pattern). Tests cover it indirectly
+        # via the W-18 ghost-audit refresh in PV-06 cycle close.
+        "devolaflow.lifecycle.post_skill_edit:metadata_to_json",
     }
 )
 

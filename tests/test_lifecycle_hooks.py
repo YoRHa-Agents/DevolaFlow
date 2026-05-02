@@ -172,9 +172,20 @@ def test_default_events_match_skill_md_table() -> None:
     (R5 strict byte-identical), so adding the ninth event preserves
     byte output for operators who haven't opted into the dispatcher
     pre-flight plugin install surface.
+
+    v9.5.0 PV-04 — bumped 9 → 10 with the addition of
+    ``post_skill_edit`` (D-S-4 closure: user Q2=B DEEP integration
+    signoff from ``.local/research/v9.5.0_gap_analysis.md`` §3.1).
+    The new slot is APPENDED at the END of the tuple to preserve
+    A-2.4 cache-prefix invariants — positions 1-9 stay byte-stable.
+    The default handler is a no-op when ``DEVOLAFLOW_SI_CHIP_DEEP``
+    is unset (R5 strict byte-identical), so adding the tenth event
+    preserves byte output for operators who haven't opted into the
+    Si-Chip DEEP integration surface.
     """
     from devolaflow.lifecycle import (
         ENVELOPE_WRITE_EVENT,
+        POST_SKILL_EDIT_EVENT,
         PRE_HANDOFF_EVENT,
         PRE_PLUGIN_INVOCATION_EVENT,
     )
@@ -186,6 +197,7 @@ def test_default_events_match_skill_md_table() -> None:
     assert ENVELOPE_WRITE_EVENT == "envelope_write"
     assert PRE_HANDOFF_EVENT == "pre_handoff"
     assert PRE_PLUGIN_INVOCATION_EVENT == "pre_plugin_invocation"
+    assert POST_SKILL_EDIT_EVENT == "post_skill_edit"
     assert set(DEFAULT_EVENTS) == {
         "pre_dispatch",
         "post_dispatch",
@@ -196,14 +208,15 @@ def test_default_events_match_skill_md_table() -> None:
         "envelope_write",
         "pre_handoff",
         "pre_plugin_invocation",
+        "post_skill_edit",
     }
-    assert len(DEFAULT_EVENTS) == 9
+    assert len(DEFAULT_EVENTS) == 10
 
-    # A-2.4 cache-prefix invariant: positions 1-8 byte-identical with the
-    # v9.1.3 DEFAULT_EVENTS tuple. The v9.4.0 PV-02 bump appended
-    # `pre_plugin_invocation` at position 9 only — any drift in positions
-    # 1-8 is a release blocker.
-    assert DEFAULT_EVENTS[:8] == (
+    # A-2.4 cache-prefix invariant: positions 1-9 byte-identical with the
+    # v9.4.0 DEFAULT_EVENTS tuple. The v9.5.0 PV-04 bump appended
+    # `post_skill_edit` at position 10 only — any drift in positions
+    # 1-9 is a release blocker.
+    assert DEFAULT_EVENTS[:9] == (
         "pre_dispatch",
         "post_dispatch",
         "file_write",
@@ -212,9 +225,10 @@ def test_default_events_match_skill_md_table() -> None:
         "pre_shell_call",
         "envelope_write",
         "pre_handoff",
+        "pre_plugin_invocation",
     )
-    assert DEFAULT_EVENTS[-1] == PRE_PLUGIN_INVOCATION_EVENT, (
-        "v9.4.0 PV-02: pre_plugin_invocation MUST be appended at the tail (A-2.4)"
+    assert DEFAULT_EVENTS[-1] == POST_SKILL_EDIT_EVENT, (
+        "v9.5.0 PV-04: post_skill_edit MUST be appended at the tail (A-2.4)"
     )
 
 
