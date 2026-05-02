@@ -1262,5 +1262,34 @@
       "deep_nines_analyzed": "5",
       "manual_review": "16"
     }
+  },
+  {
+    "version": "9.7.0",
+    "date": "2026-05-02",
+    "era": "self-improvement",
+    "headline": "MINOR — Performance Overhaul #2: cumulative cycle tuning. Cumulative select_context.p95 improvement vs v9.2.4 baseline reaches 97.5% (~80,000us → 2,027us); STRICT gate composite 9.10/10",
+    "summary": "FIFTH and FINAL MINOR of the v10.0.0 MAJOR rollup cycle. 6 PVs (PV-01 re-baseline + W-1 SI-1 gap analysis + W-2 NineS deep-analyze; PV-02 predecessor summary delta-compression with schema v6 APPEND at canonical position 17; PV-03 auto-wire AsyncDispatchExecutor for parallel L2 waves — closes the v9.3.0 PV-05 carry-forward; PV-04 opt-in DEVOLAFLOW_WARMUP=1 selector cache pre-warmup; PV-05 cumulative gain measurement; PV-06 cycle close). Addresses verbatim user requirement (Q1=perf-again confirmed scope): re-measure hot paths after Si-Chip benchmark gating (v9.5) and reference refresh (v9.6) land. Often biggest perf gains come after the SKILL corpus stabilizes.",
+    "highlights": [
+      "PV-02 predecessor summary delta-compression (schema v6 APPEND at position 17): NEW dedup_predecessor_summaries(payload, round_num, prior_rounds) helper in src/devolaflow/compressor/transforms.py uses 12-char sha256 hash to detect when a round-N>1 dispatch's pred[i].summary matches a prior round's same-position summary. Hits replaced by '@round-N-1:pred-K' references; new optional predecessor_dedup_ledger field carries the dedup state. canonical_order length 16 → 17 (A-2.2 append-only); schema version 5 → 6. The 8 historical multi-baseline byte-tests (v7.0.0 → v9.3.0) ALL CONTINUE TO PASS unchanged because the new field's absence is canonical. NEW 9th baseline at layout_invariant_v9.7.0.yaml. 8 NEW tests in test_predecessor_dedup.py.",
+      "PV-03 auto-wire AsyncDispatchExecutor for parallel L2 waves: NEW dispatch_wave_tasks(wave_definition, dispatch_factory, *, max_concurrency=None) in src/devolaflow/feedback.py auto-routes parallel-mode waves through asyncio.gather + bounded Semaphore (the v9.3.0 PV-05 library shipped without an actual caller — D-N-3 carry-forward closure). Mode resolution: keyword max_concurrency > sync_barrier.max_parallelism > DEFAULT_MAX_CONCURRENCY (4). P1 invariant preserved (factory pattern: factory builds callable, executor schedules — never executes work itself). S-5 exception isolation via TaskOutcome capture. Expected ~4× speedup on parallel waves with ≥ 2 tasks. NEW §13 in references/execution-protocol.md. 7 NEW tests in test_async_wave_dispatch_wired.py.",
+      "PV-04 opt-in selector cache pre-warmup (DEVOLAFLOW_WARMUP=1): NEW warmup_selector_cache() in src/devolaflow/task_adaptive_selector.py pre-populates the v9.3.0 PV-03 LRU caches for the top-5 task_types × 3 round_nums (15 cache entries) at session start. Default-OFF (strict no-op when env unset); only the literal '1' activates per R5 strict pattern. Saves ~80ms cold-cache miss on the first session dispatch. W-20 §3 orthogonality justified — surveyed 14 active flags before authoring. NEW §2.15 in references/env-flags.md with full orthogonality argument. 7 NEW tests in test_selector_warmup.py.",
+      "PV-05 cumulative gain measurement: NEW v9.7.0_latency.json (final cycle-close 100-iter capture) + v9.7.0_baseline.json (53-scenario per-PV regen). NEW test_v9_7_0_latency_baseline_exists_and_validates pins the 35% cumulative floor (S-5 explicit CI guard if a future PV regresses select_context.p95 above 52,000us). Cumulative numbers vs v9.2.4 baseline: select_context.p95 -97.5% (80,000us → 2,027us), full_dispatch.p95 -98.3% (250,000us → 4,255us), compress_message.p95 -54%, run_hooks.p95 -77%. STRICT gate cumulative-latency floor (≥ 35%) trivially met with ~62 percentage points headroom on the headline.",
+      "PV-06 cycle close: version bump 9.6.0 → 9.7.0 across canonical 7 sync locations (single bump_version.py invocation — 11 pattern replacements); CHANGELOG entry [9.7.0]; W-7/SI-8 retrospective (§1 gaps + §2 implemented + §3 deferred + §4 learnings — 4 mandatory sections); W-3/SI-3 evaluation (composite 9.10/10 vs STRICT-gate floor 9.0); W-18 ghost-audit lint refresh (test_v9_7_0_new_symbols_have_coverage pins 11 symbols + schema v6 + 4 baseline files + env-flags §2.15 + execution-protocol §13); ST-7 versions.json entry (this entry); make sync-human-docs (16 EN+ZH files regenerated).",
+      "Test cap discipline (W-17): cycle-cumulative +22 NEW test functions across PV-02 (8) + PV-03 (7) + PV-04 (7) + PV-05 (1) + PV-06 (1 W-18 lint). Within W-17 +30/PV cap throughout. Cycle running total post-v9.7.0: v9.3.0 +36 + v9.4.0 +60 + v9.5.0 +43 + v9.6.0 +24 + v9.7.0 +22 = +185 of 150 cap. The +35 overshoot is acknowledged in retrospective §3.3 — driven by v9.4.0 plugin lifecycle scaffold + v9.6.0 reference-pinning density. v10.0.0 MAJOR rollup forecast at ~0 NEW tests budget to balance the cycle ledger.",
+      "Cycle invariants pinned: Soul count 10 (W-21 frozen — no S-11 candidate; v9.9.0 cycle N+2 will assess the 'parallel wave dispatch invariant' candidate per retrospective §3.2); schemas/lean-dispatch.yaml#layout_invariant.version 5 → 6 + canonical_order 16 → 17 (A-2.2 append-only — 9 multi-baseline byte-tests pass); DEFAULT_EVENTS unchanged at 10; 1 NEW env flag (DEVOLAFLOW_WARMUP, W-20 §3 justified); SKILL.md UNCHANGED at content level (A-2 frozen prefix preserved; only version-banner triple-sync touched at PV-06).",
+      "SI-10 6-gate sequence green at every commit: pytest tests/ -q (3874 passed at PV-06); ruff check + ruff format --check (239 files clean); pytest tests/test_version.py -q (12 passed / 19 skipped — mirror tests opt-in); pytest tests/test_benchmarks.py -q (36 passed — composite unchanged); make check-cursor-skill (exit 0 — no-op when mirror absent)"
+    ],
+    "metrics": {
+      "tests": "3874",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59",
+      "select_context_p95_improvement_pct": "97.5",
+      "full_dispatch_p95_improvement_pct": "98.3",
+      "strict_gate_composite": "9.10",
+      "schema_version": "6",
+      "canonical_order_length": "17"
+    }
   }
 ]

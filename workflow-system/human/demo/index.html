@@ -234,6 +234,32 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.7.0 (MINOR — Performance Overhaul #2: cumulative cycle tuning; FINAL minor of v10.0.0 MAJOR rollup cycle) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v970">What's New</span> in v9.7.0 — MINOR, Performance Overhaul #2: cumulative cycle tuning. Cumulative <code>select_context.p95</code> improvement vs v9.2.4 baseline reaches <strong>97.5%</strong> (~80,000us → 2,027us); STRICT-gate composite <strong>9.10/10</strong> (FINAL minor of the v10.0.0 MAJOR rollup cycle)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v970.desc">v9.7.0 is the FIFTH and FINAL MINOR of the v10.0.0 MAJOR rollup cycle. Six PVs (PV-01 re-baseline + W-1 SI-1 gap analysis + W-2 NineS deep-analyze; PV-02 predecessor summary delta-compression with schema v6 APPEND at canonical position 17; PV-03 auto-wire AsyncDispatchExecutor for parallel L2 waves — closes the v9.3.0 PV-05 carry-forward; PV-04 opt-in <code>DEVOLAFLOW_WARMUP=1</code> selector cache pre-warmup; PV-05 cumulative gain measurement; PV-06 cycle close) addressing the verbatim user requirement (Q1=perf-again confirmed scope): <em>"perf first and perf again after all"</em> — re-measure hot paths after Si-Chip benchmark gating (v9.5) and reference refresh (v9.6) land. PV-01 confirmed v9.6.0 had ZERO regression vs v9.3.0 baseline AND incidental 20% improvement on <code>select_context.p95</code> due to cache-friendliness gains from intervening work. PV-02..PV-04 compose three micro-optimizations on top: hash-based pred summary dedup (library-only landing), auto-wired async wave dispatch (closes the v9.3.0 PV-05 library-only ship), and opt-in selector warmup. <strong>STRICT-gate composite <code>9.10/10</code></strong> — margin +0.10 over the 9.0 floor; cumulative-latency floor (≥ 35% improvement vs v9.2.4) trivially exceeded at 97.5% with ~62 percentage points of headroom.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">PV-02 SCHEMA V6 APPEND</span>
+          <h3>predecessor_dedup_ledger at canonical position 17</h3>
+          <p>NEW <code>devolaflow.compressor.dedup_predecessor_summaries(payload, round_num, prior_rounds)</code> uses 12-char sha256 hash to detect when a round-N>1 dispatch's <code>pred[i].summary</code> matches a prior round's same-position summary. Hits replaced by <code>"@round-N-1:pred-K"</code> references; new optional <code>predecessor_dedup_ledger</code> field carries the dedup state. <code>schemas/lean-dispatch.yaml#layout_invariant.canonical_order</code> length 16 → 17 (A-2.2 append-only); schema version 5 → 6. The 8 historical multi-baseline byte-tests (v7.0.0 → v9.3.0) ALL CONTINUE TO PASS unchanged because the new field's absence is canonical (round-1 dispatches OMIT it). NEW 9th baseline at <code>layout_invariant_v9.7.0.yaml</code>. Library-only landing — runtime wire-in deferred per retrospective §3.1.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/schemas/lean-dispatch.yaml"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-03 ASYNC WAVE WIRE</span>
+          <h3>dispatch_wave_tasks auto-routes parallel waves</h3>
+          <p>NEW <code>devolaflow.feedback.dispatch_wave_tasks(wave_definition, dispatch_factory, *, max_concurrency=None)</code> closes D-N-3 (v9.3.0 PV-05 AsyncDispatchExecutor library-only carry-forward) by exposing a public dispatch entry point at the L2-wave boundary that auto-routes parallel-mode waves through <code>asyncio.gather</code> + bounded <code>asyncio.Semaphore</code>. Mode resolution: keyword <code>max_concurrency</code> &gt; <code>sync_barrier.max_parallelism</code> &gt; <code>DEFAULT_MAX_CONCURRENCY</code> (4). P1 invariant preserved (factory pattern: factory builds callable, executor schedules — never executes work itself). S-5 exception isolation via <code>TaskOutcome</code> capture. Expected ~4× speedup on parallel waves with ≥ 2 tasks. NEW §13 in <code>references/execution-protocol.md</code>.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/feedback.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-04 OPT-IN WARMUP</span>
+          <h3>DEVOLAFLOW_WARMUP=1 pre-warms selector cache</h3>
+          <p>NEW <code>devolaflow.task_adaptive_selector.warmup_selector_cache()</code> pre-populates the v9.3.0 PV-03 LRU caches for the top-5 task_types × 3 round_nums (15 cache entries) at session start. Default-OFF (strict no-op when env unset); only the literal <code>"1"</code> activates per R5 strict pattern. Saves ~80ms cold-cache miss on the first session dispatch. W-20 §3 orthogonality test: surveyed 14 active flags before authoring; no existing flag activates the selector cache pre-population surface. NEW §2.15 in <code>references/env-flags.md</code> with full orthogonality argument + composition matrix vs sister flags.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/env-flags.md"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.6.0 (MINOR — Reference Library Refresh: ALL 21 tracked external references re-audited via NineS deep analysis (5) + manual review per W-2 (16); fourth of 5 minors in the v10.0.0 MAJOR rollup cycle) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v960">What's New</span> in v9.6.0 — MINOR, Reference Library Refresh: ALL 21 tracked external refs re-audited (5 deep NineS-analyzed + 16 W-2 manual-review fallback) — concrete deltas wired into 4 reference docs + <code>reference-dependencies.yaml</code> (fourth of 5 minors in the v10.0.0 MAJOR rollup cycle)</h2>
