@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-9.7.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-10.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -190,6 +190,52 @@ The agent will compare your installed version against the latest on GitHub and t
 | "update refs" / "check references" | `self-update` — track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
 
+## What's New in v10.0.0 (MAJOR cycle close)
+
+The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle (v9.3 → v9.7 → v10.0.0). Headline numbers:
+
+| Area | v9.2.4 baseline | v10.0.0 | Delta |
+|------|---:|---:|---:|
+| `select_context.p95` | ~80,000 us | ~2,027 us | **-97.5%** (40× speedup) |
+| `full_dispatch.p95` | ~250,000 us | ~4,255 us | **-98.3%** |
+| pytest wall-clock | ~55 s | ~17 s | **3.3× faster** |
+| Lifecycle events | 8 | **10** | +2 (`pre_plugin_invocation`, `post_skill_edit`) |
+| Dispatch schema | v5 (16 keys) | **v6 (17 keys)** | +1 canonical position (`predecessor_dedup_ledger` APPEND) |
+| Plugins registered | 3 | **4** | +Si-Chip (BasicAbility optimisation factory) |
+| Tracked references | 19 (stale comment) | **21 (all NineS-refreshed)** | +2 catch-up + freshness sweep |
+| Feedback regression audit | n/a | **57 files / 0 FAILs** | 100% addressed-or-deferred |
+
+### What landed (per MINOR)
+
+1. **v9.3.0 Performance Overhaul #1** — `load_profiles` / `load_skill_md` / `estimate_tokens` LRU cache absorbed 96.6% of dispatch wall-clock (the big one). Compressor split into a 3-module package. AsyncDispatchExecutor library-only landing.
+2. **v9.4.0 Plugin Auto-Install & Daily Upgrade** — `pre_plugin_invocation` lifecycle hook + dispatcher wiring (closes the `ensure_plugin()` dead-wire). Schema v3 with per-plugin `upgrade_cmd` + new `devolaflow plugins refresh` CLI.
+3. **v9.5.0 Si-Chip DEEP Integration** — `si_chip_bridge` typed Python module (~1070 LOC across 4 sub-modules). `post_skill_edit` always-on lifecycle hook gated `DEVOLAFLOW_SI_CHIP_DEEP=1`. Apply-or-defer gate with +0.10 IEEE-754 epsilon. Dogfood pass DEFERRED per user requirement (real-LLM eval data out of scope).
+4. **v9.6.0 Reference Library Refresh** — ALL 21 tracked external references re-audited via NineS deep analysis (5 deep + 16 W-2 manual review). 4 NEW reference-doc subsections wired into `team-roles.md` / `decomposition-gate.md` / `execution-protocol.md` / `meta-framework.md`.
+5. **v9.7.0 Performance Overhaul #2** — Predecessor summary delta-compression (12-char sha256 hash; schema v6 APPEND at canonical position 17). Async L2-wave dispatch auto-wire. Selector cache pre-warmup (`DEVOLAFLOW_WARMUP=1`).
+
+### What landed in the v10.0.0 MAJOR rollup itself
+
+- **PV-01** — Version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (pattern-replace by `scripts/bump_version.py`).
+- **PV-02** — NEW `scripts/audit_feedback_ac.py` (~370 LOC) + 31 NEW tests cross-checks 57 historical feedback files against the live repo state. Result: **0 FAILs, 100% addressed-or-deferred** (5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED). Closes the user's mandate to ensure no AC has regressed.
+- **PV-03** — Comprehensive human-docs refresh: 16 EN/ZH user guides regenerated; demo landing page top-of-page v10.0.0 What's New section; `version-timeline/versions.json` v10.0.0 entry; this README block.
+- **PV-04** — NineS self-eval + W-3 SI-3 evaluation (MAJOR-gate composite ≥9.0) + W-7 SI-8 retrospective + W-19 cycle-archive at `docs/cycle-archive/v10.0.0/`.
+- **PV-05** — `CHANGELOG.md` MAJOR entry + W-18 ghost-audit refresh + SI-10 6-gate green + final PR open.
+
+### New env flags (4, all R5-strict, all W-20 §3 orthogonality justified)
+
+- `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (v9.3.0) — opt-in skip L1+L2 for SIMPLE/TRIVIAL tasks (default-ON in v10.1+).
+- `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (v9.4.0) — opt-in plugin auto-install on dispatch.
+- `DEVOLAFLOW_SI_CHIP_DEEP=1` (v9.5.0) — DEEP Si-Chip dogfood always-on (`post_skill_edit` hook).
+- `DEVOLAFLOW_WARMUP=1` (v9.7.0) — pre-populate selector cache on session start.
+
+### Breaking changes
+
+**None.** Every change in the cycle is additive:
+- The `compressor` package re-exports all public symbols at the same import paths (`from devolaflow.compressor import ...` works byte-identically).
+- Schema v6 is append-only at canonical position 17 (A-2.2 invariant); all 9 historical multi-baseline byte tests pass byte-identically because the new field's absence is canonical.
+- Both new lifecycle events were appended at the tail (positions 9 + 10); positions 1-8 byte-stable since v9.1.3.
+- All new env flags are default-OFF; absent or any value other than literal `"1"` preserves prior behaviour.
+
 ## What's New in v7.4.3
 
 - **Stale Doc Refs Closed (v7.4.3, P-02)** — 12 minor stale numeric/version references in `README.md`, `CLAUDE.md`, `workflow-system/agent/workflow-skill.yaml` aligned with v7.4.2 reality (template count `17→20`, scenario count `20→39`, test count `434+→1343`, rule count `19 process→9 .mdc files`, version-bump location count `11/16→7 canonical sync locations`).
@@ -297,7 +343,7 @@ DevolaFlow uses unified versioning — a single version number (`src/devolaflow/
 ### Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v9.7.0"
+devola-version                   # prints "DevolaFlow v10.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

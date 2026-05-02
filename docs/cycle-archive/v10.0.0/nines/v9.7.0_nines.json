@@ -1,0 +1,451 @@
+{
+  "target": "src/devolaflow/agent_workspace",
+  "findings": [
+    {
+      "id": "SUM-20e449-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/__init__.py: 169 lines, 0 functions, 0 classes, 10 imports, avg complexity 0.0",
+      "location": "src/devolaflow/agent_workspace/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-20e449-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.archive, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.dispatch_executor, devolaflow.agent_workspace.handoff, devolaflow.agent_workspace.lint, devolaflow.agent_workspace.memory_bridge, devolaflow.agent_workspace.reporter, devolaflow.agent_workspace.spec_bootstrap",
+      "location": "src/devolaflow/agent_workspace/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-0cc86f-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_merge_delta_into_source' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/archive.py:693",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-0cc86f-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_apply_replacements' has cyclomatic complexity 11",
+      "location": "src/devolaflow/agent_workspace/archive.py:812",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-0cc86f-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/archive.py: 852 lines, 12 functions, 7 classes, 10 imports, avg complexity 6.0",
+      "location": "src/devolaflow/agent_workspace/archive.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0cc86f-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.reporter, devolaflow.learnings, json, logging, pathlib, typing",
+      "location": "src/devolaflow/agent_workspace/archive.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-10421e-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/change.py: 506 lines, 20 functions, 4 classes, 8 imports, avg complexity 3.1",
+      "location": "src/devolaflow/agent_workspace/change.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-10421e-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, pathlib, re, shutil, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/change.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-ab3cfd-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_slice_section_bodies' has cyclomatic complexity 16",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py:200",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-ab3cfd-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/delta_parser.py: 398 lines, 10 functions, 3 classes, 5 imports, avg complexity 5.7",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ab3cfd-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-55c5f2-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/dispatch_executor.py: 283 lines, 7 functions, 3 classes, 7 imports, avg complexity 2.4",
+      "location": "src/devolaflow/agent_workspace/dispatch_executor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-55c5f2-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, asyncio, collections.abc, dataclasses, inspect, logging, typing",
+      "location": "src/devolaflow/agent_workspace/dispatch_executor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-792eb5-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'HandoffEnvelope.validate' has cyclomatic complexity 15",
+      "location": "src/devolaflow/agent_workspace/handoff.py:145",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-792eb5-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/handoff.py: 422 lines, 15 functions, 4 classes, 7 imports, avg complexity 3.1",
+      "location": "src/devolaflow/agent_workspace/handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-792eb5-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-64dbc7-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'lint_change' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/lint.py:151",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-64dbc7-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/lint.py: 337 lines, 8 functions, 2 classes, 8 imports, avg complexity 4.1",
+      "location": "src/devolaflow/agent_workspace/lint.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-64dbc7-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, dataclasses, devolaflow.agent_workspace.change, logging, pathlib, sys, typing",
+      "location": "src/devolaflow/agent_workspace/lint.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c64c9f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/memory_bridge.py: 483 lines, 11 functions, 1 classes, 10 imports, avg complexity 4.5",
+      "location": "src/devolaflow/agent_workspace/memory_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c64c9f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.change, devolaflow.agent_workspace.lint, devolaflow.learnings, json, logging, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/memory_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-e64f4a-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_summarise_handoff_chain' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/reporter.py:670",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_select_top_learnings' has cyclomatic complexity 14",
+      "location": "src/devolaflow/agent_workspace/reporter.py:942",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0002",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_enumerate_compile_targets' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/reporter.py:1035",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0003",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'main' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/reporter.py:1102",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-e64f4a-0004",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/reporter.py: 1261 lines, 43 functions, 0 classes, 16 imports, avg complexity 4.5",
+      "location": "src/devolaflow/agent_workspace/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e64f4a-0005",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, collections.abc, contextlib, datetime, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.handoff, jinja2, json, logging, pathlib, re, sys, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-dee9ae-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'seed_initial_spec' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py:84",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-dee9ae-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/spec_bootstrap.py: 238 lines, 2 functions, 1 classes, 6 imports, avg complexity 7.5",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-dee9ae-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.archive, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, logging, pathlib",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-13c0e0-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/templates/__init__.py: 7 lines, 0 functions, 0 classes, 0 imports, avg complexity 0.0",
+      "location": "src/devolaflow/agent_workspace/templates/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-6d2cdd49-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-6d2cdd49-0001",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+      "location": "",
+      "suggestion": ""
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 11,
+    "total_lines": 4956,
+    "total_functions": 128,
+    "total_classes": 25,
+    "total_imports": 87,
+    "avg_complexity": 4.55,
+    "knowledge_units": 153,
+    "duration_ms": 75.36,
+    "packages": 2,
+    "python_modules": 11,
+    "file_type_counts": {
+      ".py": 11,
+      ".j2": 4
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 11,
+    "agent_impact": {
+      "target": "src/devolaflow/agent_workspace",
+      "mechanisms": [],
+      "economics": {
+        "overhead_tokens": 0,
+        "estimated_savings_ratio": 0.0,
+        "mechanism_count": 0,
+        "agent_facing_files": 0,
+        "total_agent_context_tokens": 0,
+        "break_even_interactions": 0,
+        "per_interaction_savings_tokens": 0,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.0,
+        "economics_score": 0.0,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [],
+      "findings": [
+        {
+          "id": "AI-6d2cdd49-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-6d2cdd49-0001",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+          "location": "",
+          "suggestion": ""
+        }
+      ],
+      "knowledge_units": []
+    },
+    "key_points": {
+      "target": "src/devolaflow/agent_workspace",
+      "key_points": [
+        {
+          "id": "kp-find-fa407668",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-6d2cdd49-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-summary-51e2b72e",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 11 Python files and 11 total files. 153 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 11,
+            "knowledge_units": 153
+          }
+        }
+      ],
+      "summary": "Extracted 2 key point(s). behavioral_shaping: 1. engineering: 1.",
+      "extraction_duration_ms": 0.21,
+      "metadata": {
+        "category_counts": {
+          "behavioral_shaping": 1,
+          "engineering": 1
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-02T11:37:50.548528+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  },
+  "audit_report": {
+    "checks_run": [
+      "finding_id_uniqueness",
+      "finding_id_namespace",
+      "economics_formula_version",
+      "economics_break_even_sanity",
+      "graph_verification_passed",
+      "report_metadata_presence"
+    ],
+    "findings": [
+      {
+        "check_name": "finding_id_namespace",
+        "category": "finding_id",
+        "severity": "warn",
+        "message": "unknown finding-ID format (31 ID(s); first few: ['SUM-20e449-0000', 'DEP-20e449-0001', 'CC-0cc86f-0000']); expected namespaced '^[A-Z]+-[0-9a-f]{8}-[0-9]+$'",
+        "affected_keys": [
+          "findings[*].id=SUM-20e449-0000",
+          "findings[*].id=DEP-20e449-0001",
+          "findings[*].id=CC-0cc86f-0000",
+          "findings[*].id=CC-0cc86f-0001",
+          "findings[*].id=SUM-0cc86f-0002",
+          "findings[*].id=DEP-0cc86f-0003",
+          "findings[*].id=SUM-10421e-0000",
+          "findings[*].id=DEP-10421e-0001",
+          "findings[*].id=CC-ab3cfd-0000",
+          "findings[*].id=SUM-ab3cfd-0001"
+        ],
+        "evidence": {
+          "unknown_ids": [
+            "SUM-20e449-0000",
+            "DEP-20e449-0001",
+            "CC-0cc86f-0000",
+            "CC-0cc86f-0001",
+            "SUM-0cc86f-0002",
+            "DEP-0cc86f-0003",
+            "SUM-10421e-0000",
+            "DEP-10421e-0001",
+            "CC-ab3cfd-0000",
+            "SUM-ab3cfd-0001",
+            "DEP-ab3cfd-0002",
+            "SUM-55c5f2-0000",
+            "DEP-55c5f2-0001",
+            "CC-792eb5-0000",
+            "SUM-792eb5-0001",
+            "DEP-792eb5-0002",
+            "CC-64dbc7-0000",
+            "SUM-64dbc7-0001",
+            "DEP-64dbc7-0002",
+            "SUM-c64c9f-0000",
+            "DEP-c64c9f-0001",
+            "CC-e64f4a-0000",
+            "CC-e64f4a-0001",
+            "CC-e64f4a-0002",
+            "CC-e64f4a-0003",
+            "SUM-e64f4a-0004",
+            "DEP-e64f4a-0005",
+            "CC-dee9ae-0000",
+            "SUM-dee9ae-0001",
+            "DEP-dee9ae-0002",
+            "SUM-13c0e0-0000"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "critical": 0,
+      "warn": 1,
+      "info": 0,
+      "by_category": {
+        "finding_id": 1
+      }
+    }
+  }
+}

@@ -138,13 +138,19 @@ def test_dispatch_sequential_isolates_per_task_exceptions() -> None:
 
 
 def test_dispatch_parallel_completes_in_max_not_sum() -> None:
-    """4-task wave with ~50ms tasks completes in ~50ms total (parallel),
-    not ~200ms (sequential).
+    """4-task wave with ~50ms tasks completes faster in parallel than sequential.
 
     The headline PV-05 win — proves the asyncio.gather + Semaphore
-    machinery actually overlaps the wait time. Uses small sleeps so
-    the test is fast on CI; the absolute numbers don't need to be
-    sub-millisecond, just clearly less than the sequential sum.
+    machinery actually overlaps the wait time.
+
+    Rather than pinning an absolute wall-clock ceiling (brittle on shared
+    CI workers where 50 ms sleeps can balloon to 80-100 ms under load),
+    this test measures BOTH sequential and parallel executions of the
+    same 4-task workload on the same executor and asserts that parallel
+    completes in substantially less wall-clock time than sequential.
+    The speedup factor comfortably discriminates a broken gather
+    (parallel ≈ sequential) from a working one (parallel ≪ sequential)
+    regardless of per-call overhead.
     """
     executor = AsyncDispatchExecutor(max_concurrency=4)
 
@@ -154,21 +160,31 @@ def test_dispatch_parallel_completes_in_max_not_sum() -> None:
 
     tasks = [(f"task-{i}", slow_task) for i in range(4)]
 
+    # Sequential baseline — sum of per-task latencies.
     t0 = time.perf_counter()
-    outcomes = executor.dispatch_parallel(tasks)
-    elapsed_s = time.perf_counter() - t0
+    seq_outcomes = executor.dispatch_sequential(tasks)
+    seq_elapsed = time.perf_counter() - t0
 
-    # All 4 must succeed.
-    assert all(o.succeeded for o in outcomes), [o.exception for o in outcomes]
-    assert [o.result for o in outcomes] == ["done"] * 4
+    # Parallel run — should overlap the sleeps.
+    t0 = time.perf_counter()
+    par_outcomes = executor.dispatch_parallel(tasks)
+    par_elapsed = time.perf_counter() - t0
 
-    # Sequential would take 4 * 50 = 200 ms; parallel should be much closer
-    # to 50 ms (the max). We assert < 150 ms to leave headroom for thread
-    # spawn + asyncio overhead (typically ~20-40 ms on slow CI workers).
-    assert elapsed_s < 0.15, (
-        f"4-task parallel wave took {elapsed_s * 1000:.1f} ms — expected < 150 ms "
-        "(close to max(50ms), not sum=200ms). Either the asyncio gather is "
-        "broken or the worker is critically slow."
+    # All 8 invocations must succeed.
+    assert all(o.succeeded for o in seq_outcomes), [o.exception for o in seq_outcomes]
+    assert all(o.succeeded for o in par_outcomes), [o.exception for o in par_outcomes]
+    assert [o.result for o in par_outcomes] == ["done"] * 4
+
+    # Speedup: parallel should be at least ~2× faster than sequential for a
+    # 4-task wave of uniform 50 ms sleeps. Using 1.8× gives headroom for
+    # slow CI workers where per-call thread-pool overhead eats some of the
+    # theoretical 4× gain, while still failing loudly if the gather is
+    # accidentally serial (ratio ≈ 1.0).
+    assert par_elapsed * 1.8 < seq_elapsed, (
+        f"parallel={par_elapsed * 1000:.1f} ms · sequential={seq_elapsed * 1000:.1f} ms "
+        f"— expected parallel to be ≥1.8× faster than sequential, got "
+        f"{seq_elapsed / par_elapsed:.2f}×. Either asyncio.gather is serial "
+        "or the executor is not actually overlapping the waits."
     )
 
 

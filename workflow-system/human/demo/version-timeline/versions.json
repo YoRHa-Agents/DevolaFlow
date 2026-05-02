@@ -1291,5 +1291,41 @@
       "schema_version": "6",
       "canonical_order_length": "17"
     }
+  },
+  {
+    "version": "10.0.0",
+    "date": "2026-05-02",
+    "era": "major-rollup",
+    "headline": "MAJOR — v10.0.0 5-MINOR rollup release: perf #1 + plugin auto-install + Si-Chip DEEP + reference refresh + perf #2 + full feedback regression audit (57 files, 0 FAILs) + comprehensive human-docs refresh",
+    "summary": "Cycle-close MAJOR release of the v10.0.0 rollup cycle (5 MINORs: v9.3 perf #1 + v9.4 plugin auto-install + v9.5 Si-Chip DEEP + v9.6 reference refresh + v9.7 perf #2). 5 PVs: PV-01 version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (CP-3); PV-02 NEW scripts/audit_feedback_ac.py + 31 NEW tests cross-checks 57 historical feedback files against the live repo state — verdict matrix PASS / SUPERSEDED / DEGRADED / DEFERRED / FAIL — result 0 FAILs, 100% addressed-or-deferred rate; PV-03 comprehensive human-docs refresh (this entry + 16 EN/ZH user guides regenerated + benchmark-results SAMPLE_DATA + demo landing page); PV-04 NineS self-eval + W-3 SI-3 evaluation (MAJOR-gate composite ≥9.0) + W-7 SI-8 retrospective + W-19 cycle-archive at docs/cycle-archive/v10.0.0/; PV-05 CHANGELOG MAJOR entry + W-18 ghost-audit refresh + SI-10 6-gate + final PR. Zero breaking changes — every change in the cycle is additive: compressor package re-exports all public symbols; schema v6 is append-only at canonical position 17; 4 NEW lifecycle hooks all appended at tail (DEFAULT_EVENTS 8 → 10); A-2 frozen prefix (positions 1-12) byte-stable across all 9 historical baselines.",
+    "highlights": [
+      "Performance — cumulative select_context.p95 improvement vs v9.2.4 baseline reaches 97.5% (~80,000us → 2,027us; 40× speedup); full_dispatch.p95 -98.3% (250,000us → 4,255us); compress_message.p95 -54%; run_hooks.p95 -77%. Pytest wall-clock dropped 55s → 17s as a side-effect of v9.3.0 PV-03 LRU cache. STRICT MAJOR-gate cumulative-latency floor (≥35% improvement) trivially exceeded with ~62 percentage points of headroom on the headline.",
+      "Plugin auto-install (v9.4.0) — pre_plugin_invocation lifecycle hook auto-installs registered plugins on dispatch when DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 (R5-strict opt-in); ensure_plugin reference hit-count grew from 2 → 5 files (PV-01 dead-wire ghost CLOSED). NEW devolaflow plugins {list,status,refresh} CLI for daily upgrade cadence (schema v3 with per-plugin upgrade_cmd + registry-wide upgrade_check_frequency_hours=24).",
+      "Si-Chip DEEP integration (v9.5.0) — 4th runtime plugin (curl_install_script backend reusing v8.3.1 RTK plumbing) + si_chip_bridge typed Python module (~1070 LOC across 4 sub-modules) + post_skill_edit always-on lifecycle hook gated DEVOLAFLOW_SI_CHIP_DEEP=1 + 2 templates wired (skill-optimization, self-update). PV-05 dogfood pass DEFERRED per user requirement (real-LLM eval data out of scope at v9.5.0 cut). Detailed deferred-changes feedback at .local/feedbacks/v9.5.0_sichip_deferred.md captures every per-file finding.",
+      "Reference library refresh (v9.6.0) — ALL 21 tracked external references re-audited via NineS deep analysis (5 deep-analyzed: superpowers, get-shit-done, caveman, understand-anything, openspec) + manual review per W-2 (16). 4 NEW reference-doc subsections wired into team-roles / decomposition-gate / execution-protocol / meta-framework. yaml header count corrected 19 → 21 (D-R-7 closure). primelocus-hydra graduated to frozen_reference (D-R-9 — repo deleted upstream).",
+      "Performance #2 (v9.7.0) — predecessor summary delta-compression (12-char sha256 hash dedup; schema v6 APPEND at canonical position 17 — A-2.2 invariant; 9 multi-baseline byte-tests pass). Async L2-wave dispatch auto-wire (closes the v9.3.0 PV-05 library-only carry-forward via dispatch_wave_tasks). NEW DEVOLAFLOW_WARMUP=1 selector cache pre-warmup (R5-strict; saves ~80ms cold-cache miss).",
+      "Feedback regression audit (PV-02 of MAJOR) — NEW scripts/audit_feedback_ac.py (~370 LOC) + 31 NEW tests scan 57 feedback files (38 user feedback + 22 EvoBench-automated + 1 NineS integration). Verdict matrix: 5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED + 0 FAIL — 100% addressed-or-deferred (PV-02 AC#5 floor 95% trivially exceeded). Closes the user's verbatim mandate '对自身的所有的feedback进行一个全量的分析，确保所有的验收点没有回退'.",
+      "Human-facing docs refresh (PV-03 of MAJOR) — 16 EN/ZH user guides regenerated from generate_human_docs.py with SOURCE_VERSION=10.0.0; demo/index.html top-of-page v10.0.0 What's New section with 3 highlight cards (Performance / Plugin Auto-Install / Feedback Audit); benchmark-results/index.html SAMPLE_DATA bumped to 10.0.0; this versions.json entry; README badge already at 10.0.0 (PV-01).",
+      "Cycle invariants pinned: Soul-set frozen at 10 entries (W-21 — no S-11 candidate proposed for v10.0.0; v10.2.0 cycle N+2 will assess any candidate that telegraphs in this MAJOR's retrospective §3); rule count unchanged at 59 / 60 (+1 headroom); schemas/lean-dispatch.yaml#layout_invariant.version 6 / canonical_order length 17 (set in v9.7.0 PV-02; byte-stable for v10.0.0 — A-2 frozen prefix preserved); DEFAULT_EVENTS length 10 (set in v9.5.0 PV-04); 4 NEW env flags total across the 5-MINOR cycle (DEVOLAFLOW_SIMPLE_SHORTCUT + DEVOLAFLOW_AUTO_INSTALL_PLUGINS + DEVOLAFLOW_SI_CHIP_DEEP + DEVOLAFLOW_WARMUP), each W-20 §3 orthogonality justified.",
+      "SI-10 6-gate sequence green at every PV: pytest tests/ -q (3905+ passed at PV-05); ruff check + ruff format --check (240+ files clean); pytest tests/test_version.py -q (16 passed / 19 skipped — mirror tests opt-in per SF-3); pytest tests/test_benchmarks.py + tests/test_layout_invariant_multi_baseline.py -q (composite scores stable; 9 historical baselines all byte-identical); make check-cursor-skill (exit 0 — no-op when mirror absent)."
+    ],
+    "metrics": {
+      "tests": "3905",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "21",
+      "rules_total": "59",
+      "rules_soul_count": "10",
+      "select_context_p95_improvement_pct_cumulative": "97.5",
+      "full_dispatch_p95_improvement_pct_cumulative": "98.3",
+      "feedbacks_audited": "57",
+      "feedbacks_failing": "0",
+      "addressed_or_deferred_rate_pct": "100.0",
+      "schema_version": "6",
+      "canonical_order_length": "17",
+      "lifecycle_events_count": "10",
+      "env_flags_added_in_cycle": "4",
+      "minor_releases_in_cycle": "5"
+    }
   }
 ]

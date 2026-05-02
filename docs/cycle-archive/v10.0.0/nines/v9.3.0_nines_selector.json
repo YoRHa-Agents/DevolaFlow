@@ -1,0 +1,196 @@
+{
+  "target": "src/devolaflow/task_adaptive_selector.py",
+  "findings": [
+    {
+      "id": "CC-448821-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_load_line_level_criteria' has cyclomatic complexity 16",
+      "location": "src/devolaflow/task_adaptive_selector.py:582",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-448821-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_filter_agents_md_by_profile' has cyclomatic complexity 14",
+      "location": "src/devolaflow/task_adaptive_selector.py:1348",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-448821-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/task_adaptive_selector.py: 1680 lines, 46 functions, 0 classes, 13 imports, avg complexity 4.2",
+      "location": "src/devolaflow/task_adaptive_selector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-448821-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, contextlib, devolaflow.learnings, devolaflow.section_registry, logging, os, pathlib, re, sys, tiktoken, typing, warnings, yaml",
+      "location": "src/devolaflow/task_adaptive_selector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-c745d7e4-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-c745d7e4-0001",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+      "location": "",
+      "suggestion": ""
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 1,
+    "total_lines": 1680,
+    "total_functions": 46,
+    "total_classes": 0,
+    "total_imports": 13,
+    "avg_complexity": 4.17,
+    "knowledge_units": 46,
+    "duration_ms": 18.83,
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 1,
+    "agent_impact": {
+      "target": "src/devolaflow/task_adaptive_selector.py",
+      "mechanisms": [],
+      "economics": {
+        "overhead_tokens": 0,
+        "estimated_savings_ratio": 0.0,
+        "mechanism_count": 0,
+        "agent_facing_files": 0,
+        "total_agent_context_tokens": 0,
+        "break_even_interactions": 0,
+        "per_interaction_savings_tokens": 0,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.0,
+        "economics_score": 0.0,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [],
+      "findings": [
+        {
+          "id": "AI-c745d7e4-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-c745d7e4-0001",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+          "location": "",
+          "suggestion": ""
+        }
+      ],
+      "knowledge_units": []
+    },
+    "key_points": {
+      "target": "src/devolaflow/task_adaptive_selector.py",
+      "key_points": [
+        {
+          "id": "kp-find-fc88b424",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-c745d7e4-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-summary-8c3ecbb6",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 1 Python files and 1 total files. 46 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 1,
+            "knowledge_units": 46
+          }
+        }
+      ],
+      "summary": "Extracted 2 key point(s). behavioral_shaping: 1. engineering: 1.",
+      "extraction_duration_ms": 0.09,
+      "metadata": {
+        "category_counts": {
+          "behavioral_shaping": 1,
+          "engineering": 1
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-02T06:18:18.939688+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  },
+  "audit_report": {
+    "checks_run": [
+      "finding_id_uniqueness",
+      "finding_id_namespace",
+      "economics_formula_version",
+      "economics_break_even_sanity",
+      "graph_verification_passed",
+      "report_metadata_presence"
+    ],
+    "findings": [
+      {
+        "check_name": "finding_id_namespace",
+        "category": "finding_id",
+        "severity": "warn",
+        "message": "unknown finding-ID format (4 ID(s); first few: ['CC-448821-0000', 'CC-448821-0001', 'SUM-448821-0002']); expected namespaced '^[A-Z]+-[0-9a-f]{8}-[0-9]+$'",
+        "affected_keys": [
+          "findings[*].id=CC-448821-0000",
+          "findings[*].id=CC-448821-0001",
+          "findings[*].id=SUM-448821-0002",
+          "findings[*].id=DEP-448821-0003"
+        ],
+        "evidence": {
+          "unknown_ids": [
+            "CC-448821-0000",
+            "CC-448821-0001",
+            "SUM-448821-0002",
+            "DEP-448821-0003"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "critical": 0,
+      "warn": 1,
+      "info": 0,
+      "by_category": {
+        "finding_id": 1
+      }
+    }
+  }
+}
