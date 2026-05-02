@@ -62,6 +62,29 @@ From §2.1.1–2.1.14:
 | **Team** | Research |
 | **Duration** | Medium (15–45 min) |
 
+#### 2.2.1 Multi-team codebase analysis pattern (v9.6.0 — understand-anything integration)
+
+For codebases spanning multiple subsystems (frontend ⊕ backend ⊕ infra),
+the `analyze` primitive supports **subdomain knowledge-graph merging**
+inspired by `understand-anything/skills/understand` Phase 0 step 4
+(https://github.com/Lum1104/Understand-Anything). The pattern:
+
+1. Per subsystem, dispatch a Research-team L3 task that produces a
+   `<subsystem>-knowledge-graph.json` artifact under
+   `.local/.agent/active/<change-id>/`.
+2. After all per-subsystem analyses complete, the L1/L2 dispatcher
+   delegates a **merge** L3 task that combines the per-subsystem graphs
+   into a single `knowledge-graph.json` with deduplicated nodes and
+   edges (the upstream tool ships a 70-line `merge-subdomain-graphs.py`
+   reference implementation).
+3. Downstream Design / Implement stages consume the merged graph as a
+   single artifact path (per P5 Artifacts as Contracts).
+
+This pattern preserves DevolaFlow's L2 Wave parallelism (each subsystem
+analyzes in parallel) while giving downstream stages a single
+authoritative artifact path. Use when `len(targets) >= 3` AND the
+targets are themselves logical subsystems with stable boundaries.
+
 ### 2.3 design (Shape)
 
 | Property | Value |

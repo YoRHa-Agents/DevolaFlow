@@ -1,15 +1,21 @@
 ---
 # Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
 # Source: S01-T06 Unified Research Synthesis (2026-04-11)
-# Split: 10 active_tracking + 9 periodic_monitoring = 19 total
+# Split: 11 active_tracking + 10 periodic_monitoring = 21 total
+# (Header originally said "10 + 9 = 19"; corrected at v9.6.0 PV-04 — actual
+# count gained openspec + understand-anything in active_tracking and
+# agent-skills-threat-taxonomy + spring-ai-agent-skills in periodic_monitoring
+# across the v8.x+ cycles. See gap_analysis §3.2 D-R-7.)
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
+# v9.6.0 PV-04: bulk-refreshed last_checked → 2026-05-02 across all 21 entries
+# (D-R-5); primelocus-hydra graduated to frozen_reference (D-R-9).
 
 active_tracking:
 
   - id: anthropic-advisor-tool
     repo_url: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/advisor-tool
     source_type: api_docs
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "beta (advisor-tool-2026-03-01)"
     relevance_score: 5
     key_patterns:
@@ -32,8 +38,8 @@ active_tracking:
   - id: superpowers
     repo_url: https://github.com/obra/superpowers
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "latest (2026-04)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (2026-04, +4 skills since 2026-04-11)"
     relevance_score: 5
     key_patterns:
       - "Iron Laws: absolute non-negotiable constraints in skill content"
@@ -43,6 +49,8 @@ active_tracking:
       - "typed status protocol: DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED"
       - "CSO skill descriptions: WHEN to use, never WHAT it does"
       - "model-tiered dispatch: cheap/standard/capable by task complexity"
+      - "v9.6.0-tracked: 14 skills (+4 since 2026-04-11): subagent-driven-development, verification-before-completion, dispatching-parallel-agents, using-git-worktrees, executing-plans, writing-plans, finishing-a-development-branch, requesting-code-review, receiving-code-review, using-superpowers, brainstorming, systematic-debugging, test-driven-development, writing-skills"
+      - "CLAUDE.md '94% PR rejection rate' agent-pressure preamble: 5-step pre-PR checklist + 'your human partner' framing"
     update_triggers:
       - new SKILL.md files in skills/ directory
       - changes to rationalization tables or iron laws
@@ -51,13 +59,15 @@ active_tracking:
       - SKILL.md (rationalization tables, enforcement ladder levels 3-5, CSO description format)
       - schemas/lean-report.yaml (typed status enum)
       - SF-2 rule (description format constraint)
+      - workflow-system/agent/references/team-roles.md §6 (two-stage review pattern, v9.6.0)
+      - workflow-system/agent/references/execution-protocol.md §1b.1 (pre-handoff verification, v9.6.0)
     gap_ids: [H1, H4, H6, M2, M7]
 
   - id: get-shit-done
     repo_url: https://github.com/gsd-build/get-shit-done
     source_type: github_repo
-    last_checked: "2026-04-13"
-    last_known_version: "v1.35.0"
+    last_checked: "2026-05-02"
+    last_known_version: "v1.35.0 (2026-04)"
     relevance_score: 4
     key_patterns:
       - "4-type gate taxonomy: pre-flight/revision/escalation/abort"
@@ -65,6 +75,8 @@ active_tracking:
       - "multi-layer prompt injection defense (hook + library + CI scanner)"
       - "agent completion contracts with structured markers"
       - "context window awareness for adaptive enrichment"
+      - "v9.6.0-tracked: revision-gate stall detection — escalates early when issue count does not decrease across consecutive iterations (issue-count signal complements DevolaFlow's score-based stagnation in W-8/SI-9)"
+      - "v9.6.0-tracked: 19 reference docs (agent-contracts, ai-evals, ai-frameworks, artifact-types, checkpoints, common-bug-patterns, context-budget, continuation-format, decimal-phase-calculation, domain-probes, executor-examples, few-shot-examples, gate-prompts, git-integration, git-planning-commit, ios-scaffold, model-profile-resolution, model-profiles, phase-argument-parsing) + 14 specialist subagents in agents/ + 9 hooks (gsd-check-update, gsd-context-monitor, gsd-phase-boundary, gsd-prompt-guard, gsd-read-guard, gsd-session-state, gsd-statusline, gsd-validate-commit, gsd-workflow-guard)"
     update_triggers:
       - changes to references/gates.md
       - new hooks in hooks/ directory
@@ -74,12 +86,13 @@ active_tracking:
       - gate/scorer.py (gate type taxonomy)
       - lifecycle hooks (prompt injection defense)
       - context_profiles.yaml (model profiles)
+      - workflow-system/agent/references/decomposition-gate.md §6.0 (stagnation detection v9.6.0 — score + issue-count signals)
     gap_ids: [M1, M2, M8]
 
   - id: gstack
     repo_url: https://github.com/garrytan/gstack
     source_type: github_repo
-    last_checked: "2026-04-13"
+    last_checked: "2026-05-02"
     last_known_version: "v0.16.3.0"
     relevance_score: 4
     key_patterns:
@@ -103,15 +116,16 @@ active_tracking:
   - id: caveman
     repo_url: https://github.com/JuliusBrussee/caveman
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "latest (2026-04)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (2026-04, intensity-6 since 2026-04-11)"
     relevance_score: 4
     key_patterns:
       - "deterministic compression-by-rule: explicit drop/preserve lists"
       - "validate-then-fix loop: compress→validate→cherry-pick fix (max 2 retries)"
-      - "intensity levels: lite/full/ultra for configurable compression"
+      - "intensity levels: lite/full/ultra/wenyan-lite/wenyan-full/wenyan-ultra (3 modern + 3 classical Chinese tiers, 80-90% character reduction at wenyan-full)"
       - "file type detection before compression (natural_language/code/config)"
       - "auto-clarity escape hatch for security/irreversible actions"
+      - "v9.6.0-tracked: 4 sub-skills (caveman, caveman-commit, caveman-review, compress) replicated across 10 SKILL.md mirrors (root/, .cursor/skills/, plugins/caveman/skills/)"
     update_triggers:
       - changes to caveman/SKILL.md or caveman-compress/SKILL.md
       - new compression benchmarks in benchmarks/run.py
@@ -120,13 +134,14 @@ active_tracking:
       - schemas/lean-dispatch.yaml (drop/preserve lists)
       - schemas/lean-report.yaml (compression rules for StatusReport.delta)
       - lifecycle hooks (validate-then-fix for inter-agent messages)
+      - workflow-system/agent/references/compression-pipeline.md (bypass conditions mirror caveman's auto-clarity)
     gap_ids: [H2]
 
   - id: edict
     repo_url: https://github.com/cft0808/edict
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "Phase 2"
+    last_checked: "2026-05-02"
+    last_known_version: "Phase 2 (no clone available for v9.6.0 PV-03 — manual review per W-2)"
     relevance_score: 3
     key_patterns:
       - "mandatory pre-execution review (Menxia/门下省): approve/reject binary"
@@ -143,12 +158,13 @@ active_tracking:
       - convergence loop (progressive recovery stages)
       - team permissions enforcement
     gap_ids: [M3, L2, L5]
+    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, so deep NineS analysis was deferred per W-2 fallback. The 4-stage progressive recovery pattern is structurally analogous to DevolaFlow's W-8/SI-9 reinforcement (Task→Wave→Stage→Project→Human escalation chain); the institutional-review gate type from edict's Menxia is a candidate for a dedicated `pre_dispatch` lifecycle hook variant in a future PV (defer-to v9.8.0+)."
 
   - id: karpathy-llm-wiki
     repo_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
     source_type: gist
-    last_checked: "2026-04-11"
-    last_known_version: "latest (gist)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (gist; v9.6.0 PV-03 confirmed no upstream revision in 2026-04-11 → 2026-05-02 window)"
     relevance_score: 3
     key_patterns:
       - "persistent wiki with ingest/query/lint operations"
@@ -165,11 +181,12 @@ active_tracking:
       - knowledge/index.md (central catalog)
       - Review agent (query-back-to-wiki for recurring findings)
     gap_ids: [H5]
+    note: "v9.6.0 PV-03: source_type=gist (manual review per W-2). The wiki-layer integration point is partially realized by DevolaFlow's existing workflow-system/agent/knowledge/ tree (the reference-dependencies.yaml itself is the index.md analogue at v9.6.0)."
 
   - id: anthropic-coordination-blog
     repo_url: https://www.claude.com/blog/multi-agent-coordination-patterns
     source_type: blog
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "latest (2026-04)"
     relevance_score: 5
     key_patterns:
@@ -192,7 +209,7 @@ active_tracking:
   - id: andrej-karpathy-skills
     repo_url: https://github.com/forrestchang/andrej-karpathy-skills
     source_type: github_repo
-    last_checked: "2026-04-13"
+    last_checked: "2026-05-02"
     last_known_version: "latest (2026-04)"
     relevance_score: 4
     key_patterns:
@@ -215,7 +232,7 @@ active_tracking:
   - id: understand-anything
     repo_url: "https://github.com/Lum1104/Understand-Anything"
     source_type: github_repo
-    last_checked: "2026-04-14"
+    last_checked: "2026-05-02"
     last_known_version: "1.0.0"
     relevance_score: 4
     key_patterns:
@@ -223,6 +240,8 @@ active_tracking:
       - "knowledge graph generation"
       - "skill-based plugin architecture"
       - "domain/structural view decomposition"
+      - "v9.6.0-tracked: subdomain knowledge-graph merging via merge-subdomain-graphs.py — combines per-subsystem graphs (frontend-knowledge-graph.json + backend-knowledge-graph.json → merged knowledge-graph.json with deduplicated nodes/edges)"
+      - "v9.6.0-tracked: 8 sub-skills (understand, understand-chat, understand-dashboard, understand-diff, understand-domain, understand-explain, understand-knowledge, understand-onboard); --auto-update flag writes config.json for commit-triggered graph refresh"
     update_triggers:
       - "new analysis capabilities added"
       - "plugin architecture changes"
@@ -230,12 +249,13 @@ active_tracking:
       - "research stage: codebase analysis methodology"
       - "NineS analyze: complementary deep analysis"
       - "skill format: plugin/skill architecture patterns"
-    note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings). Relevant for research and analysis workflow patterns."
+      - "workflow-system/agent/references/meta-framework.md §2.2.1 (multi-team codebase analysis pattern, v9.6.0)"
+    note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings) and re-analyzed via NineS v3.3.0 in v9.6.0 PV-01 (23 findings: 4 error / 13 info / 6 warning — error/warning are upstream complexity issues, not blockers for DevolaFlow integration)."
 
   - id: openspec
     repo_url: https://github.com/Fission-AI/OpenSpec
     source_type: github_repo
-    last_checked: "2026-04-23"
+    last_checked: "2026-05-02"
     last_known_version: "latest (2026-04)"
     relevance_score: 5
     key_patterns:
@@ -245,6 +265,7 @@ active_tracking:
       - "archive ledger preserving completed changes verbatim with date prefix"
       - "RFC 2119 keyword discipline (MUST/MUST NOT/SHOULD/MAY) per requirement"
       - "scenario blocks (GIVEN/WHEN/THEN) attached to ADDED requirements"
+      - "v9.6.0-tracked: 11 in-repo specs at openspec/openspec/specs/<domain>/spec.md (schema-which-command, opsx-onboard-skill, change-creation, global-config, cli-config, rules-injection, openspec-conventions, artifact-graph, cli-list, context-injection, config-loading); AGENTS.md is canonical agent-facing entry"
     update_triggers:
       - propose
       - archive
@@ -265,13 +286,16 @@ active_tracking:
       (/openspec/propose, /openspec/apply, /openspec/archive) deferred to
       DevolaFlow v8.4.0+ per Q-3 in design.md §11.2; the lifecycle stages
       are wired through the change-driven workflow template instead.
+      v9.6.0 PV-01 deep re-analysis (NineS v3.3.0): confirmed 11 in-repo
+      specs catalog; DevolaFlow's parallel surface is
+      `.local/memory/specs/<domain>/spec.md` (A-4 source-of-truth).
 
 periodic_monitoring:
 
   - id: google-scion
     repo_url: https://github.com/GoogleCloudPlatform/scion
     source_type: github_repo
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "experimental (2026-03)"
     relevance_score: 4
     key_patterns:
@@ -290,7 +314,7 @@ periodic_monitoring:
   - id: skillrouter
     repo_url: https://github.com/zhengyanzhao1997/SkillRouter
     source_type: github_repo
-    last_checked: "2026-04-18"
+    last_checked: "2026-05-02"
     last_known_version: "v4 (arXiv:2603.22455v4, 2026-04-01)"
     relevance_score: 4
     key_patterns:
@@ -309,7 +333,7 @@ periodic_monitoring:
   - id: vexp
     repo_url: https://vexp.dev/
     source_type: blog
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "commercial (2026)"
     relevance_score: 5
     key_patterns:
@@ -329,7 +353,7 @@ periodic_monitoring:
   - id: self-improving-system
     repo_url: https://gist.github.com/Triangulum9r/5666b008b402c17cc5695b9e42bbba9b
     source_type: gist
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "latest (gist)"
     relevance_score: 4
     key_patterns:
@@ -349,7 +373,7 @@ periodic_monitoring:
   - id: agent-skills-security
     repo_url: https://arxiv.org/abs/2602.12430
     source_type: paper
-    last_checked: "2026-04-18"
+    last_checked: "2026-05-02"
     last_known_version: "arXiv:2602.12430v3 (2026-02-17)"
     companion_repo: "https://github.com/scienceaix/agentskills"
     relevance_score: 4
@@ -371,7 +395,7 @@ periodic_monitoring:
   - id: agent-skills-threat-taxonomy
     repo_url: https://arxiv.org/abs/2604.02837
     source_type: paper
-    last_checked: "2026-04-18"
+    last_checked: "2026-05-02"
     last_known_version: "arXiv:2604.02837v1 (2026-04-03)"
     relevance_score: 4
     key_patterns:
@@ -391,11 +415,13 @@ periodic_monitoring:
   - id: primelocus-hydra
     repo_url: https://github.com/mikecubed/Hydra
     source_type: github_repo
-    last_checked: "2026-04-13"
-    last_known_version: "v0.1.0 (2026-03)"
+    last_checked: "2026-05-02"
+    last_known_version: "v0.1.0 (2026-03; fork at v1.2.0 — no upstream movement since 2026-04-13)"
     status: deleted_upstream
     forked_from_deleted: PrimeLocus/Hydra
     fork_version: "v1.2.0 (mikecubed/Hydra package.json)"
+    tracking_status: "frozen_reference"
+    graduated_to_frozen_at: "v9.6.0 PV-04 (2026-05-02)"
     relevance_score: 3
     key_patterns:
       - "strength-based model routing: Claude=architecture, Gemini=critique, Codex=impl"
@@ -409,12 +435,12 @@ periodic_monitoring:
       - TaskDispatch schema (model_hint field)
       - Wave dispatch logic (model-strength routing)
     gap_ids: [M2, M9]
-    note: "v7.2.0 H-02: original PrimeLocus/Hydra repo deleted upstream between 2026-04-13 and 2026-04-18 (REST API + HTML both 404). Tracking via mikecubed/Hydra fork at package.json v1.2.0. Downgraded relevance_score 4→3."
+    note: "v7.2.0 H-02: original PrimeLocus/Hydra repo deleted upstream between 2026-04-13 and 2026-04-18 (REST API + HTML both 404). Tracking via mikecubed/Hydra fork at package.json v1.2.0. Downgraded relevance_score 4→3. v9.6.0 PV-03 freshness check: fork unchanged since 2026-04-13. v9.6.0 PV-04 will graduate this entry to `frozen_reference` per tracking_policy.staleness_indicators (D-R-9)."
 
   - id: ruflo
     repo_url: https://github.com/ruvnet/ruflo
     source_type: github_repo
-    last_checked: "2026-04-11"
+    last_checked: "2026-05-02"
     last_known_version: "proposal (issue #1273)"
     relevance_score: 4
     key_patterns:
@@ -434,8 +460,8 @@ periodic_monitoring:
   - id: christophera-bootstrap-seed
     repo_url: https://gist.github.com/ChristopherA/fd2985551e765a86f4fbb24080263a2f
     source_type: gist
-    last_checked: "2026-04-11"
-    last_known_version: "latest (gist, 27 stars)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (gist, 27 stars; v9.6.0 PV-03 confirmed no upstream revision since 2026-04-11)"
     relevance_score: 3
     key_patterns:
       - "emergent config via reflect→triage→cascade loop"
@@ -448,11 +474,12 @@ periodic_monitoring:
       - post-workflow stage (reflect→triage→cascade)
       - per-project customization layer
     gap_ids: [H7, L6]
+    note: "v9.6.0 PV-03 freshness refresh — source_type=gist (manual review per W-2). The reflect→triage→cascade loop pattern is partially realized by DevolaFlow's W-7/SI-8 retrospective + W-8/SI-9 reinforcement chain (the cascade phase corresponds to round-N+1 dispatch with reinforcement findings)."
 
   - id: spring-ai-agent-skills
     repo_url: https://github.com/spring-ai-community/spring-ai-agent-utils
     source_type: github_repo
-    last_checked: "2026-04-18"
+    last_checked: "2026-05-02"
     last_known_version: "v0.7.0 (2026-04-06): MemoryTools + mkdocs site; preceded by v0.6.0 (2026-03-30) and v0.5.0 (2026-02-24): subagent SPI extraction"
     releases_total: 9
     relevance_score: 3
@@ -467,6 +494,7 @@ periodic_monitoring:
       - SKILL.md (progressive section loading)
       - adapter pipeline (vendor-agnostic validation)
     gap_ids: [L7]
+    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, deferred to manual review per W-2. v0.7.0 last release was 2026-04-06; expected next minor 2026-05+ when MemoryTools API matures. The progressive disclosure pattern is structurally aligned with DevolaFlow's tier-1/tier-2/tier-3 reference loading via task_adaptive_selector.py."
 
 tracking_policy:
   active_tracking:

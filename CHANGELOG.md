@@ -5,6 +5,84 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.6.0] — 2026-05-02
+
+**MINOR — Reference Library Refresh: ALL 21 tracked external references re-audited.** Fourth MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Five PVs (PV-01 NineS-driven harness + W-1 SI-1 gap analysis + per-ref deep analysis; PV-02 high-relevance integration into 4 reference docs; PV-03 medium-relevance freshness sweep; PV-04 bulk yaml refresh + primelocus-hydra graduated to `frozen_reference` + yaml header count corrected `19 → 21`; PV-05 cycle close). Addresses verbatim user requirement (Q3=A confirmed scope): *"需要去更新所有的参考库，去升级对于参考库变更的集成和整合。这一部分要使用Nines的能力进行分解，制定若干个小的patch版本，然后验证有效性后进入升级，汇总成一个minor"* — *"Refresh ALL the external reference libraries; upgrade the integration of every changed reference. Decompose via NineS, ship as several small patch PVs, verify each, then roll up to a single MINOR."*
+
+### Operator-visible behaviour change (READ FIRST)
+
+**No new env flags. No schema bumps. No new lifecycle hooks. SKILL.md UNTOUCHED.** v9.6.0 is a strictly content-only MINOR — every change is either (a) yaml metadata (21 entries refreshed in `workflow-system/agent/knowledge/reference-dependencies.yaml`), (b) reference-doc content additions in `workflow-system/agent/references/` (4 NEW subsections totaling ~110 lines), or (c) a NEW operator-side harness script at `scripts/nines_refresh_references.py` that operators can invoke via CLI to re-run the audit (`python scripts/nines_refresh_references.py --depth deep`).
+
+**No breaking changes.** A-2 frozen prefix is preserved (zero `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` touches; all 6 historical baselines pass byte-identical at every PV commit). DEFAULT_EVENTS unchanged at length 10 (no new lifecycle event). The 4 modified reference docs all stay within their C-4 large-tier ≤1000 line budget (max post-edit: `execution-protocol.md` = 757 lines, `meta-framework.md` = 596, `decomposition-gate.md` = 590, `team-roles.md` = 576).
+
+**Reference inventory authoritative count corrected.** `reference-dependencies.yaml` header comment was stale ("10 active_tracking + 9 periodic_monitoring = 19 total") — actual count is **11 active + 10 periodic = 21 total** (the comment failed to track entries added in v8.x cycles: `openspec` and `understand-anything` in active, `agent-skills-threat-taxonomy` and `spring-ai-agent-skills` in periodic). Fixed at PV-04 per D-R-7 closure.
+
+### What landed (PV-by-PV)
+
+| PV | Tag | SHA | Deliverable |
+|---|---|---|---|
+| PV-01 | `feat(v9.6.0)` | `c16e882` | NEW `scripts/nines_refresh_references.py` (~400 LOC) — iterates 21 yaml entries, invokes `nines analyze --depth deep --agent-impact --keypoints` against the 5 github_repo refs with local clones. NEW `tests/test_nines_refresh_script.py` (7 tests) pinning the harness public surface (16 symbols) + W-2 fallback contract (skipped_no_clone / skipped_no_nines / skipped_non_repo) + the `understand-anything → Understand-Anything` clone-name override. NEW `.local/research/v9.6.0_gap_analysis.md` (W-1 SI-1) enumerates 9 deficiencies (D-R-1..D-R-9). NEW `.local/research/v9.6.0_reference_deltas.md` (W-2 master synthesis) + 5 per-ref NineS JSON files. |
+| PV-02 | `feat(v9.6.0)` | `9574a9e` | EDIT `references/decomposition-gate.md` (+24 lines) — NEW §6.0 "Stagnation detection (v9.6.0)" wiring gsd's issue-count stall-detection refinement (https://github.com/gsd-build/get-shit-done) as a complement to DevolaFlow's existing W-8/SI-9 score-based stagnation. EDIT `references/team-roles.md` (+35 lines) — NEW §6 "Two-stage review pattern (v9.6.0 — superpowers integration)" formalizes the spec-compliance → code-quality protocol from `superpowers/skills/subagent-driven-development` (https://github.com/obra/superpowers) as the canonical L2 Wave dispatch contract for Review-team work; extends the typed status-protocol enumeration (DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED). EDIT `references/execution-protocol.md` (+27 lines) — NEW §1b.1 "Pre-handoff verification gate (v9.6.0 — superpowers integration)" formalizes the end-of-task verification discipline from `superpowers/skills/verification-before-completion` cross-linked to DevolaFlow's existing `pre_handoff` lifecycle hook (v9.1.3 PV-03 baseline). EDIT `references/meta-framework.md` (+24 lines) — NEW §2.2.1 "Multi-team codebase analysis pattern (v9.6.0 — understand-anything integration)" wires the subdomain knowledge-graph merging primitive from `understand-anything/skills/understand` Phase 0 step 4 (https://github.com/Lum1104/Understand-Anything) as an `analyze` primitive sub-pattern. EDIT `reference-dependencies.yaml` — 5 entries refreshed (superpowers, get-shit-done, caveman, understand-anything, openspec) with v9.6.0-tracked key_patterns + integration-point anchors. NEW `tests/test_v9_6_0_reference_integrations.py` (11 tests). |
+| PV-03 | `feat(v9.6.0)` | `cb131c9` | EDIT `reference-dependencies.yaml` — 5 score=3 entries refreshed (edict, karpathy-llm-wiki, primelocus-hydra, christophera-bootstrap-seed, spring-ai-agent-skills) with bulk last_checked → 2026-05-02 + manual-review notes per W-2 fallback documenting structural alignment with existing DevolaFlow patterns (W-8/SI-9 reinforcement chain ↔ edict's 4-stage progressive recovery; W-7/SI-8 retrospective ↔ christophera-bootstrap-seed's reflect→triage→cascade; tier-1/2/3 reference loading ↔ spring-ai-agent-skills' progressive disclosure). primelocus-hydra telegraphs PV-04 graduation via `tracking_status: frozen_reference_pending_v9_6_0_pv04_graduation`. +3 NEW tests pin score=3 freshness contract. |
+| PV-04 | `feat(v9.6.0)` | `5abb479` | EDIT `reference-dependencies.yaml` — ALL 21 entries at `last_checked: 2026-05-02` (the 10 not yet touched by PV-02/03 refreshed); primelocus-hydra `tracking_status` flipped from `_pending_` telegraph to actual `frozen_reference` (D-R-9 closure) + NEW `graduated_to_frozen_at: "v9.6.0 PV-04 (2026-05-02)"` audit field; yaml header comment corrected `10 + 9 = 19 → 11 + 10 = 21` with multi-line note documenting which refs were added across v8.x+ cycles (D-R-7 closure). +2 NEW tests pin the bulk freshness contract + the header correction. |
+| PV-05 | `chore(v9.6.0)` | (this commit) | Cycle close — version bump 9.5.0 → 9.6.0 across canonical 7 sync locations + this CHANGELOG + retrospective + evaluation + W-18 ghost-audit refresh + ST-7 versions.json + human docs regen. |
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** — `.local/research/v9.6.0_gap_analysis.md` (gitignored; 9 deficiencies enumerated with priority ranking + file-level scope; authored before PV-02 implementation began).
+- **W-2 SI-2 NineS-driven analysis** — 5 deep analyses completed in 1.6s total: superpowers (6 findings), get-shit-done (3), caveman (24), understand-anything (23), openspec (3). Per-ref JSON in `.local/research/v9.6.0_reference_deltas/`. 16 of 21 refs (76%) covered by W-2 manual-review fallback (clone-unavailable or non-repo source types) — explicit fallback markers emitted by the harness in the synthesis "Manual-review refs" section.
+- **W-3 SI-3 evaluation** — `.local/research/v9.6.0_evaluation.md` documents the 6-dimension weighted composite **8.85 / 10** (margin +0.35 over STANDARD-gate floor 8.5).
+- **W-4 SI-4 benchmark guard** — composite scores unchanged across all 53 EvoBench scenarios (within ±2%); the v9.3.0 wholesale `v9.3.0_baseline.json` remains the cycle anchor (W-16 — wholesale regen happens once per `.0` MINOR cycle-start, not per-PV).
+- **W-7 SI-8 retrospective** — `.local/research/v9.6.0_retrospective.md` (4 mandatory sections: gaps / implemented / deferred / learnings; cumulative cycle running totals through v9.6.0).
+- **W-17 test cap** — cycle-cumulative +24 NEW test functions across PV-01 (7) + PV-02 (11) + PV-03 (3) + PV-04 (2) + PV-05 (1 W-18 lint). Within per-PV ≤30 cap throughout. Cycle running total post-v9.6.0: v9.3.0 +36 + v9.4.0 +60 adjusted + v9.5.0 +43 + v9.6.0 +24 = **+163 of 150 cap**. The +13 overshoot is acknowledged in the retrospective §4.4 — driven by integration-pinning density (16 contract tests in `test_v9_6_0_reference_integrations.py` pinning every PV-02 ref-doc anchor) — and the v9.7.0/v9.8.0/v10.0.0-close reservoir is forecast at ~0 NEW tests budget to balance the cycle ledger.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v9_6_0_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per the W-18 precondition. Pins (a) yaml inventory shape (11 + 10 = 21); (b) bulk last_checked freshness; (c) primelocus-hydra graduation contract; (d) the 4 reference-doc anchor headings; (e) harness public surface (8 symbols).
+- **W-20 env flag policy** — 0 NEW flags (the cycle is content-only, no runtime activation surface added).
+- **W-21 Soul-set freeze** — Soul count remains at **10** (no S-11 candidate proposed for v9.6.0).
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.5.0 → 9.6.0 |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| EDIT | `workflow-system/agent/SKILL.md` | version triple sync (frontmatter + banner + body "Current version:" text) — A-2 frozen prefix preserved |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.6.0 entry |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen (16 files — EN + ZH bilingual completeness per ST-3) |
+| EDIT | `README.md` | badge + version example sync |
+| EDIT | `CHANGELOG.md` | this entry |
+| EDIT | `tests/test_no_ghost_features.py` | +1 W-18 ghost-audit lint (`test_v9_6_0_new_symbols_have_coverage`) — yaml shape + bulk freshness + primelocus-hydra graduation + reference-doc anchors + harness symbols |
+| NEW | `scripts/nines_refresh_references.py` (PV-01) | NineS-driven reference refresh harness (operator CLI) |
+| NEW | `tests/test_nines_refresh_script.py` (PV-01) | 7 tests pinning harness contract |
+| NEW | `tests/test_v9_6_0_reference_integrations.py` (PV-02..PV-04) | 16 tests pinning every reference-doc anchor + yaml entry contract + bulk freshness |
+| EDIT | `workflow-system/agent/knowledge/reference-dependencies.yaml` | 21 entries refreshed (`last_checked: 2026-05-02`); 5 entries gain v9.6.0-tracked key_patterns; primelocus-hydra graduated to `frozen_reference`; header comment corrected 19 → 21 |
+| EDIT | `workflow-system/agent/references/decomposition-gate.md` | NEW §6.0 stagnation detection |
+| EDIT | `workflow-system/agent/references/team-roles.md` | NEW §6 two-stage review pattern |
+| EDIT | `workflow-system/agent/references/execution-protocol.md` | NEW §1b.1 pre-handoff verification gate |
+| EDIT | `workflow-system/agent/references/meta-framework.md` | NEW §2.2.1 multi-team codebase analysis pattern |
+| NEW | `.local/research/v9.6.0_gap_analysis.md` (gitignored) | W-1 / SI-1 planning gate |
+| NEW | `.local/research/v9.6.0_reference_deltas.md` (gitignored) | W-2 master synthesis (harness output + manually-appended §6 concrete deltas) |
+| NEW | `.local/research/v9.6.0_reference_deltas/{superpowers,get-shit-done,caveman,understand-anything,openspec}.json` (gitignored) | 5 raw NineS deep analyses |
+| NEW | `.local/research/v9.6.0_retrospective.md` (gitignored) | W-7 / SI-8 cycle-close retrospective |
+| NEW | `.local/research/v9.6.0_evaluation.md` (gitignored) | W-3 / SI-3 evaluation report |
+| NEW | `.local/research/v9.6.0_nines.{json,md}` (gitignored) | W-2 / SI-2 PV-05 manual-fallback self-eval |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Reason for reference |
+|---|---|---|
+| superpowers | https://github.com/obra/superpowers | Source of two-stage review pattern (team-roles §6) + pre-handoff verification (execution-protocol §1b.1) + 4 NEW skills tracked in yaml |
+| get-shit-done | https://github.com/gsd-build/get-shit-done | Source of stall-detection refinement (decomposition-gate §6.0) + 19 reference docs catalog tracked in yaml |
+| caveman | https://github.com/JuliusBrussee/caveman | Source of intensity-6 (3 modern + 3 wenyan) classical Chinese tier expansion tracked in yaml |
+| understand-anything | https://github.com/Lum1104/Understand-Anything | Source of subdomain knowledge-graph merging (meta-framework §2.2.1) tracked in yaml |
+| openspec | https://github.com/Fission-AI/OpenSpec | 11 in-repo specs catalog confirmed; structurally aligned with DevolaFlow's `.local/memory/specs/` (A-4) |
+| NineS | https://github.com/YoRHa-Agents/NineS | DevolaFlow's deep-analysis evaluator; PV-01 harness wraps `nines analyze --depth deep --agent-impact --keypoints` per W-2 SI-2 |
+
+NO local clone paths hardcoded in any agent-facing file. The harness reads `$DEVOLAFLOW_REFERENCE_ROOT` (default `~/reference/`) at runtime per S-7. Local clones are operator-side inputs.
+
 ## [9.5.0] — 2026-05-02
 
 **MINOR — Si-Chip DEEP integration.** Third MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Four implementation PVs (PV-01..PV-04) wiring the Si-Chip persistent BasicAbility optimisation factory (canonical: https://github.com/YoRHa-Agents/Si-Chip) as the 4th DevolaFlow runtime plugin + a typed Python bridge module + 2 builtin template wirings + a new lifecycle hook. PV-05 dogfood DEFERRED per the verbatim user requirement: *"ensure those things are genuinely effective with clear verification benchmarks and tested gains BEFORE applying them. If not, summarise into a feedback document."* (signed-off as user Q2=B DEEP integration at L0 dispatch).

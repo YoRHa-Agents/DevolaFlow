@@ -151,6 +151,33 @@ Micro-Plan:
 - If `explicit_assumptions` field is present in dispatch, validate assumptions before step 1.
 - Hotfix tasks: the first step MUST be reproducing the bug.
 
+### 1b.1 Pre-handoff verification gate (v9.6.0 — superpowers integration)
+
+The Step → Verify pattern formalizes verification at the **start** of
+the L3 Task. The complementary discipline at the **end** of the L3 Task
+is the pre-handoff verification gate, sourced from
+`superpowers/skills/verification-before-completion`
+(https://github.com/obra/superpowers) and operationally enforced in
+DevolaFlow by the `pre_handoff` lifecycle hook (v9.1.3 PV-03 baseline,
+event slot 8 of `lifecycle/__init__.py::DEFAULT_EVENTS`).
+
+The L3 Task Agent MUST run an end-of-task verification before emitting
+a `DONE` StatusReport:
+
+1. **Re-read** the acceptance criteria from the original TaskDispatch
+   (no paraphrasing per C-3).
+2. **Enumerate** the concrete observable evidence that each criterion is
+   met (test output, file diff, command output, schema check).
+3. **Refuse to declare DONE** if any criterion lacks an observable
+   evidence line — emit `NEEDS_CONTEXT` (per the typed status protocol
+   in `references/team-roles.md` §6 "Two-stage review pattern") OR
+   `BLOCKED` if the missing evidence cannot be produced without L1
+   intervention.
+
+The `pre_handoff` lifecycle hook validates the StatusReport's
+`acceptance_evidence` block at handoff time; missing evidence rows are
+rejected with PHF001 (in STRICT mode) or warned (in lite mode).
+
 ## 2. Checkpoint/Resume Mechanism
 From §4:
 

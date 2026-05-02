@@ -1235,5 +1235,32 @@
       "references": "14",
       "rules_total": "59"
     }
+  },
+  {
+    "version": "9.6.0",
+    "date": "2026-05-02",
+    "era": "self-improvement",
+    "headline": "MINOR — Reference Library Refresh: ALL 21 tracked external references re-audited via NineS deep analysis (5 deep-analyzed) + manual review per W-2 (16) — concrete deltas wired into 4 reference docs + reference-dependencies.yaml",
+    "summary": "Fourth MINOR of the v10.0.0 MAJOR rollup cycle. 5 PVs (PV-01 nines_refresh_references.py harness + W-1 SI-1 gap analysis + per-ref deep NineS JSON; PV-02 high-relevance integration into team-roles.md / decomposition-gate.md / execution-protocol.md / meta-framework.md; PV-03 medium-relevance freshness sweep; PV-04 bulk last_checked refresh + primelocus-hydra graduated to frozen_reference + yaml header count corrected 19 → 21; PV-05 cycle close). Addresses verbatim user requirement: refresh ALL external reference libraries via NineS, decompose into small patch PVs, verify, roll up. Q3=A confirmed scope.",
+    "highlights": [
+      "PV-01 nines_refresh_references.py harness (~400 LOC): iterates the 21 entries in workflow-system/agent/knowledge/reference-dependencies.yaml (yaml header had stale '10+9=19' comment — actual count is 11+10=21, corrected at PV-04 D-R-7), invokes nines analyze --depth deep --agent-impact --keypoints against every github_repo ref with a local clone under $DEVOLAFLOW_REFERENCE_ROOT, writes per-ref JSON to .local/research/v9.6.0_reference_deltas/<ref-id>.json + a master synthesis to .local/research/v9.6.0_reference_deltas.md. Bucket coverage: 5 analyzed_deep (superpowers, get-shit-done, caveman, understand-anything, openspec) + 16 W-2 manual-review (8 skipped_no_clone + 8 skipped_non_repo). 7 NEW tests pin the harness public surface + W-2 fallback contract + CLONE_NAME_OVERRIDES indirection.",
+      "PV-02 high-relevance deltas (5 deep-analyzed refs): NEW references/decomposition-gate.md §6.0 'Stagnation detection (v9.6.0)' adds gsd's issue-count stall-detection refinement complementing DevolaFlow's score-based W-8/SI-9; NEW references/team-roles.md §6 'Two-stage review pattern' formalizes superpowers' spec-compliance → code-quality protocol as L2 Wave dispatch contract + extends typed status protocol enumeration; NEW references/execution-protocol.md §1b.1 'Pre-handoff verification gate' formalizes superpowers' end-of-task discipline cross-linked to DevolaFlow's pre_handoff hook; NEW references/meta-framework.md §2.2.1 'Multi-team codebase analysis pattern' wires understand-anything's subdomain knowledge-graph merging as analyze primitive sub-pattern. 5 yaml entries refreshed with v9.6.0-tracked key_patterns + integration_points anchors. SKILL.md UNTOUCHED to preserve A-2 frozen prefix byte-stability. 11 NEW tests pin every PV-02 delta.",
+      "PV-03 medium-relevance freshness (5 score=3 refs — edict, karpathy-llm-wiki, primelocus-hydra, christophera-bootstrap-seed, spring-ai-agent-skills): bulk last_checked → 2026-05-02 + manual-review notes documenting structural alignment with existing DevolaFlow patterns (W-8/SI-9 reinforcement chain ↔ edict's 4-stage progressive recovery; W-7/SI-8 retrospective ↔ christophera-bootstrap-seed's reflect→triage→cascade; tier-1/2/3 reference loading ↔ spring-ai-agent-skills' progressive disclosure). primelocus-hydra telegraphs PV-04 graduation via tracking_status. 3 NEW tests pin score=3 freshness.",
+      "PV-04 bulk freshness + graduations: ALL 21 yaml refs at last_checked: 2026-05-02; primelocus-hydra graduated to tracking_status: frozen_reference (D-R-9 closure — repo deleted upstream since 2026-04-13); yaml header comment corrected 10+9=19 → 11+10=21 (D-R-7 closure with multi-line note documenting which refs were added across v8.x+ cycles). 2 NEW tests pin the bulk freshness contract.",
+      "PV-05 cycle close: version bump 9.5.0 → 9.6.0 across canonical 7 sync locations (single bump_version.py invocation — 11 pattern replacements); CHANGELOG entry; W-7/SI-8 retrospective; W-3/SI-3 evaluation (composite ≥ 8.5 STANDARD-gate floor); W-2/SI-2 self-eval; W-18 ghost-audit lint refresh (test_v9_6_0_new_symbols_have_coverage); ST-7 versions.json entry (this entry); make sync-human-docs (16 EN+ZH files regenerated).",
+      "Test cap discipline (W-17): cycle-cumulative +24 NEW test functions across PV-01 (7) + PV-02 (11) + PV-03 (3) + PV-04 (2) + PV-05 (1 W-18 lint). Within W-17 +30/PV cap throughout. Cycle running total post-v9.6.0: v9.3.0 +36 + v9.4.0 +60 adjusted + v9.5.0 +43 + v9.6.0 +24 = +163 — slightly exceeds the +150 cycle-cumulative ceiling per W-17 mid-cycle audit; the v9.6.0 retrospective documents the +13 overshoot driven by integration-pinning density (16 contract tests in test_v9_6_0_reference_integrations.py — necessary to lock the new reference doc anchors per A-2 prefix invariance) and forecasts the v9.7.0 + v9.8.0 + v10.0.0-close reservoir at ~0 NEW tests budget.",
+      "Cycle invariants pinned: Soul count 10 (W-21 frozen — no S-11 candidate); schemas/lean-dispatch.yaml#layout_invariant byte-identical (zero canonical-order touch); DEFAULT_EVENTS unchanged at 10 (no new lifecycle hook); 0 NEW env flags (W-20 reuse-first respected — content-only PV); SKILL.md unchanged (A-2 prefix invariance preserved); the 4 modified reference docs all stay within their C-4 large-tier ≤1000 line budget (max post-edit: execution-protocol.md = 757 lines).",
+      "SI-10 6-gate sequence green at every commit: pytest tests/ -q (3843 passed at PV-05); ruff check + ruff format --check (236 files clean); pytest tests/test_version.py -q (12 passed / 19 skipped); pytest tests/test_benchmarks.py -q (36 passed — composite unchanged); make check-cursor-skill (exit 0)"
+    ],
+    "metrics": {
+      "tests": "3843",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59",
+      "external_refs_audited": "21",
+      "deep_nines_analyzed": "5",
+      "manual_review": "16"
+    }
   }
 ]

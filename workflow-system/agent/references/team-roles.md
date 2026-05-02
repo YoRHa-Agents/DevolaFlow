@@ -424,6 +424,41 @@ Every Review agent MUST evaluate against these scope-creep and over-engineering 
 
 A finding of severity `major` is raised for each violation. This prevents scope creep at the source.
 
+### Two-stage review pattern (v9.6.0 — superpowers integration)
+
+The canonical L2 Wave dispatch pattern for Review-team work follows the
+two-stage protocol formalized by `superpowers/skills/subagent-driven-development`
+(https://github.com/obra/superpowers): **spec compliance** first, then
+**code quality**.
+
+| Stage | Verifier role | Acceptance | On FAIL |
+|---|---|---|---|
+| 1. Spec compliance | "Does the code do what the spec said it should?" — verify outputs against `acceptance_criteria` from TaskDispatch. | All criteria met. | Implementer fixes spec gaps; spec reviewer re-checks. |
+| 2. Code quality | "Is the code well-engineered?" — apply Quality Criteria + Simplicity Check above. | `quality_score ≥ threshold`, 0 blockers, simplicity-check passes. | Implementer fixes quality issues; quality reviewer re-checks. |
+
+**Why two stages instead of one:** spec compliance and code quality are
+independent failure modes. A reviewer evaluating both at once tends to
+collapse the two — typically prioritizing code quality (visible in the
+diff) over spec compliance (requires reading the spec). The two-stage
+split forces the reviewer to discharge each concern explicitly. Per the
+superpowers `subagent-driven-development` skill: *"Fresh subagent per
+task + two-stage review (spec then quality) = high quality, fast
+iteration"*.
+
+DevolaFlow's L2 Wave Agent dispatches the two reviewers as sequential
+sub-tasks inside a `generator_verifier` wave coordination mode (per
+SKILL.md §"Wave Coordination Modes"). The Implement Agent receives both
+verdicts before the Wave terminates.
+
+**Typed status protocol** (from superpowers, lifted into
+`schemas/lean-report.yaml::StatusReport.verdict`):
+
+* `DONE` — both stages PASS
+* `DONE_WITH_CONCERNS` — both PASS but the quality reviewer flagged
+  non-blocking findings the Implementer chose to ship (with rationale)
+* `NEEDS_CONTEXT` — reviewer cannot decide without more info from L1/L2
+* `BLOCKED` — Implementer cannot fix without L1 escalation
+
 ### Tools/Skills
 
 `Read`, `Grep`, `SemanticSearch`, `ReadLints`, `Write`, code-rules protocol
