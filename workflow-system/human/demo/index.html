@@ -234,6 +234,32 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.5.0 (MINOR — Si-Chip DEEP integration: persistent BasicAbility optimisation factory wired as 4th runtime plugin + typed Python bridge + post-skill-edit dogfood lifecycle hook; third of 5 minors in the v10.0.0 MAJOR rollup cycle) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v950">What's New</span> in v9.5.0 — MINOR, Si-Chip DEEP integration: <code>si_chip_bridge</code> module + <code>post_skill_edit</code> lifecycle hook + DEVOLAFLOW_SI_CHIP_DEEP env flag + 2 templates wired (third of 5 minors in the v10.0.0 MAJOR rollup cycle)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v950.desc">v9.5.0 is the third MINOR of the v10.0.0 MAJOR rollup cycle, signed-off as user Q2=B DEEP integration. Four implementation PVs (PV-01 plugin registration + PV-02 si_chip_bridge module + PV-03 template wiring + PV-04 post_skill_edit hook + DEEP env flag) integrate the <a href="https://github.com/YoRHa-Agents/Si-Chip">Si-Chip persistent BasicAbility optimisation factory</a> as DevolaFlow's 4th runtime plugin. PV-05 dogfood pass DEFERRED per the verbatim user requirement: <em>"ensure those things are genuinely effective with clear verification benchmarks and tested gains BEFORE applying them. If not, summarise into a feedback document."</em> Si-Chip's count_tokens probe surfaces budget tension with DevolaFlow's tiered C-4 LINE budgets but the full iteration_delta evaluation requires real-LLM eval data (out of scope at v9.5.0 cut). NO automatic SKILL changes applied. The deferred-changes feedback doc enumerates every per-file finding for v9.6.0+ operator-driven evaluation.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">PV-01 PLUGIN REGISTRATION</span>
+          <h3>Si-Chip as 4th runtime plugin (curl_install_script backend)</h3>
+          <p>NEW 4th entry in <code>workflow-system/agent/knowledge/runtime-plugins.yaml</code>: <code>id=si-chip</code>, <code>backend=curl_install_script</code> (reuses v8.3.1 RTK plumbing), <code>install_cmd</code> via canonical <code>https://yorha-agents.github.io/Si-Chip/install.sh</code>. <code>invoked_by_workflows=[skill-optimization, self-update, nines-assisted]</code>. Schema_version 3 unchanged. Legacy <code>plugins.yaml</code> mirrors with NEW <code>skill_self_improvement</code> plugin role for backward-compat with pre-v8.2.1 callers. 12 NEW tests in <code>tests/test_plugin_sichip_registration.py</code> + cascade fixes for the 4-plugin world.</p>
+          <a href="https://github.com/YoRHa-Agents/Si-Chip"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-02 BRIDGE MODULE</span>
+          <h3>si_chip_bridge package — typed Python wrappers for Si-Chip CLI scripts</h3>
+          <p>NEW <code>src/devolaflow/si_chip_bridge/</code> package (~1070 LOC across 4 modules: <code>__init__</code> public API + <code>install_resolver</code> 6-candidate search-order including v0.4.0 nested-bug fallback + <code>models</code> 5 frozen dataclasses + StrEnum + <code>runner</code> subprocess wrappers with S-5 loud failures). Public API: <code>profile</code>, <code>evaluate</code>, <code>count_tokens</code>, <code>aggregate_delta</code>, <code>apply_or_defer</code>, <code>run_dogfood_cycle</code>. <code>SiChipUnavailable</code> as distinct exception (gracefully-degraded missing install). IEEE-754 epsilon (1e-9) on apply/defer threshold gate handles boundary cases. 14 NEW tests in <code>tests/test_si_chip_bridge.py</code>.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/si_chip_bridge/__init__.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-04 LIFECYCLE HOOK</span>
+          <h3>post_skill_edit + DEVOLAFLOW_SI_CHIP_DEEP env flag (Q2=B DEEP signoff)</h3>
+          <p>NEW <code>src/devolaflow/lifecycle/post_skill_edit.py</code> (~390 LOC) — DEEP integration always-on hook; R5 strict zero-IO when env flag OFF; lazy-imports <code>si_chip_bridge</code> ONLY when active + skill-corpus prefix matcher. NEW env flag <code>DEVOLAFLOW_SI_CHIP_DEEP=1</code> (R5 strict literal-only). <code>DEFAULT_EVENTS</code> bumped 9 → 10 with <code>post_skill_edit</code> APPENDED at position 10 (A-2.2 invariant — positions 1-9 byte-stable since v9.4.0). DEFER verdict writes deferred-changes feedback doc per v9.5.0 user requirement. <code>references/env-flags.md</code> §2.14 entry with full W-20 §3 orthogonality argument. 7 NEW tests (24 cases via parametrize) + cascade fixes for DEFAULT_EVENTS bump.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/lifecycle/post_skill_edit.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.4.0 (MINOR — Plugin Auto-Install & Daily Upgrade: ensure_plugin() dead-wire ghost CLOSED; second MINOR of the v10.0.0 MAJOR cycle) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v940">What's New</span> in v9.4.0 — MINOR, Plugin Auto-Install &amp; Daily Upgrade: <code>pre_plugin_invocation</code> lifecycle hook + dispatcher wiring + schema v3 + <code>devolaflow plugins refresh</code> CLI (second of 5 minors in the v10.0.0 MAJOR rollup cycle)</h2>
