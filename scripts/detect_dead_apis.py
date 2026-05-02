@@ -597,6 +597,28 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `workflow-system/agent/references/agent-workspace.md` companion
         # docs once the v9.3.0 doctor surface lands).
         "devolaflow.local.workspace:last_gitignore_audit",
+        # ---- v9.5.0 PV-02 — Si-Chip bridge subprocess wrappers ----
+        # `count_tokens(skill_md, ...)` runs `count_tokens.py --file <skill_md>
+        # --both` and returns `(metadata_tokens, body_tokens)`. The cheap
+        # pre-check before the heavier `evaluate()` (which involves
+        # baseline + with-ability runs). Production caller lands in v9.5.0
+        # PV-04 — the new `lifecycle/post_skill_edit.py` hook calls
+        # `count_tokens()` to verify the touched skill file fits the
+        # 100/5000 budget BEFORE invoking the more expensive `run_dogfood_cycle`.
+        # `run_dogfood_cycle(ability_name, skill_md, ...)` is the top-level
+        # orchestrator: profile → evaluate (twice) → delta → verdict.
+        # Production caller lands in v9.5.0 PV-04 (the same lifecycle hook)
+        # AND in PV-05 (the self-application dogfood pass). Mirrors the
+        # v8.2.1 plugin-installer entry-point allowlist precedent above
+        # (public surface used declaratively by the lifecycle hook chain
+        # before its first in-repo Python production caller PV ships).
+        # Verified by `tests/test_si_chip_bridge.py` (14 NEW test functions
+        # covering public API surface + install resolver + apply/defer
+        # threshold + subprocess error modes + dogfood orchestration) and
+        # by `tests/test_no_ghost_features.py::test_v9_5_0_new_symbols_have_coverage`
+        # (W-18 ghost-audit refresh shipping in PV-06 cycle close).
+        "devolaflow.si_chip_bridge.runner:count_tokens",
+        "devolaflow.si_chip_bridge.runner:run_dogfood_cycle",
     }
 )
 
