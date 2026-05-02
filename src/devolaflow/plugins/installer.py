@@ -191,6 +191,72 @@ def load_registry(path: Path | str | None = None) -> dict[str, Any]:
     return raw
 
 
+def plugins_for_workflow(
+    workflow_name: str,
+    *,
+    registry_path: Path | str | None = None,
+    registry: dict[str, Any] | None = None,
+) -> list[str]:
+    """Return the list of plugin IDs whose ``invoked_by_workflows`` cites ``workflow_name``.
+
+    Parameters
+    ----------
+    workflow_name:
+        The workflow / template name as it would appear in the dispatch
+        payload (e.g. ``"skill-optimization"``, ``"product-verification"``).
+    registry_path:
+        Optional override for the registry YAML path. Defaults to
+        ``workflow-system/agent/knowledge/runtime-plugins.yaml``.
+    registry:
+        Optional pre-loaded registry dict (cheap path for callers that
+        already loaded it — avoids the YAML re-parse). When omitted,
+        the function calls :func:`load_registry`.
+
+    Returns
+    -------
+    list[str]
+        Plugin IDs declared via ``plugins[*].invoked_by_workflows``
+        containing ``workflow_name``. Insertion order from the registry
+        is preserved (deterministic across runs because YAML order is
+        preserved by ``yaml.safe_load``).
+
+        Returns an empty list when ``workflow_name`` is empty / not a
+        string OR when no plugin declares the workflow. The empty list
+        is the byte-stable signal for "free-floating workflow stage —
+        no auto-install needed" used by the v9.4.0 PV-03 dispatcher
+        wiring.
+
+    Notes
+    -----
+    Used by :mod:`devolaflow.lifecycle.pre_plugin_invocation` to resolve
+    plugin candidates from the dispatch payload's workflow name. Also
+    callable directly by operator tooling (``devolaflow plugins`` CLI
+    in v9.4.0 PV-04).
+
+    Raises ``FileNotFoundError`` only if the registry path is missing —
+    propagates the loud-failure invariant from :func:`load_registry`
+    per S-5. The helper does NOT swallow registry errors.
+    """
+    if not workflow_name or not isinstance(workflow_name, str):
+        return []
+
+    if registry is None:
+        registry = load_registry(registry_path)
+
+    matches: list[str] = []
+    for entry in registry.get("plugins", []):
+        if not isinstance(entry, dict):
+            continue
+        invoked = entry.get("invoked_by_workflows") or []
+        if not isinstance(invoked, list):
+            continue
+        if workflow_name in invoked:
+            plugin_id = entry.get("id")
+            if isinstance(plugin_id, str) and plugin_id:
+                matches.append(plugin_id)
+    return matches
+
+
 def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpec:
     """Look up ``plugin_id`` in a parsed registry and return its spec.
 

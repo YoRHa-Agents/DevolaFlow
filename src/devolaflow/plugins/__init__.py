@@ -24,6 +24,7 @@ from devolaflow.plugins.installer import (
     RuntimePluginSpec,
     ensure_plugin,
     load_registry,
+    plugins_for_workflow,
     resolve_plugin,
 )
 from devolaflow.plugins.loader import create_default_registry, load_plugin_specs
@@ -44,5 +45,6 @@ __all__ = [
     "ensure_plugin",
     "load_plugin_specs",
     "load_registry",
+    "plugins_for_workflow",
     "resolve_plugin",
 ]

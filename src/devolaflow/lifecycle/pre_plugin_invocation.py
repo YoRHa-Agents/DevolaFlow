@@ -105,12 +105,21 @@ def is_auto_install_active() -> bool:
 def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookViolation]]:
     """Extract plugin IDs from ``payload``; return ``(ids, violations)``.
 
-    Lookup order (first non-empty wins):
+    Lookup order (results are merged + de-duplicated; insertion order
+    preserved):
 
     1. ``payload["plugin_ids"]`` — list[str] of plugin IDs (the
        multi-plugin batch path).
     2. ``payload["plugin_id"]`` — single str plugin ID (convenience
        single-plugin path).
+    3. ``payload["workflow"]`` — workflow / template name (str). The
+       workflow → plugin mapping is resolved via
+       :func:`devolaflow.plugins.installer.plugins_for_workflow` which
+       reads ``runtime-plugins.yaml#plugins[*].invoked_by_workflows``.
+       This is the canonical v9.4.0 PV-03 path used by
+       :mod:`devolaflow.feedback._emit_dispatch` — the dispatcher
+       passes the workflow name from the dispatch payload and the
+       hook handles the registry lookup.
 
     Returns
     -------
@@ -118,6 +127,15 @@ def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookVi
         ``(ids, [])`` on a well-formed payload OR
         ``([], [violation])`` when the payload schema is malformed
         (PPI002 warning surface).
+
+    Notes
+    -----
+    The workflow → plugin resolution path is best-effort: if the
+    registry can't be read (FileNotFoundError, parse error, etc.) the
+    helper logs a WARNING and returns the IDs accumulated from
+    sources #1 and #2. The dispatcher remains uninterrupted (per S-5
+    + the PPI permissive-default contract). A later call to
+    :func:`ensure_plugin` would surface the registry error loudly.
     """
     ids: list[str] = []
     violations: list[HookViolation] = []
@@ -169,6 +187,33 @@ def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookVi
             )
         elif raw_single not in ids:
             ids.append(raw_single)
+
+    workflow = payload.get("workflow")
+    if isinstance(workflow, str) and workflow:
+        try:
+            from devolaflow.plugins.installer import plugins_for_workflow
+
+            resolved = plugins_for_workflow(workflow)
+        except FileNotFoundError as exc:
+            logger.warning(
+                "pre_plugin_invocation: registry not available for workflow "
+                "%r resolution (%s); skipping workflow-based plugin lookup",
+                workflow,
+                exc,
+            )
+            resolved = []
+        except Exception as exc:  # noqa: BLE001 — best-effort registry lookup
+            logger.warning(
+                "pre_plugin_invocation: registry lookup for workflow %r "
+                "failed (%s: %s); skipping workflow-based plugin lookup",
+                workflow,
+                type(exc).__name__,
+                exc,
+            )
+            resolved = []
+        for plugin_id in resolved:
+            if plugin_id not in ids:
+                ids.append(plugin_id)
 
     # Preserve insertion order while de-duplicating; dict-fromkeys is the
     # canonical Python idiom and is byte-stable across runs.

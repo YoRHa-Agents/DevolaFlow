@@ -429,20 +429,40 @@ def test_lazy_import_contract_module_load_is_cheap() -> None:
         "import ...` at the top of this file"
     )
     hook_mod = sys.modules[module_path]
-    source = hook_mod.__file__
-    assert source is not None, (
-        "hook module must have a __file__ attribute (we read the source to "
-        "verify the lazy-import contract)"
+    source_path = hook_mod.__file__
+    assert source_path is not None, (
+        "hook module must have a __file__ attribute (we AST-walk the source "
+        "to verify the lazy-import contract)"
     )
-    with open(source, encoding="utf-8") as fh:
-        text = fh.read()
-    # The lazy import lives INSIDE the function body, not at module top.
-    top_level = text.split("def pre_plugin_invocation")[0]
-    assert "from devolaflow.plugins.installer import" not in top_level, (
-        "installer.ensure_plugin must be lazy-imported INSIDE the function body, "
-        "not at module top-level — the R5 strict zero-IO invariant requires "
-        "this for the env-flag-off cold path"
-    )
-    assert "from devolaflow.plugins.exceptions import" not in top_level, (
-        "Plugin exceptions must also be lazy-imported to keep the disabled cold path import-light"
-    )
+    with open(source_path, encoding="utf-8") as fh:
+        source = fh.read()
+    # AST-walk the source to identify ALL module-level imports. Function-body
+    # imports inside `_extract_plugin_ids` (workflow→plugin resolution) and
+    # inside `pre_plugin_invocation` (installer.ensure_plugin) are intentionally
+    # ALLOWED — they ARE the lazy-import surface that delivers the R5 strict
+    # zero-IO invariant. Module-level imports of those modules would defeat it.
+    import ast
+
+    tree = ast.parse(source)
+    forbidden_modules = {
+        "devolaflow.plugins.installer",
+        "devolaflow.plugins.exceptions",
+    }
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module in forbidden_modules:
+            pytest.fail(
+                f"v9.4.0 R5 strict violation: {hook_mod.__name__} statically "
+                f"imports {node.module!r} at module top-level (line {node.lineno}). "
+                "The R5 strict zero-IO invariant requires this import to live "
+                "INSIDE a function body so the env-flag-OFF cold path does not "
+                "pull in the 1030-LOC installer module."
+            )
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in forbidden_modules:
+                    pytest.fail(
+                        f"v9.4.0 R5 strict violation: {hook_mod.__name__} "
+                        f"statically imports {alias.name!r} at module top-level "
+                        f"(line {node.lineno}). Move the import inside a "
+                        "function body."
+                    )
