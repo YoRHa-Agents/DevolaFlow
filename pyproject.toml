@@ -36,6 +36,9 @@ sync-rules = "devolaflow.cli:sync_rules_cmd"
 check-rules-drift = "devolaflow.cli:check_rules_drift_cmd"
 scaffold-local = "devolaflow.cli:scaffold_local_cmd"
 devola-init-doctor = "devolaflow.cli:doctor_cmd"
+# v9.4.0 PV-04 — `devolaflow plugins {list,status,refresh}` registry CLI.
+# Closes D-P-4 + D-P-8 from `.local/research/v9.4.0_gap_analysis.md` §3.2.
+devolaflow-plugins = "devolaflow.cli:plugins_cmd"
 
 [tool.setuptools.packages.find]
 where = ["src"]

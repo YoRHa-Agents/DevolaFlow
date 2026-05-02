@@ -640,9 +640,12 @@ class TestRuntimePluginsYamlContract:
 
     def test_registry_yaml_loads(self) -> None:
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
-        # schema_version bumped 1 → 2 in v8.3.1 PV-01 to introduce the new
-        # curl_install_script backend (alongside the existing pip + npm_then_init).
-        assert raw["schema_version"] == 2
+        # schema_version history:
+        #   v1 (v8.2.1) — initial nines + ui-pro
+        #   v2 (v8.3.1 PV-01) — curl_install_script backend + rtk
+        #   v3 (v9.4.0 PV-04) — upgrade_cmd + upgrade_check_frequency_hours
+        # v1 + v2 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS.
+        assert raw["schema_version"] == 3
         assert isinstance(raw["plugins"], list)
         # nines + ui-pro + rtk (rtk added in v8.3.1 PV-01).
         assert len(raw["plugins"]) >= 3
@@ -1608,11 +1611,15 @@ class TestRtkSchemaV2:
     """schema_version 2 acceptance + backward-compat with schema_version 1."""
 
     def test_canonical_registry_is_schema_v2(self) -> None:
-        # The canonical runtime-plugins.yaml shipped in v8.3.1 PV-01 is
-        # schema_version=2 (bumped from 1 to declare the curl_install_script
-        # backend + verify_distinguish_cmd field).
+        # The canonical runtime-plugins.yaml at v9.4.0 PV-04 is schema_version=3
+        # (bumped from 2 to declare upgrade_cmd + upgrade_check_frequency_hours).
+        # v2 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS = {1, 2, 3}.
+        # The v9.4.0 PV-04 contract is tested in test_plugin_upgrade.py.
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
-        assert raw["schema_version"] == 2
+        assert raw["schema_version"] >= 2, (
+            f"canonical registry must be schema_version >= 2 (RTK/curl_install_script "
+            f"backend support); got {raw['schema_version']!r}"
+        )
 
     def test_load_registry_accepts_schema_v1_for_backward_compat(self, tmp_path: Path) -> None:
         # R5 strict: existing v8.3.0 fixtures use schema_version=1; they

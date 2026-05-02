@@ -153,3 +153,149 @@ def doctor_cmd() -> None:
         print(f"  {len(report.missing)} missing path(s): {report.missing}")
         print("  Run 'devola-init local' to fix.")
     sys.exit(0 if report.healthy else 1)
+
+
+# ---------------------------------------------------------------------------
+# v9.4.0 PV-04 — `devolaflow plugins` CLI subcommand group
+# ---------------------------------------------------------------------------
+#
+# Closes D-P-4 (MAJOR — daily-upgrade surface) + D-P-8 (MINOR — registry
+# refresh UX) from `.local/research/v9.4.0_gap_analysis.md` §3.2.
+#
+# Subcommands:
+#   plugins list                     show all plugins + install state + last_checked
+#   plugins status                   alias of `plugins list` (more discoverable name)
+#   plugins refresh [--force]        upgrade stale plugins
+#                   [--plugin <id>]  restrict to a single plugin
+#
+# Exit codes (stable contract):
+#   0  — happy path
+#   1  — runtime failure (registry unreadable / one or more upgrades failed)
+#   2  — invocation error (unknown subcommand / bad flags)
+
+
+def plugins_cmd() -> None:
+    """`devolaflow plugins {list,status,refresh}` — registry inspection + upgrade CLI.
+
+    PV-04 contract per gap analysis §6 AC-4 + AC-5 + AC-7:
+    * `plugins list` / `plugins status` — pure inspection (no installs)
+    * `plugins refresh` — daily-upgrade entry point; iterates registry,
+      upgrades stale plugins, reports per-plugin outcome
+    * `plugins refresh --force` — upgrade ALL plugins regardless of staleness
+    * `plugins refresh --plugin <id>` — restrict to a single plugin
+    * Network failures are reported as WARN per outcome row, NOT crashes
+      (exit 1 only if AT LEAST ONE upgrade failed)
+    """
+    import argparse
+    import json as _json
+
+    from devolaflow.plugins.installer import list_plugins, refresh_all
+
+    parser = argparse.ArgumentParser(
+        prog="devolaflow plugins",
+        description="DevolaFlow runtime plugin registry inspection + daily upgrade",
+    )
+    sub = parser.add_subparsers(dest="subcmd", required=True)
+
+    list_parser = sub.add_parser("list", help="show all plugins + install state + last_checked")
+    list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON instead of the human-readable table",
+    )
+
+    status_parser = sub.add_parser(
+        "status", help="alias of `plugins list` (more discoverable name)"
+    )
+    status_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON instead of the human-readable table",
+    )
+
+    refresh_parser = sub.add_parser(
+        "refresh", help="upgrade stale plugins (default: stale = > 24h since last check)"
+    )
+    refresh_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="upgrade EVERY plugin regardless of staleness",
+    )
+    refresh_parser.add_argument(
+        "--plugin",
+        action="append",
+        dest="plugins",
+        metavar="ID",
+        help="restrict refresh to this plugin (repeatable)",
+    )
+    refresh_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON instead of the human-readable table",
+    )
+
+    args = parser.parse_args(sys.argv[1:])
+
+    if args.subcmd in ("list", "status"):
+        try:
+            rows = list_plugins()
+        except FileNotFoundError as exc:
+            print(f"FAIL: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.json:
+            print(_json.dumps(rows, indent=2, sort_keys=True))
+            sys.exit(0)
+        if not rows:
+            print("No plugins registered.")
+            sys.exit(0)
+        # Human-readable table.
+        print(f"{'ID':<14} {'BACKEND':<22} {'INSTALLED':<14} {'LAST CHECKED':<28} WORKFLOWS")
+        print("-" * 100)
+        for row in rows:
+            installed = row["installed_version"] or "(missing)"
+            last = row["last_checked"] or "(never)"
+            workflows = ",".join(row["invoked_by_workflows"]) or "—"
+            print(f"{row['id']:<14} {row['backend']:<22} {installed:<14} {last:<28} {workflows}")
+        sys.exit(0)
+
+    if args.subcmd == "refresh":
+        try:
+            outcomes = refresh_all(force=args.force, only=args.plugins)
+        except FileNotFoundError as exc:
+            print(f"FAIL: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if args.json:
+            print(
+                _json.dumps(
+                    [
+                        {
+                            "plugin_id": o.plugin_id,
+                            "action": o.action,
+                            "version": o.version,
+                            "reason": o.reason,
+                            "error": o.error,
+                        }
+                        for o in outcomes
+                    ],
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            if not outcomes:
+                print("No plugins matched the refresh filter.")
+            for o in outcomes:
+                if o.action == "upgraded":
+                    print(f"  ✓ {o.plugin_id} → {o.version} (upgraded)")
+                elif o.action == "skipped_fresh":
+                    print(f"  · {o.plugin_id} — skipped ({o.reason})")
+                elif o.action == "failed":
+                    print(f"  ✗ {o.plugin_id} — FAILED: {o.error}", file=sys.stderr)
+                else:
+                    print(f"  ? {o.plugin_id} — {o.action}: {o.reason or o.error or ''}")
+        # Exit non-zero if ANY upgrade failed (per gap analysis §6 AC-7).
+        any_failure = any(o.action == "failed" for o in outcomes)
+        sys.exit(1 if any_failure else 0)
+
+    parser.print_help(sys.stderr)
+    sys.exit(2)

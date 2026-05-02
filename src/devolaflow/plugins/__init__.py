@@ -21,11 +21,17 @@ from devolaflow.plugins.exceptions import (
     PluginVersionMismatch,
 )
 from devolaflow.plugins.installer import (
+    RefreshOutcome,
     RuntimePluginSpec,
     ensure_plugin,
+    is_plugin_stale,
+    list_plugins,
     load_registry,
     plugins_for_workflow,
+    read_last_checked,
+    refresh_all,
     resolve_plugin,
+    upgrade_plugin,
 )
 from devolaflow.plugins.loader import create_default_registry, load_plugin_specs
 from devolaflow.plugins.models import PluginSpec, PluginStatus
@@ -40,11 +46,17 @@ __all__ = [
     "PluginSpec",
     "PluginStatus",
     "PluginVersionMismatch",
+    "RefreshOutcome",
     "RuntimePluginSpec",
     "create_default_registry",
     "ensure_plugin",
+    "is_plugin_stale",
+    "list_plugins",
     "load_plugin_specs",
     "load_registry",
     "plugins_for_workflow",
+    "read_last_checked",
+    "refresh_all",
     "resolve_plugin",
+    "upgrade_plugin",
 ]
