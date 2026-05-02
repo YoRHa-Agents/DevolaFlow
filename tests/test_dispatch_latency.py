@@ -48,6 +48,7 @@ from benchmarks.devolaflow_context.latency_harness import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASELINES_DIR = REPO_ROOT / "benchmarks" / "devolaflow_context" / "baselines"
 V9_3_0_LATENCY_BASELINE = BASELINES_DIR / "v9.3.0_latency.json"
+V9_7_0_LATENCY_BASELINE = BASELINES_DIR / "v9.7.0_latency.json"
 
 # Per-function p95 sanity ceilings (microseconds). Intentionally generous —
 # 10× the PV-01-measured post-LRU expectation. Catches a 100× regression
@@ -238,4 +239,43 @@ def test_default_iterations_constant_is_sane() -> None:
     assert SMOKE_ITERATIONS < DEFAULT_ITERATIONS, (
         "SMOKE_ITERATIONS must be strictly less than DEFAULT_ITERATIONS so "
         "the test smoke run is materially cheaper than the production capture"
+    )
+
+
+def test_v9_7_0_latency_baseline_exists_and_validates() -> None:
+    """v9.7.0 PV-05 final baseline file MUST exist with the same schema as v9.3.0.
+
+    The v9.7.0 latency baseline pins the cycle-close measurement vs
+    v9.3.0's cycle-start wholesale baseline. Both files share the
+    schema v1 shape so downstream tooling (the v10.0.0 cycle archive,
+    the v9.7.0 retrospective) can JSON-parse either uniformly.
+    """
+    assert V9_7_0_LATENCY_BASELINE.exists(), (
+        f"Missing {V9_7_0_LATENCY_BASELINE.relative_to(REPO_ROOT)}. "
+        "Regenerate via: "
+        "python -m benchmarks.devolaflow_context.latency_harness "
+        "--iterations 100 "
+        f"--output {V9_7_0_LATENCY_BASELINE.relative_to(REPO_ROOT)}"
+    )
+    data = json.loads(V9_7_0_LATENCY_BASELINE.read_text(encoding="utf-8"))
+    assert data["schema_version"] == SCHEMA_VERSION
+    measurements = data["measurements"]
+    assert set(measurements.keys()) == set(MEASURED_FUNCTIONS), (
+        f"v9.7.0_latency.json measurements set drift; expected "
+        f"{sorted(MEASURED_FUNCTIONS)}, got {sorted(measurements.keys())}"
+    )
+    # Cumulative-gain floor (per W-3 + cycle plan §3 v9.7.0): cumulative
+    # select_context.p95 MUST stay ≥ 35% better than v9.2.4 baseline
+    # (~80 ms / 80,000 µs). v9.7.0 final p95 SHOULD be << 80,000 µs by a
+    # factor of at least 1.5 (35% floor; current measured is ~97.5%).
+    v9_2_4_estimated_p95_us = 80_000.0
+    floor_p95_us = v9_2_4_estimated_p95_us * (1 - 0.35)  # 52,000 µs
+    actual_p95 = measurements["select_context"]["p95_us"]
+    assert actual_p95 < floor_p95_us, (
+        f"v9.7.0 cumulative-latency guard violation: select_context.p95 "
+        f"= {actual_p95:.1f}us; STRICT gate floor is {floor_p95_us:.0f}us "
+        f"(35% improvement vs v9.2.4 ~{v9_2_4_estimated_p95_us:.0f}us baseline). "
+        f"Either (a) the v9.7.0 cycle's PV-02..PV-04 work regressed the "
+        f"v9.3.0 LRU cache, or (b) the harness fixture is running on a "
+        f"critically slow worker. Regenerate the baseline if (b)."
     )
