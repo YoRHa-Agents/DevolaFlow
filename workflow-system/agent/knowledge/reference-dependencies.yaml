@@ -134,8 +134,8 @@ active_tracking:
   - id: edict
     repo_url: https://github.com/cft0808/edict
     source_type: github_repo
-    last_checked: "2026-04-11"
-    last_known_version: "Phase 2"
+    last_checked: "2026-05-02"
+    last_known_version: "Phase 2 (no clone available for v9.6.0 PV-03 — manual review per W-2)"
     relevance_score: 3
     key_patterns:
       - "mandatory pre-execution review (Menxia/门下省): approve/reject binary"
@@ -152,12 +152,13 @@ active_tracking:
       - convergence loop (progressive recovery stages)
       - team permissions enforcement
     gap_ids: [M3, L2, L5]
+    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, so deep NineS analysis was deferred per W-2 fallback. The 4-stage progressive recovery pattern is structurally analogous to DevolaFlow's W-8/SI-9 reinforcement (Task→Wave→Stage→Project→Human escalation chain); the institutional-review gate type from edict's Menxia is a candidate for a dedicated `pre_dispatch` lifecycle hook variant in a future PV (defer-to v9.8.0+)."
 
   - id: karpathy-llm-wiki
     repo_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
     source_type: gist
-    last_checked: "2026-04-11"
-    last_known_version: "latest (gist)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (gist; v9.6.0 PV-03 confirmed no upstream revision in 2026-04-11 → 2026-05-02 window)"
     relevance_score: 3
     key_patterns:
       - "persistent wiki with ingest/query/lint operations"
@@ -174,6 +175,7 @@ active_tracking:
       - knowledge/index.md (central catalog)
       - Review agent (query-back-to-wiki for recurring findings)
     gap_ids: [H5]
+    note: "v9.6.0 PV-03: source_type=gist (manual review per W-2). The wiki-layer integration point is partially realized by DevolaFlow's existing workflow-system/agent/knowledge/ tree (the reference-dependencies.yaml itself is the index.md analogue at v9.6.0)."
 
   - id: anthropic-coordination-blog
     repo_url: https://www.claude.com/blog/multi-agent-coordination-patterns
@@ -407,11 +409,12 @@ periodic_monitoring:
   - id: primelocus-hydra
     repo_url: https://github.com/mikecubed/Hydra
     source_type: github_repo
-    last_checked: "2026-04-13"
-    last_known_version: "v0.1.0 (2026-03)"
+    last_checked: "2026-05-02"
+    last_known_version: "v0.1.0 (2026-03; fork at v1.2.0 — no upstream movement since 2026-04-13)"
     status: deleted_upstream
     forked_from_deleted: PrimeLocus/Hydra
     fork_version: "v1.2.0 (mikecubed/Hydra package.json)"
+    tracking_status: "frozen_reference_pending_v9_6_0_pv04_graduation"
     relevance_score: 3
     key_patterns:
       - "strength-based model routing: Claude=architecture, Gemini=critique, Codex=impl"
@@ -425,7 +428,7 @@ periodic_monitoring:
       - TaskDispatch schema (model_hint field)
       - Wave dispatch logic (model-strength routing)
     gap_ids: [M2, M9]
-    note: "v7.2.0 H-02: original PrimeLocus/Hydra repo deleted upstream between 2026-04-13 and 2026-04-18 (REST API + HTML both 404). Tracking via mikecubed/Hydra fork at package.json v1.2.0. Downgraded relevance_score 4→3."
+    note: "v7.2.0 H-02: original PrimeLocus/Hydra repo deleted upstream between 2026-04-13 and 2026-04-18 (REST API + HTML both 404). Tracking via mikecubed/Hydra fork at package.json v1.2.0. Downgraded relevance_score 4→3. v9.6.0 PV-03 freshness check: fork unchanged since 2026-04-13. v9.6.0 PV-04 will graduate this entry to `frozen_reference` per tracking_policy.staleness_indicators (D-R-9)."
 
   - id: ruflo
     repo_url: https://github.com/ruvnet/ruflo
@@ -450,8 +453,8 @@ periodic_monitoring:
   - id: christophera-bootstrap-seed
     repo_url: https://gist.github.com/ChristopherA/fd2985551e765a86f4fbb24080263a2f
     source_type: gist
-    last_checked: "2026-04-11"
-    last_known_version: "latest (gist, 27 stars)"
+    last_checked: "2026-05-02"
+    last_known_version: "latest (gist, 27 stars; v9.6.0 PV-03 confirmed no upstream revision since 2026-04-11)"
     relevance_score: 3
     key_patterns:
       - "emergent config via reflect→triage→cascade loop"
@@ -464,11 +467,12 @@ periodic_monitoring:
       - post-workflow stage (reflect→triage→cascade)
       - per-project customization layer
     gap_ids: [H7, L6]
+    note: "v9.6.0 PV-03 freshness refresh — source_type=gist (manual review per W-2). The reflect→triage→cascade loop pattern is partially realized by DevolaFlow's W-7/SI-8 retrospective + W-8/SI-9 reinforcement chain (the cascade phase corresponds to round-N+1 dispatch with reinforcement findings)."
 
   - id: spring-ai-agent-skills
     repo_url: https://github.com/spring-ai-community/spring-ai-agent-utils
     source_type: github_repo
-    last_checked: "2026-04-18"
+    last_checked: "2026-05-02"
     last_known_version: "v0.7.0 (2026-04-06): MemoryTools + mkdocs site; preceded by v0.6.0 (2026-03-30) and v0.5.0 (2026-02-24): subagent SPI extraction"
     releases_total: 9
     relevance_score: 3
@@ -483,6 +487,7 @@ periodic_monitoring:
       - SKILL.md (progressive section loading)
       - adapter pipeline (vendor-agnostic validation)
     gap_ids: [L7]
+    note: "v9.6.0 PV-03 freshness refresh — no local clone in /home/agent/reference/ at PV-01 harness time, deferred to manual review per W-2. v0.7.0 last release was 2026-04-06; expected next minor 2026-05+ when MemoryTools API matures. The progressive disclosure pattern is structurally aligned with DevolaFlow's tier-1/tier-2/tier-3 reference loading via task_adaptive_selector.py."
 
 tracking_policy:
   active_tracking:
