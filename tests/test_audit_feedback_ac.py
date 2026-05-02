@@ -22,6 +22,31 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_PATH = REPO_ROOT / "scripts" / "audit_feedback_ac.py"
 
+# `.local/feedbacks/` is gitignored per the repo convention — on fresh CI checkouts
+# it either does not exist or is empty. The live-corpus integration tests below
+# (`test_main_default_writes_report_and_exits_zero`, `test_main_json_mode`,
+# `test_end_to_end_audit_on_live_corpus`) require the real historical feedback
+# corpus to be present locally. When absent we skip gracefully so CI stays green
+# while local dev keeps the stronger end-to-end coverage.
+_FEEDBACKS_DIR = REPO_ROOT / ".local" / "feedbacks"
+_MIN_LIVE_CORPUS_SIZE = 20  # below this we treat the dir as effectively-absent (smoke floor)
+
+
+def _live_corpus_present() -> bool:
+    if not _FEEDBACKS_DIR.is_dir():
+        return False
+    return sum(1 for p in _FEEDBACKS_DIR.iterdir() if p.suffix == ".md") >= _MIN_LIVE_CORPUS_SIZE
+
+
+_requires_live_corpus = pytest.mark.skipif(
+    not _live_corpus_present(),
+    reason=(
+        f".local/feedbacks/ missing or has <{_MIN_LIVE_CORPUS_SIZE} .md files; "
+        "live-corpus audit integration tests skip on fresh / CI checkouts where "
+        "the gitignored historical feedback corpus is unavailable."
+    ),
+)
+
 
 def _load_script_module():
     """Import the audit script as a module without invoking ``main()``.
@@ -262,11 +287,10 @@ def test_grep_symbol_no_hit(aud):
     assert not aud._grep_symbol(needle, REPO_ROOT)
 
 
+@_requires_live_corpus
 def test_end_to_end_audit_on_live_corpus(aud):
     """Run the audit against the real .local/feedbacks/ tree."""
     feedbacks_dir = REPO_ROOT / ".local" / "feedbacks"
-    if not feedbacks_dir.is_dir():
-        pytest.skip("Live feedbacks corpus not present in this checkout")
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     files = sorted(feedbacks_dir.glob("feedback_for_*.md"))
     eb_dir = feedbacks_dir / "from_evobench"
@@ -282,6 +306,7 @@ def test_end_to_end_audit_on_live_corpus(aud):
     assert all(a.verdict != "FAIL" for a in audits)
 
 
+@_requires_live_corpus
 def test_main_default_writes_report_and_exits_zero(aud, tmp_path, monkeypatch):
     """Run main() against the live corpus, write to a tmp output, expect exit 0."""
     out = tmp_path / "report.md"
@@ -307,6 +332,7 @@ def test_main_default_writes_report_and_exits_zero(aud, tmp_path, monkeypatch):
     assert "Methodology notes" in content
 
 
+@_requires_live_corpus
 def test_main_json_mode(aud, capsys):
     """JSON mode should print parseable JSON to stdout."""
     import json as _json
