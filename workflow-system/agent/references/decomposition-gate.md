@@ -425,6 +425,23 @@ Each phase dispatched as a Wave with 1 Task.
 Stage Agent orchestrates — never executes phases.
 ```
 
+### 6.0 Stagnation detection (v9.6.0)
+
+Two complementary stagnation signals trigger early escalation BEFORE
+`max_rounds` is hit:
+
+| Signal | Source | Behavior |
+|---|---|---|
+| **Score stagnation** | DevolaFlow native (W-8 / SI-9) | If `composite_score` does not improve across 2+ consecutive rounds → escalate to human (round budget preserved for next iteration of the same stage). |
+| **Issue-count stagnation** | `get-shit-done/references/gates.md` "Revision Gate" 2026-04 refinement (https://github.com/gsd-build/get-shit-done) | If the count of severity-≥-major findings does not DECREASE across 2 consecutive rounds → escalate early (the verifier is finding the same issues; another round burns budget without progress). |
+
+Both signals are evaluated AFTER each round's gate decision. The
+issue-count signal is the more sensitive of the two — score can plateau
+while findings churn (different findings each round but same count); the
+issue-count signal catches true convergence-loop divergence. v9.6.0
+PV-02 wires this as documentation only; runtime detection lands in a
+future PV when `gate/scorer.py` gains the per-round delta accumulator.
+
 ### 6.1 Lifecycle hook chain on round-N+1 dispatch (v8.4.4 PV-04 / Soul S-10)
 
 Every round-N+1 dispatch emitted by
