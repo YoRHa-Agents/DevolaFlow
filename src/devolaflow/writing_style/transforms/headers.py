@@ -8,8 +8,11 @@ above 0.12 (the human-clean mean), driven by 3-line sections that
 would read as bold prose paragraphs.
 
 Demotion rule: the ``## Foo`` becomes ``**Foo**`` inline-bold on its
-own line, followed by the body. This preserves the visual landmark
-while dropping the section out of the TOC / anchor namespace.
+own line WHEN the doc isn't already bold-saturated. For docs whose
+bold density already sits above the scorer's bold cap (~8 bold
+markers per 1000 words), demotion falls back to plain-text
+"Foo." — this stops the transform from nudging bold-heavy docs
+deeper into the saturation zone.
 
 Skip conditions:
 
@@ -35,13 +38,25 @@ from ..regions import apply_to_prose
 _HEADER_RE = re.compile(r"^(?P<hash>#{2,6})\s+(?P<title>.+?)(?P<anchor>\s*\{#[^}]+\})?\s*$")
 _MIN_PROSE_WORDS = 40
 _WORD_RE = re.compile(r"[A-Za-z\u4e00-\u9fa5][A-Za-z'\u4e00-\u9fa5-]*")
+_BOLD_RE = re.compile(r"\*\*[^*\n]{1,80}\*\*")
+
+BOLD_SATURATION_PER_1K = 8.0
 
 
 def _count_prose_words(lines: list[str]) -> int:
     return sum(len(_WORD_RE.findall(line)) for line in lines)
 
 
-def _transform_prose(text: str) -> str:
+def _doc_is_bold_saturated(text: str) -> bool:
+    words = len(_WORD_RE.findall(text))
+    if words < 200:
+        return False
+    bold_count = len(_BOLD_RE.findall(text))
+    per_1k = bold_count * 1000.0 / max(200, words)
+    return per_1k > BOLD_SATURATION_PER_1K
+
+
+def _transform_prose_with_flag(text: str, bold_saturated: bool) -> str:
     lines = text.split("\n")
     out_lines: list[str] = []
     i = 0
@@ -68,7 +83,10 @@ def _transform_prose(text: str) -> str:
         word_count = _count_prose_words(body_lines)
         if 0 < word_count < _MIN_PROSE_WORDS:
             title = m.group("title").strip()
-            out_lines.append(f"**{title}**")
+            if bold_saturated:
+                out_lines.append(title)
+            else:
+                out_lines.append(f"**{title}**")
             i += 1
         else:
             out_lines.append(line)
@@ -77,9 +95,20 @@ def _transform_prose(text: str) -> str:
 
 
 def apply(text: str, profile: ToneProfile) -> str:
-    """Run the T-S4 header-demotion transform over prose regions."""
+    """Run the T-S4 header-demotion transform over prose regions.
+
+    Demotes orphan headers to inline bold by default, or to plain
+    text when the document is already bold-saturated. This avoids
+    pushing bold-heavy docs further into the scorer's saturation
+    zone.
+    """
     del profile
-    return apply_to_prose(text, _transform_prose)
+    bold_saturated = _doc_is_bold_saturated(text)
+
+    def _transform(prose: str) -> str:
+        return _transform_prose_with_flag(prose, bold_saturated)
+
+    return apply_to_prose(text, _transform)
 
 
-__all__ = ["apply"]
+__all__ = ["apply", "BOLD_SATURATION_PER_1K"]

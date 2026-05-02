@@ -3,6 +3,10 @@
 
 Design ref: design_dual_system.md section 4.1-4.2
 Simplified v0.1.0: generates structured docs with practical content.
+
+v10.1.0: pipes generated content through the writing-style humanizer
+before write-out. Opt-out via `--no-humanize`; default is ON for
+EN/ZH guides per Q-B (in-pipeline + `make humanize-docs` target).
 """
 
 from __future__ import annotations
@@ -10,6 +14,18 @@ from __future__ import annotations
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    from devolaflow.writing_style import (
+        apply_transforms,
+        profile_for_path,
+    )
+
+    _HUMANIZE_AVAILABLE = True
+except ImportError:  # pragma: no cover — writing_style ships at v10.1.0
+    apply_transforms = None  # type: ignore[assignment]
+    profile_for_path = None  # type: ignore[assignment]
+    _HUMANIZE_AVAILABLE = False
 
 DOCS = [
     (
@@ -74,7 +90,15 @@ SOURCE_FILES = ["SKILL.md"]
 SOURCE_VERSION = "10.0.0"
 
 
-def _gen_doc(slug: str, title: str, desc: str, lang: str, output_dir: Path) -> None:
+def _gen_doc(
+    slug: str,
+    title: str,
+    desc: str,
+    lang: str,
+    output_dir: Path,
+    *,
+    humanize: bool = True,
+) -> None:
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     fm = f'---\ntitle: "{title}"\ndescription: "{desc}"\nsource_files:\n'
     for sf in SOURCE_FILES:
@@ -86,6 +110,12 @@ def _gen_doc(slug: str, title: str, desc: str, lang: str, output_dir: Path) -> N
         content += _gen_en_content(slug)
     else:
         content += _gen_zh_content(slug)
+
+    if humanize and _HUMANIZE_AVAILABLE:
+        rel_path = f"workflow-system/human/{lang}/{slug}.md"
+        profile = profile_for_path(rel_path)
+        result = apply_transforms(content, profile)
+        content = result.after
 
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / f"{slug}.md").write_text(content, encoding="utf-8")
@@ -1980,16 +2010,22 @@ def main() -> None:
         "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "zh"
     )
 
+    # Humanize is ON by default per Q-B (in-pipeline humanization).
+    # `--no-humanize` opts out (useful for drift-lint diffs that want
+    # to inspect raw generator output).
+    humanize = "--no-humanize" not in sys.argv
+
     count = 0
     for slug, en_title, en_desc, zh_title, zh_desc in DOCS:
         if do_en:
-            _gen_doc(slug, en_title, en_desc, "en", human_dir / "en")
+            _gen_doc(slug, en_title, en_desc, "en", human_dir / "en", humanize=humanize)
             count += 1
         if do_zh:
-            _gen_doc(slug, zh_title, zh_desc, "zh", human_dir / "zh")
+            _gen_doc(slug, zh_title, zh_desc, "zh", human_dir / "zh", humanize=humanize)
             count += 1
 
-    print(f"Generated {count} human doc files.")
+    suffix = "" if humanize else " (no-humanize)"
+    print(f"Generated {count} human doc files{suffix}.")
 
 
 if __name__ == "__main__":
