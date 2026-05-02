@@ -74,6 +74,32 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # See ``src/devolaflow/agent_workspace/change.py::ChangeStore`` for
     # the dataclass + state machine that authors / mutates this payload.
     "change_context",
+    # v9.7.0 (PV-02) — appended at position 17 per A-2.2 append-only tail.
+    # Schema version bumped 5 → 6 in schemas/lean-dispatch.yaml. Source:
+    # ``.local/research/v9.7.0_perf_research.md`` §2 + the v10.0.0 cycle
+    # plan §3 v9.7.0 PV-02.
+    #
+    # Field shape:
+    #   predecessor_dedup_ledger:
+    #     round_num: int                       # current round number (>= 2)
+    #     entries:                             # one per dedup hit
+    #       - pred_index: int                  # 0-based index into pred[]
+    #         hash: str                        # 12-char sha256 prefix
+    #         ref: str                         # "@round-N-1:pred-K" reference
+    #
+    # When a convergence round N>1 dispatches, the
+    # :func:`devolaflow.compressor.transforms.dedup_predecessor_summaries`
+    # helper compares each ``pred[i].summary`` against the ledger from
+    # round N-1; matching summaries are replaced by ``"@round-N-1:pred-K"``
+    # references and the ledger records the dedup hit so the receiver can
+    # decompress.
+    #
+    # Field is OPTIONAL — when absent (round 1, or no dedup hits in round
+    # N>1), the dispatch is byte-identical to the v9.6.0 / v9.3.0 / v8.4.0
+    # / v8.3.0-PV05 baselines. The 8 historical multi-baseline byte-tests
+    # in ``tests/test_layout_invariant_multi_baseline.py`` ALL CONTINUE TO
+    # PASS unchanged because the new field's absence is canonical.
+    "predecessor_dedup_ledger",
 ]
 
 

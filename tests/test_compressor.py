@@ -511,27 +511,34 @@ class TestDefaultDispatchLayoutV730:
             "gate": {"coverage": 85, "quality": 85, "blockers": 0, "retries": 2},
         }
 
-    def test_default_dispatch_layout_length_is_16(self):
-        # v8.3.0 PV-05 (v8.2.5) bumped 15 → 16 by appending ``change_context``.
-        # The v8.0.0 P-10 byte-baseline (positions 1..15) MUST stay unchanged
+    def test_default_dispatch_layout_length_is_17(self):
+        # v9.7.0 PV-02 bumped 16 → 17 by appending ``predecessor_dedup_ledger``.
+        # The v8.3.0 PV-05 byte-baseline (positions 1..16) MUST stay unchanged
         # — see TestDefaultDispatchLayoutV5 in tests/test_dispatch_layout_v5.py.
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 16, (
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 17, (
             f"DEFAULT_DISPATCH_LAYOUT length is {len(DEFAULT_DISPATCH_LAYOUT)}, "
-            "expected 16 after v8.3.0 PV-05 (12 v7.0.0 keys + repos + "
-            "behavioral_guidelines + acceptance_criteria_v2 + change_context)"
+            "expected 17 after v9.7.0 PV-02 (12 v7.0.0 keys + repos + "
+            "behavioral_guidelines + acceptance_criteria_v2 + change_context + "
+            "predecessor_dedup_ledger)"
         )
 
-    def test_default_dispatch_layout_last_entry_is_change_context(self):
-        # v8.3.0 PV-05 (v8.2.5) appended ``change_context`` at position 16.
-        # Position 15 is still ``acceptance_criteria_v2`` (v8.0.0 P-10).
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "change_context", (
+    def test_default_dispatch_layout_last_entry_is_predecessor_dedup_ledger(self):
+        # v9.7.0 PV-02 appended ``predecessor_dedup_ledger`` at position 17.
+        # Position 16 is still ``change_context`` (v8.3.0 PV-05). Position 15
+        # is still ``acceptance_criteria_v2`` (v8.0.0 P-10).
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "predecessor_dedup_ledger", (
             f"DEFAULT_DISPATCH_LAYOUT[-1] is {DEFAULT_DISPATCH_LAYOUT[-1]!r}, "
-            "expected 'change_context' (v8.3.0 PV-05 appends at position 16 per ADR-001 §2)"
+            "expected 'predecessor_dedup_ledger' (v9.7.0 PV-02 appends at "
+            "position 17 per A-2.2 append-only)"
+        )
+        assert DEFAULT_DISPATCH_LAYOUT[15] == "change_context", (
+            "position 16 (0-indexed 15) drift; v8.3.0 PV-05 byte-baseline "
+            "(change_context at position 16) MUST stay unchanged after v9.7.0 PV-02 append"
         )
         assert DEFAULT_DISPATCH_LAYOUT[14] == "acceptance_criteria_v2", (
             "position 15 (0-indexed 14) drift; v8.0.0 P-10 byte-baseline "
             "(acceptance_criteria_v2 at position 15) MUST stay unchanged "
-            "after PV-05 append"
+            "after v9.7.0 PV-02 append"
         )
 
     def test_repos_remains_at_position_13(self):
@@ -2006,46 +2013,52 @@ class TestCompactDirectiveSchema:
 
     SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "lean-dispatch.yaml"
 
-    def test_layout_invariant_canonical_order_length_16(self):
-        """P6 invariant (post v8.3.0 PV-05): canonical_order MUST be 16 keys
-        (15 v8.0.0 P-10 keys + ``change_context`` appended at position 16
-        per ADR-001 §2 additive rule). Positions 1..15 are byte-identical
-        to v4 — backward-compat invariant I-PV05-A."""
+    def test_layout_invariant_canonical_order_length_17(self):
+        """P6 invariant (post v9.7.0 PV-02): canonical_order MUST be 17 keys
+        (16 v8.3.0 PV-05 keys + ``predecessor_dedup_ledger`` appended at
+        position 17 per A-2.2 append-only rule). Positions 1..16 are
+        byte-identical to v5 — backward-compat invariant for v9.7.0 PV-02."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert len(spec["layout_invariant"]["canonical_order"]) == 16, (
+        assert len(spec["layout_invariant"]["canonical_order"]) == 17, (
             f"canonical_order length = {len(spec['layout_invariant']['canonical_order'])}; "
-            "expected 16 after v8.3.0 PV-05 (additive append of change_context)"
+            "expected 17 after v9.7.0 PV-02 (additive append of predecessor_dedup_ledger)"
         )
 
-    def test_layout_invariant_version_is_5(self):
-        """P6 invariant (post v8.3.0 PV-05): schema version MUST be 5 (bumped
-        4 → 5 by PV-05 to mark the schema generation; the v7.0.0 + v7.3.0 +
-        v8.0.0 P-08 + v8.0.0 P-10 byte-baselines ALL CONTINUE TO PASS —
-        additivity proven across FOUR schema generations: v7.2.6 → P-08 →
-        P-10 → PV-05)."""
+    def test_layout_invariant_version_is_6(self):
+        """P6 invariant (post v9.7.0 PV-02): schema version MUST be 6 (bumped
+        5 → 6 by v9.7.0 PV-02 to mark the schema generation; the v7.0.0 +
+        v7.3.0 + v8.0.0 P-08 + v8.0.0 P-10 + v8.3.0 PV-05 byte-baselines
+        ALL CONTINUE TO PASS — additivity proven across SIX schema
+        generations: v7.2.6 → P-08 → P-10 → PV-05 → [stable v9.x] → v9.7.0
+        PV-02)."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
-        assert spec["layout_invariant"]["version"] == 5, (
+        assert spec["layout_invariant"]["version"] == 6, (
             f"layout_invariant.version = {spec['layout_invariant']['version']}; "
-            "expected 5 after v8.3.0 PV-05 schema bump (per ADR-001 §2)"
+            "expected 6 after v9.7.0 PV-02 schema bump (per A-2.2 append-only)"
         )
 
-    def test_layout_invariant_last_key_is_change_context(self):
-        """P6 invariant (post v8.3.0 PV-05): position 16 (1-indexed) MUST be
-        ``change_context`` (added by v8.3.0 PV-05, after
-        ``acceptance_criteria_v2`` at position 15). The v8.0.0 P-10 prefix
-        (positions 1..15) remains byte-stable — assertions for the prior
+    def test_layout_invariant_last_key_is_predecessor_dedup_ledger(self):
+        """P6 invariant (post v9.7.0 PV-02): position 17 (1-indexed) MUST be
+        ``predecessor_dedup_ledger`` (added by v9.7.0 PV-02, after
+        ``change_context`` at position 16). The v8.3.0 PV-05 prefix
+        (positions 1..16) remains byte-stable — assertions for the prior
         baselines live in ``tests/test_dispatch_layout_v5.py``."""
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         canonical = spec["layout_invariant"]["canonical_order"]
-        assert canonical[-1] == "change_context"
+        assert canonical[-1] == "predecessor_dedup_ledger"
+        assert canonical[15] == "change_context", (
+            "change_context MUST stay at position 16 (1-indexed) after the "
+            "v9.7.0 PV-02 append; PV-02 appends AFTER change_context, never before it"
+        )
         assert canonical[14] == "acceptance_criteria_v2", (
-            "acceptance_criteria_v2 MUST stay at position 15 (1-indexed) after "
-            "the PV-05 append; PV-05 appends AFTER acceptance_criteria_v2, never before it"
+            "acceptance_criteria_v2 MUST stay at position 15 (1-indexed) after v9.7.0 PV-02"
         )
         assert canonical[13] == "behavioral_guidelines", (
-            "behavioral_guidelines MUST stay at position 14 (1-indexed) after PV-05"
+            "behavioral_guidelines MUST stay at position 14 (1-indexed) after v9.7.0 PV-02"
         )
-        assert canonical[12] == "repos", "repos MUST stay at position 13 (1-indexed) after PV-05"
+        assert canonical[12] == "repos", (
+            "repos MUST stay at position 13 (1-indexed) after v9.7.0 PV-02"
+        )
 
     def test_compact_directive_field_present_under_pred(self):
         """The new directive field MUST be NESTED under pred[*], not at top."""
@@ -2060,14 +2073,16 @@ class TestCompactDirectiveSchema:
         spec = yaml.safe_load(self.SCHEMA_PATH.read_text(encoding="utf-8"))
         assert "compact_directive" not in spec["layout_invariant"]["canonical_order"]
 
-    def test_default_dispatch_layout_grew_to_16(self):
-        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 16 keys after v8.3.0
-        PV-05 (last entry == 'change_context'; ``acceptance_criteria_v2``
-        stays at position 15; ``behavioral_guidelines`` stays at position 14;
-        ``repos`` stays at position 13). Positions 1..15 are byte-identical
-        to v4 — backward-compat invariant I-PV05-A."""
-        assert len(DEFAULT_DISPATCH_LAYOUT) == 16
-        assert DEFAULT_DISPATCH_LAYOUT[-1] == "change_context"
+    def test_default_dispatch_layout_grew_to_17(self):
+        """``DEFAULT_DISPATCH_LAYOUT`` constant MUST be 17 keys after v9.7.0
+        PV-02 (last entry == 'predecessor_dedup_ledger'; ``change_context``
+        stays at position 16; ``acceptance_criteria_v2`` stays at position
+        15; ``behavioral_guidelines`` stays at position 14; ``repos``
+        stays at position 13). Positions 1..16 are byte-identical to v5 —
+        backward-compat invariant for v9.7.0 PV-02."""
+        assert len(DEFAULT_DISPATCH_LAYOUT) == 17
+        assert DEFAULT_DISPATCH_LAYOUT[-1] == "predecessor_dedup_ledger"
+        assert DEFAULT_DISPATCH_LAYOUT[15] == "change_context"
         assert DEFAULT_DISPATCH_LAYOUT[14] == "acceptance_criteria_v2"
         assert DEFAULT_DISPATCH_LAYOUT[13] == "behavioral_guidelines"
         assert DEFAULT_DISPATCH_LAYOUT[12] == "repos"

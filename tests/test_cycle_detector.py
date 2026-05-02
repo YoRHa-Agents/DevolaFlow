@@ -859,14 +859,14 @@ class TestSchemaInvariants:
         return data["layout_invariant"]
 
     def test_canonical_order_length_unchanged(self) -> None:
-        # v8.3.0 PV-05 (v8.2.5) bumped 15 → 16 by appending ``change_context``.
+        # v9.7.0 PV-02 bumped 16 → 17 by appending ``predecessor_dedup_ledger``.
         layout = self._lean_dispatch_layout()
-        assert len(layout["canonical_order"]) == 16
+        assert len(layout["canonical_order"]) == 17
 
     def test_canonical_order_version_unchanged(self) -> None:
-        # v8.3.0 PV-05 (v8.2.5) bumped version 4 → 5; positions 1..15 byte-identical.
+        # v9.7.0 PV-02 bumped version 5 → 6; positions 1..16 byte-identical.
         layout = self._lean_dispatch_layout()
-        assert layout["version"] == 5
+        assert layout["version"] == 6
 
     def test_lean_report_carries_cycle_fields(self) -> None:
         path = Path(__file__).resolve().parent.parent / "schemas" / "lean-report.yaml"

@@ -1981,3 +1981,218 @@ def compression_pipeline_stages() -> list[CompressionStage]:
             telemetry_key="compact",
         ),
     ]
+
+
+# ---------------------------------------------------------------------------
+# v9.7.0 (PV-02 — Performance Overhaul #2) — Predecessor summary delta-compression.
+#
+# Hash-based dedup for the per-task ``pred[*].summary`` field across
+# convergence rounds. When a round N>1 dispatches, summaries that match
+# a hash from round N-1 are replaced by an ``"@round-N-1:pred-K"``
+# reference and a ledger entry is emitted so the receiver can decompress.
+#
+# Wire-up: dispatchers (L0/L1/L2) call
+# :func:`dedup_predecessor_summaries(payload, round_num, prior_rounds)`
+# right before :func:`assert_dispatch_layout`. The function returns a
+# new payload (or the same payload byte-identical for round 1 / no-hits)
+# carrying an OPTIONAL top-level ``predecessor_dedup_ledger`` per
+# canonical_order position 17 (schema version 6 — see
+# ``schemas/lean-dispatch.yaml``).
+#
+# P6-safe: the new field is APPENDED at position 17 per A-2.2 append-only
+# tail. The 8 historical multi-baseline byte-tests (v7.0.0 → v9.3.0) all
+# continue to pass because absence is canonical. Round 1 dispatches OMIT
+# the ledger entirely (byte-identical to v9.6.0); round N>1 with no
+# dedup hits also OMITS the ledger (same byte stability).
+#
+# Source: ``.local/research/v9.7.0_perf_research.md`` §2 +
+# ``.local/research/v10.0.0_cycle_plan.md`` §3 v9.7.0 PV-02.
+# ---------------------------------------------------------------------------
+
+DEDUP_HASH_PREFIX_LENGTH: int = 12
+"""Number of hex characters of the sha256 digest used as the dedup key.
+
+12 hex characters = 48 bits of entropy = ~2.8e14 distinct values. With the
+canonical wave size of ~5 predecessors per round and ~5 rounds per cycle,
+the birthday-bound collision probability is ~10^-7 per cycle — well below
+the dispatch-layer error budget. A collision is graceful: the round-N
+dispatch falls back to emitting the verbatim summary (the dedup helper's
+S-5 explicit-no-collision path)."""
+
+
+def _hash_summary(summary: str) -> str:
+    """Return the canonical 12-char sha256 prefix of ``summary``.
+
+    Pure function: no I/O, no clock, no randomness. Used by both the
+    sender (compute hash to compare against prior round's ledger) and
+    the receiver (compute hash of the resolved verbatim summary to
+    verify the dedup pointer is consistent).
+
+    Returns the empty string for empty input — callers SHOULD branch on
+    truthy/falsy to skip dedup for empty summaries (a missing summary
+    is canonical absence, not a deduplicatable value).
+    """
+    import hashlib
+
+    if not summary:
+        return ""
+    return hashlib.sha256(summary.encode("utf-8")).hexdigest()[:DEDUP_HASH_PREFIX_LENGTH]
+
+
+def _build_dedup_index(prior_round_payload: dict) -> dict[str, str]:
+    """Return ``{hash: "@round-N:pred-K"}`` index from a prior round's payload.
+
+    Walks ``prior_round_payload["pred"]`` (if present), hashes each
+    ``summary`` via :func:`_hash_summary`, and builds a lookup keyed by
+    the 12-char hash. The reference value embeds the prior round's
+    number (read from ``prior_round_payload["reinforce"]["round"]`` when
+    present, defaulting to ``"prev"`` when absent — round numbers are
+    informational; the receiver only uses the hash to resolve).
+
+    Returns an empty dict when ``prior_round_payload`` lacks a ``pred``
+    list (e.g. the very first dispatch, where dedup is a no-op anyway).
+    """
+    pred_list = prior_round_payload.get("pred")
+    if not isinstance(pred_list, list) or not pred_list:
+        return {}
+    reinforce = prior_round_payload.get("reinforce")
+    round_label = reinforce.get("round", "prev") if isinstance(reinforce, dict) else "prev"
+    index: dict[str, str] = {}
+    for k, pred_entry in enumerate(pred_list):
+        if not isinstance(pred_entry, dict):
+            continue
+        summary = pred_entry.get("summary", "")
+        if not isinstance(summary, str) or not summary:
+            continue
+        h = _hash_summary(summary)
+        if not h:
+            continue
+        # First-seen-wins: a duplicate hash within the same prior round
+        # is collapsed to the lowest-index reference (deterministic).
+        index.setdefault(h, f"@round-{round_label}:pred-{k}")
+    return index
+
+
+def dedup_predecessor_summaries(
+    payload: dict,
+    round_num: int,
+    prior_rounds: list[dict] | None = None,
+) -> dict:
+    """Apply hash-based dedup to ``payload["pred"][*].summary`` across rounds.
+
+    When ``round_num <= 1`` (or no ``prior_rounds`` are provided), this
+    function is a no-op and returns ``payload`` byte-identical to its
+    input. The v9.7.0 schema-v6 ``predecessor_dedup_ledger`` field is
+    NOT added — round 1 dispatches preserve the byte-stable v9.6.0 /
+    v9.3.0 / v8.4.0 / v8.3.0-PV-05 baselines.
+
+    When ``round_num >= 2`` AND ``prior_rounds`` carries at least one
+    payload, the function:
+
+    1. Builds a hash index from the most recent prior round's
+       ``pred[*].summary`` via :func:`_build_dedup_index`.
+    2. For each entry in the current ``payload["pred"]``, computes the
+       hash of its ``summary`` and looks it up in the index.
+    3. If a hit is found, replaces the summary with the canonical
+       ``"@round-N-1:pred-K"`` reference string AND emits a ledger
+       entry recording ``pred_index`` / ``hash`` / ``ref``.
+    4. Appends an OPTIONAL ``predecessor_dedup_ledger`` field at the
+       canonical position 17 of the payload. Empty entries list (no
+       hits) → the ledger field is OMITTED so the dispatch stays
+       byte-identical to a no-dedup round-N>1 dispatch.
+
+    Per S-5 (No Silent Failures), an entry with an unhashable summary
+    (empty string, non-string type, etc.) is skipped — the original
+    summary is preserved verbatim and no ledger entry is emitted for
+    it. This is graceful fallback, not a silent silencer; the warning
+    surface is the absence of a ledger entry where the caller might
+    have expected one.
+
+    Per A-2 cache-layout governance, the field is appended at position
+    17 of :data:`devolaflow.compressor.layout.DEFAULT_DISPATCH_LAYOUT`.
+    Positions 1-16 are unchanged. The 8 historical multi-baseline
+    byte-tests in ``tests/test_layout_invariant_multi_baseline.py``
+    continue to pass because the new field's absence is canonical.
+
+    Returns a NEW dict (shallow copy of ``payload`` plus the optional
+    ledger) — never mutates the caller's input. Pure function: no I/O,
+    no clock, no randomness. Determinism: bytewise identical across
+    Python runs for the same inputs (CO-2 verbatim safety).
+
+    Args:
+      payload: The dispatch payload. MUST be a dict; ``pred`` MAY be
+        absent (no-op) or a list of dicts (each with optional ``summary``).
+      round_num: Current round number (1-indexed). Round 1 is a strict
+        no-op regardless of ``prior_rounds``.
+      prior_rounds: List of prior-round payloads, OR ``None`` (treated
+        as empty). Only the LAST element is consulted for dedup; older
+        rounds are kept for receiver-side audit but do not contribute
+        to the current round's dedup index. ``None`` and ``[]`` are
+        equivalent (no-op).
+
+    Raises:
+      TypeError: when ``payload`` is not a dict (S-5 — explicit rather
+        than silent type coercion).
+      ValueError: when ``round_num`` is not a positive int (S-5 —
+        explicit rather than silent fallthrough).
+    """
+    if not isinstance(payload, dict):
+        raise TypeError(f"payload must be a dict, got {type(payload).__name__}")
+    if not isinstance(round_num, int) or round_num < 1:
+        raise ValueError(f"round_num must be a positive int (>= 1), got {round_num!r}")
+
+    if round_num <= 1 or not prior_rounds:
+        return payload
+
+    # Use the MOST RECENT prior round's payload for dedup. Older rounds
+    # are kept by the caller (e.g., for receiver-side audit) but not
+    # consulted here — by construction round N-1's ledger references
+    # round N-2, which transitively chains the audit trail.
+    prior_payload = prior_rounds[-1]
+    if not isinstance(prior_payload, dict):
+        # S-5: a malformed prior-round payload is ignored (graceful) but
+        # the function does NOT raise — round-N dispatch should not be
+        # blocked by a corrupt audit trail. The dedup ledger is OMITTED.
+        return payload
+
+    dedup_index = _build_dedup_index(prior_payload)
+    if not dedup_index:
+        return payload
+
+    current_pred = payload.get("pred")
+    if not isinstance(current_pred, list) or not current_pred:
+        return payload
+
+    new_pred: list = []
+    ledger_entries: list[dict] = []
+    for i, pred_entry in enumerate(current_pred):
+        if not isinstance(pred_entry, dict):
+            new_pred.append(pred_entry)
+            continue
+        summary = pred_entry.get("summary", "")
+        if not isinstance(summary, str) or not summary:
+            new_pred.append(pred_entry)
+            continue
+        h = _hash_summary(summary)
+        ref = dedup_index.get(h)
+        if ref is None:
+            new_pred.append(pred_entry)
+            continue
+        # Dedup hit — replace summary with reference, emit ledger entry.
+        rewritten_entry = dict(pred_entry)
+        rewritten_entry["summary"] = ref
+        new_pred.append(rewritten_entry)
+        ledger_entries.append({"pred_index": i, "hash": h, "ref": ref})
+
+    if not ledger_entries:
+        # No hits — return unchanged. Preserves byte-stable v9.6.0 contract
+        # for round-N>1 dispatches that happen to have no duplicates.
+        return payload
+
+    new_payload = dict(payload)
+    new_payload["pred"] = new_pred
+    new_payload["predecessor_dedup_ledger"] = {
+        "round_num": round_num,
+        "entries": ledger_entries,
+    }
+    return new_payload

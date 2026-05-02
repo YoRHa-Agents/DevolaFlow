@@ -1855,8 +1855,17 @@ _V9_1_4_FILE_MIN_BYTES: int = 50
 # the schema version at 5 (positions 1-16 byte-stable; v9-ADR-002 D2
 # append-only contract preserved; v8.3.0 PV-05 + v8.4.0 multi-baseline
 # byte tests continue to PASS without modification).
-_V9_1_4_CANONICAL_ORDER_LENGTH: int = 16
-_V9_1_4_LAYOUT_VERSION: int = 5
+#
+# v9.7.0 PV-02 update: the v9.7.0 cycle APPENDED a NEW top-level key
+# ``predecessor_dedup_ledger`` at canonical position 17 per A-2.2 append-only
+# rule. Schema version bumped 5 → 6. The post-v9.1.4 NEST byte-stability
+# invariant (positions 1-16 byte-identical to v8.4.0) IS PRESERVED — the
+# v9.7.0 PV-02 APPEND is at position 17, which v9.1.4 PV-04 explicitly
+# anticipated ("A future PV that wants to add a TRULY orthogonal new
+# payload would APPEND a new top-level key — that PV would update both
+# this expected length AND the multi-baseline golden YAML").
+_V9_1_4_CANONICAL_ORDER_LENGTH: int = 17
+_V9_1_4_LAYOUT_VERSION: int = 6
 
 # The 3 NEW change_context sub-fields added in v9.1.4 PV-04 per the
 # A-2.3 nest-vs-append decision rule. Each is OPTIONAL (so absence is
@@ -3454,7 +3463,15 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     # accepted). Catches a future PV that bloats one of the modules > 2000 LOC
     # individually (a sign that the split's "thematically tight" contract is
     # decaying).
-    per_file_max = 2200  # transforms.py is the largest at 1983 LOC; +217 headroom
+    # transforms.py is the largest. Cap raised 2200 → 2300 in v9.7.0 PV-02
+    # to accommodate the new ``dedup_predecessor_summaries`` helper +
+    # 2 internal helpers (~220 LOC of canonical, well-isolated v9.7.0
+    # PV-02 deliverable per A-2.2 append-only). Retrospective coverage
+    # in `.local/research/v9.7.0_perf_research.md` §2 + the v9.7.0
+    # CHANGELOG entry under PV-02. A future PV that crosses the new
+    # 2300 cap should either decompose the file further OR bump the
+    # cap again with similar retrospective coverage.
+    per_file_max = 2300
     package_total = 0
     for p in compressor_pkg.iterdir():
         if p.is_file() and p.suffix == ".py":
@@ -3467,10 +3484,16 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
                 f"per-file cap with explicit retrospective coverage."
             )
             package_total += line_count
-    assert package_total <= 3000, (
+    # Cap raised 3000 → 3200 in v9.7.0 PV-02 to accommodate
+    # ``dedup_predecessor_summaries`` + 2 helpers (~220 LOC of canonical
+    # additive deliverable). Pre-PV-04 single-file was 2541 LOC; the
+    # post-split + v9.7.0 PV-02 total stays ≤ 26 % bloat (3200 / 2541).
+    # Retrospective coverage: `.local/research/v9.7.0_perf_research.md` §2.
+    assert package_total <= 3200, (
         f"W-18 v9.3.0 violation: compressor package total LOC is "
-        f"{package_total} (cap 3000). The pre-PV-04 single-file compressor.py "
-        f"was 2541 LOC; the post-split overhead should stay ≤ 18% bloat."
+        f"{package_total} (cap 3200, raised from 3000 in v9.7.0 PV-02). "
+        f"The pre-PV-04 single-file compressor.py was 2541 LOC; the "
+        f"post-split + v9.7.0 PV-02 overhead should stay ≤ 26% bloat."
     )
 
 

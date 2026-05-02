@@ -327,11 +327,12 @@ top-level key vs. nesting under an existing one apply the nest-vs-append
 decision rule (`v9-ADR-002` D3) — the bias is toward NEST whenever the
 data shape allows.
 
-**Canonical order (16 keys, `version: 5`):** `hdr` → `task` → `goal` →
+**Canonical order (17 keys, `version: 6`):** `hdr` → `task` → `goal` →
 `assumptions` → `pred` → `files` → `rules` → `shared` → `accept` →
 `reinforce` (round 2+ only) → `verify_cfg` → `gate` → `repos` (v7.2.6 P-06)
 → `behavioral_guidelines` (v8.0.0 P-08) → `acceptance_criteria_v2` (v8.0.0
-P-10) → `change_context` (v8.3.0 PV-05). Source of truth:
+P-10) → `change_context` (v8.3.0 PV-05) → `predecessor_dedup_ledger`
+(v9.7.0 PV-02). Source of truth:
 `schemas/lean-dispatch.yaml#layout_invariant.canonical_order`.
 
 **Validator:** `devolaflow.compressor.assert_dispatch_layout(payload)` raises

@@ -308,6 +308,38 @@ lean_format_spec:
       memory_case_hits: "optional list[str] — ≤ 3 items, MemoryCase.case_id values surfaced by devolaflow.memory_router.cache.consult_for_dispatch() when DEVOLAFLOW_MEMORY_ROUTER=1 AND .local/memory/cases/index.yaml carries fresh matches"
       source_of_truth_excerpt: "optional str — ≤ 200 tokens; excerpt from .local/memory/specs/<domain>/spec.md (the source-of-truth domain named by spec_delta_target) relevant to the dispatch task description"
 
+  # v9.7.0 (PV-02 / Performance Overhaul #2) — append-only D2 addition.
+  # NEW top-level dispatch key APPENDED to ``canonical_order`` AT THE END
+  # (position 17, after ``change_context``). Schema version bumped 5 → 6
+  # in this PV. Source: ``.local/research/v9.7.0_perf_research.md`` §2 +
+  # ``.local/research/v10.0.0_cycle_plan.md`` §3 (v9.7.0 PV-02).
+  #
+  # Carries hash-based dedup state for the per-task ``pred[*].summary``
+  # field across convergence rounds. When a round N>1 dispatches, the
+  # :func:`devolaflow.compressor.transforms.dedup_predecessor_summaries`
+  # helper compares each ``pred[i].summary`` against the previous
+  # round's ledger; matching summaries are replaced by an
+  # ``"@round-N-1:pred-K"`` reference and the ledger records the dedup
+  # hit so the receiver can decompress. Round 1 dispatches OMIT the
+  # field entirely (canonical absence-as-default — preserves byte-stable
+  # v9.6.0 / v9.3.0 / v8.4.0 / v8.3.0-PV05 baselines).
+  #
+  # Field is OPTIONAL — when absent, the dispatch is byte-identical to
+  # the pre-v9.7.0 contract. The 8 historical multi-baseline byte-tests
+  # in ``tests/test_layout_invariant_multi_baseline.py`` (v7.0.0,
+  # v7.3.0, v8.0.0-P-08, v8.0.0-P-10, v8.3.0-PV-05, v8.4.0, v9.2.0,
+  # v9.3.0) ALL CONTINUE TO PASS unchanged because the new field's
+  # absence is canonical. The 9th baseline (v9.7.0) is added by
+  # ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml``
+  # and witnesses the schema-v6 17-element canonical_order with the
+  # ``predecessor_dedup_ledger`` populated (round 2 dedup demo).
+  predecessor_dedup_ledger:
+    description: "Hash-based dedup state for round-N>1 predecessor summaries. Optional — absence == round 1 OR no dedup hits. Populated by devolaflow.compressor.transforms.dedup_predecessor_summaries(payload, round_num, prior_rounds)."
+    optional: true
+    fields:
+      round_num: "int — current round number (>= 2 when present); MUST equal payload.reinforce.round when both are set"
+      entries: "list[{pred_index: int (0-based), hash: str (12-char sha256 prefix), ref: str ('@round-N-1:pred-K' reference)}] — one entry per dedup hit; empty list when round N>1 had no hits"
+
 # --- COMPRESSION RULES ---
 # Deterministic drop/preserve lists for inter-layer message compaction.
 # Based on CO-1 (lean format) and CO-2 (verbatim extraction) rules.
@@ -486,8 +518,29 @@ compression_rules:
 # preserved the layout — the witness fixture lives at
 # benchmarks/devolaflow_context/baselines/layout_invariant_v9.2.0.yaml).
 #
+# v9.7.0 (PV-02 — Performance Overhaul #2; sources: .local/research/v9.7.0_
+# gap_analysis.md §3 + .local/research/v9.7.0_perf_research.md §2 +
+# .local/research/v10.0.0_cycle_plan.md §3 v9.7.0 PV-02): canonical_order
+# grew 16 → 17 by APPENDING `predecessor_dedup_ledger` AT THE END (after
+# `change_context`) per A-2.2 append-only rule. Version bumped 5 → 6 to
+# mark the schema generation. ZERO existing keys reordered; the v7.0.0
+# golden baseline byte-comparison AND the v7.3.0 / v8.0.0-P-08 /
+# v8.0.0-P-10 / v8.3.0-PV-05 / v8.4.0 / v9.2.0 / v9.3.0 multi-baseline
+# byte-tests ALL CONTINUE TO PASS after this bump, proving additivity
+# holds across SIX schema generations (v7.2.6 → v8.0.0-P-08 → v8.0.0-P-10
+# → v8.3.0-PV-05 → [stable through v9.6] → v9.7.0-PV-02). The new
+# `predecessor_dedup_ledger` field carries hash-based dedup state for
+# round-N>1 convergence dispatches per A-2.3 (APPEND, not NEST: the
+# data shape is orthogonal — it cross-references multiple `pred[*]`
+# entries and a previous round's ledger, which is not naturally a
+# sub-field of any single existing canonical key). The 9th baseline
+# (`benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml`)
+# pins the schema-v6 17-element canonical_order with the ledger
+# populated (round 2 dedup demo). Field is OPTIONAL — round 1
+# dispatches OMIT it entirely (canonical absence-as-default).
+#
 layout_invariant:
-  version: 5
+  version: 6
   canonical_order:
     # --- FROZEN PREFIX (positions 1-12, v7.0.0 baseline, FROZEN per D1) ---
     - hdr
@@ -507,6 +560,7 @@ layout_invariant:
     - behavioral_guidelines    # pos 14 — v8.0.0 P-08 (Karpathy primitives)
     - acceptance_criteria_v2   # pos 15 — v8.0.0 P-10 (structured AC)
     - change_context           # pos 16 — v8.3.0 PV-05 (agent workspace bind)
+    - predecessor_dedup_ledger # pos 17 — v9.7.0 PV-02 (round-N dedup state)
   enforcement:
     validator: "devolaflow.compressor.assert_dispatch_layout"
     spec_invariant: "devolaflow.compressor.assert_layout_spec_invariant"  # v9-ADR-002 D5
@@ -524,4 +578,6 @@ layout_invariant:
       v8_0_0_p10_baseline_passes: true
       v8_3_0_pv05_baseline_passes: true
       v8_4_0_baseline_passes: true
+      v5_to_v6_invariant: "positions 1..16 byte-identical; new key appended at position 17; version field bumped 5 → 6"
+      v9_7_0_baseline_passes: true
       v9_2_0_baseline_passes: true   # v9.1.4 PV-04 NEST witness; byte-identical to v8.4.0
