@@ -1211,5 +1211,29 @@
       "references": "14",
       "rules_total": "59"
     }
+  },
+  {
+    "version": "9.5.0",
+    "date": "2026-05-02",
+    "era": "self-improvement",
+    "headline": "MINOR — Si-Chip DEEP integration: persistent BasicAbility optimisation factory wired as 4th runtime plugin + typed Python bridge module + lifecycle hook for post-skill-edit dogfood evaluation",
+    "summary": "Third MINOR of the v10.0.0 MAJOR rollup cycle. 4 implementation PVs (PV-01 plugin registration + PV-02 si_chip_bridge module + PV-03 template wiring + PV-04 post_skill_edit hook + DEEP env flag) addressing user requirement Q2=B DEEP integration signoff: 'Self-Update needs to integrate a new plugin capability... use this capability for a comprehensive analysis and optimisation of all your own Skills... ensure those things are genuinely effective with clear verification benchmarks and tested gains BEFORE applying them. If not, summarise into a feedback document.' PV-05 dogfood pass DEFERRED per the user requirement: Si-Chip's static count_tokens probe surfaces budget tension with DevolaFlow's tiered C-4 LINE budgets, but iteration_delta evaluation requires real-LLM eval data which the v9.5.0 cycle deliberately did not generate. NO automatic SKILL changes applied. The deferred-changes feedback doc captures every per-file finding for v9.6.0+ operator-driven evaluation.",
+    "highlights": [
+      "PV-01 Si-Chip plugin registration: 4th entry in workflow-system/agent/knowledge/runtime-plugins.yaml (id=si-chip, backend=curl_install_script reusing v8.3.1 RTK plumbing, install_cmd via canonical https://yorha-agents.github.io/Si-Chip/install.sh, invoked_by_workflows=[skill-optimization, self-update, nines-assisted]). Legacy plugins.yaml mirrors with skill_self_improvement role. 12 NEW tests pin the registration contract + cascade fixes to test_dispatch_plugin_autoinstall.py + test_plugin_upgrade.py for 4-plugin world.",
+      "PV-02 si_chip_bridge Python module: NEW src/devolaflow/si_chip_bridge/ package (~1070 LOC, 4 modules: __init__ public API + install_resolver 6-candidate search-order including v0.4.0 nested-bug fallback + models 5 frozen dataclasses + StrEnum + runner subprocess wrappers with S-5 loud failures + IEEE-754 epsilon on apply/defer threshold). Public API: profile, evaluate, count_tokens, aggregate_delta, apply_or_defer, run_dogfood_cycle. SiChipUnavailable as distinct exception (gracefully-degraded missing install). 14 NEW tests + 2 forward-declared API allowlist entries.",
+      "PV-03 template wiring: NEW si_chip_dogfood stage in skill-optimization.yaml between optimize and benchmark + NEW si_chip_dogfood_gate (DEFER → loop_back to optimize) + EXTEND optimize_benchmark_loop body to [optimize, si_chip_dogfood, benchmark]. NEW OPTIONAL si_chip_gate in self-update.yaml between integrate and test (skip-when _context.requires_skill_corpus_touch == false preserves v9.4.x byte-stable). Both stages declare ensure_plugins=[si-chip] for v9.4.0 PV-02 dispatcher pre-flight. SKILL.md UNTOUCHED to preserve A-2 frozen prefix invariant. 9 NEW tests.",
+      "PV-04 post_skill_edit lifecycle hook + DEEP env flag: NEW src/devolaflow/lifecycle/post_skill_edit.py (~390 LOC) — DEEP integration always-on hook; R5 strict zero-IO when env flag OFF; lazy-imports si_chip_bridge ONLY when active + skill-corpus prefix matcher. NEW env flag DEVOLAFLOW_SI_CHIP_DEEP=1 (R5 strict literal-only). DEFAULT_EVENTS bumped 9 → 10 with post_skill_edit APPENDED at position 10 (A-2.2 invariant — positions 1-9 byte-stable since v9.4.0). DEFER verdict writes deferred-changes feedback doc per v9.5.0 user requirement. references/env-flags.md §2.14 entry with full W-20 §3 orthogonality argument vs 3 candidates. 7 NEW tests (24 cases via parametrize) + cascade fixes for DEFAULT_EVENTS bump.",
+      "PV-05 self-application dogfood pass DEFERRED per user requirement: Si-Chip count_tokens probe ran against all 18 DevolaFlow skill-corpus files — 0/18 within Si-Chip's default meta budget (≤100 tokens), 8/18 within body budget (≤5000); top 3 offenders env-flags.md (meta=458 / body=9377), shell-proxy.md (398/8985), plan-mode-enforcement.md (137/8244). Verdict DEFER — full iteration_delta requires real-LLM eval data out of scope at v9.5.0 cut. NO automatic SKILL changes applied. .local/feedbacks/v9.5.0_sichip_deferred.md enumerates every per-file finding + 5-action plan for v9.6.0+ operators + 2 upstream Si-Chip defects (D-1 nested install path + D-2 count_tokens.py exit code).",
+      "Test cap discipline (W-17): cycle-cumulative +43 NEW test functions across PV-01 (12) + PV-02 (14) + PV-03 (9) + PV-04 (7) + PV-06 (1 W-18 lint). Within W-17 +30/PV cap throughout. Cycle running total post-v9.5.0: v9.3.0 +36 + v9.4.0 +60 adjusted + v9.5.0 +43 = +139 of 150 cap; +11 headroom for v9.6.0 + v9.7.0 + v10.0.0 close.",
+      "Cycle invariants pinned: Soul count 10 (W-21 frozen — no S-11 candidate proposed for v9.5.0); schemas/lean-dispatch.yaml#layout_invariant byte-identical (no schema bump); DEFAULT_EVENTS bumped 9 → 10 (the only invariant change — APPENDED at position 10 per A-2.2 strict append-only); 1 NEW env flag (DEVOLAFLOW_SI_CHIP_DEEP — W-20 §3 orthogonality vs AUTO_INSTALL_PLUGINS / AUTO_INSTALL / AGENT_WORKSPACE)",
+      "SI-10 6-gate sequence green at every commit: pytest tests/ -q (3819 passed / 21 skipped / 2 xfailed at PV-06); ruff check + ruff format --check (235 files clean); pytest tests/test_version.py -q (12 passed / 19 skipped — mirror parity self-skipped per SF-3); pytest tests/test_benchmarks.py -q (36 passed — composite scores unchanged within ±2%); make check-cursor-skill (exit 0 — mirror absent, no-op per SF-3)"
+    ],
+    "metrics": {
+      "tests": "3819",
+      "scenarios": "53",
+      "templates": "22",
+      "references": "14",
+      "rules_total": "59"
+    }
   }
 ]

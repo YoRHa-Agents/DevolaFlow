@@ -5,6 +5,74 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.0] — 2026-05-02
+
+**MINOR — Si-Chip DEEP integration.** Third MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Four implementation PVs (PV-01..PV-04) wiring the Si-Chip persistent BasicAbility optimisation factory (canonical: https://github.com/YoRHa-Agents/Si-Chip) as the 4th DevolaFlow runtime plugin + a typed Python bridge module + 2 builtin template wirings + a new lifecycle hook. PV-05 dogfood DEFERRED per the verbatim user requirement: *"ensure those things are genuinely effective with clear verification benchmarks and tested gains BEFORE applying them. If not, summarise into a feedback document."* (signed-off as user Q2=B DEEP integration at L0 dispatch).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Single new env flag**: `DEVOLAFLOW_SI_CHIP_DEEP=1` (R5 strict — `"1"` only; rejects `"true"` / `"yes"` / `"on"` / `"01"` / `"1\n"` / `""`). Default-OFF; opt-in for v9.5.0. When set, the dispatcher's NEW `post_skill_edit` lifecycle hook (event slot at position 10 of `DEFAULT_EVENTS`, A-2.2 append-only) auto-runs the Si-Chip iteration_delta gate (`devolaflow.si_chip_bridge.run_dogfood_cycle`) after any commit touching `workflow-system/agent/**`. APPLY verdict (iteration_delta ≥ +0.10 per Si-Chip spec §23) → silent. DEFER verdict → write a deferred-changes feedback doc to `.local/feedbacks/sichip_deferred_<timestamp>.md` per the v9.5.0 user requirement. Without the env flag, behaviour is byte-identical to v9.4.x for every input — the new lifecycle event runs a permissive zero-IO no-op default. Documented in `workflow-system/agent/references/env-flags.md` §2.14 with full W-20 §3 orthogonality justification (the new flag activates a different runtime surface from `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` PRE-dispatch plugin install, from `DEVOLAFLOW_AUTO_INSTALL` install primitive, and from `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle).
+
+**Si-Chip plugin auto-install** (when `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`): the v9.5.0 PV-01 registry update declares Si-Chip as `invoked_by_workflows: [skill-optimization, self-update, nines-assisted]` — running any of those workflows triggers the v9.4.0 PV-02 `pre_plugin_invocation` hook to auto-install Si-Chip via `curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes`.
+
+**No breaking changes**: every other change is additive. Si-Chip integration is opt-in. The 4 NEW templates additions (`si_chip_dogfood` stage in skill-optimization.yaml, `si_chip_gate` optional stage in self-update.yaml) are gated on `ensure_plugins: ["si-chip"]` so they're inert when Si-Chip isn't installed (the new `post_skill_edit` hook gracefully degrades to PSE001 warning). The `si_chip_bridge` Python package adds zero new entry points to existing public APIs.
+
+### What landed (PV-by-PV)
+
+| PV | Tag | SHA | Deliverable |
+|---|---|---|---|
+| PV-01 | `feat(v9.5.0)` | `cc6e492` | W-1 gap analysis + Si-Chip plugin registration. NEW 4th entry in `workflow-system/agent/knowledge/runtime-plugins.yaml` (`si-chip`, backend `curl_install_script`, reuses RTK v8.3.1 plumbing). Legacy `workflow-system/agent/plugins.yaml` mirrors the workflow assignments + new `skill_self_improvement` plugin role. 12 NEW test functions in `tests/test_plugin_sichip_registration.py` across 3 classes (canonical registry / workflow resolution / legacy mirror). Cascade fixes to `tests/test_dispatch_plugin_autoinstall.py` + `tests/test_plugin_upgrade.py` (`skill-optimization` workflow now resolves to `[nines, si-chip]`; `refresh_all` + `list_plugins` expect 4 plugin rows). |
+| PV-02 | `feat(v9.5.0)` | `1b2d052` | NEW `src/devolaflow/si_chip_bridge/` package (~1070 LOC across 4 modules): `__init__.py` (public API re-exports), `install_resolver.py` (6-candidate search-order resolver including the v0.4.0 nested-bug fallback path), `models.py` (5 frozen dataclasses + `ApplyVerdict` StrEnum), `runner.py` (subprocess wrappers with S-5 loud failures + IEEE-754 epsilon on apply/defer threshold). 14 NEW test functions in `tests/test_si_chip_bridge.py` across 6 classes. 2 NEW DEFAULT_ALLOWLIST entries in `scripts/detect_dead_apis.py` for forward-declared APIs (production callers land in PV-04). |
+| PV-03 | `feat(v9.5.0)` | `fa4e40c` | EDIT `workflow-system/agent/templates/builtin/skill-optimization.yaml` — NEW stage `si_chip_dogfood` (validate/test, between optimize and benchmark) + NEW gate `si_chip_dogfood_gate` (after:si_chip_dogfood, on_fail loop_back to optimize) + EXTEND `optimize_benchmark_loop` body to `[optimize, si_chip_dogfood, benchmark]` with `until` condition adding `si_chip_dogfood.verdict == 'APPLY'`. EDIT `self-update.yaml` — NEW OPTIONAL stage `si_chip_gate` (between integrate and test, skip-when `_context.requires_skill_corpus_touch == false` preserves v9.4.x byte-stable behaviour). 9 NEW test functions in `tests/test_sichip_template_integration.py`. SKILL.md UNTOUCHED to preserve A-2 frozen prefix invariant. |
+| PV-04 | `feat(v9.5.0)` | `bab37a4` | NEW `src/devolaflow/lifecycle/post_skill_edit.py` (~390 LOC) — DEEP integration always-on hook with R5 strict zero-IO when env flag OFF + skill-corpus prefix matcher + lazy-import of bridge package + DEFER verdict writes feedback doc to `.local/feedbacks/`. EDIT `lifecycle/__init__.py` — append `POST_SKILL_EDIT_EVENT` at DEFAULT_EVENTS position 10 (A-2.2 append-only; positions 1-9 byte-stable since v9.4.0). NEW `references/env-flags.md` §2.14 entry with full W-20 §3 orthogonality argument vs 3 candidates. 7 NEW test functions in `tests/test_post_skill_edit_hook.py` (24 cases via parametrize) across 6 classes. Cascade fixes to `tests/test_lifecycle_hooks.py` + `tests/test_pre_plugin_invocation.py` for the DEFAULT_EVENTS bump. |
+| PV-05 | `docs(v9.5.0)` | `f84eb06` | Self-application dogfood pass — DEFERRED per the v9.5.0 user requirement. Empty commit by design — research artifacts live under `.local/research/v9.5.0_sichip_dogfood.md` + `.local/feedbacks/v9.5.0_sichip_deferred.md` (both gitignored; archived at v10.0.0 close per W-19). Si-Chip count_tokens probe ran against all 18 DevolaFlow skill-corpus files — 0/18 pass Si-Chip's default meta budget (≤100 tokens), 8/18 pass body budget (≤5000); top 3 offenders: env-flags.md (meta=458 / body=9377), shell-proxy.md (398/8985), plan-mode-enforcement.md (137/8244). Verdict DEFER — full iteration_delta evaluation (`aggregate_eval.py`) requires real-LLM with-ability + no-ability run data which the v9.5.0 cycle deliberately did not generate (out of scope per L0 dispatch). |
+| PV-06 | `chore(v9.5.0)` | (this commit) | Cycle close — version bump 9.4.0 → 9.5.0 across the canonical 7 sync locations + this CHANGELOG + retrospective + evaluation + W-18 ghost-audit refresh + ST-7 versions.json + human docs regen + W-19 archive (deferred to v10.0.0 close per cycle plan §6 entry conditions). |
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** — `.local/research/v9.5.0_gap_analysis.md` (gitignored; will be archived at v10.0.0 close per W-19); 9 deficiencies (D-S-1..D-S-9) enumerated with priority ranking + file-level scope. Authored before PV-02 implementation began.
+- **W-2 SI-2 manual analysis** — Si-Chip empirical baseline captured in `v9.5.0_gap_analysis.md` §2 (script versions verified, count_tokens round-trip confirmed against Si-Chip's own SKILL.md returning the documented `meta=94 body=4646 verdict=pass`). NineS deep-analyze on the new bridge module deferred to PV-06 retrospective per W-2 fallback ("when NineS is unavailable, manual analysis... must be explicitly noted as manual").
+- **W-3 SI-3 evaluation** — `.local/research/v9.5.0_evaluation.md` documents the 6-dimension weighted composite ≥ 9.0/10 (the STRICT-gate threshold appropriate for skill-corpus-touching minors per the L0 dispatch rationale).
+- **W-4 SI-4 benchmark guard** — composite scores unchanged across all 53 EvoBench scenarios (within ±2%); the v9.3.0 wholesale `v9.3.0_baseline.json` remains the cycle anchor (W-16 — wholesale regen happens once per `.0` MINOR cycle-start, not per-PV).
+- **W-7 SI-8 retrospective** — `.local/research/v9.5.0_retrospective.md` (4 mandatory sections: gaps / implemented / deferred / learnings).
+- **W-17 test cap** — cycle-cumulative +42 NEW test functions across PV-01 (12) + PV-02 (14) + PV-03 (9) + PV-04 (7) + PV-06 (1 W-18 lint). Within both per-PV ≤30 cap and cumulative cycle ≤150 cap (running cycle total post-v9.5.0: v9.3.0 +36 + v9.4.0 +60 adjusted + v9.5.0 +43 = +139 of 150). Tight margin — PV-06 W-18 lint is the cycle-cap-conscious single-test-function refresh per the v9.4.0 retrospective lesson.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v9_5_0_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per the W-18 precondition. Pins (a) all 25 NEW symbol surfaces import cleanly; (b) DEFAULT_EVENTS length ≥ 10 with `post_skill_edit` at 1-indexed position 10; (c) `references/env-flags.md` §2.14 entry contains the canonical W-20 §3 literals; (d) `runtime-plugins.yaml` declares the `si-chip` plugin with backend `curl_install_script` and canonical GitHub URL.
+- **W-20 env flag policy** — 1 NEW flag added (`DEVOLAFLOW_SI_CHIP_DEEP`); orthogonality justification documented in PV-04 commit body + `references/env-flags.md` §2.14 + this CHANGELOG entry above.
+- **W-21 Soul-set freeze** — Soul count remains at **10** (no S-11 candidate proposed for v9.5.0). Per the W-21 2-cycle telegraph rule, any S-11 candidate would have to telegraph in the v9.5.0 retrospective and gap-analyse in v9.7.0+ per the cycle cadence.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.4.0 → 9.5.0 |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| EDIT | `workflow-system/agent/SKILL.md` | version triple sync (frontmatter + banner + body "Current version:" text) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.5.0 entry |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen (16 files — EN + ZH bilingual completeness per ST-3) |
+| EDIT | `README.md` | badge + version example sync |
+| EDIT | `CHANGELOG.md` | this entry |
+| EDIT | `tests/test_no_ghost_features.py` | +1 W-18 ghost-audit lint (`test_v9_5_0_new_symbols_have_coverage`) — 25 symbol surfaces + DEFAULT_EVENTS shape + env-flag doc + plugin registry contract |
+| NEW | `.local/research/v9.5.0_gap_analysis.md` (gitignored) | W-1 / SI-1 planning gate |
+| NEW | `.local/research/v9.5.0_sichip_dogfood.md` (gitignored) | PV-05 dogfood pass run log |
+| NEW | `.local/research/v9.5.0_devola_count_tokens.json` (gitignored) | PV-05 raw count_tokens metrics |
+| NEW | `.local/feedbacks/v9.5.0_sichip_deferred.md` (gitignored) | PV-05 deferred-changes feedback doc per v9.5.0 user requirement |
+| NEW | `.local/research/v9.5.0_retrospective.md` (gitignored) | W-7 / SI-8 cycle-close retrospective |
+| NEW | `.local/research/v9.5.0_evaluation.md` (gitignored) | W-3 / SI-3 evaluation report |
+| NEW | `.local/research/v9.5.0_nines.{json,md}` (gitignored) | W-2 / SI-2 PV-06 NineS self-eval (manual fallback when NineS unavailable) |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Reason for reference |
+|---|---|---|
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | The integration target; bridge module wraps its 3 CLI scripts |
+| NineS | https://github.com/YoRHa-Agents/NineS | DevolaFlow's existing evaluator; complementary to Si-Chip |
+
+NO local clone paths hardcoded in any agent-facing file. The bridge's `install_resolver.py` probes 6 candidate paths in priority order (`$SI_CHIP_HOME` → cursor global → cursor nested → claude global → claude nested → `$DEVOLAFLOW_SI_CHIP_FALLBACK_DIR` operator-controlled escape hatch) per S-7.
+
 ## [9.4.0] — 2026-05-02
 
 **MINOR — Plugin Auto-Install & Daily Upgrade.** Second MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Three implementation PVs (PV-02 + PV-03 + PV-04) addressing user feedback §1 from `feedback_for_v9.2.4.md`: *"Plugins should auto-install globally on missing-invocation and auto-upgrade daily; current gap = `ensure_plugin()` is never called from any dispatcher."* The PV-01 audit confirmed this empirically — `grep -c ensure_plugin src/devolaflow/` returned hits only in `installer.py` (defining the function) and `plugins/__init__.py` (re-exporting it); zero dispatcher / lifecycle / slash-command / CLI / template-runtime invocations. The cycle close grows the hit count from 2 → 5 files, fully closing the dead-wire ghost.

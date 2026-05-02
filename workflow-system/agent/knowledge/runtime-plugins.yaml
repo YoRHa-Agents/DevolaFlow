@@ -27,6 +27,13 @@
 #                   contract). Authors who need a distinct upgrade path
 #                   (e.g. cargo distribution that requires `cargo install
 #                   --force`) declare it here.
+#               v9.5.0 PV-01 — added si-chip entry (4th plugin) per the
+#               cycle plan §3 v9.5.0 row + user requirement (verbatim in
+#               .local/research/v9.5.0_gap_analysis.md §1). Reuses the
+#               curl_install_script backend (RTK precedent v8.3.1 PV-01).
+#               No verify_distinguish_cmd because Si-Chip has no known
+#               name collision (RTK's distinguish-cmd only fires because
+#               of the rtk-type-kit collision documented in RTK INSTALL.md).
 #   defaults:   registry-wide defaults (auto_install, prefer_local_fallback,
 #               network_timeout_seconds, install_log_path).
 #               v3 additions:
@@ -51,6 +58,8 @@
 
 schema_version: 3
 last_updated: "2026-05-02"
+# v9.4.0 PV-04 baseline last_updated kept (v9.5.0 PV-01 only adds 1 plugin
+# row + extends the header comment; no schema-version bump).
 
 plugins:
   - id: nines
@@ -98,6 +107,34 @@ plugins:
     local_fallback_path: null
     invoked_by_workflows:
       - shell-proxy
+
+  # v9.5.0 PV-01 — Si-Chip persistent BasicAbility optimisation factory.
+  # Spec source-of-truth: https://github.com/YoRHa-Agents/Si-Chip
+  # The installer ships SKILL.md + DESIGN.md + 14 references + 5 scripts
+  # (21 files at v0.4.0). DevolaFlow consumes 3 of the 5 scripts via the
+  # `devolaflow.si_chip_bridge` Python wrapper (PV-02): profile_static.py,
+  # count_tokens.py, aggregate_eval.py. The other 2 (eval_skill_quickstart.md,
+  # real_llm_runner_quickstart.md) are operator-facing cheat sheets.
+  #
+  # version_check_cmd note: Si-Chip's installer has a v0.4.0 packaging defect
+  # (post-install check looks at the wrong path; payload lands at
+  # ~/.cursor/skills/si-chip/si-chip/ instead of ~/.cursor/skills/si-chip/).
+  # The version check probes EITHER path; the bridge module's install_resolver
+  # tolerates both (forward-compat for v0.4.1+ when fixed upstream).
+  - id: si-chip
+    backend: curl_install_script
+    package: si-chip
+    install_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
+    upgrade_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
+    version_check_cmd: "test -f $HOME/.cursor/skills/si-chip/SKILL.md || test -f $HOME/.cursor/skills/si-chip/si-chip/SKILL.md && echo si-chip/0.4.0"
+    min_version: "0.4.0"
+    expected_sha256: null
+    canonical_url: "https://github.com/YoRHa-Agents/Si-Chip"
+    local_fallback_path: null
+    invoked_by_workflows:
+      - skill-optimization
+      - self-update
+      - nines-assisted
 
 defaults:
   auto_install: true

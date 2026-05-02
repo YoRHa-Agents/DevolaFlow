@@ -80,6 +80,36 @@ stages:
       tasks: "decompose.integration_plan.waves"
       code_rules: "_context.code_rules"
 
+  # v9.5.0 PV-03 — Si-Chip gate (optional). Inserted between `integrate`
+  # and `test` so any SKILL-corpus-touching integrate output gets the
+  # iteration_delta sanity check BEFORE the heavier `test` stage's full
+  # EvoBench + pytest pipeline. The stage is OPTIONAL: when the
+  # decomposed plan declares `requires_skill_corpus_touch: false` the
+  # composition skips this stage entirely (no Si-Chip overhead for
+  # changes that don't touch workflow-system/agent/**).
+  # Plugin: si-chip (resolved via runtime-plugins.yaml#plugins
+  # invoked_by_workflows[self-update]).
+  - id: si_chip_gate
+    primitive: validate
+    alias: si_chip_gate
+    description: "Optional Si-Chip iteration_delta gate for SKILL-corpus-touching integrate output"
+    team: test
+    duration_class: quick
+    optional: true
+    config:
+      analysis_type: iteration_delta
+      threshold: 0.10
+      ensure_plugins: ["si-chip"]
+      bridge_module: "devolaflow.si_chip_bridge"
+      bridge_entry_point: "run_dogfood_cycle"
+      permissive_on_missing_install: true
+      skip_when: "_context.requires_skill_corpus_touch == false"
+    input_mapping:
+      ability_name: "_context.ability_name"
+      skill_md: "_context.skill_md_path"
+      runs_dir: "integrate.runs_dir"
+      baseline_dir: "_context.baseline_dir"
+
   - id: test
     primitive: test
     description: >
@@ -161,8 +191,14 @@ composition:
       ref: final_evaluation_gate
 
 loops:
+  # v9.5.0 PV-03 — extended the loop body to include the optional
+  # `si_chip_gate` between `integrate` and `test`. The gate is
+  # auto-skipped when `_context.requires_skill_corpus_touch == false`
+  # (the common case — most self-update integrations don't touch the
+  # workflow-system/agent/ tree). When skipped the loop behaves
+  # byte-identically to v9.4.x (integrate → test).
   - name: integrate_test_cycle
-    body_stages: [integrate, test]
+    body_stages: [integrate, si_chip_gate, test]
     until: "test.all_pass == true AND test.coverage_pct >= 80 AND test.benchmark_regressions == 0"
     max_iterations: 3
     on_exhaustion: escalate

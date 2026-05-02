@@ -242,6 +242,22 @@ These flags are read by production code paths. Tests in
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to preserve v9.4.x dispatch behaviour byte-identically |
 | **Reference** | `tests/test_pre_plugin_invocation.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (the public entry point); `.local/research/v9.4.0_gap_analysis.md` §3.1 D-P-3 |
 
+### 2.14 `DEVOLAFLOW_SI_CHIP_DEEP` — v9.5.0 PV-04 Si-Chip DEEP integration (post-skill-edit dogfood gate)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/lifecycle/post_skill_edit.py::ENV_FLAG` (helper: `is_deep_integration_active`) |
+| **Introduced** | v9.5.0 PV-04 (closes D-S-4 + D-S-5 from `.local/research/v9.5.0_gap_analysis.md` §3.1; user Q2=B DEEP integration signoff) |
+| **Default** | unset (= disabled — `post_skill_edit` hook is a zero-IO no-op) |
+| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
+| **Effect when active** | `post_skill_edit` lifecycle hook (event slot #10 in `DEFAULT_EVENTS`, A-2.2 append-only at position 10) auto-runs the Si-Chip iteration_delta gate (`devolaflow.si_chip_bridge.run_dogfood_cycle`) after any commit touching `workflow-system/agent/**`. APPLY verdict → no-op (continue). DEFER verdict → write a deferred-changes feedback doc to `.local/feedbacks/sichip_deferred_<timestamp>.md` per the v9.5.0 user requirement ("if not, summarise into a feedback document"). The hook fires AFTER the v9.4.0 PV-02 `pre_plugin_invocation` slot at DEFAULT_EVENTS position 10. |
+| **Effect when opted out** | The `post_skill_edit` hook is a zero-IO no-op (lazy-imports the `si_chip_bridge` package ONLY when active); dispatch behaviour is byte-identical to v9.4.x for every input (the AC-7 byte-stable invariant from `v9.5.0_gap_analysis.md` §6) |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SI_CHIP_DEEP activates a different runtime surface (the post-skill-edit dogfood gate) than every existing flag. (1) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (§2.13, opt-IN) controls dispatcher PRE-flight plugin install — different surface (PRE vs POST). (2) `DEVOLAFLOW_AUTO_INSTALL` (§2.5, opt-OUT) controls the install primitive's WHEN-called behaviour — different surface (install primitive vs hook). (3) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — workspace folder management has nothing to do with skill self-evaluation cadence. The flags compose meaningfully: `SI_CHIP_DEEP=1 + AUTO_INSTALL_PLUGINS=1` = full pipeline (auto-install Si-Chip on dispatch + auto-evaluate skills on commit); `SI_CHIP_DEEP=1` alone = auto-evaluate only (operators who pre-install Si-Chip manually). No existing flag could be REUSED without conflating distinct activation surfaces. |
+| **R5 strict?** | YES — `is_deep_integration_active` is a pure ``os.environ.get`` comparison with no IO + no subprocess. The hook body lazy-imports `devolaflow.si_chip_bridge` ONLY when active; codified by `tests/test_post_skill_edit_hook.py::TestDisabledIsNoop::test_disabled_is_noop_byte_identical`. |
+| **Lifecycle telegraph** | The v9.5.0 cycle ships the flag as opt-in with default-OFF. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. NOT yet committed — the v9.5.0 retrospective will assess the operator-feedback signal. |
+| **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SI_CHIP_DEEP=0` to preserve v9.5.x dispatch behaviour byte-identically |
+| **Reference** | `tests/test_post_skill_edit_hook.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/post_skill_edit.py::post_skill_edit` (the public entry point); `.local/research/v9.5.0_gap_analysis.md` §3.1 D-S-4 + §3.2 D-S-5; canonical Si-Chip URL: `https://github.com/YoRHa-Agents/Si-Chip` |
+
 ## 3. Test-fixture flags (NOT runtime flags)
 
 These flags are read ONLY by tests (`tests/`) and never by production

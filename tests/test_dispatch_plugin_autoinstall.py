@@ -127,7 +127,12 @@ class TestDispatchAutoInstall:
     def test_skill_optimization_dispatch_triggers_ensure_plugin_nines(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """AC-3: dispatching skill-optimization workflow installs nines."""
+        """AC-3: dispatching skill-optimization workflow installs nines + si-chip.
+
+        v9.5.0 PV-01 update: skill-optimization workflow now resolves to
+        `["nines", "si-chip"]` (nines first per registry order; si-chip
+        appended in v9.5.0 PV-01).
+        """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
 
@@ -144,9 +149,11 @@ class TestDispatchAutoInstall:
                 _verdict_round1(),
                 round_num=1,
             )
-        assert invocations == ["nines"], (
+        assert invocations == ["nines", "si-chip"], (
             f"dispatching skill-optimization MUST trigger "
-            f"ensure_plugin('nines'); got invocations={invocations!r}"
+            f"ensure_plugin('nines') AND ensure_plugin('si-chip') "
+            f"(v9.5.0 PV-01: si-chip added to invoked_by_workflows); "
+            f"got invocations={invocations!r}"
         )
 
     def test_product_verification_dispatch_triggers_ui_pro(
@@ -306,7 +313,12 @@ class TestWorkflowEdgeCases:
     def test_workflow_combined_with_explicit_plugin_id_dedupes(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Mixing `workflow` (resolves to nines) with `plugin_id`=nines → 1 install."""
+        """Mixing `workflow` (skill-optimization → nines+si-chip) with `plugin_id`=nines.
+
+        v9.5.0 PV-01 update: explicit plugin_id="nines" comes first; the
+        workflow-resolved IDs (now `["nines", "si-chip"]`) follow with
+        `nines` deduped (already present) → final order `["nines", "si-chip"]`.
+        """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
 
@@ -319,13 +331,22 @@ class TestWorkflowEdgeCases:
             side_effect=fake_ensure,
         ):
             pre_plugin_invocation({"workflow": "skill-optimization", "plugin_id": "nines"})
-        # nines appears only once despite being resolvable from both sources
-        assert invocations == ["nines"]
+        # nines deduped (already explicit); si-chip appended from workflow resolve
+        assert invocations == ["nines", "si-chip"], (
+            f"v9.5.0 PV-01: skill-optimization now resolves to nines+si-chip; "
+            f"explicit plugin_id='nines' deduped, si-chip appended. "
+            f"Got {invocations!r}"
+        )
 
     def test_explicit_plugin_id_runs_first_workflow_appended(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """plugin_ids merged with workflow-resolved IDs preserves explicit-first order."""
+        """plugin_ids merged with workflow-resolved IDs preserves explicit-first order.
+
+        v9.5.0 PV-01 update: skill-optimization workflow now resolves to
+        `["nines", "si-chip"]` (was just `["nines"]` in v9.4.0). Explicit
+        plugin_ids=["rtk"] comes first; workflow-resolved IDs follow.
+        """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
 
@@ -340,8 +361,12 @@ class TestWorkflowEdgeCases:
             pre_plugin_invocation(
                 {
                     "plugin_ids": ["rtk"],
-                    "workflow": "skill-optimization",  # resolves to nines
+                    "workflow": "skill-optimization",  # resolves to nines+si-chip
                 }
             )
-        # plugin_ids comes first (explicit), workflow-resolved second
-        assert invocations == ["rtk", "nines"]
+        # plugin_ids comes first (explicit), workflow-resolved IDs second (in registry order)
+        assert invocations == ["rtk", "nines", "si-chip"], (
+            f"v9.5.0 PV-01: skill-optimization resolves to nines+si-chip; "
+            f"after dedup with explicit ['rtk'], final order is "
+            f"['rtk', 'nines', 'si-chip']. Got {invocations!r}"
+        )

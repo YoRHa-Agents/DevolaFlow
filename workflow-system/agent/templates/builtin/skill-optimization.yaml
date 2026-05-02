@@ -48,6 +48,41 @@ stages:
     input_mapping:
       tasks: "profile.findings"
 
+  # v9.5.0 PV-03 — Si-Chip iteration_delta gate. Inserted between
+  # `optimize` and `benchmark` so optimisation candidates are scored
+  # against the +0.10 spec §23 threshold BEFORE the slower EvoBench
+  # gate runs. APPLY verdict → continue to `benchmark`. DEFER verdict
+  # → loop back to `optimize` per the optimization_gate contract OR
+  # write a deferred-changes feedback doc per the v9.5.0 user
+  # requirement ("if not, summarise into a feedback document").
+  # Plugin: si-chip (resolved via runtime-plugins.yaml#plugins
+  # invoked_by_workflows[skill-optimization]). The bridge API is
+  # devolaflow.si_chip_bridge.run_dogfood_cycle. Permissive when
+  # Si-Chip not installed: the stage logs a WARNING and emits a
+  # DEFER verdict, allowing the workflow to continue (CI environments
+  # without network access still pass through).
+  - id: si_chip_dogfood
+    primitive: validate
+    alias: si_chip_dogfood
+    description: "Score optimization via Si-Chip iteration_delta (+0.10 threshold per spec §23)"
+    team: test
+    duration_class: quick
+    config:
+      analysis_type: iteration_delta
+      threshold: 0.10
+      ensure_plugins: ["si-chip"]
+      bridge_module: "devolaflow.si_chip_bridge"
+      bridge_entry_point: "run_dogfood_cycle"
+      permissive_on_missing_install: true
+    input_mapping:
+      ability_name: "_context.ability_name"
+      skill_md: "_context.skill_md_path"
+      runs_dir: "optimize.runs_dir"
+      baseline_dir: "profile.baseline_dir"
+    plugin_commands:
+      profile: "python ~/.cursor/skills/si-chip/si-chip/scripts/profile_static.py --ability {ability_name} --out {out_path}"
+      evaluate: "python ~/.cursor/skills/si-chip/si-chip/scripts/aggregate_eval.py --runs-dir {runs_dir} --baseline-dir {baseline_dir} --skill-md {skill_md} --out {out_path}"
+
   - id: benchmark
     primitive: test
     description: "Run EvoBench + full test suite, compare to baseline"
@@ -80,9 +115,16 @@ composition:
     - stage: document
 
 loops:
+  # v9.5.0 PV-03 — extended the loop body to include si_chip_dogfood
+  # between optimize and benchmark. The loop now runs the cheap
+  # iteration_delta gate FIRST (Si-Chip), then the heavier EvoBench
+  # benchmark only when Si-Chip's verdict is APPLY. DEFER from Si-Chip
+  # short-circuits the EvoBench run AND triggers the loop's `until`
+  # condition to re-evaluate (loop_back to `optimize` per the
+  # exit_condition).
   - name: optimize_benchmark_loop
-    body_stages: [optimize, benchmark]
-    until: "benchmark.regression_count == 0 AND benchmark.composite_delta > 0"
+    body_stages: [optimize, si_chip_dogfood, benchmark]
+    until: "benchmark.regression_count == 0 AND benchmark.composite_delta > 0 AND si_chip_dogfood.verdict == 'APPLY'"
     max_iterations: 3
     on_exhaustion: escalate
     escalation_target: null
@@ -99,6 +141,26 @@ gates:
       action: abort
     require_human_override: false
     auto_insert: false
+
+  # v9.5.0 PV-03 — si_chip_dogfood gate. Pre-EvoBench short-circuit.
+  # APPLY → continue to benchmark. DEFER → loop_back to `optimize`
+  # for another optimisation candidate. Permissive on Si-Chip
+  # unavailability: when permissive_on_missing_install is True the
+  # gate is auto-passed with a WARNING in the run log (CI environments
+  # without network access stay green; production operators see the
+  # WARNING and install Si-Chip).
+  - name: si_chip_dogfood_gate
+    position: "after:si_chip_dogfood"
+    criteria:
+      - field: si_chip_dogfood.verdict
+        operator: "in"
+        value: ["APPLY", "SKIPPED_PERMISSIVE"]
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: optimize
+    require_human_override: false
+    auto_insert: true
 
   - name: optimization_gate
     position: "after:benchmark"

@@ -71,17 +71,28 @@ class TestEventRegistration:
         assert PRE_PLUGIN_INVOCATION_EVENT == EVENT
 
     def test_event_in_default_events(self) -> None:
-        """A-2.2: new event APPENDED at the END of DEFAULT_EVENTS (pos 9)."""
+        """A-2.2: pre_plugin_invocation APPENDED at the END of DEFAULT_EVENTS at pos 9.
+
+        v9.4.0 PV-02 bumped 8 → 9 with this event at the tail. The
+        v9.5.0 PV-04 cycle bumped 9 → 10 with post_skill_edit appended
+        AFTER pre_plugin_invocation (A-2.2 append-only). This test now
+        relaxes the strict ``== 9`` to ``>= 9`` and asserts the
+        position-9 slot remains pre_plugin_invocation (frozen per
+        A-2.4 cache-prefix invariant).
+        """
         assert PRE_PLUGIN_INVOCATION_EVENT in DEFAULT_EVENTS
-        assert len(DEFAULT_EVENTS) == 9, (
+        assert len(DEFAULT_EVENTS) >= 9, (
             f"DEFAULT_EVENTS bumped 8 → 9 in v9.4.0 PV-02 "
             f"(was {len(DEFAULT_EVENTS)}); A-2.2 append-only invariant "
-            f"requires this slot at the END of the tuple"
+            f"requires this slot to remain at position 9 (1-indexed)"
         )
-        assert DEFAULT_EVENTS[-1] == PRE_PLUGIN_INVOCATION_EVENT, (
-            f"PRE_PLUGIN_INVOCATION_EVENT must be the LAST event in "
-            f"DEFAULT_EVENTS (cache-prefix governance A-2.2). "
-            f"Actual tail: {DEFAULT_EVENTS[-1]!r}"
+        # Position 9 (1-indexed) — index 8 — MUST be pre_plugin_invocation
+        # per the v9.4.0 PV-02 frozen tail. Future appends (post_skill_edit
+        # at pos 10 in v9.5.0 PV-04) extend AFTER this slot.
+        assert DEFAULT_EVENTS[8] == PRE_PLUGIN_INVOCATION_EVENT, (
+            f"PRE_PLUGIN_INVOCATION_EVENT must remain at 1-indexed "
+            f"position 9 (DEFAULT_EVENTS[8]) per A-2.4 cache-prefix "
+            f"invariant. Actual position-9: {DEFAULT_EVENTS[8]!r}"
         )
 
     def test_canonical_8_event_prefix_unchanged(self) -> None:

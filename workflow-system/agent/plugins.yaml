@@ -36,6 +36,32 @@ plugins:
       validate: "nines -f json self-eval --project-root {root} --compare --report"
       monitor: "nines -f json iterate --max-rounds 1 --threshold {threshold} --project-root {root}"
 
+  si-chip:
+    description: "Persistent BasicAbility optimisation factory — static profiling, iteration_delta evaluation, apply/defer threshold gate (+0.10) for skill self-improvement"
+    cli_binary: "python"
+    version_command: "test -f $HOME/.cursor/skills/si-chip/SKILL.md || test -f $HOME/.cursor/skills/si-chip/si-chip/SKILL.md && echo si-chip/0.4.0"
+    version_regex: 'si-chip/(\d+\.\d+\.\d+)'
+    install_methods:
+      script: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
+    skill_install_command: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes"
+    capabilities:
+      - skill_static_profiling      # profile_static.py — BasicAbilityProfile YAML
+      - skill_metrics_aggregation   # aggregate_eval.py — metrics_report.yaml from with/no baseline runs
+      - token_budget_audit          # count_tokens.py — metadata + body token counts vs 100/5000 budgets
+      - iteration_delta_evaluation  # apply_or_defer threshold gate (+0.10 default)
+      - self_dogfood_protocol       # references/self-dogfood-protocol.md — apply skill optimisations to itself
+    role: "skill_self_improvement"
+    repo_url: "https://github.com/YoRHa-Agents/Si-Chip"
+    min_version: "0.4.0"
+    workflows:
+      - skill-optimization
+      - self-update
+      - nines-assisted
+    stage_mapping:
+      profile: "python ~/.cursor/skills/si-chip/si-chip/scripts/profile_static.py --ability {ability} --out {out_path}"
+      evaluate: "python ~/.cursor/skills/si-chip/si-chip/scripts/aggregate_eval.py --runs-dir {runs_dir} --baseline-dir {baseline_dir} --skill-md {skill_md} --out {out_path}"
+      audit: "python ~/.cursor/skills/si-chip/si-chip/scripts/count_tokens.py --file {skill_md} --both"
+
   ui-ux-pro-max:
     description: "AI-powered design intelligence for professional UI/UX across 15 frameworks — 67 styles, 161 palettes, 161 reasoning rules"
     cli_binary: "uipro"
@@ -86,6 +112,19 @@ plugin_roles:
       - analyze
       - validate
     invocation: "on_demand"  # Only invoked when workflow needs it
+
+  skill_self_improvement:
+    description: "Tools that profile, evaluate, and apply iteration-delta-gated skill optimisations to the agent's own SKILL.md + references"
+    primary_workflows:
+      - skill-optimization
+      - self-update
+      - nines-assisted
+    stage_affinity:
+      - profile
+      - validate
+      - audit
+    invocation: "on_demand"  # PV-04 lifecycle hook auto-invokes when DEVOLAFLOW_SI_CHIP_DEEP=1
+    provider: "si-chip"
 
   ui_tooling:
     description: "Design intelligence for UI/UX generation, style systems, and themed presentations"
