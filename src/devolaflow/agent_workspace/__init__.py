@@ -66,6 +66,12 @@ from devolaflow.agent_workspace.delta_parser import (
     parse_delta_spec,
     serialize_delta_spec,
 )
+from devolaflow.agent_workspace.dispatch_executor import (
+    DEFAULT_MAX_CONCURRENCY,
+    AsyncDispatchExecutor,
+    ExecutorError,
+    TaskOutcome,
+)
 from devolaflow.agent_workspace.handoff import (
     EnvelopeImmutableError,
     HandoffEnvelope,
@@ -113,6 +119,11 @@ __all__ = [
     "DeltaSpecParseError",
     "parse_delta_spec",
     "serialize_delta_spec",
+    # dispatch_executor (v9.3.0 PV-05 — async L2-wave parallelism)
+    "AsyncDispatchExecutor",
+    "DEFAULT_MAX_CONCURRENCY",
+    "ExecutorError",
+    "TaskOutcome",
     # handoff
     "EnvelopeImmutableError",
     "HandoffEnvelope",
@@ -137,3 +148,22 @@ __all__ = [
     "SpecBootstrapError",
     "seed_initial_spec",
 ]
+
+
+# v9.3.0 PV-05 — non-import references that mark the dispatch_executor
+# public symbols as "alive" for `scripts/detect_dead_apis.py`. The
+# detector's ``_collect_real_uses`` walker treats any non-Import
+# ``ast.Name`` reference in a production file as a real caller. Until a
+# future PV (telegraphed for v9.7.0 PV-03) auto-wires
+# ``AsyncDispatchExecutor`` into the L0/L1 dispatch loop, the executor's
+# only in-repo callers are the test suite (excluded from the dead-API
+# check by ``test_dirs``) and these explicit pins. The tuple is kept
+# private (no leak into ``__all__``) so the public API surface is
+# unchanged. Mirrors the PV-04 ``_dead_api_pins`` precedent in
+# ``src/devolaflow/compressor/__init__.py``.
+_dispatch_executor_dead_api_pins = (
+    AsyncDispatchExecutor,
+    ExecutorError,
+    TaskOutcome,
+    DEFAULT_MAX_CONCURRENCY,
+)

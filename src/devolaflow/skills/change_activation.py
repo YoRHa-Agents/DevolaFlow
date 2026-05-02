@@ -55,11 +55,16 @@ from typing import Final, Literal, get_args
 __all__ = [
     "ENV_FLAG_NAME",
     "ENV_FLAG_TRUTHY",
+    "SHORTCUT_FLAG_NAME",
+    "SHORTCUT_FLAG_TRUTHY",
     "ActivationVerdict",
     "Complexity",
+    "ShortcutVerdict",
     "activation_verdict",
     "classify_complexity",
     "from_env",
+    "shortcut_from_env",
+    "shortcut_verdict",
 ]
 
 
@@ -69,9 +74,17 @@ __all__ = [
 # exactly one Literal alias (single-source-of-truth per A-5 spirit).
 Complexity = Literal["TRIVIAL", "SIMPLE", "STANDARD", "COMPLEX"]
 ActivationVerdict = Literal["MUST_OPEN_CHANGE", "SHOULD_OPEN_CHANGE", "NO_CHANGE"]
+# v9.3.0 PV-06 — separate verdict surface for the simple-task auto-shortcut.
+# Kept as a SEPARATE Literal (not folded into ActivationVerdict) so the
+# A-6.1 three-valued contract stays intact — operators relying on the
+# three ``ActivationVerdict`` strings see no change. The shortcut decision
+# is orthogonal: a task may have ANY ActivationVerdict AND independently
+# qualify for SHORTCUT_SIMPLE based on the v9.3.0 PV-06 env flag.
+ShortcutVerdict = Literal["SHORTCUT_SIMPLE", "NO_SHORTCUT"]
 
 _VALID_COMPLEXITIES: Final[tuple[str, ...]] = get_args(Complexity)
 _VALID_VERDICTS: Final[tuple[str, ...]] = get_args(ActivationVerdict)
+_VALID_SHORTCUT_VERDICTS: Final[tuple[str, ...]] = get_args(ShortcutVerdict)
 
 
 # ── Env-flag constants (W-20 reuse-first) ──────────────────────────────
@@ -85,6 +98,22 @@ ENV_FLAG_NAME: Final[str] = "DEVOLAFLOW_AGENT_WORKSPACE"
 # is treated as default-OFF. This matches every other DevolaFlow
 # DEVOLAFLOW_* opt-in flag's parsing per `references/env-flags.md` §1.
 ENV_FLAG_TRUTHY: Final[str] = "1"
+
+
+# ── Simple-shortcut env-flag constants (v9.3.0 PV-06 — W-20 NEW flag) ──
+# A NEW DEVOLAFLOW_* flag is justified per W-20 §3 because the
+# behavioural surface is BEHAVIOURALLY ORTHOGONAL to every existing flag:
+# this flag activates the SHORTCUT_SIMPLE dispatch verdict (skip L1/L2
+# layers when complexity is SIMPLE/TRIVIAL), independently of whether
+# the agent-workspace activation surface is ON.
+#
+# The flag is opt-in for v9.3.0; a future cycle (telegraphed v9.7.0)
+# will promote it to default-ON after operators have time to adopt
+# the SHORTCUT_SIMPLE dispatch path. The R5 strict ``"1"``-only
+# parsing matches every other DevolaFlow opt-in flag (§ 6 of
+# `references/env-flags.md`).
+SHORTCUT_FLAG_NAME: Final[str] = "DEVOLAFLOW_SIMPLE_SHORTCUT"
+SHORTCUT_FLAG_TRUTHY: Final[str] = "1"
 
 
 # ── Complexity classification thresholds ───────────────────────────────
@@ -224,3 +253,112 @@ def from_env(env: dict[str, str] | None = None) -> bool:
     """
     source = env if env is not None else os.environ
     return source.get(ENV_FLAG_NAME) == ENV_FLAG_TRUTHY
+
+
+# ── Simple-shortcut surface (v9.3.0 PV-06) ────────────────────────────
+
+
+def shortcut_from_env(env: dict[str, str] | None = None) -> bool:
+    """Single env-var read site for ``DEVOLAFLOW_SIMPLE_SHORTCUT``.
+
+    Mirrors :func:`from_env` for the v9.3.0 PV-06 simple-shortcut flag.
+    Kept as a separate function so unit tests + future callers can
+    monkeypatch one flag without disturbing the other (the two
+    activation surfaces are independently optional; per W-20 §3 the
+    NEW flag is justified because the behaviour is orthogonal).
+
+    Args:
+      env: Optional environment mapping (defaults to :data:`os.environ`).
+
+    Returns:
+      ``True`` iff ``env[SHORTCUT_FLAG_NAME] == SHORTCUT_FLAG_TRUTHY``
+      exactly. Any other value (including absent) returns ``False`` —
+      R5 strict default-OFF (the v9.3.0 cycle ships the flag as opt-in;
+      v9.7.0 PV-XX will promote it to default-ON after one cycle of
+      operator-adoption observation).
+    """
+    source = env if env is not None else os.environ
+    return source.get(SHORTCUT_FLAG_NAME) == SHORTCUT_FLAG_TRUTHY
+
+
+def shortcut_verdict(
+    complexity: Complexity,
+    simple_shortcut_enabled: bool,
+    opt_out: bool = False,
+) -> ShortcutVerdict:
+    """Decide whether a SIMPLE / TRIVIAL task should L0→L3 short-circuit.
+
+    The shortcut is the v9.3.0 PV-06 deliverable that closes D-E-4
+    from `.local/research/v9.3.0_gap_analysis.md` §1.4: SHORTCUT_SIMPLE
+    is declared in SKILL.md §"Quick Action Decision" but was NOT
+    auto-enforced by any dispatcher.
+
+    Args:
+      complexity: The :data:`Complexity` tier from
+        :func:`classify_complexity`. The shortcut fires only for
+        ``"SIMPLE"`` and ``"TRIVIAL"`` complexity tiers — STANDARD
+        and COMPLEX always go through the full L0→L1→L2→L3 chain
+        because they need design / decomposition / wave coordination.
+      simple_shortcut_enabled: ``True`` iff
+        ``DEVOLAFLOW_SIMPLE_SHORTCUT=1`` is set (use
+        :func:`shortcut_from_env` for the canonical read site). When
+        ``False``, returns ``"NO_SHORTCUT"`` regardless of complexity
+        — preserving v9.2.4 byte-identical dispatch behaviour for
+        operators who have not opted in.
+      opt_out: ``True`` iff the operator passed an explicit opt-out
+        signal (e.g. ``--no-shortcut`` on a future ``/devola:dispatch``
+        slash command). Mirrors the :func:`activation_verdict`
+        ``opt_out`` parameter — the escape hatch wins.
+
+    Returns:
+      A :data:`ShortcutVerdict` literal — either ``"SHORTCUT_SIMPLE"``
+      (the dispatcher MAY skip L1 + L2 and route the task directly
+      to an L3 Task Agent) or ``"NO_SHORTCUT"`` (default-OFF or
+      complexity above the shortcut tier).
+
+    Raises:
+      ValueError: when ``complexity`` is not a recognised
+        :data:`Complexity` literal (S-5 — never silently coerce).
+
+    Verdict matrix (per .local/research/v9.3.0_gap_analysis.md §3.5):
+
+      * simple_shortcut_enabled=False                            → NO_SHORTCUT
+      * opt_out=True                                             → NO_SHORTCUT
+      * complexity ∈ {SIMPLE, TRIVIAL} + enabled + not opt_out   → SHORTCUT_SIMPLE
+      * complexity ∈ {STANDARD, COMPLEX}                         → NO_SHORTCUT
+
+    Backward-compatibility (v9.2.4 byte-identical contract): when
+    ``simple_shortcut_enabled=False`` (the default until v9.7.0 flips
+    the flag), this function returns ``"NO_SHORTCUT"`` for EVERY
+    complexity input. Callers that branch on ``verdict ==
+    "SHORTCUT_SIMPLE"`` see no change in behaviour for operators
+    who have not opted in.
+    """
+    if complexity not in _VALID_COMPLEXITIES:
+        raise ValueError(
+            f"shortcut_verdict: complexity {complexity!r} is not one of {_VALID_COMPLEXITIES}"
+        )
+
+    if not simple_shortcut_enabled:
+        return "NO_SHORTCUT"
+    if opt_out:
+        return "NO_SHORTCUT"
+    if complexity in ("TRIVIAL", "SIMPLE"):
+        return "SHORTCUT_SIMPLE"
+    return "NO_SHORTCUT"
+
+
+# v9.3.0 PV-06 — non-import references for ``scripts/detect_dead_apis.py``.
+# The two new public symbols ``shortcut_from_env`` + ``shortcut_verdict``
+# have no in-repo production caller until v9.7.0 wires the SHORTCUT_SIMPLE
+# verdict into the dispatcher. The detector's ``_collect_real_uses``
+# walker treats any non-Import ``ast.Name`` reference as a real caller —
+# this tuple establishes such references at the new symbols' qualified
+# names without leaking into ``__all__``. Mirrors the PV-04
+# ``_dead_api_pins`` pattern in ``src/devolaflow/compressor/__init__.py``
+# and the PV-05 ``_dispatch_executor_dead_api_pins`` pattern in
+# ``src/devolaflow/agent_workspace/__init__.py``.
+_simple_shortcut_dead_api_pins = (
+    shortcut_from_env,
+    shortcut_verdict,
+)

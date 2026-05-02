@@ -3261,3 +3261,194 @@ def test_v9_2_4_new_symbols_have_coverage(project_root: Path) -> None:
                 f"`python scripts/archive_research_artifacts.py 9.2.0 "
                 f"--extra-prefix v9.2.` to refresh the archive)"
             )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v9.3.0 ghost-audit refresh — Performance Overhaul #1.
+# ---------------------------------------------------------------------------
+
+
+# v9.3.0 Performance Overhaul #1 NEW symbols (PV-02..PV-06). Each entry is the
+# minimum import-smoke contract that must hold for the symbol to be
+# considered "alive" — i.e. the CHANGELOG cites it AND it imports cleanly.
+_V9_3_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
+    # PV-02 latency harness
+    ("benchmarks.devolaflow_context.latency_harness", "capture_latency"),
+    ("benchmarks.devolaflow_context.latency_harness", "measure_function"),
+    ("benchmarks.devolaflow_context.latency_harness", "MEASURED_FUNCTIONS"),
+    ("benchmarks.devolaflow_context.latency_harness", "SCHEMA_VERSION"),
+    # PV-03 LRU cache
+    ("devolaflow.task_adaptive_selector", "_load_profiles_cached"),
+    ("devolaflow.task_adaptive_selector", "_load_skill_md_cached"),
+    ("devolaflow.task_adaptive_selector", "_estimate_tokens_tiktoken_cached"),
+    ("devolaflow.task_adaptive_selector", "_estimate_tokens_fallback_cached"),
+    # PV-04 compressor split
+    ("devolaflow.compressor", "assert_dispatch_layout"),
+    ("devolaflow.compressor.layout", "assert_dispatch_layout"),
+    ("devolaflow.compressor.patterns", "PRESERVE_LIST"),
+    ("devolaflow.compressor.transforms", "compress_message"),
+    # PV-05 async dispatch executor
+    ("devolaflow.agent_workspace.dispatch_executor", "AsyncDispatchExecutor"),
+    ("devolaflow.agent_workspace.dispatch_executor", "TaskOutcome"),
+    ("devolaflow.agent_workspace.dispatch_executor", "ExecutorError"),
+    ("devolaflow.agent_workspace.dispatch_executor", "DEFAULT_MAX_CONCURRENCY"),
+    # PV-06 simple-task auto-shortcut
+    ("devolaflow.skills.change_activation", "shortcut_from_env"),
+    ("devolaflow.skills.change_activation", "shortcut_verdict"),
+    ("devolaflow.skills.change_activation", "ShortcutVerdict"),
+    ("devolaflow.skills.change_activation", "SHORTCUT_FLAG_NAME"),
+    ("devolaflow.skills.change_activation", "SHORTCUT_FLAG_TRUTHY"),
+)
+
+# v9.3.0 PV-02 latency baselines — every CHANGELOG entry that cites the
+# numerical perf gain pins these files. The W-18 contract requires them
+# to be present + parseable.
+_V9_3_0_LATENCY_BASELINE_PATHS: tuple[Path, ...] = (
+    Path("benchmarks/devolaflow_context/baselines/v9.3.0_latency.json"),
+    Path("benchmarks/devolaflow_context/baselines/v9.3.0_baseline.json"),
+    Path("benchmarks/devolaflow_context/baselines/layout_invariant_v9.3.0.yaml"),
+)
+
+# v9.3.0 PV-06 env-flag — the W-20 §3 documentation contract pins the
+# `references/env-flags.md` §2.12 entry. The lint asserts the literal
+# `### 2.12` + flag name + truthy literal appear together in the file.
+_V9_3_0_ENV_FLAG_DOC_LITERALS: tuple[str, ...] = (
+    "### 2.12 `DEVOLAFLOW_SIMPLE_SHORTCUT`",
+    "DEVOLAFLOW_SIMPLE_SHORTCUT",
+    "shortcut_from_env",
+    "shortcut_verdict",
+)
+
+
+def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v9.3.0: every NEW v9.3.0 surface has presence + structural coverage.
+
+    Discharges the W-18 precondition for the v9.3.0 cycle-close MINOR —
+    every CHANGELOG entry mentioning a v9.3.0 feature MUST have a
+    backing ghost-audit lint in THIS file BEFORE the CHANGELOG entry
+    is authored.
+
+    v9.3.0 PV-07 cycle close pins:
+
+    1. Every NEW public symbol from PV-02..PV-06 imports cleanly from
+       its canonical module path. Catches accidental name collisions,
+       circular imports, and the v6.0.3-style "feature mentioned in
+       CHANGELOG but never wired" anti-pattern.
+    2. The 3 W-16 wholesale baseline files (composite + latency + layout
+       invariant) exist on disk. The CHANGELOG cites the empirical
+       perf-gain numbers (97.5% select_context p95 improvement) which
+       are derived FROM these files; missing files = unprovable claim.
+    3. The PV-06 env-flag is documented in `references/env-flags.md`
+       §2.12 with the canonical W-20 §3 §2.12 entry header + the flag
+       name + the helper function names, all in the same file.
+    4. The PV-04 compressor split delivered exactly 4 files in the
+       package (`__init__.py` + `layout.py` + `patterns.py` +
+       `transforms.py`). A future PV that accidentally collapses the
+       split or grows it to a 5th module would break this test.
+
+    Failure modes:
+      * "symbol import failed" → the CHANGELOG cites a feature that
+        doesn't exist; either land the feature or remove the entry.
+      * "missing baseline file" → run the PV-02 harness CLI to
+        regenerate; OR the cycle didn't honour W-16 (mandatory).
+      * "missing env-flag doc literal" → the W-20 §7 checklist failed;
+        author the §2.12 entry.
+      * "compressor package member count drift" → either accept the
+        new structure (and update this test in the same PR) OR
+        restore the v9.3.0 PV-04 4-file shape.
+    """
+    import importlib
+
+    # §1 — Symbol import smoke.
+    for module_name, symbol_name in _V9_3_0_NEW_SYMBOL_SURFACES:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as exc:
+            pytest.fail(
+                f"W-18 v9.3.0 violation: module {module_name!r} failed to "
+                f"import: {exc}. The CHANGELOG cites symbols from this "
+                f"module; either land the module OR remove the CHANGELOG entry."
+            )
+        assert hasattr(module, symbol_name), (
+            f"W-18 v9.3.0 violation: {module_name}.{symbol_name} missing. "
+            f"The v9.3.0 CHANGELOG cites this symbol; ghost-audit blocks "
+            f"the merge until either the symbol is landed OR the CHANGELOG "
+            f"entry is removed."
+        )
+
+    # §2 — W-16 wholesale baseline file presence + parseability.
+    import json
+
+    import yaml
+
+    for baseline_rel in _V9_3_0_LATENCY_BASELINE_PATHS:
+        baseline_path = project_root / baseline_rel
+        assert baseline_path.is_file(), (
+            f"W-18 v9.3.0 violation: PV-02 W-16 baseline {baseline_rel} "
+            f"missing. Run `python -m benchmarks.devolaflow_context."
+            f"latency_harness --iterations 100 --output {baseline_rel}` "
+            f"(for the latency JSON) OR `python -m benchmarks."
+            f"devolaflow_context.generate_baseline` (for the composite JSON) "
+            f"OR copy the v9.2.0 layout-invariant witness (for the YAML)."
+        )
+        # Smoke-parse to catch corrupt files.
+        if baseline_path.suffix == ".json":
+            json.loads(baseline_path.read_text(encoding="utf-8"))
+        elif baseline_path.suffix == ".yaml":
+            yaml.safe_load(baseline_path.read_text(encoding="utf-8"))
+
+    # §3 — PV-06 env-flag W-20 §7 documentation contract.
+    env_flags_path = project_root / "workflow-system" / "agent" / "references" / "env-flags.md"
+    assert env_flags_path.is_file(), (
+        f"W-18 v9.3.0 violation: {env_flags_path.relative_to(project_root)} "
+        f"missing — PV-06 W-20 §7 contract requires the env-flag inventory"
+    )
+    env_flags_text = env_flags_path.read_text(encoding="utf-8")
+    for literal in _V9_3_0_ENV_FLAG_DOC_LITERALS:
+        assert literal in env_flags_text, (
+            f"W-18 v9.3.0 violation: env-flags.md missing literal {literal!r}. "
+            f"The PV-06 W-20 §7 checklist requires the §2.12 entry to "
+            f"document the new flag with both the flag name and the "
+            f"helper function names. Add the §2.12 block."
+        )
+
+    # §4 — PV-04 compressor 3-module split shape (4 files: __init__ + 3 modules).
+    compressor_pkg = project_root / "src" / "devolaflow" / "compressor"
+    assert compressor_pkg.is_dir(), (
+        "W-18 v9.3.0 violation: src/devolaflow/compressor/ is not a directory. "
+        "PV-04 split compressor.py into a package; restore the package shape."
+    )
+    expected_pkg_files = {"__init__.py", "layout.py", "patterns.py", "transforms.py"}
+    actual_pkg_files = {p.name for p in compressor_pkg.iterdir() if p.is_file()}
+    assert actual_pkg_files == expected_pkg_files, (
+        f"W-18 v9.3.0 violation: compressor package member set drifted. "
+        f"Expected exactly {sorted(expected_pkg_files)!r}; got "
+        f"{sorted(actual_pkg_files)!r}. PV-04 contract requires the 4-file "
+        f"split; a future PV adding/removing files MUST update this test in "
+        f"the same PR."
+    )
+
+    # §5 — Compressor v9.3.0 LOC sanity (the cycle's headline maintainability claim).
+    # The original compressor.py was 2541 LOC; the post-split package is ≤ 3000 LOC
+    # total (some overhead from re-export shims + module preambles is expected and
+    # accepted). Catches a future PV that bloats one of the modules > 2000 LOC
+    # individually (a sign that the split's "thematically tight" contract is
+    # decaying).
+    per_file_max = 2200  # transforms.py is the largest at 1983 LOC; +217 headroom
+    package_total = 0
+    for p in compressor_pkg.iterdir():
+        if p.is_file() and p.suffix == ".py":
+            line_count = len(p.read_text(encoding="utf-8").splitlines())
+            assert line_count <= per_file_max, (
+                f"W-18 v9.3.0 violation: compressor/{p.name} grew to "
+                f"{line_count} lines (cap {per_file_max}). The PV-04 "
+                f"3-module split's 'thematically tight' contract is "
+                f"decaying — consider further decomposition OR bumping the "
+                f"per-file cap with explicit retrospective coverage."
+            )
+            package_total += line_count
+    assert package_total <= 3000, (
+        f"W-18 v9.3.0 violation: compressor package total LOC is "
+        f"{package_total} (cap 3000). The pre-PV-04 single-file compressor.py "
+        f"was 2541 LOC; the post-split overhead should stay ≤ 18% bloat."
+    )

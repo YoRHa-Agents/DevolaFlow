@@ -5,6 +5,94 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.3.0] — 2026-05-02
+
+**MINOR — Performance Overhaul #1.** First MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per `.local/research/v10.0.0_cycle_plan.md`). Five implementation PVs (PV-02..PV-06) addressing the user's #1 efficiency complaint via the empirically-targeted highest-leverage fix surfaced by the PV-01 cProfile harness: `load_profiles` + `load_skill_md` + `estimate_tokens` were re-parsing 84KB YAML / re-reading 32KB SKILL.md / re-running tiktoken BPE on every `select_context` call (96.6% of dispatch wall clock). PV-03 mtime-probed LRU cache absorbs all three. PV-02 ships the production latency harness + W-16 wholesale baseline regen. PV-04 splits `compressor.py` (2541 LOC) into a 3-module package (maintainability; no latency change). PV-05 ships `AsyncDispatchExecutor` for L2-wave `asyncio.gather` parallelism (RE-TARGETED from `run_hooks` per the PV-01 finding that hooks are microseconds-scale). PV-06 ships the opt-in `DEVOLAFLOW_SIMPLE_SHORTCUT=1` env flag enabling the `SHORTCUT_SIMPLE` verdict (skip L1+L2 for SIMPLE/TRIVIAL tasks; promote to default-ON in v9.7.0 telegraphed). All 6 SI-10 gates green at every commit; layout-invariant byte-stability preserved across all 7 baselines (v7.0.0 → v9.3.0); test wall clock dropped 55s → 17s as a side effect of PV-03's LRU cache.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Single new env flag**: `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (R5 strict — `"1"` only; rejects `"true"` / `"yes"` / `"on"` / `"01"` / `"1\n"` / `""`). Default-OFF; opt-in for v9.3.0. When set AND `classify_complexity(...)` returns `SIMPLE` or `TRIVIAL`, `shortcut_verdict(...)` returns `"SHORTCUT_SIMPLE"` — a future v9.7.0 PV will wire this into the dispatcher to enable L0→L3 direct dispatch (skip L1 + L2). Without the env flag, behaviour is byte-identical to v9.2.4 for every input. Documented in `workflow-system/agent/references/env-flags.md` §2.12 with full W-20 §3 orthogonality justification.
+
+**No breaking changes**: every other change is internal. The `compressor.py` 3-module split (PV-04) preserves the public API surface verbatim (`from devolaflow.compressor import ...` continues to work for every symbol); the `AsyncDispatchExecutor` (PV-05) is a new opt-in library (no auto-wire); the LRU cache (PV-03) is transparent to every caller.
+
+### Empirical perf gains (`benchmarks/devolaflow_context/baselines/v9.3.0_latency.json`)
+
+| Function | PRE-PV-03 p95 | POST-PV-03 p95 | Improvement |
+|---|---:|---:|---:|
+| `select_context` | 79,781 µs | 2,001 µs | **97.5%** |
+| `compress_message` | 1,845 µs | 1,006 µs | 45.5% |
+| `run_hooks` | 4.5 µs | 3.5 µs | 22% (already fast) |
+| `full_dispatch` | 79,344 µs | 4,196 µs | **94.7%** |
+
+`select_context` p95 went from 80 ms → 2 ms — a 40× speedup, EXCEEDING the ≥90% improvement target by 7.5 percentage points. `full_dispatch` p95 (the L0→L1 dispatch shape) collapsed by 95%.
+
+### Per-PV ledger
+
+| PV | Tag | SHA | Deliverable |
+|---|---|---|---|
+| PV-02 | `feat(v9.3.0)` | `fe5279f` | Latency harness + W-16 wholesale baseline regen — 6 NEW files (latency_harness.py + 4 baselines + test_dispatch_latency.py); 8 NEW test functions. |
+| PV-03 | `feat(v9.3.0)` | `1ffc698` | LRU cache on `load_profiles` / `load_skill_md` / `estimate_tokens` — closes D-S-1..D-S-5; 8 NEW test functions in `test_selector_lru_cache.py`. **THE BIG ONE** — 97.5% select_context p95 improvement. |
+| PV-04 | `refactor(v9.3.0)` | `0a985a5` | Split `compressor.py` (2541 LOC) into 3-module package — `__init__.py` (320) + `layout.py` (301) + `patterns.py` (221) + `transforms.py` (1983). 0 NEW test functions (pure refactor); all 25 multi-baseline byte-stability tests pass byte-identically. |
+| PV-05 | `feat(v9.3.0)` | `56734b0` | L2-wave `asyncio.gather` parallelism via `AsyncDispatchExecutor` — RE-TARGETED from `run_hooks` per PV-01 cProfile finding. 11 NEW test functions in `test_async_dispatch_executor.py`. P1 invariant verified by `test_executor_calls_only_provided_callables`. |
+| PV-06 | `feat(v9.3.0)` | `ec73015` | Opt-in `DEVOLAFLOW_SIMPLE_SHORTCUT=1` simple-task auto-shortcut — `shortcut_from_env` + `shortcut_verdict` + `ShortcutVerdict` Literal + `references/env-flags.md` §2.12 entry. 9 NEW test functions (+ 6 parametrize expansions) in `test_simple_shortcut.py`. |
+| PV-07 | `chore(v9.3.0)` | (this commit) | Cycle close — version bump 9.2.4 → 9.3.0 across the canonical 7 sync locations + CHANGELOG + retrospective + evaluation + W-18 ghost-audit refresh + ST-7 versions.json + human docs regen + W-19 archive (deferred to v10.0.0 close per cycle plan §6 entry conditions). |
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** — `.local/research/v9.3.0_gap_analysis.md` (395 lines, C-4 default tier; 14 deficiencies enumerated with priority ranking + file-level scope).
+- **W-2 SI-2 NineS** — PV-01 deep analyses on `compressor.py` + `task_adaptive_selector.py` (committed in `.local/research/v9.3.0_nines_*.json`); PV-07 self-eval committed in `.local/research/v9.3.0_nines.{json,md}` (skip gracefully if `nines` CLI missing per the cycle plan).
+- **W-3 SI-3 evaluation** — `.local/research/v9.3.0_evaluation.md` documents the 6-dimension weighted composite ≥ 8.5/10 (the MINOR-release threshold).
+- **W-4 SI-4 benchmark guard** — composite scores unchanged across all 53 EvoBench scenarios (within ±2%); the wholesale `v9.3.0_baseline.json` regen is the cycle-anchor baseline that v9.4..v9.7 will compare against per W-16.
+- **W-7 SI-8 retrospective** — `.local/research/v9.3.0_retrospective.md` (4 mandatory sections: gaps / implemented / deferred / learnings).
+- **W-16 wholesale baseline regen** — done in PV-02 (the cycle-start trigger per the v8.4.0 retro §"R-7 wholesale-vs-piecemeal baseline lesson"). The new `v9.3.0_baseline.json` + `v9.3.0_latency.json` + `layout_invariant_v9.3.0.yaml` baselines are the canonical anchors for the rest of the v10.0.0 cycle.
+- **W-17 test cap** — cycle-cumulative +36 NEW test functions (utilisation 24% of the +150 cycle cap; +114 headroom). Per-PV: PV-02 +8, PV-03 +8, PV-04 +0, PV-05 +11, PV-06 +9. Within the +30/PV cap throughout.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v9_3_0_new_symbols_have_coverage` authored BEFORE this CHANGELOG entry per the W-18 precondition.
+- **W-20 env flag policy** — 1 NEW flag added (`DEVOLAFLOW_SIMPLE_SHORTCUT`); orthogonality justification documented in PV-06 commit + `references/env-flags.md` §2.12.
+- **W-21 Soul-set freeze** — Soul count remains at **10** (no S-11 candidate proposed for v9.3.0; the v9.0.0 cycle's 2-cycle deferral pattern means any S-11 candidate would have to telegraph in the v9.3.0 retrospective and gap-analyse in v9.5.0+ per the W-21 cadence).
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/__init__.py` | `__version__` 9.2.4 → 9.3.0 |
+| EDIT | `pyproject.toml` | version sync |
+| EDIT | `scripts/generate_human_docs.py` | `SOURCE_VERSION` sync |
+| EDIT | `tests/test_smoke.py` | version assertion sync |
+| EDIT | `workflow-system/agent/SKILL.md` | version triple sync (frontmatter + banner + body "Current version:" text) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | version sync |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | `SAMPLE_DATA.version` sync |
+| EDIT | `workflow-system/human/demo/version-timeline/versions.json` | ST-7 v9.3.0 entry (cycle-close aggregation) |
+| EDIT | `workflow-system/human/en/`, `workflow-system/human/zh/` | `make sync-human-docs` regen (16 files — EN + ZH bilingual completeness per ST-3) |
+| EDIT | `README.md` | badge + version example sync |
+| EDIT | `CHANGELOG.md` | this entry |
+| EDIT | `tests/test_no_ghost_features.py` | +1 W-18 ghost-audit lint (`test_v9_3_0_new_symbols_have_coverage`) |
+| NEW | `.local/research/v9.3.0_retrospective.md` (gitignored) | W-7 / SI-8 cycle-close retrospective |
+| NEW | `.local/research/v9.3.0_evaluation.md` (gitignored) | W-3 / SI-3 evaluation report |
+| NEW | `.local/research/v9.3.0_nines.{json,md}` (gitignored) | W-2 close NineS self-eval |
+| (cumulative across PV-02..PV-06 — see per-PV commit ledger above) |  |  |
+
+### Verification Checklist (W-9 SI-10 6-step + cycle invariants)
+
+| # | Step | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 3676 passed / 21 skipped / 2 xfailed (was 3635 / 20 / 2 at v9.2.4; cycle delta +41 collected = +36 NEW functions + 6 parametrize expansions, well under the W-17 +150 cycle cap) |
+| 2 | `ruff check src/ tests/ benchmarks/` | **PASS** — 0 violations (227 files) |
+| 3 | `ruff format --check src/ tests/ benchmarks/` | **PASS** — 227 files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed / 19 skipped (mirror parity self-skipped per SF-3 since `.cursor/skills/devola-flow/` absent on this clone) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36 passed (composite scores unchanged across all 53 EvoBench scenarios; all 7 layout-invariant baselines byte-identical including the new v9.3.0 witness) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (mirror absent → no-op per SF-3) |
+
+| Invariant | Threshold | v9.3.0 result |
+|---|---|---|
+| C-4 SKILL.md line budget | ≤ 500 | unchanged at 460 (+40 headroom) |
+| W-17 cumulative cycle delta | ≤ +150 | **+36** (PV-02 +8 + PV-03 +8 + PV-04 +0 + PV-05 +11 + PV-06 +9; +114 headroom) |
+| W-18 ghost-audit refresh BEFORE CHANGELOG | required | **discharged** (test_v9_3_0_new_symbols_have_coverage in the same commit as this entry, ran green BEFORE this CHANGELOG was authored) |
+| W-20 new env flags | 0 or W-20 §3 justified | **+1** (`DEVOLAFLOW_SIMPLE_SHORTCUT` — orthogonality justification in PV-06 commit + `references/env-flags.md` §2.12) |
+| W-21 Soul-set freeze | 10 | **10** (no S-11 candidate; W-21 2-cycle telegraph cadence preserved) |
+| Schema layout invariant | 16 keys / version 5 byte-identical | **byte-identical** (no schema bump in v9.3.0; `layout_invariant_v9.3.0.yaml` is a verbatim copy of `layout_invariant_v9.2.0.yaml`) |
+| `DEFAULT_EVENTS` length | 8 | **8** (untouched) |
+| Rule count | ≤ 60 hard cap | **59** (+1 headroom; unchanged) |
+
 ## [9.2.4] — 2026-05-02
 
 **PATCH — v9.2.2 cycle close: multi-fixture E2E validation + W-7 retrospective + W-19 archive refresh.** Third and **FINAL** PV of the v9.2.2 PATCH cycle (3 PVs: v9.2.2 → v9.2.3 → v9.2.4) addressing the 4 issues + 2 enhancement notes catalogued in `.local/feedbacks/feedback_for_v9.2.1.md`. Zero new code paths — only cycle-close validation artefacts + retrospective + archive update + version bump + CHANGELOG, mirroring the v9.2.0 → v9.2.1 sustaining-PATCH precedent (scaled-down for a 3-PV PATCH cycle). Validates the composition of the v9.2.2 I-001 fix + v9.2.3 I-003 fix + v9.2.3 `--mode={core,standard,full}` shorthand across 4 representative install fixtures (`empty` / `with_gitignore_local` / `with_gitignore_all` / `full_pip_wheel_install`); each shape exits 0 on `devola-init local --mode=core`, scaffolds all 8 canonical paths, skips the auto-compile (because `--mode=core` implies `--no-compile`), emits a per-path WARN when a `.gitignore` rule already covers a scaffold target, and stays quiet on absent / unrelated rules. The W-7 retrospective at `.local/research/v9.2.2_retrospective.md` enumerates the 4 mandatory sections (Gaps / Implemented / Deferred / Learnings) including the W-21 Soul-set freeze telegraph for v9.4.0 ("No S-11 candidate proposed for v9.2.2 cycle — v9.4.0 Soul-set stays frozen at 10 entries"). W-19 archive at `docs/cycle-archive/v9.2.0/` refreshed idempotently via `python scripts/archive_research_artifacts.py 9.2.0 --extra-prefix v9.2.` (PATCH series rolls into the parent MINOR cycle archive — 17 new files added). Cycle invariants intact: Soul-set frozen at **10** (W-21); rule count unchanged at **59 / 60** (+1 headroom); `DEFAULT_EVENTS` length **8**; `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` length **16** / version **5** byte-identical (untouched in PV-03); 0 new env flags (W-20 reuse-first sustained throughout the entire 3-PV series); NineS overall composite **0.907348 → 0.907350 → 0.907350** across PV-01 / PV-02 / PV-03 (Δ **+0.000002 from baseline** — canonical PATCH cycle-close byte-stable signature, well under the 0.001 noise floor); SI-3 weighted composite **9.475 / 10** byte-stable across all 3 PVs (margin **+0.975** over 8.5 PATCH floor; matches v9.2.0 / v9.2.1 close); `byte_stability` axis (`structure_recognition`) **1.00** (margin +0.05 over PV-03 AC ≥ 0.95 floor).

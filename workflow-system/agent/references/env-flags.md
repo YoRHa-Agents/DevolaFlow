@@ -210,6 +210,22 @@ These flags are read by production code paths. Tests in
 | **Opt-out path** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
 | **Reference** | `tests/test_pv07_agents_md_slice.py::test_agents_md_slice_env_flag_0_opts_out`; `workflow-system/agent/context_profiles.yaml#meta.agents_md_slice` |
 
+### 2.12 `DEVOLAFLOW_SIMPLE_SHORTCUT` — v9.3.0 PV-06 opt-in simple-task auto-shortcut
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/skills/change_activation.py::SHORTCUT_FLAG_NAME` (helper: `shortcut_from_env`) |
+| **Introduced** | v9.3.0 PV-06 (closes D-E-4 from `.local/research/v9.3.0_gap_analysis.md` §1.4) |
+| **Default** | unset (= disabled — full L0→L1→L2→L3 chain mandatory) |
+| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
+| **Effect when active (combined with `classify_complexity` SIMPLE/TRIVIAL output)** | `shortcut_verdict(complexity, simple_shortcut_enabled=True)` returns `"SHORTCUT_SIMPLE"`; the dispatcher MAY skip L1 (Stage Agent) and L2 (Wave Agent) entirely and route the task directly to an L3 Task Agent. Saves ~10K tokens of L1+L2 dispatch context for tasks that don't need design / decomposition / wave coordination. |
+| **Effect when opted out** | `shortcut_verdict(...)` returns `"NO_SHORTCUT"` for EVERY complexity tier — preserves v9.2.4 byte-identical dispatch behaviour for operators who have not opted in (the acceptance-criterion #2 from the PV-06 spec) |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SHORTCUT_SIMPLE activates a different runtime surface (the dispatcher's L1/L2-bypass decision) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` activates the workspace lifecycle (active/handoff folder management), which is conceptually orthogonal — an operator may want one without the other. `DEVOLAFLOW_RTK_PROXY` activates command rewriting, also orthogonal. No existing flag could be REUSED without conflating two distinct activation surfaces. |
+| **R5 strict?** | YES — `shortcut_from_env` is a pure ``dict.get`` comparison with no IO + no subprocess. The `shortcut_verdict` decision is also pure (4 if/elif branches over the 3 input args). Codified by `tests/test_simple_shortcut.py::test_shortcut_from_env_strict_one`. |
+| **Lifecycle telegraph** | The v9.3.0 cycle ships the flag as opt-in with default-OFF. v9.7.0 (telegraphed in `.local/research/v10.0.0_cycle_plan.md` §"Performance Overhaul #2") will promote it to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern that promoted the 5 Theme T5 gate primitives. |
+| **Opt-out path (when default-ON in v9.7.0)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SIMPLE_SHORTCUT=0` at v9.7.0 to preserve v9.6.x dispatch behaviour byte-identically |
+| **Reference** | `tests/test_simple_shortcut.py` (9 NEW tests pin the verdict matrix); `src/devolaflow/skills/change_activation.py::shortcut_verdict` (the public entry point); `.local/research/v9.3.0_gap_analysis.md` §3.5 |
+
 ## 3. Test-fixture flags (NOT runtime flags)
 
 These flags are read ONLY by tests (`tests/`) and never by production
