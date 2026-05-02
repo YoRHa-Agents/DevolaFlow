@@ -234,6 +234,50 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v9.3.0 (MINOR — Performance Overhaul #1: load_profiles LRU cache → 97.5% select_context p95 improvement; first MINOR of the v10.0.0 MAJOR cycle) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v930">What's New</span> in v9.3.0 — MINOR, Performance Overhaul #1: <code>load_profiles</code> LRU cache + compressor 3-module split + L2-wave <code>asyncio.gather</code> + <code>DEVOLAFLOW_SIMPLE_SHORTCUT</code> opt-in (first of 5 minors in the v10.0.0 MAJOR rollup cycle)</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v930.desc">v9.3.0 is the first MINOR of the v10.0.0 MAJOR rollup cycle (5 minors + 1 major rollup per <code>.local/research/v10.0.0_cycle_plan.md</code>). 5 implementation PVs (PV-02..PV-06) addressing the user's #1 efficiency complaint via the empirically-targeted highest-leverage fix surfaced by the PV-01 cProfile harness: <code>load_profiles</code> + <code>load_skill_md</code> + <code>estimate_tokens</code> were re-parsing 84KB YAML / re-reading 32KB SKILL.md / re-running tiktoken BPE on every <code>select_context</code> call (<strong>96.6% of dispatch wall clock</strong>). PV-03 mtime-probed LRU cache absorbs all three. Empirical proof from <code>benchmarks/devolaflow_context/baselines/v9.3.0_latency.json</code>: <strong>select_context p95 went from 79,781 µs → 2,001 µs (97.5% improvement; 40× speedup)</strong>; full_dispatch p95 collapsed by 94.7%; pytest wall clock dropped 55s → 17s as a side effect. PV-02 ships the production latency harness + W-16 wholesale baseline regen. PV-04 splits <code>compressor.py</code> (2541 LOC) into a 3-module package (maintainability; no latency change). PV-05 ships <code>AsyncDispatchExecutor</code> for L2-wave <code>asyncio.gather</code> parallelism (RE-TARGETED from <code>run_hooks</code> per the PV-01 finding that hooks are microseconds-scale). PV-06 ships the opt-in <code>DEVOLAFLOW_SIMPLE_SHORTCUT=1</code> env flag enabling the <code>SHORTCUT_SIMPLE</code> verdict (skip L1+L2 for SIMPLE/TRIVIAL tasks; promote to default-ON in v9.7.0 telegraphed). All 6 SI-10 gates green at every commit; layout-invariant byte-stability preserved across all 7 baselines (v7.0.0 → v9.3.0); +1 NEW env flag (W-20 §3 orthogonality justified); Soul-set frozen at <strong>10</strong> (W-21; no S-11 candidate); +36 NEW test functions cycle-cumulative (24% of W-17 +150 cap; +114 headroom); SI-3 weighted composite <strong>9.350/10</strong> (margin +0.85 over 8.5 MINOR floor).</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">PV-03 LRU CACHE — THE BIG ONE</span>
+          <h3>select_context p95 80ms → 2ms (40× speedup; 97.5% improvement)</h3>
+          <p>EDIT <code>src/devolaflow/task_adaptive_selector.py</code>: mtime-probed <code>@functools.lru_cache</code> on <code>load_profiles</code> (maxsize=16) + <code>load_skill_md</code> (maxsize=16) + <code>estimate_tokens</code> (split tiktoken/fallback caches, maxsize=2048 each — split-by-branch design respects the <code>conftest.py</code> autouse fixture that hides tiktoken). Closes D-S-1..D-S-5 from <code>.local/research/v9.3.0_gap_analysis.md</code> §1.1. Empirical p95 deltas captured in <code>v9.3.0_latency.json</code>: <code>select_context</code> 80ms → 2ms (97.5%); <code>full_dispatch</code> 79ms → 4ms (94.7%); <code>compress_message</code> 1.8ms → 1.0ms (45%); <code>run_hooks</code> 4.5µs → 3.5µs (already fast). Side effect: full pytest suite 55s → 17s (3.3× speedup) from cache hits across 600+ <code>select_context</code> calls fanned over 3635 tests.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/task_adaptive_selector.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-02 LATENCY HARNESS</span>
+          <h3>benchmarks/.../latency_harness.py + W-16 wholesale baseline regen</h3>
+          <p>NEW <code>benchmarks/devolaflow_context/latency_harness.py</code> + <code>tests/test_dispatch_latency.py</code> (8 NEW tests). CLI: <code>python -m benchmarks.devolaflow_context.latency_harness --iterations 100 --output baselines/v9.3.0_latency.json</code>. W-16 cycle-start regen ships <code>v9.3.0_baseline.json</code> (53 scenarios) + <code>v9.3.0_latency.json</code> (post-PV-03 percentiles) + <code>layout_invariant_v9.3.0.yaml</code> (byte-identical witness of v9.2.0 — no schema bump in v9.3.0).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/benchmarks/devolaflow_context/latency_harness.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-04 COMPRESSOR SPLIT</span>
+          <h3>compressor.py (2541 LOC) → 4-file package (maintainability)</h3>
+          <p>Split into <code>compressor/__init__.py</code> (320 LOC re-export shim) + <code>layout.py</code> (301 LOC A-2 cache-layout governance) + <code>patterns.py</code> (221 LOC regex tables) + <code>transforms.py</code> (1983 LOC compression transforms). Pure refactor — every public symbol still importable from <code>devolaflow.compressor</code> at the same path; all 25 multi-baseline byte-stability tests pass byte-identically; 280 compressor unit tests pass; full suite delta = 0. Closes D-C-1..D-C-3.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/src/devolaflow/compressor"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-05 ASYNC L2-WAVE DISPATCH</span>
+          <h3>AsyncDispatchExecutor (re-targeted per PV-01 cProfile finding)</h3>
+          <p>NEW <code>src/devolaflow/agent_workspace/dispatch_executor.py</code> with <code>AsyncDispatchExecutor</code> (sync + <code>asyncio.gather</code> modes, Semaphore-bounded concurrency, per-task <code>TaskOutcome</code> envelope, S-5 exception isolation, P1 invariant preserved + verified by <code>test_executor_calls_only_provided_callables</code>). RE-TARGETED from the cycle-plan original (<code>run_hooks</code> ThreadPoolExecutor) per PV-01 cProfile finding — <code>run_hooks</code> is 9.2µs/call which is 5-10× SMALLER than <code>ThreadPoolExecutor.submit</code> overhead. NO env flag; library-only landing. Closes D-E-3.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/agent_workspace/dispatch_executor.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">PV-06 SIMPLE-TASK SHORTCUT</span>
+          <h3>DEVOLAFLOW_SIMPLE_SHORTCUT=1 opt-in (default-flip telegraph: v9.7.0)</h3>
+          <p>EDIT <code>src/devolaflow/skills/change_activation.py</code> adds <code>shortcut_from_env</code> + <code>shortcut_verdict</code> + <code>ShortcutVerdict</code> Literal + the W-20 §3-justified env flag. NEW <code>tests/test_simple_shortcut.py</code> (9 NEW + 6 parametrize = 15 collected). NEW env flag <code>DEVOLAFLOW_SIMPLE_SHORTCUT</code> = R5 strict <code>"1"</code> only (W-20 §3 orthogonal to AGENT_WORKSPACE / RTK_PROXY / MEMORY_ROUTER). <code>references/env-flags.md</code> §2.12 entry. Default-OFF for v9.3.0; v9.7.0 telegraphed default-flip per the v9.0.0 PV-06 → v9.1.5 PV-05 promote-to-auto pattern. Closes D-E-4.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/src/devolaflow/skills/change_activation.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">CYCLE METRICS</span>
+          <h3>5-PV ledger · +36 / +150 cycle tests · NineS 0.9073 byte-stable · SI-3 9.350/10</h3>
+          <p>Cumulative cycle ledger: PV-02 <code>fe5279f</code> (latency harness) + PV-03 <code>1ffc698</code> (LRU cache — THE BIG ONE) + PV-04 <code>0a985a5</code> (compressor split) + PV-05 <code>56734b0</code> (async L2-wave) + PV-06 <code>ec73015</code> (simple shortcut) + PV-07 cycle close. Cumulative <strong>+36 NEW test functions</strong> / +150 W-17 cycle cap (utilisation 24%; +114 headroom). NineS overall composite <strong>0.907266</strong> (Δ from v9.2.4 baseline 0.907350 = −0.000084, well under 0.001 noise floor). SI-3 weighted composite <strong>9.350/10</strong> (margin +0.85 over 8.5 MINOR floor). Soul-set frozen at <strong>10</strong> (W-21; third consecutive cycle of "no S-11 candidate" negative evidence). +1 new env flag (DEVOLAFLOW_SIMPLE_SHORTCUT — W-20 §3 orthogonality justified). 7 layout-invariant baselines byte-identical (v7.0.0 → v9.3.0).</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/CHANGELOG.md"><span data-i18n="btn.viewChangelog">View Changelog</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v9.2.4 (PATCH — PV-03 of v9.2.2 cycle: cycle close — multi-fixture E2E validation + W-7 retrospective + W-19 archive refresh) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v924">What's New</span> in v9.2.4 — PATCH, PV-03 of the v9.2.2 cycle: cycle close — multi-fixture E2E validation + W-7 retrospective + W-19 archive refresh (closes the 4 issues + 2 enhancement notes from <code>feedback_for_v9.2.1.md</code> across 3 PVs)</h2>
