@@ -1,0 +1,61 @@
+# Cliché catalog — v10.1.0 PV-03.
+#
+# Two families: signpost prefixes (T-S3; delete from sentence start)
+# and sycophantic opener/closer phrases (T-S5; delete anywhere).
+# Both are mechanically safe because the catalog entries are phrases
+# that humans almost never use in technical prose — no false
+# positives inside the DevolaFlow corpus (verified against the PV-01
+# corpus at design time; see .local/research/v10.1.0_aivoice_research.md
+# §1.7).
+#
+# Entries are lowercased; the matcher is case-insensitive. The
+# matcher is line-aware: prefixes only trigger at a sentence start
+# (after start-of-line or after ``.!?`` + whitespace). Sycophantic
+# openers trigger anywhere in the text.
+#
+# To extend: add a new entry; run `pytest tests/test_writing_style_transforms.py`
+# to verify no fixture regresses.
+
+signpost_prefixes:
+  - "it's worth noting that "
+  - "it is worth noting that "
+  - "it's important to note that "
+  - "it is important to note that "
+  - "it's crucial to understand that "
+  - "it is crucial to understand that "
+  - "it's crucial to note that "
+  - "it is crucial to note that "
+  - "it bears mentioning that "
+  - "in today's fast-paced world, "
+  - "in today's digital landscape, "
+  - "in today's competitive market, "
+  - "at its core, "
+  - "at the end of the day, "
+  - "when all is said and done, "
+  - "the bottom line is, "
+  - "in conclusion, "
+  - "to sum up, "
+  - "in summary, "
+  - "moreover, "
+  - "furthermore, "
+  - "additionally, "
+  - "notably, "
+  - "importantly, "
+  - "crucially, "
+  - "interestingly, "
+  - "that said, "
+  - "let's break this down: "
+  - "let's break this down. "
+  - "let's unpack this: "
+  - "let's unpack this. "
+
+sycophantic_phrases:
+  - "great question! "
+  - "great question. "
+  - "certainly! "
+  - "absolutely! "
+  - "i hope this helps. "
+  - "i hope this helps! "
+  - "let me know if you'd like "
+  - "happy to help! "
+  - "happy to help. "

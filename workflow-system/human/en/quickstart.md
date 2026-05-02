@@ -4,8 +4,8 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:38Z"
+source_version: "10.1.0"
 ---
 
 # Quick Start Guide
@@ -43,7 +43,7 @@ devola-init cursor       # Cursor only
 devola-init all          # all tools
 ```
 
-**Option C — Manual (single file):**
+**Option C, Manual (single file):**
 
 Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
 
@@ -92,7 +92,7 @@ What happens:
 6. **Gate**: Composite score must reach ≥85 with zero blockers
 7. **Release**: Package and tag
 
-### Example: Quick Research (No Code)
+Example: Quick Research (No Code)
 
 ```
 Research the best approach for real-time notifications — compare WebSocket vs SSE vs polling
@@ -100,18 +100,15 @@ Research the best approach for real-time notifications — compare WebSocket vs 
 
 What happens:
 1. DevolaFlow selects **research-only** workflow
-2. Agent produces a structured comparison report — no code written
+2. Agent produces a structured comparison report, no code written
 
 ## Step 4: Explore More
 
-- See all 22 workflow types: [Workflow Types](workflow-types.md)
-- Understand the architecture: [Architecture Overview](architecture-overview.md)
-- Set up for your specific tool: [Integration Guide](integration-guide.md)
-- Customize workflows: [Customization Guide](customization-guide.md)
+See all 22 workflow types:[Workflow Types](workflow-types.md)Understand the architecture:[Architecture Overview](architecture-overview.md)Set up for your specific tool:[Integration Guide](integration-guide.md)Customize workflows:[Customization Guide](customization-guide.md)
 
 ## Checking for Updates
 
-Ask your AI agent: `"update devola"` — it checks GitHub for newer versions and provides the exact update command.
+Ask your AI agent: `"update devola"`, it checks GitHub for newer versions and provides the exact update command.
 
 Or from the terminal:
 

@@ -1327,5 +1327,31 @@
       "env_flags_added_in_cycle": "4",
       "minor_releases_in_cycle": "5"
     }
+  },
+  {
+    "version": "10.1.0",
+    "date": "2026-05-03",
+    "era": "human-voice",
+    "headline": "Human voice — writing_style scoring + five mechanical humanizer transforms lift DevolaFlow's docs from 69.958 to 77.664 aggregate naturalness",
+    "summary": "Closes the v10.0.0 feedback that DevolaFlow's docs read as AI-flavored. New src/devolaflow/writing_style/ package ports the PV-01 research probe into a production scorer, adds five SAFE region-aware transforms (emdash, bullets, signposts, headers, cliches), and wires them into generate_human_docs.py + a new make humanize-docs target. Hot-path non-pollution enforced by static import-graph lint. Zero breaking changes.",
+    "highlights": [
+      "Naturalness scorer (writing_style/scorer.py) with 10 stylometric features, three tone profiles, and a region classifier covering fenced code, inline code, markdown links, version strings, html tags, and bare URLs",
+      "Five SAFE transforms: em-dash density cap at 8 per 1000 words, bullet-collapse for ≤ 2-item lists, signpost prefix strip, orphan-header demotion (H3+ only, profile-aware plain-text fallback on bold-saturated docs), sycophantic-phrase strip",
+      "Hot-path isolation test (tests/test_writing_style_isolated.py) walks the 5 dispatch surfaces and blocks any transitive import of writing_style",
+      "scripts/humanize_doc.py CLI (score / check / apply) and Makefile humanize-docs target",
+      "Aggregate naturalness lift 69.958 → 77.664, every worst-7-at-PRE doc gained ≥ 10 points, zero docs at PRE ≥ 65 dropped below 65"
+    ],
+    "metrics": {
+      "tests": "3999",
+      "aggregate_naturalness_pre": "69.958",
+      "aggregate_naturalness_post": "77.664",
+      "worst_seven_min_gain": "10.59",
+      "worst_seven_max_gain": "20.42",
+      "regressions_at_or_above_65": "0",
+      "new_transforms": "5",
+      "new_tone_profiles": "3",
+      "env_flags_added_in_cycle": "0",
+      "hotpath_surfaces_isolated": "5"
+    }
   }
 ]

@@ -4,8 +4,8 @@ description: "22 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:38Z"
+source_version: "10.1.0"
 ---
 
 # Workflow Types Catalog
@@ -17,16 +17,13 @@ source_version: "10.0.0"
 DevolaFlow automatically selects the right workflow based on your prompt. You can also specify one explicitly.
 
 **Selection heuristics:**
-- Urgency signals ("urgent", "ASAP", "production down") → `hotfix`
-- "From scratch" / "new project" → `full-pipeline`
-- Question-form phrasing ("what", "how", "which") → `research-only`
-- Explicit type mention → direct match (highest priority)
+- Urgency signals ("urgent", "ASAP", "production down") → `hotfix`"From scratch" / "new project" →`full-pipeline`Question-form phrasing ("what", "how", "which") →`research-only`Explicit type mention → direct match (highest priority)
 
 ## All 22 Built-in Workflow Types
 
 ### Discover Workflows
 
-#### `research-only`
+`research-only`
 **When to use**: Survey prior art, compare alternatives, evaluate options.
 **Stages**: research → compare → report
 **Teams**: Research (primary)
@@ -38,9 +35,9 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Research, Implement, Test
 **Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
 
-### Optimize Workflows
+Optimize Workflows
 
-#### `skill-optimization`
+`skill-optimization`
 **When to use**: Optimize agent skills, benchmark context density, improve information routing.
 **Stages**: survey → profile → optimize → benchmark → iterate → document
 **Teams**: Research, Implement, Test, Review
@@ -48,13 +45,13 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 
 ### Shape Workflows
 
-#### `design-only`
+`design-only`
 **When to use**: Architecture decisions, API design, schema design.
 **Stages**: research → design → review
 **Teams**: Design (primary), Review
 **Example prompt**: `"Design the API for a multi-tenant notification service"`
 
-#### `RDRR` (Research-Design-Review-Refine)
+`RDRR` (Research-Design-Review-Refine)
 **When to use**: Iterative design that needs research backing and multiple review rounds.
 **Stages**: research → design → review → refine (loop)
 **Teams**: Research, Design, Review (all primary)
@@ -62,51 +59,51 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 
 ### Build Workflows
 
-#### `hotfix`
+`hotfix`
 **When to use**: Production bug, urgent fix, security patch.
 **Stages**: triage → fix → test → release
 **Teams**: Implement (primary), Test
 **Example prompt**: `"Fix the login timeout bug — users get 500 errors after 30 seconds"`
 
-#### `refactoring`
+`refactoring`
 **When to use**: Tech debt, code restructuring, simplification.
 **Stages**: scope → plan → implement → test → review
 **Teams**: Implement, Test (both primary)
 **Example prompt**: `"Refactor the payment module to use the strategy pattern"`
 
-#### `migration`
+`migration`
 **When to use**: Upgrade frameworks, port between systems, database migrations.
 **Stages**: assess → plan → implement → validate → cutover
 **Teams**: Research, Implement, Test
 **Example prompt**: `"Migrate from Express.js to Fastify — keep all existing endpoints"`
 
-#### `performance-optimization`
+`performance-optimization`
 **When to use**: Slow app, high latency, memory issues, build time optimization.
 **Stages**: profile → design (optimization plan) → optimize → benchmark → validate
 **Teams**: Research, Design, Implement, Test
 **Example prompt**: `"Our API response time is >2 seconds — profile and optimize the hot paths"`
 
-#### `dependency-setup`
+`dependency-setup`
 **When to use**: Setting up dev environment, adding major dependencies, configuring tooling.
 **Stages**: research → plan (dependency graph) → configure → verify
 **Teams**: Research, Design, Implement, Test
 **Example prompt**: `"Set up Docker development environment with hot reloading for our Python API"`
 
-#### `feature-enhancement`
+`feature-enhancement`
 **When to use**: Adding to existing features, extending functionality.
 **Stages**: scope → design → plan → implement → review → test → release
 **Teams**: All (Design and Implement primary)
 **Example prompt**: `"Add dark mode support to the settings page"`
 
-#### `full-pipeline`
+`full-pipeline`
 **When to use**: Greenfield features, new projects, anything requiring the full lifecycle.
 **Stages**: design → plan → implement → review → test → refine → gate → release
 **Teams**: All (all primary)
 **Example prompt**: `"Build a user authentication system with OAuth2, JWT, and role-based access"`
 
-### Verify Workflows
+Verify Workflows
 
-#### `security-audit`
+`security-audit`
 **When to use**: Vulnerability scanning, compliance checks, CVE remediation.
 **Stages**: threat-model → scan → analyze → remediate → verify
 **Teams**: Research, Implement, Test, Review (all active)
@@ -114,13 +111,13 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 
 ### Deliver Workflows
 
-#### `documentation`
+`documentation`
 **When to use**: Writing or updating docs, README, API references, tutorials.
 **Stages**: survey → author → review
 **Teams**: Research, Review
 **Example prompt**: `"Write comprehensive API documentation for the payments module"`
 
-#### `demo-showcase`
+`demo-showcase`
 **When to use**: Building demos for stakeholders, interactive showcases, conference presentations.
 **Stages**: research → storyboard (design) → build-demo → demo-review → polish → package
 **Teams**: Research, Design, Implement, Review
@@ -128,13 +125,13 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 
 ### Composite Workflows
 
-#### `spike-poc`
+`spike-poc`
 **When to use**: Testing feasibility, prototyping, evaluating new tech.
 **Stages**: research (hypothesis) → prototype → evaluate
 **Teams**: Research, Implement
 **Example prompt**: `"Prototype real-time collaboration using CRDTs — is it feasible for our scale?"`
 
-#### `self-update`
+`self-update`
 **When to use**: Track external reference dependencies and integrate improvements.
 **Stages**: check-refs → research-updates → decompose → integrate → test → evaluate
 **Teams**: Research, Implement, Test

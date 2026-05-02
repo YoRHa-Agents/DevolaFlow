@@ -4,8 +4,8 @@ description: "理解 4 层委托层级架构。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:38Z"
+source_version: "10.1.0"
 ---
 
 # Agent 层级指南
@@ -16,7 +16,7 @@ source_version: "10.0.0"
 
 单个 AI 代理处理复杂任务（如 "构建认证系统"）面临两个问题：
 1. **上下文溢出** — 它试图同时记住所有内容
-2. **范围蔓延** — 它在设计、实现和审查之间无序切换
+2. **范围蔓延**, 它在设计、实现和审查之间无序切换
 
 DevolaFlow 通过 4 层架构解决这个问题，每层都有严格的上下文预算和明确的角色。
 

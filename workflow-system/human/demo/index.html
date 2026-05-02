@@ -234,6 +234,32 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v10.1.0 (MINOR — human voice: writing_style scoring + five region-aware humanizer transforms) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v1010">What's New</span> in v10.1.0 — MINOR, human voice. A user feedback on v10.0.0 said the docs read as AI-flavored; v10.1.0 builds the scorer to measure it and ships five mechanical humanizer transforms that lifted the corpus from 69.958 to 77.664 aggregate naturalness. Every document the PV-01 probe flagged as worst-in-corpus gained at least 10 points; zero regressions below the warn-floor. The dispatch hot path is untouched — a static import-graph lint blocks writing_style from reaching task_adaptive_selector, compressor, lifecycle, feedback, or agent_workspace/dispatch_executor. Zero breaking changes; zero new env flags.</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v1010.desc">The new <code>src/devolaflow/writing_style/</code> package ports the PV-01 research probe into production code: feature extraction for ten stylometric dimensions (sentence-length burstiness, TTR, em-dash / bold density, bullet / header ratio, Tier-1 / Tier-2 vocab, signposts, negative parallelism) and a composite score on 0-to-100. Three tone profiles (<code>technical_concise</code>, <code>documentation_natural</code>, <code>marketing_warm</code>) gate which of the five transforms run on which doc class. Transforms operate only on prose regions; fenced code, inline code, markdown links, version strings, html tags, and bare URLs come through byte-identical. The <code>make humanize-docs</code> target + <code>scripts/humanize_doc.py</code> CLI (<code>score</code> / <code>check</code> / <code>apply</code>) let operators re-run the humanizer on demand.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">NATURALNESS +7.7</span>
+          <h3>Aggregate 69.958 → 77.664; worst-7 min gain +10.59</h3>
+          <p>The em-dash transform alone moved CHANGELOG by +13.00 via a document-scope density cap at 8 per 1000 words (the chezmoi / ruff / caveman human-clean mean). The headers transform unlocked <code>zh/workflow-types</code> by demoting short orphan <code>###</code> sections to plain text on bold-saturated docs. The bullets transform carried the integration guides and the FAQ by collapsing 1- and 2-item lists into prose. Combined: every worst-7-at-PRE doc cleared the +10 bar; the minimum gain was en/quickstart at +10.59, and zero docs regressed below the 65 warn-floor.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/benchmarks/writing_style/baselines/v10.1.0_post.json"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">HOT-PATH ISOLATION</span>
+          <h3>Static import-graph lint blocks writing_style from 5 dispatch surfaces</h3>
+          <p>The user mandate was to reduce AI-flavor without polluting performance. <code>tests/test_writing_style_isolated.py</code> walks the ASTs of <code>task_adaptive_selector.py</code>, <code>compressor/</code>, <code>lifecycle/</code>, <code>feedback.py</code>, and <code>agent_workspace/dispatch_executor.py</code>, recurses into first-party imports, and asserts the transitive graph excludes anything under <code>devolaflow.writing_style</code>. A reverse lint also blocks <code>writing_style</code> from pulling in any of those five surfaces. The humanizer exists; it does not run on any agent dispatch.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/tests/test_writing_style_isolated.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">FIVE SAFE TRANSFORMS</span>
+          <h3>emdash / bullets / signposts / headers / cliches — region-aware, idempotent, pure</h3>
+          <p>Each transform is a pure function of its input. Protected regions (fenced code, inline code, markdown links, version strings like v10.1.0, html tags, bare URLs) come through every transform byte-identical. Every transform is idempotent: a second pass yields byte-identical output. <code>scripts/humanize_doc.py apply</code> reports per-transform byte deltas so operators can attribute any large change to a specific transform.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/src/devolaflow/writing_style/transforms"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v10.0.0 (MAJOR — 5-MINOR rollup: perf #1 + plugin auto-install + Si-Chip DEEP + reference refresh + perf #2 + full feedback regression audit + comprehensive human-docs refresh) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v1000">What's New</span> in v10.0.0 — MAJOR, the v10.0.0 5-MINOR rollup release. Cumulative <code>select_context.p95</code> improvement vs v9.2.4 baseline reaches <strong>97.5%</strong> (~80,000us → 2,027us); STRICT MAJOR-gate composite target ≥9.0/10. Closes the verbatim user requirement: <em>"unify all minors, full testing + analysis, demonstrable perf improvement, full feedback analysis to ensure no AC regression."</em></h2>

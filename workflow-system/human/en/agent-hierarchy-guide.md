@@ -4,8 +4,8 @@ description: "Understanding the 4-layer delegation hierarchy."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:38Z"
+source_version: "10.1.0"
 ---
 
 # Agent Hierarchy Guide
@@ -16,7 +16,7 @@ Understanding the 4-layer delegation hierarchy.
 
 A single AI agent attempting a complex task (e.g., "build an auth system") faces two problems:
 1. **Context overflow** — it tries to hold everything in memory at once
-2. **Scope creep** — it drifts between design, implementation, and review without structure
+2. **Scope creep**, it drifts between design, implementation, and review without structure
 
 DevolaFlow solves this by splitting work across 4 layers, each with a strict context budget and a clear role.
 

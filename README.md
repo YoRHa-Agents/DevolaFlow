@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-10.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-10.1.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -95,11 +95,11 @@ Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/
 | Tool | Project-local | User-global |
 |------|--------------|-------------|
 | **Cursor** | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
-| **Codex** | -- | `~/.codex/skills/devola-flow/SKILL.md` |
+| **Codex** | — | `~/.codex/skills/devola-flow/SKILL.md` |
 | **Claude Code** | `./CLAUDE.md` | `~/.claude/CLAUDE.md` |
-| **Copilot** | `.github/copilot-instructions.md` | -- |
+| **Copilot** | `.github/copilot-instructions.md` | — |
 
-### Full Development Setup
+Full Development Setup
 
 ```bash
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
@@ -140,19 +140,19 @@ DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords l
 **What the agent does differently with DevolaFlow:**
 
 1. **Dispatches instead of diving in** — the main agent selects a workflow and dispatches stage-by-stage via subagents, instead of trying to do everything in one pass
-2. **Uses subagents with isolated context** — each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
-3. **Runs quality gates** — after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
+2. **Uses subagents with isolated context**, each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
+3. **Runs quality gates**, after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
 4. **Follows convergence loops** — if review finds issues, the agent refines and re-tests (up to 3 rounds) instead of shipping broken code
 
-### Claude Code
+Claude Code
 
 DevolaFlow is loaded as your `CLAUDE.md` file (always active). The same prompts work. Claude Code will follow the hierarchy rules and workflow structure in every session.
 
-### GitHub Copilot
+GitHub Copilot
 
 DevolaFlow is loaded as `copilot-instructions.md` (applied to every request). Copilot follows the workflow selection heuristics and hierarchy constraints when generating code suggestions and chat responses.
 
-### Codex CLI
+Codex CLI
 
 DevolaFlow is loaded as a Codex Skill. It activates on the same intent keywords. Codex will use subagents for parallel task execution within waves.
 
@@ -179,15 +179,15 @@ The agent will compare your installed version against the latest on GitHub and t
 | "Design the architecture for X" | `design-only` or `RDRR` — research-backed design |
 | "Add X to existing Y" | `feature-enhancement` — extend existing system |
 | "Migrate from X to Y" | `migration` — assess, plan, implement, validate, cutover |
-| "Is X feasible?" / "Prototype X" | `spike-poc` — quick experiment |
-| "Write docs for X" | `documentation` — survey, author, review |
-| "Security audit of X" | `security-audit` — threat model, scan, remediate, verify |
-| "Build a demo of X" / "Showcase X" | `demo-showcase` — presentation-ready demo with polished UI |
-| "X is slow" / "Optimize X" | `performance-optimization` — profile, optimize, benchmark |
-| "Set up dev environment" / "Install X" | `dependency-setup` — research, configure, verify |
-| "I'm new to this project" | `onboarding` — codebase survey, docs, env setup |
-| "Optimize SKILL.md" / "EvoBench" | `skill-optimization` — survey → profile → optimize → benchmark → iterate → document |
-| "update refs" / "check references" | `self-update` — track and integrate external reference changes |
+| "Is X feasible?" / "Prototype X" | `spike-poc`, quick experiment |
+| "Write docs for X" | `documentation`, survey, author, review |
+| "Security audit of X" | `security-audit`, threat model, scan, remediate, verify |
+| "Build a demo of X" / "Showcase X" | `demo-showcase`, presentation-ready demo with polished UI |
+| "X is slow" / "Optimize X" | `performance-optimization`, profile, optimize, benchmark |
+| "Set up dev environment" / "Install X" | `dependency-setup`, research, configure, verify |
+| "I'm new to this project" | `onboarding`, codebase survey, docs, env setup |
+| "Optimize SKILL.md" / "EvoBench" | `skill-optimization`, survey → profile → optimize → benchmark → iterate → document |
+| "update refs" / "check references" | `self-update`, track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
 
 ## What's New in v10.0.0 (MAJOR cycle close)
@@ -207,42 +207,34 @@ The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle
 
 ### What landed (per MINOR)
 
-1. **v9.3.0 Performance Overhaul #1** — `load_profiles` / `load_skill_md` / `estimate_tokens` LRU cache absorbed 96.6% of dispatch wall-clock (the big one). Compressor split into a 3-module package. AsyncDispatchExecutor library-only landing.
-2. **v9.4.0 Plugin Auto-Install & Daily Upgrade** — `pre_plugin_invocation` lifecycle hook + dispatcher wiring (closes the `ensure_plugin()` dead-wire). Schema v3 with per-plugin `upgrade_cmd` + new `devolaflow plugins refresh` CLI.
-3. **v9.5.0 Si-Chip DEEP Integration** — `si_chip_bridge` typed Python module (~1070 LOC across 4 sub-modules). `post_skill_edit` always-on lifecycle hook gated `DEVOLAFLOW_SI_CHIP_DEEP=1`. Apply-or-defer gate with +0.10 IEEE-754 epsilon. Dogfood pass DEFERRED per user requirement (real-LLM eval data out of scope).
-4. **v9.6.0 Reference Library Refresh** — ALL 21 tracked external references re-audited via NineS deep analysis (5 deep + 16 W-2 manual review). 4 NEW reference-doc subsections wired into `team-roles.md` / `decomposition-gate.md` / `execution-protocol.md` / `meta-framework.md`.
-5. **v9.7.0 Performance Overhaul #2** — Predecessor summary delta-compression (12-char sha256 hash; schema v6 APPEND at canonical position 17). Async L2-wave dispatch auto-wire. Selector cache pre-warmup (`DEVOLAFLOW_WARMUP=1`).
+1. **v9.3.0 Performance Overhaul #1**, `load_profiles` / `load_skill_md` / `estimate_tokens` LRU cache absorbed 96.6% of dispatch wall-clock (the big one). Compressor split into a 3-module package. AsyncDispatchExecutor library-only landing.
+2. **v9.4.0 Plugin Auto-Install & Daily Upgrade**, `pre_plugin_invocation` lifecycle hook + dispatcher wiring (closes the `ensure_plugin()` dead-wire). Schema v3 with per-plugin `upgrade_cmd` + new `devolaflow plugins refresh` CLI.
+3. **v9.5.0 Si-Chip DEEP Integration**, `si_chip_bridge` typed Python module (~1070 LOC across 4 sub-modules). `post_skill_edit` always-on lifecycle hook gated `DEVOLAFLOW_SI_CHIP_DEEP=1`. Apply-or-defer gate with +0.10 IEEE-754 epsilon. Dogfood pass DEFERRED per user requirement (real-LLM eval data out of scope).
+4. **v9.6.0 Reference Library Refresh**, ALL 21 tracked external references re-audited via NineS deep analysis (5 deep + 16 W-2 manual review). 4 NEW reference-doc subsections wired into `team-roles.md` / `decomposition-gate.md` / `execution-protocol.md` / `meta-framework.md`.
+5. **v9.7.0 Performance Overhaul #2**, Predecessor summary delta-compression (12-char sha256 hash; schema v6 APPEND at canonical position 17). Async L2-wave dispatch auto-wire. Selector cache pre-warmup (`DEVOLAFLOW_WARMUP=1`).
 
 ### What landed in the v10.0.0 MAJOR rollup itself
 
-- **PV-01** — Version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (pattern-replace by `scripts/bump_version.py`).
-- **PV-02** — NEW `scripts/audit_feedback_ac.py` (~370 LOC) + 31 NEW tests cross-checks 57 historical feedback files against the live repo state. Result: **0 FAILs, 100% addressed-or-deferred** (5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED). Closes the user's mandate to ensure no AC has regressed.
-- **PV-03** — Comprehensive human-docs refresh: 16 EN/ZH user guides regenerated; demo landing page top-of-page v10.0.0 What's New section; `version-timeline/versions.json` v10.0.0 entry; this README block.
-- **PV-04** — NineS self-eval + W-3 SI-3 evaluation (MAJOR-gate composite ≥9.0) + W-7 SI-8 retrospective + W-19 cycle-archive at `docs/cycle-archive/v10.0.0/`.
-- **PV-05** — `CHANGELOG.md` MAJOR entry + W-18 ghost-audit refresh + SI-10 6-gate green + final PR open.
+- **PV-01**, Version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (pattern-replace by `scripts/bump_version.py`) — **PV-02**, NEW.`scripts/audit_feedback_ac.py` (~370 LOC) + 31 NEW tests cross-checks 57 historical feedback files against the live repo state. Result: **0 FAILs, 100% addressed-or-deferred** (5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED). Closes the user's mandate to ensure no AC has regressed.
+- **PV-03**, Comprehensive human-docs refresh: 16 EN/ZH user guides regenerated; demo landing page top-of-page v10.0.0 What's New section; `version-timeline/versions.json` v10.0.0 entry; this README block.
+- **PV-04**, NineS self-eval + W-3 SI-3 evaluation (MAJOR-gate composite ≥9.0) + W-7 SI-8 retrospective + W-19 cycle-archive at `docs/cycle-archive/v10.0.0/` — **PV-05**,.`CHANGELOG.md` MAJOR entry + W-18 ghost-audit refresh + SI-10 6-gate green + final PR open.
 
 ### New env flags (4, all R5-strict, all W-20 §3 orthogonality justified)
 
-- `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (v9.3.0) — opt-in skip L1+L2 for SIMPLE/TRIVIAL tasks (default-ON in v10.1+).
-- `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (v9.4.0) — opt-in plugin auto-install on dispatch.
-- `DEVOLAFLOW_SI_CHIP_DEEP=1` (v9.5.0) — DEEP Si-Chip dogfood always-on (`post_skill_edit` hook).
-- `DEVOLAFLOW_WARMUP=1` (v9.7.0) — pre-populate selector cache on session start.
+- `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (v9.3.0), opt-in skip L1+L2 for SIMPLE/TRIVIAL tasks (default-ON in v10.1+).
+- `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (v9.4.0), opt-in plugin auto-install on dispatch.
+- `DEVOLAFLOW_SI_CHIP_DEEP=1` (v9.5.0), DEEP Si-Chip dogfood always-on (`post_skill_edit` hook).
+- `DEVOLAFLOW_WARMUP=1` (v9.7.0), pre-populate selector cache on session start.
 
 ### Breaking changes
 
-**None.** Every change in the cycle is additive:
-- The `compressor` package re-exports all public symbols at the same import paths (`from devolaflow.compressor import ...` works byte-identically).
+**None.** Every change in the cycle is additive: The`compressor` package re-exports all public symbols at the same import paths (`from devolaflow.compressor import ...` works byte-identically).
 - Schema v6 is append-only at canonical position 17 (A-2.2 invariant); all 9 historical multi-baseline byte tests pass byte-identically because the new field's absence is canonical.
-- Both new lifecycle events were appended at the tail (positions 9 + 10); positions 1-8 byte-stable since v9.1.3.
-- All new env flags are default-OFF; absent or any value other than literal `"1"` preserves prior behaviour.
+- Both new lifecycle events were appended at the tail (positions 9 + 10); positions 1-8 byte-stable since v9.1.3 — All new env flags are default-OFF; absent or any value other than literal.`"1"` preserves prior behaviour.
 
 ## What's New in v7.4.3
 
-- **Stale Doc Refs Closed (v7.4.3, P-02)** — 12 minor stale numeric/version references in `README.md`, `CLAUDE.md`, `workflow-system/agent/workflow-skill.yaml` aligned with v7.4.2 reality (template count `17→20`, scenario count `20→39`, test count `434+→1343`, rule count `19 process→9 .mdc files`, version-bump location count `11/16→7 canonical sync locations`).
-- **`repo-init` Template Landed (v7.4.2)** — Closed v7.4.0's S-4 / CP-1 ghost-feature gap: new `workflow-system/agent/templates/builtin/repo-init.yaml` (4 stages: analyze → scaffold → compile → verify) with `parameters.mode: {minimal | standard | deep}` enum defaulted to `standard` for Claude Code `/init` parity (no heavy verify execution by default).
-- **CLI Coverage Restored (v7.4.1)** — `tests/test_cli_local_commands.py` (+7 tests) lifted `src/devolaflow/cli.py` from 63% → 99% coverage; CP-2 / S-3 floor restored after the v7.4.0 staged work.
-- **`.rules/` 5-Layer Governance (v7.4.0)** — Soul Rules P0 → Architecture P1 → Conventions P2 → Workflow P3 → Style P4 model; rule compiler emits `.cursor/rules/repo-governance.mdc` and `AGENTS.md` from a single canonical source.
-- **`.local/` Workspace Scaffolding (v7.4.0)** — Structured local dev workspace with `.local/feedbacks/`, `.local/tasks/`, `.local/research/`, and `index.md` navigation; auto-detected by `devola-init` and the curl-installer one-liner.
+**Stale Doc Refs Closed (v7.4.3, P-02)**, 12 minor stale numeric/version references in `README.md`, `CLAUDE.md`, `workflow-system/agent/workflow-skill.yaml` aligned with v7.4.2 reality (template count `17→20`, scenario count `20→39`, test count `434+→1343`, rule count `19 process→9 .mdc files`, version-bump location count `11/16→7 canonical sync locations`) — **.`repo-init` Template Landed (v7.4.2)**, Closed v7.4.0's S-4 / CP-1 ghost-feature gap: new `workflow-system/agent/templates/builtin/repo-init.yaml` (4 stages: analyze → scaffold → compile → verify) with `parameters.mode: {minimal | standard | deep}` enum defaulted to `standard` for Claude Code `/init` parity (no heavy verify execution by default) — **CLI Coverage Restored (.v7.4.1)**, `tests/test_cli_local_commands.py` (+7 tests) lifted `src/devolaflow/cli.py` from 63% → 99% coverage; CP-2 / S-3 floor restored after the v7.4.0 staged work — **.`.rules/` 5-Layer Governance (v7.4.0)**, Soul Rules P0 → Architecture P1 → Conventions P2 → Workflow P3 → Style P4 model; rule compiler emits `.cursor/rules/repo-governance.mdc` and `AGENTS.md` from a single canonical source — **.`.local/` Workspace Scaffolding (v7.4.0)**, Structured local dev workspace with `.local/feedbacks/`, `.local/tasks/`, `.local/research/`, and `index.md` navigation; auto-detected by `devola-init` and the curl-installer one-liner.
 
 ## What's Inside
 
@@ -271,7 +263,7 @@ The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle
 | NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
 | `repo-init` | init repo, scaffold workspace, setup rules, 初始化仓库 | analyze → scaffold → compile → verify (mode: minimal \| standard \| deep) |
 | `change-driven` | OpenSpec-style in-flight change folder lifecycle | propose → apply → verify → archive (mode: lite \| full) |
-| `entropy-cleanup` | Periodic GC — stale docs, drift audit, retention rules | scan → propose → review → apply |
+| `entropy-cleanup` | Periodic GC, stale docs, drift audit, retention rules | scan → propose → review → apply |
 
 ### 4-Layer Agent Hierarchy
 
@@ -313,10 +305,10 @@ Current avg composite: **99.49/100** with 100% relevance and 0% noise across all
 
 After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
 
-- **Clarity** — Was the intent unambiguous?
-- **Scope** — Were boundaries defined?
-- **Success Criteria** — Were pass/fail conditions stated?
-- **Context** — Was relevant background provided?
+- **Clarity**, Was the intent unambiguous?
+- **Scope**, Were boundaries defined?
+- **Success Criteria**, Were pass/fail conditions stated?
+- **Context**, Was relevant background provided?
 
 The score appears at the end of the workflow report with actionable tips to improve future requests. Scoring is skipped for trivial tasks.
 
@@ -338,16 +330,16 @@ The score appears at the end of the workflow report with actionable tips to impr
 
 ## Versioning & Updates
 
-DevolaFlow uses unified versioning — a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
+DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
 
-### Checking your version
+Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v10.0.0"
+devola-version                   # prints "DevolaFlow v10.1.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
-Or ask your AI agent: `"update devola"` — it will check and report the installed version.
+Or ask your AI agent: `"update devola"`, it will check and report the installed version.
 
 ### Updating to the latest version
 
@@ -371,7 +363,7 @@ devola-init cursor --global      # re-install updated skill files
 devola-init claude --global
 ```
 
-### Bumping version (for contributors)
+Bumping version (for contributors)
 
 ```bash
 python scripts/bump_version.py 7.4.3            # updates all 11 version locations (7 canonical sync locations across 8 files per CP-3)
@@ -474,7 +466,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 | [常见问题](workflow-system/human/zh/faq.md) | 工作流、工具、质量门、更新相关问题 |
 | [故障排查](workflow-system/human/zh/troubleshooting.md) | 安装、工作流、测试和基准测试问题 |
 
-### Design Documents
+Design Documents
 
 | Doc | Description |
 |-----|-------------|
@@ -496,7 +488,7 @@ Commit messages use [Conventional Commits](https://www.conventionalcommits.org/)
 ### Editing rules
 
 Governance rules are sourced from `.rules/*.mdc` (5 layered files: soul, architecture, conventions, workflow,
-style) and compiled to two distribution targets — `AGENTS.md` (the canonical Markdown corpus loaded by Codex /
+style) and compiled to two distribution targets, `AGENTS.md` (the canonical Markdown corpus loaded by Codex /
 Claude Code / KimiCode / Cline / Roo) and `.cursor/rules/repo-governance.mdc` (the MDC rendering for Cursor).
 After editing any `.rules/*.mdc` source, refresh both targets with:
 
@@ -524,12 +516,12 @@ Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml
 
 ## License
 
-MIT — [LICENSE](LICENSE)
+MIT, [LICENSE](LICENSE)
 
 ---
 
 <p align="center"><em>
 "...For the Glory of Mankind."
 <br>
-Named for <a href="https://nierautomata.wiki.fextralife.com/Devola">Devola</a> — who never stopped watching over others, even when the world forgot her purpose.
+Named for <a href="https://nierautomata.wiki.fextralife.com/Devola">Devola</a>, who never stopped watching over others, even when the world forgot her purpose.
 </em></p>

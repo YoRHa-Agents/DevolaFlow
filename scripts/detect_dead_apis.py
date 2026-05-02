@@ -650,6 +650,28 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # post_dispatch convenience pattern). Tests cover it indirectly
         # via the W-18 ghost-audit refresh in PV-06 cycle close.
         "devolaflow.lifecycle.post_skill_edit:metadata_to_json",
+        # ---- v10.1.0 PV-02 — writing_style region helpers ----
+        # `prose_only(text)` returns the text with all protected regions
+        # (fenced code, inline code, markdown links, version strings,
+        # html tags, bare URLs) replaced by single spaces. Used by the
+        # humanizer transforms shipping in v10.1.0 PV-03 — the region
+        # classifier is the load-bearing boundary between "code/version
+        # data that transforms must never edit" and "prose that
+        # transforms may rewrite". Tests cover it via
+        # `tests/test_writing_style_scorer.py::test_prose_only_strips_protected_regions`.
+        # Ghost-audit refresh lands in v10.1.0 PV-06 with
+        # `test_v10_1_0_new_symbols_have_coverage`.
+        "devolaflow.writing_style.regions:prose_only",
+        # `apply_to_prose(text, transform)` walks the region sequence,
+        # applies `transform` to each prose span, and preserves
+        # protected spans byte-for-byte. This IS the production
+        # integration point for the five SAFE transforms in PV-03
+        # (emdash / bullets / signposts / headers / clichés). It is
+        # public so that third-party humanizer authors can hook their
+        # own transform callable into the same region-safety boundary.
+        # Covered by
+        # `tests/test_writing_style_scorer.py::test_apply_to_prose_does_not_touch_code`.
+        "devolaflow.writing_style.regions:apply_to_prose",
     }
 )
 

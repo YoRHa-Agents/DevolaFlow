@@ -4,8 +4,8 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:39Z"
+source_version: "10.1.0"
 ---
 
 # Integration Guide
@@ -38,7 +38,7 @@ This installs:
 - `.cursor/skills/devola-flow/references/` — 9 domain reference files
 - `.cursor/skills/devola-flow/examples/` — 3 execution trace examples
 
-### How It Works in Cursor
+How It Works in Cursor
 
 DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's workflow selection heuristics then activate based on your intent keywords.
 
@@ -55,7 +55,7 @@ Implement a REST API for user management with CRUD operations, JWT auth, and rol
 4. DevolaFlow activates and the agent:
    - Selects `full-pipeline` workflow
    - **Design stage**: Defines API endpoints, data models, auth flow
-   - **Plan stage**: Breaks into waves — auth module (Wave 1), CRUD endpoints (Wave 2), RBAC (Wave 3)
+   - **Plan stage**: Breaks into waves, auth module (Wave 1), CRUD endpoints (Wave 2), RBAC (Wave 3)
    - **Implement stage**: Creates source files with tests via parallel task agents
    - **Review stage**: Checks code quality, security, style
    - **Test stage**: Runs unit + integration tests, measures coverage
@@ -76,11 +76,11 @@ The agent selects `hotfix` and:
 
 ### Tips for Cursor
 
-- **Attach the skill manually** for complex tasks: Type `@devola-flow` to explicitly reference the skill
+**Attach the skill manually** for complex tasks: Type`@devola-flow` to explicitly reference the skill
 - **Use Plan mode** for architectural decisions: The agent will produce a structured plan instead of executing
 - **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's Wave→Task delegation
 
-## Claude Code — Detailed Setup
+## Claude Code, Detailed Setup
 
 ### Installation
 
@@ -94,9 +94,9 @@ curl -fsSL $INSTALLER | bash -s claude --global
 
 This installs a single self-contained `CLAUDE.md` file. Claude Code reads this file at the start of every session.
 
-### How It Works in Claude Code
+How It Works in Claude Code
 
-`CLAUDE.md` is always active — Claude Code loads it automatically. Every prompt benefits from DevolaFlow's workflow structure.
+`CLAUDE.md` is always active, Claude Code loads it automatically. Every prompt benefits from DevolaFlow's workflow structure.
 
 ### Example Session
 
@@ -112,29 +112,29 @@ Claude Code will:
 3. Follow the convergence loop for quality
 4. Report with a task quality score at the end
 
-### Tips for Claude Code
+Tips for Claude Code
 
-- CLAUDE.md is self-contained — no external references needed
+- CLAUDE.md is self-contained, no external references needed
 - Works with Claude Code's native subagent support
 - Use `"update devola"` to trigger version checks within a session
 
-## GitHub Copilot — Detailed Setup
+## GitHub Copilot, Detailed Setup
 
-### Installation
+Installation
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
 ```
 
 This installs:
-- `.github/copilot-instructions.md` — root instructions
-- `.github/instructions/workflow.instructions.md` — workflow-specific instructions
+- `.github/copilot-instructions.md`, root instructions
+- `.github/instructions/workflow.instructions.md`, workflow-specific instructions
 
-### How It Works in Copilot
+How It Works in Copilot
 
 Copilot reads `copilot-instructions.md` for every request. The workflow heuristics guide Copilot's code suggestions and chat responses to follow structured patterns.
 
-### Example Session
+Example Session
 
 In Copilot Chat:
 ```
@@ -143,9 +143,9 @@ In Copilot Chat:
 
 Copilot follows the `refactoring` workflow: scope analysis → plan → implement → test → review.
 
-## OpenAI Codex — Detailed Setup
+## OpenAI Codex, Detailed Setup
 
-### Installation
+Installation
 
 ```bash
 # Codex uses global skills
@@ -156,7 +156,7 @@ This installs:
 - `~/.codex/skills/devola-flow/SKILL.md`
 - `~/.codex/skills/devola-flow/agents/openai.yaml`
 
-### How It Works in Codex
+How It Works in Codex
 
 Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's wave structure maps well to Codex's parallel execution model.
 

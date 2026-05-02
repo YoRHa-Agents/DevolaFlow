@@ -39,6 +39,28 @@ sync-human-docs-en:
 sync-human-docs-zh:
 	python scripts/generate_human_docs.py --lang zh
 
+# v10.1.0 PV-04 — apply writing-style transforms to hand-edited
+# human-facing docs (README + CHANGELOG + EN/ZH guides). The
+# `generate_human_docs.py` pipeline already humanizes EN/ZH guides
+# at generation time (Q-B); this target covers the hand-edited
+# surface so authors can run the same humanizer on demand. Per Q-D,
+# the CHANGELOG is hit with T-S1 + T-S5 only (technical_concise).
+.PHONY: humanize-docs
+humanize-docs:
+	@python scripts/humanize_doc.py apply README.md -v
+	@python scripts/humanize_doc.py apply CHANGELOG.md -v
+	@for f in workflow-system/human/en/*.md workflow-system/human/zh/*.md; do \
+		python scripts/humanize_doc.py apply "$$f" -v; \
+	done
+
+.PHONY: check-humanize
+check-humanize:
+	@python scripts/humanize_doc.py check README.md
+	@python scripts/humanize_doc.py check CHANGELOG.md
+	@for f in workflow-system/human/en/*.md workflow-system/human/zh/*.md; do \
+		python scripts/humanize_doc.py check "$$f"; \
+	done
+
 sync-cursor-skill:
 	python scripts/sync_cursor_skill.py
 

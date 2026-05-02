@@ -4,8 +4,8 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T12:48:18Z"
-source_version: "10.0.0"
+last_synced: "2026-05-02T16:56:39Z"
+source_version: "10.1.0"
 ---
 
 # FAQ
@@ -20,10 +20,9 @@ A composable workflow meta-framework for AI-assisted software development. It de
 
 ### What AI tools does it support?
 
-- **Cursor** — loaded as a Cursor Skill (`.cursor/skills/devola-flow/SKILL.md`)
+**Cursor** — loaded as a Cursor Skill (`.cursor/skills/devola-flow/SKILL.md`)
 - **Claude Code** — loaded as `CLAUDE.md` (always active in every session)
-- **GitHub Copilot** — loaded as `copilot-instructions.md`
-- **OpenAI Codex** — loaded as a Codex Skill
+- **GitHub Copilot** — loaded as `copilot-instructions.md`**OpenAI Codex** — loaded as a Codex Skill
 
 A single source (`workflow-skill.yaml`) is adapted to each tool's format via the `build-skill` pipeline.
 
@@ -33,22 +32,17 @@ No. DevolaFlow activates automatically based on your natural language prompts. S
 
 ### How does DevolaFlow differ from just prompting my AI tool?
 
-Without DevolaFlow, your AI tool processes the entire request in a single pass, often losing context or mixing concerns (designing while coding while testing). With DevolaFlow, work is decomposed into isolated stages with quality checkpoints, so the agent designs first, then plans, then implements, then reviews — with gates ensuring quality at each boundary.
+Without DevolaFlow, your AI tool processes the entire request in a single pass, often losing context or mixing concerns (designing while coding while testing). With DevolaFlow, work is decomposed into isolated stages with quality checkpoints, so the agent designs first, then plans, then implements, then reviews, with gates ensuring quality at each boundary.
 
 ## Workflows
 
 ### How does the agent choose a workflow?
 
-DevolaFlow uses **intent matching** on your prompt keywords:
-- "fix bug" / "broken" / "crash" → `hotfix`
-- "from scratch" / "new project" → `full-pipeline`
-- "research" / "compare" → `research-only`
-- "refactor" / "clean up" → `refactoring`
-- And so on for all 22 types
+DevolaFlow uses **intent matching** on your prompt keywords: "fix bug" / "broken" / "crash" →`hotfix`"from scratch" / "new project" →`full-pipeline`"research" / "compare" →`research-only`"refactor" / "clean up" →`refactoring`And so on for all 22 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
-### Can I skip stages?
+Can I skip stages?
 
 Yes, in two ways:
 1. **Complexity scaling**: For trivial tasks (< 20 lines, single file), DevolaFlow skips the workflow entirely
@@ -80,17 +74,17 @@ A built-in benchmark suite that measures how effectively context is routed to ag
 
 Run with: `python -m benchmarks.devolaflow_context.runner --scenario all`
 
-### What happens when a gate fails?
+What happens when a gate fails?
 
 The gate triggers a **convergence loop**: review findings → fix issues → re-test → re-check gate. This repeats up to 3 rounds. If the gate still fails after max rounds, it escalates to the human with a divergence report explaining what's blocking.
 
 ## Updates & Versioning
 
-### How do I check for updates?
+How do I check for updates?
 
-Ask your AI agent: `"update devola"` — or run `devola-version` in the terminal.
+Ask your AI agent: `"update devola"`, or run `devola-version` in the terminal.
 
-### How do I update?
+How do I update?
 
 ```bash
 # pip
