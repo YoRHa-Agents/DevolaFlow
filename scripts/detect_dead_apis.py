@@ -263,6 +263,17 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.feedback:FeedbackCollector",
         "devolaflow.feedback:FeedbackAnalyzer",
         "devolaflow.feedback:ProposalGenerator",
+        # v9.7.0 PV-03 — auto-wired L2-wave async dispatch entry point.
+        # Wraps the v9.3.0 PV-05 ``AsyncDispatchExecutor`` (also a public
+        # API surface that's pinned via ``_dispatch_executor_dead_api_pins``
+        # in ``src/devolaflow/agent_workspace/__init__.py``). This is the
+        # canonical caller for L2 Wave dispatchers in repos that opt into
+        # the Python-driven dispatch path; LLM-orchestrated workflows
+        # invoke the Task tool directly without going through this helper,
+        # so the in-repo "production caller" IS the ``Task`` tool surface
+        # exposed via the SKILL.md dispatch contract. Documented in
+        # ``workflow-system/agent/references/execution-protocol.md`` §13.
+        "devolaflow.feedback:dispatch_wave_tasks",
         # ---- Gate report generators ----
         # Exported via devolaflow.gate.__all__; consumed by external CI tools
         # and validate-gate console_script via direct module access.
