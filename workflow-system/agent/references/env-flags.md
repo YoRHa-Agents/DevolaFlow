@@ -226,6 +226,22 @@ These flags are read by production code paths. Tests in
 | **Opt-out path (when default-ON in v9.7.0)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SIMPLE_SHORTCUT=0` at v9.7.0 to preserve v9.6.x dispatch behaviour byte-identically |
 | **Reference** | `tests/test_simple_shortcut.py` (9 NEW tests pin the verdict matrix); `src/devolaflow/skills/change_activation.py::shortcut_verdict` (the public entry point); `.local/research/v9.3.0_gap_analysis.md` §3.5 |
 
+### 2.13 `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` — v9.4.0 PV-02 dispatcher pre-flight auto-install
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/lifecycle/pre_plugin_invocation.py::ENV_FLAG` (helper: `is_auto_install_active`) |
+| **Introduced** | v9.4.0 PV-02 (closes D-P-1 + D-P-3 from `.local/research/v9.4.0_gap_analysis.md` §3.1) |
+| **Default** | unset (= disabled — dispatcher does NOT pre-flight install plugins) |
+| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
+| **Effect when active** | `pre_plugin_invocation` lifecycle hook (event slot #9 in `DEFAULT_EVENTS`, A-2.2 append-only at position 9) auto-invokes `devolaflow.plugins.installer.ensure_plugin(<id>)` for each plugin cited in the dispatch payload BEFORE the L3 Task Agent attempts to call the plugin's binary. The hook fires AFTER the v9.1.3 PV-03 `pre_handoff` slot in `feedback.py::_emit_dispatch` so the dispatch payload is fully-formed at install-resolution time. |
+| **Effect when opted out** | The `pre_plugin_invocation` hook is a zero-IO no-op (lazy-imports the installer module ONLY when active); dispatch behaviour is byte-identical to v9.3.x for every input (the AC-6 byte-stable invariant from `v9.4.0_gap_analysis.md` §6) |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: AUTO_INSTALL_PLUGINS activates a different runtime surface (the dispatcher's pre-flight plugin install hook) than every existing flag. `DEVOLAFLOW_AUTO_INSTALL` (§2.5, default-ON, opt-OUT) controls whether the install primitive performs the install at all — different surface (it controls `ensure_plugin`'s behaviour WHEN called, not WHETHER it gets called). `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — an operator may want plugin pre-flight without workspace activation. The two flags compose meaningfully: `AUTO_INSTALL_PLUGINS=1 + AUTO_INSTALL=0` = audit-mode pre-flight where the hook fires + ensure_plugin reports the version mismatch loudly without auto-installing. No existing flag could be REUSED without conflating two distinct activation surfaces. |
+| **R5 strict?** | YES — `is_auto_install_active` is a pure ``os.environ.get`` comparison with no IO + no subprocess. The hook body lazy-imports `devolaflow.plugins.installer` ONLY when active; codified by `tests/test_pre_plugin_invocation.py::TestDisabledIsNoopByteIdentical::test_disabled_is_noop_byte_identical` (watcher proof + `test_lazy_import_contract_module_load_is_cheap` AST proof). |
+| **Lifecycle telegraph** | The v9.4.0 cycle ships the flag as opt-in with default-OFF. v9.7.0 (telegraphed in `.local/research/v10.0.0_cycle_plan.md` §"Performance Overhaul #2") MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern that promoted the 5 Theme T5 gate primitives. NOT yet committed — the v9.4.0 retrospective will assess the operator-feedback signal. |
+| **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to preserve v9.4.x dispatch behaviour byte-identically |
+| **Reference** | `tests/test_pre_plugin_invocation.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (the public entry point); `.local/research/v9.4.0_gap_analysis.md` §3.1 D-P-3 |
+
 ## 3. Test-fixture flags (NOT runtime flags)
 
 These flags are read ONLY by tests (`tests/`) and never by production

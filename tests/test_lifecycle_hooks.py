@@ -161,8 +161,23 @@ def test_default_events_match_skill_md_table() -> None:
     is a no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset (R5 strict
     byte-identical), so adding the eighth event preserves byte output
     for operators who haven't opted into the agent-workspace surface.
+
+    v9.4.0 PV-02 — bumped 8 → 9 with the addition of
+    ``pre_plugin_invocation`` (D-P-1 closure: closes the
+    ``ensure_plugin()`` dead-wire from
+    ``.local/research/v9.4.0_gap_analysis.md`` §3.1). The new slot is
+    APPENDED at the END of the tuple to preserve A-2.4 cache-prefix
+    invariants — positions 1-8 stay byte-stable. The default handler
+    is a no-op when ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS`` is unset
+    (R5 strict byte-identical), so adding the ninth event preserves
+    byte output for operators who haven't opted into the dispatcher
+    pre-flight plugin install surface.
     """
-    from devolaflow.lifecycle import ENVELOPE_WRITE_EVENT, PRE_HANDOFF_EVENT
+    from devolaflow.lifecycle import (
+        ENVELOPE_WRITE_EVENT,
+        PRE_HANDOFF_EVENT,
+        PRE_PLUGIN_INVOCATION_EVENT,
+    )
 
     assert PRE_DISPATCH_EVENT == "pre_dispatch"
     assert POST_DISPATCH_EVENT == "post_dispatch"
@@ -170,6 +185,7 @@ def test_default_events_match_skill_md_table() -> None:
     assert TASK_STOP_EVENT == "task_stop"
     assert ENVELOPE_WRITE_EVENT == "envelope_write"
     assert PRE_HANDOFF_EVENT == "pre_handoff"
+    assert PRE_PLUGIN_INVOCATION_EVENT == "pre_plugin_invocation"
     assert set(DEFAULT_EVENTS) == {
         "pre_dispatch",
         "post_dispatch",
@@ -179,13 +195,15 @@ def test_default_events_match_skill_md_table() -> None:
         "pre_shell_call",
         "envelope_write",
         "pre_handoff",
+        "pre_plugin_invocation",
     }
-    assert len(DEFAULT_EVENTS) == 8
+    assert len(DEFAULT_EVENTS) == 9
 
-    # A-2.4 cache-prefix invariant: positions 1-7 byte-identical with the
-    # v9.1.2 DEFAULT_EVENTS tuple. The PV-03 bump appended `pre_handoff`
-    # at position 8 only — any drift in positions 1-7 is a release blocker.
-    assert DEFAULT_EVENTS[:7] == (
+    # A-2.4 cache-prefix invariant: positions 1-8 byte-identical with the
+    # v9.1.3 DEFAULT_EVENTS tuple. The v9.4.0 PV-02 bump appended
+    # `pre_plugin_invocation` at position 9 only — any drift in positions
+    # 1-8 is a release blocker.
+    assert DEFAULT_EVENTS[:8] == (
         "pre_dispatch",
         "post_dispatch",
         "file_write",
@@ -193,9 +211,10 @@ def test_default_events_match_skill_md_table() -> None:
         "format_on_edit",
         "pre_shell_call",
         "envelope_write",
+        "pre_handoff",
     )
-    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
-        "v9.1.3 PV-03: pre_handoff MUST be appended at the tail (A-2.4)"
+    assert DEFAULT_EVENTS[-1] == PRE_PLUGIN_INVOCATION_EVENT, (
+        "v9.4.0 PV-02: pre_plugin_invocation MUST be appended at the tail (A-2.4)"
     )
 
 

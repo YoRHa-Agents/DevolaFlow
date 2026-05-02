@@ -1617,7 +1617,15 @@ _V9_1_3_FILE_MIN_BYTES: int = 50
 # Before PV-03: 7 (pre_dispatch, post_dispatch, file_write, task_stop,
 # format_on_edit, pre_shell_call, envelope_write). After PV-03: 8 (above
 # + pre_handoff APPENDED at position 8 per A-2.4 cache-prefix invariant).
-_V9_1_3_DEFAULT_EVENTS_COUNT: int = 8
+# Per A-2.2 append-only governance, future cycles MAY bump this number
+# higher (v9.4.0 PV-02 bumped 8 → 9 with pre_plugin_invocation appended
+# at position 9; v9.4.0 W-18 lint pins the new tail). The v9.1.3 lint
+# below uses ``>= _V9_1_3_DEFAULT_EVENTS_MIN`` so future appends do not
+# break this historic ghost-audit — the v9.1.3 contract is "pre_handoff
+# must be in the tuple at position 8 OR LATER (depending on subsequent
+# appends)", not "the tuple is exactly 8 long forever".
+_V9_1_3_DEFAULT_EVENTS_MIN: int = 8
+_V9_1_3_PRE_HANDOFF_POSITION: int = 8  # 1-indexed; tuple index 7 (zero-based)
 
 
 def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
@@ -1640,11 +1648,15 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
        ``auto_write_handoff`` is callable, and the event constant
        equals ``"pre_handoff"`` (the canonical name re-exported from
        :mod:`devolaflow.lifecycle.auto_write_handoff`).
-    3. **DEFAULT_EVENTS** tuple length is exactly
-       ``_V9_1_3_DEFAULT_EVENTS_COUNT`` (8 — the v9.1.3 PV-03 bump from
+    3. **DEFAULT_EVENTS** tuple length is at least
+       ``_V9_1_3_DEFAULT_EVENTS_MIN`` (8 — the v9.1.3 PV-03 bump from
        7 → 8 with ``pre_handoff`` APPENDED at position 8 per the
-       A-2.4 cache-prefix invariant) and contains
-       ``PRE_HANDOFF_EVENT`` AT THE TAIL.
+       A-2.4 cache-prefix invariant) AND ``PRE_HANDOFF_EVENT`` is at
+       the v9.1.3-frozen position 8 (1-indexed; tuple index 7).
+       Subsequent A-2.2 append-only bumps (v9.4.0 PV-02 added
+       ``pre_plugin_invocation`` at position 9) do NOT invalidate this
+       lint — the v9.1.3 contract is the historic position freeze for
+       ``pre_handoff``, not the tuple length.
     4. **W-20 reuse-first** — the auto-write module's ``ENV_FLAG``
        constant equals ``"DEVOLAFLOW_AGENT_WORKSPACE"`` (REUSED from
        v9.1.1 PV-01 + v9.1.2 PV-02; no new flag) AND
@@ -1657,9 +1669,11 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         back.
       * "< 50 byte minimum" → the file regressed to an empty stub;
         re-author the contents.
-      * "DEFAULT_EVENTS length != 8" → the lifecycle event tuple was
+      * "DEFAULT_EVENTS length < 8" → the lifecycle event tuple was
         edited in violation of the A-2.4 append-only contract; verify
-        ``pre_handoff`` is still appended at position 8.
+        ``pre_handoff`` is still present at position 8 (1-indexed).
+        Append-only growth (length > 8) is permitted per A-2.2 — see
+        the v9.4.0 PV-02 ``pre_plugin_invocation`` precedent.
       * "ENV_FLAG mismatch" → a NEW env flag was authored, violating
         W-20 reuse-first; either restore the REUSE or document the
         orthogonality argument per W-20 §3.
@@ -1697,22 +1711,28 @@ def test_v9_1_3_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v9.1.3 violation: auto_write_handoff is not callable — "
         "the export from devolaflow.lifecycle must be the hook function itself"
     )
-    assert len(DEFAULT_EVENTS) == _V9_1_3_DEFAULT_EVENTS_COUNT, (
+    assert len(DEFAULT_EVENTS) >= _V9_1_3_DEFAULT_EVENTS_MIN, (
         f"W-18 v9.1.3 violation: lifecycle.DEFAULT_EVENTS length is "
-        f"{len(DEFAULT_EVENTS)}, expected {_V9_1_3_DEFAULT_EVENTS_COUNT} "
+        f"{len(DEFAULT_EVENTS)}, expected >= {_V9_1_3_DEFAULT_EVENTS_MIN} "
         f"(v9.1.3 PV-03 bumped 7 → 8 with pre_handoff APPENDED at "
-        f"position 8 per A-2.4 cache-prefix invariant). Current events: "
-        f"{DEFAULT_EVENTS!r}"
+        f"position 8 per A-2.4 cache-prefix invariant; A-2.2 permits "
+        f"future append-only growth). Current events: {DEFAULT_EVENTS!r}"
     )
     assert PRE_HANDOFF_EVENT in DEFAULT_EVENTS, (
         f"W-18 v9.1.3 violation: PRE_HANDOFF_EVENT not registered in "
         f"DEFAULT_EVENTS tuple {DEFAULT_EVENTS!r} — the PV-03 append step "
         f"was incomplete"
     )
-    assert DEFAULT_EVENTS[-1] == PRE_HANDOFF_EVENT, (
-        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[-1] is {DEFAULT_EVENTS[-1]!r}, "
-        f"expected {PRE_HANDOFF_EVENT!r}; pre_handoff MUST be appended at "
-        f"the tail per A-2.4 (positions 1-7 byte-stable)"
+    # v9.1.3 historic position freeze: pre_handoff at 1-indexed position 8
+    # (tuple index 7). v9.4.0 PV-02 appended pre_plugin_invocation at
+    # position 9 without disturbing this freeze.
+    handoff_idx = _V9_1_3_PRE_HANDOFF_POSITION - 1
+    assert DEFAULT_EVENTS[handoff_idx] == PRE_HANDOFF_EVENT, (
+        f"W-18 v9.1.3 violation: DEFAULT_EVENTS[{handoff_idx}] is "
+        f"{DEFAULT_EVENTS[handoff_idx]!r}, expected {PRE_HANDOFF_EVENT!r}; "
+        f"pre_handoff MUST stay frozen at 1-indexed position "
+        f"{_V9_1_3_PRE_HANDOFF_POSITION} per the v9.1.3 PV-03 + A-2.4 "
+        f"cache-prefix invariant (positions 1-7 + position 8 byte-stable)"
     )
 
     # W-20 reuse-first lint: same activation surface as v9.1.1 PV-01 +
