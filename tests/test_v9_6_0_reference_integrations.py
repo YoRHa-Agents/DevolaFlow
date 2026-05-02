@@ -253,16 +253,70 @@ def test_pv03_periodic_score_3_refs_freshness(yaml_data: dict) -> None:
         )
 
 
-def test_primelocus_hydra_telegraphs_v9_6_0_pv04_graduation(yaml_data: dict) -> None:
-    """primelocus-hydra must telegraph the PV-04 graduation to frozen_reference."""
+def test_primelocus_hydra_graduated_to_frozen_reference(yaml_data: dict) -> None:
+    """primelocus-hydra must be graduated to `frozen_reference` at v9.6.0 PV-04.
+
+    Per gap_analysis §3.2 D-R-9: PV-03 telegraphed via
+    `tracking_status: frozen_reference_pending_v9_6_0_pv04_graduation`,
+    and PV-04 actually graduates the entry to `tracking_status:
+    frozen_reference` per tracking_policy.staleness_indicators
+    (`repo_archived_or_6_months_inactive`).
+    """
     periodic = {entry["id"]: entry for entry in yaml_data.get("periodic_monitoring", [])}
     ph = periodic["primelocus-hydra"]
     assert ph.get("status") == "deleted_upstream"
-    # PV-03 telegraphs the PV-04 graduation via tracking_status field + note.
-    assert "frozen_reference" in ph.get("tracking_status", "").lower(), (
-        "primelocus-hydra must signal the v9.6.0 PV-04 graduation via "
-        "tracking_status (W-1 D-R-9 telegraph)"
+    # PV-04 actual graduation: the post-graduation status is exactly
+    # "frozen_reference" (no longer the "_pending_" telegraph).
+    assert ph.get("tracking_status") == "frozen_reference", (
+        "primelocus-hydra must be graduated to tracking_status: "
+        "frozen_reference at v9.6.0 PV-04 (D-R-9)"
     )
+    # The graduation timestamp pins when the transition happened.
+    assert ph.get("graduated_to_frozen_at", "").startswith("v9.6.0 PV-04"), (
+        "primelocus-hydra must record the v9.6.0 PV-04 graduation timestamp"
+    )
+    # The original PV-03 telegraph + PV-04 actual graduation are noted.
     assert "v9.6.0 PV-04" in ph.get("note", ""), (
         "primelocus-hydra note must reference the PV-04 graduation"
+    )
+
+
+# ============================================================================
+# PV-04 — bulk freshness contract.
+# ============================================================================
+
+
+def test_pv04_all_21_refs_carry_2026_05_02_last_checked(yaml_data: dict) -> None:
+    """Per gap_analysis §3.1 D-R-5: ALL 21 yaml refs must carry the v9.6.0 freshness stamp.
+
+    PV-02 refreshed 5 (deep-analyzed), PV-03 refreshed 5 (score=3),
+    PV-04 refreshes the remaining 11 to bring the bulk to 21/21.
+    """
+    all_refs = yaml_data.get("active_tracking", []) + yaml_data.get("periodic_monitoring", [])
+    assert len(all_refs) == 21, (
+        f"v9.6.0 PV-04 must keep total ref count at 21 (header comment "
+        f"correction D-R-7); got {len(all_refs)}"
+    )
+    stale = [r["id"] for r in all_refs if r.get("last_checked") != "2026-05-02"]
+    assert not stale, (
+        f"v9.6.0 PV-04 must refresh ALL 21 last_checked → 2026-05-02; still stale: {stale}"
+    )
+
+
+def test_pv04_yaml_header_comment_corrected(yaml_data: dict) -> None:
+    """Per gap_analysis §3.2 D-R-7: yaml header must say 11 + 10 = 21, not 10 + 9 = 19."""
+    raw = (REPO_ROOT / "workflow-system/agent/knowledge/reference-dependencies.yaml").read_text(
+        encoding="utf-8"
+    )
+    # The new header must reflect the actual 21-entry count.
+    assert "11 active_tracking + 10 periodic_monitoring = 21 total" in raw, (
+        "yaml header comment must be corrected to 11 + 10 = 21 per D-R-7"
+    )
+    # The original "10 + 9 = 19" claim must NOT appear except in the
+    # historical correction note.
+    correction_phrase = '"10 + 9 = 19"'
+    occurrences = raw.count(correction_phrase)
+    assert occurrences <= 1, (
+        f"the historical '10 + 9 = 19' string must appear at most once "
+        f"(in the correction note); found {occurrences}"
     )
