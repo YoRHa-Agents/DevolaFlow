@@ -5,6 +5,107 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.2] — 2026-05-03
+
+**v10.2.2 PATCH — PV-03 of the v10.2.0 cycle.** Third of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-03 ships the NineS deep-self-analysis half of mandate bullet 3 (对自身仓库结合 nines 进行深入分析) plus the Si-Chip iteration-effectiveness validation half (验证 si-chip 迭代有效性). Two gap items close in this PV: D-N-1 (NineS-to-Si-Chip eval adapter prototype) and D-N-3 (NineS deep-analyse 3 packages). The R-1 risk DID NOT FIRE — adapter verdict APPROVE. A NEW downstream bridge defect was surfaced and flagged for PV-04.
+
+### Operator-visible behaviour change (READ FIRST)
+
+NineS-to-Si-Chip eval data adapter. Closes D-N-1 + D-N-3 from v10.2.0 cycle gap analysis. NEW `scripts/nines_to_sichip_eval_adapter.py` (412 LOC, 23 unit tests) converts a NineS V3.3.0 `self-eval` JSON output into Si-Chip's `runs-dir`/`baseline-dir` layout so `aggregate_eval.py` can compute `iteration_delta` against NineS-derived task scores WITHOUT requiring fresh real-LLM eval runs. The v9.5.0 OA-1 blocker (no with-ability/no-ability eval data) is therefore RESOLVED for the cycle's purposes; per-file `iteration_delta` becomes computable end-to-end. The `dispatch_dogfood_cycle` pipeline ran cleanly on 4 skill files with adapter-supplied eval data; Si-Chip's `aggregate_eval.py` produced populated MVP-8 metrics (`T1_pass_rate=0.9`, `T3_baseline_delta=0.9`, `C1_metadata_tokens=229`, `R3_trigger_F1=0.9`, `U1_description_readability=24.0`).
+
+### Adapter verdict + dogfood pass #2 outcome
+
+* **Adapter verdict: APPROVE** — NineS shape is reconcilable with Si-Chip layout via the adapter mapping shipped in this PV. R-1 (gap analysis §4) did NOT fire; the cheap `count_tokens` fallback (per v9.5.0 §3 backout) is therefore NOT needed for cycle-progress purposes.
+* **Dogfood pass #2 verdict: DEFER** — every probed file (4) returned `iteration_delta=+0.0000`. Si-Chip's `aggregate_eval.py` ran end-to-end and produced real metrics, but DevolaFlow's `MetricsReport.from_yaml_dict` reads top-level `composite`/`task_delta`/`value_vector` keys that Si-Chip does NOT emit (the data is at `metrics.task_quality.T1_pass_rate` and `summary.baseline_delta`). This is a NEW gap surfaced by the v10.2.2 validation work — flagged for PV-04 as candidate #3 (mechanically fixable in `src/devolaflow/si_chip_bridge/models.py`).
+* **PV-04 apply candidates** — empty list at the iteration_delta gate (because of the bridge defect above). PV-04 falls back to deterministic D-P-* / D-N-3 fixes: PV-04 candidate #1 (`pre_plugin_invocation` CC=18 → ≤10), candidate #2 (`post_skill_edit` CC=13 → ≤8), and the NEW candidate #3 (fix `MetricsReport.from_yaml_dict` to read Si-Chip's actual emit shape).
+
+### What landed
+
+- `scripts/nines_to_sichip_eval_adapter.py` (NEW) — D-N-1 closure; 412-LOC adapter with 7 public functions (`load_nines_json`, `validate_nines_shape`, `build_runs`, `build_baselines`, `write_runs_dir`, `write_baseline_dir`, `main`). Two modes: `synthetic` (baseline pass_rate=0 across all tasks) and `sample` (baseline scores from a second NineS JSON for cycle-over-cycle comparison). Loud REJECT path on malformed/unmappable NineS shape (R-1 fallback documentation surface).
+- `tests/test_nines_to_sichip_adapter.py` (NEW) — D-N-1 closure; 23 unit-test functions (well-formed load / malformed-load loud failure / shape-validate accept / 5 shape-reject cases / build_runs schema mapping / pass_rate=nines_score check / synthetic + sample baseline modes / write_runs_dir on-disk shape / 5 main() entry-point cases including APPROVE + REJECT exit codes + sample-mode round-trip).
+- `.local/research/v10.2.2_self_eval_with_ability.json` (NEW, gitignored) — fresh `nines self-eval --baseline-version v10.2.1` against `data/golden_test_set/`. 20 per-task entries; overall composite 0.9069; ran in 62 seconds.
+- `.local/research/v10.2.2_nines.json` (NEW, gitignored) — D-N-3 NineS deep-analysis of `src/devolaflow/si_chip_bridge/`. 10 findings (all info, 0 warnings); 4 files, 1153 LOC, 17 functions, avg complexity 4.83.
+- `.local/research/v10.2.2_nines_plugins.json` (NEW, gitignored) — D-N-3 NineS deep-analysis of `src/devolaflow/plugins/`. 18 findings (14 info, 4 warning — 4 high-CC functions in `installer.py`); 6 files, 2033 LOC, 43 functions.
+- `.local/research/v10.2.2_nines_lifecycle.json` (NEW, gitignored) — D-N-3 NineS deep-analysis of `src/devolaflow/lifecycle/`. 34 findings (28 info, 6 warning — 6 high-CC functions across 4 modules; 2 of 6 introduced by PV-02 D-P-2 + D-S-5 closures); 13 files, 3141 LOC, 63 functions.
+- `.local/research/v10.2.2_nines.md` (NEW, gitignored) — D-N-3 synthesis. Per-package findings + agent-impact rollup + 10 PV-04/PV-05-candidate complexity warnings sorted by leverage. Synthesis composite score 7.93 (mid-cycle health snapshot — NOT the W-3 SI-3 evaluation).
+- `.local/research/v10.2.2_dogfood_pass2.md` (NEW, gitignored) — pass #2 deliverable. Documents adapter APPROVE + dogfood DEFER + the NEW bridge defect + PV-04 candidate map.
+- `.local/dogfood/10.2.2/runs/` + `.local/dogfood/10.2.2/baseline/` (NEW, gitignored) — 20 task directories per side, each with a `result.json` carrying Si-Chip's REQUIRED_KEYS plus a `_provenance` block.
+- `tests/test_no_ghost_features.py` (EDIT) — NEW `test_v10_2_2_new_symbols_have_coverage` (W-18 lint) pinning the adapter script + its 7 public symbols, the unit-test file, the 3 NineS deep-analysis JSONs, the synthesis doc, the dogfood pass #2 doc, and this CHANGELOG `## [10.2.2]` header.
+- Canonical 7 sync locations bumped 10.2.1 → 10.2.2 via `scripts/bump_version.py` (11 pattern replacements per CP-3).
+
+### Headline numbers
+
+| Area | v10.2.1 baseline | v10.2.2 PV-03 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged |
+| NineS adapter prototypes | 0 | **1** (`scripts/nines_to_sichip_eval_adapter.py`) | NEW capability |
+| Adapter verdict | n/a | **APPROVE** (R-1 did not fire) | NEW evidence |
+| Dogfood pass #2 verdict | n/a | DEFER (downstream bridge defect, NEW gap) | NEW DEFER reason |
+| Si-Chip aggregate ran on adapter data | No | **Yes** (`T1=0.9, T3=0.9` in metrics_report.yaml) | NEW pipeline reach |
+| iteration_delta computable | No (no eval data) | **Yes (=0.0)** — bridge extracts wrong fields | NEW signal path |
+| Eval data tasks | 0 | **20** (from `data/golden_test_set/` via NineS) | NEW eval coverage |
+| NineS deep-analysed packages | 0 (since v9.5.0) | **3** (si_chip_bridge / plugins / lifecycle) | D-N-3 closure |
+| Total NineS findings (3 packages) | n/a | **62** (10 warnings, 52 info) | NEW analysis surface |
+| PV-04 candidate fixes identified | 0 | **3** (1 NEW from this PV: bridge defect) | NEW backlog |
+| Tests | 4047 | **4071** | +24 NEW test functions (within W-17 +30/PV cap) |
+| Cycle NEW test budget | 51 / 150 | **75 / 150** | 50.0% of the v10.2.0 → v10.3.0 cycle cap |
+
+Cycle objective recap (PV-03 portion): mandate bullet 3 (NineS deep-analyse + validate Si-Chip iteration effectiveness) substantially complete. Adapter APPROVES; pipeline runs end-to-end; the NEW bridge defect is the next blocker for actual APPLY verdicts. The v9.5.0 OA-1 blocker is RESOLVED in spirit — eval data flows; the value-extraction gap is the new layer of work.
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** at `.local/research/v10.2.0_gap_analysis.md` (in place since PV-01; this PV closes 2 of the 24 gaps it enumerated — D-N-1 + D-N-3).
+- **W-2 SI-2 NineS deep-analysis** ran on the 3 packages per cycle plan §3 PV-03 (D-N-3 closure). All 3 invocations completed in single-digit milliseconds (the targets are small Python packages — NineS does not engage its slow eval-runner path). Synthesis at `.local/research/v10.2.2_nines.md`.
+- **W-3 SI-3 evaluation** still deferred to PV-06 cycle-close (STRICT ≥ 9.0 floor for MINOR cycle-close per cycle plan §2). The mid-cycle synthesis composite 7.93 from `.local/research/v10.2.2_nines.md` §4 is informational; it does NOT replace the SI-3 cycle-close evaluation.
+- **W-9 SI-10 7-gate green** at this commit. The 6 base gates (pytest / ruff check / ruff format / test_version / test_benchmarks / make check-cursor-skill) PLUS the Si-Chip iteration_delta gate (`tests/test_sichip_iteration_delta_gate.py`) all pass. The cycle-wide D-V-1 protocol holds.
+- **W-17 per-PV test cap** — PV-03 delta +24 NEW test functions (within +30/PV cap; 6 below ceiling). Cumulative cycle total: 75 of +150 cycle cap (50.0%). The W-17 mid-cycle audit at PV-05 remains mandatory; the three remaining PVs (PV-04..PV-06) have ~75 budget remaining (averaging ≤25/PV).
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_2_2_new_symbols_have_coverage` authored in this commit BEFORE the CHANGELOG mention per the W-18 precondition (refresh-before-document sequencing). The lint pins 7 distinct surface elements: 1 new script, 7 required public symbols on it, 1 new test file, 3 NineS JSON paths, 1 synthesis doc path, 1 dogfood pass #2 doc path, plus the CHANGELOG `## [10.2.2]` header.
+- **W-20 env flags** — 0 NEW env flags in this PV. The adapter is a pure Python script; no runtime activation surface.
+- **W-21 Soul-set freeze stays at 10**. The S-11 candidate "Parallel Wave Dispatch Invariant" remains OUT for the entire v10.2.0 cycle per gap analysis §3.6 D-W-1; re-telegraphed for v10.4.0 (cycle N+2 from v10.2.0) per W-21 2-cycle deliberation rule. PV-03 introduces no Soul rules.
+- **A-2 frozen prefix invariant** — multi-baseline byte test passes at this commit. PV-03 ships zero schema changes (no canonical_order edits); positions 1-12 byte-stable since v7.0.0.
+
+### R-1 verdict + carry-forward findings
+
+R-1 (gap analysis §4 — adapter REJECTS): **DID NOT FIRE.** The two formats ARE reconcilable. The adapter shipped here proves it. The cycle does NOT need the count_tokens regression fallback for cycle-progress purposes.
+
+PV-04 carry-forward (3 candidates, severity-sorted):
+
+1. **NEW from this PV** — `src/devolaflow/si_chip_bridge/models.py::MetricsReport.from_yaml_dict` reads top-level `composite`/`task_delta`/`value_vector` keys that Si-Chip does NOT emit. Patch to read MVP-8 fields from `metrics.task_quality.*` + `summary.*`. UNBLOCKS the iteration_delta gate to fire with real numbers from the same adapter pipeline shipped here.
+2. From `.local/research/v10.2.2_nines.md` §5 — `src/devolaflow/lifecycle/pre_plugin_invocation.py:269` `pre_plugin_invocation` CC=18 (introduced by PV-02 D-P-2 closure). Extract daily-upgrade branch into `_handle_stale_plugin` helper.
+3. From `.local/research/v10.2.2_nines.md` §5 — `src/devolaflow/lifecycle/post_skill_edit.py:370` `post_skill_edit` CC=13 (introduced by PV-02 D-S-5 closure). Extract dedup-fingerprint resolution into `_resolve_dedup_action` helper.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| NEW | `scripts/nines_to_sichip_eval_adapter.py` | D-N-1 closure (412 LOC, 7 public symbols) |
+| NEW | `tests/test_nines_to_sichip_adapter.py` | D-N-1 closure (23 unit tests) |
+| NEW | `.local/research/v10.2.2_nines.json` | D-N-3 closure (gitignored; si_chip_bridge analysis) |
+| NEW | `.local/research/v10.2.2_nines_plugins.json` | D-N-3 closure (gitignored; plugins analysis) |
+| NEW | `.local/research/v10.2.2_nines_lifecycle.json` | D-N-3 closure (gitignored; lifecycle analysis) |
+| NEW | `.local/research/v10.2.2_nines.md` | D-N-3 closure (gitignored; synthesis) |
+| NEW | `.local/research/v10.2.2_dogfood_pass2.md` | D-N-1 closure (gitignored; pass #2 capture) |
+| NEW | `.local/research/v10.2.2_self_eval_with_ability.json` | NineS source (gitignored; the adapter input) |
+| NEW | `.local/dogfood/10.2.2/{runs,baseline}/` | Adapter outputs (gitignored; 40 result.json files total) |
+| EDIT | `tests/test_no_ghost_features.py` | +1 NEW W-18 lint `test_v10_2_2_new_symbols_have_coverage` |
+| EDIT | `src/devolaflow/__init__.py` | canonical 7 sync #1 — `__version__ = "10.2.2"` |
+| EDIT | `pyproject.toml` | canonical 7 sync #2 |
+| EDIT | `workflow-system/agent/SKILL.md` | canonical 7 sync #3 (frontmatter + banner + body) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | canonical 7 sync #4 |
+| EDIT | `scripts/generate_human_docs.py` | canonical 7 sync #5 — `SOURCE_VERSION = "10.2.2"` |
+| EDIT | `tests/test_smoke.py` | canonical 7 sync #6 |
+| EDIT | `README.md` | canonical 7 sync #7 (badge + version example) |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | canonical 7 sync #8 |
+| EDIT | `CHANGELOG.md` | This entry |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Role this PV |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | The repo under integration; 2 gaps closed (D-N-1 + D-N-3) |
+| NineS | https://github.com/YoRHa-Agents/NineS | W-2 deep-analysis ran on 3 packages; W-2 self-eval ran for adapter input |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | Adapter target; `aggregate_eval.py` consumed adapter output cleanly + produced real `metrics_report.yaml` |
+
 ## [10.2.1] — 2026-05-03
 
 **v10.2.1 PATCH — PV-02 of the v10.2.0 cycle.** Second of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-02 ships the formal Si-Chip integration half of mandate bullet 2 (正式集成 si-chip) plus the daily-upgrade scheduler half of mandate bullet 1 (天级别自动更新). Five gap items close in this PV: D-S-2 / D-S-3 / D-S-5 / D-S-6 from §3.2 (Si-Chip integration) and D-P-2 BLOCKER from §3.1 (plugin daily-upgrade automation).

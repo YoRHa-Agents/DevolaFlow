@@ -4760,3 +4760,140 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.2.1 violation: CHANGELOG entry "
         f"{_V10_2_1_CHANGELOG_LITERAL!r} missing; PV-02 ships this entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v10.2.2 ghost-audit refresh — PV-03 PATCH (NineS deep-analysis +
+# Si-Chip eval adapter prototype).
+# ---------------------------------------------------------------------------
+
+# v10.2.2 PV-03 NEW script (D-N-1 closure: NineS-to-Si-Chip eval adapter).
+_V10_2_2_ADAPTER_SCRIPT: Path = Path("scripts/nines_to_sichip_eval_adapter.py")
+
+# v10.2.2 PV-03 NEW unit-test file pinning the adapter contract.
+_V10_2_2_ADAPTER_TEST: Path = Path("tests/test_nines_to_sichip_adapter.py")
+
+# v10.2.2 PV-03 D-N-1 — public symbols that MUST be defined in the adapter
+# (the 4 functions plus the CLI entry point form the operator-visible contract).
+_V10_2_2_ADAPTER_REQUIRED_SYMBOLS: tuple[str, ...] = (
+    "load_nines_json",
+    "validate_nines_shape",
+    "build_runs",
+    "build_baselines",
+    "write_runs_dir",
+    "write_baseline_dir",
+    "main",
+)
+
+# v10.2.2 PV-03 D-N-3 — three NineS deep-analysis JSON outputs (gitignored
+# content; path-presence is the operator-visible contract).
+_V10_2_2_NINES_JSON_PATHS: tuple[Path, ...] = (
+    Path(".local/research/v10.2.2_nines.json"),
+    Path(".local/research/v10.2.2_nines_plugins.json"),
+    Path(".local/research/v10.2.2_nines_lifecycle.json"),
+)
+
+# v10.2.2 PV-03 D-N-3 NineS synthesis (gitignored content; path-presence
+# contract).
+_V10_2_2_NINES_SYNTHESIS_DOC: Path = Path(".local/research/v10.2.2_nines.md")
+
+# v10.2.2 PV-03 dogfood pass #2 deliverable (gitignored content;
+# path-presence contract).
+_V10_2_2_DOGFOOD_PASS2_DOC: Path = Path(".local/research/v10.2.2_dogfood_pass2.md")
+
+_V10_2_2_CHANGELOG_LITERAL: str = "## [10.2.2]"
+
+
+def test_v10_2_2_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.2.2: every NEW v10.2.2 PV-03 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.2.2 PV-03 PATCH.
+    The CHANGELOG entry mentions the NineS-to-Si-Chip eval adapter
+    script + 7 public functions, the unit-test file, the 3 NineS
+    deep-analysis JSONs, the synthesis document, and the dogfood pass
+    #2 capture. Each needs a presence assertion here BEFORE the
+    CHANGELOG mention is valid — per W-18 refresh-before-document
+    sequencing.
+
+    v10.2.2 PV-03 pins:
+
+    1. **Adapter script** — `scripts/nines_to_sichip_eval_adapter.py`
+       exists and defines all 7 public symbols (`load_nines_json`,
+       `validate_nines_shape`, `build_runs`, `build_baselines`,
+       `write_runs_dir`, `write_baseline_dir`, `main`).
+    2. **Adapter unit-test file** —
+       `tests/test_nines_to_sichip_adapter.py` exists.
+    3. **3 NineS deep-analysis JSONs** — every path in
+       `_V10_2_2_NINES_JSON_PATHS` exists (D-N-3 closure;
+       `nines analyze --target-path src/devolaflow/{si_chip_bridge,plugins,lifecycle}`).
+    4. **NineS synthesis** — `.local/research/v10.2.2_nines.md` exists
+       (D-N-3 closure; per-package finding + agent-impact synthesis).
+    5. **Dogfood pass #2** — `.local/research/v10.2.2_dogfood_pass2.md`
+       exists (D-N-1 + D-S-1 closure; adapter outcome + per-file
+       iteration_delta capture).
+    6. **CHANGELOG entry** — `## [10.2.2]` header is present.
+    """
+    import ast
+
+    adapter_path = project_root / _V10_2_2_ADAPTER_SCRIPT
+    assert adapter_path.is_file(), (
+        f"W-18 v10.2.2 violation: NEW adapter script {_V10_2_2_ADAPTER_SCRIPT} "
+        f"missing. v10.2.2 PV-03 D-N-1 ships this script per the cycle plan "
+        f"§3 PV-03; restore it or remove the CHANGELOG mention of D-N-1."
+    )
+    adapter_source = adapter_path.read_text(encoding="utf-8")
+    adapter_module = ast.parse(adapter_source)
+    adapter_defined = {
+        node.name
+        for node in ast.walk(adapter_module)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+    }
+    for sym in _V10_2_2_ADAPTER_REQUIRED_SYMBOLS:
+        assert sym in adapter_defined, (
+            f"W-18 v10.2.2 violation: adapter script missing required public "
+            f"symbol {sym!r}; v10.2.2 PV-03 D-N-1 contract requires this "
+            f"symbol. Either restore it OR remove the CHANGELOG mention of "
+            f"D-N-1."
+        )
+
+    test_path = project_root / _V10_2_2_ADAPTER_TEST
+    assert test_path.is_file(), (
+        f"W-18 v10.2.2 violation: NEW adapter test file "
+        f"{_V10_2_2_ADAPTER_TEST} missing. v10.2.2 PV-03 D-N-1 ships ≥6 "
+        f"unit tests per the cycle plan AC #2; restore it or remove the "
+        f"CHANGELOG mention."
+    )
+
+    for json_path in _V10_2_2_NINES_JSON_PATHS:
+        full_path = project_root / json_path
+        assert full_path.is_file(), (
+            f"W-18 v10.2.2 violation: NineS deep-analysis JSON "
+            f"{json_path} missing. v10.2.2 PV-03 D-N-3 ships this artifact "
+            f"per the cycle plan AC #3 (gitignored content; path-presence "
+            f"is the operator-visible contract). Re-run "
+            f"`nines -f json analyze --target-path <path> --depth deep "
+            f"--agent-impact --keypoints` for the missing target."
+        )
+
+    synthesis_path = project_root / _V10_2_2_NINES_SYNTHESIS_DOC
+    assert synthesis_path.is_file(), (
+        f"W-18 v10.2.2 violation: NineS synthesis doc "
+        f"{_V10_2_2_NINES_SYNTHESIS_DOC} missing. v10.2.2 PV-03 D-N-3 "
+        f"ships this synthesis per the cycle plan AC #3 (gitignored "
+        f"content; path-presence is the operator-visible contract)."
+    )
+
+    dogfood_path = project_root / _V10_2_2_DOGFOOD_PASS2_DOC
+    assert dogfood_path.is_file(), (
+        f"W-18 v10.2.2 violation: dogfood pass #2 artifact missing at "
+        f"{_V10_2_2_DOGFOOD_PASS2_DOC}. v10.2.2 PV-03 AC #4 requires "
+        f"this artifact (gitignored content; path-presence is the "
+        f"operator-visible contract)."
+    )
+
+    changelog_path = project_root / "CHANGELOG.md"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    assert _V10_2_2_CHANGELOG_LITERAL in changelog_text, (
+        f"W-18 v10.2.2 violation: CHANGELOG entry "
+        f"{_V10_2_2_CHANGELOG_LITERAL!r} missing; PV-03 ships this entry."
+    )
