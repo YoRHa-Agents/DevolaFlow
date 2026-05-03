@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-10.2.4-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-10.3.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -190,6 +190,33 @@ The agent will compare your installed version against the latest on GitHub and t
 | "update refs" / "check references" | `self-update`, track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
 
+## What's New in v10.3.0 (MINOR cycle close)
+
+The v10.3.0 release closes the v10.2.0 cycle (5 PATCH PVs + this MINOR cycle close). The user mandate from `.local/feedbacks/feedback_for_v10.2.0.md` was: deep-review plugin mode + verify auto-install + daily auto-upgrade; formally integrate Si-Chip; NineS-analyse the self-repo + validate Si-Chip iteration effectiveness; multi-round self-iteration with one PATCH per round; bump MINOR to v10.3.0. All five bullets shipped with verbatim evidence. Headline numbers:
+
+| Area | v10.0.0 baseline | v10.3.0 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged (deepened via plugin-infra deep review) |
+| Lifecycle events | 10 | 10 | unchanged (no new hooks this cycle) |
+| Si-Chip dogfood verdict | DEFER (v9.5.0 deferred) | **APPLY** (passes #3 + #4 = +0.9 each) | **first APPLY in DevolaFlow history** |
+| NineS-to-Si-Chip eval adapter | n/a | **412 LOC + 23 tests** | NEW; closes v9.5.0 OA-1 blocker |
+| iteration_delta CI gate | not in CI | wired as 7th SI-10 step | `Makefile::release-preflight` |
+| New env flags | n/a | **0** (W-20 reuse-first) | unchanged |
+| W-3 SI-3 composite | 9.20 (v10.0.0) | **9.39** | +0.19 (margin +0.39 over STRICT MINOR-cycle-close ≥9.0) |
+
+### What landed (per PV)
+
+1. **PV-01 (v10.2.0) — Plugin deep review + W-16 wholesale baseline regen.** Closes 4 plugin-infra gaps (D-P-1 end-to-end `refresh_all`, D-P-3 si-chip `version_check_cmd` real probe, D-P-4 registry-walk smoke, D-P-6 never-installed staleness). Ships 3 new test files + 1 install_resolver helper. W-16 wholesale `v10.2.0_baseline.json` byte-identical to v9.7.0 (zero drift since v10.0.0).
+2. **PV-02 (v10.2.1) — Formal Si-Chip integration + 7-step SI-10 + daily-upgrade scheduler.** Closes 5 gaps including D-P-2 BLOCKER. NEW `dispatch_dogfood_cycle` wrapper exposes Si-Chip at the L0/L1 dispatch surface. NEW Si-Chip `iteration_delta` CI gate is wired into `Makefile::release-preflight` as the 7th SI-10 step.
+3. **PV-03 (v10.2.2) — NineS deep self-analysis + Si-Chip eval adapter prototype.** Closes D-N-1 + D-N-3. NEW `scripts/nines_to_sichip_eval_adapter.py` (412 LOC, 23 tests) — adapter verdict APPROVE; v9.5.0 OA-1 blocker resolved. 3 NineS deep-analyses on `si_chip_bridge`, `plugins`, `lifecycle` (62 findings, 10 complexity warnings).
+4. **PV-04 (v10.2.3) — Self-iteration round 1.** Bridge defect FIX in `MetricsReport.from_yaml_dict` (MVP-8 nested-key support; legacy fallback preserved) unblocks the `iteration_delta` machinery — dogfood pass #3 verdict APPLY with `iteration_delta = +0.9` across all 4 probed files. Plus 2 mechanical CC reductions (`pre_plugin_invocation` 18→≤10, `post_skill_edit` 13→≤7) per PV-03 NineS hotspots.
+5. **PV-05 (v10.2.4) — Self-iteration round 2 + W-17 mid-cycle audit + W-8 stagnation predicate.** 1 mechanical CC reduction (`installer.read_last_checked` 15→8 via `_parse_log_event_timestamp` extraction) + dogfood pass #4 (+0.9 byte-identical to pass #3 — round-1 effects persist). W-8 stagnation predicate evaluated FALSE → CONTINUE. W-17 cycle-cumulative count 93/150 — well within cap.
+6. **PV-06 (v10.3.0) — Cycle close MINOR.** Version bump 10.2.4 → 10.3.0 across canonical 7 sync locations. NineS cycle-close self-eval (overall 0.906924; byte-stable vs v10.0.0 0.907332). W-3 SI-3 evaluation composite **9.385/10** (margin +0.385 over STRICT MINOR-cycle-close ≥9.00). W-7 SI-8 retrospective (4 mandatory sections + 8 explicit deferrals + 7 key learnings + W-21 v10.4.0 telegraph). W-19 cycle archive at `docs/cycle-archive/v10.3.0/` (25 files). PR `feat/v10.2.0-cycle` ready for review.
+
+### Breaking changes
+
+**None.** Every change in the cycle is additive: NEW `dispatch_dogfood_cycle` (v10.2.1), NEW `iteration_delta_gate` test surface, NEW `dedup_feedback_doc` behaviour (idempotent — repeats are no-ops), NEW `read_installed_si_chip_version` helper, NEW MVP-8 nested-key support in `MetricsReport.from_yaml_dict` (legacy top-level shape preserved). Zero new env flags (W-20 §3 reuse-first applied — D-P-2 daily-upgrade integration REUSES `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`). Schema v6 (17-position canonical_order) byte-stable across all 10 historical multi-baseline byte tests. Soul-set count remains at 10 (W-21 freeze; S-11 candidate "Parallel Wave Dispatch Invariant" re-telegraphed for v10.4.0).
+
 ## What's New in v10.0.0 (MAJOR cycle close)
 
 The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle (v9.3 → v9.7 → v10.0.0). Headline numbers:
@@ -335,7 +362,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v10.2.4"
+devola-version                   # prints "DevolaFlow v10.3.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

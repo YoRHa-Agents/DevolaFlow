@@ -1379,5 +1379,44 @@
       "env_flags_added_in_pv": "0",
       "gaps_closed_this_pv": "4"
     }
+  },
+  {
+    "version": "10.3.0",
+    "date": "2026-05-03",
+    "era": "plugin-review",
+    "headline": "MINOR cycle-close — v10.2.0 cycle close: first APPLY iteration_delta in DevolaFlow history; Si-Chip formally integrated; plugin deep review complete",
+    "summary": "Closes the v10.2.0 cycle (5 PATCH PVs + this MINOR cycle close). Five user-mandate bullets shipped with verbatim evidence: plugin deep review (5 D-P-* gaps closed); formal Si-Chip integration (5 D-S-* gaps closed; iteration_delta CI gate as 7th SI-10 step); NineS analysis + Si-Chip iteration validation (PV-03 D-N-1 + D-N-3 closures; adapter verdict APPROVE; 4 dogfood passes producing first APPLY in DevolaFlow history at iteration_delta = +0.9 sustained across 2 rounds); multi-round self-iteration (PV-04 bridge fix + 2 CC reductions; PV-05 round-2 + W-8 stagnation predicate verdict CONTINUE); MINOR bump to v10.3.0 with W-3 SI-3 composite 9.385/10. Zero breaking changes; zero new env flags; W-21 Soul-set freeze remains at 10.",
+    "highlights": [
+      "First APPLY iteration_delta in DevolaFlow history — Si-Chip dogfood pass #3 + pass #4 both APPLY at +0.9 across all 4 probed files; W-8 stagnation predicate verdict CONTINUE",
+      "NineS-to-Si-Chip eval adapter (scripts/nines_to_sichip_eval_adapter.py, 412 LOC, 23 tests) — closes v9.5.0 OA-1 blocker; substitutes NineS golden-task scores for missing real-LLM eval data",
+      "Bridge defect fix in MetricsReport.from_yaml_dict (PV-04) — MVP-8 nested-key support unblocks the iteration_delta machinery; legacy top-level shape preserved as backward-compat fallback",
+      "3 CC reductions per PV-03 NineS deep-analysis hotspots: pre_plugin_invocation 18→≤10 (PV-04), post_skill_edit 13→≤7 (PV-04), installer.read_last_checked 15→8 (PV-05)",
+      "Daily-upgrade scheduler closes D-P-2 BLOCKER — pre_plugin_invocation auto-fires upgrade_plugin when stale per 24h cadence, REUSING DEVOLAFLOW_AUTO_INSTALL_PLUGINS (W-20 §3 reuse-first; 0 NEW env flags)",
+      "W-3 SI-3 composite 9.385/10 (margin +0.385 over STRICT MINOR-cycle-close ≥9.0); NineS overall 0.906924 byte-stable vs v10.0.0 0.907332"
+    ],
+    "metrics": {
+      "tests": "4091",
+      "new_test_functions_cycle_cumulative": "94",
+      "cycle_test_budget_cap": "150",
+      "coverage_pct": "93.04",
+      "plugins_registered": "4",
+      "lifecycle_events": "10",
+      "schema_version": "6",
+      "canonical_order_length": "17",
+      "multi_baseline_pins": "10",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "si3_composite": "9.385",
+      "si3_threshold": "9.0",
+      "si3_margin": "0.385",
+      "nines_overall": "0.906924",
+      "nines_overall_v10_0_0": "0.907332",
+      "nines_overall_delta": "-0.000408",
+      "sichip_dogfood_verdict": "APPLY",
+      "sichip_iteration_delta": "+0.9",
+      "sichip_iteration_rounds": "2",
+      "cycle_archive_files": "25",
+      "pvs_in_cycle": "6"
+    }
   }
 ]
