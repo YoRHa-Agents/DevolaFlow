@@ -4477,3 +4477,134 @@ def test_v10_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.1.0 violation: CHANGELOG entry "
         f"{_V10_1_0_CHANGELOG_LITERAL!r} missing; PV-06 ships this entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v10.2.0 ghost-audit refresh — MINOR cycle-start (plugin deep review).
+# ---------------------------------------------------------------------------
+
+# v10.2.0 PV-01 NEW test files (D-P-1 / D-P-4 / D-P-6 closures).
+_V10_2_0_NEW_TEST_FILES: tuple[Path, ...] = (
+    Path("tests/test_runtime_plugins_smoke.py"),
+    Path("tests/test_plugin_refresh_e2e.py"),
+    Path("tests/test_plugin_refresh_first_run.py"),
+)
+
+# v10.2.0 PV-01 NEW baseline fixtures (W-16 wholesale regen + 10th multi-baseline pin).
+_V10_2_0_NEW_BASELINE_FILES: tuple[Path, ...] = (
+    Path("benchmarks/devolaflow_context/baselines/v10.2.0_baseline.json"),
+    Path("benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml"),
+)
+
+# v10.2.0 PV-01 D-P-3 new helper + its module path.
+_V10_2_0_INSTALL_RESOLVER_PATH: Path = Path("src/devolaflow/si_chip_bridge/install_resolver.py")
+_V10_2_0_INSTALL_RESOLVER_NEW_SYMBOL: str = "read_installed_si_chip_version"
+
+# v10.2.0 PV-01 D-P-3 registry edit contract.
+_V10_2_0_RUNTIME_PLUGINS_YAML: Path = Path("workflow-system/agent/knowledge/runtime-plugins.yaml")
+_V10_2_0_DEAD_HARDCODED_HEURISTIC: str = "echo si-chip/0.4.0"
+
+_V10_2_0_CHANGELOG_LITERAL: str = "## [10.2.0]"
+
+
+def test_v10_2_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.2.0: every NEW v10.2.0 PV-01 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.2.0 cycle-start MINOR.
+    The CHANGELOG entry mentions the 3 new test files, the 2 new
+    baseline fixtures, the `read_installed_si_chip_version` helper,
+    and the D-P-3 si-chip `version_check_cmd` swap. Each needs a
+    presence assertion here BEFORE the CHANGELOG mention is valid —
+    per W-18 refresh-before-document sequencing.
+
+    v10.2.0 PV-01 pins:
+
+    1. **3 NEW test files** — every file in `_V10_2_0_NEW_TEST_FILES`
+       must exist on disk (D-P-1 / D-P-4 / D-P-6 closures).
+    2. **2 NEW baseline fixtures** — `v10.2.0_baseline.json` (W-16
+       wholesale regen) + `layout_invariant_v10.2.0.yaml` (10th multi-
+       baseline pin).
+    3. **`read_installed_si_chip_version` helper** — defined in
+       `src/devolaflow/si_chip_bridge/install_resolver.py` (D-P-3).
+    4. **si-chip `version_check_cmd` swap** — the pre-v10.2.0
+       hardcoded `echo si-chip/0.4.0` heuristic MUST be absent from
+       `runtime-plugins.yaml` (replaced with the real frontmatter
+       probe per D-P-3 closure).
+    5. **CHANGELOG entry** — `## [10.2.0]` header is present.
+    """
+    import ast
+
+    for test_rel in _V10_2_0_NEW_TEST_FILES:
+        test_path = project_root / test_rel
+        assert test_path.is_file(), (
+            f"W-18 v10.2.0 violation: NEW test file {test_rel} missing. "
+            f"v10.2.0 PV-01 ships this file per the cycle plan §3 PV-01; "
+            f"restore it or remove the CHANGELOG mention of the "
+            f"corresponding gap closure."
+        )
+
+    for baseline_rel in _V10_2_0_NEW_BASELINE_FILES:
+        baseline_path = project_root / baseline_rel
+        assert baseline_path.is_file(), (
+            f"W-18 v10.2.0 violation: NEW baseline fixture {baseline_rel} "
+            f"missing. v10.2.0 PV-01 ships this baseline (W-16 wholesale "
+            f"regen + 10th multi-baseline pin); regenerate via "
+            f"`python -m benchmarks.devolaflow_context.generate_baseline "
+            f"--output <path>` (for the JSON) OR copy "
+            f"`layout_invariant_v9.7.0.yaml` (for the YAML witness)."
+        )
+
+    resolver_path = project_root / _V10_2_0_INSTALL_RESOLVER_PATH
+    assert resolver_path.is_file(), (
+        f"W-18 v10.2.0 violation: {_V10_2_0_INSTALL_RESOLVER_PATH} missing."
+    )
+    resolver_source = resolver_path.read_text(encoding="utf-8")
+    resolver_module = ast.parse(resolver_source)
+    defined_names = {
+        node.name
+        for node in ast.walk(resolver_module)
+        if isinstance(node, ast.FunctionDef | ast.ClassDef)
+    }
+    assert _V10_2_0_INSTALL_RESOLVER_NEW_SYMBOL in defined_names, (
+        f"W-18 v10.2.0 violation: install_resolver module missing "
+        f"{_V10_2_0_INSTALL_RESOLVER_NEW_SYMBOL!r}; v10.2.0 PV-01 D-P-3 "
+        f"ships this helper. Either restore it OR remove the CHANGELOG "
+        f"mention of D-P-3."
+    )
+
+    runtime_yaml_path = project_root / _V10_2_0_RUNTIME_PLUGINS_YAML
+    assert runtime_yaml_path.is_file(), (
+        f"W-18 v10.2.0 violation: {_V10_2_0_RUNTIME_PLUGINS_YAML} missing."
+    )
+    runtime_yaml_text = runtime_yaml_path.read_text(encoding="utf-8")
+    si_chip_block_start = runtime_yaml_text.find("- id: si-chip")
+    assert si_chip_block_start != -1, (
+        "W-18 v10.2.0 violation: si-chip block missing from runtime-plugins.yaml."
+    )
+    si_chip_block_end = runtime_yaml_text.find(
+        "\n  - id:",
+        si_chip_block_start + 1,
+    )
+    if si_chip_block_end == -1:
+        si_chip_block_end = runtime_yaml_text.find("\ndefaults:", si_chip_block_start)
+    si_chip_block = runtime_yaml_text[si_chip_block_start:si_chip_block_end]
+    assert _V10_2_0_DEAD_HARDCODED_HEURISTIC not in si_chip_block, (
+        f"W-18 v10.2.0 violation: si-chip block still contains the pre-"
+        f"v10.2.0 hardcoded heuristic {_V10_2_0_DEAD_HARDCODED_HEURISTIC!r}. "
+        f"D-P-3 replaces it with a real read_installed_si_chip_version "
+        f"probe; restore the probe OR remove the CHANGELOG mention of "
+        f"D-P-3."
+    )
+    assert _V10_2_0_INSTALL_RESOLVER_NEW_SYMBOL in si_chip_block, (
+        f"W-18 v10.2.0 violation: si-chip version_check_cmd should call "
+        f"{_V10_2_0_INSTALL_RESOLVER_NEW_SYMBOL!r}; current block does not "
+        f"reference the helper. The v10.2.0 PV-01 D-P-3 closure requires "
+        f"the probe to call into the bridge module."
+    )
+
+    changelog_path = project_root / "CHANGELOG.md"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    assert _V10_2_0_CHANGELOG_LITERAL in changelog_text, (
+        f"W-18 v10.2.0 violation: CHANGELOG entry "
+        f"{_V10_2_0_CHANGELOG_LITERAL!r} missing; PV-01 ships this entry."
+    )

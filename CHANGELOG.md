@@ -5,6 +5,90 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.0] — 2026-05-03
+
+**v10.2.0 MINOR — cycle-start PV-01 of the v10.2.0 cycle.** First of 6 PVs that will close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. The cycle's user mandate is the Mandarin feedback at `.local/feedbacks/feedback_for_v10.2.0.md`: deep-review plugin mode + verify auto-install and daily auto-upgrade; formally integrate Si-Chip; NineS-analyse the self-repo + validate Si-Chip iteration effectiveness; multi-round self-iteration (one PATCH per round); bump MINOR to v10.3.0 at close. PV-01 ships the plugin-infrastructure review half of the first mandate bullet plus the W-16 wholesale baseline regen at cycle-start.
+
+### Operator-visible behaviour change (READ FIRST)
+
+Plugin deep review — closes D-P-1 / D-P-3 / D-P-4 / D-P-6 from the v10.2.0 cycle gap analysis. The si-chip `version_check_cmd` now reads the installed `SKILL.md` frontmatter `version:` field instead of emitting a hardcoded `0.4.0` string. Three NEW test files exercise the registry-walk smoke surface, the `refresh_all` end-to-end path, and the never-installed staleness predicate. W-16 wholesale baseline regenerated as `v10.2.0_baseline.json`.
+
+### What landed
+
+- `tests/test_runtime_plugins_smoke.py` (NEW) — D-P-4 closure; 7 test functions (10 collected with parametrize) walking `load_registry()`, `resolve_plugin()`, and dataclass shape for all 4 plugins (nines, ui-pro, rtk, si-chip), plus a subprocess smoke test for the new si-chip `version_check_cmd`.
+- `tests/test_plugin_refresh_e2e.py` (NEW) — D-P-1 closure; 2 test functions firing `refresh_all(force=True, only=["nines"])` against the real subprocess pipeline. CI-safe via offline-skip guard (`shutil.which("nines")` + `DEVOLAFLOW_TEST_OFFLINE=1`).
+- `tests/test_plugin_refresh_first_run.py` (NEW) — D-P-6 closure; 4 test functions pinning the never-installed → stale branch + monkeypatched confirmation that `refresh_all(force=False)` triggers an upgrade attempt for every plugin on a fresh log directory.
+- `src/devolaflow/si_chip_bridge/install_resolver.py` (EDIT) — NEW helper `read_installed_si_chip_version(install)` parses the installed SKILL.md YAML frontmatter `version:` field. Accepts both quoted (`"0.4.0"`) and bare (`0.4.0`) styles; robust to missing file, absent frontmatter, malformed YAML, missing version key.
+- `tests/test_si_chip_bridge.py` (EDIT) — 6 NEW tests (§7 `TestReadInstalledSiChipVersion`) pinning the helper's 6 frontmatter cases.
+- `workflow-system/agent/knowledge/runtime-plugins.yaml` (EDIT) — D-P-3 wiring. Si-chip `version_check_cmd` swapped from the pre-v10.2.0 hardcoded `echo si-chip/0.4.0` heuristic to a real probe that invokes `devolaflow.si_chip_bridge.install_resolver.read_installed_si_chip_version`. `last_updated` bumped to 2026-05-03; schema_version stays at 3 (no new field). The probe is CWD-scoped (requires `src/devolaflow/` importable); the yaml comment documents the override path for operators without a DevolaFlow checkout.
+- `benchmarks/devolaflow_context/baselines/v10.2.0_baseline.json` (NEW) — W-16 wholesale regen at MINOR cycle-start. All 53 EvoBench scenarios pinned; byte-identical to `v9.7.0_baseline.json` (no drift since the v10.0.0 MAJOR rollup baseline), which is the cleanest possible cycle-start.
+- `benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml` (NEW) — 10th multi-baseline pin per A-2.4; byte-identical to `layout_invariant_v9.7.0.yaml` (ZERO schema changes in PV-01; schema_version stays at 6 with 17-element canonical_order).
+- `tests/test_layout_invariant_multi_baseline.py` (EDIT) — NEW `_v10_2_0_payload` constructor + 2 NEW test functions (`test_v10_2_0_baseline_byte_identical` and `test_v10_2_0_baseline_byte_identical_to_v9_7_0`) so the suite now pins all 10 historical baselines v7.0.0 → v10.2.0.
+- `tests/test_benchmarks.py` (EDIT) — `test_runner_prefers_latest_baseline` rebaselined from `v9.7.0_baseline.json` to `v10.2.0_baseline.json`.
+- Canonical 7 sync locations bumped 10.1.0 → 10.2.0 via `scripts/bump_version.py` (11 pattern replacements per CP-3).
+- `tests/test_no_ghost_features.py` (EDIT) — NEW `test_v10_2_0_new_symbols_have_coverage` (W-18 lint pinning the 3 new test files, the 2 new baseline fixtures, the `read_installed_si_chip_version` symbol, the absence of the dead hardcoded heuristic from runtime-plugins.yaml, and the CHANGELOG `## [10.2.0]` header).
+
+### Headline numbers
+
+| Area | v10.1.0 baseline | v10.2.0 PV-01 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged |
+| Dispatch schema | v6 (17 keys) | v6 (17 keys) | unchanged |
+| Multi-baseline pins | 9 | **10** | +1 (v10.2.0 byte-identical witness) |
+| Tracked EvoBench baselines | 16 `v*_baseline.json` | **17** | +1 (`v10.2.0_baseline.json` — W-16 wholesale) |
+| Tests | 3993 | **4018** | +25 collected (+22 NEW test functions within the W-17 +30/PV cap) |
+| Cycle NEW test budget | — | 22 / 150 | 14.7% of the v10.2.0 → v10.3.0 cycle cap |
+| Plugin e2e coverage | 0 real-subprocess tests | **2** | NEW `refresh_all` e2e pins |
+| Plugin smoke coverage | 0 registry-walk tests | **10** | NEW registry smoke |
+| `si-chip version_check_cmd` | hardcoded `echo si-chip/0.4.0` | real SKILL.md frontmatter probe | D-P-3 closure |
+
+Cycle objective recap (PV-01 portion): review-half of mandate bullet 1 complete; PV-02 picks up the daily-upgrade runtime automation (D-P-2) + Si-Chip formal integration (D-S-*).
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** at `.local/research/v10.2.0_gap_analysis.md` (24 gaps enumerated across D-P / D-S / D-N / D-I / D-V / D-W lattices; 4 BLOCKERs scheduled across PV-01..PV-06; W-21 Soul-set S-11 candidate evaluated **OUT** per §3.6 D-W-1).
+- **W-2 SI-2 NineS deep-analysis** deferred to PV-03 per cycle plan §3 PV-03 (D-N-3: NineS deep-analyse `src/devolaflow/si_chip_bridge/` + `src/devolaflow/plugins/` + `src/devolaflow/lifecycle/post_skill_edit.py` + `src/devolaflow/lifecycle/pre_plugin_invocation.py`).
+- **W-3 SI-3 evaluation** deferred to PV-06 cycle-close (STRICT ≥ 9.0 floor for MINOR cycle-close per cycle plan §2).
+- **W-9 SI-10 6-gate green** at this commit: pytest / ruff check / ruff format / test_version / test_benchmarks / make check-cursor-skill all pass.
+- **W-16 wholesale baseline regen** done at this PV-01 cycle-start per the v8.4.0 retrospective §"R-7 wholesale-vs-piecemeal" precedent. Output: `v10.2.0_baseline.json` + `layout_invariant_v10.2.0.yaml`. All 10 multi-baseline byte tests pass byte-identically.
+- **W-17 per-PV test cap** — PV-01 delta +22 NEW test functions (well within +30/PV cap; cumulative cycle total 22 of +150 cycle cap). Mid-cycle audit at PV-05 mandatory.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_2_0_new_symbols_have_coverage` authored in this commit per the W-18 precondition (test authored BEFORE CHANGELOG entry).
+- **W-20 env flags** — 0 NEW env flags in this PV. D-P-2 (daily-upgrade scheduler) + D-P-5 (`DEVOLAFLOW_UPGRADE_FREQUENCY_HOURS` override) deferred to PV-02 with REUSE-first analysis against `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` per W-20 §3.
+- **W-21 Soul-set freeze stays at 10**. v10.0.0 retrospective §3.5 telegraphed S-11 "Parallel Wave Dispatch Invariant" for v10.2.0 (cycle N+2) SI-1 assessment. Verdict recorded in gap analysis §3.6 D-W-1: **OUT** for v10.2.0 (orthogonal to user mandate); re-telegraphed for v10.4.0 (cycle N+2 from v10.2.0) per W-21 2-cycle deliberation rule.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| NEW | `tests/test_runtime_plugins_smoke.py` | D-P-4 closure; registry-walk smoke (7 test functions / 10 collected) |
+| NEW | `tests/test_plugin_refresh_e2e.py` | D-P-1 closure; `refresh_all` e2e with offline-skip (2 test functions) |
+| NEW | `tests/test_plugin_refresh_first_run.py` | D-P-6 closure; never-installed staleness branch (4 test functions) |
+| EDIT | `src/devolaflow/si_chip_bridge/install_resolver.py` | NEW `read_installed_si_chip_version` helper (D-P-3) |
+| EDIT | `tests/test_si_chip_bridge.py` | +6 NEW `TestReadInstalledSiChipVersion` tests |
+| EDIT | `workflow-system/agent/knowledge/runtime-plugins.yaml` | D-P-3 wiring; si-chip `version_check_cmd` swap + `last_updated` bump |
+| NEW | `benchmarks/devolaflow_context/baselines/v10.2.0_baseline.json` | W-16 wholesale regen at MINOR cycle-start |
+| NEW | `benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml` | 10th multi-baseline pin (byte-identical to v9.7.0) |
+| EDIT | `tests/test_layout_invariant_multi_baseline.py` | +2 NEW v10.2.0 test functions + `_v10_2_0_payload` |
+| EDIT | `tests/test_benchmarks.py` | `test_runner_prefers_latest_baseline` rebaselined to v10.2.0 |
+| EDIT | `src/devolaflow/__init__.py` | canonical 7 sync #1 — `__version__ = "10.2.0"` |
+| EDIT | `pyproject.toml` | canonical 7 sync #2 |
+| EDIT | `workflow-system/agent/SKILL.md` | canonical 7 sync #3 (frontmatter + banner + body) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | canonical 7 sync #4 |
+| EDIT | `scripts/generate_human_docs.py` | canonical 7 sync #5 — `SOURCE_VERSION = "10.2.0"` |
+| EDIT | `tests/test_smoke.py` | canonical 7 sync #6 |
+| EDIT | `README.md` | canonical 7 sync #7 (badge + version example) |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | canonical 7 sync #8 |
+| EDIT | `tests/test_no_ghost_features.py` | +1 NEW W-18 lint `test_v10_2_0_new_symbols_have_coverage` |
+| EDIT | `CHANGELOG.md` | This entry |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Role this PV |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | The repo under review; 53-scenario EvoBench baseline regenerated |
+| NineS | https://github.com/YoRHa-Agents/NineS | W-2 deferred to PV-03 (deep-analysis of plugins / si_chip_bridge / lifecycle hooks) |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | D-P-3 closure (install_resolver now reads the installed SKILL.md frontmatter) |
+
 ## [10.1.0] — 2026-05-03
 
 A user feedback landed on v10.0.0 that said, in plain language, that the docs sounded like a machine wrote them. That is what v10.1.0 is about. We measured the AI-flavor problem, built a scorer to keep measuring it, wrote five mechanical humanizer transforms, and ran them against every README, CHANGELOG entry, and user guide we ship. The corpus aggregate naturalness moved from 69.958 to 77.664, and every document that had been flagged as worst-in-corpus gained at least ten points.

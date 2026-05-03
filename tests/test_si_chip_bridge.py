@@ -47,6 +47,7 @@ from devolaflow.si_chip_bridge import (
 )
 from devolaflow.si_chip_bridge import install_resolver as _resolver
 from devolaflow.si_chip_bridge import runner as _runner
+from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version
 
 # ---------------------------------------------------------------------------
 # §1 — public API surface
@@ -467,3 +468,85 @@ class TestModelParsing:
         assert l_report.body_tokens == 4646
         assert m_report.metadata_tokens == 94
         assert m_report.body_tokens == 4646
+
+
+# ---------------------------------------------------------------------------
+# §7 — read_installed_si_chip_version (v10.2.0 PV-01 / D-P-3)
+# ---------------------------------------------------------------------------
+
+
+class TestReadInstalledSiChipVersion:
+    """Pin `read_installed_si_chip_version` frontmatter-parse contract.
+
+    Closes D-P-3 from `.local/research/v10.2.0_gap_analysis.md` §3.1.
+    The pre-v10.2.0 heuristic in `runtime-plugins.yaml` emitted a
+    hardcoded `si-chip/0.4.0` string; this helper reads the real
+    version from the installed `SKILL.md` frontmatter so
+    `devolaflow.plugins.installer._meets_min` can order
+    0.4.0 < 0.4.1 < 0.5.0 correctly once v0.4.1+ ships upstream.
+    """
+
+    @staticmethod
+    def _make_install(skill_md_path: Path) -> SiChipInstall:
+        """Build a minimal SiChipInstall pointing at the given SKILL.md."""
+        root = skill_md_path.parent
+        return SiChipInstall(
+            root=root,
+            skill_md=skill_md_path,
+            scripts_dir=None,
+            references_dir=None,
+            source="env_home",
+        )
+
+    def test_returns_none_when_file_missing(self, tmp_path: Path) -> None:
+        missing = tmp_path / "ghost" / "SKILL.md"
+        assert not missing.exists()
+        install = self._make_install(missing)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_version_string_for_quoted_frontmatter(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            '---\nname: si-chip\nversion: "1.2.3"\nother: "y"\n---\nbody\n',
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) == "1.2.3"
+
+    def test_returns_version_string_for_bare_frontmatter(self, tmp_path: Path) -> None:
+        """Real Si-Chip v0.4.0 uses bare `version: 0.4.0` (no quotes)."""
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "---\nname: si-chip\nversion: 0.4.0\nlicense: Apache-2.0\n---\nbody\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) == "0.4.0"
+
+    def test_returns_none_when_no_frontmatter(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "# Si-Chip (no frontmatter)\n\nbody goes here\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_none_when_frontmatter_has_no_version_field(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "---\nname: si-chip\nlicense: Apache-2.0\n---\nbody\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_none_when_version_field_is_empty(self, tmp_path: Path) -> None:
+        """Empty-value `version:` means "version unknown" → None."""
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            '---\nname: si-chip\nversion: ""\n---\nbody\n',
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None

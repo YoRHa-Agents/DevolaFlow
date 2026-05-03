@@ -1353,5 +1353,31 @@
       "env_flags_added_in_cycle": "0",
       "hotpath_surfaces_isolated": "5"
     }
+  },
+  {
+    "version": "10.2.0",
+    "date": "2026-05-03",
+    "era": "plugin-review",
+    "headline": "MINOR cycle-start — PV-01 of the v10.2.0 cycle: plugin deep review + W-16 wholesale baseline regen",
+    "summary": "First of 6 PVs closing at v10.3.0 per the v10.2.0 cycle plan. Closes 4 plugin-infra gaps (D-P-1 end-to-end refresh_all; D-P-3 si-chip version_check_cmd swap from hardcoded 0.4.0 to real SKILL.md frontmatter probe; D-P-4 registry-walk smoke; D-P-6 never-installed staleness pin). Ships 3 new test files + 1 install_resolver helper + 2 new baseline fixtures + canonical 7 version sync + W-18 ghost-audit refresh. Zero schema changes; zero new env flags.",
+    "highlights": [
+      "End-to-end refresh_all e2e test — tests/test_plugin_refresh_e2e.py fires real subprocess pipeline (no mocks); CI-safe via offline-skip guard",
+      "Registry-walk smoke — tests/test_runtime_plugins_smoke.py pins schema_version=3, 24h upgrade cadence, 4 plugin IDs (nines, ui-pro, rtk, si-chip), well-formed RuntimePluginSpec for every entry",
+      "Never-installed staleness pin — tests/test_plugin_refresh_first_run.py confirms is_plugin_stale returns True on missing/empty log and refresh_all triggers upgrade for every plugin on fresh log",
+      "read_installed_si_chip_version helper — parses SKILL.md frontmatter version: field (quoted or bare); si-chip version_check_cmd swapped from hardcoded echo si-chip/0.4.0 to real probe via the bridge module",
+      "W-16 wholesale baseline regen — v10.2.0_baseline.json + layout_invariant_v10.2.0.yaml committed at cycle-start; 10th multi-baseline pin; byte-identical to v9.7.0 (zero drift since v10.0.0 MAJOR)"
+    ],
+    "metrics": {
+      "tests": "4018",
+      "new_test_functions_this_pv": "22",
+      "cycle_test_budget_used": "22",
+      "cycle_test_budget_cap": "150",
+      "plugins_registered": "4",
+      "schema_version": "6",
+      "canonical_order_length": "17",
+      "multi_baseline_pins": "10",
+      "env_flags_added_in_pv": "0",
+      "gaps_closed_this_pv": "4"
+    }
   }
 ]

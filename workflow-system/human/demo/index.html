@@ -251,6 +251,32 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
+    <!-- What's New in v10.2.0 (MINOR cycle-start — PV-01 of the v10.2.0 cycle: plugin deep review + W-16 wholesale baseline regen) -->
+    <section class="fade-in">
+      <h2><span data-i18n="landing.whatsNew.v1020">What's New</span> in v10.2.0 — MINOR, cycle-start. PV-01 of the v10.2.0 cycle closes 4 plugin-infra gaps (D-P-1 / D-P-3 / D-P-4 / D-P-6): an end-to-end <code>refresh_all</code> pin (no mocked subprocess), a registry-walk smoke for all 4 plugins (nines / ui-pro / rtk / si-chip), a never-installed staleness predicate pin, and a real SKILL.md-frontmatter probe replacing the hardcoded <code>echo si-chip/0.4.0</code> heuristic. W-16 wholesale baseline regenerated at cycle-start.</h2>
+      <p class="desc" data-i18n="landing.whatsNew.v1020.desc">The v10.2.0 cycle plan (`.local/research/v10.2.0_cycle_plan.md`) schedules 6 PVs: PV-01 plugin deep review (this entry), PV-02 formal Si-Chip integration with iteration_delta CI gate, PV-03 NineS deep self-analysis, PV-04 + PV-05 self-iteration rounds, PV-06 cycle close to v10.3.0. The new <code>read_installed_si_chip_version</code> helper parses <code>SKILL.md</code> frontmatter for a real version string so <code>_meets_min</code> can order 0.4.0 &lt; 0.4.1 &lt; 0.5.0 correctly once upstream publishes.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="label">PLUGIN E2E +2 TESTS</span>
+          <h3>refresh_all against real subprocess, not mocks</h3>
+          <p><code>tests/test_plugin_refresh_e2e.py</code> invokes <code>refresh_all(force=True, only=["nines"])</code> against the live pip backend and asserts <code>RefreshOutcome.action ∈ {"upgraded","failed"}</code> — both outcomes prove the real subprocess fired. Skips cleanly offline via <code>shutil.which("nines")</code> probe + <code>DEVOLAFLOW_TEST_OFFLINE=1</code> env escape.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/tests/test_plugin_refresh_e2e.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">REGISTRY SMOKE +10 TESTS</span>
+          <h3>Walk every plugin spec + pin the si-chip probe swap</h3>
+          <p><code>tests/test_runtime_plugins_smoke.py</code> pins schema_version=3, the 24h upgrade cadence default, presence of all 4 plugin IDs, and that every <code>resolve_plugin</code> call returns a well-formed <code>RuntimePluginSpec</code> with a non-empty <code>canonical_url</code>. A dedicated test confirms si-chip's new <code>version_check_cmd</code> no longer contains <code>echo si-chip/0.4.0</code>.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/tests/test_runtime_plugins_smoke.py"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+        <div class="card">
+          <span class="label">W-16 WHOLESALE REGEN</span>
+          <h3>10th multi-baseline pin + v10.2.0 EvoBench baseline</h3>
+          <p><code>benchmarks/devolaflow_context/baselines/v10.2.0_baseline.json</code> snapshots all 53 EvoBench scenarios at cycle-start (byte-identical to v9.7.0 — zero drift since the v10.0.0 MAJOR rollup). <code>layout_invariant_v10.2.0.yaml</code> joins the 9 prior fixtures as the 10th byte-stable pin of the schema-v6 17-element canonical_order.</p>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/benchmarks/devolaflow_context/baselines"><span data-i18n="btn.readMore">Read More</span> &rarr;</a>
+        </div>
+      </div>
+    </section>
+
     <!-- What's New in v10.1.0 (MINOR — human voice: writing_style scoring + five region-aware humanizer transforms) -->
     <section class="fade-in">
       <h2><span data-i18n="landing.whatsNew.v1010">What's New</span> in v10.1.0 — MINOR, human voice. A user feedback on v10.0.0 said the docs read as AI-flavored; v10.1.0 builds the scorer to measure it and ships five mechanical humanizer transforms that lifted the corpus from 69.958 to 77.664 aggregate naturalness. Every document the PV-01 probe flagged as worst-in-corpus gained at least 10 points; zero regressions below the warn-floor. The dispatch hot path is untouched — a static import-graph lint blocks writing_style from reaching task_adaptive_selector, compressor, lifecycle, feedback, or agent_workspace/dispatch_executor. Zero breaking changes; zero new env flags.</h2>
