@@ -5,6 +5,89 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.4] — 2026-05-03
+
+**v10.2.4 PATCH — PV-05 of the v10.2.0 cycle (self-iteration round 2 + W-17 mid-cycle audit + W-8 stagnation predicate).** Fifth of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-05 ships ONE light-touch mechanical CC reduction surfaced by PV-03 NineS deep-analysis but NOT addressed in PV-04 (PV-04 only touched lifecycle hooks; PV-05 closes the highest-CC plugin-installer hotspot). Plus the cycle-mandatory W-17 mid-cycle audit at PV-05 and the explicit W-8 stagnation-predicate evaluation per W-8 SI-9. Round-2 verdict: **APPLY** (mechanical fix landed; round-1 +0.9 iteration_delta effectiveness preserved per dogfood pass #4). Per-file SKILL.md / reference content edits remain DEFERRED to v10.4.0+ per v9.5.0 deferred §1.4 HIGH-risk cache-prefix-anchor pattern.
+
+### Operator-visible behaviour change (READ FIRST)
+
+Self-iteration round 2 + W-8 stagnation gate + W-17 mid-cycle audit. Round-2 deliverable: 1 CC reduction in `src/devolaflow/plugins/installer.py` (CC 15→8 in `read_last_checked` per radon, via the new `_parse_log_event_timestamp` private helper) per PV-03 NineS finding `CC-a5d310-0003`. The successful-event set (3 enums `plugin_already_installed` / `plugin_installed` / `plugin_upgraded`) is also lifted to a module-level constant `_LAST_CHECKED_SUCCESSFUL_EVENTS` so the parser does not rebuild the frozenset on every JSONL line iteration AND so tests can introspect the contract directly. Behaviour preserved byte-identically — the 5 prior `TestReadLastChecked` tests all pass byte-identically post-extraction. Dogfood pass #4 verdict: **APPLY** for all 4 probed files (`SKILL.md`, `references/env-flags.md`, `references/shell-proxy.md`, `references/agent-workspace.md`); `iteration_delta = +0.9000` byte-identical to PV-04 pass #3 — round-1 (+0.9) iteration_delta effectiveness preserved post-edit. **W-8 stagnation predicate**: round 1 had +0.9 delta, round 2 had +0.9 delta (both ≥ +0.05 threshold) → predicate FALSE → **CONTINUE** (no escalation). Per-file SKILL.md / reference APPLY edits remain DEFERRED to v10.4.0+ per v9.5.0 §1.4 HIGH-risk pattern; the global +0.9 delta is real evidence the iteration_delta machinery functions correctly across 2 successive rounds, but is NOT evidence of per-file marginal improvement.
+
+### Pass #4 outcome (post-round-2-edit)
+
+* **Pass #4 verdict: APPLY** for all 4 probed files (`SKILL.md`, `references/env-flags.md`, `references/shell-proxy.md`, `references/agent-workspace.md`). `iteration_delta = +0.9000` byte-identical to PV-04 pass #3. The round-2 mechanical extraction is byte-identical-behaviour from the dogfood pipeline's perspective (the pipeline reads only skill files for `count_tokens` C1/C2 and the runs/baseline dirs for T1/T3 metrics; none of these inputs changed in PV-05).
+* **Round-1 → Round-2 verdict persistence**: APPLY → APPLY across all 4 files. The validation chain is intact end-to-end across all 3 cycle dogfood passes (PV-03 pass #2 DEFER → PV-04 pass #3 APPLY → PV-05 pass #4 APPLY).
+* **W-8 stagnation predicate (round 2)** — `(round_count >= 2) AND (last_2_rounds_iteration_delta < +0.05)` = `(TRUE) AND (FALSE)` = **FALSE** → CONTINUE. No escalation. Both round 1 (+0.9) and round 2 (+0.9) cleared the +0.05 anti-stagnation floor by an order of magnitude.
+
+### What landed
+
+- `src/devolaflow/plugins/installer.py` (EDIT) — Round-2 mechanical CC reduction. NEW private helper `_parse_log_event_timestamp(raw_line: str, plugin_id: str, successful_events: frozenset[str]) -> datetime | None` extracted from `read_last_checked` (the 8-branch per-line JSONL parser body). The helper never raises — every defensive branch returns `None` so the caller's iteration over a corrupt log does not abort scanning. Loud failures (S-5) are reserved for OS-level read errors which `read_last_checked` handles via `OSError` catch. NEW module-level constant `_LAST_CHECKED_SUCCESSFUL_EVENTS: frozenset[str]` lifted from inside `read_last_checked`. CC reduction (radon B-rated): `read_last_checked` 15 → 8 (-7); the new `_parse_log_event_timestamp` is at CC=9 (B-rated, single-purpose). Behaviour byte-identical: 5 prior `TestReadLastChecked` tests + 36 prior `test_plugin_upgrade.py` tests pass post-extraction.
+- `tests/test_plugin_upgrade.py` (EDIT) — +4 NEW tests under `TestParseLogEventTimestamp` pinning the helper contract: `test_helper_returns_datetime_for_valid_record` (happy path), `test_helper_returns_none_for_nonmatching_plugin` (plugin_id mismatch), `test_helper_returns_none_for_defensive_inputs` (parametrised over 9 corrupt-input fixtures all returning None without raising), `test_helper_module_constant_matches_event_set` (module-constant drift guard).
+- `.local/research/v10.2.4_iteration_round2.md` (NEW, gitignored) — Round 2 report: edit description + dogfood pass #4 results table + W-8 stagnation predicate + per-file granularity disposition + APPLY candidates carry-forward (empty; deferred to v10.4.0+) + user mandate satisfaction trace.
+- `.local/research/v10.2.4_w17_mid_cycle_audit.md` (NEW, gitignored) — W-17 §3 mid-cycle audit at PV-05: per-PV NEW test counts (PV-01 +22, PV-02 +29, PV-03 +24, PV-04 +14, PV-05 +4), cycle-cumulative count **93 / 150** (62.0%; forecast PV-06 close ≈ 96 / 150 / 64.0%), high-information disposition justification per PV, **GREEN verdict**.
+- `.local/research/v10.2.4_w8_stagnation_check.md` (NEW, gitignored) — W-8 SI-9 explicit predicate evaluation: round-1 (+0.9000) + round-2 (+0.9000) deltas; predicate `(round_count >= 2) AND (last_2_rounds_iteration_delta < +0.05)` = FALSE; **CONTINUE verdict** (no escalation).
+- `.local/research/v10.2.4_dogfood_pass4.md` (NEW, gitignored) — Round 2 dogfood pass: per-file iteration_delta capture (4 files, all APPLY, +0.9 each, byte-identical to PV-04 pass #3) + comparison vs pass #3 + R-1/R-2/R-3/R-7 risk verdicts.
+- `tests/test_no_ghost_features.py` (EDIT) — NEW `test_v10_2_4_new_symbols_have_coverage` (W-18 lint) pinning: `_parse_log_event_timestamp` helper symbol in `installer.py`, `_LAST_CHECKED_SUCCESSFUL_EVENTS` module-level constant in `installer.py`, the round-2 report path, the W-17 audit path, the W-8 stagnation check path, the dogfood pass #4 path, this CHANGELOG `## [10.2.4]` header, and the W-17 cumulative-count literal "93 / 150" sentinel.
+- Canonical 7 sync locations bumped 10.2.3 → 10.2.4 via `scripts/bump_version.py` (11 pattern replacements per CP-3).
+
+### Headline numbers
+
+| Area | v10.2.3 baseline | v10.2.4 PV-05 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged |
+| Lifecycle events | 10 | 10 | unchanged (no schema bump in this PV) |
+| `read_last_checked` CC (radon) | 15 | **8** | -7 (target ≥3 reduction; achieved -7) |
+| `_parse_log_event_timestamp` (NEW) | n/a | 9 (B-rated single-purpose) | NEW helper |
+| Dogfood pass #4 verdict | n/a | **APPLY** (all 4 files; iteration_delta=+0.9 each) | NEW round-2 evidence |
+| `iteration_delta` per file (round 2) | +0.9 (PV-04 pass #3) | **+0.9** (PV-05 pass #4) | byte-identical (round-1 effects persist post-edit) |
+| W-8 stagnation predicate verdict | (implicit at PV-04 §7: continue) | **explicit CONTINUE** (round 1 = +0.9, round 2 = +0.9; neither <+0.05) | NEW W-8 explicit document |
+| Tests | 4085 | **4090** | +5 NEW test functions (well within W-17 +30/PV cap; 4 helper-extraction tests + 1 W-18 lint) |
+| Cycle NEW test budget | 89 / 150 | **93 / 150** | 62.0% of cycle cap (forecast ≈ 64.0% at PV-06 close; 57-test reservoir remaining) |
+
+Cycle objective recap (PV-05 portion): mandate bullet 4 ("多轮次自迭代与优化") round 2 ships the deterministic mechanical CC reduction in `installer.py` plus the dogfood pass #4 validating round-1 effects persist post-edit. Mandate bullet 3 ("验证 si-chip 迭代有效性") is now backed by REAL evidence sustained across 2 successive rounds (`iteration_delta = +0.9` >> +0.10 threshold across 4 files in BOTH pass #3 and pass #4; W-8 stagnation predicate explicitly evaluated FALSE → CONTINUE). The cycle's "tolerate APPROVE-and-defer-application" outcome (cycle plan §3 PV-05 acceptance #3) is the realised path: per-file SKILL.md / reference content edits remain DEFERRED to v10.4.0+ on a per-file PV cadence per gap analysis §5 OUT-OF-SCOPE list.
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** at `.local/research/v10.2.0_gap_analysis.md` (in place since PV-01; this PV closes 1 carry-forward NineS hotspot — finding `CC-a5d310-0003` in `installer.py::read_last_checked`).
+- **W-2 SI-2 NineS deep-analysis** ran in PV-03 (`.local/research/v10.2.2_nines_plugins.json`); this PV consumes finding `CC-a5d310-0003` as the round-2 mechanical fix surface. End-of-iteration self-eval deferred to PV-06 cycle-close.
+- **W-3 SI-3 evaluation** still deferred to PV-06 cycle-close (STRICT ≥ 9.0 floor for MINOR cycle-close per cycle plan §2).
+- **W-8 SI-9 stagnation predicate** — **explicit verdict CONTINUE** at this commit. Round 1 (PV-04) had iteration_delta=+0.9000; round 2 (PV-05) has iteration_delta=+0.9000; predicate `(round_count >= 2) AND (last_2_rounds_iteration_delta < +0.05)` = `(TRUE) AND (FALSE)` = FALSE. No escalation. Full evaluation at `.local/research/v10.2.4_w8_stagnation_check.md`.
+- **W-9 SI-10 7-gate green** at this commit. The 6 base gates (pytest / ruff check / ruff format / test_version / test_benchmarks / make check-cursor-skill) PLUS the Si-Chip iteration_delta gate (`tests/test_sichip_iteration_delta_gate.py`) all pass. The cycle-wide D-V-1 protocol holds.
+- **W-17 mid-cycle audit (mandatory at PV-05)** — verdict **GREEN**. Per-PV cap PASS for all 5 PVs (max +29 ≤ +30 at PV-02). Cycle-cumulative cap PASS at **93 / 150 (62.0%)** at PV-05 close; forecast at PV-06 close ≈ 96 / 150 (64.0%) with a 54-test reservoir remaining. High-information disposition: PASS — every test pins a distinct contract surface; no redundant scaffolding detected. Full audit at `.local/research/v10.2.4_w17_mid_cycle_audit.md`.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_2_4_new_symbols_have_coverage` authored in this commit BEFORE the CHANGELOG mention per the W-18 precondition (refresh-before-document sequencing). The lint pins 8 distinct surface elements: 1 helper symbol in `installer.py` (`_parse_log_event_timestamp`), 1 module-level constant (`_LAST_CHECKED_SUCCESSFUL_EVENTS`), 4 research artifact paths (round 2 report, W-17 audit, W-8 stagnation check, dogfood pass #4), the CHANGELOG `## [10.2.4]` header, and the W-17 cumulative-count literal "93 / 150" sentinel.
+- **W-20 env flags** — 0 NEW env flags in this PV. The round-2 mechanical extraction is a pure-Python refactor; no runtime activation surface added.
+- **W-21 Soul-set freeze stays at 10**. The S-11 candidate "Parallel Wave Dispatch Invariant" remains OUT for the entire v10.2.0 cycle per gap analysis §3.6 D-W-1; re-telegraphed for v10.4.0 (cycle N+2 from v10.2.0) per W-21 2-cycle deliberation rule. PV-05 introduces no Soul rules.
+- **A-2 frozen prefix invariant** — multi-baseline byte test passes at this commit. PV-05 ships zero schema changes (no canonical_order edits); positions 1-12 byte-stable since v7.0.0. Pre-edit + post-edit `tests/test_layout_invariant_multi_baseline.py` runs both green.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/plugins/installer.py` | Round-2 mechanical extraction: `_parse_log_event_timestamp` helper + `_LAST_CHECKED_SUCCESSFUL_EVENTS` module constant; CC 15 → 8 in `read_last_checked` per NineS finding `CC-a5d310-0003` |
+| EDIT | `tests/test_plugin_upgrade.py` | Round-2 helper tests: +4 NEW under `TestParseLogEventTimestamp` |
+| EDIT | `tests/test_no_ghost_features.py` | +1 NEW W-18 lint `test_v10_2_4_new_symbols_have_coverage` |
+| NEW | `.local/research/v10.2.4_iteration_round2.md` | Round 2 report (gitignored) |
+| NEW | `.local/research/v10.2.4_w17_mid_cycle_audit.md` | W-17 mid-cycle audit (gitignored) |
+| NEW | `.local/research/v10.2.4_w8_stagnation_check.md` | W-8 SI-9 explicit predicate evaluation (gitignored) |
+| NEW | `.local/research/v10.2.4_dogfood_pass4.md` | Round 2 dogfood pass: per-file iteration_delta capture (gitignored) |
+| EDIT | `src/devolaflow/__init__.py` | canonical 7 sync #1 — `__version__ = "10.2.4"` |
+| EDIT | `pyproject.toml` | canonical 7 sync #2 |
+| EDIT | `workflow-system/agent/SKILL.md` | canonical 7 sync #3 (frontmatter + banner + body) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | canonical 7 sync #4 |
+| EDIT | `scripts/generate_human_docs.py` | canonical 7 sync #5 — `SOURCE_VERSION = "10.2.4"` |
+| EDIT | `tests/test_smoke.py` | canonical 7 sync #6 |
+| EDIT | `README.md` | canonical 7 sync #7 (badge + version example) |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | canonical 7 sync #8 |
+| EDIT | `CHANGELOG.md` | This entry |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Role this PV |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | The repo under integration; round-2 mechanical fix lands in `src/devolaflow/plugins/installer.py` |
+| NineS | https://github.com/YoRHa-Agents/NineS | PV-03 NineS deep-analysis finding consumed: `CC-a5d310-0003` (CC=15 in `read_last_checked`) closed |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | `aggregate_eval.py` v0.1.6 unchanged; dogfood pass #4 validates round-1 effects persist post-edit (iteration_delta=+0.9 byte-identical to PV-04 pass #3) |
+
 ## [10.2.3] — 2026-05-03
 
 **v10.2.3 PATCH — PV-04 of the v10.2.0 cycle (self-iteration round 1).** Fourth of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-04 ships the deterministic bridge-defect fix that PV-03 dogfood pass #2 surfaced as the gap blocking computable `iteration_delta` PLUS the two cyclomatic-complexity reductions PV-03's NineS deep-analysis flagged (`pre_plugin_invocation` CC=18 and `post_skill_edit` CC=13). Three gap items close in this PV: the NEW bridge defect (surfaced by PV-03 dogfood pass #2), CC reduction in `pre_plugin_invocation` (NineS PV-03 row #2), CC reduction in `post_skill_edit` (NineS PV-03 row #7).

@@ -5060,3 +5060,157 @@ def test_v10_2_3_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.2.3 violation: CHANGELOG entry "
         f"{_V10_2_3_CHANGELOG_LITERAL!r} missing; PV-04 ships this entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v10.2.4 ghost-audit refresh — PV-05 PATCH (self-iteration round 2:
+# 1 mechanical CC reduction in installer.py + W-8 stagnation predicate +
+# W-17 mid-cycle audit + dogfood pass #4).
+# ---------------------------------------------------------------------------
+
+# v10.2.4 PV-05 round-2 mechanical extraction surface (CC=15→8 in
+# `read_last_checked` per NineS PV-03 finding CC-a5d310-0003).
+_V10_2_4_INSTALLER_FILE: Path = Path("src/devolaflow/plugins/installer.py")
+_V10_2_4_INSTALLER_HELPERS: tuple[str, ...] = ("_parse_log_event_timestamp",)
+_V10_2_4_INSTALLER_MODULE_CONSTANTS: tuple[str, ...] = ("_LAST_CHECKED_SUCCESSFUL_EVENTS",)
+
+# v10.2.4 PV-05 research deliverables (gitignored content; path-presence
+# is the operator-visible contract).
+_V10_2_4_ITERATION_ROUND2_DOC: Path = Path(".local/research/v10.2.4_iteration_round2.md")
+_V10_2_4_W17_AUDIT_DOC: Path = Path(".local/research/v10.2.4_w17_mid_cycle_audit.md")
+_V10_2_4_W8_STAGNATION_DOC: Path = Path(".local/research/v10.2.4_w8_stagnation_check.md")
+_V10_2_4_DOGFOOD_PASS4_DOC: Path = Path(".local/research/v10.2.4_dogfood_pass4.md")
+
+_V10_2_4_CHANGELOG_LITERAL: str = "## [10.2.4]"
+
+# W-17 mid-cycle audit cumulative-count sentinel — the CHANGELOG entry
+# MUST cite the cycle-cumulative NEW-test count so the audit assertion
+# is discoverable by W-17 readers without spelunking through the
+# research artifact. The literal "93 / 150" is the post-PV-05 cumulative
+# (see `.local/research/v10.2.4_w17_mid_cycle_audit.md` §1).
+_V10_2_4_CHANGELOG_W17_LITERAL: str = "93 / 150"
+
+
+def test_v10_2_4_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.2.4: every NEW v10.2.4 PV-05 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.2.4 PV-05 PATCH
+    (self-iteration round 2 + W-17 mid-cycle audit + W-8 stagnation
+    predicate). The CHANGELOG entry mentions the round-2 mechanical CC
+    reduction in `installer.py::read_last_checked` (CC=15→8 via
+    `_parse_log_event_timestamp` helper extraction) and the four
+    research deliverables (round 2 report, W-17 audit, W-8 stagnation
+    check, dogfood pass #4). Each needs a presence assertion here
+    BEFORE the CHANGELOG mention is valid — per W-18 refresh-before-
+    document sequencing.
+
+    v10.2.4 PV-05 pins:
+
+    1. **Round-2 mechanical extraction (Track A)** —
+       `src/devolaflow/plugins/installer.py` defines
+       `_parse_log_event_timestamp` (helper) AND
+       `_LAST_CHECKED_SUCCESSFUL_EVENTS` (lifted module-level constant).
+       Without these the v10.2.4 PV-05 round-2 fix is not shipped.
+    2. **Self-iteration round 2 report** —
+       `.local/research/v10.2.4_iteration_round2.md` exists.
+    3. **W-17 mid-cycle audit** —
+       `.local/research/v10.2.4_w17_mid_cycle_audit.md` exists; cumulative
+       count is documented in CHANGELOG (literal "93 / 150").
+    4. **W-8 stagnation predicate evaluation** —
+       `.local/research/v10.2.4_w8_stagnation_check.md` exists.
+    5. **Dogfood pass #4 deliverable** —
+       `.local/research/v10.2.4_dogfood_pass4.md` exists.
+    6. **CHANGELOG entry** — `## [10.2.4]` header is present.
+    """
+    import ast
+
+    installer_path = project_root / _V10_2_4_INSTALLER_FILE
+    assert installer_path.is_file(), (
+        f"W-18 v10.2.4 violation: installer file {_V10_2_4_INSTALLER_FILE} "
+        f"missing. v10.2.4 PV-05 round-2 patches `read_last_checked` in "
+        f"this file via `_parse_log_event_timestamp` helper extraction; "
+        f"restore it or remove the CHANGELOG mention."
+    )
+    installer_source = installer_path.read_text(encoding="utf-8")
+    installer_module = ast.parse(installer_source)
+    installer_defined = {
+        node.name
+        for node in ast.walk(installer_module)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    for helper in _V10_2_4_INSTALLER_HELPERS:
+        assert helper in installer_defined, (
+            f"W-18 v10.2.4 violation: installer.py missing helper "
+            f"{helper!r}; v10.2.4 PV-05 round-2 ships this helper as "
+            f"part of the CC=15 → ≤10 reduction in `read_last_checked` "
+            f"per NineS PV-03 finding CC-a5d310-0003. Either restore "
+            f"the helper OR remove the CHANGELOG mention of the round-2 "
+            f"installer.py extraction."
+        )
+
+    installer_module_assigns = {
+        target.id
+        for node in ast.walk(installer_module)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    } | {
+        node.target.id
+        for node in ast.walk(installer_module)
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    }
+    for constant in _V10_2_4_INSTALLER_MODULE_CONSTANTS:
+        assert constant in installer_module_assigns, (
+            f"W-18 v10.2.4 violation: installer.py missing module-level "
+            f"constant {constant!r}; v10.2.4 PV-05 round-2 lifts the "
+            f"successful-event set to a module-level frozenset for "
+            f"introspection. Restore the constant OR remove the CHANGELOG "
+            f"mention of the round-2 lift."
+        )
+
+    round2_path = project_root / _V10_2_4_ITERATION_ROUND2_DOC
+    assert round2_path.is_file(), (
+        f"W-18 v10.2.4 violation: round 2 report missing at "
+        f"{_V10_2_4_ITERATION_ROUND2_DOC}. v10.2.4 PV-05 ships this "
+        f"report (gitignored content; path-presence is the operator-"
+        f"visible contract)."
+    )
+
+    w17_path = project_root / _V10_2_4_W17_AUDIT_DOC
+    assert w17_path.is_file(), (
+        f"W-18 v10.2.4 violation: W-17 mid-cycle audit missing at "
+        f"{_V10_2_4_W17_AUDIT_DOC}. v10.2.4 PV-05 discharges the W-17 "
+        f"§3 mid-cycle audit requirement here (gitignored content; "
+        f"path-presence contract)."
+    )
+
+    w8_path = project_root / _V10_2_4_W8_STAGNATION_DOC
+    assert w8_path.is_file(), (
+        f"W-18 v10.2.4 violation: W-8 stagnation predicate evaluation "
+        f"missing at {_V10_2_4_W8_STAGNATION_DOC}. v10.2.4 PV-05 "
+        f"explicitly evaluates the W-8 SI-9 predicate here (gitignored "
+        f"content; path-presence contract)."
+    )
+
+    dogfood_path = project_root / _V10_2_4_DOGFOOD_PASS4_DOC
+    assert dogfood_path.is_file(), (
+        f"W-18 v10.2.4 violation: dogfood pass #4 artifact missing at "
+        f"{_V10_2_4_DOGFOOD_PASS4_DOC}. v10.2.4 PV-05 round-2 ships "
+        f"this artifact (gitignored content; path-presence is the "
+        f"operator-visible contract)."
+    )
+
+    changelog_path = project_root / "CHANGELOG.md"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    assert _V10_2_4_CHANGELOG_LITERAL in changelog_text, (
+        f"W-18 v10.2.4 violation: CHANGELOG entry "
+        f"{_V10_2_4_CHANGELOG_LITERAL!r} missing; PV-05 ships this entry."
+    )
+    assert _V10_2_4_CHANGELOG_W17_LITERAL in changelog_text, (
+        f"W-18 v10.2.4 violation: CHANGELOG entry must cite the cycle-"
+        f"cumulative NEW-test count {_V10_2_4_CHANGELOG_W17_LITERAL!r} "
+        f"to document the W-17 audit verdict. Without this literal "
+        f"the W-17 §3 mid-cycle audit assertion is not discoverable to "
+        f"future cycle authors. Update CHANGELOG `## [10.2.4]` to cite "
+        f"the W-17 cumulative count."
+    )

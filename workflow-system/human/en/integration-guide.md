@@ -4,8 +4,8 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-03T04:44:25Z"
-source_version: "10.2.3"
+last_synced: "2026-05-03T05:10:07Z"
+source_version: "10.2.4"
 ---
 
 # Integration Guide
