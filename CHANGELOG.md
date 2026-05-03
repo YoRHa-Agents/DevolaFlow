@@ -5,6 +5,93 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.3] — 2026-05-03
+
+**v10.2.3 PATCH — PV-04 of the v10.2.0 cycle (self-iteration round 1).** Fourth of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-04 ships the deterministic bridge-defect fix that PV-03 dogfood pass #2 surfaced as the gap blocking computable `iteration_delta` PLUS the two cyclomatic-complexity reductions PV-03's NineS deep-analysis flagged (`pre_plugin_invocation` CC=18 and `post_skill_edit` CC=13). Three gap items close in this PV: the NEW bridge defect (surfaced by PV-03 dogfood pass #2), CC reduction in `pre_plugin_invocation` (NineS PV-03 row #2), CC reduction in `post_skill_edit` (NineS PV-03 row #7).
+
+### Operator-visible behaviour change (READ FIRST)
+
+Self-iteration round 1. **Bridge defect FIX** — `devolaflow.si_chip_bridge.models::MetricsReport.from_yaml_dict` now reads Si-Chip MVP-8 metrics from `metrics.task_quality.*` and `summary.*` instead of (only) the legacy top-level keys. Closes the deterministic finding from PV-03's dogfood pass #2 and unlocks computable `iteration_delta` from the same adapter+dogfood pipeline shipped in PV-03. Backward-compat preserved: legacy top-level keys (`composite` / `task_delta` / `value_vector` / `C1_metadata_tokens` / `C2_body_tokens`) still parse byte-identically. Cyclomatic-complexity reductions in `lifecycle/pre_plugin_invocation.py` (CC 18 → ≤10 via `_resolve_upgrade_threshold_hours` + `_run_install_then_upgrade_for_plugin` helpers) and `lifecycle/post_skill_edit.py` (CC 13 → ≤7 via `_compute_fingerprint` + `_load_existing_fingerprints` + `_run_si_chip_evaluation` helpers) per the PV-03 NineS-flagged hotspots.
+
+### Pass #3 outcome (post-bridge-fix)
+
+* **Pass #3 verdict: APPLY** for all 4 probed files (`SKILL.md`, `references/env-flags.md`, `references/shell-proxy.md`, `references/agent-workspace.md`). `iteration_delta = +0.9000` across all 4 — well above the +0.10 threshold. The same adapter+dogfood pipeline from PV-03 plus the bridge fix in this PV now produces real iteration-delta numbers (vs. PV-03's silent +0.0000 across the board).
+* **PV-05 round 2 APPLY candidates** — all 4 probed files clear the gate. Caveat: the iteration_delta is GLOBAL across the 4 files (single shared runs-dir/baseline-dir derived from 20 NineS golden tasks); per-file decomposition is a v10.4.0+ refinement deferred per the gap analysis §5 OUT-OF-SCOPE list. PV-05 will decide whether to (a) apply per-file edits with the granularity caveat, (b) formally close the gate-validation mandate and defer applied edits to v10.4.0+, or (c) refine the apply mechanism (per-file runs-dir).
+* **W-8 stagnation predicate (round 1)** — `iteration_delta ≥ +0.05` for all 4 files → **continue**. Round count = 1, predicate threshold not yet met. PV-05 will run round 2 and re-evaluate the predicate at its close.
+
+### What landed
+
+- `src/devolaflow/si_chip_bridge/models.py` (EDIT) — Track A; **bridge defect fix**. `MetricsReport.from_yaml_dict` now reads MVP-8 nested keys (`metrics.task_quality.T1_pass_rate` for composite proxy, `summary.baseline_delta` for task_delta, `metrics.task_quality.T3_baseline_delta` as task_delta fallback, `metrics.context_economy.{C1_metadata_tokens,C2_body_tokens}` for token counts) with legacy top-level shape preserved as backward-compat fallback. MVP-8 nested paths take precedence over legacy when both shapes coexist (hybrid-emit support). Per S-5: missing keys default to safe zeros; non-dict `metrics`/`summary` blocks tolerated without KeyError.
+- `src/devolaflow/lifecycle/pre_plugin_invocation.py` (EDIT) — Track B-1; CC reduction 18 → ≤10. NEW private helpers `_resolve_upgrade_threshold_hours(default: int) -> int` (registry-read body — 4 exception sinks isolated) and `_run_install_then_upgrade_for_plugin(plugin_id: str, *, threshold_hours: int) -> list[HookViolation]` (per-plugin install + optional staleness-driven upgrade body — owns PPI001/PPI003 surfaces). Behaviour byte-identical to v10.2.1 baseline; `tests/test_pre_plugin_invocation.py` 36 prior tests + 3 NEW helper-pinning tests all pass.
+- `src/devolaflow/lifecycle/post_skill_edit.py` (EDIT) — Track B-2; CC reduction 13 → ≤7. NEW private helpers `_compute_fingerprint(skill_files, verdict, notes) -> str` (idiomatic-name; matches natural English reading order) + `_load_existing_fingerprints(feedback_dir) -> set[str]` (idiomatic-name sidecar reader) + `_run_si_chip_evaluation(primary_skill, skill_files, ability_name, threshold) -> tuple[result|None, list[HookViolation], str|None]` (orchestrator extraction owning the 3 try/except branches + PSE001/PSE002 violation construction). Backward-compat wrappers `_compute_defer_fingerprint` + `_read_fingerprint_sidecar` preserved for v10.2.1 callers (`tests/test_sichip_dedup_feedback_doc.py`).
+- `tests/test_si_chip_bridge.py` (EDIT) — Track A; +5 NEW tests under `TestMetricsReportFromYamlDictMvp8` pinning the MVP-8 nested-key contract: `test_from_yaml_dict_reads_mvp8_keys` (full MVP-8 fixture mirroring the real `.local/dogfood/10.2.1/skill-optimization_after_metrics.yaml`), `test_from_yaml_dict_reads_legacy_top_level_keys` (legacy backward-compat), `test_from_yaml_dict_handles_missing_metrics_block` (empty + non-dict robustness), `test_from_yaml_dict_handles_partial_metrics_block` (T1 set + null T3 + null C2 → graceful zero-fill), `test_from_yaml_dict_mvp8_nested_takes_precedence_over_legacy` (hybrid-shape precedence rule).
+- `tests/test_pre_plugin_invocation.py` (EDIT) — Track B-1; +3 NEW tests under `TestRunInstallThenUpgradeHelper` pinning the helper signature, happy-path return ([] violations on clean install + fresh plugin), and PPI001-on-install-failure return.
+- `tests/test_post_skill_edit_hook.py` (EDIT) — Track B-2; +5 NEW tests across 3 helper classes — `TestComputeFingerprintHelper` (idiomatic signature + backward-compat wrapper equivalence), `TestLoadExistingFingerprintsHelper` (sidecar-read contract + missing-file empty-set), `TestRunSiChipEvaluationHelper` (PSE001-on-unavailable + happy-path return shape).
+- `.local/research/v10.2.3_dogfood_pass3.md` (NEW, gitignored) — Track C deliverable; per-file iteration_delta capture (4 files, all APPLY, +0.9 each) + comparison vs PV-03 pass #2 + R-1 verdict (still did not fire).
+- `.local/research/v10.2.3_iteration_round1.md` (NEW, gitignored) — round 1 report; Track A diff narrative + Track B helper extractions + pass #3 results table + APPLY candidates for PV-05 + W-8 stagnation predicate evaluation.
+- `tests/test_no_ghost_features.py` (EDIT) — NEW `test_v10_2_3_new_symbols_have_coverage` (W-18 lint) pinning: 5 MVP-8 path literals in `models.py` (`T1_pass_rate`, `T3_baseline_delta`, `C1_metadata_tokens`, `C2_body_tokens`, `baseline_delta`), 2 helper symbols on `pre_plugin_invocation.py`, 3 helper symbols on `post_skill_edit.py`, the dogfood pass #3 path, the round 1 report path, and this CHANGELOG `## [10.2.3]` header.
+- Canonical 7 sync locations bumped 10.2.2 → 10.2.3 via `scripts/bump_version.py` (11 pattern replacements per CP-3).
+
+### Headline numbers
+
+| Area | v10.2.2 baseline | v10.2.3 PV-04 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged |
+| Lifecycle events | 10 | 10 | unchanged (no schema bump in this PV) |
+| Bridge `MetricsReport.from_yaml_dict` reads | top-level keys ONLY (legacy shape) | MVP-8 nested + legacy fallback | NEW dual-shape support |
+| Dogfood pass #3 verdict | n/a | **APPLY** (all 4 files; iteration_delta=+0.9 each) | NEW APPLY evidence |
+| `iteration_delta` per file | +0.0 (bridge zeroed) | **+0.9** (real signal) | NEW signal path |
+| `pre_plugin_invocation` CC | 18 | ≤10 (helpers extracted) | -8 leverage |
+| `post_skill_edit` CC | 13 | ≤7 (helpers extracted) | -6 leverage |
+| Public helper count (lifecycle hooks) | unchanged | +5 NEW (`_resolve_upgrade_threshold_hours`, `_run_install_then_upgrade_for_plugin`, `_compute_fingerprint`, `_load_existing_fingerprints`, `_run_si_chip_evaluation`) | NEW APIs |
+| Tests | 4071 | **4085** | +14 NEW test functions (well within W-17 +30/PV cap; PV-04 target was ≤+15) |
+| Cycle NEW test budget | 75 / 150 | **89 / 150** | 59.3% of the v10.2.0 → v10.3.0 cycle cap (61 budget remaining for PV-05/PV-06) |
+
+Cycle objective recap (PV-04 portion): mandate bullet 4 ("多轮次自迭代与优化") round 1 ships the deterministic-gain bridge fix that unblocks `iteration_delta` end-to-end. Mandate bullet 3 ("验证 si-chip 迭代有效性") is now backed by REAL evidence (`iteration_delta = +0.9` >> +0.10 threshold across 4 files, computed by the same PV-03 pipeline + this PV's bridge fix). The two NineS-flagged complexity hotspots from PV-03 are also closed in this PV per the brief's Track B opportunistic scope.
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** at `.local/research/v10.2.0_gap_analysis.md` (in place since PV-01; this PV closes 1 carry-forward defect plus 2 NineS hotspots from `.local/research/v10.2.2_nines.md` §5 PV-04 candidate list).
+- **W-2 SI-2 NineS deep-analysis** ran in PV-03; this PV consumes the §5 PV-04 candidate map. End-of-iteration self-eval deferred to PV-06 cycle-close.
+- **W-3 SI-3 evaluation** still deferred to PV-06 cycle-close (STRICT ≥ 9.0 floor for MINOR cycle-close per cycle plan §2).
+- **W-9 SI-10 7-gate green** at this commit. The 6 base gates (pytest / ruff check / ruff format / test_version / test_benchmarks / make check-cursor-skill) PLUS the Si-Chip iteration_delta gate (`tests/test_sichip_iteration_delta_gate.py`) all pass. The cycle-wide D-V-1 protocol holds.
+- **W-17 per-PV test cap** — PV-04 delta +14 NEW test functions (well within +30/PV cap; well within the brief's ≤+15 target). Cumulative cycle total: 89 of +150 cycle cap (59.3%). The W-17 mid-cycle audit at PV-05 remains mandatory; the two remaining PVs (PV-05, PV-06) have ~61 budget remaining.
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_2_3_new_symbols_have_coverage` authored in this commit BEFORE the CHANGELOG mention per the W-18 precondition (refresh-before-document sequencing). The lint pins 12 distinct surface elements: 5 MVP-8 path literals in `models.py` (Track A), 2 helper symbols in `pre_plugin_invocation.py` (Track B-1), 3 helper symbols in `post_skill_edit.py` (Track B-2), 1 dogfood pass #3 path, 1 round 1 report path, plus the CHANGELOG `## [10.2.3]` header.
+- **W-20 env flags** — 0 NEW env flags in this PV. The bridge fix and the helper extractions are pure-Python refactors; no runtime activation surface added.
+- **W-21 Soul-set freeze stays at 10**. The S-11 candidate "Parallel Wave Dispatch Invariant" remains OUT for the entire v10.2.0 cycle per gap analysis §3.6 D-W-1; re-telegraphed for v10.4.0 (cycle N+2 from v10.2.0) per W-21 2-cycle deliberation rule. PV-04 introduces no Soul rules.
+- **A-2 frozen prefix invariant** — multi-baseline byte test passes at this commit. PV-04 ships zero schema changes (no canonical_order edits); positions 1-12 byte-stable since v7.0.0. Pre-edit + post-edit `tests/test_layout_invariant_multi_baseline.py` runs both green.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/si_chip_bridge/models.py` | Track A: MVP-8 nested-key support in `MetricsReport.from_yaml_dict` (backward-compat preserved) |
+| EDIT | `src/devolaflow/lifecycle/pre_plugin_invocation.py` | Track B-1: `_resolve_upgrade_threshold_hours` + `_run_install_then_upgrade_for_plugin` helpers (CC 18 → ≤10) |
+| EDIT | `src/devolaflow/lifecycle/post_skill_edit.py` | Track B-2: `_compute_fingerprint` + `_load_existing_fingerprints` + `_run_si_chip_evaluation` helpers (CC 13 → ≤7); legacy wrappers preserved |
+| EDIT | `tests/test_si_chip_bridge.py` | Track A: +5 NEW tests under `TestMetricsReportFromYamlDictMvp8` |
+| EDIT | `tests/test_pre_plugin_invocation.py` | Track B-1: +3 NEW tests under `TestRunInstallThenUpgradeHelper` |
+| EDIT | `tests/test_post_skill_edit_hook.py` | Track B-2: +5 NEW tests across 3 helper classes |
+| EDIT | `tests/test_no_ghost_features.py` | +1 NEW W-18 lint `test_v10_2_3_new_symbols_have_coverage` |
+| NEW | `.local/research/v10.2.3_dogfood_pass3.md` | Track C: pass #3 verdict + per-file iteration_delta capture (gitignored) |
+| NEW | `.local/research/v10.2.3_iteration_round1.md` | Round 1 report (gitignored) |
+| EDIT | `src/devolaflow/__init__.py` | canonical 7 sync #1 — `__version__ = "10.2.3"` |
+| EDIT | `pyproject.toml` | canonical 7 sync #2 |
+| EDIT | `workflow-system/agent/SKILL.md` | canonical 7 sync #3 (frontmatter + banner + body) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | canonical 7 sync #4 |
+| EDIT | `scripts/generate_human_docs.py` | canonical 7 sync #5 — `SOURCE_VERSION = "10.2.3"` |
+| EDIT | `tests/test_smoke.py` | canonical 7 sync #6 |
+| EDIT | `README.md` | canonical 7 sync #7 (badge + version example) |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | canonical 7 sync #8 |
+| EDIT | `CHANGELOG.md` | This entry |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Role this PV |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | The repo under integration; bridge defect fix unblocks `iteration_delta` |
+| NineS | https://github.com/YoRHa-Agents/NineS | PV-03 NineS deep-analysis findings consumed: rows #2 (CC=18) + #7 (CC=13) closed |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | `aggregate_eval.py` v0.1.6 emit shape (MVP-8 nested under `metrics.*` + `summary.*`) is now correctly read by the bridge |
+
 ## [10.2.2] — 2026-05-03
 
 **v10.2.2 PATCH — PV-03 of the v10.2.0 cycle.** Third of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-03 ships the NineS deep-self-analysis half of mandate bullet 3 (对自身仓库结合 nines 进行深入分析) plus the Si-Chip iteration-effectiveness validation half (验证 si-chip 迭代有效性). Two gap items close in this PV: D-N-1 (NineS-to-Si-Chip eval adapter prototype) and D-N-3 (NineS deep-analyse 3 packages). The R-1 risk DID NOT FIRE — adapter verdict APPROVE. A NEW downstream bridge defect was surfaced and flagged for PV-04.

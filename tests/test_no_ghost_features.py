@@ -4897,3 +4897,166 @@ def test_v10_2_2_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.2.2 violation: CHANGELOG entry "
         f"{_V10_2_2_CHANGELOG_LITERAL!r} missing; PV-03 ships this entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v10.2.3 ghost-audit refresh — PV-04 PATCH (self-iteration round 1:
+# bridge defect fix + Track B CC reductions).
+# ---------------------------------------------------------------------------
+
+# v10.2.3 PV-04 dogfood pass #3 deliverable (gitignored content;
+# path-presence is the operator-visible contract).
+_V10_2_3_DOGFOOD_PASS3_DOC: Path = Path(".local/research/v10.2.3_dogfood_pass3.md")
+
+# v10.2.3 PV-04 self-iteration round 1 report (gitignored content;
+# path-presence contract).
+_V10_2_3_ITERATION_ROUND1_DOC: Path = Path(".local/research/v10.2.3_iteration_round1.md")
+
+# v10.2.3 PV-04 Track A — bridge defect fix surface.
+_V10_2_3_BRIDGE_MODELS_FILE: Path = Path("src/devolaflow/si_chip_bridge/models.py")
+
+# Strings that MUST appear in models.py to prove the MVP-8 nested-key
+# support shipped (NOT a paraphrase — the literal Si-Chip MVP-8 path
+# fragments per .local/dogfood/10.2.1/skill-optimization_after_metrics.yaml).
+_V10_2_3_BRIDGE_MVP8_LITERALS: tuple[str, ...] = (
+    "T1_pass_rate",
+    "T3_baseline_delta",
+    "C1_metadata_tokens",
+    "C2_body_tokens",
+    "baseline_delta",
+)
+
+# v10.2.3 PV-04 Track B-1 — pre_plugin_invocation helpers.
+_V10_2_3_PPI_FILE: Path = Path("src/devolaflow/lifecycle/pre_plugin_invocation.py")
+_V10_2_3_PPI_HELPERS: tuple[str, ...] = (
+    "_resolve_upgrade_threshold_hours",
+    "_run_install_then_upgrade_for_plugin",
+)
+
+# v10.2.3 PV-04 Track B-2 — post_skill_edit helpers.
+_V10_2_3_PSE_FILE: Path = Path("src/devolaflow/lifecycle/post_skill_edit.py")
+_V10_2_3_PSE_HELPERS: tuple[str, ...] = (
+    "_compute_fingerprint",
+    "_load_existing_fingerprints",
+    "_run_si_chip_evaluation",
+)
+
+_V10_2_3_CHANGELOG_LITERAL: str = "## [10.2.3]"
+
+
+def test_v10_2_3_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.2.3: every NEW v10.2.3 PV-04 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.2.3 PV-04 PATCH
+    (self-iteration round 1). The CHANGELOG entry mentions the bridge
+    defect fix in `MetricsReport.from_yaml_dict` (Track A), the two
+    Track B CC reductions in `pre_plugin_invocation` and `post_skill_edit`
+    via extracted helpers, and the two research deliverables (dogfood
+    pass #3 + iteration round 1 report). Each needs a presence
+    assertion here BEFORE the CHANGELOG mention is valid — per W-18
+    refresh-before-document sequencing.
+
+    v10.2.3 PV-04 pins:
+
+    1. **Bridge defect fix (Track A)** —
+       `src/devolaflow/si_chip_bridge/models.py` carries MVP-8 nested
+       path literals (T1_pass_rate, T3_baseline_delta,
+       C1_metadata_tokens, C2_body_tokens, baseline_delta). Without
+       these the v10.2.2 PV-03 dogfood pass #2 bridge defect is not
+       fixed.
+    2. **CC reduction Track B-1** —
+       `src/devolaflow/lifecycle/pre_plugin_invocation.py` defines
+       `_resolve_upgrade_threshold_hours` and
+       `_run_install_then_upgrade_for_plugin`.
+    3. **CC reduction Track B-2** —
+       `src/devolaflow/lifecycle/post_skill_edit.py` defines
+       `_compute_fingerprint`, `_load_existing_fingerprints`, and
+       `_run_si_chip_evaluation`.
+    4. **Dogfood pass #3 deliverable** —
+       `.local/research/v10.2.3_dogfood_pass3.md` exists.
+    5. **Self-iteration round 1 report** —
+       `.local/research/v10.2.3_iteration_round1.md` exists.
+    6. **CHANGELOG entry** — `## [10.2.3]` header is present.
+    """
+    import ast
+
+    bridge_path = project_root / _V10_2_3_BRIDGE_MODELS_FILE
+    assert bridge_path.is_file(), (
+        f"W-18 v10.2.3 violation: bridge file {_V10_2_3_BRIDGE_MODELS_FILE} "
+        f"missing. v10.2.3 PV-04 Track A patches `MetricsReport.from_yaml_dict` "
+        f"in this file; restore it or remove the CHANGELOG mention."
+    )
+    bridge_source = bridge_path.read_text(encoding="utf-8")
+    for literal in _V10_2_3_BRIDGE_MVP8_LITERALS:
+        assert literal in bridge_source, (
+            f"W-18 v10.2.3 violation: bridge models.py missing MVP-8 literal "
+            f"{literal!r}; v10.2.3 PV-04 Track A REQUIRES this nested-key "
+            f"path to read Si-Chip aggregate_eval.py v0.1.6 emit shape. "
+            f"Either restore the literal OR remove the CHANGELOG mention "
+            f"of the bridge defect fix."
+        )
+
+    ppi_path = project_root / _V10_2_3_PPI_FILE
+    assert ppi_path.is_file(), (
+        f"W-18 v10.2.3 violation: pre_plugin_invocation file "
+        f"{_V10_2_3_PPI_FILE} missing. v10.2.3 PV-04 Track B-1 extracts "
+        f"helpers in this file; restore it or remove the CHANGELOG mention."
+    )
+    ppi_source = ppi_path.read_text(encoding="utf-8")
+    ppi_module = ast.parse(ppi_source)
+    ppi_defined = {
+        node.name
+        for node in ast.walk(ppi_module)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    for helper in _V10_2_3_PPI_HELPERS:
+        assert helper in ppi_defined, (
+            f"W-18 v10.2.3 violation: pre_plugin_invocation.py missing "
+            f"helper {helper!r}; v10.2.3 PV-04 Track B-1 ships this helper "
+            f"as part of the CC=18 → ≤10 reduction. Either restore the "
+            f"helper OR remove the CHANGELOG mention of Track B-1."
+        )
+
+    pse_path = project_root / _V10_2_3_PSE_FILE
+    assert pse_path.is_file(), (
+        f"W-18 v10.2.3 violation: post_skill_edit file {_V10_2_3_PSE_FILE} "
+        f"missing. v10.2.3 PV-04 Track B-2 extracts helpers in this file; "
+        f"restore it or remove the CHANGELOG mention."
+    )
+    pse_source = pse_path.read_text(encoding="utf-8")
+    pse_module = ast.parse(pse_source)
+    pse_defined = {
+        node.name
+        for node in ast.walk(pse_module)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    for helper in _V10_2_3_PSE_HELPERS:
+        assert helper in pse_defined, (
+            f"W-18 v10.2.3 violation: post_skill_edit.py missing helper "
+            f"{helper!r}; v10.2.3 PV-04 Track B-2 ships this helper as "
+            f"part of the CC=13 → ≤7 reduction. Either restore the helper "
+            f"OR remove the CHANGELOG mention of Track B-2."
+        )
+
+    dogfood_path = project_root / _V10_2_3_DOGFOOD_PASS3_DOC
+    assert dogfood_path.is_file(), (
+        f"W-18 v10.2.3 violation: dogfood pass #3 artifact missing at "
+        f"{_V10_2_3_DOGFOOD_PASS3_DOC}. v10.2.3 PV-04 Track C requires "
+        f"this artifact (gitignored content; path-presence is the "
+        f"operator-visible contract)."
+    )
+
+    round1_path = project_root / _V10_2_3_ITERATION_ROUND1_DOC
+    assert round1_path.is_file(), (
+        f"W-18 v10.2.3 violation: round 1 report missing at "
+        f"{_V10_2_3_ITERATION_ROUND1_DOC}. v10.2.3 PV-04 ships this "
+        f"report (gitignored content; path-presence is the operator-"
+        f"visible contract)."
+    )
+
+    changelog_path = project_root / "CHANGELOG.md"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    assert _V10_2_3_CHANGELOG_LITERAL in changelog_text, (
+        f"W-18 v10.2.3 violation: CHANGELOG entry "
+        f"{_V10_2_3_CHANGELOG_LITERAL!r} missing; PV-04 ships this entry."
+    )

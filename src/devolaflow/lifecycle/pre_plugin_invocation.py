@@ -266,6 +266,201 @@ def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookVi
     return list(dict.fromkeys(ids)), violations
 
 
+def _resolve_upgrade_threshold_hours(default: int) -> int:
+    """Read ``defaults.upgrade_check_frequency_hours`` from the plugin registry.
+
+    Defensive helper extracted in v10.2.3 PV-04 so the parent
+    :func:`pre_plugin_invocation` does not own the registry-read
+    branching (NineS PV-03 deep-analysis flagged the parent at CC=18;
+    splitting this off + the per-plugin install/upgrade helper drops it
+    below the warn threshold).
+
+    Per S-5: registry read errors log at WARNING and fall back to
+    ``default`` — the daily-upgrade gate still fires on the 24h cadence
+    even when the registry is corrupt / missing. NEVER raises.
+    """
+    from devolaflow.plugins.installer import load_registry
+
+    try:
+        registry = load_registry()
+    except (FileNotFoundError, OSError) as exc:
+        logger.warning(
+            "pre_plugin_invocation: cannot read registry defaults for "
+            "daily-upgrade threshold (%s); falling back to %d-hour default",
+            exc,
+            default,
+        )
+        return default
+    except Exception as exc:  # noqa: BLE001 — best-effort registry read
+        logger.warning(
+            "pre_plugin_invocation: registry parse failed for daily-upgrade "
+            "threshold (%s: %s); falling back to %d-hour default",
+            type(exc).__name__,
+            exc,
+            default,
+        )
+        return default
+
+    defaults_section = registry.get("defaults") or {}
+    if not isinstance(defaults_section, dict):
+        return default
+    raw_threshold = defaults_section.get("upgrade_check_frequency_hours")
+    if isinstance(raw_threshold, int) and raw_threshold > 0:
+        return raw_threshold
+    return default
+
+
+def _run_install_then_upgrade_for_plugin(
+    plugin_id: str,
+    *,
+    threshold_hours: int,
+) -> list[HookViolation]:
+    """Run ``ensure_plugin`` then optionally ``upgrade_plugin`` for one plugin.
+
+    Helper extracted in v10.2.3 PV-04 to address the NineS PV-03 deep-
+    analysis finding at
+    `.local/research/v10.2.2_nines.md` §2 row #2 (CC=18 in
+    :func:`pre_plugin_invocation`). The parent function's loop body
+    here was the dominant complexity contributor: 4 distinct exception
+    sinks + the staleness branch + the upgrade branch all stacked into
+    one cyclomatic graph.
+
+    Returns a list of :class:`HookViolation` accumulated for this plugin
+    (empty when the install + upgrade both succeed). The PPI001 / PPI003
+    code surface is preserved verbatim — the public contract is
+    byte-identical to the v10.2.1 baseline.
+
+    Per S-5: domain exceptions (``PluginNotFoundError``,
+    ``PluginInstallError``, ``PluginVersionMismatch``,
+    ``PluginBackendUnsupported``) become typed violations; any OTHER
+    exception logs at WARNING and is RE-RAISED — the helper never
+    silently swallows non-domain failures.
+    """
+    from devolaflow.plugins.exceptions import (
+        PluginBackendUnsupported,
+        PluginInstallError,
+        PluginNotFoundError,
+        PluginVersionMismatch,
+    )
+    from devolaflow.plugins.installer import (
+        ensure_plugin,
+        is_plugin_stale,
+        upgrade_plugin,
+    )
+
+    violations: list[HookViolation] = []
+
+    try:
+        version = ensure_plugin(plugin_id)
+    except (
+        PluginNotFoundError,
+        PluginInstallError,
+        PluginVersionMismatch,
+        PluginBackendUnsupported,
+    ) as exc:
+        logger.warning(
+            "pre_plugin_invocation: ensure_plugin(%r) raised %s: %s",
+            plugin_id,
+            type(exc).__name__,
+            exc,
+        )
+        violations.append(
+            HookViolation(
+                code="PPI001",
+                message=(
+                    f"pre_plugin_invocation: ensure_plugin({plugin_id!r}) "
+                    f"failed — {type(exc).__name__}: {exc}"
+                ),
+                severity="error",
+                context={
+                    "plugin_id": plugin_id,
+                    "exception_type": type(exc).__name__,
+                    "exception_args": list(exc.args),
+                    "details": getattr(exc, "details", {}),
+                },
+            )
+        )
+        return violations
+    except Exception:
+        logger.warning(
+            "pre_plugin_invocation: unexpected exception while installing "
+            "plugin %r (re-raising per S-5 no-silent-failure)",
+            plugin_id,
+            exc_info=True,
+        )
+        raise
+    logger.info(
+        "pre_plugin_invocation: plugin %r installed at version %s",
+        plugin_id,
+        version,
+    )
+
+    try:
+        stale = is_plugin_stale(plugin_id, threshold_hours=threshold_hours)
+    except Exception as exc:  # noqa: BLE001 — best-effort staleness probe
+        logger.warning(
+            "pre_plugin_invocation: is_plugin_stale(%r) raised %s: %s; "
+            "skipping daily-upgrade probe for this plugin",
+            plugin_id,
+            type(exc).__name__,
+            exc,
+        )
+        return violations
+
+    if not stale:
+        return violations
+
+    try:
+        upgraded_version = upgrade_plugin(plugin_id)
+    except (
+        PluginNotFoundError,
+        PluginInstallError,
+        PluginVersionMismatch,
+        PluginBackendUnsupported,
+    ) as exc:
+        logger.warning(
+            "pre_plugin_invocation: upgrade_plugin(%r) raised %s: %s "
+            "(stale plugin daily-upgrade); recording PPI003 warning "
+            "but NOT blocking dispatch",
+            plugin_id,
+            type(exc).__name__,
+            exc,
+        )
+        violations.append(
+            HookViolation(
+                code="PPI003",
+                message=(
+                    f"pre_plugin_invocation: upgrade_plugin({plugin_id!r}) "
+                    f"failed during daily-upgrade probe — "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                severity="warning",
+                context={
+                    "plugin_id": plugin_id,
+                    "exception_type": type(exc).__name__,
+                    "exception_args": list(exc.args),
+                    "details": getattr(exc, "details", {}),
+                    "stage": "daily_upgrade",
+                },
+            )
+        )
+        return violations
+    except Exception:
+        logger.warning(
+            "pre_plugin_invocation: unexpected exception while upgrading "
+            "stale plugin %r (re-raising per S-5 no-silent-failure)",
+            plugin_id,
+            exc_info=True,
+        )
+        raise
+    logger.info(
+        "pre_plugin_invocation: stale plugin %r upgraded to %s (daily-upgrade integration)",
+        plugin_id,
+        upgraded_version,
+    )
+    return violations
+
+
 def pre_plugin_invocation(
     payload: dict[str, Any],
     *,
@@ -285,6 +480,13 @@ def pre_plugin_invocation(
     (`runtime-plugins.yaml#plugins[*].invoked_by_workflows`). Tests can
     invoke the hook directly with either ``{"plugin_id": "<id>"}`` or
     ``{"plugin_ids": ["<id1>", "<id2>"]}``.
+
+    Implementation note: per the v10.2.3 PV-04 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #2), the per-plugin
+    install + upgrade body lives in
+    :func:`_run_install_then_upgrade_for_plugin` and the registry-read
+    body in :func:`_resolve_upgrade_threshold_hours`. Behaviour is
+    byte-identical to v10.2.1 baseline.
     """
     if not is_auto_install_active():
         return finalize(EVENT, [], strict=strict)
@@ -298,166 +500,18 @@ def pre_plugin_invocation(
         # Gate 2: no candidates, no schema problems → silent no-op.
         return finalize(EVENT, [], strict=strict)
 
-    # Lazy-import — keep the lifecycle package import-light when env flag is
-    # off OR the payload has no plugin candidates (the common dispatch shape).
-    from devolaflow.plugins.exceptions import (
-        PluginBackendUnsupported,
-        PluginInstallError,
-        PluginNotFoundError,
-        PluginVersionMismatch,
-    )
-    from devolaflow.plugins.installer import (
-        _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
-        ensure_plugin,
-        is_plugin_stale,
-        load_registry,
-        upgrade_plugin,
-    )
+    from devolaflow.plugins.installer import _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS
 
-    # v10.2.1 PV-02 D-P-2 — read the staleness threshold once per hook
-    # invocation. Defensive on registry read failure (S-5: log loud,
-    # default to the 24h baseline so the daily-upgrade gate still fires).
-    threshold_hours = _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS
-    try:
-        registry = load_registry()
-        defaults_section = registry.get("defaults") or {}
-        if isinstance(defaults_section, dict):
-            raw_threshold = defaults_section.get("upgrade_check_frequency_hours")
-            if isinstance(raw_threshold, int) and raw_threshold > 0:
-                threshold_hours = raw_threshold
-    except (FileNotFoundError, OSError) as exc:
-        logger.warning(
-            "pre_plugin_invocation: cannot read registry defaults for "
-            "daily-upgrade threshold (%s); falling back to %d-hour default",
-            exc,
-            _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
-        )
-    except Exception as exc:  # noqa: BLE001 — best-effort registry read
-        logger.warning(
-            "pre_plugin_invocation: registry parse failed for daily-upgrade "
-            "threshold (%s: %s); falling back to %d-hour default",
-            type(exc).__name__,
-            exc,
-            _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
-        )
+    threshold_hours = _resolve_upgrade_threshold_hours(_DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS)
 
     install_violations: list[HookViolation] = []
     for plugin_id in ids:
-        try:
-            version = ensure_plugin(plugin_id)
-        except (
-            PluginNotFoundError,
-            PluginInstallError,
-            PluginVersionMismatch,
-            PluginBackendUnsupported,
-        ) as exc:
-            logger.warning(
-                "pre_plugin_invocation: ensure_plugin(%r) raised %s: %s",
+        install_violations.extend(
+            _run_install_then_upgrade_for_plugin(
                 plugin_id,
-                type(exc).__name__,
-                exc,
+                threshold_hours=threshold_hours,
             )
-            install_violations.append(
-                HookViolation(
-                    code="PPI001",
-                    message=(
-                        f"pre_plugin_invocation: ensure_plugin({plugin_id!r}) "
-                        f"failed — {type(exc).__name__}: {exc}"
-                    ),
-                    severity="error",
-                    context={
-                        "plugin_id": plugin_id,
-                        "exception_type": type(exc).__name__,
-                        "exception_args": list(exc.args),
-                        "details": getattr(exc, "details", {}),
-                    },
-                )
-            )
-            continue
-        except Exception:
-            # S-5: non-domain exceptions are logged loudly and re-raised.
-            logger.warning(
-                "pre_plugin_invocation: unexpected exception while installing "
-                "plugin %r (re-raising per S-5 no-silent-failure)",
-                plugin_id,
-                exc_info=True,
-            )
-            raise
-        else:
-            logger.info(
-                "pre_plugin_invocation: plugin %r installed at version %s",
-                plugin_id,
-                version,
-            )
-
-        # v10.2.1 PV-02 D-P-2 — daily-upgrade integration. After
-        # ensure_plugin succeeds, also probe staleness; when stale, fire
-        # upgrade_plugin best-effort (PPI003 warning on failure; never
-        # blocks the dispatch).
-        try:
-            stale = is_plugin_stale(plugin_id, threshold_hours=threshold_hours)
-        except Exception as exc:  # noqa: BLE001 — best-effort staleness probe
-            logger.warning(
-                "pre_plugin_invocation: is_plugin_stale(%r) raised %s: %s; "
-                "skipping daily-upgrade probe for this plugin",
-                plugin_id,
-                type(exc).__name__,
-                exc,
-            )
-            continue
-
-        if not stale:
-            continue
-
-        try:
-            upgraded_version = upgrade_plugin(plugin_id)
-        except (
-            PluginNotFoundError,
-            PluginInstallError,
-            PluginVersionMismatch,
-            PluginBackendUnsupported,
-        ) as exc:
-            logger.warning(
-                "pre_plugin_invocation: upgrade_plugin(%r) raised %s: %s "
-                "(stale plugin daily-upgrade); recording PPI003 warning "
-                "but NOT blocking dispatch",
-                plugin_id,
-                type(exc).__name__,
-                exc,
-            )
-            install_violations.append(
-                HookViolation(
-                    code="PPI003",
-                    message=(
-                        f"pre_plugin_invocation: upgrade_plugin({plugin_id!r}) "
-                        f"failed during daily-upgrade probe — "
-                        f"{type(exc).__name__}: {exc}"
-                    ),
-                    severity="warning",
-                    context={
-                        "plugin_id": plugin_id,
-                        "exception_type": type(exc).__name__,
-                        "exception_args": list(exc.args),
-                        "details": getattr(exc, "details", {}),
-                        "stage": "daily_upgrade",
-                    },
-                )
-            )
-        except Exception:
-            # S-5: non-domain exceptions are logged loudly and re-raised.
-            logger.warning(
-                "pre_plugin_invocation: unexpected exception while upgrading "
-                "stale plugin %r (re-raising per S-5 no-silent-failure)",
-                plugin_id,
-                exc_info=True,
-            )
-            raise
-        else:
-            logger.info(
-                "pre_plugin_invocation: stale plugin %r upgraded to %s (daily-upgrade integration)",
-                plugin_id,
-                upgraded_version,
-            )
+        )
 
     return finalize(EVENT, schema_violations + install_violations, strict=strict)
 

@@ -716,3 +716,93 @@ class TestDailyUpgradeIntegration:
             "Stale probe failure must skip the upgrade attempt for that plugin"
         )
         assert result.passed is True
+
+
+# ---------------------------------------------------------------------------
+# §10 — v10.2.3 PV-04 helper extraction (CC reduction: 18 → ≤10)
+# ---------------------------------------------------------------------------
+
+
+class TestRunInstallThenUpgradeHelper:
+    """Pin :func:`_run_install_then_upgrade_for_plugin` signature + contract.
+
+    Helper extracted in v10.2.3 PV-04 from :func:`pre_plugin_invocation`
+    to address the NineS PV-03 deep-analysis CC=18 finding at
+    `.local/research/v10.2.2_nines.md` §2 row #2. Behaviour is byte-
+    identical to the v10.2.1 baseline; this class proves the extraction
+    preserves the public contract by exercising the helper directly.
+    """
+
+    def test_helper_imports_with_documented_signature(self) -> None:
+        """The PV-04 helper exists and exposes the documented signature.
+
+        Pins the signature so future PV refactors don't silently rename
+        the helper out from under callers (the helper IS now part of
+        the module's introspection surface per W-18).
+        """
+        import inspect
+
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        sig = inspect.signature(_run_install_then_upgrade_for_plugin)
+        params = sig.parameters
+        assert "plugin_id" in params, "v10.2.3 PV-04: helper must take ``plugin_id`` positional arg"
+        assert "threshold_hours" in params, (
+            "v10.2.3 PV-04: helper must take ``threshold_hours`` keyword-only arg"
+        )
+        # Keyword-only enforcement — threshold_hours is *not* positional.
+        assert params["threshold_hours"].kind == inspect.Parameter.KEYWORD_ONLY
+
+    def test_helper_returns_empty_violations_on_clean_install(self) -> None:
+        """Happy path: ensure_plugin succeeds + plugin not stale → 0 violations."""
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                return_value="1.0.0",
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=AssertionError("MUST NOT be called"),
+            ),
+        ):
+            violations = _run_install_then_upgrade_for_plugin(
+                "nines",
+                threshold_hours=24,
+            )
+        assert violations == [], (
+            "v10.2.3 PV-04: clean install + fresh plugin yields zero PPI* violations"
+        )
+
+    def test_helper_returns_ppi001_on_install_failure(self) -> None:
+        """ensure_plugin failure → exactly one PPI001 error violation."""
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=PluginInstallError("nines: boom"),
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                side_effect=AssertionError("MUST NOT be called when install fails"),
+            ),
+        ):
+            violations = _run_install_then_upgrade_for_plugin(
+                "nines",
+                threshold_hours=24,
+            )
+        assert len(violations) == 1
+        assert violations[0].code == "PPI001"
+        assert violations[0].severity == "error"

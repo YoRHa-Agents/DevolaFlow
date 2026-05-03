@@ -177,17 +177,22 @@ def _extract_skill_files(payload: dict[str, Any]) -> list[str]:
     return matches
 
 
-def _compute_defer_fingerprint(
+def _compute_fingerprint(
     skill_files: list[str],
-    notes: list[str],
     verdict: str,
+    notes: list[str],
 ) -> str:
-    """Compute a deterministic SHA-256 fingerprint of the DEFER content.
+    """Compute a deterministic SHA-256 fingerprint of DEFER content.
 
-    Used by :func:`_write_feedback_doc` for D-S-5 dedupe. The fingerprint
-    is content-based (not timestamp-based) so two DEFER writes with the
-    same ``(skill_files, verdict, notes)`` produce the same hex digest
-    regardless of when they fire.
+    Idiomatic helper introduced in v10.2.3 PV-04 alongside the parent-
+    function CC reduction (NineS PV-03 deep-analysis row #7,
+    `post_skill_edit` CC=13). Argument order (skill_files, verdict,
+    notes) matches the natural English reading order ("for these
+    skill_files and this verdict, hash these notes").
+
+    The fingerprint is content-based (not timestamp-based) so two
+    DEFER writes with the same ``(skill_files, verdict, notes)``
+    produce the same hex digest regardless of when they fire.
 
     Sort order: ``skill_files`` and ``notes`` are sorted before hashing
     so that callers reordering a list (e.g. set→list conversion that
@@ -205,13 +210,35 @@ def _compute_defer_fingerprint(
     return hashlib.sha256(serialised.encode("utf-8")).hexdigest()
 
 
-def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
+def _compute_defer_fingerprint(
+    skill_files: list[str],
+    notes: list[str],
+    verdict: str,
+) -> str:
+    """Backward-compat wrapper around :func:`_compute_fingerprint`.
+
+    Original signature from v10.2.1 PV-02 D-S-5 closure: ``(skill_files,
+    notes, verdict)``. The v10.2.3 PV-04 idiomatic helper reorders to
+    ``(skill_files, verdict, notes)`` to match natural reading order;
+    this thin wrapper keeps the v10.2.1 callers (e.g.
+    `tests/test_sichip_dedup_feedback_doc.py`) working byte-identically.
+
+    DO NOT remove without first migrating every caller — the public-
+    private boundary here is that this helper has at least one in-tree
+    test caller per `tests/test_sichip_dedup_feedback_doc.py`.
+    """
+    return _compute_fingerprint(skill_files, verdict, notes)
+
+
+def _load_existing_fingerprints(feedback_dir: Path) -> set[str]:
     """Return the set of fingerprints already recorded in the sidecar.
 
-    Returns an empty set when the sidecar file does not yet exist or
-    cannot be read (per S-5 the OSError is logged at WARNING but does
-    NOT raise — a missing sidecar simply means no prior fingerprint
-    state exists, which is the fresh-clone case).
+    Idiomatic helper introduced in v10.2.3 PV-04 to match the
+    `_compute_fingerprint` naming pattern. Returns an empty set when
+    the sidecar file does not yet exist or cannot be read (per S-5
+    the OSError is logged at WARNING but does NOT raise — a missing
+    sidecar simply means no prior fingerprint state exists, which is
+    the fresh-clone case).
     """
     sidecar_path = feedback_dir / FINGERPRINT_SIDECAR_NAME
     if not sidecar_path.is_file():
@@ -227,6 +254,15 @@ def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
         )
         return set()
     return {line.strip() for line in text.splitlines() if line.strip()}
+
+
+def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
+    """Backward-compat alias for :func:`_load_existing_fingerprints`.
+
+    Preserved for any out-of-tree callers that imported the v10.2.1
+    name. New code should prefer :func:`_load_existing_fingerprints`.
+    """
+    return _load_existing_fingerprints(feedback_dir)
 
 
 def _find_existing_doc_for_fingerprint(
@@ -310,8 +346,8 @@ def _write_feedback_doc(
     shape than per-doc scanning every write.
     """
     feedback_dir.mkdir(parents=True, exist_ok=True)
-    fingerprint = _compute_defer_fingerprint(skill_files, notes, verdict)
-    known = _read_fingerprint_sidecar(feedback_dir)
+    fingerprint = _compute_fingerprint(skill_files, verdict, notes)
+    known = _load_existing_fingerprints(feedback_dir)
     if fingerprint in known:
         prior = _find_existing_doc_for_fingerprint(feedback_dir, fingerprint)
         if prior is not None:
@@ -367,6 +403,106 @@ def _write_feedback_doc(
     return out_path
 
 
+def _run_si_chip_evaluation(
+    primary_skill: Path,
+    skill_files: list[str],
+    ability_name: str,
+    threshold: float,
+) -> tuple[Any, list[HookViolation], str | None]:
+    """Run :func:`run_dogfood_cycle` and classify the outcome.
+
+    Helper extracted in v10.2.3 PV-04 to address the NineS PV-03 deep-
+    analysis finding at
+    `.local/research/v10.2.2_nines.md` §2 row #7 (CC=13 in
+    :func:`post_skill_edit`). The parent function's three exception
+    branches (SiChipUnavailable / SiChipError / unexpected) plus the
+    success path were the dominant complexity contributors; pulling
+    them into this orchestrator drops the parent below the warn
+    threshold.
+
+    Returns ``(result, violations, terminal_verdict)``:
+
+    * ``result`` — the :class:`SiChipResult` on the success path; ``None``
+      when an exception fired.
+    * ``violations`` — at most ONE typed :class:`HookViolation` capturing
+      the exception (PSE001 for SiChipUnavailable / PSE002 for SiChipError);
+      empty on the success path.
+    * ``terminal_verdict`` — when set ("SKIPPED_PERMISSIVE" / "ERROR"),
+      the parent MUST set ``metadata["verdict"]`` to this string and
+      return WITHOUT calling ``_write_feedback_doc``. ``None`` on the
+      success path tells the parent to continue with the verdict-based
+      branching.
+
+    Per S-5: domain exceptions (SiChipUnavailable / SiChipError) become
+    typed violations; any OTHER exception logs at WARNING and is
+    RE-RAISED — the helper never silently swallows non-domain failures.
+    """
+    from devolaflow.si_chip_bridge import (
+        SiChipError,
+        SiChipUnavailable,
+        run_dogfood_cycle,
+    )
+
+    try:
+        result = run_dogfood_cycle(
+            ability_name=ability_name,
+            skill_md=primary_skill,
+            threshold=threshold,
+        )
+    except SiChipUnavailable as exc:
+        install_hint = (
+            "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh "
+            "| bash -s -- --target cursor --scope global --yes"
+        )
+        logger.warning(
+            "post_skill_edit: Si-Chip not installed; DEEP integration "
+            "skipped for %r. Install with: %s",
+            primary_skill,
+            install_hint,
+        )
+        violation = HookViolation(
+            code="PSE001",
+            message=(
+                "post_skill_edit: Si-Chip not installed; DEEP integration "
+                f"skipped for {primary_skill} — {exc}"
+            ),
+            severity="warning",
+            context={
+                "primary_skill": str(primary_skill),
+                "skill_files": skill_files,
+                "canonical_url": "https://github.com/YoRHa-Agents/Si-Chip",
+            },
+        )
+        return None, [violation], "SKIPPED_PERMISSIVE"
+    except SiChipError as exc:
+        logger.warning(
+            "post_skill_edit: Si-Chip subprocess failed for %r: %s",
+            primary_skill,
+            exc,
+        )
+        violation = HookViolation(
+            code="PSE002",
+            message=(f"post_skill_edit: Si-Chip subprocess failed for {primary_skill}: {exc}"),
+            severity="error",
+            context={
+                "primary_skill": str(primary_skill),
+                "skill_files": skill_files,
+                "exception_type": type(exc).__name__,
+                "details": getattr(exc, "details", {}),
+            },
+        )
+        return None, [violation], "ERROR"
+    except Exception:
+        logger.warning(
+            "post_skill_edit: unexpected exception evaluating %r "
+            "(re-raising per S-5 no-silent-failure)",
+            primary_skill,
+            exc_info=True,
+        )
+        raise
+    return result, [], None
+
+
 def post_skill_edit(
     payload: dict[str, Any],
     *,
@@ -385,6 +521,12 @@ def post_skill_edit(
     git-hook adapter is responsible for populating ``touched_files``
     from the post-commit file list. Tests can invoke the hook
     directly with ``{"touched_files": ["workflow-system/agent/SKILL.md"]}``.
+
+    Implementation note: per the v10.2.3 PV-04 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #7), the dogfood-cycle
+    invocation + exception-classification body lives in
+    :func:`_run_si_chip_evaluation`. Behaviour is byte-identical to
+    v10.2.1 baseline.
     """
     if not is_deep_integration_active():
         return finalize(EVENT, [], strict=strict)
@@ -396,100 +538,32 @@ def post_skill_edit(
     if not skill_files:
         return finalize(EVENT, [], strict=strict)
 
-    # Lazy-import — keep the lifecycle package import-light when env flag is
-    # off OR the payload has no skill-corpus touches (the common dispatch shape).
-    from devolaflow.si_chip_bridge import (
-        ApplyVerdict,
-        SiChipError,
-        SiChipUnavailable,
-        run_dogfood_cycle,
-    )
+    from devolaflow.si_chip_bridge import ApplyVerdict
 
     ability_name = str(payload.get("ability_name") or DEFAULT_ABILITY)
     feedback_dir = Path(payload.get("feedback_dir") or FEEDBACK_DIR_DEFAULT)
     threshold = float(payload.get("threshold") or 0.10)
 
-    violations: list[HookViolation] = []
     metadata: dict[str, Any] = {
         "skill_files": skill_files,
         "ability_name": ability_name,
         "threshold": threshold,
     }
 
-    # Evaluate the FIRST touched skill file — the post-commit hook fires
-    # once per commit and the skill-corpus edit pattern typically touches
-    # a single primary file (SKILL.md or a single reference). Multi-file
-    # batch evaluation is a v9.7.0 candidate per gap analysis §5.
     primary_skill = Path(skill_files[0])
-    try:
-        result = run_dogfood_cycle(
-            ability_name=ability_name,
-            skill_md=primary_skill,
-            threshold=threshold,
-        )
-    except SiChipUnavailable as exc:
-        install_hint = (
-            "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh "
-            "| bash -s -- --target cursor --scope global --yes"
-        )
-        logger.warning(
-            "post_skill_edit: Si-Chip not installed; DEEP integration "
-            "skipped for %r. Install with: %s",
-            primary_skill,
-            install_hint,
-        )
-        violations.append(
-            HookViolation(
-                code="PSE001",
-                message=(
-                    "post_skill_edit: Si-Chip not installed; DEEP integration "
-                    f"skipped for {primary_skill} — {exc}"
-                ),
-                severity="warning",
-                context={
-                    "primary_skill": str(primary_skill),
-                    "skill_files": skill_files,
-                    "canonical_url": "https://github.com/YoRHa-Agents/Si-Chip",
-                },
-            )
-        )
-        result_envelope = finalize(EVENT, violations, strict=strict)
-        result_envelope.metadata.update(metadata)
-        result_envelope.metadata["verdict"] = "SKIPPED_PERMISSIVE"
-        return result_envelope
-    except SiChipError as exc:
-        logger.warning(
-            "post_skill_edit: Si-Chip subprocess failed for %r: %s",
-            primary_skill,
-            exc,
-        )
-        violations.append(
-            HookViolation(
-                code="PSE002",
-                message=(f"post_skill_edit: Si-Chip subprocess failed for {primary_skill}: {exc}"),
-                severity="error",
-                context={
-                    "primary_skill": str(primary_skill),
-                    "skill_files": skill_files,
-                    "exception_type": type(exc).__name__,
-                    "details": getattr(exc, "details", {}),
-                },
-            )
-        )
-        result_envelope = finalize(EVENT, violations, strict=strict)
-        result_envelope.metadata.update(metadata)
-        result_envelope.metadata["verdict"] = "ERROR"
-        return result_envelope
-    except Exception:
-        logger.warning(
-            "post_skill_edit: unexpected exception evaluating %r "
-            "(re-raising per S-5 no-silent-failure)",
-            primary_skill,
-            exc_info=True,
-        )
-        raise
+    result, violations, terminal_verdict = _run_si_chip_evaluation(
+        primary_skill,
+        skill_files,
+        ability_name,
+        threshold,
+    )
 
-    # Si-Chip ran cleanly — capture the verdict + delta in metadata.
+    if terminal_verdict is not None:
+        result_envelope = finalize(EVENT, violations, strict=strict)
+        result_envelope.metadata.update(metadata)
+        result_envelope.metadata["verdict"] = terminal_verdict
+        return result_envelope
+
     metadata["verdict"] = result.verdict.value
     metadata["install_source"] = result.install_source
     metadata["notes"] = result.notes
@@ -497,8 +571,6 @@ def post_skill_edit(
         metadata["iteration_delta"] = result.delta.iteration_delta
 
     if result.verdict == ApplyVerdict.DEFER:
-        # Per the v9.5.0 user requirement, write the deferred-changes
-        # feedback doc; reviewers consume this file at PV-05 cycle close.
         try:
             feedback_path = _write_feedback_doc(
                 feedback_dir,
