@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.blog">Blog — DevolaFlow</title>
+  <link rel="stylesheet" href="../shared/styles.css">
+  <style>
+    .cta-cluster { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin-top: 1.5rem; }
+    .post-list { display: grid; gap: 1rem; max-width: 760px; margin: 0 auto; }
+    .post-card { padding: 1.5rem 1.75rem; }
+    .post-card h3 { font-size: 1.15rem; margin-bottom: .35rem; }
+    .post-card .post-meta { font-family: var(--font-mono); font-size: .78rem; color: var(--muted); margin-bottom: .75rem; letter-spacing: .02em; }
+    .post-card .post-excerpt { font-size: .95rem; color: var(--fg); line-height: 1.6; margin-bottom: .9rem; }
+    .post-card .post-link { font-weight: 600; font-size: .9rem; color: var(--accent); }
+    .placeholder-card { border-style: dashed; opacity: .65; }
+    .placeholder-card h3 { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="slide-up scan-flicker">
+      <h1><span class="accent">DevolaFlow</span> <span data-i18n="blog.title.suffix">Blog</span></h1>
+      <p class="tagline" data-i18n="blog.tagline">Long-form retrospectives, design notes, and minutes from the DevolaFlow build.</p>
+      <div class="cta-cluster">
+        <a href="../index.html" class="btn btn-outline" data-i18n="blog.cta.landing">&larr; Landing</a>
+        <a href="../version-timeline/index.html" class="btn btn-outline" data-i18n="blog.cta.timeline">R&amp;D Timeline &rarr;</a>
+        <a href="../framework-chain/index.html" class="btn btn-outline" data-i18n="blog.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="blog.cta.skill">Read SKILL &uarr;</a>
+      </div>
+    </header>
+
+    <section class="fade-in">
+      <h2 data-i18n="blog.posts.heading">Posts</h2>
+      <p class="desc" data-i18n="blog.posts.desc">Each post is a stand-alone long-form artifact archived in the repo. New retrospectives append to this list.</p>
+
+      <div class="post-list">
+        <article class="card post-card">
+          <h3>
+            <a href="v3-design-philosophy/index.html" data-i18n="blog.post.v3.title">DevolaFlow — Design Philosophy &amp; R&amp;D Journey</a>
+          </h3>
+          <p class="post-meta"><span data-i18n="blog.post.v3.meta">v3 &middot; 2026-05-03 &middot; 15 min read &middot; CN/EN bilingual</span></p>
+          <p class="post-excerpt" data-i18n="blog.post.v3.excerpt">A 28-day retrospective broken into five commit-grounded eras. Walks through the two convictions that shape every design decision, the four-layer dispatch hierarchy that follows from them, and the six invariants that keep the framework honest.</p>
+          <a href="v3-design-philosophy/index.html" class="post-link" data-i18n="blog.post.v3.read">Read &rarr;</a>
+        </article>
+
+        <article class="card post-card placeholder-card">
+          <h3 data-i18n="blog.post.placeholder.title">More retrospectives land here</h3>
+          <p class="post-meta"><span data-i18n="blog.post.placeholder.meta">future</span></p>
+          <p class="post-excerpt" data-i18n="blog.post.placeholder.excerpt">Each release cycle that produces a long-form retrospective will publish here as a separate post under its own slug. The blog area is append-only; older posts stay reachable.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      <div class="cta-cluster">
+        <a href="../index.html" class="btn btn-outline" data-i18n="blog.cta.landing">&larr; Landing</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="blog.cta.skill">Read SKILL &uarr;</a>
+      </div>
+      <p style="margin-top:1rem;">
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="../shared/i18n.js"></script>
+  <script>
+    /* Page-local i18n keys for the blog index (per ST-12 — page-local
+       translations are explicitly supported). Both languages registered
+       in the same file (Rule DS-3). */
+    addTranslations('en', {
+      'page.blog':                      'Blog — DevolaFlow',
+      'blog.title.suffix':              'Blog',
+      'blog.tagline':                   'Long-form retrospectives, design notes, and minutes from the DevolaFlow build.',
+      'blog.cta.landing':               '\u2190 Landing',
+      'blog.cta.timeline':              'R&D Timeline \u2192',
+      'blog.cta.frameworkChain':        'Framework Chain \u2192',
+      'blog.cta.skill':                 'Read SKILL \u2191',
+      'blog.posts.heading':             'Posts',
+      'blog.posts.desc':                'Each post is a stand-alone long-form artifact archived in the repo. New retrospectives append to this list.',
+      'blog.post.v3.title':             'DevolaFlow \u2014 Design Philosophy & R&D Journey',
+      'blog.post.v3.meta':              'v3 \u00B7 2026-05-03 \u00B7 15 min read \u00B7 CN/EN bilingual',
+      'blog.post.v3.excerpt':           'A 28-day retrospective broken into five commit-grounded eras. Walks through the two convictions that shape every design decision, the four-layer dispatch hierarchy that follows from them, and the six invariants that keep the framework honest.',
+      'blog.post.v3.read':              'Read \u2192',
+      'blog.post.placeholder.title':    'More retrospectives land here',
+      'blog.post.placeholder.meta':     'future',
+      'blog.post.placeholder.excerpt':  'Each release cycle that produces a long-form retrospective will publish here as a separate post under its own slug. The blog area is append-only; older posts stay reachable.'
+    });
+    addTranslations('zh', {
+      'page.blog':                      '博客 — DevolaFlow',
+      'blog.title.suffix':              '博客',
+      'blog.tagline':                   '长文复盘、设计笔记，与 DevolaFlow 研发过程中的纪要。',
+      'blog.cta.landing':               '\u2190 回到首页',
+      'blog.cta.timeline':              '研发时间线 \u2192',
+      'blog.cta.frameworkChain':        '框架链路 \u2192',
+      'blog.cta.skill':                 '阅读 SKILL \u2191',
+      'blog.posts.heading':             '文章',
+      'blog.posts.desc':                '每篇文章是仓库内独立归档的长文。新的复盘以追加方式发布到此列表。',
+      'blog.post.v3.title':             'DevolaFlow \u2014 设计理念与研发历程',
+      'blog.post.v3.meta':              'v3 \u00B7 2026-05-03 \u00B7 15 分钟阅读 \u00B7 中英双语',
+      'blog.post.v3.excerpt':           '28 天的回顾，按 commit 切成五个时代。先讲两条贯穿所有设计的根本判断，再讲由它们推导出的四层调度，再讲让框架保持诚实的六条不变量。',
+      'blog.post.v3.read':              '阅读 \u2192',
+      'blog.post.placeholder.title':    '后续复盘会落在这里',
+      'blog.post.placeholder.meta':     '待发布',
+      'blog.post.placeholder.excerpt':  '后续每一个产生长文复盘的发布周期，都会以独立的 slug 在此发布一篇文章。博客区只追加，旧文不会下线。'
+    });
+  </script>
+  <script src="../shared/nav.js"></script>
+</body>
+</html>

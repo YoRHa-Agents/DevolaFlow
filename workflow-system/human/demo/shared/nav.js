@@ -13,7 +13,7 @@
     'design-system', 'framework-chain', 'context-flow',
     'version-timeline', 'design-architecture',
     'workflow-visualizer', 'stage-explorer',
-    'benchmark-results'
+    'benchmark-results', 'blog'
   ];
 
   // Detect landing by ABSENCE of any known sub-page dir in the URL path.
@@ -40,7 +40,8 @@
     { key: 'nav.architecture',    href: prefix('design-architecture/index.html') },
     { key: 'nav.visualizer',      href: prefix('workflow-visualizer/index.html') },
     { key: 'nav.explorer',        href: prefix('stage-explorer/index.html') },
-    { key: 'nav.benchmarks',      href: prefix('benchmark-results/index.html') }
+    { key: 'nav.benchmarks',      href: prefix('benchmark-results/index.html') },
+    { key: 'nav.blog',            href: prefix('blog/index.html') }
   ];
 
   var LABELS_EN = {
@@ -52,7 +53,8 @@
     'nav.architecture': 'Architecture',
     'nav.visualizer': 'Visualizer',
     'nav.explorer': 'Explorer',
-    'nav.benchmarks': 'Benchmarks'
+    'nav.benchmarks': 'Benchmarks',
+    'nav.blog': 'Blog'
   };
   var LABELS_ZH = {
     'nav.home': '首页',
@@ -63,7 +65,8 @@
     'nav.architecture': '架构',
     'nav.visualizer': '可视化',
     'nav.explorer': '探索器',
-    'nav.benchmarks': '基准测试'
+    'nav.benchmarks': '基准测试',
+    'nav.blog': '博客'
   };
 
   function currentPageId() {
@@ -76,6 +79,7 @@
     if (path.match(/workflow-visualizer/))  { return 'nav.visualizer'; }
     if (path.match(/stage-explorer/))       { return 'nav.explorer'; }
     if (path.match(/benchmark-results/))    { return 'nav.benchmarks'; }
+    if (path.match(/\/blog(\/|$)/))         { return 'nav.blog'; }
     if (isLanding)                          { return 'nav.home'; }
     return '';
   }

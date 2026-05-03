@@ -151,10 +151,13 @@ def test_subpage_dirs_match_disk_layout(project_root: Path) -> None:
     )
 
 
-def test_subpage_dirs_count_is_eight(project_root: Path) -> None:
-    """SUBPAGE_DIRS must contain exactly 8 entries (matches v7.1.0 demo layout)."""
+def test_subpage_dirs_count_is_nine(project_root: Path) -> None:
+    """SUBPAGE_DIRS must contain exactly 9 entries: the 8 v7.1.0 sub-pages
+    plus ``blog`` (added for the design-philosophy retrospective area at
+    workflow-system/human/demo/blog/). Bump this assertion when a new
+    sub-page directory ships under workflow-system/human/demo/."""
     declared = _extract_subpage_dirs(_read_nav_js(project_root))
-    assert len(declared) == 8, f"Expected 8 sub-page directories, got {len(declared)}: {declared}"
+    assert len(declared) == 9, f"Expected 9 sub-page directories, got {len(declared)}: {declared}"
 
 
 def test_legacy_demo_only_detection_was_replaced(project_root: Path) -> None:
