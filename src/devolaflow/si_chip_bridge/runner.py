@@ -530,7 +530,15 @@ def run_dogfood_cycle(
     """
     install = install or _require_install()
     notes: list[str] = []
-    work_dir = work_dir or Path.cwd() / ".local" / "dogfood" / "v9.5.0"
+    if work_dir is None:
+        # v10.2.1 PV-02 D-S-6: the prior hardcoded historical-version literal
+        # was pinned at v9.5.0 PV-02 cut and never updated. Tracking
+        # ``__version__`` ensures cycle-level dogfood outputs land under a
+        # directory named for the *current* DevolaFlow version, not a
+        # historical one. (Tests assert the obsolete literal is gone.)
+        from devolaflow import __version__
+
+        work_dir = Path.cwd() / ".local" / "dogfood" / __version__
     work_dir.mkdir(parents=True, exist_ok=True)
 
     profile_path = work_dir / f"{ability_name}_profile.yaml"

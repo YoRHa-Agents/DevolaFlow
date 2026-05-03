@@ -4608,3 +4608,155 @@ def test_v10_2_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.2.0 violation: CHANGELOG entry "
         f"{_V10_2_0_CHANGELOG_LITERAL!r} missing; PV-01 ships this entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 v10.2.1 ghost-audit refresh — PV-02 PATCH (formal Si-Chip integration).
+# ---------------------------------------------------------------------------
+
+# v10.2.1 PV-02 NEW test files (D-S-2 / D-S-3 / D-S-5 closures).
+_V10_2_1_NEW_TEST_FILES: tuple[Path, ...] = (
+    Path("tests/test_dispatch_dogfood_cycle.py"),
+    Path("tests/test_sichip_iteration_delta_gate.py"),
+    Path("tests/test_sichip_dedup_feedback_doc.py"),
+)
+
+# v10.2.1 PV-02 D-S-2 new public symbol on devolaflow.feedback.
+_V10_2_1_FEEDBACK_NEW_SYMBOL: str = "dispatch_dogfood_cycle"
+
+# v10.2.1 PV-02 D-P-2 introspection constant on the lifecycle hook.
+_V10_2_1_PRE_PLUGIN_INVOCATION_CONST: str = "EVENT_TRIGGERS_DAILY_UPGRADE"
+
+# v10.2.1 PV-02 D-S-6 — the obsolete v9.5.0 literal MUST be gone from runner.py.
+_V10_2_1_DEAD_WORK_DIR_LITERAL: str = '"v9.5.0"'
+
+# v10.2.1 PV-02 D-S-3 — Makefile reference proving the iteration_delta gate
+# is wired as the 7th SI-10 step.
+_V10_2_1_MAKEFILE_GATE_REFERENCE: str = "test_sichip_iteration_delta_gate"
+
+# v10.2.1 PV-02 dogfood pass #1 deliverable path (gitignored content; the
+# path-presence assertion is the operator-visible contract).
+_V10_2_1_DOGFOOD_PASS1_DOC: Path = Path(".local/research/v10.2.1_dogfood_pass1.md")
+
+_V10_2_1_CHANGELOG_LITERAL: str = "## [10.2.1]"
+
+
+def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.2.1: every NEW v10.2.1 PV-02 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.2.1 PV-02 PATCH.
+    The CHANGELOG entry mentions the 3 new test files, the
+    `dispatch_dogfood_cycle` wrapper, the `EVENT_TRIGGERS_DAILY_UPGRADE`
+    introspection constant, the Makefile `release-preflight` 7th-step
+    wire, the absence of the obsolete v9.5.0 work_dir literal in
+    runner.py, and the dogfood pass #1 research artifact. Each needs a
+    presence assertion here BEFORE the CHANGELOG mention is valid — per
+    W-18 refresh-before-document sequencing.
+
+    v10.2.1 PV-02 pins:
+
+    1. **3 NEW test files** — every file in `_V10_2_1_NEW_TEST_FILES`
+       must exist on disk (D-S-2 / D-S-3 / D-S-5 closures).
+    2. **`dispatch_dogfood_cycle` symbol** — defined in
+       `src/devolaflow/feedback.py` (D-S-2 closure).
+    3. **`EVENT_TRIGGERS_DAILY_UPGRADE` constant** — defined in
+       `src/devolaflow/lifecycle/pre_plugin_invocation.py` (D-P-2
+       closure introspection contract).
+    4. **Makefile references the gate test** — the
+       `release-preflight` chain calls
+       `test_sichip_iteration_delta_gate` as the 7th SI-10 step
+       (D-S-3 / D-V-1 closure).
+    5. **No `"v9.5.0"` literal in `runner.py`** — D-S-6 swap is
+       complete; the obsolete hardcoded work_dir literal is gone.
+    6. **Dogfood pass #1 artifact** — file path presence at
+       `.local/research/v10.2.1_dogfood_pass1.md` (gitignored content;
+       path-presence is the operator-visible contract).
+    7. **CHANGELOG entry** — `## [10.2.1]` header is present.
+    """
+    import ast
+
+    for test_rel in _V10_2_1_NEW_TEST_FILES:
+        test_path = project_root / test_rel
+        assert test_path.is_file(), (
+            f"W-18 v10.2.1 violation: NEW test file {test_rel} missing. "
+            f"v10.2.1 PV-02 ships this file per the cycle plan §3 PV-02; "
+            f"restore it or remove the CHANGELOG mention of the "
+            f"corresponding gap closure."
+        )
+
+    feedback_path = project_root / "src/devolaflow/feedback.py"
+    assert feedback_path.is_file(), "W-18 v10.2.1 violation: src/devolaflow/feedback.py missing."
+    feedback_source = feedback_path.read_text(encoding="utf-8")
+    feedback_module = ast.parse(feedback_source)
+    feedback_defined = {
+        node.name
+        for node in ast.walk(feedback_module)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+    }
+    assert _V10_2_1_FEEDBACK_NEW_SYMBOL in feedback_defined, (
+        f"W-18 v10.2.1 violation: src/devolaflow/feedback.py missing "
+        f"{_V10_2_1_FEEDBACK_NEW_SYMBOL!r}; v10.2.1 PV-02 D-S-2 ships "
+        f"this wrapper. Either restore it OR remove the CHANGELOG "
+        f"mention of D-S-2."
+    )
+
+    pre_plugin_path = project_root / "src/devolaflow/lifecycle/pre_plugin_invocation.py"
+    assert pre_plugin_path.is_file(), "W-18 v10.2.1 violation: pre_plugin_invocation.py missing."
+    pre_plugin_source = pre_plugin_path.read_text(encoding="utf-8")
+    assert _V10_2_1_PRE_PLUGIN_INVOCATION_CONST in pre_plugin_source, (
+        f"W-18 v10.2.1 violation: lifecycle hook missing the "
+        f"{_V10_2_1_PRE_PLUGIN_INVOCATION_CONST!r} introspection "
+        f"constant; v10.2.1 PV-02 D-P-2 daily-upgrade integration "
+        f"requires this surface for downstream governance + tests."
+    )
+
+    runner_path = project_root / "src/devolaflow/si_chip_bridge/runner.py"
+    assert runner_path.is_file(), "W-18 v10.2.1 violation: si_chip_bridge/runner.py missing."
+    runner_source = runner_path.read_text(encoding="utf-8")
+    # The literal MUST NOT appear inside the work_dir default expression
+    # of `run_dogfood_cycle`. We scan the function body for it.
+    runner_module = ast.parse(runner_source)
+    run_dogfood_cycle_node: ast.FunctionDef | None = None
+    for node in ast.walk(runner_module):
+        if isinstance(node, ast.FunctionDef) and node.name == "run_dogfood_cycle":
+            run_dogfood_cycle_node = node
+            break
+    assert run_dogfood_cycle_node is not None, (
+        "W-18 v10.2.1 violation: run_dogfood_cycle function missing from si_chip_bridge/runner.py."
+    )
+    func_source = ast.get_source_segment(runner_source, run_dogfood_cycle_node) or ""
+    assert _V10_2_1_DEAD_WORK_DIR_LITERAL not in func_source, (
+        f"W-18 v10.2.1 violation: run_dogfood_cycle still contains the "
+        f"obsolete work_dir literal {_V10_2_1_DEAD_WORK_DIR_LITERAL!r}. "
+        f"v10.2.1 PV-02 D-S-6 closure swaps it for `__version__`-tracking "
+        f"behaviour; restore the swap OR remove the CHANGELOG mention of "
+        f"D-S-6."
+    )
+
+    makefile_path = project_root / "Makefile"
+    assert makefile_path.is_file(), "W-18 v10.2.1 violation: Makefile missing."
+    makefile_text = makefile_path.read_text(encoding="utf-8")
+    assert _V10_2_1_MAKEFILE_GATE_REFERENCE in makefile_text, (
+        f"W-18 v10.2.1 violation: Makefile does NOT reference "
+        f"{_V10_2_1_MAKEFILE_GATE_REFERENCE!r}; the v10.2.1 PV-02 "
+        f"release-preflight target is the 7th SI-10 step wire and must "
+        f"be present per D-V-1."
+    )
+    assert "release-preflight:" in makefile_text, (
+        "W-18 v10.2.1 violation: Makefile missing release-preflight target."
+    )
+
+    dogfood_path = project_root / _V10_2_1_DOGFOOD_PASS1_DOC
+    assert dogfood_path.is_file(), (
+        f"W-18 v10.2.1 violation: dogfood pass #1 artifact missing at "
+        f"{_V10_2_1_DOGFOOD_PASS1_DOC}. v10.2.1 PV-02 AC #6 requires "
+        f"this artifact (gitignored content; the path-presence check is "
+        f"the operator-visible contract)."
+    )
+
+    changelog_path = project_root / "CHANGELOG.md"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+    assert _V10_2_1_CHANGELOG_LITERAL in changelog_text, (
+        f"W-18 v10.2.1 violation: CHANGELOG entry "
+        f"{_V10_2_1_CHANGELOG_LITERAL!r} missing; PV-02 ships this entry."
+    )

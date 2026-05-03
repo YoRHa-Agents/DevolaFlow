@@ -131,7 +131,19 @@ detect-repo-mode:
 build-site:
 	bash scripts/build-site.sh
 
-release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill compile-rules check-drift check-rules-drift
+# v10.2.1 PV-02 (D-S-3 / D-V-1) — 7th SI-10 step: Si-Chip iteration_delta gate.
+# The 6 base SI-10 gates are codified at .cursor/rules/repo-governance.mdc §W-9
+# (pytest / ruff check / ruff format / test_version / test_benchmarks /
+# check-cursor-skill). v10.2.1 adds the Si-Chip iteration_delta gate as the
+# 7th step; this Makefile target is the canonical wire so the cycle-wide
+# pre-commit protocol fires deterministically per `.local/research/v10.2.0_cycle_plan.md`
+# §4 D-V-1.
+.PHONY: iteration-delta-gate
+iteration-delta-gate:
+	@echo "Si-Chip iteration_delta gate (SI-10 step 7, v10.2.0 cycle)"
+	@python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov
+
+release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill compile-rules check-drift check-rules-drift iteration-delta-gate
 	@echo "--- Release preflight PASSED ---"
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"

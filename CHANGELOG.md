@@ -5,6 +5,90 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.1] — 2026-05-03
+
+**v10.2.1 PATCH — PV-02 of the v10.2.0 cycle.** Second of 6 PVs that close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. PV-02 ships the formal Si-Chip integration half of mandate bullet 2 (正式集成 si-chip) plus the daily-upgrade scheduler half of mandate bullet 1 (天级别自动更新). Five gap items close in this PV: D-S-2 / D-S-3 / D-S-5 / D-S-6 from §3.2 (Si-Chip integration) and D-P-2 BLOCKER from §3.1 (plugin daily-upgrade automation).
+
+### Operator-visible behaviour change (READ FIRST)
+
+Formal Si-Chip integration. Closes D-S-2 / D-S-3 / D-S-5 / D-S-6 + D-P-2 (BLOCKER) from v10.2.0 cycle gap analysis. NEW `devolaflow.feedback.dispatch_dogfood_cycle()` exposes the persistent BasicAbility optimisation factory at the L0/L1 workflow surface; `pre_plugin_invocation` lifecycle hook now also fires `upgrade_plugin` when the registered plugin is stale per the 24h cadence (REUSES `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` activation surface — W-20 §3 reuse-first; 0 NEW env flags). The `release-preflight` Makefile target now runs the Si-Chip iteration_delta CI gate as the 7th SI-10 step (D-V-1 cycle-wide protocol).
+
+### What landed
+
+- `src/devolaflow/feedback.py` (EDIT) — D-S-2 closure; NEW public `dispatch_dogfood_cycle(workflow_name, *, skill_files=None, runs_dir=None, baseline_dir=None, threshold=0.10, work_dir=None) -> SiChipResult`. Thin delegation wrapper that bridges the L0/L1 workflow-stage surface to `devolaflow.si_chip_bridge.runner.run_dogfood_cycle`. P1 dispatcher-not-implementer preserved — the wrapper does NOT mutate skill files; it returns the verdict envelope unchanged.
+- `src/devolaflow/si_chip_bridge/runner.py` (EDIT) — D-S-6 closure; `run_dogfood_cycle.work_dir` defaults to `Path.cwd() / ".local" / "dogfood" / __version__` (was hardcoded `"v9.5.0"` since v9.5.0 PV-02). Cycle-level dogfood outputs now land under a directory named for the *current* version, not a historical one.
+- `src/devolaflow/lifecycle/post_skill_edit.py` (EDIT) — D-S-5 closure; `_write_feedback_doc` now SHA-256-fingerprints the `(sorted(skill_files), sorted(notes), verdict)` triple and dedupes against an append-only sidecar at `.local/feedbacks/.sichip_deferred_fingerprints.txt`. Identical inputs return the prior path; distinct inputs write a new dated doc with an embedded `<!-- sichip_fingerprint:HEX -->` marker. Sub-second timestamp resolution prevents intra-second filename collisions.
+- `src/devolaflow/lifecycle/pre_plugin_invocation.py` (EDIT) — D-P-2 BLOCKER closure; the hook now invokes `upgrade_plugin(plugin_id)` after `ensure_plugin` succeeds when `is_plugin_stale(plugin_id, threshold_hours=...)` returns True. REUSES the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` env flag per W-20 §3 reuse-first analysis (the activation surface is the same — "auto-manage plugin lifecycle" — so a NEW flag would violate the orthogonality test). NEW `EVENT_TRIGGERS_DAILY_UPGRADE: bool = True` module-level constant for downstream introspection. NEW `PPI003` (severity warning) violation code captures upgrade-time failures without blocking the dispatch (S-5 loud + permissive).
+- `Makefile` (EDIT) — D-S-3 / D-V-1 wire; NEW `iteration-delta-gate` target invokes `tests/test_sichip_iteration_delta_gate.py`. The `release-preflight` chain now includes the gate as the 7th SI-10 step per the cycle-wide pre-commit protocol.
+- `tests/test_dispatch_dogfood_cycle.py` (NEW) — D-S-2 closure; 7 test functions pinning the wrapper contract (returns SiChipResult / default work_dir tracks `__version__` / explicit work_dir honoured / str work_dir coerced to Path / P1 invariant — wrapper does not spawn subprocesses directly / default skill_files / signature parity with `run_dogfood_cycle`).
+- `tests/test_sichip_iteration_delta_gate.py` (NEW) — D-S-3 closure; 10 test functions pinning `apply_or_defer` semantics (above-threshold APPLY / exact-threshold APPLY with epsilon / floating-point near-threshold APPLY / below-threshold DEFER / zero-delta DEFER / negative delta DEFER / per-call threshold override above + below / SI-10 step-7 Makefile wiring proof / `APPLY_DEFER_EPSILON` constant exposure).
+- `tests/test_sichip_dedup_feedback_doc.py` (NEW) — D-S-5 closure; 5 test functions pinning the dedup contract (first DEFER doc writes / duplicate DEFER skipped / different notes write new doc / different skill_files write new doc / fingerprint is order-invariant across skill_files).
+- `tests/test_pre_plugin_invocation.py` (EDIT) — D-P-2 closure; +6 NEW tests under `TestDailyUpgradeIntegration` (introspection constant / stale plugin triggers upgrade / fresh plugin no-upgrade / upgrade failure → PPI003 warning, dispatch unblocked / disabled when env flag OFF — R5 strict zero-IO / staleness probe failure skips upgrade per S-5).
+- `.local/research/v10.2.1_dogfood_pass1.md` (NEW, gitignored) — dogfood pass #1 deliverable. Verdict: DEFER (matches v9.5.0 precedent — no with-ability/no-ability eval data yet; PV-03 D-N-1 supplies it via the NineS-to-Si-Chip eval adapter).
+- `tests/test_no_ghost_features.py` (EDIT) — NEW `test_v10_2_1_new_symbols_have_coverage` (W-18 lint pinning the 3 new test files, the `dispatch_dogfood_cycle` symbol on `devolaflow.feedback`, the `EVENT_TRIGGERS_DAILY_UPGRADE` introspection constant, the absence of the `"v9.5.0"` work_dir literal in `runner.py`, the Makefile reference to the gate test, the dogfood pass #1 artifact path, and the CHANGELOG `## [10.2.1]` header).
+- Canonical 7 sync locations bumped 10.2.0 → 10.2.1 via `scripts/bump_version.py` (11 pattern replacements per CP-3).
+
+### Headline numbers
+
+| Area | v10.2.0 baseline | v10.2.1 PV-02 | Delta |
+|------|---:|---:|---:|
+| Plugins registered | 4 | 4 | unchanged |
+| Lifecycle events | 10 | 10 | unchanged (no schema bump in this PV) |
+| Si-Chip dispatch surface | reachable only via `post_skill_edit` hook | reachable from L0/L1 via `dispatch_dogfood_cycle` | D-S-2 closure |
+| `run_dogfood_cycle.work_dir` | hardcoded `"v9.5.0"` | tracks `__version__` | D-S-6 closure |
+| DEFER doc dedup | none — every write produced a new file | SHA-256 fingerprint sidecar | D-S-5 closure |
+| Daily-upgrade scheduler | manual `devolaflow plugins refresh` only | auto-fires from `pre_plugin_invocation` when env flag ON | D-P-2 BLOCKER closure |
+| SI-10 gate count | 6 | 7 (Si-Chip iteration_delta added) | D-V-1 cycle-wide protocol |
+| Tests | 4018 | **4047** | +29 NEW test functions (within W-17 +30/PV cap) |
+| Cycle NEW test budget | 22 / 150 | **51 / 150** | 34.0% of the v10.2.0 → v10.3.0 cycle cap |
+
+Cycle objective recap (PV-02 portion): mandate bullet 2 (Si-Chip integration) substantially complete — wrapper + gate + dedup + version-tracking work_dir all in place. Mandate bullet 1 (daily-upgrade) BLOCKER closed. Pass #1 ran cleanly with the expected DEFER verdict; pass #2 in PV-03 produces the first `iteration_delta` evidence once the NineS adapter (D-N-1) supplies eval data.
+
+### Cycle hygiene
+
+- **W-1 SI-1 gap analysis** at `.local/research/v10.2.0_gap_analysis.md` (in place since PV-01; this PV closes 5 of the 24 gaps it enumerated — D-S-2 / D-S-3 / D-S-5 / D-S-6 + D-P-2 BLOCKER).
+- **W-2 SI-2 NineS deep-analysis** deferred to PV-03 per cycle plan §3 PV-03 (D-N-3: NineS deep-analyse `src/devolaflow/si_chip_bridge/`, `src/devolaflow/plugins/`, `src/devolaflow/lifecycle/post_skill_edit.py`, `src/devolaflow/lifecycle/pre_plugin_invocation.py`).
+- **W-3 SI-3 evaluation** deferred to PV-06 cycle-close (STRICT ≥ 9.0 floor for MINOR cycle-close per cycle plan §2).
+- **W-9 SI-10 7-gate green** at this commit. The 6 base gates (pytest / ruff check / ruff format / test_version / test_benchmarks / make check-cursor-skill) PLUS the new 7th step (`tests/test_sichip_iteration_delta_gate.py`) all pass. The `release-preflight` Makefile target invokes all 7 in sequence; D-V-1 cycle-wide protocol is now in effect for the duration of the v10.2.0 cycle.
+- **W-17 per-PV test cap** — PV-02 delta +29 NEW test functions (within +30/PV cap; 1 below the ceiling). Cumulative cycle total: 51 of +150 cycle cap (34.0%). The W-17 mid-cycle audit at PV-05 remains mandatory; the four remaining PVs (PV-03..PV-06) have ~99 budget remaining (averaging ≤25/PV).
+- **W-18 ghost-audit refresh** — `tests/test_no_ghost_features.py::test_v10_2_1_new_symbols_have_coverage` authored in this commit BEFORE the CHANGELOG mention per the W-18 precondition (refresh-before-document sequencing). The lint pins 7 distinct surface elements: 3 new test files, 1 new public symbol, 1 introspection constant, 1 dead-literal absence, 1 dogfood-pass-1 artifact path, plus the CHANGELOG `## [10.2.1]` header.
+- **W-20 env flags** — 0 NEW env flags in this PV. D-P-2 daily-upgrade integration REUSES the v9.4.0 `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` activation surface per W-20 §3 reuse-first analysis (same activation surface = "auto-manage plugin lifecycle" — orthogonality test fails for any new flag).
+- **W-21 Soul-set freeze stays at 10**. The S-11 candidate "Parallel Wave Dispatch Invariant" is OUT for the entire v10.2.0 cycle per gap analysis §3.6 D-W-1; re-telegraphed for v10.4.0 (cycle N+2 from v10.2.0) per W-21 2-cycle deliberation rule. PV-02 introduces no Soul rules.
+- **A-2 frozen prefix invariant** — multi-baseline byte test passes at this commit. PV-02 ships zero schema changes (no canonical_order edits); positions 1-12 byte-stable since v7.0.0.
+
+### Files Changed
+
+| Op | Path | Notes |
+|---|---|---|
+| EDIT | `src/devolaflow/feedback.py` | NEW `dispatch_dogfood_cycle` wrapper (D-S-2) |
+| EDIT | `src/devolaflow/si_chip_bridge/runner.py` | `work_dir` default tracks `__version__` (D-S-6) |
+| EDIT | `src/devolaflow/lifecycle/post_skill_edit.py` | DEFER doc dedupe via fingerprint sidecar (D-S-5) |
+| EDIT | `src/devolaflow/lifecycle/pre_plugin_invocation.py` | Daily-upgrade integration + `EVENT_TRIGGERS_DAILY_UPGRADE` const + PPI003 (D-P-2) |
+| EDIT | `Makefile` | NEW `iteration-delta-gate` target + `release-preflight` 7th SI-10 step (D-S-3 / D-V-1) |
+| NEW | `tests/test_dispatch_dogfood_cycle.py` | D-S-2 closure (7 test functions) |
+| NEW | `tests/test_sichip_iteration_delta_gate.py` | D-S-3 closure (10 test functions) |
+| NEW | `tests/test_sichip_dedup_feedback_doc.py` | D-S-5 closure (5 test functions) |
+| EDIT | `tests/test_pre_plugin_invocation.py` | +6 NEW `TestDailyUpgradeIntegration` tests (D-P-2) |
+| EDIT | `tests/test_no_ghost_features.py` | +1 NEW W-18 lint `test_v10_2_1_new_symbols_have_coverage` |
+| NEW | `.local/research/v10.2.1_dogfood_pass1.md` | Dogfood pass #1 (gitignored; verdict DEFER as expected) |
+| EDIT | `src/devolaflow/__init__.py` | canonical 7 sync #1 — `__version__ = "10.2.1"` |
+| EDIT | `pyproject.toml` | canonical 7 sync #2 |
+| EDIT | `workflow-system/agent/SKILL.md` | canonical 7 sync #3 (frontmatter + banner + body) |
+| EDIT | `workflow-system/agent/workflow-skill.yaml` | canonical 7 sync #4 |
+| EDIT | `scripts/generate_human_docs.py` | canonical 7 sync #5 — `SOURCE_VERSION = "10.2.1"` |
+| EDIT | `tests/test_smoke.py` | canonical 7 sync #6 |
+| EDIT | `README.md` | canonical 7 sync #7 (badge + version example) |
+| EDIT | `workflow-system/human/demo/benchmark-results/index.html` | canonical 7 sync #8 |
+| EDIT | `CHANGELOG.md` | This entry |
+
+### External tool reference (S-7 compliance)
+
+| Tool | Canonical URL | Role this PV |
+|---|---|---|
+| DevolaFlow / EvoBench | https://github.com/YoRHa-Agents/DevolaFlow | The repo under integration; 5 gaps closed |
+| NineS | https://github.com/YoRHa-Agents/NineS | W-2 deferred to PV-03 (D-N-1 adapter prototype + D-N-3 deep-analysis) |
+| Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | Formal integration target — wrapper + gate + dedup + version-tracking work_dir all in place; pass #1 ran cleanly with Si-Chip v0.4.0 |
+
 ## [10.2.0] — 2026-05-03
 
 **v10.2.0 MINOR — cycle-start PV-01 of the v10.2.0 cycle.** First of 6 PVs that will close out at v10.3.0 per `.local/research/v10.2.0_cycle_plan.md`. The cycle's user mandate is the Mandarin feedback at `.local/feedbacks/feedback_for_v10.2.0.md`: deep-review plugin mode + verify auto-install and daily auto-upgrade; formally integrate Si-Chip; NineS-analyse the self-repo + validate Si-Chip iteration effectiveness; multi-round self-iteration (one PATCH per round); bump MINOR to v10.3.0 at close. PV-01 ships the plugin-infrastructure review half of the first mandate bullet plus the W-16 wholesale baseline regen at cycle-start.

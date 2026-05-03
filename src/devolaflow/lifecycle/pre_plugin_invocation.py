@@ -69,6 +69,43 @@ import-light: the lifecycle package import path does NOT pull in the
 1030-LOC installer module unless the env-flag is ON AND the payload
 carries plugin candidates. Codified in
 ``tests/test_pre_plugin_invocation.py::test_disabled_is_noop_byte_identical``.
+
+Daily-upgrade integration (v10.2.1 PV-02 — closes D-P-2)
+-------------------------------------------------------
+
+Closes D-P-2 from `.local/research/v10.2.0_gap_analysis.md` §3.1
+(BLOCKER): the 24h staleness gate (`defaults.upgrade_check_frequency_hours`)
+was computed at v9.4.0 but no scheduler fired ``refresh_all`` automatically
+on session start or per-dispatch. Operators had to invoke
+``devolaflow plugins refresh`` manually — the user mandate "天级别自动更新"
+(daily auto-update) was delivered only as a CLI verb, not as runtime
+automation.
+
+v10.2.1 PV-02 extends the existing :func:`pre_plugin_invocation` hook so
+that AFTER ``ensure_plugin`` succeeds for a plugin candidate, the hook
+ALSO checks ``is_plugin_stale(plugin_id, threshold_hours=...)``. When
+stale, ``upgrade_plugin(plugin_id)`` fires best-effort. Failures surface
+as :class:`HookViolation` ``PPI003`` (severity warning) but do NOT block
+the dispatch — the dispatcher still proceeds with the install-or-confirmed
+plugin per the v9.4.0 PV-02 contract.
+
+Activation gate: REUSES the existing ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1``
+env flag per Workflow Rule W-20 §3 reuse-first. The activation surface
+is the same — "auto-manage plugin lifecycle" — so a NEW env flag would
+violate the orthogonality test. Operators who had ``ensure_plugin`` ON
+under v10.0.x get the daily-upgrade behaviour automatically with the
+v10.2.1 bump; operators who never set the flag see byte-identical no-op.
+
+R5 strict invariant preserved: when the env flag is OFF, the
+:func:`is_plugin_stale` / :func:`upgrade_plugin` functions are NEVER
+imported (lazy-import), no install log is read, no subprocess runs.
+Codified in
+``tests/test_pre_plugin_invocation.py::test_d_p_2_disabled_when_env_flag_off``.
+
+Activation introspection: the module-level constant
+:data:`EVENT_TRIGGERS_DAILY_UPGRADE` is provided so tests + downstream
+governance can confirm the daily-upgrade behaviour is wired without
+parsing source code.
 """
 
 from __future__ import annotations
@@ -82,6 +119,15 @@ from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
 EVENT: str = "pre_plugin_invocation"
 ENV_FLAG: str = "DEVOLAFLOW_AUTO_INSTALL_PLUGINS"
 ENV_FLAG_TRUTHY: str = "1"
+
+# v10.2.1 PV-02 D-P-2 — public introspection constant. ``True`` means
+# this hook fires ``upgrade_plugin`` after ``ensure_plugin`` for stale
+# plugins per the daily-upgrade integration. Tests + downstream
+# governance can read this attribute to confirm the behaviour without
+# parsing source code. The constant flips to ``False`` only if a future
+# PV explicitly disables the daily-upgrade integration (which would
+# require its own gap analysis + W-21-grade deliberation).
+EVENT_TRIGGERS_DAILY_UPGRADE: bool = True
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +306,40 @@ def pre_plugin_invocation(
         PluginNotFoundError,
         PluginVersionMismatch,
     )
-    from devolaflow.plugins.installer import ensure_plugin
+    from devolaflow.plugins.installer import (
+        _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
+        ensure_plugin,
+        is_plugin_stale,
+        load_registry,
+        upgrade_plugin,
+    )
+
+    # v10.2.1 PV-02 D-P-2 — read the staleness threshold once per hook
+    # invocation. Defensive on registry read failure (S-5: log loud,
+    # default to the 24h baseline so the daily-upgrade gate still fires).
+    threshold_hours = _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS
+    try:
+        registry = load_registry()
+        defaults_section = registry.get("defaults") or {}
+        if isinstance(defaults_section, dict):
+            raw_threshold = defaults_section.get("upgrade_check_frequency_hours")
+            if isinstance(raw_threshold, int) and raw_threshold > 0:
+                threshold_hours = raw_threshold
+    except (FileNotFoundError, OSError) as exc:
+        logger.warning(
+            "pre_plugin_invocation: cannot read registry defaults for "
+            "daily-upgrade threshold (%s); falling back to %d-hour default",
+            exc,
+            _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
+        )
+    except Exception as exc:  # noqa: BLE001 — best-effort registry read
+        logger.warning(
+            "pre_plugin_invocation: registry parse failed for daily-upgrade "
+            "threshold (%s: %s); falling back to %d-hour default",
+            type(exc).__name__,
+            exc,
+            _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
+        )
 
     install_violations: list[HookViolation] = []
     for plugin_id in ids:
@@ -311,6 +390,75 @@ def pre_plugin_invocation(
                 version,
             )
 
+        # v10.2.1 PV-02 D-P-2 — daily-upgrade integration. After
+        # ensure_plugin succeeds, also probe staleness; when stale, fire
+        # upgrade_plugin best-effort (PPI003 warning on failure; never
+        # blocks the dispatch).
+        try:
+            stale = is_plugin_stale(plugin_id, threshold_hours=threshold_hours)
+        except Exception as exc:  # noqa: BLE001 — best-effort staleness probe
+            logger.warning(
+                "pre_plugin_invocation: is_plugin_stale(%r) raised %s: %s; "
+                "skipping daily-upgrade probe for this plugin",
+                plugin_id,
+                type(exc).__name__,
+                exc,
+            )
+            continue
+
+        if not stale:
+            continue
+
+        try:
+            upgraded_version = upgrade_plugin(plugin_id)
+        except (
+            PluginNotFoundError,
+            PluginInstallError,
+            PluginVersionMismatch,
+            PluginBackendUnsupported,
+        ) as exc:
+            logger.warning(
+                "pre_plugin_invocation: upgrade_plugin(%r) raised %s: %s "
+                "(stale plugin daily-upgrade); recording PPI003 warning "
+                "but NOT blocking dispatch",
+                plugin_id,
+                type(exc).__name__,
+                exc,
+            )
+            install_violations.append(
+                HookViolation(
+                    code="PPI003",
+                    message=(
+                        f"pre_plugin_invocation: upgrade_plugin({plugin_id!r}) "
+                        f"failed during daily-upgrade probe — "
+                        f"{type(exc).__name__}: {exc}"
+                    ),
+                    severity="warning",
+                    context={
+                        "plugin_id": plugin_id,
+                        "exception_type": type(exc).__name__,
+                        "exception_args": list(exc.args),
+                        "details": getattr(exc, "details", {}),
+                        "stage": "daily_upgrade",
+                    },
+                )
+            )
+        except Exception:
+            # S-5: non-domain exceptions are logged loudly and re-raised.
+            logger.warning(
+                "pre_plugin_invocation: unexpected exception while upgrading "
+                "stale plugin %r (re-raising per S-5 no-silent-failure)",
+                plugin_id,
+                exc_info=True,
+            )
+            raise
+        else:
+            logger.info(
+                "pre_plugin_invocation: stale plugin %r upgraded to %s (daily-upgrade integration)",
+                plugin_id,
+                upgraded_version,
+            )
+
     return finalize(EVENT, schema_violations + install_violations, strict=strict)
 
 
@@ -318,6 +466,7 @@ __all__ = [
     "ENV_FLAG",
     "ENV_FLAG_TRUTHY",
     "EVENT",
+    "EVENT_TRIGGERS_DAILY_UPGRADE",
     "is_auto_install_active",
     "pre_plugin_invocation",
 ]

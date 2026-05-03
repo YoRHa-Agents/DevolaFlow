@@ -77,6 +77,7 @@ External tool reference: https://github.com/YoRHa-Agents/Si-Chip
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -105,6 +106,27 @@ DEFAULT_ABILITY: str = "devola-flow"
 # the +0.10 spec §23 threshold. Per the v9.5.0 user requirement: "if not,
 # I want you to summarise into a feedback document."
 FEEDBACK_DIR_DEFAULT: Path = Path(".local") / "feedbacks"
+
+# v10.2.1 PV-02 D-S-5 — DEFER doc dedupe sidecar. Closes the gap from
+# `.local/research/v10.2.0_gap_analysis.md` §3.2 D-S-5: with DEEP integration
+# always-on (`DEVOLAFLOW_SI_CHIP_DEEP=1`), every skill-corpus commit produced
+# a NEW feedback doc even when (skill_files, verdict, notes) were identical
+# to a prior write — `.local/feedbacks/` would fill with low-information
+# DEFER timestamps over time.
+#
+# Design choice: append-only sidecar file (NOT per-doc embedded fingerprints)
+# because:
+#   1. Cheaper read path — one open() instead of N for the directory walk.
+#   2. Append-only matches S-9 envelope contract semantics (no rewrites of
+#      historical docs).
+#   3. Avoids polluting the operator-facing markdown with HTML comments /
+#      YAML frontmatter that would distract reviewers.
+#
+# The fingerprint set is the SHA-256 hash of a deterministic JSON
+# serialisation of (sorted skill_files, verdict, sorted notes). When the
+# fingerprint is already on disk, the new doc write is SKIPPED and the
+# helper returns the prior doc path (located via filesystem glob).
+FINGERPRINT_SIDECAR_NAME: str = ".sichip_deferred_fingerprints.txt"
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +177,102 @@ def _extract_skill_files(payload: dict[str, Any]) -> list[str]:
     return matches
 
 
+def _compute_defer_fingerprint(
+    skill_files: list[str],
+    notes: list[str],
+    verdict: str,
+) -> str:
+    """Compute a deterministic SHA-256 fingerprint of the DEFER content.
+
+    Used by :func:`_write_feedback_doc` for D-S-5 dedupe. The fingerprint
+    is content-based (not timestamp-based) so two DEFER writes with the
+    same ``(skill_files, verdict, notes)`` produce the same hex digest
+    regardless of when they fire.
+
+    Sort order: ``skill_files`` and ``notes`` are sorted before hashing
+    so that callers reordering a list (e.g. set→list conversion that
+    yields different orderings across Python sessions) still hash to
+    the same fingerprint. ``verdict`` is included verbatim so an
+    ``APPLY`` doc never collides with a ``DEFER`` doc on otherwise
+    identical inputs.
+    """
+    payload = {
+        "skill_files": sorted(skill_files),
+        "notes": sorted(notes),
+        "verdict": verdict,
+    }
+    serialised = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(serialised.encode("utf-8")).hexdigest()
+
+
+def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
+    """Return the set of fingerprints already recorded in the sidecar.
+
+    Returns an empty set when the sidecar file does not yet exist or
+    cannot be read (per S-5 the OSError is logged at WARNING but does
+    NOT raise — a missing sidecar simply means no prior fingerprint
+    state exists, which is the fresh-clone case).
+    """
+    sidecar_path = feedback_dir / FINGERPRINT_SIDECAR_NAME
+    if not sidecar_path.is_file():
+        return set()
+    try:
+        text = sidecar_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        logger.warning(
+            "post_skill_edit: cannot read fingerprint sidecar %s: %s; "
+            "treating as empty (will write fresh)",
+            sidecar_path,
+            exc,
+        )
+        return set()
+    return {line.strip() for line in text.splitlines() if line.strip()}
+
+
+def _find_existing_doc_for_fingerprint(
+    feedback_dir: Path,
+    fingerprint: str,
+) -> Path | None:
+    """Locate the prior DEFER doc carrying ``fingerprint`` (best-effort).
+
+    Walks ``feedback_dir`` for ``sichip_deferred_*.md`` files and returns
+    the first one whose body contains the fingerprint marker. The marker
+    is embedded as a single HTML comment line near the top of every doc
+    written by :func:`_write_feedback_doc`, so the lookup is O(N) over
+    the doc count with cheap string-substring matching (not a full YAML
+    parse).
+
+    Returns ``None`` when no prior doc carries the fingerprint — the
+    sidecar may have an entry that predates the marker convention OR
+    the corresponding doc was manually deleted.
+    """
+    if not feedback_dir.is_dir():
+        return None
+    marker = f"<!-- sichip_fingerprint:{fingerprint} -->"
+    for entry in sorted(feedback_dir.glob("sichip_deferred_*.md")):
+        try:
+            text = entry.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning(
+                "post_skill_edit: cannot read prior DEFER doc %s while "
+                "scanning for fingerprint %s: %s",
+                entry,
+                fingerprint,
+                exc,
+            )
+            continue
+        if marker in text:
+            return entry
+    return None
+
+
+def _append_fingerprint_sidecar(feedback_dir: Path, fingerprint: str) -> None:
+    """Append ``fingerprint`` to the sidecar; loud on OSError per S-5."""
+    sidecar_path = feedback_dir / FINGERPRINT_SIDECAR_NAME
+    with sidecar_path.open("a", encoding="utf-8") as fh:
+        fh.write(fingerprint + "\n")
+
+
 def _write_feedback_doc(
     feedback_dir: Path,
     skill_files: list[str],
@@ -166,14 +284,61 @@ def _write_feedback_doc(
 
     Per the v9.5.0 user requirement: "if not, I want you to summarise
     into a feedback document". This is the operator-visible deferred-
-    changes record. The doc is append-only (per S-9 spirit) — repeated
-    DEFERS for the same skill files accumulate in dated entries.
+    changes record.
+
+    v10.2.1 PV-02 (D-S-5 closure) adds content-based deduplication: a
+    SHA-256 fingerprint of ``(sorted(skill_files), sorted(notes), verdict)``
+    is computed via :func:`_compute_defer_fingerprint`. The fingerprint
+    is checked against an append-only sidecar at
+    ``<feedback_dir>/.sichip_deferred_fingerprints.txt``:
+
+    * **Fingerprint already in sidecar** — locate the prior doc via the
+      embedded HTML-comment marker and return its path WITHOUT writing
+      a new file. Idempotent: the same inputs always resolve to the
+      same path.
+    * **Fingerprint absent** — write a new dated doc with the
+      fingerprint marker embedded as ``<!-- sichip_fingerprint:HEX -->``
+      on line 2. Then append the fingerprint to the sidecar. Both
+      operations are loud-on-OSError per S-5.
+
+    The sidecar design (vs per-doc fingerprint scanning) keeps the
+    common case (no duplicates → write fresh) at one O(1) sidecar read
+    + one O(1) append; the dedup case (duplicate detected) costs an
+    additional O(N) directory scan to locate the prior path. For the
+    expected operating pattern (most commits produce a unique
+    fingerprint, occasional duplicate suppressed) this is the cheaper
+    shape than per-doc scanning every write.
     """
     feedback_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    fingerprint = _compute_defer_fingerprint(skill_files, notes, verdict)
+    known = _read_fingerprint_sidecar(feedback_dir)
+    if fingerprint in known:
+        prior = _find_existing_doc_for_fingerprint(feedback_dir, fingerprint)
+        if prior is not None:
+            logger.info(
+                "post_skill_edit: DEFER fingerprint %s already on disk; "
+                "skipping duplicate write — prior doc at %s",
+                fingerprint[:12],
+                prior,
+            )
+            return prior
+        # Fingerprint in sidecar but no doc carries the marker — could be a
+        # manually-deleted doc OR a sidecar entry that predates the marker
+        # convention. Fall through to write a fresh doc; the fingerprint
+        # already in the sidecar is harmless (set semantics).
+        logger.info(
+            "post_skill_edit: fingerprint %s in sidecar but no doc found; writing fresh doc",
+            fingerprint[:12],
+        )
+
+    # Microsecond precision avoids collisions for distinct fingerprints
+    # written within the same second (the dedupe contract demands distinct
+    # paths; timestamp granularity must therefore be sub-second).
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S_%fZ")
     out_path = feedback_dir / f"sichip_deferred_{timestamp}.md"
     body_lines = [
         f"# Si-Chip DEEP Integration — Deferred Verdict ({timestamp})",
+        f"<!-- sichip_fingerprint:{fingerprint} -->",
         "",
         "**Source:** `devolaflow.lifecycle.post_skill_edit` hook (v9.5.0 PV-04 DEEP integration).",
         f"**Install source:** `{install_source or 'unavailable'}`",
@@ -197,6 +362,7 @@ def _write_feedback_doc(
         "DO NOT auto-apply changes that score below +0.10."
     )
     out_path.write_text("\n".join(body_lines) + "\n", encoding="utf-8")
+    _append_fingerprint_sidecar(feedback_dir, fingerprint)
     logger.info("post_skill_edit: wrote deferred-changes feedback doc to %s", out_path)
     return out_path
 
@@ -383,6 +549,7 @@ __all__ = [
     "ENV_FLAG_TRUTHY",
     "EVENT",
     "FEEDBACK_DIR_DEFAULT",
+    "FINGERPRINT_SIDECAR_NAME",
     "SKILL_CORPUS_PREFIX",
     "is_deep_integration_active",
     "metadata_to_json",

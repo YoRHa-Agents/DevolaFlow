@@ -120,6 +120,18 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registry symbol per A-5.2 — pure read-only YAML-frontmatter
         # parser.
         "devolaflow.si_chip_bridge.install_resolver:read_installed_si_chip_version",
+        # v10.2.1 PV-02 (D-S-2 closure) — dispatch_dogfood_cycle is the
+        # public L0/L1 wrapper that exposes the persistent BasicAbility
+        # optimisation factory at the workflow-stage surface. v10.2.1
+        # ships the integration surface; the actual workflow-template
+        # wiring (`skill-optimization` / `self-update` / `nines-assisted`
+        # templates calling the wrapper from a stage handler) lands in
+        # PV-04 / PV-05 self-iteration rounds. Dogfood pass #1 in PV-02
+        # is the first non-mocked invocation evidence. NOT a domain-SSOT
+        # registry symbol per A-5.2 — pure delegation wrapper around
+        # `devolaflow.si_chip_bridge.runner.run_dogfood_cycle` with no
+        # registration data of its own.
+        "devolaflow.feedback:dispatch_dogfood_cycle",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
         # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
         # P-05 dispatch directive, the lifecycle package is intentionally
