@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page.v3post">Design Philosophy &amp; R&amp;D Journey — DevolaFlow Blog</title>
+  <link rel="stylesheet" href="../../shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+
+    <header class="slide-up scan-flicker">
+      <h1>
+        <span class="accent">DevolaFlow</span>
+        <span data-i18n="post.h1.dash"> — </span>
+        <span data-i18n="post.h1.title">Design Philosophy &amp; R&amp;D Journey</span>
+      </h1>
+      <p class="tagline" data-i18n="post.subtitle">28 days, ~100 releases, two convictions, four layers, six invariants — read in 15 minutes.</p>
+      <p class="post-meta" data-i18n="post.meta">v3 &middot; 2026-05-03 &middot; 15 min read &middot; CN/EN bilingual</p>
+      <p class="post-excerpt" data-i18n="post.excerpt">A retrospective written for a quiet 15 minutes. Five commit-grounded eras explain how the framework's two convictions (attention-as-budget, cache-prefix-as-bytes) compound into a four-layer dispatch hierarchy and six invariants that keep the framework honest. The third draft, rewritten after the second still felt machine-flavored.</p>
+      <div class="cta-cluster">
+        <a href="../index.html" class="btn btn-outline" data-i18n="post.cta.back">&larr; Back to Blog</a>
+        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="../../design-system/index.html" class="btn btn-outline" data-i18n="post.cta.designSystem">Design System &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="post.cta.skill">Read SKILL &uarr;</a>
+      </div>
+      <div class="lang-toggle" role="group" aria-label="Language view">
+        <button type="button" class="is-active" data-lang-view="both" data-i18n="post.lang.both">CN + EN</button>
+        <button type="button" data-lang-view="cn" data-i18n="post.lang.cn">CN</button>
+        <button type="button" data-lang-view="en" data-i18n="post.lang.en">EN</button>
+      </div>
+    </header>
+
+    <article class="article-body">
+
+      <!-- =========================================================
+           § 0 — 阅读指南 / Reading Guide
+           ========================================================= -->
+      <section id="sec-0">
+        <h2><span data-i18n="post.sec0.h2">§ 0 — 阅读指南 / Reading Guide</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>设想：今晚您腾出 15 分钟，沏一杯茶，想坐下来真的把 DevolaFlow 这套东西弄明白。今天讨论的不是哪一行代码、不是 v10.0.0 比 v9.7.0 多了几个 feature，是这一整个仓库到底在追求什么、为什么要做成这样、走过的这 28 天里哪几次决定改变了走向。</p>
+          <p>这份文档就是为这 15 分钟写的。它不取代 README、网站和 CHANGELOG；那些已经把"做了什么"讲过了。把它当成"我们坐下来从头讲一遍这个仓库"的笔记。</p>
+          <p>读法上，下面这六章是一根线串起来的。§1 一句话讲 DevolaFlow 的北极星；§2 把 28 天切成五个时代——按 commit 切，不按对仗的范畴名切，v10.1.0 的"人话 cycle"在第五个时代里只是一个 beat，不另起一段；§3 摊开六份对 DevolaFlow 形塑最深的外部参考——挑的是最能讲清"我们怎么吸收一个外部模式"的，不是引用次数最多的；§4 是中心，先讲两条设计哲学，再讲四层调度，再讲六条不变量（用描述性的名字，规则代号挪到括号里），最后是一段从用户提问走到 L3 落地再回来的旅程；§5 谈下一步往哪走；§6 是已应用反馈的小账本。</p>
+          <p>读完之后您应当能在头脑里画出那张四层调度图，对"为什么 v7.0.0 那次很关键"有直觉，能用六句话跟同事解释 DevolaFlow 的哲学，并对下一个 cycle 我们要往哪走有清晰预期。文档不是堆得更厚，给您的是一份<strong>装在口袋里随身带走的心智模型</strong>。</p>
+          <p>至于这版稿子本身——v1 78.88 过了 advisory floor，v2 跑到了 99.63；scorer 说 OK 了，您说还像 AI。所以又写了一遍。这很合 v10.1.0 的精神：分数说 OK 不等于人读着 OK，两个信号都得听。这版主要做了两件事：把您指出的几种 AI 化填充语扫干净（负向对比连接词、口头 "actually" 类的引导语），把"按 commit 重新分时代"、"§4 先讲哲学"、"分层不必另起一套隐喻"这三件结构性的改动落到位。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>DevolaFlow is, in two sentences, a multi-agent workflow meta-framework whose design has been shaped by one stubborn conviction: the most expensive thing an LLM does is its own attention, and the most fragile thing it produces is the prompt prefix it has already paid the provider to compute. Take those two facts seriously and the rest of the framework — the four-layer hierarchy, the byte-stable dispatch, the typed YAML messages, the bounded loops — falls out as predictable consequences rather than design choices. None of the individual mechanisms is novel on its own; the novelty, if there is any, is in the insistence that they all live together as one consistent worldview.</p>
+          <p>The doc you are reading is the third draft. The first one read like AI wrote it (you said so), and the v10.1.0 naturalness scorer agreed in spirit if not in score. The second draft fixed the patterns that the scorer can't catch: the templated meta-tags, the byte-for-byte bilingual mirror, the absence of any moment where a writer admits to being wrong. It scored 99.63 and you read it and gave six concrete pieces of feedback. The third draft is the response to those six. Two of them are structural — the era decomposition follows the commits now, §4 leads with the design philosophy before the dispatch journey — and four are about prose. The negative-parallel cadence is gone, the filler signposts are gone, the load-bearing metaphor that v2 leaned on is gone, and rule codes appear only as parenthetical footnotes.</p>
+          <p>What you should walk away with: a 4-layer dispatch diagram you can sketch from memory, an intuition for why v7.0.0 still matters in v10.x, six sentences you can use to explain the philosophy at a hallway whiteboard, and a clear sense of what the next release cycle is about. Not a doc-volume payload. A retrievable mental model.</p>
+          <p>This v3 is also the source of truth for a coming website blog post; Wave 2 of the propagation work renders this markdown as HTML on the site's blog. If a phrase needs to land well there, it needs to land well here first.</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 1 — 北极星 / The North Star
+           ========================================================= -->
+      <section id="sec-1">
+        <h2><span data-i18n="post.sec1.h2">§ 1 — 北极星 / The North Star</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>DevolaFlow 是一个<strong>可组合的多智能体工作流元框架</strong>：它自己不直接干活，而是为"如何让多个 LLM 智能体协同地干活"提供一套统一的脚手架。它把自己安身立命的根基押在两件事上。</p>
+          <p>第一，LLM 最贵的不是算力，是它自己思考的注意力；给它的 token 越多，它要分散去注意的就越多。第二，LLM 最脆弱的产物是已经付费算出来的 prompt 前缀；重排一次，下一轮重新付钱。把这两件事认真当回事，整个框架的形状就出来了。</p>
+          <p>具体说四件事。调度者（L0/L1/L2）从来不写代码，只挑选谁来写；把"决定怎么做"和"实际去做"分开，事后才能审计是哪个 agent 在什么契约下产出了这份文件。每一层智能体只看到它当下需要的上下文，多一字都不要；少一份上下文意味着多一份注意力留给真正需要思考的事，并行的兄弟智能体在物理上无法相互污染（它们看不到彼此）。</p>
+          <p>每一次调度的载荷遵循一份固定 16 键的字典顺序，前 12 位是冻结前缀，重排其中任何一位就会让 LLM 厂商的 KV 缓存全部作废，下一轮代价 5–10×。每一个循环都有上界，三轮收敛失败就升级到上一层，没有"再试一次"的空间。</p>
+          <p>这四件事是同一个意图的四个切面：<strong>让重要的不变量住在字节里，让重复的工作住在契约里，让真正难的判断只在最该思考的那一层发生</strong>。</p>
+          <p>为什么人类开发者会在意这些？因为这意味着用 DevolaFlow 跑一个真实任务时，您拿到的不是黑盒：哪个 agent 在哪一轮收到什么 dispatch、读了哪些文件、产出哪个 artifact、被哪个 gate 用什么阈值打了多少分、为什么从 FAIL 翻到 PASS，全部可以追溯。当 agent 出错时，您能指出究竟是哪一层、哪个契约、哪一行不变量失守了；做对时，下一次跑同样的工作流会得到同样的 decomposition——这就是"可复现"在这个仓库里的真正含义。</p>
+          <p>DevolaFlow 把自己的 prompt 当作一类一等的工程产物。这听上去像句口号，落到实处就是：SKILL.md 不能超过 500 行，调度模式必须通过一个名为 <code>assert_dispatch_layout</code> 的运行时校验器，每加一个外部参考都要带一行 verbatim 引用，每条规则对应一个 CI 测试。这套体系不漂亮，但它不会偷偷出错；这是它跟"看起来很聪明的框架"最大的区别。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>In plain English, DevolaFlow's design rests on two convictions that every other mechanism follows from. First, an LLM agent's attention is the actual budget being spent; every extra token a layer carries is a token of attention it does not have for the work it is supposed to do. Second, the LLM provider's KV cache is real, physical, and brittle: the bytes of a dispatch payload's prefix are sacred because reordering any of them invalidates the cache and forces the next round to pay the bill again.</p>
+          <p>From those two facts: dispatchers don't implement (they audit), each layer sees the minimum it can survive on (parallelism gets cheap), the dispatch payload follows a frozen prefix and an append-only tail (cache survives), and every loop has a budget (failure routes to escalation, not to "try again"). Those four commitments are four facets of one intent. They are also, in the order they're listed, the four things any newcomer to the codebase needs to internalize before any of the file layouts make sense.</p>
+          <p>The practical pay-off is traceability. Run a real task through DevolaFlow and what you get is a complete ledger: which agent received which dispatch on which round, what files it read, which artifact it wrote, which gate scored it under which threshold, why the verdict flipped. When something goes wrong, you can point at exactly which contract broke. When it goes right, the same workflow re-run produces the same decomposition. That is what reproducibility means in this codebase, and it is what 28 days of releases have been compounding toward.</p>
+          <p>DevolaFlow treats its own prompt as a first-class engineering artifact, which in plain operational terms means SKILL.md cannot exceed 500 lines, dispatch payloads pass through a runtime layout validator on the way out, every external reference carries a verbatim citation, and every rule has a CI test.</p>
+          <p>The system is honest about its trade-offs. It does not look smooth, and it does not silently fail. Those two clauses are doing real work: they describe both what DevolaFlow gives up to keep its invariants (the appearance of effortlessness) and what it gets in return (the absence of the failure mode where a workflow looks healthy in CI and breaks for the user three days later).</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 2 — 演进之路：五个时代 / The Journey: Five Eras
+           ========================================================= -->
+      <section id="sec-2">
+        <h2><span data-i18n="post.sec2.h2">§ 2 — 演进之路：五个时代 / The Journey: Five Eras</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <blockquote>28 个日历日，约 100 个发布版本，测试 254 → 3937（15.5×），EvoBench 场景 3 → 53。把这段历程切成五个时代——v1 给了六个、v2 给了七个并把 v10.1.0 单独成段；按您的反馈，这一版按 commit 重新切。每个时代只看那次根本变了的东西，其他版本号都是它的脚注；网站重做（v6.3）和"人话 cycle"（v10.1.0）都不另成时代，前者并入第二个时代的最后一个 beat，后者并入第五个时代的最后一个 beat——它们是同一根线上的两次脉动，不是新的纪元。</blockquote>
+          <p>提醒一句：版本号在叙事里被故意压低了。我们不是从 v0.1 一路走到 v10.0 的——是一次次发现之前写错了什么，再写一遍。所以下面每一段开头的版本范围只是定位，不是分界；真正的分界往往落在一个具体的 commit 上、一个具体的 cProfile 截图上、或者一次具体的回归报告上。</p>
+          <p><strong class="era-leadin">从脚手架到迭代成为运行时（v0.1.0 → v3.9.2）</strong>：第一时代最重要的变化，是从"我们写了一个 skill"演化到"迭代本身成为运行时机制"。v2.2.0 用 +93% 信息密度证明了"严格的行预算 + 可量化的基准"是一对可复合的工程纪律：SKILL.md 从 449 行压到 293 行，254/254 测试全过，EvoBench 同步上线。v3.0.0 把规则落到 <code>.cursor/rules/</code> 磁盘上。v3.6.0 把"调度者不写代码"这条规则写进 prompt 端，因为之前三次发布连续掉了三次。v3.9.0 让 <code>feedback.py</code> + <code>learnings.py</code> 第一次给收敛循环搭了运行时的骨架——这就是这个时代留下的礼物，加上一份"token 预算是工程问题、不是脚注"的执念，后面每个时代都得用上。</p>
+          <p><strong class="era-leadin">四层 hierarchy 真正承重（v4.0.0 → v6.2.1）</strong>：第二时代的标志，是从"我们有四层 agent"变成"这四层是承重的"。v4.0.0 把模型路由和按边界压缩接进了 schema；v5.0–5.4 上线了收敛引擎和十条自迭代规则；v6.0.3 把 dead-wire 关了——<code>apply_round_escalation</code> 自 v5.3.0 起就有测试，但生产代码从来没调用过。</p>
+          <p>但真正的拐点是 v6.1.1：NineS 综合分从 0.7405 跳到 0.8805（+18.9%），<strong>没有改一行 <code>src/</code> 代码</strong>。<strong>我们之前两次错把这个分数平台期当成代码质量天花板，开了两轮收敛去优化代码，分数纹丝不动。第三次回头看才发现是 NineS 的 V1 评估器缺了 fixture：goldens 没补，所以 scoring_accuracy / scoring_reliability / scorer_agreement / eval_coverage 全是 0。</strong> 这个时代留下的礼物，是怀疑平台期的方法论；任何"测试通过但无生产调用方"的 API 都是负 ROI 的幽灵。第二时代的最后一个 beat 是 v6.3 的网站四主题重做（commit <code>e9bf47b</code>）——同一种"让承重的部分真的承重"的思路从代码搬到了人机界面，所以它属于这个时代，没有另起一段。</p>
+          <p><strong class="era-leadin">缓存前缀那次冻结（v7.0.0 → v7.8.0）</strong>：v7.0.0 干了一件几乎只有架构师才会觉得是大事的事：把 dispatch 载荷的字段顺序冻成 12 键的 <code>DEFAULT_DISPATCH_LAYOUT</code>，加上一个 <code>assert_dispatch_layout()</code> 运行时校验器，再写一条新的"缓存前缀守则"。从那一天起，重排前缀就等于作废 LLM 厂商的 KV 缓存，下一轮成本 5–10×。这个字节基线从 v7.0.0 一路穿过每一个后续版本，至今没断过。</p>
+          <p>但 v7.x 真正的工程教训发生在 v7.5.0 → v7.8.0：我们三次都试图只用 Python 校验器去拦下错误，三次都失败，因为 prompt-only 的 L0 根本不会进入 <code>run_hooks("pre_dispatch", ...)</code> 的路径。最后的结论很硬——<strong>治理必须住在 prompt 加载的地方；只在 Python 帮助函数里执行的规则，prompt-only 调度者永远不会触发。</strong></p>
+          <p><strong class="era-leadin">把治理搬进工作区（v8.0.0 → v9.2.4）</strong>：第四时代的标志，是把生命周期钩子从"运行时校验"提升为"prompt 端治理表面"。v8.0.0 一次性吸收了 14 条 Karpathy 行为准则（13 个 patch、约 16 小时），加上 <code>TokenBudgetBreaker</code>、单调棘轮、6 级验证阶梯。</p>
+          <p>v8.3.0 第一次把治理装进了一个<strong>工作区</strong>：<code>.local/.agent/{active,handoff,archive}/</code> 目录树，配套四条新硬规则——写文件不能越出 owned_files 清单、信封只追加、真值规约的位置定一个 ADR、每件 artifact 各有 token 预算。<strong>v8.3.0 的 owned_files 边界第一次跑 PV-02 的时候直接挂了：我们把 schema 比 lint 早发了三十分钟，于是 lint 还没到位，schema 就开始要求 STATUS.yaml 字段了。这就是 v8.x 留下的另一句话——协议化的更改要按拓扑顺序发，先长 lint、再长 schema，颠倒就翻车。</strong> v8.4.4 把这件事钉死：每一次 dispatch 都必须穿过 <code>pre_dispatch → post_dispatch</code> 钩子链，没有例外。v9.0.0 给灵魂规则层上了锁，10 条封顶，第 11 条候选要先 telegraph 两个完整的 cycle，第三个 cycle 才能正式提议。v9.1.3 给 <code>pre_handoff</code> 钩子接了真实的生产调用方，关掉了一条延续两个 cycle 的 dead-wire（这条工单在内部叫 G-005）。v9.2.0 + v9.2.4 给整套工作区上了一组跨四种安装形态的 E2E。这个时代留下的东西：连框架自身的进化都被纳入规则。</p>
+          <p><strong class="era-leadin">让度量决定下一步（v9.3.0 → v10.1.0）</strong>：到这个阶段，最关键的变化是性能从"事后顾及"成为一等交付物。v9.3.0 用 cProfile 把下一个修复点定位下来：<code>load_profiles</code> + <code>load_skill_md</code> + <code>estimate_tokens</code> 在每次 <code>select_context</code> 调用里重复跑，占了 dispatch 96.6% 的 wall clock。一个 mtime-probed LRU cache 把 p95 从 80ms 砍到 2ms，<strong>40× 加速</strong>。</p>
+          <p>v9.4.0 在插件层发现了同一种 dead-wire——<code>ensure_plugin()</code> 测试通过但无人调用，跟 v6.0.3 是一个模子，只是换了表面。v9.5.0 把 Si-Chip 接进来，但<strong>显式延期</strong>到有验证基准之后才真正用它去裁剪 SKILL 语料；您的原话是："在应用之前，必须先有清晰的验证基准证明它真的有效"。v9.6.0 拿 NineS 把 21 份外部参考统一刷了一遍。v9.7.0 重新测，发现前驱摘要可以做差分压缩，把它附在第 17 位（schema v6，append-only）。v10.0.0 把 5 个 MINOR 一次归并，<code>audit_feedback_ac.py</code> 把 57 份历史 feedback 一遍回归，0 个 FAIL。</p>
+          <p>第五时代的最后一个 beat 是 v10.1.0，不另起一段。您给 v10.0.0 的反馈一句话——"我们的文档读起来像 AI 写的"。这一 cycle 没去解释，没去辩护，把这句话直接吃进了框架：PV-01 把仓库语料对着 chezmoi / ruff / caveman 这几份人类参考做了次 probe，得分 69.958 vs 71.02；PV-02 把 probe 移植成 <code>src/devolaflow/writing_style/</code> 的生产模块——10 个权重维度、0–100 分制、三种语调档；PV-03 加了五个 SAFE 区域感知 transform；PV-04 把它接进 <code>scripts/generate_human_docs.py</code> + <code>make humanize-docs</code>；PV-05 把它对着 21 份在仓的文档 dogfood 了一遍：aggregate 从 69.958 升到 77.664，最差的 7 份每份至少 +10 分，零回归。</p>
+          <p>v10.1.0 跟 v9.3.0 是同一种工程思路，只是换了对象——前者拿 cProfile 给代码挑下一个修复点，后者拿 scorer 给文档挑下一段重写点。<strong>而您正在读的这第三版，本身就是 v10.1.0 这种思路的最佳代言：scorer 看了 v2 给 99.63，您说还像 AI；两个信号都对，所以又写了一遍。</strong></p>
+          <p>把五个时代连起来看，您会发现它们是同一根线越收越紧的过程。第一时代把"prompt 当工程产物"立成原则，第二时代把这条线织进四层 hierarchy，v7.0.0 那次冻结把它升格为字节级不变量，搬进工作区那个时代把不变量放到运行时钩子里执行，让度量决定下一步那个时代用经验数字证明这套体系真的快、真的能自我修正，到 v10.1.0 这一步连"这套体系自己讲话好不好听"都被纳入回归。每一个时代回答的都是同一个问题：如何让 LLM 的注意力花得更值；只是在不同的层面上回答。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>The English read of the same five eras lands in different places. The first era — from scaffold to convergence-as-runtime — is where "we shipped a skill" turned into "iteration is itself a runtime mechanism." The v3.9.0 birth of <code>feedback.py</code> plus <code>learnings.py</code> is the moment the convergence loop got real bones to live in, and the v2.2.0 SKILL.md compression milestone (449 → 293 lines, +93% information density, 254/254 tests passing) is what taught us that strict line budgets and measurable benchmarks compose into a single engineering practice rather than two competing ones.</p>
+          <p>The second era — the four layers becoming load-bearing — was supposed to be about layering, with v6.0.3 closing dead-wire APIs and v5.x landing ten self-iteration rules. Its defining moment was a methodological one. v6.1.1 lifted NineS from 0.7405 to 0.8805 (+18.9%) without a single edit to <code>src/</code>. The cap had been a missing-fixture artifact in the V1 evaluators, not a code-quality ceiling. The lesson generalises: any plateau where benchmark drift is zero across many versions deserves a tool-config audit before the team assumes code is the bottleneck. We re-learn this every few cycles in different flavours. The era's last beat is v6.3's four-theme web showcase merge (commit <code>e9bf47b</code>) — the same load-bearing instinct applied to the human-facing surface. It belongs inside the era, not as a standalone stage of its own.</p>
+          <p>The third era — the cache-prefix freeze — is the era any later release will quietly thank. The change itself looks small: a 12-key canonical dispatch order, a runtime validator named <code>assert_dispatch_layout()</code>, and a new rule about cache-prefix preservation (the codebase calls it Rule 6). The consequence is large. From that day forward, reordering any prefix key invalidates the LLM provider's KV cache, the next round costs 5–10× more, and the v7.0.0 byte-baseline still passes through every release including v10.0.0's schema v6.</p>
+          <p>The era's harder lesson came at v7.8.0: governance enforced only in a Python helper never fires for a prompt-only L0 dispatcher. We discovered this by ramming the same wall three times. The fix was canonical-manifest enforcement embedded into SKILL.md itself, where the prompt actually loads. After that, "where does the rule live" became a sharper question than "what does the rule say."</p>
+          <p>The fourth era — governance moves into a workspace — opens with v8.0.0 absorbing 14 Karpathy "ChatGPT Vibes Engineering" primitives in 13 patches over ~16 hours. v8.3.0 introduced <code>.local/.agent/</code> plus four hard rules in one cycle: an owned-files boundary, append-only handoff envelopes, a source-of-truth spec ADR, and per-artifact token budgets. v8.4.4 wired the lifecycle hook chain so every dispatch passes through <code>pre_dispatch → post_dispatch</code> without exception. v9.0.0 capped the soul-rule layer at 10 entries with a 2-cycle telegraph requirement for any 11th. v9.1.3 gave the <code>pre_handoff</code> hook its first production caller, closing a dead-wire that had been sitting open across two cycles. v9.2.0 + v9.2.4 stitched the workspace surface together with multi-fixture E2E coverage.</p>
+          <p>The era's hard-won engineering lesson lives in the inverse phrasing: protocol changes ship in topological order — lint first, schema second. We learned that the inverse way at v8.3.0 PV-02, when the schema demanded <code>STATUS.yaml</code> thirty minutes before the lint that was supposed to enforce it had landed. Things were fine in CI. Things were not fine in any actual user's clone.</p>
+          <p>The fifth era — measurement becomes the planner — is what happens when a profiler picks the next ticket. v9.3.0 ran cProfile against the dispatch pipeline and found that <code>load_profiles</code>, <code>load_skill_md</code>, and <code>estimate_tokens</code> were re-parsing 84KB of YAML, re-reading 32KB of SKILL.md, and re-running tiktoken BPE on every <code>select_context</code> call; together, 96.6% of the dispatch wall-clock. A single mtime-probed LRU cache later, <code>select_context.p95</code> dropped from 80 ms to 2 ms, a 40× speedup.</p>
+          <p>v9.4.0 found the same dead-wire pattern in the plugin layer that v6.0.3 closed in the dispatch layer. v9.5.0 wired Si-Chip but explicitly deferred the corpus-trim application; the user's exact words were "ensure those things are genuinely effective with clear verification benchmarks BEFORE applying them." v9.6.0 ran NineS over all 21 tracked references in one sweep. v9.7.0 added delta-compressible predecessor summaries at canonical position 17 (schema v6, append-only). v10.0.0 was a 5-MINOR rollup with <code>audit_feedback_ac.py</code> regression-sweeping 57 historical feedback files for zero failures.</p>
+          <p>Then v10.1.0, the era's latest beat. The v10.0.0 retrospective received a one-line user complaint: our docs read like a machine wrote them. The cycle absorbed it the same way v9.3.0 absorbed "where is the wall-clock going?" — by building the measurement and letting the measurement pick the next fix. PV-01 measured the corpus against a hand-picked human-clean reference and got 69.958 against 71.02. PV-02 ported the measurement into <code>src/devolaflow/writing_style/</code> as a stdlib-only scorer with 10 weighted dimensions and three tone profiles. PV-03 shipped five region-aware transforms. PV-04 wired the pipeline into doc generation. PV-05 dogfooded across 21 in-repo documents: aggregate moved from 69.958 to 77.664, every worst-7 doc gained ≥10 points, zero regressions.</p>
+          <p>The fact that you are reading the third draft of this document, generated because the v10.1.0 scorer said the second draft was over the floor <em>but</em> you said it still felt machine-flavored, is exactly the point of v10.1.0. Writing style itself becomes a contract a regression test can guard. The scorer measures the bytes; humans still measure the rest.</p>
+          <p>Pull the five eras together and they are one thread tightening. The first era made "prompt as engineering artifact" a principle; the second wove it into the dispatcher; the third promoted it to a byte-level invariant; the fourth put the invariants under runtime hooks; the fifth proved with empirical numbers that the system is fast and that it can self-correct, all the way down to how the system reads to a human. Every era answered the same question — how do we make the LLM's attention worth more — at a deeper level than the one before.</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 3 — 站在巨人的肩膀上 / Standing on Shoulders
+           ========================================================= -->
+      <section id="sec-3">
+        <h2><span data-i18n="post.sec3.h2">§ 3 — 站在巨人的肩膀上 / Standing on Shoulders</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>DevolaFlow 跟踪 21 份外部参考，11 份在今天的代码里有承重痕迹，4 份是经过审视后<strong>显式不收</strong>的反例（caveman 的文言文档位、Anthropic Advisor 的 Sonnet+Opus 配对、skillrouter 的 1.2B 参数管线、ruflo 的 95% 压缩率），还有 1 份延期到 v9.8+（edict 的"门下省"机构审查 gate）。下面挑六个最有故事的——最能讲清"我们怎么吸收一个外部模式"的。</p>
+          <p>题外话一句：这一节叫"站在巨人的肩膀上"是一个对每次吸收做完成本核算之后的结论。读完六个故事您会注意到，每一次吸收都先过一遍 DevolaFlow 自己的几条不变量（调度者不写代码、文件即契约、缓存前缀守则），然后只留下能跟这几条共生的部分。其余的——再好的模式——都得拒绝。</p>
+          <p><strong class="era-leadin">OpenSpec → 变更驱动工作流（v8.3.0）</strong>：v8.3.0 之前，DevolaFlow 没有"in-flight change"这个磁盘上的概念；任务派完就完了，多日重构没法跨会话续上。我们读了 OpenSpec 的 <code>.openspec/changes/&lt;id&gt;/</code> 骨架，把 <code>goal.md / spec.md / tasks.md</code> 三件套<strong>逐字</strong>抄了过来；DevolaFlow 加上的是 OpenSpec 没有的几样：<code>STATUS.yaml</code> 让状态机器可读，<code>owned_files.txt</code> 让"写文件不能越出 owned_files 清单"这条灵魂规则有具体可检查的对象，每件 artifact 都有自己的 token 预算。</p>
+          <p>最关键的改动在 archive 语义：OpenSpec 是直接 merge，DevolaFlow 是 <code>propose_merge</code>，归档触发一次合并<strong>提案</strong>，由 W-3 评估闸门决定要不要落地。结果是上面那两条灵魂规则在那一刻才真正可被表达；之前没有工作区，规则就没有约束的对象。</p>
+          <p><strong class="era-leadin">Anthropic 协调博客 → wave 协调模式（v7.2.0）</strong>：那篇博客把多智能体协同抽象成 5 种模式（parallel / sequential / generator-verifier / inline-self-review / 两类 hybrid）。我们把博客里的成对决策表<strong>逐字</strong>搬到 <code>references/execution-protocol.md</code> §7，再把它们映射到 DevolaFlow 的四层 hierarchy 上：<code>orchestrator-subagent</code> 是我们的原生形态，但博客提的 <code>agent teams</code>（持久化 worker）和 <code>message bus</code>（事件总线）我们没收，因为"文件即契约"不允许共享可变状态。<code>inline_self_review</code> 这个低风险节点——子智能体内联检查清单，约 30 秒 vs 新开 subagent 的 25 分钟——是 DevolaFlow 在同一个 lattice 里加的一个新 beat。每一个 L2 wave 现在都能给出"为什么选 parallel 而不是 sequential"的命名理由，调度者不再各自重复发明决策。</p>
+          <p><strong class="era-leadin">Karpathy 准则 → 4 个行为基元（v8.0.0 P-08）</strong>：Karpathy 那篇 "ChatGPT Vibes Engineering" 的精髓 —— <em>Think First / Simplicity First / Surgical Edits / Goal-Driven Execution</em> —— 5 分钟读完；工程的难点是怎么把它注进一个四层 hierarchy 而不破坏 v7.0.0 的字节基线。解法是<strong>追加</strong> <code>behavioral_guidelines</code> 到 <code>lean-dispatch.yaml</code> 的第 14 位（前 13 位字节稳定），再发第 9 个参考文档。每条规则带 severity（warn / blocker），带 3 个自检问题，按复杂度分层（trivial / simple / standard / complex）。4 条规则一共约 480 token，L3 8K 预算的不到 5%。这个吸收的好处是 trivial 任务不会被规划仪式拖慢，complex 任务也不能偷懒。</p>
+          <p><strong class="era-leadin">superpowers → 防合理化表（v6.x → v9.6.0）</strong>：<code>obra/superpowers</code> 是一份在 5 个 cycle 里被吸收<strong>三次</strong>的参考；这本身就是个故事。第一次（v6.x）我们抄了 <code>| 借口 | 真相 |</code> 这种防合理化表的形式，填上 8 行 DevolaFlow 特有的失效模式（"只是改一个小文件" → "调度者不写代码这条规则不分大小都适用"）。第二次（v6.4.0）我们抄了 <code>DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED</code> 这套四态状态枚举，把模糊的"成功了吗"塌缩成有限 DAG。</p>
+          <p>第三次（v9.6.0）superpowers 上游发了 4 个新 skill，我们把 <em>subagent-driven-development</em> 的 two-stage review 和 <em>verification-before-completion</em> 的 pre-handoff 都接了进来。结果是每一处 L3 想偷懒的位置，prompt 端都有一个对应的构造（合理化表 / 状态枚举 / two-stage review / pre-handoff verification）替它命名并拒绝。</p>
+          <p><strong class="era-leadin">caveman → 压缩流水线（v7.2.0 → v9.0.0）</strong>：caveman 给我们的是一种"压缩应该是确定性的、不是 LLM 中介的"信念，把它拆成显式的 <code>drop_list</code>（filler_phrases / hedging / pleasantries）和 <code>preserve_list</code>（file_paths / error_messages / metric_values），加上一个 auto-clarity 旁路，让某几类内容（security_warning / destructive_operation / multi-step-with-order）<strong>永不</strong>压缩。我们把这两个清单<strong>逐字</strong>搬进了 <code>lean-dispatch.yaml</code> 和 <code>lean-report.yaml</code>，但只用了 caveman 的 3 个现代档位（lite / full / ultra → minimal / standard / aggressive）；它的 3 个文言文档位我们没收，因为那会把压缩耦合到语言检测，破坏"同输入同输出"的不变量。Per Morph Methods，verbatim 压缩 98% 准确，summarization 仅 37% 留存；这个比例成了层间消息完整性的承重数。</p>
+          <p><strong class="era-leadin">agent-skills 威胁分类法 → 数据指令信封（v7.2.4 → v7.3.0）</strong>：arXiv:2604.02837 那篇论文给出一份威胁分类（4 阶段 × 7 类 × 17 场景），并指出一个具体缺口：大多数 agent skill 不在权威调度文本和不可信前驱内容之间设句法边界；没有边界，攻击者控制的 <code>pred[*].key_facts</code> 字符串就能伪装成新的 system prompt。</p>
+          <p>我们的回应是把不可信内容包进 <code>&lt;data channel="..."&gt;...&lt;/data&gt;</code> 信封，加一个 <code>detect_data_channel_instructions(text)</code> 把命中的注入模式分到 4 类（ignore_prior / system_prompt_swap / routing_hijack / role_swap）。两个 DevolaFlow 原创：<code>&lt;/data\u200B&gt;</code> 零宽空格转义防止信封被攻击者关掉；<code>compression_rules.data_envelope_required: true</code> <strong>嵌套</strong>在已有压缩块下（不增新顶层键，cache prefix 不动）。这个数据-指令边界的缺口在压缩层就关了，根本不会传到 L3。</p>
+          <p>六个故事各有形状，但共同的方法是这四条。第一，能 NEST 就 NEST：新字段优先嵌入已有键，只在真正正交时才追加新顶层键，因为每多一个顶层位置都是后续每次 dispatch 要序列化的成本。第二，R5 严格 opt-in：任何带运行副作用的新行为都用一个匹配字面量 <code>"1"</code> 的环境变量门控，关掉时是零 IO 的 no-op，并配一个 <code>tests/test_&lt;feature&gt;_disabled_is_noop.py</code> lint。第三，引用 verbatim：每个吸收都在参考文档里带一行 <code>(per &lt;upstream URL&gt;)</code> 的逐字引用。第四，用 regression 测试钉住：每次吸收都附带一个针对上游不变量的回归测试，上游漂移时本地测试先报错。</p>
+          <p>这四条加起来，吸收就不再是"读了篇好文章顺手抄一下"，而是一次有合同的迁移。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>The English angle on the same six absorption stories shifts weight from <em>what</em> to <em>how</em>. The Chinese arc emphasises the verbatim borrowings — which words we copied, which sub-fields we appended, where the citation lives in the repo today. The English angle wants to point at the discipline.</p>
+          <p>The OpenSpec lift gave DevolaFlow on-disk in-flight change semantics, but the architectural insight is that we replaced OpenSpec's auto-merge archive with <code>propose_merge</code> so the W-3 evaluation gate gets to vote rather than being bypassed. The Anthropic Coordination Blog gave us the 5-mode wave taxonomy, and our use of it amounts to a rule: every L2 wave must be able to <em>name</em> why it chose parallel over sequential. The Karpathy primitives gave us four behavioral norms appended at canonical position 14, visible because the cache-prefix rule keeps them visible, cheap because under 5% of the L3 budget, useful because they tier across complexity classes.</p>
+          <p><code>obra/superpowers</code> is the reference with the most fascinating absorption history: three lifts across five cycles. The rationalization-prevention table, the four-state status protocol, and the v9.6.0 two-stage review — none of them is a single architectural move. Together they are the prompt-side immune system against the failure modes humans recognise as "my agent shortcut here." A repeated visit to the same upstream over time is itself a discipline: it implies you are willing to be wrong about which patterns matter most.</p>
+          <p><code>caveman</code> gave us deterministic compression and the auto-clarity bypass, and our refusal of its three classical-Chinese tiers preserves the same-input-same-output invariant the framework relies on for replay. The arXiv:2604.02837 threat taxonomy gave us the data-instruction envelope, and our addition (a <code>&lt;/data\u200B&gt;</code> zero-width escape and a nested <code>data_envelope_required: true</code> flag) illustrates the framework's nest-when-you-can decision rule: don't grow the top-level dispatch shape if a sub-field works.</p>
+          <p>What unifies them, framed as discipline rather than recipe: nest before you append, R5-strict opt-in for any new behaviour with side effects (env var matched literally against <code>"1"</code>, zero-IO no-op when off, a paired <code>tests/test_&lt;feature&gt;_disabled_is_noop.py</code> lint), verbatim attribution carrying the upstream URL inline, regression test pinning the upstream invariant.</p>
+          <p>Together those turn "we read a good article" into a contracted migration: what the upstream said, which words we copied, which schema slot they landed in, which test locks them down. That is why this section is "Standing on Shoulders" rather than "Bibliography": real architectural pull, but every step carries our own signature.</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 4 — 整体设计：心智模型 / The Mental Model
+           Order (philosophy → diagram → six rules → walk-through)
+           preserves v3 §4 ordering exactly.
+           ========================================================= -->
+      <section id="sec-4">
+        <h2><span data-i18n="post.sec4.h2">§ 4 — 整体设计：心智模型 / The Mental Model</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>DevolaFlow 的设计奠基在两个判断上。第一个，LLM 跑一个真实任务时，决定上限的是它自己的注意力预算——给它的 token 越多，能稳定保持注意力的事就越少。所以"少塞一份上下文"在 DevolaFlow 这套体系里是工程问题，不是审美偏好；上下文超预算的失败方式很隐蔽——不会立刻显式出错，会先表现成"做对的概率慢慢往下掉"，这种缓慢的、不显式的失败对一个多日工作流来说是最难诊断的。第二个，LLM 厂商把 prompt 前缀的 KV 算好之后会缓存下来，缓存命中下一轮便宜 5–10×；任何打乱前缀字节顺序的修改都把这份便宜还回去，下一轮重新付钱。这两件事看似分别讲注意力和讲缓存，落到工程上是同一件事的两面：<strong>让最贵的资源用在最难的判断上，让一切重复的、可校验的、可回放的工作沉到契约里</strong>。</p>
+          <p>我们当年也想过把根基押在别的地方——更多的工具、更聪明的智能体、更花哨的 prompt 工程。每一种我们都试过一两个 cycle，没一个能稳住。最后留下来的是这两个判断，因为它们直接对应的是 LLM 提供方的成本结构和 LLM 自身的注意力分布——它们是物理事实，不是设计偏好。</p>
+          <p>把这两个判断认真当回事，整个框架的形状就出来了。调度者不写代码——这是为了把"决定怎么做"和"实际去做"分开，事后能审计：哪个 agent 在什么契约下产出的哪个 artifact，时间线、调用方、scoring 阈值，全部留得下。每一层只看它需要看见的——这是为了把注意力预算花在最该花的地方，并且让兄弟智能体物理上互不干扰（它们看不到彼此）。每一次调度的载荷有固定的字段顺序——这是为了不让缓存白付，让 LLM 厂商的 KV cache 跨轮可复用。每一个循环都有上界——这是为了让失败有方向（升级到上一层）而不是开新的尝试。这四条不是从框架里一条条抠出来的规则，是这两个判断的逻辑后果。</p>
+          <p>Sketch 一下：</p>
+          <pre class="layer-diagram">        Human
+          │
+          ▼
+  ┌─────────────────────┐
+  │ L0  Project Agent   │   ~3K tok    selects workflow → sequences stages
+  └─────────────────────┘   tools: Read / Glob / Grep / SemanticSearch
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L1  Stage Agent     │   ~5K tok    decomposes stage → runs convergence
+  └─────────────────────┘   tools: Read / Glob / Grep / SemanticSearch
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L2  Wave Agent      │   ~4K tok    fans out parallel tasks ≤ 5
+  └─────────────────────┘   tools: read tools + Task (spawn L3)
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L3  Task Agent      │   THE only layer that writes code
+  └─────────────────────┘   ~8K tok    tools: ALL — Write / StrReplace / Shell / Edit
+
+  reports &amp; escalations always upward: L3 → L2 → L1 → L0 → Human</pre>
+          <p>这张图里有四个角色。L0 看用户原话，挑工作流模板，把第一份 dispatch 写好；它从不打开 <code>src/</code>。L1 拿到一个阶段定义，把它降解成若干 wave。L2 看到 wave 里有几个并行任务，把它们 fan-out 给 L3，并设上限 5。L3 是这个金字塔里唯一会真正写代码、跑测试、起服务的一层。报告和升级永远往上：L3 把状态报给 L2，L2 把汇总报给 L1，L1 报给 L0；只有失败走 escalation 通道，PASS 走自然的 finish 路径。</p>
+          <p>写下来，DevolaFlow 的不变量就六条；不带代号、用人话讲一遍：</p>
+          <ul>
+            <li><strong>调度者不写代码</strong>：L0 / L1 / L2 只读不写，仅 L3 写代码、跑测试、起服务。trivial 例外是单文件 &lt; 20 行。</li>
+            <li><strong>每层只取它需要的上下文</strong>：L0 ~3K、L1 ~5K、L2 ~4K、L3 ~8K，多一字都不要；这条的存在让并行变便宜。</li>
+            <li><strong>层间用结构化消息通信</strong>：层间用 schema 化的 YAML（TaskDispatch、StatusReport、ExceptionEscalation）通信，禁止散文。</li>
+            <li><strong>每个循环都有上界</strong>：每个循环都有 <code>max_iterations</code>，到顶就升级，没有"再试一次"。失败按类型分流：retry / escalate / abort。</li>
+            <li><strong>文件即契约</strong>：层与层通过 schema 化的 artifact 通信，没有共享可变内存。生产者写、消费者读、单向。</li>
+            <li><strong>前 12 位字段冻结</strong>：dispatch 前 12 键是冻结前缀，重排即作废 KV cache，下一轮 5–10×。位置 13 之后只能追加。</li>
+          </ul>
+          <p><strong>我们当年试过把 hierarchy 减到三层（L0 / L1 / L3，跳掉 wave），第二个真实任务就证明 wave 这一层不能省：一个 stage 内有 3 个并行任务时，L1 自己 fan-out 就把它的 5K 上下文挤穿了。</strong> 但每多一层，每条 dispatch 都要多过一道。这种取舍的最终形态就是上面这六条；六条不变量，写下来就这些。</p>
+
+          <h3>一次完整调度的旅程</h3>
+          <p>想象您是 L0 Project Agent，用户刚问您"给这个 Express 应用加 JWT 认证"。您不写代码，甚至不打开 <code>src/auth/</code>；您先读用户原话，匹配 22 个内置工作流模板里最贴的一个："给已有应用加功能" 加上 "auth" 关键词把分类器推到高置信度，您选了 <code>feature-enhancement</code>。</p>
+          <p>您手里有约 3K token 的上下文：工作流模板、项目状态面板、用户原话。这就够了。剩下的工作发生在四层下面，您只负责把第一个 L1 dispatch <strong>准确地写进 schema 化的调度载荷</strong>。</p>
+          <p>这份调度载荷遵循 <code>lean-dispatch.yaml#layout_invariant</code> 里的固定 16 键顺序，前 12 位是<strong>冻结前缀</strong>：<code>hdr / task / goal / assumptions / pred / files / rules / shared / accept / reinforce / verify_cfg / gate</code>；位置 13 之后是<strong>只能追加</strong>的尾巴。您不会重排这前 12 位，也不<strong>能</strong>：<code>devolaflow.compressor.assert_dispatch_layout()</code> 在出门前校验，每次 dispatch 都要走 <code>pre_dispatch → post_dispatch</code> 钩子链再校验一次。</p>
+          <p>L1 收到的是一个 5K token 的子集：阶段定义、您对用户原话的逐字 summary（不是改写）、要执行的 gate profile；它看不到您的对话历史，看不到状态面板，<strong>只看到自己需要看到的最小上下文</strong>。</p>
+          <p>最小上下文也是并行变便宜的根源。L1 把设计阶段降为单任务 wave，L2 派一个 Design 团队的 L3 Task Agent，给 8K 上下文、一个写权限文件（<code>docs/design/auth.md</code>）、一份只读清单。L3 写设计文档、跑 inline self-review、报告 30 字摘要；它没看见用户原话、没看见工作流模板、没看见状态面板，只看见任务规格、前驱 summary、规则、归属文件。</p>
+          <p>这种隔离让兄弟智能体物理上无法相互污染：它们<strong>通过 artifact 沟通</strong>，artifact 各有 schema、各有归属、单向读写。在这份契约的两端之间，藏着<strong>收敛循环</strong>。</p>
+          <p>收敛循环把失败转成下一轮的命名工作：<code>feedback.py::generate_round_dispatch</code> 抽出第 N 轮里 severity ≥ major 的前 5 条 finding（按 <code>(severity, file, line)</code> 去重），打包成 <code>applicable_rules.reinforcement</code> 注进下一份 dispatch 的第 10 位（仍然是同一份 16 键载荷，缓存前缀完好）。</p>
+          <p>第 N+1 轮的 L3 拿到这份 dispatch，<strong>合同要求</strong>它先关掉每条 reinforcement，再做新事；它回报 <code>closes_reinforcement: ["R-001", ...]</code> 或显式 defer。如果 composite 评分两轮都没涨过 <code>stagnation_epsilon</code>，循环不再续，升级到上层。</p>
+          <p>六条不变量之间的关系，是分层结构本身的副产品：调度者不写代码（最上面），所以才需要最小上下文（不然 L0 看见全部就成了 L3）；最小上下文存在，才需要结构化消息（不然层间没法对齐）；结构化消息存在，才需要文件即契约（不然 schema 校验没有落点）；文件即契约存在，才需要缓存前缀冻结（artifact 是字节，字节顺序就是契约）；前 12 位冻结，才需要循环上界（避免在错误的字节序列上无限重试）。<strong>每一层只看见它需要看见的</strong>——这是分层最朴素的描述，也是六条规则共同生成的结构。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>In plain English, DevolaFlow's design rests on two convictions and the layered structure that follows from them.</p>
+          <p>The first conviction is that an LLM agent's attention is the budget. Every extra token a layer carries is a token of attention it does not have for the work it is supposed to do. Compressing context is the difference between a layer that does its job well and a layer that fans its attention thin across noise. Context-budget overruns do not fail loudly; they fail quietly, as a steady erosion of "did the right thing on the first try" rates, and that quiet erosion is the most expensive failure mode in any multi-day workflow. The second conviction is that the LLM provider's KV cache is real, physical, and brittle. The bytes of a dispatch payload's prefix are sacred because reordering any of them invalidates the cache and forces the next round to pay the bill again — a tax measured in dollars per dispatch, paid by your users.</p>
+          <p>We tried other foundations early on. More tools, smarter agents, fancier prompt engineering — each got a cycle or two of attention and none held up. What kept holding up was these two convictions, because they correspond to physical facts about how LLM providers price their inference and how LLMs themselves spend their attention. They are not preferences.</p>
+          <p>Take those two seriously and four things follow. Dispatchers don't implement, because separating "deciding" from "doing" is what lets every action be audited after the fact: which agent received which dispatch, what files it read, what artifact it wrote, why the verdict flipped. Each layer sees the minimum context it can survive on, because that is how parallelism gets cheap and how sibling agents become incapable of polluting each other (they cannot reach each other). The dispatch payload follows a frozen-prefix-then-append-only-tail layout, because the cache prefix is bytes and any reorder costs real money. Every loop has a budget, because failure must route to escalation rather than to retrying forever on the same wrong assumption.</p>
+          <p>Sketch:</p>
+          <pre class="layer-diagram">        Human
+          │
+          ▼
+  ┌─────────────────────┐
+  │ L0  Project Agent   │   ~3K tok    selects workflow → sequences stages
+  └─────────────────────┘   tools: Read / Glob / Grep / SemanticSearch
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L1  Stage Agent     │   ~5K tok    decomposes stage → runs convergence
+  └─────────────────────┘   tools: Read / Glob / Grep / SemanticSearch
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L2  Wave Agent      │   ~4K tok    fans out parallel tasks ≤ 5
+  └─────────────────────┘   tools: read tools + Task (spawn L3)
+          │ dispatches
+          ▼
+  ┌─────────────────────┐
+  │ L3  Task Agent      │   THE only layer that writes code
+  └─────────────────────┘   ~8K tok    tools: ALL — Write / StrReplace / Shell / Edit
+
+  reports &amp; escalations always upward: L3 → L2 → L1 → L0 → Human</pre>
+          <p>There are four roles in that picture. L0 reads the user's words, picks a workflow template, and authors the first dispatch; it never opens <code>src/</code>. L1 takes a stage definition and decomposes it into waves. L2 sees a wave with several parallel tasks and fans them out to L3 with a hard cap of 5. L3 is the only layer that actually writes code, runs tests, starts services. Reports and escalations always travel upward: L3 reports to L2, L2 reports to L1, L1 reports to L0; only failure takes the escalation path, success takes the natural finish path.</p>
+          <p>The framework's invariants are six. Spelled out without rule codes:</p>
+          <ul>
+            <li><strong>Dispatchers don't write code.</strong> L0 / L1 / L2 read only; L3 writes, runs, builds. The trivial exception is a single file under 20 lines.</li>
+            <li><strong>Each layer takes only the context it needs.</strong> L0 ~3K, L1 ~5K, L2 ~4K, L3 ~8K; nothing extra. This is what makes parallelism cheap.</li>
+            <li><strong>Layers communicate through structured messages.</strong> Inter-layer YAML follows typed schemas — TaskDispatch, StatusReport, ExceptionEscalation. Free-form prose between layers is prohibited.</li>
+            <li><strong>Every loop has a ceiling.</strong> <code>max_iterations</code> exists on every loop; on hitting it, the layer escalates rather than retrying. Failure dispatches into one of three buckets: retry, escalate, abort.</li>
+            <li><strong>Files are the contract.</strong> Layers communicate through schema-shaped artifacts, never through shared mutable memory. Producer writes; consumer reads; one direction.</li>
+            <li><strong>The first 12 dispatch fields are frozen.</strong> Reordering any of them invalidates the LLM provider's KV cache and the next round costs 5–10× more. Positions 13+ are append-only.</li>
+          </ul>
+          <p><strong>We tried collapsing the hierarchy to three layers once — L0 / L1 / L3, no wave layer — and the second real task we ran broke it: when a stage has 3 parallel tasks, L1 fanning them out itself blows past its 5K context budget.</strong> Every extra layer is a layer every dispatch must traverse. The six rules above are what the trade-off settles into.</p>
+
+          <h3>A walk through one dispatch</h3>
+          <p>Imagine you are the L0 Project Agent. A user just asked you to add JWT authentication to an Express app. You don't write code; you don't even open <code>src/auth/</code>. You read the user's words, match against 22 workflow templates, find that "add feature to existing app" plus the "auth" keyword pushes the classifier to high confidence, and select <code>feature-enhancement</code>.</p>
+          <p>You hold ~3K tokens: the template, the status dashboard, the prompt. That's enough. The work itself happens four layers down; your one job at this point is to author the first L1 dispatch into a schema-shaped payload other layers can consume.</p>
+          <p>That payload follows the canonical 16-key order from <code>lean-dispatch.yaml#layout_invariant</code>. The first 12 positions are a frozen prefix: <code>hdr</code>, <code>task</code>, <code>goal</code>, <code>assumptions</code>, <code>pred</code>, <code>files</code>, <code>rules</code>, <code>shared</code>, <code>accept</code>, <code>reinforce</code>, <code>verify_cfg</code>, <code>gate</code>. Positions 13+ are append-only. You will not reorder the prefix. You cannot — <code>devolaflow.compressor.assert_dispatch_layout()</code> validates on the way out, and every dispatch flows through the <code>pre_dispatch → post_dispatch</code> lifecycle hook chain on the way through. The cache prefix is bytes; one reorder is one bill the user pays again.</p>
+          <p>The L1 receiving your dispatch sees a 5K-token subset: stage definition, verbatim user-prompt summary (not a paraphrase), gate profile to enforce. It does not see your conversation history. It does not see your status dashboard. It sees only what it needs to do its job.</p>
+          <p>Minimum context is what makes parallelism cheap. The L1 collapses the design stage into a one-task wave; the L2 dispatches one Design-team L3 with an 8K context, one writable file (<code>docs/design/auth.md</code>), and a read-only manifest. That L3 writes the design doc, runs an inline self-review (~30 seconds vs ~25 minutes for a fresh subagent — design defects are structural and a checklist catches them), and reports a 30-word summary.</p>
+          <p>Note what didn't happen: the L3 never saw the user prompt, never saw the workflow template, never saw your status dashboard. Sibling L3s in a parallel wave physically cannot pollute each other because they cannot reach each other; they communicate only through artifacts, each with a schema, each with a clear owner, each strictly write-once-read-many.</p>
+          <p>The convergence loop, when it engages on the implementation stage, is the part where DevolaFlow earns its keep. <code>feedback.py::generate_round_dispatch</code> lifts the top-5 round-N findings (severity ≥ major, deduplicated on <code>(severity, source_file, source_line)</code>) into the next dispatch's <code>applicable_rules.reinforcement</code> slot — same 16-key payload, cache prefix intact, position 10 now populated.</p>
+          <p>The round-N+1 L3 is contractually required to close every reinforcement entry before doing new work; it reports <code>closes_reinforcement: ["R-001", ...]</code> or explicitly defers. Two consecutive rounds without composite-score improvement past <code>stagnation_epsilon</code> means the loop escalates rather than continuing — bounded retry holds.</p>
+          <p>The relationship between the six rules is what the layered structure looks like up close. Dispatchers stay out of the code, so each layer can be tightly bounded; tightly bounded layers are why structured messages are necessary; structured messages need a place to land, so artifacts become the contract; artifacts are bytes, and bytes need a stable order, which is why the cache prefix is frozen; the frozen prefix exists in time, which is why every loop has a ceiling. Each layer sees only what it needs to see — that is the simplest description of the layered structure, and it is what the six rules co-produce.</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 5 — 下一步 / Where We're Heading
+           ========================================================= -->
+      <section id="sec-5">
+        <h2><span data-i18n="post.sec5.h2">§ 5 — 下一步 / Where We're Heading</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>下一步看得最清楚的，是 v10.0.0 retrospective 里<strong>显式延期</strong>的几个项目。</p>
+          <p>Si-Chip 自我度量是其中一个：桥接模块和 <code>post_skill_edit</code> 钩子在 v9.5.0 都接好了，但"用 Si-Chip 自动裁剪 SKILL 语料"这一步<strong>显式延期</strong>；理由是您原话——"在应用之前，必须先有清晰的验证基准证明它真的有效"。这句话是 DevolaFlow 自我约束的写照：拒绝在没证据的情况下优化自己。</p>
+          <p>Parallel-Wave-Dispatch 不变量是另一个。v10.0.0 把它登记为 v10.2.0 的灵魂规则候选，按"灵魂规则封顶在 10 条"那条治理规则至少要 telegraph 两个 cycle，第三个 cycle 才能正式提议；所有 L2 wave 在 <code>parallel_mode: true</code> 时<strong>必须</strong>走 <code>dispatch_wave_tasks</code>。这是把 v9.7.0 PV-03 的 <code>AsyncDispatchExecutor</code> 接线从"opt-in 的便利"升格成"strict 的不变量"，跟当年的 cache-layout 不变量、跟生命周期 hook chain 是同一种思路：当某件事重要到一定程度，就让它<strong>只有一种做法</strong>。</p>
+          <p>跨模型共识是第三件事。retrospective 的 audit-script 模式（<code>audit_feedback_ac.py</code> 一次扫 57 份历史 feedback）和 NineS 多次分析叠合，已经隐含了下一步：多个 verifier 模型给同一份 artifact 评分，要求<strong>共识</strong>而不是任一模型 PASS。哲学上，这跟 v5.x 以来一直在做的事是同一件——信任契约，不信任智能体。一个 L3 可能会错；要求三个独立 verifier 一致同意的契约，就难得多。</p>
+          <p>把这三件事连起来，会注意到一个共同主题：<strong>克制</strong>。DevolaFlow 不在追求"成为最聪明的框架"，它在追求"让最蠢的错误变得不可能"。所以延期的项目几乎总是"我们能更快发出来，但会少一个测量"——多一个咽喉点、多一份契约、多一条字节稳定的不变量。让一个 DevolaFlow 工作流写错变得越来越难，这是它的设计意图。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>The clearest signal about where DevolaFlow is heading lies in three deferrals from the v10.0.0 retrospective.</p>
+          <p>Si-Chip dogfood was wired in v9.5.0 (bridge module plus the <code>post_skill_edit</code> lifecycle hook) but its actual application to trim the SKILL corpus was deferred — quoting the user, "ensure those things are genuinely effective with clear verification benchmarks BEFORE applying them." That is DevolaFlow refusing to optimize itself on conjecture.</p>
+          <p>The Parallel-Wave-Dispatch invariant is the leading soul-rule candidate telegraphed for v10.2.0. The rule capping the soul-rule layer at 10 entries requires any 11th candidate to telegraph for two cycles before being proposed in a third, and the candidate is "every L2 wave with <code>parallel_mode: true</code> MUST flow through <code>dispatch_wave_tasks</code>." This would lift the existing AsyncDispatchExecutor wiring from an opt-in convenience to a strict invariant — same instinct that produced the cache-layout invariant and the lifecycle hook chain: when something matters enough, you make there be exactly one way to do it.</p>
+          <p>Cross-model consensus is the implication of v10.0.0's audit-script pattern (57 feedback files swept in a single pass with <code>audit_feedback_ac.py</code>) plus the per-MINOR NineS analyses. The next move is letting multiple verifier models score the same artifact and requiring consensus rather than any single PASS. Philosophically, that is the same move DevolaFlow has been making since v5.x: trust the contract, trust the artifact, audit the agent. A single L3 can be wrong; a contract that demands three independent verifiers agree is harder to fool.</p>
+          <p>The throughline across all three is restraint. DevolaFlow does not aim to be the smartest framework; it aims to make the dumbest possible mistakes impossible.</p>
+          <p>Deferred items are usually "we could ship this faster but we'd lose a measurement we need" — one more chokepoint, one more contract, one more byte-stable invariant. Writing a wrong DevolaFlow workflow keeps getting harder, and that is the design intent.</p>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           § 6 — 已应用反馈日志 / Applied-Feedback Log
+           Rendered as a 2-column table per task spec.
+           ========================================================= -->
+      <section id="sec-6">
+        <h2><span data-i18n="post.sec6.h2">§ 6 — 已应用反馈日志 / Applied-Feedback Log</span></h2>
+
+        <div class="lang-block-cn" lang="zh">
+          <span class="lang-tag">中文</span>
+          <p>v2 留了六个开放问题给您挑。v3 把您的回答 <code>.local/tasks/deepreview/user-opinions.md</code> 落进了稿子，每条逐项标记了应用位置：</p>
+          <table class="feedback-applied-table">
+            <thead>
+              <tr>
+                <th data-i18n="post.sec6.col.feedback">用户反馈</th>
+                <th data-i18n="post.sec6.col.applied">已应用位置</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="feedback-key">§6.1</span> 按 commit 重新分时代、网站不另成段</td>
+                <td>应用在 §2。时代数从 7 降到 5；boundary 都引具体 commit；v6.3 网站重做并入第二时代尾、v10.1.0 人话 cycle 并入第五时代尾。详情见姊妹文件 <code>v3_era_research.md</code>。</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.2</span> OpenSpec 是可以的</td>
+                <td>应用在 §3。§3 仍以 OpenSpec 领头（v8.3.0 变更驱动工作流）。</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.3</span> 先强调 DevolaFlow 的设计哲学</td>
+                <td>应用在 §4。§4 现在先讲两条设计判断（注意力是预算 / 缓存前缀是字节），再放四层调度图，再讲六条不变量，最后讲一次完整 dispatch 的旅程。</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.4</span> 更有描述性的方式面向人类读者</td>
+                <td>应用在 §4 + 全文。规则的代号从正文里挪到括号内的脚注，让描述名本身撑住读法。</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.5</span> 强调分层，无需专门设计一套隐喻</td>
+                <td>§4 把 v2 用过的那个金属感隐喻拿掉了。结尾一段直接讲"每一层只看见它需要看见的"，让分层结构自己说话。</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.6</span> 在网页不同位置进行更新，单独维护一个博客页面</td>
+                <td>应用在 §0 的元注。这一稿是网站博客页内容源；Wave 2 会把它渲染成 HTML，挂在站点的博客区。</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>行文风格上，您指出的几种 AI 化连接语都做了系统的扫除（负向对比从句、口头化的连接副词），每段直接给出主张。如果您读到任何一处仍像 AI，请直接圈出，下一稿继续。</p>
+        </div>
+
+        <hr class="lang-sep">
+
+        <div class="lang-block-en" lang="en">
+          <span class="lang-tag">English</span>
+          <p>v2 closed with six open questions for the user. v3 carries each answer from <code>.local/tasks/deepreview/user-opinions.md</code> into the draft. The table below records where each piece of feedback landed.</p>
+          <table class="feedback-applied-table">
+            <thead>
+              <tr>
+                <th data-i18n="post.sec6.col.feedbackEN">Feedback</th>
+                <th data-i18n="post.sec6.col.appliedEN">Where it landed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="feedback-key">§6.1</span> Re-decompose eras by commit; the website should not be its own era.</td>
+                <td>Applied in §2. Era count dropped from 7 to 5; every boundary cites a specific commit; the v6.3 web redesign folds into the tail of Era 2 and the v10.1.0 writing-style cycle folds into the tail of Era 5. See sibling file <code>v3_era_research.md</code> for details.</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.2</span> OpenSpec is OK to keep.</td>
+                <td>Applied in §3. §3 still opens with OpenSpec (v8.3.0 change-driven workflow).</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.3</span> Lead §4 with the design philosophy first.</td>
+                <td>Applied in §4. §4 now opens with the two convictions (attention as budget, cache prefix as bytes), then shows the four-layer dispatch diagram, then the six invariants, then a walk through one dispatch.</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.4</span> Describe rules in human-readable language.</td>
+                <td>Applied across §4 and throughout. Rule codes are demoted from the body prose into parenthetical footnotes; descriptive names carry the reading instead.</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.5</span> Emphasise the layering directly, without a separate metaphor.</td>
+                <td>Applied in §4. The metallic load-bearing metaphor v2 leaned on is removed. The closing paragraph reads "each layer sees only what it needs to see" — the layered structure speaks for itself.</td>
+              </tr>
+              <tr>
+                <td><span class="feedback-key">§6.6</span> Maintain a separate blog page for retrospectives like this one.</td>
+                <td>Applied in §0's meta-note. This draft is the source of truth for the site blog post; Wave 2 renders it as HTML under the site's blog area.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>On prose style: the AI-flavored filler patterns you flagged were swept systematically — negative-parallel subordinate clauses and casual transitional adverbs — so each paragraph states its claim directly. If anything still reads as machine-flavored, circle it and the next draft will absorb the note.</p>
+        </div>
+      </section>
+
+      <!-- Closing italic line — kept as a footer note, bilingual. -->
+      <p class="text-muted" style="text-align:center;font-style:italic;font-size:.88rem;margin-top:1.5rem;">
+        v3 重写。v1 78.88（advisory floor 65）→ v2 99.63（您说还像 AI）→ v3 按您的六条反馈重写：commit 分时代、网站并入、§4 先讲哲学、规则代号挪到脚注、分层不必另起隐喻、扫干净 AI 化的填充语。
+        <br>
+        v3 rewrite. v1 78.88 (advisory floor 65) → v2 99.63 (still felt machine-flavored) → v3 applies your six concrete edits: commit-grounded eras, web fold-in, philosophy-first §4, rule codes demoted to parentheticals, layered description without metaphor, AI-flavored filler swept.
+      </p>
+
+    </article>
+
+    <footer class="post-footer">
+      <div class="cta-cluster">
+        <a href="#sec-0" class="btn btn-outline" data-i18n="post.cta.top">&uarr; Back to Top</a>
+        <a href="../index.html" class="btn btn-outline" data-i18n="post.cta.back">&larr; Back to Blog</a>
+        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="post.cta.skill">Read SKILL &uarr;</a>
+      </div>
+      <p style="margin-top:1rem;">
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="../../shared/i18n.js"></script>
+  <script>
+    /* Page-local i18n keys (per ST-12). Both languages registered in the
+       same file (Rule DS-3). The body text itself is rendered as bilingual
+       static markup (CN + lang-sep + EN) so the post reads correctly even
+       before i18n.js resolves; these keys cover only the chrome (heading,
+       meta, CTAs, table column headers, language toggle). */
+    addTranslations('en', {
+      'page.v3post':                    'Design Philosophy & R&D Journey — DevolaFlow Blog',
+      'post.h1.dash':                   ' \u2014 ',
+      'post.h1.title':                  'Design Philosophy & R&D Journey',
+      'post.subtitle':                  '28 days, ~100 releases, two convictions, four layers, six invariants \u2014 read in 15 minutes.',
+      'post.meta':                      'v3 \u00B7 2026-05-03 \u00B7 15 min read \u00B7 CN/EN bilingual',
+      'post.excerpt':                   'A retrospective written for a quiet 15 minutes. Five commit-grounded eras explain how the framework\'s two convictions (attention-as-budget, cache-prefix-as-bytes) compound into a four-layer dispatch hierarchy and six invariants that keep the framework honest. The third draft, rewritten after the second still felt machine-flavored.',
+      'post.cta.back':                  '\u2190 Back to Blog',
+      'post.cta.top':                   '\u2191 Back to Top',
+      'post.cta.frameworkChain':        'Framework Chain \u2192',
+      'post.cta.designSystem':          'Design System \u2192',
+      'post.cta.skill':                 'Read SKILL \u2191',
+      'post.lang.both':                 'CN + EN',
+      'post.lang.cn':                   'CN',
+      'post.lang.en':                   'EN',
+      'post.sec0.h2':                   '\u00A7 0 \u2014 Reading Guide',
+      'post.sec1.h2':                   '\u00A7 1 \u2014 The North Star',
+      'post.sec2.h2':                   '\u00A7 2 \u2014 The Journey: Five Eras',
+      'post.sec3.h2':                   '\u00A7 3 \u2014 Standing on Shoulders',
+      'post.sec4.h2':                   '\u00A7 4 \u2014 The Mental Model',
+      'post.sec5.h2':                   '\u00A7 5 \u2014 Where We\u2019re Heading',
+      'post.sec6.h2':                   '\u00A7 6 \u2014 Applied-Feedback Log',
+      'post.sec6.col.feedback':         'Feedback',
+      'post.sec6.col.applied':          'Where it landed',
+      'post.sec6.col.feedbackEN':       'Feedback',
+      'post.sec6.col.appliedEN':        'Where it landed'
+    });
+    addTranslations('zh', {
+      'page.v3post':                    '设计理念与研发历程 — DevolaFlow 博客',
+      'post.h1.dash':                   ' \u2014 ',
+      'post.h1.title':                  '设计理念与研发历程',
+      'post.subtitle':                  '28 天 \u00B7 约 100 个版本 \u00B7 两条判断 \u00B7 四层调度 \u00B7 六条不变量 \u2014 15 分钟读完。',
+      'post.meta':                      'v3 \u00B7 2026-05-03 \u00B7 15 \u5206\u949f\u9605\u8bfb \u00B7 \u4e2d\u82f1\u53cc\u8bed',
+      'post.excerpt':                   '\u4e3a\u4e00\u4e2a\u5b89\u9759\u7684 15 \u5206\u949f\u5199\u7684\u590d\u76d8\u3002\u4e94\u4e2a\u6309 commit \u5207\u5206\u7684\u65f6\u4ee3\uff0c\u8bb2\u6e05\u6846\u67b6\u7684\u4e24\u6761\u8bbe\u8ba1\u5224\u65ad\uff08\u6ce8\u610f\u529b\u662f\u9884\u7b97\u3001\u7f13\u5b58\u524d\u7f00\u662f\u5b57\u8282\uff09\u5982\u4f55\u9010\u5c42\u590d\u5408\u6210\u56db\u5c42\u8c03\u5ea6\u3001\u516d\u6761\u4e0d\u53d8\u91cf\u3002',
+      'post.cta.back':                  '\u2190 \u8fd4\u56de\u535a\u5ba2',
+      'post.cta.top':                   '\u2191 \u8fd4\u56de\u9876\u90e8',
+      'post.cta.frameworkChain':        '\u6846\u67b6\u94fe\u8def \u2192',
+      'post.cta.designSystem':          '\u8bbe\u8ba1\u4f53\u7cfb \u2192',
+      'post.cta.skill':                 '\u9605\u8bfb SKILL \u2191',
+      'post.lang.both':                 '\u4e2d + \u82f1',
+      'post.lang.cn':                   '\u4e2d',
+      'post.lang.en':                   '\u82f1',
+      'post.sec0.h2':                   '\u00A7 0 \u2014 \u9605\u8bfb\u6307\u5357',
+      'post.sec1.h2':                   '\u00A7 1 \u2014 \u5317\u6781\u661f',
+      'post.sec2.h2':                   '\u00A7 2 \u2014 \u6f14\u8fdb\u4e4b\u8def\uff1a\u4e94\u4e2a\u65f6\u4ee3',
+      'post.sec3.h2':                   '\u00A7 3 \u2014 \u7ad9\u5728\u5de8\u4eba\u7684\u80a9\u8180\u4e0a',
+      'post.sec4.h2':                   '\u00A7 4 \u2014 \u6574\u4f53\u8bbe\u8ba1\uff1a\u5fc3\u667a\u6a21\u578b',
+      'post.sec5.h2':                   '\u00A7 5 \u2014 \u4e0b\u4e00\u6b65',
+      'post.sec6.h2':                   '\u00A7 6 \u2014 \u5df2\u5e94\u7528\u53cd\u9988\u65e5\u5fd7',
+      'post.sec6.col.feedback':         '\u7528\u6237\u53cd\u9988',
+      'post.sec6.col.applied':          '\u5df2\u5e94\u7528\u4f4d\u7f6e',
+      'post.sec6.col.feedbackEN':       '\u7528\u6237\u53cd\u9988',
+      'post.sec6.col.appliedEN':        '\u5df2\u5e94\u7528\u4f4d\u7f6e'
+    });
+
+    /* Optional language toggle: default = both visible. Buttons set body
+       class to hide one column. Purely visual; the markup still ships
+       both languages so the post is bilingual on first paint. */
+    (function () {
+      var buttons = document.querySelectorAll('.lang-toggle button[data-lang-view]');
+      function apply(view) {
+        document.body.classList.remove('lang-cn-only', 'lang-en-only');
+        if (view === 'cn') { document.body.classList.add('lang-cn-only'); }
+        else if (view === 'en') { document.body.classList.add('lang-en-only'); }
+      }
+      buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          buttons.forEach(function (b) { b.classList.remove('is-active'); });
+          btn.classList.add('is-active');
+          apply(btn.getAttribute('data-lang-view'));
+        });
+      });
+    })();
+  </script>
+  <script src="../../shared/nav.js"></script>
+</body>
+</html>

@@ -29,6 +29,23 @@
       </div>
     </header>
 
+    <!-- Design Philosophy -->
+    <section class="slide-up" id="design-philosophy">
+      <h2 data-i18n="landing.philosophy.heading">Design Philosophy</h2>
+      <p class="desc" data-i18n="landing.philosophy.subtitle">Two convictions, four consequences &mdash; DevolaFlow's whole shape follows from how seriously we take them.</p>
+
+      <div class="card" style="max-width:720px;margin:0 auto;padding:1.5rem 2rem;">
+        <p data-i18n="landing.philosophy.body1">An LLM agent's attention is the actual budget being spent &mdash; every extra token a layer carries is a token of attention it does not have for the work it's supposed to do. And the LLM provider's KV cache is real, physical, brittle: the bytes of a dispatch payload's prefix are sacred, because reordering any of them invalidates the cache and forces the next round to pay the bill again.</p>
+
+        <p data-i18n="landing.philosophy.body2" style="margin-top:.85rem;">Take those two facts seriously and the rest of the framework follows: dispatchers don't implement (they audit), each layer sees the minimum it can survive on, dispatch payloads have a frozen prefix and an append-only tail, and every loop has a budget. Four commitments, one intent.</p>
+
+        <div class="cta-cluster" style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem;">
+          <a href="blog/v3-design-philosophy/index.html" class="btn btn-primary" data-i18n="landing.philosophy.readRetro">Read the design philosophy retrospective &rarr;</a>
+          <a href="blog/index.html" class="btn btn-outline" data-i18n="landing.philosophy.allPosts">All retrospectives</a>
+        </div>
+      </div>
+    </section>
+
     <!-- Quick Start -->
     <section class="fade-in">
       <div class="card" style="background:var(--accent-light);padding:1.5rem 2rem;">

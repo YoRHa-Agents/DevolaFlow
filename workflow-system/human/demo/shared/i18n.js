@@ -38,6 +38,14 @@
       'landing.tagline':    'A guardian\'s song for your code — orchestrating workflows so nothing is left behind.',
       'landing.subtitle':   'Define multi-stage delivery pipelines as declarative YAML. A 4-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.',
 
+      /* -- Landing: Design Philosophy (mid-fold beat between hero and Quick Start) -- */
+      'landing.philosophy.heading':   'Design Philosophy',
+      'landing.philosophy.subtitle':  'Two convictions, four consequences — DevolaFlow\'s whole shape follows from how seriously we take them.',
+      'landing.philosophy.body1':     'An LLM agent\'s attention is the actual budget being spent — every extra token a layer carries is a token of attention it does not have for the work it\'s supposed to do. And the LLM provider\'s KV cache is real, physical, brittle: the bytes of a dispatch payload\'s prefix are sacred, because reordering any of them invalidates the cache and forces the next round to pay the bill again.',
+      'landing.philosophy.body2':     'Take those two facts seriously and the rest of the framework follows: dispatchers don\'t implement (they audit), each layer sees the minimum it can survive on, dispatch payloads have a frozen prefix and an append-only tail, and every loop has a budget. Four commitments, one intent.',
+      'landing.philosophy.readRetro': 'Read the design philosophy retrospective →',
+      'landing.philosophy.allPosts':  'All retrospectives',
+
       /* -- Landing: quick start -- */
       'landing.install':    'Install in 1 command',
 
@@ -209,6 +217,7 @@
       'nav.frameworkChain':  'Framework Chain',
       'nav.contextFlow':     'Context Flow',
       'nav.versionTimeline': 'Timeline',
+      'nav.blog':            'Blog',
 
       /* -- Page titles: v6.3 new pages -- */
       'page.designSystem':    'Design System — DevolaFlow',
@@ -364,6 +373,14 @@
       'landing.title':      'DevolaFlow',
       'landing.tagline':    '守护者为代码而歌——编排工作流，不让任何任务被遗忘。',
       'landing.subtitle':   '将多阶段交付流水线定义为声明式 YAML。四层代理层次结构守护每一个任务，以质量门控确保代码万无一失。',
+
+      /* -- 首页：设计哲学（在 hero 与快速开始之间的中段铺垫） -- */
+      'landing.philosophy.heading':   '设计哲学',
+      'landing.philosophy.subtitle':  '两个信念，四件后果 —— DevolaFlow 的整个形状，都从我们对这两点的认真程度推导出来。',
+      'landing.philosophy.body1':     'LLM 智能体最贵的不是算力，是它自己思考的注意力 —— 多给它一个 token，就少一份注意力留给真正要做的事。LLM 厂商的 KV 缓存是物理上真实、且脆弱的：dispatch 载荷的前缀字节是神圣的，因为重排其中任何一位都会让缓存作废，下一轮要重新付钱。',
+      'landing.philosophy.body2':     '把这两件事认真当回事，框架的其余部分就跟着出来：调度者不写代码（只审计），每一层只取它需要的最少上下文，dispatch 载荷有冻结前缀加追加尾巴，每个循环都有上界。四件承诺，同一个意图。',
+      'landing.philosophy.readRetro': '阅读设计哲学回顾 →',
+      'landing.philosophy.allPosts':  '全部回顾',
 
       /* -- 首页：快速开始 -- */
       'landing.install':    '一条命令安装',
@@ -536,6 +553,7 @@
       'nav.frameworkChain':  '框架链路',
       'nav.contextFlow':     '上下文流转',
       'nav.versionTimeline': '版本演进',
+      'nav.blog':            '博客',
 
       /* -- 页面标题：v6.3 新页 -- */
       'page.designSystem':    '设计体系 — DevolaFlow',
