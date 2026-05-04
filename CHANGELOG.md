@@ -5,6 +5,179 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.0] - 2026-05-04
+
+**MAJOR — v11.0.0 5-MINOR + 1-MAJOR Rollup Cycle Close.** v11.0.0 is the MAJOR-rollup close of the 5-MINOR cycle (v10.4.0 → v10.5.0 → v10.6.0 → v10.7.0 → v10.8.0) + 1-MAJOR rollup (v11.0.0) per the cycle plan at `.local/research/v11.0.0_cycle_plan.md`. The cycle admitted **ALL 27 internal optimization directions** from `.local/research/v10_internal_optimization_directions.md` (22 PASS unconditionally + 5 CONDITIONAL_PASS with applicability bounds) per the user's mainline admission selection (Option A). The MAJOR rollup ships 4 stretch patches across 3 PVs:
+- **PV-01** (`chore(v11.0.0-rc1)`) — D-P-2 W-21 Soul-set threshold empirical calibration check (analysis-only) + D-P-4 plan-mode multi-step reasoning template extension (doc-only; references/plan-mode-enforcement.md adds §3.2 with `[EXPLORE]` + `[REVISABLE: <stage-id>]` OPT-IN annotation conventions).
+- **PV-02** (`chore(v11.0.0-rc2)`) — D-O-4 SI-10 gate-chain growth-curve forecast + 3-group reorganization recommendation (analysis-only; reorganization telegraphed for v13.0.0 once gate count crosses 10) + D-Q-3 lifecycle 4-row PURE-ALIAS rename (4 NEW canonical event-name constants + dispatcher-level `_EVENT_ALIASES` map; DEFAULT_EVENTS bumped 12 → 16 per A-2.2 APPEND-ONLY; OLD names preserved as PURE-ALIAS at original positions for 1-cycle deprecation runway v11.0.0 → v12.0.0).
+- **PV-03** (`chore(v11.0.0)`) — MAJOR cycle close: full W-9 SI-10 7-step regression sweep + W-3 SI-3 STRICT MAJOR composite **9.30 / 10** (margin +0.30 above ≥ 9.0 threshold; 0 BLOCKER + 0 CRITICAL findings) + W-7 SI-8 retrospective + W-19 cycle archive at `docs/cycle-archive/v11.0.0/` (5 MINORs of artifacts + v11.0.0 stretch + cycle plan + decomposition + evaluation methodology + admission checklist) + canonical-7 sync 10.8.0 → 11.0.0.
+
+**The pre-v11 self-loop verdict was GREEN** (`.local/research/v10.8.x_pre_v11_self_loop_report.md` — composite 9.30 / 10 PASS; per-dimension all ≥ 7.8; no reinforcement round needed). The cycle close composite holds at 9.30 — the MAJOR-rollup PVs are pure-additive (PV-01 + PV-02 ship 2 analysis-only artifacts + 1 doc-only refinement + 1 PURE-ALIAS rename); no cumulative regression.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero functional regression. One PURE-ALIAS rename + 1 doc refinement + 2 analysis artifacts.**
+
+- **D-P-2 W-21 Soul-set threshold empirical check (analysis-only)** — NEW `.local/research/v11.0.0_w21_threshold_empirical_check.md` (gitignored; 5-section deliberation INPUT for v12.0.0+ Soul-rule classification work). Verdict: 9.5/10 SI-3 §3.2 architecture-rationality threshold appropriately calibrated (4 of 7 historical cycles meet it). Recommendation: re-classify the long-floating S-11 candidate "Parallel Wave Dispatch Invariant" as **A-7 Architecture rule** (not Soul) per ADR-007 §"Soul-vs-Architecture" decision rule because the constraint is conditional (`parallel_mode: true` only) + implementation-coupled (names a specific function `dispatch_wave_tasks`). **W-21 wording byte-stable** (G-5 Soul-freeze gate preserved); Soul-set count remains 10.
+- **D-P-4 plan-mode multi-step reasoning (doc-only)** — `workflow-system/agent/references/plan-mode-enforcement.md` adds NEW §3.2 "Multi-Step Plans (Multi-Horizon Reasoning)" sub-section (~210 LOC; reference 647 → 810 lines, well within Large tier 1000-line ceiling per SF-1). Introduces 2 OPT-IN annotation conventions: `[EXPLORE]` (for exploratory probe stages whose outcome decides the next stage's shape) and `[REVISABLE: <stage-id>]` (for convergence stages whose round-2 outcome may revise downstream stages). Conventions live in EXISTING `stage.name` / `stage.description` text fields — zero schema field additions; older parsers see them as plain text. Frontmatter version bumped 8.4.1 → 11.0.0.
+- **D-O-4 SI-10 gate-chain growth-curve forecast (analysis-only)** — NEW `.local/research/v11.0.0_si10_gate_growth_analysis.md` (gitignored; 12-section forecast). Linear forecast: +1 SI-10 gate per MAJOR cycle since v8.0.0 (4 → 5 → 6 → 7 → forecast 8 at v11.0.0 → 9 v12.0.0 → 10 v13.0.0). **Reorganization-trigger threshold: gate count = 10** (forecast v13.0.0). 3-group partition design: Group A Hygiene (pytest + ruff × 2 + test_version) + Group B Validation (test_benchmarks + check-cursor-skill + multi-baseline-byte-test + iteration-delta-gate) + Group C Snapshot (W-19 archive validation + reference-rosetta currency + auto-collection schema + degraded-mode contract). Wall-clock projection: ~32s sequential or ~17s parallel post-reorganization vs ~55s no-reorganization at v15.0.0. **No actual reorganization in v11.0.0** — pure forecast + decision matrix + recommendation telegraphed.
+- **D-Q-3 Lifecycle 4-row PURE-ALIAS rename** — `src/devolaflow/lifecycle/dispatcher.py` gains a NEW `_EVENT_ALIASES` map + `_alias_event()` helper + `_canonical()` resolver. `register_hook` / `_set_default_hook` / `clear_hooks` / `list_handlers` / `run_hooks` now canonicalise the event name through the alias map; both OLD and NEW names route to the SAME underlying handler list. `src/devolaflow/lifecycle/__init__.py` adds 4 NEW canonical event-name constants — `CHECK_FILE_WRITE_EVENT` ("check_file_write"), `POST_TASK_COMPLETE_EVENT` ("post_task_complete"), `POST_FILE_EDIT_EVENT` ("post_file_edit"), `CHECK_ENVELOPE_WRITE_EVENT` ("check_envelope_write") — wired as PURE-ALIAS targets BEFORE the `_set_default_hook` calls. **DEFAULT_EVENTS bumped 12 → 16** (positions 13-16 APPEND-ONLY per A-2.2; positions 1-12 byte-stable per A-2.4 — confirmed by multi-baseline byte test 32/32 PASS unchanged). OLD names (`file_write`, `task_stop`, `format_on_edit`, `envelope_write`) preserved BYTE-IDENTICALLY at original positions 3, 4, 5, 7 — both names accept `register_hook` + `run_hooks` calls. **1-cycle PURE-ALIAS schedule**: OLD names retire at v12.0.0+ once operators have migrated. `tests/test_dispatch_emission_runs_hooks.py` (S-10 invariant) stays GREEN byte-identical (D-Q-3 §9 R1 mitigation — pure alias path).
+
+### Direction-by-direction landed PV table
+
+| ID | Title | Landed PV | Verdict | Wave |
+|---|---|---|:---:|:---:|
+| **D-X-1** | Workflow template scaffold CLI | v10.4.0 PV-02 | PASS | 1 |
+| **D-X-2** | Reference doc creation pipeline | v10.4.0 PV-03 | PASS | 1 |
+| **D-X-3** | W-9 SI-10 fast-path | v10.4.0 PV-01 | PASS | 1 |
+| **D-X-5** | Operator troubleshooting handbook | v10.4.0 PV-05 | PASS | 1 |
+| **D-A-1** | L1/L2 actual usage rate audit | v10.5.0 PV-01 | CONDITIONAL_PASS | 2 |
+| **D-A-2** | 22 builtin templates audit (Phase A) | v10.5.0 PV-02 | PASS | 2 |
+| **D-A-3** | A-1 4-layer time-scale resume protocol | v10.5.0 PV-03 | PASS | 2 |
+| **D-A-4** | A-6 workspace activation refinement | v10.5.0 PV-03 | PASS | 2 |
+| **D-D-1** | Reference utilization audit | v10.4.0 PV-04 | PASS | 3 |
+| **D-D-2** | Long-reference usage evidence | v10.4.0 PV-05 | PASS | 3 |
+| **D-D-3** | C-4 line budget counter-effect eval | v10.5.0 PV-04 | PASS | 3 |
+| **D-D-4** | W-17/W-18 maintenance trajectory | v10.5.0 PV-05 | CONDITIONAL_PASS | 3 |
+| **D-P-1** | A-2 canonical_order 17-field merge audit | v10.7.0 PV-01 | PASS | 4a |
+| **D-P-2** | W-21 Soul threshold empirical check | **v11.0.0 PV-01** | PASS | 4a (STRETCH) |
+| **D-P-3** | STATUS.yaml extensibility NEST demo | v10.7.0 PV-02 | PASS | 4a |
+| **D-P-4** | plan-mode multi-step reasoning eval | **v11.0.0 PV-01** | PASS | 4a (STRETCH) |
+| **D-O-1** | Three-evaluator semantic overlap rosetta | v10.7.0 PV-03 | CONDITIONAL_PASS | 4b |
+| **D-O-2** | SI-3 6-dim auto-collection | v10.7.0 PV-04 | PASS | 4b |
+| **D-O-3** | In-cycle research lightweight index | v10.7.0 PV-05 | PASS | 4b |
+| **D-O-4** | SI-10 gate chain growth forecast | **v11.0.0 PV-02** | CONDITIONAL_PASS | 4b (STRETCH) |
+| **D-Q-1** | NineS 7-warning helper extractions | v10.6.0 PV-01..03 | PASS | 5a |
+| **D-Q-2** | feedback.py god-function refactor | v10.6.0 PV-04 | PASS | 5a |
+| **D-Q-3** | Lifecycle 10-event taxonomy rename | **v11.0.0 PV-02** | CONDITIONAL_PASS | 5a (STRETCH) |
+| **D-Q-4** | compressor/ post-split health snapshot | v10.6.0 PV-05 | PASS | 5a |
+| **D-C-1** | Upstream-unreachable degraded mode | v10.8.0 PV-01 | PASS | 5b |
+| **D-C-2** | Bridge layer version negotiation | v10.8.0 PV-02..03 | PASS | 5b |
+| **D-C-3** | pre_plugin_invocation responsibility split | v10.8.0 PV-03 | PASS | 5b |
+
+**Total: 27 / 27 directions LANDED.** Tier distribution: 7 core + 16 standard + 4 stretch.
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+**v11.0.0 PV-01 + PV-02 + PV-03** stretch + cycle close — pinned by `tests/test_no_ghost_features.py::test_v11_0_0_pv01_new_surfaces_have_coverage`, `::test_v11_0_0_pv02_new_surfaces_have_coverage`, `::test_v11_0_0_new_symbols_have_coverage`:
+
+- **D-P-2** — `.local/research/v11.0.0_w21_threshold_empirical_check.md` (gitignored under `.local/`; 5-section deliberation INPUT)
+- **D-P-4** — `workflow-system/agent/references/plan-mode-enforcement.md` adds §3.2 "Multi-Step Plans (Multi-Horizon Reasoning)" sub-section (frontmatter version bumped 8.4.1 → 11.0.0)
+- **D-O-4** — `.local/research/v11.0.0_si10_gate_growth_analysis.md` (gitignored; 12-section forecast + 3-group reorganization design)
+- **D-Q-3** — Public API surfaces:
+  - `src/devolaflow/lifecycle/dispatcher.py::_EVENT_ALIASES` (NEW alias map dict)
+  - `src/devolaflow/lifecycle/dispatcher.py::_alias_event` (NEW helper function)
+  - `src/devolaflow/lifecycle/dispatcher.py::_canonical` (NEW resolver function)
+  - `src/devolaflow/lifecycle/__init__.py::CHECK_FILE_WRITE_EVENT` (NEW canonical constant)
+  - `src/devolaflow/lifecycle/__init__.py::POST_TASK_COMPLETE_EVENT` (NEW canonical constant)
+  - `src/devolaflow/lifecycle/__init__.py::POST_FILE_EDIT_EVENT` (NEW canonical constant)
+  - `src/devolaflow/lifecycle/__init__.py::CHECK_ENVELOPE_WRITE_EVENT` (NEW canonical constant)
+  - `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_alias_emits_byte_identical_to_canonical`
+  - `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_both_names_accept_register_hook`
+  - `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks`
+  - `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_default_events_length_is_16`
+  - `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation`
+  - `workflow-system/agent/references/env-flags.md` §7.A "Lifecycle event taxonomy"
+- **MAJOR cycle close** — pinned:
+  - `.local/research/v11.0.0_evaluation.md` (W-3 SI-3 STRICT MAJOR composite 9.30 PASS)
+  - `.local/research/v11.0.0_retrospective.md` (W-7 / SI-8; 4 mandatory sections + 9 deferrals)
+  - `docs/cycle-archive/v11.0.0/` (W-19 archive: README.md + retrospective.md + gap_analysis.md + implementation_plan.md + self_loop_report.md + per-MINOR retrospectives + nines/ + evaluation/ + other/ subfolders)
+  - `workflow-system/human/demo/version-timeline/versions.json` — NEW v11.0.0 entry per WX-2 (real metrics from this CHANGELOG only)
+  - `tests/test_no_ghost_features.py::test_v11_0_0_pv01_new_surfaces_have_coverage`
+  - `tests/test_no_ghost_features.py::test_v11_0_0_pv02_new_surfaces_have_coverage`
+  - `tests/test_no_ghost_features.py::test_v11_0_0_new_symbols_have_coverage`
+
+### Headline numbers (cycle-cumulative; v10.8.0 → v11.0.0 MAJOR close)
+
+| Area | v10.8.0 | v11.0.0 | Delta | Source |
+|------|---:|---:|---:|---|
+| Tests (collected — NEW test functions per W-17) | ~4218 | **4252 collected** | +6 NEW (PV-01 +1 + PV-02 +5 + cycle-close polishing) | `pytest tests/ --collect-only -q` |
+| Cycle-cumulative test_delta v10.3.0 → v11.0.0 close | n/a | **+150 NEW test functions** | exactly at W-17 +150 cycle cap | per per-MINOR retrospectives |
+| Coverage % | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pytest --cov=devolaflow` |
+| `__version__` | 10.8.0 | **11.0.0** | +1 MAJOR | `src/devolaflow/__init__.py` |
+| Lifecycle events (`DEFAULT_EVENTS`) | 12 | **16** | +4 (D-Q-3 NEW canonical at positions 13-16 per A-2.2 APPEND-ONLY; positions 1-12 byte-stable per A-2.4) | `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_default_events_length_is_16` |
+| `references/plan-mode-enforcement.md` line count | 647 | **810** | +163 (D-P-4 §3.2 sub-section; under SF-1 Large tier 1000 ceiling) | `wc -l` |
+| `references/env-flags.md` line count | ~432 | **489** | +57 (D-Q-3 §7.A taxonomy section; under SF-1 Large tier 1000 ceiling) | `wc -l` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved; G-5 PASS; S-11 candidate re-classified to A-7 per D-P-2 recommendation) | `.cursor/rules/repo-governance.mdc` §S-1..§S-10 |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` TELEGRAPHED for v12.0.0+) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (G-6 frozen-prefix gate; A-2.1 PASS positions 1-12 byte-stable; multi-baseline byte test 32/32 PASS) | `tests/test_layout_invariant_multi_baseline.py` |
+| W-3 SI-3 STRICT MAJOR composite | 9.30 (self-loop) | **9.30** | 0 (margin +0.30 above ≥9.0 threshold) | `.local/research/v11.0.0_evaluation.md` |
+| BLOCKER findings | 0 | 0 | 0 | `.local/research/v11.0.0_evaluation.md` §1 |
+| CRITICAL findings | 0 | 0 | 0 | `.local/research/v11.0.0_evaluation.md` §1 |
+| SF-4 canonical references | 17 | 17 | 0 (no new references in stretch) | `scripts/sync_cursor_skill.py::MIRRORED_FILES` |
+| W-19 cycle archive directory | absent | **present** | +33 archived files | `docs/cycle-archive/v11.0.0/` |
+| Demo `versions.json` entry | (last entry v10.5.0) | **+v11.0.0** | NEW per WX-2 | `workflow-system/human/demo/version-timeline/versions.json` |
+
+### W-9 SI-10 7-step verification (MAJOR cycle close gate)
+
+| Step | Command | Status |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | PASS (full suite green; +6 NEW tests for PV-01 + PV-02; +cycle-close W-18 stanza) |
+| 2 | `ruff check src/ tests/` | PASS (288 files clean) |
+| 3 | `ruff format --check src/ tests/` | PASS (288 files already formatted) |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 agree post 10.8.0 → 11.0.0 bump; mirror checks self-skip per SF-3 opt-in) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36 passed; no regression vs v10.8.x baseline) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op exit 0 per SF-3) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32 across 10 historical baselines + parametrize expansions; A-2.4 multi-baseline byte test) |
+| MAJOR-cycle additional | `make build-skill` for all 4 adapters | verified at PV-03 commit (Cursor + Codex + Claude + Copilot byte-stable per W-12) |
+| MAJOR-cycle additional | W-3 SI-3 STRICT MAJOR ≥ 9.0 | PASS (composite 9.30; margin +0.30 above the threshold) |
+
+### Files changed (cycle-cumulative; v10.8.0 → v11.0.0)
+
+NEW (committed):
+- `.local/research/v11.0.0_w21_threshold_empirical_check.md` (gitignored; D-P-2 PV-01)
+- `.local/research/v11.0.0_si10_gate_growth_analysis.md` (gitignored; D-O-4 PV-02)
+- `.local/research/v11.0.0_evaluation.md` (gitignored; W-3 SI-3 cycle close)
+- `.local/research/v11.0.0_retrospective.md` (gitignored; W-7 / SI-8)
+- `docs/cycle-archive/v11.0.0/` (NEW; 33 archived files: README.md + retrospective.md + gap_analysis.md + implementation_plan.md + self_loop_report.md + 5 per-MINOR retrospectives + evaluation/ + nines/ + other/ subfolders)
+
+MOD:
+- Canonical 7 sync 10.8.0 → 11.0.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md`, `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `src/devolaflow/lifecycle/dispatcher.py` (D-Q-3 PV-02; NEW `_EVENT_ALIASES` + `_alias_event` + `_canonical`; `register_hook` / `_set_default_hook` / `clear_hooks` / `list_handlers` canonicalise via alias map)
+- `src/devolaflow/lifecycle/__init__.py` (D-Q-3 PV-02; 4 NEW canonical event-name constants; 4 alias registrations BEFORE `_set_default_hook` calls; DEFAULT_EVENTS 12 → 16)
+- `tests/test_lifecycle_hooks.py` (D-Q-3 PV-02; +5 NEW alias regression tests)
+- `tests/test_pre_plugin_invocation_split.py` (D-Q-3 PV-02; relax `len(DEFAULT_EVENTS) == 12` to `>= 12` per A-2.2 APPEND-ONLY)
+- `tests/test_no_ghost_features.py` (PV-01 + PV-02 + cycle-close W-18 stanzas; D-Q-3 W-18 v10.8.0 stanza relaxed `== 12` to `>= 12`)
+- `workflow-system/agent/references/plan-mode-enforcement.md` (D-P-4 PV-01; +210 LOC §3.2 sub-section; frontmatter version 8.4.1 → 11.0.0)
+- `workflow-system/agent/references/env-flags.md` (D-Q-3 PV-02; +57 LOC §7.A "Lifecycle event taxonomy" section)
+- `workflow-system/human/demo/version-timeline/versions.json` (WX-2; NEW v11.0.0 entry)
+- `workflow-system/human/en/*.md` and `workflow-system/human/zh/*.md` (8 EN + 8 ZH; refreshed by `make sync-human-docs` per ST-3 bilingual completeness)
+
+### Deferred to v11.0.x / v11.2.0 / v12.0.0+ / v13.0.0+ (per W-7 retrospective §3)
+
+1. **`DEVOLAFLOW_AUTO_UPGRADE_PLUGINS`** orthogonal upgrade env flag — TELEGRAPHED in `references/env-flags.md` §2.13 + D-C-3 §2 step 4; deferred to v12.0.0+ SI-1 re-evaluation.
+2. **Alias removal at `DEFAULT_EVENTS` position 9** (`pre_plugin_invocation`) — TELEGRAPHED for v12.0.0+ per the v10.8.0 retrospective §3.1.
+3. **Alias removal for D-Q-3 OLD names** (`file_write`, `task_stop`, `format_on_edit`, `envelope_write`) — TELEGRAPHED for v12.0.0+ per the 1-cycle PURE-ALIAS schedule.
+4. **D-O-4 SI-10 reorganization execution** — RECOMMENDED for v13.0.0 once gate count crosses 10; v11.0.0 ships forecast + decision matrix only.
+5. **D-A-2 Phase B (compose-collapse 22 → 6 templates)** — Phase A `(legacy)` tagging shipped v10.5.0 PV-02; Phase B deferred to v12.0+ pending operator-acceptance feedback.
+6. **3 NineS errors (CC ≥ 21)** — `gate/scorer.py:1654 evaluate_gate` (CC=22), `shell_proxy/commands.py:389 build_mapping_from_dict` (CC=21), `writing_style/transforms/bullets.py:41 _collapse_block` (CC=25). Pre-cycle baseline carry-forward; deferred-refactor candidates for v11.0.x or v12.0.0 micro-PVs.
+7. **W-18 lint accumulation consolidation** — ~32 cycle-stanzas after v11.0.0 close; deferred to v11.0.x or v12.0.0+ per D-D-4 v10.5.4 design.
+8. **`DEFAULT_EVENTS` multi-baseline byte test** — analogue of `canonical_order` test surface; telegraphed for v11.0.x+ as unified-invariant candidate.
+9. **`task_adaptive_selector.py` line-based lookup deprecation** — 18 pytest warnings; v8.2.0 PV-05 telegraph not yet completed; section_anchors registry migration backlog.
+10. **S-11 candidate "Parallel Wave Dispatch Invariant"** — recommended re-classification as **A-7 Architecture rule** per D-P-2 §3.4; v11.2.0 SI-1 evaluates the path (Soul vs Architecture vs Workflow).
+
+### W-21 Soul-set freeze preserved + W-20 env-flag freeze preserved
+
+* No proposed S-11 in v11.0.0 cycle. Soul-set count remains 10 (S-1..S-10); cap 12 with 2 slots of headroom. Per W-21 D4, any future S-11 requires (1) 2-cycle telegraph, (2) SI-1 entry in cycle N+2, (3) SI-3 §3.2 ≥ 9.5/10, (4) Soul cap ≤ 12. The D-P-2 stretch artifact provides the empirical INPUT for v11.2.0 SI-1 deliberation.
+* No new `DEVOLAFLOW_*` env flags introduced in the v10.4.0 → v11.0.0 cycle. Env flag count stays at 8.
+
+### Cross-references
+
+- `.local/research/v10_internal_optimization_directions.md` — source of 27 directions
+- `.local/research/v11.0.0_cycle_plan.md` — SI-1 W-1 planning gate output
+- `.local/research/v11.0.0_decomposition_plan.md` — L0 dispatch contract
+- `.local/research/v11.0.0_evaluation_methodology.md` — small + large eval harness
+- `.local/research/v11.0.0_admission_checklist.md` — 9 admission gates G-1..G-9
+- `.local/research/v11.0.0_patches/<dir-id>.md` × 27 — per-direction PDS files
+- `.local/research/v11.0.0_evaluation.md` — W-3 SI-3 STRICT MAJOR composite
+- `.local/research/v11.0.0_retrospective.md` — W-7 / SI-8 retrospective
+- `.local/research/v10.8.x_pre_v11_self_loop_report.md` — pre-v11 GREEN self-loop verdict
+- `docs/cycle-archive/v11.0.0/` — W-19 cycle archive (5 MINORs + v11.0.0 stretch)
+- `tests/test_no_ghost_features.py::test_v11_0_0_*_new_surfaces_have_coverage` — W-18 stanzas
+- DevolaFlow canonical URL: https://github.com/YoRHa-Agents/DevolaFlow
+- NineS canonical URL: https://github.com/YoRHa-Agents/NineS
+- Si-Chip canonical URL: https://github.com/YoRHa-Agents/Si-Chip
+
 ## [10.8.0] - 2026-05-04
 
 **MINOR — v10.8.0 External Tool Coupling Hardening.** Fifth MINOR cycle in the v11.0.0 admission rollout; collapses 3 PDSs (D-C-1 degraded-mode contract, D-C-2 bridge shape contract tests, D-C-3 pre_plugin_invocation responsibility split) into a coherent Wave-5 External Tool Coupling cycle per `.local/research/v11.0.0_patches/`. **Pure additive cycle: zero functional regression, zero new env flags (W-20 reuse-first; `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` TELEGRAPHED for v12.0.0+), zero canonical_order mutations (G-6 frozen-prefix gate preserved).** The cycle ships the 17th SF-4 canonical reference (`references/degraded-mode.md` with "Degraded ≠ Full" leading warning per D-C-1 §9 R1), a NEW `tests/integration/` package (conftest + 4 shape contract test files + 8 captured fixtures with R1 version headers + weekly CI cron workflow), and the `pre_plugin_invocation` split into 2 focused handlers at `DEFAULT_EVENTS` positions 11 + 12 (A-2.2 append-only; position 9 alias preserved byte-identically for 1 cycle). Soul-set frozen at 10 (W-21); A-2 cache-prefix layout byte-stable; `DEFAULT_EVENTS` 10 → 12 per A-2.2 append-only.

@@ -141,6 +141,65 @@ _DEFAULT_HOOKS: dict[str, HookHandler] = {}
 # disturbing :data:`_DEFAULT_HOOKS`.
 _EXTRA_REGISTRY: dict[str, list[HookHandler]] = {}
 
+# v11.0.0 PV-02 D-Q-3: event-name alias map. Each entry maps an OLD
+# (legacy) event name → its NEW canonical name. PURE-ALIAS — both names
+# accept ``register_hook`` / ``clear_hooks`` / ``list_handlers`` /
+# ``run_hooks`` calls, and both route to the SAME underlying handler
+# list (single source of truth in ``_DEFAULT_HOOKS`` /
+# ``_EXTRA_REGISTRY`` keyed by the canonical name). This preserves
+# byte-identical observable behaviour for callers that hard-coded the
+# OLD string while admitting the NEW canonical taxonomy
+# (``pre_*`` / ``post_*`` / ``check_*``) per D-Q-3 §2.
+#
+# 1-cycle alias schedule (per `references/env-flags.md` lifecycle event
+# taxonomy section + the v11.0.0 retrospective §3 deferred-items
+# telegraph): OLD names removed at v12.0.0+ once operators have had 1
+# full cycle of migration runway. The keys here are the OLD names that
+# stay PURE-ALIAS for v11.x; v12.0.0 cycle plan SI-1 evaluates removal.
+_EVENT_ALIASES: dict[str, str] = {}
+
+
+def _canonical(event: str) -> str:
+    """Resolve an event name through the alias map.
+
+    Returns the canonical name when *event* is an alias, otherwise
+    returns *event* unchanged. The alias resolution is single-step (an
+    alias does not chain through multiple aliases) — callers that want
+    multi-hop alias chains must register intermediate canonical names
+    explicitly.
+    """
+    return _EVENT_ALIASES.get(event, event)
+
+
+def _alias_event(old: str, new: str) -> None:
+    """Register *old* as a PURE-ALIAS for *new* (v11.0.0 PV-02 D-Q-3).
+
+    Internal helper used by :mod:`devolaflow.lifecycle.__init__` to wire
+    the v11.0.0 PV-02 lifecycle-event taxonomy rename. After the alias
+    is registered, every ``register_hook(old, ...)`` /
+    ``register_hook(new, ...)`` call appends to the SAME handler list
+    (canonical-keyed), and every ``run_hooks(old, ...)`` /
+    ``run_hooks(new, ...)`` call dispatches the SAME list. This makes
+    the rename a PURE-ALIAS with byte-identical observable behaviour
+    for both names.
+
+    Idempotent: re-registering the same (old, new) pair is a no-op.
+    Re-pointing an existing alias to a different canonical name raises
+    ``ValueError`` because that would silently break callers depending
+    on the original alias resolution.
+    """
+    if old == new:
+        # Self-alias is a no-op (the event would already canonicalise to
+        # itself); avoid polluting the alias map.
+        return
+    existing = _EVENT_ALIASES.get(old)
+    if existing is not None and existing != new:
+        raise ValueError(
+            f"event alias conflict: {old!r} already aliases to "
+            f"{existing!r}; refusing to silently re-point to {new!r}"
+        )
+    _EVENT_ALIASES[old] = new
+
 
 def _set_default_hook(event: str, handler: HookHandler) -> None:
     """Register the canonical default handler for an event.
@@ -148,8 +207,12 @@ def _set_default_hook(event: str, handler: HookHandler) -> None:
     Internal helper used by :mod:`devolaflow.lifecycle.__init__` to wire
     the three documented hooks. Not part of the public API; tests should
     use :func:`register_hook` for additional handlers.
+
+    The *event* name is resolved through the alias map per
+    :func:`_canonical` so registering against an alias name correctly
+    populates the canonical slot.
     """
-    _DEFAULT_HOOKS[event] = handler
+    _DEFAULT_HOOKS[_canonical(event)] = handler
 
 
 def register_hook(event: str, handler: HookHandler) -> None:
@@ -160,8 +223,13 @@ def register_hook(event: str, handler: HookHandler) -> None:
     :func:`clear_hooks` for the event first; default handlers are
     re-installable via :func:`reset_to_defaults` or by re-importing the
     package module.
+
+    The *event* name is resolved through the alias map per
+    :func:`_canonical`. Registering against ``"file_write"`` (OLD) and
+    against ``"check_file_write"`` (NEW canonical) appends to the SAME
+    underlying handler list — both names dispatch identically.
     """
-    _EXTRA_REGISTRY.setdefault(event, []).append(handler)
+    _EXTRA_REGISTRY.setdefault(_canonical(event), []).append(handler)
 
 
 def clear_hooks(event: str | None = None) -> None:
@@ -170,26 +238,44 @@ def clear_hooks(event: str | None = None) -> None:
     Pass ``event=None`` to clear all events; pass an event name to
     clear only that event's extras. Default handlers installed via
     :func:`_set_default_hook` are NEVER cleared by this function.
+
+    The *event* name is resolved through the alias map per
+    :func:`_canonical`.
     """
     if event is None:
         _EXTRA_REGISTRY.clear()
         return
-    _EXTRA_REGISTRY.pop(event, None)
+    _EXTRA_REGISTRY.pop(_canonical(event), None)
 
 
 def list_handlers(event: str) -> tuple[HookHandler, ...]:
-    """Return all handlers (default first, then extras) for *event*."""
+    """Return all handlers (default first, then extras) for *event*.
+
+    The *event* name is resolved through the alias map per
+    :func:`_canonical` so OLD aliases see the same handler list as
+    NEW canonical names.
+    """
+    canonical_event = _canonical(event)
     handlers: list[HookHandler] = []
-    default = _DEFAULT_HOOKS.get(event)
+    default = _DEFAULT_HOOKS.get(canonical_event)
     if default is not None:
         handlers.append(default)
-    handlers.extend(_EXTRA_REGISTRY.get(event, []))
+    handlers.extend(_EXTRA_REGISTRY.get(canonical_event, []))
     return tuple(handlers)
 
 
 def registered_events() -> tuple[str, ...]:
-    """Return the union of events with at least one handler."""
-    return tuple(sorted(set(_DEFAULT_HOOKS) | set(_EXTRA_REGISTRY)))
+    """Return the union of events with at least one handler.
+
+    Includes BOTH the canonical event names (the ``_DEFAULT_HOOKS`` /
+    ``_EXTRA_REGISTRY`` keys) AND the alias names registered via
+    :func:`_alias_event`. Both surfaces appear in the introspection
+    output because callers may hold references to either name and
+    expect to see "their" event in the registered list.
+    """
+    canonical = set(_DEFAULT_HOOKS) | set(_EXTRA_REGISTRY)
+    aliased = {alias for alias, target in _EVENT_ALIASES.items() if target in canonical}
+    return tuple(sorted(canonical | aliased))
 
 
 def run_hooks(
@@ -206,6 +292,14 @@ def run_hooks(
     the caller's request — the strict-raise decision is centralised here
     so handlers don't double-log and the raise carries the cross-handler
     top-severity violation.
+
+    The *event* name is resolved through :func:`_canonical` (via
+    :func:`list_handlers`) so OLD alias names dispatch through the SAME
+    handler list as NEW canonical names per the v11.0.0 PV-02 D-Q-3
+    alias schedule. The aggregate ``HookResult.event`` field carries
+    the alias name as supplied by the caller (NOT the canonical) so
+    existing log lines and test assertions that pin the event-name
+    string continue to match byte-identically.
 
     Returns
     -------

@@ -409,6 +409,63 @@ A NEW env-flag PR that fails any of the 5 checks is a **W-20
 violation** — block at code review and either remove the flag (REUSE)
 or document the orthogonality argument explicitly.
 
+## 7.A Lifecycle event taxonomy (v11.0.0 PV-02 D-Q-3 PURE-ALIAS rename)
+
+> **Cross-cuts §2.13 + §2.14**: the `pre_plugin_invocation` /
+> `post_skill_edit` env-flag rows reference event slots in
+> `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS`. v11.0.0 PV-02
+> D-Q-3 introduces 4 NEW canonical event names per a 3-prefix taxonomy
+> (`pre_*` / `post_*` / `check_*`) with PURE-ALIAS preservation of the
+> 4 OLD names for 1 cycle.
+
+Per `.local/research/v11.0.0_patches/D-Q-3.md` §2 the rename mapping is:
+
+| OLD event name (PURE-ALIAS, v11.x) | NEW canonical name | Position in DEFAULT_EVENTS | Handler module |
+|---|---|:---:|---|
+| `file_write` | `check_file_write` | 3 (OLD) / 13 (NEW) | `lifecycle/check_file_ownership.py` (S-8 owned-files manifest enforcement) |
+| `task_stop` | `post_task_complete` | 4 (OLD) / 14 (NEW) | `lifecycle/test_on_complete.py` (verifies tests-pass at task end) |
+| `format_on_edit` | `post_file_edit` | 5 (OLD) / 15 (NEW) | `lifecycle/format_on_edit.py` (auto-format after edit) |
+| `envelope_write` | `check_envelope_write` | 7 (OLD) / 16 (NEW) | `lifecycle/check_envelope_append_only.py` (S-9 append-only enforcement) |
+
+**Resulting taxonomy** (after rename, before deprecation; 3-prefix
+partition for 100% conformance):
+
+| Prefix group | Events | Count |
+|---|---|:---:|
+| `pre_*` | `pre_dispatch`, `pre_shell_call`, `pre_handoff`, `pre_plugin_invocation`, `pre_plugin_invocation_install`, `pre_plugin_invocation_upgrade` | 6 |
+| `post_*` | `post_dispatch`, `post_task_complete`, `post_file_edit`, `post_skill_edit` | 4 |
+| `check_*` | `check_file_write`, `check_envelope_write` | 2 |
+
+**Alias schedule**: OLD names are PURE-ALIAS for v11.0.0..v11.x. Both
+names accept `register_hook(event, handler)` and dispatch via
+`run_hooks(event, payload)` to the SAME underlying handler list (single
+source of truth in `_DEFAULT_HOOKS` / `_EXTRA_REGISTRY` keyed by the
+canonical name; alias resolution via `dispatcher._EVENT_ALIASES`).
+**Removal target: v12.0.0+** SI-1 evaluates the actual operator usage
+of OLD names; if zero in-cycle production usage, the OLD names retire
+at v12.0.0 and any remaining test fixture references migrate to the
+NEW canonical names.
+
+**Migration guidance for operators**:
+
+1. Audit any custom `register_hook(...)` calls in your skill / extras
+   for the 4 OLD names; replace with the NEW canonical names.
+2. Audit any string-literal references in test fixtures or config
+   files; the constants `FILE_WRITE_EVENT`, `TASK_STOP_EVENT`,
+   `FORMAT_ON_EDIT_EVENT`, `ENVELOPE_WRITE_EVENT` are preserved but
+   point at the OLD strings; the v12.0.0 retire flips them OR they
+   stay as alias re-exports.
+3. The `registered_events()` introspection helper returns BOTH the
+   canonical names AND the aliased names so operators can verify their
+   registrations resolve cleanly during the migration runway.
+
+**Cross-references**:
+
+* `.local/research/v11.0.0_patches/D-Q-3.md` — full PDS authoring this rename.
+* `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_*` — the 5 PURE-ALIAS regression tests.
+* `src/devolaflow/lifecycle/dispatcher.py::_EVENT_ALIASES` — the alias map.
+* `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS` — the 16-entry tuple after the v11.0.0 PV-02 D-Q-3 append.
+
 ## 8. Cross-references
 
 * SKILL.md §"Reference Navigation Guide" Tier-2 row — discovery surface

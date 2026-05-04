@@ -1,6 +1,6 @@
 ---
 id: plan-mode-enforcement
-version: "8.4.1"
+version: "11.0.0"
 purpose: >
   Plan-mode L0 operating contract: when a dispatcher detects plan mode, this
   reference defines the canonical plan output template, plan-mode rules,
@@ -9,8 +9,8 @@ purpose: >
   src/devolaflow/gate/reinforcement.py and the round-aware dispatch
   escalation in src/devolaflow/task_adaptive_selector.py.
 tier: 2
-token_estimate: 3200
-last_updated: "2026-04-23"
+token_estimate: 3400
+last_updated: "2026-05-04"
 ---
 
 # Plan-Mode Enforcement & Reinforcement Loop Contract
@@ -166,6 +166,169 @@ Escalation: Task → Wave → Stage → Project → Human
 - **deliverables** — repo-relative artifact paths consumed by next stage (P5 contract — no shared memory).
 - **Writable** — list of repo-relative paths the L3 may modify; pairwise disjoint within a wave (S-8 invariant).
 - **Read-only** — list of repo-relative paths the L3 may read; intersect freely across wave tasks.
+
+### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)
+
+Added v11.0.0 PV-01 per D-P-4 — `.local/research/v11.0.0_patches/D-P-4.md`. The §3 base
+template assumes a single-horizon plan (one goal, stage-by-stage execution). Real plans
+sometimes branch across horizons (e.g., "Phase A: research; Phase B: depending on
+research outcome, EITHER design path X OR design path Y"). The convergence-loop machinery
+ALREADY supports this at the wave level (`gate_type: convergence` + `max_rounds` +
+`on_stagnation` + the round-aware escalation from §6 and §7). What was MISSING until
+v11.0.0 PV-01 is the operator-facing documentation of HOW to express such plans cleanly
+within the EXISTING fields. This sub-section closes that gap WITHOUT introducing new
+schema fields — multi-horizon plans use the existing `gate_type`, `max_rounds`,
+`context_profile`, `deliverables`, and `name` / `description` fields with two opt-in
+text-annotation conventions (`[EXPLORE]` and `[REVISABLE: <stage-id>]`).
+
+#### 3.2.1 — When multi-step plans apply
+
+Apply §3.2 conventions when ANY of these triggers are present in the plan request:
+
+* **Research-then-design**: phase A is exploratory (literature review / spike / probe);
+  phase B's shape depends on phase A's outcome (e.g., "if benchmark X says approach Z is
+  faster, do Z; else do Y").
+* **Benchmark-driven branch decisions**: a stage's outcome decides between 2+ candidate
+  paths in subsequent stages — the candidates need to be enumerable in the plan body so
+  reviewers can reason about both branches before committing.
+* **Spec-first-then-impl-or-defer**: phase A authors a spec; phase B is impl IFF the spec
+  reaches some quality bar (e.g., SI-3 § score) — otherwise defer to next cycle.
+* **Revise-after-stage-N-feedback**: a `convergence` stage's round-2 transition may
+  invalidate the assumption that downstream stages were planned around — those downstream
+  stages need an explicit revision marker so reviewers know they're tentative.
+
+Single-horizon plans (one goal; stages are linear; no branching) do NOT need §3.2 — they
+go straight to the §3 base template. §3.2 is OPT-IN.
+
+#### 3.2.2 — Template extension (uses existing fields ONLY)
+
+Multi-horizon plans express their structure through the EXISTING `stages × waves × tasks`
+template by leveraging the following field combinations:
+
+* **Exploratory probe stage** — set `gate_type: convergence` with `max_rounds: 2` and
+  `on_stagnation: escalate` for stages whose outcome decides the next stage's shape.
+  The convergence loop's W-8 / SI-9 reinforcement mechanism naturally accommodates the
+  "round-2 outcome decides" semantics.
+* **Profile flip per phase** — use the `context_profile` field to switch profiles between
+  phases. Example: phase A uses `research` profile (heavy on exploratory tooling +
+  semantic search); phase B uses `convergence_heavy` profile (heavy on gate verification
+  + reinforcement). Profile flips are zero-cost (no schema change; just different
+  context_profiles.yaml selections per stage).
+* **Fork semantics in `deliverables`** — document the branch decision in the
+  `deliverables` field by annotating which artifact is the BRANCH-DECISION INPUT for the
+  next stage. Example: `deliverables: [research-report.md] (consumed by S02 — branch
+  decision input determines path X vs path Y)`.
+
+Zero new schema fields. The `lean-dispatch.yaml#layout_invariant.canonical_order`
+remains at length 17 with positions 1-12 frozen per A-2.1. Multi-baseline byte test
+(10/10) stays green by construction.
+
+#### 3.2.3 — Plan-internal uncertainty annotation: `[EXPLORE]`
+
+Annotate exploratory stages by prefixing the stage `name` text with `[EXPLORE]`.
+
+```text
+### S01: research — [EXPLORE] feasibility study of approach Z
+- gate_type: convergence | threshold: 8.0 | coverage: N/A
+- max_rounds: 2 | on_stagnation: escalate
+- context_profile: research | deliverables: [feasibility-report.md]
+                      (consumed by S02 — branch decision input)
+- L1_receives: stage definition, predecessor gate results, token budget ~5K
+```
+
+This convention is OPT-IN — absence is canonical and equally valid. The annotation lives
+in plain text within the existing `name` field; older plan parsers see it as part of the
+stage name and ignore it. Operators who never use the convention emit single-horizon
+plans that look identical to v8.4.1-era plans.
+
+#### 3.2.4 — Plan-revision markers: `[REVISABLE: <stage-id>]`
+
+Annotate `convergence` stages whose round-2 outcome may revise downstream stages by
+appending `[REVISABLE: <downstream-stage-id>]` to the stage description.
+
+```text
+### S02: design — [EXPLORE] choose between path X and path Y [REVISABLE: S03]
+- gate_type: convergence | threshold: 8.5 | coverage: N/A
+- max_rounds: 2 | on_stagnation: escalate
+- context_profile: convergence_heavy
+- deliverables: [design-decision.md, chosen-path.md]
+                      (consumed by S03 — implementation target)
+- L1_receives: stage definition, S01 feasibility report, token budget ~5K
+```
+
+The `[REVISABLE: S03]` marker telegraphs to reviewers that S03's stage spec is tentative
+until S02's round-2 (or final round) outcome lands. Reviewers should treat S03 as a
+sketch to be re-validated rather than a committed plan.
+
+If multiple downstream stages are revisable, list them comma-separated:
+`[REVISABLE: S03, S04]`. Wildcard-like markers (`[REVISABLE: ALL_AFTER]`) are NOT
+supported — the convention requires explicit stage-IDs so reviewers can reason about
+which downstream blocks are tentative.
+
+#### 3.2.5 — Worked example (research-then-design plan)
+
+A 3-stage multi-horizon plan demonstrating both conventions:
+
+```text
+# Plan: Optimize compressor pipeline for 25%+ throughput
+
+## Overview
+Multi-horizon optimization research-then-design-then-impl. | Workflow: research-impl |
+Gate: standard
+Escalation: Task → Wave → Stage → Project → Human
+
+## Execution Model
+[4-row table from §3 verbatim — omitted for brevity]
+
+## Stages
+
+### S01: research — [EXPLORE] benchmark candidates A/B/C
+- gate_type: convergence | threshold: 8.0 | coverage: N/A
+- max_rounds: 2 | on_stagnation: escalate
+- context_profile: research
+- deliverables: [benchmark-report.md] (consumed by S02 — branch decision input)
+- L1_receives: stage definition, token budget ~5K
+
+#### W01 (parallel | <=3 tasks | disjoint ownership)
+| ID | Layer | Type | Task | Team | Writable | Read-only | Est. | AC |
+|----|-------|------|------|------|----------|-----------|------|-----|
+| T01 | L3 | research | Benchmark candidate A | research | benchmarks/cand_a/ | src/compressor/ | 30min | report-shape match |
+| T02 | L3 | research | Benchmark candidate B | research | benchmarks/cand_b/ | src/compressor/ | 30min | report-shape match |
+| T03 | L3 | research | Benchmark candidate C | research | benchmarks/cand_c/ | src/compressor/ | 30min | report-shape match |
+
+### S02: design — [EXPLORE] choose winning candidate [REVISABLE: S03]
+- gate_type: convergence | threshold: 8.5 | coverage: N/A
+- max_rounds: 2 | on_stagnation: escalate
+- context_profile: convergence_heavy
+- deliverables: [design-decision.md, chosen-path.md] (consumed by S03)
+- L1_receives: stage definition, S01 benchmark report, token budget ~5K
+
+### S03: impl — implement chosen path [REVISABLE: pending S02 decision]
+- gate_type: standard | threshold: 8.5 | coverage: 80%
+- context_profile: impl_heavy
+- deliverables: [src/compressor/<chosen>.py, tests/test_<chosen>.py]
+- L1_receives: stage definition, S02 chosen-path.md, token budget ~5K
+
+## Constraints Checklist
+[9-item checklist from §4 verbatim — omitted for brevity]
+
+## Invariants
+[5-item P1..P5 list from §3 verbatim — omitted for brevity]
+```
+
+The `[EXPLORE]` annotations on S01 + S02 telegraph that those stages are exploratory.
+The `[REVISABLE: S03]` annotation on S02 telegraphs that S03's spec is tentative until
+S02's round-2 outcome lands. The S03 description carries a reciprocal `[REVISABLE:
+pending S02 decision]` so reviewers reading S03 in isolation see the tentative status
+without backtracking to S02.
+
+#### 3.2.6 — Cross-references
+
+* §3 (Plan Output Template) — the base template all plans inherit from.
+* §6 (Reinforcement Rules) — the round-N>1 mechanics that operate on `[EXPLORE]` stages.
+* §7 (Convergence Loop Mechanics) — the `max_rounds` + `on_stagnation` semantics that
+  underpin `[EXPLORE]` + `[REVISABLE]` plans.
+* `.local/research/v11.0.0_patches/D-P-4.md` — the PDS authoring this sub-section.
 
 ## 4. Constraints Checklist (verbatim — must verify before finalizing plan)
 

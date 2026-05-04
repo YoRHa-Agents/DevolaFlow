@@ -64,6 +64,7 @@ from devolaflow.lifecycle.dispatcher import (
     HookResult,
     HookViolation,
     Severity,
+    _alias_event,
     _set_default_hook,
     clear_hooks,
     emit_violations,
@@ -135,7 +136,43 @@ from devolaflow.lifecycle.validate_owned_files import (
     validate_owned_files,
 )
 
-# Wire the canonical defaults.
+# v11.0.0 PV-02 D-Q-3 — NEW canonical lifecycle event names per the
+# `pre_*` / `post_*` / `check_*` taxonomy. Each NEW name is wired as a
+# PURE-ALIAS for the corresponding OLD name via ``_alias_event`` BELOW
+# (BEFORE ``_set_default_hook`` calls); both names then accept
+# ``register_hook`` / ``run_hooks`` calls and route to the SAME
+# underlying handler list. The OLD names at positions 3, 4, 5, 7 of
+# DEFAULT_EVENTS are preserved BYTE-IDENTICALLY as ALIASES for 1 full
+# cycle (v11.0.0 → v11.x); deprecation telegraphed for v12.0.0+ per
+# the v11.0.0 retrospective §3 deferred items list and `references/
+# env-flags.md` lifecycle-event taxonomy section.
+#
+# Rename mapping (D-Q-3 §2):
+#   file_write       → check_file_write    (S-8 ownership check; check_* prefix)
+#   task_stop        → post_task_complete  (post-action; post_* prefix)
+#   format_on_edit   → post_file_edit      (post-action; post_* prefix)
+#   envelope_write   → check_envelope_write (S-9 append-only check; check_*)
+CHECK_FILE_WRITE_EVENT: str = "check_file_write"
+POST_TASK_COMPLETE_EVENT: str = "post_task_complete"
+POST_FILE_EDIT_EVENT: str = "post_file_edit"
+CHECK_ENVELOPE_WRITE_EVENT: str = "check_envelope_write"
+
+# Wire D-Q-3 PURE-ALIAS rename BEFORE the ``_set_default_hook`` calls
+# below — every subsequent ``_set_default_hook(_FILE_WRITE_EVENT, ...)``
+# call resolves the OLD name to the NEW canonical via the alias map and
+# stores the handler under the NEW canonical key in ``_DEFAULT_HOOKS``.
+# 1-cycle alias schedule: OLD names removed at v12.0.0+ once operators
+# have migrated their hook registrations.
+_alias_event(_FILE_WRITE_EVENT, CHECK_FILE_WRITE_EVENT)
+_alias_event(_TASK_STOP_EVENT, POST_TASK_COMPLETE_EVENT)
+_alias_event(_FORMAT_ON_EDIT_EVENT, POST_FILE_EDIT_EVENT)
+_alias_event(_ENVELOPE_WRITE_EVENT, CHECK_ENVELOPE_WRITE_EVENT)
+
+# Wire the canonical defaults. The OLD-name constants below are passed
+# to ``_set_default_hook``; each call internally resolves through the
+# alias map (set up above) and stores the handler under the NEW
+# canonical key. Callers using EITHER the OLD constant string or the
+# NEW canonical string see byte-identical handler dispatch.
 _set_default_hook(_PRE_DISPATCH_EVENT, validate_dispatch)
 _set_default_hook(_POST_DISPATCH_EVENT, post_dispatch)
 _set_default_hook(_FILE_WRITE_EVENT, check_file_ownership)
@@ -242,6 +279,31 @@ PRE_PLUGIN_INVOCATION_UPGRADE_EVENT: str = _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
 # Per A-2.2 append-only, positions 1-10 are byte-stable — positions
 # 11 + 12 appended at the tail preserving the cache-prefix invariant.
 # See `references/env-flags.md` §2.13 row for the full split doc.
+#
+# v11.0.0 PV-02 D-Q-3: bumped 12 → 16 by APPENDING the 4 NEW canonical
+# event names per the `pre_*` / `post_*` / `check_*` taxonomy. The 4
+# OLD names at positions 3, 4, 5, 7 (`file_write`, `task_stop`,
+# `format_on_edit`, `envelope_write`) are preserved BYTE-IDENTICALLY
+# as ALIASES routed through the dispatcher's ``_EVENT_ALIASES`` map.
+# Both names accept ``register_hook`` / ``run_hooks`` calls; both
+# dispatch the SAME underlying handler list.
+#
+#   * `check_file_write`     (position 13) — alias of `file_write`
+#   * `post_task_complete`   (position 14) — alias of `task_stop`
+#   * `post_file_edit`       (position 15) — alias of `format_on_edit`
+#   * `check_envelope_write` (position 16) — alias of `envelope_write`
+#
+# 1-cycle alias schedule: OLD names removed at v12.0.0+ once operators
+# have migrated their hook registrations. Telegraphed in v11.0.0
+# retrospective §3 deferred items list per the W-21-pattern multi-cycle
+# deliberation cadence (NOT W-21 itself; W-21 governs Soul rules only).
+#
+# Per A-2.2 append-only, positions 1-12 are byte-stable — positions
+# 13-16 appended at the tail preserving the cache-prefix-style
+# invariant for ``DEFAULT_EVENTS`` (note: ``DEFAULT_EVENTS`` is an
+# internal lifecycle tuple, NOT the dispatch payload's ``canonical_order``;
+# the A-2.1 frozen prefix on ``schemas/lean-dispatch.yaml#layout_invariant``
+# is on a SEPARATE registry surface and is unaffected).
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -255,9 +317,15 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     POST_SKILL_EDIT_EVENT,
     PRE_PLUGIN_INVOCATION_INSTALL_EVENT,
     PRE_PLUGIN_INVOCATION_UPGRADE_EVENT,
+    CHECK_FILE_WRITE_EVENT,
+    POST_TASK_COMPLETE_EVENT,
+    POST_FILE_EDIT_EVENT,
+    CHECK_ENVELOPE_WRITE_EVENT,
 )
 
 __all__ = [
+    "CHECK_ENVELOPE_WRITE_EVENT",
+    "CHECK_FILE_WRITE_EVENT",
     "DEFAULT_EVENTS",
     "DoctorFinding",
     "DoctorReport",
@@ -268,7 +336,9 @@ __all__ = [
     "HookResult",
     "HookViolation",
     "POST_DISPATCH_EVENT",
+    "POST_FILE_EDIT_EVENT",
     "POST_SKILL_EDIT_EVENT",
+    "POST_TASK_COMPLETE_EVENT",
     "PRE_DISPATCH_EVENT",
     "PRE_HANDOFF_EVENT",
     "PRE_PLUGIN_INVOCATION_EVENT",

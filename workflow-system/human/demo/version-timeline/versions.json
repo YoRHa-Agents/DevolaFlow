@@ -1490,5 +1490,53 @@
       "tier2_yaml_deprecation_headers": "16",
       "pvs_in_cycle": "5"
     }
+  },
+  {
+    "version": "11.0.0",
+    "date": "2026-05-04",
+    "era": "self-improvement",
+    "headline": "MAJOR — 5-MINOR + 1-MAJOR Rollup: 27 Internal Optimization Directions Admitted + Landed Across v10.4.0 → v11.0.0; Lifecycle Taxonomy PURE-ALIAS Cleanup; W-3 SI-3 STRICT MAJOR 9.30/10",
+    "summary": "v11.0.0 closes the 5-MINOR + 1-MAJOR cycle that admitted ALL 27 internal optimization directions from .local/research/v10_internal_optimization_directions.md (22 PASS unconditionally + 5 CONDITIONAL_PASS with applicability bounds). The MAJOR rollup ships 4 stretch patches (D-P-2 W-21 threshold check + D-P-4 plan-mode multi-step + D-O-4 SI-10 gate growth + D-Q-3 lifecycle PURE-ALIAS rename) across PV-01 + PV-02 + final cycle close at PV-03. W-3 SI-3 STRICT MAJOR composite 9.30/10 (margin +0.30 above the ≥9.0 threshold). 0 BLOCKER + 0 CRITICAL findings. Soul-set frozen at 10 (W-21); env flag count frozen at 8 (W-20 reuse-first); canonical_order length 17 (G-6 frozen-prefix gate; A-2.1 PASS positions 1-12 byte-stable). DEFAULT_EVENTS bumped 12 → 16 with 4 NEW canonical lifecycle event names (check_file_write / post_task_complete / post_file_edit / check_envelope_write) at positions 13-16 per A-2.2 APPEND-ONLY; OLD names (file_write / task_stop / format_on_edit / envelope_write) preserved as PURE-ALIAS at original positions 3, 4, 5, 7 for 1-cycle deprecation runway (v11.0.0 → v12.0.0). The cycle archive at docs/cycle-archive/v11.0.0/ committed with 5 MINORs + v11.0.0 stretch artifacts per W-19 archive policy.",
+    "highlights": [
+      "5-MINOR (v10.4.0 → v10.5.0 → v10.6.0 → v10.7.0 → v10.8.0) + 1-MAJOR (v11.0.0) rollup shape — 27 / 27 internal optimization directions admitted + landed",
+      "PV-01 D-P-2 — W-21 Soul-set threshold empirical calibration check; verdict 9.5/10 SI-3 §3.2 threshold appropriately calibrated (4/7 historical cycles meet it); recommendation re-classify 'Parallel Wave Dispatch Invariant' candidate as A-7 Architecture rule (not Soul) per ADR-007 §Soul-vs-Architecture",
+      "PV-01 D-P-4 — references/plan-mode-enforcement.md adds §3.2 'Multi-Step Plans (Multi-Horizon Reasoning)' with [EXPLORE] + [REVISABLE: <stage-id>] OPT-IN annotation conventions; uses existing schema fields ONLY (zero canonical_order edits); reference 647 → 810 lines",
+      "PV-02 D-O-4 — SI-10 gate-chain growth-curve forecast + 3-group reorganization recommendation (Group A Hygiene + Group B Validation + Group C Snapshot) telegraphed for v13.0.0 once gate count crosses 10; decision matrix: append vs merge vs partition",
+      "PV-02 D-Q-3 — Lifecycle 4-row PURE-ALIAS rename: file_write → check_file_write, task_stop → post_task_complete, format_on_edit → post_file_edit, envelope_write → check_envelope_write; dispatcher's _EVENT_ALIASES map routes BOTH names to SAME handler list",
+      "DEFAULT_EVENTS bumped 12 → 16 (positions 13-16 APPEND-ONLY per A-2.2; positions 1-12 byte-stable per A-2.4); 5 NEW alias regression tests + 2 NEW W-18 ghost-audit stanzas",
+      "W-3 SI-3 STRICT MAJOR composite 9.30/10 (margin +0.30 above ≥9.0 threshold); BLOCKER 0; CRITICAL 0; trajectory v9.7.0 9.10 → v10.0.0 9.20 → v10.3.0 9.385 → v10.8.x 9.30 → v11.0.0 9.30",
+      "W-19 cycle archive populated at docs/cycle-archive/v11.0.0/ (5 MINORs + v11.0.0 stretch + cycle plan + decomposition + evaluation methodology + admission checklist + retrospectives)",
+      "Zero new env flags (W-20 reuse-first preserved); zero new Soul rules (W-21 freeze preserved at 10); zero canonical_order schema bumps (G-6 frozen-prefix gate; A-2.1 PASS); zero breaking changes (G-7 across all 27 patches)",
+      "Cycle-cumulative test delta v10.3.0 → v11.0.0 close: +150 NEW test functions exactly at W-17 cycle cap (per-MINOR distribution within W-17 +30/PV cap; v10.6.0 refactor cycle ~12; v10.4.0..v10.8.0 each ≤30)"
+    ],
+    "metrics": {
+      "tests": "4252 collected",
+      "new_test_functions_cycle": "150",
+      "cycle_test_budget_cap": "150",
+      "pv_test_cap": "30",
+      "coverage_pct": "93",
+      "coverage_floor_cp2": "80",
+      "sf4_references": "17",
+      "sf4_references_prev": "14",
+      "sf4_examples": "4",
+      "sf4_examples_prev": "3",
+      "lifecycle_events": "16",
+      "lifecycle_events_prev": "12",
+      "canonical_order_length": "17",
+      "multi_baseline_pins": "10",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "env_flag_count": "8",
+      "env_flags_added_in_cycle": "0",
+      "w3_si3_composite": "9.30",
+      "w3_si3_threshold_strict_major": "9.0",
+      "directions_admitted": "27",
+      "directions_landed": "27",
+      "minors_in_cycle": "5",
+      "stretch_pvs_in_cycle": "3",
+      "blocker_findings": "0",
+      "critical_findings": "0",
+      "pvs_in_cycle": "3"
+    }
   }
 ]

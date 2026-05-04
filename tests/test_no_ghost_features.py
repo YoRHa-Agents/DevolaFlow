@@ -6215,11 +6215,16 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"{_V10_8_0_PPI_SPLIT_TESTS}. v10.8.0 D-C-3 ships 5+ tests."
     )
 
-    # DEFAULT_EVENTS length bump (10 → 12).
+    # DEFAULT_EVENTS length bump (10 → 12 by v10.8.0 D-C-3 split). The
+    # SUPERSET containment check (`>= 12`) accommodates future
+    # APPEND-ONLY additions per A-2.2 — e.g., v11.0.0 PV-02 D-Q-3
+    # appends 4 NEW canonical event names (positions 13-16) without
+    # disturbing positions 1-12 (which stay byte-stable per A-2.4).
     from devolaflow.lifecycle import DEFAULT_EVENTS
 
-    assert len(DEFAULT_EVENTS) == 12, (
-        f"W-18 v10.8.0 violation: D-C-3 ships DEFAULT_EVENTS 10 → 12; got len={len(DEFAULT_EVENTS)}"
+    assert len(DEFAULT_EVENTS) >= 12, (
+        f"W-18 v10.8.0 violation: D-C-3 ships DEFAULT_EVENTS at length 12 "
+        f"(positions 1-12 byte-stable per A-2.4); got len={len(DEFAULT_EVENTS)}"
     )
 
     # 17th SF-4 canonical reference pinned in the _SF4_REFERENCE_SET above.
@@ -6244,4 +6249,416 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
     assert _V10_8_0_CHANGELOG_LITERAL in changelog, (
         f"W-18 v10.8.0 violation: CHANGELOG entry "
         f"{_V10_8_0_CHANGELOG_LITERAL!r} missing; v10.8.0 ships this entry."
+    )
+
+
+# =====================================================================
+# v11.0.0 PV-01 — D-P-2 + D-P-4 stretch (analysis + doc-only)
+# =====================================================================
+#
+# v11.0.0 PV-01 ships 2 analysis-or-doc-only stretch patches per the
+# v11.0.0 cycle plan §4 v11.0.0 PV-01 deliverable map:
+#
+#  1. D-P-2 — `.local/research/v11.0.0_w21_threshold_empirical_check.md`
+#     (analysis-only; W-21 Soul-set threshold empirical calibration check;
+#     5-section structure per `.local/research/v11.0.0_patches/D-P-2.md` §2;
+#     ANALYSIS-ONLY per source line 124 verbatim — W-21 wording byte-stable).
+#  2. D-P-4 — `references/plan-mode-enforcement.md` adds §3.2 "Multi-Step
+#     Plans (Multi-Horizon Reasoning)" with `[EXPLORE]` + `[REVISABLE]`
+#     opt-in annotation conventions; ~210 LOC added; reference stays
+#     within Large tier ≤ 1000 lines per C-4 / SF-1; zero schema field
+#     additions per D-P-4 §2 "uses existing fields ONLY".
+#
+# Per W-18 sequencing, this lint refreshes BEFORE the v11.0.0 CHANGELOG
+# entry mentions either feature. The CHANGELOG entry itself ships in
+# PV-03 (MAJOR cycle close); PV-01's per-PV chore commit references this
+# lint by stanza name to satisfy the W-18 precondition.
+
+# D-P-2 surface.
+_V11_0_0_PV01_DP2_ANALYSIS: Path = Path(".local/research/v11.0.0_w21_threshold_empirical_check.md")
+
+# D-P-4 surfaces (the §3.2 sub-section text + the reference frontmatter
+# version bump are pinned by literal-substring containment).
+_V11_0_0_PV01_DP4_REFERENCE: Path = Path(
+    "workflow-system/agent/references/plan-mode-enforcement.md"
+)
+_V11_0_0_PV01_DP4_SECTION_HEADING: str = "### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)"
+_V11_0_0_PV01_DP4_EXPLORE_CONVENTION: str = "[EXPLORE]"
+_V11_0_0_PV01_DP4_REVISABLE_CONVENTION: str = "[REVISABLE:"
+
+
+def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 PV-01: D-P-2 + D-P-4 stretch surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 PV-01 stretch chore
+    commit. The CHANGELOG entry that mentions these surfaces ships in
+    v11.0.0 PV-03 (MAJOR cycle close); per W-18 the lint refresh MUST
+    land before the CHANGELOG entry — this stanza closes that
+    precondition.
+
+    * D-P-2: `.local/research/v11.0.0_w21_threshold_empirical_check.md`
+      — analysis-only; W-21 threshold empirical calibration check;
+      5-section structure per `.local/research/v11.0.0_patches/D-P-2.md`
+      §2 (telegraph history / root-cause / A-1-vs-Soul classification /
+      threshold calibration / recommendation).
+    * D-P-4: `references/plan-mode-enforcement.md` adds §3.2 with the
+      `[EXPLORE]` + `[REVISABLE: <stage-id>]` annotation conventions
+      (uses existing schema fields only — zero schema additions).
+    """
+    # D-P-2: analysis artifact exists + 5-section structure present.
+    dp2_path = project_root / _V11_0_0_PV01_DP2_ANALYSIS
+    assert dp2_path.is_file(), (
+        f"W-18 v11.0.0 PV-01 violation: D-P-2 analysis missing at "
+        f"{_V11_0_0_PV01_DP2_ANALYSIS}. v11.0.0 PV-01 ships this artifact."
+    )
+    dp2_text = dp2_path.read_text(encoding="utf-8")
+    for required_section in (
+        "## §1 — Telegraph history",
+        "## §2 — Telegraph-floating root-cause analysis",
+        "## §3 — A-1 vs Soul-rule classification test",
+        "## §4 — Threshold calibration question",
+        "## §5 — Recommendation for v12.0.0+ deliberation",
+    ):
+        assert required_section in dp2_text, (
+            f"W-18 v11.0.0 PV-01 violation: D-P-2 §{required_section!r} "
+            f"missing — D-P-2 §2 mandates the 5-section structure."
+        )
+    # G-5 Soul-freeze gate: artifact must NOT propose changing W-21.
+    assert "W-21 wording preserved" in dp2_text, (
+        "W-18 v11.0.0 PV-01 violation: D-P-2 must explicitly state "
+        "'W-21 wording preserved' (G-5 Soul-freeze gate; the artifact "
+        "is analysis-only per source line 124)."
+    )
+
+    # D-P-4: §3.2 sub-section present in plan-mode-enforcement.md.
+    dp4_path = project_root / _V11_0_0_PV01_DP4_REFERENCE
+    assert dp4_path.is_file(), (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 reference missing at {_V11_0_0_PV01_DP4_REFERENCE}."
+    )
+    dp4_text = dp4_path.read_text(encoding="utf-8")
+    assert _V11_0_0_PV01_DP4_SECTION_HEADING in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2 heading "
+        f"{_V11_0_0_PV01_DP4_SECTION_HEADING!r} missing — D-P-4 §2 "
+        f"adds this sub-section to plan-mode-enforcement.md."
+    )
+    assert _V11_0_0_PV01_DP4_EXPLORE_CONVENTION in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.3 introduces the "
+        f"{_V11_0_0_PV01_DP4_EXPLORE_CONVENTION!r} OPT-IN convention; "
+        f"missing from the reference body."
+    )
+    assert _V11_0_0_PV01_DP4_REVISABLE_CONVENTION in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.4 introduces the "
+        f"{_V11_0_0_PV01_DP4_REVISABLE_CONVENTION!r} OPT-IN convention; "
+        f"missing from the reference body."
+    )
+    # Frontmatter version was bumped to 11.0.0 in same PR per D-P-4 §2 step 4.
+    assert 'version: "11.0.0"' in dp4_text[:500], (
+        "W-18 v11.0.0 PV-01 violation: D-P-4 §2 step 4 bumps the "
+        "frontmatter version to 11.0.0; missing from the reference "
+        "frontmatter."
+    )
+    # C-4 / SF-1 line ceiling: reference must stay within Large tier
+    # (≤ 1000 lines).
+    dp4_line_count = dp4_text.count("\n")
+    assert dp4_line_count <= 1000, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §2 promises the reference "
+        f"stays within the Large tier 1000-line ceiling per C-4 / SF-1; "
+        f"got {dp4_line_count} lines."
+    )
+
+
+# =====================================================================
+# v11.0.0 PV-02 — D-O-4 + D-Q-3 stretch (analysis + lifecycle alias rename)
+# =====================================================================
+#
+# v11.0.0 PV-02 ships 2 stretch patches per the v11.0.0 cycle plan §4
+# v11.0.0 PV-02 deliverable map:
+#
+#  1. D-O-4 — `.local/research/v11.0.0_si10_gate_growth_analysis.md`
+#     (analysis-only forecast; SI-10 gate-count growth curve + 3-group
+#     reorganization recommendation telegraphed for v13.0.0 once gate
+#     count crosses 10; per `.local/research/v11.0.0_patches/D-O-4.md`
+#     §2-§9). Verbatim recommendation: gate count = 10 → partition
+#     into Group A Hygiene + Group B Validation + Group C Snapshot.
+#  2. D-Q-3 — lifecycle 4-row PURE-ALIAS rename: `file_write` →
+#     `check_file_write`, `task_stop` → `post_task_complete`,
+#     `format_on_edit` → `post_file_edit`, `envelope_write` →
+#     `check_envelope_write` (per `.local/research/v11.0.0_patches/
+#     D-Q-3.md` §2). DEFAULT_EVENTS bumped 12 → 16 (positions 13-16
+#     APPEND-ONLY per A-2.2; positions 1-12 byte-stable per A-2.4).
+#     OLD names preserved as PURE-ALIAS via dispatcher's
+#     `_EVENT_ALIASES` map for 1-cycle deprecation runway (v11.0.0 →
+#     v12.0.0). 5 NEW alias regression tests in test_lifecycle_hooks.py.
+
+# D-O-4 surface.
+_V11_0_0_PV02_DO4_ANALYSIS: Path = Path(".local/research/v11.0.0_si10_gate_growth_analysis.md")
+
+# D-Q-3 surfaces.
+_V11_0_0_PV02_DQ3_LIFECYCLE_INIT: Path = Path("src/devolaflow/lifecycle/__init__.py")
+_V11_0_0_PV02_DQ3_DISPATCHER: Path = Path("src/devolaflow/lifecycle/dispatcher.py")
+_V11_0_0_PV02_DQ3_LIFECYCLE_TESTS: Path = Path("tests/test_lifecycle_hooks.py")
+_V11_0_0_PV02_DQ3_ENV_FLAGS_REF: Path = Path("workflow-system/agent/references/env-flags.md")
+
+# D-Q-3 NEW canonical event-name strings (per D-Q-3 §2 rename mapping).
+_V11_0_0_PV02_DQ3_NEW_CANONICAL_NAMES: tuple[str, ...] = (
+    "check_file_write",
+    "post_task_complete",
+    "post_file_edit",
+    "check_envelope_write",
+)
+
+# D-Q-3 OLD aliased event-name strings (preserved at original positions
+# in DEFAULT_EVENTS; PURE-ALIAS routed through `_EVENT_ALIASES` map).
+_V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES: tuple[str, ...] = (
+    "file_write",
+    "task_stop",
+    "format_on_edit",
+    "envelope_write",
+)
+
+# D-Q-3 NEW alias regression test names (per cycle dispatch task AC #4
+# "5 tests asserting alias path emits byte-identical to canonical,
+# alias telegraphed for 1-cycle deprecation, both names accept
+# registrations, both names propagate to registered handlers,
+# len(DEFAULT_EVENTS) becomes 16").
+_V11_0_0_PV02_DQ3_ALIAS_TEST_NAMES: tuple[str, ...] = (
+    "test_v11_0_0_pv02_dq3_alias_emits_byte_identical_to_canonical",
+    "test_v11_0_0_pv02_dq3_both_names_accept_register_hook",
+    "test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks",
+    "test_v11_0_0_pv02_dq3_default_events_length_is_16",
+    "test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation",
+)
+
+
+def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 PV-02: D-O-4 + D-Q-3 stretch surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 PV-02 stretch
+    chore commit. The CHANGELOG entry that mentions these surfaces
+    ships in v11.0.0 PV-03 (MAJOR cycle close); per W-18 the lint
+    refresh MUST land before the CHANGELOG entry — this stanza closes
+    that precondition.
+
+    * D-O-4: `.local/research/v11.0.0_si10_gate_growth_analysis.md`
+      — analysis-only forecast; recommends 3-group reorganization
+      when gate count crosses 10 (forecast v13.0.0).
+    * D-Q-3: 4-row PURE-ALIAS rename adding 4 NEW canonical event
+      names AT END of DEFAULT_EVENTS (positions 13-16 per A-2.2);
+      OLD names preserved as PURE-ALIAS via dispatcher's
+      `_EVENT_ALIASES` map for 1-cycle deprecation runway; 5 NEW
+      alias regression tests pin the byte-identical contract.
+    """
+    # D-O-4 analysis artifact must exist + telegraph 10-gate threshold +
+    # 3-group reorganization recommendation.
+    do4_path = project_root / _V11_0_0_PV02_DO4_ANALYSIS
+    assert do4_path.is_file(), (
+        f"W-18 v11.0.0 PV-02 violation: D-O-4 analysis missing at "
+        f"{_V11_0_0_PV02_DO4_ANALYSIS}. v11.0.0 PV-02 ships this artifact."
+    )
+    do4_text = do4_path.read_text(encoding="utf-8")
+    # Threshold + reorganization design must be telegraphed verbatim
+    # so future cycle planners discover the trigger.
+    assert "gate count = 10" in do4_text, (
+        "W-18 v11.0.0 PV-02 violation: D-O-4 §2.4 must telegraph the "
+        "'gate count = 10' reorganization-trigger threshold verbatim."
+    )
+    for group_label in ("Group A: Hygiene", "Group B: Validation", "Group C: Snapshot"):
+        assert group_label in do4_text, (
+            f"W-18 v11.0.0 PV-02 violation: D-O-4 §2.4 must enumerate "
+            f"{group_label!r} in the 3-group reorganization design."
+        )
+
+    # D-Q-3 lifecycle alias surface — NEW canonical event-name constants
+    # appear in lifecycle/__init__.py; OLD alias map entries appear in
+    # dispatcher.py.
+    init_text = (project_root / _V11_0_0_PV02_DQ3_LIFECYCLE_INIT).read_text(encoding="utf-8")
+    for new_const_name in (
+        "CHECK_FILE_WRITE_EVENT",
+        "POST_TASK_COMPLETE_EVENT",
+        "POST_FILE_EDIT_EVENT",
+        "CHECK_ENVELOPE_WRITE_EVENT",
+    ):
+        assert new_const_name in init_text, (
+            f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 introduces NEW "
+            f"canonical constant {new_const_name!r}; missing from "
+            f"lifecycle/__init__.py."
+        )
+    # Alias schedule docstring must telegraph v12.0.0 removal target.
+    assert "v12.0.0" in init_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §6 telegraphs v12.0.0 as "
+        "the alias removal target; missing from lifecycle/__init__.py."
+    )
+
+    # Dispatcher must declare the `_EVENT_ALIASES` map + the
+    # `_alias_event` helper.
+    disp_text = (project_root / _V11_0_0_PV02_DQ3_DISPATCHER).read_text(encoding="utf-8")
+    assert "_EVENT_ALIASES" in disp_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 wires the alias map "
+        "via dispatcher's `_EVENT_ALIASES`; missing."
+    )
+    assert "def _alias_event" in disp_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 introduces the "
+        "`_alias_event` helper; missing from dispatcher.py."
+    )
+
+    # DEFAULT_EVENTS length is exactly 16 (12 base + 4 NEW canonical).
+    from devolaflow.lifecycle import DEFAULT_EVENTS
+
+    assert len(DEFAULT_EVENTS) == 16, (
+        f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 ships DEFAULT_EVENTS "
+        f"12 → 16 (4 NEW canonical names appended at positions 13-16); "
+        f"got len={len(DEFAULT_EVENTS)}."
+    )
+    # Both NEW canonical AND OLD alias names must be present in the tuple.
+    for new_name in _V11_0_0_PV02_DQ3_NEW_CANONICAL_NAMES:
+        assert new_name in DEFAULT_EVENTS, (
+            f"W-18 v11.0.0 PV-02 violation: NEW canonical event name "
+            f"{new_name!r} missing from DEFAULT_EVENTS."
+        )
+    for old_name in _V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES:
+        assert old_name in DEFAULT_EVENTS, (
+            f"W-18 v11.0.0 PV-02 violation: OLD alias event name "
+            f"{old_name!r} must be PRESERVED in DEFAULT_EVENTS at its "
+            f"original position (PURE-ALIAS for 1-cycle deprecation)."
+        )
+
+    # 5 NEW alias regression tests must exist in test_lifecycle_hooks.py.
+    lifecycle_tests = (project_root / _V11_0_0_PV02_DQ3_LIFECYCLE_TESTS).read_text(encoding="utf-8")
+    for alias_test_name in _V11_0_0_PV02_DQ3_ALIAS_TEST_NAMES:
+        assert f"def {alias_test_name}" in lifecycle_tests, (
+            f"W-18 v11.0.0 PV-02 violation: D-Q-3 alias regression "
+            f"test {alias_test_name!r} missing from "
+            f"tests/test_lifecycle_hooks.py."
+        )
+
+    # env-flags.md must document the lifecycle event taxonomy section.
+    env_flags = (project_root / _V11_0_0_PV02_DQ3_ENV_FLAGS_REF).read_text(encoding="utf-8")
+    assert "Lifecycle event taxonomy" in env_flags, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 documents the rename "
+        "in env-flags.md; missing 'Lifecycle event taxonomy' section."
+    )
+
+
+# =====================================================================
+# v11.0.0 — MAJOR cycle close (rollup of 5 MINORs + 1 MAJOR + cycle archive)
+# =====================================================================
+#
+# v11.0.0 closes the 5-MINOR + 1-MAJOR rollup cycle that admitted ALL
+# 27 internal optimization directions from
+# `.local/research/v10_internal_optimization_directions.md`. The cycle
+# close ships:
+#
+#  1. Canonical-7 sync 10.8.0 → 11.0.0 via `scripts/bump_version.py`.
+#  2. CHANGELOG.md `## [11.0.0] - 2026-05-04` MAJOR-rollup entry citing
+#     all 27 directions and their landed PV; GREEN self-loop verdict.
+#  3. .local/research/v11.0.0_evaluation.md (W-3 SI-3 STRICT MAJOR
+#     composite 9.30 / 10 ≥ 9.0; verdict PASS).
+#  4. .local/research/v11.0.0_retrospective.md (W-7 / SI-8 with 4
+#     mandatory sections + ≥5 deferrals).
+#  5. docs/cycle-archive/v11.0.0/ populated with 5-MINOR + v11.0.0
+#     stretch artifacts per W-19 archive policy.
+#  6. workflow-system/human/demo/version-timeline/versions.json — NEW
+#     v11.0.0 entry per WX-2 (real metrics from CHANGELOG only).
+
+# Cycle-close surfaces.
+_V11_0_0_RETROSPECTIVE_DOC: Path = Path(".local/research/v11.0.0_retrospective.md")
+_V11_0_0_EVALUATION_DOC: Path = Path(".local/research/v11.0.0_evaluation.md")
+_V11_0_0_CHANGELOG_LITERAL: str = "## [11.0.0]"
+
+# W-19 cycle archive.
+_V11_0_0_CYCLE_ARCHIVE_DIR: Path = Path("docs/cycle-archive/v11.0.0")
+_V11_0_0_CYCLE_ARCHIVE_RETROSPECTIVE: Path = Path("docs/cycle-archive/v11.0.0/retrospective.md")
+_V11_0_0_CYCLE_ARCHIVE_README: Path = Path("docs/cycle-archive/v11.0.0/README.md")
+
+# WX-2 demo versions.json (NEW v11.0.0 entry must exist).
+_V11_0_0_VERSIONS_JSON: Path = Path("workflow-system/human/demo/version-timeline/versions.json")
+
+
+def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 MAJOR cycle close: every NEW v11.0.0 surface is pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 MAJOR-rollup
+    CHANGELOG entry. v11.0.0 is the cycle close — the entry references
+    PV-01 (D-P-2 + D-P-4) and PV-02 (D-O-4 + D-Q-3) deliverables (each
+    with its own per-PV W-18 stanza above) AND the new cycle-close
+    surfaces:
+
+    * NEW `.local/research/v11.0.0_retrospective.md` (W-7 / SI-8).
+    * NEW `.local/research/v11.0.0_evaluation.md` (W-3 SI-3).
+    * NEW `docs/cycle-archive/v11.0.0/` populated per W-19.
+    * NEW v11.0.0 entry in `workflow-system/human/demo/version-timeline/versions.json`
+      per WX-2 (real metrics from CHANGELOG only).
+    * Canonical-7 sync 10.8.0 → 11.0.0 + CHANGELOG `## [11.0.0]`.
+    """
+    # Retrospective + evaluation must exist with the required structure.
+    retro_path = project_root / _V11_0_0_RETROSPECTIVE_DOC
+    assert retro_path.is_file(), (
+        f"W-18 v11.0.0 violation: retrospective missing at "
+        f"{_V11_0_0_RETROSPECTIVE_DOC}. v11.0.0 ships this artifact."
+    )
+    retro_text = retro_path.read_text(encoding="utf-8")
+    # 4 mandatory W-7 sections must be present.
+    for required_section in (
+        "## 1. Gaps identified",
+        "## 2. What was implemented",
+        "## 3. What was deferred and why",
+        "## 4. Key learnings",
+    ):
+        assert required_section in retro_text, (
+            f"W-18 v11.0.0 violation: retrospective missing required "
+            f"W-7 section {required_section!r}."
+        )
+
+    eval_path = project_root / _V11_0_0_EVALUATION_DOC
+    assert eval_path.is_file(), (
+        f"W-18 v11.0.0 violation: SI-3 evaluation missing at {_V11_0_0_EVALUATION_DOC}."
+    )
+    eval_text = eval_path.read_text(encoding="utf-8")
+    # STRICT MAJOR composite ≥ 9.0 must be documented.
+    assert "STRICT MAJOR" in eval_text
+    assert "9.0" in eval_text  # threshold cited
+    assert "9.30" in eval_text  # actual composite cited
+
+    # W-19 cycle archive populated.
+    archive_dir = project_root / _V11_0_0_CYCLE_ARCHIVE_DIR
+    assert archive_dir.is_dir(), (
+        f"W-18 v11.0.0 violation: W-19 cycle archive missing at "
+        f"{_V11_0_0_CYCLE_ARCHIVE_DIR}. v11.0.0 cycle close must run "
+        f"`python scripts/archive_research_artifacts.py 11.0.0 ...`."
+    )
+    assert (project_root / _V11_0_0_CYCLE_ARCHIVE_RETROSPECTIVE).is_file(), (
+        "W-18 v11.0.0 violation: archive retrospective missing — "
+        "W-19 archive must include retrospective.md."
+    )
+    assert (project_root / _V11_0_0_CYCLE_ARCHIVE_README).is_file(), (
+        "W-18 v11.0.0 violation: archive README missing — W-19 auto-generates README.md."
+    )
+
+    # WX-2: NEW v11.0.0 entry must exist in versions.json.
+    versions_text = (project_root / _V11_0_0_VERSIONS_JSON).read_text(encoding="utf-8")
+    assert '"version": "11.0.0"' in versions_text, (
+        "WX-2 violation: workflow-system/human/demo/version-timeline/versions.json "
+        "must include a v11.0.0 entry; the WX-2 rule mandates a new entry "
+        "in the same PR that bumps __version__."
+    )
+
+    # Canonical-7 sync: src/devolaflow/__init__.py must be at 11.0.0.
+    init_text = (project_root / "src/devolaflow/__init__.py").read_text(encoding="utf-8")
+    assert '__version__ = "11.0.0"' in init_text, (
+        "W-18 v11.0.0 violation: canonical-7 sync incomplete — "
+        "src/devolaflow/__init__.py must declare __version__ = '11.0.0'."
+    )
+
+    # CHANGELOG entry must be at the TOP of CHANGELOG.md per AC #13.
+    changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert _V11_0_0_CHANGELOG_LITERAL in changelog, (
+        f"W-18 v11.0.0 violation: CHANGELOG entry "
+        f"{_V11_0_0_CHANGELOG_LITERAL!r} missing; v11.0.0 ships this entry."
+    )
+    # Verify the v11.0.0 entry comes BEFORE the v10.8.0 entry (top-of-file ordering).
+    v11_idx = changelog.index(_V11_0_0_CHANGELOG_LITERAL)
+    v10_8_idx = changelog.index("## [10.8.0]")
+    assert v11_idx < v10_8_idx, (
+        "W-18 v11.0.0 violation: CHANGELOG `## [11.0.0]` heading must "
+        "sit at the TOP of CHANGELOG.md (above `## [10.8.0]`) per AC #13."
     )
