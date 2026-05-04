@@ -6537,3 +6537,128 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 documents the rename "
         "in env-flags.md; missing 'Lifecycle event taxonomy' section."
     )
+
+
+# =====================================================================
+# v11.0.0 — MAJOR cycle close (rollup of 5 MINORs + 1 MAJOR + cycle archive)
+# =====================================================================
+#
+# v11.0.0 closes the 5-MINOR + 1-MAJOR rollup cycle that admitted ALL
+# 27 internal optimization directions from
+# `.local/research/v10_internal_optimization_directions.md`. The cycle
+# close ships:
+#
+#  1. Canonical-7 sync 10.8.0 → 11.0.0 via `scripts/bump_version.py`.
+#  2. CHANGELOG.md `## [11.0.0] - 2026-05-04` MAJOR-rollup entry citing
+#     all 27 directions and their landed PV; GREEN self-loop verdict.
+#  3. .local/research/v11.0.0_evaluation.md (W-3 SI-3 STRICT MAJOR
+#     composite 9.30 / 10 ≥ 9.0; verdict PASS).
+#  4. .local/research/v11.0.0_retrospective.md (W-7 / SI-8 with 4
+#     mandatory sections + ≥5 deferrals).
+#  5. docs/cycle-archive/v11.0.0/ populated with 5-MINOR + v11.0.0
+#     stretch artifacts per W-19 archive policy.
+#  6. workflow-system/human/demo/version-timeline/versions.json — NEW
+#     v11.0.0 entry per WX-2 (real metrics from CHANGELOG only).
+
+# Cycle-close surfaces.
+_V11_0_0_RETROSPECTIVE_DOC: Path = Path(".local/research/v11.0.0_retrospective.md")
+_V11_0_0_EVALUATION_DOC: Path = Path(".local/research/v11.0.0_evaluation.md")
+_V11_0_0_CHANGELOG_LITERAL: str = "## [11.0.0]"
+
+# W-19 cycle archive.
+_V11_0_0_CYCLE_ARCHIVE_DIR: Path = Path("docs/cycle-archive/v11.0.0")
+_V11_0_0_CYCLE_ARCHIVE_RETROSPECTIVE: Path = Path("docs/cycle-archive/v11.0.0/retrospective.md")
+_V11_0_0_CYCLE_ARCHIVE_README: Path = Path("docs/cycle-archive/v11.0.0/README.md")
+
+# WX-2 demo versions.json (NEW v11.0.0 entry must exist).
+_V11_0_0_VERSIONS_JSON: Path = Path("workflow-system/human/demo/version-timeline/versions.json")
+
+
+def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 MAJOR cycle close: every NEW v11.0.0 surface is pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 MAJOR-rollup
+    CHANGELOG entry. v11.0.0 is the cycle close — the entry references
+    PV-01 (D-P-2 + D-P-4) and PV-02 (D-O-4 + D-Q-3) deliverables (each
+    with its own per-PV W-18 stanza above) AND the new cycle-close
+    surfaces:
+
+    * NEW `.local/research/v11.0.0_retrospective.md` (W-7 / SI-8).
+    * NEW `.local/research/v11.0.0_evaluation.md` (W-3 SI-3).
+    * NEW `docs/cycle-archive/v11.0.0/` populated per W-19.
+    * NEW v11.0.0 entry in `workflow-system/human/demo/version-timeline/versions.json`
+      per WX-2 (real metrics from CHANGELOG only).
+    * Canonical-7 sync 10.8.0 → 11.0.0 + CHANGELOG `## [11.0.0]`.
+    """
+    # Retrospective + evaluation must exist with the required structure.
+    retro_path = project_root / _V11_0_0_RETROSPECTIVE_DOC
+    assert retro_path.is_file(), (
+        f"W-18 v11.0.0 violation: retrospective missing at "
+        f"{_V11_0_0_RETROSPECTIVE_DOC}. v11.0.0 ships this artifact."
+    )
+    retro_text = retro_path.read_text(encoding="utf-8")
+    # 4 mandatory W-7 sections must be present.
+    for required_section in (
+        "## 1. Gaps identified",
+        "## 2. What was implemented",
+        "## 3. What was deferred and why",
+        "## 4. Key learnings",
+    ):
+        assert required_section in retro_text, (
+            f"W-18 v11.0.0 violation: retrospective missing required "
+            f"W-7 section {required_section!r}."
+        )
+
+    eval_path = project_root / _V11_0_0_EVALUATION_DOC
+    assert eval_path.is_file(), (
+        f"W-18 v11.0.0 violation: SI-3 evaluation missing at {_V11_0_0_EVALUATION_DOC}."
+    )
+    eval_text = eval_path.read_text(encoding="utf-8")
+    # STRICT MAJOR composite ≥ 9.0 must be documented.
+    assert "STRICT MAJOR" in eval_text
+    assert "9.0" in eval_text  # threshold cited
+    assert "9.30" in eval_text  # actual composite cited
+
+    # W-19 cycle archive populated.
+    archive_dir = project_root / _V11_0_0_CYCLE_ARCHIVE_DIR
+    assert archive_dir.is_dir(), (
+        f"W-18 v11.0.0 violation: W-19 cycle archive missing at "
+        f"{_V11_0_0_CYCLE_ARCHIVE_DIR}. v11.0.0 cycle close must run "
+        f"`python scripts/archive_research_artifacts.py 11.0.0 ...`."
+    )
+    assert (project_root / _V11_0_0_CYCLE_ARCHIVE_RETROSPECTIVE).is_file(), (
+        "W-18 v11.0.0 violation: archive retrospective missing — "
+        "W-19 archive must include retrospective.md."
+    )
+    assert (project_root / _V11_0_0_CYCLE_ARCHIVE_README).is_file(), (
+        "W-18 v11.0.0 violation: archive README missing — W-19 auto-generates README.md."
+    )
+
+    # WX-2: NEW v11.0.0 entry must exist in versions.json.
+    versions_text = (project_root / _V11_0_0_VERSIONS_JSON).read_text(encoding="utf-8")
+    assert '"version": "11.0.0"' in versions_text, (
+        "WX-2 violation: workflow-system/human/demo/version-timeline/versions.json "
+        "must include a v11.0.0 entry; the WX-2 rule mandates a new entry "
+        "in the same PR that bumps __version__."
+    )
+
+    # Canonical-7 sync: src/devolaflow/__init__.py must be at 11.0.0.
+    init_text = (project_root / "src/devolaflow/__init__.py").read_text(encoding="utf-8")
+    assert '__version__ = "11.0.0"' in init_text, (
+        "W-18 v11.0.0 violation: canonical-7 sync incomplete — "
+        "src/devolaflow/__init__.py must declare __version__ = '11.0.0'."
+    )
+
+    # CHANGELOG entry must be at the TOP of CHANGELOG.md per AC #13.
+    changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert _V11_0_0_CHANGELOG_LITERAL in changelog, (
+        f"W-18 v11.0.0 violation: CHANGELOG entry "
+        f"{_V11_0_0_CHANGELOG_LITERAL!r} missing; v11.0.0 ships this entry."
+    )
+    # Verify the v11.0.0 entry comes BEFORE the v10.8.0 entry (top-of-file ordering).
+    v11_idx = changelog.index(_V11_0_0_CHANGELOG_LITERAL)
+    v10_8_idx = changelog.index("## [10.8.0]")
+    assert v11_idx < v10_8_idx, (
+        "W-18 v11.0.0 violation: CHANGELOG `## [11.0.0]` heading must "
+        "sit at the TOP of CHANGELOG.md (above `## [10.8.0]`) per AC #13."
+    )

@@ -1,0 +1,2792 @@
+{
+  "target": "src/devolaflow",
+  "findings": [
+    {
+      "id": "SUM-914ca1-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/__init__.py: 8 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-914ca1-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow",
+      "location": "src/devolaflow/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-bcbae9-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_match_patterns' has cyclomatic complexity 12",
+      "location": "src/devolaflow/ac_generator.py:220",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-bcbae9-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/ac_generator.py: 609 lines, 13 functions, 4 classes, 5 imports, avg complexity 4.2",
+      "location": "src/devolaflow/ac_generator.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-bcbae9-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.gate.models, os, re",
+      "location": "src/devolaflow/ac_generator.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-33b965-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/__init__.py: 4 lines, 0 functions, 0 classes, 0 imports, avg complexity 0.0",
+      "location": "src/devolaflow/adapters/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-1649e3-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/base.py: 65 lines, 3 functions, 2 classes, 5 imports, avg complexity 2.7",
+      "location": "src/devolaflow/adapters/base.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-1649e3-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, abc, dataclasses, pathlib, yaml",
+      "location": "src/devolaflow/adapters/base.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-76bc03-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/claude_adapter.py: 118 lines, 1 functions, 1 classes, 4 imports, avg complexity 5.0",
+      "location": "src/devolaflow/adapters/claude_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-76bc03-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.adapters.base, json, pathlib",
+      "location": "src/devolaflow/adapters/claude_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c7e640-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/codex_adapter.py: 64 lines, 1 functions, 1 classes, 4 imports, avg complexity 2.0",
+      "location": "src/devolaflow/adapters/codex_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c7e640-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.adapters.base, pathlib, yaml",
+      "location": "src/devolaflow/adapters/codex_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c2166b-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/copilot_adapter.py: 91 lines, 1 functions, 1 classes, 3 imports, avg complexity 3.0",
+      "location": "src/devolaflow/adapters/copilot_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c2166b-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.adapters.base, pathlib",
+      "location": "src/devolaflow/adapters/copilot_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-91d26d-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/cursor_adapter.py: 72 lines, 1 functions, 1 classes, 4 imports, avg complexity 7.0",
+      "location": "src/devolaflow/adapters/cursor_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-91d26d-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.adapters.base, pathlib, shutil",
+      "location": "src/devolaflow/adapters/cursor_adapter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-70f79c-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/data_driven.py: 347 lines, 17 functions, 2 classes, 10 imports, avg complexity 3.9",
+      "location": "src/devolaflow/adapters/data_driven.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-70f79c-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.adapters.base, devolaflow.adapters.registry, logging, pathlib, re, shutil, typing, yaml",
+      "location": "src/devolaflow/adapters/data_driven.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-6aff68-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/adapters/registry.py: 93 lines, 8 functions, 1 classes, 8 imports, avg complexity 1.5",
+      "location": "src/devolaflow/adapters/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-6aff68-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, devolaflow.adapters.base, devolaflow.adapters.claude_adapter, devolaflow.adapters.codex_adapter, devolaflow.adapters.copilot_adapter, devolaflow.adapters.cursor_adapter, pathlib",
+      "location": "src/devolaflow/adapters/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-20e449-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/__init__.py: 169 lines, 0 functions, 0 classes, 10 imports, avg complexity 0.0",
+      "location": "src/devolaflow/agent_workspace/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-20e449-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.archive, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.dispatch_executor, devolaflow.agent_workspace.handoff, devolaflow.agent_workspace.lint, devolaflow.agent_workspace.memory_bridge, devolaflow.agent_workspace.reporter, devolaflow.agent_workspace.spec_bootstrap",
+      "location": "src/devolaflow/agent_workspace/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-0cc86f-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_merge_delta_into_source' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/archive.py:693",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-0cc86f-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_apply_replacements' has cyclomatic complexity 11",
+      "location": "src/devolaflow/agent_workspace/archive.py:812",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-0cc86f-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/archive.py: 852 lines, 12 functions, 7 classes, 10 imports, avg complexity 6.0",
+      "location": "src/devolaflow/agent_workspace/archive.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0cc86f-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.reporter, devolaflow.learnings, json, logging, pathlib, typing",
+      "location": "src/devolaflow/agent_workspace/archive.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-10421e-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/change.py: 522 lines, 21 functions, 4 classes, 8 imports, avg complexity 3.0",
+      "location": "src/devolaflow/agent_workspace/change.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-10421e-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, pathlib, re, shutil, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/change.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-ab3cfd-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_slice_section_bodies' has cyclomatic complexity 16",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py:200",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-ab3cfd-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/delta_parser.py: 398 lines, 10 functions, 3 classes, 5 imports, avg complexity 5.7",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ab3cfd-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/delta_parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-55c5f2-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/dispatch_executor.py: 283 lines, 7 functions, 3 classes, 7 imports, avg complexity 2.4",
+      "location": "src/devolaflow/agent_workspace/dispatch_executor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-55c5f2-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, asyncio, collections.abc, dataclasses, inspect, logging, typing",
+      "location": "src/devolaflow/agent_workspace/dispatch_executor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-792eb5-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'HandoffEnvelope.validate' has cyclomatic complexity 15",
+      "location": "src/devolaflow/agent_workspace/handoff.py:145",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-792eb5-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/handoff.py: 422 lines, 15 functions, 4 classes, 7 imports, avg complexity 3.1",
+      "location": "src/devolaflow/agent_workspace/handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-792eb5-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-64dbc7-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'lint_change' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/lint.py:151",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-64dbc7-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/lint.py: 337 lines, 8 functions, 2 classes, 8 imports, avg complexity 4.1",
+      "location": "src/devolaflow/agent_workspace/lint.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-64dbc7-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, dataclasses, devolaflow.agent_workspace.change, logging, pathlib, sys, typing",
+      "location": "src/devolaflow/agent_workspace/lint.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c64c9f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/memory_bridge.py: 483 lines, 11 functions, 1 classes, 10 imports, avg complexity 4.5",
+      "location": "src/devolaflow/agent_workspace/memory_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c64c9f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.change, devolaflow.agent_workspace.lint, devolaflow.learnings, json, logging, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/memory_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-e64f4a-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_summarise_handoff_chain' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/reporter.py:670",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_select_top_learnings' has cyclomatic complexity 14",
+      "location": "src/devolaflow/agent_workspace/reporter.py:942",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0002",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_enumerate_compile_targets' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/reporter.py:1035",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-e64f4a-0003",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'main' has cyclomatic complexity 12",
+      "location": "src/devolaflow/agent_workspace/reporter.py:1102",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-e64f4a-0004",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/reporter.py: 1261 lines, 43 functions, 0 classes, 16 imports, avg complexity 4.5",
+      "location": "src/devolaflow/agent_workspace/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e64f4a-0005",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, collections.abc, contextlib, datetime, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, devolaflow.agent_workspace.handoff, jinja2, json, logging, pathlib, re, sys, typing, yaml",
+      "location": "src/devolaflow/agent_workspace/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-dee9ae-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'seed_initial_spec' has cyclomatic complexity 13",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py:84",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-dee9ae-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/spec_bootstrap.py: 238 lines, 2 functions, 1 classes, 6 imports, avg complexity 7.5",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-dee9ae-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.agent_workspace.archive, devolaflow.agent_workspace.change, devolaflow.agent_workspace.delta_parser, logging, pathlib",
+      "location": "src/devolaflow/agent_workspace/spec_bootstrap.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-13c0e0-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/agent_workspace/templates/__init__.py: 7 lines, 0 functions, 0 classes, 0 imports, avg complexity 0.0",
+      "location": "src/devolaflow/agent_workspace/templates/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-6462bb-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/build_skill.py: 97 lines, 4 functions, 0 classes, 7 imports, avg complexity 3.0",
+      "location": "src/devolaflow/build_skill.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-6462bb-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, devolaflow.adapters.base, devolaflow.adapters.data_driven, devolaflow.adapters.registry, pathlib, sys",
+      "location": "src/devolaflow/build_skill.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-d0109b-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/check_drift.py: 46 lines, 3 functions, 0 classes, 4 imports, avg complexity 1.7",
+      "location": "src/devolaflow/check_drift.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-d0109b-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.entropy_manager, pathlib",
+      "location": "src/devolaflow/check_drift.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-8eaee1-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'plugins_cmd' has cyclomatic complexity 19",
+      "location": "src/devolaflow/cli.py:177",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-8eaee1-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/cli.py: 301 lines, 11 functions, 0 classes, 17 imports, avg complexity 3.9",
+      "location": "src/devolaflow/cli.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-8eaee1-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: argparse, devolaflow, devolaflow.build_skill, devolaflow.check_drift, devolaflow.gate.scorer, devolaflow.lifecycle.validate_owned_files, devolaflow.local.compiler, devolaflow.local.drift, devolaflow.local.workspace, devolaflow.plugins.installer, devolaflow.pre_decision.detect, devolaflow.template_engine.parser, devolaflow.template_engine.validator, json, pathlib, sys",
+      "location": "src/devolaflow/cli.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-dad786-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/compression_pipeline.py: 490 lines, 12 functions, 6 classes, 5 imports, avg complexity 2.5",
+      "location": "src/devolaflow/compression_pipeline.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-dad786-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, logging, typing",
+      "location": "src/devolaflow/compression_pipeline.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-3dab43-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/compressor/__init__.py: 339 lines, 0 functions, 0 classes, 58 imports, avg complexity 0.0",
+      "location": "src/devolaflow/compressor/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-3dab43-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.compressor.layout, devolaflow.compressor.patterns, devolaflow.compressor.transforms, os",
+      "location": "src/devolaflow/compressor/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-71158e-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/compressor/layout.py: 327 lines, 3 functions, 2 classes, 2 imports, avg complexity 6.0",
+      "location": "src/devolaflow/compressor/layout.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-71158e-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, yaml",
+      "location": "src/devolaflow/compressor/layout.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-57dd30-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/compressor/patterns.py: 221 lines, 0 functions, 0 classes, 2 imports, avg complexity 0.0",
+      "location": "src/devolaflow/compressor/patterns.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-57dd30-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, re",
+      "location": "src/devolaflow/compressor/patterns.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-660da9-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'extract_named_entities' has cyclomatic complexity 11",
+      "location": "src/devolaflow/compressor/transforms.py:627",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-660da9-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_assemble_abstractive_summary' has cyclomatic complexity 11",
+      "location": "src/devolaflow/compressor/transforms.py:1209",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-660da9-0002",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'dedup_predecessor_summaries' has cyclomatic complexity 16",
+      "location": "src/devolaflow/compressor/transforms.py:2076",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-660da9-0003",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/compressor/transforms.py: 2198 lines, 48 functions, 2 classes, 18 imports, avg complexity 5.1",
+      "location": "src/devolaflow/compressor/transforms.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-660da9-0004",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, devolaflow.compression_pipeline, devolaflow.compressor.patterns, devolaflow.llm_client, devolaflow.task_adaptive_selector, hashlib, json, logging, pathlib, re, tomllib, typing, warnings, yaml",
+      "location": "src/devolaflow/compressor/transforms.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-843f99-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/entropy_manager.py: 472 lines, 19 functions, 9 classes, 8 imports, avg complexity 3.2",
+      "location": "src/devolaflow/entropy_manager.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-843f99-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, logging, os, pathlib, typing, yaml",
+      "location": "src/devolaflow/entropy_manager.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-ded3a4-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'dispatch_wave_tasks' has cyclomatic complexity 16",
+      "location": "src/devolaflow/feedback.py:537",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-ded3a4-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/feedback.py: 769 lines, 19 functions, 5 classes, 13 imports, avg complexity 3.8",
+      "location": "src/devolaflow/feedback.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ded3a4-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections, dataclasses, devolaflow, devolaflow.agent_workspace.dispatch_executor, devolaflow.feedback_emit, devolaflow.gate.models, devolaflow.gate.reinforcement, devolaflow.learnings, devolaflow.si_chip_bridge.runner, logging, pathlib, typing",
+      "location": "src/devolaflow/feedback.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-0a47d8-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/feedback_emit.py: 295 lines, 2 functions, 1 classes, 8 imports, avg complexity 4.0",
+      "location": "src/devolaflow/feedback_emit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0a47d8-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, copy, devolaflow, devolaflow.gate.models, devolaflow.gate.reinforcement, logging, typing",
+      "location": "src/devolaflow/feedback_emit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-17bc1f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/__init__.py: 204 lines, 0 functions, 0 classes, 11 imports, avg complexity 0.0",
+      "location": "src/devolaflow/gate/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-17bc1f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.gate.budget, devolaflow.gate.complexity_detector, devolaflow.gate.convergence, devolaflow.gate.cycle_detector, devolaflow.gate.models, devolaflow.gate.profiles, devolaflow.gate.ratchet, devolaflow.gate.reinforcement, devolaflow.gate.reporter, devolaflow.gate.scorer, devolaflow.legibility",
+      "location": "src/devolaflow/gate/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-0d6968-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/budget.py: 340 lines, 16 functions, 1 classes, 5 imports, avg complexity 2.1",
+      "location": "src/devolaflow/gate/budget.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0d6968-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.gate.models, devolaflow.gate.profiles, logging, os",
+      "location": "src/devolaflow/gate/budget.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-491428-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_parse_nines_payload' has cyclomatic complexity 17",
+      "location": "src/devolaflow/gate/complexity_detector.py:261",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-491428-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'wrap_nines_complexity' has cyclomatic complexity 16",
+      "location": "src/devolaflow/gate/complexity_detector.py:328",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-491428-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/complexity_detector.py: 754 lines, 15 functions, 4 classes, 11 imports, avg complexity 5.0",
+      "location": "src/devolaflow/gate/complexity_detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-491428-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.gate.models, json, logging, os, pathlib, shutil, subprocess, typing",
+      "location": "src/devolaflow/gate/complexity_detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2eaf80-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/convergence.py: 208 lines, 5 functions, 0 classes, 4 imports, avg complexity 4.0",
+      "location": "src/devolaflow/gate/convergence.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2eaf80-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.gate.models, devolaflow.gate.ratchet, typing",
+      "location": "src/devolaflow/gate/convergence.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-4be02d-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/cycle_detector.py: 474 lines, 13 functions, 1 classes, 5 imports, avg complexity 3.5",
+      "location": "src/devolaflow/gate/cycle_detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4be02d-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.gate.models, typing",
+      "location": "src/devolaflow/gate/cycle_detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-392fda-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/models.py: 859 lines, 4 functions, 20 classes, 4 imports, avg complexity 4.0",
+      "location": "src/devolaflow/gate/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-392fda-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, enum, typing",
+      "location": "src/devolaflow/gate/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-d93a2f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/profiles.py: 170 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/gate/profiles.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-d93a2f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.gate.models",
+      "location": "src/devolaflow/gate/profiles.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-5fb9b2-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/ratchet.py: 484 lines, 13 functions, 2 classes, 6 imports, avg complexity 3.5",
+      "location": "src/devolaflow/gate/ratchet.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-5fb9b2-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.gate.models, hashlib, json, os",
+      "location": "src/devolaflow/gate/ratchet.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2f06ca-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/reinforcement.py: 454 lines, 10 functions, 2 classes, 4 imports, avg complexity 3.3",
+      "location": "src/devolaflow/gate/reinforcement.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2f06ca-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.gate.models, typing",
+      "location": "src/devolaflow/gate/reinforcement.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9b62cd-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/reporter.py: 160 lines, 4 functions, 0 classes, 5 imports, avg complexity 3.8",
+      "location": "src/devolaflow/gate/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9b62cd-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, datetime, devolaflow.gate.convergence, devolaflow.gate.models, yaml",
+      "location": "src/devolaflow/gate/reporter.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-67079a-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'evaluate_gate' has cyclomatic complexity 22",
+      "location": "src/devolaflow/gate/scorer.py:1654",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-67079a-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/gate/scorer.py: 2190 lines, 50 functions, 1 classes, 19 imports, avg complexity 4.7",
+      "location": "src/devolaflow/gate/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-67079a-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, collections, collections.abc, dataclasses, devolaflow.gate.budget, devolaflow.gate.complexity_detector, devolaflow.gate.convergence, devolaflow.gate.cycle_detector, devolaflow.gate.models, devolaflow.gate.profiles, devolaflow.gate.ratchet, devolaflow.gate.reinforcement, devolaflow.legibility, os, pathlib, subprocess, sys, yaml",
+      "location": "src/devolaflow/gate/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c43929-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/init_interview.py: 245 lines, 7 functions, 2 classes, 4 imports, avg complexity 2.9",
+      "location": "src/devolaflow/init_interview.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c43929-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, pathlib, typing",
+      "location": "src/devolaflow/init_interview.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-e7958e-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'main' has cyclomatic complexity 13",
+      "location": "src/devolaflow/init_project.py:729",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-e7958e-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/init_project.py: 832 lines, 17 functions, 0 classes, 9 imports, avg complexity 3.8",
+      "location": "src/devolaflow/init_project.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e7958e-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow, devolaflow.local.compiler, devolaflow.local.workspace, importlib, os, pathlib, shutil, sys",
+      "location": "src/devolaflow/init_project.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-631b33-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/learnings.py: 1052 lines, 31 functions, 2 classes, 7 imports, avg complexity 4.3",
+      "location": "src/devolaflow/learnings.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-631b33-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, devolaflow.session, json, logging, pathlib",
+      "location": "src/devolaflow/learnings.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9f34c3-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/legibility/__init__.py: 45 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/legibility/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9f34c3-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.legibility.scorer",
+      "location": "src/devolaflow/legibility/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2ff757-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/legibility/scorer.py: 627 lines, 19 functions, 2 classes, 6 imports, avg complexity 4.2",
+      "location": "src/devolaflow/legibility/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2ff757-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, ast, dataclasses, pathlib, radon.complexity, re",
+      "location": "src/devolaflow/legibility/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-f7e707-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/__init__.py: 302 lines, 0 functions, 0 classes, 27 imports, avg complexity 0.0",
+      "location": "src/devolaflow/lifecycle/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f7e707-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.auto_write_handoff, devolaflow.lifecycle.check_envelope_append_only, devolaflow.lifecycle.check_file_ownership, devolaflow.lifecycle.dispatcher, devolaflow.lifecycle.format_on_edit, devolaflow.lifecycle.post_dispatch, devolaflow.lifecycle.post_skill_edit, devolaflow.lifecycle.pre_plugin_invocation, devolaflow.lifecycle.pre_plugin_invocation_install, devolaflow.lifecycle.pre_plugin_invocation_upgrade, devolaflow.lifecycle.pre_shell_call, devolaflow.lifecycle.test_on_complete, devolaflow.lifecycle.validate_dispatch, devolaflow.lifecycle.validate_owned_files",
+      "location": "src/devolaflow/lifecycle/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-ddb719-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/auto_write_handoff.py: 390 lines, 7 functions, 1 classes, 7 imports, avg complexity 5.3",
+      "location": "src/devolaflow/lifecycle/auto_write_handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ddb719-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.agent_workspace.handoff, devolaflow.lifecycle.dispatcher, logging, os, typing",
+      "location": "src/devolaflow/lifecycle/auto_write_handoff.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-a74941-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/check_envelope_append_only.py: 149 lines, 3 functions, 0 classes, 4 imports, avg complexity 3.3",
+      "location": "src/devolaflow/lifecycle/check_envelope_append_only.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-a74941-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, os, typing",
+      "location": "src/devolaflow/lifecycle/check_envelope_append_only.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-931041-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/check_file_ownership.py: 134 lines, 3 functions, 0 classes, 4 imports, avg complexity 3.7",
+      "location": "src/devolaflow/lifecycle/check_file_ownership.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-931041-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, os, typing",
+      "location": "src/devolaflow/lifecycle/check_file_ownership.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-307694-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/dispatcher.py: 310 lines, 15 functions, 2 classes, 5 imports, avg complexity 2.2",
+      "location": "src/devolaflow/lifecycle/dispatcher.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-307694-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, logging, typing",
+      "location": "src/devolaflow/lifecycle/dispatcher.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-f1cb7a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/format_on_edit.py: 120 lines, 5 functions, 0 classes, 3 imports, avg complexity 3.2",
+      "location": "src/devolaflow/lifecycle/format_on_edit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f1cb7a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, typing",
+      "location": "src/devolaflow/lifecycle/format_on_edit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2769aa-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/post_dispatch.py: 63 lines, 1 functions, 0 classes, 3 imports, avg complexity 1.0",
+      "location": "src/devolaflow/lifecycle/post_dispatch.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2769aa-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, typing",
+      "location": "src/devolaflow/lifecycle/post_dispatch.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-f22e54-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'post_skill_edit' has cyclomatic complexity 11",
+      "location": "src/devolaflow/lifecycle/post_skill_edit.py:506",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-f22e54-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/post_skill_edit.py: 629 lines, 12 functions, 0 classes, 11 imports, avg complexity 3.4",
+      "location": "src/devolaflow/lifecycle/post_skill_edit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f22e54-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, datetime, devolaflow.lifecycle.dispatcher, devolaflow.si_chip_bridge, hashlib, json, logging, os, pathlib, typing",
+      "location": "src/devolaflow/lifecycle/post_skill_edit.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-c99e18-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/pre_plugin_invocation.py: 599 lines, 8 functions, 0 classes, 10 imports, avg complexity 4.8",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-c99e18-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, devolaflow.plugins.exceptions, devolaflow.plugins.installer, logging, os, typing",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9e9b56-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/pre_plugin_invocation_install.py: 191 lines, 3 functions, 0 classes, 7 imports, avg complexity 4.3",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation_install.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9e9b56-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, devolaflow.plugins.exceptions, devolaflow.plugins.installer, logging, os, typing",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation_install.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e8324d-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py: 254 lines, 4 functions, 0 classes, 9 imports, avg complexity 5.5",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e8324d-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, devolaflow.plugins.exceptions, devolaflow.plugins.installer, logging, os, typing",
+      "location": "src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-4687c6-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/pre_shell_call.py: 148 lines, 2 functions, 0 classes, 4 imports, avg complexity 4.5",
+      "location": "src/devolaflow/lifecycle/pre_shell_call.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4687c6-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, devolaflow.shell_proxy, typing",
+      "location": "src/devolaflow/lifecycle/pre_shell_call.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-03474b-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/test_on_complete.py: 388 lines, 9 functions, 0 classes, 8 imports, avg complexity 5.6",
+      "location": "src/devolaflow/lifecycle/test_on_complete.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-03474b-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.learnings, devolaflow.lifecycle.dispatcher, devolaflow.session, logging, typing",
+      "location": "src/devolaflow/lifecycle/test_on_complete.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-3328a3-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/validate_dispatch.py: 135 lines, 3 functions, 0 classes, 3 imports, avg complexity 3.3",
+      "location": "src/devolaflow/lifecycle/validate_dispatch.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-3328a3-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.lifecycle.dispatcher, typing",
+      "location": "src/devolaflow/lifecycle/validate_dispatch.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-ac9fa8-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/lifecycle/validate_owned_files.py: 189 lines, 9 functions, 2 classes, 6 imports, avg complexity 2.4",
+      "location": "src/devolaflow/lifecycle/validate_owned_files.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ac9fa8-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.lifecycle.dispatcher, pathlib, typing",
+      "location": "src/devolaflow/lifecycle/validate_owned_files.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-b83eeb-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/llm_client.py: 543 lines, 15 functions, 3 classes, 11 imports, avg complexity 3.1",
+      "location": "src/devolaflow/llm_client.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-b83eeb-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, devolaflow.compression_pipeline, json, logging, os, time, typing, urllib.error, urllib.request",
+      "location": "src/devolaflow/llm_client.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-6e9b9a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/local/__init__.py: 19 lines, 0 functions, 0 classes, 3 imports, avg complexity 0.0",
+      "location": "src/devolaflow/local/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-6e9b9a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.local.compiler, devolaflow.local.drift, devolaflow.local.workspace",
+      "location": "src/devolaflow/local/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-21375a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/local/compiler.py: 285 lines, 14 functions, 4 classes, 8 imports, avg complexity 3.1",
+      "location": "src/devolaflow/local/compiler.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-21375a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.local.drift, hashlib, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/local/compiler.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-298269-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/local/drift.py: 214 lines, 5 functions, 1 classes, 7 imports, avg complexity 3.6",
+      "location": "src/devolaflow/local/drift.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-298269-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, hashlib, json, pathlib, typing, yaml",
+      "location": "src/devolaflow/local/drift.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-ac8f40-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/local/merge.py: 122 lines, 5 functions, 1 classes, 4 imports, avg complexity 2.6",
+      "location": "src/devolaflow/local/merge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-ac8f40-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, difflib, pathlib",
+      "location": "src/devolaflow/local/merge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-f39850-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/local/workspace.py: 467 lines, 9 functions, 0 classes, 4 imports, avg complexity 4.0",
+      "location": "src/devolaflow/local/workspace.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f39850-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, fnmatch, logging, pathlib",
+      "location": "src/devolaflow/local/workspace.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-dd3cc9-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/memory_router/__init__.py: 74 lines, 0 functions, 0 classes, 3 imports, avg complexity 0.0",
+      "location": "src/devolaflow/memory_router/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-dd3cc9-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.memory_router.cache, devolaflow.memory_router.router",
+      "location": "src/devolaflow/memory_router/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-680fdf-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_extract_dispatch_keywords' has cyclomatic complexity 13",
+      "location": "src/devolaflow/memory_router/cache.py:403",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-680fdf-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'consult_for_dispatch' has cyclomatic complexity 18",
+      "location": "src/devolaflow/memory_router/cache.py:486",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-680fdf-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/memory_router/cache.py: 706 lines, 12 functions, 2 classes, 10 imports, avg complexity 5.7",
+      "location": "src/devolaflow/memory_router/cache.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-680fdf-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, devolaflow, logging, os, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/memory_router/cache.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-d5017b-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'MemoryRouter.lookup_case' has cyclomatic complexity 12",
+      "location": "src/devolaflow/memory_router/router.py:201",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-d5017b-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/memory_router/router.py: 471 lines, 11 functions, 3 classes, 9 imports, avg complexity 3.3",
+      "location": "src/devolaflow/memory_router/router.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-d5017b-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow, devolaflow.memory_router.cache, logging, os, pathlib, typing, yaml",
+      "location": "src/devolaflow/memory_router/router.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-f86055-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/__init__.py: 86 lines, 0 functions, 0 classes, 6 imports, avg complexity 0.0",
+      "location": "src/devolaflow/nines/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f86055-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.nines._cli, devolaflow.nines.advisor, devolaflow.nines.commands, devolaflow.nines.detector, devolaflow.nines.researcher, devolaflow.nines.scorer",
+      "location": "src/devolaflow/nines/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-3eeeab-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/_cli.py: 88 lines, 2 functions, 0 classes, 6 imports, avg complexity 5.5",
+      "location": "src/devolaflow/nines/_cli.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-3eeeab-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, json, logging, pathlib, shlex, subprocess",
+      "location": "src/devolaflow/nines/_cli.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-190e70-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/advisor.py: 99 lines, 2 functions, 1 classes, 4 imports, avg complexity 6.5",
+      "location": "src/devolaflow/nines/advisor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-190e70-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.nines._cli, logging",
+      "location": "src/devolaflow/nines/advisor.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-b6867a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/commands.py: 67 lines, 2 functions, 0 classes, 1 imports, avg complexity 2.0",
+      "location": "src/devolaflow/nines/commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-b6867a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__",
+      "location": "src/devolaflow/nines/commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-02fae9-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/detector.py: 126 lines, 3 functions, 1 classes, 6 imports, avg complexity 5.3",
+      "location": "src/devolaflow/nines/detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-02fae9-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, logging, re, shutil, subprocess",
+      "location": "src/devolaflow/nines/detector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-89508c-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/researcher.py: 572 lines, 15 functions, 2 classes, 9 imports, avg complexity 3.3",
+      "location": "src/devolaflow/nines/researcher.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-89508c-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, devolaflow.nines._cli, logging, pathlib, yaml",
+      "location": "src/devolaflow/nines/researcher.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-dbeb97-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/nines/scorer.py: 141 lines, 4 functions, 1 classes, 4 imports, avg complexity 4.0",
+      "location": "src/devolaflow/nines/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-dbeb97-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.nines._cli, logging",
+      "location": "src/devolaflow/nines/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-06bc00-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/__init__.py: 62 lines, 0 functions, 0 classes, 5 imports, avg complexity 0.0",
+      "location": "src/devolaflow/plugins/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-06bc00-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.plugins.exceptions, devolaflow.plugins.installer, devolaflow.plugins.loader, devolaflow.plugins.models, devolaflow.plugins.registry",
+      "location": "src/devolaflow/plugins/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9edb77-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/exceptions.py: 63 lines, 1 functions, 5 classes, 1 imports, avg complexity 2.0",
+      "location": "src/devolaflow/plugins/exceptions.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9edb77-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__",
+      "location": "src/devolaflow/plugins/exceptions.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-a5d310-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/installer.py: 1710 lines, 29 functions, 3 classes, 14 imports, avg complexity 5.3",
+      "location": "src/devolaflow/plugins/installer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-a5d310-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, datetime, devolaflow.plugins.exceptions, json, logging, pathlib, re, shutil, subprocess, time, typing, yaml",
+      "location": "src/devolaflow/plugins/installer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-3aeeef-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/loader.py: 130 lines, 4 functions, 0 classes, 7 imports, avg complexity 3.8",
+      "location": "src/devolaflow/plugins/loader.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-3aeeef-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.plugins.models, devolaflow.plugins.registry, logging, pathlib, typing, yaml",
+      "location": "src/devolaflow/plugins/loader.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2e6550-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/models.py: 38 lines, 0 functions, 2 classes, 2 imports, avg complexity 0.0",
+      "location": "src/devolaflow/plugins/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2e6550-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses",
+      "location": "src/devolaflow/plugins/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-540768-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/plugins/registry.py: 202 lines, 15 functions, 1 classes, 6 imports, avg complexity 2.3",
+      "location": "src/devolaflow/plugins/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-540768-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.plugins.models, logging, re, shutil, subprocess",
+      "location": "src/devolaflow/plugins/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-4a5b6d-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/__init__.py: 22 lines, 0 functions, 0 classes, 5 imports, avg complexity 0.0",
+      "location": "src/devolaflow/pre_decision/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4a5b6d-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.pre_decision.checklist, devolaflow.pre_decision.detect, devolaflow.pre_decision.freeze, devolaflow.pre_decision.recommend, devolaflow.pre_decision.validate",
+      "location": "src/devolaflow/pre_decision/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-aa1adc-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/__main__.py: 6 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/pre_decision/__main__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-aa1adc-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.pre_decision.detect",
+      "location": "src/devolaflow/pre_decision/__main__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e0cae1-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/checklist.py: 340 lines, 10 functions, 10 classes, 6 imports, avg complexity 2.7",
+      "location": "src/devolaflow/pre_decision/checklist.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e0cae1-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, configparser, dataclasses, datetime, devolaflow.pre_decision.detect, pathlib",
+      "location": "src/devolaflow/pre_decision/checklist.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-cb1a72-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/detect.py: 168 lines, 12 functions, 1 classes, 5 imports, avg complexity 2.5",
+      "location": "src/devolaflow/pre_decision/detect.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-cb1a72-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, configparser, dataclasses, pathlib, re",
+      "location": "src/devolaflow/pre_decision/detect.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-210d9f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/freeze.py: 48 lines, 1 functions, 1 classes, 7 imports, avg complexity 4.0",
+      "location": "src/devolaflow/pre_decision/freeze.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-210d9f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.pre_decision.checklist, devolaflow.pre_decision.validate, pathlib, typing, yaml",
+      "location": "src/devolaflow/pre_decision/freeze.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-20dcf0-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/recommend.py: 327 lines, 15 functions, 1 classes, 2 imports, avg complexity 2.2",
+      "location": "src/devolaflow/pre_decision/recommend.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-20dcf0-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses",
+      "location": "src/devolaflow/pre_decision/recommend.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-4ae800-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/pre_decision/validate.py: 217 lines, 10 functions, 1 classes, 5 imports, avg complexity 3.2",
+      "location": "src/devolaflow/pre_decision/validate.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4ae800-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.pre_decision.checklist, re, typing",
+      "location": "src/devolaflow/pre_decision/validate.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-5d11b0-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'extract_section_by_heading' has cyclomatic complexity 14",
+      "location": "src/devolaflow/section_registry.py:227",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-5d11b0-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/section_registry.py: 341 lines, 13 functions, 1 classes, 5 imports, avg complexity 3.6",
+      "location": "src/devolaflow/section_registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-5d11b0-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, logging, pathlib, re, typing",
+      "location": "src/devolaflow/section_registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-768dbb-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/session/__init__.py: 39 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/session/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-768dbb-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.session.state",
+      "location": "src/devolaflow/session/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-82142e-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'SessionState.from_dict' has cyclomatic complexity 18",
+      "location": "src/devolaflow/session/state.py:335",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-82142e-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'SessionState.merge' has cyclomatic complexity 12",
+      "location": "src/devolaflow/session/state.py:530",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-82142e-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/session/state.py: 694 lines, 24 functions, 5 classes, 8 imports, avg complexity 3.6",
+      "location": "src/devolaflow/session/state.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-82142e-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, devolaflow.learnings, json, logging, pathlib, typing",
+      "location": "src/devolaflow/session/state.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-0592a2-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/shell_proxy/__init__.py: 91 lines, 0 functions, 0 classes, 4 imports, avg complexity 0.0",
+      "location": "src/devolaflow/shell_proxy/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0592a2-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.shell_proxy.commands, devolaflow.shell_proxy.proxy, devolaflow.shell_proxy.registry",
+      "location": "src/devolaflow/shell_proxy/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-28b9e5-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'build_mapping_from_dict' has cyclomatic complexity 21",
+      "location": "src/devolaflow/shell_proxy/commands.py:389",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-28b9e5-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'load_command_mappings' has cyclomatic complexity 16",
+      "location": "src/devolaflow/shell_proxy/commands.py:560",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-28b9e5-0002",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'apply_local_recipe' has cyclomatic complexity 16",
+      "location": "src/devolaflow/shell_proxy/commands.py:827",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-28b9e5-0003",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/shell_proxy/commands.py: 1004 lines, 21 functions, 3 classes, 11 imports, avg complexity 5.0",
+      "location": "src/devolaflow/shell_proxy/commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-28b9e5-0004",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, datetime, devolaflow, devolaflow.compression_pipeline, logging, os, pathlib, re, typing, yaml",
+      "location": "src/devolaflow/shell_proxy/commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-8d961c-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/shell_proxy/proxy.py: 411 lines, 8 functions, 2 classes, 8 imports, avg complexity 3.1",
+      "location": "src/devolaflow/shell_proxy/proxy.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-8d961c-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.shell_proxy.commands, devolaflow.shell_proxy.registry, logging, os, shutil, subprocess",
+      "location": "src/devolaflow/shell_proxy/proxy.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e18bb9-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/shell_proxy/registry.py: 126 lines, 2 functions, 0 classes, 3 imports, avg complexity 4.0",
+      "location": "src/devolaflow/shell_proxy/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e18bb9-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, re, typing",
+      "location": "src/devolaflow/shell_proxy/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-0a99e9-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/si_chip_bridge/__init__.py: 97 lines, 0 functions, 0 classes, 4 imports, avg complexity 0.0",
+      "location": "src/devolaflow/si_chip_bridge/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0a99e9-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.si_chip_bridge.install_resolver, devolaflow.si_chip_bridge.models, devolaflow.si_chip_bridge.runner",
+      "location": "src/devolaflow/si_chip_bridge/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9691a8-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/si_chip_bridge/install_resolver.py: 240 lines, 4 functions, 1 classes, 7 imports, avg complexity 4.0",
+      "location": "src/devolaflow/si_chip_bridge/install_resolver.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9691a8-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, logging, os, pathlib, re",
+      "location": "src/devolaflow/si_chip_bridge/install_resolver.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-f1ff35-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'MetricsReport.from_yaml_dict' has cyclomatic complexity 12",
+      "location": "src/devolaflow/si_chip_bridge/models.py:162",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-f1ff35-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/si_chip_bridge/models.py: 306 lines, 2 functions, 5 classes, 5 imports, avg complexity 9.5",
+      "location": "src/devolaflow/si_chip_bridge/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-f1ff35-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, enum, pathlib, typing",
+      "location": "src/devolaflow/si_chip_bridge/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-53e46b-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/si_chip_bridge/runner.py: 598 lines, 11 functions, 2 classes, 11 imports, avg complexity 3.0",
+      "location": "src/devolaflow/si_chip_bridge/runner.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-53e46b-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow, devolaflow.si_chip_bridge.install_resolver, devolaflow.si_chip_bridge.models, logging, pathlib, re, subprocess, sys, typing, yaml",
+      "location": "src/devolaflow/si_chip_bridge/runner.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-31892e-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/skills/__init__.py: 43 lines, 0 functions, 0 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/skills/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-31892e-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__",
+      "location": "src/devolaflow/skills/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e47479-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/skills/change_activation.py: 385 lines, 5 functions, 0 classes, 3 imports, avg complexity 4.6",
+      "location": "src/devolaflow/skills/change_activation.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e47479-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, os, typing",
+      "location": "src/devolaflow/skills/change_activation.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-fa2b3c-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/skills/slash_commands.py: 660 lines, 12 functions, 2 classes, 12 imports, avg complexity 2.8",
+      "location": "src/devolaflow/skills/slash_commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-fa2b3c-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, argparse, collections.abc, datetime, devolaflow.agent_workspace, logging, pathlib, re, shutil, subprocess, sys, yaml",
+      "location": "src/devolaflow/skills/slash_commands.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-448821-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_load_line_level_criteria' has cyclomatic complexity 16",
+      "location": "src/devolaflow/task_adaptive_selector.py:730",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-448821-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_filter_agents_md_by_profile' has cyclomatic complexity 14",
+      "location": "src/devolaflow/task_adaptive_selector.py:1496",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-448821-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/task_adaptive_selector.py: 1958 lines, 51 functions, 0 classes, 15 imports, avg complexity 4.0",
+      "location": "src/devolaflow/task_adaptive_selector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-448821-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, contextlib, devolaflow.learnings, devolaflow.section_registry, functools, logging, os, pathlib, re, sys, tiktoken, typing, warnings, yaml",
+      "location": "src/devolaflow/task_adaptive_selector.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2ee88a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/__init__.py: 106 lines, 0 functions, 0 classes, 8 imports, avg complexity 0.0",
+      "location": "src/devolaflow/template_engine/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2ee88a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: devolaflow.template_engine.composer, devolaflow.template_engine.inheritance, devolaflow.template_engine.models, devolaflow.template_engine.nines_bridge, devolaflow.template_engine.parser, devolaflow.template_engine.registry, devolaflow.template_engine.runtime, devolaflow.template_engine.validator",
+      "location": "src/devolaflow/template_engine/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-5bc253-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/composer.py: 158 lines, 5 functions, 5 classes, 4 imports, avg complexity 4.4",
+      "location": "src/devolaflow/template_engine/composer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-5bc253-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.template_engine.models, typing",
+      "location": "src/devolaflow/template_engine/composer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e40d89-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/inheritance.py: 118 lines, 5 functions, 1 classes, 5 imports, avg complexity 4.4",
+      "location": "src/devolaflow/template_engine/inheritance.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e40d89-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, copy, devolaflow.template_engine.models, typing",
+      "location": "src/devolaflow/template_engine/inheritance.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-5911d4-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/models.py: 241 lines, 2 functions, 17 classes, 4 imports, avg complexity 2.0",
+      "location": "src/devolaflow/template_engine/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-5911d4-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, enum, typing",
+      "location": "src/devolaflow/template_engine/models.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2fefeb-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/nines_bridge.py: 48 lines, 3 functions, 0 classes, 2 imports, avg complexity 2.7",
+      "location": "src/devolaflow/template_engine/nines_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2fefeb-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, typing",
+      "location": "src/devolaflow/template_engine/nines_bridge.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-311121-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/parser.py: 223 lines, 12 functions, 1 classes, 5 imports, avg complexity 2.7",
+      "location": "src/devolaflow/template_engine/parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-311121-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.template_engine.models, pathlib, typing, yaml",
+      "location": "src/devolaflow/template_engine/parser.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-9608e7-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/registry.py: 141 lines, 7 functions, 2 classes, 5 imports, avg complexity 3.9",
+      "location": "src/devolaflow/template_engine/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-9608e7-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.template_engine.models, devolaflow.template_engine.parser, logging, pathlib",
+      "location": "src/devolaflow/template_engine/registry.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-0c2755-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/runtime.py: 314 lines, 8 functions, 0 classes, 5 imports, avg complexity 4.8",
+      "location": "src/devolaflow/template_engine/runtime.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-0c2755-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, devolaflow.template_engine.models, logging, re, typing",
+      "location": "src/devolaflow/template_engine/runtime.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e5683a-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/template_engine/validator.py: 385 lines, 21 functions, 1 classes, 9 imports, avg complexity 3.6",
+      "location": "src/devolaflow/template_engine/validator.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e5683a-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, devolaflow.template_engine.composer, devolaflow.template_engine.models, devolaflow.template_engine.parser, logging, pathlib, typing",
+      "location": "src/devolaflow/template_engine/validator.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-7b48a0-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/workspace_context.py: 447 lines, 12 functions, 1 classes, 5 imports, avg complexity 3.8",
+      "location": "src/devolaflow/workspace_context.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-7b48a0-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, logging, pathlib, typing",
+      "location": "src/devolaflow/workspace_context.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-4075e6-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/__init__.py: 68 lines, 0 functions, 0 classes, 5 imports, avg complexity 0.0",
+      "location": "src/devolaflow/writing_style/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4075e6-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, errors, profiles, scorer, transforms",
+      "location": "src/devolaflow/writing_style/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-e55b79-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/errors.py: 16 lines, 0 functions, 1 classes, 1 imports, avg complexity 0.0",
+      "location": "src/devolaflow/writing_style/errors.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-e55b79-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__",
+      "location": "src/devolaflow/writing_style/errors.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-a479b2-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/profiles.py: 201 lines, 3 functions, 2 classes, 4 imports, avg complexity 3.7",
+      "location": "src/devolaflow/writing_style/profiles.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-a479b2-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, errors",
+      "location": "src/devolaflow/writing_style/profiles.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-45fc3b-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/regions.py: 165 lines, 4 functions, 1 classes, 4 imports, avg complexity 3.8",
+      "location": "src/devolaflow/writing_style/regions.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-45fc3b-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, dataclasses, re, typing",
+      "location": "src/devolaflow/writing_style/regions.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-2c3bfd-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/scorer.py: 503 lines, 11 functions, 3 classes, 8 imports, avg complexity 1.5",
+      "location": "src/devolaflow/writing_style/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-2c3bfd-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections, collections.abc, dataclasses, errors, profiles, re, statistics",
+      "location": "src/devolaflow/writing_style/scorer.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-89e52e-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/__init__.py: 134 lines, 2 functions, 1 classes, 5 imports, avg complexity 3.5",
+      "location": "src/devolaflow/writing_style/transforms/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-89e52e-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, collections.abc, dataclasses, profiles",
+      "location": "src/devolaflow/writing_style/transforms/__init__.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-4cf314-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function '_collapse_block' has cyclomatic complexity 25",
+      "location": "src/devolaflow/writing_style/transforms/bullets.py:41",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-4cf314-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/bullets.py: 136 lines, 3 functions, 0 classes, 4 imports, avg complexity 9.7",
+      "location": "src/devolaflow/writing_style/transforms/bullets.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-4cf314-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, profiles, re, regions",
+      "location": "src/devolaflow/writing_style/transforms/bullets.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-6f88b0-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/cliches.py: 70 lines, 4 functions, 0 classes, 8 imports, avg complexity 2.5",
+      "location": "src/devolaflow/writing_style/transforms/cliches.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-6f88b0-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, errors, functools, pathlib, profiles, re, regions, yaml",
+      "location": "src/devolaflow/writing_style/transforms/cliches.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-64daa9-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/emdash.py: 139 lines, 6 functions, 0 classes, 4 imports, avg complexity 3.8",
+      "location": "src/devolaflow/writing_style/transforms/emdash.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-64daa9-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, profiles, re, regions",
+      "location": "src/devolaflow/writing_style/transforms/emdash.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-16c0d2-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'apply' has cyclomatic complexity 16",
+      "location": "src/devolaflow/writing_style/transforms/headers.py:60",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-16c0d2-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/headers.py: 138 lines, 3 functions, 0 classes, 3 imports, avg complexity 6.3",
+      "location": "src/devolaflow/writing_style/transforms/headers.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-16c0d2-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, profiles, re",
+      "location": "src/devolaflow/writing_style/transforms/headers.py",
+      "suggestion": ""
+    },
+    {
+      "id": "SUM-1dad5f-0000",
+      "severity": "info",
+      "category": "summary",
+      "message": "src/devolaflow/writing_style/transforms/signposts.py: 111 lines, 6 functions, 0 classes, 8 imports, avg complexity 3.0",
+      "location": "src/devolaflow/writing_style/transforms/signposts.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-1dad5f-0001",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: __future__, errors, functools, pathlib, profiles, re, regions, yaml",
+      "location": "src/devolaflow/writing_style/transforms/signposts.py",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-acbf34cf-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-acbf34cf-0001",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+      "location": "",
+      "suggestion": ""
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 128,
+    "total_lines": 43365,
+    "total_functions": 1049,
+    "total_classes": 206,
+    "total_imports": 851,
+    "avg_complexity": 3.87,
+    "knowledge_units": 1255,
+    "duration_ms": 733.68,
+    "packages": 20,
+    "python_modules": 128,
+    "file_type_counts": {
+      ".py": 128,
+      ".yaml": 2,
+      ".j2": 4
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 130,
+    "agent_impact": {
+      "target": "src/devolaflow",
+      "mechanisms": [],
+      "economics": {
+        "overhead_tokens": 0,
+        "estimated_savings_ratio": 0.0,
+        "mechanism_count": 0,
+        "agent_facing_files": 0,
+        "total_agent_context_tokens": 0,
+        "break_even_interactions": 0,
+        "per_interaction_savings_tokens": 0,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.0,
+        "economics_score": 0.0,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [],
+      "findings": [
+        {
+          "id": "AI-acbf34cf-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-acbf34cf-0001",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+          "location": "",
+          "suggestion": ""
+        }
+      ],
+      "knowledge_units": []
+    },
+    "key_points": {
+      "target": "src/devolaflow",
+      "key_points": [
+        {
+          "id": "kp-find-44ec81f6",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-acbf34cf-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-eng-82a37d91",
+          "category": "engineering",
+          "title": "Engineering observation",
+          "description": "Function 'evaluate_gate' has cyclomatic complexity 22",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.5,
+          "validation_approach": "Review code quality metrics and verify adherence to engineering best practices",
+          "evidence": [
+            "src/devolaflow/gate/scorer.py:1654"
+          ],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis",
+            "analysis_target": "src/devolaflow"
+          }
+        },
+        {
+          "id": "kp-summary-d0902df5",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 128 Python files and 130 total files. 1255 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 128,
+            "knowledge_units": 1255
+          }
+        }
+      ],
+      "summary": "Extracted 3 key point(s). behavioral_shaping: 1. engineering: 2.",
+      "extraction_duration_ms": 0.71,
+      "metadata": {
+        "category_counts": {
+          "behavioral_shaping": 1,
+          "engineering": 2
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-04T21:49:18.102931+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  },
+  "audit_report": {
+    "checks_run": [
+      "finding_id_uniqueness",
+      "finding_id_namespace",
+      "economics_formula_version",
+      "economics_break_even_sanity",
+      "graph_verification_passed",
+      "report_metadata_presence"
+    ],
+    "findings": [
+      {
+        "check_name": "finding_id_namespace",
+        "category": "finding_id",
+        "severity": "warn",
+        "message": "unknown finding-ID format (289 ID(s); first few: ['SUM-914ca1-0000', 'DEP-914ca1-0001', 'CC-bcbae9-0000']); expected namespaced '^[A-Z]+-[0-9a-f]{8}-[0-9]+$'",
+        "affected_keys": [
+          "findings[*].id=SUM-914ca1-0000",
+          "findings[*].id=DEP-914ca1-0001",
+          "findings[*].id=CC-bcbae9-0000",
+          "findings[*].id=SUM-bcbae9-0001",
+          "findings[*].id=DEP-bcbae9-0002",
+          "findings[*].id=SUM-33b965-0000",
+          "findings[*].id=SUM-1649e3-0000",
+          "findings[*].id=DEP-1649e3-0001",
+          "findings[*].id=SUM-76bc03-0000",
+          "findings[*].id=DEP-76bc03-0001"
+        ],
+        "evidence": {
+          "unknown_ids": [
+            "SUM-914ca1-0000",
+            "DEP-914ca1-0001",
+            "CC-bcbae9-0000",
+            "SUM-bcbae9-0001",
+            "DEP-bcbae9-0002",
+            "SUM-33b965-0000",
+            "SUM-1649e3-0000",
+            "DEP-1649e3-0001",
+            "SUM-76bc03-0000",
+            "DEP-76bc03-0001",
+            "SUM-c7e640-0000",
+            "DEP-c7e640-0001",
+            "SUM-c2166b-0000",
+            "DEP-c2166b-0001",
+            "SUM-91d26d-0000",
+            "DEP-91d26d-0001",
+            "SUM-70f79c-0000",
+            "DEP-70f79c-0001",
+            "SUM-6aff68-0000",
+            "DEP-6aff68-0001",
+            "SUM-20e449-0000",
+            "DEP-20e449-0001",
+            "CC-0cc86f-0000",
+            "CC-0cc86f-0001",
+            "SUM-0cc86f-0002",
+            "DEP-0cc86f-0003",
+            "SUM-10421e-0000",
+            "DEP-10421e-0001",
+            "CC-ab3cfd-0000",
+            "SUM-ab3cfd-0001",
+            "DEP-ab3cfd-0002",
+            "SUM-55c5f2-0000",
+            "DEP-55c5f2-0001",
+            "CC-792eb5-0000",
+            "SUM-792eb5-0001",
+            "DEP-792eb5-0002",
+            "CC-64dbc7-0000",
+            "SUM-64dbc7-0001",
+            "DEP-64dbc7-0002",
+            "SUM-c64c9f-0000",
+            "DEP-c64c9f-0001",
+            "CC-e64f4a-0000",
+            "CC-e64f4a-0001",
+            "CC-e64f4a-0002",
+            "CC-e64f4a-0003",
+            "SUM-e64f4a-0004",
+            "DEP-e64f4a-0005",
+            "CC-dee9ae-0000",
+            "SUM-dee9ae-0001",
+            "DEP-dee9ae-0002",
+            "SUM-13c0e0-0000",
+            "SUM-6462bb-0000",
+            "DEP-6462bb-0001",
+            "SUM-d0109b-0000",
+            "DEP-d0109b-0001",
+            "CC-8eaee1-0000",
+            "SUM-8eaee1-0001",
+            "DEP-8eaee1-0002",
+            "SUM-dad786-0000",
+            "DEP-dad786-0001",
+            "SUM-3dab43-0000",
+            "DEP-3dab43-0001",
+            "SUM-71158e-0000",
+            "DEP-71158e-0001",
+            "SUM-57dd30-0000",
+            "DEP-57dd30-0001",
+            "CC-660da9-0000",
+            "CC-660da9-0001",
+            "CC-660da9-0002",
+            "SUM-660da9-0003",
+            "DEP-660da9-0004",
+            "SUM-843f99-0000",
+            "DEP-843f99-0001",
+            "CC-ded3a4-0000",
+            "SUM-ded3a4-0001",
+            "DEP-ded3a4-0002",
+            "SUM-0a47d8-0000",
+            "DEP-0a47d8-0001",
+            "SUM-17bc1f-0000",
+            "DEP-17bc1f-0001",
+            "SUM-0d6968-0000",
+            "DEP-0d6968-0001",
+            "CC-491428-0000",
+            "CC-491428-0001",
+            "SUM-491428-0002",
+            "DEP-491428-0003",
+            "SUM-2eaf80-0000",
+            "DEP-2eaf80-0001",
+            "SUM-4be02d-0000",
+            "DEP-4be02d-0001",
+            "SUM-392fda-0000",
+            "DEP-392fda-0001",
+            "SUM-d93a2f-0000",
+            "DEP-d93a2f-0001",
+            "SUM-5fb9b2-0000",
+            "DEP-5fb9b2-0001",
+            "SUM-2f06ca-0000",
+            "DEP-2f06ca-0001",
+            "SUM-9b62cd-0000",
+            "DEP-9b62cd-0001",
+            "CC-67079a-0000",
+            "SUM-67079a-0001",
+            "DEP-67079a-0002",
+            "SUM-c43929-0000",
+            "DEP-c43929-0001",
+            "CC-e7958e-0000",
+            "SUM-e7958e-0001",
+            "DEP-e7958e-0002",
+            "SUM-631b33-0000",
+            "DEP-631b33-0001",
+            "SUM-9f34c3-0000",
+            "DEP-9f34c3-0001",
+            "SUM-2ff757-0000",
+            "DEP-2ff757-0001",
+            "SUM-f7e707-0000",
+            "DEP-f7e707-0001",
+            "SUM-ddb719-0000",
+            "DEP-ddb719-0001",
+            "SUM-a74941-0000",
+            "DEP-a74941-0001",
+            "SUM-931041-0000",
+            "DEP-931041-0001",
+            "SUM-307694-0000",
+            "DEP-307694-0001",
+            "SUM-f1cb7a-0000",
+            "DEP-f1cb7a-0001",
+            "SUM-2769aa-0000",
+            "DEP-2769aa-0001",
+            "CC-f22e54-0000",
+            "SUM-f22e54-0001",
+            "DEP-f22e54-0002",
+            "SUM-c99e18-0000",
+            "DEP-c99e18-0001",
+            "SUM-9e9b56-0000",
+            "DEP-9e9b56-0001",
+            "SUM-e8324d-0000",
+            "DEP-e8324d-0001",
+            "SUM-4687c6-0000",
+            "DEP-4687c6-0001",
+            "SUM-03474b-0000",
+            "DEP-03474b-0001",
+            "SUM-3328a3-0000",
+            "DEP-3328a3-0001",
+            "SUM-ac9fa8-0000",
+            "DEP-ac9fa8-0001",
+            "SUM-b83eeb-0000",
+            "DEP-b83eeb-0001",
+            "SUM-6e9b9a-0000",
+            "DEP-6e9b9a-0001",
+            "SUM-21375a-0000",
+            "DEP-21375a-0001",
+            "SUM-298269-0000",
+            "DEP-298269-0001",
+            "SUM-ac8f40-0000",
+            "DEP-ac8f40-0001",
+            "SUM-f39850-0000",
+            "DEP-f39850-0001",
+            "SUM-dd3cc9-0000",
+            "DEP-dd3cc9-0001",
+            "CC-680fdf-0000",
+            "CC-680fdf-0001",
+            "SUM-680fdf-0002",
+            "DEP-680fdf-0003",
+            "CC-d5017b-0000",
+            "SUM-d5017b-0001",
+            "DEP-d5017b-0002",
+            "SUM-f86055-0000",
+            "DEP-f86055-0001",
+            "SUM-3eeeab-0000",
+            "DEP-3eeeab-0001",
+            "SUM-190e70-0000",
+            "DEP-190e70-0001",
+            "SUM-b6867a-0000",
+            "DEP-b6867a-0001",
+            "SUM-02fae9-0000",
+            "DEP-02fae9-0001",
+            "SUM-89508c-0000",
+            "DEP-89508c-0001",
+            "SUM-dbeb97-0000",
+            "DEP-dbeb97-0001",
+            "SUM-06bc00-0000",
+            "DEP-06bc00-0001",
+            "SUM-9edb77-0000",
+            "DEP-9edb77-0001",
+            "SUM-a5d310-0000",
+            "DEP-a5d310-0001",
+            "SUM-3aeeef-0000",
+            "DEP-3aeeef-0001",
+            "SUM-2e6550-0000",
+            "DEP-2e6550-0001",
+            "SUM-540768-0000",
+            "DEP-540768-0001",
+            "SUM-4a5b6d-0000",
+            "DEP-4a5b6d-0001",
+            "SUM-aa1adc-0000",
+            "DEP-aa1adc-0001",
+            "SUM-e0cae1-0000",
+            "DEP-e0cae1-0001",
+            "SUM-cb1a72-0000",
+            "DEP-cb1a72-0001",
+            "SUM-210d9f-0000",
+            "DEP-210d9f-0001",
+            "SUM-20dcf0-0000",
+            "DEP-20dcf0-0001",
+            "SUM-4ae800-0000",
+            "DEP-4ae800-0001",
+            "CC-5d11b0-0000",
+            "SUM-5d11b0-0001",
+            "DEP-5d11b0-0002",
+            "SUM-768dbb-0000",
+            "DEP-768dbb-0001",
+            "CC-82142e-0000",
+            "CC-82142e-0001",
+            "SUM-82142e-0002",
+            "DEP-82142e-0003",
+            "SUM-0592a2-0000",
+            "DEP-0592a2-0001",
+            "CC-28b9e5-0000",
+            "CC-28b9e5-0001",
+            "CC-28b9e5-0002",
+            "SUM-28b9e5-0003",
+            "DEP-28b9e5-0004",
+            "SUM-8d961c-0000",
+            "DEP-8d961c-0001",
+            "SUM-e18bb9-0000",
+            "DEP-e18bb9-0001",
+            "SUM-0a99e9-0000",
+            "DEP-0a99e9-0001",
+            "SUM-9691a8-0000",
+            "DEP-9691a8-0001",
+            "CC-f1ff35-0000",
+            "SUM-f1ff35-0001",
+            "DEP-f1ff35-0002",
+            "SUM-53e46b-0000",
+            "DEP-53e46b-0001",
+            "SUM-31892e-0000",
+            "DEP-31892e-0001",
+            "SUM-e47479-0000",
+            "DEP-e47479-0001",
+            "SUM-fa2b3c-0000",
+            "DEP-fa2b3c-0001",
+            "CC-448821-0000",
+            "CC-448821-0001",
+            "SUM-448821-0002",
+            "DEP-448821-0003",
+            "SUM-2ee88a-0000",
+            "DEP-2ee88a-0001",
+            "SUM-5bc253-0000",
+            "DEP-5bc253-0001",
+            "SUM-e40d89-0000",
+            "DEP-e40d89-0001",
+            "SUM-5911d4-0000",
+            "DEP-5911d4-0001",
+            "SUM-2fefeb-0000",
+            "DEP-2fefeb-0001",
+            "SUM-311121-0000",
+            "DEP-311121-0001",
+            "SUM-9608e7-0000",
+            "DEP-9608e7-0001",
+            "SUM-0c2755-0000",
+            "DEP-0c2755-0001",
+            "SUM-e5683a-0000",
+            "DEP-e5683a-0001",
+            "SUM-7b48a0-0000",
+            "DEP-7b48a0-0001",
+            "SUM-4075e6-0000",
+            "DEP-4075e6-0001",
+            "SUM-e55b79-0000",
+            "DEP-e55b79-0001",
+            "SUM-a479b2-0000",
+            "DEP-a479b2-0001",
+            "SUM-45fc3b-0000",
+            "DEP-45fc3b-0001",
+            "SUM-2c3bfd-0000",
+            "DEP-2c3bfd-0001",
+            "SUM-89e52e-0000",
+            "DEP-89e52e-0001",
+            "CC-4cf314-0000",
+            "SUM-4cf314-0001",
+            "DEP-4cf314-0002",
+            "SUM-6f88b0-0000",
+            "DEP-6f88b0-0001",
+            "SUM-64daa9-0000",
+            "DEP-64daa9-0001",
+            "CC-16c0d2-0000",
+            "SUM-16c0d2-0001",
+            "DEP-16c0d2-0002",
+            "SUM-1dad5f-0000",
+            "DEP-1dad5f-0001"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "critical": 0,
+      "warn": 1,
+      "info": 0,
+      "by_category": {
+        "finding_id": 1
+      }
+    }
+  }
+}
