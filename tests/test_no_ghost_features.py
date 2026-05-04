@@ -6245,3 +6245,118 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"W-18 v10.8.0 violation: CHANGELOG entry "
         f"{_V10_8_0_CHANGELOG_LITERAL!r} missing; v10.8.0 ships this entry."
     )
+
+
+# =====================================================================
+# v11.0.0 PV-01 — D-P-2 + D-P-4 stretch (analysis + doc-only)
+# =====================================================================
+#
+# v11.0.0 PV-01 ships 2 analysis-or-doc-only stretch patches per the
+# v11.0.0 cycle plan §4 v11.0.0 PV-01 deliverable map:
+#
+#  1. D-P-2 — `.local/research/v11.0.0_w21_threshold_empirical_check.md`
+#     (analysis-only; W-21 Soul-set threshold empirical calibration check;
+#     5-section structure per `.local/research/v11.0.0_patches/D-P-2.md` §2;
+#     ANALYSIS-ONLY per source line 124 verbatim — W-21 wording byte-stable).
+#  2. D-P-4 — `references/plan-mode-enforcement.md` adds §3.2 "Multi-Step
+#     Plans (Multi-Horizon Reasoning)" with `[EXPLORE]` + `[REVISABLE]`
+#     opt-in annotation conventions; ~210 LOC added; reference stays
+#     within Large tier ≤ 1000 lines per C-4 / SF-1; zero schema field
+#     additions per D-P-4 §2 "uses existing fields ONLY".
+#
+# Per W-18 sequencing, this lint refreshes BEFORE the v11.0.0 CHANGELOG
+# entry mentions either feature. The CHANGELOG entry itself ships in
+# PV-03 (MAJOR cycle close); PV-01's per-PV chore commit references this
+# lint by stanza name to satisfy the W-18 precondition.
+
+# D-P-2 surface.
+_V11_0_0_PV01_DP2_ANALYSIS: Path = Path(".local/research/v11.0.0_w21_threshold_empirical_check.md")
+
+# D-P-4 surfaces (the §3.2 sub-section text + the reference frontmatter
+# version bump are pinned by literal-substring containment).
+_V11_0_0_PV01_DP4_REFERENCE: Path = Path(
+    "workflow-system/agent/references/plan-mode-enforcement.md"
+)
+_V11_0_0_PV01_DP4_SECTION_HEADING: str = "### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)"
+_V11_0_0_PV01_DP4_EXPLORE_CONVENTION: str = "[EXPLORE]"
+_V11_0_0_PV01_DP4_REVISABLE_CONVENTION: str = "[REVISABLE:"
+
+
+def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 PV-01: D-P-2 + D-P-4 stretch surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 PV-01 stretch chore
+    commit. The CHANGELOG entry that mentions these surfaces ships in
+    v11.0.0 PV-03 (MAJOR cycle close); per W-18 the lint refresh MUST
+    land before the CHANGELOG entry — this stanza closes that
+    precondition.
+
+    * D-P-2: `.local/research/v11.0.0_w21_threshold_empirical_check.md`
+      — analysis-only; W-21 threshold empirical calibration check;
+      5-section structure per `.local/research/v11.0.0_patches/D-P-2.md`
+      §2 (telegraph history / root-cause / A-1-vs-Soul classification /
+      threshold calibration / recommendation).
+    * D-P-4: `references/plan-mode-enforcement.md` adds §3.2 with the
+      `[EXPLORE]` + `[REVISABLE: <stage-id>]` annotation conventions
+      (uses existing schema fields only — zero schema additions).
+    """
+    # D-P-2: analysis artifact exists + 5-section structure present.
+    dp2_path = project_root / _V11_0_0_PV01_DP2_ANALYSIS
+    assert dp2_path.is_file(), (
+        f"W-18 v11.0.0 PV-01 violation: D-P-2 analysis missing at "
+        f"{_V11_0_0_PV01_DP2_ANALYSIS}. v11.0.0 PV-01 ships this artifact."
+    )
+    dp2_text = dp2_path.read_text(encoding="utf-8")
+    for required_section in (
+        "## §1 — Telegraph history",
+        "## §2 — Telegraph-floating root-cause analysis",
+        "## §3 — A-1 vs Soul-rule classification test",
+        "## §4 — Threshold calibration question",
+        "## §5 — Recommendation for v12.0.0+ deliberation",
+    ):
+        assert required_section in dp2_text, (
+            f"W-18 v11.0.0 PV-01 violation: D-P-2 §{required_section!r} "
+            f"missing — D-P-2 §2 mandates the 5-section structure."
+        )
+    # G-5 Soul-freeze gate: artifact must NOT propose changing W-21.
+    assert "W-21 wording preserved" in dp2_text, (
+        "W-18 v11.0.0 PV-01 violation: D-P-2 must explicitly state "
+        "'W-21 wording preserved' (G-5 Soul-freeze gate; the artifact "
+        "is analysis-only per source line 124)."
+    )
+
+    # D-P-4: §3.2 sub-section present in plan-mode-enforcement.md.
+    dp4_path = project_root / _V11_0_0_PV01_DP4_REFERENCE
+    assert dp4_path.is_file(), (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 reference missing at {_V11_0_0_PV01_DP4_REFERENCE}."
+    )
+    dp4_text = dp4_path.read_text(encoding="utf-8")
+    assert _V11_0_0_PV01_DP4_SECTION_HEADING in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2 heading "
+        f"{_V11_0_0_PV01_DP4_SECTION_HEADING!r} missing — D-P-4 §2 "
+        f"adds this sub-section to plan-mode-enforcement.md."
+    )
+    assert _V11_0_0_PV01_DP4_EXPLORE_CONVENTION in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.3 introduces the "
+        f"{_V11_0_0_PV01_DP4_EXPLORE_CONVENTION!r} OPT-IN convention; "
+        f"missing from the reference body."
+    )
+    assert _V11_0_0_PV01_DP4_REVISABLE_CONVENTION in dp4_text, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §3.2.4 introduces the "
+        f"{_V11_0_0_PV01_DP4_REVISABLE_CONVENTION!r} OPT-IN convention; "
+        f"missing from the reference body."
+    )
+    # Frontmatter version was bumped to 11.0.0 in same PR per D-P-4 §2 step 4.
+    assert 'version: "11.0.0"' in dp4_text[:500], (
+        "W-18 v11.0.0 PV-01 violation: D-P-4 §2 step 4 bumps the "
+        "frontmatter version to 11.0.0; missing from the reference "
+        "frontmatter."
+    )
+    # C-4 / SF-1 line ceiling: reference must stay within Large tier
+    # (≤ 1000 lines).
+    dp4_line_count = dp4_text.count("\n")
+    assert dp4_line_count <= 1000, (
+        f"W-18 v11.0.0 PV-01 violation: D-P-4 §2 promises the reference "
+        f"stays within the Large tier 1000-line ceiling per C-4 / SF-1; "
+        f"got {dp4_line_count} lines."
+    )
