@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "10.4.0"
+version: "10.5.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v10.4.0**
+> **Now Using DevolaFlow v10.5.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 10.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 10.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -51,7 +51,7 @@ Before applying the Quick Action Decision table, **scan the consumer repo's work
 | `.local/.agent/active/<id>/` | In-flight changes exist | RESUME the change rather than opening a new one (check `STATUS.yaml.state`) |
 | `.rules/*.mdc` + compiled `AGENTS.md` | Layered governance corpus present | TRUST the compiled corpus as the rule contract; opt-in `agents_md_slice` slices per task type |
 
-**Defaults**: Workspace scanning is read-only and ALWAYS performed. Auto-write side effects (handoff envelopes, change folder scaffolding) are R5-strict default-OFF; opt in via `DEVOLAFLOW_AGENT_WORKSPACE=1`.
+**Defaults**: Workspace scanning is read-only and ALWAYS performed. Auto-write side effects (handoff envelopes, change folder scaffolding) are R5-strict default-OFF; opt in via `DEVOLAFLOW_AGENT_WORKSPACE=1`. **Resume + override (v10.5.0):** when `active_changes` non-empty AND idle >24h, follow `agent-workspace.md` §3.6 (5-step checklist); pass `force_no_change=True` to `activation_verdict()` for ad-hoc dispatch bypass.
 
 See `references/agent-workspace.md` §"When to Engage" for the full activation contract and `references/plan-mode-enforcement.md` §"Feedback Ingestion" for plan-mode consumption rules.
 
@@ -61,7 +61,7 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 |-----------|--------|--------|
 | **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — P1 waived for minimal edits |
 | **Simple** | 1-3 files, clear scope, < 1 hour | Dispatch **single Task Agent** via `Task` tool — no multi-stage workflow |
-| **Standard** | 3-10 files, needs design or review | Full hierarchy: dispatch stages via `Task` tool |
+| **Standard** | 3-10 files, needs design or review | Full hierarchy (L1+L2 only-when-needed; see `examples/multi-stage-trace.md`) |
 | **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy with strict gate profile |
 
 **Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
@@ -176,6 +176,8 @@ Match user intent to workflow type, then load the corresponding stage template.
 **Task sizing:** max 30 min (impl) / 45 min (research), max 6 writable files, ~50–300 lines changed.
 **Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
+
+**Layer collapse pattern (v10.5.0):** most cycles collapse L0→L3; engage standalone L1+L2 only for multi-team analyze with cross-stage merge (see `examples/multi-stage-trace.md`).
 
 ### Rationalization Prevention
 
@@ -406,29 +408,31 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 
 ## Template Quick-Reference
 
+`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+ per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit.
+
 | Template | Stages | Gate Type |
 |----------|--------|-----------|
-| research-only | 3 | standard |
-| design-only | 3 | standard |
-| hotfix | 4 | standard |
-| refactoring | 5 | convergence |
+| research-only (legacy) | 3 | standard |
+| design-only (legacy) | 3 | standard |
+| hotfix (legacy) | 4 | standard |
+| refactoring (legacy) | 5 | convergence |
 | migration | 5 | convergence |
-| spike-poc | 3 | standard |
-| documentation-only | 3 | standard |
-| security-audit | 5 | convergence |
-| feature-enhancement | 7 | convergence |
-| full-pipeline | 8 | convergence |
-| research-design-review-refine | 4-5 | convergence |
-| demo-showcase | 6 | standard |
-| performance-optimization | 5 | convergence |
-| dependency-setup | 4 | standard |
-| onboarding | 4 | standard |
+| spike-poc (legacy) | 3 | standard |
+| documentation-only (legacy) | 3 | standard |
+| security-audit (legacy) | 5 | convergence |
+| feature-enhancement (legacy) | 7 | convergence |
+| full-pipeline (legacy) | 8 | convergence |
+| research-design-review-refine (legacy) | 4-5 | convergence |
+| demo-showcase (legacy) | 6 | standard |
+| performance-optimization (legacy) | 5 | convergence |
+| dependency-setup (legacy) | 4 | standard |
+| onboarding (legacy) | 4 | standard |
 | skill-optimization | 6 | convergence |
-| product-verification | 8 | convergence |
+| product-verification (legacy) | 8 | convergence |
 | nines-assisted | 9 | convergence |
 | self-update | 7 | convergence |
 | repo-init | 5 | standard |
-| entropy-cleanup | 4 | standard |
+| entropy-cleanup (legacy) | 4 | standard |
 | change-driven | 4 | convergence |
 
 ## Task Quality Score

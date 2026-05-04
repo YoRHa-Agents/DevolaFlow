@@ -180,6 +180,62 @@ def test_activation_verdict_invalid_complexity_raises() -> None:
         activation_verdict("NOT_A_TIER", env_agent_workspace=True)  # type: ignore[arg-type]
 
 
+# ── activation_verdict.force_no_change (v10.5.0 PV-03 D-A-4) ───────────
+
+
+@pytest.mark.parametrize(
+    "complexity",
+    ["TRIVIAL", "SIMPLE", "STANDARD", "COMPLEX"],
+)
+def test_activation_verdict_force_no_change_overrides_all(complexity: Complexity) -> None:
+    """force_no_change=True returns NO_CHANGE for every Complexity tier.
+
+    Pins the v10.5.0 PV-03 D-A-4 dispatch-level override per
+    `.local/research/v11.0.0_patches/D-A-4.md` §2 Surface A. The
+    operator-explicit ``force_no_change`` flag is the highest-priority
+    short-circuit — it wins over env-flag, opt-out, and complexity.
+    """
+    for env in (True, False):
+        for opt_out in (True, False):
+            verdict = activation_verdict(
+                complexity,
+                env_agent_workspace=env,
+                opt_out=opt_out,
+                force_no_change=True,
+            )
+            assert verdict == "NO_CHANGE", (
+                f"force_no_change=True should always return NO_CHANGE; "
+                f"got {verdict!r} for {complexity=}, {env=}, {opt_out=}"
+            )
+
+
+def test_activation_verdict_force_no_change_default_false_preserves_v10_4_x_behaviour() -> None:
+    """force_no_change defaults to False; existing call sites unchanged.
+
+    Pins backward compatibility per D-A-4 §6 G-7 (pure-additive
+    parameter). Every v10.4.x call site that omits the kwarg gets
+    byte-identical verdicts.
+    """
+    # COMPLEX + env=True + opt_out=False -> MUST_OPEN_CHANGE (default-False path).
+    assert (
+        activation_verdict("COMPLEX", env_agent_workspace=True, opt_out=False) == "MUST_OPEN_CHANGE"
+    )
+    # Same call passing force_no_change=False explicitly -> identical.
+    assert (
+        activation_verdict(
+            "COMPLEX", env_agent_workspace=True, opt_out=False, force_no_change=False
+        )
+        == "MUST_OPEN_CHANGE"
+    )
+    # STANDARD path -> SHOULD_OPEN_CHANGE (force=False).
+    assert (
+        activation_verdict(
+            "STANDARD", env_agent_workspace=True, opt_out=False, force_no_change=False
+        )
+        == "SHOULD_OPEN_CHANGE"
+    )
+
+
 # ── from_env (single env-var read site) ────────────────────────────────
 
 

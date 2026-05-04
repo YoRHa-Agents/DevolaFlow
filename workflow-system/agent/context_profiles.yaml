@@ -506,72 +506,72 @@ sections:
     content_type: constraints
 
   rationalization_prevention:
-    lines: "180-192"
+    lines: "182-194"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "193-209"
+    lines: "195-211"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "210-259"
+    lines: "212-261"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "260-277"
+    lines: "262-279"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "281-291"
+    lines: "283-293"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "293-311"
+    lines: "295-313"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "312-344"
+    lines: "314-346"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "345-356"
+    lines: "347-358"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "357-367"
+    lines: "359-369"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "368-404"
+    lines: "370-406"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "368-404"
+    lines: "370-406"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "278-280"
+    lines: "280-282"
     tokens_est: 100
     content_type: spec
 
   task_quality_score:
-    lines: "433-458"
+    lines: "438-462"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "406-432"
+    lines: "409-436"
     tokens_est: 188
     content_type: table
 

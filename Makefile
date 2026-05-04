@@ -190,6 +190,24 @@ audit-references:
 audit-long-references:
 	@python scripts/audit_long_reference_usage.py
 
+# v10.5.0 PV-01..PV-05 (D-A-1, D-A-2, D-D-3, D-D-4) — architecture &
+# documentation health audits. Each one is observability-only —
+# emits a markdown report; no source modifications. Run them with
+# explicit `--output .local/research/v10.5.X_*.md` to refresh the
+# audit artifacts that the v10.5.0 W-18 lint pins.
+.PHONY: audit-layers audit-templates measure-friction audit-w18
+audit-layers:
+	@python scripts/audit_layer_usage.py
+
+audit-templates:
+	@python scripts/audit_template_usage.py
+
+measure-friction:
+	@python scripts/measure_reference_friction.py
+
+audit-w18:
+	@python scripts/audit_w18_lint_maintenance.py
+
 release-dry-run:
 	@echo "=== Release dry-run ==="
 	@echo "1. Preflight checks..."

@@ -339,32 +339,33 @@ exposes plus the mapping back to the canonical primitive surface from §2.
 
 ### Per-Workflow Template Catalog
 
-The 22 builtin templates and their canonical primitive sequence:
+The 22 builtin templates and their canonical primitive sequence.
+**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+** per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit (v10.5.0 PV-02).
 
 | # | Template (`.yaml` basename) | Canonical primitive sequence | Notes |
 |---|-----------------------------|------------------------------|-------|
 | 1 | `change-driven` | propose → (apply ↔ verify) → archive | v8.3.0 PV-06; 4-stage with `apply ↔ verify` convergence loop (max_rounds=5 per W-8) |
-| 2 | `demo-showcase` | design → storyboard → implement → verify → demo | visual-test + acceptance-check flavours |
-| 3 | `dependency-setup` | analyze → install → verify | init-deps lifecycle |
-| 4 | `design-only` | requirements → design → review | gate-passed design doc |
-| 5 | `documentation-only` | audit → write → publish | terminal release primitive |
-| 6 | `entropy-cleanup` | sweep → consolidate → release | v8.0.0 P-11; refine + implement |
-| 7 | `feature-enhancement` | triage → scope → design → implement → test → review → verify | acceptance-check + user-verification flavours |
-| 8 | `full-pipeline` | research → design → plan → implement → review → test → testgate → release | gate-guarded; visual-test + user-verification + acceptance-check flavours |
-| 9 | `hotfix` | bug-triage → fix → test | trivial scope; minimal review |
+| 2 | `demo-showcase` (legacy) | design → storyboard → implement → verify → demo | visual-test + acceptance-check flavours |
+| 3 | `dependency-setup` (legacy) | analyze → install → verify | init-deps lifecycle |
+| 4 | `design-only` (legacy) | requirements → design → review | gate-passed design doc |
+| 5 | `documentation-only` (legacy) | audit → write → publish | terminal release primitive |
+| 6 | `entropy-cleanup` (legacy) | sweep → consolidate → release | v8.0.0 P-11; refine + implement |
+| 7 | `feature-enhancement` (legacy) | triage → scope → design → implement → test → review → verify | acceptance-check + user-verification flavours |
+| 8 | `full-pipeline` (legacy) | research → design → plan → implement → review → test → testgate → release | gate-guarded; visual-test + user-verification + acceptance-check flavours |
+| 9 | `hotfix` (legacy) | bug-triage → fix → test | trivial scope; minimal review |
 | 10 | `migration` | assess → migrate → cutover → verify | analyze + implement + deploy + validate |
 | 11 | `nines-assisted` | nines-analyze → nines-eval → review → validate | external NineS subprocess; analyze + review primitives |
-| 12 | `onboarding` | onboard → bootstrap-skill | implement + release |
-| 13 | `performance-optimization` | profile → optimize → benchmark | analyze + implement + test |
-| 14 | `product-verification` | design → product-verify → acceptance-verify | verify primitive (visual + acceptance + interaction + a11y) |
-| 15 | `refactoring` | refactor → verify | implement + validate; no new features |
+| 12 | `onboarding` (legacy) | onboard → bootstrap-skill | implement + release |
+| 13 | `performance-optimization` (legacy) | profile → optimize → benchmark | analyze + implement + test |
+| 14 | `product-verification` (legacy) | design → product-verify → acceptance-verify | verify primitive (visual + acceptance + interaction + a11y) |
+| 15 | `refactoring` (legacy) | refactor → verify | implement + validate; no new features |
 | 16 | `repo-init` | analyze → scaffold → compile → verify | initial repo bootstrap |
-| 17 | `research-design-review-refine` (RDRR) | research → design → review → refine | knowledge-loop pattern |
-| 18 | `research-only` | research → compare → report | validate + release |
-| 19 | `security-audit` | scan → prioritize → fix → verify | analyze + plan + implement + validate |
+| 17 | `research-design-review-refine` (RDRR) (legacy) | research → design → review → refine | knowledge-loop pattern |
+| 18 | `research-only` (legacy) | research → compare → report | validate + release |
+| 19 | `security-audit` (legacy) | scan → prioritize → fix → verify | analyze + plan + implement + validate |
 | 20 | `self-update` | upgrade-skill → skill-bump | refine + release |
 | 21 | `skill-optimization` | skill-extract → skill-compress | refine + implement |
-| 22 | `spike-poc` | hypothesis → prototype → evaluate → decide | research + implement + review + gate |
+| 22 | `spike-poc` (legacy) | hypothesis → prototype → evaluate → decide | research + implement + review + gate |
 
 ### repo-init
 

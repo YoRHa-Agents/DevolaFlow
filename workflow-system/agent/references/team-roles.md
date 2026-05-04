@@ -471,29 +471,31 @@ The matrix below covers all 22 builtin templates (verbatim from
 match the template `.yaml` basename so a Wave/Task agent loading a
 specific template can route directly to the correct team boundary.
 
+**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+** per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit (v10.5.0 PV-02).
+
 | Workflow Type | Research | Design | Implement | Test | Review |
 |---------------|----------|--------|-----------|------|--------|
-| research-only | **Primary** | — | — | — | — |
-| design-only | — | **Primary** | — | — | Active |
-| hotfix | — | — | **Primary** | Active | Minimal |
-| refactoring | — | — | **Primary** | **Primary** | Optional |
+| research-only (legacy) | **Primary** | — | — | — | — |
+| design-only (legacy) | — | **Primary** | — | — | Active |
+| hotfix (legacy) | — | — | **Primary** | Active | Minimal |
+| refactoring (legacy) | — | — | **Primary** | **Primary** | Optional |
 | migration | Active | — | **Primary** | Active | Optional |
-| spike-poc | Active | — | Active | — | — |
-| documentation-only | Active | — | — | — | Active |
-| security-audit | Active | — | Active | Active | Active |
-| research-design-review-refine | **Primary** | **Primary** | — | — | **Primary** |
-| full-pipeline | Active | **Primary** | **Primary** | **Primary** | **Primary** |
-| product-verification | — | Active | — | **Primary** | Active |
-| feature-enhancement | Active | Active | **Primary** | Active | Active |
-| demo-showcase | — | Active | **Primary** | Active | Active |
-| performance-optimization | Active | — | **Primary** | **Primary** | Active |
-| dependency-setup | Active | — | **Primary** | Active | — |
-| onboarding | Active | — | **Primary** | — | — |
+| spike-poc (legacy) | Active | — | Active | — | — |
+| documentation-only (legacy) | Active | — | — | — | Active |
+| security-audit (legacy) | Active | — | Active | Active | Active |
+| research-design-review-refine (legacy) | **Primary** | **Primary** | — | — | **Primary** |
+| full-pipeline (legacy) | Active | **Primary** | **Primary** | **Primary** | **Primary** |
+| product-verification (legacy) | — | Active | — | **Primary** | Active |
+| feature-enhancement (legacy) | Active | Active | **Primary** | Active | Active |
+| demo-showcase (legacy) | — | Active | **Primary** | Active | Active |
+| performance-optimization (legacy) | Active | — | **Primary** | **Primary** | Active |
+| dependency-setup (legacy) | Active | — | **Primary** | Active | — |
+| onboarding (legacy) | Active | — | **Primary** | — | — |
 | skill-optimization | — | Active | **Primary** | Active | Active |
 | nines-assisted | **Primary** | — | Active | Active | **Primary** |
 | self-update | — | — | **Primary** | Active | Active |
 | repo-init | Active | — | **Primary** | Active | — |
-| entropy-cleanup | Active | — | **Primary** | Active | Active |
+| entropy-cleanup (legacy) | Active | — | **Primary** | Active | Active |
 | change-driven | Active | Active | **Primary** | Active | Active |
 
 **Primary** = drives the stage. **Active** = participates. **Minimal** =

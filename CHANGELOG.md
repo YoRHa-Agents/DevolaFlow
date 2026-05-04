@@ -5,6 +5,117 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.5.0] - 2026-05-04
+
+**MINOR — v10.5.0 Architecture & Documentation Health.** Second MINOR cycle in the v11.0.0 admission rollout; collapses 6 PDSs (D-A-1, D-A-2, D-A-3, D-A-4, D-D-3, D-D-4) into a single coherent change set per `.local/research/v11.0.0_patches/`. The cycle ships 4 NEW operator-facing audit scripts (D-A-1 layer usage, D-A-2 template usage, D-D-3 reference friction, D-D-4 W-18 lint maintenance), a new XL-tier example (`multi-stage-trace.md`), the new "Resume After Pause" §3.6 in `agent-workspace.md`, and a `force_no_change` parameter on `activation_verdict()`. Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).
+
+### Operator-visible behaviour change (READ FIRST)
+
+Zero breaking changes. Every change is additive:
+
+- **4 NEW Python audit scripts** (developer/operator-facing CLIs):
+  - `scripts/audit_layer_usage.py` (D-A-1) — scans `.local/research/v9.*.0_*.md` + `v10.*.0_*.md` for L0/L1/L2/L3 mentions + `Dispatch type:` lines + L0→L3 collapse markers; emits markdown report with cycle-wide standalone-L1 / standalone-L2 / collapse ratios. Pure stdlib (re/glob/pathlib).
+  - `scripts/audit_template_usage.py` (D-A-2 Phase A) — classifies the 22 builtin templates as TIER-1 USED vs TIER-2 REGISTERED based on cycle-doc mentions + CHANGELOG mentions + git-subject-line mentions. Identifies the 16 templates that have been REGISTERED but never invoked in v9.0.0..v10.3.0 cycles.
+  - `scripts/measure_reference_friction.py` (D-D-3) — pure-observability audit computing per-reference density metrics (lines/words, abbrev density, ref-link density, fenced-block density) across SKILL.md + 14 references. Identifies "compressed-and-cryptic" paragraph candidates per a deterministic heuristic (>= 100 words AND >= 5 abbreviations AND no embedded fenced block).
+  - `scripts/audit_w18_lint_maintenance.py` (D-D-4) — parses `tests/test_no_ghost_features.py` for every `test_v*_*_*_new_symbols_have_coverage` function, computes per-cycle line-span deltas, projects v+5 / v+10 / v+15 cumulative LOC via linear-regression slope. Identifies "stale" path literals (W-18 lint pins to files that no longer exist).
+- **1 NEW XL-tier example** — `workflow-system/agent/examples/multi-stage-trace.md` (4th example, ~190 lines well within XL ≤1600 cap). Worked walkthrough of WHEN the L1 Stage Agent + L2 Wave Agent are necessary (multi-team analyze with cross-stage artifact merging) — the counter-case for the v10.5.0 PV-01 D-A-1 advisory annotation.
+- **1 NEW reference subsection** — `references/agent-workspace.md` §3.6 "Resume After Pause" (~120 LOC; agent-workspace.md grew 747 → 875 lines, comfortably under the Large tier ≤1000 cap). Documents the 5-step pre-resume checklist + resume dispatch contract + concurrency-safe resume + stale-change pruning. **Pure documentation** — no new code, no new schema, no new template.
+- **1 NEW activation_verdict parameter** — `force_no_change: bool = False` (default-False preserves byte-identical v10.4.x behaviour). Operator override evaluated FIRST; returns `NO_CHANGE` regardless of complexity / env / opt_out for ad-hoc dispatches that deliberately bypass the workspace scaffold.
+- **16 TIER-2 yaml deprecation comment headers** (D-A-2 Phase A) — each of the 16 templates flagged REGISTERED-but-unused (hotfix, refactoring, feature-enhancement, full-pipeline, documentation-only, research-only, design-only, research-design-review-refine, spike-poc, security-audit, demo-showcase, performance-optimization, dependency-setup, onboarding, product-verification, entropy-cleanup) gains a 4-line `# DEPRECATED in v11.0.0; will be removed in v12.0.0` comment block at the top. Pure-additive — yaml still parses; tests still pass. Phase B (compose-not-define collapse) deferred to v12.0+.
+- **3 SKILL.md / reference annotations** — Quick Action Decision table marks L1/L2 as "only-when-needed" at Standard tier (D-A-1 advisory). Template Quick-Reference + meta-framework.md Per-Workflow Template Catalog + team-roles.md Team Participation Matrix gain `(legacy)` suffix on TIER-2 templates (D-A-2 Phase A).
+- **4 NEW Makefile targets** — `audit-layers`, `audit-templates`, `measure-friction`, `audit-w18`.
+- **0 NEW env flags** (W-20 §3 reuse-first applied — `force_no_change` is a function parameter, NOT an env flag).
+- **0 schema bumps** — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-stable across all 10 historical multi-baseline byte tests (v7.0.0 → v10.5.0).
+- **0 Soul rule additions** — W-21 freeze respected (Soul-set count remains 10 at S-1..S-10).
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+- `scripts/audit_layer_usage.py` — pinned by `tests/test_no_ghost_features.py::test_v10_5_0_new_symbols_have_coverage`
+- `scripts/audit_template_usage.py` — pinned by the same lint
+- `scripts/measure_reference_friction.py` — pinned
+- `scripts/audit_w18_lint_maintenance.py` — pinned
+- `workflow-system/agent/examples/multi-stage-trace.md` — pinned
+- `workflow-system/agent/references/agent-workspace.md` §3.6 — pinned by section-heading literal check
+- `src/devolaflow/skills/change_activation.py::activation_verdict(force_no_change=...)` — pinned by parameter literal check
+- 16 TIER-2 yaml files — pinned by deprecation-header literal check
+- `.local/research/v10.5.0_retrospective.md` — pinned (W-7 / SI-8 contract)
+- `.local/research/v10.5.1_layer_usage_audit.md` — pinned (D-A-1 audit output)
+- `.local/research/v10.5.2_template_usage_audit.md` — pinned (D-A-2 audit output)
+- `.local/research/v10.5.3_reference_friction.md` — pinned (D-D-3 audit output)
+- `.local/research/v10.5.4_w18_lint_audit.md` — pinned (D-D-4 audit output)
+
+### Cascading-coupling updates (4th XL-tier example)
+
+- `scripts/sync_cursor_skill.py::MIRRORED_FILES` — extended (18 → 19 entries); added `examples/multi-stage-trace.md`
+- `tests/test_version.py::_MIRRORED_SKILL_FILES` — extended (18 → 19 entries)
+- `tests/test_reference_size_budgets.py::test_canonical_lists_match_sf3_contract` — `assert len(_EXAMPLE_FILES) == 4` (was 3)
+- `tests/test_adapter_golden.py::test_cursor_examples_golden::len(actual) == 4` (was 3)
+
+### Audit findings (D-A-1, D-A-2, D-D-3, D-D-4 — empirical signal)
+
+The v10.5.0 cycle establishes the architecture & documentation health baseline:
+
+- **D-A-1** (`v10.5.1_layer_usage_audit.md`): 14 cycle docs scanned. The `Dispatch type:` literal is rare in cycle plans (the operator-facing convention is prose); plain `\bL{0,1,2,3}\b` mentions confirm the v11.0.0 hypothesis that L0/L3 dominate while L1/L2 are mentioned as roles rather than as standalone dispatches. The advisory wording in SKILL.md §"Quick Action Decision" + the new `examples/multi-stage-trace.md` cover both the collapse case (most common) and the multi-team analyze case (the support set).
+- **D-A-2 Phase A** (`v10.5.2_template_usage_audit.md`): 22 templates registered. 6 USED (change-driven, self-update, skill-optimization, repo-init, migration, nines-assisted), 16 REGISTERED-but-unused. 27% utilization rate. Phase B compose-not-define collapse deferred to v12.0+.
+- **D-D-3** (`v10.5.3_reference_friction.md`): 15 targets scanned (SKILL.md + 14 references). The deterministic abbreviation-density heuristic surfaces compressed-and-cryptic paragraph candidates that have budget headroom for expansion. Refactor decisions deferred to v11.X.0+ per the D-D-3 PDS §6 admission verdict.
+- **D-D-4** (`v10.5.4_w18_lint_audit.md`): cycle-specific W-18 lints inventoried with per-cycle line-span deltas. Linear-extrapolation projection identifies the trajectory; consolidation proposals deferred to v12.0+ per `v10.0.0_retrospective.md` §4.2 traceability requirement.
+
+### Headline numbers (cycle-cumulative; v10.4.0 → v10.5.0)
+
+| Area | v10.4.0 | v10.5.0 | Delta |
+|------|---:|---:|---:|
+| Tests (collected) | ~4118 | ~4161 | +43 NEW test functions (within W-17 +30/PV cap; 5 PVs × ≤30 = ≤150/cycle cumulative cap) |
+| SF-4 references | 15 | 15 | 0 |
+| Tier-3 examples | 3 | 4 | +1 (`multi-stage-trace.md`; D-A-1) |
+| SKILL.md lines | 461 | 467 | +6 (advisory annotations + (legacy) markers; well under 500 cap) |
+| `agent-workspace.md` lines | 747 | 875 | +128 (§3.6 Resume After Pause; under 1000 Large tier cap) |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze) |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; `force_no_change` is a parameter not an env) |
+| Schema canonical_order length | 16 | 16 | 0 (A-2 byte-stable) |
+| Python scripts | (existing) | +4 | audit_layer_usage, audit_template_usage, measure_reference_friction, audit_w18_lint_maintenance |
+| Makefile phony targets | (existing) | +4 | audit-layers, audit-templates, measure-friction, audit-w18 |
+| TIER-2 yaml templates with deprecation header | 0 | 16 | +16 (D-A-2 Phase A; pure-additive) |
+
+### Files changed (cycle-cumulative)
+
+NEW:
+- `scripts/audit_layer_usage.py` (~280 LOC)
+- `scripts/audit_template_usage.py` (~290 LOC)
+- `scripts/measure_reference_friction.py` (~310 LOC)
+- `scripts/audit_w18_lint_maintenance.py` (~360 LOC)
+- `workflow-system/agent/examples/multi-stage-trace.md` (~190 lines)
+- `tests/test_audit_layer_usage.py` (11 tests)
+- `tests/test_audit_template_usage.py` (11 tests)
+- `tests/test_measure_reference_friction.py` (10 tests)
+- `tests/test_audit_w18_lint_maintenance.py` (9 tests)
+- `.local/research/v10.5.0_retrospective.md` (W-7 / SI-8)
+- `.local/research/v10.5.1_layer_usage_audit.md` (D-A-1 output)
+- `.local/research/v10.5.2_template_usage_audit.md` (D-A-2 output)
+- `.local/research/v10.5.3_reference_friction.md` (D-D-3 output)
+- `.local/research/v10.5.4_w18_lint_audit.md` (D-D-4 output)
+
+MOD:
+- Canonical 7 sync 10.4.0 → 10.5.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md`, `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `workflow-system/agent/SKILL.md` (Quick Action Decision advisory; Workspace Engagement resume pointer; Template Quick-Reference (legacy) markers; layer collapse pattern note)
+- `workflow-system/agent/references/agent-workspace.md` (§3.6 Resume After Pause)
+- `workflow-system/agent/references/meta-framework.md` (Per-Workflow Template Catalog (legacy) markers)
+- `workflow-system/agent/references/team-roles.md` (Team Participation Matrix (legacy) markers)
+- `workflow-system/agent/templates/builtin/{16 TIER-2 yaml files}.yaml` (deprecation comment headers)
+- `src/devolaflow/skills/change_activation.py` (activation_verdict force_no_change parameter)
+- `tests/test_change_activation_heuristic.py` (2 NEW tests for force_no_change parameter)
+- `tests/test_no_ghost_features.py` (v10.5.0 W-18 stanza + literals)
+- `tests/test_version.py` (`_MIRRORED_SKILL_FILES` extended)
+- `tests/test_reference_size_budgets.py` (`assert len(_EXAMPLE_FILES) == 4`)
+- `tests/test_adapter_golden.py` (`len(actual) == 4` for examples)
+- `scripts/sync_cursor_skill.py` (MIRRORED_FILES + 1 entry; comment block updated)
+- `Makefile` (4 NEW phony targets)
+
+### Deferred to v10.6.0 (per W-7 retrospective §3)
+
+- D-A-2 Phase B (compose-not-define template collapse — replace TIER-2 yaml with parametrized invocations of TIER-1 + composition operators). Requires registry schema_version 1.0 → 2.0 bump under A-2.3 nest-vs-append decision rule.
+- D-D-3 Phase B (apply the 3-paragraph expansion proposals embedded in `v11.0.0_patches/D-D-3.md` §5.1-§5.3 to SKILL.md + compression-pipeline.md). All 3 proposed expansions stay well under their tier ceilings; deferred to allow operator review of the audit evidence.
+- D-D-4 Phase B (consolidate 24 cycle-specific W-18 lints via the 4 patterns documented in `v10.5.4_w18_lint_audit.md` §"Consolidation Proposal Patterns"). Per-cycle traceability is a hard requirement for cycle-close retrospectives; consolidation gated on v12.0+ traceability replacement (e.g. CHANGELOG-derived pin extraction).
+
 ## [10.4.0] - 2026-05-04
 
 **MINOR — v10.4.0 Developer Experience + Reference Audit Foundation.** First MINOR cycle since v10.3.0; collapses 6 PDSs (D-X-1, D-X-2, D-X-3, D-X-5, D-D-1, D-D-2) into a single coherent change set per `.local/research/v11.0.0_decomposition_plan.md`. The cycle ships 4 NEW operator-facing scripts (2 scaffold CLIs + 2 audit CLIs), the 15th SF-4 canonical reference (`references/troubleshooting.md`), and the SI-10 fast/full Makefile split (D-X-3). Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).

@@ -194,8 +194,9 @@ def activation_verdict(
     complexity: Complexity,
     env_agent_workspace: bool,
     opt_out: bool = False,
+    force_no_change: bool = False,
 ) -> ActivationVerdict:
-    """Combine complexity + env-flag + opt-out into a three-valued verdict.
+    """Combine complexity + env-flag + opt-out + force into a three-valued verdict.
 
     Args:
       complexity: The :data:`Complexity` tier from
@@ -204,7 +205,15 @@ def activation_verdict(
         ``DEVOLAFLOW_AGENT_WORKSPACE=1`` is set (use :func:`from_env`
         for the canonical read site).
       opt_out: ``True`` iff the operator passed ``--no-change`` on
-        ``/devola:propose`` (per A-6.3 the only opt-out channel).
+        ``/devola:propose`` (per A-6.3 the only slash-command opt-out).
+      force_no_change: ``True`` iff the dispatcher explicitly forces
+        the verdict to ``NO_CHANGE`` regardless of complexity / env /
+        opt-out. v10.5.0 PV-03 D-A-4 dispatch-level override —
+        orthogonal to ``opt_out`` (per the PDS §2 nest-vs-append
+        decision rule the new flag NESTS into the existing argument
+        list as a fourth axis rather than introducing a new env flag,
+        respecting W-20 reuse-first). Default ``False`` preserves
+        byte-identical v10.4.x behaviour for every existing call site.
 
     Returns:
       A :data:`ActivationVerdict` literal — one of
@@ -214,8 +223,10 @@ def activation_verdict(
       ValueError: when ``complexity`` is not a recognised
         :data:`Complexity` literal (S-5 — never silently coerce).
 
-    Verdict matrix (per A-6 + cycle plan §PV-02):
+    Verdict matrix (per A-6 + cycle plan §PV-02 + v10.5.0 PV-03):
 
+      * force_no_change=True → NO_CHANGE (operator override wins;
+        evaluated FIRST per A-6.3.1 sub-rule)
       * COMPLEX + env=True + opt_out=False → MUST_OPEN_CHANGE
       * STANDARD + env=True + opt_out=False → SHOULD_OPEN_CHANGE
       * SIMPLE / TRIVIAL → NO_CHANGE (regardless of env / opt_out)
@@ -226,6 +237,16 @@ def activation_verdict(
         raise ValueError(
             f"activation_verdict: complexity {complexity!r} is not one of {_VALID_COMPLEXITIES}"
         )
+
+    # v10.5.0 PV-03 D-A-4: explicit operator override evaluated BEFORE
+    # complexity / env / opt-out so the "I know what I'm doing,
+    # bypass scaffold for this dispatch only" path is unconditional.
+    # Use case: ad-hoc exploratory analysis where the operator
+    # deliberately skips the workspace audit trail (and accepts the
+    # S-8 file-ownership consequence — see references/agent-workspace.md
+    # §3.6 cross-references).
+    if force_no_change:
+        return "NO_CHANGE"
 
     if not env_agent_workspace:
         return "NO_CHANGE"

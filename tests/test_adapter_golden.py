@@ -162,7 +162,7 @@ def test_cursor_examples_golden(cursor_build):
     assert expected == actual, (
         f"Cursor examples mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 3, f"expected 3 example files, got {len(actual)}"
+    assert len(actual) == 4, f"expected 4 example files, got {len(actual)}"
 
 
 def test_cursor_rules_mdc_created(cursor_build):

@@ -71,7 +71,7 @@ def test_example_within_xl_tier(project_root: Path, rel_path: str) -> None:
 
 
 def test_canonical_lists_match_sf3_contract() -> None:
-    """Sanity: shape matches the SF-3 contract (14-refs / 3-examples since v8.5.1 PV-06).
+    """Sanity: shape matches the SF-3 contract (15-refs / 4-examples since v10.5.0 PV-01).
 
     v8.0.0 P-08 grew the reference set 8 → 9 by appending
     ``references/behavioral-guidelines.md`` (the L3 behavioral primitives reference
@@ -123,8 +123,17 @@ def test_canonical_lists_match_sf3_contract() -> None:
     the v10.4.0 audit scripts (``audit_reference_utilization.py`` /
     ``audit_long_reference_usage.py``) and the scaffold CLIs
     (``scaffold_template.py`` / ``scaffold_reference.py``).
+
+    v10.5.0 PV-01 grew the example set 3 → 4 by appending
+    ``examples/multi-stage-trace.md`` (the multi-team analyze + cross-
+    stage merge counter-example referenced by the SKILL.md §"Quick
+    Action Decision" advisory annotation that v10.5.0 D-A-1 ships).
+    The audit `scripts/audit_layer_usage.py` documents WHEN the L1 +
+    L2 layers genuinely earn their cost; this example walks one such
+    scenario verbatim. Stays well within XL tier 1600-line ceiling
+    per SF-1.
     """
     assert len(_REF_FILES) == 15, f"expected 15 references, got {len(_REF_FILES)}: {_REF_FILES}"
-    assert len(_EXAMPLE_FILES) == 3, (
-        f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
+    assert len(_EXAMPLE_FILES) == 4, (
+        f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )
