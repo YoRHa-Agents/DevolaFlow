@@ -82,6 +82,15 @@ MIRRORED_FILES = [
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
+    # v10.5.0 PV-01 (D-A-1) grew the example set 3 -> 4 by appending
+    # examples/multi-stage-trace.md (the multi-team analyze + cross-stage
+    # merge counter-example referenced by the SKILL.md Quick Action
+    # Decision advisory annotation). The audit's recommendation
+    # (`scripts/audit_layer_usage.py`) is data-driven on the v10.4.0
+    # corpus; this example documents WHEN the L1 + L2 layers are still
+    # required so operators have a worked counter-case before they
+    # collapse the dispatch chain.
+    "examples/multi-stage-trace.md",
 ]
 STAMP_FILE = MIRROR_DIR / ".devola-flow-version"
 VERSION_FILE = Path("src/devolaflow/__init__.py")

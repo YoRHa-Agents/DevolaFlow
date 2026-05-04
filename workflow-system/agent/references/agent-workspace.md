@@ -215,6 +215,134 @@ Machine-enforced via `STATUS.yaml` `state` field:
 the same lifecycle is driven by manual scaffolding plus `change-driven` workflow
 template stages (`propose → apply → verify → archive`).
 
+## 3.6 Resume After Pause (v10.5.0 PV-03)
+
+Documentation only — no new code, no new schema, no new template.
+This subsection answers: **what does L0 do when returning to an
+active change folder ≥ 24 h later, in a new session, after the
+operator has been off-task?** All machinery cited below already
+exists at v10.4.0 (STATUS.yaml, append-only handoff envelopes,
+change_context dispatch field). Cross-references: `STATUS.yaml`
+schema §4 (this file), handoff envelope append-only S-9, W-19
+cycle-archive boundary, `references/execution-protocol.md` §2
+checkpoint mechanism.
+
+### Pre-resume checklist (5 steps)
+
+L0 MUST execute these steps in order BEFORE invoking any L1 / L2 /
+L3 dispatch on a returning session:
+
+1. **Scan workspace.** Call
+   `devolaflow.workspace_context.scan_workspace(repo_root)` —
+   returns frozen `WorkspaceContext` snapshot. If `active_changes`
+   is empty, no resume protocol applies; proceed to fresh dispatch.
+2. **Pick the candidate active change.** When `active_changes`
+   contains > 1 entry, prefer the one whose `last_updated` is most
+   recent. The append-only handoff store guarantees `last_updated`
+   is monotonic per change, so "most recent" is unambiguous.
+3. **Read STATUS.yaml.** The fields needed are:
+   - `state` ∈ {PROPOSED, IN_PROGRESS, VERIFYING} → resume-eligible.
+     `state == PROPOSED` is stale-OK (work hasn't started).
+     `state == ESCALATED` requires human review BEFORE resume.
+     `state == ARCHIVED` is terminal — never resume.
+   - `last_updated` (ISO-8601). Compute staleness:
+     `now() - last_updated`. If `> 7 days`, emit a warning;
+     if `> 30 days`, recommend operator review (see "Stale-change
+     pruning" below).
+   - `last_handoff_seq` (int). The append-only seq counter the
+     resume dispatch must respect.
+4. **Reconcile handoff envelopes.** Read `.local/.agent/handoff/`
+   and compute `max_seq = max(seq for envelope where change-id
+   matches)`. Cross-check vs `STATUS.yaml.last_handoff_seq`:
+   - `max_seq == last_handoff_seq` → in sync; resume normally.
+   - `max_seq == last_handoff_seq + 1` → an envelope was written
+     but STATUS.yaml was not updated (e.g. crash between writes).
+     Re-read the latest envelope; `STATUS.yaml.last_handoff_seq`
+     is treated as authoritative and bumped to `max_seq`.
+   - `max_seq > last_handoff_seq + 1` → multiple unrecorded
+     envelopes. EMIT a `ReconciliationWarning` and treat the
+     latest envelope as the resume entry point.
+5. **Read goal.md + acceptance.md + spec.md + tasks.md.** Per
+   C-9 token budgets, all 4 fit in ~2K tokens combined. Identify
+   the first un-checked task in `tasks.md` as the resume entry
+   point — that's the first L3 dispatch target.
+
+### Resume dispatch contract — `change_context` field
+
+The next dispatch payload MUST include the `change_context` field
+at canonical position 16 (per A-2.2 append-only tail), populated
+from STATUS.yaml + the active folder:
+
+```yaml
+change_context:
+  change_id: <STATUS.yaml.change_id>
+  active_folder: ".local/.agent/active/<change_id>"
+  state: <STATUS.yaml.state>           # IN_PROGRESS | VERIFYING
+  spec_delta_target: <spec.md frontmatter delta_target>
+  owned_files_ref: ".local/.agent/active/<change_id>/owned_files.txt"
+  acceptance_ref: ".local/.agent/active/<change_id>/acceptance.md"
+  resume_from_seq: <STATUS.yaml.last_handoff_seq + 1>
+  resume_rationale: "resume after pause; idle <duration>"
+```
+
+The `resume_from_seq` field is the dispatch's prescribed seq for
+the L0->L? handoff envelope it authors. Convergence-round counters
+in `STATUS.yaml.gate_score` / round metadata are preserved
+across resume — the round number is keyed by `change_id`, not
+session_id.
+
+### Concurrency-safe resume — O_EXCL semantics
+
+`HandoffStore.write_envelope()` opens with `O_EXCL` (per §6 envelope
+schema and §5 Python API), so two parallel resume attempts in
+different sessions cannot collide on the same seq. The losing
+attempt raises `EnvelopeImmutableError` and the operator can either:
+
+1. Retry with `seq+2` (the audit trail records both attempts), or
+2. Abort and re-scan workspace to pick up the winning attempt's
+   handoff envelope as the new `last_handoff_seq`.
+
+Either path preserves S-9 append-only — never modifies an existing
+envelope. Both paths are logged (S-5 — explicit error states).
+
+### Stale-change pruning (operator-facing recommendation)
+
+When staleness threshold > 30 days AND `state == IN_PROGRESS`, the
+resume protocol's recommendation is:
+
+| Operator decision | Action |
+|--------|--------|
+| Continue | Proceed with normal resume (the staleness is just informational) |
+| Archive | Run `/devola:verify` then `/devola:archive` per §3 lifecycle FSM transitions; A-4 source-of-truth merge proposal flows from there |
+| Escalate | Set `STATUS.yaml.state = ESCALATED` and document the rationale in a NEW handoff envelope (`seq+1`) — preserves the audit trail |
+
+The threshold (30 days) is documentation-only; operators may
+override based on project context. The 7-day softer threshold
+("emit warning") is the cross-week interruption signal; the
+30-day harder threshold suggests abandonment or re-prioritization.
+
+### Cross-references
+
+- `STATUS.yaml` schema (§4 above; v8.2.4 — fields `state`,
+  `last_updated`, `last_handoff_seq` are the resume-protocol
+  contract).
+- Handoff envelope append-only — Soul rule S-9
+  (`.cursor/rules/repo-governance.mdc`).
+- `change_context` dispatch field at canonical position 16
+  (§12 below; v9.7.0 PV-02; A-2.2 append-only-tail invariant).
+- `references/execution-protocol.md` §2 Checkpoint/Resume
+  Mechanism — covers stage-gate-level resume (different scope:
+  cycle vs change vs session).
+- W-19 cycle-archive boundary — resume protocol applies to
+  ACTIVE changes; archived changes are TERMINAL and cannot be
+  resumed (re-archival is a no-op per §1 lifecycle FSM).
+- A-4 source-of-truth merge rule — stale-change pruning's
+  archive path goes through the gate per A-4.
+- `src/devolaflow/skills/change_activation.py::activation_verdict`
+  with `force_no_change=True` (v10.5.0 PV-03 D-A-4) — operator
+  override on resume when ad-hoc dispatch is preferred over the
+  full scaffold.
+
 ## 4. Per-Artifact Schemas
 
 Each artifact in `active/<id>/` and `archive/<date>-<id>/` is governed by a

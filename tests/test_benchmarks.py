@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v7.8.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v10.5.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -406,19 +406,18 @@ class TestBaselineFile:
     def test_runner_prefers_latest_baseline(self) -> None:
         """load_baseline() picks the latest baseline file over older ones, falls back as needed.
 
-        v10.2.0 PV-01 (cycle v10.2.0 MINOR cycle-start) fires the W-16
+        v10.5.0 PV-01 (cycle v10.5.0 MINOR cycle-start) fires the W-16
         wholesale baseline regen per ``.cursor/rules/repo-governance.mdc`` §W-16.
-        The resulting ``v10.2.0_baseline.json`` is the new "newest" after
-        v9.7.0 (which had been the v10.0.0 MAJOR rollup baseline). Prior
-        baselines (v9.3.0 / v9.6.0 / v9.7.0 / ...) stay on disk for
-        cumulative drift detection per v8.4.0 retro §"R-7 wholesale-vs-
-        piecemeal baseline lesson".
+        The resulting ``v10.5.0_baseline.json`` is the new "newest" after
+        v10.2.0 (the previous wholesale-regen baseline at v10.2.0 cycle-start).
+        Prior baselines stay on disk for cumulative drift detection per
+        v8.4.0 retro §"R-7 wholesale-vs-piecemeal baseline lesson".
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v10.2.0_baseline.json", (
-            f"Expected load_baseline() to prefer v10.2.0_baseline.json "
-            f"(W-16 wholesale regen at v10.2.0 cycle-start); got {newest.name}"
+        assert newest.name == "v10.5.0_baseline.json", (
+            f"Expected load_baseline() to prefer v10.5.0_baseline.json "
+            f"(W-16 wholesale regen at v10.5.0 cycle-start); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

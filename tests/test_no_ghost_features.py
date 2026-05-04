@@ -71,7 +71,13 @@ def _skill_workflow_selection_names(project_root: Path) -> set[str]:
 
 
 def _skill_quick_reference_names(project_root: Path) -> set[str]:
-    """Extract template names from SKILL.md's Template Quick-Reference table."""
+    """Extract template names from SKILL.md's Template Quick-Reference table.
+
+    v10.5.0 PV-02 D-A-2 Phase A introduces ``(legacy)`` suffix
+    annotations on TIER-2 template rows (16 of 22 templates). The
+    canonical name is what's retained for registry comparison; the
+    ``(legacy)`` marker is stripped here.
+    """
     skill = _read(project_root / "workflow-system/agent/SKILL.md")
     section = re.search(r"## Template Quick-Reference\n(.*?)(?:\n## |\Z)", skill, re.DOTALL)
     if section is None:
@@ -81,7 +87,9 @@ def _skill_quick_reference_names(project_root: Path) -> set[str]:
     for row in rows:
         cells = [c.strip() for c in row.split("|")]
         if len(cells) >= 2 and cells[1]:
-            names.add(cells[1])
+            # Strip v10.5.0 D-A-2 (legacy) suffix annotation.
+            name = re.sub(r"\s*\(legacy\)\s*$", "", cells[1])
+            names.add(name)
     return names
 
 
@@ -5536,4 +5544,190 @@ def test_v10_4_0_new_symbols_have_coverage(project_root: Path) -> None:
     assert _V10_4_0_CHANGELOG_LITERAL in changelog, (
         f"W-18 v10.4.0 violation: CHANGELOG entry "
         f"{_V10_4_0_CHANGELOG_LITERAL!r} missing; PV-05 ships this entry."
+    )
+
+
+# =====================================================================
+# v10.5.0 PV-01..PV-05 — Architecture & Documentation Health
+# =====================================================================
+#
+# v10.5.0 collapses 6 v11.0.0-cycle PDSs (D-A-1, D-A-2, D-A-3, D-A-4,
+# D-D-3, D-D-4) into a single coherent MINOR cycle per
+# `.local/research/v11.0.0_patches/`. The cycle ships:
+#  1. NEW scripts/audit_layer_usage.py (D-A-1 — L0/L1/L2/L3 dispatch
+#     ratio audit)
+#  2. NEW scripts/audit_template_usage.py (D-A-2 Phase A — TIER-1
+#     USED vs TIER-2 REGISTERED template audit)
+#  3. NEW scripts/measure_reference_friction.py (D-D-3 — reference
+#     comprehension cost / dense-paragraph audit)
+#  4. NEW scripts/audit_w18_lint_maintenance.py (D-D-4 — W-17/W-18
+#     lint maintenance trajectory audit)
+#  5. NEW workflow-system/agent/examples/multi-stage-trace.md
+#     (D-A-1 — 4th XL-tier example, the multi-team analyze
+#     counter-case for SKILL.md §"Quick Action Decision" advisory)
+#  6. NEW agent-workspace.md §3.6 "Resume After Pause" (D-A-3 —
+#     pure-doc subsection)
+#  7. NEW activation_verdict(force_no_change=...) parameter (D-A-4)
+#  8. 16 TIER-2 yaml deprecation comment headers (D-A-2 Phase A)
+#  9. 4 NEW Makefile targets (audit-layers, audit-templates,
+#     measure-friction, audit-w18)
+#  10. CHANGELOG `## [10.5.0]` entry; canonical 7 sync 10.4.0 -> 10.5.0
+#  11. .local/research/v10.5.{0,1,2,3,4}_*.md retrospective + 4
+#      audit outputs
+
+_V10_5_0_AUDIT_LAYERS_SCRIPT: Path = Path("scripts/audit_layer_usage.py")
+_V10_5_0_AUDIT_TEMPLATES_SCRIPT: Path = Path("scripts/audit_template_usage.py")
+_V10_5_0_MEASURE_FRICTION_SCRIPT: Path = Path("scripts/measure_reference_friction.py")
+_V10_5_0_AUDIT_W18_SCRIPT: Path = Path("scripts/audit_w18_lint_maintenance.py")
+_V10_5_0_MULTI_STAGE_EXAMPLE: Path = Path("workflow-system/agent/examples/multi-stage-trace.md")
+_V10_5_0_RETROSPECTIVE_DOC: Path = Path(".local/research/v10.5.0_retrospective.md")
+_V10_5_0_LAYER_AUDIT_DOC: Path = Path(".local/research/v10.5.1_layer_usage_audit.md")
+_V10_5_0_TEMPLATE_AUDIT_DOC: Path = Path(".local/research/v10.5.2_template_usage_audit.md")
+_V10_5_0_FRICTION_DOC: Path = Path(".local/research/v10.5.3_reference_friction.md")
+_V10_5_0_W18_AUDIT_DOC: Path = Path(".local/research/v10.5.4_w18_lint_audit.md")
+_V10_5_0_CHANGELOG_LITERAL: str = "## [10.5.0]"
+_V10_5_0_MAKEFILE_AUDIT_LAYERS_LITERAL: str = "audit-layers:"
+_V10_5_0_MAKEFILE_AUDIT_TEMPLATES_LITERAL: str = "audit-templates:"
+_V10_5_0_MAKEFILE_MEASURE_FRICTION_LITERAL: str = "measure-friction:"
+_V10_5_0_MAKEFILE_AUDIT_W18_LITERAL: str = "audit-w18:"
+_V10_5_0_DEPRECATED_TEMPLATES: tuple[str, ...] = (
+    "hotfix",
+    "refactoring",
+    "feature-enhancement",
+    "full-pipeline",
+    "documentation-only",
+    "research-only",
+    "design-only",
+    "research-design-review-refine",
+    "spike-poc",
+    "security-audit",
+    "demo-showcase",
+    "performance-optimization",
+    "dependency-setup",
+    "onboarding",
+    "product-verification",
+    "entropy-cleanup",
+)
+_V10_5_0_DEPRECATION_HEADER_LITERAL: str = "# DEPRECATED in v11.0.0; will be removed in v12.0.0"
+
+
+def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
+    """W-18 v10.5.0: every NEW v10.5.0 PV-01..PV-05 surface has presence coverage.
+
+    Discharges the W-18 precondition for the v10.5.0 MINOR cycle. The
+    CHANGELOG entry mentions:
+
+    * 4 NEW audit scripts (audit_layer_usage, audit_template_usage,
+      measure_reference_friction, audit_w18_lint_maintenance);
+    * 1 NEW XL-tier example (multi-stage-trace.md, the 4th example);
+    * NEW agent-workspace.md §3.6 "Resume After Pause" subsection;
+    * NEW activation_verdict(force_no_change=...) parameter;
+    * 16 TIER-2 yaml deprecation comment headers (D-A-2 Phase A);
+    * 4 NEW Makefile targets (audit-{layers,templates,w18},
+      measure-friction);
+    * 4 NEW research artifacts (v10.5.{1,2,3,4} audit outputs);
+    * canonical 7 sync 10.4.0 -> 10.5.0 + CHANGELOG `## [10.5.0]`.
+
+    Each pin protects the W-18 sequencing per
+    `.local/research/v9.0.0_pv05_design.md` §3 + ADR-005 D2.
+    """
+    for script in (
+        _V10_5_0_AUDIT_LAYERS_SCRIPT,
+        _V10_5_0_AUDIT_TEMPLATES_SCRIPT,
+        _V10_5_0_MEASURE_FRICTION_SCRIPT,
+        _V10_5_0_AUDIT_W18_SCRIPT,
+    ):
+        path = project_root / script
+        assert path.is_file(), (
+            f"W-18 v10.5.0 violation: NEW audit script missing at {script}. "
+            f"v10.5.0 ships this script as part of the D-A / D-D slice. "
+            f"Author the file OR remove the CHANGELOG mention."
+        )
+
+    example_path = project_root / _V10_5_0_MULTI_STAGE_EXAMPLE
+    assert example_path.is_file(), (
+        f"W-18 v10.5.0 violation: 4th XL-tier example missing at "
+        f"{_V10_5_0_MULTI_STAGE_EXAMPLE}. v10.5.0 PV-01 ships D-A-1."
+    )
+
+    skill_text = (project_root / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
+    assert "examples/multi-stage-trace.md" in skill_text, (
+        "W-18 v10.5.0 violation: SKILL.md must reference the new "
+        "multi-stage-trace.md example in the Quick Action Decision "
+        "advisory annotation (D-A-1)."
+    )
+    assert "(legacy)" in skill_text, (
+        "W-18 v10.5.0 violation: SKILL.md Template Quick-Reference "
+        "must carry the (legacy) annotation on TIER-2 templates "
+        "(D-A-2 Phase A)."
+    )
+
+    agent_workspace_text = (
+        project_root / "workflow-system/agent/references/agent-workspace.md"
+    ).read_text(encoding="utf-8")
+    assert "## 3.6 Resume After Pause" in agent_workspace_text, (
+        "W-18 v10.5.0 violation: agent-workspace.md must include "
+        "the new §3.6 Resume After Pause subsection (D-A-3)."
+    )
+
+    # D-A-4: force_no_change parameter on activation_verdict.
+    change_activation_text = (
+        project_root / "src/devolaflow/skills/change_activation.py"
+    ).read_text(encoding="utf-8")
+    assert "force_no_change" in change_activation_text, (
+        "W-18 v10.5.0 violation: change_activation.py must add the "
+        "force_no_change parameter to activation_verdict() (D-A-4)."
+    )
+
+    # D-A-2 Phase A: 16 TIER-2 yaml files carry the deprecation comment.
+    template_dir = project_root / "workflow-system/agent/templates/builtin"
+    for tmpl in _V10_5_0_DEPRECATED_TEMPLATES:
+        yaml_path = template_dir / f"{tmpl}.yaml"
+        assert yaml_path.is_file(), (
+            f"W-18 v10.5.0 violation: TIER-2 template missing at {yaml_path}"
+        )
+        text = yaml_path.read_text(encoding="utf-8")
+        assert _V10_5_0_DEPRECATION_HEADER_LITERAL in text, (
+            f"W-18 v10.5.0 violation: TIER-2 template {tmpl}.yaml missing "
+            f"the deprecation comment header (D-A-2 Phase A). Re-run "
+            f"the deprecation-tagging step OR remove the CHANGELOG mention."
+        )
+
+    makefile_text = (project_root / "Makefile").read_text(encoding="utf-8")
+    for marker in (
+        _V10_5_0_MAKEFILE_AUDIT_LAYERS_LITERAL,
+        _V10_5_0_MAKEFILE_AUDIT_TEMPLATES_LITERAL,
+        _V10_5_0_MAKEFILE_MEASURE_FRICTION_LITERAL,
+        _V10_5_0_MAKEFILE_AUDIT_W18_LITERAL,
+    ):
+        assert marker in makefile_text, (
+            f"W-18 v10.5.0 violation: Makefile missing literal {marker!r} "
+            f"(D-A-* / D-D-* audit targets). Author the target OR remove "
+            f"the CHANGELOG mention."
+        )
+
+    retro_path = project_root / _V10_5_0_RETROSPECTIVE_DOC
+    assert retro_path.is_file(), (
+        f"W-18 v10.5.0 violation: W-7 SI-8 retrospective missing at "
+        f"{_V10_5_0_RETROSPECTIVE_DOC}. v10.5.0 ships this "
+        f"retrospective with 4 mandatory sections (gitignored content; "
+        f"path-presence is the operator-visible contract)."
+    )
+
+    for audit_doc, audit_cmd in (
+        (_V10_5_0_LAYER_AUDIT_DOC, "scripts/audit_layer_usage.py"),
+        (_V10_5_0_TEMPLATE_AUDIT_DOC, "scripts/audit_template_usage.py"),
+        (_V10_5_0_FRICTION_DOC, "scripts/measure_reference_friction.py"),
+        (_V10_5_0_W18_AUDIT_DOC, "scripts/audit_w18_lint_maintenance.py"),
+    ):
+        path = project_root / audit_doc
+        assert path.is_file(), (
+            f"W-18 v10.5.0 violation: audit output missing at {audit_doc}. "
+            f"Re-run `python {audit_cmd} --output {audit_doc}`."
+        )
+
+    changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert _V10_5_0_CHANGELOG_LITERAL in changelog, (
+        f"W-18 v10.5.0 violation: CHANGELOG entry "
+        f"{_V10_5_0_CHANGELOG_LITERAL!r} missing; v10.5.0 ships this entry."
     )

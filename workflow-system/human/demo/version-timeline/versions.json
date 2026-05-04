@@ -1451,5 +1451,44 @@
       "makefile_targets_added": "7",
       "pvs_in_cycle": "1"
     }
+  },
+  {
+    "version": "10.5.0",
+    "date": "2026-05-04",
+    "era": "developer-experience",
+    "headline": "MINOR — Architecture & Documentation Health: 4 NEW audit scripts, 1 new XL-tier example, agent-workspace.md §3.6 Resume After Pause, force_no_change operator override",
+    "summary": "Collapses 6 v11.0.0-cycle PDSs (D-A-1, D-A-2, D-A-3, D-A-4, D-D-3, D-D-4) into a single MINOR cycle. Ships audit_layer_usage.py (D-A-1 — L0/L1/L2/L3 dispatch ratio), audit_template_usage.py (D-A-2 Phase A — 22 templates classified into 6 USED + 16 REGISTERED), measure_reference_friction.py (D-D-3 — reference comprehension cost), audit_w18_lint_maintenance.py (D-D-4 — W-17/W-18 trajectory). The 4th XL-tier example multi-stage-trace.md documents WHEN L1 + L2 are necessary (multi-team analyze + cross-stage merge counter-case). agent-workspace.md grows 747 → 875 lines with §3.6 Resume After Pause (5-step checklist, no new schema). activation_verdict() gains force_no_change parameter (default-False; byte-identical v10.4.x behaviour). 16 TIER-2 yaml templates gain # DEPRECATED in v11.0.0 comment headers. Zero breaking changes; zero new env flags (W-20 reuse-first); zero schema bumps (A-2 byte-stable); zero Soul rule additions (W-21 freeze).",
+    "highlights": [
+      "scripts/audit_layer_usage.py (D-A-1) — first empirical L0/L1/L2/L3 dispatch ratios across .local/research/v9.*.0_*.md + v10.*.0_*.md cycle docs",
+      "scripts/audit_template_usage.py (D-A-2 Phase A) — 22 templates → 6 USED + 16 REGISTERED-but-unused; Phase B compose-not-define collapse deferred to v12.0+",
+      "scripts/measure_reference_friction.py (D-D-3) — per-reference density metrics + compressed-and-cryptic paragraph identification",
+      "scripts/audit_w18_lint_maintenance.py (D-D-4) — W-17/W-18 lint trajectory projection; consolidation patterns documented for v12.0+ review",
+      "examples/multi-stage-trace.md (D-A-1; 4th XL-tier) — multi-team analyze counter-case for SKILL.md L1/L2 only-when-needed advisory",
+      "references/agent-workspace.md §3.6 Resume After Pause (D-A-3) — 5-step pre-resume checklist + resume dispatch contract; pure-doc",
+      "activation_verdict(force_no_change=...) (D-A-4) — dispatch-level operator override; default-False preserves byte-identical v10.4.x behaviour",
+      "16 TIER-2 yaml deprecation headers (D-A-2 Phase A) — pure-additive; yaml still parses; (legacy) annotations propagate to SKILL.md / meta-framework.md / team-roles.md"
+    ],
+    "metrics": {
+      "tests": "~4161",
+      "new_test_functions_cycle": "43",
+      "pv_test_cap": "30",
+      "cycle_test_budget_cap": "150",
+      "sf4_references": "15",
+      "sf4_examples": "4",
+      "sf4_examples_prev": "3",
+      "skill_md_lines": "467",
+      "skill_md_cap": "500",
+      "agent_workspace_md_lines": "875",
+      "agent_workspace_md_cap": "1000",
+      "soul_set_count": "10",
+      "env_flags_added_in_cycle": "0",
+      "schema_version": "6",
+      "canonical_order_length": "16",
+      "multi_baseline_pins": "10",
+      "scripts_added": "4",
+      "makefile_targets_added": "4",
+      "tier2_yaml_deprecation_headers": "16",
+      "pvs_in_cycle": "5"
+    }
   }
 ]

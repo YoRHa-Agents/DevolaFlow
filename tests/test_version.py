@@ -196,6 +196,10 @@ _MIRRORED_SKILL_FILES = [
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
+    # v10.5.0 PV-01 (D-A-1) — 4th XL-tier example (multi-team analyze
+    # + cross-stage merge counter-example). Pairs with the D-A-1
+    # advisory annotation in SKILL.md §"Quick Action Decision".
+    "examples/multi-stage-trace.md",
 ]
 _MIRROR_DIR_REL = Path(".cursor/skills/devola-flow")
 
