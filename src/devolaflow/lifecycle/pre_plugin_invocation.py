@@ -148,6 +148,126 @@ def is_auto_install_active() -> bool:
     return os.environ.get(ENV_FLAG, "") == ENV_FLAG_TRUTHY
 
 
+def _parse_plugin_ids_list(
+    payload: dict[str, Any],
+) -> tuple[list[str] | None, list[HookViolation]]:
+    """Parse ``payload['plugin_ids']`` into ``(ids, violations)``.
+
+    Extracted from :func:`_extract_plugin_ids` in v10.6.0 PV-01 (D-Q-1
+    row #5). Result conventions:
+
+    * ``(None, [violation])`` — fatal type error: ``plugin_ids`` is
+      present but not a list. Caller MUST abort the merge and surface
+      the violation; the rest of the payload is NOT consulted (mirrors
+      the pre-extraction early-return behaviour).
+    * ``([], [])`` — ``plugin_ids`` absent. Caller continues to the
+      next source.
+    * ``(ids, [])`` — well-formed list of strings.
+    * ``(ids, [violations...])`` — list with some malformed entries
+      surfaced as PPI002 warnings; valid entries still returned.
+    """
+    raw_list = payload.get("plugin_ids")
+    if raw_list is None:
+        return [], []
+
+    if not isinstance(raw_list, list):
+        return None, [
+            HookViolation(
+                code="PPI002",
+                message=(
+                    "pre_plugin_invocation: 'plugin_ids' must be a list "
+                    f"(got {type(raw_list).__name__})"
+                ),
+                severity="warning",
+                context={"plugin_ids_type": type(raw_list).__name__},
+            )
+        ]
+
+    ids: list[str] = []
+    violations: list[HookViolation] = []
+    for entry in raw_list:
+        if not isinstance(entry, str) or not entry:
+            violations.append(
+                HookViolation(
+                    code="PPI002",
+                    message=(
+                        "pre_plugin_invocation: 'plugin_ids' entries must be "
+                        f"non-empty strings (got {entry!r})"
+                    ),
+                    severity="warning",
+                    context={"bad_entry": repr(entry)},
+                )
+            )
+            continue
+        ids.append(entry)
+    return ids, violations
+
+
+def _parse_plugin_id_single(
+    payload: dict[str, Any],
+) -> tuple[list[str], list[HookViolation]]:
+    """Parse ``payload['plugin_id']`` into ``(ids, violations)``.
+
+    Extracted from :func:`_extract_plugin_ids` in v10.6.0 PV-01 (D-Q-1
+    row #5). Returns at most one ID. A bad value (non-string or empty)
+    surfaces a PPI002 warning and yields ``([], [violation])``.
+    Absent field → ``([], [])``.
+    """
+    raw_single = payload.get("plugin_id")
+    if raw_single is None:
+        return [], []
+    if not isinstance(raw_single, str) or not raw_single:
+        return [], [
+            HookViolation(
+                code="PPI002",
+                message=(
+                    "pre_plugin_invocation: 'plugin_id' must be a non-empty "
+                    f"string (got {raw_single!r})"
+                ),
+                severity="warning",
+                context={"plugin_id_value": repr(raw_single)},
+            )
+        ]
+    return [raw_single], []
+
+
+def _parse_workflow_plugins(payload: dict[str, Any]) -> list[str]:
+    """Resolve plugin IDs from ``payload['workflow']`` via the registry.
+
+    Extracted from :func:`_extract_plugin_ids` in v10.6.0 PV-01 (D-Q-1
+    row #5). Best-effort lookup via
+    :func:`devolaflow.plugins.installer.plugins_for_workflow`. Registry
+    read errors (``FileNotFoundError`` / arbitrary exception) log at
+    WARNING and yield ``[]`` — the dispatcher remains uninterrupted
+    per S-5 + the PPI permissive-default contract. A later call to
+    :func:`ensure_plugin` would surface the registry error loudly.
+    """
+    workflow = payload.get("workflow")
+    if not isinstance(workflow, str) or not workflow:
+        return []
+    try:
+        from devolaflow.plugins.installer import plugins_for_workflow
+
+        return plugins_for_workflow(workflow)
+    except FileNotFoundError as exc:
+        logger.warning(
+            "pre_plugin_invocation: registry not available for workflow "
+            "%r resolution (%s); skipping workflow-based plugin lookup",
+            workflow,
+            exc,
+        )
+        return []
+    except Exception as exc:  # noqa: BLE001 — best-effort registry lookup
+        logger.warning(
+            "pre_plugin_invocation: registry lookup for workflow %r "
+            "failed (%s: %s); skipping workflow-based plugin lookup",
+            workflow,
+            type(exc).__name__,
+            exc,
+        )
+        return []
+
+
 def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookViolation]]:
     """Extract plugin IDs from ``payload``; return ``(ids, violations)``.
 
@@ -182,84 +302,29 @@ def _extract_plugin_ids(payload: dict[str, Any]) -> tuple[list[str], list[HookVi
     sources #1 and #2. The dispatcher remains uninterrupted (per S-5
     + the PPI permissive-default contract). A later call to
     :func:`ensure_plugin` would surface the registry error loudly.
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #5), the per-source parsers
+    live in :func:`_parse_plugin_ids_list`, :func:`_parse_plugin_id_single`,
+    and :func:`_parse_workflow_plugins`. Behaviour is byte-identical
+    to v10.5.x baseline (verified by ``tests/test_pre_plugin_invocation.py``).
     """
     ids: list[str] = []
     violations: list[HookViolation] = []
 
-    raw_list = payload.get("plugin_ids")
-    if raw_list is not None:
-        if not isinstance(raw_list, list):
-            violations.append(
-                HookViolation(
-                    code="PPI002",
-                    message=(
-                        "pre_plugin_invocation: 'plugin_ids' must be a list "
-                        f"(got {type(raw_list).__name__})"
-                    ),
-                    severity="warning",
-                    context={"plugin_ids_type": type(raw_list).__name__},
-                )
-            )
-            return [], violations
-        for entry in raw_list:
-            if not isinstance(entry, str) or not entry:
-                violations.append(
-                    HookViolation(
-                        code="PPI002",
-                        message=(
-                            "pre_plugin_invocation: 'plugin_ids' entries must be "
-                            f"non-empty strings (got {entry!r})"
-                        ),
-                        severity="warning",
-                        context={"bad_entry": repr(entry)},
-                    )
-                )
-                continue
-            ids.append(entry)
+    list_ids, list_violations = _parse_plugin_ids_list(payload)
+    violations.extend(list_violations)
+    if list_ids is None:
+        # Fatal type error on payload["plugin_ids"] — preserve the
+        # pre-extraction early-return contract: do NOT merge other sources.
+        return [], violations
+    ids.extend(list_ids)
 
-    raw_single = payload.get("plugin_id")
-    if raw_single is not None:
-        if not isinstance(raw_single, str) or not raw_single:
-            violations.append(
-                HookViolation(
-                    code="PPI002",
-                    message=(
-                        "pre_plugin_invocation: 'plugin_id' must be a non-empty "
-                        f"string (got {raw_single!r})"
-                    ),
-                    severity="warning",
-                    context={"plugin_id_value": repr(raw_single)},
-                )
-            )
-        elif raw_single not in ids:
-            ids.append(raw_single)
+    single_ids, single_violations = _parse_plugin_id_single(payload)
+    violations.extend(single_violations)
+    ids.extend(single_ids)
 
-    workflow = payload.get("workflow")
-    if isinstance(workflow, str) and workflow:
-        try:
-            from devolaflow.plugins.installer import plugins_for_workflow
-
-            resolved = plugins_for_workflow(workflow)
-        except FileNotFoundError as exc:
-            logger.warning(
-                "pre_plugin_invocation: registry not available for workflow "
-                "%r resolution (%s); skipping workflow-based plugin lookup",
-                workflow,
-                exc,
-            )
-            resolved = []
-        except Exception as exc:  # noqa: BLE001 — best-effort registry lookup
-            logger.warning(
-                "pre_plugin_invocation: registry lookup for workflow %r "
-                "failed (%s: %s); skipping workflow-based plugin lookup",
-                workflow,
-                type(exc).__name__,
-                exc,
-            )
-            resolved = []
-        for plugin_id in resolved:
-            if plugin_id not in ids:
-                ids.append(plugin_id)
+    ids.extend(_parse_workflow_plugins(payload))
 
     # Preserve insertion order while de-duplicating; dict-fromkeys is the
     # canonical Python idiom and is byte-stable across runs.

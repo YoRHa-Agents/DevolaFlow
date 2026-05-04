@@ -208,6 +208,19 @@ measure-friction:
 audit-w18:
 	@python scripts/audit_w18_lint_maintenance.py
 
+# v10.6.0 PV-03 (D-Q-4) — compressor/ post-split health snapshot.
+# Closes the v9.3.0 PV-04 → v10.6.0 NineS coverage gap on the largest
+# Python file in the tree (`transforms.py` at 2,198 LOC). Pure-audit
+# observability — runs `radon cc -nB` against the 4-file package and
+# emits a markdown synthesis; no source modifications. When radon is
+# unavailable, falls back to LOC-only mode per W-2. Output path is
+# `.local/research/v10.6.0_compressor_health.md` (the v10.6.0 W-18
+# lint pins this exact path).
+.PHONY: snapshot-compressor
+snapshot-compressor:
+	@python scripts/snapshot_compressor_health.py \
+		--output .local/research/v10.6.0_compressor_health.md
+
 release-dry-run:
 	@echo "=== Release dry-run ==="
 	@echo "1. Preflight checks..."

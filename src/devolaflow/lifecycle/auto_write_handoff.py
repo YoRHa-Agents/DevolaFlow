@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from typing import Any
 
 from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
@@ -78,6 +79,33 @@ ENV_FLAG: str = "DEVOLAFLOW_AGENT_WORKSPACE"
 ENV_FLAG_TRUTHY: str = "1"
 
 logger = logging.getLogger(__name__)
+
+
+def _layer_lookup_table(payload: dict[str, Any]) -> list[tuple[Any, Any]]:
+    """Return ordered candidate ``(from_layer, to_layer)`` pairs.
+
+    Extracted from :func:`_extract_layers` in v10.6.0 PV-01 (D-Q-1
+    row #2). Collapses the 4 distinct if/return blocks of the previous
+    implementation into a single ordered list of candidate pairs from
+    the 4 known sources, in priority order:
+
+    1. ``payload["change_context"]`` — canonical layer-metadata source.
+    2. ``payload["hdr"]`` — lean header.
+    3. ``payload["header"]`` — verbose header.
+    4. top-level ``payload["from_layer"] + ["to_layer"]``.
+
+    Returned candidates are NOT validated — the caller filters for
+    ``isinstance(..., str)`` and non-empty values. This keeps the
+    helper simple (single responsibility: enumerate candidates) and
+    leaves the validation policy on the orchestrator.
+    """
+    candidates: list[tuple[Any, Any]] = []
+    for source_key in ("change_context", "hdr", "header"):
+        sub = payload.get(source_key)
+        if isinstance(sub, dict):
+            candidates.append((sub.get("from_layer"), sub.get("to_layer")))
+    candidates.append((payload.get("from_layer"), payload.get("to_layer")))
+    return candidates
 
 
 def _extract_layers(payload: dict[str, Any]) -> tuple[str, str]:
@@ -95,27 +123,15 @@ def _extract_layers(payload: dict[str, Any]) -> tuple[str, str]:
 
     Returns ``("", "")`` when no layer pair is found; the caller is
     responsible for surfacing the empty values as an AWH001 violation.
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #3), the candidate
+    enumeration body lives in :func:`_layer_lookup_table`. Behaviour
+    is byte-identical to v10.5.x baseline.
     """
-    cc = payload.get("change_context")
-    if isinstance(cc, dict):
-        cc_from = cc.get("from_layer")
-        cc_to = cc.get("to_layer")
-        if isinstance(cc_from, str) and isinstance(cc_to, str) and cc_from and cc_to:
-            return cc_from, cc_to
-
-    for header_key in ("hdr", "header"):
-        hdr = payload.get(header_key)
-        if isinstance(hdr, dict):
-            h_from = hdr.get("from_layer")
-            h_to = hdr.get("to_layer")
-            if isinstance(h_from, str) and isinstance(h_to, str) and h_from and h_to:
-                return h_from, h_to
-
-    top_from = payload.get("from_layer")
-    top_to = payload.get("to_layer")
-    if isinstance(top_from, str) and isinstance(top_to, str) and top_from and top_to:
-        return top_from, top_to
-
+    for cand_from, cand_to in _layer_lookup_table(payload):
+        if isinstance(cand_from, str) and isinstance(cand_to, str) and cand_from and cand_to:
+            return cand_from, cand_to
     return "", ""
 
 
@@ -167,35 +183,53 @@ def _build_dispatch_block(
     }
 
 
-def auto_write_handoff(
-    payload: dict[str, Any],
-    *,
-    strict: bool = False,
-) -> HookResult:
-    """Materialise a handoff envelope under ``.local/.agent/handoff/``.
+@dataclass(frozen=True)
+class _ResolvedEnvelopeInputs:
+    """Validated inputs for materialising a handoff envelope.
 
-    See module docstring for the full contract. Returns a
-    :class:`HookResult` in both modes; raises only when ``strict=True``
-    AND a hard failure occurred (AWH001 → finalize re-raise) OR
-    :class:`EnvelopeImmutableError` was caught (re-raised verbatim so
-    the original Rule S-9 recovery hint reaches the caller).
+    Result type for :func:`_resolve_envelope_inputs` — only constructed
+    when every required field (``change_id``, ``from_layer``,
+    ``to_layer``) is present and non-empty AND the gates are open.
+    """
+
+    change_id: str
+    from_layer: str
+    to_layer: str
+    change_context: dict[str, Any]
+
+
+def _resolve_envelope_inputs(
+    payload: dict[str, Any],
+) -> tuple[_ResolvedEnvelopeInputs | None, list[HookViolation]]:
+    """Validate gates + extract every input needed by :func:`_write_envelope_or_violation`.
+
+    Extracted from :func:`auto_write_handoff` in v10.6.0 PV-01 (D-Q-1
+    row #3, env-flag + payload-shape gate shard). Returns a 2-tuple:
+
+    * ``(None, [])`` — gates closed (env-flag off, payload not a dict,
+      or no ``change_context`` block). Caller routes through a clean
+      :func:`finalize` with no violations.
+    * ``(None, [violation])`` — gates open but a required field is
+      missing. Caller routes through :func:`finalize` with the AWH001
+      violation surfaced here.
+    * ``(_ResolvedEnvelopeInputs, [])`` — every gate passed and every
+      required field is non-empty. Caller proceeds to
+      :func:`_write_envelope_or_violation`.
+
+    R5 byte-identical: the gates + extraction sequence is verbatim
+    from the pre-extraction inline body. Callers that opted-out of
+    the workspace activation surface still see zero filesystem I/O
+    when ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset.
     """
     if os.environ.get(ENV_FLAG, "") != ENV_FLAG_TRUTHY:
-        return finalize(EVENT, [], strict=strict)
+        return None, []
 
     if not isinstance(payload, dict):
-        return finalize(EVENT, [], strict=strict)
+        return None, []
 
     change_context = payload.get("change_context")
     if not change_context or not isinstance(change_context, dict):
-        return finalize(EVENT, [], strict=strict)
-
-    from devolaflow.agent_workspace.handoff import (
-        EnvelopeImmutableError,
-        HandoffStore,
-        HandoffStoreError,
-        make_envelope,
-    )
+        return None, []
 
     change_id = _extract_change_id(payload)
     from_layer, to_layer = _extract_layers(payload)
@@ -215,60 +249,142 @@ def auto_write_handoff(
                 "to_layer": to_layer,
             },
         )
-        return finalize(EVENT, [violation], strict=strict)
+        return None, [violation]
+
+    return (
+        _ResolvedEnvelopeInputs(
+            change_id=change_id,
+            from_layer=from_layer,
+            to_layer=to_layer,
+            change_context=change_context,
+        ),
+        [],
+    )
+
+
+def _write_envelope_or_violation(
+    inputs: _ResolvedEnvelopeInputs,
+    payload: dict[str, Any],
+    *,
+    strict: bool,
+) -> list[HookViolation]:
+    """Build + write a handoff envelope; return any caught domain violations.
+
+    Extracted from :func:`auto_write_handoff` in v10.6.0 PV-01 (D-Q-1
+    row #3, try/except shard). Returns:
+
+    * ``[]`` on success (envelope materialised under
+      ``.local/.agent/handoff/``).
+    * ``[AWH002 warning]`` when :class:`EnvelopeImmutableError` is
+      caught in permissive mode (S-9 append-only breach surfaced as a
+      warning so the dispatch path does not abort).
+    * ``[AWH001 error]`` when :class:`HandoffStoreError` is caught
+      (schema violation from the writer).
+
+    Raises:
+
+    * :class:`EnvelopeImmutableError` when ``strict=True`` (S-9
+      re-raise contract — the caller can decide how to recover).
+    * Any other unexpected exception is logged at WARNING and
+      re-raised (S-5 no-silent-failure).
+
+    The lazy import of
+    :mod:`devolaflow.agent_workspace.handoff` lives here so the
+    parent function's hot path stays import-light when the gates
+    are closed.
+    """
+    from devolaflow.agent_workspace.handoff import (
+        EnvelopeImmutableError,
+        HandoffStore,
+        HandoffStoreError,
+        make_envelope,
+    )
 
     store = HandoffStore()
 
     try:
-        seq = store.next_seq(change_id)
+        seq = store.next_seq(inputs.change_id)
         envelope = make_envelope(
             seq=seq,
-            from_layer=from_layer,
-            to_layer=to_layer,
-            change_id=change_id,
+            from_layer=inputs.from_layer,
+            to_layer=inputs.to_layer,
+            change_id=inputs.change_id,
             envelope_kind="TaskDispatch",
-            payload=_build_dispatch_block(payload, change_context),
+            payload=_build_dispatch_block(payload, inputs.change_context),
         )
         store.write_envelope(envelope)
     except EnvelopeImmutableError as exc:
         if strict:
             raise
-        violation = HookViolation(
-            code="AWH002",
-            message=(f"auto_write_handoff: append-only breach for change_id={change_id!r} — {exc}"),
-            severity="warning",
-            context={
-                "change_id": change_id,
-                "from_layer": from_layer,
-                "to_layer": to_layer,
-            },
-        )
-        return finalize(EVENT, [violation], strict=strict)
+        return [
+            HookViolation(
+                code="AWH002",
+                message=(
+                    f"auto_write_handoff: append-only breach for change_id="
+                    f"{inputs.change_id!r} — {exc}"
+                ),
+                severity="warning",
+                context={
+                    "change_id": inputs.change_id,
+                    "from_layer": inputs.from_layer,
+                    "to_layer": inputs.to_layer,
+                },
+            )
+        ]
     except HandoffStoreError as exc:
-        violation = HookViolation(
-            code="AWH001",
-            message=(
-                f"auto_write_handoff: HandoffStoreError while writing envelope "
-                f"for change_id={change_id!r}: {exc}"
-            ),
-            severity="error",
-            context={
-                "change_id": change_id,
-                "from_layer": from_layer,
-                "to_layer": to_layer,
-            },
-        )
-        return finalize(EVENT, [violation], strict=strict)
+        return [
+            HookViolation(
+                code="AWH001",
+                message=(
+                    f"auto_write_handoff: HandoffStoreError while writing envelope "
+                    f"for change_id={inputs.change_id!r}: {exc}"
+                ),
+                severity="error",
+                context={
+                    "change_id": inputs.change_id,
+                    "from_layer": inputs.from_layer,
+                    "to_layer": inputs.to_layer,
+                },
+            )
+        ]
     except Exception:
         logger.warning(
             "auto_write_handoff: unexpected exception while writing envelope "
             "for change_id=%r (re-raising per S-5 no-silent-failure)",
-            change_id,
+            inputs.change_id,
             exc_info=True,
         )
         raise
 
-    return finalize(EVENT, [], strict=strict)
+    return []
+
+
+def auto_write_handoff(
+    payload: dict[str, Any],
+    *,
+    strict: bool = False,
+) -> HookResult:
+    """Materialise a handoff envelope under ``.local/.agent/handoff/``.
+
+    See module docstring for the full contract. Returns a
+    :class:`HookResult` in both modes; raises only when ``strict=True``
+    AND a hard failure occurred (AWH001 → finalize re-raise) OR
+    :class:`EnvelopeImmutableError` was caught (re-raised verbatim so
+    the original Rule S-9 recovery hint reaches the caller).
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #4), the env-flag /
+    payload-shape gate body lives in :func:`_resolve_envelope_inputs`
+    and the envelope-write try/except shard lives in
+    :func:`_write_envelope_or_violation`. Behaviour is byte-identical
+    to v10.5.x baseline.
+    """
+    inputs, gate_violations = _resolve_envelope_inputs(payload)
+    if inputs is None:
+        return finalize(EVENT, gate_violations, strict=strict)
+
+    write_violations = _write_envelope_or_violation(inputs, payload, strict=strict)
+    return finalize(EVENT, write_violations, strict=strict)
 
 
 __all__ = ["ENV_FLAG", "ENV_FLAG_TRUTHY", "EVENT", "auto_write_handoff"]

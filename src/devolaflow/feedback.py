@@ -10,61 +10,33 @@ Design ref: S02-T08-engine-infra.md §5 (Integration Point 5)
 
 from __future__ import annotations
 
-import copy
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from devolaflow.feedback_emit import ProposalEmitter
 from devolaflow.gate.models import Finding, GateVerdict, Severity
 from devolaflow.gate.reinforcement import (
     ReinforcementBlock,
     findings_to_reinforcement,
-    merge_reinforcement_into_dispatch,
 )
 from devolaflow.learnings import _now_iso, _read_lines
 
 logger = logging.getLogger(__name__)
 
-# v8.4.4 PV-04 — Soul Rule S-10 enforcement: every dispatch payload returned
-# by ``generate_round_dispatch`` is run through the lifecycle hook chain
-# (`pre_dispatch` → `post_dispatch`) so prompt-side governance contracts can
-# observe / validate / annotate the payload without coupling
-# ``feedback.py`` to specific handlers. The hook is invoked in PERMISSIVE
-# mode (``strict=False``) per the v8.4.0 retro §4.1 #4 R5 strict pattern —
-# byte-output is identical when no extras are registered, and a buggy
-# custom handler MUST NOT bring down the round-N+1 dispatch emission.
-#
-# Closes the dead-wire identified in v6.0.3 retro precedent + C-03 from
-# `.local/research/v9.0.0_gap_analysis.md` §3.1.
-#
-# v9.1.3 PV-03 — extends the chain to include `pre_handoff` AFTER the
-# governance tail. At this point the dispatch payload is fully-formed +
-# lint-validated, making it the correct moment to consider materialising
-# a handoff envelope under `.local/.agent/handoff/`. The default
-# handler (`auto_write_handoff`) is a no-op when
-# `DEVOLAFLOW_AGENT_WORKSPACE` is unset (R5 strict byte-identical), so
-# adding the third event preserves the byte-output guarantee for
-# operators who haven't opted into the agent-workspace activation
-# surface. Closes G-005 deferred from v9.1.0 by giving
-# `HandoffStore.write_envelope` its FIRST production caller.
-_HOOK_PRE_DISPATCH = "pre_dispatch"
-_HOOK_POST_DISPATCH = "post_dispatch"
-_HOOK_PRE_HANDOFF = "pre_handoff"
-# v9.4.0 PV-03 — extends the chain to include `pre_plugin_invocation`
-# AFTER the v9.1.3 PV-03 `pre_handoff` slot. At this point the dispatch
-# payload is fully-formed + lint-validated + handoff-resolved, making
-# it the correct moment to consider auto-installing plugins cited in
-# the dispatch's `workflow` / `plugin_id` / `plugin_ids` fields. The
-# default handler is a no-op when `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` is
-# unset (R5 strict byte-identical), so adding the fourth event
-# preserves the byte-output guarantee for operators who have not opted
-# into the dispatcher pre-flight plugin install surface. Closes the
-# PV-01 dead-wire ghost (D-P-2 from
-# `.local/research/v9.4.0_gap_analysis.md` §3.1) by giving the
-# `ensure_plugin()` chain its first dispatcher caller.
-_HOOK_PRE_PLUGIN_INVOCATION = "pre_plugin_invocation"
+# v10.6.0 PV-02 — the S-10 4-event lifecycle hook chain firing
+# (``pre_dispatch`` → ``post_dispatch`` → ``pre_handoff`` →
+# ``pre_plugin_invocation``) was extracted from this module into
+# :class:`devolaflow.feedback_emit.ProposalEmitter`. The 4 hook event
+# constants (``_HOOK_PRE_DISPATCH``, etc.) and the lazy lifecycle
+# import live there now. Behaviour is byte-identical to v10.5.x
+# baseline — pinned by ``tests/test_dispatch_emission_runs_hooks.py``
+# (10 release-blocker tests) AND by the new
+# ``tests/test_feedback_emit.py`` (8 unit tests on ``ProposalEmitter``
+# in isolation). See PDS ``v11.0.0_patches/D-Q-2.md`` for the full
+# rationale.
 
 LOCKED_FILES = frozenset(
     {
@@ -297,8 +269,17 @@ class ProposalGenerator:
     """
 
     def __init__(self) -> None:
-        """Initialize the proposal generator with empty internal state."""
+        """Initialize the proposal generator with empty internal state.
+
+        v10.6.0 PV-02 (D-Q-2 god-function refactor) — composes a
+        :class:`devolaflow.feedback_emit.ProposalEmitter` for round-N+1
+        dispatch emission. The emitter owns the S-10 4-event lifecycle
+        hook chain firing AND the deep-copy + reinforcement merge
+        pipeline; this class delegates to it via the
+        :meth:`generate_round_dispatch` façade.
+        """
         self._state = _ProposalState()
+        self._emitter = ProposalEmitter()
 
     def generate_proposals(self, analysis: dict) -> list[dict]:
         """Generate improvement proposals from an analysis dict.
@@ -463,119 +444,42 @@ class ProposalGenerator:
     ) -> dict[str, Any]:
         """Produce a dispatch for convergence round ``round_num``.
 
+        Thin façade — delegates to
+        :meth:`devolaflow.feedback_emit.ProposalEmitter.emit`.
+
         V6-01 wiring: stitches :meth:`generate_reinforcement` into the
         dispatch lifecycle so L3 Task Agents receive the reinforcement
         block under ``context.applicable_rules.reinforcement`` on rounds
-        ≥ 2.  Round 1 is a pure pass-through — the first attempt has no
+        ≥ 2. Round 1 is a pure pass-through — the first attempt has no
         prior round to learn from.
 
-        v8.4.4 PV-04 wiring: the FINAL dispatch payload of every return
-        path is run through the lifecycle hook chain
-        (``pre_dispatch`` → ``post_dispatch``) per Soul Rule S-10
-        ("Prompt-Side Governance Contract Embedding"). Hooks run in
-        permissive mode — see ``_emit_dispatch`` docstring for R5
+        v8.4.4 PV-04 / v9.1.3 PV-03 / v9.4.0 PV-03 wiring: the FINAL
+        dispatch payload of every return path is run through the
+        lifecycle hook chain (``pre_dispatch`` → ``post_dispatch`` →
+        ``pre_handoff`` → ``pre_plugin_invocation``) per Soul Rule S-10.
+        Hooks run in permissive mode — see
+        :func:`devolaflow.feedback_emit._fire_hook_chain` for the R5
         strict-byte-identical contract.
+
+        v10.6.0 PV-02 (D-Q-2): the deep-copy + reinforcement merge +
+        hook chain pipeline now lives on
+        :class:`devolaflow.feedback_emit.ProposalEmitter`. This class
+        retains :meth:`generate_reinforcement` (which extracts
+        :class:`ReinforcementBlock` from a :class:`GateVerdict`) and
+        passes it as the ``reinforcement_factory`` callable so the
+        v6-01 wiring contract is preserved verbatim.
 
         The input ``base_dispatch`` is never mutated; a deep copy is
         returned in all cases.
         """
-        dispatch = copy.deepcopy(base_dispatch)
-
-        if round_num <= 1 or verdict is None:
-            return self._emit_dispatch(dispatch)
-
-        block = self.generate_reinforcement(
-            verdict,
+        return self._emitter.emit(
+            base_dispatch=base_dispatch,
+            verdict=verdict,
             round_num=round_num,
             target_score=target_score,
             severity_floor=severity_floor,
+            reinforcement_factory=self.generate_reinforcement,
         )
-        if block is None:
-            return self._emit_dispatch(dispatch)
-
-        return self._emit_dispatch(merge_reinforcement_into_dispatch(dispatch, block))
-
-    def _emit_dispatch(self, dispatch: dict[str, Any]) -> dict[str, Any]:
-        """Run the lifecycle hook chain on ``dispatch`` and return it unchanged.
-
-        v8.4.4 PV-04 — Soul Rule S-10 enforcement point. Fires
-        ``pre_dispatch`` → ``post_dispatch`` → ``pre_handoff`` against
-        the dispatch payload via :func:`devolaflow.lifecycle.run_hooks`;
-        all three calls run in permissive mode (``strict=False``) so a
-        violation only emits a WARNING via the lifecycle logger and
-        never raises out of the dispatch path.
-
-        v9.1.3 PV-03 — added ``pre_handoff`` AFTER the governance tail
-        (Soul Rule S-10) so the payload is fully-formed + lint-validated
-        before the handoff-write decision runs. The default
-        ``auto_write_handoff`` handler is a no-op when
-        ``DEVOLAFLOW_AGENT_WORKSPACE`` is unset (R5 strict
-        byte-identical), so adding the third event preserves the
-        byte-output guarantee for operators who haven't opted into the
-        agent-workspace activation surface. Closes G-005 from v9.1.0
-        by giving ``HandoffStore.write_envelope`` its FIRST production
-        caller.
-
-        v9.4.0 PV-03 — added ``pre_plugin_invocation`` AFTER
-        ``pre_handoff`` so the dispatch's plugin candidates can be
-        auto-installed BEFORE the L3 Task Agent attempts to call the
-        plugin's binary. The default ``pre_plugin_invocation`` handler
-        is a no-op when ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS`` is unset
-        (R5 strict byte-identical), so adding the fourth event
-        preserves the byte-output guarantee for operators who have not
-        opted into the dispatcher pre-flight surface. Closes the
-        PV-01 dead-wire ghost (D-P-2 from
-        ``.local/research/v9.4.0_gap_analysis.md`` §3.1) by giving
-        the ``ensure_plugin()`` chain its FIRST dispatcher caller.
-        The hook resolves plugin candidates from the dispatch's
-        ``workflow`` / ``plugin_id`` / ``plugin_ids`` fields via the
-        ``runtime-plugins.yaml#plugins[*].invoked_by_workflows``
-        registry mapping (see :func:`devolaflow.plugins.installer.plugins_for_workflow`).
-
-        R5 strict-byte-identical invariant (v8.4.0 retro §4.1 #4): when
-        no extra handlers are registered for either event, the returned
-        ``dispatch`` is byte-identical to the pre-PV-04 behaviour. The
-        permissive default handlers either return cleanly
-        (``post_dispatch`` is a no-op; ``pre_handoff`` is a no-op when
-        the env-flag is OFF; ``pre_plugin_invocation`` is a no-op when
-        the env-flag is OFF) or emit a WARNING log without mutating
-        the payload (``pre_dispatch`` / ``validate_dispatch``).
-
-        S-5 (no silent failures): a buggy custom handler that raises
-        from inside the dispatch path is caught here, logged at
-        WARNING level via ``logger.warning``, and the dispatch is
-        returned unchanged — the round-N+1 emission MUST NOT crash on a
-        third-party hook bug. Each event is wrapped in its own
-        try/except so a failure on one does NOT short-circuit the
-        others (the hook chain is collectively a contract; per-event
-        independence is intentional).
-        """
-        try:
-            from devolaflow import lifecycle
-        except ImportError as exc:  # pragma: no cover - defensive
-            logger.warning(
-                "feedback._emit_dispatch: lifecycle module unavailable (%s); "
-                "skipping pre_dispatch / post_dispatch / pre_handoff / "
-                "pre_plugin_invocation hooks",
-                exc,
-            )
-            return dispatch
-
-        for event in (
-            _HOOK_PRE_DISPATCH,
-            _HOOK_POST_DISPATCH,
-            _HOOK_PRE_HANDOFF,
-            _HOOK_PRE_PLUGIN_INVOCATION,
-        ):
-            try:
-                lifecycle.run_hooks(event, dispatch, strict=False)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "feedback._emit_dispatch: %s hook raised %s; dispatch returned unchanged",
-                    event,
-                    exc,
-                )
-        return dispatch
 
 
 # ---------------------------------------------------------------------------
