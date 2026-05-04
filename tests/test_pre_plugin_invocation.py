@@ -41,6 +41,7 @@ from devolaflow.lifecycle.pre_plugin_invocation import (
     ENV_FLAG,
     ENV_FLAG_TRUTHY,
     EVENT,
+    EVENT_TRIGGERS_DAILY_UPGRADE,
     is_auto_install_active,
     pre_plugin_invocation,
 )
@@ -246,9 +247,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "3.3.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             result = pre_plugin_invocation({"plugin_id": "nines"})
         assert invocations == ["nines"]
@@ -265,9 +272,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "1.0.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             result = pre_plugin_invocation({"plugin_ids": ["nines", "ui-pro", "rtk"]})
         assert invocations == ["nines", "ui-pro", "rtk"], (
@@ -284,9 +297,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "1.0.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             pre_plugin_invocation(
                 {"plugin_ids": ["nines", "ui-pro", "nines"], "plugin_id": "ui-pro"}
@@ -477,3 +496,331 @@ def test_lazy_import_contract_module_load_is_cheap() -> None:
                         f"(line {node.lineno}). Move the import inside a "
                         "function body."
                     )
+
+
+# ---------------------------------------------------------------------------
+# §7 — D-P-2 BLOCKER closure: daily-upgrade integration (v10.2.1 PV-02)
+# ---------------------------------------------------------------------------
+
+
+class TestDailyUpgradeIntegration:
+    """v10.2.1 PV-02 — pre_plugin_invocation now also fires upgrade_plugin
+    for stale plugins (closes D-P-2 BLOCKER from v10.2.0 gap analysis §3.1).
+
+    REUSE-FIRST contract per W-20 §3: the integration uses the existing
+    ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` env flag (same activation
+    surface as v9.4.0 ensure_plugin path). 0 NEW env flags in this PV.
+
+    Tests pin:
+    1. **Stale plugin → upgrade_plugin fires** — env flag ON, plugin
+       resolves at min_version BUT is stale → upgrade_plugin called.
+    2. **Fresh plugin → no upgrade** — env flag ON, plugin fresh →
+       upgrade_plugin NOT called (idempotent).
+    3. **upgrade_plugin failure → PPI003 warning, dispatch unblocked** —
+       env flag ON, stale, upgrade fails → violation aggregated as
+       warning; permissive default does NOT raise.
+    4. **Disabled is no-op** — env flag absent → upgrade_plugin NEVER
+       called even on a stale plugin (R5 strict zero-IO byte-identical).
+    """
+
+    def test_event_triggers_daily_upgrade_constant_present(self) -> None:
+        """The introspection constant is exposed for downstream governance."""
+        assert EVENT_TRIGGERS_DAILY_UPGRADE is True, (
+            "v10.2.1 PV-02 D-P-2: EVENT_TRIGGERS_DAILY_UPGRADE must be True "
+            "to confirm the daily-upgrade behaviour is wired"
+        )
+
+    def test_d_p_2_stale_plugin_triggers_upgrade(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """D-P-2 closure: env flag ON + plugin stale → upgrade_plugin fires."""
+        monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+        ensure_calls: list[str] = []
+        upgrade_calls: list[str] = []
+
+        def fake_ensure(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            ensure_calls.append(plugin_id)
+            return "3.3.0"
+
+        def fake_upgrade(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            upgrade_calls.append(plugin_id)
+            return "3.3.1"
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=True,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=fake_upgrade,
+            ),
+        ):
+            result = pre_plugin_invocation({"plugin_id": "nines"})
+
+        assert ensure_calls == ["nines"]
+        assert upgrade_calls == ["nines"], (
+            "D-P-2 violation: stale plugin did NOT trigger upgrade_plugin"
+        )
+        assert result.passed is True
+        assert result.violations == []
+
+    def test_d_p_2_fresh_plugin_no_upgrade(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """D-P-2 contract: fresh plugin → upgrade_plugin NOT called."""
+        monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+        upgrade_calls: list[str] = []
+
+        def fake_ensure(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            return "3.3.0"
+
+        def fake_upgrade(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            upgrade_calls.append(plugin_id)
+            return "3.3.1"
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=fake_upgrade,
+            ),
+        ):
+            result = pre_plugin_invocation({"plugin_id": "nines"})
+
+        assert upgrade_calls == [], (
+            f"D-P-2 idempotency violation: fresh plugin triggered "
+            f"upgrade_plugin (calls: {upgrade_calls!r})"
+        )
+        assert result.passed is True
+
+    def test_d_p_2_upgrade_failure_does_not_block_dispatch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """D-P-2 fault tolerance: upgrade_plugin failure → PPI003 warning,
+        dispatch returns successfully (does not raise)."""
+        monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+
+        def fake_ensure(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            return "3.3.0"
+
+        def boom_upgrade(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            raise PluginInstallError(
+                f"network unreachable while upgrading {plugin_id!r}",
+                details={"plugin_id": plugin_id, "stage": "upgrade"},
+            )
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=True,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=boom_upgrade,
+            ),
+        ):
+            # Permissive default — must NOT raise.
+            result = pre_plugin_invocation({"plugin_id": "nines"})
+
+        ppi003 = [v for v in result.violations if v.code == "PPI003"]
+        assert len(ppi003) == 1, (
+            f"D-P-2: upgrade_plugin failure must surface as exactly one "
+            f"PPI003 warning; got {[v.code for v in result.violations]!r}"
+        )
+        assert ppi003[0].severity == "warning"
+        assert "nines" in ppi003[0].message
+        assert ppi003[0].context["stage"] == "daily_upgrade"
+        # PPI003 is a warning, not error → permissive HookResult.passed
+        # depends on the dispatcher's pass_if floor; we assert no PPI001
+        # was injected (the install-time error code), which would mean a
+        # cascade.
+        assert not any(v.code == "PPI001" for v in result.violations), (
+            "Daily-upgrade failure must NOT cascade as a PPI001 install error"
+        )
+
+    def test_d_p_2_disabled_when_env_flag_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """R5 strict: env flag OFF → upgrade_plugin NEVER called.
+
+        Even when the plugin would have been stale, the daily-upgrade
+        path MUST NOT fire when the activation flag is unset. This is
+        the byte-identical no-op invariant for the v9.3.0+ env-flag
+        contract.
+        """
+        monkeypatch.delenv(ENV_FLAG, raising=False)
+        ensure_calls: list[str] = []
+        upgrade_calls: list[str] = []
+
+        def watcher_ensure(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            ensure_calls.append(plugin_id)
+            return "0.0.0"
+
+        def watcher_upgrade(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            upgrade_calls.append(plugin_id)
+            return "0.0.1"
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=watcher_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=True,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=watcher_upgrade,
+            ),
+        ):
+            result = pre_plugin_invocation({"plugin_id": "nines"})
+
+        assert ensure_calls == [], "R5 strict: ensure_plugin must not fire when env flag is OFF"
+        assert upgrade_calls == [], (
+            "R5 strict: upgrade_plugin must not fire when env flag is OFF "
+            "(daily-upgrade path is gated behind the same activation surface)"
+        )
+        assert result.passed is True
+        assert result.violations == []
+
+    def test_d_p_2_stale_probe_failure_skips_upgrade(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When is_plugin_stale itself raises, upgrade is skipped per S-5.
+
+        Documents the defensive contract: a corrupt install log file
+        should NOT crash the daily-upgrade hook; the staleness probe
+        failure is logged and the per-plugin loop continues.
+        """
+        monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+        upgrade_calls: list[str] = []
+
+        def fake_ensure(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            return "3.3.0"
+
+        def boom_stale(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            raise OSError("install log is corrupt")
+
+        def watcher_upgrade(plugin_id: str, **_kw):  # type: ignore[no-untyped-def]
+            upgrade_calls.append(plugin_id)
+            return "3.3.1"
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                side_effect=boom_stale,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=watcher_upgrade,
+            ),
+        ):
+            result = pre_plugin_invocation({"plugin_id": "nines"})
+
+        assert upgrade_calls == [], (
+            "Stale probe failure must skip the upgrade attempt for that plugin"
+        )
+        assert result.passed is True
+
+
+# ---------------------------------------------------------------------------
+# §10 — v10.2.3 PV-04 helper extraction (CC reduction: 18 → ≤10)
+# ---------------------------------------------------------------------------
+
+
+class TestRunInstallThenUpgradeHelper:
+    """Pin :func:`_run_install_then_upgrade_for_plugin` signature + contract.
+
+    Helper extracted in v10.2.3 PV-04 from :func:`pre_plugin_invocation`
+    to address the NineS PV-03 deep-analysis CC=18 finding at
+    `.local/research/v10.2.2_nines.md` §2 row #2. Behaviour is byte-
+    identical to the v10.2.1 baseline; this class proves the extraction
+    preserves the public contract by exercising the helper directly.
+    """
+
+    def test_helper_imports_with_documented_signature(self) -> None:
+        """The PV-04 helper exists and exposes the documented signature.
+
+        Pins the signature so future PV refactors don't silently rename
+        the helper out from under callers (the helper IS now part of
+        the module's introspection surface per W-18).
+        """
+        import inspect
+
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        sig = inspect.signature(_run_install_then_upgrade_for_plugin)
+        params = sig.parameters
+        assert "plugin_id" in params, "v10.2.3 PV-04: helper must take ``plugin_id`` positional arg"
+        assert "threshold_hours" in params, (
+            "v10.2.3 PV-04: helper must take ``threshold_hours`` keyword-only arg"
+        )
+        # Keyword-only enforcement — threshold_hours is *not* positional.
+        assert params["threshold_hours"].kind == inspect.Parameter.KEYWORD_ONLY
+
+    def test_helper_returns_empty_violations_on_clean_install(self) -> None:
+        """Happy path: ensure_plugin succeeds + plugin not stale → 0 violations."""
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                return_value="1.0.0",
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=AssertionError("MUST NOT be called"),
+            ),
+        ):
+            violations = _run_install_then_upgrade_for_plugin(
+                "nines",
+                threshold_hours=24,
+            )
+        assert violations == [], (
+            "v10.2.3 PV-04: clean install + fresh plugin yields zero PPI* violations"
+        )
+
+    def test_helper_returns_ppi001_on_install_failure(self) -> None:
+        """ensure_plugin failure → exactly one PPI001 error violation."""
+        from devolaflow.lifecycle.pre_plugin_invocation import (
+            _run_install_then_upgrade_for_plugin,
+        )
+
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=PluginInstallError("nines: boom"),
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                side_effect=AssertionError("MUST NOT be called when install fails"),
+            ),
+        ):
+            violations = _run_install_then_upgrade_for_plugin(
+                "nines",
+                threshold_hours=24,
+            )
+        assert len(violations) == 1
+        assert violations[0].code == "PPI001"
+        assert violations[0].severity == "error"

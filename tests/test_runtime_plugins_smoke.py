@@ -1,0 +1,183 @@
+"""Registry-walk smoke tests for the 4 registered runtime plugins.
+
+Closes D-P-4 from `.local/research/v10.2.0_gap_analysis.md` §3.1:
+v9.4.0 PV-04 wired schema v3 + 4 plugins; v10.1.0 added zero plugin
+work. No CI step had confirmed the 4 registered plugins still resolve
+cleanly via `resolve_plugin` until this smoke file landed.
+
+Test surface (pure registry walk + dataclass shape; NO subprocess):
+
+§1 — schema_version is 3; `defaults.upgrade_check_frequency_hours` is 24.
+§2 — all 4 expected plugin IDs (nines, ui-pro, rtk, si-chip) are present.
+§3 — every `resolve_plugin(p["id"], registry)` returns a
+     RuntimePluginSpec whose backend is one of the 3 supported values
+     (pip / npm_then_init / curl_install_script).
+§4 — every plugin carries a non-empty `canonical_url` (S-7 compliance).
+§5 — the si-chip version_check_cmd introduced by v10.2.0 PV-01 (D-P-3)
+     NO LONGER contains the hardcoded `echo si-chip/0.4.0` string AND
+     WHEN si-chip is installed locally, the new command probes a real
+     version from the SKILL.md frontmatter (skip if si-chip absent).
+
+Source: `.local/research/v10.2.0_gap_analysis.md` §3.1 D-P-4 +
+`.local/research/v10.2.0_cycle_plan.md` §3 PV-01.
+External tool reference (S-7): https://github.com/YoRHa-Agents/DevolaFlow
+"""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from devolaflow.plugins import load_registry, resolve_plugin
+from devolaflow.plugins.installer import _SUPPORTED_BACKENDS, RuntimePluginSpec
+
+_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset({"nines", "ui-pro", "rtk", "si-chip"})
+
+
+def test_registry_schema_version_is_3() -> None:
+    """schema v3 baseline from v9.4.0 PV-04 remains stable."""
+    registry = load_registry()
+    assert registry["schema_version"] == 3, (
+        f"runtime-plugins.yaml schema_version must be 3 "
+        f"(v9.4.0 PV-04 baseline, preserved through v10.2.0); "
+        f"got {registry['schema_version']!r}"
+    )
+
+
+def test_registry_upgrade_check_frequency_defaults_24h() -> None:
+    """Daily upgrade cadence is the documented contract (gap §3.2 D-P-5)."""
+    registry = load_registry()
+    defaults = registry.get("defaults") or {}
+    assert defaults.get("upgrade_check_frequency_hours") == 24, (
+        "defaults.upgrade_check_frequency_hours must be 24 (daily); "
+        "the user mandate 'auto-upgrade daily' requires this value."
+    )
+
+
+def test_registry_contains_expected_4_plugin_ids() -> None:
+    """Exactly the 4 plugins (nines, ui-pro, rtk, si-chip) ship in v10.2.0."""
+    registry = load_registry()
+    registered = {p["id"] for p in registry["plugins"]}
+    missing = _EXPECTED_PLUGIN_IDS - registered
+    assert not missing, (
+        f"runtime-plugins.yaml missing expected plugin IDs {sorted(missing)!r}; "
+        f"registered = {sorted(registered)!r}. D-P-4 smoke requires all 4."
+    )
+
+
+@pytest.mark.parametrize("plugin_id", sorted(_EXPECTED_PLUGIN_IDS))
+def test_resolve_plugin_returns_valid_spec(plugin_id: str) -> None:
+    """`resolve_plugin` yields a well-formed RuntimePluginSpec with a
+    supported backend + non-empty canonical_url (S-7 compliance)."""
+    registry = load_registry()
+    spec = resolve_plugin(plugin_id, registry)
+    assert isinstance(spec, RuntimePluginSpec)
+    assert spec.id == plugin_id
+    assert spec.backend in _SUPPORTED_BACKENDS, (
+        f"plugin {plugin_id!r} backend {spec.backend!r} not in {sorted(_SUPPORTED_BACKENDS)!r}"
+    )
+    assert spec.canonical_url, (
+        f"plugin {plugin_id!r} has empty canonical_url — S-7 requires "
+        f"external tools to carry their remote GitHub URL"
+    )
+    assert spec.canonical_url.startswith("https://"), (
+        f"plugin {plugin_id!r} canonical_url must be an https:// URL; got {spec.canonical_url!r}"
+    )
+    assert spec.install_cmd, (
+        f"plugin {plugin_id!r} has empty install_cmd — would make ensure_plugin unusable"
+    )
+    assert spec.version_check_cmd, (
+        f"plugin {plugin_id!r} has empty version_check_cmd — would make _probe_version unusable"
+    )
+    assert spec.min_version, f"plugin {plugin_id!r} has empty min_version"
+
+
+def test_si_chip_version_check_cmd_no_longer_hardcoded() -> None:
+    """D-P-3 closure: si-chip version_check_cmd reads the installed
+    SKILL.md frontmatter instead of echoing a fixed '0.4.0' string.
+
+    The pre-v10.2.0 heuristic was
+      `... || ... && echo si-chip/0.4.0`
+    which ALWAYS reported 0.4.0 regardless of what was installed. The
+    v10.2.0 PV-01 probe calls into
+    `devolaflow.si_chip_bridge.install_resolver.read_installed_si_chip_version`.
+    This test pins that the hardcoded string is GONE and the probe
+    references the real helper.
+    """
+    registry = load_registry()
+    si_chip = resolve_plugin("si-chip", registry)
+    assert "echo si-chip/0.4.0" not in si_chip.version_check_cmd, (
+        "D-P-3 violation: si-chip version_check_cmd still contains the "
+        "pre-v10.2.0 hardcoded `echo si-chip/0.4.0` heuristic. "
+        "Restore the read_installed_si_chip_version probe per "
+        "v10.2.0 PV-01 cycle-plan §3."
+    )
+    assert "read_installed_si_chip_version" in si_chip.version_check_cmd, (
+        "D-P-3 violation: si-chip version_check_cmd should invoke "
+        "`read_installed_si_chip_version` via the bridge module; current "
+        f"cmd = {si_chip.version_check_cmd!r}"
+    )
+
+
+def test_si_chip_version_check_cmd_executes_cleanly_when_installed(
+    tmp_path: Path,
+) -> None:
+    """When Si-Chip is installed locally, the new version_check_cmd
+    emits a parseable `si-chip/<version>` line.
+
+    Skip when Si-Chip is not reachable from the test environment —
+    the probe requires either the default `$HOME/.cursor/skills/si-chip[/si-chip]/`
+    install OR the `$SI_CHIP_HOME` / `$DEVOLAFLOW_SI_CHIP_FALLBACK_DIR`
+    env-vars to point at an installed payload. This matches the CI-safe
+    contract `_probe_version` applies: missing install → returncode
+    nonzero → "version unknown" (not a hard failure).
+
+    The test runs the command from the repository root (where
+    `src/devolaflow/` is importable) — the v10.2.0 PV-01 probe requires
+    this CWD invariant per the yaml entry comment.
+    """
+    from devolaflow.si_chip_bridge import find_si_chip_install
+
+    if find_si_chip_install() is None:
+        pytest.skip("si-chip not installed — probe contract verified offline")
+
+    registry = load_registry()
+    si_chip = resolve_plugin("si-chip", registry)
+    repo_root = Path(__file__).resolve().parent.parent
+    proc = subprocess.run(
+        ["bash", "-c", si_chip.version_check_cmd],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert proc.returncode == 0, (
+        f"si-chip version_check_cmd failed (returncode={proc.returncode}); "
+        f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+    )
+    assert proc.stdout.strip().startswith("si-chip/"), (
+        f"si-chip version_check_cmd stdout must start with 'si-chip/'; got {proc.stdout.strip()!r}"
+    )
+
+
+def test_all_plugins_use_python_or_shell_that_is_available() -> None:
+    """`shutil.which` finds at least one of the runtime prerequisites
+    referenced by plugin install_cmd values (pip / npm / curl / bash).
+
+    This is a smoke check for the CI environment itself — it does NOT
+    actually install anything. If EVERY prerequisite is missing, the
+    test fails with an informative message so the operator knows their
+    shell environment is misconfigured BEFORE they hit an opaque
+    `PluginInstallError` at dispatch time.
+    """
+    prerequisites = ["bash", "pip", "npm", "curl"]
+    found = [p for p in prerequisites if shutil.which(p) is not None]
+    assert found, (
+        f"None of the plugin install prerequisites {prerequisites!r} "
+        f"are on PATH. Plugin auto-install cannot proceed in this "
+        f"environment; provision at least one backend's toolchain."
+    )

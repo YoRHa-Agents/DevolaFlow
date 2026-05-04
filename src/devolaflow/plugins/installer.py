@@ -1137,6 +1137,63 @@ def _attempt_pip_uninstall(spec: RuntimePluginSpec, *, timeout: int) -> None:
 # plugin. Stale = (now - last_checked) > defaults.upgrade_check_frequency_hours.
 
 
+# v10.2.4 PV-05 round 2: the set of `event` values that count as a
+# "checked" timestamp. Lifted to a module-level constant so the
+# per-line parser does not rebuild the frozenset on every iteration
+# (and so tests can introspect the contract directly).
+_LAST_CHECKED_SUCCESSFUL_EVENTS: frozenset[str] = frozenset(
+    {"plugin_already_installed", "plugin_installed", "plugin_upgraded"}
+)
+
+
+def _parse_log_event_timestamp(
+    raw_line: str,
+    plugin_id: str,
+    successful_events: frozenset[str],
+) -> datetime | None:
+    """Parse one JSONL audit-log line and return its timestamp if applicable.
+
+    Returns the parsed UTC datetime when ``raw_line`` is a successful-event
+    record for ``plugin_id`` (i.e. ``record["event"] in successful_events``
+    AND ``record["plugin_id"] == plugin_id`` AND ``record["ts"]`` is a
+    parseable ISO-8601 string). Returns ``None`` for ANY of: empty line,
+    malformed JSON, non-dict payload, mismatched plugin_id, non-success
+    event, missing/non-string/empty ``ts`` field, or unparseable timestamp.
+
+    The function never raises — every defensive branch returns ``None`` so
+    the caller's iteration over a corrupt log does not abort scanning.
+    Loud failures (S-5) are reserved for OS-level read errors which the
+    caller (:func:`read_last_checked`) handles via ``OSError`` catch.
+
+    Extracted from :func:`read_last_checked` in v10.2.4 PV-05 self-iteration
+    round 2 to close the NineS PV-03 finding ``CC-a5d310-0003`` (cyclomatic
+    complexity 15 in ``read_last_checked``). Behaviour byte-identical to
+    the inline pre-extraction body; preserved by the existing
+    ``TestReadLastChecked`` suite (5 prior tests) plus the NEW direct-helper
+    tests in ``TestParseLogEventTimestamp``.
+    """
+    line = raw_line.strip()
+    if not line:
+        return None
+    try:
+        record = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    if record.get("plugin_id") != plugin_id:
+        return None
+    if record.get("event") not in successful_events:
+        return None
+    ts_str = record.get("ts")
+    if not isinstance(ts_str, str) or not ts_str:
+        return None
+    try:
+        return datetime.fromisoformat(ts_str)
+    except ValueError:
+        return None
+
+
 def read_last_checked(
     plugin_id: str,
     *,
@@ -1173,33 +1230,14 @@ def read_last_checked(
     if not effective_log.is_file():
         return None
 
-    successful_events = frozenset(
-        {"plugin_already_installed", "plugin_installed", "plugin_upgraded"}
-    )
     most_recent: datetime | None = None
     try:
         with effective_log.open(encoding="utf-8") as fh:
             for raw_line in fh:
-                line = raw_line.strip()
-                if not line:
-                    continue
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    # Malformed line; skip but do not abort scanning.
-                    continue
-                if not isinstance(record, dict):
-                    continue
-                if record.get("plugin_id") != plugin_id:
-                    continue
-                if record.get("event") not in successful_events:
-                    continue
-                ts_str = record.get("ts")
-                if not isinstance(ts_str, str) or not ts_str:
-                    continue
-                try:
-                    ts = datetime.fromisoformat(ts_str)
-                except ValueError:
+                ts = _parse_log_event_timestamp(
+                    raw_line, plugin_id, _LAST_CHECKED_SUCCESSFUL_EVENTS
+                )
+                if ts is None:
                     continue
                 if most_recent is None or ts > most_recent:
                     most_recent = ts

@@ -26,6 +26,12 @@ Baselines covered:
 * v9.7.0 — length 17 (v9.7.0 PV-02: appended ``predecessor_dedup_ledger`` at
   position 17 per A-2.2; schema version bumped 5 → 6; the new field carries
   hash-based dedup state for round-N>1 convergence dispatches)
+* v10.2.0 — length 17 stable (v10.2.0 PV-01 cycle-start MINOR; W-16 wholesale
+  baseline regen at MINOR cycle-start. v10.2.0 is the v10.2 cycle kick-off
+  (plugin deep review + Si-Chip integration); ZERO schema changes. The
+  witness baseline is byte-identical to v9.7.0 — a future renamer /
+  re-orderer / sneaky inserter that disturbs v9.7.0 would also break this
+  v10.2.0 pin.)
 
 Each test renders the canonical payload via
 ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
@@ -287,6 +293,23 @@ def _v9_7_0_payload() -> dict:
     return payload
 
 
+def _v10_2_0_payload() -> dict:
+    """v10.2.0 17-key stable payload — byte-identical to v9.7.0.
+
+    v10.2.0 PV-01 is the v10.2 cycle-start MINOR (plugin deep review +
+    W-16 wholesale baseline regen + Si-Chip integration groundwork).
+    The v10.2 cycle ships ZERO schema changes in PV-01: canonical_order
+    length stays at 17 and version stays at 6. The fixture at
+    ``benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml``
+    is a byte-identical copy of ``layout_invariant_v9.7.0.yaml``, so any
+    future renamer / re-orderer / sneaky inserter that disturbs the
+    schema-v6 layout would also break this v10.2.0 pin. Wired into
+    the multi-baseline test as the 10th baseline per the v10.2.0 cycle
+    plan §3 PV-01.
+    """
+    return _v9_7_0_payload()
+
+
 def _render(payload: dict) -> str:
     """Canonical rendering for byte-comparison (matches v7.0.0 baseline test)."""
     return yaml.safe_dump(payload, sort_keys=False, default_flow_style=False)
@@ -506,6 +529,61 @@ class TestMultiBaselineByteStability:
             "v9.7.0 render is NOT a byte-prefix-extension of v9.3.0 — the "
             "schema-v5 → schema-v6 cache-prefix preservation guarantee is "
             "broken; see v9-ADR-002 D2 + .local/research/v9.7.0_perf_research.md §2"
+        )
+
+    def test_v10_2_0_baseline_byte_identical(self) -> None:
+        """v10.2.0 cycle-start witness — byte-identical to v9.7.0.
+
+        v10.2.0 PV-01 fires the W-16 wholesale baseline regen at MINOR
+        cycle-start. The cycle itself (plugin deep review + Si-Chip
+        integration) ships ZERO schema changes, so the fixture
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml``
+        is a byte-identical copy of
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml``.
+        This pin is the 10th multi-baseline entry — catches any future
+        renamer / re-orderer / sneaky inserter that disturbs positions
+        1-17 before the cycle closes at v10.3.0. Per A-2.4 multi-
+        baseline byte test, all 10 historical baselines (v7.0.0 →
+        v10.2.0) MUST pass — drift in any one fails CI immediately.
+        """
+        path = BASELINES_DIR / "layout_invariant_v10.2.0.yaml"
+        assert path.exists(), (
+            f"missing baseline {path} — v10.2.0 PV-01 ships this fixture; see "
+            ".local/research/v10.2.0_cycle_plan.md §3 PV-01 + v9-ADR-002 D4"
+        )
+        recorded = path.read_text()
+        rendered = _render(_v10_2_0_payload())
+        assert rendered == recorded, (
+            f"v10.2.0 baseline drift in {path} — v10.2.0 PV-01 ships 0 schema "
+            "transitions; the fixture is expected byte-identical to "
+            "layout_invariant_v9.7.0.yaml. See v9-ADR-002 D4 + .local/research/"
+            "v10.2.0_cycle_plan.md §3 PV-01."
+        )
+
+    def test_v10_2_0_baseline_byte_identical_to_v9_7_0(self) -> None:
+        """The v10.2.0 baseline file is a verbatim copy of v9.7.0.
+
+        v10.2.0 PV-01 wholesale regen ships
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v10.2.0.yaml``
+        as a byte-identical copy of
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml``.
+        This pin catches any future drift where one file is updated and
+        the other is forgotten — both files must move together OR the
+        v10.2.0 file must gain its own dedicated payload constructor and
+        this guard test must be removed in the same PR.
+        """
+        v9_7_0_path = BASELINES_DIR / "layout_invariant_v9.7.0.yaml"
+        v10_2_0_path = BASELINES_DIR / "layout_invariant_v10.2.0.yaml"
+        assert v9_7_0_path.exists(), f"missing baseline {v9_7_0_path}"
+        assert v10_2_0_path.exists(), f"missing baseline {v10_2_0_path}"
+        v9_7_0_text = v9_7_0_path.read_text()
+        v10_2_0_text = v10_2_0_path.read_text()
+        assert v9_7_0_text == v10_2_0_text, (
+            "v10.2.0 baseline file diverged from v9.7.0 — v10.2.0 PV-01 "
+            "W-16 wholesale regen expects a byte-identical copy (no "
+            "schema change in PV-01). Either restore the byte-identical "
+            "copy OR introduce a dedicated v10.2.0 payload constructor "
+            "and remove this guard test in the same PR."
         )
 
     def test_v9_2_0_baseline_byte_identical_to_v8_4_0(self) -> None:

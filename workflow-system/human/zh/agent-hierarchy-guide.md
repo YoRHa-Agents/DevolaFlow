@@ -4,8 +4,8 @@ description: "理解 4 层委托层级架构。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-02T16:56:38Z"
-source_version: "10.1.0"
+last_synced: "2026-05-04T06:49:10Z"
+source_version: "10.4.0"
 ---
 
 # Agent 层级指南

@@ -57,9 +57,16 @@
 #     surface for plugin state per the gap analysis §3.2 D-P-4 fix.
 
 schema_version: 3
-last_updated: "2026-05-02"
-# v9.4.0 PV-04 baseline last_updated kept (v9.5.0 PV-01 only adds 1 plugin
-# row + extends the header comment; no schema-version bump).
+last_updated: "2026-05-03"
+# v10.2.0 PV-01 — D-P-3 closure. schema_version stays at 3 (no new field);
+# only the si-chip entry's version_check_cmd was swapped from a hardcoded
+# "echo si-chip/0.4.0" heuristic to a real SKILL.md frontmatter probe via
+# devolaflow.si_chip_bridge.install_resolver.read_installed_si_chip_version.
+# The probe is CWD-scoped (requires src/devolaflow/ importable) so operators
+# on systems WITHOUT a DevolaFlow checkout MAY override the si-chip entry in
+# a local copy of this registry; the pre-v10.2.0 heuristic remains a valid
+# fallback (see si-chip entry comment). Source: .local/research/v10.2.0_
+# gap_analysis.md §3.1 D-P-3 + cycle plan §3 PV-01.
 
 plugins:
   - id: nines
@@ -119,14 +126,35 @@ plugins:
   # version_check_cmd note: Si-Chip's installer has a v0.4.0 packaging defect
   # (post-install check looks at the wrong path; payload lands at
   # ~/.cursor/skills/si-chip/si-chip/ instead of ~/.cursor/skills/si-chip/).
-  # The version check probes EITHER path; the bridge module's install_resolver
-  # tolerates both (forward-compat for v0.4.1+ when fixed upstream).
+  # The bridge module's `install_resolver` tolerates both (forward-compat
+  # for v0.4.1+ when fixed upstream).
+  #
+  # v10.2.0 PV-01 — D-P-3 closure. Replaced the pre-v10.2.0 heuristic
+  #   test -f $HOME/.cursor/skills/si-chip/SKILL.md || \
+  #     test -f $HOME/.cursor/skills/si-chip/si-chip/SKILL.md && \
+  #     echo si-chip/0.4.0
+  # (which ALWAYS reported 0.4.0 regardless of what was actually installed)
+  # with a real probe that reads the installed SKILL.md frontmatter
+  # `version:` field via
+  # `devolaflow.si_chip_bridge.install_resolver.read_installed_si_chip_version`.
+  # This enables `_meets_min` in devolaflow.plugins.installer to correctly
+  # order 0.4.0 < 0.4.1 < 0.5.0 once a real upgrade ships upstream.
+  #
+  # The probe REQUIRES the command to run from a DevolaFlow repository
+  # checkout (CWD must contain `src/devolaflow/`) because it imports the
+  # bridge module. Operators on systems WITHOUT a DevolaFlow checkout
+  # (e.g. fresh CI containers that only clone the Si-Chip payload) MAY
+  # override this entry in a local copy of `runtime-plugins.yaml` and
+  # restore the pre-v10.2.0 heuristic. `refresh_all()` treats a
+  # returncode-nonzero from version_check_cmd as "version unknown" per
+  # _probe_version (not as a hard failure), so the fallback path is
+  # network-safe.
   - id: si-chip
     backend: curl_install_script
     package: si-chip
     install_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
     upgrade_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
-    version_check_cmd: "test -f $HOME/.cursor/skills/si-chip/SKILL.md || test -f $HOME/.cursor/skills/si-chip/si-chip/SKILL.md && echo si-chip/0.4.0"
+    version_check_cmd: "python -c 'import sys; sys.path.insert(0, \"src\"); from devolaflow.si_chip_bridge import find_si_chip_install; from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version; install=find_si_chip_install(); v=read_installed_si_chip_version(install) if install else None; print(f\"si-chip/{v}\") if v else sys.exit(1)'"
     min_version: "0.4.0"
     expected_sha256: null
     canonical_url: "https://github.com/YoRHa-Agents/Si-Chip"

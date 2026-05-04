@@ -253,6 +253,110 @@ class TestReadLastChecked:
 
 
 # ---------------------------------------------------------------------------
+# §3.5 — _parse_log_event_timestamp helper extraction (v10.2.4 PV-05 round 2)
+# ---------------------------------------------------------------------------
+#
+# Closes NineS PV-03 finding CC-a5d310-0003 (cyclomatic complexity 15 in
+# `read_last_checked`). The helper consolidates the 8-branch per-line
+# parsing logic so the parent function's complexity drops to ~6. Tests
+# below pin the helper's contract directly (independent of the parent's
+# log-iteration shape) so a future refactor that changes the parent
+# cannot silently regress the helper's defensive zero-raise guarantees.
+
+
+class TestParseLogEventTimestamp:
+    """Pin `_parse_log_event_timestamp` contract (v10.2.4 PV-05 extraction).
+
+    The helper MUST never raise — every defensive branch returns ``None``
+    so the caller's iteration over a corrupt JSONL log never aborts.
+    """
+
+    def test_helper_returns_datetime_for_valid_record(self) -> None:
+        """Happy path: well-formed line for matching plugin returns a datetime."""
+        from devolaflow.plugins.installer import (
+            _LAST_CHECKED_SUCCESSFUL_EVENTS,
+            _parse_log_event_timestamp,
+        )
+
+        line = json.dumps(
+            {
+                "ts": "2026-05-01T10:00:00+00:00",
+                "plugin_id": "nines",
+                "event": "plugin_installed",
+                "details": {},
+            }
+        )
+        result = _parse_log_event_timestamp(line, "nines", _LAST_CHECKED_SUCCESSFUL_EVENTS)
+        assert result == datetime.fromisoformat("2026-05-01T10:00:00+00:00")
+
+    def test_helper_returns_none_for_nonmatching_plugin(self) -> None:
+        """Mismatched plugin_id → None (no raise)."""
+        from devolaflow.plugins.installer import (
+            _LAST_CHECKED_SUCCESSFUL_EVENTS,
+            _parse_log_event_timestamp,
+        )
+
+        line = json.dumps(
+            {
+                "ts": "2026-05-01T10:00:00+00:00",
+                "plugin_id": "ui-pro",
+                "event": "plugin_installed",
+            }
+        )
+        assert _parse_log_event_timestamp(line, "nines", _LAST_CHECKED_SUCCESSFUL_EVENTS) is None
+
+    def test_helper_returns_none_for_defensive_inputs(self) -> None:
+        """All defensive branches return None without raising."""
+        from devolaflow.plugins.installer import (
+            _LAST_CHECKED_SUCCESSFUL_EVENTS,
+            _parse_log_event_timestamp,
+        )
+
+        events = _LAST_CHECKED_SUCCESSFUL_EVENTS
+        cases: list[str] = [
+            "",
+            "   ",
+            "not-json-at-all",
+            json.dumps([1, 2, 3]),
+            json.dumps(
+                {
+                    "ts": "2026-05-01T10:00:00+00:00",
+                    "plugin_id": "nines",
+                    "event": "plugin_install_failed",
+                }
+            ),
+            json.dumps(
+                {
+                    "ts": "garbage-timestamp",
+                    "plugin_id": "nines",
+                    "event": "plugin_installed",
+                }
+            ),
+            json.dumps({"ts": "", "plugin_id": "nines", "event": "plugin_installed"}),
+            json.dumps({"ts": 1714521600, "plugin_id": "nines", "event": "plugin_installed"}),
+            json.dumps({"plugin_id": "nines", "event": "plugin_installed"}),
+        ]
+        for line in cases:
+            assert _parse_log_event_timestamp(line, "nines", events) is None, (
+                f"v10.2.4 PV-05 helper contract violation: input {line!r} should "
+                f"have returned None (no raise) but did not."
+            )
+
+    def test_helper_module_constant_matches_event_set(self) -> None:
+        """The lifted module-level constant matches the documented event set."""
+        from devolaflow.plugins.installer import _LAST_CHECKED_SUCCESSFUL_EVENTS
+
+        expected = frozenset({"plugin_already_installed", "plugin_installed", "plugin_upgraded"})
+        actual = _LAST_CHECKED_SUCCESSFUL_EVENTS
+        assert actual == expected, (
+            "v10.2.4 PV-05 module constant drift: _LAST_CHECKED_SUCCESSFUL_EVENTS "
+            "MUST match the contract documented in `read_last_checked` docstring "
+            "(plugin_already_installed / plugin_installed / plugin_upgraded). "
+            "Update both the constant and docstring atomically if changing."
+        )
+
+
+# ---------------------------------------------------------------------------
 # §4 — is_plugin_stale honours threshold
 # ---------------------------------------------------------------------------
 

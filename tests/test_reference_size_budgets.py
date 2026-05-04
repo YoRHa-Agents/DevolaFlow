@@ -114,8 +114,17 @@ def test_canonical_lists_match_sf3_contract() -> None:
     tier 1000 ceiling per SF-1). Pairs with
     ``src/devolaflow/compression_pipeline.py`` and
     ``schemas/compression-pipeline.yaml``.
+
+    v10.4.0 PV-05 grew the reference set 14 → 15 by appending
+    ``references/troubleshooting.md`` (the operator troubleshooting
+    handbook with quick lookup index + per-symptom diagnostic patterns +
+    escalation patterns harvested from v8.0.0 → v10.3.0 retros — ~424
+    lines, well within Large tier 1000 ceiling per SF-1). Pairs with
+    the v10.4.0 audit scripts (``audit_reference_utilization.py`` /
+    ``audit_long_reference_usage.py``) and the scaffold CLIs
+    (``scaffold_template.py`` / ``scaffold_reference.py``).
     """
-    assert len(_REF_FILES) == 14, f"expected 14 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 15, f"expected 15 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 3, (
         f"expected 3 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

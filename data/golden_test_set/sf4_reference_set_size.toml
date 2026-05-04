@@ -1,18 +1,18 @@
 [task]
-id = "devolaflow-sf4-018"
-name = "sf4-reference-set-cardinality-v8.5.1"
-description = "v8.5.1 PV-06 — SF-4 canonical reference set grows from 13 → 14 with the addition of references/compression-pipeline.md as the 14th canonical (per Open Decision §9.2 #10 default-yes APPROVE stance; pairs with src/devolaflow/compression_pipeline.py and schemas/compression-pipeline.yaml)"
+id = "devolaflow-sf4-019"
+name = "sf4-reference-set-cardinality-v10.4.0"
+description = "v10.4.0 PV-05 — SF-4 canonical reference set grows from 14 → 15 with the addition of references/troubleshooting.md as the 15th canonical (D-X-5 closure: operator troubleshooting handbook with quick lookup index + per-symptom diagnostic patterns harvested from cycle retrospectives v8.0.0 → v10.3.0; pairs with v10.4.0 audit scripts D-D-1 and D-D-2)"
 dimension = "code_quality"
 difficulty = 1
 
 [task.input]
 type = "code"
 language = "python"
-source = "len(_SF4_REFERENCE_SET) == 14"
+source = "len(_SF4_REFERENCE_SET) == 15"
 
 [task.expected]
 type = "text"
-value = "len(_SF4_REFERENCE_SET) == 14"
+value = "len(_SF4_REFERENCE_SET) == 15"
 
 [task.golden]
 expected_score = 1.0

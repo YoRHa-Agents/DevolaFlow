@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,6 +48,7 @@ from devolaflow.si_chip_bridge import (
 )
 from devolaflow.si_chip_bridge import install_resolver as _resolver
 from devolaflow.si_chip_bridge import runner as _runner
+from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version
 
 # ---------------------------------------------------------------------------
 # §1 — public API surface
@@ -467,3 +469,275 @@ class TestModelParsing:
         assert l_report.body_tokens == 4646
         assert m_report.metadata_tokens == 94
         assert m_report.body_tokens == 4646
+
+
+# ---------------------------------------------------------------------------
+# §6.1 — MVP-8 nested-shape support (v10.2.3 PV-04 bridge defect fix)
+# ---------------------------------------------------------------------------
+
+
+class TestMetricsReportFromYamlDictMvp8:
+    """Pin :meth:`MetricsReport.from_yaml_dict` MVP-8 nested-shape parsing.
+
+    Closes the bridge defect surfaced by
+    `.local/research/v10.2.2_dogfood_pass2.md` §3: the v9.5.0..v10.2.2
+    builds of this helper read only the legacy top-level keys
+    (``composite`` / ``task_delta`` / ``value_vector``), but Si-Chip
+    `aggregate_eval.py` v0.1.6 emits its MVP-8 metrics under
+    ``metrics.task_quality.*`` / ``metrics.context_economy.*`` /
+    ``summary.*``. The fix landed in v10.2.3 PV-04 by adding nested
+    path lookups WHILE preserving the legacy top-level fallbacks.
+    """
+
+    @staticmethod
+    def _mvp8_fixture() -> dict[str, Any]:
+        """Mirror the shape Si-Chip's aggregate_eval.py v0.1.6 emits.
+
+        Captured verbatim from
+        ``.local/dogfood/10.2.1/skill-optimization_after_metrics.yaml``
+        (the dogfood pass #2 with-ability run output, T1=0.9, T3=0.9,
+        baseline_delta=0.9, C1=310). Only the keys the bridge reads
+        are populated; the rest of the upstream Si-Chip schema is
+        omitted to keep the fixture tight.
+        """
+        return {
+            "metrics": {
+                "task_quality": {
+                    "T1_pass_rate": 0.9,
+                    "T2_pass_k": 0.9,
+                    "T3_baseline_delta": 0.9,
+                    "T4_error_recovery_rate": None,
+                },
+                "context_economy": {
+                    "C1_metadata_tokens": 310,
+                    "C2_body_tokens": 4646,
+                    "C3_resolved_tokens": None,
+                    "C4_per_invocation_footprint": 5000.0,
+                    "C5_context_rot_risk": 0.041,
+                    "C6_scope_overlap_score": None,
+                },
+                "routing_cost": {
+                    "R3_trigger_F1": 0.9,
+                    "R5_router_floor": "composer_2/fast",
+                },
+            },
+            "summary": {
+                "with_ability_runs": 20,
+                "no_ability_runs": 20,
+                "pass_rate_with": 0.9,
+                "pass_rate_without": 0.0,
+                "baseline_delta": 0.9,
+            },
+        }
+
+    def test_from_yaml_dict_reads_mvp8_keys(self) -> None:
+        """MVP-8 nested fixture populates composite/task_delta/value_vector.
+
+        Mirrors the Si-Chip aggregate_eval.py v0.1.6 emit shape captured
+        at ``.local/dogfood/10.2.1/skill-optimization_after_metrics.yaml``
+        (the v10.2.2 PV-03 dogfood pass #2 with-ability artefact). Pre
+        v10.2.3 the bridge would silently zero out every field because
+        the legacy top-level keys are absent in MVP-8 output.
+        """
+        report = MetricsReport.from_yaml_dict(self._mvp8_fixture())
+        assert report.composite == pytest.approx(0.9), (
+            "MVP-8 path: composite must read metrics.task_quality.T1_pass_rate"
+        )
+        assert report.task_delta == pytest.approx(0.9), (
+            "MVP-8 path: task_delta must read summary.baseline_delta"
+        )
+        assert report.value_vector == pytest.approx(0.9), (
+            "MVP-8 path: value_vector falls back to summary.baseline_delta when "
+            "the legacy top-level value_vector key is absent"
+        )
+        assert report.metadata_tokens == 310, (
+            "MVP-8 path: metadata_tokens must read metrics.context_economy.C1_metadata_tokens"
+        )
+        assert report.body_tokens == 4646, (
+            "MVP-8 path: body_tokens must read metrics.context_economy.C2_body_tokens"
+        )
+        assert report.raw["metrics"]["task_quality"]["T1_pass_rate"] == pytest.approx(0.9)
+
+    def test_from_yaml_dict_reads_legacy_top_level_keys(self) -> None:
+        """Legacy flat-shape fixture still populates correctly (backward compat).
+
+        Pinned to ensure the v10.2.3 PV-04 fix did NOT break operators
+        running pinned Si-Chip releases that still emit the flat shape.
+        """
+        legacy = {
+            "composite": 0.85,
+            "task_delta": 0.12,
+            "value_vector": 0.08,
+            "C1_metadata_tokens": 94,
+            "C2_body_tokens": 4646,
+        }
+        report = MetricsReport.from_yaml_dict(legacy)
+        assert report.composite == pytest.approx(0.85)
+        assert report.task_delta == pytest.approx(0.12)
+        assert report.value_vector == pytest.approx(0.08)
+        assert report.metadata_tokens == 94
+        assert report.body_tokens == 4646
+
+    def test_from_yaml_dict_handles_missing_metrics_block(self) -> None:
+        """Empty dict / non-dict ``metrics`` does not raise; defaults to zero.
+
+        Per S-5: missing keys are tolerated with safe-zero defaults, NOT
+        raised as KeyError. The downstream ``aggregate_delta`` handles
+        the all-zero edge case explicitly.
+        """
+        empty = MetricsReport.from_yaml_dict({})
+        assert empty.composite == pytest.approx(0.0)
+        assert empty.task_delta == pytest.approx(0.0)
+        assert empty.value_vector == pytest.approx(0.0)
+        assert empty.metadata_tokens == 0
+        assert empty.body_tokens == 0
+        assert empty.raw == {}
+
+        # Also: ``metrics`` present but a non-dict value (e.g. a stray
+        # string from an upstream malformed YAML) must NOT crash.
+        weird = MetricsReport.from_yaml_dict(
+            {"metrics": "oops", "summary": ["bad", "list"]},
+        )
+        assert weird.composite == pytest.approx(0.0)
+        assert weird.task_delta == pytest.approx(0.0)
+        assert weird.metadata_tokens == 0
+
+    def test_from_yaml_dict_handles_partial_metrics_block(self) -> None:
+        """Partial metrics block: populated fields parse, missing zero out.
+
+        Si-Chip v0.1.6 frequently emits ``C2_body_tokens: null`` on
+        skill files lacking dedicated body counters (the v10.2.2
+        baseline_metrics.yaml was a real-world example). The bridge
+        must surface the populated keys and use zero for the missing
+        ones, never raising.
+        """
+        partial = {
+            "metrics": {
+                "task_quality": {"T1_pass_rate": 0.7, "T3_baseline_delta": None},
+                "context_economy": {"C1_metadata_tokens": 250, "C2_body_tokens": None},
+            },
+            "summary": {},
+        }
+        report = MetricsReport.from_yaml_dict(partial)
+        assert report.composite == pytest.approx(0.7)
+        # task_delta: None at MVP-8 baseline_delta + None at T3 + missing
+        # legacy task_delta → zero default (NOT a crash).
+        assert report.task_delta == pytest.approx(0.0)
+        assert report.value_vector == pytest.approx(0.0)
+        assert report.metadata_tokens == 250
+        # body_tokens: explicit None at MVP-8 path + missing legacy key → zero.
+        assert report.body_tokens == 0
+
+    def test_from_yaml_dict_mvp8_nested_takes_precedence_over_legacy(self) -> None:
+        """When BOTH shapes coexist, MVP-8 nested values win.
+
+        Pins the precedence rule from the docstring: the MVP-8 nested
+        paths are the canonical Si-Chip emit shape; legacy top-level
+        keys are forward-compat fallbacks. A document with both must
+        be scored against the canonical surface so a future hybrid
+        emit doesn't silently downgrade scoring to the legacy values.
+        """
+        hybrid = {
+            "composite": 0.50,  # legacy
+            "task_delta": 0.05,  # legacy
+            "metrics": {
+                "task_quality": {
+                    "T1_pass_rate": 0.95,  # MVP-8 — should win
+                    "T3_baseline_delta": 0.30,
+                },
+                "context_economy": {
+                    "C1_metadata_tokens": 200,  # MVP-8 — should win
+                    "C2_body_tokens": 4000,
+                },
+            },
+            "summary": {"baseline_delta": 0.30},  # MVP-8 — should win
+            "C1_metadata_tokens": 99,  # legacy — should lose
+            "C2_body_tokens": 9999,  # legacy — should lose
+        }
+        report = MetricsReport.from_yaml_dict(hybrid)
+        assert report.composite == pytest.approx(0.95)
+        assert report.task_delta == pytest.approx(0.30)
+        assert report.metadata_tokens == 200
+        assert report.body_tokens == 4000
+
+
+# ---------------------------------------------------------------------------
+# §7 — read_installed_si_chip_version (v10.2.0 PV-01 / D-P-3)
+# ---------------------------------------------------------------------------
+
+
+class TestReadInstalledSiChipVersion:
+    """Pin `read_installed_si_chip_version` frontmatter-parse contract.
+
+    Closes D-P-3 from `.local/research/v10.2.0_gap_analysis.md` §3.1.
+    The pre-v10.2.0 heuristic in `runtime-plugins.yaml` emitted a
+    hardcoded `si-chip/0.4.0` string; this helper reads the real
+    version from the installed `SKILL.md` frontmatter so
+    `devolaflow.plugins.installer._meets_min` can order
+    0.4.0 < 0.4.1 < 0.5.0 correctly once v0.4.1+ ships upstream.
+    """
+
+    @staticmethod
+    def _make_install(skill_md_path: Path) -> SiChipInstall:
+        """Build a minimal SiChipInstall pointing at the given SKILL.md."""
+        root = skill_md_path.parent
+        return SiChipInstall(
+            root=root,
+            skill_md=skill_md_path,
+            scripts_dir=None,
+            references_dir=None,
+            source="env_home",
+        )
+
+    def test_returns_none_when_file_missing(self, tmp_path: Path) -> None:
+        missing = tmp_path / "ghost" / "SKILL.md"
+        assert not missing.exists()
+        install = self._make_install(missing)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_version_string_for_quoted_frontmatter(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            '---\nname: si-chip\nversion: "1.2.3"\nother: "y"\n---\nbody\n',
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) == "1.2.3"
+
+    def test_returns_version_string_for_bare_frontmatter(self, tmp_path: Path) -> None:
+        """Real Si-Chip v0.4.0 uses bare `version: 0.4.0` (no quotes)."""
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "---\nname: si-chip\nversion: 0.4.0\nlicense: Apache-2.0\n---\nbody\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) == "0.4.0"
+
+    def test_returns_none_when_no_frontmatter(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "# Si-Chip (no frontmatter)\n\nbody goes here\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_none_when_frontmatter_has_no_version_field(self, tmp_path: Path) -> None:
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            "---\nname: si-chip\nlicense: Apache-2.0\n---\nbody\n",
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None
+
+    def test_returns_none_when_version_field_is_empty(self, tmp_path: Path) -> None:
+        """Empty-value `version:` means "version unknown" → None."""
+        skill_md = tmp_path / "SKILL.md"
+        skill_md.write_text(
+            '---\nname: si-chip\nversion: ""\n---\nbody\n',
+            encoding="utf-8",
+        )
+        install = self._make_install(skill_md)
+        assert read_installed_si_chip_version(install) is None

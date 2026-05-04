@@ -404,3 +404,154 @@ class TestDeferWritesFeedbackDoc:
         )
         # The feedback dir is NOT auto-created on APPLY (no DEFER work to write).
         assert not feedback_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# §8 — v10.2.3 PV-04 helper extraction (CC reduction: 13 → ≤7)
+# ---------------------------------------------------------------------------
+
+
+class TestComputeFingerprintHelper:
+    """Pin :func:`_compute_fingerprint` idiomatic-name signature.
+
+    Helper introduced in v10.2.3 PV-04 alongside the
+    :func:`_run_si_chip_evaluation` orchestrator extraction. The
+    backward-compat wrapper :func:`_compute_defer_fingerprint` is
+    preserved for v10.2.1 callers (`tests/test_sichip_dedup_feedback_doc.py`).
+    """
+
+    def test_compute_fingerprint_signature_skill_files_verdict_notes(self) -> None:
+        """v10.2.3 PV-04: signature is ``(skill_files, verdict, notes)``.
+
+        The argument order matches natural English reading: "for these
+        skill_files and this verdict, hash these notes". This is the
+        idiomatic order; the legacy
+        :func:`_compute_defer_fingerprint(skill_files, notes, verdict)`
+        wrapper preserves backward compat for the v10.2.1 callers.
+        """
+        from devolaflow.lifecycle.post_skill_edit import _compute_fingerprint
+
+        fp = _compute_fingerprint(
+            ["workflow-system/agent/SKILL.md"],
+            "DEFER",
+            ["note A", "note B"],
+        )
+        assert isinstance(fp, str)
+        assert len(fp) == 64, "v10.2.3 PV-04: fingerprint is a SHA-256 hex digest (64 chars)"
+        # Deterministic: same inputs → same output across calls.
+        fp2 = _compute_fingerprint(
+            ["workflow-system/agent/SKILL.md"],
+            "DEFER",
+            ["note A", "note B"],
+        )
+        assert fp == fp2
+
+    def test_compute_fingerprint_backward_compat_via_legacy_wrapper(self) -> None:
+        """v10.2.1 callers using ``_compute_defer_fingerprint`` still work.
+
+        The wrapper preserves the v10.2.1 ``(skill_files, notes, verdict)``
+        argument order; the underlying hash equals the v10.2.3 idiomatic
+        helper invoked with reordered args.
+        """
+        from devolaflow.lifecycle.post_skill_edit import (
+            _compute_defer_fingerprint,
+            _compute_fingerprint,
+        )
+
+        skill_files = ["workflow-system/agent/SKILL.md"]
+        notes = ["note A", "note B"]
+        legacy_fp = _compute_defer_fingerprint(skill_files, notes, "DEFER")
+        idiomatic_fp = _compute_fingerprint(skill_files, "DEFER", notes)
+        assert legacy_fp == idiomatic_fp
+
+
+class TestLoadExistingFingerprintsHelper:
+    """Pin :func:`_load_existing_fingerprints` idiomatic-name signature."""
+
+    def test_load_existing_fingerprints_returns_set_from_sidecar(self, tmp_path: Path) -> None:
+        """v10.2.3 PV-04: reads the append-only sidecar; returns a set[str].
+
+        Empty sidecar / missing file → empty set (per S-5 the missing-
+        file case is a fresh-clone state, NOT an error). Populated
+        sidecar → set of fingerprint strings, whitespace-stripped.
+        """
+        from devolaflow.lifecycle.post_skill_edit import (
+            FINGERPRINT_SIDECAR_NAME,
+            _load_existing_fingerprints,
+        )
+
+        # Missing file: empty set (no error).
+        fingerprints = _load_existing_fingerprints(tmp_path)
+        assert fingerprints == set()
+
+        # Populated sidecar: deduped, whitespace-stripped set.
+        sidecar = tmp_path / FINGERPRINT_SIDECAR_NAME
+        sidecar.write_text("aaa\nbbb\n  ccc  \n\nbbb\n", encoding="utf-8")
+        fingerprints = _load_existing_fingerprints(tmp_path)
+        assert fingerprints == {"aaa", "bbb", "ccc"}
+
+
+class TestRunSiChipEvaluationHelper:
+    """Pin :func:`_run_si_chip_evaluation` orchestrator extraction.
+
+    Helper extracted in v10.2.3 PV-04 from :func:`post_skill_edit` to
+    address the NineS PV-03 deep-analysis CC=13 finding at
+    `.local/research/v10.2.2_nines.md` §2 row #7. Behaviour is byte-
+    identical to the v10.2.1 baseline; this class proves the
+    extraction preserves the public contract by exercising the
+    helper directly.
+    """
+
+    def test_helper_returns_pse001_on_si_chip_unavailable(self, tmp_path: Path) -> None:
+        """SiChipUnavailable → 1 PSE001 warning + terminal SKIPPED_PERMISSIVE."""
+        from devolaflow.lifecycle.post_skill_edit import _run_si_chip_evaluation
+
+        def fake_dogfood(ability_name, skill_md, *, threshold):
+            raise SiChipUnavailable("not installed")
+
+        skill_md = tmp_path / "SKILL.md"
+        with patch(
+            "devolaflow.si_chip_bridge.run_dogfood_cycle",
+            side_effect=fake_dogfood,
+        ):
+            result, violations, terminal = _run_si_chip_evaluation(
+                skill_md,
+                ["workflow-system/agent/SKILL.md"],
+                "devola-flow",
+                0.10,
+            )
+        assert result is None
+        assert len(violations) == 1
+        assert violations[0].code == "PSE001"
+        assert violations[0].severity == "warning"
+        assert terminal == "SKIPPED_PERMISSIVE"
+
+    def test_helper_returns_success_path_with_no_violations(self, tmp_path: Path) -> None:
+        """Happy path: dogfood cycle succeeds → result, no violations, no terminal."""
+        from devolaflow.lifecycle.post_skill_edit import _run_si_chip_evaluation
+
+        skill_md = tmp_path / "SKILL.md"
+
+        def fake_dogfood(ability_name, skill_md, *, threshold):
+            return SiChipResult(
+                verdict=ApplyVerdict.APPLY,
+                delta=None,
+                install_source="cursor_global",
+                skill_md=skill_md,
+                notes=["fake apply"],
+            )
+
+        with patch(
+            "devolaflow.si_chip_bridge.run_dogfood_cycle",
+            side_effect=fake_dogfood,
+        ):
+            result, violations, terminal = _run_si_chip_evaluation(
+                skill_md,
+                ["workflow-system/agent/SKILL.md"],
+                "devola-flow",
+                0.10,
+            )
+        assert result is not None
+        assert result.verdict == ApplyVerdict.APPLY
+        assert violations == []
+        assert terminal is None

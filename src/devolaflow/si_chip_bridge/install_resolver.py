@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,11 @@ logger = logging.getLogger(__name__)
 ENV_HOME: str = "SI_CHIP_HOME"
 ENV_FALLBACK: str = "DEVOLAFLOW_SI_CHIP_FALLBACK_DIR"
 SKILL_MD_NAME: str = "SKILL.md"
+
+_FRONTMATTER_DELIMITER: str = "---"
+_VERSION_LINE_RE: re.Pattern[str] = re.compile(
+    r'^\s*version\s*:\s*["\']?([^"\'\s]+)["\']?\s*$',
+)
 
 
 @dataclass(frozen=True)
@@ -156,10 +162,79 @@ def find_si_chip_install() -> SiChipInstall | None:
     return None
 
 
+def read_installed_si_chip_version(install: SiChipInstall) -> str | None:
+    """Return the ``version:`` field declared in the installed Si-Chip SKILL.md.
+
+    Parses the YAML frontmatter of ``install.skill_md`` using a
+    minimal single-key scanner — we deliberately avoid ``yaml.safe_load``
+    for the header so this helper remains cheap enough to call from the
+    ``runtime-plugins.yaml`` ``version_check_cmd`` hot path (and the
+    lifecycle hook in a future PV) without pulling yaml into the
+    resolver's zero-IO surface. Accepts both quoted (``version: "0.4.0"``)
+    and bare (``version: 0.4.0``) styles.
+
+    Parameters
+    ----------
+    install:
+        A :class:`SiChipInstall` returned by :func:`find_si_chip_install`.
+        Callers that receive ``None`` from the resolver MUST check
+        before calling this helper — the type annotation here is
+        intentionally ``SiChipInstall`` (not ``SiChipInstall | None``) so
+        the call site stays auditable.
+
+    Returns
+    -------
+    str | None
+        The version string verbatim (e.g. ``"0.4.0"`` or ``"0.4.1"``)
+        when the SKILL.md carries a parseable YAML frontmatter with a
+        ``version:`` field. Returns ``None`` when the file is missing,
+        the frontmatter is absent, or the ``version:`` key is missing /
+        malformed. ``None`` is the "version-unknown" signal the
+        registry's ``version_check_cmd`` uses to fall back to the
+        pre-v10.2.0 heuristic (see runtime-plugins.yaml si-chip entry
+        note).
+
+    Notes
+    -----
+    D-P-3 closure (v10.2.0 PV-01) — replaces the hardcoded
+    ``echo si-chip/0.4.0`` heuristic in ``runtime-plugins.yaml``
+    that always reported the same version regardless of the installed
+    payload. ``_meets_min`` in
+    :mod:`devolaflow.plugins.installer` can now correctly order
+    ``0.4.0 < 0.4.1 < 0.5.0`` once a real upgrade lands.
+    """
+    skill_md = install.skill_md
+    try:
+        text = skill_md.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.debug(
+            "read_installed_si_chip_version: cannot read %s: %s",
+            skill_md,
+            exc,
+        )
+        return None
+
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != _FRONTMATTER_DELIMITER:
+        return None
+
+    for raw_line in lines[1:]:
+        stripped = raw_line.strip()
+        if stripped == _FRONTMATTER_DELIMITER:
+            return None
+        match = _VERSION_LINE_RE.match(raw_line)
+        if match is not None:
+            version = match.group(1).strip()
+            return version if version else None
+
+    return None
+
+
 __all__ = [
     "ENV_FALLBACK",
     "ENV_HOME",
     "SKILL_MD_NAME",
     "SiChipInstall",
     "find_si_chip_install",
+    "read_installed_si_chip_version",
 ]

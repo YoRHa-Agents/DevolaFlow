@@ -406,19 +406,19 @@ class TestBaselineFile:
     def test_runner_prefers_latest_baseline(self) -> None:
         """load_baseline() picks the latest baseline file over older ones, falls back as needed.
 
-        v9.7.0 PV-05 (cycle v10.0.0 FINAL minor) ships a per-PV regen
-        of all 53 EvoBench scenarios as ``v9.7.0_baseline.json`` — this
-        is NOT a W-16 wholesale regen (those happen at MINOR cycle
-        START, e.g. v9.3.0_baseline.json was the v10.0.0 cycle start).
-        The v9.3.0 wholesale baseline + the v9.x mid-cycle baselines
-        (v9.6.0 / v9.7.0) stay on disk for cumulative drift detection
-        per W-16 / v8.4.0 retro §"R-7 wholesale-vs-piecemeal baseline
-        lesson".
+        v10.2.0 PV-01 (cycle v10.2.0 MINOR cycle-start) fires the W-16
+        wholesale baseline regen per ``.cursor/rules/repo-governance.mdc`` §W-16.
+        The resulting ``v10.2.0_baseline.json`` is the new "newest" after
+        v9.7.0 (which had been the v10.0.0 MAJOR rollup baseline). Prior
+        baselines (v9.3.0 / v9.6.0 / v9.7.0 / ...) stay on disk for
+        cumulative drift detection per v8.4.0 retro §"R-7 wholesale-vs-
+        piecemeal baseline lesson".
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v9.7.0_baseline.json", (
-            f"Expected load_baseline() to prefer v9.7.0_baseline.json; got {newest.name}"
+        assert newest.name == "v10.2.0_baseline.json", (
+            f"Expected load_baseline() to prefer v10.2.0_baseline.json "
+            f"(W-16 wholesale regen at v10.2.0 cycle-start); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

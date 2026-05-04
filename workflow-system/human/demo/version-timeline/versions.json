@@ -1353,5 +1353,103 @@
       "env_flags_added_in_cycle": "0",
       "hotpath_surfaces_isolated": "5"
     }
+  },
+  {
+    "version": "10.2.0",
+    "date": "2026-05-03",
+    "era": "plugin-review",
+    "headline": "MINOR cycle-start — PV-01 of the v10.2.0 cycle: plugin deep review + W-16 wholesale baseline regen",
+    "summary": "First of 6 PVs closing at v10.3.0 per the v10.2.0 cycle plan. Closes 4 plugin-infra gaps (D-P-1 end-to-end refresh_all; D-P-3 si-chip version_check_cmd swap from hardcoded 0.4.0 to real SKILL.md frontmatter probe; D-P-4 registry-walk smoke; D-P-6 never-installed staleness pin). Ships 3 new test files + 1 install_resolver helper + 2 new baseline fixtures + canonical 7 version sync + W-18 ghost-audit refresh. Zero schema changes; zero new env flags.",
+    "highlights": [
+      "End-to-end refresh_all e2e test — tests/test_plugin_refresh_e2e.py fires real subprocess pipeline (no mocks); CI-safe via offline-skip guard",
+      "Registry-walk smoke — tests/test_runtime_plugins_smoke.py pins schema_version=3, 24h upgrade cadence, 4 plugin IDs (nines, ui-pro, rtk, si-chip), well-formed RuntimePluginSpec for every entry",
+      "Never-installed staleness pin — tests/test_plugin_refresh_first_run.py confirms is_plugin_stale returns True on missing/empty log and refresh_all triggers upgrade for every plugin on fresh log",
+      "read_installed_si_chip_version helper — parses SKILL.md frontmatter version: field (quoted or bare); si-chip version_check_cmd swapped from hardcoded echo si-chip/0.4.0 to real probe via the bridge module",
+      "W-16 wholesale baseline regen — v10.2.0_baseline.json + layout_invariant_v10.2.0.yaml committed at cycle-start; 10th multi-baseline pin; byte-identical to v9.7.0 (zero drift since v10.0.0 MAJOR)"
+    ],
+    "metrics": {
+      "tests": "4018",
+      "new_test_functions_this_pv": "22",
+      "cycle_test_budget_used": "22",
+      "cycle_test_budget_cap": "150",
+      "plugins_registered": "4",
+      "schema_version": "6",
+      "canonical_order_length": "17",
+      "multi_baseline_pins": "10",
+      "env_flags_added_in_pv": "0",
+      "gaps_closed_this_pv": "4"
+    }
+  },
+  {
+    "version": "10.3.0",
+    "date": "2026-05-03",
+    "era": "plugin-review",
+    "headline": "MINOR cycle-close — v10.2.0 cycle close: first APPLY iteration_delta in DevolaFlow history; Si-Chip formally integrated; plugin deep review complete",
+    "summary": "Closes the v10.2.0 cycle (5 PATCH PVs + this MINOR cycle close). Five user-mandate bullets shipped with verbatim evidence: plugin deep review (5 D-P-* gaps closed); formal Si-Chip integration (5 D-S-* gaps closed; iteration_delta CI gate as 7th SI-10 step); NineS analysis + Si-Chip iteration validation (PV-03 D-N-1 + D-N-3 closures; adapter verdict APPROVE; 4 dogfood passes producing first APPLY in DevolaFlow history at iteration_delta = +0.9 sustained across 2 rounds); multi-round self-iteration (PV-04 bridge fix + 2 CC reductions; PV-05 round-2 + W-8 stagnation predicate verdict CONTINUE); MINOR bump to v10.3.0 with W-3 SI-3 composite 9.385/10. Zero breaking changes; zero new env flags; W-21 Soul-set freeze remains at 10.",
+    "highlights": [
+      "First APPLY iteration_delta in DevolaFlow history — Si-Chip dogfood pass #3 + pass #4 both APPLY at +0.9 across all 4 probed files; W-8 stagnation predicate verdict CONTINUE",
+      "NineS-to-Si-Chip eval adapter (scripts/nines_to_sichip_eval_adapter.py, 412 LOC, 23 tests) — closes v9.5.0 OA-1 blocker; substitutes NineS golden-task scores for missing real-LLM eval data",
+      "Bridge defect fix in MetricsReport.from_yaml_dict (PV-04) — MVP-8 nested-key support unblocks the iteration_delta machinery; legacy top-level shape preserved as backward-compat fallback",
+      "3 CC reductions per PV-03 NineS deep-analysis hotspots: pre_plugin_invocation 18→≤10 (PV-04), post_skill_edit 13→≤7 (PV-04), installer.read_last_checked 15→8 (PV-05)",
+      "Daily-upgrade scheduler closes D-P-2 BLOCKER — pre_plugin_invocation auto-fires upgrade_plugin when stale per 24h cadence, REUSING DEVOLAFLOW_AUTO_INSTALL_PLUGINS (W-20 §3 reuse-first; 0 NEW env flags)",
+      "W-3 SI-3 composite 9.385/10 (margin +0.385 over STRICT MINOR-cycle-close ≥9.0); NineS overall 0.906924 byte-stable vs v10.0.0 0.907332"
+    ],
+    "metrics": {
+      "tests": "4091",
+      "new_test_functions_cycle_cumulative": "94",
+      "cycle_test_budget_cap": "150",
+      "coverage_pct": "93.04",
+      "plugins_registered": "4",
+      "lifecycle_events": "10",
+      "schema_version": "6",
+      "canonical_order_length": "17",
+      "multi_baseline_pins": "10",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "si3_composite": "9.385",
+      "si3_threshold": "9.0",
+      "si3_margin": "0.385",
+      "nines_overall": "0.906924",
+      "nines_overall_v10_0_0": "0.907332",
+      "nines_overall_delta": "-0.000408",
+      "sichip_dogfood_verdict": "APPLY",
+      "sichip_iteration_delta": "+0.9",
+      "sichip_iteration_rounds": "2",
+      "cycle_archive_files": "25",
+      "pvs_in_cycle": "6"
+    }
+  },
+  {
+    "version": "10.4.0",
+    "date": "2026-05-04",
+    "era": "developer-experience",
+    "headline": "MINOR — Developer Experience + Reference Audit Foundation: 4 NEW operator CLIs (2 scaffolds + 2 audits), the 15th SF-4 reference (troubleshooting handbook), and SI-10 fast/full Makefile split",
+    "summary": "Collapses 6 v11.0.0-cycle PDSs (D-X-1, D-X-2, D-X-3, D-X-5, D-D-1, D-D-2) into a single MINOR cycle. Ships scaffold_template.py + scaffold_reference.py to collapse the 9-step / 7-step ceremonies; audit_reference_utilization.py + audit_long_reference_usage.py establish empirical reference-usage baselines for v11.0.0 cycle planning. The 15th SF-4 reference (workflow-system/agent/references/troubleshooting.md) consolidates ~30 distinct operator-trip patterns harvested from cycle retros v8.0.0 → v10.3.0. Makefile precommit-fast / precommit-full / precommit split (D-X-3) preserves W-9 SI-10 invariant while cutting in-PR iteration cost ~95%. Zero breaking changes; zero new env flags (W-20 reuse-first); zero schema bumps (A-2 byte-stable); zero Soul rule additions (W-21 freeze).",
+    "highlights": [
+      "scripts/scaffold_template.py (D-X-1, ~340 LOC) — collapses 9-step workflow-template ceremony into 1 invocation; renders all 6 surfaces + prints W-18 + CHANGELOG stanzas",
+      "scripts/scaffold_reference.py (D-X-2, ~200 LOC) — collapses 7-step reference-doc ceremony; idempotent; alphabetical SKILL.md insertion",
+      "scripts/audit_reference_utilization.py (D-D-1) — first empirical reference utilization data: 12 of 15 references at <20% utilization; high-tier decomposition-gate.md / team-roles.md at 37.5%",
+      "scripts/audit_long_reference_usage.py (D-D-2) — confirms 6% envelope-creation rate hypothesis; 0 envelope citations of any long reference across v8.3.0 → v10.3.0 cycle history",
+      "references/troubleshooting.md (D-X-5; 15th SF-4 canonical, 424 lines) — Quick Lookup Index + Diagnostic Patterns + Escalation Patterns covering ~30 trip patterns",
+      "Makefile precommit-fast (~10-30s) / precommit-full (full SI-10) / precommit (=full; SAFE default) — D-X-3 SI-10 fast-path; W-9 invariant unchanged"
+    ],
+    "metrics": {
+      "tests": "~4118",
+      "new_test_functions_pv": "27",
+      "pv_test_cap": "30",
+      "cycle_test_budget_cap": "150",
+      "sf4_references": "15",
+      "sf4_references_prev": "14",
+      "skill_md_lines": "461",
+      "skill_md_cap": "500",
+      "soul_set_count": "10",
+      "env_flags_added_in_cycle": "0",
+      "schema_version": "6",
+      "canonical_order_length": "16",
+      "multi_baseline_pins": "10",
+      "scripts_added": "4",
+      "makefile_targets_added": "7",
+      "pvs_in_cycle": "1"
+    }
   }
 ]

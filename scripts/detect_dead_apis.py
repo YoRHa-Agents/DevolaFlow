@@ -108,6 +108,30 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # A-5.2 — `rebuild_index` is a pure CLI wrapper around
         # `nines analyze --target-path . --depth deep --agent-impact --keypoints`.
         "devolaflow.nines.researcher:rebuild_index",
+        # v10.2.0 PV-01 (D-P-3 closure) — read_installed_si_chip_version is
+        # invoked by the si-chip entry's `version_check_cmd` in
+        # `workflow-system/agent/knowledge/runtime-plugins.yaml`, which
+        # `devolaflow.plugins.installer._probe_version` executes as a
+        # `python -c "..."` subprocess. The dead-API detector only sees
+        # Python AST callers; the yaml-embedded subprocess invocation
+        # does NOT register as a caller. Allowlisted with this comment
+        # so the D-P-3 closure (read frontmatter `version:` instead of
+        # echoing hardcoded `0.4.0`) stays pinned. NOT a domain-SSOT
+        # registry symbol per A-5.2 — pure read-only YAML-frontmatter
+        # parser.
+        "devolaflow.si_chip_bridge.install_resolver:read_installed_si_chip_version",
+        # v10.2.1 PV-02 (D-S-2 closure) — dispatch_dogfood_cycle is the
+        # public L0/L1 wrapper that exposes the persistent BasicAbility
+        # optimisation factory at the workflow-stage surface. v10.2.1
+        # ships the integration surface; the actual workflow-template
+        # wiring (`skill-optimization` / `self-update` / `nines-assisted`
+        # templates calling the wrapper from a stage handler) lands in
+        # PV-04 / PV-05 self-iteration rounds. Dogfood pass #1 in PV-02
+        # is the first non-mocked invocation evidence. NOT a domain-SSOT
+        # registry symbol per A-5.2 — pure delegation wrapper around
+        # `devolaflow.si_chip_bridge.runner.run_dogfood_cycle` with no
+        # registration data of its own.
+        "devolaflow.feedback:dispatch_dogfood_cycle",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
         # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
         # P-05 dispatch directive, the lifecycle package is intentionally
