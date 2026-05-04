@@ -144,7 +144,13 @@ def test_cursor_references_golden(cursor_build):
     Si-Chip iteration_delta scalar with per-cell verbatim source
     citations). Pairs with `scripts/auto_collect_si3_metrics.py`
     (D-O-2) and `scripts/generate_evaluator_rosetta.py` (D-O-1
-    companion CSV emitter)."""
+    companion CSV emitter).
+
+    v10.8.0 D-C-1 grew this set 16 → 17 by appending
+    ``degraded-mode.md`` (the per-plugin upstream-unreachable fallback
+    contract for NineS / Si-Chip / RTK / ui-pro — opens with the
+    "Degraded ≠ Full" warning per D-C-1 §9 R1 mitigation). Pairs with
+    `tests/test_degraded_mode.py` regression suite."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -155,7 +161,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 16, f"expected 16 reference files, got {len(actual)}"
+    assert len(actual) == 17, f"expected 17 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

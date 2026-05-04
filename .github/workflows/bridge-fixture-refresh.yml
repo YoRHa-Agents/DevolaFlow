@@ -1,0 +1,71 @@
+# Weekly refresh of bridge shape-contract fixtures.
+#
+# v10.8.0 D-C-2 closure — re-captures NineS / Si-Chip / RTK / ui-pro
+# stdout/YAML/JSON output from LIVE plugin binaries into
+# `tests/integration/fixtures/<plugin>/`. Opens a draft PR if the
+# fixture diff shows upstream schema drift.
+#
+# Per-PR CI uses the CHECKED-IN fixtures only — this workflow does
+# NOT affect per-PR pytest wall clock.
+#
+# Source: `.local/research/v11.0.0_patches/D-C-2.md` §2 step 6.
+name: bridge-fixture-refresh
+
+on:
+  schedule:
+    # Every Sunday 00:00 UTC — mirror the RTK + Si-Chip + NineS release
+    # cadence signal so upstream schema drift surfaces within 7 days.
+    - cron: "0 0 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bridge-fixture-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DevolaFlow
+        run: |
+          pip install -e .
+      - name: Install NineS + Si-Chip + RTK + ui-pro (best-effort)
+        run: |
+          # Canonical install URLs per runtime-plugins.yaml. Each install
+          # may fail independently — the refresh script gracefully skips
+          # missing plugins per D-C-2 §9 R2.
+          curl -fsSL https://yorha-agents.github.io/NineS/install.sh | bash -s -- --yes || echo "NineS install failed (skip)"
+          curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes || echo "Si-Chip install failed (skip)"
+          curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | bash -s -- --yes || echo "RTK install failed (skip)"
+          npm install -g uipro-cli || echo "ui-pro install failed (skip)"
+      - name: Refresh bridge fixtures
+        run: |
+          make refresh-bridge-fixtures
+      - name: Run integration tests against refreshed fixtures
+        run: |
+          python -m pytest tests/integration/ -v
+      - name: Create draft PR if fixtures drifted
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(bridge-fixtures): weekly refresh"
+          title: "chore(bridge-fixtures): weekly refresh (auto)"
+          body: |
+            Weekly bridge fixture refresh per v10.8.0 D-C-2 §2 step 6.
+
+            If this PR has a non-trivial diff, upstream schema drift is
+            likely. Review the fixture changes + confirm the production
+            bridge code still parses correctly.
+
+            Source: `.local/research/v11.0.0_patches/D-C-2.md` §2 step 6.
+          branch: chore/bridge-fixture-refresh-${{ github.run_id }}
+          delete-branch: true
+          draft: true

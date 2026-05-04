@@ -56,6 +56,10 @@ from pathlib import Path
 # v10.7.0 D-O-1 grew this set 19 -> 20 (with the 4th example landed at
 # v10.5.0 PV-01) by appending references/evaluator-rosetta.md (the 16th
 # SF-4 canonical reference: 6 × 9 SI-3 × NineS × Si-Chip cross-walk).
+# v10.8.0 D-C-1 grew this set 20 -> 21 by appending references/degraded-mode.md
+# (the 17th SF-4 canonical reference: per-plugin unreachable-scenario contract
+# for NineS / Si-Chip / RTK / ui-pro with a "Degraded ≠ Full" leading warning
+# per D-C-1 §9 R1 mitigation). Pairs with `tests/test_degraded_mode.py`.
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
@@ -89,6 +93,12 @@ MIRRORED_FILES = [
     # `scripts/auto_collect_si3_metrics.py` (D-O-2) and
     # `scripts/generate_evaluator_rosetta.py` (D-O-1 companion).
     "references/evaluator-rosetta.md",
+    # v10.8.0 D-C-1 — 17th SF-4 canonical reference (upstream-unreachable
+    # degraded-mode contract). Per-plugin fallback doc for NineS / Si-Chip /
+    # RTK / ui-pro with "Degraded ≠ Full" leading warning (D-C-1 §9 R1
+    # mitigation). Pairs with `tests/test_degraded_mode.py` regression
+    # suite and closes the v10.3.0 retrospective §3 NineS A1 pain.
+    "references/degraded-mode.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

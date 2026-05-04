@@ -244,6 +244,17 @@ index-research:
 	@python scripts/index_mid_cycle_research.py \
 		--output .local/research/v10.7.4_research_index.md
 
+# v10.8.0 D-C-2 — re-capture bridge shape-contract fixtures from live
+# plugin binaries (NineS / Si-Chip / RTK / ui-pro). Gracefully skips
+# plugins that are missing (logs WARNING, returns exit 0 per D-C-2 §9
+# R2). Per-PR pytest uses CHECKED-IN fixtures from
+# `tests/integration/fixtures/` — this target is operator-pull for
+# weekly refresh; the real automation lives in
+# `.github/workflows/bridge-fixture-refresh.yml` (cron weekly).
+.PHONY: refresh-bridge-fixtures
+refresh-bridge-fixtures:
+	@python scripts/refresh_bridge_fixtures.py
+
 # v10.6.0 PV-03 (D-Q-4) — compressor/ post-split health snapshot.
 # Closes the v9.3.0 PV-04 → v10.6.0 NineS coverage gap on the largest
 # Python file in the tree (`transforms.py` at 2,198 LOC). Pure-audit

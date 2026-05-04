@@ -5,6 +5,127 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.0] - 2026-05-04
+
+**MINOR — v10.8.0 External Tool Coupling Hardening.** Fifth MINOR cycle in the v11.0.0 admission rollout; collapses 3 PDSs (D-C-1 degraded-mode contract, D-C-2 bridge shape contract tests, D-C-3 pre_plugin_invocation responsibility split) into a coherent Wave-5 External Tool Coupling cycle per `.local/research/v11.0.0_patches/`. **Pure additive cycle: zero functional regression, zero new env flags (W-20 reuse-first; `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` TELEGRAPHED for v12.0.0+), zero canonical_order mutations (G-6 frozen-prefix gate preserved).** The cycle ships the 17th SF-4 canonical reference (`references/degraded-mode.md` with "Degraded ≠ Full" leading warning per D-C-1 §9 R1), a NEW `tests/integration/` package (conftest + 4 shape contract test files + 8 captured fixtures with R1 version headers + weekly CI cron workflow), and the `pre_plugin_invocation` split into 2 focused handlers at `DEFAULT_EVENTS` positions 11 + 12 (A-2.2 append-only; position 9 alias preserved byte-identically for 1 cycle). Soul-set frozen at 10 (W-21); A-2 cache-prefix layout byte-stable; `DEFAULT_EVENTS` 10 → 12 per A-2.2 append-only.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero regression. Three new opt-in surfaces.** Every new feature is operator-pull, not push:
+
+- **D-C-1 (degraded-mode contract)** — NEW `workflow-system/agent/references/degraded-mode.md` (17th SF-4 canonical reference, ~347 lines, comfortably within Large tier 1000-line ceiling per SF-1). Documents the per-plugin upstream-unreachable fallback contract for NineS / Si-Chip / RTK / ui-pro; opens with a mandatory "Degraded ≠ Full" warning section per D-C-1 §9 R1 mitigation (so operators reading top-down hit the caveat immediately). Pairs with NEW `tests/test_degraded_mode.py` (8 regression tests pinning the 4-plugin fallback contract). Closes the v10.3.0 retrospective §3 NineS A1 ticket pain point.
+- **D-C-2 (bridge shape contract tests)** — NEW `tests/integration/` package (previously did not exist at v10.3.0). Ships `conftest.py` (~140 LOC; R1 version-header loader for YAML / JSON / text fixtures), 4 contract test files (Si-Chip + NineS + RTK + ui-pro), 8 captured fixtures under `tests/integration/fixtures/<plugin>/` (each carrying `captured_from_plugin_version: <version>` header per D-C-2 §9 R1), NEW `scripts/refresh_bridge_fixtures.py` (~260 LOC; gracefully skips plugins with missing binaries per §9 R2), and NEW `.github/workflows/bridge-fixture-refresh.yml` weekly cron (Sun 00:00 UTC; creates draft PR on drift). Per-PR pytest uses CHECKED-IN fixtures; the weekly cron is the only live-capture surface. Wired into `Makefile::refresh-bridge-fixtures`.
+- **D-C-3 (pre_plugin_invocation split)** — `pre_plugin_invocation` lifecycle hook (previously at `DEFAULT_EVENTS` position 9 with stacked install + upgrade responsibilities) SPLIT into 2 focused handlers: `pre_plugin_invocation_install` (position 11; PPI001 surface only) + `pre_plugin_invocation_upgrade` (position 12; PPI003 surface only). Position 9 alias preserved BYTE-IDENTICALLY for 1 cycle (v11.x); alias removal TELEGRAPHED for v12.0.0+ per W-21-class governance cadence. `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` REUSED by all 3 handlers during the 1-cycle alias window per W-20 reuse-first; `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` TELEGRAPHED for v12.0.0+ SI-1 re-evaluation.
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+- **D-C-1 degraded-mode reference + tests** — pinned by `tests/test_no_ghost_features.py::test_v10_8_0_new_symbols_have_coverage`:
+  - `workflow-system/agent/references/degraded-mode.md` (17th SF-4 canonical, ~347 lines; opens with "Degraded ≠ Full" warning per R1)
+  - `tests/test_degraded_mode.py` (8 tests: R1 warning + 4 per-plugin scenarios + RTK pre_shell_call metadata + coverage audit + reference-doc presence)
+  - `scripts/sync_cursor_skill.py::MIRRORED_FILES` — 17th reference appended (16 → 17)
+  - `tests/test_version.py::_MIRRORED_SKILL_FILES` — 17th reference appended (16 → 17)
+  - `tests/test_reference_size_budgets.py::test_canonical_lists_match_sf3_contract` — 16 → 17
+  - `tests/test_adapter_golden.py::test_cursor_references_golden` — 16 → 17
+  - `data/golden_test_set/sf4_reference_set_size.toml` — 16 → 17
+  - `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` — `degraded-mode.md` added
+  - `workflow-system/agent/SKILL.md` Reference Navigation Guide — new row
+- **D-C-2 bridge shape contract tests + fixture refresh** — pinned:
+  - `tests/integration/__init__.py` (package doc)
+  - `tests/integration/conftest.py` (~140 LOC; R1 loader helpers)
+  - `tests/integration/test_si_chip_shape_contract.py` (6 tests)
+  - `tests/integration/test_nines_shape_contract.py` (3 tests)
+  - `tests/integration/test_rtk_shape_contract.py` (2 tests)
+  - `tests/integration/test_ui_pro_shape_contract.py` (1 test)
+  - `tests/integration/fixtures/si-chip/` (3 YAML fixtures with R1 headers)
+  - `tests/integration/fixtures/nines/` (2 JSON fixtures with R1 headers)
+  - `tests/integration/fixtures/rtk/` (2 text fixtures with R1 headers)
+  - `tests/integration/fixtures/ui-pro/` (1 log fixture with R1 header)
+  - `scripts/refresh_bridge_fixtures.py` (~260 LOC; Public API: `refresh_nines`, `refresh_si_chip`, `refresh_rtk`, `refresh_ui_pro`, `REFRESH_HANDLERS`, `main`)
+  - `.github/workflows/bridge-fixture-refresh.yml` (weekly cron Sun 00:00 UTC)
+  - `Makefile` — NEW target `refresh-bridge-fixtures`
+- **D-C-3 pre_plugin_invocation split** — pinned:
+  - `src/devolaflow/lifecycle/pre_plugin_invocation_install.py` (~160 LOC; NEW `pre_plugin_invocation_install`, `is_auto_install_active`, `PRE_PLUGIN_INVOCATION_INSTALL_EVENT`)
+  - `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py` (~190 LOC; NEW `pre_plugin_invocation_upgrade`, `is_auto_upgrade_active`, `PRE_PLUGIN_INVOCATION_UPGRADE_EVENT`)
+  - `src/devolaflow/lifecycle/__init__.py` — `DEFAULT_EVENTS` bumped 10 → 12 (A-2.2 append-only; positions 1-10 byte-stable); 2 new EVENT constants + 2 new `_set_default_hook` calls; public exports extended
+  - `src/devolaflow/lifecycle/pre_plugin_invocation.py` — alias handler docstring updated to document the v10.8.0 split + 1-cycle deprecation telegraph; body unchanged (byte-identical observable behaviour preserved)
+  - `tests/test_pre_plugin_invocation_split.py` (7 tests: install-only / upgrade-only / alias byte-identical / alias disabled is no-op / disjoint violations / env-flags doc telegraph / DEFAULT_EVENTS length 12)
+  - `workflow-system/agent/references/env-flags.md` §2.13 row — documents the split + alias deprecation telegraph + 1-cycle REUSE of `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`
+  - `tests/test_post_skill_edit_hook.py` — `len(DEFAULT_EVENTS) == 10` → `>= 10` (position 10 byte-stable)
+  - `tests/test_lifecycle_hooks.py` — `len(DEFAULT_EVENTS) == 10` → `>= 10` (positions 1-10 byte-stable)
+- **Cycle close** — pinned:
+  - `.local/research/v10.8.0_retrospective.md` (W-7 / SI-8 contract; 4 mandatory sections + §5 verification + §6 cross-references)
+  - `tests/test_no_ghost_features.py::test_v10_8_0_new_symbols_have_coverage` — W-18 ghost-audit stanza
+
+### Headline numbers (cycle-cumulative; v10.7.0 → v10.8.0)
+
+| Area | v10.7.0 | v10.8.0 | Delta |
+|------|---:|---:|---:|
+| Tests (collected — NEW test functions per W-17) | ~4200 | ~4245 | +28 NEW (within W-17 ≤30 PR cap per dispatch task) |
+| SF-4 canonical references | 16 | 17 | +1 (degraded-mode.md) |
+| Mirrored skill files (SKILL + refs + examples) | 20 | 21 | +1 |
+| Lifecycle events (`DEFAULT_EVENTS`) | 10 | 12 | +2 (positions 11 + 12 per A-2.2 append-only; positions 1-10 byte-stable) |
+| Integration test package | absent | present | NEW `tests/integration/` (conftest + 4 contract files + 8 fixtures) |
+| Captured bridge fixtures | 0 | 8 | +8 (3 Si-Chip + 2 NineS + 2 RTK + 1 ui-pro; each with R1 version header) |
+| Python bridge-fixture tooling scripts | 0 | 1 | +1 (`refresh_bridge_fixtures.py`) |
+| GitHub Actions workflows | 3 | 4 | +1 (`bridge-fixture-refresh.yml` weekly cron) |
+| Makefile phony targets | (existing) | +1 | `refresh-bridge-fixtures` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` TELEGRAPHED only) |
+| Schema canonical_order length | 17 | 17 | 0 (G-6 frozen-prefix gate; A-2.1 PASS) |
+| Plugins with explicit degraded-mode test coverage | 25% (1/4, unit-test granularity) | 100% (4/4, cycle-level regression) | +75pp |
+| Plugins with captured-from-real-output shape fixtures | 0/4 | 4/4 | +4 (D-C-2 v10.2.3 bridge defect class preempted at PR-time) |
+| Operator-facing source files to read for "GitHub down" behaviour | 4 | 1 | -75% (single degraded-mode.md reference replaces 4 source files) |
+
+### Files changed (cycle-cumulative)
+
+NEW:
+- `workflow-system/agent/references/degraded-mode.md` (~347 lines, 17th SF-4 canonical reference)
+- `tests/test_degraded_mode.py` (8 tests)
+- `tests/integration/__init__.py`
+- `tests/integration/conftest.py`
+- `tests/integration/test_si_chip_shape_contract.py`
+- `tests/integration/test_nines_shape_contract.py`
+- `tests/integration/test_rtk_shape_contract.py`
+- `tests/integration/test_ui_pro_shape_contract.py`
+- `tests/integration/fixtures/si-chip/metrics_report.yaml`
+- `tests/integration/fixtures/si-chip/basic_ability_profile.yaml`
+- `tests/integration/fixtures/si-chip/count_tokens.yaml`
+- `tests/integration/fixtures/nines/analyze_output.json`
+- `tests/integration/fixtures/nines/self_eval_output.json`
+- `tests/integration/fixtures/rtk/rewrite_pytest_stdout.txt`
+- `tests/integration/fixtures/rtk/rewrite_git_diff_stdout.txt`
+- `tests/integration/fixtures/ui-pro/init_success.log`
+- `scripts/refresh_bridge_fixtures.py` (~260 LOC)
+- `.github/workflows/bridge-fixture-refresh.yml`
+- `src/devolaflow/lifecycle/pre_plugin_invocation_install.py` (~160 LOC)
+- `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py` (~190 LOC)
+- `tests/test_pre_plugin_invocation_split.py` (7 tests)
+- `.local/research/v10.8.0_retrospective.md` (W-7 / SI-8)
+
+MOD:
+- Canonical 7 sync 10.7.0 → 10.8.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md`, `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `src/devolaflow/lifecycle/__init__.py` (DEFAULT_EVENTS 10 → 12; 2 new EVENT constants + 2 new `_set_default_hook` calls; public exports extended)
+- `src/devolaflow/lifecycle/pre_plugin_invocation.py` (docstring updated for v10.8.0 split + alias deprecation telegraph; body byte-identical)
+- `workflow-system/agent/references/env-flags.md` (§2.13 row documents split + 1-cycle alias deprecation telegraph)
+- `workflow-system/agent/SKILL.md` (D-C-1 Reference Navigation Guide row; canonical 7 version bump)
+- `scripts/sync_cursor_skill.py` (D-C-1 17th MIRRORED_FILES entry)
+- `tests/test_version.py` (D-C-1 17th _MIRRORED_SKILL_FILES entry)
+- `tests/test_reference_size_budgets.py` (D-C-1 16 → 17)
+- `tests/test_adapter_golden.py` (D-C-1 16 → 17)
+- `data/golden_test_set/sf4_reference_set_size.toml` (D-C-1 16 → 17)
+- `tests/test_no_ghost_features.py` (D-C-1 _SF4_REFERENCE_SET addition + W-18 v10.8.0 stanza)
+- `tests/test_post_skill_edit_hook.py` (D-C-3 length assertion 10 → >=10)
+- `tests/test_lifecycle_hooks.py` (D-C-3 length assertion 10 → >=10)
+- `Makefile` (D-C-2 refresh-bridge-fixtures target)
+
+### Deferred to v11.0.0+ (per W-7 retrospective §3)
+
+- **`DEVOLAFLOW_AUTO_UPGRADE_PLUGINS`** (orthogonal upgrade env flag) — TELEGRAPHED in `env-flags.md` §2.13 and D-C-3 §2 step 4; deferred to v12.0.0+ SI-1 re-evaluation once the split has 1+ cycle of operator-feedback.
+- **Alias removal at `DEFAULT_EVENTS` position 9** (`pre_plugin_invocation`) — TELEGRAPHED for v12.0.0+; operators should migrate handler registrations to `pre_plugin_invocation_install` / `pre_plugin_invocation_upgrade` during the v11.x cycle.
+- **D-C-2 5th plugin contract test** — deferred until a real new plugin is added to `runtime-plugins.yaml`.
+- **Fixture drift detection lint** — sharper "fixture `captured_from_plugin_version` lags `runtime-plugins.yaml` min_version by >2 minor" lint deferred to v11.0.0+ once the weekly cron has ≥4 data points.
+- **DeprecationWarning emission in the alias handler when extras are registered on `PRE_PLUGIN_INVOCATION_EVENT`** (D-C-3 §9 R1 mitigation item) — deferred to v11.0.0 SI-1 re-evaluation; v10.8.0 keeps the PR scope pure-additive with zero operator-facing log noise.
+
 ## [10.7.0] - 2026-05-04
 
 **MINOR — v10.7.0 Protocol Audit + Observability.** Fourth MINOR cycle in the v11.0.0 admission rollout; collapses 5 PDSs (D-P-1, D-P-3, D-O-1, D-O-2, D-O-3) into a coherent observability-and-extensibility cycle per `.local/research/v11.0.0_patches/`. **Pure additive cycle: zero functional regression, zero new env flags (W-20 reuse-first), zero canonical_order mutations (G-6 frozen-prefix gate preserved).** The cycle ships 4 NEW operator-facing audit / observability scripts (D-P-1 canonical-order non-empty rate audit, D-O-1 evaluator rosetta CSV emitter, D-O-2 SI-3 6-dim auto-collector, D-O-3 mid-cycle research index), the 16th SF-4 canonical reference (`references/evaluator-rosetta.md`), and the first STATUS.yaml NEST extensibility demo (D-P-3 — adds `last_handoff_summary` as ONE dict-shaped optional field rather than 4 sibling top-level scalars). Soul-set frozen at 10 (W-21); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).

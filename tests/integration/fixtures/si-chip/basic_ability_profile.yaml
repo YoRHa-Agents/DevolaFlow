@@ -1,0 +1,24 @@
+---
+# captured_from_plugin_version: 0.4.0
+# Captured from: si-chip profile_static.py v0.4.0
+# Si-Chip BasicAbilityProfile YAML shape; DevolaFlow consumes the 5 fields:
+#   ability_id, metadata_tokens, body_tokens, references_count, examples_count.
+# Shape pinned by v10.8.0 D-C-2; do NOT edit by hand.
+# Canonical Si-Chip URL: https://github.com/YoRHa-Agents/Si-Chip
+captured_from_plugin_version: "0.4.0"
+ability_id: "devola-flow"
+metadata_tokens: 87
+body_tokens: 3200
+references_count: 17
+examples_count: 4
+router_floor: "composer_2/fast"
+min_model_capability_tier: "standard"
+neighbour_skills:
+  - name: "si-chip"
+    similarity: 0.14
+  - name: "nines"
+    similarity: 0.08
+installation_metadata:
+  install_root: "workflow-system/agent"
+  install_source: "github"
+  install_timestamp: "2026-05-04T00:00:00Z"

@@ -1,0 +1,10 @@
+---
+# captured_from_plugin_version: 0.4.0
+# Captured from: si-chip count_tokens.py v0.4.0 output
+# Shape: {metadata_tokens: int, body_tokens: int, skill_path: str}
+# Canonical Si-Chip URL: https://github.com/YoRHa-Agents/Si-Chip
+captured_from_plugin_version: "0.4.0"
+metadata_tokens: 87
+body_tokens: 3200
+skill_path: "workflow-system/agent/SKILL.md"
+tokenizer: "tiktoken/cl100k_base"

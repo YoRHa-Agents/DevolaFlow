@@ -97,6 +97,18 @@ from devolaflow.lifecycle.pre_plugin_invocation import (
 from devolaflow.lifecycle.pre_plugin_invocation import (
     pre_plugin_invocation,
 )
+from devolaflow.lifecycle.pre_plugin_invocation_install import (
+    EVENT as _PRE_PLUGIN_INVOCATION_INSTALL_EVENT,
+)
+from devolaflow.lifecycle.pre_plugin_invocation_install import (
+    pre_plugin_invocation_install,
+)
+from devolaflow.lifecycle.pre_plugin_invocation_upgrade import (
+    EVENT as _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT,
+)
+from devolaflow.lifecycle.pre_plugin_invocation_upgrade import (
+    pre_plugin_invocation_upgrade,
+)
 from devolaflow.lifecycle.pre_shell_call import (
     EVENT as _PRE_SHELL_CALL_EVENT,
 )
@@ -134,6 +146,8 @@ _set_default_hook(_ENVELOPE_WRITE_EVENT, check_envelope_append_only)
 _set_default_hook(_PRE_HANDOFF_EVENT, auto_write_handoff)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_EVENT, pre_plugin_invocation)
 _set_default_hook(_POST_SKILL_EDIT_EVENT, post_skill_edit)
+_set_default_hook(_PRE_PLUGIN_INVOCATION_INSTALL_EVENT, pre_plugin_invocation_install)
+_set_default_hook(_PRE_PLUGIN_INVOCATION_UPGRADE_EVENT, pre_plugin_invocation_upgrade)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -148,6 +162,8 @@ ENVELOPE_WRITE_EVENT: str = _ENVELOPE_WRITE_EVENT
 PRE_HANDOFF_EVENT: str = _PRE_HANDOFF_EVENT
 PRE_PLUGIN_INVOCATION_EVENT: str = _PRE_PLUGIN_INVOCATION_EVENT
 POST_SKILL_EDIT_EVENT: str = _POST_SKILL_EDIT_EVENT
+PRE_PLUGIN_INVOCATION_INSTALL_EVENT: str = _PRE_PLUGIN_INVOCATION_INSTALL_EVENT
+PRE_PLUGIN_INVOCATION_UPGRADE_EVENT: str = _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
 
 # v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
 # symmetric tail event to `pre_dispatch`). The new slot is wired to a
@@ -204,6 +220,28 @@ POST_SKILL_EDIT_EVENT: str = _POST_SKILL_EDIT_EVENT
 # `DEVOLAFLOW_AGENT_WORKSPACE` workspace-lifecycle AND from
 # `DEVOLAFLOW_AUTO_INSTALL` install primitive); see
 # `references/env-flags.md` §2.14 for the full argument.
+#
+# v10.8.0 D-C-3: bumped 10 → 12 with the split of `pre_plugin_invocation`
+# (position 9) into two focused handlers per
+# `.local/research/v11.0.0_patches/D-C-3.md`:
+#
+#   * `pre_plugin_invocation_install` (position 11) — INSTALL
+#     responsibility only (PPI001 surface).
+#   * `pre_plugin_invocation_upgrade` (position 12) — UPGRADE
+#     responsibility only (PPI003 surface).
+#
+# Both new slots REUSE `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` per
+# Workflow Rule W-20 during the 1-cycle alias window;
+# `DEVOLAFLOW_AUTO_UPGRADE_PLUGINS` is TELEGRAPHED for v12.0.0+ SI-1
+# re-evaluation per D-C-3 §2 step 4. The existing event at position 9
+# (`pre_plugin_invocation`) is preserved BYTE-IDENTICALLY as a
+# 1-cycle backward-compat alias; its handler body delegates to the
+# install + upgrade handlers in sequence so operators registering
+# extras on the alias event see identical behaviour.
+#
+# Per A-2.2 append-only, positions 1-10 are byte-stable — positions
+# 11 + 12 appended at the tail preserving the cache-prefix invariant.
+# See `references/env-flags.md` §2.13 row for the full split doc.
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -215,6 +253,8 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_HANDOFF_EVENT,
     PRE_PLUGIN_INVOCATION_EVENT,
     POST_SKILL_EDIT_EVENT,
+    PRE_PLUGIN_INVOCATION_INSTALL_EVENT,
+    PRE_PLUGIN_INVOCATION_UPGRADE_EVENT,
 )
 
 __all__ = [
@@ -232,6 +272,8 @@ __all__ = [
     "PRE_DISPATCH_EVENT",
     "PRE_HANDOFF_EVENT",
     "PRE_PLUGIN_INVOCATION_EVENT",
+    "PRE_PLUGIN_INVOCATION_INSTALL_EVENT",
+    "PRE_PLUGIN_INVOCATION_UPGRADE_EVENT",
     "PRE_SHELL_CALL_EVENT",
     "Severity",
     "TASK_STOP_EVENT",
@@ -248,6 +290,8 @@ __all__ = [
     "post_dispatch",
     "post_skill_edit",
     "pre_plugin_invocation",
+    "pre_plugin_invocation_install",
+    "pre_plugin_invocation_upgrade",
     "pre_shell_call",
     "register_hook",
     "registered_events",

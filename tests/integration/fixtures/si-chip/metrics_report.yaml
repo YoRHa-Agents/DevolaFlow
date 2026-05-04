@@ -1,0 +1,48 @@
+---
+# captured_from_plugin_version: 0.1.6
+# Captured from: si-chip aggregate_eval.py v0.1.6 MVP-8 nested layout
+# Source: .local/dogfood/10.2.3/skill-optimization_after_metrics.yaml
+# Shape pinned by v10.8.0 D-C-2 — changes to this file must be driven by
+#   `make refresh-bridge-fixtures` OR a matching Si-Chip upstream change.
+# Canonical Si-Chip URL: https://github.com/YoRHa-Agents/Si-Chip
+captured_from_plugin_version: "0.1.6"
+metrics:
+  task_quality:
+    T1_pass_rate: 0.9
+    T2_pass_k: 0.9
+    T3_baseline_delta: 0.9
+    T4_error_recovery_rate: null
+  context_economy:
+    C1_metadata_tokens: 310
+    C2_body_tokens: 4823
+    C3_resolved_tokens: null
+    C4_per_invocation_footprint: 5000.0
+    C5_context_rot_risk: 0.041
+    C6_scope_overlap_score: null
+  latency_path:
+    L1_wall_clock_p50: null
+    L2_wall_clock_p95: 1.0
+    L3_step_count: null
+  generalizability:
+    G1_cross_model_pass_matrix: null
+  usage_cost:
+    U1_description_readability: null
+  routing_cost:
+    R1_trigger_precision: null
+    R2_trigger_recall: null
+    R3_trigger_F1: 0.9
+    R4_near_miss_FP_rate: null
+    R5_router_floor: composer_2/fast
+    R8_description_competition_index: 0.0
+  governance_risk:
+    V1_permission_scope: null
+summary:
+  with_ability_runs: 20
+  no_ability_runs: 20
+  pass_rate_with: 0.9
+  pass_rate_without: 0.0
+  baseline_delta: 0.9
+provenance:
+  script_version: 0.1.6
+  devolaflow_version: 10.2.3
+  metadata_tokens_source: skill_md

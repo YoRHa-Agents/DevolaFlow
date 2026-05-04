@@ -531,27 +531,35 @@ def pre_plugin_invocation(
     *,
     strict: bool = False,
 ) -> HookResult:
-    """Auto-install plugins cited in ``payload`` before the L3 dispatch fires.
+    """Auto-install + upgrade plugins cited in ``payload`` (v10.8.0 alias).
+
+    v10.8.0 D-C-3 split the install + upgrade responsibilities into two
+    dedicated handlers at ``DEFAULT_EVENTS`` positions 11 + 12
+    (``pre_plugin_invocation_install`` / ``pre_plugin_invocation_upgrade``).
+    This handler REMAINS at position 9 as a 1-cycle backward-compat
+    alias whose body delegates to the two split handlers in sequence,
+    preserving byte-identical observable behaviour for operators who
+    registered extra handlers on ``PRE_PLUGIN_INVOCATION_EVENT``.
+
+    Per D-C-3 §2 G-7 backward-compat contract:
+    ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` activates install + upgrade
+    IDENTICALLY to v10.7.x. The alias deprecation is TELEGRAPHED for
+    v12.0.0+ per the W-21-class 2-cycle migration cadence; operators
+    should migrate handler registrations to the new event names before
+    v12.0.0 cuts over.
 
     See module docstring for the full contract. Returns a
     :class:`HookResult` in both modes. Strict mode re-raises the
-    top-severity :class:`HookViolation` aggregated across all install
-    attempts; permissive mode aggregates them on the result envelope and
-    emits WARNING logs via :func:`finalize` without raising.
+    top-severity :class:`HookViolation` aggregated across install +
+    upgrade attempts; permissive mode aggregates them on the result
+    envelope and emits WARNING logs via :func:`finalize` without
+    raising.
 
-    The payload schema is intentionally minimal — the dispatcher
-    (`feedback.py::_emit_dispatch` in PV-03) is responsible for
-    populating ``plugin_ids`` from the workflow → plugin mapping
-    (`runtime-plugins.yaml#plugins[*].invoked_by_workflows`). Tests can
-    invoke the hook directly with either ``{"plugin_id": "<id>"}`` or
-    ``{"plugin_ids": ["<id1>", "<id2>"]}``.
-
-    Implementation note: per the v10.2.3 PV-04 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #2), the per-plugin
-    install + upgrade body lives in
-    :func:`_run_install_then_upgrade_for_plugin` and the registry-read
-    body in :func:`_resolve_upgrade_threshold_hours`. Behaviour is
-    byte-identical to v10.2.1 baseline.
+    Implementation note: per the v10.2.3 PV-04 CC-reduction + v10.8.0
+    D-C-3 split, the per-plugin install body lives in
+    :func:`_run_install_then_upgrade_for_plugin` (retained for
+    backward-compat callers); the new split handlers use their own
+    focused helpers. Behaviour is byte-identical to v10.2.1+ baseline.
     """
     if not is_auto_install_active():
         return finalize(EVENT, [], strict=strict)
