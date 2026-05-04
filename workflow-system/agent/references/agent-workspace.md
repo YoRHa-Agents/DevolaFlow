@@ -456,9 +456,24 @@ last_updated: <ISO-8601>
 last_handoff_seq: <int>
 gate_score: <float|null>
 verify_pass: <bool|null>
+last_handoff_summary:           # v10.7.0 D-P-3 — OPTIONAL NEST demo
+  from_layer: L0|L1|L2|L3|operator|human
+  to_layer:   L0|L1|L2|L3|operator|human
+  ts:         <ISO-8601>
+  seq:        <int>              # MUST equal last_handoff_seq at write time
 ```
 
 Schema: `schemas/agent-workspace/change-status.yaml`
+
+**`last_handoff_summary` (v10.7.0 D-P-3 — OPTIONAL).** Demonstrates the
+A-2.3 NEST-vs-APPEND decision rule on the agent-workspace surface. The
+four diagnostic sub-attributes (`from_layer` / `to_layer` / `ts` / `seq`)
+are NESTED inside ONE dict-shaped optional key rather than spawned as
+four sibling top-level scalars. Absent in v8.3.0..v10.6.x STATUS.yaml
+files (those continue to validate cleanly at schema_version 1). When
+present, `last_handoff_summary.seq` MUST equal `last_handoff_seq` at
+write time (both refresh atomically). The Python accessor is
+`Change.last_handoff_summary` (returns `dict | None`).
 
 ### `owned_files.txt`
 

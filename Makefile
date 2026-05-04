@@ -208,6 +208,42 @@ measure-friction:
 audit-w18:
 	@python scripts/audit_w18_lint_maintenance.py
 
+# v10.7.0 (D-P-1, D-O-1, D-O-2, D-O-3) — Protocol audit + observability.
+# Each target is observability-only — emits a markdown / CSV / YAML
+# report; no source modifications. Run them with explicit
+# `--output .local/research/v10.7.X_*.md` to refresh the audit
+# artifacts that the v10.7.0 W-18 lint pins.
+.PHONY: audit-canonical-emptiness gen-evaluator-rosetta auto-collect-si3 index-research
+
+# D-P-1 — canonical_order field non-empty rate audit. Audit-only;
+# preserves G-6 frozen-prefix gate (positions 1-12 reported but
+# never selectable for mutation per A-2.1).
+audit-canonical-emptiness:
+	@python scripts/audit_canonical_order_emptiness.py \
+		--output .local/research/v10.7.1_canonical_order_emptiness.md
+
+# D-O-1 companion — emit the 6 × 9 evaluator rosetta as machine-
+# consumable CSV / markdown sanity-check. Pairs with the canonical
+# `workflow-system/agent/references/evaluator-rosetta.md` reference.
+gen-evaluator-rosetta:
+	@python scripts/generate_evaluator_rosetta.py --markdown \
+		--output .local/research/v10.7.2_evaluator_rosetta.md
+
+# D-O-2 — SI-3 6-dim objective metric auto-collection. OPT-IN: not
+# wired into release-preflight per the cycle-budget design (SI-10
+# stays at 7 gates). Cycle-lead invokes manually at PV close.
+# `--mock-data` short-circuits real probe invocation for CI smoke.
+auto-collect-si3:
+	@python scripts/auto_collect_si3_metrics.py --mock-data \
+		--output .local/research/v10.7.3_si3_auto_collection.md
+
+# D-O-3 — mid-cycle research artifact index. Workspace-local +
+# ephemeral; complementary to the W-19 cycle-end committed archive
+# at `docs/cycle-archive/v<X.Y.0>/`.
+index-research:
+	@python scripts/index_mid_cycle_research.py \
+		--output .local/research/v10.7.4_research_index.md
+
 # v10.6.0 PV-03 (D-Q-4) — compressor/ post-split health snapshot.
 # Closes the v9.3.0 PV-04 → v10.6.0 NineS coverage gap on the largest
 # Python file in the tree (`transforms.py` at 2,198 LOC). Pure-audit

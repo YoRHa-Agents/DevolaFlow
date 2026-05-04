@@ -1,18 +1,18 @@
 [task]
 id = "devolaflow-sf4-019"
-name = "sf4-reference-set-cardinality-v10.4.0"
-description = "v10.4.0 PV-05 — SF-4 canonical reference set grows from 14 → 15 with the addition of references/troubleshooting.md as the 15th canonical (D-X-5 closure: operator troubleshooting handbook with quick lookup index + per-symptom diagnostic patterns harvested from cycle retrospectives v8.0.0 → v10.3.0; pairs with v10.4.0 audit scripts D-D-1 and D-D-2)"
+name = "sf4-reference-set-cardinality-v10.7.0"
+description = "v10.7.0 D-O-1 — SF-4 canonical reference set grows from 15 → 16 with the addition of references/evaluator-rosetta.md as the 16th canonical (D-O-1 closure: 6 × 9 cross-walk between SI-3 dimensions + NineS hygiene axes / capability sub-bundles + Si-Chip iteration_delta scalar with per-cell verbatim source citations; pairs with v10.7.0 auto_collect_si3_metrics.py D-O-2 and generate_evaluator_rosetta.py D-O-1 companion)"
 dimension = "code_quality"
 difficulty = 1
 
 [task.input]
 type = "code"
 language = "python"
-source = "len(_SF4_REFERENCE_SET) == 15"
+source = "len(_SF4_REFERENCE_SET) == 16"
 
 [task.expected]
 type = "text"
-value = "len(_SF4_REFERENCE_SET) == 15"
+value = "len(_SF4_REFERENCE_SET) == 16"
 
 [task.golden]
 expected_score = 1.0

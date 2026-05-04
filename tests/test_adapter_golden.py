@@ -136,7 +136,15 @@ def test_cursor_references_golden(cursor_build):
     with quick lookup index + per-symptom diagnostic patterns +
     escalation patterns harvested from v8.0.0 → v10.3.0 cycle
     retrospectives). Pairs with v10.4.0 audit scripts (D-D-1, D-D-2)
-    and scaffold CLIs (D-X-1, D-X-2)."""
+    and scaffold CLIs (D-X-1, D-X-2).
+
+    v10.7.0 D-O-1 grew this set 15 → 16 by appending
+    ``evaluator-rosetta.md`` (the 6 × 9 cross-walk between SI-3
+    dimensions + NineS hygiene axes / capability sub-bundles +
+    Si-Chip iteration_delta scalar with per-cell verbatim source
+    citations). Pairs with `scripts/auto_collect_si3_metrics.py`
+    (D-O-2) and `scripts/generate_evaluator_rosetta.py` (D-O-1
+    companion CSV emitter)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -147,7 +155,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 15, f"expected 15 reference files, got {len(actual)}"
+    assert len(actual) == 16, f"expected 16 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

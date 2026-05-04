@@ -193,6 +193,12 @@ _MIRRORED_SKILL_FILES = [
     # v10.4.0 PV-05 — 15th SF-4 canonical reference (operator troubleshooting
     # handbook). Quick lookup index + per-symptom diagnostic patterns; D-X-5.
     "references/troubleshooting.md",
+    # v10.7.0 D-O-1 — 16th SF-4 canonical reference (three-evaluator
+    # rosetta). 6 × 9 cross-walk between SI-3 dimensions + NineS axes +
+    # Si-Chip iteration_delta with per-cell verbatim source citations.
+    # Pairs with `scripts/auto_collect_si3_metrics.py` (D-O-2) and
+    # `scripts/generate_evaluator_rosetta.py` (D-O-1 companion).
+    "references/evaluator-rosetta.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

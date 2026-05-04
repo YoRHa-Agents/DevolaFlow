@@ -5,6 +5,111 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.7.0] - 2026-05-04
+
+**MINOR — v10.7.0 Protocol Audit + Observability.** Fourth MINOR cycle in the v11.0.0 admission rollout; collapses 5 PDSs (D-P-1, D-P-3, D-O-1, D-O-2, D-O-3) into a coherent observability-and-extensibility cycle per `.local/research/v11.0.0_patches/`. **Pure additive cycle: zero functional regression, zero new env flags (W-20 reuse-first), zero canonical_order mutations (G-6 frozen-prefix gate preserved).** The cycle ships 4 NEW operator-facing audit / observability scripts (D-P-1 canonical-order non-empty rate audit, D-O-1 evaluator rosetta CSV emitter, D-O-2 SI-3 6-dim auto-collector, D-O-3 mid-cycle research index), the 16th SF-4 canonical reference (`references/evaluator-rosetta.md`), and the first STATUS.yaml NEST extensibility demo (D-P-3 — adds `last_handoff_summary` as ONE dict-shaped optional field rather than 4 sibling top-level scalars). Soul-set frozen at 10 (W-21); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero regression. Five new opt-in surfaces.** Every new feature is operator-pull, not push:
+
+- **D-P-1 (PV-01)** — `python scripts/audit_canonical_order_emptiness.py --output <path>` produces a markdown / JSON report enumerating per-position non-empty rates across `.local/.agent/handoff/*.yaml` envelopes + `.local/research/v*_*.md` embedded dispatches. Audit-only — does NOT modify `schemas/lean-dispatch.yaml`, does NOT trigger any NEST conversion. The companion `--include-positions` CLI flag is rejected at argparse time per A-2.1 (positions 1-12 are FROZEN PREFIX). Wired into `Makefile::audit-canonical-emptiness`.
+- **D-P-3 (PV-02)** — `schemas/agent-workspace/change-status.yaml` gains the OPTIONAL `last_handoff_summary` field — a dict-shaped key carrying `{from_layer, to_layer, ts, seq}`. Demonstrates the A-2.3 NEST decision rule on the agent-workspace surface: rather than spawning four sibling top-level scalars (APPEND × 4), the related sub-attributes nest into ONE dict-shaped key. Schema_version stays at 1 (purely additive); v8.3.0..v10.6.x STATUS.yaml files validate cleanly without modification. New Python accessor `Change.last_handoff_summary` (returns `dict | None`).
+- **D-O-1 (PV-03)** — NEW `workflow-system/agent/references/evaluator-rosetta.md` (the 16th SF-4 canonical reference, ~505 lines, well within Large tier 1000-line ceiling per SF-1). The reference documents the canonical 6 × 9 cross-walk between SI-3 dimensions + NineS hygiene axes / capability sub-bundles + Si-Chip iteration_delta scalar with per-cell verbatim source citations. Companion `python scripts/generate_evaluator_rosetta.py [--csv | --markdown | --json]` emits the same table as a machine-consumable artifact for sanity-check parity. Wired into `Makefile::gen-evaluator-rosetta`.
+- **D-O-2 (PV-04)** — NEW `python scripts/auto_collect_si3_metrics.py [--output PATH] [--mock-data]` runs ruff + pytest + multi-baseline tests + git diff probes and emits `objective_metrics.yaml` plus a markdown summary. Auto-fills 19 of 22 SI-3 sub-components (87%) at the sub-component tier; the v11.0.0 cycle plan §6 R-10 starting weighting is `0.6 · objective + 0.4 · subjective`. **OPT-IN**: the collector is NOT wired into `Makefile::release-preflight` (SI-10 stays at 7 gates per the cycle-budget design). Cycle-lead invokes manually at PV close. Wired into `Makefile::auto-collect-si3`.
+- **D-O-3 (PV-05)** — NEW `python scripts/index_mid_cycle_research.py [--cycle vX.Y.0] [--category KIND] [--json]` scans `.local/research/v*_*.md` and emits a chronological index. Workspace-local + ephemeral (complementary to the W-19 cycle-end committed archive at `docs/cycle-archive/v<X.Y.0>/` — the index does NOT touch the W-19 archive, does NOT delete files, and does NOT modify any source artifact). Wired into `Makefile::index-research`.
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+- **D-P-1 audit script + tests + first audit output** — pinned by `tests/test_no_ghost_features.py::test_v10_7_0_new_symbols_have_coverage`:
+  - `scripts/audit_canonical_order_emptiness.py` (~430 LOC; Public API: `audit_canonical_order`, `compute_emptiness_report`, `render_markdown`, `render_json`, `scan_handoff_envelopes`, `scan_research_dispatches`, `load_canonical_order`)
+  - `tests/test_audit_canonical_order_emptiness.py` (5 tests)
+  - `.local/research/v10.7.1_canonical_order_emptiness.md` (first audit output)
+- **D-P-3 STATUS.yaml NEST demo** — pinned:
+  - `schemas/agent-workspace/change-status.yaml` — NEW OPTIONAL `last_handoff_summary` field (schema_version unchanged at 1)
+  - `src/devolaflow/agent_workspace/change.py::Change.last_handoff_summary` — NEW property accessor
+  - `tests/test_agent_workspace.py::TestStatusYamlNestExtensibility` — 3 new tests (absent / present-round-trip / explicit-null)
+  - `workflow-system/agent/references/agent-workspace.md` — STATUS.yaml schema section updated with NEST documentation
+- **D-O-1 evaluator rosetta** — pinned:
+  - `workflow-system/agent/references/evaluator-rosetta.md` (16th SF-4 canonical, ~505 lines)
+  - `scripts/generate_evaluator_rosetta.py` (~290 LOC; CSV / markdown / JSON renderers)
+  - `tests/test_generate_evaluator_rosetta.py` (5 tests)
+  - `.local/research/v10.7.2_evaluator_rosetta.md` (first machine-rendered audit)
+  - `scripts/sync_cursor_skill.py::MIRRORED_FILES` — 16th reference appended (15 → 16)
+  - `tests/test_version.py::_MIRRORED_SKILL_FILES` — 16th reference appended (15 → 16)
+  - `tests/test_reference_size_budgets.py::test_canonical_lists_match_sf3_contract` — 15 → 16
+  - `tests/test_adapter_golden.py::test_cursor_references_golden` — 15 → 16
+  - `data/golden_test_set/sf4_reference_set_size.toml` — 15 → 16
+  - `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` — `evaluator-rosetta.md` added
+  - `workflow-system/agent/SKILL.md` Reference Navigation Guide — new row
+- **D-O-2 SI-3 auto-collector** — pinned:
+  - `scripts/auto_collect_si3_metrics.py` (~510 LOC; Public API: `collect_ruff_lint`, `collect_ruff_format`, `collect_test_count`, `collect_coverage`, `collect_multi_baseline_pass`, `collect_w17_test_delta`, `compute_objective_score`, `render_yaml`, `render_markdown`)
+  - `tests/test_auto_collect_si3_metrics.py` (7 tests; including `--mock-data` short-circuit)
+  - `.local/research/v10.7.3_si3_auto_collection.md` (first run output, mock-data preview)
+- **D-O-3 mid-cycle research index** — pinned:
+  - `scripts/index_mid_cycle_research.py` (~270 LOC; strict `vX.Y.Z_<topic>.md` regex + 7-category classifier)
+  - `tests/test_index_mid_cycle_research.py` (6 tests)
+  - `.local/research/v10.7.4_research_index.md` (first index output)
+- **Makefile** targets `audit-canonical-emptiness`, `gen-evaluator-rosetta`, `auto-collect-si3`, `index-research`
+- `.local/research/v10.7.0_retrospective.md` — pinned (W-7 / SI-8 contract)
+
+### Headline numbers (cycle-cumulative; v10.6.0 → v10.7.0)
+
+| Area | v10.6.0 | v10.7.0 | Delta |
+|------|---:|---:|---:|
+| Tests (collected — NEW test functions per W-17) | 4174 | ~4200 | +26 NEW (within W-17 +30/PV cap; audit + collector + index + NEST + W-18 stanza) |
+| SF-4 canonical references | 15 | 16 | +1 (evaluator-rosetta.md) |
+| Mirrored skill files (SKILL + refs + examples) | 19 | 20 | +1 |
+| Python audit / observability scripts | (existing) | +4 | audit_canonical_order_emptiness, generate_evaluator_rosetta, auto_collect_si3_metrics, index_mid_cycle_research |
+| Makefile phony targets | (existing) | +4 | audit-canonical-emptiness, gen-evaluator-rosetta, auto-collect-si3, index-research |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze) |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; no new flag needed) |
+| Schema canonical_order length | 17 | 17 | 0 (G-6 frozen-prefix gate; A-2.1 PASS) |
+| STATUS.yaml schema fields (top-level) | 10 required | 10 required + 1 optional | +1 optional NEST (D-P-3) |
+| SI-3 sub-component auto-fill rate (mock-data preview) | 0% | 87% | +87pp |
+| Operator surfaces for canonical_order non-emptiness | 0 | 1 | +1 (D-P-1 audit script) |
+| Evaluator cross-walk references | 0 | 1 (16th SF-4) | +1 (D-O-1) |
+
+### Files changed (cycle-cumulative)
+
+NEW:
+- `scripts/audit_canonical_order_emptiness.py` (~430 LOC)
+- `scripts/generate_evaluator_rosetta.py` (~290 LOC)
+- `scripts/auto_collect_si3_metrics.py` (~510 LOC)
+- `scripts/index_mid_cycle_research.py` (~270 LOC)
+- `tests/test_audit_canonical_order_emptiness.py` (5 tests)
+- `tests/test_generate_evaluator_rosetta.py` (5 tests)
+- `tests/test_auto_collect_si3_metrics.py` (7 tests)
+- `tests/test_index_mid_cycle_research.py` (6 tests)
+- `workflow-system/agent/references/evaluator-rosetta.md` (~505 lines)
+- `.local/research/v10.7.0_retrospective.md` (W-7 / SI-8)
+- `.local/research/v10.7.1_canonical_order_emptiness.md` (D-P-1 first audit)
+- `.local/research/v10.7.2_evaluator_rosetta.md` (D-O-1 first machine audit)
+- `.local/research/v10.7.3_si3_auto_collection.md` (D-O-2 first run, mock-data)
+- `.local/research/v10.7.4_research_index.md` (D-O-3 first index)
+
+MOD:
+- Canonical 7 sync 10.6.0 → 10.7.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md`, `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `schemas/agent-workspace/change-status.yaml` (D-P-3 NEW optional field; schema_version unchanged at 1)
+- `src/devolaflow/agent_workspace/change.py` (D-P-3 NEW `last_handoff_summary` accessor)
+- `tests/test_agent_workspace.py` (D-P-3 NEW `TestStatusYamlNestExtensibility` class with 3 tests)
+- `workflow-system/agent/references/agent-workspace.md` (D-P-3 NEST documentation)
+- `workflow-system/agent/SKILL.md` (D-O-1 Reference Navigation Guide row)
+- `scripts/sync_cursor_skill.py` (D-O-1 16th MIRRORED_FILES entry)
+- `tests/test_version.py` (D-O-1 16th _MIRRORED_SKILL_FILES entry)
+- `tests/test_reference_size_budgets.py` (D-O-1 15 → 16)
+- `tests/test_adapter_golden.py` (D-O-1 15 → 16)
+- `data/golden_test_set/sf4_reference_set_size.toml` (D-O-1 15 → 16)
+- `tests/test_no_ghost_features.py` (D-O-1 _SF4_REFERENCE_SET addition + W-18 v10.7.0 stanza)
+- `Makefile` (4 NEW audit targets)
+
+### Deferred to v10.8.0+ (per W-7 retrospective §3)
+
+- D-P-2 — predecessor_dedup_ledger NEST consolidation (waiting on D-P-1 audit accumulating multi-cycle data per A-2.4 multi-baseline byte test).
+- D-P-4 — schema_version 6 → 7 audit (telegraphed; deferred until a real schema change motivates the bump).
+- D-O-4 — SI-10 8th step (Si-Chip iteration_delta promotion to release-preflight) — promotion vs OPT-IN design choice is a v10.8.0 SI-1 gap analysis decision; current OPT-IN design is preserved.
+- D-O-5 — evaluator-rosetta currency lint (`tests/test_evaluator_rosetta_currency.py`) — defers until first upstream NineS/Si-Chip schema change forces a refresh.
+
 ## [10.6.0] - 2026-05-04
 
 **MINOR — v10.6.0 Code Quality (NineS cleanup + god-function refactor).** Third MINOR cycle in the v11.0.0 admission rollout; collapses 3 PDSs (D-Q-1, D-Q-2, D-Q-4) into a single coherent code-quality cycle per `.local/research/v11.0.0_patches/`. **Pure refactor + audit cycle: zero functional drift, zero new env flags, zero schema bumps.** The cycle ships 14 single-purpose helpers extracted from 7 high-CC functions in `src/devolaflow/{lifecycle,plugins}/` (D-Q-1), the `feedback.py::ProposalGenerator` god-function refactor into a NEW `feedback_emit.py::ProposalEmitter` class via composition (D-Q-2), and the first NineS-shape health snapshot of the post-v9.3.0-split `compressor/` package (D-Q-4). Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable.

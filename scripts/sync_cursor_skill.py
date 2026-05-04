@@ -53,6 +53,9 @@ from pathlib import Path
 # v10.4.0 PV-05 grew this set 17 -> 18 by appending references/troubleshooting.md
 # (the 15th SF-4 canonical reference: ~30 distinct operator-trip patterns
 # harvested from cycle retrospectives v8.0.0 -> v10.3.0; D-X-5 closure).
+# v10.7.0 D-O-1 grew this set 19 -> 20 (with the 4th example landed at
+# v10.5.0 PV-01) by appending references/evaluator-rosetta.md (the 16th
+# SF-4 canonical reference: 6 × 9 SI-3 × NineS × Si-Chip cross-walk).
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
@@ -79,6 +82,13 @@ MIRRORED_FILES = [
     # handbook). Quick lookup index + per-symptom diagnostic patterns +
     # escalation patterns harvested from v8.0.0 -> v10.3.0 retros.
     "references/troubleshooting.md",
+    # v10.7.0 D-O-1 — 16th SF-4 canonical reference (three-evaluator
+    # rosetta). 6 × 9 cross-walk between SI-3 dimensions + NineS hygiene
+    # axes / capability sub-bundles + Si-Chip iteration_delta scalar with
+    # per-cell verbatim source citations. Pairs with
+    # `scripts/auto_collect_si3_metrics.py` (D-O-2) and
+    # `scripts/generate_evaluator_rosetta.py` (D-O-1 companion).
+    "references/evaluator-rosetta.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
