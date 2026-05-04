@@ -74,17 +74,22 @@ class TestEventRegistration:
         assert POST_SKILL_EDIT_EVENT == EVENT
 
     def test_event_in_default_events_at_position_10(self) -> None:
-        """A-2.2: new event APPENDED at the END of DEFAULT_EVENTS (pos 10)."""
+        """A-2.2: post_skill_edit stays at position 10 after v10.8.0 D-C-3.
+
+        v10.8.0 D-C-3 APPENDED 2 new events at positions 11 + 12
+        (`pre_plugin_invocation_install` + `pre_plugin_invocation_upgrade`);
+        positions 1-10 remain byte-stable per A-2.2 append-only. This test
+        was originally authored for v9.5.0 (len==10); relaxed to `>= 10`
+        while asserting POST_SKILL_EDIT_EVENT is still at index 9.
+        """
         assert POST_SKILL_EDIT_EVENT in DEFAULT_EVENTS
-        assert len(DEFAULT_EVENTS) == 10, (
-            f"DEFAULT_EVENTS bumped 9 → 10 in v9.5.0 PV-04 "
-            f"(was {len(DEFAULT_EVENTS)}); A-2.2 append-only invariant "
-            f"requires this slot at the END of the tuple"
+        assert len(DEFAULT_EVENTS) >= 10, (
+            f"DEFAULT_EVENTS should have >= 10 entries after v9.5.0 PV-04; "
+            f"got {len(DEFAULT_EVENTS)}"
         )
-        assert DEFAULT_EVENTS[-1] == POST_SKILL_EDIT_EVENT, (
-            f"POST_SKILL_EDIT_EVENT must be the LAST event in "
-            f"DEFAULT_EVENTS (cache-prefix governance A-2.2). "
-            f"Actual tail: {DEFAULT_EVENTS[-1]!r}"
+        assert DEFAULT_EVENTS[9] == POST_SKILL_EDIT_EVENT, (
+            f"POST_SKILL_EDIT_EVENT must be at position 10 (index 9) per "
+            f"A-2.2 append-only invariant. Actual: {DEFAULT_EVENTS[9]!r}"
         )
 
     def test_canonical_9_event_prefix_unchanged(self) -> None:

@@ -143,8 +143,18 @@ def test_canonical_lists_match_sf3_contract() -> None:
     (D-O-1 companion CSV emitter). Sources verbatim from
     `.local/research/v10.0.0_nines.md`, `.local/research/v10.0.0_evaluation.md`,
     `.local/research/v10.3.0_evaluation.md`, and `tests/test_sichip_iteration_delta_gate.py`.
+
+    v10.8.0 D-C-1 grew the reference set 16 → 17 by appending
+    ``references/degraded-mode.md`` (the per-plugin upstream-unreachable
+    fallback contract for NineS / Si-Chip / RTK / ui-pro — ~347 lines,
+    well within the Large tier 1000 ceiling per SF-1). Opens with the
+    "Degraded ≠ Full" warning section per D-C-1 §9 R1 mitigation so
+    operators reading top-down hit the caveat immediately. Pairs with
+    `tests/test_degraded_mode.py` (16 regression tests pinning the
+    4-plugin fallback contract) and closes the v10.3.0 retrospective §3
+    NineS A1 ticket pain point.
     """
-    assert len(_REF_FILES) == 16, f"expected 16 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 17, f"expected 17 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

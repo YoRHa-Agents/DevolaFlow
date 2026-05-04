@@ -1,0 +1,35 @@
+{
+  "captured_from_plugin_version": "3.4.0",
+  "_provenance_comment": "Captured from `nines -f json analyze --target-path src/devolaflow/ --depth deep` v3.4.0 output; shape pinned by v10.8.0 D-C-2. Canonical NineS URL: https://github.com/YoRHa-Agents/NineS",
+  "target_path": "src/devolaflow/",
+  "depth": "deep",
+  "timestamp": "2026-05-04T00:00:00Z",
+  "summary": {
+    "total_files": 64,
+    "total_lines": 21983,
+    "avg_cc": 4.7,
+    "max_cc": 13,
+    "warnings": 0
+  },
+  "findings": [
+    {
+      "file": "src/devolaflow/lifecycle/pre_plugin_invocation.py",
+      "function": "pre_plugin_invocation",
+      "cc": 7,
+      "severity": "info",
+      "metadata": {
+        "line": 529,
+        "lines_of_code": 53,
+        "note": "post-v10.2.3 PV-04 helper extraction"
+      }
+    }
+  ],
+  "keypoints": [
+    "Composable lifecycle hook pattern — A-2 cache-prefix invariants preserved",
+    "4-layer dispatcher / task-agent separation — P1 enforced at tool-level"
+  ],
+  "agent_impact": {
+    "suggested_agent": "L3 refactoring",
+    "expected_cost_pvs": 0
+  }
+}

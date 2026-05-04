@@ -198,7 +198,12 @@ def test_default_events_match_skill_md_table() -> None:
     assert PRE_HANDOFF_EVENT == "pre_handoff"
     assert PRE_PLUGIN_INVOCATION_EVENT == "pre_plugin_invocation"
     assert POST_SKILL_EDIT_EVENT == "post_skill_edit"
-    assert set(DEFAULT_EVENTS) == {
+    # v10.8.0 D-C-3 appended `pre_plugin_invocation_install` (position 11)
+    # and `pre_plugin_invocation_upgrade` (position 12); positions 1-10
+    # remain byte-stable per A-2.2. Verify as a SUPERSET containment check
+    # rather than exact equality so future APPEND-ONLY additions don't
+    # regress this test.
+    required_events = {
         "pre_dispatch",
         "post_dispatch",
         "file_write",
@@ -210,12 +215,13 @@ def test_default_events_match_skill_md_table() -> None:
         "pre_plugin_invocation",
         "post_skill_edit",
     }
-    assert len(DEFAULT_EVENTS) == 10
+    assert required_events.issubset(set(DEFAULT_EVENTS))
+    assert len(DEFAULT_EVENTS) >= 10
 
     # A-2.4 cache-prefix invariant: positions 1-9 byte-identical with the
     # v9.4.0 DEFAULT_EVENTS tuple. The v9.5.0 PV-04 bump appended
-    # `post_skill_edit` at position 10 only — any drift in positions
-    # 1-9 is a release blocker.
+    # `post_skill_edit` at position 10; v10.8.0 D-C-3 appended positions
+    # 11 + 12. Drift in positions 1-10 is a release blocker.
     assert DEFAULT_EVENTS[:9] == (
         "pre_dispatch",
         "post_dispatch",
@@ -227,8 +233,8 @@ def test_default_events_match_skill_md_table() -> None:
         "pre_handoff",
         "pre_plugin_invocation",
     )
-    assert DEFAULT_EVENTS[-1] == POST_SKILL_EDIT_EVENT, (
-        "v9.5.0 PV-04: post_skill_edit MUST be appended at the tail (A-2.4)"
+    assert DEFAULT_EVENTS[9] == POST_SKILL_EDIT_EVENT, (
+        "v9.5.0 PV-04: post_skill_edit MUST be at position 10 (index 9; A-2.4)"
     )
 
 

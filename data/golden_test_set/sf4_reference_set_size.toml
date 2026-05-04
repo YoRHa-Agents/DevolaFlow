@@ -1,18 +1,18 @@
 [task]
-id = "devolaflow-sf4-019"
-name = "sf4-reference-set-cardinality-v10.7.0"
-description = "v10.7.0 D-O-1 — SF-4 canonical reference set grows from 15 → 16 with the addition of references/evaluator-rosetta.md as the 16th canonical (D-O-1 closure: 6 × 9 cross-walk between SI-3 dimensions + NineS hygiene axes / capability sub-bundles + Si-Chip iteration_delta scalar with per-cell verbatim source citations; pairs with v10.7.0 auto_collect_si3_metrics.py D-O-2 and generate_evaluator_rosetta.py D-O-1 companion)"
+id = "devolaflow-sf4-020"
+name = "sf4-reference-set-cardinality-v10.8.0"
+description = "v10.8.0 D-C-1 — SF-4 canonical reference set grows from 16 → 17 with the addition of references/degraded-mode.md as the 17th canonical (D-C-1 closure: per-plugin upstream-unreachable fallback contract for NineS / Si-Chip / RTK / ui-pro; opens with 'Degraded ≠ Full' warning per D-C-1 §9 R1 mitigation; pairs with v10.8.0 tests/test_degraded_mode.py regression suite)"
 dimension = "code_quality"
 difficulty = 1
 
 [task.input]
 type = "code"
 language = "python"
-source = "len(_SF4_REFERENCE_SET) == 16"
+source = "len(_SF4_REFERENCE_SET) == 17"
 
 [task.expected]
 type = "text"
-value = "len(_SF4_REFERENCE_SET) == 16"
+value = "len(_SF4_REFERENCE_SET) == 17"
 
 [task.golden]
 expected_score = 1.0
