@@ -247,9 +247,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "3.3.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             result = pre_plugin_invocation({"plugin_id": "nines"})
         assert invocations == ["nines"]
@@ -266,9 +272,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "1.0.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             result = pre_plugin_invocation({"plugin_ids": ["nines", "ui-pro", "rtk"]})
         assert invocations == ["nines", "ui-pro", "rtk"], (
@@ -285,9 +297,15 @@ class TestActiveDelegation:
             invocations.append(plugin_id)
             return "1.0.0"
 
-        with patch(
-            "devolaflow.plugins.installer.ensure_plugin",
-            side_effect=fake_ensure,
+        with (
+            patch(
+                "devolaflow.plugins.installer.ensure_plugin",
+                side_effect=fake_ensure,
+            ),
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                return_value=False,
+            ),
         ):
             pre_plugin_invocation(
                 {"plugin_ids": ["nines", "ui-pro", "nines"], "plugin_id": "ui-pro"}
