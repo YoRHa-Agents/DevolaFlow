@@ -276,6 +276,229 @@ def test_list_handlers_returns_default_for_each_event() -> None:
 
 
 # ---------------------------------------------------------------------------
+# v11.0.0 PV-02 D-Q-3 — lifecycle event PURE-ALIAS rename regressions
+# ---------------------------------------------------------------------------
+#
+# D-Q-3 §2 introduces 4 NEW canonical event names per the
+# `pre_*` / `post_*` / `check_*` taxonomy:
+#
+#   file_write       → check_file_write
+#   task_stop        → post_task_complete
+#   format_on_edit   → post_file_edit
+#   envelope_write   → check_envelope_write
+#
+# Both names route through the SAME handler list via the dispatcher's
+# `_EVENT_ALIASES` map. The 5 tests below pin the PURE-ALIAS contract:
+#
+#  1. Alias path emits BYTE-IDENTICAL to canonical (D-Q-3 §4 large_eval
+#     "tests/test_lifecycle_hooks.py + the new D-Q-3 test suite ...
+#     positions 11 + 12 appended at the tail preserve backward-compat").
+#  2. Both names accept register_hook (D-Q-3 §2 "register_hook(OLD)
+#     and register_hook(NEW) both append to the SAME underlying handler
+#     list").
+#  3. Both names propagate to registered handlers (D-Q-3 §4 large_eval
+#     "OLD names continue to register hooks under the NEW name").
+#  4. len(DEFAULT_EVENTS) == 16 after the v11.0.0 PV-02 D-Q-3 append
+#     (4 NEW canonical names appended at positions 13-16 per A-2.2).
+#  5. 1-cycle deprecation telegraph documented in the lifecycle docstring
+#     (per D-Q-3 §6 "OLD names removed at v12.0.0+").
+
+
+def test_v11_0_0_pv02_dq3_alias_emits_byte_identical_to_canonical() -> None:
+    """D-Q-3 §4 large_eval: alias dispatch is byte-identical to canonical.
+
+    register_hook against the OLD name (``"file_write"``) and the NEW
+    canonical name (``"check_file_write"``) MUST observe the same
+    handler list — alias handler invocations are dispatcher-equivalent
+    to canonical-name invocations.
+    """
+    from devolaflow.lifecycle import (
+        CHECK_ENVELOPE_WRITE_EVENT,
+        CHECK_FILE_WRITE_EVENT,
+        ENVELOPE_WRITE_EVENT,
+        FILE_WRITE_EVENT,
+        FORMAT_ON_EDIT_EVENT,
+        POST_FILE_EDIT_EVENT,
+        POST_TASK_COMPLETE_EVENT,
+        TASK_STOP_EVENT,
+    )
+
+    # Each (OLD, NEW) pair points at the same canonical default handler.
+    rename_pairs = (
+        (FILE_WRITE_EVENT, CHECK_FILE_WRITE_EVENT),
+        (TASK_STOP_EVENT, POST_TASK_COMPLETE_EVENT),
+        (FORMAT_ON_EDIT_EVENT, POST_FILE_EDIT_EVENT),
+        (ENVELOPE_WRITE_EVENT, CHECK_ENVELOPE_WRITE_EVENT),
+    )
+    for old, new in rename_pairs:
+        old_handlers = list_handlers(old)
+        new_handlers = list_handlers(new)
+        assert old_handlers == new_handlers, (
+            f"D-Q-3 alias violation: list_handlers({old!r}) must equal "
+            f"list_handlers({new!r}) — both names must route to the same "
+            f"underlying handler list. Got {old_handlers!r} vs {new_handlers!r}."
+        )
+        assert len(old_handlers) >= 1, (
+            f"D-Q-3 alias violation: list_handlers({old!r}) returned empty; "
+            f"the canonical default handler is wired via _set_default_hook."
+        )
+
+
+def test_v11_0_0_pv02_dq3_both_names_accept_register_hook() -> None:
+    """D-Q-3 §2: register_hook(OLD) + register_hook(NEW) append to SAME list.
+
+    Registering an extra handler under the OLD alias name MUST be
+    observable when listing handlers under the NEW canonical name (and
+    vice versa). The single source of truth is the canonical-keyed
+    _EXTRA_REGISTRY entry.
+    """
+    from devolaflow.lifecycle import (
+        CHECK_FILE_WRITE_EVENT,
+        FILE_WRITE_EVENT,
+    )
+
+    captured: list[str] = []
+
+    def _extra_a(payload: dict, *, strict: bool = False) -> HookResult:
+        captured.append("a")
+        return HookResult(event=FILE_WRITE_EVENT, passed=True)
+
+    def _extra_b(payload: dict, *, strict: bool = False) -> HookResult:
+        captured.append("b")
+        return HookResult(event=CHECK_FILE_WRITE_EVENT, passed=True)
+
+    register_hook(FILE_WRITE_EVENT, _extra_a)
+    register_hook(CHECK_FILE_WRITE_EVENT, _extra_b)
+
+    # Both extras must be visible from BOTH names.
+    handlers_via_old = list_handlers(FILE_WRITE_EVENT)
+    handlers_via_new = list_handlers(CHECK_FILE_WRITE_EVENT)
+    assert _extra_a in handlers_via_old, (
+        "D-Q-3 alias violation: extra registered under OLD name not visible via OLD list."
+    )
+    assert _extra_a in handlers_via_new, (
+        "D-Q-3 alias violation: extra registered under OLD name not visible via NEW list."
+    )
+    assert _extra_b in handlers_via_old, (
+        "D-Q-3 alias violation: extra registered under NEW name not visible via OLD list."
+    )
+    assert _extra_b in handlers_via_new, (
+        "D-Q-3 alias violation: extra registered under NEW name not visible via NEW list."
+    )
+
+
+def test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks() -> None:
+    """D-Q-3 §4 large_eval: run_hooks(OLD) + run_hooks(NEW) fire SAME handlers.
+
+    Dispatching via the OLD alias name MUST fire every handler
+    registered under the NEW canonical name AND every handler
+    registered under the OLD alias name (single dispatch list).
+    """
+    from devolaflow.lifecycle import (
+        POST_TASK_COMPLETE_EVENT,
+        TASK_STOP_EVENT,
+    )
+
+    captured: list[str] = []
+
+    def _extra(payload: dict, *, strict: bool = False) -> HookResult:
+        captured.append(payload.get("via", "?"))
+        return HookResult(event=TASK_STOP_EVENT, passed=True)
+
+    register_hook(TASK_STOP_EVENT, _extra)
+
+    # Dispatch via OLD name — extra fires.
+    captured.clear()
+    run_hooks(TASK_STOP_EVENT, {"via": "old", "tests_passed": True})
+    assert "old" in captured, (
+        "D-Q-3 alias violation: extra registered under OLD name did not fire "
+        "when run_hooks dispatched via OLD name."
+    )
+
+    # Dispatch via NEW name — same extra fires (alias resolution).
+    captured.clear()
+    run_hooks(POST_TASK_COMPLETE_EVENT, {"via": "new", "tests_passed": True})
+    assert "new" in captured, (
+        "D-Q-3 alias violation: extra registered under OLD name did not fire "
+        "when run_hooks dispatched via NEW canonical name (alias resolution)."
+    )
+
+
+def test_v11_0_0_pv02_dq3_default_events_length_is_16() -> None:
+    """D-Q-3 §2: DEFAULT_EVENTS appends 4 NEW canonical names (positions 13-16).
+
+    Per A-2.2 APPEND-ONLY, positions 1-12 stay byte-stable. The 4 NEW
+    names land at positions 13-16 in the same order as the rename
+    mapping table in D-Q-3 §2.
+    """
+    from devolaflow.lifecycle import (
+        CHECK_ENVELOPE_WRITE_EVENT,
+        CHECK_FILE_WRITE_EVENT,
+        DEFAULT_EVENTS,
+        POST_FILE_EDIT_EVENT,
+        POST_TASK_COMPLETE_EVENT,
+    )
+
+    assert len(DEFAULT_EVENTS) == 16, (
+        f"D-Q-3 ships DEFAULT_EVENTS 12 → 16 (4 NEW canonical names at "
+        f"positions 13-16); got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
+    )
+
+    # Positions 13-16 carry the 4 NEW canonical names per the rename table.
+    assert DEFAULT_EVENTS[12] == CHECK_FILE_WRITE_EVENT
+    assert DEFAULT_EVENTS[13] == POST_TASK_COMPLETE_EVENT
+    assert DEFAULT_EVENTS[14] == POST_FILE_EDIT_EVENT
+    assert DEFAULT_EVENTS[15] == CHECK_ENVELOPE_WRITE_EVENT
+
+    # Positions 1-12 stay byte-stable (positions 3, 4, 5, 7 remain the
+    # OLD alias names per D-Q-3 §2 "preserve OLD names at original
+    # positions as ALIASES").
+    assert DEFAULT_EVENTS[2] == "file_write"
+    assert DEFAULT_EVENTS[3] == "task_stop"
+    assert DEFAULT_EVENTS[4] == "format_on_edit"
+    assert DEFAULT_EVENTS[6] == "envelope_write"
+
+
+def test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation() -> None:
+    """D-Q-3 §6 admission_verdict: 1-cycle alias schedule is documented.
+
+    The alias deprecation telegraph (v11.0.0 → v12.0.0 schedule) MUST
+    be discoverable in the lifecycle docstring AND in the dispatcher's
+    `_EVENT_ALIASES` docstring so future maintainers reading the
+    source see the deprecation runway.
+    """
+    import inspect
+
+    import devolaflow.lifecycle as lifecycle_pkg
+    import devolaflow.lifecycle.dispatcher as lifecycle_dispatcher
+
+    # Lifecycle package source must mention the v11.0.0 PV-02 D-Q-3
+    # alias schedule + the v12.0.0 deprecation target.
+    pkg_source = inspect.getsource(lifecycle_pkg)
+    assert "D-Q-3" in pkg_source, (
+        "D-Q-3 telegraph violation: lifecycle/__init__.py must cite D-Q-3 "
+        "in the alias-rename section."
+    )
+    assert "v12.0.0" in pkg_source, (
+        "D-Q-3 telegraph violation: lifecycle/__init__.py must cite v12.0.0 "
+        "as the alias removal target (1-cycle deprecation runway)."
+    )
+    assert "PURE-ALIAS" in pkg_source, (
+        "D-Q-3 telegraph violation: lifecycle/__init__.py must label the "
+        "rename as PURE-ALIAS so reviewers see the byte-identical contract."
+    )
+
+    # Dispatcher source must contain the alias-map docstring naming
+    # `_EVENT_ALIASES` + the v11.0.0 PV-02 D-Q-3 attribution.
+    disp_source = inspect.getsource(lifecycle_dispatcher)
+    assert "_EVENT_ALIASES" in disp_source
+    assert "D-Q-3" in disp_source, (
+        "D-Q-3 telegraph violation: dispatcher.py must cite D-Q-3 as the "
+        "rationale for the alias map."
+    )
+
+
+# ---------------------------------------------------------------------------
 # validate_dispatch — pre_dispatch hook
 # ---------------------------------------------------------------------------
 

@@ -6215,11 +6215,16 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"{_V10_8_0_PPI_SPLIT_TESTS}. v10.8.0 D-C-3 ships 5+ tests."
     )
 
-    # DEFAULT_EVENTS length bump (10 → 12).
+    # DEFAULT_EVENTS length bump (10 → 12 by v10.8.0 D-C-3 split). The
+    # SUPERSET containment check (`>= 12`) accommodates future
+    # APPEND-ONLY additions per A-2.2 — e.g., v11.0.0 PV-02 D-Q-3
+    # appends 4 NEW canonical event names (positions 13-16) without
+    # disturbing positions 1-12 (which stay byte-stable per A-2.4).
     from devolaflow.lifecycle import DEFAULT_EVENTS
 
-    assert len(DEFAULT_EVENTS) == 12, (
-        f"W-18 v10.8.0 violation: D-C-3 ships DEFAULT_EVENTS 10 → 12; got len={len(DEFAULT_EVENTS)}"
+    assert len(DEFAULT_EVENTS) >= 12, (
+        f"W-18 v10.8.0 violation: D-C-3 ships DEFAULT_EVENTS at length 12 "
+        f"(positions 1-12 byte-stable per A-2.4); got len={len(DEFAULT_EVENTS)}"
     )
 
     # 17th SF-4 canonical reference pinned in the _SF4_REFERENCE_SET above.
@@ -6359,4 +6364,176 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
         f"W-18 v11.0.0 PV-01 violation: D-P-4 §2 promises the reference "
         f"stays within the Large tier 1000-line ceiling per C-4 / SF-1; "
         f"got {dp4_line_count} lines."
+    )
+
+
+# =====================================================================
+# v11.0.0 PV-02 — D-O-4 + D-Q-3 stretch (analysis + lifecycle alias rename)
+# =====================================================================
+#
+# v11.0.0 PV-02 ships 2 stretch patches per the v11.0.0 cycle plan §4
+# v11.0.0 PV-02 deliverable map:
+#
+#  1. D-O-4 — `.local/research/v11.0.0_si10_gate_growth_analysis.md`
+#     (analysis-only forecast; SI-10 gate-count growth curve + 3-group
+#     reorganization recommendation telegraphed for v13.0.0 once gate
+#     count crosses 10; per `.local/research/v11.0.0_patches/D-O-4.md`
+#     §2-§9). Verbatim recommendation: gate count = 10 → partition
+#     into Group A Hygiene + Group B Validation + Group C Snapshot.
+#  2. D-Q-3 — lifecycle 4-row PURE-ALIAS rename: `file_write` →
+#     `check_file_write`, `task_stop` → `post_task_complete`,
+#     `format_on_edit` → `post_file_edit`, `envelope_write` →
+#     `check_envelope_write` (per `.local/research/v11.0.0_patches/
+#     D-Q-3.md` §2). DEFAULT_EVENTS bumped 12 → 16 (positions 13-16
+#     APPEND-ONLY per A-2.2; positions 1-12 byte-stable per A-2.4).
+#     OLD names preserved as PURE-ALIAS via dispatcher's
+#     `_EVENT_ALIASES` map for 1-cycle deprecation runway (v11.0.0 →
+#     v12.0.0). 5 NEW alias regression tests in test_lifecycle_hooks.py.
+
+# D-O-4 surface.
+_V11_0_0_PV02_DO4_ANALYSIS: Path = Path(".local/research/v11.0.0_si10_gate_growth_analysis.md")
+
+# D-Q-3 surfaces.
+_V11_0_0_PV02_DQ3_LIFECYCLE_INIT: Path = Path("src/devolaflow/lifecycle/__init__.py")
+_V11_0_0_PV02_DQ3_DISPATCHER: Path = Path("src/devolaflow/lifecycle/dispatcher.py")
+_V11_0_0_PV02_DQ3_LIFECYCLE_TESTS: Path = Path("tests/test_lifecycle_hooks.py")
+_V11_0_0_PV02_DQ3_ENV_FLAGS_REF: Path = Path("workflow-system/agent/references/env-flags.md")
+
+# D-Q-3 NEW canonical event-name strings (per D-Q-3 §2 rename mapping).
+_V11_0_0_PV02_DQ3_NEW_CANONICAL_NAMES: tuple[str, ...] = (
+    "check_file_write",
+    "post_task_complete",
+    "post_file_edit",
+    "check_envelope_write",
+)
+
+# D-Q-3 OLD aliased event-name strings (preserved at original positions
+# in DEFAULT_EVENTS; PURE-ALIAS routed through `_EVENT_ALIASES` map).
+_V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES: tuple[str, ...] = (
+    "file_write",
+    "task_stop",
+    "format_on_edit",
+    "envelope_write",
+)
+
+# D-Q-3 NEW alias regression test names (per cycle dispatch task AC #4
+# "5 tests asserting alias path emits byte-identical to canonical,
+# alias telegraphed for 1-cycle deprecation, both names accept
+# registrations, both names propagate to registered handlers,
+# len(DEFAULT_EVENTS) becomes 16").
+_V11_0_0_PV02_DQ3_ALIAS_TEST_NAMES: tuple[str, ...] = (
+    "test_v11_0_0_pv02_dq3_alias_emits_byte_identical_to_canonical",
+    "test_v11_0_0_pv02_dq3_both_names_accept_register_hook",
+    "test_v11_0_0_pv02_dq3_both_names_propagate_to_run_hooks",
+    "test_v11_0_0_pv02_dq3_default_events_length_is_16",
+    "test_v11_0_0_pv02_dq3_alias_telegraphs_1_cycle_deprecation",
+)
+
+
+def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.0 PV-02: D-O-4 + D-Q-3 stretch surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.0 PV-02 stretch
+    chore commit. The CHANGELOG entry that mentions these surfaces
+    ships in v11.0.0 PV-03 (MAJOR cycle close); per W-18 the lint
+    refresh MUST land before the CHANGELOG entry — this stanza closes
+    that precondition.
+
+    * D-O-4: `.local/research/v11.0.0_si10_gate_growth_analysis.md`
+      — analysis-only forecast; recommends 3-group reorganization
+      when gate count crosses 10 (forecast v13.0.0).
+    * D-Q-3: 4-row PURE-ALIAS rename adding 4 NEW canonical event
+      names AT END of DEFAULT_EVENTS (positions 13-16 per A-2.2);
+      OLD names preserved as PURE-ALIAS via dispatcher's
+      `_EVENT_ALIASES` map for 1-cycle deprecation runway; 5 NEW
+      alias regression tests pin the byte-identical contract.
+    """
+    # D-O-4 analysis artifact must exist + telegraph 10-gate threshold +
+    # 3-group reorganization recommendation.
+    do4_path = project_root / _V11_0_0_PV02_DO4_ANALYSIS
+    assert do4_path.is_file(), (
+        f"W-18 v11.0.0 PV-02 violation: D-O-4 analysis missing at "
+        f"{_V11_0_0_PV02_DO4_ANALYSIS}. v11.0.0 PV-02 ships this artifact."
+    )
+    do4_text = do4_path.read_text(encoding="utf-8")
+    # Threshold + reorganization design must be telegraphed verbatim
+    # so future cycle planners discover the trigger.
+    assert "gate count = 10" in do4_text, (
+        "W-18 v11.0.0 PV-02 violation: D-O-4 §2.4 must telegraph the "
+        "'gate count = 10' reorganization-trigger threshold verbatim."
+    )
+    for group_label in ("Group A: Hygiene", "Group B: Validation", "Group C: Snapshot"):
+        assert group_label in do4_text, (
+            f"W-18 v11.0.0 PV-02 violation: D-O-4 §2.4 must enumerate "
+            f"{group_label!r} in the 3-group reorganization design."
+        )
+
+    # D-Q-3 lifecycle alias surface — NEW canonical event-name constants
+    # appear in lifecycle/__init__.py; OLD alias map entries appear in
+    # dispatcher.py.
+    init_text = (project_root / _V11_0_0_PV02_DQ3_LIFECYCLE_INIT).read_text(encoding="utf-8")
+    for new_const_name in (
+        "CHECK_FILE_WRITE_EVENT",
+        "POST_TASK_COMPLETE_EVENT",
+        "POST_FILE_EDIT_EVENT",
+        "CHECK_ENVELOPE_WRITE_EVENT",
+    ):
+        assert new_const_name in init_text, (
+            f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 introduces NEW "
+            f"canonical constant {new_const_name!r}; missing from "
+            f"lifecycle/__init__.py."
+        )
+    # Alias schedule docstring must telegraph v12.0.0 removal target.
+    assert "v12.0.0" in init_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §6 telegraphs v12.0.0 as "
+        "the alias removal target; missing from lifecycle/__init__.py."
+    )
+
+    # Dispatcher must declare the `_EVENT_ALIASES` map + the
+    # `_alias_event` helper.
+    disp_text = (project_root / _V11_0_0_PV02_DQ3_DISPATCHER).read_text(encoding="utf-8")
+    assert "_EVENT_ALIASES" in disp_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 wires the alias map "
+        "via dispatcher's `_EVENT_ALIASES`; missing."
+    )
+    assert "def _alias_event" in disp_text, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 introduces the "
+        "`_alias_event` helper; missing from dispatcher.py."
+    )
+
+    # DEFAULT_EVENTS length is exactly 16 (12 base + 4 NEW canonical).
+    from devolaflow.lifecycle import DEFAULT_EVENTS
+
+    assert len(DEFAULT_EVENTS) == 16, (
+        f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 ships DEFAULT_EVENTS "
+        f"12 → 16 (4 NEW canonical names appended at positions 13-16); "
+        f"got len={len(DEFAULT_EVENTS)}."
+    )
+    # Both NEW canonical AND OLD alias names must be present in the tuple.
+    for new_name in _V11_0_0_PV02_DQ3_NEW_CANONICAL_NAMES:
+        assert new_name in DEFAULT_EVENTS, (
+            f"W-18 v11.0.0 PV-02 violation: NEW canonical event name "
+            f"{new_name!r} missing from DEFAULT_EVENTS."
+        )
+    for old_name in _V11_0_0_PV02_DQ3_OLD_ALIAS_NAMES:
+        assert old_name in DEFAULT_EVENTS, (
+            f"W-18 v11.0.0 PV-02 violation: OLD alias event name "
+            f"{old_name!r} must be PRESERVED in DEFAULT_EVENTS at its "
+            f"original position (PURE-ALIAS for 1-cycle deprecation)."
+        )
+
+    # 5 NEW alias regression tests must exist in test_lifecycle_hooks.py.
+    lifecycle_tests = (project_root / _V11_0_0_PV02_DQ3_LIFECYCLE_TESTS).read_text(encoding="utf-8")
+    for alias_test_name in _V11_0_0_PV02_DQ3_ALIAS_TEST_NAMES:
+        assert f"def {alias_test_name}" in lifecycle_tests, (
+            f"W-18 v11.0.0 PV-02 violation: D-Q-3 alias regression "
+            f"test {alias_test_name!r} missing from "
+            f"tests/test_lifecycle_hooks.py."
+        )
+
+    # env-flags.md must document the lifecycle event taxonomy section.
+    env_flags = (project_root / _V11_0_0_PV02_DQ3_ENV_FLAGS_REF).read_text(encoding="utf-8")
+    assert "Lifecycle event taxonomy" in env_flags, (
+        "W-18 v11.0.0 PV-02 violation: D-Q-3 §2 documents the rename "
+        "in env-flags.md; missing 'Lifecycle event taxonomy' section."
     )

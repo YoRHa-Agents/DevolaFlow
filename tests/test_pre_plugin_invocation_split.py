@@ -290,13 +290,18 @@ class TestAliasTelegraphedFor1CycleDeprecation:
         assert "event slot #12" in env_flags or "position 12" in env_flags.lower()
 
     def test_default_events_length_after_split(self) -> None:
-        """A-2.2 append-only: DEFAULT_EVENTS grows to exactly 12 entries.
+        """A-2.2 append-only: DEFAULT_EVENTS grows to AT LEAST 12 entries.
 
-        Positions 11 + 12 carry the two new event constants; positions 1-10
-        remain byte-stable per A-2.4 multi-baseline byte test.
+        Positions 11 + 12 carry the two new event constants per D-C-3;
+        positions 1-10 remain byte-stable per A-2.4. The SUPERSET
+        containment check (``>= 12``) accommodates future APPEND-ONLY
+        additions per A-2.2 — e.g., v11.0.0 PV-02 D-Q-3 appends 4 NEW
+        canonical event names (positions 13-16) without disturbing
+        positions 1-12.
         """
-        assert len(DEFAULT_EVENTS) == 12, (
-            f"D-C-3 ships DEFAULT_EVENTS 10 → 12; got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
+        assert len(DEFAULT_EVENTS) >= 12, (
+            f"D-C-3 ships DEFAULT_EVENTS at length 12 (positions 1-12 "
+            f"byte-stable); got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
         )
         assert DEFAULT_EVENTS[10] == PRE_PLUGIN_INVOCATION_INSTALL_EVENT
         assert DEFAULT_EVENTS[11] == PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
