@@ -342,6 +342,99 @@ class TestChangeRoundTrip:
 
 
 # ---------------------------------------------------------------------------
+# v10.7.0 D-P-3 — STATUS.yaml NEST extensibility demo
+# ---------------------------------------------------------------------------
+
+
+class TestStatusYamlNestExtensibility:
+    """v10.7.0 D-P-3 — A-2.3 NEST-vs-APPEND demonstration.
+
+    The new ``last_handoff_summary`` optional field is a dict-shaped
+    NEST (``{from_layer, to_layer, ts, seq}``) at the top of the
+    STATUS.yaml mapping. We exercise three contracts:
+
+    1. Absence is the canonical default — v8.3.0..v10.6.x STATUS.yaml
+       files (those without the field) load + round-trip cleanly and
+       the accessor returns ``None``.
+    2. Presence round-trips byte-stable through
+       ``Change.from_active_folder().to_active_folder()``.
+    3. The accessor returns the dict verbatim (keys preserved); when the
+       field is explicitly ``null`` (the schema's nullable contract),
+       the accessor coerces to ``None``.
+    """
+
+    def test_absent_field_returns_none_and_round_trips(self, workspace: Path) -> None:
+        # Default fixture omits last_handoff_summary entirely.
+        folder = _scaffold_active(workspace, "nest-absent")
+        change = Change.from_active_folder(folder)
+        assert change.last_handoff_summary is None
+
+        target = workspace / "out" / "nest-absent"
+        change.to_active_folder(target)
+        re_read = Change.from_active_folder(target)
+        assert re_read.last_handoff_summary is None
+        # The absent field MUST NOT be injected on round-trip (schema
+        # contract: absence is canonical default; refusing to inject a
+        # default would otherwise force schema_version bump).
+        assert "last_handoff_summary" not in re_read.status
+
+    def test_present_field_round_trips_byte_stable(self, workspace: Path) -> None:
+        summary = {
+            "from_layer": "L2",
+            "to_layer": "L3",
+            "ts": "2026-05-04T12:34:56Z",
+            "seq": 4,
+        }
+        status = {
+            "schema_version": 1,
+            "change_id": "nest-present",
+            "state": "IN_PROGRESS",
+            "percent_complete": 60,
+            "owner_layer": "L3",
+            "owner_session_id": "test-nest-present",
+            "last_updated": "2026-05-04T12:34:56Z",
+            "last_handoff_seq": 4,
+            "gate_score": None,
+            "verify_pass": None,
+            "last_handoff_summary": summary,
+        }
+        folder = _scaffold_active(workspace, "nest-present", status=status)
+        change = Change.from_active_folder(folder)
+        assert change.last_handoff_summary == summary
+        # Schema invariant: last_handoff_summary.seq MUST equal last_handoff_seq.
+        assert change.last_handoff_summary["seq"] == change.last_handoff_seq
+
+        target = workspace / "out" / "nest-present"
+        change.to_active_folder(target)
+        re_read = Change.from_active_folder(target)
+        assert re_read.last_handoff_summary == summary
+        # Byte-stable double-hop (out1 STATUS.yaml == out2 STATUS.yaml).
+        out1 = workspace / "out1" / "nest-present"
+        change.to_active_folder(out1)
+        re_read.to_active_folder(target)
+        assert (target / "STATUS.yaml").read_bytes() == (out1 / "STATUS.yaml").read_bytes()
+
+    def test_explicit_null_returns_none_per_nullable_contract(self, workspace: Path) -> None:
+        status = {
+            "schema_version": 1,
+            "change_id": "nest-null",
+            "state": "IN_PROGRESS",
+            "percent_complete": 10,
+            "owner_layer": "L3",
+            "owner_session_id": "test-nest-null",
+            "last_updated": "2026-05-04T01:02:03Z",
+            "last_handoff_seq": 0,
+            "gate_score": None,
+            "verify_pass": None,
+            "last_handoff_summary": None,  # explicit null per schema's nullable contract
+        }
+        folder = _scaffold_active(workspace, "nest-null", status=status)
+        change = Change.from_active_folder(folder)
+        # Explicit null must coerce to None (matches the absent-field path).
+        assert change.last_handoff_summary is None
+
+
+# ---------------------------------------------------------------------------
 # ChangeStore tests
 # ---------------------------------------------------------------------------
 

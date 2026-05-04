@@ -132,8 +132,19 @@ def test_canonical_lists_match_sf3_contract() -> None:
     L2 layers genuinely earn their cost; this example walks one such
     scenario verbatim. Stays well within XL tier 1600-line ceiling
     per SF-1.
+
+    v10.7.0 D-O-1 grew the reference set 15 → 16 by appending
+    ``references/evaluator-rosetta.md`` (the 6 × 9 cross-walk between
+    SI-3 dimensions + NineS hygiene axes / capability sub-bundles +
+    Si-Chip iteration_delta scalar with per-cell verbatim source
+    citations — ~505 lines, comfortably within the Large tier 1000
+    ceiling per SF-1). Pairs with `scripts/auto_collect_si3_metrics.py`
+    (D-O-2 6-dim auto-collection) and `scripts/generate_evaluator_rosetta.py`
+    (D-O-1 companion CSV emitter). Sources verbatim from
+    `.local/research/v10.0.0_nines.md`, `.local/research/v10.0.0_evaluation.md`,
+    `.local/research/v10.3.0_evaluation.md`, and `tests/test_sichip_iteration_delta_gate.py`.
     """
-    assert len(_REF_FILES) == 15, f"expected 15 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 16, f"expected 16 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

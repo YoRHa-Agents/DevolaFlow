@@ -20,8 +20,19 @@
 design_reference: .local/research/v8.3.0_design.md §2.5
 schema_name: change-status
 schema_version: 1
-last_updated: "2026-04-22"
+last_updated: "2026-05-04"
 governing_rules: [C-9, P4]
+
+# v10.7.0 D-P-3 — schema extensibility demo. The new OPTIONAL field
+# `last_handoff_summary` lands at schema_version 1 (additive only;
+# absence is canonical default). Per the A-2.3 NEST-vs-APPEND decision
+# rule, the four sub-attributes (from_layer / to_layer / ts / seq) are
+# NESTED inside ONE dict-shaped optional key rather than added as four
+# independent top-level scalars (which would be APPEND × 4 and inflate
+# the schema's flat surface). The lean-dispatch byte test
+# (`tests/test_layout_invariant_multi_baseline.py`) is unaffected — this
+# patch only touches the agent-workspace STATUS.yaml schema, NOT
+# `schemas/lean-dispatch.yaml#layout_invariant.canonical_order`.
 
 instance_path_template: ".local/.agent/active/<change-id>/STATUS.yaml"
 archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/STATUS.yaml"
@@ -105,6 +116,44 @@ fields:
     nullable: true
     description: "Verify-stage pass flag. Null until VERIFYING state. True iff AC pass-rate == 1.0 AND gate_score ≥ threshold (8.5 lite / 9.0 full)."
 
+  # v10.7.0 D-P-3 — A-2.3 NEST-vs-APPEND demonstration.
+  #
+  # OPTIONAL — absent in v8.3.0..v10.6.x STATUS.yaml files (those continue
+  # to validate cleanly at schema_version 1). When present, the four
+  # sub-attributes are NESTED inside this dict; we never spawn
+  # `last_handoff_from_layer` / `last_handoff_to_layer` / etc. as
+  # sibling top-level scalars (that would be APPEND × 4).
+  #
+  # The field is informational metadata: `last_handoff_seq` (already
+  # required at top-level) carries the canonical monotonic counter; this
+  # field carries the L→L topology + ISO-8601 timestamp + redundant seq
+  # echo for human-readable diagnostics. Mutation contract: REPLACE-ALL
+  # on every handoff write (the field captures only the MOST RECENT
+  # handoff; historical envelopes live in `.local/.agent/handoff/`).
+  last_handoff_summary:
+    type: object
+    nullable: true
+    description: |
+      OPTIONAL — most-recent handoff diagnostic snapshot. Structure:
+      from_layer (L0|L1|L2|L3|operator|human),
+      to_layer   (L0|L1|L2|L3|operator|human),
+      ts         (ISO-8601 UTC, matches `last_updated` pattern),
+      seq        (int >= 0; equals last_handoff_seq at write time).
+      MUST remain optional unless schema_version is explicitly bumped.
+    properties:
+      from_layer:
+        type: string
+        enum: [L0, L1, L2, L3, operator, human]
+      to_layer:
+        type: string
+        enum: [L0, L1, L2, L3, operator, human]
+      ts:
+        type: string
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      seq:
+        type: int
+        minimum: 0
+
 # FSM state-transition matrix — declares which transitions are legal. Enforced
 # at runtime by ChangeStore.transition_state() (ships v8.2.5).
 state_transitions:
@@ -132,6 +181,7 @@ invariants:
   - "When state=ARCHIVED, the file MUST be copied byte-identical into `.local/.agent/archive/<date>-<id>/STATUS.yaml`."
   - "When state=ESCALATED, an exception-escalation envelope MUST exist in `.local/.agent/handoff/` with seq == last_handoff_seq."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
+  - "When last_handoff_summary is present (v10.7.0 D-P-3), last_handoff_summary.seq MUST equal last_handoff_seq at write time. Both fields are refreshed atomically."
 
 example: |
   schema_version: 1
@@ -144,3 +194,8 @@ example: |
   last_handoff_seq: 4
   gate_score: null
   verify_pass: null
+  last_handoff_summary:           # v10.7.0 D-P-3 — OPTIONAL NEST demo
+    from_layer: L2
+    to_layer: L3
+    ts: "2026-04-22T11:02:18Z"
+    seq: 4

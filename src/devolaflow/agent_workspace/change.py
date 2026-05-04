@@ -145,6 +145,22 @@ class Change:
         """Convenience accessor for ``status['last_handoff_seq']`` (default 0)."""
         return int(self.status.get("last_handoff_seq", 0))
 
+    @property
+    def last_handoff_summary(self) -> dict | None:
+        """Optional accessor for ``status['last_handoff_summary']`` (v10.7.0 D-P-3).
+
+        Returns the dict-shaped most-recent-handoff diagnostic snapshot
+        (``{from_layer, to_layer, ts, seq}``) when populated by upstream
+        write-back (e.g. ``HandoffStore.write_envelope`` future hook), or
+        ``None`` for v8.3.0..v10.6.x STATUS.yaml files that pre-date the
+        D-P-3 NEST demo. Treats explicit-null and absent identically per
+        the schema's nullable contract.
+        """
+        raw = self.status.get("last_handoff_summary")
+        if not isinstance(raw, dict):
+            return None
+        return raw
+
     @classmethod
     def from_active_folder(cls, folder: Path | str) -> Change:
         """Load a :class:`Change` from an active-change folder.
