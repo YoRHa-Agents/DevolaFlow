@@ -5,6 +5,105 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.4.0] - 2026-05-04
+
+**MINOR — v10.4.0 Developer Experience + Reference Audit Foundation.** First MINOR cycle since v10.3.0; collapses 6 PDSs (D-X-1, D-X-2, D-X-3, D-X-5, D-D-1, D-D-2) into a single coherent change set per `.local/research/v11.0.0_decomposition_plan.md`. The cycle ships 4 NEW operator-facing scripts (2 scaffold CLIs + 2 audit CLIs), the 15th SF-4 canonical reference (`references/troubleshooting.md`), and the SI-10 fast/full Makefile split (D-X-3). Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).
+
+### Operator-visible behaviour change (READ FIRST)
+
+Zero breaking changes. Every change is additive:
+
+- **4 NEW Python scripts** (developer/operator-facing CLIs):
+  - `scripts/scaffold_template.py` (D-X-1) — collapses the 9-step workflow-template ceremony into 1 invocation. Renders builtin yaml + registry stanza + meta-framework alias rows + SKILL.md table row + team-roles matrix row + test skeleton; prints W-18 lint + CHANGELOG stanzas to stdout (NOT auto-injected — fail-loud per R2).
+  - `scripts/scaffold_reference.py` (D-X-2) — collapses the 7-step reference-doc ceremony. Renders the 5-section skeleton, inserts alphabetical SKILL.md row, appends MIRRORED_FILES entry. Idempotent.
+  - `scripts/audit_reference_utilization.py` (D-D-1) — pure-observability audit replaying the selector matrix `(task_type × round_num)` and aggregating per-reference cells_loaded counts. Output: markdown (default) or JSON via `--json`.
+  - `scripts/audit_long_reference_usage.py` (D-D-2) — pure-observability audit scanning `.local/.agent/handoff/` and `.local/research/` for long-reference (>500 lines) citations.
+- **1 NEW reference (15th SF-4 canonical)** — `workflow-system/agent/references/troubleshooting.md` (424 lines, Large-tier within 1000 cap). 3-part operator handbook (Quick Lookup Index → Diagnostic Patterns → Escalation Patterns) covering ~30 distinct operator-trip patterns harvested from cycle retrospectives v8.0.0 → v10.3.0.
+- **3 NEW Makefile targets** (D-X-3 SI-10 fast/full split):
+  - `precommit-fast` — `ruff check --fix` + `ruff format` + `pytest -x --lf` (~10-30 s on green tree). Suitable for in-PR iteration ONLY.
+  - `precommit-full` — alias for `release-preflight` (full 7-step W-9 chain). Required for PV-close commits.
+  - `precommit` — defaults to `precommit-full` (SAFE default; the W-9 invariant is unchanged at 7 gates).
+- **4 NEW convenience Makefile wrappers** — `scaffold-template`, `scaffold-reference`, `audit-references`, `audit-long-references`.
+- **0 NEW env flags** (W-20 §3 reuse-first applied — none of the 6 D-* slices required new flags).
+- **0 schema bumps** — `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` byte-stable across all 10 historical multi-baseline byte tests (v7.0.0 → v10.4.0).
+- **0 Soul rule additions** — W-21 freeze respected (Soul-set count remains 10 at S-1..S-10).
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+- `scripts/scaffold_template.py` — pinned by `tests/test_no_ghost_features.py::test_v10_4_0_new_symbols_have_coverage`
+- `scripts/scaffold_reference.py` — pinned by the same lint
+- `scripts/audit_reference_utilization.py` — pinned
+- `scripts/audit_long_reference_usage.py` — pinned
+- `workflow-system/agent/references/troubleshooting.md` — pinned (also in `_SF4_REFERENCE_SET`)
+- `.local/research/v10.4.0_retrospective.md` — pinned (W-7 / SI-8 contract)
+- `.local/research/v10.4.1_reference_utilization.md` — pinned (D-D-1 audit output)
+- `.local/research/v10.4.2_long_reference_usage.md` — pinned (D-D-2 audit output)
+
+### Cascading-coupling updates (SF-4 cardinality 14 → 15)
+
+- `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` 14 → 15 (added `troubleshooting.md`)
+- `tests/test_version.py::_MIRRORED_SKILL_FILES` 17 → 18 entries (added `references/troubleshooting.md`)
+- `tests/test_reference_size_budgets.py::test_canonical_lists_match_sf3_contract` `assert len(_REF_FILES) == 14` → `== 15`
+- `tests/test_adapter_golden.py::test_cursor_references_golden::len(actual) == 14` → `== 15`
+- `scripts/sync_cursor_skill.py::MIRRORED_FILES` extended (with comment block); count messages now use `len(MIRRORED_FILES)` so they auto-update
+- `data/golden_test_set/sf4_reference_set_size.toml` source/value `len(_SF4_REFERENCE_SET) == 14` → `== 15`
+
+### Audit findings (D-D-1, D-D-2 — first empirical signal)
+
+The v10.4.0 cycle establishes the baseline reference-utilization
+empirics for v11.0.0 cycle planning:
+
+- **D-D-1** (`v10.4.1_reference_utilization.md`): 120 cells replayed (24 task types × 5 rounds). 12 of 15 references at < 20% utilization. High-utilization tier: `decomposition-gate.md` 37.5%, `team-roles.md` 37.5%, `meta-framework.md` 25.0%. Long-tail confirms the v11.0.0 D-A-2 (template compression) + D-D-3 (reference compaction) hypothesis.
+- **D-D-2** (`v10.4.2_long_reference_usage.md`): 9 long references (>500 lines). 3 envelopes total in `.local/.agent/handoff/`. **0 envelope citations of any long reference** across the v8.3.0 → v10.3.0 cycle history. Research-side citations (`.local/research/*`) are high (e.g., shell-proxy.md cited 134 times). Confirms the D-D-2 hypothesis: long-reference machinery is most-relevant for complex/change-driven workflows; standard/hotfix dispatches need not load it.
+
+### Headline numbers (cycle-cumulative; v10.3.0 → v10.4.0)
+
+| Area | v10.3.0 | v10.4.0 | Delta |
+|------|---:|---:|---:|
+| Tests (collected) | 4091 | ~4118 | +27 NEW test functions (within W-17 +30/PV cap) |
+| SF-4 references | 14 | 15 | +1 (`troubleshooting.md`; within ≤2/cycle cap per admission_checklist §4) |
+| SKILL.md lines | 460 | 461 | +1 (1 row in Tier-2 nav table; well under 500 cap) |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze) |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first) |
+| Schema canonical_order length | 16 | 16 | 0 (A-2 byte-stable) |
+| Python scripts | (existing) | +4 | scaffold_template, scaffold_reference, audit_reference_utilization, audit_long_reference_usage |
+| Makefile phony targets | (existing) | +7 | precommit{,-fast,-full}, scaffold-{template,reference}, audit-{references,long-references} |
+
+### Files changed (cycle-cumulative)
+
+NEW:
+- `scripts/scaffold_template.py` (~340 LOC)
+- `scripts/scaffold_reference.py` (~200 LOC)
+- `scripts/audit_reference_utilization.py` (~220 LOC)
+- `scripts/audit_long_reference_usage.py` (~210 LOC)
+- `workflow-system/agent/references/troubleshooting.md` (424 lines)
+- `tests/test_scaffold_template.py` (8 tests)
+- `tests/test_scaffold_reference.py` (7 tests)
+- `tests/test_audit_reference_utilization.py` (6 tests)
+- `tests/test_audit_long_reference_usage.py` (5 tests)
+- `.local/research/v10.4.0_retrospective.md` (W-7 / SI-8)
+- `.local/research/v10.4.1_reference_utilization.md` (D-D-1 output)
+- `.local/research/v10.4.2_long_reference_usage.md` (D-D-2 output)
+
+MOD:
+- Canonical 7 sync 10.3.0 → 10.4.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md` (frontmatter + banner + body), `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `scripts/sync_cursor_skill.py` (MIRRORED_FILES extended; docstring updated)
+- `tests/test_no_ghost_features.py` (`_SF4_REFERENCE_SET` extended + v10.4.0 W-18 stanza)
+- `tests/test_version.py` (`_MIRRORED_SKILL_FILES` extended)
+- `tests/test_reference_size_budgets.py` (`assert len(_REF_FILES) == 15`)
+- `tests/test_adapter_golden.py` (`len(actual) == 15`)
+- `data/golden_test_set/sf4_reference_set_size.toml` (cardinality 14 → 15)
+- `Makefile` (7 NEW phony targets)
+
+### Deferred to v10.5.0 (per W-7 retrospective §3)
+
+- D-X-2 install.sh manifest refactor (`scripts/install.sh` not in v10.4.0 owned-files)
+- `_scaffold_common.py` shared helper between scaffold_template and scaffold_reference
+- D-D-3 reference compaction actions based on the D-D-1 long-tail signal
+- `.rules/workflow.mdc` W-9.1 sub-rule body (the Makefile targets are wired but the codified rule body waits for v10.5.0)
+- `scripts/git-hooks/pre-push.sh` opt-in template
+- Bumping `references/troubleshooting.md` from on-demand to `extra_context` for `bugfix` / `dependency-setup` profiles (v11.0.0 candidate)
+
 ## [10.3.0] — 2026-05-03
 
 **MINOR — v10.3.0 v10.2.0 cycle-close release.** The MINOR cycle-close of the v10.2.0 cycle (5 PATCH PVs + this MINOR cycle-close PV: PV-01 plugin deep review + W-16 wholesale baseline; PV-02 formal Si-Chip integration + 7-step SI-10 + daily-upgrade scheduler; PV-03 NineS deep self-analysis + Si-Chip eval adapter prototype; PV-04 self-iteration round 1 — bridge defect fix unlocks +0.9 iteration_delta + 2 CC reductions; PV-05 self-iteration round 2 + W-8 stagnation predicate verdict CONTINUE + W-17 mid-cycle audit; PV-06 cycle close MINOR + retrospective + W-19 archive). Closes the verbatim user mandate from `.local/feedbacks/feedback_for_v10.2.0.md`: *"对 plugin 模式和当前的 plugin 功能进行深度 review，验证其自动安装和天级别自动更新的有效性 / 正式集成 si-chip / 然后对自身仓库结合 nines 进行深入分析，验证 si-chip 迭代有效性 / 然后进行多轮次自迭代与优化（每次bump 一个 patch）/ 更新 pr 并 bump minor 版本到 10.3.0"* (deep-review plugin mode + verify auto-install + daily auto-upgrade; formally integrate Si-Chip; NineS-analyse the self-repo + validate Si-Chip iteration effectiveness; multi-round self-iteration + optimisation, one PATCH per round; update PR + bump MINOR to v10.3.0).

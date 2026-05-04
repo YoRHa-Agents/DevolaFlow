@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "10.3.0"
+version: "10.4.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v10.3.0**
+> **Now Using DevolaFlow v10.4.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 10.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 10.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -385,6 +385,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
 | `references/team-roles.md` | Task agent config, team capabilities |
+| `references/troubleshooting.md` | Operator-friction lookup index + per-symptom diagnostics (load when a dispatch/gate/hook fails opaquely) |
 
 **Tier 3 — On-demand** (load for specific tasks):
 

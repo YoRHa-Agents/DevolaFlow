@@ -1418,5 +1418,38 @@
       "cycle_archive_files": "25",
       "pvs_in_cycle": "6"
     }
+  },
+  {
+    "version": "10.4.0",
+    "date": "2026-05-04",
+    "era": "developer-experience",
+    "headline": "MINOR — Developer Experience + Reference Audit Foundation: 4 NEW operator CLIs (2 scaffolds + 2 audits), the 15th SF-4 reference (troubleshooting handbook), and SI-10 fast/full Makefile split",
+    "summary": "Collapses 6 v11.0.0-cycle PDSs (D-X-1, D-X-2, D-X-3, D-X-5, D-D-1, D-D-2) into a single MINOR cycle. Ships scaffold_template.py + scaffold_reference.py to collapse the 9-step / 7-step ceremonies; audit_reference_utilization.py + audit_long_reference_usage.py establish empirical reference-usage baselines for v11.0.0 cycle planning. The 15th SF-4 reference (workflow-system/agent/references/troubleshooting.md) consolidates ~30 distinct operator-trip patterns harvested from cycle retros v8.0.0 → v10.3.0. Makefile precommit-fast / precommit-full / precommit split (D-X-3) preserves W-9 SI-10 invariant while cutting in-PR iteration cost ~95%. Zero breaking changes; zero new env flags (W-20 reuse-first); zero schema bumps (A-2 byte-stable); zero Soul rule additions (W-21 freeze).",
+    "highlights": [
+      "scripts/scaffold_template.py (D-X-1, ~340 LOC) — collapses 9-step workflow-template ceremony into 1 invocation; renders all 6 surfaces + prints W-18 + CHANGELOG stanzas",
+      "scripts/scaffold_reference.py (D-X-2, ~200 LOC) — collapses 7-step reference-doc ceremony; idempotent; alphabetical SKILL.md insertion",
+      "scripts/audit_reference_utilization.py (D-D-1) — first empirical reference utilization data: 12 of 15 references at <20% utilization; high-tier decomposition-gate.md / team-roles.md at 37.5%",
+      "scripts/audit_long_reference_usage.py (D-D-2) — confirms 6% envelope-creation rate hypothesis; 0 envelope citations of any long reference across v8.3.0 → v10.3.0 cycle history",
+      "references/troubleshooting.md (D-X-5; 15th SF-4 canonical, 424 lines) — Quick Lookup Index + Diagnostic Patterns + Escalation Patterns covering ~30 trip patterns",
+      "Makefile precommit-fast (~10-30s) / precommit-full (full SI-10) / precommit (=full; SAFE default) — D-X-3 SI-10 fast-path; W-9 invariant unchanged"
+    ],
+    "metrics": {
+      "tests": "~4118",
+      "new_test_functions_pv": "27",
+      "pv_test_cap": "30",
+      "cycle_test_budget_cap": "150",
+      "sf4_references": "15",
+      "sf4_references_prev": "14",
+      "skill_md_lines": "461",
+      "skill_md_cap": "500",
+      "soul_set_count": "10",
+      "env_flags_added_in_cycle": "0",
+      "schema_version": "6",
+      "canonical_order_length": "16",
+      "multi_baseline_pins": "10",
+      "scripts_added": "4",
+      "makefile_targets_added": "7",
+      "pvs_in_cycle": "1"
+    }
   }
 ]

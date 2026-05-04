@@ -129,7 +129,14 @@ def test_cursor_references_golden(cursor_build):
     + CompressionPipeline orchestrator + 6-transform unification
     + multi-pass filter chain T3 #5 reference). Pairs with
     ``src/devolaflow/compression_pipeline.py`` and
-    ``schemas/compression-pipeline.yaml``."""
+    ``schemas/compression-pipeline.yaml``.
+
+    v10.4.0 PV-05 grew this set 14 → 15 by appending
+    ``troubleshooting.md`` (the operator troubleshooting handbook
+    with quick lookup index + per-symptom diagnostic patterns +
+    escalation patterns harvested from v8.0.0 → v10.3.0 cycle
+    retrospectives). Pairs with v10.4.0 audit scripts (D-D-1, D-D-2)
+    and scaffold CLIs (D-X-1, D-X-2)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -140,7 +147,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 14, f"expected 14 reference files, got {len(actual)}"
+    assert len(actual) == 15, f"expected 15 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

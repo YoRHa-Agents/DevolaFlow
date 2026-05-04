@@ -2,8 +2,8 @@
 """Sync .cursor/skills/devola-flow/ to the canonical workflow-system/agent/ skill.
 
 This is the repo-local project-skill mirror that Cursor picks up when the user
-opens the DevolaFlow repo itself. It mirrors EXACTLY the 17 files that
-scripts/install.sh::install_cursor downloads (SKILL.md + 13 references + 3
+opens the DevolaFlow repo itself. It mirrors EXACTLY the 19 files that
+scripts/install.sh::install_cursor downloads (SKILL.md + 15 references + 3
 examples), plus a single-line .devola-flow-version stamp equal to
 src/devolaflow/__init__.py __version__.
 
@@ -29,7 +29,7 @@ import shutil
 import sys
 from pathlib import Path
 
-# Set must match scripts/install.sh::install_cursor (SKILL + 13 refs + 3 examples).
+# Set must match scripts/install.sh::install_cursor (SKILL + 15 refs + 3 examples).
 # Edit BOTH files in lockstep if you ever change what Cursor users receive.
 # v8.0.0 P-08 grew this set 12 -> 13 by appending references/behavioral-guidelines.md
 # (the L3 behavioral primitives reference wired through the new top-level
@@ -50,6 +50,9 @@ from pathlib import Path
 # (the canonical DEVOLAFLOW_* env-var inventory: 8 active runtime flags + 6
 # forward-declared gate-primitive flags + 4 BG defaults + 3 test-fixture flags).
 # Pairs with Workflow Rule W-20 (env-flag reuse vs new-flag policy).
+# v10.4.0 PV-05 grew this set 17 -> 18 by appending references/troubleshooting.md
+# (the 15th SF-4 canonical reference: ~30 distinct operator-trip patterns
+# harvested from cycle retrospectives v8.0.0 -> v10.3.0; D-X-5 closure).
 CANONICAL_DIR = Path("workflow-system/agent")
 MIRROR_DIR = Path(".cursor/skills/devola-flow")
 MIRRORED_FILES = [
@@ -72,6 +75,10 @@ MIRRORED_FILES = [
     # + 6-transform unification + multi-pass filter chain). Pairs with
     # src/devolaflow/compression_pipeline.py and schemas/compression-pipeline.yaml.
     "references/compression-pipeline.md",
+    # v10.4.0 PV-05 — 15th SF-4 canonical reference (operator troubleshooting
+    # handbook). Quick lookup index + per-symptom diagnostic patterns +
+    # escalation patterns harvested from v8.0.0 -> v10.3.0 retros.
+    "references/troubleshooting.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
@@ -130,7 +137,7 @@ def check() -> int:
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         return 1
-    print(f"[.cursor mirror] ok (16 files, stamp {version})")
+    print(f"[.cursor mirror] ok ({len(MIRRORED_FILES)} files, stamp {version})")
     return 0
 
 
@@ -169,7 +176,7 @@ def sync(*, allow_init: bool = False) -> int:
         print(f"  stamp {STAMP_FILE} -> {version}")
         changed += 1
     if changed == 0:
-        print(f"[.cursor mirror] already in sync (16 files, stamp {version})")
+        print(f"[.cursor mirror] already in sync ({len(MIRRORED_FILES)} files, stamp {version})")
     else:
         print(f"[.cursor mirror] synced {changed} file(s) to v{version}")
     return 0

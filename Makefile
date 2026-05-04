@@ -3,7 +3,8 @@
 
 .PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
        build-site release-preflight release-dry-run scaffold-agent agent-reports \
-       compile-rules check-rules-drift
+       compile-rules check-rules-drift precommit precommit-fast precommit-full \
+       scaffold-template scaffold-reference audit-references audit-long-references
 
 all: lint test validate-templates build-skill sync-human-docs sync-cursor-skill compile-rules check-drift check-rules-drift
 
@@ -148,6 +149,46 @@ release-preflight: lint test validate-templates build-skill sync-human-docs chec
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"
 	@echo "Then: git push origin main --tags"
+
+# v10.4.0 PV-05 (D-X-3) — SI-10 fast-path / full-path split.
+#
+# `precommit-fast` runs ONLY ruff + smoke pytest (`-x --lf`); it is
+# suitable for in-PR iteration but is NEVER a substitute for SI-10.
+# `precommit-full` is an alias for `release-preflight` (the canonical
+# 7-step W-9 chain). `precommit` (no suffix) defaults to the SAFE full
+# path so an operator who types `make precommit` always gets full
+# coverage. Per W-9.1 (telegraphed); the SI-10 invariant remains
+# unchanged at 7 gates.
+.PHONY: precommit precommit-fast precommit-full
+precommit-fast:
+	@echo "[precommit-fast] ruff check --fix + ruff format + pytest -x --lf"
+	@ruff check --fix src/ tests/
+	@ruff format src/ tests/
+	@python -m pytest tests/ -x --lf --no-cov -q
+
+precommit-full: release-preflight
+	@echo "[precommit-full] full SI-10 chain complete (alias for release-preflight)"
+
+precommit: precommit-full
+	@echo "[precommit] default = precommit-full (use precommit-fast for iteration)"
+
+# v10.4.0 PV-05 (D-X-1, D-X-2) — scaffold CLIs.
+.PHONY: scaffold-template scaffold-reference
+scaffold-template:
+	@echo "Usage: python scripts/scaffold_template.py <name> --primitives a,b,c --category build"
+	@echo "       (run with --dry-run to preview without writes)"
+
+scaffold-reference:
+	@echo "Usage: python scripts/scaffold_reference.py <name> --tier large --load-when '<trigger>'"
+	@echo "       (run with --dry-run to preview without writes)"
+
+# v10.4.0 PV-05 (D-D-1, D-D-2) — reference utilization + long-reference audits.
+.PHONY: audit-references audit-long-references
+audit-references:
+	@python scripts/audit_reference_utilization.py
+
+audit-long-references:
+	@python scripts/audit_long_reference_usage.py
 
 release-dry-run:
 	@echo "=== Release dry-run ==="

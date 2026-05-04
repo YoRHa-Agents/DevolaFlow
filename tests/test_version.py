@@ -190,6 +190,9 @@ _MIRRORED_SKILL_FILES = [
     # v8.5.1 PV-06 — 14th SF-4 canonical reference (CompressionPipeline protocol
     # + 6-transform unification + multi-pass filter chain T3 #5).
     "references/compression-pipeline.md",
+    # v10.4.0 PV-05 — 15th SF-4 canonical reference (operator troubleshooting
+    # handbook). Quick lookup index + per-symptom diagnostic patterns; D-X-5.
+    "references/troubleshooting.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
