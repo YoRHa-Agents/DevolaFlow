@@ -197,6 +197,104 @@ def _try_consolidate_learnings(payload: dict[str, Any]) -> None:
         logging.getLogger(__name__).debug("Session consolidation skipped", exc_info=True)
 
 
+def _persist_learnings_shard(
+    state: Any,
+    payload: dict[str, Any],
+    session_id: str,
+    log: Any,
+) -> None:
+    """Queue pending learnings from ``payload`` onto ``state``.
+
+    Extracted from :func:`_try_persist_session_state` in v10.6.0 PV-01
+    (D-Q-1 row #1) to bring the parent below the CC ≤10 floor. The
+    per-entry try/except boundary is preserved verbatim — a malformed
+    ``Learning`` row is logged at WARNING and skipped, and any other
+    rows continue to be queued (R5 byte-identical).
+    """
+    from devolaflow.learnings import Learning
+
+    for entry in payload.get("learnings", {}).get("entries", []) or []:
+        if not isinstance(entry, dict) or "insight" not in entry:
+            continue
+        try:
+            state.queue_learning(
+                Learning(
+                    stage=entry.get("stage", "task"),
+                    task_type=entry.get("task_type", "general"),
+                    key=entry.get(
+                        "key",
+                        f"{session_id}:{entry.get('insight', '')[:30]}",
+                    ),
+                    insight=entry["insight"],
+                    confidence=float(entry.get("confidence", 0.7)),
+                    source_task_id=session_id,
+                    files=entry.get("files", []),
+                    source=entry.get("source", "task_completion"),
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            log.warning("PV-03 lifecycle: skipping malformed learning %r: %s", entry, exc)
+
+
+def _persist_legibility_shard(
+    state: Any,
+    payload: dict[str, Any],
+    log: Any,
+) -> None:
+    """Attach optional legibility verdicts from ``payload`` onto ``state``.
+
+    Extracted from :func:`_try_persist_session_state` in v10.6.0 PV-01
+    (D-Q-1 row #1). Mirrors the per-entry try/except boundary used by
+    :func:`_persist_learnings_shard` so a malformed legibility row is
+    logged at WARNING and skipped rather than aborting the overall
+    snapshot (R5 byte-identical).
+    """
+    legibility_block = payload.get("legibility") or {}
+    if not isinstance(legibility_block, dict):
+        return
+    for legibility_file in legibility_block.get("files", []) or []:
+        if not isinstance(legibility_file, dict):
+            continue
+        file_path = legibility_file.get("path")
+        score = legibility_file.get("score")
+        if not file_path or score is None:
+            continue
+        try:
+            state.attach_legibility(
+                file_path=str(file_path),
+                score=float(score),
+                findings=list(legibility_file.get("findings") or []),
+            )
+        except (TypeError, ValueError) as exc:
+            log.warning(
+                "PV-03 lifecycle: skipping malformed legibility entry %r: %s",
+                legibility_file,
+                exc,
+            )
+
+
+def _persist_lifecycle_event_shard(
+    state: Any,
+    payload: dict[str, Any],
+    *,
+    hook_passed: bool,
+) -> None:
+    """Record the ``task_stop`` lifecycle event onto ``state``.
+
+    Extracted from :func:`_try_persist_session_state` in v10.6.0 PV-01
+    (D-Q-1 row #1). Builds the violation-code list from the payload and
+    forwards :meth:`SessionState.record_lifecycle_event` with the same
+    arguments the inline pre-extraction body used (R5 byte-identical).
+    """
+    violation_codes = [str(code) for code in (payload.get("violation_codes") or []) if code]
+    state.record_lifecycle_event(
+        event=EVENT,
+        passed=hook_passed,
+        severity=payload.get("severity"),
+        violation_codes=violation_codes,
+    )
+
+
 def _try_persist_session_state(
     payload: dict[str, Any],
     *,
@@ -223,6 +321,13 @@ def _try_persist_session_state(
 
     Errors are logged and swallowed (best-effort) per S-5 — the hook
     must never fail the task because of an opt-in persistence layer.
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #1), the three persistence
+    bodies live in :func:`_persist_learnings_shard`,
+    :func:`_persist_legibility_shard`, and
+    :func:`_persist_lifecycle_event_shard`. Behaviour is byte-identical
+    to v10.5.x baseline.
     """
     if not isinstance(payload, dict):
         return
@@ -235,7 +340,6 @@ def _try_persist_session_state(
     log = logging.getLogger(__name__)
 
     try:
-        from devolaflow.learnings import Learning
         from devolaflow.session import SessionStore
 
         store = SessionStore(state_path)
@@ -244,57 +348,9 @@ def _try_persist_session_state(
         if not state.session_id:
             state.session_id = session_id
 
-        for entry in payload.get("learnings", {}).get("entries", []) or []:
-            if not isinstance(entry, dict) or "insight" not in entry:
-                continue
-            try:
-                state.queue_learning(
-                    Learning(
-                        stage=entry.get("stage", "task"),
-                        task_type=entry.get("task_type", "general"),
-                        key=entry.get(
-                            "key",
-                            f"{session_id}:{entry.get('insight', '')[:30]}",
-                        ),
-                        insight=entry["insight"],
-                        confidence=float(entry.get("confidence", 0.7)),
-                        source_task_id=session_id,
-                        files=entry.get("files", []),
-                        source=entry.get("source", "task_completion"),
-                    )
-                )
-            except (TypeError, ValueError) as exc:
-                log.warning("PV-03 lifecycle: skipping malformed learning %r: %s", entry, exc)
-
-        legibility_block = payload.get("legibility") or {}
-        if isinstance(legibility_block, dict):
-            for legibility_file in legibility_block.get("files", []) or []:
-                if not isinstance(legibility_file, dict):
-                    continue
-                file_path = legibility_file.get("path")
-                score = legibility_file.get("score")
-                if not file_path or score is None:
-                    continue
-                try:
-                    state.attach_legibility(
-                        file_path=str(file_path),
-                        score=float(score),
-                        findings=list(legibility_file.get("findings") or []),
-                    )
-                except (TypeError, ValueError) as exc:
-                    log.warning(
-                        "PV-03 lifecycle: skipping malformed legibility entry %r: %s",
-                        legibility_file,
-                        exc,
-                    )
-
-        violation_codes = [str(code) for code in (payload.get("violation_codes") or []) if code]
-        state.record_lifecycle_event(
-            event=EVENT,
-            passed=hook_passed,
-            severity=payload.get("severity"),
-            violation_codes=violation_codes,
-        )
+        _persist_learnings_shard(state, payload, session_id, log)
+        _persist_legibility_shard(state, payload, log)
+        _persist_lifecycle_event_shard(state, payload, hook_passed=hook_passed)
 
         store.save(state)
     except Exception:

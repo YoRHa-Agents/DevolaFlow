@@ -63,6 +63,7 @@ import re
 import shutil
 import subprocess
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -262,18 +263,73 @@ def plugins_for_workflow(
     if registry is None:
         registry = load_registry(registry_path)
 
-    matches: list[str] = []
+    return list(_iter_workflow_matches(registry, workflow_name))
+
+
+def _iter_workflow_matches(registry: dict[str, Any], workflow_name: str) -> Iterator[str]:
+    """Yield plugin IDs whose ``invoked_by_workflows`` cites ``workflow_name``.
+
+    Extracted from :func:`plugins_for_workflow` in v10.6.0 PV-01 (D-Q-1
+    row #6) — a generator that filters registry entries by workflow
+    membership and yields the validated plugin IDs in registry order.
+    The two short-circuit branches (entry not a dict, invoked not a
+    list) become ``continue`` statements that don't accumulate into the
+    parent's CC graph. R5 byte-identical: insertion order from the
+    registry is preserved (deterministic across runs because YAML
+    order is preserved by ``yaml.safe_load``).
+    """
     for entry in registry.get("plugins", []):
         if not isinstance(entry, dict):
             continue
         invoked = entry.get("invoked_by_workflows") or []
         if not isinstance(invoked, list):
             continue
-        if workflow_name in invoked:
-            plugin_id = entry.get("id")
-            if isinstance(plugin_id, str) and plugin_id:
-                matches.append(plugin_id)
-    return matches
+        if workflow_name not in invoked:
+            continue
+        plugin_id = entry.get("id")
+        if isinstance(plugin_id, str) and plugin_id:
+            yield plugin_id
+
+
+def _validate_required_keys(plugin_id: str, entry: dict[str, Any]) -> None:
+    """Raise :class:`PluginInstallError` when *entry* lacks any required key.
+
+    Extracted from :func:`resolve_plugin` in v10.6.0 PV-01 (D-Q-1 row
+    #7). The required-keys set (``package``, ``install_cmd``,
+    ``version_check_cmd``, ``min_version``) is the v8.2.1 minimum
+    contract for every backend; missing or empty values are a
+    schema violation surfaced loudly per S-5.
+    """
+    required_keys = ("package", "install_cmd", "version_check_cmd", "min_version")
+    missing = [k for k in required_keys if not entry.get(k)]
+    if missing:
+        raise PluginInstallError(
+            f"Plugin {plugin_id!r} registry entry missing required keys: {missing}.",
+            details={"plugin_id": plugin_id, "missing_keys": missing},
+        )
+
+
+def _validate_npm_then_init_keys(plugin_id: str, entry: dict[str, Any]) -> None:
+    """Raise :class:`PluginInstallError` when ``npm_then_init`` is mis-configured.
+
+    Extracted from :func:`resolve_plugin` in v10.6.0 PV-01 (D-Q-1 row
+    #7). The ``npm_then_init`` backend (used by ``ui-pro``) requires
+    BOTH ``init_cmd_template`` AND a non-empty ``init_targets`` list
+    so the per-platform init can run after ``npm install``. Either
+    missing field is a schema violation surfaced loudly per S-5.
+    Only call when ``entry["backend"] == "npm_then_init"``.
+    """
+    if not entry.get("init_cmd_template"):
+        raise PluginInstallError(
+            f"Plugin {plugin_id!r} (backend=npm_then_init) missing required 'init_cmd_template'.",
+            details={"plugin_id": plugin_id},
+        )
+    if not entry.get("init_targets"):
+        raise PluginInstallError(
+            f"Plugin {plugin_id!r} (backend=npm_then_init) must declare "
+            "at least one init_targets entry.",
+            details={"plugin_id": plugin_id},
+        )
 
 
 def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpec:
@@ -288,54 +344,45 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
         ``{pip, npm_then_init, curl_install_script}``.
     PluginInstallError
         When the entry is malformed (missing required keys).
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #7), the per-backend
+    schema validation lives in :func:`_validate_required_keys` and
+    :func:`_validate_npm_then_init_keys`. Behaviour byte-identical
+    to v10.5.x baseline (verified by ``tests/test_plugins.py`` +
+    ``tests/test_runtime_plugins_smoke.py``).
     """
     for entry in registry.get("plugins", []):
         if not isinstance(entry, dict):
             continue
-        if entry.get("id") == plugin_id:
-            backend = entry.get("backend")
-            if backend not in _SUPPORTED_BACKENDS:
-                raise PluginBackendUnsupported(
-                    f"Plugin {plugin_id!r} declares unsupported backend "
-                    f"{backend!r}; installer supports {sorted(_SUPPORTED_BACKENDS)}.",
-                    details={"plugin_id": plugin_id, "backend": backend},
-                )
-            required_keys = ("package", "install_cmd", "version_check_cmd", "min_version")
-            missing = [k for k in required_keys if not entry.get(k)]
-            if missing:
-                raise PluginInstallError(
-                    f"Plugin {plugin_id!r} registry entry missing required keys: {missing}.",
-                    details={"plugin_id": plugin_id, "missing_keys": missing},
-                )
-            if backend == "npm_then_init":
-                if not entry.get("init_cmd_template"):
-                    raise PluginInstallError(
-                        f"Plugin {plugin_id!r} (backend=npm_then_init) missing "
-                        "required 'init_cmd_template'.",
-                        details={"plugin_id": plugin_id},
-                    )
-                if not entry.get("init_targets"):
-                    raise PluginInstallError(
-                        f"Plugin {plugin_id!r} (backend=npm_then_init) must declare "
-                        "at least one init_targets entry.",
-                        details={"plugin_id": plugin_id},
-                    )
-            return RuntimePluginSpec(
-                id=str(entry["id"]),
-                backend=backend,
-                package=str(entry["package"]),
-                install_cmd=str(entry["install_cmd"]),
-                version_check_cmd=str(entry["version_check_cmd"]),
-                min_version=str(entry["min_version"]),
-                canonical_url=str(entry.get("canonical_url", "")),
-                expected_sha256=entry.get("expected_sha256"),
-                local_fallback_path=entry.get("local_fallback_path"),
-                init_cmd_template=entry.get("init_cmd_template"),
-                init_targets=list(entry.get("init_targets") or []),
-                invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
-                verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
-                upgrade_cmd=entry.get("upgrade_cmd"),
+        if entry.get("id") != plugin_id:
+            continue
+        backend = entry.get("backend")
+        if backend not in _SUPPORTED_BACKENDS:
+            raise PluginBackendUnsupported(
+                f"Plugin {plugin_id!r} declares unsupported backend "
+                f"{backend!r}; installer supports {sorted(_SUPPORTED_BACKENDS)}.",
+                details={"plugin_id": plugin_id, "backend": backend},
             )
+        _validate_required_keys(plugin_id, entry)
+        if backend == "npm_then_init":
+            _validate_npm_then_init_keys(plugin_id, entry)
+        return RuntimePluginSpec(
+            id=str(entry["id"]),
+            backend=backend,
+            package=str(entry["package"]),
+            install_cmd=str(entry["install_cmd"]),
+            version_check_cmd=str(entry["version_check_cmd"]),
+            min_version=str(entry["min_version"]),
+            canonical_url=str(entry.get("canonical_url", "")),
+            expected_sha256=entry.get("expected_sha256"),
+            local_fallback_path=entry.get("local_fallback_path"),
+            init_cmd_template=entry.get("init_cmd_template"),
+            init_targets=list(entry.get("init_targets") or []),
+            invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
+            verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
+            upgrade_cmd=entry.get("upgrade_cmd"),
+        )
 
     raise PluginNotFoundError(
         f"Plugin {plugin_id!r} not found in runtime-plugins registry.",
@@ -915,6 +962,19 @@ def ensure_plugin(
     PluginInstallError
         Install attempt failed (network unreachable, subprocess non-zero,
         timeout, version still unparseable post-install, sha mismatch).
+
+    Implementation note: per the v10.6.0 PV-01 cyclomatic-complexity
+    reduction (NineS PV-03 deep-analysis row #1), the cache-hit arm
+    lives in :func:`_handle_already_installed_path` and the
+    network-fetch arm lives in :func:`_handle_install_path`. All 8
+    named log events (``plugin_already_installed``, ``plugin_installed``,
+    ``plugin_install_blocked_by_config``, ``plugin_install_failed``,
+    ``plugin_install_post_version_unparseable``,
+    ``plugin_install_version_mismatch``, ``plugin_install_sha_mismatch``,
+    and the two distinguish-failed variants) are PRESERVED VERBATIM
+    per the §9 risk register row #3 contract — downstream operator
+    tooling grep-pinned to these event names continues to see
+    byte-identical JSONL output.
     """
     registry = load_registry(registry_path)
     defaults = _load_defaults(registry)
@@ -926,41 +986,13 @@ def ensure_plugin(
     t_start = time.monotonic()
     preinstall_version = _probe_version(spec, timeout=timeout)
     if preinstall_version and _meets_min(preinstall_version, spec.min_version):
-        # No-op for plugins without verify_distinguish_cmd (nines, ui-pro);
-        # for RTK, runs `rtk gain` to detect rtk-type-kit collisions even
-        # when the version probe accidentally matches the wrong package.
-        try:
-            _verify_distinguish(spec, timeout=timeout)
-        except PluginInstallError as exc:
-            _append_log(
-                effective_log,
-                "plugin_install_distinguish_failed_preinstall",
-                spec.id,
-                {
-                    "preinstall_version": preinstall_version,
-                    "verify_distinguish_cmd": spec.verify_distinguish_cmd,
-                    "details": exc.details,
-                },
-            )
-            raise
-        logger.info(
-            "plugin_already_installed: %s at version %s (>= %s)",
-            spec.id,
+        return _handle_already_installed_path(
+            spec,
             preinstall_version,
-            spec.min_version,
+            log_path=effective_log,
+            timeout=timeout,
+            t_start=t_start,
         )
-        _append_log(
-            effective_log,
-            "plugin_already_installed",
-            spec.id,
-            {
-                "version": preinstall_version,
-                "min_version": spec.min_version,
-                "backend": spec.backend,
-                "elapsed_s": round(time.monotonic() - t_start, 3),
-            },
-        )
-        return preinstall_version
 
     if not effective_auto_install:
         _append_log(
@@ -983,6 +1015,108 @@ def ensure_plugin(
             },
         )
 
+    return _handle_install_path(
+        spec,
+        defaults,
+        log_path=effective_log,
+        timeout=timeout,
+        t_start=t_start,
+    )
+
+
+def _handle_already_installed_path(
+    spec: RuntimePluginSpec,
+    preinstall_version: str,
+    *,
+    log_path: Path | None,
+    timeout: int,
+    t_start: float,
+) -> str:
+    """Cache-hit arm of :func:`ensure_plugin`: distinguish + log + return.
+
+    Extracted from :func:`ensure_plugin` in v10.6.0 PV-01 (D-Q-1 row
+    #5). Only invoked when ``preinstall_version`` is non-empty AND
+    meets ``spec.min_version`` — at that point the binary on PATH is
+    accepted as the install. The distinguish-check still runs (for
+    plugins like RTK that ship a ``verify_distinguish_cmd`` to catch
+    rtk-type-kit collisions even when the version string accidentally
+    matches the wrong package).
+
+    Failure surfaces a ``plugin_install_distinguish_failed_preinstall``
+    JSONL log event (event-name PRESERVED VERBATIM per the §9 risk
+    register row #3 named-event ordering contract) and re-raises the
+    original :class:`PluginInstallError` per S-5.
+
+    Success surfaces ``plugin_already_installed`` (also verbatim
+    event name) plus the same INFO log line as the v10.5.x baseline.
+    """
+    try:
+        _verify_distinguish(spec, timeout=timeout)
+    except PluginInstallError as exc:
+        _append_log(
+            log_path,
+            "plugin_install_distinguish_failed_preinstall",
+            spec.id,
+            {
+                "preinstall_version": preinstall_version,
+                "verify_distinguish_cmd": spec.verify_distinguish_cmd,
+                "details": exc.details,
+            },
+        )
+        raise
+    logger.info(
+        "plugin_already_installed: %s at version %s (>= %s)",
+        spec.id,
+        preinstall_version,
+        spec.min_version,
+    )
+    _append_log(
+        log_path,
+        "plugin_already_installed",
+        spec.id,
+        {
+            "version": preinstall_version,
+            "min_version": spec.min_version,
+            "backend": spec.backend,
+            "elapsed_s": round(time.monotonic() - t_start, 3),
+        },
+    )
+    return preinstall_version
+
+
+def _handle_install_path(
+    spec: RuntimePluginSpec,
+    defaults: RegistryDefaults,
+    *,
+    log_path: Path | None,
+    timeout: int,
+    t_start: float,
+) -> str:
+    """Network-fetch arm of :func:`ensure_plugin`: backend + verify + log.
+
+    Extracted from :func:`ensure_plugin` in v10.6.0 PV-01 (D-Q-1 row
+    #5). Sequence:
+
+    1. Backend dispatch (``pip`` / ``npm_then_init`` /
+       ``curl_install_script``); failure logs
+       ``plugin_install_failed`` and re-raises.
+    2. Re-probe version; ``None`` logs
+       ``plugin_install_post_version_unparseable`` and raises
+       :class:`PluginInstallError`. Below-floor logs
+       ``plugin_install_version_mismatch`` and raises
+       :class:`PluginVersionMismatch`.
+    3. Run distinguish-check; failure logs
+       ``plugin_install_distinguish_failed_postinstall`` and re-raises.
+    4. Run SHA-256 verify; failure (currently best-effort heuristic)
+       on a pip-backend triggers a best-effort pip uninstall, logs
+       ``plugin_install_sha_mismatch``, and re-raises.
+    5. Log ``plugin_installed`` + INFO line + return version.
+
+    All 8 named log events are PRESERVED VERBATIM per the D-Q-1 §9
+    risk register row #3 contract — downstream operator tooling
+    grep-pinned to these event names continues to see byte-identical
+    JSONL output.
+    """
     try:
         if spec.backend == "pip":
             _install_via_pip(
@@ -1001,7 +1135,7 @@ def ensure_plugin(
             )
     except PluginInstallError as exc:
         _append_log(
-            effective_log,
+            log_path,
             "plugin_install_failed",
             spec.id,
             {"backend": spec.backend, "details": exc.details},
@@ -1011,7 +1145,7 @@ def ensure_plugin(
     postinstall_version = _probe_version(spec, timeout=timeout)
     if postinstall_version is None:
         _append_log(
-            effective_log,
+            log_path,
             "plugin_install_post_version_unparseable",
             spec.id,
             {"backend": spec.backend, "min_version": spec.min_version},
@@ -1024,7 +1158,7 @@ def ensure_plugin(
 
     if not _meets_min(postinstall_version, spec.min_version):
         _append_log(
-            effective_log,
+            log_path,
             "plugin_install_version_mismatch",
             spec.id,
             {
@@ -1050,7 +1184,7 @@ def ensure_plugin(
         _verify_distinguish(spec, timeout=timeout)
     except PluginInstallError as exc:
         _append_log(
-            effective_log,
+            log_path,
             "plugin_install_distinguish_failed_postinstall",
             spec.id,
             {
@@ -1068,7 +1202,7 @@ def ensure_plugin(
         if spec.backend == "pip":
             _attempt_pip_uninstall(spec, timeout=timeout)
         _append_log(
-            effective_log,
+            log_path,
             "plugin_install_sha_mismatch",
             spec.id,
             {
@@ -1079,7 +1213,7 @@ def ensure_plugin(
         raise
 
     _append_log(
-        effective_log,
+        log_path,
         "plugin_installed",
         spec.id,
         {

@@ -5,6 +5,115 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.6.0] - 2026-05-04
+
+**MINOR — v10.6.0 Code Quality (NineS cleanup + god-function refactor).** Third MINOR cycle in the v11.0.0 admission rollout; collapses 3 PDSs (D-Q-1, D-Q-2, D-Q-4) into a single coherent code-quality cycle per `.local/research/v11.0.0_patches/`. **Pure refactor + audit cycle: zero functional drift, zero new env flags, zero schema bumps.** The cycle ships 14 single-purpose helpers extracted from 7 high-CC functions in `src/devolaflow/{lifecycle,plugins}/` (D-Q-1), the `feedback.py::ProposalGenerator` god-function refactor into a NEW `feedback_emit.py::ProposalEmitter` class via composition (D-Q-2), and the first NineS-shape health snapshot of the post-v9.3.0-split `compressor/` package (D-Q-4). Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero behaviour change.** Every code modification is a pure refactor verified byte-identical:
+
+- **D-Q-1 (PV-01)** — 14 NEW single-purpose helpers extracted from 7 high-CC functions. Public function signatures preserved verbatim; all helpers are module-private (`_`-prefixed). Verified by the existing 317 test functions across 7 affected test surfaces (no NEW assertions needed). Avg CC across the modified 7 functions dropped from 15.1 → 4.6 (-69%).
+- **D-Q-2 (PV-02)** — `ProposalGenerator.generate_round_dispatch` becomes a 6-line façade delegating to a NEW `ProposalEmitter.emit()` method. The `_emit_dispatch` private helper is removed; the S-10 4-event hook chain firing (`pre_dispatch` → `post_dispatch` → `pre_handoff` → `pre_plugin_invocation`) lives on `ProposalEmitter._fire_hook_chain`. The S-10 release-blocker contract (`tests/test_dispatch_emission_runs_hooks.py`, 10 tests) stays **byte-identical green** — the chain order, permissive-mode `strict=False` invariant, R5 deep-copy contract, and S-5 exception isolation all preserved verbatim.
+- **D-Q-4 (PV-03)** — pure-audit deliverable: NEW `scripts/snapshot_compressor_health.py` script + tests + Makefile target + first audit output committed. **Zero source-code changes** to `src/devolaflow/compressor/`. The audit identifies 4 warning-class CC findings in `transforms.py` (the largest single Python file in `src/devolaflow/`); each becomes a candidate v10.6.x or v11.0.x micro-PV per the strict separation contract (W-1: no implementation without documented gap analysis).
+
+### NEW symbols / files (W-18 ghost-audit refreshed before this entry)
+
+- **D-Q-1 helpers (14 NEW)** — pinned by `tests/test_no_ghost_features.py::test_v10_6_0_new_symbols_have_coverage` parametrize entry:
+  - `src/devolaflow/lifecycle/test_on_complete.py::_persist_learnings_shard`
+  - `src/devolaflow/lifecycle/test_on_complete.py::_persist_legibility_shard`
+  - `src/devolaflow/lifecycle/test_on_complete.py::_persist_lifecycle_event_shard`
+  - `src/devolaflow/lifecycle/auto_write_handoff.py::_layer_lookup_table`
+  - `src/devolaflow/lifecycle/auto_write_handoff.py::_resolve_envelope_inputs`
+  - `src/devolaflow/lifecycle/auto_write_handoff.py::_write_envelope_or_violation`
+  - `src/devolaflow/lifecycle/pre_plugin_invocation.py::_parse_plugin_ids_list`
+  - `src/devolaflow/lifecycle/pre_plugin_invocation.py::_parse_plugin_id_single`
+  - `src/devolaflow/lifecycle/pre_plugin_invocation.py::_parse_workflow_plugins`
+  - `src/devolaflow/plugins/installer.py::_handle_already_installed_path`
+  - `src/devolaflow/plugins/installer.py::_handle_install_path`
+  - `src/devolaflow/plugins/installer.py::_iter_workflow_matches`
+  - `src/devolaflow/plugins/installer.py::_validate_required_keys`
+  - `src/devolaflow/plugins/installer.py::_validate_npm_then_init_keys`
+- **D-Q-2 module + class** — pinned by the same lint:
+  - `src/devolaflow/feedback_emit.py` — NEW module (~295 LOC)
+  - `src/devolaflow/feedback_emit.py::ProposalEmitter` — NEW class with `emit()` + `_fire_hook_chain()` methods
+  - `tests/test_feedback_emit.py` — NEW unit-test file with 8 tests covering the 8 contract dimensions per PDS §7
+- **D-Q-4 audit script + tests + output** — pinned:
+  - `scripts/snapshot_compressor_health.py` (~735 LOC; radon-based; W-2 manual fallback)
+  - `tests/test_snapshot_compressor_health.py` (5 tests)
+  - `Makefile` target `snapshot-compressor:` (D-Q-4 audit target)
+  - `.local/research/v10.6.0_compressor_health.md` — first audit output (4 warning-class CC findings in `transforms.py`)
+- `.local/research/v10.6.0_retrospective.md` — pinned (W-7 / SI-8 contract)
+
+### CC reduction summary (D-Q-1)
+
+| File | Function | Before | After | Helpers |
+|---|---|---:|---:|---:|
+| `lifecycle/test_on_complete.py` | `_try_persist_session_state` | 22 | 5 | 3 |
+| `lifecycle/auto_write_handoff.py` | `_extract_layers` | 16 | 6 | 1 |
+| `lifecycle/auto_write_handoff.py` | `auto_write_handoff` | 12 | 2 | 2 |
+| `lifecycle/pre_plugin_invocation.py` | `_extract_plugin_ids` | 16 | 2 | 3 |
+| `plugins/installer.py` | `ensure_plugin` | 16 | 6 | 2 |
+| `plugins/installer.py` | `plugins_for_workflow` | 11 | 3 | 1 |
+| `plugins/installer.py` | `resolve_plugin` | 13 | 8 | 2 |
+| **Aggregate** | (n=7) | **15.1** | **4.6** | **14** |
+
+### D-Q-4 compressor health snapshot (informational)
+
+The first post-split snapshot (`.local/research/v10.6.0_compressor_health.md`) reports:
+
+- **Package totals:** 4 files, 3,085 LOC, ~28 functions analysed at rank B+ (radon `-nB`).
+- **4 warning-class CC findings** (rank C = CC ∈ [11, 20]), all in `transforms.py`:
+  - `_summarise_high_density_section` (line 1159)
+  - `_assemble_abstractive_summary` (line 1209)
+  - `_invoke_stage_b_llm` (line 1471)
+  - `dedup_predecessor_summaries` (line 2076)
+- **Synthesis score** 8.0/10 (informal; not NineS-grade).
+- **Δ vs v9.3.0 PV-04 pre-split baseline:** avg complexity +4.02 (4.98 → ~9.0 weighted estimate), warning count +2 (2 → 4).
+
+These 4 findings become **candidate v10.6.x or v11.0.x micro-PVs** per the D-Q-4 §6 admission verdict; each requires its own per-finding PDS (W-1 strict separation: no implementation without documented gap analysis).
+
+### Headline numbers (cycle-cumulative; v10.5.0 → v10.6.0)
+
+| Area | v10.5.0 | v10.6.0 | Delta |
+|------|---:|---:|---:|
+| Tests (collected) | ~4161 | ~4174 | +13 NEW test functions (within W-17 +30/PV cap) |
+| `feedback.py` LOC | 866 | 769 | -97 (-11%) |
+| `feedback_emit.py` LOC (NEW) | 0 | 295 | +295 |
+| `ProposalGenerator` method count | 6 | 5 | -1 (composition over inheritance) |
+| NineS warning-class CC functions in `lifecycle/` + `plugins/` | 7 | 0 | -7 (-100%) |
+| `compressor/` last NineS-snapshot age | 547 days | 0 days | -547 d |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze) |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; no new flag needed) |
+| Schema canonical_order length | 16 | 16 | 0 (A-2 byte-stable) |
+| Python scripts | (existing) | +1 | snapshot_compressor_health |
+| Makefile phony targets | (existing) | +1 | snapshot-compressor |
+
+### Files changed (cycle-cumulative)
+
+NEW:
+- `src/devolaflow/feedback_emit.py` (~295 LOC)
+- `tests/test_feedback_emit.py` (8 tests)
+- `scripts/snapshot_compressor_health.py` (~735 LOC)
+- `tests/test_snapshot_compressor_health.py` (5 tests)
+- `.local/research/v10.6.0_retrospective.md` (W-7 / SI-8)
+- `.local/research/v10.6.0_compressor_health.md` (D-Q-4 audit output)
+
+MOD:
+- Canonical 7 sync 10.5.0 → 10.6.0: `src/devolaflow/__init__.py`, `pyproject.toml`, `workflow-system/agent/SKILL.md`, `workflow-system/agent/workflow-skill.yaml`, `scripts/generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `workflow-system/human/demo/benchmark-results/index.html`
+- `src/devolaflow/feedback.py` (D-Q-2 — slim by 97 LOC; thin façade)
+- `src/devolaflow/lifecycle/test_on_complete.py` (D-Q-1 — 3 helpers extracted)
+- `src/devolaflow/lifecycle/auto_write_handoff.py` (D-Q-1 — 3 helpers extracted)
+- `src/devolaflow/lifecycle/pre_plugin_invocation.py` (D-Q-1 — 3 helpers extracted)
+- `src/devolaflow/plugins/installer.py` (D-Q-1 — 5 helpers extracted)
+- `tests/test_no_ghost_features.py` (W-18 v10.6.0 stanza + literals)
+- `Makefile` (NEW snapshot-compressor target)
+
+### Deferred to v10.7.0+ (per W-7 retrospective §3)
+
+- D-Q-3 (lifecycle hook rename taxonomy) — Soul-Rule-adjacent rename requiring W-21 multi-cycle deliberation; defer to v10.7.0+.
+- 4 D-Q-4-surfaced compressor warnings — admit each as a separate per-finding PDS to v10.6.x or v11.0.x. Recommended ordering by leverage: `_summarise_high_density_section`, `_assemble_abstractive_summary`, `_invoke_stage_b_llm`, `dedup_predecessor_summaries`.
+
 ## [10.5.0] - 2026-05-04
 
 **MINOR — v10.5.0 Architecture & Documentation Health.** Second MINOR cycle in the v11.0.0 admission rollout; collapses 6 PDSs (D-A-1, D-A-2, D-A-3, D-A-4, D-D-3, D-D-4) into a single coherent change set per `.local/research/v11.0.0_patches/`. The cycle ships 4 NEW operator-facing audit scripts (D-A-1 layer usage, D-A-2 template usage, D-D-3 reference friction, D-D-4 W-18 lint maintenance), a new XL-tier example (`multi-stage-trace.md`), the new "Resume After Pause" §3.6 in `agent-workspace.md`, and a `force_no_change` parameter on `activation_verdict()`. Soul-set frozen at 10 (W-21); 0 NEW env flags (W-20 reuse-first); A-2 cache-prefix layout byte-stable (zero `canonical_order` mutations).
