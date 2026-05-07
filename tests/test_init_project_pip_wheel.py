@@ -104,6 +104,9 @@ def test_local_target_succeeds_without_workflow_system(
     assert (cwd / ".local" / ".agent" / "handoff").is_dir()
     assert (cwd / ".local" / ".agent" / "archive").is_dir()
     assert (cwd / ".local" / "index.md").is_file()
+    assert ".local/" in (cwd / ".gitignore").read_text(encoding="utf-8"), (
+        "repo-init regression: local target must keep .local/ ignored for wheel-only consumer repos"
+    )
 
 
 @pytest.mark.parametrize("target", sorted(AGENT_DIR_REQUIRED_TARGETS))
@@ -262,6 +265,9 @@ def test_local_with_no_compile_pip_wheel_install_full_smoke(
     assert (rules_dir / "compile-config.yaml").is_file(), (
         "install_local must seed the compile-config.yaml template"
     )
+    assert ".local/" in (cwd / ".gitignore").read_text(encoding="utf-8"), (
+        "install_local must ensure .local/ stays private in consumer repos"
+    )
 
     cursor_rules_out = cwd / ".cursor" / "rules" / "repo-governance.mdc"
     agents_md_out = cwd / "AGENTS.md"
@@ -336,10 +342,10 @@ def test_error_message_does_not_recommend_pip_install(
 #   1. ``empty`` — fresh tmp repo, no .gitignore, no parent
 #      ``workflow-system/`` (the canonical pip-wheel-only install).
 #   2. ``with_gitignore_local`` — tmp repo whose existing .gitignore
-#      contains ``.local/.agent/active/`` (the headline I-003
-#      reproduction from feedback_for_v9.2.1.md §3).
+#      contains ``.local/.agent/active/`` (a legacy narrow private-state
+#      pattern that repo-init now repairs by appending broad ``.local/``).
 #   3. ``with_gitignore_all`` — tmp repo whose .gitignore broadly
-#      ignores ``.local/`` (a stricter session-private convention).
+#      ignores ``.local/`` (the canonical private-workspace convention).
 #   4. ``full_pip_wheel_install`` — a clean pip-wheel install with
 #      no .gitignore (canonical "I-001 closure" scenario; verifies
 #      the surgical fix continues to hold post v9.2.3).
@@ -350,17 +356,10 @@ def test_error_message_does_not_recommend_pip_install(
 #     Contract),
 #   * skips the auto-compile (``--mode=core`` implies ``--no-compile``
 #     per v9.2.3 PV-02 dispatch contract),
-#   * emits a WARNING per gitignore-covered scaffold path (the I-003
-#     audit) when an ignore rule applies, and stays quiet otherwise.
+#   * ensures the root .gitignore contains broad ``.local/`` coverage,
+#     warning only when it repairs a narrower legacy rule.
 #
 # Source: v9.2.2 cycle plan §PV-03 + v9.2.4 dispatch.
-
-# Pinned scaffold-path counts per shape — see comment block above for
-# the full per-shape rationale. The audit is conservative (S-5
-# graceful degradation) so we assert >= floors rather than exact
-# counts; a future PV that adds another REQUIRED_DIR would shift the
-# floors upward but never violate the sentinel.
-_SCAFFOLD_AUDIT_TARGETS: int = 7  # 6 REQUIRED_DIRS + 1 MEMORY_SUBDIR
 
 # The 8 canonical scaffold paths — mirrors the SKILL.md "Repo-Init
 # Pre-Dispatch Contract" enumerated in the user's manual verification
@@ -408,17 +407,16 @@ def test_cycle_close_e2e_local_mode_core_works(
     3. The cursor-rules + AGENTS.md compile artefacts MUST NOT be
        written — ``--mode=core`` implies ``--no-compile`` per the
        v9.2.3 PV-02 dispatch contract.
-    4. The ``devolaflow.local.workspace`` WARNING budget per shape:
+    4. The root ``.gitignore`` MUST contain broad ``.local/`` coverage.
+       ``devolaflow.local.workspace`` warnings are reserved for repair
+       of narrower legacy rules:
 
        * ``empty`` / ``full_pip_wheel_install`` (no .gitignore) →
-         ZERO audit warnings.
+         ZERO warnings while creating the default ignore file.
        * ``with_gitignore_local`` (rule covers
          ``.local/.agent/active/``) → at least 1 WARN naming the
-         covered path + the ``!<rel>/README.md`` whitelist
-         recommendation.
-       * ``with_gitignore_all`` (broad ``.local/`` rule) → at least
-         7 WARNs (one per scaffold target — the audit walks
-         REQUIRED_DIRS + MEMORY_SUBDIRS in one pass).
+         narrow rule + the broad ``.local/`` repair.
+       * ``with_gitignore_all`` (broad ``.local/`` rule) → ZERO warnings.
 
     Failure modes:
       * Exit nonzero on ``--mode=core`` → I-001 / I-003 regression
@@ -427,8 +425,9 @@ def test_cycle_close_e2e_local_mode_core_works(
         ``REQUIRED_DIRS`` + ``MEMORY_SUBDIRS`` parity with this list.
       * Compile artefact present → ``--mode=core`` precedence
         regression (v9.2.3 PV-02 contract violated).
-      * Wrong WARN count for a shape → audit semantics drifted; check
-        ``_path_matches_gitignore`` and the audit cache.
+      * Missing ``.local/`` ignore → repo-init privacy regression.
+      * Wrong WARN count for a shape → repair semantics drifted; check
+        ``ensure_local_gitignore`` and the audit cache.
     """
     cwd = isolated_pip_wheel_repo
 
@@ -475,6 +474,10 @@ def test_cycle_close_e2e_local_mode_core_works(
     assert not (cwd / "AGENTS.md").exists(), (
         f"shape={shape!r}: --mode=core implies --no-compile — AGENTS.md must NOT be written"
     )
+    gitignore_text = (cwd / ".gitignore").read_text(encoding="utf-8")
+    assert ".local/" in gitignore_text.splitlines(), (
+        f"shape={shape!r}: repo-init must ensure broad .local/ ignore coverage"
+    )
 
     audit_warnings = [
         record
@@ -483,30 +486,29 @@ def test_cycle_close_e2e_local_mode_core_works(
     ]
     if shape in {"empty", "full_pip_wheel_install"}:
         assert audit_warnings == [], (
-            f"shape={shape!r}: no .gitignore present — the audit must "
-            f"emit ZERO WARNs (got "
+            f"shape={shape!r}: no .gitignore present — repo-init must "
+            f"create the default .local/ rule with ZERO WARNs (got "
             f"{[w.getMessage() for w in audit_warnings]!r})"
         )
     elif shape == "with_gitignore_local":
         assert len(audit_warnings) >= 1, (
             f"shape={shape!r}: `.gitignore: .local/.agent/active/` rule "
-            f"must trigger at least one I-003 audit WARN (got "
+            f"must trigger at least one narrow-rule repair WARN (got "
             f"{len(audit_warnings)})"
         )
         assert any(".local/.agent/active" in record.getMessage() for record in audit_warnings), (
-            f"shape={shape!r}: I-003 audit WARN must name the covered "
+            f"shape={shape!r}: repair WARN must name the narrow "
             f"path explicitly so the operator can act on it"
         )
-        assert any(
-            "!.local/.agent/active/README.md" in record.getMessage() for record in audit_warnings
-        ), (
-            f"shape={shape!r}: I-003 audit WARN must include the exact "
-            f"`!<rel>/README.md` whitelist recommendation"
+        assert any("adding `.local/`" in record.getMessage() for record in audit_warnings), (
+            f"shape={shape!r}: repair WARN must mention the broad .local/ fix"
         )
+        assert not any(
+            "!.local/.agent/active/README.md" in record.getMessage() for record in audit_warnings
+        ), f"shape={shape!r}: repair WARN must not recommend README whitelisting"
     elif shape == "with_gitignore_all":
-        assert len(audit_warnings) >= _SCAFFOLD_AUDIT_TARGETS, (
-            f"shape={shape!r}: broad `.gitignore: .local/` rule must "
-            f"trigger at least {_SCAFFOLD_AUDIT_TARGETS} WARNs (one per "
-            f"scaffold target — REQUIRED_DIRS + MEMORY_SUBDIRS); got "
-            f"{len(audit_warnings)}"
+        assert audit_warnings == [], (
+            f"shape={shape!r}: broad `.gitignore: .local/` rule is expected "
+            f"private state and must emit ZERO WARNs (got "
+            f"{[w.getMessage() for w in audit_warnings]!r})"
         )

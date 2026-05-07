@@ -42,6 +42,141 @@ def _load_yaml(path: Path) -> dict:
     return yaml.safe_load(_read(path))
 
 
+def _resolve_artifact_path(
+    project_root: Path,
+    local_path: Path,
+    archive_candidates: tuple[Path, ...],
+) -> Path:
+    """Return a local research artifact or its committed W-19 archive copy."""
+    for rel_path in (local_path, *archive_candidates):
+        candidate = project_root / rel_path
+        if candidate.is_file():
+            return candidate
+
+    searched = ", ".join(str(path) for path in (local_path, *archive_candidates))
+    pytest.fail(f"W-18 research artifact missing; expected one of: {searched}")
+
+
+_W18_RESEARCH_ARCHIVE_CANDIDATES: dict[Path, tuple[Path, ...]] = {
+    Path(".local/research/v10.2.1_dogfood_pass1.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.1_dogfood_pass1.md"),
+    ),
+    Path(".local/research/v10.2.2_nines.json"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.2.2_nines.json"),
+    ),
+    Path(".local/research/v10.2.2_nines_plugins.json"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.2.2_nines_plugins.json"),
+    ),
+    Path(".local/research/v10.2.2_nines_lifecycle.json"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.2.2_nines_lifecycle.json"),
+    ),
+    Path(".local/research/v10.2.2_nines.md"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.2.2_nines.md"),
+    ),
+    Path(".local/research/v10.2.2_dogfood_pass2.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.2_dogfood_pass2.md"),
+    ),
+    Path(".local/research/v10.2.3_dogfood_pass3.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.3_dogfood_pass3.md"),
+    ),
+    Path(".local/research/v10.2.3_iteration_round1.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.3_iteration_round1.md"),
+    ),
+    Path(".local/research/v10.2.4_iteration_round2.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.4_iteration_round2.md"),
+    ),
+    Path(".local/research/v10.2.4_w17_mid_cycle_audit.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.4_w17_mid_cycle_audit.md"),
+    ),
+    Path(".local/research/v10.2.4_w8_stagnation_check.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.4_w8_stagnation_check.md"),
+    ),
+    Path(".local/research/v10.2.4_dogfood_pass4.md"): (
+        Path("docs/cycle-archive/v10.3.0/other/v10.2.4_dogfood_pass4.md"),
+    ),
+    Path(".local/research/v10.3.0_evaluation.md"): (
+        Path("docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md"),
+    ),
+    Path(".local/research/v10.3.0_retrospective.md"): (
+        Path("docs/cycle-archive/v10.3.0/v10.3.0_retrospective.md"),
+    ),
+    Path(".local/research/v10.3.0_nines.json"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.3.0_nines.json"),
+    ),
+    Path(".local/research/v10.3.0_nines.md"): (
+        Path("docs/cycle-archive/v10.3.0/nines/v10.3.0_nines.md"),
+    ),
+    Path(".local/research/v10.4.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v10.4.0_retrospective.md"),
+    ),
+    Path(".local/research/v10.4.1_reference_utilization.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.4.1_reference_utilization.md"),
+    ),
+    Path(".local/research/v10.4.2_long_reference_usage.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.4.2_long_reference_usage.md"),
+    ),
+    Path(".local/research/v10.5.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v10.5.0_retrospective.md"),
+    ),
+    Path(".local/research/v10.5.1_layer_usage_audit.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md"),
+    ),
+    Path(".local/research/v10.5.2_template_usage_audit.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.5.2_template_usage_audit.md"),
+    ),
+    Path(".local/research/v10.5.3_reference_friction.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.5.3_reference_friction.md"),
+    ),
+    Path(".local/research/v10.5.4_w18_lint_audit.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.5.4_w18_lint_audit.md"),
+    ),
+    Path(".local/research/v10.6.0_compressor_health.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.6.0_compressor_health.md"),
+    ),
+    Path(".local/research/v10.6.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v10.6.0_retrospective.md"),
+    ),
+    Path(".local/research/v10.7.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v10.7.0_retrospective.md"),
+    ),
+    Path(".local/research/v10.7.1_canonical_order_emptiness.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.7.1_canonical_order_emptiness.md"),
+    ),
+    Path(".local/research/v10.7.2_evaluator_rosetta.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.7.2_evaluator_rosetta.md"),
+    ),
+    Path(".local/research/v10.7.3_si3_auto_collection.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.7.3_si3_auto_collection.md"),
+    ),
+    Path(".local/research/v10.7.4_research_index.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v10.7.4_research_index.md"),
+    ),
+    Path(".local/research/v10.8.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v10.8.0_retrospective.md"),
+    ),
+    Path(".local/research/v11.0.0_w21_threshold_empirical_check.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v11.0.0_w21_threshold_empirical_check.md"),
+    ),
+    Path(".local/research/v11.0.0_si10_gate_growth_analysis.md"): (
+        Path("docs/cycle-archive/v11.0.0/other/v11.0.0_si10_gate_growth_analysis.md"),
+    ),
+    Path(".local/research/v11.0.0_retrospective.md"): (
+        Path("docs/cycle-archive/v11.0.0/v11.0.0_retrospective.md"),
+        Path("docs/cycle-archive/v11.0.0/retrospective.md"),
+    ),
+    Path(".local/research/v11.0.0_evaluation.md"): (
+        Path("docs/cycle-archive/v11.0.0/evaluation/v11.0.0_evaluation.md"),
+    ),
+}
+
+
+def _w18_research_artifact_path(project_root: Path, local_path: Path) -> Path:
+    archive_candidates = _W18_RESEARCH_ARCHIVE_CANDIDATES.get(local_path)
+    if archive_candidates is None:
+        pytest.fail(f"W-18 archive mapping missing for research artifact: {local_path}")
+    return _resolve_artifact_path(project_root, local_path, archive_candidates)
+
+
 # Files excluded from "consumer" search for dataclass-field ghost tests:
 # definition / parsing / inheritance-merge / static-validation. A real runtime
 # consumer must live in composer.py, runtime.py, dispatch wiring, etc.
@@ -4783,13 +4918,7 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v10.2.1 violation: Makefile missing release-preflight target."
     )
 
-    dogfood_path = project_root / _V10_2_1_DOGFOOD_PASS1_DOC
-    assert dogfood_path.is_file(), (
-        f"W-18 v10.2.1 violation: dogfood pass #1 artifact missing at "
-        f"{_V10_2_1_DOGFOOD_PASS1_DOC}. v10.2.1 PV-02 AC #6 requires "
-        f"this artifact (gitignored content; the path-presence check is "
-        f"the operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_1_DOGFOOD_PASS1_DOC)
 
     changelog_path = project_root / "CHANGELOG.md"
     changelog_text = changelog_path.read_text(encoding="utf-8")
@@ -4902,31 +5031,11 @@ def test_v10_2_2_new_symbols_have_coverage(project_root: Path) -> None:
     )
 
     for json_path in _V10_2_2_NINES_JSON_PATHS:
-        full_path = project_root / json_path
-        assert full_path.is_file(), (
-            f"W-18 v10.2.2 violation: NineS deep-analysis JSON "
-            f"{json_path} missing. v10.2.2 PV-03 D-N-3 ships this artifact "
-            f"per the cycle plan AC #3 (gitignored content; path-presence "
-            f"is the operator-visible contract). Re-run "
-            f"`nines -f json analyze --target-path <path> --depth deep "
-            f"--agent-impact --keypoints` for the missing target."
-        )
+        _w18_research_artifact_path(project_root, json_path)
 
-    synthesis_path = project_root / _V10_2_2_NINES_SYNTHESIS_DOC
-    assert synthesis_path.is_file(), (
-        f"W-18 v10.2.2 violation: NineS synthesis doc "
-        f"{_V10_2_2_NINES_SYNTHESIS_DOC} missing. v10.2.2 PV-03 D-N-3 "
-        f"ships this synthesis per the cycle plan AC #3 (gitignored "
-        f"content; path-presence is the operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_2_NINES_SYNTHESIS_DOC)
 
-    dogfood_path = project_root / _V10_2_2_DOGFOOD_PASS2_DOC
-    assert dogfood_path.is_file(), (
-        f"W-18 v10.2.2 violation: dogfood pass #2 artifact missing at "
-        f"{_V10_2_2_DOGFOOD_PASS2_DOC}. v10.2.2 PV-03 AC #4 requires "
-        f"this artifact (gitignored content; path-presence is the "
-        f"operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_2_DOGFOOD_PASS2_DOC)
 
     changelog_path = project_root / "CHANGELOG.md"
     changelog_text = changelog_path.read_text(encoding="utf-8")
@@ -5075,21 +5184,9 @@ def test_v10_2_3_new_symbols_have_coverage(project_root: Path) -> None:
             f"OR remove the CHANGELOG mention of Track B-2."
         )
 
-    dogfood_path = project_root / _V10_2_3_DOGFOOD_PASS3_DOC
-    assert dogfood_path.is_file(), (
-        f"W-18 v10.2.3 violation: dogfood pass #3 artifact missing at "
-        f"{_V10_2_3_DOGFOOD_PASS3_DOC}. v10.2.3 PV-04 Track C requires "
-        f"this artifact (gitignored content; path-presence is the "
-        f"operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_3_DOGFOOD_PASS3_DOC)
 
-    round1_path = project_root / _V10_2_3_ITERATION_ROUND1_DOC
-    assert round1_path.is_file(), (
-        f"W-18 v10.2.3 violation: round 1 report missing at "
-        f"{_V10_2_3_ITERATION_ROUND1_DOC}. v10.2.3 PV-04 ships this "
-        f"report (gitignored content; path-presence is the operator-"
-        f"visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_3_ITERATION_ROUND1_DOC)
 
     changelog_path = project_root / "CHANGELOG.md"
     changelog_text = changelog_path.read_text(encoding="utf-8")
@@ -5205,37 +5302,13 @@ def test_v10_2_4_new_symbols_have_coverage(project_root: Path) -> None:
             f"mention of the round-2 lift."
         )
 
-    round2_path = project_root / _V10_2_4_ITERATION_ROUND2_DOC
-    assert round2_path.is_file(), (
-        f"W-18 v10.2.4 violation: round 2 report missing at "
-        f"{_V10_2_4_ITERATION_ROUND2_DOC}. v10.2.4 PV-05 ships this "
-        f"report (gitignored content; path-presence is the operator-"
-        f"visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_4_ITERATION_ROUND2_DOC)
 
-    w17_path = project_root / _V10_2_4_W17_AUDIT_DOC
-    assert w17_path.is_file(), (
-        f"W-18 v10.2.4 violation: W-17 mid-cycle audit missing at "
-        f"{_V10_2_4_W17_AUDIT_DOC}. v10.2.4 PV-05 discharges the W-17 "
-        f"§3 mid-cycle audit requirement here (gitignored content; "
-        f"path-presence contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_4_W17_AUDIT_DOC)
 
-    w8_path = project_root / _V10_2_4_W8_STAGNATION_DOC
-    assert w8_path.is_file(), (
-        f"W-18 v10.2.4 violation: W-8 stagnation predicate evaluation "
-        f"missing at {_V10_2_4_W8_STAGNATION_DOC}. v10.2.4 PV-05 "
-        f"explicitly evaluates the W-8 SI-9 predicate here (gitignored "
-        f"content; path-presence contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_4_W8_STAGNATION_DOC)
 
-    dogfood_path = project_root / _V10_2_4_DOGFOOD_PASS4_DOC
-    assert dogfood_path.is_file(), (
-        f"W-18 v10.2.4 violation: dogfood pass #4 artifact missing at "
-        f"{_V10_2_4_DOGFOOD_PASS4_DOC}. v10.2.4 PV-05 round-2 ships "
-        f"this artifact (gitignored content; path-presence is the "
-        f"operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_2_4_DOGFOOD_PASS4_DOC)
 
     changelog_path = project_root / "CHANGELOG.md"
     changelog_text = changelog_path.read_text(encoding="utf-8")
@@ -5384,37 +5457,13 @@ def test_v10_3_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"automatically. Re-run `python scripts/bump_version.py 10.3.0`."
     )
 
-    eval_path = project_root / _V10_3_0_EVALUATION_DOC
-    assert eval_path.is_file(), (
-        f"W-18 v10.3.0 violation: W-3 SI-3 evaluation missing at "
-        f"{_V10_3_0_EVALUATION_DOC}. v10.3.0 PV-06 ships this evaluation "
-        f"(gitignored content; path-presence is the operator-visible "
-        f"contract; archived to docs/cycle-archive/v10.3.0/evaluation/)."
-    )
+    _w18_research_artifact_path(project_root, _V10_3_0_EVALUATION_DOC)
 
-    retro_path = project_root / _V10_3_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v10.3.0 violation: W-7 SI-8 retrospective missing at "
-        f"{_V10_3_0_RETROSPECTIVE_DOC}. v10.3.0 PV-06 ships this "
-        f"retrospective with 4 mandatory sections (gitignored content; "
-        f"path-presence contract; archived to docs/cycle-archive/v10.3.0/)."
-    )
+    _w18_research_artifact_path(project_root, _V10_3_0_RETROSPECTIVE_DOC)
 
-    nines_json_path = project_root / _V10_3_0_NINES_JSON
-    assert nines_json_path.is_file(), (
-        f"W-18 v10.3.0 violation: W-2 SI-2 NineS raw report missing at "
-        f"{_V10_3_0_NINES_JSON}. v10.3.0 PV-06 ships this report "
-        f"(gitignored content; path-presence contract; archived to "
-        f"docs/cycle-archive/v10.3.0/nines/)."
-    )
+    _w18_research_artifact_path(project_root, _V10_3_0_NINES_JSON)
 
-    nines_md_path = project_root / _V10_3_0_NINES_MD
-    assert nines_md_path.is_file(), (
-        f"W-18 v10.3.0 violation: W-2 SI-2 NineS synthesis missing at "
-        f"{_V10_3_0_NINES_MD}. v10.3.0 PV-06 ships this synthesis "
-        f"alongside the raw JSON (gitignored content; path-presence "
-        f"contract; archived to docs/cycle-archive/v10.3.0/nines/)."
-    )
+    _w18_research_artifact_path(project_root, _V10_3_0_NINES_MD)
 
     archive_dir = project_root / _V10_3_0_CYCLE_ARCHIVE_DIR
     assert archive_dir.is_dir(), (
@@ -5536,29 +5585,11 @@ def test_v10_4_0_new_symbols_have_coverage(project_root: Path) -> None:
             f"CHANGELOG mention."
         )
 
-    retro_path = project_root / _V10_4_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v10.4.0 violation: W-7 SI-8 retrospective missing at "
-        f"{_V10_4_0_RETROSPECTIVE_DOC}. v10.4.0 PV-05 ships this "
-        f"retrospective with 4 mandatory sections (gitignored content; "
-        f"path-presence is the operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_4_0_RETROSPECTIVE_DOC)
 
-    util_path = project_root / _V10_4_0_REF_UTILIZATION_DOC
-    assert util_path.is_file(), (
-        f"W-18 v10.4.0 violation: D-D-1 audit output missing at "
-        f"{_V10_4_0_REF_UTILIZATION_DOC}. Re-run "
-        f"`python scripts/audit_reference_utilization.py "
-        f"--output {_V10_4_0_REF_UTILIZATION_DOC}`."
-    )
+    _w18_research_artifact_path(project_root, _V10_4_0_REF_UTILIZATION_DOC)
 
-    long_ref_path = project_root / _V10_4_0_LONG_REF_USAGE_DOC
-    assert long_ref_path.is_file(), (
-        f"W-18 v10.4.0 violation: D-D-2 audit output missing at "
-        f"{_V10_4_0_LONG_REF_USAGE_DOC}. Re-run "
-        f"`python scripts/audit_long_reference_usage.py "
-        f"--output {_V10_4_0_LONG_REF_USAGE_DOC}`."
-    )
+    _w18_research_artifact_path(project_root, _V10_4_0_LONG_REF_USAGE_DOC)
 
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V10_4_0_CHANGELOG_LITERAL in changelog, (
@@ -5726,25 +5757,15 @@ def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
             f"the CHANGELOG mention."
         )
 
-    retro_path = project_root / _V10_5_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v10.5.0 violation: W-7 SI-8 retrospective missing at "
-        f"{_V10_5_0_RETROSPECTIVE_DOC}. v10.5.0 ships this "
-        f"retrospective with 4 mandatory sections (gitignored content; "
-        f"path-presence is the operator-visible contract)."
-    )
+    _w18_research_artifact_path(project_root, _V10_5_0_RETROSPECTIVE_DOC)
 
-    for audit_doc, audit_cmd in (
-        (_V10_5_0_LAYER_AUDIT_DOC, "scripts/audit_layer_usage.py"),
-        (_V10_5_0_TEMPLATE_AUDIT_DOC, "scripts/audit_template_usage.py"),
-        (_V10_5_0_FRICTION_DOC, "scripts/measure_reference_friction.py"),
-        (_V10_5_0_W18_AUDIT_DOC, "scripts/audit_w18_lint_maintenance.py"),
+    for audit_doc in (
+        _V10_5_0_LAYER_AUDIT_DOC,
+        _V10_5_0_TEMPLATE_AUDIT_DOC,
+        _V10_5_0_FRICTION_DOC,
+        _V10_5_0_W18_AUDIT_DOC,
     ):
-        path = project_root / audit_doc
-        assert path.is_file(), (
-            f"W-18 v10.5.0 violation: audit output missing at {audit_doc}. "
-            f"Re-run `python {audit_cmd} --output {audit_doc}`."
-        )
+        _w18_research_artifact_path(project_root, audit_doc)
 
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V10_5_0_CHANGELOG_LITERAL in changelog, (
@@ -5883,12 +5904,7 @@ def test_v10_6_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"{_V10_6_0_SNAPSHOT_TESTS}. v10.6.0 PV-03 ships 5 tests for "
         f"the snapshot script."
     )
-    health_doc = project_root / _V10_6_0_COMPRESSOR_HEALTH_DOC
-    assert health_doc.is_file(), (
-        f"W-18 v10.6.0 violation: D-Q-4 audit output missing at "
-        f"{_V10_6_0_COMPRESSOR_HEALTH_DOC}. Re-run "
-        f"`make snapshot-compressor` to regenerate."
-    )
+    _w18_research_artifact_path(project_root, _V10_6_0_COMPRESSOR_HEALTH_DOC)
 
     makefile_text = (project_root / "Makefile").read_text(encoding="utf-8")
     assert _V10_6_0_MAKEFILE_SNAPSHOT_LITERAL in makefile_text, (
@@ -5897,10 +5913,7 @@ def test_v10_6_0_new_symbols_have_coverage(project_root: Path) -> None:
     )
 
     # Retrospective + CHANGELOG.
-    retro_path = project_root / _V10_6_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v10.6.0 violation: W-7 SI-8 retrospective missing at {_V10_6_0_RETROSPECTIVE_DOC}."
-    )
+    _w18_research_artifact_path(project_root, _V10_6_0_RETROSPECTIVE_DOC)
 
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V10_6_0_CHANGELOG_LITERAL in changelog, (
@@ -6070,17 +6083,10 @@ def test_v10_7_0_new_symbols_have_coverage(project_root: Path) -> None:
 
     # 4 audit / index / collector first-run outputs.
     for audit_doc in _V10_7_0_AUDIT_DOCS:
-        assert (project_root / audit_doc).is_file(), (
-            f"W-18 v10.7.0 violation: audit output missing at {audit_doc}. "
-            f"Re-run the corresponding `make` target to regenerate."
-        )
+        _w18_research_artifact_path(project_root, audit_doc)
 
     # Retrospective + CHANGELOG.
-    retro_path = project_root / _V10_7_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v10.7.0 violation: W-7 SI-8 retrospective missing at "
-        f"{_V10_7_0_RETROSPECTIVE_DOC}. v10.7.0 ships this retrospective."
-    )
+    _w18_research_artifact_path(project_root, _V10_7_0_RETROSPECTIVE_DOC)
 
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V10_7_0_CHANGELOG_LITERAL in changelog, (
@@ -6241,10 +6247,7 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
         )
 
     # Retrospective + CHANGELOG.
-    assert (project_root / _V10_8_0_RETROSPECTIVE_DOC).is_file(), (
-        f"W-18 v10.8.0 violation: W-7 SI-8 retrospective missing at "
-        f"{_V10_8_0_RETROSPECTIVE_DOC}. v10.8.0 ships this retrospective."
-    )
+    _w18_research_artifact_path(project_root, _V10_8_0_RETROSPECTIVE_DOC)
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V10_8_0_CHANGELOG_LITERAL in changelog, (
         f"W-18 v10.8.0 violation: CHANGELOG entry "
@@ -6306,11 +6309,7 @@ def test_v11_0_0_pv01_new_surfaces_have_coverage(project_root: Path) -> None:
       (uses existing schema fields only — zero schema additions).
     """
     # D-P-2: analysis artifact exists + 5-section structure present.
-    dp2_path = project_root / _V11_0_0_PV01_DP2_ANALYSIS
-    assert dp2_path.is_file(), (
-        f"W-18 v11.0.0 PV-01 violation: D-P-2 analysis missing at "
-        f"{_V11_0_0_PV01_DP2_ANALYSIS}. v11.0.0 PV-01 ships this artifact."
-    )
+    dp2_path = _w18_research_artifact_path(project_root, _V11_0_0_PV01_DP2_ANALYSIS)
     dp2_text = dp2_path.read_text(encoding="utf-8")
     for required_section in (
         "## §1 — Telegraph history",
@@ -6450,11 +6449,7 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     """
     # D-O-4 analysis artifact must exist + telegraph 10-gate threshold +
     # 3-group reorganization recommendation.
-    do4_path = project_root / _V11_0_0_PV02_DO4_ANALYSIS
-    assert do4_path.is_file(), (
-        f"W-18 v11.0.0 PV-02 violation: D-O-4 analysis missing at "
-        f"{_V11_0_0_PV02_DO4_ANALYSIS}. v11.0.0 PV-02 ships this artifact."
-    )
+    do4_path = _w18_research_artifact_path(project_root, _V11_0_0_PV02_DO4_ANALYSIS)
     do4_text = do4_path.read_text(encoding="utf-8")
     # Threshold + reorganization design must be telegraphed verbatim
     # so future cycle planners discover the trigger.
@@ -6591,11 +6586,7 @@ def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
     * Canonical-7 sync 10.8.0 → 11.0.0 + CHANGELOG `## [11.0.0]`.
     """
     # Retrospective + evaluation must exist with the required structure.
-    retro_path = project_root / _V11_0_0_RETROSPECTIVE_DOC
-    assert retro_path.is_file(), (
-        f"W-18 v11.0.0 violation: retrospective missing at "
-        f"{_V11_0_0_RETROSPECTIVE_DOC}. v11.0.0 ships this artifact."
-    )
+    retro_path = _w18_research_artifact_path(project_root, _V11_0_0_RETROSPECTIVE_DOC)
     retro_text = retro_path.read_text(encoding="utf-8")
     # 4 mandatory W-7 sections must be present.
     for required_section in (
@@ -6609,10 +6600,7 @@ def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
             f"W-7 section {required_section!r}."
         )
 
-    eval_path = project_root / _V11_0_0_EVALUATION_DOC
-    assert eval_path.is_file(), (
-        f"W-18 v11.0.0 violation: SI-3 evaluation missing at {_V11_0_0_EVALUATION_DOC}."
-    )
+    eval_path = _w18_research_artifact_path(project_root, _V11_0_0_EVALUATION_DOC)
     eval_text = eval_path.read_text(encoding="utf-8")
     # STRICT MAJOR composite ≥ 9.0 must be documented.
     assert "STRICT MAJOR" in eval_text

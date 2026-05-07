@@ -45,35 +45,8 @@ _site/
 # Node (for demo pages)
 node_modules/
 
-# Local planning files (research / feedbacks / sandbox / etc.)
-#
-# v8.3.0 Q-5 (RESOLVED 2026-04-22): the `.local/` tree carries TWO sub-trees
-# that MUST be tracked in git ((a) the full `.local/.agent/` workspace and
-# (b) `.local/memory/specs/` source-of-truth specs) while the rest of `.local/`
-# remains gitignored. See .local/research/v8.3.0_design.md §11.2 Q-5 +
-# .local/research/v8.3.0_patch_plan.md §v8.2.4.
-#
-# Strategy: ignore the *contents* of `.local/` (not the directory itself), so
-# Git recurses into it; then re-include the public sub-trees; then re-ignore
-# secrets and runtime state inside those sub-trees as defense in depth.
-# (A bare `.local/` ignore would block re-include patterns per gitignore docs.)
-.local/*
-# Re-include the agent workspace tree:
-!.local/.agent/
-!.local/.agent/**
-# Re-include source-of-truth specs without re-including the rest of memory:
-!.local/memory/
-.local/memory/*
-!.local/memory/specs/
-!.local/memory/specs/**
-# Defense in depth — re-ignore secrets / runtime state / per-change learnings
-# even after the un-ignore patterns above:
-.local/.agent/active/*/learnings.jsonl
-.local/.agent/archive/*/learnings.jsonl
-.local/memory/operational.jsonl
-.local/memory/session_state.json
-.local/memory/prefs.md
-.local/memory/plugin_install.log
+# DevolaFlow local workspace (private)
+.local/
 
 # Project-local Cursor skill mirror — opt-in, recreated on demand.
 # Tracked counterparts live under workflow-system/agent/. Devs who want the
