@@ -1,11 +1,12 @@
-"""I-003 closure tests — scaffold_local audits .gitignore coverage.
+"""I-003 closure tests — scaffold_local keeps .local/ private.
 
-These tests pin the v9.2.3 PV-02 ``_audit_gitignore_coverage`` surface:
-``scaffold_local(cwd)`` emits a single WARNING log per scaffold path
-that an existing ``.gitignore`` rule already covers, naming the path
-and the recommended ``!<rel>/README.md`` whitelist line. Quiet on
-absent / unrelated rules; conservative on negation rules (positive
-matches still warn even when a sibling whitelist exists).
+These tests pin the repo-init/private-workspace contract:
+``scaffold_local(cwd)`` creates or repairs the repo root ``.gitignore``
+so ``.local/`` is ignored as a whole. A broad ``.local/`` rule is the
+expected state and must not emit README whitelist recommendations.
+Narrow legacy rules may still surface a targeted warning, but the
+repair path appends broad ``.local/`` coverage instead of encouraging
+tracked ``.local`` contents.
 
 Source artefacts:
 
@@ -44,26 +45,31 @@ def _scaffold_warnings(caplog: pytest.LogCaptureFixture) -> list[logging.LogReco
 
 
 def test_no_gitignore_emits_no_warning(tmp_repo: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Without a `.gitignore` the audit is fully quiet."""
+    """Without a `.gitignore` scaffold creates one with `.local/` quietly."""
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     assert not (tmp_repo / ".gitignore").exists(), "fixture precondition"
 
     scaffold_local(tmp_repo)
 
+    assert (tmp_repo / ".gitignore").read_text(encoding="utf-8").splitlines() == [
+        "# DevolaFlow local workspace (private)",
+        ".local/",
+    ]
     warnings = _scaffold_warnings(caplog)
     assert warnings == [], (
-        f"I-003 contract: a fresh repo with no .gitignore must emit ZERO "
-        f"WARNINGs from the audit (got {[w.getMessage() for w in warnings]!r})"
+        f"private .local contract: a fresh repo must emit ZERO WARNINGs "
+        f"while creating the default ignore rule (got "
+        f"{[w.getMessage() for w in warnings]!r})"
     )
     assert last_gitignore_audit() == [], (
-        "module-level audit cache must be empty when no rules are loaded"
+        "module-level audit cache must be empty when broad .local/ is present"
     )
 
 
 def test_gitignore_without_matching_rule_no_warning(
     tmp_repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An unrelated `.gitignore` (e.g. `build/`) does not trigger the audit."""
+    """An unrelated `.gitignore` is extended with `.local/` without warning."""
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     (tmp_repo / ".gitignore").write_text(
         "# unrelated rules — none touch .local/\nbuild/\ndist/\n*.pyc\n",
@@ -74,24 +80,24 @@ def test_gitignore_without_matching_rule_no_warning(
 
     warnings = _scaffold_warnings(caplog)
     assert warnings == [], (
-        f"I-003 contract: unrelated .gitignore rules must NOT trigger the "
-        f"audit (got {[w.getMessage() for w in warnings]!r})"
+        f"private .local contract: unrelated .gitignore rules must NOT "
+        f"trigger warnings when `.local/` is appended (got "
+        f"{[w.getMessage() for w in warnings]!r})"
     )
-    assert last_gitignore_audit() == [], (
-        "audit cache must be empty when no rule matches a scaffold path"
-    )
+    assert ".local/" in _read_gitignore_rules(tmp_repo)
+    assert last_gitignore_audit() == [], "audit cache must be empty when broad .local/ is present"
 
 
 def test_gitignore_with_agent_active_rule_warns(
     tmp_repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """`.gitignore: .local/.agent/active/` triggers a targeted WARN.
+    """`.gitignore: .local/.agent/active/` triggers a targeted repair WARN.
 
     The headline I-003 closure: the operator who carries a session-
     scoped ignore on `.local/.agent/active/` (a common pattern when
-    in-flight changes are kept private) is told that the new
-    convention README is invisible — and given the exact whitelist
-    line to fix it.
+    in-flight changes are kept private) is told the rule is narrower
+    than the current private-workspace default. Scaffold appends the
+    broad `.local/` rule instead of recommending README whitelists.
     """
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     (tmp_repo / ".gitignore").write_text(
@@ -111,62 +117,80 @@ def test_gitignore_with_agent_active_rule_warns(
         f"WARNING must name the ignored path explicitly so the operator "
         f"knows where to look (got {messages!r})"
     )
-    assert "!.local/.agent/active/README.md" in messages, (
-        f"WARNING must include the recommended `!<rel>/README.md` whitelist "
-        f"line so the operator gets the exact fix (got {messages!r})"
+    assert "adding `.local/`" in messages, (
+        f"WARNING must point at the broad private-workspace fix (got {messages!r})"
     )
+    assert "!." not in messages, (
+        f"WARNING must not recommend whitelisting .local contents (got {messages!r})"
+    )
+    assert ".local/" in _read_gitignore_rules(tmp_repo)
 
     cached = last_gitignore_audit()
-    assert any(p.name == "active" for p in cached), (
-        "module-level audit cache must record the active/ match"
-    )
+    assert cached == [], "broad .local/ coverage should suppress README audit matches"
 
 
-def test_gitignore_wildcard_local_warns_all_local_paths(
+def test_gitignore_wildcard_local_is_expected_private_state(
     tmp_repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A broad `.gitignore: .local/` ignores every scaffold path under .local/.
-
-    Sanity check that the matcher's directory-prefix semantics work —
-    `.local/` should sweep the 6 REQUIRED + 1 MEMORY_SUBDIRS scaffold
-    roots into a single audit batch, each with its own WARNING.
-    """
+    """A broad `.gitignore: .local/` is the expected private state."""
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     (tmp_repo / ".gitignore").write_text(".local/\n", encoding="utf-8")
 
     scaffold_local(tmp_repo)
 
     warnings = _scaffold_warnings(caplog)
-    # Expect ≥ 7 matches: 6 REQUIRED_DIRS (feedbacks, tasks, memory,
-    # .agent/active, .agent/handoff, .agent/archive) + 1 MEMORY_SUBDIRS
-    # entry (memory/specs). The exact count is a floor, not a ceiling —
-    # additional on-demand directories would also match.
-    assert len(warnings) >= 7, (
-        f"I-003 contract: broad `.gitignore: .local/` rule must sweep ≥ 7 "
-        f"scaffold paths into the audit (got {len(warnings)})"
+    assert warnings == [], (
+        f"private .local contract: broad `.local/` must not warn "
+        f"(got {[w.getMessage() for w in warnings]!r})"
     )
     cached = last_gitignore_audit()
-    assert len(cached) == len(warnings), (
-        "audit cache size must match the WARN count (1:1 path → log invariant)"
-    )
-    # Every WARNING references a `.local/` path.
-    for record in warnings:
-        assert ".local/" in record.getMessage() or ".local " in record.getMessage(), (
-            f"WARN must reference a .local-prefixed path (got {record.getMessage()!r})"
+    assert cached == [], "broad .local/ coverage should produce no audit matches"
+
+
+def test_legacy_local_whitelist_block_is_repaired(
+    tmp_repo: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Old tracked-subtree whitelist rules are collapsed to broad `.local/`."""
+    caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
+    (tmp_repo / ".gitignore").write_text(
+        "\n".join(
+            [
+                ".local/*",
+                "!.local/.agent/",
+                "!.local/.agent/**",
+                "!.local/memory/",
+                ".local/memory/*",
+                "!.local/memory/specs/",
+                "!.local/memory/specs/**",
+                ".local/.agent/active/*/learnings.jsonl",
+                ".local/.agent/archive/*/learnings.jsonl",
+                ".local/memory/operational.jsonl",
+            ]
         )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    scaffold_local(tmp_repo)
+
+    rules = _read_gitignore_rules(tmp_repo)
+    assert rules == [".local/"], (
+        f"legacy .local whitelist block must be simplified to broad ignore (got {rules!r})"
+    )
+    assert _scaffold_warnings(caplog) == [], (
+        "repairing the legacy whitelist block must not recommend README whitelists"
+    )
+    assert last_gitignore_audit() == []
 
 
 def test_negation_rule_does_not_suppress_warning_on_positive_match(
     tmp_repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """`!path/README.md` does NOT mute the directory-level positive match.
+    """A sibling negation does not prevent broad `.local/` repair.
 
-    Per the conservative audit design (`_path_matches_gitignore`
-    docstring), negation rules are intentionally skipped — the audit
-    only needs to detect the "written but hidden" case for the
-    directory itself; a negation is the operator's explicit whitelist
-    for a sibling file. The directory-level WARN still fires so the
-    operator can decide whether the negation alone is sufficient.
+    Negation rules are not treated as the desired repo-init state.
+    Scaffold appends `.local/` and leaves existing hand-authored lines
+    intact rather than recommending more tracked contents.
     """
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     (tmp_repo / ".gitignore").write_text(
@@ -178,14 +202,18 @@ def test_negation_rule_does_not_suppress_warning_on_positive_match(
 
     warnings = _scaffold_warnings(caplog)
     assert len(warnings) >= 1, (
-        "I-003 conservative-audit contract: positive rule still triggers "
-        "the warning even when a sibling whitelist exists; the operator "
-        "can resolve the conflict themselves once they see it"
+        "narrow positive rule should still trigger a repair warning even "
+        "when a sibling negation exists"
     )
     messages = " | ".join(w.getMessage() for w in warnings)
     assert ".local/.agent/active" in messages, (
         f"WARN must still name the ignored path (got {messages!r})"
     )
+    assert "!.local/.agent/active/README.md" not in messages, (
+        f"WARN must not recommend README whitelisting (got {messages!r})"
+    )
+    assert ".local/" in _read_gitignore_rules(tmp_repo)
+    assert last_gitignore_audit() == []
 
 
 # ── Direct helper coverage (improves _read/_match line coverage to ≥ 80%) ──

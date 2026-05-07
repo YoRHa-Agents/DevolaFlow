@@ -146,7 +146,10 @@ def scaffold_local(
     Returns:
         Path to the .local/ directory.
     """
-    local_dir = Path(cwd) / ".local"
+    cwd = Path(cwd)
+    ensure_local_gitignore(cwd)
+
+    local_dir = cwd / ".local"
     local_dir.mkdir(exist_ok=True)
 
     for d in REQUIRED_DIRS:
@@ -177,7 +180,7 @@ def scaffold_local(
         + [local_dir / d for d in MEMORY_SUBDIRS]
         + on_demand_created
     )
-    _audit_gitignore_coverage(Path(cwd), created_roots)
+    _audit_gitignore_coverage(cwd, created_roots)
 
     return local_dir
 
@@ -258,21 +261,14 @@ def generate_dir_readme(dir_path: Path, dir_name: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# v9.2.3 PV-02 — I-003 .gitignore coverage audit.
+# v9.2.3 PV-02 + private .local repair — .gitignore coverage audit.
 # ---------------------------------------------------------------------------
 #
-# When ``scaffold_local(cwd)`` materialises a path that an EXISTING
-# ``.gitignore`` rule already covers, the README anchor we just wrote
-# (e.g. ``.local/.agent/active/README.md``) is invisible to ``git status``
-# and to every reviewer browsing the repo on GitHub. Pre-v9.2.3 this was
-# a silent surprise — operators who carried a ``.local/`` ignore rule
-# from a prior session got the new convention docs but never saw them
-# in version control until they opened the working tree directly.
-#
-# v9.2.3 closes the gap with a tail-call audit: after every path is
-# materialised, walk the cwd-relative ``.gitignore`` rules and emit a
-# WARNING per match enumerating the path, the README that won't be
-# tracked, and the recommended ``!<path>/README.md`` whitelist line.
+# ``.local/`` is now private runtime/planning state. ``scaffold_local(cwd)``
+# first ensures the repo root ``.gitignore`` contains broad ``.local/``
+# coverage, repairing the legacy tracked-subtree whitelist block when present.
+# The follow-up audit remains advisory for narrow, hand-authored ignore rules
+# that survive when the repair step cannot run.
 #
 # Design constraints (S-5 strict):
 # - Zero ``raise`` paths. Failures (unreadable .gitignore, permission
@@ -280,16 +276,13 @@ def generate_dir_readme(dir_path: Path, dir_name: str) -> Path:
 #   "no rules" branch — the audit is advisory; it MUST NOT block the
 #   scaffold.
 # - Negation rules (``!pattern``) are intentionally skipped — the audit
-#   only needs to detect the "written but hidden" case; a negation is
-#   the operator's explicit whitelist that the audit would only muddy.
+#   only needs to detect positive ignore coverage.
 # - The most-recent audit result is cached at module level so callers
 #   that need programmatic access (test fixtures, CI hooks, the
 #   forthcoming v9.3.0 ``devola-init doctor`` surface) can read it
 #   without re-walking the disk via :func:`last_gitignore_audit`.
 #
-# Source: v9.2.3 PV-02 dispatch — closes I-003 from
-# ``.local/feedbacks/feedback_for_v9.2.1.md`` §3 and
-# ``.local/research/v9.2.2_gap_analysis.md`` §2 PV-02 scope.
+# Source: v9.2.3 PV-02 dispatch + private .local repo-init hotfix.
 
 VALID_GITIGNORE_AUDIT_REASON: tuple[str, ...] = (
     "directory_ignore_rule",
@@ -297,6 +290,146 @@ VALID_GITIGNORE_AUDIT_REASON: tuple[str, ...] = (
 )
 
 _LAST_GITIGNORE_AUDIT: list[Path] = []
+
+_LOCAL_GITIGNORE_RULE = ".local/"
+_OLD_LOCAL_WHITELIST_RULES: frozenset[str] = frozenset(
+    {
+        ".local/*",
+        "!.local/.agent/",
+        "!.local/.agent/**",
+        "!.local/memory/",
+        ".local/memory/*",
+        "!.local/memory/specs/",
+        "!.local/memory/specs/**",
+        ".local/.agent/active/*/learnings.jsonl",
+        ".local/.agent/archive/*/learnings.jsonl",
+        ".local/memory/operational.jsonl",
+        ".local/memory/session_state.json",
+        ".local/memory/prefs.md",
+        ".local/memory/plugin_install.log",
+    }
+)
+
+
+def _parse_gitignore_rules(text: str) -> list[str]:
+    """Return non-comment non-empty rules from a ``.gitignore`` text blob."""
+    return [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+def _is_broad_local_ignore_rule(rule: str) -> bool:
+    """Return True when ``rule`` ignores the root ``.local/`` tree."""
+    if rule.startswith("!"):
+        return False
+    return rule.lstrip("/").rstrip("/") == ".local"
+
+
+def _narrow_local_ignore_rules(rules: list[str]) -> list[str]:
+    """Return .local-scoped ignores that are narrower than ``.local/``."""
+    narrow: list[str] = []
+    for rule in rules:
+        if rule.startswith("!"):
+            continue
+        cleaned = rule.lstrip("/")
+        if _is_broad_local_ignore_rule(rule):
+            continue
+        if cleaned.startswith(".local/"):
+            narrow.append(rule)
+    return narrow
+
+
+def ensure_local_gitignore(cwd: str | Path) -> bool:
+    """Ensure consumer repos keep ``.local/`` private.
+
+    The helper is intentionally advisory for read/write failures: normal
+    scaffold flows should still create the workspace, but failures are logged
+    as explicit states rather than being silently ignored.
+
+    Returns:
+        True when ``.gitignore`` was created or changed, False otherwise.
+    """
+    cwd = Path(cwd)
+    gi = cwd / ".gitignore"
+
+    if gi.exists():
+        try:
+            text = gi.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _LOGGER.warning(
+                "scaffold_local: could not read %s: %s; unable to ensure .local/ is ignored",
+                gi,
+                exc,
+            )
+            return False
+    else:
+        text = ""
+
+    lines = text.splitlines()
+    rules = _parse_gitignore_rules(text)
+    has_broad_local_ignore = any(_is_broad_local_ignore_rule(rule) for rule in rules)
+    has_old_whitelist = any(rule in _OLD_LOCAL_WHITELIST_RULES for rule in rules)
+
+    new_lines: list[str] = []
+    inserted_local_rule = False
+    changed = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped in _OLD_LOCAL_WHITELIST_RULES:
+            changed = True
+            if (
+                not has_broad_local_ignore
+                and not inserted_local_rule
+                and not stripped.startswith("!")
+            ):
+                new_lines.append(_LOCAL_GITIGNORE_RULE)
+                inserted_local_rule = True
+            continue
+        new_lines.append(line)
+
+    if has_old_whitelist:
+        _LOGGER.info(
+            "scaffold_local: repaired legacy .local gitignore whitelist rules in %s",
+            gi,
+        )
+
+    if not has_broad_local_ignore and not inserted_local_rule:
+        narrow_rules = _narrow_local_ignore_rules(rules)
+        if narrow_rules:
+            _LOGGER.warning(
+                "scaffold_local: %s has narrow .local ignore rule(s) %s; "
+                "adding `.local/` so DevolaFlow workspace state stays private.",
+                gi,
+                ", ".join(narrow_rules),
+            )
+        if new_lines and new_lines[-1].strip():
+            new_lines.append("")
+        new_lines.extend(
+            [
+                "# DevolaFlow local workspace (private)",
+                _LOCAL_GITIGNORE_RULE,
+            ]
+        )
+        changed = True
+
+    if not changed:
+        return False
+
+    new_text = "\n".join(new_lines).rstrip() + "\n"
+    try:
+        gi.write_text(new_text, encoding="utf-8")
+    except OSError as exc:
+        _LOGGER.warning(
+            "scaffold_local: could not write %s: %s; unable to ensure .local/ is ignored",
+            gi,
+            exc,
+        )
+        return False
+
+    return True
 
 
 def _read_gitignore_rules(cwd: Path) -> list[str]:
@@ -327,11 +460,7 @@ def _read_gitignore_rules(cwd: Path) -> list[str]:
             exc,
         )
         return []
-    return [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+    return _parse_gitignore_rules(text)
 
 
 def _path_matches_gitignore(rel_posix: str, rules: list[str]) -> bool:
@@ -349,9 +478,9 @@ def _path_matches_gitignore(rel_posix: str, rules: list[str]) -> bool:
     * Wildcards are dispatched through :func:`fnmatch.fnmatch` — note
       Python's ``fnmatch`` does NOT special-case ``/`` so ``*`` matches
       across path separators (close enough for the audit's purpose).
-    * Negation rules (``!pattern``) are skipped — the audit only
-      detects the "written but hidden" case; a negation is the
-      operator's explicit whitelist that the audit would only muddy.
+    * Negation rules (``!pattern``) are skipped — broad ``.local/``
+      coverage is the desired scaffold state, so the audit only needs
+      positive ignore matches.
     """
     for rule in rules:
         if rule.startswith("!"):
@@ -378,8 +507,7 @@ def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
     Side effect — emits one WARNING log per match enumerating:
 
     1. the ignored path (repo-relative POSIX)
-    2. the README the operator won't see in version control
-    3. the recommended ``!<rel>/README.md`` whitelist line
+    2. the broad ``.local/`` rule that keeps DevolaFlow workspace state private
 
     Caches the returned list at module level so :func:`last_gitignore_audit`
     can return it without re-walking the disk.
@@ -387,6 +515,9 @@ def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
     global _LAST_GITIGNORE_AUDIT
     rules = _read_gitignore_rules(cwd)
     if not rules:
+        _LAST_GITIGNORE_AUDIT = []
+        return []
+    if any(_is_broad_local_ignore_rule(rule) for rule in rules):
         _LAST_GITIGNORE_AUDIT = []
         return []
 
@@ -410,12 +541,9 @@ def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
             covered.append(path)
             _LOGGER.warning(
                 "scaffold_local: %s is covered by an existing .gitignore rule "
-                "— the generated README at %s/README.md will not be visible "
-                "in version control. Whitelist it with `!%s/README.md` in "
-                ".gitignore to keep the convention docs tracked while still "
-                "ignoring runtime contents.",
-                rel_posix,
-                rel_posix,
+                "and will remain private. Add a broad `.local/` rule to "
+                "the repo root .gitignore if all DevolaFlow workspace "
+                "state should stay out of version control.",
                 rel_posix,
             )
 
