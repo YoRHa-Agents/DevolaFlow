@@ -5,6 +5,14 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.1] - 2026-05-07
+
+**PATCH — PR #124 release hardening.** Ships the post-PR #124 cleanup for private workspace artifacts and clean-CI release checks.
+
+- Kept `.local/` private so repo-local agent workspace artifacts do not leak into committed release surfaces.
+- Repaired repo-init `.gitignore` generation so initialized workspaces consistently protect `.local/` from accidental tracking.
+- Added a clean-CI W-18 archive fallback so ghost-feature/archive checks pass from fresh clones without local research artifacts.
+
 ## [11.0.0] - 2026-05-04
 
 **MAJOR — v11.0.0 5-MINOR + 1-MAJOR Rollup Cycle Close.** v11.0.0 is the MAJOR-rollup close of the 5-MINOR cycle (v10.4.0 → v10.5.0 → v10.6.0 → v10.7.0 → v10.8.0) + 1-MAJOR rollup (v11.0.0) per the cycle plan at `.local/research/v11.0.0_cycle_plan.md`. The cycle admitted **ALL 27 internal optimization directions** from `.local/research/v10_internal_optimization_directions.md` (22 PASS unconditionally + 5 CONDITIONAL_PASS with applicability bounds) per the user's mainline admission selection (Option A). The MAJOR rollup ships 4 stretch patches across 3 PVs:
