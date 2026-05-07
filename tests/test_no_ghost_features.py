@@ -6630,23 +6630,21 @@ def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
         "in the same PR that bumps __version__."
     )
 
-    # Canonical-7 sync: src/devolaflow/__init__.py must be at 11.0.0.
-    init_text = (project_root / "src/devolaflow/__init__.py").read_text(encoding="utf-8")
-    assert '__version__ = "11.0.0"' in init_text, (
-        "W-18 v11.0.0 violation: canonical-7 sync incomplete — "
-        "src/devolaflow/__init__.py must declare __version__ = '11.0.0'."
-    )
-
-    # CHANGELOG entry must be at the TOP of CHANGELOG.md per AC #13.
+    # CHANGELOG entry must remain ordered above the v10.8.0 cycle it closes.
     changelog = (project_root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert _V11_0_0_CHANGELOG_LITERAL in changelog, (
         f"W-18 v11.0.0 violation: CHANGELOG entry "
         f"{_V11_0_0_CHANGELOG_LITERAL!r} missing; v11.0.0 ships this entry."
+    )
+    assert "canonical-7 sync 10.8.0 → 11.0.0" in changelog, (
+        "W-18 v11.0.0 violation: CHANGELOG must preserve the v11.0.0 "
+        "canonical-7 sync evidence even after later patch releases bump "
+        "src/devolaflow/__init__.py."
     )
     # Verify the v11.0.0 entry comes BEFORE the v10.8.0 entry (top-of-file ordering).
     v11_idx = changelog.index(_V11_0_0_CHANGELOG_LITERAL)
     v10_8_idx = changelog.index("## [10.8.0]")
     assert v11_idx < v10_8_idx, (
         "W-18 v11.0.0 violation: CHANGELOG `## [11.0.0]` heading must "
-        "sit at the TOP of CHANGELOG.md (above `## [10.8.0]`) per AC #13."
+        "remain above `## [10.8.0]` per AC #13."
     )
