@@ -24,14 +24,18 @@ exercising it).
 
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
 
 from devolaflow.skills.change_activation import (
     ENV_FLAG_NAME,
     ENV_FLAG_TRUTHY,
     ActivationVerdict,
+    CascadeRequirement,
     Complexity,
     activation_verdict,
+    cascade_requirement,
     classify_complexity,
     from_env,
 )
@@ -271,3 +275,181 @@ def test_verdict_string_values_are_stable() -> None:
     should: ActivationVerdict = "SHOULD_OPEN_CHANGE"
     no: ActivationVerdict = "NO_CHANGE"
     assert {must, should, no} == {"MUST_OPEN_CHANGE", "SHOULD_OPEN_CHANGE", "NO_CHANGE"}
+
+
+# ── cascade_requirement (v11.1.0 PV-02 G-CLASSIFY-1 Candidate C) ───────
+
+
+def test_cascade_requirement_complex_returns_required() -> None:
+    """COMPLEX → CASCADE_REQUIRED (top-tier always cascades).
+
+    Pins the operator-quotable verdict rule per
+    `.local/research/v11.1.0_pv02_decision.md` §1: "STANDARD complexity
+    or higher → cascade required (L0→L1→L2→L3)".
+    """
+    assert cascade_requirement("COMPLEX") == "CASCADE_REQUIRED"
+
+
+def test_cascade_requirement_standard_returns_required() -> None:
+    """STANDARD → CASCADE_REQUIRED (medium-tier still cascades).
+
+    Pins the lower bound of the cascade-required tier set per the
+    user's verbatim feedback (CO-2 quoted in
+    ``.local/feedbacks/feedback_for_v11.0.0.md``):
+    "在中等以上复杂度的任务中：L0 调度 L1 / L1 调度 L2 / L2 调动 L3".
+    """
+    assert cascade_requirement("STANDARD") == "CASCADE_REQUIRED"
+
+
+def test_cascade_requirement_simple_returns_optional() -> None:
+    """SIMPLE → CASCADE_OPTIONAL (operators may collapse to single L3).
+
+    Pins the upper bound of the cascade-optional tier set: the
+    1-3-files / clear-scope path keeps the v9.3.0 PV-06 SHORTCUT_SIMPLE
+    legacy shortcut available (no behaviour regression for operators
+    using ``DEVOLAFLOW_SIMPLE_SHORTCUT=1``).
+    """
+    assert cascade_requirement("SIMPLE") == "CASCADE_OPTIONAL"
+
+
+def test_cascade_requirement_trivial_returns_optional() -> None:
+    """TRIVIAL → CASCADE_OPTIONAL (single-file < 20 LOC carve-out).
+
+    Preserves the v10.5.0 PV-03 ``force_no_change`` semantics: a
+    trivial change SHOULD be a single direct dispatch, not a 4-layer
+    cascade ceremony.
+    """
+    assert cascade_requirement("TRIVIAL") == "CASCADE_OPTIONAL"
+
+
+def test_cascade_requirement_invalid_raises_value_error() -> None:
+    """S-5: unknown complexity literal raises ValueError, never silently coerces.
+
+    Mirrors :func:`test_activation_verdict_invalid_complexity_raises`
+    (line 181-184 above) — the cascade_requirement function refuses
+    unknown literals explicitly per S-5 (no silent failure). The error
+    message contains the bad value via ``!r`` formatting per
+    ``src/devolaflow/skills/change_activation.py`` line 400-402 — an
+    operator debugging a typo sees exactly what they passed in. The
+    ``NOT_A_TIER`` sentinel matches the precedent at line 183 above.
+    """
+    with pytest.raises(ValueError, match="complexity 'NOT_A_TIER' is not one of"):
+        cascade_requirement("NOT_A_TIER")  # type: ignore[arg-type]
+
+
+def test_cascade_requirement_empty_string_raises_value_error() -> None:
+    """S-5: empty string is not a valid complexity literal — raises.
+
+    Pins the no-silent-coercion contract for the degenerate empty
+    input (a common bug-class — caller passed an uninitialised string).
+    """
+    with pytest.raises(ValueError, match="complexity '' is not one of"):
+        cascade_requirement("")  # type: ignore[arg-type]
+
+
+def test_cascade_requirement_is_pure_function() -> None:
+    """cascade_requirement reads no env, calls no I/O surface — it is pure.
+
+    Per ``.local/research/v11.1.0_pv02_decision.md`` §1 the function is
+    a pure-function predicate with O(1) literal compare cost and zero
+    env-flag / dispatcher / filesystem dependencies. The "(no
+    monkeypatching, no I/O)" parenthetical in cycle_plan.md §3 PV-02
+    AC item 3 describes the function's purity, asserted here without
+    any monkeypatch / setenv (a pure function needs neither).
+
+    Three independent purity proofs:
+      1. **Determinism** — 1000 calls with the same input return the
+         same value (no hidden mutable state).
+      2. **Env snapshot** — ``os.environ`` is byte-identical before and
+         after exercising all four complexity tiers (no env mutation).
+      3. **Source inspection** — the function body literally does NOT
+         contain ``os.environ``, ``from_env(``, or ``shortcut_from_env(``
+         — verified at AST/source level so a future refactor that
+         silently introduces an env read would fail this test before
+         the determinism check would observe it.
+    """
+    import inspect
+    import os
+
+    for _ in range(1000):
+        assert cascade_requirement("STANDARD") == "CASCADE_REQUIRED"
+
+    env_before = dict(os.environ)
+    for complexity in ("TRIVIAL", "SIMPLE", "STANDARD", "COMPLEX"):
+        cascade_requirement(complexity)
+    env_after = dict(os.environ)
+    assert env_before == env_after, "cascade_requirement must NOT mutate os.environ"
+
+    source = inspect.getsource(cascade_requirement)
+    assert "os.environ" not in source, (
+        f"cascade_requirement must NOT reference os.environ; got source:\n{source}"
+    )
+    assert "from_env(" not in source, (
+        f"cascade_requirement must NOT call from_env(...); got source:\n{source}"
+    )
+    assert "shortcut_from_env(" not in source, (
+        f"cascade_requirement must NOT call shortcut_from_env(...); got source:\n{source}"
+    )
+
+
+def test_cascade_requirement_string_values_are_stable() -> None:
+    """Pin the two CascadeRequirement string literals — operators rely on these.
+
+    Per W-20 reuse-first the new Literal type's string values are part
+    of the operator-quotable contract. Changing either literal is a
+    release blocker (it would break PV-04 NEST ``gate.cascade_required``
+    propagation and any future SKILL.md sub-table that quotes the rule).
+    """
+    required: CascadeRequirement = "CASCADE_REQUIRED"
+    optional: CascadeRequirement = "CASCADE_OPTIONAL"
+    assert {required, optional} == set(get_args(CascadeRequirement))
+    assert {required, optional} == {"CASCADE_REQUIRED", "CASCADE_OPTIONAL"}
+
+
+def test_cascade_requirement_orthogonal_to_force_no_change() -> None:
+    """cascade_requirement and activation_verdict(force_no_change=True) compose orthogonally.
+
+    Per ``.local/research/v11.1.0_pv02_decision.md`` §3 R-2:
+    ``cascade_requirement`` applies to DISPATCH SHAPE (the L0→L1→L2→L3
+    chain), while ``activation_verdict``'s ``force_no_change`` applies
+    to WORKSPACE ACTIVATION (the ``.local/.agent/active/<id>/``
+    scaffold). The two surfaces are independent and never override
+    each other — the cascade verdict is unchanged regardless of the
+    force-flag because ``force_no_change`` is not even an input to
+    ``cascade_requirement``; the dispatch shape is decided BEFORE
+    workspace activation considerations.
+
+    Pinned matrix for the cascade-required tiers (STANDARD, COMPLEX):
+      * ``cascade_requirement(complexity)``                              → ``CASCADE_REQUIRED``
+      * ``activation_verdict(complexity, env, force_no_change=True)``    → ``NO_CHANGE``
+
+    Symmetric check for the cascade-optional tiers (SIMPLE, TRIVIAL):
+      * ``cascade_requirement(complexity)``                              → ``CASCADE_OPTIONAL``
+      * ``activation_verdict(complexity, env, force_no_change=True)``    → ``NO_CHANGE``
+    """
+    for complexity in ("STANDARD", "COMPLEX"):
+        assert cascade_requirement(complexity) == "CASCADE_REQUIRED"
+        for env in (True, False):
+            for opt_out in (True, False):
+                workspace = activation_verdict(
+                    complexity,
+                    env_agent_workspace=env,
+                    opt_out=opt_out,
+                    force_no_change=True,
+                )
+                assert workspace == "NO_CHANGE", (
+                    f"force_no_change=True must yield NO_CHANGE for cascade-required tier; "
+                    f"got {workspace!r} for {complexity=}, {env=}, {opt_out=}"
+                )
+
+    for complexity in ("SIMPLE", "TRIVIAL"):
+        assert cascade_requirement(complexity) == "CASCADE_OPTIONAL"
+        assert (
+            activation_verdict(
+                complexity,
+                env_agent_workspace=True,
+                opt_out=False,
+                force_no_change=True,
+            )
+            == "NO_CHANGE"
+        )

@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "11.0.1"
+version: "11.0.2"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v11.0.1**
+> **Now Using DevolaFlow v11.0.2**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 11.0.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 11.0.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -61,10 +61,10 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 |-----------|--------|--------|
 | **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — P1 waived for minimal edits |
 | **Simple** | 1-3 files, clear scope, < 1 hour | Dispatch **single Task Agent** via `Task` tool — no multi-stage workflow |
-| **Standard** | 3-10 files, needs design or review | Full hierarchy (L1+L2 only-when-needed; see `examples/multi-stage-trace.md`) |
-| **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy with strict gate profile |
+| **Standard** | 3-10 files, needs design or review | L0→L1→L2→L3 cascade (`examples/multi-stage-trace.md`) |
+| **Complex** | 10+ files, cross-cutting, multi-day | L0→L1→L2→L3 cascade with strict gate profile |
 
-**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
+**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly. **Cascade verdict** via `cascade_requirement(complexity)` returns `CASCADE_REQUIRED` for Standard/Complex, `CASCADE_OPTIONAL` for Simple/Trivial.
 
 ## Mode Awareness
 
