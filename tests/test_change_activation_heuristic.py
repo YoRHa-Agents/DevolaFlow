@@ -24,14 +24,18 @@ exercising it).
 
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
 
 from devolaflow.skills.change_activation import (
     ENV_FLAG_NAME,
     ENV_FLAG_TRUTHY,
     ActivationVerdict,
+    CascadeRequirement,
     Complexity,
     activation_verdict,
+    cascade_requirement,
     classify_complexity,
     from_env,
 )
@@ -271,3 +275,96 @@ def test_verdict_string_values_are_stable() -> None:
     should: ActivationVerdict = "SHOULD_OPEN_CHANGE"
     no: ActivationVerdict = "NO_CHANGE"
     assert {must, should, no} == {"MUST_OPEN_CHANGE", "SHOULD_OPEN_CHANGE", "NO_CHANGE"}
+
+
+# ── cascade_requirement (v11.1.0 PV-02 G-CLASSIFY-1 Candidate C) ───────
+
+
+def test_cascade_requirement_complex_returns_required() -> None:
+    """COMPLEX → CASCADE_REQUIRED (top-tier always cascades).
+
+    Pins the operator-quotable verdict rule per
+    `.local/research/v11.1.0_pv02_decision.md` §1: "STANDARD complexity
+    or higher → cascade required (L0→L1→L2→L3)".
+    """
+    assert cascade_requirement("COMPLEX") == "CASCADE_REQUIRED"
+
+
+def test_cascade_requirement_standard_returns_required() -> None:
+    """STANDARD → CASCADE_REQUIRED (medium-tier still cascades).
+
+    Pins the lower bound of the cascade-required tier set per the
+    user's verbatim feedback (CO-2 quoted in
+    ``.local/feedbacks/feedback_for_v11.0.0.md``):
+    "在中等以上复杂度的任务中：L0 调度 L1 / L1 调度 L2 / L2 调动 L3".
+    """
+    assert cascade_requirement("STANDARD") == "CASCADE_REQUIRED"
+
+
+def test_cascade_requirement_simple_returns_optional() -> None:
+    """SIMPLE → CASCADE_OPTIONAL (operators may collapse to single L3).
+
+    Pins the upper bound of the cascade-optional tier set: the
+    1-3-files / clear-scope path keeps the v9.3.0 PV-06 SHORTCUT_SIMPLE
+    legacy shortcut available (no behaviour regression for operators
+    using ``DEVOLAFLOW_SIMPLE_SHORTCUT=1``).
+    """
+    assert cascade_requirement("SIMPLE") == "CASCADE_OPTIONAL"
+
+
+def test_cascade_requirement_trivial_returns_optional() -> None:
+    """TRIVIAL → CASCADE_OPTIONAL (single-file < 20 LOC carve-out).
+
+    Preserves the v10.5.0 PV-03 ``force_no_change`` semantics: a
+    trivial change SHOULD be a single direct dispatch, not a 4-layer
+    cascade ceremony.
+    """
+    assert cascade_requirement("TRIVIAL") == "CASCADE_OPTIONAL"
+
+
+def test_cascade_requirement_invalid_raises_value_error() -> None:
+    """S-5: unknown complexity literal raises ValueError, never silently coerces.
+
+    The error message contains the bad value verbatim per
+    ``src/devolaflow/skills/change_activation.py`` line 401 — operators
+    debugging a typo see exactly what they passed in.
+    """
+    with pytest.raises(ValueError, match="complexity 'UNKNOWN' is not one of"):
+        cascade_requirement("UNKNOWN")  # type: ignore[arg-type]
+
+
+def test_cascade_requirement_empty_string_raises_value_error() -> None:
+    """S-5: empty string is not a valid complexity literal — raises.
+
+    Pins the no-silent-coercion contract for the degenerate empty
+    input (a common bug-class — caller passed an uninitialised string).
+    """
+    with pytest.raises(ValueError, match="complexity '' is not one of"):
+        cascade_requirement("")  # type: ignore[arg-type]
+
+
+def test_cascade_requirement_is_pure_function() -> None:
+    """1000 calls in a row return the same value — no hidden state.
+
+    Pins the decision memo §1 + §3 R-1 invariant: the function is a
+    pure-function predicate with O(1) literal compare cost and no
+    env-flag / dispatcher / filesystem dependencies. Hidden mutable
+    state would be a release blocker per A-6.1 public-contract
+    preservation.
+    """
+    for _ in range(1000):
+        assert cascade_requirement("STANDARD") == "CASCADE_REQUIRED"
+
+
+def test_cascade_requirement_string_values_are_stable() -> None:
+    """Pin the two CascadeRequirement string literals — operators rely on these.
+
+    Per W-20 reuse-first the new Literal type's string values are part
+    of the operator-quotable contract. Changing either literal is a
+    release blocker (it would break PV-04 NEST ``gate.cascade_required``
+    propagation and any future SKILL.md sub-table that quotes the rule).
+    """
+    required: CascadeRequirement = "CASCADE_REQUIRED"
+    optional: CascadeRequirement = "CASCADE_OPTIONAL"
+    assert {required, optional} == set(get_args(CascadeRequirement))
+    assert {required, optional} == {"CASCADE_REQUIRED", "CASCADE_OPTIONAL"}

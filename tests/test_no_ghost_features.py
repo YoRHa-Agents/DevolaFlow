@@ -6648,3 +6648,232 @@ def test_v11_0_0_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v11.0.0 violation: CHANGELOG `## [11.0.0]` heading must "
         "remain above `## [10.8.0]` per AC #13."
     )
+
+
+# =====================================================================
+# v11.0.2 (PV-02 of v11.1.0 cycle) — G-CLASSIFY-1 cascade-decision
+# pure function + W-16 wholesale baseline regen
+# =====================================================================
+#
+# v11.0.2 is the FIRST impl PV of the v11.1.0 cascade-restoration MINOR
+# cycle. Per the v11.1.0 cycle plan §3 PV-02 + L0 DEC-002, PV-02 ships
+# Candidate C of G-CLASSIFY-1: preserve the existing 4-tier
+# `Complexity` Literal byte-stable AND add a NEW sibling pure function
+# `cascade_requirement(complexity) -> CascadeRequirement` whose verdict
+# matrix (STANDARD/COMPLEX → CASCADE_REQUIRED; SIMPLE/TRIVIAL →
+# CASCADE_OPTIONAL) encodes the operator-quotable rule the v11.0.0
+# retrospective F-2 finding telegraphed. The dispatch-payload
+# integration (NEST `gate.cascade_required`) lands at PV-04; PV-02
+# ships only the prompt-side surface and the W-16 cycle anchor
+# baseline.
+#
+# Per W-18 sequencing this lint refresh lands BEFORE the CHANGELOG
+# `## [11.0.2]` entry that mentions any of the symbols below.
+
+# G-CLASSIFY-1 surfaces.
+_V11_0_2_PV02_CHANGE_ACTIVATION: Path = Path("src/devolaflow/skills/change_activation.py")
+_V11_0_2_PV02_HEURISTIC_TESTS: Path = Path("tests/test_change_activation_heuristic.py")
+_V11_0_2_PV02_CASCADE_TESTS: Path = Path("tests/test_cascade_enforcement.py")
+
+# W-16 wholesale baseline regen (cycle-anchor for PV-03..PV-07).
+_V11_0_2_PV02_BASELINE: Path = Path(
+    "benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json"
+)
+
+# Decision memo (gitignored under .local/; presence-checked when local).
+_V11_0_2_PV02_DECISION_MEMO: Path = Path(".local/research/v11.1.0_pv02_decision.md")
+
+# SKILL.md sub-table cells must cite the new verdict literal verbatim.
+_V11_0_2_PV02_SKILL: Path = Path("workflow-system/agent/SKILL.md")
+
+# 8 NEW cascade_requirement truth-table tests (T02 of PV-02 closeout).
+_V11_0_2_PV02_HEURISTIC_TEST_NAMES: tuple[str, ...] = (
+    "test_cascade_requirement_complex_returns_required",
+    "test_cascade_requirement_standard_returns_required",
+    "test_cascade_requirement_simple_returns_optional",
+    "test_cascade_requirement_trivial_returns_optional",
+    "test_cascade_requirement_invalid_raises_value_error",
+    "test_cascade_requirement_empty_string_raises_value_error",
+    "test_cascade_requirement_is_pure_function",
+    "test_cascade_requirement_string_values_are_stable",
+)
+
+# 3 NEW minimal-stub tests in tests/test_cascade_enforcement.py (T03).
+_V11_0_2_PV02_CASCADE_TEST_NAMES: tuple[str, ...] = (
+    "test_cascade_requirement_propagates_from_classifier_complex",
+    "test_cascade_requirement_propagates_from_classifier_simple",
+    "test_cascade_required_signal_fits_in_dispatch_payload_shape",
+)
+
+
+def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.2 PV-02: G-CLASSIFY-1 new surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.2 PV-02 CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land before the
+    CHANGELOG entry — this stanza closes that precondition.
+
+    Surfaces pinned:
+
+    * NEW `CascadeRequirement` Literal type and `cascade_requirement`
+      pure function in `src/devolaflow/skills/change_activation.py`.
+    * 8 NEW truth-table tests in
+      `tests/test_change_activation_heuristic.py`.
+    * 3 NEW minimal-stub tests in `tests/test_cascade_enforcement.py`
+      (full ≥10-test surface lands at PV-05 G-TEST-1).
+    * NEW `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json`
+      (W-16 wholesale baseline regen at v11.1.0 cycle-start).
+    * SKILL.md Quick Action Decision sub-table cites the
+      `CASCADE_REQUIRED` verdict literal in the Standard + Complex rows.
+    * Decision memo at `.local/research/v11.1.0_pv02_decision.md`
+      (gitignored — presence checked when locally available; no
+      archive mapping required since `.local/` is git-private).
+    """
+    # NEW symbol — `CascadeRequirement` Literal type — must be importable.
+    from devolaflow.skills.change_activation import (
+        CascadeRequirement,
+        cascade_requirement,
+    )
+    from typing import get_args as _get_args
+
+    assert callable(cascade_requirement), (
+        "W-18 v11.0.2 PV-02 violation: `cascade_requirement` must be a "
+        "callable pure function in `devolaflow.skills.change_activation`."
+    )
+    assert set(_get_args(CascadeRequirement)) == {"CASCADE_REQUIRED", "CASCADE_OPTIONAL"}, (
+        "W-18 v11.0.2 PV-02 violation: CascadeRequirement Literal must "
+        "contain exactly the two operator-quotable string values "
+        "{'CASCADE_REQUIRED', 'CASCADE_OPTIONAL'}; reordering or renaming "
+        "either is a release blocker per the decision memo §1."
+    )
+    # The pure function's verdict matrix must match the operator-quotable rule.
+    assert cascade_requirement("STANDARD") == "CASCADE_REQUIRED"
+    assert cascade_requirement("COMPLEX") == "CASCADE_REQUIRED"
+    assert cascade_requirement("SIMPLE") == "CASCADE_OPTIONAL"
+    assert cascade_requirement("TRIVIAL") == "CASCADE_OPTIONAL"
+
+    # AST-level pin on the source module: both new symbols defined in the
+    # canonical owner file (A-5 single-source-of-truth pattern).
+    ca_text = (project_root / _V11_0_2_PV02_CHANGE_ACTIVATION).read_text(encoding="utf-8")
+    ca_tree = ast.parse(ca_text)
+    function_names = {n.name for n in ast.walk(ca_tree) if isinstance(n, ast.FunctionDef)}
+    assert "cascade_requirement" in function_names, (
+        "W-18 v11.0.2 PV-02 violation: `cascade_requirement` must be "
+        "defined as a top-level function in "
+        "src/devolaflow/skills/change_activation.py per A-5 SSOT."
+    )
+    assert "CascadeRequirement" in ca_text, (
+        "W-18 v11.0.2 PV-02 violation: `CascadeRequirement` Literal "
+        "type must be declared in src/devolaflow/skills/change_activation.py."
+    )
+    # Operator-quotable verdict rule must appear verbatim in the docstring.
+    assert "STANDARD complexity or higher → cascade required" in ca_text, (
+        "W-18 v11.0.2 PV-02 violation: the operator-quotable verdict "
+        "rule from `.local/research/v11.1.0_pv02_decision.md` §1 must "
+        "appear verbatim in cascade_requirement's docstring."
+    )
+
+    # 8 NEW truth-table tests in test_change_activation_heuristic.py.
+    heuristic_text = (project_root / _V11_0_2_PV02_HEURISTIC_TESTS).read_text(encoding="utf-8")
+    for new_test in _V11_0_2_PV02_HEURISTIC_TEST_NAMES:
+        assert f"def {new_test}" in heuristic_text, (
+            f"W-18 v11.0.2 PV-02 violation: NEW truth-table test "
+            f"{new_test!r} missing from "
+            f"tests/test_change_activation_heuristic.py."
+        )
+
+    # 3 NEW minimal-stub tests in test_cascade_enforcement.py (NEW file).
+    cascade_path = project_root / _V11_0_2_PV02_CASCADE_TESTS
+    assert cascade_path.is_file(), (
+        f"W-18 v11.0.2 PV-02 violation: NEW test stub "
+        f"{_V11_0_2_PV02_CASCADE_TESTS} missing — full ≥10-test "
+        f"surface lands at PV-05; PV-02 ships the 3-test minimal stub."
+    )
+    cascade_text = cascade_path.read_text(encoding="utf-8")
+    for new_test in _V11_0_2_PV02_CASCADE_TEST_NAMES:
+        assert f"def {new_test}" in cascade_text, (
+            f"W-18 v11.0.2 PV-02 violation: NEW minimal-stub test "
+            f"{new_test!r} missing from tests/test_cascade_enforcement.py."
+        )
+
+    # W-16 wholesale baseline regen — cycle anchor for PV-03..PV-07.
+    baseline_path = project_root / _V11_0_2_PV02_BASELINE
+    assert baseline_path.is_file(), (
+        f"W-18 v11.0.2 PV-02 violation: W-16 cycle-anchor baseline "
+        f"missing at {_V11_0_2_PV02_BASELINE}. v11.1.0 cycle-start "
+        f"MUST regenerate the wholesale baseline per W-16."
+    )
+    # Schema sanity: top-level keys are scenario names, each entry has
+    # the canonical fields per BASELINE_FIELDS in
+    # benchmarks/devolaflow_context/generate_baseline.py.
+    import json as _json
+
+    baseline_data = _json.loads(baseline_path.read_text(encoding="utf-8"))
+    assert isinstance(baseline_data, dict) and len(baseline_data) > 0, (
+        "W-18 v11.0.2 PV-02 violation: v11.1.0_baseline.json must be a "
+        "non-empty dict keyed by scenario name."
+    )
+    sample_entry = next(iter(baseline_data.values()))
+    for required_field in (
+        "composite",
+        "information_density",
+        "section_relevance",
+        "budget_utilization",
+        "noise_ratio",
+        "total_tokens",
+        "budget",
+        "selected_count",
+    ):
+        assert required_field in sample_entry, (
+            f"W-18 v11.0.2 PV-02 violation: v11.1.0_baseline.json entry "
+            f"missing required field {required_field!r} per "
+            f"benchmarks/devolaflow_context/generate_baseline.py "
+            f"BASELINE_FIELDS."
+        )
+
+    # SKILL.md Quick Action Decision sub-table must cite CASCADE_REQUIRED
+    # in the Standard + Complex rows (T05 deliverable).
+    skill_text = (project_root / _V11_0_2_PV02_SKILL).read_text(encoding="utf-8")
+    sub_table_match = re.search(
+        r"## Quick Action Decision\n(.*?)(?:\n## |\Z)",
+        skill_text,
+        re.DOTALL,
+    )
+    assert sub_table_match is not None, (
+        "W-18 v11.0.2 PV-02 violation: SKILL.md missing "
+        "`## Quick Action Decision` section."
+    )
+    sub_table = sub_table_match.group(1)
+    assert "CASCADE_REQUIRED" in sub_table, (
+        "W-18 v11.0.2 PV-02 violation: SKILL.md Quick Action Decision "
+        "sub-table must cite the `CASCADE_REQUIRED` verdict literal in "
+        "the Standard / Complex rows per T05 of the PV-02 closeout."
+    )
+    assert "L0→L1→L2→L3 cascade" in sub_table, (
+        "W-18 v11.0.2 PV-02 violation: SKILL.md Quick Action Decision "
+        "sub-table must cite the `L0→L1→L2→L3 cascade` chain per the "
+        "operator-quotable verdict rule."
+    )
+
+    # Decision memo — best-effort presence check (gitignored .local/;
+    # the memo is required for the closeout but is not committed, so we
+    # check presence ONLY when locally available rather than failing CI
+    # on the missing file alone). This satisfies the W-18 spirit: when
+    # the lint runs locally during the PV close-out, it pins the memo's
+    # operator-quotable verdict rule; when CI runs without the gitignored
+    # memo, the lint passes the symbol/test/baseline/SKILL.md checks
+    # which are the hard pins.
+    memo_path = project_root / _V11_0_2_PV02_DECISION_MEMO
+    if memo_path.is_file():
+        memo_text = memo_path.read_text(encoding="utf-8")
+        assert "STANDARD complexity or higher → cascade required" in memo_text, (
+            f"W-18 v11.0.2 PV-02 violation: decision memo "
+            f"{_V11_0_2_PV02_DECISION_MEMO} present but missing the "
+            f"operator-quotable verdict rule §1; the verbatim sentence "
+            f"is the public contract anchor."
+        )
+        assert "Candidate" in memo_text and " C " in memo_text, (
+            f"W-18 v11.0.2 PV-02 violation: decision memo "
+            f"{_V11_0_2_PV02_DECISION_MEMO} present but missing the "
+            f"Candidate-C selection rationale."
+        )

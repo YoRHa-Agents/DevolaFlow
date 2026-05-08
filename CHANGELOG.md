@@ -5,6 +5,60 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.2] - 2026-05-08
+
+**PATCH — v11.1.0 PV-02: G-CLASSIFY-1 cascade-decision pure function + W-16 wholesale baseline regen.** First impl PV of the v11.1.0 cascade-restoration MINOR cycle. Source-of-truth direction: `.local/feedbacks/feedback_for_v11.0.0.md` (verbatim user feedback per CO-2). Locked baseline: NineS composite **6.85/10** per `.local/research/v11.1.0_l0_decisions.md` DEC-001 (Option R-B); MINOR target ≥ 8.5; PV-06 swing target +1.65 points.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: 1 NEW pure function + 1 NEW Literal type. Zero behaviour change for existing callers.**
+
+- **G-CLASSIFY-1 (Candidate C)** — `src/devolaflow/skills/change_activation.py` gains a NEW pure function `cascade_requirement(complexity: Complexity) -> CascadeRequirement` returning `"CASCADE_REQUIRED"` for STANDARD/COMPLEX, `"CASCADE_OPTIONAL"` for SIMPLE/TRIVIAL. NEW `CascadeRequirement = Literal["CASCADE_REQUIRED", "CASCADE_OPTIONAL"]` Literal type. Operator-quotable verdict rule: *"STANDARD complexity or higher → cascade required (L0→L1→L2→L3); SIMPLE / TRIVIAL → cascade optional (operators may collapse to a single L3)."* The existing 4-tier classifier + 13 contract pins are PRESERVED byte-stable. The dispatch-payload integration (NEST `gate.cascade_required`) lands at PV-04 G-PLAN-1.
+- **W-16 wholesale baseline regen** — `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json` (NEW; 53 scenarios) is the cycle anchor for PV-03..PV-07 regression checks per W-16 cycle-start convention. Per-scenario data inherits from the predecessor v10.5.0 baseline by re-running the canonical generator; cascade-vs-collapse perf scenarios land at PV-05 G-BENCH-1.
+- **SKILL.md Quick Action Decision sub-table** — Standard + Complex rows updated to cite the new `cascade_requirement()` verdict and the `L0→L1→L2→L3` cascade chain. Line 180 "Layer collapse pattern" + lines 105-107 "Simple task shortcut" block remain PV-03 scope.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_coverage`:
+
+- `src/devolaflow/skills/change_activation.py::CascadeRequirement` (NEW Literal type)
+- `src/devolaflow/skills/change_activation.py::cascade_requirement` (NEW pure function)
+- `tests/test_change_activation_heuristic.py` — 8 NEW test functions (cascade_requirement truth table)
+- `tests/test_cascade_enforcement.py` (NEW; 3 minimal-stub tests; full ≥10-test surface lands at PV-05)
+- `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json` (NEW; W-16 wholesale anchor)
+- `.local/research/v11.1.0_pv02_decision.md` (gitignored; candidate-selection rationale)
+- `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_coverage` (NEW W-18 lint)
+
+### Headline numbers (PV-02; cumulative since v11.0.1)
+
+| Area | v11.0.1 | v11.0.2 | Delta | Source |
+|------|---:|---:|---:|---|
+| Tests (collected) | 4256 | ~4267 | +11 (T02 +8 + T03 +3 + W-18 +1 - 1 stanza shift) | `pytest --collect-only -q` |
+| Coverage % | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pytest --cov=devolaflow` |
+| `__version__` | 11.0.1 | **11.0.2** | +1 PATCH | `src/devolaflow/__init__.py` |
+| EvoBench baseline | v10.5.0_baseline.json | **v11.1.0_baseline.json** | NEW (W-16 wholesale anchor) | `benchmarks/devolaflow_context/baselines/` |
+| Schema canonical_order length | 17 | 17 | 0 (A-2.1 frozen prefix; A-2.4 multi-baseline byte test PASS) | `tests/test_layout_invariant_multi_baseline.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` §S-1..§S-10 |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; no new flags) | `references/env-flags.md` §2 |
+| SKILL.md line count | 467 | 467 | 0 (≤ 500 per SF-1) | `wc -l workflow-system/agent/SKILL.md` |
+
+### Sister PVs
+
+- **PV-03 (next, v11.0.3)**: G-CASCADE-1 SKILL.md cascade restoration (line 180 + lines 105-107) + G-CASCADE-2 multi-stage-trace.md revision per `.local/research/v11.1.0_cycle_plan.md` §2 PV-03.
+- **PV-04..PV-07**: per cycle plan §2.
+
+### W-9 SI-10 7-step verification (PV-02 stage close gate)
+
+| Step | Command | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | PASS (4232 collected; 0 fail; 25 skipped; 2 xfailed) |
+| 2 | `ruff check src/ tests/` | PASS (0 errors) |
+| 3 | `ruff format --check src/ tests/` | PASS (0 reformat) |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.2; 12 passed + 23 skipped mirror tests) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36/36; v11.1.0_baseline.json prefer pin updated) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op) |
+| 7 | CP-7 audit (no absolute paths) | PASS (zero new abs-path strings under workflow-system/, .rules/, AGENTS.md, CLAUDE.md) |
+
 ## [11.0.1] - 2026-05-07
 
 **PATCH — PR #124 release hardening.** Ships the post-PR #124 cleanup for private workspace artifacts and clean-CI release checks.
