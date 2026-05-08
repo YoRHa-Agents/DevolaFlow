@@ -75,6 +75,17 @@ _PLAN_MODE_OVERRIDES: dict[str, Any] = {
     },
     "compression_intensity": "minimal",
     "model_hint_override": "quality",
+    # v11.1.0 PV-04 — G-PLAN-2 cascade-required runtime carrier.
+    # Default True under v11.1.0 to match the user's "在 Plan 模式中，也需要
+    # 能够体现出多层级调度的原则" directive (cycle plan §1 verbatim block);
+    # downstream consumers (L0 plan-render code, future PV-05 A-7 strict
+    # validator) read this key from the merged profile dict to learn the
+    # plan-mode default. The schema-side carrier is gate.cascade_required
+    # (NEST sub-field added in W01); this dict-side carrier is the
+    # plan-mode runtime knob. R5 backward-compat: the key is purely
+    # additive — pre-v11.1.0 callers that never read this key see the
+    # same byte-stable behaviour. Source: cycle plan §3 PV-04 W05.
+    "plan_mode_cascade_required": True,
 }
 
 
@@ -90,6 +101,16 @@ def apply_plan_mode_overrides(profile: dict[str, Any]) -> dict[str, Any]:
     Does not mutate *profile*. Composes with :func:`apply_round_escalation`:
     plan-mode applies first, round-escalation may then override individual
     sections (e.g. round-3 lifts ``convergence_loop`` back to critical).
+
+    v11.1.0 PV-04 — G-PLAN-2 propagates the
+    ``plan_mode_cascade_required`` runtime knob from
+    :data:`_PLAN_MODE_OVERRIDES` onto the returned profile dict so
+    downstream L0 plan-render callers can read it without round-tripping
+    through the override block. Default ``True`` under v11.1.0 (cascade
+    is the normative plan-mode default per the user feedback ‘在 Plan
+    模式中，也需要能够体现出多层级调度的原则’). Pre-v11.1.0 callers that
+    never read the key see byte-stable behaviour (R5 strict additive
+    contract).
     """
     result = {**profile}
 
@@ -100,6 +121,7 @@ def apply_plan_mode_overrides(profile: dict[str, Any]) -> dict[str, Any]:
 
     result["model_hint"] = _PLAN_MODE_OVERRIDES["model_hint_override"]
     result["compression_intensity"] = _PLAN_MODE_OVERRIDES["compression_intensity"]
+    result["plan_mode_cascade_required"] = _PLAN_MODE_OVERRIDES["plan_mode_cascade_required"]
     return result
 
 

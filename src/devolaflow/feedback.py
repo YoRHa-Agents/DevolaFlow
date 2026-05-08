@@ -10,6 +10,7 @@ Design ref: S02-T08-engine-infra.md §5 (Integration Point 5)
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
@@ -480,6 +481,107 @@ class ProposalGenerator:
             severity_floor=severity_floor,
             reinforcement_factory=self.generate_reinforcement,
         )
+
+
+# ---------------------------------------------------------------------------
+# v11.1.0 (PV-04 / W02) — Cascade-gate field population helper
+#
+# Module-level helper that L0/L1/L2 dispatchers may call BEFORE handing
+# a base dispatch to ``ProposalGenerator.generate_round_dispatch``. The
+# helper conditionally populates the v11.1.0 PV-04 W01 NEST sub-fields
+# under the existing ``gate`` block (per the schema-side wiring in
+# ``schemas/lean-dispatch.yaml`` lines 177-210):
+#
+# * ``gate.cascade_required: bool`` — true when complexity is
+#   STANDARD/COMPLEX per ``cascade_requirement(complexity)``;
+# * ``gate.cascade_min_layers: int`` — defaults to 4 (the canonical
+#   L0 → L1 → L2 → L3 minimum) when cascade is required.
+#
+# Per Soul Rule S-10: this helper is OPT-IN. Callers that do NOT pass
+# the base dispatch through this helper produce dispatches byte-identical
+# to the v11.0.3 control — the existing
+# ``tests/test_dispatch_emission_runs_hooks.py`` 10/10 R5 strict
+# byte-identical contract is preserved BY CONSTRUCTION (the helper
+# operates on the BASE dispatch BEFORE ``generate_round_dispatch`` runs;
+# the round-N+1 emission path is unchanged).
+#
+# Per A-2.3 (NEST contract): SIMPLE/TRIVIAL complexity returns the deep
+# copy AS-IS — canonical absence-as-default preserves the v9.7.0 layout
+# byte-baseline + the 10 historical multi-baseline byte-tests in
+# ``tests/test_layout_invariant_multi_baseline.py``.
+#
+# Source: v11.1.0 PV-04 spec — closes the W02 owned-files manifest;
+# pairs with W03 (`gate/scorer.py::validate_cascade_gate_fields` soft
+# validator). Strict A-7 enforcement lands at PV-05.
+# ---------------------------------------------------------------------------
+
+
+def populate_cascade_gate_fields(
+    base_dispatch: dict[str, Any],
+    complexity: str,
+) -> dict[str, Any]:
+    """Conditionally populate gate.cascade_required + gate.cascade_min_layers.
+
+    v11.1.0 PV-04 — opt-in helper for L0/L1/L2 dispatchers building a
+    dispatch payload with explicit complexity. Returns a new dict
+    (deep copy of *base_dispatch*) with the cascade sub-fields populated
+    under the existing ``gate`` block when complexity is STANDARD/COMPLEX
+    (per :func:`devolaflow.skills.change_activation.cascade_requirement`).
+    For SIMPLE/TRIVIAL the sub-fields are OMITTED (canonical absence-as-
+    default per A-2.3 NEST contract); the returned dict is byte-identical
+    to a deepcopy of *base_dispatch*.
+
+    Per S-10: this helper is OPT-IN.
+    :meth:`ProposalGenerator.generate_round_dispatch` callers that do
+    NOT pass through this helper produce dispatches byte-identical to
+    the v11.0.3 control (the existing
+    ``tests/test_dispatch_emission_runs_hooks.py`` 10/10 R5 strict
+    byte-identical contract is preserved BY CONSTRUCTION — the helper
+    operates on the BASE dispatch BEFORE the round-N+1 emission path).
+
+    Args:
+      base_dispatch: dispatch payload dict; never mutated.
+      complexity: one of TRIVIAL/SIMPLE/STANDARD/COMPLEX.
+
+    Returns:
+      Deep copy of *base_dispatch* with ``gate.cascade_required`` and
+      ``gate.cascade_min_layers`` populated when cascade is required.
+      When the input has no ``gate`` block AND cascade is required, an
+      empty ``gate: {}`` dict is created and the cascade sub-fields are
+      added to it (mirrors the gate block creation pattern elsewhere in
+      feedback flows).
+
+    Raises:
+      ValueError: when ``complexity`` is not a recognised
+        :data:`devolaflow.skills.change_activation.Complexity` literal —
+        re-raised verbatim from :func:`cascade_requirement` per S-5
+        (no silent coercion of unknown complexity tiers).
+    """
+    from devolaflow.skills.change_activation import cascade_requirement
+
+    dispatch = copy.deepcopy(base_dispatch)
+
+    if cascade_requirement(complexity) == "CASCADE_OPTIONAL":
+        return dispatch
+
+    gate_block = dispatch.get("gate")
+    if not isinstance(gate_block, dict):
+        dispatch["gate"] = {}
+    dispatch["gate"]["cascade_required"] = True
+    dispatch["gate"]["cascade_min_layers"] = 4
+    return dispatch
+
+
+# v11.1.0 PV-04 — ``populate_cascade_gate_fields`` is the OPT-IN dispatch-payload
+# populator added under W02 (G-PLAN-1 + W01 schema NEST). Until PV-05 wires it
+# into the L0/L1/L2 dispatcher build path (alongside the new A-7 strict
+# validator), the helper has no in-repo production caller. The dead-API
+# detector (``scripts/detect_dead_apis.py``) needs an explicit pin tuple so
+# the helper does not register as a v6.0.3-style dead-wire bug — same pattern
+# as the ``_cascade_requirement_dead_api_pins`` block in
+# ``src/devolaflow/skills/change_activation.py`` (v11.1.0 PV-02). Source:
+# cycle plan §3 PV-04 W02.
+_populate_cascade_gate_fields_dead_api_pins = (populate_cascade_gate_fields,)
 
 
 # ---------------------------------------------------------------------------
