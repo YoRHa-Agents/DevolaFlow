@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v10.5.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v11.1.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

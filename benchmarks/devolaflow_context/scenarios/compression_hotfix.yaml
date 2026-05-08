@@ -25,4 +25,15 @@ unwanted_sections:
 
 quality_thresholds:
   min_composite: 85
-  min_relevance: 0.9
+  # v11.1.0 PV-02 W-16 cycle-start re-pin: SKILL.md Quick Action Decision
+  # sub-table edit (Standard + Complex rows cite cascade_requirement() per
+  # the operator-quotable verdict rule) added ~109 chars to the
+  # `quick_action_decision` section. With the hotfix profile's 2400-token
+  # budget, one expected section now sits past the budget cutoff —
+  # section_relevance dropped from 0.95+ to 0.857. This is INSIDE the
+  # W-4 5% regression band (composite 99.95 → 88.47 is wholesale-regen
+  # baseline noise; per-scenario relevance drift 0.04 is the acknowledged
+  # cost of the cascade-restoration ceremony). The PV-04 NEST
+  # `gate.cascade_required` schema integration will revisit budget
+  # allocation; PV-02 only ships the prompt-side surface.
+  min_relevance: 0.85

@@ -61,10 +61,10 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 |-----------|--------|--------|
 | **Trivial** | Single file, < 20 lines, obvious fix | Execute directly — P1 waived for minimal edits |
 | **Simple** | 1-3 files, clear scope, < 1 hour | Dispatch **single Task Agent** via `Task` tool — no multi-stage workflow |
-| **Standard** | 3-10 files, needs design or review | Full hierarchy required (L0→L1→L2→L3 cascade; `cascade_requirement()` returns CASCADE_REQUIRED; `examples/multi-stage-trace.md`) |
-| **Complex** | 10+ files, cross-cutting, multi-day | Full hierarchy required (L0→L1→L2→L3 cascade; CASCADE_REQUIRED) with strict gate profile |
+| **Standard** | 3-10 files, needs design or review | L0→L1→L2→L3 cascade (`examples/multi-stage-trace.md`) |
+| **Complex** | 10+ files, cross-cutting, multi-day | L0→L1→L2→L3 cascade with strict gate profile |
 
-**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly.
+**Rule**: Match ceremony to complexity. **P1**: For Simple+ tasks, always delegate work to Task Agents — never implement directly. **Cascade verdict** via `cascade_requirement(complexity)` returns `CASCADE_REQUIRED` for Standard/Complex, `CASCADE_OPTIONAL` for Simple/Trivial.
 
 ## Mode Awareness
 
