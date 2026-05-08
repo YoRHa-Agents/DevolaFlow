@@ -23,8 +23,8 @@ Pinned by `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_
 
 - `src/devolaflow/skills/change_activation.py::CascadeRequirement` (NEW Literal type)
 - `src/devolaflow/skills/change_activation.py::cascade_requirement` (NEW pure function)
-- `tests/test_change_activation_heuristic.py` — 8 NEW test functions (cascade_requirement truth table)
-- `tests/test_cascade_enforcement.py` (NEW; 3 minimal-stub tests; full ≥10-test surface lands at PV-05)
+- `tests/test_change_activation_heuristic.py` — 9 NEW test functions (8-row cascade_requirement truth table + 1 orthogonal-to-`force_no_change` pin from `abf9785`)
+- `tests/test_cascade_enforcement.py` (NEW; 5 minimal-stub tests — 4 active + 1 `pytest.skip` PV-04 telegraph; full ≥10-test surface lands at PV-05)
 - `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json` (NEW; W-16 wholesale anchor)
 - `.local/research/v11.1.0_pv02_decision.md` (gitignored; candidate-selection rationale)
 - `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_coverage` (NEW W-18 lint)
@@ -33,7 +33,7 @@ Pinned by `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_
 
 | Area | v11.0.1 | v11.0.2 | Delta | Source |
 |------|---:|---:|---:|---|
-| Tests (collected) | 4256 | ~4267 | +11 (T02 +8 + T03 +3 + W-18 +1 - 1 stanza shift) | `pytest --collect-only -q` |
+| Tests (collected) | 4256 | 4271 | +15 (T02 +8 + abf9785 orthogonal pin +1 + T03 +5 + W-18 +1) | `pytest --collect-only -q` |
 | Coverage % | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pytest --cov=devolaflow` |
 | `__version__` | 11.0.1 | **11.0.2** | +1 PATCH | `src/devolaflow/__init__.py` |
 | EvoBench baseline | v10.5.0_baseline.json | **v11.1.0_baseline.json** | NEW (W-16 wholesale anchor) | `benchmarks/devolaflow_context/baselines/` |
@@ -51,7 +51,7 @@ Pinned by `tests/test_no_ghost_features.py::test_v11_0_2_pv02_new_surfaces_have_
 
 | Step | Command | Result |
 |---|---|---|
-| 1 | `python -m pytest tests/ -q` | PASS (4232 collected; 0 fail; 25 skipped; 2 xfailed) |
+| 1 | `python -m pytest tests/ -q` | PASS (4271 collected; 4243 passed; 0 failed; 26 skipped; 2 xfailed) |
 | 2 | `ruff check src/ tests/` | PASS (0 errors) |
 | 3 | `ruff format --check src/ tests/` | PASS (0 reformat) |
 | 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.2; 12 passed + 23 skipped mirror tests) |

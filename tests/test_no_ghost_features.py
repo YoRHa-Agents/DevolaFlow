@@ -6684,7 +6684,8 @@ _V11_0_2_PV02_DECISION_MEMO: Path = Path(".local/research/v11.1.0_pv02_decision.
 # SKILL.md sub-table cells must cite the new verdict literal verbatim.
 _V11_0_2_PV02_SKILL: Path = Path("workflow-system/agent/SKILL.md")
 
-# 8 NEW cascade_requirement truth-table tests (T02 of PV-02 closeout).
+# 9 NEW cascade_requirement truth-table tests (T02 of PV-02 closeout +
+# abf9785's orthogonal-to-force_no_change pin).
 _V11_0_2_PV02_HEURISTIC_TEST_NAMES: tuple[str, ...] = (
     "test_cascade_requirement_complex_returns_required",
     "test_cascade_requirement_standard_returns_required",
@@ -6694,6 +6695,7 @@ _V11_0_2_PV02_HEURISTIC_TEST_NAMES: tuple[str, ...] = (
     "test_cascade_requirement_empty_string_raises_value_error",
     "test_cascade_requirement_is_pure_function",
     "test_cascade_requirement_string_values_are_stable",
+    "test_cascade_requirement_orthogonal_to_force_no_change",
 )
 
 # NEW minimal-stub tests in tests/test_cascade_enforcement.py (T03);
@@ -6719,10 +6721,13 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
 
     * NEW `CascadeRequirement` Literal type and `cascade_requirement`
       pure function in `src/devolaflow/skills/change_activation.py`.
-    * 8 NEW truth-table tests in
-      `tests/test_change_activation_heuristic.py`.
-    * 3 NEW minimal-stub tests in `tests/test_cascade_enforcement.py`
-      (full ≥10-test surface lands at PV-05 G-TEST-1).
+    * 9 NEW truth-table tests in
+      `tests/test_change_activation_heuristic.py` (8 from T02 of the
+      PV-02 closeout + 1 orthogonal-to-`force_no_change` pin from
+      `abf9785`).
+    * 5 NEW minimal-stub tests in `tests/test_cascade_enforcement.py`
+      (4 active + 1 `pytest.skip` PV-04 telegraph; the full ≥10-test
+      surface lands at PV-05 G-TEST-1).
     * NEW `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json`
       (W-16 wholesale baseline regen at v11.1.0 cycle-start).
     * SKILL.md Quick Action Decision sub-table cites the
@@ -6776,7 +6781,7 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         "appear verbatim in cascade_requirement's docstring."
     )
 
-    # 8 NEW truth-table tests in test_change_activation_heuristic.py.
+    # 9 NEW truth-table tests in test_change_activation_heuristic.py.
     heuristic_text = (project_root / _V11_0_2_PV02_HEURISTIC_TESTS).read_text(encoding="utf-8")
     for new_test in _V11_0_2_PV02_HEURISTIC_TEST_NAMES:
         assert f"def {new_test}" in heuristic_text, (
@@ -6785,12 +6790,13 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
             f"tests/test_change_activation_heuristic.py."
         )
 
-    # 3 NEW minimal-stub tests in test_cascade_enforcement.py (NEW file).
+    # 5 NEW minimal-stub tests in test_cascade_enforcement.py (NEW file;
+    # 4 active + 1 `pytest.skip` PV-04 telegraph).
     cascade_path = project_root / _V11_0_2_PV02_CASCADE_TESTS
     assert cascade_path.is_file(), (
         f"W-18 v11.0.2 PV-02 violation: NEW test stub "
         f"{_V11_0_2_PV02_CASCADE_TESTS} missing — full ≥10-test "
-        f"surface lands at PV-05; PV-02 ships the 3-test minimal stub."
+        f"surface lands at PV-05; PV-02 ships the 5-test minimal stub."
     )
     cascade_text = cascade_path.read_text(encoding="utf-8")
     for new_test in _V11_0_2_PV02_CASCADE_TEST_NAMES:
