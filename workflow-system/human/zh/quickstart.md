@@ -4,8 +4,8 @@ description: "10 分钟内开始使用 DevolaFlow。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-08T09:39:44Z"
-source_version: "11.1.1"
+last_synced: "2026-05-08T09:58:06Z"
+source_version: "11.1.2"
 ---
 
 # 快速入门指南

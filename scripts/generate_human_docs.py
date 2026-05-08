@@ -87,7 +87,7 @@ DOCS = [
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "11.1.1"
+SOURCE_VERSION = "11.1.2"
 
 
 def _gen_doc(

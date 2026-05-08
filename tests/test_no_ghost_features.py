@@ -7739,3 +7739,182 @@ def test_v11_1_1_new_surfaces_have_coverage(project_root: Path) -> None:
         "discipline; the v11.1.1 D-1 patch is THIS class-of-bug fix, "
         "do not trip it while writing the fix)."
     )
+
+
+# v11.1.2 PATCH (D-2 in the v11.1.x stability-patch series; deferral D-4 in
+# the v11.1.0 retrospective §3): `audit_layer_usage.py` regex bold-markdown
+# coverage. Second of 3 staged stability patches (v11.1.1 / v11.1.2 / v11.1.3)
+# closing the cycle-observed risks documented in
+# `docs/cycle-archive/v11.1.0/retrospective.md` §3.
+#
+# The legacy v10.5.0 regex matched only plain `Dispatch type:` text, missing
+# the v11.x markdown-bold convention `**Dispatch type:** Wave` used in cycle
+# plans, retrospectives, and stage reports. As a consequence, the v11.1.0
+# PV-05 audit ratchet `cascade_ratio` reported 0 for v11.x cycle docs even
+# though L1/L2 dispatches actually happened (the v11.1.0 cycle-archive
+# retrospective + per-PV stage reports + NineS analyses contain ≥7 bold-style
+# `**Dispatch type:** Wave` mentions; the OLD regex caught 0 of them).
+#
+# v11.1.2 D-2 widens `_DISPATCH_TYPE_RE` via the `\*{0,2}` quantifier to
+# admit 0/1/2 asterisks before AND after the label and value uniformly,
+# covering plain / italic / bold styles. The dual `\*{0,2}\s*\*{0,2}` slot
+# between `[:=]` and the value group is intentional — it admits the
+# full-bold case `**Dispatch type:** **Wave**` where the closing-label `**`
+# and opening-value `**` are separated by whitespace. Capture group 1 (the
+# layer name) and the `\b` word boundary + `re.IGNORECASE` flag are
+# preserved so plain-text inputs match byte-identically (W-20 backward-
+# compat; the existing 15 tests in `tests/test_audit_layer_usage.py` are
+# preserved byte-stable).
+_V11_1_2_TEST_FILE: Path = Path("tests/test_audit_layer_usage.py")
+_V11_1_2_SCRIPT_FILE: Path = Path("scripts/audit_layer_usage.py")
+_V11_1_2_CHANGELOG: Path = Path("CHANGELOG.md")
+
+# Required NEW test functions in tests/test_audit_layer_usage.py — pinned
+# via AST so refactor of the function body is OK but rename / removal
+# fails fast. Note: only the NEW v11.1.2 tests are pinned here; the
+# pre-existing 15 tests are byte-stable per W-20 backward-compat.
+_V11_1_2_REQUIRED_NEW_TESTS: tuple[str, ...] = (
+    "test_dispatch_type_regex_matches_plain_style",
+    "test_dispatch_type_regex_matches_bold_markdown_style",
+    "test_dispatch_type_regex_matches_bold_value_only",
+    "test_dispatch_type_regex_matches_full_bold",
+)
+
+# Substrings required in scripts/audit_layer_usage.py to evidence the
+# regex broadening. The source must contain `\*{0,2}` — the canonical
+# marker — AND the citation back to the cycle archive.
+_V11_1_2_SCRIPT_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    r"\*{0,2}",
+    "v11.1.2 D-2",
+    "docs/cycle-archive/v11.1.0/retrospective.md",
+)
+
+# CHANGELOG body must carry the v11.1.2 PATCH entry verbatim.
+_V11_1_2_CHANGELOG_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "## [11.1.2] - 2026-05-08",
+    "PATCH",
+    "audit_layer_usage.py",
+    "bold-markdown",
+)
+
+
+def test_v11_1_2_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.1.2 PATCH: D-2 audit_layer_usage.py regex bold-markdown coverage.
+
+    Discharges the W-18 precondition for the v11.1.2 PATCH CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
+    CHANGELOG entry — this stanza closes that precondition.
+
+    Surfaces pinned (v11.1.2 D-2 patch scope; second of 3 staged
+    v11.1.x stability patches — sister patches v11.1.1 + v11.1.3):
+
+    * ``tests/test_audit_layer_usage.py`` carries the 4 NEW regex
+      coverage tests (AST symbol pin):
+
+      - ``test_dispatch_type_regex_matches_plain_style``
+        (negative-control — plain `Dispatch type:` matches; W-20
+        backward-compat preserved).
+      - ``test_dispatch_type_regex_matches_bold_markdown_style``
+        (the D-2 fix — `**Dispatch type:** Wave` matches).
+      - ``test_dispatch_type_regex_matches_bold_value_only``
+        (defensive — bold value `Dispatch type: **Wave**` matches).
+      - ``test_dispatch_type_regex_matches_full_bold``
+        (defensive — full-bold `**Dispatch type:** **Wave**` matches;
+        pins the dual ``\\*{0,2}\\s*\\*{0,2}`` slot design).
+
+    * ``scripts/audit_layer_usage.py`` carries the broadened regex —
+      the source MUST contain ``\\*{0,2}`` (the canonical broadening
+      marker) AND the citation back to ``docs/cycle-archive/v11.1.0/
+      retrospective.md``.
+
+    * ``CHANGELOG.md`` carries the ``## [11.1.2] - 2026-05-08``
+      PATCH entry mentioning ``PATCH`` + ``audit_layer_usage.py`` +
+      ``bold-markdown`` (the v11.1.0 retrospective §3 D-4 deferral
+      citation; the dispatcher's D-2 in-series label).
+
+    * ``CHANGELOG.md`` ``## [11.1.2]`` section header appears
+      EXACTLY once (the v11.1.1 D-1 single-application lint
+      pre-condition; this stanza independently asserts the
+      line-anchored count via splitlines + line.startswith).
+
+    Coupled invariants verified GREEN at PATCH close (no source
+    edits to gate / schema / SKILL):
+
+    * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
+    * S-10 hook-chain byte-id: 10/10 PASS unchanged
+    * CP-4 gate suite: 108/108 PASS unchanged
+    * v11.1.1 D-1 CHANGELOG lint: PASS (this stanza's CHANGELOG
+      entry is single-application — proving v11.1.1 D-1 catches
+      its own next test)
+    * W-21 Soul-set freeze preserved at 10 entries
+    * W-20 reuse-first preserved at 8 env flags
+    * Existing 15 tests in ``tests/test_audit_layer_usage.py``
+      preserved byte-stable (W-20 backward-compat — the regex
+      BROADENING admits new inputs without changing the v10.5.0
+      plain-text contract)
+
+    Source: ``docs/cycle-archive/v11.1.0/retrospective.md`` §3 D-4
+    (cycle-deferral inventory; the dispatcher's D-2 in-series label).
+    """
+    test_path = project_root / _V11_1_2_TEST_FILE
+    assert test_path.is_file(), (
+        f"W-18 v11.1.2 violation: test file {_V11_1_2_TEST_FILE} missing. "
+        "The 4 NEW regex coverage tests MUST land in the same commit as "
+        "the CHANGELOG entry per W-18 sequencing."
+    )
+
+    # AST symbol pin — robust against function-body refactor; only fails
+    # on rename / removal of the four contracted public symbols.
+    module = ast.parse(test_path.read_text(encoding="utf-8"))
+    defined = {
+        node.name
+        for node in module.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    missing = [s for s in _V11_1_2_REQUIRED_NEW_TESTS if s not in defined]
+    assert not missing, (
+        f"W-18 v11.1.2 violation: {_V11_1_2_TEST_FILE} missing required "
+        f"NEW test functions {missing!r}. Required set: "
+        f"{list(_V11_1_2_REQUIRED_NEW_TESTS)!r}; defined: "
+        f"{sorted(defined)!r}."
+    )
+
+    # Audit script source MUST evidence the regex broadening — the
+    # `\*{0,2}` quantifier is the canonical marker; the citation
+    # anchors the deferral trail.
+    script_path = project_root / _V11_1_2_SCRIPT_FILE
+    assert script_path.is_file(), f"W-18 v11.1.2 violation: script {_V11_1_2_SCRIPT_FILE} missing."
+    script_text = script_path.read_text(encoding="utf-8")
+    for sub in _V11_1_2_SCRIPT_POSITIVE_SUBSTRINGS:
+        assert sub in script_text, (
+            f"W-18 v11.1.2 violation: {_V11_1_2_SCRIPT_FILE} missing "
+            f"positive substring {sub!r} — the v11.1.2 D-2 regex "
+            "broadening MUST cite both the `\\*{0,2}` quantifier (the "
+            "canonical marker) AND the cycle-archive retrospective "
+            "citation in the source comment."
+        )
+
+    # CHANGELOG entry — ALWAYS pinned (CHANGELOG.md IS tracked).
+    changelog_text = (project_root / _V11_1_2_CHANGELOG).read_text(encoding="utf-8")
+    for sub in _V11_1_2_CHANGELOG_POSITIVE_SUBSTRINGS:
+        assert sub in changelog_text, (
+            f"W-18 v11.1.2 violation: CHANGELOG.md missing positive "
+            f"substring {sub!r} per v11.1.2 PATCH scope. The W-18 stanza "
+            "lands BEFORE the CHANGELOG entry per W-18 sequencing — if "
+            "this lint fails the entry must be authored."
+        )
+
+    # Single-application discipline (v11.1.1 D-1 lint pre-condition; this
+    # stanza independently mirrors the line-anchored count to surface
+    # any drift before the cross-test runs).
+    section_header_count = sum(
+        1 for line in changelog_text.splitlines() if line.startswith("## [11.1.2]")
+    )
+    assert section_header_count == 1, (
+        "W-18 v11.1.2 violation: CHANGELOG.md contains "
+        f"{section_header_count} line-anchored '## [11.1.2]' section "
+        "headers — exactly 1 expected (v11.1.1 D-1 single-application "
+        "lint pre-condition; the v11.1.2 D-2 patch INHERITS the v11.1.1 "
+        "discipline cleanly — do not trip the predecessor's lint while "
+        "writing the successor's fix)."
+    )
