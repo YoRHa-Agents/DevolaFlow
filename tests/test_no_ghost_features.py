@@ -6885,3 +6885,89 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
             f"{_V11_0_2_PV02_DECISION_MEMO} present but missing the "
             f"Candidate-C selection rationale."
         )
+
+
+# G-CASCADE-1 + G-CASCADE-2 surfaces (v11.0.3 PV-03 SKILL + multi-stage-trace).
+_V11_0_3_PV03_SKILL: Path = Path("workflow-system/agent/SKILL.md")
+_V11_0_3_PV03_MULTI_STAGE_TRACE: Path = Path("workflow-system/agent/examples/multi-stage-trace.md")
+_V11_0_3_PV03_CHANGELOG: Path = Path("CHANGELOG.md")
+
+# SKILL.md positive surfaces — must appear post-edit.
+_V11_0_3_PV03_SKILL_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "Cascade requirement (v11.1.0):",
+    "(SIMPLE/TRIVIAL, < 1 hour)",
+    "STANDARD+ MUST cascade per `cascade_requirement()`",
+)
+
+# SKILL.md negative surface — Layer collapse pattern wording REMOVED (G-CASCADE-1).
+_V11_0_3_PV03_SKILL_NEGATIVE_SUBSTRING: str = "Layer collapse pattern"
+
+# multi-stage-trace.md positive surfaces — must appear post-edit.
+_V11_0_3_PV03_MST_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "WORKED CANONICAL pattern",
+    "v11.1.0 cascade-restoration cycle",
+    "**Cascade L0→L1→L2→L3**",
+)
+
+# multi-stage-trace.md negative surface — old "no L1 stage needed" wording REMOVED.
+_V11_0_3_PV03_MST_NEGATIVE_SUBSTRING: str = (
+    "L0 -> L3 with a per-task wave partition (no L1 stage needed)"
+)
+
+
+def test_v11_0_3_pv03_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.3 PV-03: G-CASCADE-1 + G-CASCADE-2 new surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.3 PV-03 CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
+    CHANGELOG entry — this stanza closes that precondition.
+
+    Surfaces pinned:
+
+    * `workflow-system/agent/SKILL.md` line ~180 contains the literal
+      text ``Cascade requirement (v11.1.0):`` and the substring
+      ``Layer collapse pattern`` is ABSENT (G-CASCADE-1 negative lint
+      per cycle plan §3 PV-03 AC #1).
+    * SKILL.md lines ~105-107 (Simple task shortcut block) bind to
+      ``(SIMPLE/TRIVIAL, < 1 hour)`` and contain the explicit
+      ``STANDARD+ MUST cascade per `cascade_requirement()``` sentence
+      (G-CASCADE-1 positive lint per cycle plan §3 PV-03 AC #3).
+    * `workflow-system/agent/examples/multi-stage-trace.md`
+      §"Why this example exists" frames the example as the WORKED
+      CANONICAL pattern (G-CASCADE-2 positive lint).
+    * multi-stage-trace.md §"When NOT to use" rows 2 + 4 mandate
+      cascade for STANDARD+ via the substring
+      ``**Cascade L0→L1→L2→L3**`` and the verbatim
+      ``L0 -> L3 with a per-task wave partition (no L1 stage needed)``
+      is ABSENT (G-CASCADE-2 negative lint per cycle plan §3 PV-03
+      AC #4).
+    """
+    skill_text = (project_root / _V11_0_3_PV03_SKILL).read_text(encoding="utf-8")
+    for sub in _V11_0_3_PV03_SKILL_POSITIVE_SUBSTRINGS:
+        assert sub in skill_text, (
+            f"W-18 v11.0.3 PV-03 violation: SKILL.md missing positive "
+            f"substring {sub!r} per G-CASCADE-1; cycle plan §3 PV-03 AC."
+        )
+    assert _V11_0_3_PV03_SKILL_NEGATIVE_SUBSTRING not in skill_text, (
+        f"W-18 v11.0.3 PV-03 violation: SKILL.md still contains the "
+        f"deprecated wording {_V11_0_3_PV03_SKILL_NEGATIVE_SUBSTRING!r}; "
+        f"G-CASCADE-1 line 180 replacement is incomplete."
+    )
+
+    mst_text = (project_root / _V11_0_3_PV03_MULTI_STAGE_TRACE).read_text(encoding="utf-8")
+    for sub in _V11_0_3_PV03_MST_POSITIVE_SUBSTRINGS:
+        assert sub in mst_text, (
+            f"W-18 v11.0.3 PV-03 violation: multi-stage-trace.md missing "
+            f"positive substring {sub!r} per G-CASCADE-2."
+        )
+    assert _V11_0_3_PV03_MST_NEGATIVE_SUBSTRING not in mst_text, (
+        f"W-18 v11.0.3 PV-03 violation: multi-stage-trace.md still "
+        f"contains the deprecated wording "
+        f"{_V11_0_3_PV03_MST_NEGATIVE_SUBSTRING!r}; G-CASCADE-2 row 2 "
+        f"revision is incomplete."
+    )
+    # Frontmatter last_updated freshness pin (PV-03 dated 2026-05-08).
+    assert 'last_updated: "2026-05-08"' in mst_text, (
+        "W-18 v11.0.3 PV-03 violation: multi-stage-trace.md frontmatter "
+        '`last_updated` must be `"2026-05-08"` per PV-03 close.'
+    )

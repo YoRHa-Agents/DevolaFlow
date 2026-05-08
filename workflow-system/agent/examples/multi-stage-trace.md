@@ -16,7 +16,7 @@ triggers:
   - "Standard / Complex tier with > 3 disjoint subsystems"
 tier: 3
 token_estimate: 5500
-last_updated: "2026-05-04"
+last_updated: "2026-05-08"
 ---
 
 # Multi-Stage Trace — When L1 Stage Agent + L2 Wave Agent Earn Their Keep
@@ -28,22 +28,24 @@ last_updated: "2026-05-04"
 ## Why this example exists
 
 The v10.5.0 PV-01 D-A-1 audit
-(`.local/research/v10.5.1_layer_usage_audit.md`) measured how often
-the L1 Stage Agent and L2 Wave Agent are bound as the primary
-dispatch target across `.local/research/v9.*.0_*.md` and
-`v10.*.0_*.md` cycle docs. The headline finding is that 5 of 6 PVs
-in v10.2.0 are dispatched as `Dispatch type: Wave`, but each of those
-"Wave" dispatches collapses to L0 -> single L3 in practice (the L1
-Stage Agent is elided — the L0 author plays the L1 role inline).
+(`docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md`)
+measured how often the L1 Stage Agent and L2 Wave Agent were
+dispatched as the primary target across `.local/research/v9.*.0_*.md`
+and `v10.*.0_*.md` cycle docs. The headline finding was that 5 of
+6 PVs in v10.2.0 were dispatched as `Dispatch type: Wave` but each
+collapsed to L0 → single L3 in practice — leading the v10.5.0 PV-01
+advisory to mark L1+L2 as "only-when-needed" at the Standard tier.
 
-That reality is what the SKILL.md §"Quick Action Decision" advisory
-annotation now reflects: **at the Standard tier, L1 + L2 are
-"only-when-needed".** But "only-when-needed" still has a non-empty
-support set — there ARE concrete tasks where running the full
-L0 -> L1 -> L2 -> L3 chain produces a strictly better outcome than
-collapsing. This example documents one such task verbatim, so future
-operators have a worked counter-example before they decide to skip
-L1 + L2 on a Standard-tier task.
+The v11.1.0 cascade-restoration cycle (per the user feedback at
+`.local/feedbacks/feedback_for_v11.0.0.md`) reverses that advisory:
+**for STANDARD/COMPLEX complexity, the full L0 → L1 → L2 → L3
+cascade is REQUIRED** per `cascade_requirement(complexity)`
+(`src/devolaflow/skills/change_activation.py`). The example below
+is therefore the WORKED CANONICAL pattern operators apply on every
+STANDARD+ task, not the counter-case to a default.
+
+L0→L3 collapse is reserved for SIMPLE/TRIVIAL tier per
+`cascade_requirement()` returning `"CASCADE_OPTIONAL"`.
 
 ## The scenario — multi-team codebase analysis
 
@@ -204,10 +206,10 @@ disguise:
 
 | Symptom | What's actually happening | Right answer |
 |--------|---------------------------|---------------|
-| 3-file paired source+test edit + spec doc | 1 author, 1 task | Single L3 (TRIVIAL or SIMPLE per `change_activation.classify_complexity`) |
-| Refactor across 8 modules in 1 package | 1 author, 1 task with disjoint owned-files manifest | L0 -> L3 with a per-task wave partition (no L1 stage needed) |
-| Bug investigation across 3 subsystems | 1 hypothesis test, not 3 parallel analyses | Single L3 trace + diagnose; if subsystem-specific fixes diverge, dispatch from there |
-| "Audit X across the codebase" | 1 read-only walk + 1 report | Single L3 audit (the audit IS the artifact) |
+| 1. ≤3-file paired source+test edit + spec doc | 1 author, 1 task | Single L3 (TRIVIAL/SIMPLE tier; `cascade_requirement` returns `CASCADE_OPTIONAL`) |
+| 2. Refactor across 8 modules in 1 package | Multi-file STANDARD+ scope | **Cascade L0→L1→L2→L3** (8 files = STANDARD per classifier; `cascade_requirement` returns `CASCADE_REQUIRED`); L1 Stage decomposes into per-package waves |
+| 3. Bug investigation across ≤3 subsystems | 1 hypothesis test, not 3 parallel analyses | Single L3 trace + diagnose IFF SIMPLE-tier; STANDARD+ (cross-cutting investigation across many subsystems) **MUST cascade** |
+| 4. "Audit X across the codebase" | STANDARD+ scope read-only walk | **Cascade L0→L1→L2→L3** when the audit spans STANDARD+ scope; the v10.5.1 audit itself was a single-L3 walk that produced 0 useful dispatch-line measurements per its own summary — that experience is the empirical case for cascading STANDARD+ audits |
 
 ## Cross-references
 
