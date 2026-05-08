@@ -1,0 +1,266 @@
+{
+  "target": ".local/research/v11.3.0_grill_with_docs_source",
+  "findings": [
+    {
+      "id": "AI-cf09f9fd-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 1 Agent-facing artifact(s) across 0 mechanism(s)",
+      "location": "SKILL.md",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-cf09f9fd-0001",
+      "severity": "info",
+      "category": "context_economics",
+      "message": "Total Agent context: ~661 tokens, overhead: ~661 tokens, estimated savings ratio: 5.0%",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-cf09f9fd-0002",
+      "severity": "info",
+      "category": "coverage_gap",
+      "message": "No mechanisms detected for: behavioral_instruction, context_compression, distribution, persistence, safety. Consider adding support for these areas.",
+      "location": "",
+      "suggestion": "Review whether the repository would benefit from mechanisms in the missing categories."
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 0,
+    "total_lines": 0,
+    "total_functions": 0,
+    "total_classes": 0,
+    "total_imports": 0,
+    "avg_complexity": 0.0,
+    "knowledge_units": 0,
+    "duration_ms": 0.49,
+    "packages": 0,
+    "python_modules": 0,
+    "file_type_counts": {
+      ".md": 3
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 3,
+    "agent_impact": {
+      "target": ".local/research/v11.3.0_grill_with_docs_source",
+      "mechanisms": [],
+      "economics": {
+        "overhead_tokens": 661,
+        "estimated_savings_ratio": 0.05,
+        "mechanism_count": 0,
+        "agent_facing_files": 1,
+        "total_agent_context_tokens": 661,
+        "break_even_interactions": 21,
+        "per_interaction_savings_tokens": 33,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.0,
+        "economics_score": 0.0424,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [
+        "SKILL.md"
+      ],
+      "findings": [
+        {
+          "id": "AI-cf09f9fd-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 1 Agent-facing artifact(s) across 0 mechanism(s)",
+          "location": "SKILL.md",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-cf09f9fd-0001",
+          "severity": "info",
+          "category": "context_economics",
+          "message": "Total Agent context: ~661 tokens, overhead: ~661 tokens, estimated savings ratio: 5.0%",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-cf09f9fd-0002",
+          "severity": "info",
+          "category": "coverage_gap",
+          "message": "No mechanisms detected for: behavioral_instruction, context_compression, distribution, persistence, safety. Consider adding support for these areas.",
+          "location": "",
+          "suggestion": "Review whether the repository would benefit from mechanisms in the missing categories."
+        }
+      ],
+      "knowledge_units": [
+        {
+          "id": "agent_impact::summary",
+          "source": "",
+          "content": "Agent impact profile: 0 mechanism(s), 1 artifact(s)",
+          "unit_type": "agent_impact_summary",
+          "relationships": {
+            "mechanisms": [],
+            "artifacts": [
+              "SKILL.md"
+            ]
+          },
+          "metadata": {
+            "mechanism_count": "0",
+            "artifact_count": "1"
+          }
+        }
+      ]
+    },
+    "key_points": {
+      "target": ".local/research/v11.3.0_grill_with_docs_source",
+      "key_points": [
+        {
+          "id": "kp-econ-breakeven-eba26949",
+          "category": "context_management",
+          "title": "Break-even interaction threshold",
+          "description": "Break-even at 21 interaction(s) \u2014 users need many sessions to recoup overhead.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 1.0,
+          "validation_approach": "Simulate N agent interactions and measure cumulative token cost vs savings",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "break_even": 21
+          }
+        },
+        {
+          "id": "kp-econ-savings-86575f7d",
+          "category": "context_management",
+          "title": "Token savings efficiency",
+          "description": "Estimated savings ratio is 5.0% \u2014 below typical thresholds for net-positive economics.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.95,
+          "validation_approach": "Track actual token usage over multiple sessions and compare against baseline",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "savings_ratio": 0.05
+          }
+        },
+        {
+          "id": "kp-econ-overhead-5623ef2e",
+          "category": "context_management",
+          "title": "Token overhead analysis",
+          "description": "Agent context overhead is 661 tokens across 1 file(s). This is within acceptable bounds.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.066,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "overhead_tokens": 661
+          }
+        },
+        {
+          "id": "kp-find-571e22a8",
+          "category": "context_management",
+          "title": "Finding: context_economics",
+          "description": "Total Agent context: ~661 tokens, overhead: ~661 tokens, estimated savings ratio: 5.0%",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-cf09f9fd-0001",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-find-71359856",
+          "category": "context_management",
+          "title": "Finding: coverage_gap",
+          "description": "No mechanisms detected for: behavioral_instruction, context_compression, distribution, persistence, safety. Consider adding support for these areas.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-cf09f9fd-0002",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-find-cc2a7ae2",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 1 Agent-facing artifact(s) across 0 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [
+            "SKILL.md"
+          ],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-cf09f9fd-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-summary-9771a2b1",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 0 Python files and 3 total files. 0 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 0,
+            "knowledge_units": 0
+          }
+        }
+      ],
+      "summary": "Extracted 7 key point(s). behavioral_shaping: 1. context_management: 5. engineering: 1.",
+      "extraction_duration_ms": 0.17,
+      "metadata": {
+        "category_counts": {
+          "context_management": 5,
+          "behavioral_shaping": 1,
+          "engineering": 1
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-08T15:28:48.209103+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  },
+  "audit_report": {
+    "checks_run": [
+      "finding_id_uniqueness",
+      "finding_id_namespace",
+      "economics_formula_version",
+      "economics_break_even_sanity",
+      "graph_verification_passed",
+      "report_metadata_presence"
+    ],
+    "findings": [],
+    "summary": {
+      "critical": 0,
+      "warn": 0,
+      "info": 0,
+      "by_category": {}
+    }
+  }
+}
