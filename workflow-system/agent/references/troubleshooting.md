@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-05-04"
+last_updated: "2026-05-08"
 ---
 
 # Troubleshooting
@@ -61,6 +61,7 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | `assert len(actual) == N` adapter golden mismatch | reference set drift | §2.6 | v9.0.0 PV-01 |
 | `EnvelopeRecord` filename parse rejection | handoff schema | §2.4 | v8.2.4 |
 | Bridge defect (upstream shape vs unit fixture) | Si-Chip / NineS | §2.12 | v10.2.3 PV-04 |
+| Baseline regen scores diverge ~7pp from pytest scoring | tokenization determinism | §2.16 | v11.1.3 D-3 |
 
 ### 2. Diagnostic Patterns
 
@@ -364,6 +365,56 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
      .local/research/v<NEXT>_long_reference_usage.md` for the
      filesystem-side signal (envelopes + research artefacts citing
      the reference).
+
+#### 2.16 Token-estimation determinism (W-16 baseline regen)
+
+* **Symptom**: an operator regenerates EvoBench baselines via a
+  standalone script (anything that imports `devolaflow.benchmarks` or
+  invokes the regen entry-point WITHOUT going through the pytest
+  harness) and the resulting `benchmarks/devolaflow_context/baselines/
+  *_baseline.json` composite scores differ from the pytest-side scores
+  reported by `pytest tests/test_benchmarks.py -v` by roughly **7
+  percentage points** on the composite axis. Subsequent W-4 / SI-4
+  regression checks then trip on every PV until someone realises the
+  baseline itself is mis-anchored.
+* **Root cause**: `tests/conftest.py::_force_fallback_token_estimator`
+  is an autouse pytest fixture that monkeypatches
+  `sys.modules["tiktoken"] = None` for the duration of every
+  `test_benchmarks.py` test. With `tiktoken` hidden,
+  `devolaflow.task_adaptive_selector.estimate_tokens` falls back to
+  the deterministic `len(text) // 4` heuristic. Both estimators are
+  deterministic, but their absolute counts differ, leading to the
+  ~7pp composite divergence. The fixture is INTENTIONAL — it pins
+  pytest scoring so CI and dev laptops agree regardless of whether
+  `tiktoken` is installed. The bug is *not* the fixture; the bug is
+  that operator-side regen scripts run OUTSIDE pytest and therefore
+  never see the fixture fire.
+* **Fix** (3 options, in order of preference):
+  1. **Option A — invoke under pytest** (preferred). Run the regen as
+     `pytest tests/test_benchmarks.py --regenerate-baselines` (or the
+     equivalent flag the regen entry-point exposes). conftest is
+     loaded automatically; the autouse fixture fires; scores match
+     pytest-side composites byte-for-byte modulo float-formatting.
+  2. **Option B — pre-set `sys.modules["tiktoken"] = None` BEFORE
+     importing devolaflow** in the regen script. Order is load-bearing:
+     ```python
+     import sys
+     sys.modules["tiktoken"] = None
+     from devolaflow import ...  # noqa: E402 — order matters
+     ```
+     Imports BEFORE the assignment still resolve to the real
+     `tiktoken` if it's installed.
+  3. **Option C — uninstall tiktoken from the venv** (`pip uninstall
+     tiktoken`). Heavy-handed; affects every workflow in the env, not
+     just the regen. Reserve for dedicated CI venvs whose only purpose
+     is baseline regeneration; do not run on dev laptops that use
+     tiktoken for unrelated work.
+* See `tests/conftest.py::_force_fallback_token_estimator` for the
+  fixture body + matching docstring; the v11.1.0 cycle's W-16
+  wholesale baseline regen at PV-02 was the first cycle where this
+  divergence surfaced empirically. Source: `docs/cycle-archive/
+  v11.1.0/retrospective.md` cycle-close summary; v11.1.3 D-3 closed
+  the documentation gap.
 
 ### 3. Escalation Patterns
 

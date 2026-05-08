@@ -5,6 +5,84 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.3] - 2026-05-08
+
+**PATCH — D-3: tiktoken determinism documentation.** Third and final of 3 staged stability patches for the v11.1.x line (sister patches: v11.1.1 D-1 — merged via PR #132; v11.1.2 D-2 — merged via PR #133). Closes the v11.1.0 PV-02 W-16 wholesale-baseline-regen closeout finding observed during the v11.1.0 cascade-restoration cycle: the autouse `tests/conftest.py::_force_fallback_token_estimator` fixture forces `sys.modules["tiktoken"] = None` for every `test_benchmarks.py` test so EvoBench scoring is deterministic across CI / dev / fresh-clone environments, but operators regenerating baselines OUTSIDE the pytest harness do NOT see the fixture fire and consequently produce baselines that diverge from pytest scoring by ~7 percentage points on the composite axis. The fix is documentation-only — the fixture body and the runtime token-estimator are byte-stable. Source: `docs/cycle-archive/v11.1.0/retrospective.md` cycle-close summary (the v11.1.0 PV-02 W-16 wholesale baseline regen was the first cycle where this divergence surfaced empirically; the dispatcher's D-3 label closes the v11.1.x stability-patch series).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-documentation patch. Zero code/test logic change. Zero runtime surface delta.** The conftest fixture body (`monkeypatch.setitem(sys.modules, "tiktoken", None)`) is preserved BYTE-IDENTICAL — only the docstring changed. No new env flags, no schema edits, no gate edits, no SKILL.md edits.
+
+- **D-3 conftest fixture documentation** — `tests/conftest.py::_force_fallback_token_estimator` docstring expanded (from ~17 lines to ~67 lines) explaining: WHY the fixture exists (deterministic benchmark scoring across environments where `tiktoken` may or may not be installed), the EFFECT (~7pp divergence between pytest and raw subprocess scoring on benchmark composites), and 3 OPTIONS for reproducing pytest scoring outside pytest:
+  - **Option A (preferred — least surprise)**: invoke regen under the pytest harness, e.g. `pytest tests/test_benchmarks.py --regenerate-baselines`. The autouse fixture fires automatically because conftest is loaded.
+  - **Option B**: pre-set `sys.modules["tiktoken"] = None` BEFORE importing any `devolaflow` modules in the regen script. Order is load-bearing — imports BEFORE the assignment still resolve to the real `tiktoken` if it's installed.
+  - **Option C**: uninstall tiktoken from the venv (`pip uninstall tiktoken`). Heavy-handed; affects every workflow in the env, not just the regen. Reserve for dedicated CI venvs.
+- **Reference doc cross-link** — `workflow-system/agent/references/troubleshooting.md` adds a NEW §2.16 "Token-estimation determinism (W-16 baseline regen)" subsection (~50 lines) with the same 3-option fallback summary and a cross-reference to the conftest fixture, plus a §1 Quick Lookup Index row pointing at §2.16 and a `last_updated` bump to "2026-05-08". Choice rationale: env-flags.md is strictly about `DEVOLAFLOW_*` runtime env vars (the tiktoken determinism is a test-fixture-side concern, not an env-var); troubleshooting.md already houses §2.6 Version drift, §2.9 Tooling races, and §2.10 W-18/W-20/W-21 governance — §2.16 fits cleanly as the next operator-friction symptom row.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_1_3_new_surfaces_have_coverage` (positive-substring pin on the docstring + reference section + CHANGELOG body — robust against prose refactor; only fails if the load-bearing concepts are missing):
+
+- `tests/conftest.py::_force_fallback_token_estimator` docstring contains: "tiktoken", "W-16 baseline regen", "deterministic", `sys.modules["tiktoken"] = None`, "Option A", "Option B", "Option C", "v11.1.3 D-3", "docs/cycle-archive/v11.1.0/retrospective.md".
+- `workflow-system/agent/references/troubleshooting.md` contains: "#### 2.16 Token-estimation determinism (W-16 baseline regen)" (the section header), "_force_fallback_token_estimator" (cross-reference), "Option A/B/C", `sys.modules["tiktoken"] = None`, "v11.1.3 D-3".
+- `CHANGELOG.md` `## [11.1.3]` section header appears EXACTLY once (the v11.1.1 D-1 single-application lint pre-condition; the W-18 stanza independently asserts the line-anchored count via `splitlines() + line.startswith("## [11.1.3]")`).
+
+### Headline numbers
+
+| Area | v11.1.2 | v11.1.3 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | ~4311 | ~4312 | +1 (W-18 stanza only — pure-doc patch) | `pytest --collect-only -q` |
+| Coverage | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.1.2 | **11.1.3** | +1 PATCH | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (no schema edits) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (no schema edits) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (no dispatch edits) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (no gate edits) | `tests/test_gate.py` |
+| `tests/test_audit_layer_usage.py` (D-2 inheritance) | 19/19 | 19/19 | 0 (no audit edits) | regex broadening preserved |
+| `tests/test_changelog_no_duplicate_versions.py` (D-1 inheritance) | 3/3 | 3/3 | 0 (lint runs against this entry) | sister-patch chain holds across 3 patches |
+| `troubleshooting.md` line count | 429 | ~485 | +~50 (Large tier ≤ 1000 — well under) | `wc -l` |
+| `tests/conftest.py` line count | 128 | ~184 | +~50 docstring expansion | fixture body byte-stable |
+
+### W-9 SI-10 7-step + extras verification (PATCH-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | PASS |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.1.2 → 11.1.3) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (no benchmark edits — fixture body byte-stable) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op exit 0 per SF-3 opt-in) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32 unchanged) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | PASS (10/10 unchanged) |
+| Extras | `python -m pytest tests/test_gate.py -v` | PASS (108/108 unchanged) |
+| Extras | `python -m pytest tests/test_audit_layer_usage.py -v` | PASS (19/19 — v11.1.2 D-2 inheritance verified) |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | PASS (3/3 — v11.1.1 D-1 lint inheritance; runs against this very entry) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py::test_v11_1_3_new_surfaces_have_coverage -v` | PASS (W-18 stanza for this PATCH) |
+
+### Self-application + sister-patch inheritance (3-patch chain holds)
+
+The v11.1.1 D-1 CHANGELOG no-duplicate-version-header lint runs against this very entry as part of the W-9 SI-10 step 1 sweep. The `## [11.1.3]` header appears exactly once — proving the v11.1.1 D-1 fix continues to work on the third CHANGELOG entry it lints (sister-patch inheritance verified across 3 patches). The v11.1.2 D-2 audit_layer_usage regex broadening is similarly preserved (19/19 PASS unchanged). The W-18 stanza independently asserts the line-anchored single-application count via `splitlines() + line.startswith("## [11.1.3]")`.
+
+### v11.1.x stability-patch series complete
+
+This PATCH **closes the v11.1.x stability-patch series** (D-1 + D-2 + D-3 all shipped). Per the v11.1.0 cycle plan §6 v12.0.0 graduation dependency #2 ("1-2 v11.1.x stability patches with operator feedback collected"), the next phase is **operator-feedback collection** before any v12.0.0 SI-1 gap analysis. Future feedback should land at `.local/feedbacks/feedback_for_v11.1.0.md` per the project's feedback-naming convention; v12.0.0 SI-1 will re-evaluate the cascade-strictness MAJOR cycle (A-7 STRICT promotion + SHORTCUT_SIMPLE retirement per v11.1.0 retrospective §3 D-1 + D-2 telegraphs) against ≥ 1 month of field evidence. The S-11 candidate "Cascade-Depth Invariant" remains telegraphed for v13.0.0 SI-1 per W-21 2-cycle deliberation cadence — explicitly NOT considered in v12.0.0.
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. No new Soul rules proposed.
+* **W-20**: NO new `DEVOLAFLOW_*` env flags introduced. Env flag count stays at **8**. The documentation expansion is a docstring + reference-doc edit (no runtime surface; no env-flag gate required).
+
+### Cross-references
+
+* `docs/cycle-archive/v11.1.0/retrospective.md` cycle-close summary (the v11.1.0 PV-02 W-16 wholesale baseline regen surfaced this divergence empirically)
+* `docs/cycle-archive/v11.1.0/retrospective.md` §6 row "Tests collected | 4256 | ~4302 | +37-39 NEW" (v11.1.0 W-16 baseline regen used ~4302 pytest baseline; subsequent v11.1.x patches inherit the same fixture pinning)
+* Predecessor patches: v11.1.1 D-1 (PR #132; CHANGELOG no-duplicate lint) + v11.1.2 D-2 (PR #133; audit_layer_usage regex bold-markdown)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`
+
 ## [11.1.2] - 2026-05-08
 
 **PATCH — D-2: `audit_layer_usage.py` regex bold-markdown coverage.** Second of 3 staged stability patches for the v11.1.x line (sister patches: v11.1.1 D-1 — merged via PR #132; v11.1.3 D-3 — telegraphed). Closes the PV-05 N-2 finding observed during the v11.1.0 cascade-restoration cycle: the legacy v10.5.0 regex `Dispatch\s+type\s*[:=]\s*(Wave|Stage|Task)` matched only plain-text `Dispatch type:` mentions, missing the v11.x markdown-bold convention `**Dispatch type:** Wave` used in cycle plans, retrospectives, and stage reports. As a consequence, `cascade_ratio` reported `0` for v11.x cycle docs even though L1/L2 dispatches actually happened — undermining the audit's signal value. Source: `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-4 (cycle-deferral inventory; the dispatcher's D-2 in-series label).
