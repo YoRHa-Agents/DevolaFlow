@@ -59,6 +59,54 @@
     "selected_count": 16,
     "total_tokens": 5293
   },
+  "cascade_l0_l1_l2_l3_complex": {
+    "budget": 5300,
+    "budget_utilization": 0.9998,
+    "composite": 99.99,
+    "information_density": 0.9998,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "cascade_l0_l1_l2_l3_complex",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 5299
+  },
+  "cascade_l0_l1_l2_l3_standard": {
+    "budget": 5300,
+    "budget_utilization": 0.9998,
+    "composite": 99.99,
+    "information_density": 0.9998,
+    "noise_ratio": 0.0,
+    "profile_name": "feature",
+    "scenario_name": "cascade_l0_l1_l2_l3_standard",
+    "section_relevance": 1.0,
+    "selected_count": 16,
+    "total_tokens": 5299
+  },
+  "collapse_l0_l3_simple": {
+    "budget": 2400,
+    "budget_utilization": 0.9492,
+    "composite": 88.18,
+    "information_density": 0.8136,
+    "noise_ratio": 0.0,
+    "profile_name": "hotfix",
+    "scenario_name": "collapse_l0_l3_simple",
+    "section_relevance": 0.8571,
+    "selected_count": 8,
+    "total_tokens": 2278
+  },
+  "collapse_l0_l3_trivial": {
+    "budget": 2400,
+    "budget_utilization": 0.9492,
+    "composite": 97.97,
+    "information_density": 0.9492,
+    "noise_ratio": 0.0,
+    "profile_name": "hotfix",
+    "scenario_name": "collapse_l0_l3_trivial",
+    "section_relevance": 1.0,
+    "selected_count": 8,
+    "total_tokens": 2278
+  },
   "command_mapping_density": {
     "budget": 5300,
     "budget_utilization": 0.9987,

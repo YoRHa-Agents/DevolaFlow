@@ -6706,7 +6706,16 @@ _V11_0_2_PV02_CASCADE_TEST_NAMES: tuple[str, ...] = (
     "test_cascade_required_propagates_into_simulated_dispatch_payload",
     "test_cascade_required_does_not_invalidate_layout_invariant",
     "test_cascade_signal_orthogonal_to_force_no_change",
-    "test_cascade_signal_propagation_pv04_telegraph",
+    # v11.0.5 PV-05 W08 — the v11.0.2 PV-02 minimal stub's 5th test
+    # (``test_cascade_signal_propagation_pv04_telegraph``) was a SKIP
+    # placeholder telegraphing PV-04's schema NEST. PV-04 (PR #128)
+    # shipped that NEST + opt-in helper + soft validator, and PV-05
+    # REPLACED the SKIP with a real PASS test
+    # (``test_cascade_signal_propagation_through_populate_helper``)
+    # exercising the populate helper end-to-end. The W-18 lint moves
+    # to the PV-05 successor name; the PV-02 stub's 4 active tests
+    # remain pinned by name above.
+    "test_cascade_signal_propagation_through_populate_helper",
 )
 
 
@@ -7062,3 +7071,237 @@ def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
         "W-18 v11.0.4 PV-04 violation: gate/scorer.py must export the "
         "`validate_cascade_gate_fields` helper per W03."
     )
+
+
+# G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + Architecture rule A-7 surfaces
+# (v11.0.5 PV-05 — closes the v11.1.0 cascade-restoration cycle's
+# functional implementation surface; PV-06 = NineS self-eval analysis-only,
+# PV-07 = MINOR rollup canonical-7 sync).
+_V11_0_5_PV05_CASCADE_TESTS: Path = Path("tests/test_cascade_enforcement.py")
+_V11_0_5_PV05_AUDIT_SCRIPT: Path = Path("scripts/audit_layer_usage.py")
+_V11_0_5_PV05_AUDIT_TESTS: Path = Path("tests/test_audit_layer_usage.py")
+_V11_0_5_PV05_ARCHITECTURE_RULES: Path = Path(".rules/architecture.mdc")
+_V11_0_5_PV05_AGENTS_MD: Path = Path("AGENTS.md")
+_V11_0_5_PV05_REPO_GOVERNANCE: Path = Path(".cursor/rules/repo-governance.mdc")
+_V11_0_5_PV05_DEAD_API_SCRIPT: Path = Path("scripts/detect_dead_apis.py")
+_V11_0_5_PV05_FEEDBACK: Path = Path("src/devolaflow/feedback.py")
+_V11_0_5_PV05_GATE_SCORER: Path = Path("src/devolaflow/gate/scorer.py")
+_V11_0_5_PV05_CHANGE_ACTIVATION: Path = Path("src/devolaflow/skills/change_activation.py")
+_V11_0_5_PV05_CHANGELOG: Path = Path("CHANGELOG.md")
+
+# tests/test_cascade_enforcement.py NEW positive surfaces — must appear post-edit
+# (the PV-02 5-test stub grows to ≥10 tests covering strict + soft +
+# backward-compat + skip-path + truth-table propagation per cycle plan §3 PV-05).
+_V11_0_5_PV05_CASCADE_TEST_NAMES: tuple[str, ...] = (
+    # Branch 2 — replace the PV-02 SKIP with a real PV-04 propagation test
+    "test_cascade_signal_propagation_through_populate_helper",
+    # Branch 3 — backward-compat (R-1 mitigation per cycle plan §3 PV-05 +
+    # the L1 prompt's CRITICAL INVARIANT R-1 mitigation language)
+    "test_legacy_dispatch_without_cascade_fields_passes_byte_identically",
+    "test_legacy_dispatch_with_cascade_required_false_passes",
+    "test_simple_complexity_skips_cascade_validation",
+    "test_trivial_complexity_skips_cascade_validation",
+    # Branch 4 — strict-mode validator behavior (PV-04 SOFT validator
+    # contract preview of the v12.0.0 STRICT promotion)
+    "test_strict_validator_warns_when_actual_layers_below_min",
+    "test_soft_mode_warns_instead_of_raising",
+    "test_strict_validator_passes_when_actual_layers_meets_min",
+    # Branch 5 — full populate→validate truth-table propagation
+    "test_cascade_requirement_propagates_through_populate_then_validate",
+)
+
+# tests/test_audit_layer_usage.py NEW positive surfaces (G-AUDIT-1 ratchet).
+_V11_0_5_PV05_AUDIT_TEST_NAMES: tuple[str, ...] = (
+    "test_strict_flag_returns_zero_when_above_threshold",
+    "test_strict_flag_returns_one_when_below_threshold",
+    "test_strict_flag_default_off_preserves_byte_identical_v11_0x",
+    "test_cascade_ratio_field_present_in_output",
+)
+
+# scripts/audit_layer_usage.py positive surfaces — --strict + cascade_ratio.
+_V11_0_5_PV05_AUDIT_SCRIPT_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "cascade_ratio",
+    "--strict",
+    "--threshold",
+)
+
+# 4 NEW EvoBench scenarios under benchmarks/devolaflow_context/scenarios/.
+_V11_0_5_PV05_EVOBENCH_SCENARIOS: tuple[Path, ...] = (
+    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_standard.yaml"),
+    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_complex.yaml"),
+    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_simple.yaml"),
+    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_trivial.yaml"),
+)
+
+# .rules/architecture.mdc must carry the new §A-7 body + 4 sub-rules.
+_V11_0_5_PV05_ARCHITECTURE_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "## A-7 — Cascade-Depth Invariant for Standard+ Dispatches",
+    "### A-7.1 — Conditional strict enforcement",
+    "### A-7.2 — Trivial waiver",
+    "### A-7.3 — Operator override",
+    "### A-7.4 — Enforcement surface",
+)
+
+# Dead-API pin cleanup negative surfaces — pin tuples REMOVED from src/.
+_V11_0_5_PV05_REMOVED_PIN_NAMES: tuple[tuple[Path, str], ...] = (
+    (
+        Path("src/devolaflow/skills/change_activation.py"),
+        "_cascade_requirement_dead_api_pins",
+    ),
+    (Path("src/devolaflow/feedback.py"), "_populate_cascade_gate_fields_dead_api_pins"),
+    (Path("src/devolaflow/gate/scorer.py"), "_validate_cascade_gate_fields_dead_api_pins"),
+)
+
+# DEFAULT_ALLOWLIST replacement entries that take over from the removed pin tuples.
+_V11_0_5_PV05_NEW_ALLOWLIST_ENTRIES: tuple[str, ...] = (
+    '"devolaflow.feedback:populate_cascade_gate_fields"',
+    '"devolaflow.gate.scorer:validate_cascade_gate_fields"',
+)
+
+
+def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.5 PV-05: G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + A-7 surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.5 PV-05 CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
+    CHANGELOG entry — this stanza closes that precondition for the
+    LAST functional implementation PV of the v11.1.0 cycle.
+
+    Surfaces pinned (cycle plan §3 PV-05 + L1 prompt CRITICAL INVARIANTS):
+
+    * ``tests/test_cascade_enforcement.py`` extended from 5-test stub to
+      ≥10 PASS tests covering Branch 2 (replace SKIP with real propagation
+      test) + Branch 3 (4 backward-compat tests — R-1 mitigation) +
+      Branch 4 (3 SOFT/strict-mode validator tests) + Branch 5 (1 full
+      populate→validate truth-table propagation test). All 9 NEW test
+      names pinned via ``_V11_0_5_PV05_CASCADE_TEST_NAMES``.
+    * ``scripts/audit_layer_usage.py`` G-AUDIT-1 ratchet: ``--strict``
+      CLI flag + ``--threshold`` CLI flag (default 0.30) + ``cascade_ratio``
+      field on ``compute_layer_ratios()`` output. Default-OFF preserves
+      byte-identical v11.0.x behavior; ``run(strict=True, threshold=N)``
+      returns 1 when ``total_dispatch > 0`` AND ``cascade_ratio < N``.
+    * ``tests/test_audit_layer_usage.py`` 4 NEW tests pinning the strict
+      flag + cascade_ratio field per G-AUDIT-1 acceptance criteria.
+    * ``benchmarks/devolaflow_context/scenarios/`` gains 4 NEW G-BENCH-1
+      cascade-vs-collapse scenario YAMLs (cascade_l0_l1_l2_l3_standard,
+      cascade_l0_l1_l2_l3_complex, collapse_l0_l3_simple,
+      collapse_l0_l3_trivial). Auto-discovered by ``discover_scenarios()``;
+      W-17 +0 NEW test functions (parametrize expansion over data per
+      W-17 carve-out).
+    * ``.rules/architecture.mdc`` gains §A-7 ("Cascade-Depth Invariant
+      for Standard+ Dispatches") with 4 sub-rules (A-7.1 Conditional
+      strict enforcement / A-7.2 Trivial waiver / A-7.3 Operator override
+      / A-7.4 Enforcement surface). W-21 Soul-set freeze preserved at
+      10 entries; A-7 lands at Architecture per ADR-007 §"Soul-vs-
+      Architecture" decision-rule on conditional + implementation-coupled
+      invariants.
+    * ``AGENTS.md`` + ``.cursor/rules/repo-governance.mdc`` auto-recompiled
+      via ``make compile-rules`` carry the same §A-7 body verbatim per
+      .rules/compile-config.yaml; drift detection via
+      .rules/.compile-hashes.json regenerated cleanly.
+    * Dead-API pin cleanup: 3 forward-looking pin tuples REMOVED from
+      ``change_activation.py`` + ``feedback.py`` + ``gate/scorer.py``
+      now that A-7 wires the symbols. The 2 helpers without production
+      callers (``populate_cascade_gate_fields`` + ``validate_cascade_gate_fields``)
+      are tracked via explicit ``DEFAULT_ALLOWLIST`` entries in
+      ``scripts/detect_dead_apis.py`` (canonical pattern for forward-
+      looking helpers, mirroring 30+ existing entries). The
+      ``cascade_requirement`` pin is removed unconditionally because
+      ``feedback.py::populate_cascade_gate_fields`` line 564 has a real
+      ``ast.Call`` reference inside the function body (verified by the
+      dead-API detector AST walk).
+
+    Coupled invariants verified GREEN at PV-05 close:
+      * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
+      * S-10 hook-chain byte-id: 10/10 PASS unchanged
+      * CP-4 gate suite: 108/108 PASS unchanged
+      * EvoBench: 36/36 PASS, max scenario drift 0.09pp (well under 5pp
+        W-4 SI-4 envelope)
+    """
+    cascade_path = project_root / _V11_0_5_PV05_CASCADE_TESTS
+    assert cascade_path.is_file(), (
+        f"W-18 v11.0.5 PV-05 violation: extended test surface "
+        f"{_V11_0_5_PV05_CASCADE_TESTS} missing — full ≥10-test surface "
+        "lands at PV-05 per cycle plan §3 PV-05 W01."
+    )
+    cascade_text = cascade_path.read_text(encoding="utf-8")
+    for new_test in _V11_0_5_PV05_CASCADE_TEST_NAMES:
+        assert f"def {new_test}" in cascade_text, (
+            f"W-18 v11.0.5 PV-05 violation: NEW cascade-enforcement test "
+            f"{new_test!r} missing from tests/test_cascade_enforcement.py "
+            f"per Branch 2/3/4/5 coverage."
+        )
+
+    audit_script_text = (project_root / _V11_0_5_PV05_AUDIT_SCRIPT).read_text(encoding="utf-8")
+    for sub in _V11_0_5_PV05_AUDIT_SCRIPT_POSITIVE_SUBSTRINGS:
+        assert sub in audit_script_text, (
+            f"W-18 v11.0.5 PV-05 violation: scripts/audit_layer_usage.py "
+            f"missing positive substring {sub!r} per G-AUDIT-1; cycle plan "
+            f"§3 PV-05 W01 T02_audit_ratchet."
+        )
+
+    audit_test_text = (project_root / _V11_0_5_PV05_AUDIT_TESTS).read_text(encoding="utf-8")
+    for new_test in _V11_0_5_PV05_AUDIT_TEST_NAMES:
+        assert f"def {new_test}" in audit_test_text, (
+            f"W-18 v11.0.5 PV-05 violation: NEW audit-ratchet test "
+            f"{new_test!r} missing from tests/test_audit_layer_usage.py."
+        )
+
+    for scenario_path in _V11_0_5_PV05_EVOBENCH_SCENARIOS:
+        full_path = project_root / scenario_path
+        assert full_path.is_file(), (
+            f"W-18 v11.0.5 PV-05 violation: NEW EvoBench scenario "
+            f"{scenario_path} missing per G-BENCH-1; cycle plan §3 "
+            f"PV-05 W02 T01_evobench_fixtures."
+        )
+
+    architecture_text = (project_root / _V11_0_5_PV05_ARCHITECTURE_RULES).read_text(
+        encoding="utf-8"
+    )
+    for sub in _V11_0_5_PV05_ARCHITECTURE_POSITIVE_SUBSTRINGS:
+        assert sub in architecture_text, (
+            f"W-18 v11.0.5 PV-05 violation: .rules/architecture.mdc "
+            f"missing §A-7 substring {sub!r}; cycle plan §3 PV-05 W05."
+        )
+
+    # Auto-recompiled targets must carry §A-7 verbatim per
+    # .rules/compile-config.yaml (drift detection via
+    # .rules/.compile-hashes.json regenerated by `make compile-rules`).
+    agents_md_text = (project_root / _V11_0_5_PV05_AGENTS_MD).read_text(encoding="utf-8")
+    assert "## A-7 — Cascade-Depth Invariant for Standard+ Dispatches" in agents_md_text, (
+        "W-18 v11.0.5 PV-05 violation: AGENTS.md missing §A-7 "
+        "(auto-recompile via `make compile-rules` did not run, or "
+        ".rules/compile-config.yaml ceased to include the architecture layer)."
+    )
+    repo_governance_text = (project_root / _V11_0_5_PV05_REPO_GOVERNANCE).read_text(
+        encoding="utf-8"
+    )
+    assert "## A-7 — Cascade-Depth Invariant for Standard+ Dispatches" in repo_governance_text, (
+        "W-18 v11.0.5 PV-05 violation: .cursor/rules/repo-governance.mdc "
+        "missing §A-7 (auto-recompile via `make compile-rules` did not run, "
+        "or compile-config ceased to include the architecture layer for "
+        "the cursor target)."
+    )
+
+    # Dead-API pin cleanup negative lints — the 3 placeholder pin tuples
+    # from PV-02 / PV-04 must be GONE from src/ post-PV-05.
+    for src_path, removed_pin_name in _V11_0_5_PV05_REMOVED_PIN_NAMES:
+        src_text = (project_root / src_path).read_text(encoding="utf-8")
+        assert f"{removed_pin_name} = (" not in src_text, (
+            f"W-18 v11.0.5 PV-05 violation: forward-looking pin tuple "
+            f"{removed_pin_name!r} still present in {src_path}; cycle "
+            f"plan §3 PV-05 W03 ('dead-API pin cleanup now that A-7 wires "
+            f"the symbols') was not completed."
+        )
+
+    # DEFAULT_ALLOWLIST positive lints — the 2 replacement entries must be
+    # present in detect_dead_apis.py.
+    dead_api_script_text = (project_root / _V11_0_5_PV05_DEAD_API_SCRIPT).read_text(
+        encoding="utf-8"
+    )
+    for allowlist_entry in _V11_0_5_PV05_NEW_ALLOWLIST_ENTRIES:
+        assert allowlist_entry in dead_api_script_text, (
+            f"W-18 v11.0.5 PV-05 violation: scripts/detect_dead_apis.py "
+            f"DEFAULT_ALLOWLIST missing entry {allowlist_entry!r} that "
+            "replaces the removed pin tuple per cycle plan §3 PV-05 W03."
+        )

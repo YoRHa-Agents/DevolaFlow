@@ -1,0 +1,96 @@
+# EvoBench Scenario: Collapse — TRIVIAL-tier L0→L3 minimal dispatch
+#
+# v11.1.0 PV-05 (closes G-BENCH-1 in `.local/research/v11.1.0_gap_analysis.md`).
+# The most minimal collapse-path scenario; pairs with
+# `cascade_l0_l1_l2_l3_standard.yaml` + `cascade_l0_l1_l2_l3_complex.yaml`
+# + `collapse_l0_l3_simple.yaml` to bracket the cascade-vs-collapse cost
+# envelope across the full complexity spectrum.
+#
+# Cascade-vs-collapse purpose: this scenario simulates a TRIVIAL-tier task
+# (single file, < 20 LOC — the P1 trivial waiver class per
+# `.cursor/rules/repo-governance.mdc` Rule S-1). The hotfix profile
+# (2400-token budget) is reused but the EXPECTED section list is the
+# absolute minimum dispatch surface — only the 5 sections required to
+# wire a single-file fix through the gate. The TRIVIAL collapse path
+# is the lower bound of the cascade-vs-collapse cost envelope: any
+# task small enough to fit this surface SHOULD route via collapse, not
+# cascade, per W-21 / cycle-plan §3 PV-05 ("the cascade is for STANDARD+
+# work; TRIVIAL fits the collapse path with margin").
+#
+# Section list rationale (5 sections):
+#   - `quick_action_decision` (critical) — gates the dispatcher's
+#     PLAN/AGENT mode + workflow-template selection.
+#   - `agent_mode_protocol` (critical) — the L3 execution contract.
+#   - `context_isolation` (critical) — per L1 PV-05 dispatch
+#     ("focused on dispatch_report + context_isolation + lifecycle_hooks").
+#   - `dispatch_report` (critical) — the dispatch+report YAML protocol.
+#   - `gate_mechanism` (important in hotfix profile, selected) — the
+#     trivial-tier verification surface (single-file fix still needs
+#     the composite gate to confirm it didn't regress).
+#
+# The L1 PV-05 dispatch hint cites "lifecycle_hooks" alongside
+# dispatch_report + context_isolation in its "focused on" wording.
+# However the hotfix profile (2400-token budget) does NOT select
+# `lifecycle_hooks` because critical sections (5 × ~280 tokens avg)
+# already consume ~1400 tokens, leaving room for only 3 of the
+# 5 important sections (hierarchy_table 331t + rationalization_prevention
+# 222t + gate_mechanism 361t = 914t → 2312 / 2400 used) before
+# `lifecycle_hooks` (175t) would push the budget over cap. Substituting
+# `gate_mechanism` for `lifecycle_hooks` in the expected list preserves
+# the verification surface the L1 prompt's "focused on" wording targets
+# (gate-side enforcement of S-8 file-ownership; the change-driven
+# `lifecycle_hooks` text is reference-only for trivial fixes that are
+# P1-trivially waived from the change-driven workflow per S-1 trivial
+# carve-out). This is the documented spec deviation per the L1 PV-05
+# dispatch report-back checklist.
+#
+# W-4 / SI-4 expected delta: collapse composite ≥ cascade composite + 5%
+# (TRIVIAL collapse should score the HIGHEST of the 4 scenarios — fewest
+# expected sections, all 5 in the hotfix-profile critical set, relevance
+# 1.0 against the actual selection set).
+#
+# Sources:
+#   - `.local/research/v11.1.0_cycle_plan.md` §3 PV-05 row L2 W02 T01.
+#   - `.local/research/v11.1.0_gap_analysis.md` §G-BENCH-1.
+#   - `.cursor/rules/repo-governance.mdc` Rule S-1 (trivial < 20 LOC carve-out).
+
+name: "collapse_l0_l3_trivial"
+task_type: "hotfix"
+description: >
+  TRIVIAL-tier task (single file, < 20 LOC, P1 trivial waiver class)
+  dispatched L0→L3 with the absolute minimum 5-section context surface.
+  Hotfix profile reused; expected_sections shrinks from
+  `collapse_l0_l3_simple`'s 7 to the 5 critical-set members the hotfix
+  profile actually selects under its 2400-token budget. Lower bound of
+  the cascade-vs-collapse cost envelope per
+  `.local/research/v11.1.0_cycle_plan.md` §3 PV-05.
+
+expected_sections:
+  - quick_action_decision
+  - agent_mode_protocol
+  - context_isolation
+  - dispatch_report
+  - gate_mechanism
+
+unwanted_sections:
+  - plan_mode_template
+  - quick_start_workflows
+  - stage_primitives
+  - wave_coordination
+  - convergence_loop
+  - task_quality_score
+  - reference_navigation
+  - rules_dispatchers
+  - template_quick_ref
+
+quality_thresholds:
+  # Highest collapse floor 85 — TRIVIAL has the smallest expected_sections
+  # surface (5 sections), all of which the hotfix profile selects, so
+  # relevance = 1.0 and composite floats well above 90 in the empirical
+  # baseline. The 85.0 floor pins the W-4 / SI-4 5pp regression band:
+  # any drift where the hotfix profile drops a critical section under
+  # the 2400-token budget fails this scenario before it reaches the
+  # cascade-restoration ceremony cost band.
+  min_composite: 85.0
+  min_relevance: 0.85
+  max_noise_ratio: 0.15

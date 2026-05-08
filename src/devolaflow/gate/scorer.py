@@ -216,16 +216,22 @@ def validate_cascade_gate_fields(
     return warnings
 
 
-# v11.1.0 PV-04 — ``validate_cascade_gate_fields`` is the SOFT cascade-validator
-# helper added under W03. PV-05 wires it into the gate flow alongside the new
-# Architecture rule A-7 (which promotes the soft check to strict). Until then,
-# the helper has no in-repo production caller — same dead-API pin pattern as
-# ``_populate_cascade_gate_fields_dead_api_pins`` in
-# ``src/devolaflow/feedback.py`` and the
-# ``_cascade_requirement_dead_api_pins`` block in
-# ``src/devolaflow/skills/change_activation.py`` (v11.1.0 PV-02). Source: cycle
-# plan §3 PV-04 W03.
-_validate_cascade_gate_fields_dead_api_pins = (validate_cascade_gate_fields,)
+# v11.1.0 PV-05 — Architecture rule A-7 ("Cascade-Depth Invariant for
+# Standard+ Dispatches") establishes ``validate_cascade_gate_fields`` as
+# the canonical SOFT cascade-validator (PV-05 baseline preserved as
+# DEFAULTS-PERMISSIVE-IN-MINOR per cycle plan §6 finding 1). The
+# v11.1.0 PV-04 placeholder pin tuple
+# ``_validate_cascade_gate_fields_dead_api_pins`` was REMOVED in
+# v11.0.5 PV-05 per cycle plan §3 PV-05 W03 ("dead-API pin cleanup now
+# that A-7 wires the symbols"); the dead-API detector tracks this helper
+# via the explicit allowlist entry
+# ``"devolaflow.gate.scorer:validate_cascade_gate_fields"`` in
+# ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` (with the v12.0.0
+# STRICT-promotion deferral comment per cycle plan §6). The strict
+# promotion (CascadeViolationError raise on cascade-depth violation
+# when ``cascade_requirement(complexity) == "CASCADE_REQUIRED"``) lands
+# at v12.0.0 per W-21 2-cycle deliberation cadence. Source:
+# ``.rules/architecture.mdc`` §A-7.1 + cycle plan §6.
 
 
 SEVERITY_WEIGHTS: dict[str, int] = {

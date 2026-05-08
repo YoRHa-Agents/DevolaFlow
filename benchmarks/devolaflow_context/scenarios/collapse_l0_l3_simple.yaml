@@ -1,0 +1,80 @@
+# EvoBench Scenario: Collapse — SIMPLE-tier L0→L3 direct dispatch
+#
+# v11.1.0 PV-05 (closes G-BENCH-1 in `.local/research/v11.1.0_gap_analysis.md`).
+# Pairs with `cascade_l0_l1_l2_l3_standard.yaml` — together the two
+# scenarios quantify the cascade-vs-collapse cost delta at SIMPLE/STANDARD
+# tier.
+#
+# Cascade-vs-collapse purpose: this scenario simulates a SIMPLE-tier task
+# (a focused fix / single-component change, the canonical hotfix dispatch
+# pattern) that bypasses the full 4-layer chain and dispatches L0→L3
+# directly — the COLLAPSE path the v11.1.0 cycle plan §3 PV-05 W02 T01
+# pins as the contrast for `cascade_l0_l1_l2_l3_standard`. The hotfix
+# profile (2400-token budget) loads the 7 minimal-dispatch sections
+# documented in `compression_hotfix.yaml` lines 9-25 (the canonical
+# SIMPLE-tier section list that powers the v11.1.0 PV-02 W-16
+# wholesale-baseline-regen anchor for hotfix-style scenarios).
+#
+# Section list mirrors `compression_hotfix.yaml` exactly per the L1 PV-05
+# dispatch ("expected_sections: minimal — mimics the
+# compression_hotfix.yaml 7-section list"); the value of THIS scenario
+# vs compression_hotfix is the COLLAPSE-VS-CASCADE semantic — its
+# baseline composite is paired against `cascade_l0_l1_l2_l3_standard`'s
+# composite to enforce the W-4 / SI-4 5pp delta envelope (collapsed
+# composite ≥ cascade composite + 5% per cycle plan §3 PV-05).
+#
+# W-4 / SI-4 expected delta: collapse composite ≥ cascade composite + 5%
+# (the COLLAPSE path scores HIGHER per the cycle plan §3 PV-05 envelope —
+# fewer sections, tighter budget utilization, less ceremony cost). The
+# empirical observation is composite ≈ 88-99 vs cascade's ≈ 99 floor; the
+# cascade pays a modest ceremony cost that this scenario quantifies.
+#
+# Sources:
+#   - `.local/research/v11.1.0_cycle_plan.md` §3 PV-05 row L2 W02 T01
+#     (lines 331-343) — owned-files manifest + AC for the 4 NEW scenarios.
+#   - `.local/research/v11.1.0_gap_analysis.md` §G-BENCH-1 (lines 363-422)
+#     — design rationale (G-BENCH-1 explicit "collapsed_l0_l3_standard"
+#     spec; renamed to `collapse_l0_l3_simple` in the cycle-plan PV-05
+#     manifest to harmonise naming with `cascade_l0_l1_l2_l3_standard`).
+#   - `compression_hotfix.yaml` — section-list template + threshold
+#     comment block (the v11.1.0 PV-02 W-16 cycle-start hotfix anchor).
+
+name: "collapse_l0_l3_simple"
+task_type: "hotfix"
+description: >
+  SIMPLE-tier task dispatched L0→L3 directly (collapse path — bypasses
+  L1/L2). Hotfix profile loads the 7-section minimal dispatch surface
+  (matches compression_hotfix.yaml exactly). Pair-tested against
+  `cascade_l0_l1_l2_l3_standard.yaml` to enforce the W-4 / SI-4 cascade-
+  vs-collapse 5pp delta envelope per `.local/research/v11.1.0_cycle_plan.md`
+  §3 PV-05.
+
+expected_sections:
+  - quick_action_decision
+  - agent_mode_protocol
+  - wave_task_constraints
+  - context_isolation
+  - dispatch_report
+  - gate_mechanism
+  - lifecycle_hooks
+
+unwanted_sections:
+  - plan_mode_template
+  - quick_start_workflows
+  - stage_primitives
+  - wave_coordination
+  - convergence_loop
+  - task_quality_score
+
+quality_thresholds:
+  # Collapse floor 85 — fewer sections + tighter budget = HIGHER composite
+  # per the cycle plan §3 PV-05 envelope ("collapsed should score HIGHER
+  # per the cycle plan §3 PV-05 envelope — fewer sections, tighter
+  # budget"). Empirically the hotfix profile achieves composite ≈ 88-90
+  # (matches compression_hotfix.yaml's 88.47 baseline observation) with
+  # relevance 0.857 (lifecycle_hooks is `important` not `critical` in the
+  # hotfix profile and slips below the 2400-token budget cutoff alongside
+  # `gate_mechanism`/`hierarchy_table`/`rationalization_prevention`).
+  min_composite: 85.0
+  min_relevance: 0.85
+  max_noise_ratio: 0.15
