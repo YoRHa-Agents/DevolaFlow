@@ -6676,9 +6676,7 @@ _V11_0_2_PV02_HEURISTIC_TESTS: Path = Path("tests/test_change_activation_heurist
 _V11_0_2_PV02_CASCADE_TESTS: Path = Path("tests/test_cascade_enforcement.py")
 
 # W-16 wholesale baseline regen (cycle-anchor for PV-03..PV-07).
-_V11_0_2_PV02_BASELINE: Path = Path(
-    "benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json"
-)
+_V11_0_2_PV02_BASELINE: Path = Path("benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json")
 
 # Decision memo (gitignored under .local/; presence-checked when local).
 _V11_0_2_PV02_DECISION_MEMO: Path = Path(".local/research/v11.1.0_pv02_decision.md")
@@ -6734,11 +6732,12 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
       archive mapping required since `.local/` is git-private).
     """
     # NEW symbol — `CascadeRequirement` Literal type — must be importable.
+    from typing import get_args as _get_args
+
     from devolaflow.skills.change_activation import (
         CascadeRequirement,
         cascade_requirement,
     )
-    from typing import get_args as _get_args
 
     assert callable(cascade_requirement), (
         "W-18 v11.0.2 PV-02 violation: `cascade_requirement` must be a "
@@ -6844,8 +6843,7 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         re.DOTALL,
     )
     assert sub_table_match is not None, (
-        "W-18 v11.0.2 PV-02 violation: SKILL.md missing "
-        "`## Quick Action Decision` section."
+        "W-18 v11.0.2 PV-02 violation: SKILL.md missing `## Quick Action Decision` section."
     )
     sub_table = sub_table_match.group(1)
     assert "CASCADE_REQUIRED" in sub_table, (
