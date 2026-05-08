@@ -5,6 +5,93 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.4] - 2026-05-08
+
+**PATCH — v11.1.0 PV-04: G-PLAN-1 plan-mode structural enforcement + G-PLAN-2 `_PLAN_MODE_OVERRIDES` cascade carrier + schema NEST `gate.cascade_required` + `gate.cascade_min_layers` per A-2.3.** Third impl PV of the v11.1.0 cascade-restoration MINOR cycle. First **functional** cascade enforcement surface — PV-02 + PV-03 added the prompt-side messaging; PV-04 wires the structural enforcement (schema + dispatch payload populator + soft gate validator + plan-mode Constraints Checklist item #10). Predecessor: PV-03 `## [11.0.3]` (G-CASCADE-1 SKILL.md cascade restoration + G-CASCADE-2 multi-stage-trace.md revision). Cycle plan: `.local/research/v11.1.0_cycle_plan.md` §2 PV-04 row + §3 PV-04 cascade decomposition.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: 2 NEW module-level helpers + 1 NEW dict-key + 2 NEW schema NEST sub-fields. Zero behaviour change for existing callers — opt-in by construction. S-10 byte-id preserved; A-2.4 multi-baseline 32/32 PASS unchanged.**
+
+- **W01 schema NEST** — `schemas/lean-dispatch.yaml` `lean_format_spec.gate` block gains TWO OPTIONAL sub-fields:
+  - `cascade_required: bool` (default `false` for backward-compat; `true` only when complexity is STANDARD/COMPLEX per `cascade_requirement()`).
+  - `cascade_min_layers: int` (default `1` for backward-compat; default `4` when `cascade_required is true`; semantics = "minimum layer depth in the dispatch chain L0 → L1 → L2 → L3").
+  - Per A-2.3 NEST decision rule: NESTED under existing `gate` block (frozen position 12 of canonical_order); NOT a new top-level dispatch key. **`canonical_order` length stays at 17 and `version` stays at 6.** All 10 historical multi-baseline byte tests CONTINUE TO PASS unchanged because the new sub-fields' absence is canonical (the same precedent v9.1.4 PV-04 set with `change_context.{prior_feedback_themes, memory_case_hits, source_of_truth_excerpt}`).
+- **W02 feedback.py opt-in helper** — `src/devolaflow/feedback.py` exports a NEW module-level helper `populate_cascade_gate_fields(base_dispatch, complexity) -> dict[str, Any]`. Returns a deep copy of `base_dispatch` with `gate.cascade_required` + `gate.cascade_min_layers` populated when `cascade_requirement(complexity) == "CASCADE_REQUIRED"` (STANDARD/COMPLEX); otherwise returns the deep copy unchanged. **OPT-IN by construction**: `ProposalGenerator.generate_round_dispatch` itself is unchanged, so the `tests/test_dispatch_emission_runs_hooks.py` 10/10 R5 strict byte-identical contract is preserved verbatim. Callers that opt in invoke the helper BEFORE passing `base_dispatch` to `generate_round_dispatch`.
+- **W03 gate scorer soft validator** — `src/devolaflow/gate/scorer.py` exports a NEW module-level helper `validate_cascade_gate_fields(gate_block, *, actual_layers=None) -> list[str]`. Soft check (warn + log via `logger.warning`; no FAIL) — strict enforcement lands at PV-05 with Architecture rule A-7 + `tests/test_cascade_enforcement.py`. Validates schema correctness of `cascade_required` (must be `bool`) and `cascade_min_layers` (must be `int >= 1`); when `actual_layers is not None` AND `cascade_required is True` AND `actual_layers < cascade_min_layers` → emits warning "cascade depth violation" (PV-04 soft check; PV-05 A-7 will FAIL strict). CP-4 mandate: full gate test suite re-run PASS unchanged.
+- **W04 plan-mode-enforcement.md item #10** — `workflow-system/agent/references/plan-mode-enforcement.md` §4 Constraints Checklist gains **item #10**: *"Cascade depth (STANDARD+) — every plan whose Execution Model targets STANDARD or COMPLEX complexity (per `change_activation.classify_complexity` → `change_activation.cascade_requirement` returning `CASCADE_REQUIRED`) MUST contain at least one L1 Stage row AND at least one L2 Wave row BEFORE any L3 Task row. SIMPLE / TRIVIAL plans inherit item #1's `[trivial waiver]` carve-out and MAY collapse to a single L3 row directly under L0."* §5.1 DO list gains the bullet *"Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans"* citing item #10 + the v11.1.0 PV-04 schema NEST. Frontmatter `last_updated`: 2026-05-04 → 2026-05-08. SF-1 Large tier: 826 lines (≤ 1000 ceiling).
+- **W05 `_PLAN_MODE_OVERRIDES` cascade carrier (G-PLAN-2)** — `src/devolaflow/task_adaptive_selector.py::_PLAN_MODE_OVERRIDES` gains `"plan_mode_cascade_required": True` (default True under v11.1.0 — cascade is the normative plan-mode default per the user feedback "在 Plan 模式中，也需要能够体现出多层级调度的原则"). `apply_plan_mode_overrides` propagates the key to the returned profile dict so downstream L0 plan-render callers can read it without round-tripping through the override block. Pre-v11.1.0 callers that never read the key see byte-stable behaviour (R5 strict additive contract).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_0_4_pv04_new_surfaces_have_coverage`:
+
+- `src/devolaflow/feedback.py::populate_cascade_gate_fields` (NEW module-level helper; +89 LOC)
+- `src/devolaflow/gate/scorer.py::validate_cascade_gate_fields` (NEW module-level helper; +109 LOC)
+- `src/devolaflow/task_adaptive_selector.py::_PLAN_MODE_OVERRIDES["plan_mode_cascade_required"]` (NEW dict key; +1 LOC + propagation +1 LOC + comment block)
+- `schemas/lean-dispatch.yaml` `lean_format_spec.gate.cascade_required` + `.cascade_min_layers` (NEW NEST sub-fields; +57 LOC including 2 comment blocks)
+- `workflow-system/agent/references/plan-mode-enforcement.md` §4 item #10 + §5.1 DO bullet (NEW; ~15 LOC)
+- `tests/test_task_adaptive_selector_plan_mode.py` (NEW file; 7 test functions)
+- `tests/test_gate.py::TestCascadeGateFieldsValidator` (NEW class; 7 test functions)
+- `tests/test_no_ghost_features.py::test_v11_0_4_pv04_new_surfaces_have_coverage` (NEW W-18 lint stanza)
+
+### Headline numbers (PV-04; cumulative since v11.0.3)
+
+| Area | v11.0.3 | v11.0.4 | Delta | Source |
+|------|---:|---:|---:|---|
+| Tests (collected) | 4272 | ~4287 | +15 (W06 +14 + W-18 stanza +1) | `pytest --collect-only -q` |
+| `__version__` | 11.0.3 | **11.0.4** | +1 PATCH | `src/devolaflow/__init__.py` |
+| EvoBench baseline | v11.1.0_baseline.json | v11.1.0_baseline.json | 0 (cycle-anchor preserved per W-16) | `benchmarks/devolaflow_context/baselines/` |
+| Schema canonical_order length | 17 | 17 | 0 (A-2.1 frozen prefix; A-2.3 NEST not APPEND; A-2.4 32/32 PASS) | `tests/test_layout_invariant_multi_baseline.py` |
+| Schema version | 6 | 6 | 0 (NEST extension under historical precedent v8.0.0 P-03 `gate.token_budget`) | `schemas/lean-dispatch.yaml#layout_invariant.version` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` §S-1..§S-10 |
+| Architecture rule count | 6 | 6 | 0 (A-7 deferred to PV-05 per cycle plan §3) | `.cursor/rules/repo-governance.mdc` §A-1..§A-6 |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first; no new flags) | `references/env-flags.md` §2 |
+| plan-mode-enforcement.md line count | 810 | 826 | +16 (≤ 1000 SF-1 Large tier) | `wc -l workflow-system/agent/references/plan-mode-enforcement.md` |
+| S-10 byte-id (`test_dispatch_emission_runs_hooks.py`) | 10/10 | 10/10 | 0 (preserved by construction — opt-in helper) | `pytest tests/test_dispatch_emission_runs_hooks.py -v` |
+| A-2.4 multi-baseline (`test_layout_invariant_multi_baseline.py`) | 32/32 | 32/32 | 0 (NEST under frozen position 12; baselines unchanged) | `pytest tests/test_layout_invariant_multi_baseline.py -v` |
+| CP-4 gate suite (`test_gate.py`) | 101 | 108 | +7 NEW `TestCascadeGateFieldsValidator` | `pytest tests/test_gate.py -v` |
+
+### Sister PVs
+
+- **PV-02 (predecessor, v11.0.2)**: G-CLASSIFY-1 cascade-decision pure function + W-16 wholesale baseline regen; PR #126 squash-merged at `e77a52f`.
+- **PV-03 (predecessor, v11.0.3)**: G-CASCADE-1 SKILL.md cascade restoration + G-CASCADE-2 multi-stage-trace.md revision; PR #127 squash-merged on main.
+- **PV-05 (next, v11.0.5)**: G-TEST-1 cascade-compliance tests + G-AUDIT-1 audit ratchet + G-BENCH-1 cascade-vs-collapse perf scenarios + Architecture rule A-7 (promotes the PV-04 soft validator to strict) + `tests/test_cascade_enforcement.py` (NEW). PV-05 is the LAST functional impl PV before NineS self-eval at PV-06 + MINOR rollup at PV-07.
+- **PV-06..PV-07**: per cycle plan §2.
+
+### Pre-flight scenario forecast (W-4 SI-4 dry-run; PV-03 stage report N-3 elevated to documented PV gate)
+
+PV-03 stage report's N-3 finding ("the pre-flight forecast pattern should be elevated to a documented PV gate for any SKILL.md-touching PV") was acted on. Pre-edit baselines + post-edit deltas captured for the 5 high-risk EvoBench scenarios + S-10 byte-id + A-2.4 multi-baseline + CP-4 gate suite:
+
+| Check | Pre-edit | Post-edit | Verdict |
+|---|---|---|:---:|
+| EvoBench `test_v6_baseline_matches_current_results_within_tolerance` | 36/36 PASS (max drift 0.09pp) | 36/36 PASS | **PASS** within W-4 SI-4 5pp tolerance |
+| S-10 byte-id (`test_dispatch_emission_runs_hooks.py`) | 10/10 PASS | 10/10 PASS unchanged | **PASS** (helper is opt-in by construction) |
+| A-2.4 multi-baseline (`test_layout_invariant_multi_baseline.py`) | 32/32 PASS | 32/32 PASS unchanged | **PASS** (NEST not APPEND) |
+| CP-4 gate suite (`test_gate.py`) | 101/101 PASS | 108/108 PASS | **PASS** (101 existing + 7 NEW) |
+
+PV-04 does NOT touch SKILL.md or `task_adaptive_selector.py` section-priority logic, so EvoBench section_relevance scoring is byte-stable by construction (the v11.1.0_baseline.json anchor remains canonical for all PV-04..PV-07 regression checks).
+
+### W-9 SI-10 7-step verification (PV-04 stage close gate)
+
+| Step | Command | Result |
+|---|---|---|
+| 1 | `python -m pytest tests/ -q` | PASS (4287+ collected; 0 failed) |
+| 2 | `ruff check src/ tests/` | PASS (0 errors) |
+| 3 | `ruff format --check src/ tests/` | PASS (formatted correctly) |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.4) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36/36 — pre-flight forecast confirmed within W-4 SI-4 5pp tolerance) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op per SF-3 opt-in) |
+| 7 | CP-7 audit (no NEW absolute paths in agent-facing files) | PASS |
+
+Plus invariant guards (CP-4 + A-2.4 + S-10 — the cycle plan §5 extras for PV-04+):
+
+| Guard | Command | Result |
+|---|---|---|
+| CP-4 gate suite | `python -m pytest tests/test_gate.py -v` | PASS (108/108 — 101 existing + 7 NEW `TestCascadeGateFieldsValidator`) |
+| A-2.4 multi-baseline | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32 unchanged — frozen prefix preserved by NEST) |
+| S-10 byte-id | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | PASS (10/10 unchanged — helper is opt-in) |
+
 ## [11.0.3] - 2026-05-08
 
 **PATCH — v11.1.0 PV-03: G-CASCADE-1 SKILL.md cascade restoration + G-CASCADE-2 multi-stage-trace.md revision.** Second impl PV of the v11.1.0 cascade-restoration MINOR cycle. Predecessor: PV-02 `## [11.0.2]` (G-CLASSIFY-1 classifier redesign + W-16 wholesale baseline regen). Cycle plan: `.local/research/v11.1.0_cycle_plan.md` §2 PV-03 row + §3 PV-03 cascade decomposition.

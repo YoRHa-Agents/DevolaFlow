@@ -16,12 +16,14 @@ in :func:`evaluate_ladder` byte-identically — operators who set
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -84,6 +86,13 @@ R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
 * env value unset / any other → respect ``profile.ladder_enabled``
 """
 
+# v11.1.0 PV-04 (W03) — module-level logger for the cascade soft validator
+# (and any future scorer-side WARN-level emission). Per S-5 (no silent
+# failures) the validator both RETURNS warning strings AND emits them via
+# this logger so callers can surface them in StatusReport without losing
+# the detection signal.
+logger = logging.getLogger(__name__)
+
 
 def is_verification_ladder_active(
     profile: GateProfile,
@@ -104,6 +113,119 @@ def is_verification_ladder_active(
     if raw == "1":
         return True
     return bool(profile.ladder_enabled)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v11.1.0 PV-04 (W03) — Cascade-required soft validator
+#
+# Pairs with the v11.1.0 PV-04 W01 schema NEST extension (the new
+# ``gate.cascade_required`` + ``gate.cascade_min_layers`` sub-fields under
+# the existing ``gate`` block — see ``schemas/lean-dispatch.yaml`` lines
+# 177-210) and the W02 ``feedback.py::populate_cascade_gate_fields``
+# helper. This is the SOFT-CHECK side: callers may invoke it to surface
+# WARN-level violations without aborting the gate flow. STRICT enforcement
+# (FAIL on cascade-depth violation) lands at PV-05 with Architecture rule
+# A-7 + ``tests/test_cascade_enforcement.py``.
+#
+# The validator does NOT modify ``evaluate_gate`` or any existing scorer
+# function — the wiring into the gate flow is deferred to PV-05 to keep
+# the v11.0.x byte-baselines + the 10/10 R5 byte-identical contract in
+# ``tests/test_dispatch_emission_runs_hooks.py`` green during PV-04.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def validate_cascade_gate_fields(
+    gate_block: dict[str, Any] | None,
+    *,
+    actual_layers: int | None = None,
+) -> list[str]:
+    """Soft validator for gate.cascade_required + gate.cascade_min_layers.
+
+    v11.1.0 PV-04 — soft check (warn + log; no FAIL). Strict enforcement
+    lands at PV-05 with Architecture rule A-7 +
+    ``tests/test_cascade_enforcement.py``.
+
+    Inspects the dispatch's ``gate`` block for the cascade sub-fields
+    (added by W01 schema NEST + W02 ``feedback.py`` populate helper):
+
+    * ``cascade_required: bool`` — when True, the dispatch was authored
+      under STANDARD/COMPLEX complexity and the L3 receiver knows the
+      chain MUST traverse L0 → L1 → L2 → L3.
+    * ``cascade_min_layers: int`` — minimum layer depth.
+
+    Args:
+      gate_block: the dispatch's ``gate`` sub-dict, or ``None`` when
+        absent.
+      actual_layers: optional observed layer depth in the dispatch
+        chain. When ``None`` (the default for PV-04), the validator
+        only checks schema correctness without verifying actual depth
+        — actual-depth verification lands at PV-05 with A-7.
+
+    Returns:
+      List of warning strings (empty when no soft violations). Each
+      warning is also logged at WARNING level via this module's
+      :data:`logger`.
+
+    Per S-5 (no silent failures): warnings are returned AND logged so
+    callers can surface them in StatusReport without losing the
+    detection signal. Per S-10: this is a soft check at PV-04; strict
+    FAIL behaviour is deferred to PV-05.
+    """
+    warnings: list[str] = []
+
+    if gate_block is None:
+        return warnings
+
+    cascade_required = gate_block.get("cascade_required")
+    if not cascade_required:
+        return warnings
+
+    if not isinstance(cascade_required, bool):
+        msg = f"cascade_required must be bool, got {type(cascade_required).__name__}"
+        warnings.append(msg)
+        logger.warning(msg)
+
+    cascade_min_layers = gate_block.get("cascade_min_layers")
+    # bool is a subclass of int in Python — exclude it explicitly so
+    # ``cascade_min_layers: True`` does NOT silently satisfy the int >= 1
+    # check (semantics: cascade_min_layers is a layer depth like 1/2/3/4,
+    # never a boolean). Order: type checks BEFORE the value comparison so
+    # a non-int value (None / str / etc.) short-circuits before the
+    # ``< 1`` compare which would TypeError on None.
+    if (
+        not isinstance(cascade_min_layers, int)
+        or isinstance(cascade_min_layers, bool)
+        or cascade_min_layers < 1
+    ):
+        msg = f"cascade_min_layers must be int >= 1, got {cascade_min_layers!r}"
+        warnings.append(msg)
+        logger.warning(msg)
+    elif (
+        actual_layers is not None
+        and cascade_required is True
+        and actual_layers < cascade_min_layers
+    ):
+        msg = (
+            f"cascade depth violation: actual_layers={actual_layers} "
+            f"< cascade_min_layers={cascade_min_layers} "
+            f"(PV-04 soft check; PV-05 A-7 will FAIL strict)"
+        )
+        warnings.append(msg)
+        logger.warning(msg)
+
+    return warnings
+
+
+# v11.1.0 PV-04 — ``validate_cascade_gate_fields`` is the SOFT cascade-validator
+# helper added under W03. PV-05 wires it into the gate flow alongside the new
+# Architecture rule A-7 (which promotes the soft check to strict). Until then,
+# the helper has no in-repo production caller — same dead-API pin pattern as
+# ``_populate_cascade_gate_fields_dead_api_pins`` in
+# ``src/devolaflow/feedback.py`` and the
+# ``_cascade_requirement_dead_api_pins`` block in
+# ``src/devolaflow/skills/change_activation.py`` (v11.1.0 PV-02). Source: cycle
+# plan §3 PV-04 W03.
+_validate_cascade_gate_fields_dead_api_pins = (validate_cascade_gate_fields,)
 
 
 SEVERITY_WEIGHTS: dict[str, int] = {

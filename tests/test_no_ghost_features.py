@@ -6971,3 +6971,94 @@ def test_v11_0_3_pv03_new_surfaces_have_coverage(project_root: Path) -> None:
         "W-18 v11.0.3 PV-03 violation: multi-stage-trace.md frontmatter "
         '`last_updated` must be `"2026-05-08"` per PV-03 close.'
     )
+
+
+# G-PLAN-1 + G-PLAN-2 + schema NEST surfaces (v11.0.4 PV-04).
+_V11_0_4_PV04_PLAN_MODE_DOC: Path = Path(
+    "workflow-system/agent/references/plan-mode-enforcement.md"
+)
+_V11_0_4_PV04_SCHEMA: Path = Path("schemas/lean-dispatch.yaml")
+_V11_0_4_PV04_TASK_ADAPTIVE: Path = Path("src/devolaflow/task_adaptive_selector.py")
+_V11_0_4_PV04_FEEDBACK: Path = Path("src/devolaflow/feedback.py")
+_V11_0_4_PV04_GATE_SCORER: Path = Path("src/devolaflow/gate/scorer.py")
+
+# plan-mode-enforcement.md positive surfaces — must appear post-edit.
+_V11_0_4_PV04_PLAN_MODE_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "Cascade depth (STANDARD+)",
+    "Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans",
+    'last_updated: "2026-05-08"',
+)
+
+# schemas/lean-dispatch.yaml positive surfaces — gate NEST sub-fields.
+_V11_0_4_PV04_SCHEMA_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "cascade_required:",
+    "cascade_min_layers:",
+)
+
+
+def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.4 PV-04: G-PLAN-1 + G-PLAN-2 + schema NEST surfaces are pinned.
+
+    Discharges the W-18 precondition for the v11.0.4 PV-04 CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
+    CHANGELOG entry — this stanza closes that precondition.
+
+    Surfaces pinned:
+
+    * ``workflow-system/agent/references/plan-mode-enforcement.md`` §4
+      gains item #10 with the literal text ``Cascade depth (STANDARD+)``
+      (G-PLAN-1 prompt-side enforcement per cycle plan §3 PV-04 W04).
+    * Same file §5.1 DO list gains the bullet
+      ``Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans``
+      (G-PLAN-1 §5.1 DO bullet).
+    * Same file frontmatter ``last_updated`` is bumped to ``"2026-05-08"``.
+    * ``schemas/lean-dispatch.yaml`` ``lean_format_spec.gate`` block
+      gains the NEST sub-fields ``cascade_required`` + ``cascade_min_layers``
+      per A-2.3 (W01 schema NEST). canonical_order length stays at 17;
+      the v9.7.0 baseline byte-tests continue to PASS unchanged.
+    * ``src/devolaflow/task_adaptive_selector.py`` ``_PLAN_MODE_OVERRIDES``
+      gains the ``plan_mode_cascade_required: True`` runtime carrier
+      (W05 G-PLAN-2). ``apply_plan_mode_overrides`` propagates it to
+      the returned profile dict.
+    * ``src/devolaflow/feedback.py`` exports a NEW module-level helper
+      ``populate_cascade_gate_fields(base_dispatch, complexity)``
+      (W02 — the OPT-IN dispatch-payload populator).
+    * ``src/devolaflow/gate/scorer.py`` exports a NEW module-level
+      helper ``validate_cascade_gate_fields(gate_block, *, actual_layers)``
+      (W03 — the soft cascade validator; PV-05 A-7 will promote to
+      strict).
+    """
+    plan_mode_text = (project_root / _V11_0_4_PV04_PLAN_MODE_DOC).read_text(encoding="utf-8")
+    for sub in _V11_0_4_PV04_PLAN_MODE_POSITIVE_SUBSTRINGS:
+        assert sub in plan_mode_text, (
+            f"W-18 v11.0.4 PV-04 violation: plan-mode-enforcement.md "
+            f"missing positive substring {sub!r} per G-PLAN-1; cycle plan "
+            f"§3 PV-04 W04."
+        )
+
+    schema_text = (project_root / _V11_0_4_PV04_SCHEMA).read_text(encoding="utf-8")
+    for sub in _V11_0_4_PV04_SCHEMA_POSITIVE_SUBSTRINGS:
+        assert sub in schema_text, (
+            f"W-18 v11.0.4 PV-04 violation: schemas/lean-dispatch.yaml "
+            f"missing positive substring {sub!r} per W01 schema NEST; "
+            f"cycle plan §3 PV-04 W01."
+        )
+
+    task_adaptive_text = (project_root / _V11_0_4_PV04_TASK_ADAPTIVE).read_text(encoding="utf-8")
+    assert "plan_mode_cascade_required" in task_adaptive_text, (
+        "W-18 v11.0.4 PV-04 violation: task_adaptive_selector.py "
+        "_PLAN_MODE_OVERRIDES must carry the `plan_mode_cascade_required` "
+        "key per W05 G-PLAN-2."
+    )
+
+    feedback_text = (project_root / _V11_0_4_PV04_FEEDBACK).read_text(encoding="utf-8")
+    assert "def populate_cascade_gate_fields(" in feedback_text, (
+        "W-18 v11.0.4 PV-04 violation: feedback.py must export the "
+        "`populate_cascade_gate_fields` helper per W02."
+    )
+
+    gate_scorer_text = (project_root / _V11_0_4_PV04_GATE_SCORER).read_text(encoding="utf-8")
+    assert "def validate_cascade_gate_fields(" in gate_scorer_text, (
+        "W-18 v11.0.4 PV-04 violation: gate/scorer.py must export the "
+        "`validate_cascade_gate_fields` helper per W03."
+    )

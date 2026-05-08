@@ -10,7 +10,7 @@ purpose: >
   escalation in src/devolaflow/task_adaptive_selector.py.
 tier: 2
 token_estimate: 3400
-last_updated: "2026-05-04"
+last_updated: "2026-05-08"
 ---
 
 # Plan-Mode Enforcement & Reinforcement Loop Contract
@@ -364,6 +364,18 @@ acceptable.
 9. **Predecessors referenced by artifact path, not content copy** — P5
    invariant. Plans that embed predecessor content directly violate
    context isolation and break the cached-prefix invariant.
+10. **Cascade depth (STANDARD+)** — every plan whose Execution Model
+    targets STANDARD or COMPLEX complexity (per
+    `change_activation.classify_complexity` →
+    `change_activation.cascade_requirement` returning `CASCADE_REQUIRED`)
+    MUST contain at least one L1 Stage row AND at least one L2 Wave row
+    BEFORE any L3 Task row. SIMPLE / TRIVIAL plans inherit item #1's
+    `[trivial waiver]` carve-out and MAY collapse to a single L3 row
+    directly under L0. v11.1.0 PV-04 NEST sub-fields
+    `gate.cascade_required: bool` + `gate.cascade_min_layers: int` carry
+    the signal in the dispatch payload (per A-2.3 NEST decision rule);
+    PV-05 Architecture rule A-7 promotes this from soft check to strict
+    enforcement.
 
 The L0 agent runs the checklist as a self-verify before emitting the plan.
 Any fail blocks the plan emission and forces revision.
@@ -384,6 +396,10 @@ Any fail blocks the plan emission and forces revision.
   downstream readers can audit P1 compliance.
 - Verify the §4 Constraints Checklist (especially P1 enforcement items)
   before finalizing.
+- **Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans**
+  (per §4 item #10 + v11.1.0 PV-04 schema NEST `gate.cascade_required`);
+  collapse to single-L3 only for TRIVIAL/SIMPLE per item #1's
+  `[trivial waiver]` carve-out.
 - Cite predecessor artifacts by repo-relative path (S-2). External
   references use the GitHub URL (S-7).
 
