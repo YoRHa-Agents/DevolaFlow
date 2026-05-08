@@ -6698,11 +6698,15 @@ _V11_0_2_PV02_HEURISTIC_TEST_NAMES: tuple[str, ...] = (
     "test_cascade_requirement_string_values_are_stable",
 )
 
-# 3 NEW minimal-stub tests in tests/test_cascade_enforcement.py (T03).
+# NEW minimal-stub tests in tests/test_cascade_enforcement.py (T03);
+# names track the L3-authored stub at c4ea92e/d* which integrates with the
+# PV-04 NEST `gate.cascade_required` decision per decision memo §3 R-3.
 _V11_0_2_PV02_CASCADE_TEST_NAMES: tuple[str, ...] = (
-    "test_cascade_requirement_propagates_from_classifier_complex",
-    "test_cascade_requirement_propagates_from_classifier_simple",
-    "test_cascade_required_signal_fits_in_dispatch_payload_shape",
+    "test_cascade_requirement_is_cascade_signal_source",
+    "test_cascade_required_propagates_into_simulated_dispatch_payload",
+    "test_cascade_required_does_not_invalidate_layout_invariant",
+    "test_cascade_signal_orthogonal_to_force_no_change",
+    "test_cascade_signal_propagation_pv04_telegraph",
 )
 
 
