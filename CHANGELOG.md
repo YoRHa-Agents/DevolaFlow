@@ -5,6 +5,81 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.6] - 2026-05-08
+
+**PATCH — v11.1.0 PV-06: G-NINES-1 NineS self-eval + W-3 SI-3 6-dim composite evaluation report.** Sixth PV of the v11.1.0 cascade-restoration MINOR cycle (analysis-only — NO source / test / schema / SKILL.md / rule edits). Locked baseline (DEC-001 R-B per `.local/research/v11.1.0_l0_decisions.md`): NineS composite 6.85/10 at v11.0.1; MINOR target ≥ 8.5; this PV is the cycle's MINOR-close convergence verdict gate per cycle plan §5.1. Predecessor: PV-05 `## [11.0.5]` (G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + Architecture rule A-7 + dead-API pin cleanup). Cycle plan: `.local/research/v11.1.0_cycle_plan.md` §2 PV-06 row + §3 PV-06 cascade decomposition + §4 self-iteration protocol + §5 MINOR-close criteria.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Zero functional change. Pure-analysis PV.** No source code, tests, schemas, SKILL.md, AGENTS.md, or `.rules/` files are modified. The cycle's W-3 SI-3 composite climbs from D2 baseline 6.85 to **9.02 / 10** (+2.17 lift = 132% of cycle plan §1 forecast +1.65); MINOR threshold ≥ 8.5 cleared by **+0.52 margin**; v12.0.0 MAJOR threshold ≥ 9.0 cleared by **+0.02 margin** (telegraphed; not a v11.1.0 commitment per cycle plan §6). W-8 SI-9 reinforcement decision: **NO REINFORCEMENT** (composite ≥ 8.5 + 0 findings ≥ major severity → no round-2 re-dispatch needed; the user's "自我迭代多轮" directive clears on round 1).
+
+- **G-NINES-1 NineS self-eval** — `nines -f json -c nines.toml self-eval --baseline-version 11.0.5` ran cleanly (`real 1m3.384s`; `EXIT=0`; same two non-fatal warnings as D2 baseline: `decomposition_coverage` ctx-aware fallback + `pytest --cov` 54s timeout — both carried forward as known NineS upstream T8 issues per `nines.toml:7-15`, NOT DevolaFlow regressions). Raw JSON at `.local/research/v11.1.0_pv06_nines.json` (2166 lines, 25 dimensions = 20 capability + 5 hygiene). Rendered analysis at `.local/research/v11.1.0_pv06_nines.md` (W-2 / SI-2 hybrid-mode dimension-by-dimension scoring with explicit delta vs D2 baseline). NineS-internal `weighted_overall=0.7312` (capability_mean 0.9550 × 0.7 + hygiene_mean 0.7949 × 0.3); the NineS metric_weights are NOT the same as W-3 SI-3 dimension weights — §1 of `v11.1.0_pv06_nines.md` documents the reconciliation per W-2 normative manual fallback.
+- **W-3 SI-3 6-dim composite scoring** — `.local/research/v11.1.0_evaluation.md` documents per-dim scores with verbatim NineS evidence + cumulative trajectory + reinforcement decision per W-8 SI-9. Per-dimension delta vs D2 baseline:
+  - Code quality: 8.5 → **8.7** (+0.2; +3 new pure functions all complexity-reasonable per NineS `code_review_accuracy.complexity_checks` 1055 → 1058; 0 NEW error-severity findings introduced).
+  - **Architecture rationality: 5.0 → 9.5 (+4.5)** — the cycle's primary delivered value; 8 of 8 D2 architectural findings RESOLVED (SKILL.md cascade restoration PV-03 + plan-mode item #10 PV-04 + A-7 rule body PV-05 + audit ratchet PV-05 + classifier orthogonality PV-02 + EvoBench scenarios PV-05 + W-16 baseline regen PV-02 + ADR-007 §"Soul-vs-Architecture" decision-rule honoured) or DEFERRED to v12.0.0 (F-003 SHORTCUT_SIMPLE retirement per W-21 2-cycle cadence).
+  - Test adequacy: 6.5 → **9.0** (+2.5) — 13 NEW cascade tests + 4 NEW audit tests + 7 NEW plan-mode tests + 4 NEW EvoBench scenarios; W-17 cumulative +37 of +150 (~25% utilized).
+  - Maintainability: 6.0 → **8.5** (+2.5) — 5-surface narrative now contradiction-free; SHORTCUT_SIMPLE retirement telegraphed (3 → 2 mechanisms post-v12.0.0).
+  - Compatibility: 9.0 → **9.5** (+0.5) — A-2.4 multi-baseline 32/32 + S-10 byte-id 10/10 + canonical_order length unchanged at 17 (NEST per A-2.3) + W-20 reuse-first preserved (8 env flags unchanged) + W-21 Soul-set freeze preserved at 10.
+  - Performance impact: 7.0 → **9.0** (+2.0) — EvoBench 36/36 PASS; 4 NEW cascade-vs-collapse scenarios with cascade composite ≥ collapsed composite − 5pp envelope cleared on both axes (cascade_standard 99.99 vs collapse_simple 88.18 = +11.81 above; cascade_complex 99.99 vs collapse_trivial 97.97 = +2.02 above).
+- **W-8 SI-9 reinforcement decision** — composite **9.02 ≥ 8.5 + 0 findings ≥ major severity** ⇒ **NO REINFORCEMENT** payload generated; round 1 of NineS self-eval clears the gate cleanly. Per `gate/reinforcement.py::findings_to_reinforcement` cap "top-5 findings ≥ major severity": current finding inventory has 0 BLOCKER + 0 CRITICAL + 0 MAJOR + 4 MINOR (all deferred to PV-07 retrospective §3) + 1 COSMETIC — none reinforcement-eligible. The user's directive "自我迭代多轮，以确保有足够的收益和提升" (multi-round self-iteration to ensure sufficient gain) is satisfied without round 2 by virtue of PV-02..PV-05 having pre-emptively addressed every D2 finding.
+- **MAJOR threshold telegraph (≥ 9.0 for v12.0.0)** — composite 9.02 clears the v12.0.0 telegraph by +0.02 margin per cycle plan §6. **NOT a v11.1.0 commitment**: v12.0.0 graduation requires 6 ADDITIONAL dependencies per cycle plan §6 (1-2 v11.1.x stability patches + W-21 2-cycle deliberation gap for any S-11 candidate + v12.0.0 SI-1 gap analysis re-evaluating A-7's Soul-vs-Architecture placement against 1-2 cycles of field evidence + A-7 STRICT promotion + SHORTCUT_SIMPLE retirement + composite re-clearance at v12.0.0 cycle close). The +0.02 margin is FORECAST-INDICATIVE, NOT GRADUATION-COMMITMENT.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_0_6_pv06_new_surfaces_have_coverage` (uses skip-when-absent pattern for `.local/` artifacts since `.local/` is gitignored per `.gitignore:49`):
+
+- `.local/research/v11.1.0_pv06_nines.json` (NineS raw evaluator output; 2166 lines)
+- `.local/research/v11.1.0_pv06_nines.md` (rendered NineS analysis; W-2 / SI-2 hybrid-mode dimension-by-dimension scoring + delta vs D2 baseline)
+- `.local/research/v11.1.0_evaluation.md` (W-3 / SI-3 6-dim weighted composite verdict report; the cycle's MINOR-close gate)
+- `.local/research/v11.1.0_pv06_stage_report.md` (L1 → L0 stage report covering PV-06 wave/task decomposition + W-9 SI-10 7-step verification + GO recommendation for PV-07 MINOR rollup)
+- `CHANGELOG.md` `## [11.0.6] - 2026-05-08` PATCH entry (this section; single-application per PV-03 N-2 mitigation — `grep -c '^## \[11\.0\.6\]' CHANGELOG.md` returns 1)
+
+The W-18 stanza self-skips when `.local/` is absent (CI / fresh clones) and asserts ALL 4 .local artifacts present together when ANY is present (no partial-set authoring; the PV-06 author MUST produce the full set). PV-07 W-19 archive at `docs/cycle-archive/v11.1.0/` will land tracked copies of these artifacts so the PV-07 W-18 stanza can pin them via the canonical `_resolve_artifact_path` fallback pattern at lines 60+ of `tests/test_no_ghost_features.py`.
+
+### Headline numbers (PV-06; cumulative since v11.0.1)
+
+| Area | v11.0.1 | v11.0.6 | Delta | Source |
+|------|---:|---:|---:|---|
+| W-3 SI-3 composite | 6.85 (D2 baseline) | **9.02** | **+2.17** | `.local/research/v11.1.0_evaluation.md` §1 |
+| W-3 SI-3 architecture rationality | 5.0 (D2 §3) | **9.5** | **+4.5** | `.local/research/v11.1.0_pv06_nines.md` §3 |
+| W-3 SI-3 test adequacy | 6.5 (D2 §4) | **9.0** | **+2.5** | `.local/research/v11.1.0_pv06_nines.md` §4 |
+| W-3 SI-3 maintainability | 6.0 (D2 §5) | **8.5** | **+2.5** | `.local/research/v11.1.0_pv06_nines.md` §5 |
+| W-3 SI-3 performance impact | 7.0 (D2 §7) | **9.0** | **+2.0** | `.local/research/v11.1.0_pv06_nines.md` §7 |
+| Tests collected | 4256 (D2 hygiene) | **4300** | +44 (+37 NEW fns + ~7 parametrize) | `pytest tests/ --collect-only -q` |
+| Coverage % | 93% (CHANGELOG headline; NineS measurement timed out at 54s — known T8 issue) | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pyproject.toml [tool.coverage]` + v11.0.0 CHANGELOG |
+| `__version__` | 11.0.1 | **11.0.6** | +5 PATCH | `src/devolaflow/__init__.py` |
+| Cumulative test delta (W-17) | 0 | +37 (PV-06 +0 from analysis-only authorship) | well under +150 cap | `git diff cec4cc4..HEAD --stat -- tests/` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` §S-1..S-10 |
+| Architecture rule count | 6 | 7 | +1 (A-7 cascade-depth invariant; landed PV-05) | `.rules/architecture.mdc` §A-1..A-7 |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved) | `workflow-system/agent/references/env-flags.md` |
+| Schema canonical_order length | 17 | 17 | 0 (NEST not APPEND per A-2.3) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (frozen prefix preserved) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (hook-chain invariant preserved) | `tests/test_dispatch_emission_runs_hooks.py` |
+| EvoBench scenarios | 53 | 57 | +4 (cascade-vs-collapse; landed PV-05) | `benchmarks/devolaflow_context/scenarios/` |
+| EvoBench max scenario drift | 0.09pp (PV-05 baseline) | 0.09pp | 0 (well under 5pp W-4 SI-4 envelope) | `pytest tests/test_benchmarks.py -v` |
+
+### W-9 SI-10 7-step + extras verification (PV-06 close)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `pytest tests/ -q` | PASS |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS |
+| 4 | `pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.5 → 11.0.6) |
+| 5 | `pytest tests/test_benchmarks.py -v` | PASS (36/36; max drift 0.09pp ≪ 5pp W-4 SI-4) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op per SF-3 opt-in) |
+| 7 | `pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32; A-2.4 frozen prefix preserved) |
+| Extras | `pytest tests/test_dispatch_emission_runs_hooks.py -v` (S-10 byte-id) | PASS (10/10) |
+| Extras | `pytest tests/test_gate.py -v` (CP-4) | PASS (108/108) |
+| Extras | `pytest tests/test_cascade_enforcement.py -v` (cascade strict) | PASS (13/13) |
+| Extras | `pytest tests/test_audit_layer_usage.py -v` (audit ratchet) | PASS (15/15) |
+| Extras | `pytest tests/test_no_ghost_features.py::test_v11_0_6_pv06_new_surfaces_have_coverage -v` (W-18) | PASS |
+
+### Sister PVs (cycle plan §2)
+
+- **PV-05 (predecessor)** — `## [11.0.5]` shipped G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + A-7 rule + dead-API pin cleanup. Composite gate (4-dim decomposition gate proxy) 9.25/10. PR #129 merged.
+- **PV-07 (next, v11.1.0 MINOR rollup)** — consolidation per cycle plan §3 PV-07: canonical 7 sync 11.0.6 → 11.1.0 + W-7 SI-8 retrospective at `.local/research/v11.1.0_retrospective.md` + W-19 cycle archive at `docs/cycle-archive/v11.1.0/` (committed per W-19 contract; idempotent re-runs no-op) + WX-2 demo `versions.json` v11.1.0 entry + bilingual EN/ZH refresh via `make sync-human-docs` + `## [11.1.0]` MINOR-close CHANGELOG section at top + W-9 SI-10 7-step regression sweep + W-18 final ghost-audit refresh `test_v11_1_0_new_symbols_have_coverage`. Forecast: +2-4 NEW test functions; cycle total ~+39-41 NEW (well under +150 cap; ~73% headroom).
+
 ## [11.0.5] - 2026-05-08
 
 **PATCH — v11.1.0 PV-05: G-TEST-1 cascade-compliance tests + G-AUDIT-1 audit ratchet + G-BENCH-1 cascade-vs-collapse EvoBench scenarios + Architecture rule A-7 ("Cascade-Depth Invariant for Standard+ Dispatches") + dead-API pin cleanup.** LAST functional implementation PV of the v11.1.0 cascade-restoration MINOR cycle (PV-06 = NineS self-eval analysis-only; PV-07 = MINOR rollup canonical-7 sync). Predecessor: PV-04 `## [11.0.4]` (G-PLAN-1 + G-PLAN-2 + schema NEST + soft validator). Cycle plan: `.local/research/v11.1.0_cycle_plan.md` §2 PV-05 row + §3 PV-05 cascade decomposition.

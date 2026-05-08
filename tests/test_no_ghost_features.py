@@ -7305,3 +7305,127 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
             f"DEFAULT_ALLOWLIST missing entry {allowlist_entry!r} that "
             "replaces the removed pin tuple per cycle plan §3 PV-05 W03."
         )
+
+
+# v11.0.6 PV-06 — W-18 ghost-audit refresh stanza.
+# G-NINES-1 NineS self-eval + W-3 SI-3 6-dim composite evaluation report.
+# PV-06 is analysis-only — owned files are .local/research/ artifacts
+# (gitignored per repo convention) plus the CHANGELOG entry + canonical 7
+# bump. The W-18 stanza pins the analysis-artifact set with the
+# skip-when-absent pattern so the test PASSES in CI (where .local/ is absent)
+# AND in local dev (where the PV-06 author's artifacts ARE present). This
+# mirrors the SF-3 mirror-parity self-skip pattern and the
+# _W18_RESEARCH_ARCHIVE_CANDIDATES fallback convention used elsewhere in
+# this file.
+_V11_0_6_PV06_NINES_RAW: Path = Path(".local/research/v11.1.0_pv06_nines.json")
+_V11_0_6_PV06_NINES_MD: Path = Path(".local/research/v11.1.0_pv06_nines.md")
+_V11_0_6_PV06_EVALUATION: Path = Path(".local/research/v11.1.0_evaluation.md")
+_V11_0_6_PV06_STAGE_REPORT: Path = Path(".local/research/v11.1.0_pv06_stage_report.md")
+_V11_0_6_PV06_CHANGELOG: Path = Path("CHANGELOG.md")
+
+_V11_0_6_PV06_LOCAL_RESEARCH_FILES: tuple[Path, ...] = (
+    _V11_0_6_PV06_NINES_RAW,
+    _V11_0_6_PV06_NINES_MD,
+    _V11_0_6_PV06_EVALUATION,
+    _V11_0_6_PV06_STAGE_REPORT,
+)
+
+# CHANGELOG body must carry the v11.0.6 PV-06 entry verbatim.
+_V11_0_6_PV06_CHANGELOG_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "## [11.0.6] - 2026-05-08",
+    "G-NINES-1 NineS self-eval",
+    "W-3 SI-3",
+)
+
+
+def test_v11_0_6_pv06_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.0.6 PV-06: G-NINES-1 NineS self-eval + W-3 SI-3 evaluation pinned.
+
+    Discharges the W-18 precondition for the v11.0.6 PV-06 CHANGELOG entry.
+    Per W-18 sequencing the lint refresh MUST land BEFORE the CHANGELOG entry
+    — this stanza closes that precondition for the cycle's MINOR-close
+    convergence verdict PV.
+
+    Surfaces pinned (cycle plan §3 PV-06 + §5 MINOR-close criteria + the
+    L1 PV-06 prompt's owned-files manifest):
+
+    * ``.local/research/v11.1.0_pv06_nines.json`` (raw NineS evaluator
+      output; 25 dimensions = 20 capability + 5 hygiene per NineS v3.3.0).
+    * ``.local/research/v11.1.0_pv06_nines.md`` (rendered NineS analysis
+      with W-2 / SI-2 hybrid-mode dimension-by-dimension scoring + delta
+      vs D2 baseline).
+    * ``.local/research/v11.1.0_evaluation.md`` (W-3 / SI-3 6-dim weighted
+      composite; the cycle's MINOR-close gate verdict report — composite
+      9.02/10, ≥ 8.5 MINOR threshold, +0.52 margin).
+    * ``.local/research/v11.1.0_pv06_stage_report.md`` (L1 → L0 stage
+      report covering the PV-06 wave/task decomposition + W-9 SI-10 7-step
+      verification + GO recommendation for PV-07 MINOR rollup).
+    * ``CHANGELOG.md`` carries the ``## [11.0.6] - 2026-05-08`` PATCH entry
+      mentioning ``G-NINES-1 NineS self-eval`` + ``W-3 SI-3`` per W-18
+      sequencing (this stanza lands BEFORE the CHANGELOG entry per W-18).
+
+    Coupled invariants verified GREEN at PV-06 close (analysis-only PV
+    preserves all PV-05 invariants by construction):
+
+    * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
+    * S-10 hook-chain byte-id: 10/10 PASS unchanged
+    * CP-4 gate suite: 108/108 PASS unchanged
+    * cascade enforcement strict: 13/13 PASS unchanged
+    * audit ratchet: 15/15 PASS unchanged
+    * EvoBench: 36/36 PASS, max scenario drift 0.09pp (well under 5pp
+      W-4 SI-4 envelope)
+    * W-21 Soul-set freeze preserved at 10 entries
+    * W-20 reuse-first preserved at 8 env flags
+
+    Skip-when-absent rationale: the .local/ research artifacts are
+    gitignored per repo convention (CHECK ``.gitignore`` line 49 ``.local/``).
+    In CI / fresh clones the directory does not exist; this stanza skips
+    the .local lints in that environment and validates only the tracked
+    CHANGELOG entry. In local dev (where the PV-06 author wrote the
+    artifacts) ALL 4 .local files MUST exist together (partial sets are
+    a violation — the author cannot ship with NineS JSON but no rendered
+    analysis, etc.). This pattern mirrors the SF-3 mirror-parity self-skip
+    convention.
+    """
+    # CHANGELOG entry — ALWAYS pinned (CHANGELOG.md IS tracked; W-18
+    # precondition that the entry land in this PV's commit).
+    changelog_text = (project_root / _V11_0_6_PV06_CHANGELOG).read_text(encoding="utf-8")
+    for sub in _V11_0_6_PV06_CHANGELOG_POSITIVE_SUBSTRINGS:
+        assert sub in changelog_text, (
+            f"W-18 v11.0.6 PV-06 violation: CHANGELOG.md missing positive "
+            f"substring {sub!r} per cycle plan §3 PV-06 + §5 MINOR-close. "
+            "The W-18 stanza lands BEFORE the CHANGELOG entry per W-18 "
+            "sequencing — if this lint fails the entry must be authored."
+        )
+    # Single-application discipline (PV-03 N-2 mitigation): a section header
+    # ## [11.0.6] appears EXACTLY once in CHANGELOG.md. Use line-anchored
+    # match (mirrors `grep -c '^## \\[11\\.0\\.6\\]'` semantics) so the
+    # in-prose substring mention inside the entry body does not double-count.
+    section_header_count = sum(
+        1 for line in changelog_text.splitlines() if line.startswith("## [11.0.6]")
+    )
+    assert section_header_count == 1, (
+        "W-18 v11.0.6 PV-06 violation: CHANGELOG.md contains "
+        f"{section_header_count} line-anchored '## [11.0.6]' section headers — "
+        "exactly 1 expected (PV-03 N-2 single-application discipline)."
+    )
+
+    # .local/research/ artifacts — skip-when-absent for CI; assert all-or-none
+    # for local dev (the PV-06 author's working tree).
+    present = [p for p in _V11_0_6_PV06_LOCAL_RESEARCH_FILES if (project_root / p).is_file()]
+    if not present:
+        pytest.skip(
+            "W-18 v11.0.6 PV-06: .local/research/ artifacts absent (CI / fresh "
+            "clone — .local/ is gitignored per repo convention at .gitignore:49). "
+            "Local dev dispatches verified the 4-artifact presence at PV-06 close. "
+            "Future PV-07 W-19 archive at docs/cycle-archive/v11.1.0/ will pin a "
+            "tracked copy."
+        )
+    missing = [p for p in _V11_0_6_PV06_LOCAL_RESEARCH_FILES if not (project_root / p).is_file()]
+    assert not missing, (
+        f"W-18 v11.0.6 PV-06 violation: partial .local/research/ artifact set — "
+        f"some present ({[str(p) for p in present]}) but others missing "
+        f"({[str(p) for p in missing]}); the PV-06 author MUST produce ALL 4 "
+        f"artifacts (NineS raw + rendered + W-3 SI-3 evaluation + stage report) "
+        f"per cycle plan §3 PV-06 owned-files manifest."
+    )
