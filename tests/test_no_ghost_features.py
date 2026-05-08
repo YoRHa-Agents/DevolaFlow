@@ -7613,3 +7613,129 @@ def test_v11_1_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"produce BOTH the retrospective (W-7 / SI-8) AND the stage report "
         f"(L1 → L0 handoff) per cycle plan §2 PV-07 owned-files manifest."
     )
+
+
+# v11.1.1 PATCH (D-1 in the v11.1.x stability-patch series; deferral D-5 in
+# the v11.1.0 retrospective §3): CHANGELOG no-duplicate-version-header CI
+# lint. First of 3 staged stability patches (v11.1.1 / v11.1.2 / v11.1.3)
+# closing the cycle-observed risks documented in
+# `docs/cycle-archive/v11.1.0/retrospective.md` §3.
+#
+# The lint detects the PV-03 N-2 class-of-bug at CI time so a future
+# double-application (commit `da1c489` historical reference) fails the
+# standard `pytest tests/ -q` sweep rather than requiring in-PV
+# reconciliation. The L1-per-PV invariant (PV-03 N-2 process-side mitigation;
+# v11.1.0 retrospective §4 L-2) remains the primary enforcement; this CI lint
+# is the secondary belt-and-braces machinery.
+_V11_1_1_LINT_FILE: Path = Path("tests/test_changelog_no_duplicate_versions.py")
+_V11_1_1_CHANGELOG: Path = Path("CHANGELOG.md")
+
+# Required public symbols in the lint module — pinned via AST so refactor
+# of the function body is OK but rename / removal fails fast.
+_V11_1_1_LINT_REQUIRED_SYMBOLS: tuple[str, ...] = (
+    "find_duplicate_version_headers",
+    "test_changelog_has_no_duplicate_version_headers",
+    "test_changelog_lint_detects_synthetic_duplicate",
+    "test_changelog_lint_passes_on_unique_versions",
+)
+
+# CHANGELOG body must carry the v11.1.1 PATCH entry verbatim.
+_V11_1_1_CHANGELOG_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "## [11.1.1] - 2026-05-08",
+    "PATCH",
+    "CHANGELOG double-application",
+)
+
+
+def test_v11_1_1_new_surfaces_have_coverage(project_root: Path) -> None:
+    """W-18 v11.1.1 PATCH: D-1 CHANGELOG no-duplicate-version-header lint.
+
+    Discharges the W-18 precondition for the v11.1.1 PATCH CHANGELOG
+    entry. Per W-18 sequencing the lint refresh MUST land BEFORE the
+    CHANGELOG entry — this stanza closes that precondition.
+
+    Surfaces pinned (v11.1.1 D-1 patch scope; first of 3 staged
+    v11.1.x stability patches):
+
+    * ``tests/test_changelog_no_duplicate_versions.py`` (NEW file)
+      defines the four required public symbols:
+
+      - ``find_duplicate_version_headers`` (helper; reusable by
+        future tooling such as a pre-commit hook).
+      - ``test_changelog_has_no_duplicate_version_headers`` (the
+        main load-bearing lint; reads the actual CHANGELOG.md).
+      - ``test_changelog_lint_detects_synthetic_duplicate``
+        (positive control; feeds a synthetic duplicate to the
+        helper).
+      - ``test_changelog_lint_passes_on_unique_versions``
+        (negative control; feeds a synthetic CHANGELOG with all
+        unique versions to the helper).
+
+    * ``CHANGELOG.md`` carries the ``## [11.1.1] - 2026-05-08``
+      PATCH entry mentioning ``PATCH`` + ``CHANGELOG
+      double-application`` (the v11.1.0 retrospective §3 D-5
+      deferral citation; the dispatcher's D-1 in-series label).
+
+    * ``CHANGELOG.md`` ``## [11.1.1]`` section header appears
+      EXACTLY once (the PV-03 N-2 single-application discipline;
+      this lint runs against the new entry — proving the fix
+      works on the reference CHANGELOG).
+
+    Coupled invariants verified GREEN at PATCH close (no source
+    edits to gate / schema / SKILL):
+
+    * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
+    * S-10 hook-chain byte-id: 10/10 PASS unchanged
+    * CP-4 gate suite: 108/108 PASS unchanged
+    * W-21 Soul-set freeze preserved at 10 entries
+    * W-20 reuse-first preserved at 8 env flags
+
+    Source: ``docs/cycle-archive/v11.1.0/retrospective.md`` §3 D-5
+    (deferral) + §5 P-5 (next-cycle proposal).
+    """
+    lint_path = project_root / _V11_1_1_LINT_FILE
+    assert lint_path.is_file(), (
+        f"W-18 v11.1.1 violation: NEW lint file {_V11_1_1_LINT_FILE} "
+        "missing. The lint MUST land in the same commit as the CHANGELOG "
+        "entry per W-18 sequencing (lint BEFORE entry)."
+    )
+
+    # AST symbol pin — robust against function-body refactor; only fails
+    # on rename / removal of the four contracted public symbols.
+    module = ast.parse(lint_path.read_text(encoding="utf-8"))
+    defined = {
+        node.name
+        for node in module.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    missing = [s for s in _V11_1_1_LINT_REQUIRED_SYMBOLS if s not in defined]
+    assert not missing, (
+        f"W-18 v11.1.1 violation: {_V11_1_1_LINT_FILE} missing required "
+        f"public symbols {missing!r}. Required set: "
+        f"{list(_V11_1_1_LINT_REQUIRED_SYMBOLS)!r}; defined: "
+        f"{sorted(defined)!r}."
+    )
+
+    # CHANGELOG entry — ALWAYS pinned (CHANGELOG.md IS tracked).
+    changelog_text = (project_root / _V11_1_1_CHANGELOG).read_text(encoding="utf-8")
+    for sub in _V11_1_1_CHANGELOG_POSITIVE_SUBSTRINGS:
+        assert sub in changelog_text, (
+            f"W-18 v11.1.1 violation: CHANGELOG.md missing positive "
+            f"substring {sub!r} per v11.1.1 PATCH scope. The W-18 stanza "
+            "lands BEFORE the CHANGELOG entry per W-18 sequencing — if "
+            "this lint fails the entry must be authored."
+        )
+
+    # Single-application discipline (PV-03 N-2 mitigation; the bug we're
+    # fixing — do NOT trip it while writing the fix). Use line-anchored
+    # match (mirrors `grep -c '^## \\[11\\.1\\.1\\]'` semantics).
+    section_header_count = sum(
+        1 for line in changelog_text.splitlines() if line.startswith("## [11.1.1]")
+    )
+    assert section_header_count == 1, (
+        "W-18 v11.1.1 violation: CHANGELOG.md contains "
+        f"{section_header_count} line-anchored '## [11.1.1]' section "
+        "headers — exactly 1 expected (PV-03 N-2 single-application "
+        "discipline; the v11.1.1 D-1 patch is THIS class-of-bug fix, "
+        "do not trip it while writing the fix)."
+    )

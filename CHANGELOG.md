@@ -5,6 +5,79 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.1] - 2026-05-08
+
+**PATCH — D-1: CHANGELOG double-application CI lint.** First of 3 staged stability patches for the v11.1.x line (post-v11.1.0 cascade-restoration cycle close). Closes the v11.1.0 cycle's PV-03 N-2 class-of-bug observed during the cycle (commit `da1c489` double-applied the `## [11.0.3]` entry; reconciled in-PV by `f7f1f93`). Source: `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-5 (deferral) + §5 P-5 (next-cycle proposal). The dispatcher labels this `D-1` as the first of the v11.1.x stability-patch series; the retrospective labels it `D-5` in the cycle's deferral inventory.
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: 1 NEW lint test file. Zero behaviour change.** The L1-per-PV invariant (PV-03 N-2 process-side mitigation; v11.1.0 retrospective §4 L-2) remains the primary enforcement; this CI lint is the secondary belt-and-braces machinery.
+
+- **D-1 CHANGELOG no-duplicate-version-header lint** — `tests/test_changelog_no_duplicate_versions.py` (NEW; 3 test functions + 1 helper) detects duplicate `## [X.Y.Z]` headers in CHANGELOG.md at CI time. The lint runs as part of the standard `pytest tests/ -q` sweep (W-9 SI-10 step 1); a future double-application bug fails CI immediately rather than requiring in-PV reconciliation.
+- Helper function `find_duplicate_version_headers(text) -> list[tuple[str, list[int]]]` reusable by other tooling (e.g., a future pre-commit hook).
+- Pattern is permissive on the bracketed token (`r"^## \[([^\]]+)\]"`) so historical or future pre-release tags like `[11.0.0-rc1]` flow through without false negatives.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_1_1_new_surfaces_have_coverage` (AST symbol pin — robust against function-body refactor; rename / removal fails fast):
+
+- `tests/test_changelog_no_duplicate_versions.py::find_duplicate_version_headers` (helper)
+- `tests/test_changelog_no_duplicate_versions.py::test_changelog_has_no_duplicate_version_headers` (the main load-bearing lint)
+- `tests/test_changelog_no_duplicate_versions.py::test_changelog_lint_detects_synthetic_duplicate` (positive control)
+- `tests/test_changelog_no_duplicate_versions.py::test_changelog_lint_passes_on_unique_versions` (negative control)
+
+### Headline numbers
+
+| Area | v11.1.0 | v11.1.1 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | 4302 | ~4306 | +4 (3 NEW lint + 1 W-18 stanza) | `pytest --collect-only -q` |
+| Coverage | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.1.0 | **11.1.1** | +1 PATCH | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (no schema edits) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (no schema edits) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (no dispatch edits) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (no gate edits) | `tests/test_gate.py` |
+
+### W-9 SI-10 7-step + extras verification (PATCH-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | PASS |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.1.0 → 11.1.1) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (no benchmark edits) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op exit 0 per SF-3 opt-in) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | PASS (10/10) |
+| Extras | `python -m pytest tests/test_gate.py -v` | PASS (108/108) |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | PASS (3/3 — the NEW D-1 lint; runs against this very CHANGELOG) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py::test_v11_1_1_new_surfaces_have_coverage -v` | PASS (W-18 stanza for this PATCH) |
+
+### Self-application
+
+The new D-1 lint runs against this very CHANGELOG entry as part of the W-9 SI-10 step 1 sweep. The `## [11.1.1]` header appears exactly once — proving the fix works on the reference CHANGELOG. The W-18 stanza independently asserts the line-anchored single-application count via `splitlines() + line.startswith("## [11.1.1]")`.
+
+### Sister patches (telegraph)
+
+- **v11.1.2** (next): D-2 — `audit_layer_usage.py` regex broadening to match v11.x markdown-bold convention `**Dispatch type:** Wave` (v11.1.0 retrospective §3 D-4; cycle plan §6 stability dependency #2).
+- **v11.1.3**: D-3 — tiktoken determinism documentation (the third v11.1.x cycle-observed risk; scope to be finalized at v11.1.2 close).
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. No new Soul rules proposed.
+* **W-20**: NO new `DEVOLAFLOW_*` env flags introduced. Env flag count stays at **8**. The lint is a CI-time test (no runtime surface); no env-flag gate required.
+
+### Cross-references
+
+* `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-5 (deferral rationale) + §5 P-5 (next-cycle proposal)
+* `docs/cycle-archive/v11.1.0/retrospective.md` §4 L-2 (L1-per-PV invariant — primary process-side mitigation)
+* PV-03 historical context: commits `da1c489` (double-application) + `f7f1f93` (in-PV reconciliation; -68 lines)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`
+
 ## [11.1.0] - 2026-05-08
 
 **MINOR — v11.1.0 cascade-restoration cycle close.** The MINOR rollup of the v11.1.0 cascade-restoration cycle initiated by user feedback at `.local/feedbacks/feedback_for_v11.0.0.md` (verbatim per CO-2 — quoted, not translated): *"我认为还是需要保持四个层级的依次派发 Sub-Agent 行为...不能由 L0 直接调动 L3"*. Five impl PVs (v11.0.2 → v11.0.3 → v11.0.4 → v11.0.5 → v11.0.6) merged across PR #126..#130. **W-3 SI-3 6-dim authoritative composite 9.02 / 10** (PASS by **+0.52 margin** over MINOR threshold ≥ 8.5; cumulative lift **+2.17 vs D2 baseline 6.85** = **132% of cycle plan §1 forecast +1.65**). 0 BLOCKER + 0 CRITICAL + 0 MAJOR findings; W-8 SI-9 reinforcement decision: **NO REINFORCEMENT** (round-1 NineS self-eval cleared the gate cleanly; the user's "自我迭代多轮" directive satisfied without round 2). v12.0.0 MAJOR threshold ≥ 9.0 cleared by **+0.02 margin** (FORECAST-INDICATIVE per cycle plan §6 — NOT a v11.1.0 graduation commitment).
