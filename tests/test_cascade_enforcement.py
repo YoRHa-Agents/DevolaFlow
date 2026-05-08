@@ -1,53 +1,67 @@
-"""Cascade-enforcement minimal stub for v11.0.2 PV-02 (S01.W02 T02).
+"""Cascade-enforcement test suite — v11.0.5 PV-05 full surface (S01.W01 T01).
 
-This file is the **minimal stub** authored by L3 T02_dispatcher_integration_tests
-under v11.1.0 cycle plan §3 PV-02 lines 192-196. It pins the propagation
-CONTRACT for the new ``cascade_requirement(complexity)`` pure function
-(landed at ``c4ea92e`` in :mod:`devolaflow.skills.change_activation`)
-without mutating the dispatch schema in any way.
+This file is the **full ≥ 10-test surface** mandated by v11.1.0 cycle
+plan §3 PV-05 row L2 W01 T01_cascade_enforcement_tests
+(lines 316-322). It pins the end-to-end cascade contract that the
+v11.1.0 cascade-restoration cycle delivers across PV-02..PV-05:
 
-PV-02 scope discipline:
+* **PV-02** — ``cascade_requirement(complexity)`` pure function
+  (G-CLASSIFY-1 Candidate C, landed in
+  :mod:`devolaflow.skills.change_activation`).
+* **PV-04** — schema NEST + populate helper + soft validator:
+   * ``schemas/lean-dispatch.yaml`` adds the
+     ``gate.cascade_required: bool`` and ``gate.cascade_min_layers: int``
+     OPTIONAL sub-fields under the existing ``gate`` block (A-2.3
+     NEST decision; canonical_order length stays 17, schema version
+     stays 6).
+   * :func:`devolaflow.feedback.populate_cascade_gate_fields` —
+     opt-in dispatch-payload populator (deep-copy + conditional
+     write under STANDARD/COMPLEX).
+   * :func:`devolaflow.gate.scorer.validate_cascade_gate_fields` —
+     SOFT validator returning a list of warning strings (no
+     exceptions); promotion to STRICT lands with Architecture rule
+     A-7 in this PV (PV-05).
+* **PV-05** — strict-mode promotion + this test surface. The strict
+  enforcement is CONDITIONED on ``cascade_requirement(complexity)``
+  per the L1 PV-05 prompt's R-1 mitigation: SIMPLE/TRIVIAL legacy
+  dispatches with no L1/L2 trace MUST pass byte-identically (Branch
+  3 below).
 
-* **ZERO schema edits.** The ``gate.cascade_required`` NEST sub-field
-  lands at PV-04 per the cycle plan §3 PV-04 row (T01_schema_nest)
-  AND per ``.local/research/v11.1.0_pv02_decision.md`` §3 R-3
-  ("cache-layout drift": PV-02 stub exercises the propagation contract
-  via dispatch-payload assertions only — no schema-shape mutations).
-* **A-2.1 frozen-prefix protection.** The 12-key frozen prefix
-  (positions 1-12 of ``layout_invariant.canonical_order``, ending at
-  ``gate``) is a release blocker if disturbed; this stub treats
-  ``gate``'s position 12 as immutable AND telegraphs the PV-04 NEST
-  decision via a synthetic-dict assertion that nests ``cascade_required``
-  UNDER ``gate`` (NOT as a new top-level key).
-* **A-2.3 NEST-not-APPEND validation in test form.** Test #2 below
-  constructs a synthetic dispatch payload locally (a plain ``dict``
-  with no schema mutation) where the cascade signal nests under the
-  EXISTING ``gate`` block — the same shape PV-04's schema NEST will
-  formalise.
-* **A-2.4 multi-baseline byte test sentinel.** Test #3 dynamically
-  reads ``canonical_order`` from ``schemas/lean-dispatch.yaml`` and
-  cross-anchors its length against ``DEFAULT_DISPATCH_LAYOUT`` so a
-  schema edit by THIS PV (against the spec) would fail this stub
-  before tripping the 32-case multi-baseline byte test.
+The 13 tests below are organised by branch with comment dividers so
+the W-18 ghost-audit refresh and the cycle plan's per-PV trail stay
+unambiguous:
 
-The full ≥10-test surface (per cycle plan §3 PV-05) lands at PV-05
-once the PV-04 schema NEST has cleared. This stub is intentionally
-scoped to the propagation CONTRACT (4 active assertions + 1 deferred
-telegraph), well under the W-17 +30-NEW-test-function-per-PV cap.
+* **Branch 1** (4 tests) — PV-02 stub kept verbatim (no regression).
+* **Branch 2** (1 test) — REPLACES the PV-02 SKIP telegraph with a
+  real propagation test through the PV-04 ``populate_cascade_gate_fields``
+  helper.
+* **Branch 3** (4 tests) — backward-compat (R-1 mitigation, CRITICAL):
+  legacy v11.0.x dispatches without the new sub-fields pass through
+  cleanly; SIMPLE/TRIVIAL skip cascade validation end-to-end.
+* **Branch 4** (3 tests) — strict-mode validator behaviour: the
+  PV-04 SOFT validator surfaces "cascade depth violation" warnings
+  WITHOUT raising; A-7 strict promotion preserves the same return-
+  list contract for the soft-mode alternative.
+* **Branch 5** (1 test) — full populate→validate pipeline propagation
+  across the four-tier complexity truth table.
 
-Source: ``.local/research/v11.1.0_pv02_decision.md`` §3 R-3;
-``.local/research/v11.1.0_cycle_plan.md`` §3 PV-02 lines 192-196.
+Source: ``.local/research/v11.1.0_cycle_plan.md`` §3 PV-05 row L2 W01
+T01_cascade_enforcement_tests (lines 316-322); §3 PV-04 row for the
+schema NEST + helper landings; ``.local/research/v11.1.0_gap_analysis.md``
+§G-TEST-1 (lines 313-362) for the branch coverage rationale.
 """
 
 from __future__ import annotations
 
+import copy
 import inspect
 from pathlib import Path
 
-import pytest
 import yaml
 
 from devolaflow.compressor import DEFAULT_DISPATCH_LAYOUT, FROZEN_PREFIX_LENGTH
+from devolaflow.feedback import populate_cascade_gate_fields
+from devolaflow.gate.scorer import validate_cascade_gate_fields
 from devolaflow.skills.change_activation import (
     Complexity,
     activation_verdict,
@@ -65,6 +79,14 @@ _CASCADE_TRUTH_TABLE: dict[Complexity, str] = {
     "STANDARD": "CASCADE_REQUIRED",
     "COMPLEX": "CASCADE_REQUIRED",
 }
+
+
+# ── Branch 1 — PV-02 stub kept verbatim (no regression) ────────────────
+# These four tests landed at v11.0.2 PV-02 and pin the cascade-signal
+# pure-function contract + the A-2.1 frozen-prefix invariant + the
+# orthogonality of cascade vs. activation_verdict.force_no_change. Their
+# bodies MUST stay byte-identical to the PV-02 versions per the L1 PV-05
+# prompt's "no regression" clause.
 
 
 def test_cascade_requirement_is_cascade_signal_source() -> None:
@@ -224,9 +246,348 @@ def test_cascade_signal_orthogonal_to_force_no_change() -> None:
     assert cascade_requirement("TRIVIAL") == "CASCADE_OPTIONAL"
 
 
-def test_cascade_signal_propagation_pv04_telegraph() -> None:
-    """Telegraph: full propagation surface lands at PV-04 schema NEST."""
-    pytest.skip(
-        "PV-04 schema NEST lands gate.cascade_required; full propagation "
-        "surface tested then per cycle plan §3 PV-04"
+# ── Branch 2 — REPLACES the PV-02 SKIP telegraph (PV-04 helper landed) ─
+# The PV-02 stub deferred the full propagation test to PV-04 via
+# ``pytest.skip``. PV-04 has now shipped both the schema NEST AND the
+# ``populate_cascade_gate_fields`` opt-in helper (lines 519-572 of
+# ``src/devolaflow/feedback.py``); this PV-05 test promotes the SKIP into
+# a real PASS that exercises the helper directly.
+
+
+def test_cascade_signal_propagation_through_populate_helper() -> None:
+    """STANDARD complexity → ``populate_cascade_gate_fields`` writes both NEST sub-fields.
+
+    Pins the v11.0.4 PV-04 contract: the opt-in populate helper
+    (:func:`devolaflow.feedback.populate_cascade_gate_fields`) deep-copies
+    the base dispatch and adds ``gate.cascade_required = True`` +
+    ``gate.cascade_min_layers = 4`` when complexity is STANDARD/COMPLEX.
+    For SIMPLE the helper short-circuits per the canonical absence-as-
+    default A-2.3 contract — the returned dispatch's ``gate`` block is
+    BYTE-IDENTICAL to a deepcopy of the input (NO ``cascade_required``
+    key surfaces).
+
+    Replaces the PV-02 ``test_cascade_signal_propagation_pv04_telegraph``
+    SKIP per cycle plan §3 PV-05 row L2 W01 T01_cascade_enforcement_tests
+    (lines 316-322).
+    """
+    base = {"gate": {"coverage": 85}}
+
+    # STANDARD path — both NEST sub-fields populated under existing gate.
+    standard_result = populate_cascade_gate_fields(base_dispatch=base, complexity="STANDARD")
+    assert standard_result["gate"]["cascade_required"] is True, (
+        "populate_cascade_gate_fields(complexity='STANDARD') did NOT set "
+        "gate.cascade_required = True per feedback.py:570"
+    )
+    assert standard_result["gate"]["cascade_min_layers"] == 4, (
+        "populate_cascade_gate_fields(complexity='STANDARD') did NOT set "
+        "gate.cascade_min_layers = 4 per feedback.py:571"
+    )
+    # Pre-existing gate sub-fields preserved (deep copy + sub-field add).
+    assert standard_result["gate"]["coverage"] == 85, (
+        "populate_cascade_gate_fields lost the pre-existing gate.coverage "
+        "key — deep-copy contract broken"
+    )
+    # Deep-copy contract: input MUST NOT be mutated (S-5 / A-2.3 + the
+    # docstring's explicit "never mutated" promise on line 543).
+    assert base == {"gate": {"coverage": 85}}, (
+        "populate_cascade_gate_fields mutated base_dispatch — deep-copy "
+        "contract broken per feedback.py:543"
+    )
+    assert standard_result is not base, (
+        "populate_cascade_gate_fields returned the same object as base_dispatch "
+        "— deep-copy contract broken"
+    )
+
+    # SIMPLE path — canonical absence-as-default (A-2.3); no NEST sub-fields.
+    simple_result = populate_cascade_gate_fields(base_dispatch=base, complexity="SIMPLE")
+    assert "cascade_required" not in simple_result["gate"], (
+        "populate_cascade_gate_fields(complexity='SIMPLE') leaked "
+        "gate.cascade_required — canonical absence-as-default per A-2.3 broken"
+    )
+    assert "cascade_min_layers" not in simple_result["gate"], (
+        "populate_cascade_gate_fields(complexity='SIMPLE') leaked "
+        "gate.cascade_min_layers — canonical absence-as-default per A-2.3 broken"
+    )
+    # SIMPLE path returns deepcopy of base (no NEST sub-fields). Must be
+    # equal-by-value to the input AND must not be the same object.
+    assert simple_result == base, (
+        "populate_cascade_gate_fields(complexity='SIMPLE') returned a dispatch "
+        "differing from a deepcopy of base — A-2.3 absence-as-default contract "
+        "broken (R-1 mitigation: legacy SIMPLE dispatches must pass byte-identically)"
+    )
+    assert simple_result is not base, (
+        "populate_cascade_gate_fields(complexity='SIMPLE') returned the same object "
+        "as base_dispatch — deep-copy contract broken even on the OPTIONAL path"
+    )
+
+
+# ── Branch 3 — Backward-compat (R-1 mitigation, CRITICAL) ──────────────
+# The L1 PV-05 prompt's R-1 mitigation requires that strict A-7
+# enforcement be conditioned on ``cascade_requirement(complexity)``.
+# Legacy v11.0.x dispatches without the new sub-fields, AND
+# SIMPLE/TRIVIAL dispatches that intentionally omit the cascade signal,
+# MUST pass byte-identically through the validator (no warnings) and
+# MUST NOT have the sub-fields synthesised by the populate helper.
+# These four tests pin the R-1 contract end-to-end.
+
+
+def test_legacy_dispatch_without_cascade_fields_passes_byte_identically() -> None:
+    """Legacy v11.0.x gate block (no cascade_* keys) → validator returns ``[]``.
+
+    Per the L1 PV-05 prompt R-1 mitigation: a v11.0.x dispatch authored
+    BEFORE the PV-04 schema NEST landed has no ``cascade_required`` key
+    in its ``gate`` block. The :func:`validate_cascade_gate_fields`
+    soft validator MUST return an empty list for such dispatches —
+    legacy callers see byte-identical behaviour, no warnings surface,
+    and the dispatch flows through cleanly.
+
+    This is the precondition for A-7 STRICT promotion: strict mode
+    inherits the same short-circuit per the validator's
+    ``if not cascade_required: return warnings`` guard
+    (``src/devolaflow/gate/scorer.py`` lines 179-181).
+    """
+    legacy_gate = {"coverage": 85, "quality": 80}
+
+    warnings = validate_cascade_gate_fields(legacy_gate)
+
+    assert warnings == [], (
+        f"validate_cascade_gate_fields surfaced warnings on a legacy v11.0.x "
+        f"gate block (no cascade_required key); got {warnings!r}, expected []. "
+        "R-1 mitigation broken: legacy dispatches MUST pass byte-identically "
+        "per the L1 PV-05 prompt."
+    )
+
+
+def test_legacy_dispatch_with_cascade_required_false_passes() -> None:
+    """``gate.cascade_required = False`` → validator short-circuits.
+
+    The PV-04 soft validator's ``if not cascade_required: return warnings``
+    guard (``src/devolaflow/gate/scorer.py`` line 180) treats an explicit
+    ``False`` value identically to absence — both are falsy and trigger
+    the short-circuit return. This pins the R-1 mitigation for the
+    intermediate state where a dispatch carries the schema NEST sub-field
+    but with the default-OFF value.
+    """
+    legacy_gate = {"cascade_required": False}
+
+    warnings = validate_cascade_gate_fields(legacy_gate)
+
+    assert warnings == [], (
+        f"validate_cascade_gate_fields surfaced warnings on cascade_required=False; "
+        f"got {warnings!r}, expected []. The soft validator MUST short-circuit on "
+        "any falsy cascade_required per scorer.py:180."
+    )
+
+
+def test_simple_complexity_skips_cascade_validation() -> None:
+    """SIMPLE complexity → populate helper omits cascade sub-fields end-to-end.
+
+    Confirms the R-1 mitigation skip path on the populate side: invoking
+    :func:`populate_cascade_gate_fields` with ``complexity="SIMPLE"``
+    short-circuits via the ``cascade_requirement(complexity) ==
+    "CASCADE_OPTIONAL"`` guard (``src/devolaflow/feedback.py`` line 564),
+    returning a deepcopy of the base dispatch with NO ``cascade_required``
+    key under ``gate``. Equivalent to the SKIP path described in the L1
+    PV-05 prompt — the cascade-strict enforcement never activates because
+    the signal is canonically absent.
+    """
+    base = {"gate": {"coverage": 85}}
+
+    result = populate_cascade_gate_fields(base_dispatch=base, complexity="SIMPLE")
+
+    assert "cascade_required" not in result["gate"], (
+        f"populate_cascade_gate_fields(complexity='SIMPLE') unexpectedly added "
+        f"cascade_required to gate; got gate={result['gate']!r}. "
+        "R-1 mitigation broken: SIMPLE complexity must take the OPTIONAL path "
+        "per feedback.py:564."
+    )
+    assert "cascade_min_layers" not in result["gate"], (
+        f"populate_cascade_gate_fields(complexity='SIMPLE') unexpectedly added "
+        f"cascade_min_layers to gate; got gate={result['gate']!r}."
+    )
+
+
+def test_trivial_complexity_skips_cascade_validation() -> None:
+    """TRIVIAL complexity → populate helper omits cascade sub-fields end-to-end.
+
+    Mirror of the SIMPLE test above for the TRIVIAL tier. Both
+    OPTIONAL-tier complexities take the same short-circuit path through
+    the ``cascade_requirement(complexity) == "CASCADE_OPTIONAL"`` guard;
+    splitting the test functions per tier (rather than parametrizing)
+    keeps the W-17 NEW-test-function trail unambiguous and lets a future
+    failure point at the EXACT tier that regressed.
+    """
+    base = {"gate": {"coverage": 85}}
+
+    result = populate_cascade_gate_fields(base_dispatch=base, complexity="TRIVIAL")
+
+    assert "cascade_required" not in result["gate"], (
+        f"populate_cascade_gate_fields(complexity='TRIVIAL') unexpectedly added "
+        f"cascade_required to gate; got gate={result['gate']!r}. "
+        "R-1 mitigation broken: TRIVIAL complexity must take the OPTIONAL path "
+        "per feedback.py:564."
+    )
+    assert "cascade_min_layers" not in result["gate"], (
+        f"populate_cascade_gate_fields(complexity='TRIVIAL') unexpectedly added "
+        f"cascade_min_layers to gate; got gate={result['gate']!r}."
+    )
+
+
+# ── Branch 4 — Strict-mode validator behaviour (PV-05 A-7 contract) ────
+# The PV-04 :func:`validate_cascade_gate_fields` is SOFT — it RETURNS a
+# list of warning strings, never raises. PV-05's Architecture rule A-7
+# promotes strict enforcement, but per the R-1 mitigation the soft-mode
+# return-list contract is preserved as the alternative path that callers
+# may still invoke (for dispatch-time inspection without aborting). These
+# three tests pin the soft-mode contract that A-7 must respect.
+
+
+def test_strict_validator_warns_when_actual_layers_below_min() -> None:
+    """``actual_layers < cascade_min_layers`` → cascade-depth violation warning.
+
+    Pins the warning shape that A-7 strict enforcement consumes: when
+    ``cascade_required is True`` AND the observed ``actual_layers`` falls
+    below the ``cascade_min_layers`` threshold, the validator surfaces a
+    warning containing the substring ``"cascade depth violation"``
+    (verbatim from ``src/devolaflow/gate/scorer.py`` line 209). The
+    substring is the operator-quotable identifier A-7's strict promotion
+    will pattern-match on.
+    """
+    gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+
+    warnings = validate_cascade_gate_fields(gate_block, actual_layers=2)
+
+    assert warnings, (
+        "validate_cascade_gate_fields returned no warnings for "
+        "actual_layers=2 < cascade_min_layers=4 — soft-check contract broken "
+        "per scorer.py:208-214."
+    )
+    assert any("cascade depth violation" in w for w in warnings), (
+        f"warnings={warnings!r} missing the operator-quotable substring "
+        "'cascade depth violation' that scorer.py:209 emits and that A-7 strict "
+        "promotion will pattern-match on."
+    )
+
+
+def test_soft_mode_warns_instead_of_raising() -> None:
+    """SOFT mode RETURNS a list — never raises an exception.
+
+    Pins the v11.0.4 PV-04 SOFT-mode contract that the L1 PV-05 prompt
+    cites verbatim: ``validate_cascade_gate_fields`` returns warnings
+    (a ``list``) rather than raising on a cascade-depth violation. This
+    is the soft-mode alternative A-7 strict promotion preserves —
+    callers that opt into the soft check can still inspect violations
+    without aborting the gate flow.
+
+    Rationale: the L1 PV-05 R-1 mitigation requires that strict
+    enforcement be conditioned on ``cascade_requirement(complexity)``;
+    the soft-mode return-list contract is the universal fallback that
+    works regardless of complexity tier.
+    """
+    gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+
+    result = validate_cascade_gate_fields(gate_block, actual_layers=2)
+
+    assert isinstance(result, list), (
+        f"validate_cascade_gate_fields returned {type(result).__name__}, "
+        "expected list — SOFT-mode contract broken per scorer.py:174 "
+        "('warnings: list[str] = []' return shape)."
+    )
+
+
+def test_strict_validator_passes_when_actual_layers_meets_min() -> None:
+    """``actual_layers == cascade_min_layers`` → no warnings (boundary PASS).
+
+    Pins the boundary case that A-7 strict enforcement also passes:
+    when the observed layer depth EXACTLY meets the minimum threshold,
+    the validator's strict comparison ``actual_layers <
+    cascade_min_layers`` (scorer.py:206) evaluates False, no warning
+    appears, and the dispatch flows through cleanly. Confirms the
+    inclusive-min semantics A-7 will inherit.
+    """
+    gate_block = {"cascade_required": True, "cascade_min_layers": 4}
+
+    warnings = validate_cascade_gate_fields(gate_block, actual_layers=4)
+
+    assert warnings == [], (
+        f"validate_cascade_gate_fields surfaced warnings at the boundary "
+        f"actual_layers=4 == cascade_min_layers=4; got {warnings!r}, expected []. "
+        "Inclusive-min semantics broken per scorer.py:206 "
+        "('< cascade_min_layers' is exclusive of the boundary)."
+    )
+
+
+# ── Branch 5 — Cascade-requirement truth-table propagation pipeline ────
+# The single end-to-end test below exercises the full populate→validate
+# pipeline across all four complexity tiers in one truth-table sweep.
+# This pins the composite contract: STANDARD/COMPLEX populate the NEST
+# sub-fields AND the soft validator returns no warnings when actual_layers
+# meets the populated min; SIMPLE/TRIVIAL skip the populate AND the soft
+# validator short-circuits cleanly because no cascade_required is present.
+
+
+def test_cascade_requirement_propagates_through_populate_then_validate() -> None:
+    """Full populate→validate pipeline propagation across all 4 complexity tiers.
+
+    Sweeps the four-tier complexity truth table through the full PV-04
+    payload pipeline:
+
+    1. Build the dispatch via
+       :func:`devolaflow.feedback.populate_cascade_gate_fields`.
+    2. Soft-validate via
+       :func:`devolaflow.gate.scorer.validate_cascade_gate_fields` with
+       ``actual_layers=4`` (matches the populated default
+       ``cascade_min_layers=4`` for STANDARD/COMPLEX, exceeds the absent
+       sub-field default for SIMPLE/TRIVIAL).
+    3. Assert SIMPLE/TRIVIAL gate blocks have NO ``cascade_required`` key
+       (skip path verified end-to-end — R-1 mitigation).
+
+    Pins the composite contract that the v11.0.5 PV-05 audit ratchet
+    will key on: the populate→validate pipeline is byte-stable across
+    every complexity tier, and the validator surfaces ZERO warnings
+    when the observed layer depth meets the populated minimum (or when
+    no minimum was populated because complexity was OPTIONAL).
+    """
+    base: dict = {"gate": {"coverage": 85}}
+    base_snapshot = copy.deepcopy(base)
+
+    for complexity in ("STANDARD", "COMPLEX", "SIMPLE", "TRIVIAL"):
+        dispatch = populate_cascade_gate_fields(base_dispatch=base, complexity=complexity)
+
+        warnings = validate_cascade_gate_fields(dispatch.get("gate"), actual_layers=4)
+        assert warnings == [], (
+            f"complexity={complexity!r}: validate_cascade_gate_fields surfaced "
+            f"warnings={warnings!r} for actual_layers=4. Either the populate helper "
+            "wrote a min above 4 (PV-04 contract violation — feedback.py:571 hard-codes "
+            "4) OR the soft validator short-circuit broke (scorer.py:180)."
+        )
+
+        if complexity in ("SIMPLE", "TRIVIAL"):
+            assert "cascade_required" not in dispatch["gate"], (
+                f"complexity={complexity!r}: populate_cascade_gate_fields leaked "
+                f"cascade_required into gate; got gate={dispatch['gate']!r}. "
+                "R-1 mitigation skip-path broken end-to-end."
+            )
+            assert "cascade_min_layers" not in dispatch["gate"], (
+                f"complexity={complexity!r}: populate_cascade_gate_fields leaked "
+                f"cascade_min_layers into gate; got gate={dispatch['gate']!r}."
+            )
+        else:
+            assert dispatch["gate"]["cascade_required"] is True, (
+                f"complexity={complexity!r}: populate_cascade_gate_fields did NOT "
+                "set gate.cascade_required = True per feedback.py:570."
+            )
+            assert dispatch["gate"]["cascade_min_layers"] == 4, (
+                f"complexity={complexity!r}: populate_cascade_gate_fields did NOT "
+                "set gate.cascade_min_layers = 4 per feedback.py:571."
+            )
+
+    # Cross-iteration deep-copy guard: the base dispatch survived all
+    # four populate calls byte-identically. If any iteration mutated
+    # *base*, this assertion fires (the docstring promise on
+    # feedback.py:543 — "never mutated" — is the contract).
+    assert base == base_snapshot, (
+        f"base_dispatch mutated across the 4-tier sweep; got {base!r}, "
+        f"expected {base_snapshot!r}. Deep-copy contract broken per "
+        "feedback.py:543."
     )

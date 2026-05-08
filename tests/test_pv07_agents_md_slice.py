@@ -377,7 +377,12 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     arch_rules = [rid for rid, _ in layers[1][2]]
     # v9.1.2 PV-02 (Architecture rule A-6 "Workspace Engagement Auto-Activation"
     # per `.rules/architecture.mdc` §A-6) bumped Architecture from 5 → 6 rules.
-    assert arch_rules == [f"A-{i}" for i in range(1, 7)], (
+    # v11.0.5 PV-05 (Architecture rule A-7 "Cascade-Depth Invariant for Standard+
+    # Dispatches" per `.rules/architecture.mdc` §A-7) bumped Architecture from
+    # 6 → 7 rules. W-21 Soul-set freeze preserved at 10 entries; A-7 lands at
+    # Architecture per ADR-007 §"Soul-vs-Architecture" decision-rule on
+    # conditional + implementation-coupled invariants.
+    assert arch_rules == [f"A-{i}" for i in range(1, 8)], (
         f"Architecture rule IDs drift: {arch_rules}"
     )
 

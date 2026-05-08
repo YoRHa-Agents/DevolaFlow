@@ -572,16 +572,20 @@ def populate_cascade_gate_fields(
     return dispatch
 
 
-# v11.1.0 PV-04 — ``populate_cascade_gate_fields`` is the OPT-IN dispatch-payload
-# populator added under W02 (G-PLAN-1 + W01 schema NEST). Until PV-05 wires it
-# into the L0/L1/L2 dispatcher build path (alongside the new A-7 strict
-# validator), the helper has no in-repo production caller. The dead-API
-# detector (``scripts/detect_dead_apis.py``) needs an explicit pin tuple so
-# the helper does not register as a v6.0.3-style dead-wire bug — same pattern
-# as the ``_cascade_requirement_dead_api_pins`` block in
-# ``src/devolaflow/skills/change_activation.py`` (v11.1.0 PV-02). Source:
-# cycle plan §3 PV-04 W02.
-_populate_cascade_gate_fields_dead_api_pins = (populate_cascade_gate_fields,)
+# v11.1.0 PV-05 — Architecture rule A-7 ("Cascade-Depth Invariant for
+# Standard+ Dispatches") establishes ``populate_cascade_gate_fields`` as
+# the canonical OPT-IN dispatch-payload populator for the cascade NEST
+# sub-fields. The v11.1.0 PV-04 placeholder pin tuple
+# ``_populate_cascade_gate_fields_dead_api_pins`` was REMOVED in v11.0.5
+# PV-05 per cycle plan §3 PV-05 W03 ("dead-API pin cleanup now that A-7
+# wires the symbols"); the dead-API detector tracks this helper via the
+# explicit allowlist entry
+# ``"devolaflow.feedback:populate_cascade_gate_fields"`` in
+# ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` (with the v12.0.0
+# STRICT-promotion deferral comment per cycle plan §6). The full
+# production wiring lands at v12.0.0 STRICT promotion alongside
+# ``validate_cascade_gate_fields`` per W-21 2-cycle deliberation cadence.
+# Source: ``.rules/architecture.mdc`` §A-7 + cycle plan §6.
 
 
 # ---------------------------------------------------------------------------

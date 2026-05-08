@@ -42,14 +42,24 @@ Public API:
 * :func:`scan_cycle_docs(repo_root, cycle_glob)` -> list[Path]
 * :func:`extract_layer_signals(text)` -> dict[str, int]
 * :func:`compute_layer_ratios(per_doc)` -> dict[str, float]
+  (v11.1.0 PV-05: now includes ``cascade_ratio`` =
+  ``(total_stage + total_wave) / total_dispatch`` — the
+  fraction of dispatch lines that hit L1 Stage or L2 Wave;
+  cascade-compliance signal for the v11.1.0 audit ratchet).
 * :func:`render_markdown_report(per_doc, ratios)` -> str
-* :func:`run(repo_root, *, cycle_glob, json_out)` -> int
+* :func:`run(repo_root, *, cycle_glob, json_out, strict, threshold)` -> int
+  (v11.1.0 PV-05: ``strict=True`` AND ``cascade_ratio < threshold``
+  AND ``total_dispatch > 0`` → returns 1 instead of 0; otherwise
+  returns 0 — default-OFF preserves byte-identical v11.0.x behaviour.)
 
 Entry point: ``python scripts/audit_layer_usage.py [--repo-root .]
-[--cycle-glob 'v10.*'] [--json] [--verbose] [--output PATH]``
+[--cycle-glob 'v10.*'] [--json] [--verbose] [--output PATH]
+[--strict] [--threshold 0.30]``
 
 Source: v10.5.0 PV-01 — codified per
 `.local/research/v11.0.0_patches/D-A-1.md` §2.
+v11.1.0 PV-05 ratchet: see
+`.local/research/v11.1.0_gap_analysis.md` §G-AUDIT-1.
 """
 
 from __future__ import annotations
@@ -175,6 +185,11 @@ def compute_layer_ratios(per_doc: dict[str, dict[str, int]]) -> dict[str, float]
         bind to ``Task`` (signals dispatching directly to L3).
       * ``collapse_ratio`` — collapses per total dispatch lines
         (collapse evidence ratio).
+      * ``cascade_ratio`` — v11.1.0 PV-05 cascade-compliance signal:
+        fraction of dispatch lines that hit L1 Stage OR L2 Wave,
+        i.e. ``(total_stage + total_wave) / total_dispatch``. When
+        ``total_dispatch == 0``, returns ``0.0`` (matches the other
+        ratios' empty-input handling).
       * ``total_dispatch_lines`` — denominator (total
         ``Dispatch type:`` lines across all docs).
     """
@@ -190,6 +205,7 @@ def compute_layer_ratios(per_doc: dict[str, dict[str, int]]) -> dict[str, float]
             "standalone_l2_ratio": 0.0,
             "standalone_l3_ratio": 0.0,
             "collapse_ratio": 0.0,
+            "cascade_ratio": 0.0,
             "total_dispatch_lines": 0.0,
         }
 
@@ -198,6 +214,7 @@ def compute_layer_ratios(per_doc: dict[str, dict[str, int]]) -> dict[str, float]
         "standalone_l2_ratio": total_wave / total_dispatch,
         "standalone_l3_ratio": total_task / total_dispatch,
         "collapse_ratio": total_collapse / total_dispatch,
+        "cascade_ratio": (total_stage + total_wave) / total_dispatch,
         "total_dispatch_lines": float(total_dispatch),
     }
 
@@ -255,8 +272,8 @@ def render_markdown_report(
             "The audit's `standalone_l1_ratio` + `standalone_l2_ratio` measure how",
             "frequently the L1 Stage Agent or L2 Wave Agent is bound as the",
             "primary dispatch target across cycle docs. When both ratios are",
-            "below ~10%, the SKILL.md §\"Quick Action Decision\" table SHOULD",
-            "annotate L1 + L2 as **\"only-when-needed\"** at the Standard tier.",
+            'below ~10%, the SKILL.md §"Quick Action Decision" table SHOULD',
+            'annotate L1 + L2 as **"only-when-needed"** at the Standard tier.',
             "",
             "v10.5.0 ships the audit + advisory annotation only; behaviour is",
             "preserved (L1 + L2 remain part of the 4-Layer hierarchy). The",
@@ -271,6 +288,20 @@ def render_markdown_report(
     return "\n".join(lines)
 
 
+# v11.1.0 PV-05 ratchet semantics (G-AUDIT-1).
+#
+# The legacy v10.5.0 contract was observability-only: ``run()`` returned
+# 0 unconditionally so that operators could read the audit without CI
+# failures. v11.1.0 PV-05 adds a default-OFF *strict* mode: when the
+# operator passes ``--strict`` (or ``run(..., strict=True)``), the audit
+# returns 1 IFF there is at least one dispatch line AND the cascade
+# ratio (``compute_layer_ratios()['cascade_ratio']``) is below the
+# configured ``--threshold`` (default 0.30). When ``--strict`` is OFF,
+# behaviour is byte-identical to v11.0.x — see ``test_strict_flag_
+# default_off_preserves_byte_identical_v11_0x`` for the regression
+# pin. When ``strict=True`` and there are zero dispatch lines, the
+# audit still returns 0 (a zero-input cascade ratio is undefined; we
+# refuse to manufacture a false positive on empty input).
 def run(
     repo_root: Path,
     *,
@@ -278,6 +309,8 @@ def run(
     json_out: bool = False,
     verbose: bool = False,
     output: Path | None = None,
+    strict: bool = False,
+    threshold: float = 0.30,
 ) -> int:
     """Entry-point — scan cycle docs, compute ratios, emit report.
 
@@ -289,10 +322,19 @@ def run(
       verbose: When True, prints the path of each doc as it scans.
       output: When set, write markdown / JSON to this file in
         addition to (or instead of) stdout.
+      strict: v11.1.0 PV-05 ratchet — when True AND
+        ``total_dispatch > 0`` AND ``cascade_ratio < threshold``,
+        ``run()`` returns ``1``. Default False preserves byte-identical
+        v11.0.x behaviour.
+      threshold: cascade-compliance floor (used only when
+        ``strict=True``). Default ``0.30``.
 
     Returns:
-      ``0`` on success (always 0 — the audit is observability-only;
-      no docs found is reported as an empty audit, not an error).
+      ``0`` on success (default-OFF preserves the v11.0.x
+      observability-only contract — no docs found is reported as an
+      empty audit, not an error). ``1`` only when ``strict=True`` AND
+      the cycle-wide ``cascade_ratio`` falls below ``threshold`` AND
+      there is at least one dispatch line to evaluate.
     """
     docs = scan_cycle_docs(repo_root, cycle_globs)
     per_doc: dict[str, dict[str, int]] = OrderedDict()
@@ -317,6 +359,9 @@ def run(
         output.write_text(payload + ("\n" if not payload.endswith("\n") else ""), encoding="utf-8")
     else:
         print(payload)
+
+    if strict and ratios["total_dispatch_lines"] > 0 and ratios["cascade_ratio"] < threshold:
+        return 1
     return 0
 
 
@@ -352,6 +397,22 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Write report to this path instead of (or in addition to) stdout",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "v11.1.0 PV-05 ratchet (default OFF): exit 1 when the cycle-wide "
+            "cascade_ratio falls below --threshold AND at least one dispatch "
+            "line was scanned. OFF preserves byte-identical v11.0.x exit-0 "
+            "observability-only behaviour."
+        ),
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.30,
+        help="Cascade-compliance floor used when --strict is set (default 0.30).",
+    )
     args = parser.parse_args(argv)
     cycle_globs = tuple(args.cycle_globs) if args.cycle_globs else DEFAULT_CYCLE_GLOBS
     return run(
@@ -360,6 +421,8 @@ def main(argv: list[str] | None = None) -> int:
         json_out=args.json_out,
         verbose=args.verbose,
         output=args.output,
+        strict=args.strict,
+        threshold=args.threshold,
     )
 
 

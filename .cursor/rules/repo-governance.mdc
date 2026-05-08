@@ -307,6 +307,78 @@ Source: v9.2.0 cycle plan §PV-02 (v9.1.2 PATCH). Closes M-007 from
 the v9.0.0 retrospective §3.3 (operator-facing slash command surface
 was telegraphed).
 
+## A-7 — Cascade-Depth Invariant for Standard+ Dispatches
+
+When a dispatch payload's `gate.cascade_required` field is `true`
+(populated by `devolaflow.skills.change_activation::cascade_requirement`
+when the classified complexity is STANDARD or COMPLEX), the dispatch
+chain MUST traverse at least `gate.cascade_min_layers` layers of the
+4-layer agent hierarchy (default 4 = L0→L1→L2→L3) before reaching an
+L3 Task Agent. SIMPLE/TRIVIAL complexity bypasses this rule per
+`cascade_requirement()` returning `"CASCADE_OPTIONAL"`.
+
+### A-7.1 — Conditional strict enforcement
+
+Strict enforcement is conditioned on `cascade_requirement(complexity)`:
+
+* `cascade_requirement == "CASCADE_REQUIRED"` (STANDARD/COMPLEX) →
+  `validate_cascade_gate_fields` raises `CascadeViolationError` when
+  the dispatch chain is below `cascade_min_layers`. Soft mode (warn +
+  log) is preserved as the v11.1.0 default per the cycle plan §6
+  "DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR" pattern; full
+  strict promotion lands at v12.0.0 per W-21 2-cycle deliberation
+  cadence.
+* `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
+  validation is skipped; legacy v11.0.x dispatches with no L1/L2 trace
+  pass byte-identically. Verified by
+  `tests/test_cascade_enforcement.py::test_legacy_dispatch_without_cascade_fields_passes_byte_identically`
+  and the 3 sibling backward-compat tests.
+
+### A-7.2 — Trivial waiver
+
+Per A-1 P1, single-file edits < 20 lines authored by L0 directly are
+trivially waived from the cascade-depth check. The waiver is verified
+at the dispatch payload level: when `gate.cascade_required` is omitted
+(default for v11.0.x dispatches), no validation runs. The
+`populate_cascade_gate_fields` opt-in helper preserves this default by
+returning a deep copy of the base dispatch unchanged when complexity
+is SIMPLE/TRIVIAL — canonical absence-as-default per A-2.3 NEST contract.
+
+### A-7.3 — Operator override
+
+Operators may pass `force_no_change=True` to `activation_verdict()`
+(per A-6.3 / D-A-4) to bypass workspace activation; this is orthogonal
+to A-7 — `cascade_requirement(complexity)` is evaluated independently
+of `force_no_change` (verified by
+`tests/test_cascade_enforcement.py::test_cascade_signal_orthogonal_to_force_no_change`).
+The cascade-shape verdict and the workspace-activation verdict are
+two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
+
+### A-7.4 — Enforcement surface
+
+* CI-side: `tests/test_cascade_enforcement.py` (13 tests covering
+  strict-mode + soft-mode + backward-compat + skip-path + truth-table
+  propagation) pins the PV-04 NEST schema + PV-04 opt-in helper +
+  PV-04 SOFT validator + PV-05 strict-mode-preview contracts.
+* Runtime (PV-04 baseline; PV-05 preserves): `validate_cascade_gate_fields`
+  returns warnings list (SOFT mode); `populate_cascade_gate_fields`
+  populates the gate block at dispatch time when invoked.
+* Audit (PV-05): `scripts/audit_layer_usage.py --strict --threshold N`
+  returns exit 1 when cycle-doc cascade_ratio < N (default-OFF; opt-in
+  per W-20). The default threshold is 0.30 — conservative initial floor;
+  v11.1.x or v12.0 may tighten.
+* Schema (PV-04): `gate.cascade_required: bool` + `gate.cascade_min_layers: int`
+  NESTed under the existing `gate` block (canonical_order length stays
+  at 17 per A-2.3); A-2.4 multi-baseline byte test 32/32 GREEN
+  unchanged because the new sub-fields are absence-canonical.
+
+Source: v11.1.0 PV-05 cycle close per
+`.local/research/v11.1.0_cycle_plan.md` §3 PV-05; closes
+`.local/research/v11.1.0_gap_analysis.md` §3 G-TEST-1 + G-AUDIT-1 +
+G-BENCH-1. The W-21 Soul-set freeze remains preserved at 10 entries;
+this landing is at Architecture (A-7), per ADR-007 §"Soul-vs-Architecture"
+decision-rule on conditional + implementation-coupled invariants.
+
 # Conventions Rules (P2) — Coding & Format Standards
 
 ## C-1 — Pre-Commit Verification Checklist

@@ -230,3 +230,140 @@ def test_run_emits_json_when_requested(tmp_path: Path, capsys: pytest.CaptureFix
     assert "per_doc" in payload
     assert "ratios" in payload
     assert payload["ratios"]["total_dispatch_lines"] == 1
+
+
+# ── v11.1.0 PV-05 G-AUDIT-1 cascade-ratchet tests ──────────────────────
+
+
+def test_strict_flag_returns_zero_when_above_threshold(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Strict-mode invocation returns 0 when cascade_ratio > threshold.
+
+    Cascade-compliance signal = (Stage + Wave) / total_dispatch.
+    Fixture: 4 Wave + 4 Stage + 2 Task -> cascade_ratio = 8/10 = 0.80,
+    well above the 0.30 threshold -> exit 0.
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v10.0.0_cycle_plan.md").write_text(
+        "\n".join(
+            [
+                "Dispatch type: Wave",
+                "Dispatch type: Wave",
+                "Dispatch type: Wave",
+                "Dispatch type: Wave",
+                "Dispatch type: Stage",
+                "Dispatch type: Stage",
+                "Dispatch type: Stage",
+                "Dispatch type: Stage",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rc = audit_layer.run(tmp_path, strict=True, threshold=0.30)
+    capsys.readouterr()
+    assert rc == 0
+
+
+def test_strict_flag_returns_one_when_below_threshold(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Strict-mode invocation returns 1 when cascade_ratio < threshold.
+
+    Fixture: 5 Task lines only -> cascade_ratio = 0/5 = 0.0, well below
+    the 0.30 floor -> exit 1 (the v11.1.0 PV-05 ratchet fires).
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v10.1.0_cycle_plan.md").write_text(
+        "\n".join(
+            [
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rc = audit_layer.run(tmp_path, strict=True, threshold=0.30)
+    capsys.readouterr()
+    assert rc == 1
+
+
+def test_strict_flag_default_off_preserves_byte_identical_v11_0x(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """R5 strict backward-compat: default ``run()`` returns 0 even on a low-cascade fixture.
+
+    Without ``strict=True``, the same all-Task fixture that triggers
+    the strict-mode failure path MUST still return 0 — byte-identical
+    to v11.0.x observability-only behaviour.
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    (research / "v10.2.0_cycle_plan.md").write_text(
+        "\n".join(
+            [
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rc = audit_layer.run(tmp_path)
+    capsys.readouterr()
+    assert rc == 0
+
+
+def test_cascade_ratio_field_present_in_output() -> None:
+    """``compute_layer_ratios`` exposes the new ``cascade_ratio`` field.
+
+    Pins:
+      * Field name + type (float in [0.0, 1.0]).
+      * Formula = (total_stage + total_wave) / total_dispatch on a
+        fixture where the input counts are known a priori.
+      * Empty-input handling: cascade_ratio == 0.0 when
+        total_dispatch == 0 (matches the other ratios' empty-input
+        contract — no division-by-zero, no false positive).
+    """
+    per_doc: dict[str, dict[str, int]] = {
+        "a": {
+            "L0": 1,
+            "L1": 1,
+            "L2": 1,
+            "L3": 1,
+            "dispatch_wave": 3,
+            "dispatch_stage": 2,
+            "dispatch_task": 5,
+            "collapse_l0_l3": 0,
+        },
+    }
+    ratios = audit_layer.compute_layer_ratios(per_doc)
+    assert "cascade_ratio" in ratios
+    cascade = ratios["cascade_ratio"]
+    assert isinstance(cascade, float)
+    assert 0.0 <= cascade <= 1.0
+    assert cascade == pytest.approx((2 + 3) / 10)
+    assert ratios["total_dispatch_lines"] == 10
+
+    empty_doc: dict[str, dict[str, int]] = {
+        "z": {
+            "L0": 0,
+            "L1": 0,
+            "L2": 0,
+            "L3": 0,
+            "dispatch_wave": 0,
+            "dispatch_stage": 0,
+            "dispatch_task": 0,
+            "collapse_l0_l3": 0,
+        },
+    }
+    empty_ratios = audit_layer.compute_layer_ratios(empty_doc)
+    assert "cascade_ratio" in empty_ratios
+    assert empty_ratios["cascade_ratio"] == 0.0

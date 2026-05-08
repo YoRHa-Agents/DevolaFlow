@@ -696,6 +696,37 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # Covered by
         # `tests/test_writing_style_scorer.py::test_apply_to_prose_does_not_touch_code`.
         "devolaflow.writing_style.regions:apply_to_prose",
+        # ---- v11.1.0 PV-05 (cycle v11.1.0) — Architecture rule A-7 cascade
+        # depth invariant helpers ----
+        # `populate_cascade_gate_fields(base_dispatch, complexity)` is the
+        # OPT-IN dispatch-payload populator that NESTs ``gate.cascade_required``
+        # + ``gate.cascade_min_layers`` under the existing ``gate`` block per
+        # A-2.3 when ``cascade_requirement(complexity) == "CASCADE_REQUIRED"``
+        # (STANDARD/COMPLEX). `validate_cascade_gate_fields(gate_block, *,
+        # actual_layers=None)` is the SOFT cascade validator that returns a
+        # warnings list (no raise) when the dispatch chain is below
+        # ``cascade_min_layers``. Both helpers are wired declaratively into
+        # the cascade-restoration architecture per ``.rules/architecture.mdc``
+        # §A-7 "Cascade-Depth Invariant for Standard+ Dispatches" and pinned
+        # by `tests/test_cascade_enforcement.py` (13 tests covering strict +
+        # soft + backward-compat + skip-path + truth-table propagation).
+        # The PV-04 placeholder pin tuples
+        # (`_populate_cascade_gate_fields_dead_api_pins` in feedback.py +
+        # `_validate_cascade_gate_fields_dead_api_pins` in gate/scorer.py)
+        # were REMOVED in v11.0.5 PV-05 per cycle plan §3 PV-05 W03 ("dead-API
+        # pin cleanup now that A-7 wires the symbols"); these allowlist
+        # entries are the canonical replacement, mirroring the established
+        # pattern for forward-looking helpers (cf. `consult_for_dispatch`,
+        # `seed_initial_spec`, `scan_workspace` precedents above). The full
+        # production wiring (an L0/L1/L2 dispatcher build path that invokes
+        # `populate_cascade_gate_fields` + a strict-mode call site that raises
+        # `CascadeViolationError` from `validate_cascade_gate_fields`) lands
+        # at v12.0.0 STRICT promotion per cycle plan §6 finding 1
+        # ("DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR" pattern) AND
+        # per W-21 2-cycle deliberation cadence. NOT domain-SSOT registry
+        # symbols per A-5.2 — pure functions with zero module-level state.
+        "devolaflow.feedback:populate_cascade_gate_fields",
+        "devolaflow.gate.scorer:validate_cascade_gate_fields",
     }
 )
 

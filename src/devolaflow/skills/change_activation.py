@@ -420,12 +420,14 @@ _simple_shortcut_dead_api_pins = (
     shortcut_verdict,
 )
 
-# v11.1.0 PV-02 — ``cascade_requirement`` is a sibling pure function added
-# under G-CLASSIFY-1 Candidate C closing the v11.1.0 cascade-restoration
-# intent. The schema-side wiring (``gate.cascade_required`` NEST sub-field
-# under the existing ``gate`` block per A-2.3) lands at PV-04; until then
-# the function has no in-repo production caller, so the dead-API detector
-# (`scripts/detect_dead_apis.py`) needs an explicit pin tuple — same
-# pattern as the ``_simple_shortcut_dead_api_pins`` block above (v9.3.0
-# PV-06). Source: ``.local/research/v11.1.0_pv02_decision.md`` §1.
-_cascade_requirement_dead_api_pins = (cascade_requirement,)
+# v11.1.0 PV-05 — Architecture rule A-7 ("Cascade-Depth Invariant for
+# Standard+ Dispatches") establishes ``cascade_requirement`` as the
+# canonical complexity-to-cascade verdict surface. The function is now
+# wired via the production call site in
+# ``src/devolaflow/feedback.py::populate_cascade_gate_fields`` (line 564
+# call ``cascade_requirement(complexity)``) so the dead-API detector sees
+# a real ``ast.Call`` reference outside of any Import statement. The
+# v11.1.0 PV-02 placeholder pin tuple
+# ``_cascade_requirement_dead_api_pins`` was REMOVED in v11.0.5 PV-05
+# per cycle plan §3 PV-05 W03 ("dead-API pin cleanup now that A-7 wires
+# the symbols"). Source: ``.rules/architecture.mdc`` §A-7.
