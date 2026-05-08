@@ -5,6 +5,161 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.0] - 2026-05-08
+
+**MINOR — v11.1.0 cascade-restoration cycle close.** The MINOR rollup of the v11.1.0 cascade-restoration cycle initiated by user feedback at `.local/feedbacks/feedback_for_v11.0.0.md` (verbatim per CO-2 — quoted, not translated): *"我认为还是需要保持四个层级的依次派发 Sub-Agent 行为...不能由 L0 直接调动 L3"*. Five impl PVs (v11.0.2 → v11.0.3 → v11.0.4 → v11.0.5 → v11.0.6) merged across PR #126..#130. **W-3 SI-3 6-dim authoritative composite 9.02 / 10** (PASS by **+0.52 margin** over MINOR threshold ≥ 8.5; cumulative lift **+2.17 vs D2 baseline 6.85** = **132% of cycle plan §1 forecast +1.65**). 0 BLOCKER + 0 CRITICAL + 0 MAJOR findings; W-8 SI-9 reinforcement decision: **NO REINFORCEMENT** (round-1 NineS self-eval cleared the gate cleanly; the user's "自我迭代多轮" directive satisfied without round 2). v12.0.0 MAJOR threshold ≥ 9.0 cleared by **+0.02 margin** (FORECAST-INDICATIVE per cycle plan §6 — NOT a v11.1.0 graduation commitment).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**STANDARD+ complexity tasks now MUST cascade L0 → L1 → L2 → L3.** SIMPLE/TRIVIAL collapse explicitly carved out via `cascade_requirement(complexity)` returning `"CASCADE_REQUIRED"` for STANDARD/COMPLEX and `"CASCADE_OPTIONAL"` for SIMPLE/TRIVIAL. The cascade restoration ships in PERMISSIVE / WARN-ONLY mode at v11.1.0 (per cycle plan §6 "DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR"); STRICT promotion (CascadeViolationError raises + audit `--strict` default-ON) is telegraphed for v12.0.0. Operator escape hatch preserved via `force_no_change=True` parameter (orthogonal to A-7 per A-7.3). Three "skip cascade" mechanisms (`force_no_change` + `--no-change` + `SHORTCUT_SIMPLE`) currently coexist; SHORTCUT_SIMPLE retirement telegraphed for v12.0.0 SI-1 (3 → 2 mechanisms).
+
+### 5-patch summary (PV-02..PV-06 with PR + verdict)
+
+| PV | Patch | Composite | Verdict | PR | Headline deliverable |
+|:---:|:---:|:---:|:---:|:---:|---|
+| PV-02 | v11.0.2 | 8.65 / 10 (4-dim) | PASS | #126 | G-CLASSIFY-1 — NEW `cascade_requirement(complexity) → CascadeRequirement` pure function (Candidate C); operator-quotable verdict rule; W-16 wholesale baseline regen `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json`. |
+| PV-03 | v11.0.3 | 8.75 / 10 (4-dim) | PASS | #127 | G-CASCADE-1 + G-CASCADE-2 — SKILL.md cascade-restored at lines 64 + 105-107 + 180 (negative lint: "Layer collapse pattern" string removed); `examples/multi-stage-trace.md` rows 2 + 4 revised; W-4 SI-4 dry-run pattern saved 8.11pp regression. |
+| PV-04 | v11.0.4 | 9.25 / 10 (4-dim) | PASS — first cleared MAJOR threshold | #128 | G-PLAN-1 + G-PLAN-2 + schema NEST — `references/plan-mode-enforcement.md` §4 Constraints Checklist item #10 "Cascade depth (STANDARD+)" + `_PLAN_MODE_OVERRIDES["plan_mode_cascade_required"]: True`; NEST `gate.cascade_required` + `gate.cascade_min_layers` per A-2.3 (canonical_order length stays at **17**); SOFT validator `validate_cascade_gate_fields` + dispatch payload populator `populate_cascade_gate_fields`; CP-4 gate suite 108/108 GREEN unchanged. |
+| PV-05 | v11.0.5 | 9.25 / 10 (4-dim) | PASS — sustained | #129 | G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + Architecture rule **A-7** — `tests/test_cascade_enforcement.py` 4P+1S → 13P+0S (5 named branches); `audit_layer_usage.py --strict --threshold 0.30` + `cascade_ratio` field (default-OFF preserves byte-id); 4 NEW EvoBench cascade-vs-collapse scenarios with cascade ≥ collapsed − 5pp on both axes; `.rules/architecture.mdc` §A-7 (4 sub-rules; +72 LOC; architecture rule count 6 → 7); dead-API pin cleanup (3 forward-pin tuples removed; 2 DEFAULT_ALLOWLIST entries replace). |
+| PV-06 | v11.0.6 | **9.02 / 10 (W-3 SI-3 6-dim authoritative)** | **PASS by +0.52 margin** | #130 | G-NINES-1 — NineS self-eval `nines -f json -c nines.toml self-eval --baseline-version 11.0.5` (real 1m3.4s; exit 0; 25 dimensions = 20 capability + 5 hygiene); `.local/research/v11.1.0_evaluation.md` W-3 SI-3 6-dim composite verdict; cumulative lift +2.17 (132% of forecast); 0 findings ≥ major severity → NO REINFORCEMENT. |
+
+### Direction-by-direction landed gap table
+
+| Gap | Priority | Landed PV | Verdict | Primary surface |
+|---|:---:|:---:|:---:|---|
+| **G-CASCADE-1** | P0 | PV-03 (v11.0.3) | PASS | SKILL.md lines 64 + 105-107 + 180 cascade-restored; "Layer collapse pattern" string removed (negative lint). |
+| **G-CASCADE-2** | P1 | PV-03 (v11.0.3) | PASS | `multi-stage-trace.md` §"When NOT to use" rows 2 + 4 revised; "L0 → L3 with a per-task wave partition" string removed. |
+| **G-CLASSIFY-1** | P0 | PV-02 (v11.0.2) | PASS | `change_activation.cascade_requirement(complexity) → CascadeRequirement` pure function (Candidate C); 13 contract pins preserved byte-stable. |
+| **G-PLAN-1** | P0 | PV-04 (v11.0.4) | PASS | `references/plan-mode-enforcement.md` §4 Constraints Checklist item #10 "Cascade depth (STANDARD+)" + §5.1 DO list bullet. |
+| **G-PLAN-2** | P2 | PV-04 (v11.0.4) | PASS | `task_adaptive_selector.py::_PLAN_MODE_OVERRIDES["plan_mode_cascade_required"]: True`. |
+| **G-TEST-1** | P0 | PV-05 (v11.0.5) | PASS | `tests/test_cascade_enforcement.py` 13/13 PASS (5 named branches: existing + REPLACE SKIP + R-1 backward-compat + SOFT/strict-mode preview + truth-table propagation). |
+| **G-AUDIT-1** | P2 | PV-05 (v11.0.5) | PASS | `scripts/audit_layer_usage.py --strict --threshold 0.30` + `cascade_ratio` field; default-OFF preserves byte-id v11.0.x behaviour. (CONDITIONAL: legacy v10.5.0 regex doesn't match v11.x bold markdown convention; deferred to v11.1.x patch.) |
+| **G-BENCH-1** | P1 | PV-05 (v11.0.5) | PASS | 4 NEW EvoBench scenarios (`cascade_l0_l1_l2_l3_standard.{yaml,toml}` + `_complex.*` + `collapse_l0_l3_simple.*` + `_trivial.*`); cascade ≥ collapsed − 5pp on both axes (cascade_standard 99.99 vs collapse_simple 88.18 = +11.81 above; cascade_complex 99.99 vs collapse_trivial 97.97 = +2.02 above). |
+| **G-NINES-1** | P1 | PV-06 (v11.0.6) | PASS | NineS self-eval composite **9.02 / 10** (≥ 8.5 by +0.52 margin); 0 findings ≥ major severity; W-8 SI-9 reinforcement decision: NO REINFORCEMENT. |
+| **G-DOC-1** | P3 | PV-07 (v11.1.0) | PASS | versions.json v11.1.0 entry per WX-2 + demo `index.html` "What's New" per DS-1 + EN/ZH bilingual via `make sync-human-docs` per ST-3 + canonical 7 sync via `scripts/bump_version.py 11.1.0`. |
+
+10 / 10 gaps LANDED. Priority distribution: 4 P0 + 3 P1 + 2 P2 + 1 P3 (per cycle plan §3).
+
+### W-3 SI-3 6-dim authoritative composite verdict (PV-06; cumulative lift +2.17)
+
+| Dim | Weight | v11.0.1 baseline (D2) | v11.0.5 (PV-06 measurement) | Δ | Weighted contribution Δ |
+|---|---:|---:|---:|---:|---:|
+| Code quality | 0.20 | 8.5 | **8.7** | +0.2 | +0.04 |
+| **Architecture rationality** | **0.20** | **5.0** | **9.5** | **+4.5** | **+0.90 (41% of cycle lift)** |
+| Test adequacy | 0.20 | 6.5 | **9.0** | +2.5 | +0.50 (23% of cycle lift) |
+| Maintainability | 0.15 | 6.0 | **8.5** | +2.5 | +0.375 (17% of cycle lift) |
+| Compatibility | 0.10 | 9.0 | **9.5** | +0.5 | +0.05 |
+| Performance impact | 0.15 | 7.0 | **9.0** | +2.0 | +0.30 |
+| **Composite** | — | **6.85** | **9.02** | **+2.17** | **+2.17 (132% of forecast +1.65)** |
+
+The architecture-rationality dimension contributes **41% (+0.90 of +2.17)** of the cycle's total lift — confirming cascade-restoration was the cycle's primary delivered value. Per-PV trajectory (4-dim decomposition-gate proxy → 6-dim authoritative composite at PV-06): PV-02 8.65 → PV-03 8.75 → PV-04 9.25 → PV-05 9.25 (4-dim sustained) → **PV-06 9.02 (6-dim authoritative; cycle-close re-eval)**.
+
+### NEW symbols / files (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_1_0_new_symbols_have_coverage` + the per-PV stanzas `test_v11_0_2..test_v11_0_6_*` (W-18 sequencing: stanza lands BEFORE CHANGELOG entry):
+
+* **Cycle-close (PV-07 — this rollup)**:
+  * `.local/research/v11.1.0_retrospective.md` (W-7 / SI-8 4-section retrospective; gitignored under `.local/` — committed copy at `docs/cycle-archive/v11.1.0/retrospective.md` per W-19)
+  * `docs/cycle-archive/v11.1.0/` (W-19 cycle archive: `README.md` auto-generated index + `gap_analysis.md` + `implementation_plan.md` + `design/` per-PV stage reports + `nines/` PV-01 + PV-06 raw JSON + rendered + `evaluation/` PV-06 W-3 SI-3 + `retrospective.md` + `other/`)
+  * `workflow-system/human/demo/version-timeline/versions.json` v11.1.0 entry (per WX-2; metrics from this CHANGELOG only — no invention)
+  * `workflow-system/human/demo/index.html` v11.1.0 "What's New" section (per DS-1)
+  * `workflow-system/human/en/*.md` (8 files) + `workflow-system/human/zh/*.md` (8 files) refreshed via `make sync-human-docs` (per ST-3)
+  * `tests/test_no_ghost_features.py::test_v11_1_0_new_symbols_have_coverage` (W-18 final stanza)
+  * Canonical 7 sync via `scripts/bump_version.py 11.1.0` (8 files: `src/devolaflow/__init__.py` + `pyproject.toml` + `workflow-system/agent/SKILL.md` + `workflow-system/agent/workflow-skill.yaml` + `scripts/generate_human_docs.py` + `tests/test_smoke.py` + `README.md` + `workflow-system/human/demo/benchmark-results/index.html`)
+
+* **Earlier in the cycle (PV-02..PV-06; pinned by per-PV W-18 stanzas)**:
+  * `src/devolaflow/skills/change_activation.py::cascade_requirement(complexity)` + `CascadeRequirement` Literal (PV-02)
+  * `src/devolaflow/feedback.py::populate_cascade_gate_fields(base_dispatch, complexity)` (PV-04)
+  * `src/devolaflow/gate/scorer.py::validate_cascade_gate_fields(gate_block, *, actual_layers=None)` (PV-04 SOFT validator)
+  * `src/devolaflow/task_adaptive_selector.py::_PLAN_MODE_OVERRIDES["plan_mode_cascade_required"]` (PV-04)
+  * `schemas/lean-dispatch.yaml` `gate.cascade_required: bool` + `gate.cascade_min_layers: int` (PV-04 NEST sub-fields)
+  * `tests/test_cascade_enforcement.py` (PV-02 stub + PV-05 extension to 13 PASS tests)
+  * `tests/test_task_adaptive_selector_plan_mode.py` (PV-04 NEW; 7 tests)
+  * `tests/test_gate.py::TestCascadeGateFieldsValidator` (PV-04 NEW class; 7 tests)
+  * `scripts/audit_layer_usage.py::cascade_ratio` field + `--strict` + `--threshold` CLI flags + `run(strict=, threshold=)` kwargs (PV-05)
+  * 4 NEW EvoBench scenarios under `benchmarks/devolaflow_context/scenarios/cascade_*.yaml` + `collapse_*.yaml` (PV-05)
+  * `.rules/architecture.mdc` §A-7 "Cascade-Depth Invariant for Standard+ Dispatches" (PV-05; 4 sub-rules; +72 LOC)
+  * `AGENTS.md` + `.cursor/rules/repo-governance.mdc` §A-7 (PV-05 auto-recompiled)
+  * `scripts/detect_dead_apis.py` `DEFAULT_ALLOWLIST` entries `"devolaflow.feedback:populate_cascade_gate_fields"` + `"devolaflow.gate.scorer:validate_cascade_gate_fields"` (PV-05)
+  * `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json` (PV-02 W-16 wholesale regen — cycle anchor)
+  * `.local/research/v11.1.0_pv06_nines.{json,md}` + `.local/research/v11.1.0_evaluation.md` + 6 stage reports (PV-01..PV-06 — gitignored; tracked copies in `docs/cycle-archive/v11.1.0/`)
+
+### Headline numbers (cycle-cumulative; v11.0.1 → v11.1.0 MINOR close)
+
+| Area | v11.0.1 | v11.1.0 | Delta | Source |
+|------|---:|---:|---:|---|
+| W-3 SI-3 composite (authoritative 6-dim) | 6.85 (D2 baseline) | **9.02** | **+2.17** (132% of forecast +1.65) | `.local/research/v11.1.0_evaluation.md` §1 |
+| W-3 SI-3 architecture rationality | 5.0 | **9.5** | **+4.5** (41% of cycle lift) | `.local/research/v11.1.0_pv06_nines.md` §3 |
+| W-3 SI-3 test adequacy | 6.5 | **9.0** | +2.5 | `.local/research/v11.1.0_pv06_nines.md` §4 |
+| W-3 SI-3 maintainability | 6.0 | **8.5** | +2.5 | `.local/research/v11.1.0_pv06_nines.md` §5 |
+| W-3 SI-3 performance impact | 7.0 | **9.0** | +2.0 | `.local/research/v11.1.0_pv06_nines.md` §7 |
+| Tests collected | 4256 | ~4302 | +37 NEW cumulative (PV-02..PV-07; ~25% of W-17 +150 cycle cap) | `pytest --collect-only -q` |
+| Coverage % | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.0.1 | **11.1.0** | +1 MINOR | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` §S-1..§S-10 |
+| Architecture rule count | 6 | **7** | **+1 (A-7 cascade-depth invariant; landed PV-05)** | `.rules/architecture.mdc` §A-1..§A-7 |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (NEST not APPEND per A-2.3) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| Schema version | 6 | 6 | 0 (NEST extension under historical precedent v8.0.0 P-03 `gate.token_budget`) | `schemas/lean-dispatch.yaml#layout_invariant.version` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (frozen prefix preserved by construction) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (hook-chain invariant preserved) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (PV-04 cascade ladders preserved by construction) | `tests/test_gate.py` |
+| EvoBench scenarios | 53 | 57 | +4 (cascade-vs-collapse; landed PV-05) | `benchmarks/devolaflow_context/scenarios/` |
+| EvoBench max scenario drift | 0.09pp (PV-05 baseline) | 0.09pp | 0 (well under 5pp W-4 SI-4 envelope) | `pytest tests/test_benchmarks.py -v` |
+| BLOCKER findings (cumulative) | n/a | 0 | 0 | per `.local/research/v11.1.0_evaluation.md` §1 |
+| CRITICAL findings (cumulative) | n/a | 0 | 0 | per `.local/research/v11.1.0_evaluation.md` §1 |
+| MAJOR findings (cumulative) | n/a | 0 | 0 → NO REINFORCEMENT | per `.local/research/v11.1.0_evaluation.md` §4 |
+
+### W-9 SI-10 7-step + extras verification (cycle-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | PASS |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.6 → 11.1.0) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36/36; max scenario drift 0.09pp ≪ 5pp W-4 SI-4 envelope) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op exit 0 per SF-3 opt-in) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32; A-2.4 frozen prefix preserved across 10 historical baselines) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` (S-10 byte-id) | PASS (10/10) |
+| Extras | `python -m pytest tests/test_gate.py -v` (CP-4) | PASS (108/108) |
+| Extras | `python -m pytest tests/test_cascade_enforcement.py -v` (cascade strict) | PASS (13/13) |
+| Extras | `python -m pytest tests/test_audit_layer_usage.py -v` (audit ratchet) | PASS (15/15) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py -v` (W-18 PV-02..PV-07 + cycle-close) | PASS (all stanzas) |
+
+### Deferred to v11.1.x / v12.0.0 / v13.0.0 (per W-7 retrospective §3)
+
+5 deferrals carried by this cycle. Per W-7 retrospective §3 (verbatim):
+
+1. **A-7 STRICT promotion** (PERMISSIVE → strict + audit `--strict` default-ON) — telegraphed for **v12.0.0** SI-1 re-evaluation per cycle plan §6 + DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR pattern. 1-2 v11.1.x stability patches collect operator feedback first.
+2. **SHORTCUT_SIMPLE retirement** (`DEVOLAFLOW_SIMPLE_SHORTCUT` env flag + v9.7.0 default-ON forecast) — telegraphed for **v12.0.0** SI-1 (3 → 2 mechanisms; reduces operator R-2 confusion risk).
+3. **S-11 candidate "Cascade-Depth Invariant"** — NOT proposed in v11.1.0 (cascade-depth is conditional + implementation-coupled per ADR-007 → Architecture A-7, not Soul). Telegraphed for **v13.0.0 SI-1** per W-21 2-cycle deliberation cadence (NOT v12.0.0; the gap is non-negotiable). v13.0.0 SI-3 §3.2 must score ≥ 9.5/10 for the promotion to land.
+4. **Audit-regex coverage gap** (PV-05 N-2 finding) — `scripts/audit_layer_usage.py` legacy v10.5.0 regex doesn't match v11.x bold markdown convention `**Dispatch type:** Wave`; default-OFF preserves byte-id, but `cascade_ratio == 0` reported for v11.x cycle docs. Bounded fix scheduled for **v11.1.x stability patch** (regex broadening OR cycle-doc convention tightening).
+5. **CHANGELOG single-application CI lint** (PV-03 N-2 → PV-04 mitigation pattern) — per-commit CI lint walking `## [vX.Y.Z]` headers asserting count == 1. Defer-then-decide based on whether the class-of-bug recurs in v11.1.x. Candidate for **v11.1.x or v12.0.0 SI-1**.
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21 Soul-set freeze**: NO new Soul rules proposed in v11.1.0. Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. The cascade-depth invariant lands at **Architecture A-7** per ADR-007 §"Soul-vs-Architecture" decision-rule (constraint is conditional: STANDARD+ REQUIRED, SIMPLE/TRIVIAL OPTIONAL; AND implementation-coupled: cites `change_activation.cascade_requirement` + `multi-stage-trace.md` walkthrough). S-11 candidate telegraphed for v13.0.0 SI-1 per W-21 2-cycle deliberation cadence.
+* **W-20 env-flag freeze**: NO new `DEVOLAFLOW_*` env flags introduced. Cascade enforcement reuses `DEVOLAFLOW_AGENT_WORKSPACE` (workspace activation) + `force_no_change=True` function parameter (operator escape hatch) + new CLI-only flag `--strict` on `audit_layer_usage.py` (CLI flag, not env). Env flag count stays at **8**.
+
+### Cross-references
+
+* `.local/feedbacks/feedback_for_v11.0.0.md` — verbatim user directive (cycle source-of-truth per CO-2)
+* `.local/research/v11.1.0_gap_analysis.md` — D1 SI-1 planning gate (10-gap inventory)
+* `.local/research/v11.1.0_nines_analysis.md` + `_nines_raw.json` — D2 SI-2 NineS analysis (composite 6.85 baseline)
+* `.local/research/v11.1.0_cycle_plan.md` — D3 7-PV plan + cascade decomposition + risk register + 4 decision points
+* `.local/research/v11.1.0_pv0[1-7]_stage_report.md` — 7 per-PV L1 → L0 handoffs
+* `.local/research/v11.1.0_pv06_nines.{json,md}` — PV-06 NineS self-eval artifacts
+* `.local/research/v11.1.0_evaluation.md` — W-3 SI-3 6-dim authoritative composite (9.02 / 10 PASS)
+* `.local/research/v11.1.0_retrospective.md` — W-7 / SI-8 retrospective (4 mandatory sections + 5 deferrals + 6 learnings + 5 next-cycle proposals)
+* `.local/research/v11.1.0_l0_decisions.md` — DEC-001 R-B locked baseline + DEC-002 advisory (Candidate B leaning)
+* `.local/research/v11.1.0_pv02_decision.md` — Candidate C selection memo (override of L0 advisory per AC analysis)
+* `docs/cycle-archive/v11.1.0/` — W-19 cycle archive (committed at PV-07; idempotent re-runs no-op)
+* `tests/test_no_ghost_features.py::test_v11_0_2_pv02_*..test_v11_1_0_new_symbols_have_coverage` — W-18 stanzas (PV-02..PV-07)
+* Merged PRs: #126 (PV-02 v11.0.2) + #127 (PV-03 v11.0.3) + #128 (PV-04 v11.0.4) + #129 (PV-05 v11.0.5) + #130 (PV-06 v11.0.6); PR #131 = PV-07 v11.1.0 MINOR rollup
+* DevolaFlow / EvoBench canonical URL: https://github.com/YoRHa-Agents/DevolaFlow
+* NineS canonical URL: https://github.com/YoRHa-Agents/NineS
+
 ## [11.0.6] - 2026-05-08
 
 **PATCH — v11.1.0 PV-06: G-NINES-1 NineS self-eval + W-3 SI-3 6-dim composite evaluation report.** Sixth PV of the v11.1.0 cascade-restoration MINOR cycle (analysis-only — NO source / test / schema / SKILL.md / rule edits). Locked baseline (DEC-001 R-B per `.local/research/v11.1.0_l0_decisions.md`): NineS composite 6.85/10 at v11.0.1; MINOR target ≥ 8.5; this PV is the cycle's MINOR-close convergence verdict gate per cycle plan §5.1. Predecessor: PV-05 `## [11.0.5]` (G-TEST-1 + G-AUDIT-1 + G-BENCH-1 + Architecture rule A-7 + dead-API pin cleanup). Cycle plan: `.local/research/v11.1.0_cycle_plan.md` §2 PV-06 row + §3 PV-06 cascade decomposition + §4 self-iteration protocol + §5 MINOR-close criteria.
