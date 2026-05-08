@@ -20,7 +20,7 @@ triggers:
   - "/update-devola"
 tier: 1
 token_estimate: 2800
-last_updated: "2026-04-16"
+last_updated: "2026-05-08"
 name: devola-flow
 description: >
   Use when orchestrating multi-file software tasks, implementing features,
@@ -102,8 +102,8 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 6. **GATE** stage → composite score ≥ threshold, 0 blockers → advance or converge
 7. **REPORT** final results + Task Quality Score
 
-**Simple task shortcut** (1-3 files, < 1 hour):
-Skip multi-stage hierarchy. Dispatch a **single Task Agent** via `Task` tool with full context. Verify output and report.
+**Simple task shortcut** (SIMPLE/TRIVIAL, < 1 hour):
+Skip multi-stage hierarchy. Dispatch a **single Task Agent**. STANDARD+ MUST cascade per `cascade_requirement()`. Verify output and report.
 
 ## Quick Start — Workflow Selection
 Match user intent to workflow type, then load the corresponding stage template.
@@ -177,7 +177,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 **Escalation chain:** Task → Wave → Stage → Project → Human. Always upward, never skip levels.
 Every loop has `max_iterations`. Every failure is classified (retry / escalate / abort). No infinite loops.
 
-**Layer collapse pattern (v10.5.0):** most cycles collapse L0→L3; engage standalone L1+L2 only for multi-team analyze with cross-stage merge (see `examples/multi-stage-trace.md`).
+**Cascade requirement (v11.1.0):** STANDARD+ MUST cascade L0→L1→L2→L3 per `cascade_requirement()`; SIMPLE/TRIVIAL MAY collapse (see `examples/multi-stage-trace.md`).
 
 ### Rationalization Prevention
 
