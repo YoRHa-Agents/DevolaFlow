@@ -150,7 +150,17 @@ def test_cursor_references_golden(cursor_build):
     ``degraded-mode.md`` (the per-plugin upstream-unreachable fallback
     contract for NineS / Si-Chip / RTK / ui-pro — opens with the
     "Degraded ≠ Full" warning per D-C-1 §9 R1 mitigation). Pairs with
-    `tests/test_degraded_mode.py` regression suite."""
+    `tests/test_degraded_mode.py` regression suite.
+
+    v11.3.0 grew this set 17 → 19 by appending two NEW Tier-2 references
+    in a single MINOR cycle: ``grill-mode.md`` (the grill-with-docs
+    operating contract — one-question-at-a-time interview discipline,
+    codebase-first exploration, fuzzy-term sharpening, scenario probing,
+    ADR 3-condition gate; parallel-orthogonal to PLAN MODE) and
+    ``domain-awareness.md`` (the CONTEXT.md authoring rules + ADR format
+    + 3-condition ADR gate companion to grill-mode.md). Pairs with
+    Workflow rules W-22 (Grill Mode Activation Contract) and W-23
+    (Domain Glossary Maintenance)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -161,7 +171,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 17, f"expected 17 reference files, got {len(actual)}"
+    assert len(actual) == 19, f"expected 19 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

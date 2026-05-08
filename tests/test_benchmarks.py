@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v11.1.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v11.3.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -406,18 +406,22 @@ class TestBaselineFile:
     def test_runner_prefers_latest_baseline(self) -> None:
         """load_baseline() picks the latest baseline file over older ones, falls back as needed.
 
-        v11.1.0 PV-02 (cycle v11.1.0 MINOR cycle-start) fires the W-16
-        wholesale baseline regen per ``.cursor/rules/repo-governance.mdc`` §W-16.
-        The resulting ``v11.1.0_baseline.json`` is the new "newest" after
-        v10.5.0 (the previous wholesale-regen baseline at v10.5.0 cycle-start).
-        Prior baselines stay on disk for cumulative drift detection per
-        v8.4.0 retro §"R-7 wholesale-vs-piecemeal baseline lesson".
+        v11.3.0 cycle-start (grill-with-docs integration MINOR cycle) fires
+        the W-16 wholesale baseline regen per ``.cursor/rules/repo-governance.mdc``
+        §W-16. The resulting ``v11.3.0_baseline.json`` is the new "newest"
+        after v11.1.0 (the previous wholesale-regen baseline at v11.1.0
+        MINOR cycle-start). Prior baselines stay on disk for cumulative
+        drift detection per v8.4.0 retro §"R-7 wholesale-vs-piecemeal
+        baseline lesson". Regen ran with v11.1.3 D-3 Option B — pre-pinned
+        ``sys.modules["tiktoken"] = None`` BEFORE importing any devolaflow
+        modules so the autouse fallback-token-estimator fixture's effect is
+        replicated outside the pytest harness.
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v11.1.0_baseline.json", (
-            f"Expected load_baseline() to prefer v11.1.0_baseline.json "
-            f"(W-16 wholesale regen at v11.1.0 cycle-start); got {newest.name}"
+        assert newest.name == "v11.3.0_baseline.json", (
+            f"Expected load_baseline() to prefer v11.3.0_baseline.json "
+            f"(W-16 wholesale regen at v11.3.0 MINOR cycle-start); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines
