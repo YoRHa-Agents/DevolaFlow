@@ -65,13 +65,13 @@ All 5 high-risk EvoBench scenarios within W-4 SI-4 5pp tolerance.
 
 | Step | Command | Result |
 |---|---|---|
-| 1 | `python -m pytest tests/ -q` | PENDING (run by L1 in stage close) |
-| 2 | `ruff check src/ tests/` | PENDING |
-| 3 | `ruff format --check src/ tests/` | PENDING |
-| 4 | `python -m pytest tests/test_version.py -v` | PENDING (after `bump_version.py 11.0.3`) |
-| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36/36 verified post-T01b + T02; pre-flight scenario forecast confirms ≤0.09pp drift on all 5 high-risk scenarios) |
-| 6 | `make check-cursor-skill` | PENDING |
-| 7 | CP-7 audit (no NEW absolute paths in agent-facing files) | PENDING |
+| 1 | `python -m pytest tests/ -q` | PASS (4272 collected; 4244 passed; 26 skipped; 2 xfailed; 22 warnings in 38.69s) |
+| 2 | `ruff check src/ tests/` | PASS (0 errors; "All checks passed!") |
+| 3 | `ruff format --check src/ tests/` | PASS (289 files already formatted; 0 reformat needed) |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.0.3; 12 passed + 23 mirror tests skipped per SF-3 opt-in) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (36/36 — pre-flight forecast confirmed: max scenario drift 0.09pp ≪ W-4 SI-4 5pp tolerance) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op per SF-3 opt-in semantics) |
+| 7 | CP-7 audit (no NEW absolute paths in agent-facing files) | PASS (zero new abs-path strings under `workflow-system/`, `.rules/`, `AGENTS.md`, `CLAUDE.md` per `git diff e77a52f..HEAD`) |
 
 ## [11.0.2] - 2026-05-08
 
