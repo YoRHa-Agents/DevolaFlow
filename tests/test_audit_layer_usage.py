@@ -69,6 +69,70 @@ def test_extract_layer_signals_dispatch_type_lines() -> None:
     assert signals["dispatch_task"] == 1
 
 
+# ── v11.1.2 D-2 regex bold-markdown coverage ──────────────────────────
+
+
+def test_dispatch_type_regex_matches_plain_style() -> None:
+    """Negative-control: plain ``Dispatch type:`` style still matches.
+
+    Pins the v10.5.0 legacy contract — the broadened regex must not
+    regress plain-text matching (W-20 backward-compat). Same fixture
+    as ``test_extract_layer_signals_dispatch_type_lines`` but asserted
+    via the public regex object directly so the test fails fast on
+    any regex-source drift, not just the count side-effect.
+    """
+    text = "Dispatch type: Wave\nDispatch type: Stage\nDispatch type: Task\n"
+    matches = audit_layer._DISPATCH_TYPE_RE.findall(text)
+    assert matches == ["Wave", "Stage", "Task"]
+
+
+def test_dispatch_type_regex_matches_bold_markdown_style() -> None:
+    """v11.1.2 D-2 fix: ``**Dispatch type:** Wave`` markdown-bold style matches.
+
+    Closes the PV-05 N-2 finding documented at
+    ``docs/cycle-archive/v11.1.0/retrospective.md`` §3 D-4: the legacy
+    v10.5.0 regex did NOT match v11.x cycle docs that use the
+    markdown-bold convention `**Dispatch type:** Wave`. As a result
+    `cascade_ratio` reported `0` for all v11.x cycle docs (undermining
+    the audit's signal value). The v11.1.2 regex broadening uses
+    `\\*{0,2}` quantifiers around the label and value to admit 0/1/2
+    asterisks uniformly.
+    """
+    text = "**Dispatch type:** Wave\n**Dispatch type:** Stage\n**Dispatch type:** Task\n"
+    matches = audit_layer._DISPATCH_TYPE_RE.findall(text)
+    assert matches == ["Wave", "Stage", "Task"]
+
+
+def test_dispatch_type_regex_matches_bold_value_only() -> None:
+    """Defensive: ``Dispatch type: **Wave**`` (bold on value only) matches.
+
+    Some authors emphasise the layer name without bolding the label;
+    the broadened regex MUST handle this asymmetric case so partial
+    bold conventions don't silently drop from the cascade signal.
+    """
+    text = "Dispatch type: **Wave**\nDispatch type: **Stage**\nDispatch type: **Task**\n"
+    matches = audit_layer._DISPATCH_TYPE_RE.findall(text)
+    assert matches == ["Wave", "Stage", "Task"]
+
+
+def test_dispatch_type_regex_matches_full_bold() -> None:
+    """Defensive: ``**Dispatch type:** **Wave**`` (bold on label AND value) matches.
+
+    The full-bold case has TWO adjacent asterisk runs between ``:`` and
+    the value — closing-label ``**`` + space + opening-value ``**`` —
+    which is why the broadened regex carries a dual ``\\*{0,2}\\s*\\*{0,2}``
+    slot. Without the second slot the regex drops the value asterisks
+    onto the value group itself and the alternation fails. This test
+    pins the dual-slot design and the resulting capture remains the
+    bare layer name (``Wave`` / ``Stage`` / ``Task``).
+    """
+    text = (
+        "**Dispatch type:** **Wave**\n**Dispatch type:** **Stage**\n**Dispatch type:** **Task**\n"
+    )
+    matches = audit_layer._DISPATCH_TYPE_RE.findall(text)
+    assert matches == ["Wave", "Stage", "Task"]
+
+
 def test_extract_layer_signals_collapse_markers() -> None:
     """Collapse markers (L0->L3 / SHORTCUT_SIMPLE / Single-Task shortcut) count."""
     text = (

@@ -95,8 +95,25 @@ LAYER_LABELS: tuple[str, ...] = ("L0", "L1", "L2", "L3")
 # Regex patterns. Each is conservative — we count "Dispatch type:" lines
 # as the precise signal because they bind a PV to a layer; the role
 # mentions (e.g. "L1 Stage Agent") are the loose signal for cross-check.
+#
+# v11.1.2 D-2: regex broadened to match bold-markdown `**Dispatch type:**`
+# style used in v11.x cycle docs (PV-05 N-2 finding; the legacy v10.5.0
+# regex matched only plain `Dispatch type:`, missing v11.x bold-style
+# mentions and reporting `cascade_ratio == 0` for v11.x cycle docs). The
+# `\*{0,2}` quantifier permissively matches 0, 1, or 2 asterisks before
+# and after the label and value, covering plain / italic / bold styles
+# uniformly. The dual `\*{0,2}\s*\*{0,2}` slot between `[:=]` and the
+# value group is intentional — it admits the full-bold case
+# `**Dispatch type:** **Wave**` where the closing-label `**` and
+# opening-value `**` are separated by whitespace. Capture group 1 (the
+# layer name) and the `\b` word boundary + `re.IGNORECASE` flag are
+# preserved so existing callers and the v10.5.0 plain-text contract
+# remain byte-identical for plain inputs (W-20 backward-compat).
+# Source: docs/cycle-archive/v11.1.0/retrospective.md §3 D-4
+# (cycle-deferral inventory; the dispatcher's D-2 in-series label).
 _DISPATCH_TYPE_RE = re.compile(
-    r"Dispatch\s+type\s*[:=]\s*(Wave|Stage|Task)\b",
+    r"\*{0,2}Dispatch\s+type\*{0,2}\s*[:=]\s*\*{0,2}\s*\*{0,2}\s*"
+    r"(Wave|Stage|Task)\b\*{0,2}",
     re.IGNORECASE,
 )
 _LAYER_MENTION_RE: dict[str, re.Pattern[str]] = {

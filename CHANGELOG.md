@@ -5,6 +5,83 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.2] - 2026-05-08
+
+**PATCH — D-2: `audit_layer_usage.py` regex bold-markdown coverage.** Second of 3 staged stability patches for the v11.1.x line (sister patches: v11.1.1 D-1 — merged via PR #132; v11.1.3 D-3 — telegraphed). Closes the PV-05 N-2 finding observed during the v11.1.0 cascade-restoration cycle: the legacy v10.5.0 regex `Dispatch\s+type\s*[:=]\s*(Wave|Stage|Task)` matched only plain-text `Dispatch type:` mentions, missing the v11.x markdown-bold convention `**Dispatch type:** Wave` used in cycle plans, retrospectives, and stage reports. As a consequence, `cascade_ratio` reported `0` for v11.x cycle docs even though L1/L2 dispatches actually happened — undermining the audit's signal value. Source: `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-4 (cycle-deferral inventory; the dispatcher's D-2 in-series label).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: regex broadened from plain-only to plain/italic/bold uniformly. Zero behaviour change on plain-text inputs (W-20 backward-compat preserved).** The strict ratchet (`audit_layer_usage.py --strict`) remains DEFAULT-OFF per the v11.1.0 PV-05 contract; this PATCH only widens the regex's input coverage so the `cascade_ratio` field reports correctly when run against v11.x-bold docs.
+
+- **D-2 regex broadening** — `scripts/audit_layer_usage.py::_DISPATCH_TYPE_RE` now matches `**Dispatch type:**` (bold), `*Dispatch type:*` (italic), `Dispatch type: **Wave**` (bold-value-only), `**Dispatch type:** **Wave**` (full-bold), and `Dispatch type:` (plain) styles uniformly via the `\*{0,2}` quantifier. The dual `\*{0,2}\s*\*{0,2}` slot between `[:=]` and the value group admits the full-bold case where the closing-label `**` and opening-value `**` are separated by whitespace. Capture group 1 (the layer name), the `\b` word boundary, and the `re.IGNORECASE` flag are all preserved — plain-text inputs match byte-identically.
+- **4 NEW regex coverage tests** — `tests/test_audit_layer_usage.py` adds tests for plain/bold-label/bold-value/full-bold styles; existing 15 tests preserved byte-stable (W-20 backward-compat verified).
+- **Empirical confirmation** — running `python scripts/audit_layer_usage.py` against `.local/research/v11.*` cycle docs and `docs/cycle-archive/v11.1.0/` archived content shows the OLD regex matched **0** dispatch lines vs the NEW regex matching **1** in `.local/research/` + **7** in the cycle archive (8 total in the v11.x bold-style corpus that were previously invisible to the audit).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_1_2_new_surfaces_have_coverage` (AST symbol pin — robust against function-body refactor; rename / removal fails fast):
+
+- `tests/test_audit_layer_usage.py::test_dispatch_type_regex_matches_plain_style` (negative-control — preserve W-20 backward-compat)
+- `tests/test_audit_layer_usage.py::test_dispatch_type_regex_matches_bold_markdown_style` (the D-2 fix)
+- `tests/test_audit_layer_usage.py::test_dispatch_type_regex_matches_bold_value_only` (defensive — bold value)
+- `tests/test_audit_layer_usage.py::test_dispatch_type_regex_matches_full_bold` (defensive — full-bold; pins the dual `\*{0,2}\s*\*{0,2}` slot design)
+
+Plus `scripts/audit_layer_usage.py::_DISPATCH_TYPE_RE` source-text pin (`\*{0,2}` substring + `v11.1.2 D-2` source comment + `docs/cycle-archive/v11.1.0/retrospective.md` citation) — the W-18 stanza walks the source AST + raw text to evidence the regex broadening.
+
+### Headline numbers
+
+| Area | v11.1.1 | v11.1.2 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | ~4306 | ~4311 | +5 (4 NEW regex + 1 W-18 stanza) | `pytest --collect-only -q` |
+| Coverage | 93% | 93% | 0 (CP-2 floor 80% strongly satisfied) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.1.1 | **11.1.2** | +1 PATCH | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (no schema edits) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (no schema edits) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (no dispatch edits) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (no gate edits) | `tests/test_gate.py` |
+| `audit_layer_usage.py` matches on v11.x-bold corpus | 0 | 8 | observable signal restored | `python scripts/audit_layer_usage.py` |
+
+### W-9 SI-10 7-step + extras verification (PATCH-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | PASS |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (canonical 7 sync 11.1.1 → 11.1.2) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | PASS (no benchmark edits) |
+| 6 | `make check-cursor-skill` | PASS (mirror absent → no-op exit 0 per SF-3 opt-in) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS (32/32 unchanged) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | PASS (10/10 unchanged) |
+| Extras | `python -m pytest tests/test_gate.py -v` | PASS (108/108 unchanged) |
+| Extras | `python -m pytest tests/test_audit_layer_usage.py -v` | PASS (19/19 — 15 existing byte-stable + 4 NEW regex) |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | PASS (v11.1.1 D-1 lint inheritance — runs against this very entry) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py::test_v11_1_2_new_surfaces_have_coverage -v` | PASS (W-18 stanza for this PATCH) |
+
+### Self-application + sister-patch inheritance
+
+The v11.1.1 D-1 CHANGELOG no-duplicate-version-header lint runs against this very entry as part of the W-9 SI-10 step 1 sweep. The `## [11.1.2]` header appears exactly once — proving the v11.1.1 D-1 fix continues to work on the next CHANGELOG entry it lints (sister-patch inheritance verified). The W-18 stanza independently asserts the line-anchored single-application count via `splitlines() + line.startswith("## [11.1.2]")`.
+
+### Sister patches (telegraph)
+
+- **v11.1.1** (predecessor; merged): D-1 — CHANGELOG double-application CI lint (PR #132; deferral D-5 in v11.1.0 retrospective §3).
+- **v11.1.3** (next): D-3 — tiktoken determinism documentation (the third v11.1.x cycle-observed risk; v11.1.0 retrospective §3 D-1/D-2/D-3 telegraphs the v12.0.0 STRICT promotion + SHORTCUT_SIMPLE retirement + S-11 candidate; D-3 in this PATCH series targets the third stability deferral. Scope finalized at v11.1.2 close.)
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. No new Soul rules proposed.
+* **W-20**: NO new `DEVOLAFLOW_*` env flags introduced. Env flag count stays at **8**. The regex broadening is a script-level source change (no runtime surface; no env-flag gate required).
+
+### Cross-references
+
+* `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-4 (deferral rationale)
+* `docs/cycle-archive/v11.1.0/other/v11.1.0_pv05_stage_report.md` §"N-2 finding" (the original PV-05 W01 L3 audit-regex coverage report)
+* PV-05 historical: `audit_layer_usage.py --strict --threshold 0.30` + `cascade_ratio` field shipped DEFAULT-OFF in PR #129 (v11.0.5; the bold-coverage gap was telegraphed as a v11.1.x stability patch dependency)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`
+
 ## [11.1.1] - 2026-05-08
 
 **PATCH — D-1: CHANGELOG double-application CI lint.** First of 3 staged stability patches for the v11.1.x line (post-v11.1.0 cascade-restoration cycle close). Closes the v11.1.0 cycle's PV-03 N-2 class-of-bug observed during the cycle (commit `da1c489` double-applied the `## [11.0.3]` entry; reconciled in-PV by `f7f1f93`). Source: `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-5 (deferral) + §5 P-5 (next-cycle proposal). The dispatcher labels this `D-1` as the first of the v11.1.x stability-patch series; the retrospective labels it `D-5` in the cycle's deferral inventory.
