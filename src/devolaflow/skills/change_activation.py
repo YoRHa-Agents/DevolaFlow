@@ -34,6 +34,9 @@ Public API:
   "COMPLEX"]``.
 * :data:`ActivationVerdict` — ``Literal["MUST_OPEN_CHANGE",
   "SHOULD_OPEN_CHANGE", "NO_CHANGE"]``.
+* :data:`CascadeRequirement` — ``Literal["CASCADE_REQUIRED",
+  "CASCADE_OPTIONAL"]``.
+* :func:`cascade_requirement` — ``(complexity) -> CascadeRequirement``.
 * :func:`classify_complexity` — ``(files_count, loc_estimate,
   is_cross_cutting=False) -> Complexity``.
 * :func:`activation_verdict` — ``(complexity, env_agent_workspace,
@@ -58,9 +61,11 @@ __all__ = [
     "SHORTCUT_FLAG_NAME",
     "SHORTCUT_FLAG_TRUTHY",
     "ActivationVerdict",
+    "CascadeRequirement",
     "Complexity",
     "ShortcutVerdict",
     "activation_verdict",
+    "cascade_requirement",
     "classify_complexity",
     "from_env",
     "shortcut_from_env",
@@ -81,10 +86,14 @@ ActivationVerdict = Literal["MUST_OPEN_CHANGE", "SHOULD_OPEN_CHANGE", "NO_CHANGE
 # is orthogonal: a task may have ANY ActivationVerdict AND independently
 # qualify for SHORTCUT_SIMPLE based on the v9.3.0 PV-06 env flag.
 ShortcutVerdict = Literal["SHORTCUT_SIMPLE", "NO_SHORTCUT"]
+# v11.1.0 PV-02 — cascade-shape verdict (G-CLASSIFY-1 Candidate C); see
+# ``.local/research/v11.1.0_pv02_decision.md`` §1.
+CascadeRequirement = Literal["CASCADE_REQUIRED", "CASCADE_OPTIONAL"]
 
 _VALID_COMPLEXITIES: Final[tuple[str, ...]] = get_args(Complexity)
 _VALID_VERDICTS: Final[tuple[str, ...]] = get_args(ActivationVerdict)
 _VALID_SHORTCUT_VERDICTS: Final[tuple[str, ...]] = get_args(ShortcutVerdict)
+_VALID_CASCADE_REQUIREMENTS: Final[tuple[str, ...]] = get_args(CascadeRequirement)
 
 
 # ── Env-flag constants (W-20 reuse-first) ──────────────────────────────
@@ -369,6 +378,33 @@ def shortcut_verdict(
     return "NO_SHORTCUT"
 
 
+def cascade_requirement(complexity: Complexity) -> CascadeRequirement:
+    """STANDARD complexity or higher → cascade required (L0→L1→L2→L3); SIMPLE / TRIVIAL → cascade optional (operators may collapse to a single L3)."""  # noqa: E501
+    # v11.1.0 PV-02 (G-CLASSIFY-1 Candidate C — "Rule-based 4-tier collapse
+    # with new sibling pure function"). Pure function of ``complexity`` —
+    # no env-flag, no dispatcher state, no parameter beyond complexity.
+    # Composes orthogonally with :func:`activation_verdict` (workspace
+    # activation axis) and :func:`shortcut_verdict` (legacy v9.3.0 PV-06
+    # shortcut surface). Operators bypass cascade not via a flag here but
+    # via the existing ``force_no_change`` parameter on
+    # :func:`activation_verdict` (workspace-activation axis) or via
+    # :func:`shortcut_verdict` (dispatcher-shortcut axis). Raises
+    # ValueError on invalid complexity per S-5 (no silent coercion).
+    # Verdict matrix:
+    #   * COMPLEX  → CASCADE_REQUIRED
+    #   * STANDARD → CASCADE_REQUIRED
+    #   * SIMPLE   → CASCADE_OPTIONAL
+    #   * TRIVIAL  → CASCADE_OPTIONAL
+    # Source: ``.local/research/v11.1.0_pv02_decision.md`` §1.
+    if complexity not in _VALID_COMPLEXITIES:
+        raise ValueError(
+            f"cascade_requirement: complexity {complexity!r} is not one of {_VALID_COMPLEXITIES}"
+        )
+    if complexity in ("STANDARD", "COMPLEX"):
+        return "CASCADE_REQUIRED"
+    return "CASCADE_OPTIONAL"
+
+
 # v9.3.0 PV-06 — non-import references for ``scripts/detect_dead_apis.py``.
 # The two new public symbols ``shortcut_from_env`` + ``shortcut_verdict``
 # have no in-repo production caller until v9.7.0 wires the SHORTCUT_SIMPLE
@@ -383,3 +419,13 @@ _simple_shortcut_dead_api_pins = (
     shortcut_from_env,
     shortcut_verdict,
 )
+
+# v11.1.0 PV-02 — ``cascade_requirement`` is a sibling pure function added
+# under G-CLASSIFY-1 Candidate C closing the v11.1.0 cascade-restoration
+# intent. The schema-side wiring (``gate.cascade_required`` NEST sub-field
+# under the existing ``gate`` block per A-2.3) lands at PV-04; until then
+# the function has no in-repo production caller, so the dead-API detector
+# (`scripts/detect_dead_apis.py`) needs an explicit pin tuple — same
+# pattern as the ``_simple_shortcut_dead_api_pins`` block above (v9.3.0
+# PV-06). Source: ``.local/research/v11.1.0_pv02_decision.md`` §1.
+_cascade_requirement_dead_api_pins = (cascade_requirement,)
