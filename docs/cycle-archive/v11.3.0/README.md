@@ -22,6 +22,10 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v11.3.0_retrospective.md`
 
+### decision_roadmap (zh-CN companion — 中文决策档)
+
+* `v11.3.0_decision_roadmap_zh.md` — 10 项关键决策 + 6 阶段方案路线 + 不变量检查表 + 后续工作；伴随英文 gap_analysis + retrospective，供中文母语审阅者使用
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [11.3.0]` — release note
