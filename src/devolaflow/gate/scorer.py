@@ -86,12 +86,47 @@ R5 strict per ``workflow-system/agent/references/env-flags.md`` §2 parsing:
 * env value unset / any other → respect ``profile.ladder_enabled``
 """
 
-# v11.1.0 PV-04 (W03) — module-level logger for the cascade soft validator
+# v11.1.0 PV-04 (W03) — module-level logger for the cascade validator
 # (and any future scorer-side WARN-level emission). Per S-5 (no silent
-# failures) the validator both RETURNS warning strings AND emits them via
-# this logger so callers can surface them in StatusReport without losing
-# the detection signal.
+# failures) the v12.0.0 PV-02 STRICT validator emits the violation via
+# this logger AT WARNING level immediately BEFORE raising
+# :class:`CascadeViolationError`, so observability tooling that scrapes
+# WARNING-level lines retains the detection signal even when the caller
+# catches the exception (R-12 mitigation per
+# ``.local/research/v12.0.0_gap_analysis.md`` §9 R-12).
 logger = logging.getLogger(__name__)
+
+
+class CascadeViolationError(Exception):
+    """Raised by :func:`validate_cascade_gate_fields` on cascade-depth violations.
+
+    v12.0.0 PV-02 D-1 — Architecture rule A-7 STRICT-promotion exception.
+    Signals that a dispatch payload's ``gate.cascade_required`` /
+    ``gate.cascade_min_layers`` sub-fields are inconsistent or that the
+    observed dispatch chain depth (``actual_layers``) falls below the
+    declared ``cascade_min_layers``. Per the v12.0.0 cycle plan §3.2.1
+    the STRICT validator raises on the FIRST violation it detects (it
+    does NOT accumulate warnings — that was the v11.1.0 SOFT contract
+    that this graduation BREAKS).
+
+    Subclasses :class:`Exception` rather than :class:`ValueError` so
+    callers can write a single ``except CascadeViolationError`` clause
+    without accidentally catching unrelated argument-validation errors
+    in the same try-block; the chosen base mirrors the established
+    ``ValidationError`` precedent in
+    :mod:`devolaflow.compressor` (also a plain ``Exception`` subclass).
+
+    The string form of the error always cites Architecture rule A-7
+    verbatim so the operator-quotable identifier survives any logging
+    pipeline that strips structured fields.
+
+    Source: v12.0.0 PV-02 design — closes the D-1 graduation telegraph
+    documented at ``docs/cycle-archive/v11.1.0/retrospective.md`` §3
+    D-1; gap analysis at ``.local/research/v12.0.0_gap_analysis.md``
+    §3 (D-1 spec); implementation per ADR-007 §"Soul-vs-Architecture"
+    decision-rule (A-7 stays at Architecture; W-21 Soul-set freeze
+    locked at 10).
+    """
 
 
 def is_verification_ladder_active(
@@ -116,21 +151,28 @@ def is_verification_ladder_active(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# v11.1.0 PV-04 (W03) — Cascade-required soft validator
+# v12.0.0 PV-02 D-1 — Cascade-required STRICT validator (graduated from SOFT)
 #
-# Pairs with the v11.1.0 PV-04 W01 schema NEST extension (the new
+# Pairs with the v11.1.0 PV-04 W01 schema NEST extension (the
 # ``gate.cascade_required`` + ``gate.cascade_min_layers`` sub-fields under
 # the existing ``gate`` block — see ``schemas/lean-dispatch.yaml`` lines
 # 177-210) and the W02 ``feedback.py::populate_cascade_gate_fields``
-# helper. This is the SOFT-CHECK side: callers may invoke it to surface
-# WARN-level violations without aborting the gate flow. STRICT enforcement
-# (FAIL on cascade-depth violation) lands at PV-05 with Architecture rule
-# A-7 + ``tests/test_cascade_enforcement.py``.
+# helper. v11.1.0 PV-04 shipped this as the SOFT validator (returns warning
+# list); v12.0.0 PV-02 D-1 graduates it to STRICT (raises
+# :class:`CascadeViolationError` on the first violation) per the W-21
+# 2-cycle deliberation cadence telegraphed at
+# ``docs/cycle-archive/v11.1.0/retrospective.md`` §3 D-1.
+#
+# Backward-compat preserved by construction (R-12 mitigation per
+# ``.local/research/v12.0.0_gap_analysis.md`` §9): the early-return paths
+# for ``gate_block is None`` and falsy ``cascade_required`` keep legacy
+# v11.0.x dispatches without the cascade sub-fields byte-identical
+# (no raise, no observable side-effect — just a return-no-op).
 #
 # The validator does NOT modify ``evaluate_gate`` or any existing scorer
-# function — the wiring into the gate flow is deferred to PV-05 to keep
-# the v11.0.x byte-baselines + the 10/10 R5 byte-identical contract in
-# ``tests/test_dispatch_emission_runs_hooks.py`` green during PV-04.
+# function — the wiring into the gate flow is left to v12.0.x+ follow-up
+# work to preserve the 10/10 R5 byte-identical contract in
+# ``tests/test_dispatch_emission_runs_hooks.py``.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -138,52 +180,90 @@ def validate_cascade_gate_fields(
     gate_block: dict[str, Any] | None,
     *,
     actual_layers: int | None = None,
-) -> list[str]:
-    """Soft validator for gate.cascade_required + gate.cascade_min_layers.
+) -> None:
+    """Strict validator for gate.cascade_required + gate.cascade_min_layers.
 
-    v11.1.0 PV-04 — soft check (warn + log; no FAIL). Strict enforcement
-    lands at PV-05 with Architecture rule A-7 +
-    ``tests/test_cascade_enforcement.py``.
+    .. versionchanged:: 12.0.0
+       **BREAKING**: v12.0.0 PV-02 D-1 — Architecture rule A-7 STRICT
+       graduation. The validator NOW RAISES :class:`CascadeViolationError`
+       on the first violation it detects; the v11.1.0 SOFT-mode return-
+       list-of-warning-strings contract is REMOVED. Operator-visible
+       impact: any caller that previously consumed the warning list and
+       treated empty list as "PASS" / non-empty as "WARN-not-FAIL" must
+       now wrap the call in a ``try / except CascadeViolationError``
+       block. The W-21 2-cycle deliberation cadence telegraphed this
+       breaking change at v11.1.0 retrospective §3 D-1 (date 2026-05-08);
+       v12.0.0 cycle plan §3.2.1 specifies the strict-raise semantics.
+       Source: ``.local/research/v12.0.0_gap_analysis.md`` §3 (D-1).
 
     Inspects the dispatch's ``gate`` block for the cascade sub-fields
-    (added by W01 schema NEST + W02 ``feedback.py`` populate helper):
+    (added by v11.1.0 PV-04 W01 schema NEST + W02
+    :func:`devolaflow.feedback.populate_cascade_gate_fields` helper):
 
     * ``cascade_required: bool`` — when True, the dispatch was authored
       under STANDARD/COMPLEX complexity and the L3 receiver knows the
-      chain MUST traverse L0 → L1 → L2 → L3.
-    * ``cascade_min_layers: int`` — minimum layer depth.
+      chain MUST traverse L0 → L1 → L2 → L3 per Architecture rule A-7.
+    * ``cascade_min_layers: int`` — minimum layer depth (default 4).
+
+    Validation order (FIRST violation raises; the validator does NOT
+    accumulate violations per v12.0.0 PV-02 spec):
+
+    1. ``gate_block is None`` → no-op, returns ``None``
+       (legacy v11.0.x byte-identical short-circuit; preserved per
+       cycle plan §9 R-12 mitigation).
+    2. ``cascade_required`` falsy / missing → no-op, returns ``None``
+       (canonical absence-as-default per A-2.3 NEST contract; SIMPLE
+       / TRIVIAL legacy dispatches pass through cleanly per A-7.1
+       CASCADE_OPTIONAL branch).
+    3. ``cascade_required`` truthy non-bool (e.g. ``"yes"``) →
+       raises :class:`CascadeViolationError` ("cascade_required must
+       be bool, got <type>").
+    4. ``cascade_min_layers`` not ``int >= 1`` (None / str / float /
+       bool / 0 / negative) → raises :class:`CascadeViolationError`
+       ("cascade_min_layers must be int >= 1, got <repr>").
+    5. ``actual_layers is not None`` AND ``actual_layers <
+       cascade_min_layers`` → raises :class:`CascadeViolationError`
+       ("cascade depth violation: actual_layers=<n> <
+       cascade_min_layers=<n>").
 
     Args:
       gate_block: the dispatch's ``gate`` sub-dict, or ``None`` when
-        absent.
+        absent. ``None`` and missing ``cascade_required`` short-circuit
+        to return-no-op (R-12 backward-compat — legacy v11.0.x
+        dispatches without the cascade sub-fields render byte-identical).
       actual_layers: optional observed layer depth in the dispatch
-        chain. When ``None`` (the default for PV-04), the validator
-        only checks schema correctness without verifying actual depth
-        — actual-depth verification lands at PV-05 with A-7.
+        chain. When ``None``, the validator checks schema correctness
+        only (sub-field types) without verifying actual depth. When
+        an int, the depth check (rule 5 above) fires.
 
     Returns:
-      List of warning strings (empty when no soft violations). Each
-      warning is also logged at WARNING level via this module's
-      :data:`logger`.
+      ``None`` on every passing path. The return-type change from
+      ``list[str]`` (v11.x) to ``None`` (v12.0.0+) is part of the
+      D-1 BREAKING graduation.
 
-    Per S-5 (no silent failures): warnings are returned AND logged so
-    callers can surface them in StatusReport without losing the
-    detection signal. Per S-10: this is a soft check at PV-04; strict
-    FAIL behaviour is deferred to PV-05.
+    Raises:
+      CascadeViolationError: on the FIRST violation detected per the
+        validation order above. Per S-5 (no silent failures) the
+        violation is logged at WARNING level via this module's
+        :data:`logger` IMMEDIATELY BEFORE the raise so observability
+        pipelines that scrape WARNING-level output still see the
+        detection signal even when the caller catches the exception.
+        Every error message cites Architecture rule A-7 verbatim per
+        the operator-quotable-identifier discipline (the 'A-7'
+        substring survives any logging pipeline that strips structured
+        fields).
     """
-    warnings: list[str] = []
-
     if gate_block is None:
-        return warnings
+        return None
 
     cascade_required = gate_block.get("cascade_required")
     if not cascade_required:
-        return warnings
+        return None
 
     if not isinstance(cascade_required, bool):
-        msg = f"cascade_required must be bool, got {type(cascade_required).__name__}"
-        warnings.append(msg)
+        msg = f"A-7 cascade_required must be bool, got {type(cascade_required).__name__}"
         logger.warning(msg)
+        raise CascadeViolationError(msg)
 
     cascade_min_layers = gate_block.get("cascade_min_layers")
     # bool is a subclass of int in Python — exclude it explicitly so
@@ -197,41 +277,38 @@ def validate_cascade_gate_fields(
         or isinstance(cascade_min_layers, bool)
         or cascade_min_layers < 1
     ):
-        msg = f"cascade_min_layers must be int >= 1, got {cascade_min_layers!r}"
-        warnings.append(msg)
+        msg = f"A-7 cascade_min_layers must be int >= 1, got {cascade_min_layers!r}"
         logger.warning(msg)
-    elif (
-        actual_layers is not None
-        and cascade_required is True
-        and actual_layers < cascade_min_layers
-    ):
+        raise CascadeViolationError(msg)
+
+    if actual_layers is not None and actual_layers < cascade_min_layers:
         msg = (
-            f"cascade depth violation: actual_layers={actual_layers} "
-            f"< cascade_min_layers={cascade_min_layers} "
-            f"(PV-04 soft check; PV-05 A-7 will FAIL strict)"
+            f"A-7 cascade depth violation: actual_layers={actual_layers} "
+            f"< cascade_min_layers={cascade_min_layers}"
         )
-        warnings.append(msg)
         logger.warning(msg)
+        raise CascadeViolationError(msg)
 
-    return warnings
+    return None
 
 
-# v11.1.0 PV-05 — Architecture rule A-7 ("Cascade-Depth Invariant for
-# Standard+ Dispatches") establishes ``validate_cascade_gate_fields`` as
-# the canonical SOFT cascade-validator (PV-05 baseline preserved as
-# DEFAULTS-PERMISSIVE-IN-MINOR per cycle plan §6 finding 1). The
-# v11.1.0 PV-04 placeholder pin tuple
-# ``_validate_cascade_gate_fields_dead_api_pins`` was REMOVED in
-# v11.0.5 PV-05 per cycle plan §3 PV-05 W03 ("dead-API pin cleanup now
-# that A-7 wires the symbols"); the dead-API detector tracks this helper
-# via the explicit allowlist entry
+# v12.0.0 PV-02 D-1 — Architecture rule A-7 STRICT graduation LANDED.
+# ``validate_cascade_gate_fields`` is now the canonical STRICT validator:
+# raises :class:`CascadeViolationError` on the first violation, returns
+# ``None`` on every passing path. The v11.1.0 SOFT-mode return-list
+# contract is REMOVED (BREAKING change disclosed in CHANGELOG
+# ``## [12.0.0]`` per the W-21 2-cycle deliberation cadence telegraphed
+# at ``docs/cycle-archive/v11.1.0/retrospective.md`` §3 D-1).
+# The dead-API detector still tracks this helper via the explicit
+# allowlist entry
 # ``"devolaflow.gate.scorer:validate_cascade_gate_fields"`` in
-# ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` (with the v12.0.0
-# STRICT-promotion deferral comment per cycle plan §6). The strict
-# promotion (CascadeViolationError raise on cascade-depth violation
-# when ``cascade_requirement(complexity) == "CASCADE_REQUIRED"``) lands
-# at v12.0.0 per W-21 2-cycle deliberation cadence. Source:
-# ``.rules/architecture.mdc`` §A-7.1 + cycle plan §6.
+# ``scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST`` because the
+# in-repo production-call wiring (an L0/L1/L2 dispatcher build path
+# that invokes the validator) is itself a v12.0.0+ deliverable. NOT a
+# domain-SSOT registry symbol per A-5.2 — pure function with zero
+# module-level state. Source: ``.rules/architecture.mdc`` §A-7.1
+# (STRICT graduation language) + ``.local/research/v12.0.0_gap_analysis.md``
+# §3 (D-1 spec).
 
 
 SEVERITY_WEIGHTS: dict[str, int] = {

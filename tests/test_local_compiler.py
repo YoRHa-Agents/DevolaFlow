@@ -258,6 +258,107 @@ class TestRuleCompiler:
         r = results[0]
         assert "soul" in r.layers_included
 
+    def test_compile_layers_included_reflects_post_truncation_state(self, tmp_path: Path) -> None:
+        """v12.0.0 PV-05 cleanup absorption — post-truncation accounting fix.
+
+        Per the v11.4.0 retrospective §3 deferred-bugs inventory + §4 key
+        learning 3, the ``layers_included`` field used to reflect the
+        PRE-truncation ``selected`` list — silently reporting all layers
+        even when the rendered output dropped the lowest-priority layer(s)
+        to fit the token budget. That accounting bug masked the v11.4.0
+        cursor 11979/12000 saturation pre-bump (the Style Rules layer
+        was dropped by the truncation loop but ``RuleCompiler.compile``
+        continued to report all 5 layers in ``layers_included``).
+
+        This regression test pins the v12.0.0 PV-05 fix: when truncation
+        drops a non-always_include layer, ``layers_included`` reflects the
+        POST-truncation retained set (the layer names that actually
+        rendered into ``content``), not the pre-truncation selection.
+        Source: ``.local/research/v12.0.0_gap_analysis.md`` §6 +
+        ``docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md`` §3 + §4.
+        """
+        rd = tmp_path / ".rules_post_trunc"
+        rd.mkdir()
+
+        big = "x" * 2800
+        (rd / "soul.mdc").write_text(f"---\npriority: P0\n---\n\n{big}\n", encoding="utf-8")
+        (rd / "conventions.mdc").write_text(f"---\npriority: P2\n---\n\n{big}\n", encoding="utf-8")
+        (rd / "style.mdc").write_text(f"---\npriority: P4\n---\n\n{big}\n", encoding="utf-8")
+
+        config = {
+            "version": "1.0",
+            "layers": [
+                {"name": "soul", "file": "soul.mdc", "priority": 0, "always_include": True},
+                {
+                    "name": "conventions",
+                    "file": "conventions.mdc",
+                    "priority": 2,
+                    "always_include": False,
+                },
+                {"name": "style", "file": "style.mdc", "priority": 4, "always_include": False},
+            ],
+            "targets": {
+                "tight": {
+                    "output": "out.mdc",
+                    "format": "mdc",
+                    "token_budget": 1500,
+                    "include_layers": ["soul", "conventions", "style"],
+                }
+            },
+        }
+        config_path = rd / "compile-config.yaml"
+        config_path.write_text(yaml.dump(config), encoding="utf-8")
+
+        rc = RuleCompiler(config_path)
+        rc.load_layers(rd)
+        results = rc.compile("tight")
+        r = results[0]
+
+        assert r.tokens_used <= r.tokens_budget, (
+            f"truncation loop did not converge: tokens_used={r.tokens_used} > "
+            f"tokens_budget={r.tokens_budget}; the fixture should force the "
+            "P4 style layer to be dropped within the budget."
+        )
+
+        assert "style" not in r.layers_included, (
+            "v12.0.0 PV-05 violation: layers_included still reports the "
+            "pre-truncation set; style (P4, always_include=False) was "
+            "dropped by the truncation loop but is still listed in "
+            "layers_included. See v11.4.0 retrospective §3 deferred bug "
+            "+ §4 key learning 3 for the original incident."
+        )
+
+        assert "soul" in r.layers_included, "soul (always_include=True) must survive truncation."
+
+        assert len(r.layers_included) < 3, (
+            f"layers_included={r.layers_included!r} reports the pre-truncation "
+            "count of 3; v12.0.0 PV-05 contract requires post-truncation "
+            "reporting (at least the P4 style layer must be absent)."
+        )
+
+    def test_compile_layers_included_happy_path_unchanged(self, rules_dir: Path) -> None:
+        """v12.0.0 PV-05: happy-path ``layers_included`` reporting preserved.
+
+        When no truncation runs (tokens <= token_budget), the
+        ``layers_included`` field continues to reflect the ``selected``
+        list (every layer matched by ``include_layers`` whose content is
+        non-empty). This pins the byte-stable happy-path branch so the
+        v12.0.0 PV-05 fix cannot accidentally regress the no-truncation
+        path. See ``.local/research/v12.0.0_gap_analysis.md`` §6.
+        """
+        rc = RuleCompiler(rules_dir / "compile-config.yaml")
+        rc.load_layers(rules_dir)
+        cursor_results = rc.compile("cursor")
+        r = cursor_results[0]
+        assert r.tokens_used <= r.tokens_budget
+        assert set(r.layers_included) == {
+            "soul",
+            "architecture",
+            "conventions",
+            "workflow",
+            "style",
+        }
+
     def test_compile_all_writes_files(self, rules_dir: Path) -> None:
         rc = RuleCompiler(rules_dir / "compile-config.yaml")
         rc.load_layers(rules_dir)

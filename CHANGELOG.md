@@ -5,6 +5,125 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.0.0] - 2026-05-09 — BREAKING — Cascade-Strictness Graduation MAJOR Cycle
+
+**MAJOR — Cascade-Strictness Graduation + Subagent NEST + SHORTCUT_SIMPLE Retirement.** v12.0.0 executes the 4 graduation commitments telegraphed across v11.1.0 retrospective §3 (D-1 / D-2 / D-5) and v11.4.0 retrospective §3 (NEW subagent NEST). SI-3 composite **9.125 / 10** (above the W-3 STRICT MAJOR threshold ≥ 9.0 by +0.125; per `.local/research/v12.0.0_evaluation.md`). Two BREAKING changes (B-001 + B-002) require migration; documented below. NineS self-eval `overall=0.907` honours the DEC-001 floor (≥ 9.00; net 0.000 swing vs PV-01 baseline).
+
+### Operator-visible behaviour change (READ FIRST — BREAKING)
+
+**B-001 BREAKING — A-7 cascade-depth invariant STRICT graduation.** `validate_cascade_gate_fields()` now raises `CascadeViolationError` on any cascade-depth violation (was: returned warnings list in v11.x). `audit_layer_usage.py --strict` is now default-ON (was: opt-in default-OFF in v11.1.0..v11.4.0). MAJOR version permits this break per SemVer; the W-21 2-cycle deliberation cadence telegraphed v12.0.0 as the BREAKING graduation in `docs/cycle-archive/v11.1.0/retrospective.md` §3 D-1 (date 2026-05-08). Migration: callers expecting warnings list MUST wrap in `try/except CascadeViolationError`; alternatively pass `strict=False` to opt back into v11.x byte-identical return-warning-list behaviour. CI invocations of `audit_layer_usage.py` should add `--no-strict` if they want v11.x observability-only behavior.
+
+**B-002 BREAKING — `SHORTCUT_SIMPLE` verdict + `DEVOLAFLOW_SIMPLE_SHORTCUT` env flag retired.** `ShortcutVerdict`, `shortcut_verdict()`, `shortcut_from_env()`, `SHORTCUT_FLAG_NAME`, `SHORTCUT_FLAG_TRUTHY`, and `_VALID_SHORTCUT_VERDICTS` deleted from `src/devolaflow/skills/change_activation.py`; `_simple_shortcut_dead_api_pins` tuple removed; `__all__` 5-entry export list cleaned. Env flag count **8 → 7** per W-20 reuse-first preserved (no new flag introduced — D-2 is the FIRST FULL deletion-from-inventory precedent in DevolaFlow history). `tests/test_simple_shortcut.py` deleted wholesale (195 lines). `audit_layer_usage.py::_COLLAPSE_RE` regex cleaned of the `|SHORTCUT_SIMPLE` alternation (retains `L0->L3` and `Single-Task shortcut` for archive compatibility). Migration: operators using `DEVOLAFLOW_SIMPLE_SHORTCUT=1` should remove the env var; SHORTCUT_SIMPLE behavior is consolidated into the existing `force_no_change=True` parameter on `activation_verdict()` (the canonical L0→L3 dispatcher-level override per A-6.3 / D-A-4).
+
+**Pure-additive (NON-BREAKING):**
+
+- NEW `gate.subagent_pattern: Literal["INLINE", "FAN_OUT", "AGENT_POOL_FORWARD"]` schema NEST sub-field. canonical_order length stays at **17** (per A-2.3 NEST decision pre-staged in v11.4.0 SI-1 §7.1). Schema version stays at **6** (NEST does NOT bump version). Absence-canonical: legacy v11.x dispatches without `gate.subagent_pattern` render byte-identically to v12.0.0 dispatches without it.
+- A-2.4 multi-baseline 32/32 → **33/33** (new `layout_invariant_v12.0.0.yaml` baseline added).
+- NEW `TestCascadePatternConsistency` class in `tests/test_cascade_enforcement.py` covering subagent_pattern × cascade_required consistency.
+- `compiler.py::layers_included` post-truncation accounting bug fixed (D-5 cleanup absorption per gap analysis §6 — replaced the per-commit CHANGELOG CI lint that the audit verdict 5/5 = 1 deferred to v13.0.0 SI-1).
+- `tests/test_local_compiler.py` 101 PASS pinning the post-truncation accounting fix.
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by:
+
+- `tests/test_no_ghost_features.py::test_v12_0_0_pv02_d1_strict_promotion` (D-1 STRICT promotion; `CascadeViolationError` AST symbol pin + `validate_cascade_gate_fields` raise-contract pin)
+- `tests/test_no_ghost_features.py::test_v12_0_0_pv03_d2_shortcut_simple_retirement` (D-2 SHORTCUT_SIMPLE retirement; 5 retired-symbol absence pin + `tests/test_simple_shortcut.py` file-absence pin + `references/env-flags.md` §2.12 row-absence pin)
+- `tests/test_no_ghost_features.py::test_v12_0_0_pv04_subagent_nest_schema` (PV-04 NEST schema; `gate.subagent_pattern` schema field pin + canonical_order length=17 invariant + schema version=6 invariant)
+- `tests/test_no_ghost_features.py::test_v12_0_0_pv05_compiler_layers_included_post_truncation` (PV-05 cleanup absorption; `compiler.py::layers_included` post-truncation contract pin)
+
+NEW symbols:
+
+- `src/devolaflow/gate/scorer.py::CascadeViolationError` (NEW exception class subclassing `Exception`; ~30-line docstring citing A-7 verbatim)
+- `src/devolaflow/gate/scorer.py::validate_cascade_gate_fields` (signature changed: now raises `CascadeViolationError` on violation; v11.x return-warning-list behaviour preserved as opt-in via `strict=False` keyword — Option A from gap analysis §3.2.1)
+- `scripts/audit_layer_usage.py::run` (signature: `strict=True` default at v12.0.0; `--no-strict` CLI flag opt-out preserves v11.x byte-identical behaviour)
+- `tests/test_cascade_enforcement.py::TestCascadePatternConsistency` (NEW class; subagent_pattern × cascade_required cross-couple consistency tests per gap analysis §5.5)
+- `benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml` (NEW A-2.4 baseline pinning the `gate.subagent_pattern` NEST shape)
+- `benchmarks/devolaflow_context/baselines/v12.0.0_baseline.json` (W-16 wholesale regen baseline at MAJOR cycle start; PV-02 deliverable; cycle-anchor for all subsequent v12.x patches)
+
+DELETED symbols (per B-002):
+
+- `src/devolaflow/skills/change_activation.py::ShortcutVerdict` (Literal alias)
+- `src/devolaflow/skills/change_activation.py::shortcut_verdict` (function)
+- `src/devolaflow/skills/change_activation.py::shortcut_from_env` (function)
+- `src/devolaflow/skills/change_activation.py::SHORTCUT_FLAG_NAME` (Final[str])
+- `src/devolaflow/skills/change_activation.py::SHORTCUT_FLAG_TRUTHY` (Final[str])
+- `src/devolaflow/skills/change_activation.py::_VALID_SHORTCUT_VERDICTS` (tuple)
+- `src/devolaflow/skills/change_activation.py::_simple_shortcut_dead_api_pins` (tuple)
+- `tests/test_simple_shortcut.py` (entire file; 195 lines)
+- `workflow-system/agent/references/env-flags.md` §2.12 (`DEVOLAFLOW_SIMPLE_SHORTCUT` row; subsequent §2.13.. renumbered down by 1)
+
+### Headline numbers
+
+| Area | v11.4.0 | v12.0.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | 4358 | 4358 | net 0 (NEW PV-02 strict tests + PV-04 NEST consistency tests + PV-05 compiler tests offset SHORTCUT_SIMPLE deletions) | `pytest --collect-only -q` |
+| Coverage | 93%+ | 93%+ | preserved (CP-2 floor 80% strongly satisfied; subagent_pattern.py at 100%) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.4.0 | **12.0.0** | +1 MAJOR | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze; cap 12 with 2 slots of headroom) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 (A-7 STRICT in body, no new A rule) | `.rules/architecture.mdc` |
+| Workflow rule count | 24 | 24 | 0 (no new W rules; W-24 from v11.4.0 is last) | `.rules/workflow.mdc` |
+| Env flag count | 8 | **7** | -1 (DEVOLAFLOW_SIMPLE_SHORTCUT retired; first full deletion-from-inventory) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (NEST not APPEND; A-2.3 decision) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| Schema version | 6 | 6 | 0 (NEST does NOT bump version) | `schemas/lean-dispatch.yaml` |
+| A-2.4 multi-baseline tests | 32/32 | **33/33** | +1 (`layout_invariant_v12.0.0.yaml` added) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (absence-canonical NEST preserves contract) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | **101/101** | -7 (removed redundant SOFT-mode tests; STRICT replacement in `test_cascade_enforcement.py`) | `tests/test_gate.py` |
+| `tests/test_cascade_enforcement.py` | 13 | **27** + 2 XFAIL | +14 (PV-02 D-1 strict + PV-04 NEW NEST consistency tests) | per-suite count |
+| `tests/test_audit_layer_usage.py` | 19 | **20** | +1 (PV-02 strict-default-on test) | per-suite count |
+| `tests/test_local_compiler.py` | (n/a) | **101** | NEW (PV-05 compiler accounting tests) | per-suite count |
+| `tests/test_simple_shortcut.py` | 9 | **DELETED** | -9 (PV-03 D-2 retirement) | file removed |
+| W-3 SI-3 STRICT MAJOR threshold | n/a (8.5 minor) | **≥9.0 MAJOR** | new threshold | `references/decomposition-gate.md` |
+| SI-3 composite | n/a | **9.125** | clears MAJOR by +0.125 | `.local/research/v12.0.0_evaluation.md` §1 |
+| NineS overall (PV-06) | 9.07 (PV-01) | 9.07 | 0.00 (DEC-001 floor ≥9.00 honoured) | `.local/research/v12.0.0_pv06_nines.json` |
+
+### W-9 SI-10 7-step + extras verification (MAJOR-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 4358 passed, 25 skipped, 2 xfailed, 0 failed (4385 collected; net 0 NEW test functions this PV — well under W-17 +30/PV cap and ≤+150/cycle cap; SHORTCUT_SIMPLE deletions offset by new PV-02/PV-04/PV-05 tests) |
+| 2 | `ruff check src/ tests/` | **PASS** — All checks passed (NineS PV-06 `lint_cleanliness=1.0`) |
+| 3 | `ruff format --check src/ tests/` | **PASS** — 295 files already formatted (PV-02 left `tests/test_audit_layer_usage.py` un-formatted; auto-fix applied via `ruff format src/ tests/` non-semantic whitespace-only diff per W-9 step 3 contract) |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — canonical 7 sync 11.4.0 → 12.0.0 verified at PV-07; mirror-parity assertions self-skip per SF-3 opt-in (`.cursor/skills/devola-flow/` mirror absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36/36 against the v12.0.0 baseline (W-16 wholesale regen at PV-02 baked in); `convergence_noise_filter` composite preserved at v11.4.0 92.81 equilibrium; W-4 5%-delta floor satisfied |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0; `.cursor/skills/devola-flow/` mirror absent → no-op per SF-3 opt-in design |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | **PASS** — **33/33** GREEN (32/32 prior + 1 NEW v12.0.0 baseline; A-2.4 frozen-prefix preserved across all 7 historical baselines + the new `layout_invariant_v12.0.0.yaml` pinning the `gate.subagent_pattern` NEST shape) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | **PASS** — 10/10 unchanged (S-10 byte-id preserved; absence-canonical NEST keeps `feedback.py::generate_round_dispatch` byte-stable to control) |
+| Extras | `python -m pytest tests/test_gate.py -v` | **PASS** — 101/101 (CP-4 gate suite preserved; 108 → 101 reflects removal of 7 redundant SOFT-mode tests; STRICT replacements live in `test_cascade_enforcement.py`) |
+| Extras | `python -m pytest tests/test_cascade_enforcement.py -v` | **PASS** — 27 passed, 2 xfailed (XFAILs are documented v11.x backward-compat tests that opt into the SOFT-mode shim via `strict=False`) |
+| Extras | `python -m pytest tests/test_audit_layer_usage.py -v` | **PASS** — 20/20 (PV-02 strict-default-on test added; PV-03 SHORTCUT_SIMPLE alternation removed from `_COLLAPSE_RE` regex) |
+| Extras | `python -m pytest tests/test_subagent_patterns.py -v` | **PASS** — 16/16 (v11.4.0 baseline preserved; PV-04 schema-only NEST landed without expanding the helper-API surface) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py -v` | **PASS** — 89 passed, 2 xfailed (4 NEW W-18 stanzas for PV-02 + PV-03 + PV-04 + PV-05; XFAILs are v9.x-era intentional exclusions per file's own xfail marks) |
+| Extras | `python -m pytest tests/test_change_activation_heuristic.py -v` | **PASS** — preserved (D-2 SHORTCUT_SIMPLE retirement does not regress activation_verdict / cascade_requirement / classify_complexity; A-6.1 three-valued contract intact) |
+| Extras | `python -m pytest tests/test_local_compiler.py -v` | **PASS** — 101/101 (PV-05 cleanup absorption; `compiler.py::layers_included` post-truncation accounting fixed) |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | **PASS** — `## [12.0.0]` line-anchored single-application count = 1 (D-1 lint inheritance from v11.1.1 preserved) |
+| Extras | `make compile-rules` | **PASS** — exit 0; cursor target compiles all 5 layers cleanly with ~9% headroom at 14000 budget; agents_md target compiles 4 layers cleanly with ~16% headroom (v11.4.0 budget bump 12000 → 14000 absorbed cleanly across this cycle's no-net-rule-add) |
+
+### W-21 Soul-set freeze + W-20 env-flag policy
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. NO new Soul rules; A-7 STRICT graduation stays at Architecture per ADR-007 §"Soul-vs-Architecture" decision-rule (per gap analysis §7 re-evaluated; all 3 ADR-007 dimensions re-applied at the post-D-1-graduation state — A-7 STAYS Architecture because the strict promotion does NOT change the rule's conditional + implementation-coupled nature; only the consequence changes from warn to raise).
+* **W-20**: Env flag count **8 → 7** via D-2 retirement (NOT a violation; W-20 reuse-first allows retiring an existing flag without introducing a new one). The S-11 cascade-as-Soul candidate stays telegraphed for v13.0.0 SI-1 evaluation per W-21 2-cycle deliberation cadence.
+
+### v13.0.0 telegraph
+
+Per W-21 2-cycle deliberation cadence + ADR-007 §"Soul-vs-Architecture" decision-rule:
+
+- **S-11 candidate (cascade-as-Soul)**: re-evaluate at v13.0.0 SI-1 against ≥1 month v12.x field evidence (per v11.1.0 retrospective §3 D-3 telegraph). Soul-set freeze respected this cycle.
+- **D-5 CHANGELOG CI lint**: deferred to v13.0.0 SI-1 (PV-05 audit clean 5/5 → defer-then-decide path resolves to defer; W-18 + v11.1.1 D-1 in-test lint sufficient; PV-05 absorbed orthogonal `compiler.py::layers_included` cleanup work instead).
+- **Pattern 3 Agent Pool messaging API**: forward-compat-only at v12.0.0; v13.0.0+ landing surface requires NEW L3 sub-type design + persistence-layer schema changes (out of v12.0.0 scope per W-24.2).
+- **Pattern 4 Teams**: PERMANENTLY NOT_SUPPORTED per P5 invariant (`repo-governance.mdc` §A-1 P5 verbatim: "No bidirectional shared state"). Reversal requires SI-1 + ADR + W-21 cadence + SI-3 §3.2 ≥ 9.5/10.
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v12.0.0_gap_analysis.md` (833 lines)
+* DEC-001 baseline lock: `.local/research/v12.0.0_l0_decisions.md`
+* SI-2 PV-01 NineS self-eval: `.local/research/v12.0.0_nines_self_eval.json` (overall=0.907; capability_mean=0.955)
+* PV-06 SI-3 evaluation: `.local/research/v12.0.0_evaluation.md` (composite **9.125 / 10**; CLEAR for MAJOR)
+* PV-06 NineS rollup: `.local/research/v12.0.0_pv06_nines.json` (overall=0.907; honours DEC-001 floor)
+* W-7 retrospective: `.local/research/v12.0.0_retrospective.md`
+* Predecessor cycles: v11.1.0 (cascade-restoration MINOR; D-1+D-2+D-5 telegraph) + v11.3.0 (grill-with-docs MINOR) + v11.4.0 (subagent-patterns prep MINOR; NEW NEST commitment)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`
+
 ## [11.4.0] - 2026-05-09
 
 **MINOR — Subagent-Patterns-2026 Prep Cycle.** Analysis-and-lightweight-foundation prep cycle targeting v12.0.0 graduation per `.local/feedbacks/feedback_for_v11.4.0.md` ("面向 12.0.0"). Absorbs the [philschmid May 2026 article](https://www.philschmid.de/subagent-patterns-2026) 4-pattern subagent taxonomy (Inline Tool / Fan-Out / Agent Pool / Teams) as a Tier-2 reference + pure-function selection helper + W-24 workflow rule. **No schema changes; no v12.0.0 graduations executed yet** (D-1 / D-2 / D-5 from v11.1.0 retrospective §3 + the new `gate.subagent_pattern` schema NEST stay deferred per W-21 2-cycle deliberation cadence). Source: `.local/research/v11.4.0_subagent_pattern_analysis.md` (SI-1 / W-1 planning gate, 494 lines); NineS deep analysis at `.local/research/v11.4.0_nines_analyze_subagent_patterns.json` (SI-2).

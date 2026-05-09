@@ -48,18 +48,23 @@ Public API:
   cascade-compliance signal for the v11.1.0 audit ratchet).
 * :func:`render_markdown_report(per_doc, ratios)` -> str
 * :func:`run(repo_root, *, cycle_glob, json_out, strict, threshold)` -> int
-  (v11.1.0 PV-05: ``strict=True`` AND ``cascade_ratio < threshold``
-  AND ``total_dispatch > 0`` → returns 1 instead of 0; otherwise
-  returns 0 — default-OFF preserves byte-identical v11.0.x behaviour.)
+  (v12.0.0 PV-02 D-1: ``strict`` defaults to **True** at v12.0.0 — the
+  STRICT promotion graduates the v11.1.0 PV-05 default-OFF runtime to
+  default-ON. ``strict=True`` AND ``cascade_ratio < threshold`` AND
+  ``total_dispatch > 0`` → returns 1; otherwise returns 0. Operators
+  who want the v11.x observability-only behaviour pass
+  ``strict=False`` (or the ``--no-strict`` CLI flag).)
 
 Entry point: ``python scripts/audit_layer_usage.py [--repo-root .]
 [--cycle-glob 'v10.*'] [--json] [--verbose] [--output PATH]
-[--strict] [--threshold 0.30]``
+[--no-strict] [--threshold 0.30]``
 
 Source: v10.5.0 PV-01 — codified per
 `.local/research/v11.0.0_patches/D-A-1.md` §2.
 v11.1.0 PV-05 ratchet: see
 `.local/research/v11.1.0_gap_analysis.md` §G-AUDIT-1.
+v12.0.0 PV-02 D-1 default-ON graduation: see
+`.local/research/v12.0.0_gap_analysis.md` §3.2.2.
 """
 
 from __future__ import annotations
@@ -123,7 +128,7 @@ _LAYER_MENTION_RE: dict[str, re.Pattern[str]] = {
     "L3": re.compile(r"\bL3\b"),
 }
 _COLLAPSE_RE = re.compile(
-    r"L0\s*[\u2192>\-]+\s*L3|Single-Task\s+shortcut|SHORTCUT_SIMPLE",
+    r"L0\s*[\u2192>\-]+\s*L3|Single-Task\s+shortcut",
     re.IGNORECASE,
 )
 
@@ -168,7 +173,12 @@ def extract_layer_signals(text: str) -> dict[str, int]:
       * ``dispatch_wave`` / ``dispatch_stage`` / ``dispatch_task`` —
         precise count of ``Dispatch type: Wave/Stage/Task`` lines.
       * ``collapse_l0_l3`` — count of ``L0->L3`` / "Single-Task
-        shortcut" / "SHORTCUT_SIMPLE" markers (collapse evidence).
+        shortcut" markers (collapse evidence). The v9.3.0 PV-06
+        ``SHORTCUT_SIMPLE`` literal alternation was REMOVED in
+        v12.0.0 PV-03 alongside the ``shortcut_verdict`` source-side
+        retirement (D-2 from `.local/research/v12.0.0_gap_analysis.md`
+        §4); the two preserved alternations cover the canonical
+        collapse-evidence patterns going forward.
     """
     signals: dict[str, int] = {label: 0 for label in LAYER_LABELS}
     for label, pattern in _LAYER_MENTION_RE.items():
@@ -305,20 +315,29 @@ def render_markdown_report(
     return "\n".join(lines)
 
 
-# v11.1.0 PV-05 ratchet semantics (G-AUDIT-1).
+# v12.0.0 PV-02 D-1 ratchet semantics (graduated from v11.1.0 PV-05 default-OFF).
 #
 # The legacy v10.5.0 contract was observability-only: ``run()`` returned
 # 0 unconditionally so that operators could read the audit without CI
-# failures. v11.1.0 PV-05 adds a default-OFF *strict* mode: when the
-# operator passes ``--strict`` (or ``run(..., strict=True)``), the audit
-# returns 1 IFF there is at least one dispatch line AND the cascade
-# ratio (``compute_layer_ratios()['cascade_ratio']``) is below the
-# configured ``--threshold`` (default 0.30). When ``--strict`` is OFF,
-# behaviour is byte-identical to v11.0.x — see ``test_strict_flag_
-# default_off_preserves_byte_identical_v11_0x`` for the regression
-# pin. When ``strict=True`` and there are zero dispatch lines, the
-# audit still returns 0 (a zero-input cascade ratio is undefined; we
-# refuse to manufacture a false positive on empty input).
+# failures. v11.1.0 PV-05 added a default-OFF *strict* mode: when the
+# operator passed ``--strict`` (or ``run(..., strict=True)``), the audit
+# returned 1 IFF there was at least one dispatch line AND the cascade
+# ratio fell below the configured threshold.
+#
+# v12.0.0 PV-02 D-1 graduates the runtime to default-ON: ``strict``
+# now defaults to ``True``. Operators who want the v11.x observability-
+# only behaviour pass ``--no-strict`` on the CLI (the new opt-out flag)
+# or ``run(..., strict=False)`` programmatically. See
+# ``test_no_strict_flag_preserves_byte_identical_v11_0x`` for the
+# regression pin and the operator-visible BREAKING-change disclosure
+# in CHANGELOG ``## [12.0.0]``. When ``strict=True`` and there are
+# zero dispatch lines, the audit still returns 0 (a zero-input cascade
+# ratio is undefined; we refuse to manufacture a false positive on
+# empty input — preserved from v11.1.0 PV-05).
+#
+# Source: ``.local/research/v12.0.0_gap_analysis.md`` §3.2.2 (the
+# default-ON graduation spec); v11.1.0 retrospective §3 D-1 (the
+# 2-cycle telegraph at date 2026-05-08).
 def run(
     repo_root: Path,
     *,
@@ -326,7 +345,7 @@ def run(
     json_out: bool = False,
     verbose: bool = False,
     output: Path | None = None,
-    strict: bool = False,
+    strict: bool = True,
     threshold: float = 0.30,
 ) -> int:
     """Entry-point — scan cycle docs, compute ratios, emit report.
@@ -339,19 +358,21 @@ def run(
       verbose: When True, prints the path of each doc as it scans.
       output: When set, write markdown / JSON to this file in
         addition to (or instead of) stdout.
-      strict: v11.1.0 PV-05 ratchet — when True AND
+      strict: v12.0.0 PV-02 D-1 ratchet — when True AND
         ``total_dispatch > 0`` AND ``cascade_ratio < threshold``,
-        ``run()`` returns ``1``. Default False preserves byte-identical
-        v11.0.x behaviour.
+        ``run()`` returns ``1``. **Default at v12.0.0+ is ``True``**
+        (the BREAKING graduation from v11.1.0 PV-05's default-OFF).
+        Pass ``False`` or use the ``--no-strict`` CLI flag to preserve
+        v11.x byte-identical observability-only behaviour.
       threshold: cascade-compliance floor (used only when
         ``strict=True``). Default ``0.30``.
 
     Returns:
-      ``0`` on success (default-OFF preserves the v11.0.x
-      observability-only contract — no docs found is reported as an
-      empty audit, not an error). ``1`` only when ``strict=True`` AND
-      the cycle-wide ``cascade_ratio`` falls below ``threshold`` AND
-      there is at least one dispatch line to evaluate.
+      ``0`` on success or when ``strict=False`` is explicitly opted
+      into for v11.x backward-compat. ``1`` when ``strict=True`` (the
+      v12.0.0+ default) AND the cycle-wide ``cascade_ratio`` falls
+      below ``threshold`` AND there is at least one dispatch line
+      to evaluate.
     """
     docs = scan_cycle_docs(repo_root, cycle_globs)
     per_doc: dict[str, dict[str, int]] = OrderedDict()
@@ -416,19 +437,38 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--strict",
+        dest="strict",
         action="store_true",
+        default=True,
         help=(
-            "v11.1.0 PV-05 ratchet (default OFF): exit 1 when the cycle-wide "
-            "cascade_ratio falls below --threshold AND at least one dispatch "
-            "line was scanned. OFF preserves byte-identical v11.0.x exit-0 "
-            "observability-only behaviour."
+            "v12.0.0 PV-02 D-1 ratchet (default ON): exit 1 when the "
+            "cycle-wide cascade_ratio falls below --threshold AND at least "
+            "one dispatch line was scanned. The flag is now redundant with "
+            "the default; preserved as an explicit opt-in for scripts "
+            "that pinned --strict against v11.1.x."
+        ),
+    )
+    parser.add_argument(
+        "--no-strict",
+        dest="strict",
+        action="store_false",
+        help=(
+            "v12.0.0 PV-02 D-1 opt-out: preserve byte-identical v11.0.x "
+            "observability-only behaviour (exit 0 unconditionally). Use "
+            "this flag in scripts that consumed the audit's markdown / "
+            "JSON output without expecting a non-zero exit on cascade "
+            "drift."
         ),
     )
     parser.add_argument(
         "--threshold",
         type=float,
         default=0.30,
-        help="Cascade-compliance floor used when --strict is set (default 0.30).",
+        help=(
+            "Cascade-compliance floor (default 0.30). Used by the "
+            "default-ON --strict ratchet; pair with --no-strict to "
+            "disable the gate entirely."
+        ),
     )
     args = parser.parse_args(argv)
     cycle_globs = tuple(args.cycle_globs) if args.cycle_globs else DEFAULT_CYCLE_GLOBS

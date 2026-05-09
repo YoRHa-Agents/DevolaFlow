@@ -4,8 +4,8 @@ description: "系统架构：4 层层级、阶段原语、质量门机制。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-08T21:49:42Z"
-source_version: "11.4.0"
+last_synced: "2026-05-09T08:45:47Z"
+source_version: "12.0.0"
 ---
 
 # 架构概述

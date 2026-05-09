@@ -134,14 +134,19 @@ def test_dispatch_type_regex_matches_full_bold() -> None:
 
 
 def test_extract_layer_signals_collapse_markers() -> None:
-    """Collapse markers (L0->L3 / SHORTCUT_SIMPLE / Single-Task shortcut) count."""
+    """Collapse markers (L0->L3 / Single-Task shortcut) count.
+
+    v12.0.0 PV-03 D-2: ``SHORTCUT_SIMPLE`` retired from
+    ``_COLLAPSE_RE`` alternation alongside the ``shortcut_verdict()``
+    helper deletion in ``src/devolaflow/skills/change_activation.py``.
+    Surviving collapse markers are the layer-arrow form (``L0 -> L3``)
+    and the natural-language form (``Single-Task shortcut``).
+    """
     text = (
-        "Per PV-06 the SHORTCUT_SIMPLE verdict ships;\n"
-        "see also the L0 -> L3 collapse pattern.\n"
-        "Single-Task shortcut applies for trivial-tier tasks.\n"
+        "See the L0 -> L3 collapse pattern.\nSingle-Task shortcut applies for trivial-tier tasks.\n"
     )
     signals = audit_layer.extract_layer_signals(text)
-    assert signals["collapse_l0_l3"] >= 3
+    assert signals["collapse_l0_l3"] >= 2
 
 
 def test_extract_layer_signals_ignores_unrelated_text() -> None:
@@ -359,14 +364,27 @@ def test_strict_flag_returns_one_when_below_threshold(
     assert rc == 1
 
 
-def test_strict_flag_default_off_preserves_byte_identical_v11_0x(
+def test_no_strict_flag_preserves_byte_identical_v11_0x(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """R5 strict backward-compat: default ``run()`` returns 0 even on a low-cascade fixture.
+    """R5 backward-compat: ``run(..., strict=False)`` opt-out returns 0 on low-cascade fixture.
 
-    Without ``strict=True``, the same all-Task fixture that triggers
-    the strict-mode failure path MUST still return 0 — byte-identical
-    to v11.0.x observability-only behaviour.
+    .. versionchanged:: 12.0.0
+       **RENAMED** from ``test_strict_flag_default_off_preserves_byte_identical_v11_0x``.
+       At v11.1.0 PV-05 the default was OFF so ``run(tmp_path)`` (no
+       ``strict=`` kwarg) preserved v11.0.x behaviour. At v12.0.0 PV-02
+       D-1 the default flipped to ON, so the byte-identical preservation
+       contract now requires the operator to PASS ``strict=False``
+       explicitly (or use the ``--no-strict`` CLI flag). The renamed
+       test asserts the OPT-OUT path: with ``strict=False`` the audit
+       returns 0 on a fixture that would otherwise trigger exit-1
+       under the v12.0.0 default-ON ratchet.
+
+    The same all-Task fixture that triggers the strict-mode failure
+    path under default-ON MUST still return 0 when the operator opts
+    out via ``strict=False`` — byte-identical to v11.0.x observability-
+    only behaviour. This is the v11.x → v12.0 migration carve-out
+    operators rely on.
     """
     research = tmp_path / ".local" / "research"
     research.mkdir(parents=True)
@@ -380,9 +398,57 @@ def test_strict_flag_default_off_preserves_byte_identical_v11_0x(
         ),
         encoding="utf-8",
     )
-    rc = audit_layer.run(tmp_path)
+    # v12.0.0 PV-02 D-1: explicit ``strict=False`` opt-out preserves
+    # byte-identical v11.0.x behaviour (was: default-OFF in v11.1.0 PV-05).
+    rc = audit_layer.run(tmp_path, strict=False)
     capsys.readouterr()
     assert rc == 0
+
+
+def test_strict_default_on_means_threshold_gate_fires_unattended(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """v12.0.0 PV-02 D-1: ``run()`` with no kwargs gates strict on the same fixture.
+
+    Regression pin for the v12.0.0 PV-02 D-1 BREAKING graduation: the
+    same all-Task fixture that previously returned 0 under
+    ``run(tmp_path)`` (v11.1.0 PV-05 default-OFF) now returns 1 because
+    the v12.0.0 default flipped to ON. Operators who scripted the
+    audit observability-only without passing ``--no-strict`` will see
+    this exit-1 — this test pins the change so a future maintainer
+    cannot silently revert the flip.
+
+    Pairs with :func:`test_no_strict_flag_preserves_byte_identical_v11_0x`
+    (the opt-out path) for full coverage of the BREAKING ratchet.
+    """
+    research = tmp_path / ".local" / "research"
+    research.mkdir(parents=True)
+    # File name MUST match DEFAULT_CYCLE_GLOBS (``v10.*.0_cycle_plan.md``);
+    # using ``v10.5.0_cycle_plan.md`` keeps this fixture disjoint from
+    # the v11.1.0 PV-05 sibling tests (``v10.0.0`` / ``v10.1.0`` / ``v10.2.0``).
+    (research / "v10.5.0_cycle_plan.md").write_text(
+        "\n".join(
+            [
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+                "Dispatch type: Task",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    # NO strict= kwarg passed → default is True at v12.0.0 → gate fires
+    # → returns 1 because cascade_ratio = 0/5 = 0 < 0.30 threshold.
+    rc = audit_layer.run(tmp_path)
+    capsys.readouterr()
+    assert rc == 1, (
+        f"v12.0.0 PV-02 D-1 BREAKING graduation regression: ``run(tmp_path)`` "
+        f"returned {rc!r} on an all-Task fixture; expected 1 because the "
+        "v12.0.0 default-ON --strict ratchet should fire on cascade_ratio=0. "
+        "If this test fails the default flip silently reverted; check "
+        "scripts/audit_layer_usage.py::run signature ``strict: bool = True``."
+    )
 
 
 def test_cascade_ratio_field_present_in_output() -> None:

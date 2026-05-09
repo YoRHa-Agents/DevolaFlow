@@ -210,23 +210,19 @@ These flags are read by production code paths. Tests in
 | **Opt-out path** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
 | **Reference** | `tests/test_pv07_agents_md_slice.py::test_agents_md_slice_env_flag_0_opts_out`; `workflow-system/agent/context_profiles.yaml#meta.agents_md_slice` |
 
-### 2.12 `DEVOLAFLOW_SIMPLE_SHORTCUT` — v9.3.0 PV-06 opt-in simple-task auto-shortcut
+> **Retirement note (v12.0.0 PV-03 D-2)**: the v9.3.0 PV-06 entry that
+> formerly occupied §2.12 (the simple-task auto-shortcut env flag,
+> companion to the retired `shortcut_verdict` / `shortcut_from_env`
+> surface in `src/devolaflow/skills/change_activation.py`) was
+> RETIRED ENTIRELY at v12.0.0 PV-03 per the v11.1.0 retrospective §3
+> D-2 telegraph. Env-flag count goes 8 → 7 (W-20 reuse-first
+> preserved; no new flag introduced). Operators who relied on the
+> v11.x shortcut path migrate to `activation_verdict(complexity, ...,
+> force_no_change=True)` per the v12.0.0 CHANGELOG `## [12.0.0]`
+> migration table. Subsequent §2.13/§2.14/§2.15 sub-sections were
+> renumbered to §2.12/§2.13/§2.14 to close the gap.
 
-| Field | Value |
-|---|---|
-| **Owner** | `src/devolaflow/skills/change_activation.py::SHORTCUT_FLAG_NAME` (helper: `shortcut_from_env`) |
-| **Introduced** | v9.3.0 PV-06 (closes D-E-4 from `.local/research/v9.3.0_gap_analysis.md` §1.4) |
-| **Default** | unset (= disabled — full L0→L1→L2→L3 chain mandatory) |
-| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
-| **Effect when active (combined with `classify_complexity` SIMPLE/TRIVIAL output)** | `shortcut_verdict(complexity, simple_shortcut_enabled=True)` returns `"SHORTCUT_SIMPLE"`; the dispatcher MAY skip L1 (Stage Agent) and L2 (Wave Agent) entirely and route the task directly to an L3 Task Agent. Saves ~10K tokens of L1+L2 dispatch context for tasks that don't need design / decomposition / wave coordination. |
-| **Effect when opted out** | `shortcut_verdict(...)` returns `"NO_SHORTCUT"` for EVERY complexity tier — preserves v9.2.4 byte-identical dispatch behaviour for operators who have not opted in (the acceptance-criterion #2 from the PV-06 spec) |
-| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SHORTCUT_SIMPLE activates a different runtime surface (the dispatcher's L1/L2-bypass decision) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` activates the workspace lifecycle (active/handoff folder management), which is conceptually orthogonal — an operator may want one without the other. `DEVOLAFLOW_RTK_PROXY` activates command rewriting, also orthogonal. No existing flag could be REUSED without conflating two distinct activation surfaces. |
-| **R5 strict?** | YES — `shortcut_from_env` is a pure ``dict.get`` comparison with no IO + no subprocess. The `shortcut_verdict` decision is also pure (4 if/elif branches over the 3 input args). Codified by `tests/test_simple_shortcut.py::test_shortcut_from_env_strict_one`. |
-| **Lifecycle telegraph** | The v9.3.0 cycle ships the flag as opt-in with default-OFF. v9.7.0 (telegraphed in `.local/research/v10.0.0_cycle_plan.md` §"Performance Overhaul #2") will promote it to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern that promoted the 5 Theme T5 gate primitives. |
-| **Opt-out path (when default-ON in v9.7.0)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SIMPLE_SHORTCUT=0` at v9.7.0 to preserve v9.6.x dispatch behaviour byte-identically |
-| **Reference** | `tests/test_simple_shortcut.py` (9 NEW tests pin the verdict matrix); `src/devolaflow/skills/change_activation.py::shortcut_verdict` (the public entry point); `.local/research/v9.3.0_gap_analysis.md` §3.5 |
-
-### 2.13 `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` — v9.4.0 PV-02 dispatcher pre-flight auto-install (SPLIT v10.8.0 D-C-3)
+### 2.12 `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` — v9.4.0 PV-02 dispatcher pre-flight auto-install (SPLIT v10.8.0 D-C-3)
 
 | Field | Value |
 |---|---|
@@ -242,7 +238,7 @@ These flags are read by production code paths. Tests in
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to preserve v9.4.x dispatch behaviour byte-identically |
 | **Reference** | `tests/test_pre_plugin_invocation.py` (alias path coverage); `tests/test_pre_plugin_invocation_split.py` (v10.8.0 D-C-3 split contract: install-only / upgrade-only / alias-byte-identical / disjoint-violations / deprecation-telegraph); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (alias entry point); `src/devolaflow/lifecycle/pre_plugin_invocation_install.py::pre_plugin_invocation_install` (install handler at event slot #11); `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py::pre_plugin_invocation_upgrade` (upgrade handler at event slot #12); `.local/research/v9.4.0_gap_analysis.md` §3.1 D-P-3 + `.local/research/v11.0.0_patches/D-C-3.md` |
 
-### 2.14 `DEVOLAFLOW_SI_CHIP_DEEP` — v9.5.0 PV-04 Si-Chip DEEP integration (post-skill-edit dogfood gate)
+### 2.13 `DEVOLAFLOW_SI_CHIP_DEEP` — v9.5.0 PV-04 Si-Chip DEEP integration (post-skill-edit dogfood gate)
 
 | Field | Value |
 |---|---|
@@ -252,13 +248,13 @@ These flags are read by production code paths. Tests in
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
 | **Effect when active** | `post_skill_edit` lifecycle hook (event slot #10 in `DEFAULT_EVENTS`, A-2.2 append-only at position 10) auto-runs the Si-Chip iteration_delta gate (`devolaflow.si_chip_bridge.run_dogfood_cycle`) after any commit touching `workflow-system/agent/**`. APPLY verdict → no-op (continue). DEFER verdict → write a deferred-changes feedback doc to `.local/feedbacks/sichip_deferred_<timestamp>.md` per the v9.5.0 user requirement ("if not, summarise into a feedback document"). The hook fires AFTER the v9.4.0 PV-02 `pre_plugin_invocation` slot at DEFAULT_EVENTS position 10. |
 | **Effect when opted out** | The `post_skill_edit` hook is a zero-IO no-op (lazy-imports the `si_chip_bridge` package ONLY when active); dispatch behaviour is byte-identical to v9.4.x for every input (the AC-7 byte-stable invariant from `v9.5.0_gap_analysis.md` §6) |
-| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SI_CHIP_DEEP activates a different runtime surface (the post-skill-edit dogfood gate) than every existing flag. (1) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (§2.13, opt-IN) controls dispatcher PRE-flight plugin install — different surface (PRE vs POST). (2) `DEVOLAFLOW_AUTO_INSTALL` (§2.5, opt-OUT) controls the install primitive's WHEN-called behaviour — different surface (install primitive vs hook). (3) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — workspace folder management has nothing to do with skill self-evaluation cadence. The flags compose meaningfully: `SI_CHIP_DEEP=1 + AUTO_INSTALL_PLUGINS=1` = full pipeline (auto-install Si-Chip on dispatch + auto-evaluate skills on commit); `SI_CHIP_DEEP=1` alone = auto-evaluate only (operators who pre-install Si-Chip manually). No existing flag could be REUSED without conflating distinct activation surfaces. |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: SI_CHIP_DEEP activates a different runtime surface (the post-skill-edit dogfood gate) than every existing flag. (1) `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (§2.12, opt-IN) controls dispatcher PRE-flight plugin install — different surface (PRE vs POST). (2) `DEVOLAFLOW_AUTO_INSTALL` (§2.5, opt-OUT) controls the install primitive's WHEN-called behaviour — different surface (install primitive vs hook). (3) `DEVOLAFLOW_AGENT_WORKSPACE` (workspace lifecycle) is conceptually orthogonal — workspace folder management has nothing to do with skill self-evaluation cadence. The flags compose meaningfully: `SI_CHIP_DEEP=1 + AUTO_INSTALL_PLUGINS=1` = full pipeline (auto-install Si-Chip on dispatch + auto-evaluate skills on commit); `SI_CHIP_DEEP=1` alone = auto-evaluate only (operators who pre-install Si-Chip manually). No existing flag could be REUSED without conflating distinct activation surfaces. |
 | **R5 strict?** | YES — `is_deep_integration_active` is a pure ``os.environ.get`` comparison with no IO + no subprocess. The hook body lazy-imports `devolaflow.si_chip_bridge` ONLY when active; codified by `tests/test_post_skill_edit_hook.py::TestDisabledIsNoop::test_disabled_is_noop_byte_identical`. |
 | **Lifecycle telegraph** | The v9.5.0 cycle ships the flag as opt-in with default-OFF. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. NOT yet committed — the v9.5.0 retrospective will assess the operator-feedback signal. |
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SI_CHIP_DEEP=0` to preserve v9.5.x dispatch behaviour byte-identically |
 | **Reference** | `tests/test_post_skill_edit_hook.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/post_skill_edit.py::post_skill_edit` (the public entry point); `.local/research/v9.5.0_gap_analysis.md` §3.1 D-S-4 + §3.2 D-S-5; canonical Si-Chip URL: `https://github.com/YoRHa-Agents/Si-Chip` |
 
-### 2.15 `DEVOLAFLOW_WARMUP` — v9.7.0 PV-04 selector LRU cache pre-warmup (opt-in)
+### 2.14 `DEVOLAFLOW_WARMUP` — v9.7.0 PV-04 selector LRU cache pre-warmup (opt-in)
 
 | Field | Value |
 |---|---|
@@ -411,7 +407,7 @@ or document the orthogonality argument explicitly.
 
 ## 7.A Lifecycle event taxonomy (v11.0.0 PV-02 D-Q-3 PURE-ALIAS rename)
 
-> **Cross-cuts §2.13 + §2.14**: the `pre_plugin_invocation` /
+> **Cross-cuts §2.12 + §2.13**: the `pre_plugin_invocation` /
 > `post_skill_edit` env-flag rows reference event slots in
 > `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS`. v11.0.0 PV-02
 > D-Q-3 introduces 4 NEW canonical event names per a 3-prefix taxonomy

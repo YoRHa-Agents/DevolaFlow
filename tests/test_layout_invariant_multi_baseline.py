@@ -32,6 +32,18 @@ Baselines covered:
   witness baseline is byte-identical to v9.7.0 — a future renamer /
   re-orderer / sneaky inserter that disturbs v9.7.0 would also break this
   v10.2.0 pin.)
+* v12.0.0 — length 17 stable (v12.0.0 PV-04 NEST extension inside the
+  ``gate`` block: ``subagent_pattern: Literal["INLINE", "FAN_OUT",
+  "AGENT_POOL_FORWARD"]`` added per A-2.3 NEST decision rule. Schema
+  ``canonical_order`` length stays at 17 and ``version`` stays at 6 —
+  this is a NEST, not an APPEND. The 15th baseline at
+  ``benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml``
+  pins the new NEST shape with ``gate.subagent_pattern: FAN_OUT``
+  populated; absence is canonical so all 14 prior baselines (v7.0.0 →
+  v10.2.0) continue to PASS byte-identically without modification.
+  Source: ``.local/research/v12.0.0_gap_analysis.md`` §5 +
+  ``docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md``
+  §7.1 NEST verdict.)
 
 Each test renders the canonical payload via
 ``yaml.safe_dump(..., sort_keys=False, default_flow_style=False)`` and
@@ -308,6 +320,48 @@ def _v10_2_0_payload() -> dict:
     plan §3 PV-01.
     """
     return _v9_7_0_payload()
+
+
+def _v12_0_0_payload() -> dict:
+    """v12.0.0 17-key payload — v10.2.0 + ``gate.subagent_pattern: FAN_OUT`` (NEST).
+
+    v12.0.0 PV-04 NEST extension inside the existing ``gate`` block per
+    A-2.3 NEST-vs-APPEND decision rule: a single new OPTIONAL sub-field
+    ``subagent_pattern: Literal["INLINE", "FAN_OUT",
+    "AGENT_POOL_FORWARD"]`` is added under ``gate`` (parallel to the
+    v11.1.0 PV-04 ``cascade_required`` + ``cascade_min_layers`` NEST
+    precedent). canonical_order length STAYS at 17 and version STAYS
+    at 6 — this is a NEST, not an APPEND.
+
+    The fixture at
+    ``benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml``
+    pins the v12.0.0 NEST shape with ``gate.subagent_pattern: FAN_OUT``
+    populated. ``"TEAMS_FORBIDDEN"`` is REJECTED at validate time per
+    W-24.3 (Pattern 4 PERMANENTLY NOT_SUPPORTED — Soul-level P5
+    invariant forbids cross-agent shared state).
+
+    Field is OPTIONAL — absence is canonical, so the 14 historical
+    multi-baseline byte-tests (v7.0.0 → v10.2.0) CONTINUE TO PASS
+    unchanged because the new sub-field is absent from the historical
+    baselines. The v12.0.0 baseline is the 15th pin and is NOT a
+    byte-prefix-extension of v10.2.0 (the new sub-field is inserted
+    UNDER ``gate``, which means the YAML body of the ``gate:`` block
+    grows by one line — the top-level keys stay byte-stable but the
+    gate sub-block does not).
+
+    Source: ``.local/research/v12.0.0_gap_analysis.md`` §5 +
+    ``docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md``
+    §7.1 NEST verdict.
+    """
+    payload = _v10_2_0_payload()
+    # Deep-copy the gate block so we don't mutate the v10.2.0 fixture
+    # (the constructor returns the same dict instance via _v9_7_0_payload
+    # → _v9_3_0_payload → _v8_4_0_payload → _v8_0_0_p10_payload chain).
+    gate = dict(payload["gate"])
+    gate["subagent_pattern"] = "FAN_OUT"
+    payload = dict(payload)
+    payload["gate"] = gate
+    return payload
 
 
 def _render(payload: dict) -> str:
@@ -610,6 +664,52 @@ class TestMultiBaselineByteStability:
             "the canonical layout). Either restore the byte-identical copy "
             "OR introduce a dedicated v9.2.0 payload constructor and remove "
             "this guard test in the same PR."
+        )
+
+    def test_v12_0_0_baseline_byte_identical(self) -> None:
+        """v12.0.0 schema-v6 NEST-extension baseline — ``gate.subagent_pattern``.
+
+        v12.0.0 PV-04 NEST extension inside the existing ``gate`` block
+        (per A-2.3 NEST-vs-APPEND decision rule): one new OPTIONAL
+        sub-field ``subagent_pattern: Literal["INLINE", "FAN_OUT",
+        "AGENT_POOL_FORWARD"]`` is added under ``gate`` (parallel to
+        the v11.1.0 PV-04 ``cascade_required`` + ``cascade_min_layers``
+        NEST precedent). canonical_order length STAYS at 17 and
+        version STAYS at 6 — this is a NEST, not an APPEND.
+
+        The fixture
+        ``benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml``
+        pins the v12.0.0 NEST shape with ``gate.subagent_pattern:
+        FAN_OUT`` populated, so any future renamer / re-orderer /
+        sneaky inserter that disturbs positions 1-17 OR the
+        ``gate.subagent_pattern`` sub-field shape breaks this pin.
+
+        Field is OPTIONAL — absence is canonical, so the 14
+        historical multi-baseline byte-tests above (v7.0.0 → v10.2.0)
+        CONTINUE TO PASS unchanged. The v12.0.0 baseline is the 15th
+        pin and witnesses the populated case. Per A-2.4 multi-
+        baseline byte test all 15 historical baselines (v7.0.0 →
+        v12.0.0) MUST pass — drift in any one fails CI immediately.
+
+        Source: ``.local/research/v12.0.0_gap_analysis.md`` §5 +
+        ``docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md``
+        §7.1 NEST verdict pre-staged for v12.0.0.
+        """
+        path = BASELINES_DIR / "layout_invariant_v12.0.0.yaml"
+        assert path.exists(), (
+            f"missing baseline {path} — v12.0.0 PV-04 ships this fixture; "
+            "see .local/research/v12.0.0_gap_analysis.md §5 + "
+            "docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md "
+            "§7.1 NEST verdict pre-staged for v12.0.0."
+        )
+        recorded = path.read_text()
+        rendered = _render(_v12_0_0_payload())
+        assert rendered == recorded, (
+            f"v12.0.0 baseline drift in {path} — v12.0.0 PV-04 NESTed "
+            "``subagent_pattern`` under the existing ``gate`` block "
+            "(canonical_order length stays at 17, schema version stays "
+            "at 6); see .local/research/v12.0.0_gap_analysis.md §5 + "
+            "v9-ADR-002 D4."
         )
 
 
