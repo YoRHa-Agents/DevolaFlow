@@ -160,7 +160,15 @@ def test_cursor_references_golden(cursor_build):
     ``domain-awareness.md`` (the CONTEXT.md authoring rules + ADR format
     + 3-condition ADR gate companion to grill-mode.md). Pairs with
     Workflow rules W-22 (Grill Mode Activation Contract) and W-23
-    (Domain Glossary Maintenance)."""
+    (Domain Glossary Maintenance).
+
+    v11.4.0 grew this set 19 → 20 by appending one NEW Tier-2 reference:
+    ``subagent-patterns.md`` (the philschmid 2026 4-pattern subagent
+    taxonomy operating contract — Inline Tool / Fan-Out / Agent Pool /
+    Teams selection decision tree, DevolaFlow current coverage matrix,
+    Pattern 3 forward-compat plan, Pattern 4 P5-Forbidden rationale, and
+    v12.0.0 NEST schema roadmap pre-staging). Pairs with Workflow rule
+    W-24 (Subagent Pattern Selection)."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -171,7 +179,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 19, f"expected 19 reference files, got {len(actual)}"
+    assert len(actual) == 20, f"expected 20 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

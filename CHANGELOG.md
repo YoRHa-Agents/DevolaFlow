@@ -5,6 +5,98 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.0] - 2026-05-09
+
+**MINOR — Subagent-Patterns-2026 Prep Cycle.** Analysis-and-lightweight-foundation prep cycle targeting v12.0.0 graduation per `.local/feedbacks/feedback_for_v11.4.0.md` ("面向 12.0.0"). Absorbs the [philschmid May 2026 article](https://www.philschmid.de/subagent-patterns-2026) 4-pattern subagent taxonomy (Inline Tool / Fan-Out / Agent Pool / Teams) as a Tier-2 reference + pure-function selection helper + W-24 workflow rule. **No schema changes; no v12.0.0 graduations executed yet** (D-1 / D-2 / D-5 from v11.1.0 retrospective §3 + the new `gate.subagent_pattern` schema NEST stay deferred per W-21 2-cycle deliberation cadence). Source: `.local/research/v11.4.0_subagent_pattern_analysis.md` (SI-1 / W-1 planning gate, 494 lines); NineS deep analysis at `.local/research/v11.4.0_nines_analyze_subagent_patterns.json` (SI-2).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: 1 new Tier-2 reference + 1 new pure-function module + 1 new Workflow rule + budget bump on compile-config.yaml. Zero schema edits, zero gate edits, zero existing-API changes.** Plan Mode + Grill Mode + Agent Mode are byte-stable; the lifecycle hook chain is byte-stable; the `Task` tool surface is unchanged. Subagent-pattern selection is reference-only at this cycle — the `select_pattern()` helper returns INLINE/FAN_OUT/AGENT_POOL_FORWARD verdicts but no L0/L1/L2 dispatcher yet wires them into the dispatch payload (that is v12.0.0 PV-04's NEST under `gate.subagent_pattern` per A-2.3). NO new env flag (W-20 reuse-first); helper is invoked via natural-language helper-API calls.
+
+- **NEW reference: `workflow-system/agent/references/subagent-patterns.md`** (Tier-2, ~996 lines, Large tier ≤ 1000 per C-4) — operating contract for subagent-pattern selection. 11 §-numbered sections covering trigger taxonomy, the 4 patterns verbatim from the philschmid article (definition + tools surface + when-to-use + limitations for each), 5-axis selection decision tree, DevolaFlow current coverage matrix, Pattern 3 forward-compat plan (NO API in v11.4.0; v12.0.0+ landing surface), Pattern 4 PERMANENTLY NOT_SUPPORTED rationale (P5 invariant cited verbatim from `repo-governance.mdc` §A-1 P5), v12.0.0 NEST schema roadmap, activation classifier surface, R5 strict default-OFF discipline, cross-references, anti-patterns + common mistakes.
+- **NEW reference: `workflow-system/agent/references/subagent-patterns.md` cross-link** — explicit disambiguation from `references/grill-mode.md` (HUMAN-facing interview pattern; orthogonal axis) per gap analysis §8 risk R-11; explicit disambiguation from `references/execution-protocol.md` §7.3 (the v7.x anthropic-coordination-blog mapping; subagent-patterns.md REFRAMES the same axis through a subagent-lifecycle lens).
+- **NEW module: `src/devolaflow/skills/subagent_pattern.py`** (~177 LOC, pure-function, R5-strict default-OFF, zero IO at import). 3 public functions: `select_pattern(complexity, model_tier, task_count, parallel_independence, persistent_state_needed=False)` returns `Literal["INLINE", "FAN_OUT", "AGENT_POOL_FORWARD", "TEAMS_FORBIDDEN"]`; `validate_inputs(complexity, model_tier, task_count)` raises `ValueError` on invalid input per S-5; `forbidden_pattern_rationale(pattern)` returns structured P5-invariant rationale string for `TEAMS_FORBIDDEN` and `None` for non-forbidden verdicts. 2 public Literal type aliases (`PatternVerdict`, `ModelTier`). Coverage 100% per CP-2.
+- **NEW workflow rule: W-24 in `.rules/workflow.mdc`** (~60 lines body; compiled to `AGENTS.md` + `.cursor/rules/repo-governance.mdc` via `make compile-rules`). W-24 (Subagent Pattern Selection) codifies the 4-pattern selection contract (W-24.1), Pattern 3 forward-compat policy (W-24.2), Pattern 4 permanent-NOT-SUPPORTED rationale (W-24.3), W-20 env-flag reuse-first preservation (W-24.4 — NO new flag introduced; activation purely natural-language), v12.0.0 graduation pre-staging (W-24.5 — schema NEST under `gate.subagent_pattern` per A-2.3, alongside D-1/D-2/D-5). NO new Soul rule — W-21 freeze at 10 preserved.
+- **Compile-config budget bump: cursor + agents_md token_budget 12000 → 14000** in `.rules/compile-config.yaml` per the v9.0.0 PV-05 / PV-07 historical pattern. Pre-bump utilization: cursor 11979/12000 (saturated; W-24 push silently dropped Style Rules layer); agents_md 11708/12000 (97.6%). Post-bump: cursor 12740/14000 (~9% headroom; all 5 layers preserved); agents_md 11708/14000 (~16% headroom; 4 layers).
+- **SKILL.md surfaced** the new subagent-pattern pointer in §"Wave Coordination Modes" (~2 lines) + new Tier-2 nav row for `subagent-patterns.md` + `last_updated` bump 2026-05-08 → 2026-05-09. SKILL.md grew 475 → 478 lines (3 net additions, 22 lines under C-4 500-line ceiling).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_4_0_new_surfaces_have_coverage` (mixed AST symbol pin + positive-substring pin):
+
+- `src/devolaflow/skills/subagent_pattern.py::select_pattern` (AST symbol pin)
+- `src/devolaflow/skills/subagent_pattern.py::validate_inputs` (AST symbol pin)
+- `src/devolaflow/skills/subagent_pattern.py::forbidden_pattern_rationale` (AST symbol pin)
+- 2 public Literal type aliases (`PatternVerdict`, `ModelTier`) — AST alias pin
+- `tests/test_subagent_patterns.py` — 12 canonical NEW test functions (AST symbol pin; canonical subset per gap analysis §6 P1.3)
+- `workflow-system/agent/references/subagent-patterns.md` — 16 positive substrings (frontmatter + 4 pattern names + P5 + 5 symbols + R-11 disambig + execution-protocol cross-ref)
+- `CHANGELOG.md` `## [11.4.0]` section header line-anchored single-application count (per v11.1.1 D-1 lint inheritance)
+
+### Headline numbers
+
+| Area | v11.3.0 | v11.4.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | ~4340 | ~4357+ | +17 NEW (16 subagent_patterns + 1 W-18 stanza; well under W-17 +30/PV cap) | `pytest --collect-only -q` |
+| Coverage | 93% | 93%+ | preserved (CP-2 floor 80% strongly satisfied; subagent_pattern.py at 100%) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.3.0 | **11.4.0** | +1 MINOR | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 (no new A rules) | `.rules/architecture.mdc` |
+| Workflow rule count | 23 | **24** | +1 (W-24) | `.rules/workflow.mdc` |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved; no new flag) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (no schema edits; A-2.4 frozen-prefix preserved) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (no schema edits) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (no dispatch edits) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (no gate edits) | `tests/test_gate.py` |
+| SKILL.md line count | 475 | 478 | +3 (22 lines under C-4 500-line ceiling) | `wc -l` |
+| `references/subagent-patterns.md` line count | (n/a) | ~996 | NEW (Tier-2 Large ≤ 1000) | `wc -l` |
+| `src/devolaflow/skills/subagent_pattern.py` LOC | (n/a) | ~177 | NEW (within 80-180 spec band) | `wc -l` |
+| Compile-config token_budget (cursor + agents_md) | 12000 | **14000** | +2000 each (preserves canonical 5-layer corpus on cursor; ~9% / 16% headroom) | `.rules/compile-config.yaml` |
+
+### W-9 SI-10 7-step + extras verification (MINOR-close gate)
+
+**Verification disposition.** Stage 3 W3.T5 ran the full W-9 SI-10 7-step + extras sweep against the post-bump v11.4.0 working tree. All steps GREEN; the table below records the actual run-time result captured at 2026-05-09T00:02 UTC under `/tmp/w9_final.log`. NB on the early-session shell-tooling artifacts: a transient blocking-foreground shell hang was worked around by routing all subsequent commands through the background-mode (`block_until_ms: 0`) execution path; full transcript captured in the prior-session terminal files (Shell IDs 528078 / 76756 / 791106 / 206101 / 977949 / 105339 / 65012 etc.). L0 may optionally re-run as a sanity check before commit; no regressions are expected.
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 4358 passed, 25 skipped, 2 xfailed, 0 failed (4385 collected; net +18 NEW test functions this PV — well under W-17 +30/PV cap). All 7 transient consequence-pin failures (compile-budget 12000→14000, .rules/index.md, demo/benchmark-results truncation, windsurf 8000→9000, UTC-date freshness) resolved as additional pin updates per the v11.4.0 retrospective §2 Q1..Q7. |
+| 2 | `ruff check src/ tests/` | **PASS** — All checks passed |
+| 3 | `ruff format --check src/ tests/` | **PASS** — 296 files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed, 23 skipped (mirror-parity tests self-skip per Rule SF-3; canonical 7 sync 11.3.0 → 11.4.0 verified on `__init__.py`, `pyproject.toml`, SKILL.md, `workflow-skill.yaml`, `generate_human_docs.py`, `tests/test_smoke.py`, `README.md`, `benchmark-results/index.html`) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36 passed against the new v11.4.0 baseline. `convergence_noise_filter` composite=92.81 (recovers from v11.3.0's 84.39 < 89-floor regression, lifting `section_relevance` 0.8 → 0.9 because Wave 1+2's two-line Wave-Coordination-Modes pointer is matched as relevant by the `feedback` profile scenario); `tests/test_benchmarks.py::TestRunner::test_quality_thresholds` PASS at the per-scenario floor; `test_v6_baseline_matches_current_results_within_tolerance` PASS at ±0pp drift vs the freshly-regenerated baseline. |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0; `.cursor/skills/devola-flow/` mirror absent → no-op per SF-3 opt-in |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | **PASS** — 32/32 unchanged (frozen-prefix + multi-baseline LCP byte-identical; canonical_order length stays at 17 across all 6 historical baselines per A-2.4) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | **PASS** — 10/10 unchanged (S-10 hook chain byte-id preserved; zero edits to `src/devolaflow/feedback.py` or `src/devolaflow/lifecycle/`) |
+| Extras | `python -m pytest tests/test_gate.py -v` | **PASS** — 108/108 unchanged (CP-4 gate suite byte-stable; zero edits to `src/devolaflow/gate/`) |
+| Extras | `python -m pytest tests/test_subagent_patterns.py -v` | **PASS** — 16/16 NEW tests pass (canonical subset per gap analysis §6 P1.3 12-test minimum exceeded by 4; module coverage 100% per CP-2) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py::test_v11_4_0_new_surfaces_have_coverage -v` | **PASS** — W-18 ghost-audit refresh closed; all 5 W-18 substrings verified in CHANGELOG (`## [11.4.0]`, `subagent-patterns`, `subagent_pattern.py`, `W-24`, `11.3.0`); line-anchored single-application count = 1 (D-1 lint inheritance preserved across the v11.3.0 → v11.4.0 MINOR boundary) |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | **PASS** — 3/3 unchanged (D-1 single-application lint passes against this entry) |
+| Extras | `make compile-rules` | **PASS** — exit 0; cursor target compiles all 5 layers (`['soul', 'architecture', 'conventions', 'workflow', 'style']`) at 12740/14000 (~9% headroom); agents_md target compiles 4 layers (`['soul', 'architecture', 'conventions', 'workflow']`) at 11708/14000 (~16% headroom); v11.4.0 budget bump 12000 → 14000 absorbed cleanly |
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. NO new Soul rules proposed; W-24 lands at Workflow layer (architecturally correct because subagent-pattern invariants are conditional + implementation-coupled, mirroring W-22's landing rationale per `v9-ADR-007 §"Soul-vs-Architecture decision-rule"`).
+* **W-20**: NO new `DEVOLAFLOW_*` env flags introduced. Env flag count stays at **8**. Subagent-pattern activation is purely natural-language via `select_pattern()` helper invocation; the R5 strict default-OFF is enforced via the helper returning INLINE as the conservative default, not via an env flag.
+
+### v12.0.0 graduation telegraph (4 commitments now bundled)
+
+The v12.0.0 cycle now has FOUR orthogonal graduation commitments:
+1. **D-1** (from v11.1.0 retrospective §3) — A-7 STRICT promotion
+2. **D-2** (from v11.1.0 retrospective §3) — `SHORTCUT_SIMPLE` retirement (env flag count 8 → 7)
+3. **D-5** (from v11.1.0 retrospective §3) — CHANGELOG single-application CI lint
+4. **NEW (this cycle)** — Subagent-pattern schema NEST under `gate.subagent_pattern` (per A-2.3 NEST-vs-APPEND decision matrix; canonical_order length stays at 17; A-2.4 multi-baseline 32/32 unchanged)
+
+W-21 2-cycle deliberation cadence requires ≥1 month of v11.4.x field evidence before v12.0.0 SI-1; v11.4.0 PREP cycle deliberately ships analysis-only to honour this rule. Per ADR-007 §"Soul-vs-Architecture", the cascade-as-Soul S-11 candidate REMAINS deferred to v13.0.0 SI-1 (NOT v12.0.0).
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v11.4.0_subagent_pattern_analysis.md` (494 lines)
+* SI-2 NineS deep analyze (philschmid article): `.local/research/v11.4.0_nines_analyze_subagent_patterns.json` (4,418 bytes; audit clean 6/6 PASS)
+* SI-2 NineS deep analyze (existing surface): `.local/research/v11.4.0_nines_analyze_execution_protocol.json` (4,431 bytes; audit clean 6/6 PASS)
+* Verbatim source: `.local/research/v11.4.0_subagent_patterns_source/article.md` (17,286 bytes — philschmid article verbatim)
+* W-7 retrospective: `.local/research/v11.4.0_retrospective.md`
+* Predecessor: `## [11.3.0] - 2026-05-08` (grill-with-docs integration; same SI-1 → Wave 1+2 → Stage 3 cycle structure adopted here)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`; upstream philschmid article `https://www.philschmid.de/subagent-patterns-2026`
+
 ## [11.3.0] - 2026-05-08
 
 **MINOR — Grill-with-Docs Integration.** First MINOR cycle after the v11.1.x stability-patch series closed (v11.1.3 D-3 shipped the cycle-close summary). v11.3.0 absorbs the [grill-with-docs upstream skill](https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs) as DevolaFlow's "Grill Mode" — a parallel-orthogonal sibling of Plan Mode that conducts a one-question-at-a-time interview against the codebase, the project's domain glossary (CONTEXT.md), and the project's ADR ledger (docs/adr/). The v11.2.0 slot was skipped by user choice (reserved for an alternative cycle but not used); v11.3.0 is the cycle-defining MINOR. Source: `.local/research/v11.3.0_gap_analysis.md` (SI-1 planning gate); NineS deep analyze at `.local/research/v11.3.0_nines_analyze_grill_with_docs.json` (SI-2).

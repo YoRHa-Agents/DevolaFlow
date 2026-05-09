@@ -476,19 +476,23 @@ sections:
     content_type: prose
 
   # v11.3.0 PV-W4.T7 re-anchor — Wave 1+2 SKILL.md edits added 8 net
-  # lines (467 → 475) across 4 hunks: detection priority item 4 split
-  # into items 4+5 (+1 line at line 75 area), inserted ### GRILL MODE
-  # subsection between AGENT MODE and Quick Start (+4 lines at line 109
-  # area), inserted grill-driven row in Quick Start table (+1 line at
-  # line 141 area), and 2 NEW Tier-2 reference rows for grill-mode.md
-  # + domain-awareness.md (+2 lines at line 389/393 area). Cumulative
-  # shifts: 0 through line 73, +1 through line 108, +5 through line
-  # 141, +6 through line 388, +8 from line 389 to EOF. Line ranges
-  # below were re-derived from `grep -n '^## \|^### '` against the
-  # post-Wave-1+2 SKILL.md (475 lines). The convergence_loop legacy
-  # range moves to ### Reinforcement Rules at lines 286-287 (the
-  # closest semantic match for the old "280-282" anchor — see the
-  # section_anchors block above for the heading-based primary path).
+  # lines (467 → 475) across 4 hunks (detection priority + GRILL MODE +
+  # grill-driven row + 2 Tier-2 nav rows).
+  # v11.4.0 W3.T5 re-anchor — Wave 1+2 added 3 net lines (475 → 478)
+  # across 2 hunks: a 2-line subagent-pattern paragraph inside §"Wave
+  # Coordination Modes" (insertion at v11.3.0 line 218; v11.4.0 lines
+  # 218-219), and 1 new Tier-2 nav row for `subagent-patterns.md`
+  # (insertion inside §"Reference Navigation Guide" at v11.3.0 line 399;
+  # v11.4.0 line 401). Cumulative shifts vs v11.3.0 baseline:
+  #   * lines 1-217  : +0 (no shift; preserves §"Wave Coordination Modes"
+  #     start at line 201 + body up to line 217)
+  #   * lines 218-398: +2 (the Wave Coordination paragraph push only)
+  #   * lines 399+   : +3 (Wave Coordination paragraph push +
+  #     Reference Navigation row push)
+  # Line ranges below were re-derived from `grep -nE '^(#{2,3} )'`
+  # against the post-Wave-1+2 SKILL.md (478 lines). The convergence_loop
+  # legacy range moves to ### Reinforcement Rules at lines 288-289 (was
+  # 286-287 in v11.3.0; +2 shift).
   plan_mode_template:
     lines: "78-80"
     tokens_est: 116
@@ -541,70 +545,69 @@ sections:
     content_type: table
 
   stage_primitives:
-    lines: "218-266"
+    lines: "220-268"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "268-284"
+    lines: "270-286"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "289-299"
+    lines: "291-301"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "301-318"
+    lines: "303-320"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "320-351"
+    lines: "322-353"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "353-363"
+    lines: "355-365"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "365-374"
+    lines: "367-376"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "376-417"
+    lines: "378-420"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "376-417"
+    lines: "378-420"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "286-287"
+    lines: "288-289"
     tokens_est: 100
     content_type: spec
 
-  # PV-W4.T7 boundary note: task_quality_score STOPS at line 470 (the
-  # closing ``` fence of the example output block) and excludes the
-  # `**Rules**:` paragraph at line 472. The OLD v11.1.3 range (438-462)
-  # used the same envelope — section + closing fence, no Rules. The
-  # Rules paragraph is operator-facing prose that L3 agents do not need
-  # injected into their context (it's authored guidance for SKILL
-  # readers). Preserving the OLD envelope keeps the `feedback` profile
-  # budget pressure within the v11.1.3 GREEN equilibrium.
+  # PV-W4.T7 + v11.4.0 W3.T5 boundary note: task_quality_score STOPS at
+  # line 473 (the closing ``` fence of the example output block; was
+  # line 470 in v11.3.0; +3 shift) and excludes the `**Rules**:`
+  # paragraph at line 475. The OLD v11.1.3 range (438-462) used the
+  # same envelope — section + closing fence, no Rules. Preserving the
+  # OLD envelope keeps the `feedback` profile budget pressure within
+  # the v11.1.3 GREEN equilibrium.
   task_quality_score:
-    lines: "448-470"
+    lines: "451-473"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "419-446"
+    lines: "422-449"
     tokens_est: 188
     content_type: table
 
