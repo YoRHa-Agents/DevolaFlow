@@ -208,6 +208,49 @@ lean_format_spec:
     # contract). Both fields are independently OPTIONAL.
     cascade_required: "optional bool — default false (backward-compat); true only when complexity is STANDARD/COMPLEX per cascade_requirement() (devolaflow.skills.change_activation, added v11.1.0 PV-02). When true, the L3 receiver MUST honour the cascade chain L0 → L1 → L2 → L3."
     cascade_min_layers: "optional int — default 1 (backward-compat); default 4 when cascade_required is true; semantics = minimum layer depth in the dispatch chain L0 → L1 → L2 → L3."
+    # v12.0.0 (PV-04, sources: .local/research/v12.0.0_gap_analysis.md §5 +
+    # docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md §3 + §5 +
+    # docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md
+    # §7.1) — subagent-pattern selection sub-field. NESTED under the
+    # existing `gate` block (position 12 of canonical_order); NOT a new
+    # top-level dispatch key — layout_invariant.canonical_order length
+    # STAYS AT 17 and version STAYS AT 6 (P6 cache-layout invariant
+    # preserved per A-2.3 NEST decision rule, parallel to the v11.1.0
+    # PV-04 `gate.cascade_required` + `gate.cascade_min_layers` NEST
+    # precedent above and the v8.0.0 P-03 `gate.token_budget` NEST
+    # precedent at line 176). The semantic source-of-truth is the
+    # `select_pattern(complexity, model_tier, task_count,
+    # parallel_independence, persistent_state_needed)` pure function in
+    # `src/devolaflow/skills/subagent_pattern.py` (added in v11.4.0
+    # PV-01 SI-1); the dispatch payload populates this sub-field via
+    # `src/devolaflow/feedback.py::populate_cascade_gate_fields` when
+    # the L0/L1/L2 dispatcher passes the four input axes. The NEST
+    # decision was pre-staged in v11.4.0 SI-1 §7.1 (NEST verdict
+    # rationale: pattern selection MODIFIES the cascade interpretation
+    # by specifying which of the 4 patterns the cascade should adopt,
+    # REUSES the existing `gate` block's Literal-as-sub-field shape,
+    # and is COUPLED to cascade_required — a CASCADE_REQUIRED dispatch
+    # with subagent_pattern=AGENT_POOL_FORWARD is internally consistent
+    # because Pattern 3 is forward-compat-only at v12.0.0). Field
+    # shape:
+    #   subagent_pattern: Literal["INLINE", "FAN_OUT",
+    #                             "AGENT_POOL_FORWARD"]
+    # ``"TEAMS_FORBIDDEN"`` is REJECTED at validate time per W-24.3
+    # (Pattern 4 PERMANENTLY NOT_SUPPORTED — Soul-level P5 invariant
+    # forbids cross-agent shared state; reversal requires SI-1 + ADR
+    # + W-21 cadence + SI-3 §3.2 ≥ 9.5/10). Semantics: when present,
+    # the L3 receiver knows which philschmid 4-pattern dispatch shape
+    # the wave was authored under (Pattern 1 INLINE = single L3 via
+    # `Task` tool; Pattern 2 FAN_OUT = L2 wave with parallel L3 max 5
+    # per references/agent-hierarchy.md §5; Pattern 3
+    # AGENT_POOL_FORWARD = forward-compat-only at v12.0.0 — no API
+    # path activates Pattern 3 yet). When absent → byte-stable v11.4.0
+    # dispatch shape (the 14 historical multi-baseline byte-tests in
+    # `tests/test_layout_invariant_multi_baseline.py` continue to PASS
+    # because the new sub-field is absent from the historical
+    # baselines — their absence is canonical per the OPTIONAL
+    # contract). The field is independently OPTIONAL.
+    subagent_pattern: "optional Literal['INLINE', 'FAN_OUT', 'AGENT_POOL_FORWARD'] — TEAMS_FORBIDDEN rejected at validate time per W-24.3 (Pattern 4 PERMANENTLY NOT_SUPPORTED). When present, identifies the philschmid 4-pattern dispatch shape per references/subagent-patterns.md (Pattern 1 INLINE / Pattern 2 FAN_OUT / Pattern 3 AGENT_POOL_FORWARD forward-compat). Populated by devolaflow.feedback.populate_cascade_gate_fields when the L0/L1/L2 dispatcher passes the four input axes (model_tier, task_count, parallel_independence, persistent_state_needed). Absence-canonical (legacy v11.x dispatches without this sub-field render byte-identically)."
   # v8.0.0 (P-08) — L3 behavioral guidelines injection. NEW top-level
   # dispatch key APPENDED to ``canonical_order`` AT THE END (position
   # 14, after ``repos``) per ADR-001 §2 additive rule. Schema version
@@ -596,6 +639,39 @@ compression_rules:
 # cascade-restoration cycle (G-PLAN-1 plan-mode structural enforcement +
 # the schema part of PV-04).
 #
+# v12.0.0 PV-04 (sources: .local/research/v12.0.0_gap_analysis.md §5 +
+# docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md §3 + §5 +
+# docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md
+# §7.1) — NEST extension inside `gate` (A-2.3 nest-vs-append decision
+# rule). One new OPTIONAL sub-field added to the existing `gate` block:
+# `subagent_pattern: Literal["INLINE", "FAN_OUT",
+# "AGENT_POOL_FORWARD"]` (parallel to the v11.1.0 PV-04 cascade NEST
+# precedent above and the v8.0.0 P-03 `gate.token_budget` NEST
+# precedent). canonical_order length STAYS AT 17 and version STAYS AT
+# 6 — this is a NEST, not an APPEND (D3 decision matrix: the new
+# sub-field modifies how an existing block — `gate` — is interpreted
+# by specifying which of the 4 philschmid patterns the cascade should
+# adopt, REUSES gate's Literal-as-sub-field shape, and is independently
+# optional). ALL 14 historical multi-baseline byte tests in
+# tests/test_layout_invariant_multi_baseline.py (v7.0.0 / v7.3.0 /
+# v8.0.0-P-08 / v8.0.0-P-10 / v8.3.0-PV-05 / v8.4.0 / v9.2.0 / v9.3.0 /
+# v9.7.0 / v10.2.0) CONTINUE TO PASS unchanged because the new
+# sub-field is absent from the historical baselines — its absence is
+# canonical per the OPTIONAL contract. The 15th baseline
+# (`benchmarks/devolaflow_context/baselines/layout_invariant_v12.0.0.yaml`)
+# pins the v12.0.0 NEST shape with `subagent_pattern: FAN_OUT`
+# populated. ``"TEAMS_FORBIDDEN"`` is REJECTED at validate time per
+# W-24.3 (Pattern 4 PERMANENTLY NOT_SUPPORTED — Soul-level P5
+# invariant forbids cross-agent shared state). The semantic source-
+# of-truth is the `select_pattern(complexity, model_tier, task_count,
+# parallel_independence, persistent_state_needed)` pure function in
+# `src/devolaflow/skills/subagent_pattern.py` (added in v11.4.0 PV-01
+# SI-1); `src/devolaflow/feedback.py::populate_cascade_gate_fields`
+# populates `gate.subagent_pattern` when the L0/L1/L2 dispatcher
+# passes the four input axes. Part of the v12.0.0 graduation cycle
+# (D-1 STRICT promotion + D-2 SHORTCUT_SIMPLE retirement + NEW
+# subagent NEST + D-5 CONDITIONAL).
+#
 layout_invariant:
   version: 6
   canonical_order:
@@ -638,3 +714,12 @@ layout_invariant:
       v5_to_v6_invariant: "positions 1..16 byte-identical; new key appended at position 17; version field bumped 5 → 6"
       v9_7_0_baseline_passes: true
       v9_2_0_baseline_passes: true   # v9.1.4 PV-04 NEST witness; byte-identical to v8.4.0
+      # v12.0.0 PV-04 — gate.subagent_pattern NEST (A-2.3); canonical_order
+      # length STAYS at 17 and version STAYS at 6. The 15th baseline
+      # (layout_invariant_v12.0.0.yaml) witnesses the new NEST sub-field
+      # populated; absence is canonical, so all 14 prior baselines pass
+      # byte-identically. See the v12.0.0 PV-04 schema comment block
+      # above (≈ 30 lines before `layout_invariant:`) for the full
+      # rationale.
+      v10_2_0_baseline_passes: true
+      v12_0_0_baseline_passes: true

@@ -171,7 +171,16 @@ class RuleCompiler:
         return results
 
     def _compile_target(self, tc: TargetConfig) -> CompileResult:
-        """Compile a single target, respecting token budgets."""
+        """Compile a single target, respecting token budgets.
+
+        v12.0.0 PV-05 cleanup-absorption fix: when truncation runs,
+        ``layers_included`` is now derived from the post-truncation
+        retained layer list returned by :meth:`_truncate_to_budget`,
+        not from the pre-truncation ``selected`` list. The happy-path
+        branch (no truncation) still uses ``selected`` directly so the
+        existing byte-stable reporting is preserved. Closes the
+        v11.4.0 retrospective §3 deferred bug + §4 key learning 3.
+        """
         selected = [
             layer for layer in self.layers if layer.name in tc.include_layers and layer.content
         ]
@@ -184,18 +193,20 @@ class RuleCompiler:
 
         tokens = _estimate_tokens(content)
 
+        retained: list[RuleLayer] | None = None
         if tokens > tc.token_budget:
-            content = self._truncate_to_budget(selected, tc)
+            content, retained = self._truncate_to_budget(selected, tc)
             tokens = _estimate_tokens(content)
 
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
+        layers_for_report = retained if retained is not None else selected
         return CompileResult(
             target=tc.name,
             content=content,
             tokens_used=tokens,
             tokens_budget=tc.token_budget,
-            layers_included=[ly.name for ly in selected if ly.content],
+            layers_included=[ly.name for ly in layers_for_report if ly.content],
             content_hash=content_hash,
         )
 
@@ -226,8 +237,27 @@ class RuleCompiler:
 
         return "\n".join(parts).rstrip() + "\n"
 
-    def _truncate_to_budget(self, layers: list[RuleLayer], tc: TargetConfig) -> str:
-        """Drop lowest-priority non-always_include layers until within budget."""
+    def _truncate_to_budget(
+        self, layers: list[RuleLayer], tc: TargetConfig
+    ) -> tuple[str, list[RuleLayer]]:
+        """Drop lowest-priority non-always_include layers until within budget.
+
+        Returns a ``(content, retained_layers)`` tuple. ``retained_layers``
+        is the post-truncation list — the actual ``RuleLayer`` instances
+        that rendered into ``content`` after the priority-ordered drop
+        loop converged. Callers MUST use ``retained_layers`` (not the
+        pre-truncation input ``layers``) when populating
+        ``CompileResult.layers_included``; otherwise the audit surface
+        misreports truncation outcomes.
+
+        v12.0.0 PV-05 cleanup-absorption: pre-fix the function returned
+        only ``content`` and the dispatcher-side caller reported
+        ``layers_included`` from the pre-truncation ``selected`` list,
+        which silently masked the v11.4.0 cursor 11979/12000 saturation
+        (the Style Rules layer was dropped here but the audit reported
+        all 5 layers). See v11.4.0 retrospective §3 deferred bug + §4
+        key learning 3 for the original incident.
+        """
         included = list(layers)
 
         while included and _estimate_tokens(self._render_layers(included, tc)) > tc.token_budget:
@@ -237,7 +267,7 @@ class RuleCompiler:
             droppable.sort(key=lambda ly: ly.priority, reverse=True)
             included.remove(droppable[0])
 
-        return self._render_layers(included, tc)
+        return self._render_layers(included, tc), included
 
     def _render_layers(self, layers: list[RuleLayer], tc: TargetConfig) -> str:
         """Render layers for a target (used during truncation)."""
