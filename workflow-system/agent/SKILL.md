@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "12.0.0"
+version: "12.1.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v12.0.0**
+> **Now Using DevolaFlow v12.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 12.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 12.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -319,6 +319,21 @@ context_injection:
 Full context injection spec: `references/context-isolation.md`
 **Cache layout (v7.0.0+):** Key order fixed by `schemas/lean-dispatch.yaml#layout_invariant`; see `references/context-isolation.md` Cache-Layout Invariant subsection for the `assert_dispatch_layout` validator API.
 
+## Subagent Hang Prevention
+
+**L0 contract**: ALWAYS set `timeout_seconds` in TaskDispatch per task type — `research=2700` / `impl=1800` / `test=900` / `review=1200` / `hotfix=600`. Default 7200 is a fail-safe ceiling, not a target.
+
+**L3 forbidden patterns** (every dispatched subagent MUST AVOID — these are the canonical hang vectors):
+- `AskQuestion` — no human channel exists below L0; resolve via predecessor artifacts or escalate via StatusReport
+- Recursive `Task` tool re-entry — L3 is the leaf (P5 invariant); only L0/L1/L2 dispatch
+- Unbounded `Shell` calls — every invocation MUST set explicit `block_until_ms` (≤60000 ms for fast commands, ≤300000 ms for `pytest` runs)
+- Unbounded `WebFetch` / `WebSearch` — verify upstream timeout coverage; abandon stalled requests rather than wait forever
+- Internal loops without `max_iterations` — every loop has a ceiling, every failure is classified (retry / escalate / abort)
+
+**L3 progress contract**: emit a heartbeat (`progress_pct` update in StatusReport) at least every 5 minutes for long-running tasks; if no progress is observed within the dispatched `timeout_seconds` budget → self-escalate via `StatusReport(escalation: HUMAN_INTERVENE, reason='suspected_hang')` rather than retry indefinitely.
+
+**L0 hang detection**: if a dispatched task exceeds `timeout_seconds` OR shows no `progress_pct` change for 10 minutes → cancel + escalate per P4 (Task → Wave → Stage → Project → Human). Never wait past the ceiling.
+
 ## Dispatch & Report Protocol
 
 All inter-layer communication uses typed YAML schemas. Free-form chat between layers is prohibited.
@@ -338,6 +353,7 @@ All inter-layer communication uses typed YAML schemas. Free-form chat between la
 - `task_id`, `state` (completed/failed/escalated), `progress_pct`
 - `artifacts`: list of `{path, type, summary}`
 - `metrics`: `tests_passed`, `coverage_pct`, `findings_by_severity`
+- Subagent reports DO NOT include `quality_score` (L0-only per §"Task Quality Score (L0 ONLY)")
 
 **Escalation severity:**
 
@@ -448,9 +464,9 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | entropy-cleanup (legacy) | 4 | standard |
 | change-driven | 4 | convergence |
 
-## Task Quality Score
+## Task Quality Score (L0 ONLY)
 
-**After every Standard+ complexity workflow**, evaluate the user's original request:
+**L0 ONLY** — Subagents MUST NOT score. After every Standard+ workflow, L0 evaluates the user's original request (L1/L2/L3 reports carry no `quality_score` field — see §"Reporting completion").
 
 **Dimensions** (score each 1-5):
 

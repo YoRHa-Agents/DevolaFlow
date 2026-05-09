@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v12.0.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v12.1.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -409,26 +409,27 @@ class TestBaselineFile:
         v12.0.0 PV-02 cycle-start (cascade-strictness graduation MAJOR cycle)
         fires the W-16 wholesale baseline regen per
         ``.cursor/rules/repo-governance.mdc`` §W-16 (the cycle-start trigger
-        applies to MAJOR digit bumps too — v11.4.0 → v12.0.0). The resulting
-        ``v12.0.0_baseline.json`` is the new "newest" after v11.4.0 (the
-        previous wholesale-regen baseline at v11.4.0 MINOR cycle-start,
-        subagent-patterns-2026 prep). Prior baselines stay on disk for
-        cumulative drift detection per v8.4.0 retro §"R-7 wholesale-vs-
-        piecemeal baseline lesson". Regen ran with v11.1.3 D-3 Option B —
-        pre-pinned ``sys.modules["tiktoken"] = None`` BEFORE importing any
-        devolaflow modules so the autouse fallback-token-estimator fixture's
-        effect is replicated outside the pytest harness. Notable v12.0.0
-        result: ``convergence_noise_filter`` composite stays at 92.81 (no
-        regression vs v11.4.0; the PV-02 source edits to ``scorer.py`` +
-        ``audit_layer_usage.py`` are runtime-orthogonal to the EvoBench
-        benchmark scenarios so the wholesale baseline composite is
-        byte-stable across the PV-02 graduation).
+        applies to MAJOR digit bumps too — v11.4.0 → v12.0.0 → v12.1.0).
+        The resulting ``v12.1.0_baseline.json`` is the new "newest" after
+        v12.0.0 (the prior wholesale-regen baseline at v12.0.0 MAJOR cycle-
+        start, cascade-strictness graduation). Prior baselines stay on
+        disk for cumulative drift detection per v8.4.0 retro §"R-7
+        wholesale-vs-piecemeal baseline lesson". v12.1.0 regen absorbs the
+        SKILL.md additive content (D-1 §"Task Quality Score (L0 ONLY)"
+        scoping marker + D-2 §"Subagent Hang Prevention" 14-line section);
+        line shift surfaced via the ``feedback`` profile's ``convergence_
+        noise_filter`` scenario whose pre-edit composite 92.81 → 85.75 at
+        the new equilibrium reflects 2 important sections falling out of
+        the 2475-token budget after task_quality_score + dispatch_report
+        token-grew. Per W-16 wholesale-regen path the new baseline pins
+        the new equilibrium; the convergence_noise_filter quality floor
+        was correspondingly retuned.
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v12.0.0_baseline.json", (
-            f"Expected load_baseline() to prefer v12.0.0_baseline.json "
-            f"(W-16 wholesale regen at v12.0.0 MAJOR cycle-start); got {newest.name}"
+        assert newest.name == "v12.1.0_baseline.json", (
+            f"Expected load_baseline() to prefer v12.1.0_baseline.json "
+            f"(W-16 wholesale regen at v12.1.0 MINOR cycle-start); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

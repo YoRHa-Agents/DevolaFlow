@@ -565,27 +565,27 @@ sections:
     content_type: spec
 
   dispatch_report:
-    lines: "322-353"
+    lines: "337-369"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "355-365"
+    lines: "371-381"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "367-376"
+    lines: "383-392"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "378-420"
+    lines: "394-436"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "378-420"
+    lines: "394-436"
     tokens_est: 343
     content_type: rules
 
@@ -602,12 +602,12 @@ sections:
   # OLD envelope keeps the `feedback` profile budget pressure within
   # the v11.1.3 GREEN equilibrium.
   task_quality_score:
-    lines: "451-473"
+    lines: "467-489"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "422-449"
+    lines: "438-465"
     tokens_est: 188
     content_type: table
 
