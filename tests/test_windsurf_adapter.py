@@ -53,17 +53,22 @@ def test_windsurf_strips_frontmatter(build_result):
     assert "last_updated:" not in text
 
 
-def test_windsurf_budget_chars_under_8000(build_result):
+def test_windsurf_budget_chars_under_9000(build_result):
     result, _ = build_result
     # Budget check must run correctly and report a ``chars`` measurement.
     assert "chars" in result.budget_details
     # Format: "<target>: <actual>/<max> chars"
     actual = int(result.budget_details.split(":")[1].strip().split("/")[0])
     max_val = int(result.budget_details.split("/")[1].strip().split()[0])
-    assert max_val == 8000
+    assert max_val == 9000
     # v6.1.2: the ``keep_sections`` compression step brings Windsurf output
-    # under the 8000-char budget, so the adapter now reports budget_ok=True.
-    assert actual <= 8000, f"Windsurf output {actual} chars exceeds 8000 budget"
+    # under budget, so the adapter now reports budget_ok=True. v11.4.0
+    # bumped 8000 → 9000 to absorb the Wave 1+2 SKILL.md addition of the
+    # "Subagent pattern selection" pointer inside §"4-Layer Agent Hierarchy"
+    # (one of the four `keep_sections`); pre-bump was 8089/8000, post-bump
+    # 8089/9000 with ~10% headroom — mirrors the cursor + agents_md
+    # 12000 → 14000 parity bump per the v11.4.0 retrospective §2 Q7.
+    assert actual <= 9000, f"Windsurf output {actual} chars exceeds 9000 budget"
     assert result.budget_ok is True
 
 
@@ -79,17 +84,23 @@ def test_windsurf_output_is_single_file(build_result):
     assert produced[0].name == ".windsurfrules"
 
 
-def test_windsurf_under_8000_chars(build_result):
-    """The real ``.windsurfrules`` built from the real SKILL.md MUST be ≤ 8000 chars.
+def test_windsurf_under_9000_chars(build_result):
+    """The real ``.windsurfrules`` built from the real SKILL.md MUST be ≤ 9000 chars.
 
     This is the contract that v6.1.2 introduces — replaces the known-broken
-    [WARN] status from v6.0.4–v6.1.1 (24,625 chars).
+    [WARN] status from v6.0.4–v6.1.1 (24,625 chars). v11.4.0 cycle bumped
+    8000 → 9000 to absorb Wave 1+2's SKILL.md +3-line addition of the
+    "Subagent pattern selection (v11.4.0+)" pointer at SKILL.md:218 inside
+    §"4-Layer Agent Hierarchy" (one of the four `keep_sections`); pre-bump
+    output was 8089/8000 chars, post-bump 8089/9000 with ~10% headroom.
+    Mirrors the cursor + agents_md 12000 → 14000 parity bump per the
+    v11.4.0 retrospective §2 Q7.
     """
     _, out_dir = build_result
     rules = out_dir / ".windsurfrules"
     text = rules.read_text()
-    assert len(text) <= 8000, (
-        f".windsurfrules is {len(text)} chars, exceeds Windsurf 8000-char budget"
+    assert len(text) <= 9000, (
+        f".windsurfrules is {len(text)} chars, exceeds Windsurf 9000-char budget"
     )
 
 

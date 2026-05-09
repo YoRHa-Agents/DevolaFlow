@@ -32,9 +32,21 @@ targets:
     # The 12000 bump gives ~30% headroom for v9.x sustaining additions while
     # preserving the canonical 5-layer corpus. Documented in
     # .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md D5.
+    #
+    # v11.4.0 (this PV) — bumped 12000 → 14000 to absorb the W-24 Subagent
+    # Pattern Selection rule (~+60 LOC source). Pre-bump utilization was
+    # ~11979/12000 (saturated; 21-token headroom) BEFORE the W-24 stanza
+    # was appended; adding W-24 pushed the rendered total to ~12750, which
+    # silently dropped the Style Rules layer from the compiled cursor
+    # output (per the W2.T3 stage report). The 14000 bump preserves the
+    # canonical 5-layer corpus and gives ~9% headroom for v11.4.x +
+    # v12.0.0 sustaining additions. Same pattern as PV-05 + PV-07. The
+    # `compiler.py::CompileResult.layers_included` accounting bug noted by
+    # the W2.T3 stage report (post-truncation list reported as
+    # pre-truncation) is tracked separately as a v11.4.x cleanup candidate.
     output: ".cursor/rules/repo-governance.mdc"
     format: mdc
-    token_budget: 12000
+    token_budget: 14000
     include_layers: [soul, architecture, conventions, workflow, style]
     frontmatter:
       description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
@@ -53,9 +65,15 @@ targets:
     # ~8180/8000 (over budget, dropped workflow layer). Bump preserves the
     # full 4-layer corpus and gives ~46% headroom for v9.x sustaining
     # additions per ADR-007 D5.
+    #
+    # v11.4.0 (this PV) — bumped 12000 → 14000 in lockstep with the cursor
+    # target to absorb W-24. Pre-bump utilization was 11708/12000 (97.6%);
+    # the bump leaves headroom for v11.4.x + v12.0.0 sustaining additions
+    # while keeping AGENTS.md and cursor target byte-symmetric on the
+    # 4 shared layers (soul, architecture, conventions, workflow).
     output: "AGENTS.md"
     format: markdown
-    token_budget: 12000
+    token_budget: 14000
     include_layers: [soul, architecture, conventions, workflow]
 
 drift_detection:

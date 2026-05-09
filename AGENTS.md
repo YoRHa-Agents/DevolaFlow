@@ -823,3 +823,63 @@ itself does not exist (S-5: no silent failure).
 Source: v11.3.0 SI-1 gap analysis §4 P1.5 +
 `workflow-system/agent/references/domain-awareness.md`
 (`.local/research/v11.3.0_gap_analysis.md`).
+
+## W-24 — Subagent Pattern Selection
+
+The subagent-pattern selection (v11.4.0+; codified by
+`workflow-system/agent/references/subagent-patterns.md` and
+`src/devolaflow/skills/subagent_pattern.py`) is the AGENT-to-AGENT
+dispatch pattern decision rule that operators consult at L0/L1/L2
+wave-decomposition time. Pairs with W-22 (HUMAN-facing grill mode)
+on the orthogonal natural-language activation axis. The 4-pattern
+philschmid-2026 taxonomy maps to L0..L3 as: **Pattern 1 Inline Tool**
+(native — single L3 via `Task`); **Pattern 2 Fan-Out** (native — L2
+wave, max 5 parallel L3 per `references/agent-hierarchy.md` §5);
+**Pattern 3 Agent Pool** (forward-compat-only at v11.4.0; landing
+deferred to v12.0.0+ SI-1); **Pattern 4 Teams** (PERMANENTLY NOT
+SUPPORTED — Soul-level P5 invariant forbids cross-agent shared
+state; reversal requires SI-1 + ADR + W-21 cadence + SI-3 §3.2 ≥ 9.5/10).
+
+### W-24.1 — Selection contract
+
+Operators invoke `select_pattern(complexity, model_tier, task_count,
+parallel_independence, persistent_state_needed)` →
+`"INLINE" | "FAN_OUT" | "AGENT_POOL_FORWARD"`. The verdict NEVER
+returns `"TEAMS_FORBIDDEN"` — that literal is reserved for
+`forbidden_pattern_rationale("TEAMS_FORBIDDEN")` (operator-education).
+
+### W-24.2 — Pattern 3 forward-compat policy
+
+`AGENT_POOL_FORWARD` returns when `persistent_state_needed=True` AND
+`model_tier="frontier"` AND `complexity in ("STANDARD", "COMPLEX")`,
+but NO API path activates Pattern 3 in v11.4.0. Callers fall back to
+INLINE round-robin via `change-driven` workflow's `apply ↔ verify`
+convergence loop (see `references/execution-protocol.md` §12).
+
+### W-24.3 — Pattern 4 permanent-NOT-SUPPORTED rationale
+
+`TEAMS_FORBIDDEN` is reserved for the operator-education path; the
+helper NEVER auto-returns it. Callers explicitly invoke
+`forbidden_pattern_rationale("TEAMS_FORBIDDEN")` for the P5-invariant
+rationale citing `repo-governance.mdc` §A-1 P5 verbatim.
+
+### W-24.4 — W-20 env-flag reuse-first preservation
+
+NO new `DEVOLAFLOW_*` env flag introduced. Activation is purely
+natural-language via `select_pattern()` invocation; env-flag count
+stays at 8 per v11.3.0 baseline. Mirrors W-22.4 verbatim.
+
+### W-24.5 — v12.0.0 graduation pre-staging
+
+v12.0.0 lands the schema NEST under `gate.subagent_pattern` per A-2.3
+NEST-vs-APPEND (parallel to v11.1.0 PV-04 cascade NEST precedent at
+`gate.cascade_required` + `gate.cascade_min_layers`). canonical_order
+length stays at 17; A-2.4 multi-baseline 32/32 GREEN unchanged.
+v11.4.0 adds NO schema fields. v12.0.0 also lands D-1 (A-7 STRICT),
+D-2 (`SHORTCUT_SIMPLE` retirement; flags 8→7), D-5 (CHANGELOG CI
+lint), per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph
+— subagent-pattern is the **fourth** v12.0.0 graduation.
+
+Source: v11.4.0 SI-1 gap analysis §4 + §5 + §7 + §8 risk register
+(`.local/research/v11.4.0_subagent_pattern_analysis.md`); upstream
+philschmid article at `https://www.philschmid.de/subagent-patterns-2026`.

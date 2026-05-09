@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "11.3.0"
+version: "11.4.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -20,7 +20,7 @@ triggers:
   - "/update-devola"
 tier: 1
 token_estimate: 2800
-last_updated: "2026-05-08"
+last_updated: "2026-05-09"
 name: devola-flow
 description: >
   Use when orchestrating multi-file software tasks, implementing features,
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v11.3.0**
+> **Now Using DevolaFlow v11.4.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 11.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 11.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -214,6 +214,8 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 1. Wave dispatches **generator** + **verifier** (criteria from `acceptance_criteria`)
 2. Verifier evaluates → `{PASS | FAIL + feedback}`. PASS → done. FAIL → generator refines (round N+1)
 3. Terminates on: verifier PASS, `max_rounds` reached, or score stagnant 2 rounds → escalate L1
+
+**Subagent pattern selection (v11.4.0+):** when decomposing a wave, consult `references/subagent-patterns.md` §3 (decision tree) — `INLINE` / `FAN_OUT` are native; `AGENT_POOL_FORWARD` is forward-compat-only; `TEAMS_FORBIDDEN` per P5. See `src/devolaflow/skills/subagent_pattern.py::select_pattern()` for the pure-function helper.
 
 ## Stage Primitives Index
 
@@ -396,6 +398,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
 | `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
+| `references/subagent-patterns.md` | Subagent pattern selection (4-pattern taxonomy: Inline Tool / Fan-Out / Agent Pool / Teams), v12.0.0 NEST schema roadmap, Pattern 3 forward-compat plan, Pattern 4 P5-Forbidden rationale |
 | `references/team-roles.md` | Task agent config, team capabilities |
 | `references/troubleshooting.md` | Operator-friction lookup index + per-symptom diagnostics (load when a dispatch/gate/hook fails opaquely) |
 

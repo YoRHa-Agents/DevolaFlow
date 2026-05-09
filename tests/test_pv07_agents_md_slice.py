@@ -389,17 +389,19 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     workflow_rules = [rid for rid, _ in layers[3][2]]
     # v11.3.0 grew Workflow rules 21 → 23 by appending W-22 "Grill Mode
     # Activation Contract" + W-23 "Domain Glossary Maintenance" (the
-    # grill-with-docs integration MINOR cycle). Both rules land at the
-    # Workflow layer (not Soul) per ADR-007 §"Soul-vs-Architecture"
-    # decision-rule on conditional + activation-coupled invariants —
-    # mirrors the v11.0.5 PV-05 A-7 landing rationale. W-21 Soul-set
-    # freeze preserved at 10 entries.
-    assert workflow_rules[-1] == "W-23", (
-        f"W-23 (Domain Glossary Maintenance, v11.3.0 grill-with-docs integration) "
+    # grill-with-docs integration MINOR cycle). v11.4.0 grew Workflow
+    # rules 23 → 24 by appending W-24 "Subagent Pattern Selection" (the
+    # subagent-patterns-2026 prep cycle targeting v12.0.0 graduation).
+    # All three rules land at the Workflow layer (not Soul) per ADR-007
+    # §"Soul-vs-Architecture" decision-rule on conditional + activation-
+    # coupled invariants — mirrors the v11.0.5 PV-05 A-7 landing
+    # rationale. W-21 Soul-set freeze preserved at 10 entries.
+    assert workflow_rules[-1] == "W-24", (
+        f"W-24 (Subagent Pattern Selection, v11.4.0 subagent-patterns prep) "
         f"should be last Workflow rule, got {workflow_rules[-1]}"
     )
-    assert len(workflow_rules) == 23, (
-        f"Workflow should have 23 rules (W-1..W-23), got {len(workflow_rules)}"
+    assert len(workflow_rules) == 24, (
+        f"Workflow should have 24 rules (W-1..W-24), got {len(workflow_rules)}"
     )
 
 

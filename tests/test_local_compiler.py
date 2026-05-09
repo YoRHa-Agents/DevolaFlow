@@ -376,10 +376,10 @@ class TestV822RulesFoundationCompile:
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in agents.content
         assert "## C-9 — Lightweight Agent Workspace Artifacts" in agents.content
 
-    def test_compile_budget_agents_md_under_12000_tokens(
+    def test_compile_budget_agents_md_under_14000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """AC-7: AGENTS.md token estimate must remain ≤ 12000 (compile-config budget).
+        """AC-7: AGENTS.md token estimate must remain ≤ 14000 (compile-config budget).
 
         v8.5.0 PV-05 bumped the AGENTS.md target from 6000 → 8000 to match
         the cursor target (parity), allowing W-16..W-20 rule additions to
@@ -388,29 +388,47 @@ class TestV822RulesFoundationCompile:
         v9.0.0 PV-07 bumped 8000 → 12000 to absorb the W-21 Soul-set freeze
         governance rule (~+30 LOC source). Pre-PV-07 utilization was
         ~8180/8000 (over budget — silently dropped the workflow layer);
-        the bump preserves the full 4-layer corpus and gives ~46% headroom
+        the bump preserved the full 4-layer corpus and gave ~46% headroom
         for v9.x sustaining additions per ADR-007 D5.
+
+        v11.4.0 cycle-close bumped 12000 → 14000 (parity bump on cursor
+        + agents_md targets) to absorb the new W-24 Subagent Pattern
+        Selection rule. Pre-bump cursor utilization at v11.4.0 was
+        11979/12000 (saturated; the W-24 push silently dropped the Style
+        Rules layer in the cursor target); post-bump cursor 12740/14000
+        (~9% headroom; all 5 layers preserved). agents_md was 11708/12000
+        pre-bump (97.6%); post-bump 11708/14000 (~16% headroom; 4 layers).
+        See `.local/research/v11.4.0_subagent_pattern_analysis.md` and
+        the v11.4.0 retrospective §2 Q7 mid-cycle discovery for details.
         """
         agents = repo_compile_results["agents_md"]
-        assert agents.tokens_budget == 12000
-        assert agents.tokens_used <= 12000, (
-            f"AGENTS.md exceeded 12000-token budget: {agents.tokens_used}"
+        assert agents.tokens_budget == 14000
+        assert agents.tokens_used <= 14000, (
+            f"AGENTS.md exceeded 14000-token budget: {agents.tokens_used}"
         )
 
-    def test_compile_budget_cursor_under_12000_tokens(
+    def test_compile_budget_cursor_under_14000_tokens(
         self, repo_compile_results: dict[str, CompileResult]
     ) -> None:
-        """AC-7: cursor MDC token estimate must remain ≤ 12000 (compile-config budget).
+        """AC-7: cursor MDC token estimate must remain ≤ 14000 (compile-config budget).
 
         v9.0.0 PV-07 bumped 8000 → 12000 (parity with agents_md target) to
         absorb the W-21 Soul-set freeze governance rule. Pre-PV-07 utilization
         was ~9210/8000 (over budget — dropped the workflow layer); the bump
-        preserves the canonical 5-layer corpus per ADR-007 D5.
+        preserved the canonical 5-layer corpus per ADR-007 D5.
+
+        v11.4.0 cycle-close bumped 12000 → 14000 (parity bump on both
+        cursor + agents_md targets) to absorb the new W-24 Subagent Pattern
+        Selection rule. Pre-bump utilization was 11979/12000 (saturated;
+        W-24 push silently dropped the Style Rules layer); post-bump
+        12740/14000 (~9% headroom; all 5 layers preserved per ADR-007 D5).
+        See `.local/research/v11.4.0_subagent_pattern_analysis.md` and
+        the v11.4.0 retrospective §2 Q7 mid-cycle discovery for details.
         """
         cursor = repo_compile_results["cursor"]
-        assert cursor.tokens_budget == 12000
-        assert cursor.tokens_used <= 12000, (
-            f".cursor/rules/repo-governance.mdc exceeded 12000-token budget: {cursor.tokens_used}"
+        assert cursor.tokens_budget == 14000
+        assert cursor.tokens_used <= 14000, (
+            f".cursor/rules/repo-governance.mdc exceeded 14000-token budget: {cursor.tokens_used}"
         )
 
     def test_existing_soul_rules_preserved_byte_identical(

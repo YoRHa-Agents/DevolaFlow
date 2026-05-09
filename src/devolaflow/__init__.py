@@ -3,6 +3,6 @@
 Design ref: design_meta_framework.md §1
 """
 
-__version__ = "11.3.0"
+__version__ = "11.4.0"
 
 from devolaflow import learnings as learnings
