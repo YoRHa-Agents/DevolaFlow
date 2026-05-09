@@ -475,103 +475,136 @@ sections:
     tokens_est: 91
     content_type: prose
 
+  # v11.3.0 PV-W4.T7 re-anchor — Wave 1+2 SKILL.md edits added 8 net
+  # lines (467 → 475) across 4 hunks: detection priority item 4 split
+  # into items 4+5 (+1 line at line 75 area), inserted ### GRILL MODE
+  # subsection between AGENT MODE and Quick Start (+4 lines at line 109
+  # area), inserted grill-driven row in Quick Start table (+1 line at
+  # line 141 area), and 2 NEW Tier-2 reference rows for grill-mode.md
+  # + domain-awareness.md (+2 lines at line 389/393 area). Cumulative
+  # shifts: 0 through line 73, +1 through line 108, +5 through line
+  # 141, +6 through line 388, +8 from line 389 to EOF. Line ranges
+  # below were re-derived from `grep -n '^## \|^### '` against the
+  # post-Wave-1+2 SKILL.md (475 lines). The convergence_loop legacy
+  # range moves to ### Reinforcement Rules at lines 286-287 (the
+  # closest semantic match for the old "280-282" anchor — see the
+  # section_anchors block above for the heading-based primary path).
   plan_mode_template:
-    lines: "77-80"
+    lines: "78-80"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "81-107"
+    lines: "82-107"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "108-136"
+    lines: "113-141"
     tokens_est: 612
     content_type: table
 
+  # PV-W4.T7 boundary note: hierarchy_table + wave_task_constraints
+  # intentionally STOP at line 185 (the trailing blank) and exclude the
+  # v11.1.0 "**Cascade requirement (v11.1.0):**" paragraph at line 186.
+  # The OLD v11.1.3 ranges (165-179 / 175-179) used the same 15-line /
+  # 5-line content envelope — preserving that shape keeps the
+  # `feedback` profile budget pressure (tight 2475-token cap) within
+  # the same equilibrium it shipped under v11.1.3 GREEN. Cascade
+  # requirement content is independently surfaced via SKILL.md "## Quick
+  # Action Decision" §"Rule" line + the `cascade_requirement()` API in
+  # `references/plan-mode-enforcement.md` §3.2 — no information loss
+  # from omitting line 186 here.
   hierarchy_table:
-    lines: "165-179"
+    lines: "171-185"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "165-179"
+    lines: "171-185"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "175-179"
+    lines: "181-185"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "182-194"
+    lines: "188-199"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "195-211"
+    lines: "201-216"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "212-261"
+    lines: "218-266"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "262-279"
+    lines: "268-284"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "283-293"
+    lines: "289-299"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "295-313"
+    lines: "301-318"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "314-346"
+    lines: "320-351"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "347-358"
+    lines: "353-363"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "359-369"
+    lines: "365-374"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "370-406"
+    lines: "376-417"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "370-406"
+    lines: "376-417"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "280-282"
+    lines: "286-287"
     tokens_est: 100
     content_type: spec
 
+  # PV-W4.T7 boundary note: task_quality_score STOPS at line 470 (the
+  # closing ``` fence of the example output block) and excludes the
+  # `**Rules**:` paragraph at line 472. The OLD v11.1.3 range (438-462)
+  # used the same envelope — section + closing fence, no Rules. The
+  # Rules paragraph is operator-facing prose that L3 agents do not need
+  # injected into their context (it's authored guidance for SKILL
+  # readers). Preserving the OLD envelope keeps the `feedback` profile
+  # budget pressure within the v11.1.3 GREEN equilibrium.
   task_quality_score:
-    lines: "438-462"
+    lines: "448-470"
     tokens_est: 288
     content_type: spec
 
   template_quick_ref:
-    lines: "409-436"
+    lines: "419-446"
     tokens_est: 188
     content_type: table
 

@@ -387,12 +387,19 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
     )
 
     workflow_rules = [rid for rid, _ in layers[3][2]]
-    assert workflow_rules[-1] == "W-21", (
-        f"W-21 (Soul-set freeze governance, ADR-007 D4) should be last Workflow rule, "
-        f"got {workflow_rules[-1]}"
+    # v11.3.0 grew Workflow rules 21 → 23 by appending W-22 "Grill Mode
+    # Activation Contract" + W-23 "Domain Glossary Maintenance" (the
+    # grill-with-docs integration MINOR cycle). Both rules land at the
+    # Workflow layer (not Soul) per ADR-007 §"Soul-vs-Architecture"
+    # decision-rule on conditional + activation-coupled invariants —
+    # mirrors the v11.0.5 PV-05 A-7 landing rationale. W-21 Soul-set
+    # freeze preserved at 10 entries.
+    assert workflow_rules[-1] == "W-23", (
+        f"W-23 (Domain Glossary Maintenance, v11.3.0 grill-with-docs integration) "
+        f"should be last Workflow rule, got {workflow_rules[-1]}"
     )
-    assert len(workflow_rules) == 21, (
-        f"Workflow should have 21 rules (W-1..W-21), got {len(workflow_rules)}"
+    assert len(workflow_rules) == 23, (
+        f"Workflow should have 23 rules (W-1..W-23), got {len(workflow_rules)}"
     )
 
 

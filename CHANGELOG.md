@@ -5,6 +5,105 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.0] - 2026-05-08
+
+**MINOR — Grill-with-Docs Integration.** First MINOR cycle after the v11.1.x stability-patch series closed (v11.1.3 D-3 shipped the cycle-close summary). v11.3.0 absorbs the [grill-with-docs upstream skill](https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs) as DevolaFlow's "Grill Mode" — a parallel-orthogonal sibling of Plan Mode that conducts a one-question-at-a-time interview against the codebase, the project's domain glossary (CONTEXT.md), and the project's ADR ledger (docs/adr/). The v11.2.0 slot was skipped by user choice (reserved for an alternative cycle but not used); v11.3.0 is the cycle-defining MINOR. Source: `.local/research/v11.3.0_gap_analysis.md` (SI-1 planning gate); NineS deep analyze at `.local/research/v11.3.0_nines_analyze_grill_with_docs.json` (SI-2).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Pure-additive: 2 NEW Tier-2 references + 1 NEW pure-function module + 2 NEW Workflow rules + 1 NEW natural-language workflow trigger. Zero schema edits, zero gate edits, zero existing-API changes.** Plan Mode is byte-stable; AGENT MODE is byte-stable; the lifecycle hook chain is byte-stable. Grill Mode is parallel-orthogonal — when triggered, both modes can be active simultaneously. NO new env flag (W-20 reuse-first); activation is purely natural-language via `classify_grill_intent`. Auto-writes to `CONTEXT.md` / `docs/adr/` are R5 strict default-OFF — explicit operator consent required per session.
+
+- **NEW reference: `workflow-system/agent/references/grill-mode.md`** (Tier-2, 926 lines, Large tier ≤ 1000 per C-4) — operating contract for Grill Mode. §-numbered sections covering trigger taxonomy, interview discipline (one-question-at-a-time + wait-for-feedback), codebase-first exploration with cross-reference, fuzzy-term sharpening + scenario probing, inline glossary updates, the 3-condition ADR gate (Hard to reverse + Surprising without context + Real trade-off — verbatim from upstream `ADR-FORMAT.md`), pairing with Plan Mode, R5-strict default-OFF for auto-writes, the activation classifier surface (5 public APIs from grill_mode.py), cross-references to companion docs/rules/schemas/tests, and the explicit R-11 distinction from `interview-protocol.md` (which is repo-init-bootstrap only).
+- **NEW reference: `workflow-system/agent/references/domain-awareness.md`** (Tier-2, 484 lines, Large tier) — companion to grill-mode.md covering CONTEXT.md required structure (Language / Relationships / Example dialogue / Flagged ambiguities — verbatim from upstream `CONTEXT-FORMAT.md`), Be-opinionated rule, Only-project-specific rule, single-vs-multi-context inference (CONTEXT-MAP.md root marker), lazy file creation discipline, ADR format (verbatim from upstream `ADR-FORMAT.md`), distinction from historical `.local/research/adr/` directory, and the A-4 source-of-truth spec cross-reference (CONTEXT.md is vocabulary, spec.md is behaviour — they DO NOT overlap).
+- **NEW module: `src/devolaflow/skills/grill_mode.py`** (280 LOC, pure-function, R5-strict default-OFF, zero IO at import). 5 public functions: `classify_grill_intent(message)` returns `Literal["GRILL_REQUESTED", "GRILL_SUGGESTED", "NO_GRILL"]`; `detect_fuzzy_terms(plan_text, glossary)` returns `list[FuzzyTerm]`; `qualifies_as_adr(decision)` returns `(bool, list[AdrConditionName])` applying the 3-condition gate; `propose_canonical_term(candidate, glossary)` returns `CanonicalTermSuggestion`; `infer_context_layout(repo_root)` returns `Literal["SINGLE_CONTEXT", "MULTI_CONTEXT", "NO_CONTEXT_YET"]`. 3 frozen dataclasses (`FuzzyTerm`, `CanonicalTermSuggestion`, `DecisionDescriptor`) + 3 Literal type aliases (`GrillVerdict`, `ContextLayout`, `AdrConditionName`). Coverage ≥ 80% per CP-2 floor.
+- **NEW workflow rules: W-22 + W-23 in `.rules/workflow.mdc`** (compiled to `AGENTS.md` + `.cursor/rules/repo-governance.mdc` via `make compile-rules`). W-22 (Grill Mode Activation Contract) codifies the natural-language triggers, parallel-orthogonal composition with plan mode (W-22.1), R5-strict default-OFF for auto-writes (W-22.2), 3-condition ADR gate as normative obligation (W-22.3), and W-20 env-flag reuse-first preservation (W-22.4). W-23 (Domain Glossary Maintenance) codifies lazy file creation (W-23.1), opinionated-term discipline (W-23.2), project-specific scope (W-23.3), CONTEXT.md vs spec.md separation per A-4 (W-23.4), and single-vs-multi-context layout inference (W-23.5). NO new Soul rule — W-21 Soul-set freeze at 10 preserved.
+- **NEW workflow trigger: `grill-driven`** in SKILL.md §"Quick Start — Workflow Selection" — intent keywords `grill, challenge plan, interview me, stress-test plan, domain glossary, sharpen terminology` route to a 4-stage workflow (interrogate → resolve-fuzz → cross-ref → record (CONTEXT.md/ADR)).
+- **SKILL.md surfaced** the new GRILL MODE subsection in §"Mode Awareness" (parallel to PLAN MODE / AGENT MODE), 2 NEW Tier-2 entries in §"Reference Navigation Guide" (`domain-awareness.md`, `grill-mode.md`), and the new `grill-driven` row in §"Quick Start — Workflow Selection". SKILL.md grew 467 → 475 lines (+8 net additions, 25 lines under the C-4 500-line ceiling).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v11_3_0_new_surfaces_have_coverage` (mixed AST symbol pin + positive-substring pin):
+
+- `src/devolaflow/skills/grill_mode.py::classify_grill_intent` (AST symbol pin)
+- `src/devolaflow/skills/grill_mode.py::detect_fuzzy_terms` (AST symbol pin)
+- `src/devolaflow/skills/grill_mode.py::qualifies_as_adr` (AST symbol pin)
+- `src/devolaflow/skills/grill_mode.py::propose_canonical_term` (AST symbol pin)
+- `src/devolaflow/skills/grill_mode.py::infer_context_layout` (AST symbol pin)
+- 3 frozen dataclasses (`FuzzyTerm`, `CanonicalTermSuggestion`, `DecisionDescriptor`) + 3 Literal type aliases (`GrillVerdict`, `ContextLayout`, `AdrConditionName`) — AST class/alias pin
+- `tests/test_grill_mode.py` — 9 canonical NEW test functions (AST symbol pin; canonical subset per gap analysis §4 P1.6)
+- `tests/test_domain_awareness.py` — 6 canonical NEW test functions (AST symbol pin)
+- `workflow-system/agent/references/grill-mode.md` — 15 positive substrings (frontmatter `id: grill-mode` / `tier: 2` + verbatim quotes from upstream `Ask the questions one at a time`, `explore the codebase instead`, `stress-test them with specific scenarios`, `Hard to reverse`, `Surprising without context`, `real trade-off` + 5 function citations + R-11 distinction `interview-protocol.md`)
+- `workflow-system/agent/references/domain-awareness.md` — 16 positive substrings (frontmatter `id: domain-awareness` / `tier: 2` + 4 CONTEXT.md section headers `## Language` / `## Relationships` / `## Example dialogue` / `## Flagged ambiguities` + Be-opinionated rule + Only-project-specific rule + 3-condition gate verbatim + ADR format `0001-slug.md` + `An ADR can be a single paragraph` + A-4 cross-reference + historical-ADR distinction `.local/research/adr/`)
+- `CHANGELOG.md` `## [11.3.0]` section header line-anchored single-application count (per v11.1.1 D-1 lint inheritance — preserved across the v11.1.x → v11.3.0 MINOR boundary)
+
+### Headline numbers
+
+| Area | v11.1.3 | v11.3.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | ~4312 | ~4367 | +55 (well under W-17 +30/PV cap when parametrize expansions counted, WAY under +150/cycle cap) | `pytest --collect-only -q` |
+| Coverage | 93% | 93%+ | preserved (CP-2 floor 80% strongly satisfied; grill_mode.py ≥ 80%) | `pyproject.toml [tool.coverage]` |
+| `__version__` | 11.1.3 | **11.3.0** | +1 MINOR (skipped 11.2.0) | `src/devolaflow/__init__.py` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 (no new A rules) | `.rules/architecture.mdc` |
+| Workflow rule count | 21 | **23** | +2 (W-22, W-23) | `.rules/workflow.mdc` |
+| Env flag count | 8 | 8 | 0 (W-20 reuse-first preserved; no new flag) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (no schema edits; A-2.4 frozen-prefix preserved) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| A-2.4 multi-baseline tests | 32/32 | 32/32 | 0 (no schema edits) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (no dispatch edits) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 108/108 | 108/108 | 0 (no gate edits) | `tests/test_gate.py` |
+| `tests/test_audit_layer_usage.py` (D-2 inheritance) | 19/19 | 19/19 | 0 (no audit edits) | regex broadening preserved across MINOR boundary |
+| `tests/test_changelog_no_duplicate_versions.py` (D-1 inheritance) | 3/3 | 3/3 | 0 (lint runs against this entry) | sister-patch chain preserved across MINOR boundary |
+| SKILL.md line count | 467 | 475 | +8 (under 500 C-4 ceiling) | `wc -l workflow-system/agent/SKILL.md` |
+| `references/grill-mode.md` line count | (n/a) | 926 | NEW (Large tier ≤ 1000) | `wc -l` |
+| `references/domain-awareness.md` line count | (n/a) | 484 | NEW (Large tier ≤ 1000) | `wc -l` |
+| `src/devolaflow/skills/grill_mode.py` LOC | (n/a) | 280 | NEW (within 150-280 spec band) | `wc -l` |
+
+### W-9 SI-10 7-step + extras verification (MINOR-close gate)
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **FAIL — 4333 PASS / 25 SKIP / 2 XFAIL / 7 FAIL.** 1 of the 7 failures is the per-scenario `convergence_noise_filter` quality-floor regression (Wave 1+2 SKILL.md edits without corresponding section_anchors migration; surfaced at Step 5); the remaining 6 are Wave 1+2 implementation gaps that landed alongside the v11.3.0 reference + rule additions but did NOT update their pinned constants / golden files / hardcoded last-rule assertions. Per S-8 (No Writes Outside Owned Files) Stage 3 W3.T6 cannot fix without violating Wave 1+2 ownership; surfaced explicitly per S-5 (No Silent Failures). See cycle retrospective `.local/research/v11.3.0_retrospective.md` §3 deviation note for the 7-failure decomposition + recommended L0 follow-up. |
+| 2 | `ruff check src/ tests/` | PASS |
+| 3 | `ruff format --check src/ tests/` | PASS (294 files already formatted) |
+| 4 | `python -m pytest tests/test_version.py -v` | PASS (12 PASS / 23 SKIP — canonical 7 sync 11.1.3 → 11.3.0 verified; mirror-parity assertions correctly self-skip per SF-3 opt-in) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **FAIL — 35 PASS / 1 FAIL** (`test_quality_thresholds`: `convergence_noise_filter` composite=84.39 < scenario-local `min_composite: 89` floor; gap 4.61pp / 5.18% absolute). The W-4 5%-delta regression check (`test_v6_baseline_matches_current_results_within_tolerance`) PASSES at ±0pp drift — this confirms the v11.3.0 wholesale baseline correctly captures the new equilibrium; the failure is a per-scenario quality-floor violation introduced by Wave 1+2's SKILL.md content additions shifting line-based section_anchors. The new `v11.3.0_baseline.json` (18,918 bytes; 57 scenarios) was regenerated via v11.1.3 D-3 Option B (pre-pinned `sys.modules["tiktoken"] = None` BEFORE any devolaflow import) — the gap-analysis-anticipated `--regenerate-baselines` pytest flag does not exist on this branch. |
+| 6 | `make check-cursor-skill` | PASS (exit 0; mirror absent → no-op per SF-3 opt-in) |
+| 7 | `python -m pytest tests/test_layout_invariant_multi_baseline.py -v` | PASS 32/32 unchanged (canonical_order at 17 preserved; A-2.4 frozen-prefix unchanged) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | PASS 10/10 unchanged (S-10 byte-id preserved) |
+| Extras | `python -m pytest tests/test_gate.py -v` | PASS 108/108 unchanged (CP-4 gate suite byte-stable) |
+| Extras | `python -m pytest tests/test_grill_mode.py tests/test_domain_awareness.py -v` | PASS 52/52 (45 grill-mode + 7 domain-awareness; well above the 9 + 6 canonical NEW test minimums) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py::test_v11_3_0_new_surfaces_have_coverage -v` | PASS — closes the W-18 lint gate that previously failed at Block 6 (CHANGELOG portion); all 6 W-18 substrings now present (`## [11.3.0]` × 1, `grill-with-docs` × 2, `grill_mode.py` × 11, `W-22` × 4, `W-23` × 4, `11.1.3` × 19) and line-anchored single-application count = 1 |
+| Extras | `python -m pytest tests/test_changelog_no_duplicate_versions.py -v` | PASS 3/3 (D-1 lint runs against this very entry; sister-patch chain holds across the v11.1.x → v11.3.0 MINOR boundary) |
+| Extras | `python -m pytest tests/test_audit_layer_usage.py -v` | PASS 19/19 (D-2 regex broadening preserved) |
+| Extras | `make compile-rules` | PASS (exit 0; cursor 12000/12000 tokens; agents_md 10968/12000 tokens; W-22 + W-23 stably compiled) |
+
+**Disposition.** The 7 failures captured in Step 1 are decomposed in `.local/research/v11.3.0_retrospective.md` §3:
+1. `test_quality_thresholds` (Step 5; Wave 1+2 SKILL.md line-anchor drift)
+2. `test_cursor_references_golden` — expected 17 reference files, got 19 (Wave 1+2 added grill-mode.md + domain-awareness.md without updating the cursor adapter golden file)
+3. `test_architecture_js_skill_lines` — `architecture.js` claims 458 lines, SKILL.md has 475 (delta 17 > 10 tolerance; Wave 1+2 grew SKILL.md without updating the demo claim)
+4. `test_demo_index_version_matches_package` — demo "What's New" still cites 11.1.2 (ST-4 cycle-close manual task; the `__version__` bump is downstream of the demo "What's New" prose authoring which is human-editorial, not auto-generated)
+5. `test_skill_reference_links_match_sf4_set` — `_SF4_REFERENCE_SET` constant in `tests/test_no_ghost_features.py` is hardcoded to 17 entries; Wave 1+2 added 2 references without updating the constant
+6. `test_reference_skill_md_tier2_parity` — same root cause as #5; SKILL.md Tier-2 nav now has 19 entries but `_SF4_REFERENCE_SET` still has 17
+7. `test_split_agents_md_into_layers_handles_canonical_structure` — assertion expects W-21 as last Workflow rule; Wave 1+2 added W-22 + W-23 but didn't update this assertion
+
+Items 2-7 are owned by Wave 1+2 per S-8 (the new references + W-22/W-23 + the test pins + the demo files all sit outside Stage 3 W3.T6's owned-files list); item 1 also surfaces as a Wave 1+2 implementation gap (SKILL.md edits without section_anchors migration). Stage 3 documents but does NOT mask. Recommended L0 follow-up: re-dispatch a Wave 1+2 close-out task or ship a v11.3.1 PATCH that closes all 7 items in one commit.
+
+### W-21 Soul-set freeze + W-20 env-flag freeze preserved
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. NO new Soul rules proposed; W-22 + W-23 land at Workflow layer (architecturally correct because grill-mode invariants are conditional + implementation-coupled, mirroring A-7's landing rationale per `v9-ADR-007 §"Soul-vs-Architecture decision-rule"`).
+* **W-20**: NO new `DEVOLAFLOW_*` env flags introduced. Env flag count stays at **8**. Grill-mode activation is purely natural-language via `classify_grill_intent`; the R5 strict default-OFF is enforced via the activation classifier (returns `NO_GRILL` by default), not via an env flag.
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v11.3.0_gap_analysis.md` (390 lines)
+* SI-2 NineS deep analyze (upstream): `.local/research/v11.3.0_nines_analyze_grill_with_docs.json` (9,203 bytes)
+* SI-2 NineS deep analyze (existing surface): `.local/research/v11.3.0_nines_analyze_plan_mode_enforcement.json` (4,404 bytes)
+* Verbatim sources: `.local/research/v11.3.0_grill_with_docs_source/{SKILL,CONTEXT-FORMAT,ADR-FORMAT}.md` (3 files; 204 lines total; persisted from upstream)
+* W-7 retrospective: `.local/research/v11.3.0_retrospective.md`
+* Stylistic precedent: `.local/research/karpathy_skills_analysis.md` (the v4.5.0 cycle's external-skill absorption template)
+* Predecessor: `## [11.1.3] - 2026-05-08` (closed the v11.1.x stability-patch series; explicit "next phase is operator-feedback collection" → this v11.3.0 cycle delivers on that)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`; upstream `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`
+
 ## [11.1.3] - 2026-05-08
 
 **PATCH — D-3: tiktoken determinism documentation.** Third and final of 3 staged stability patches for the v11.1.x line (sister patches: v11.1.1 D-1 — merged via PR #132; v11.1.2 D-2 — merged via PR #133). Closes the v11.1.0 PV-02 W-16 wholesale-baseline-regen closeout finding observed during the v11.1.0 cascade-restoration cycle: the autouse `tests/conftest.py::_force_fallback_token_estimator` fixture forces `sys.modules["tiktoken"] = None` for every `test_benchmarks.py` test so EvoBench scoring is deterministic across CI / dev / fresh-clone environments, but operators regenerating baselines OUTSIDE the pytest harness do NOT see the fixture fire and consequently produce baselines that diverge from pytest scoring by ~7 percentage points on the composite axis. The fix is documentation-only — the fixture body and the runtime token-estimator are byte-stable. Source: `docs/cycle-archive/v11.1.0/retrospective.md` cycle-close summary (the v11.1.0 PV-02 W-16 wholesale baseline regen was the first cycle where this divergence surfaced empirically; the dispatcher's D-3 label closes the v11.1.x stability-patch series).

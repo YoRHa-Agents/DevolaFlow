@@ -689,3 +689,137 @@ enforce the Soul-specific 12-cap; that gate IS the SI-3 review.
 Source: v9.0.0 PV-07 — codified per
 `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4
 (Soul-set freeze governance).
+
+## W-22 — Grill Mode Activation Contract
+
+DevolaFlow's grill mode (introduced v11.3.0; codified by
+`workflow-system/agent/references/grill-mode.md` and
+`src/devolaflow/skills/grill_mode.py`) is the parallel-orthogonal
+sibling of plan mode that conducts a one-question-at-a-time
+interview to stress-test an in-flight plan against the codebase,
+the project's domain glossary (CONTEXT.md), and the project's
+ADR ledger (docs/adr/). Activation is purely natural-language:
+
+* Explicit triggers (return `GRILL_REQUESTED` from
+  `classify_grill_intent`): "grill", "interview me",
+  "stress-test", "stress test", "challenge my plan",
+  "challenge the plan", "interrogate", "sharpen terminology",
+  "sharpen the domain".
+* Suggested triggers (return `GRILL_SUGGESTED`): "domain
+  glossary", "clarify terms", "ambiguous terms", "fuzzy
+  language", "fuzzy terms", "context.md", "adr",
+  "is this an adr", "should we record", "hard to reverse".
+* Default verdict (`NO_GRILL`) when neither trigger is
+  present.
+
+### W-22.1 — Parallel-orthogonal composition with plan mode
+
+When PLAN MODE and GRILL MODE are both active, L0 alternates:
+grill the operator on AC + scope FIRST, then write the plan
+template per `references/plan-mode-enforcement.md` §3. Neither
+mode is a prerequisite for the other; both can run
+concurrently. Reinforcement loops (W-8 / SI-9) and convergence
+loops (gen-verify) operate on artifacts, NOT on operator
+utterances — they are orthogonal to grill mode.
+
+### W-22.2 — R5 strict default-OFF for auto-writes
+
+The question-asking pattern is default-active. Auto-writes to
+`CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` MUST require
+explicit operator consent per session. The L0 asks "shall I
+record this in CONTEXT.md as `<term>: <definition>`?" before
+writing. Companion rule: W-23 (Domain Glossary Maintenance).
+
+### W-22.3 — 3-condition ADR gate (normative obligation)
+
+When grill mode surfaces a candidate decision for an ADR, the
+L0 MUST evaluate via
+`devolaflow.skills.grill_mode.qualifies_as_adr(decision)` →
+`(qualifies, missing_conditions)`. If `qualifies` is False,
+the L0 SHALL skip the ADR offer and surface to the operator
+which of the 3 conditions failed (Hard to reverse / Surprising
+without context / Real trade-off). The 3-condition gate is the
+canonical anti-sprawl mechanism for ADRs going forward.
+
+### W-22.4 — W-20 env-flag reuse-first preservation
+
+NO new `DEVOLAFLOW_*` env flag is introduced for grill mode.
+Activation is purely natural-language via
+`classify_grill_intent`; the env-flag count remains at 8 per
+v11.1.3 baseline. Behaviourally orthogonal but activation-
+surface-distinct from the existing flags — the W-20
+orthogonality test is satisfied because grill mode does NOT
+share an env-flag activation surface with any existing
+DEVOLAFLOW_* flag.
+
+Source: v11.3.0 SI-1 gap analysis §4 P1.5 + §5 risks R-7 +
+R-11 (`.local/research/v11.3.0_gap_analysis.md`).
+
+## W-23 — Domain Glossary Maintenance
+
+When grill mode is active and a term is resolved, the L0 MAY
+update the project's domain glossary (CONTEXT.md) inline per
+the format specified in
+`workflow-system/agent/references/domain-awareness.md`. This
+rule codifies the lazy-creation discipline + opinionated-term
+discipline + project-specific scope discipline that the
+upstream `grill-with-docs` skill establishes.
+
+### W-23.1 — Lazy file creation
+
+* No `CONTEXT.md` exists until the first term is resolved.
+* No `CONTEXT-MAP.md` exists until the repo declares 2+
+  contexts.
+* No `docs/adr/` directory exists until the first ADR clears
+  the W-22.3 3-condition gate.
+
+The repo-init workflow (per SKILL.md §"Repo-Init Pre-Dispatch
+Contract") does NOT auto-create these files — they remain
+absent until grill mode populates them with operator consent.
+
+### W-23.2 — Opinionated-term discipline
+
+When multiple words exist for the same domain concept, the
+glossary picks ONE canonical term and lists the others as
+aliases under "_Avoid_:" entries. The
+`devolaflow.skills.grill_mode.detect_fuzzy_terms(plan_text,
+glossary)` function detects when a plan uses an Avoid-listed
+alias and returns FuzzyTerm entries for the operator to
+resolve. The
+`devolaflow.skills.grill_mode.propose_canonical_term(candidate,
+glossary)` function suggests the canonical replacement for a
+fuzzy candidate.
+
+### W-23.3 — Project-specific scope
+
+CONTEXT.md only includes terms specific to THIS project's
+domain. General programming concepts (timeouts, error types,
+utility patterns, language keywords) DO NOT belong even when
+the project uses them extensively. The decision rule before
+adding a term: "Is this a concept unique to THIS project's
+domain, or a general programming concept?" Only the former
+qualifies.
+
+### W-23.4 — CONTEXT.md vs spec.md separation (per A-4)
+
+`CONTEXT.md` is VOCABULARY (what the project's domain experts
+call things). `.local/memory/specs/<domain>/spec.md` (per
+Architecture rule A-4) is BEHAVIOUR (what the system does).
+They DO NOT overlap. A term resolved in grill mode goes into
+CONTEXT.md. A behaviour decided in grill mode goes into the
+per-change `.local/.agent/active/<id>/spec.md`.
+
+### W-23.5 — Single vs multi-context layout inference
+
+The
+`devolaflow.skills.grill_mode.infer_context_layout(repo_root)`
+pure function returns one of `SINGLE_CONTEXT` /
+`MULTI_CONTEXT` / `NO_CONTEXT_YET` based on the presence of
+`CONTEXT-MAP.md` (multi) / `CONTEXT.md` (single) / neither
+(yet to create). This is the only function in the module that
+touches disk; it raises `FileNotFoundError` when `repo_root`
+itself does not exist (S-5: no silent failure).
+
+Source: v11.3.0 SI-1 gap analysis §4 P1.5 +
+`workflow-system/agent/references/domain-awareness.md`
+(`.local/research/v11.3.0_gap_analysis.md`).

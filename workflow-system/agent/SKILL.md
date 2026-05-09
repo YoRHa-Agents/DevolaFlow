@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "11.1.3"
+version: "11.3.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v11.1.3**
+> **Now Using DevolaFlow v11.3.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 11.1.3 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 11.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
@@ -72,7 +72,8 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 1. `<system_reminder>` contains "Plan mode is active" → **PLAN MODE**
 2. `SwitchMode` tool available and current mode is `plan` → **PLAN MODE**
 3. User explicitly says "build a plan" / "plan this" / "design first" → **PLAN MODE**
-4. Otherwise → **AGENT MODE** (default, full orchestration). **v6.1.5+ runtime hook:** `select_context(plan_mode=True)` (or env `DEVOLAFLOW_PLAN_MODE=1`) escalates plan-relevant sections (`agent_hierarchy`, `decomposition_gate`, `rationalization_prevention`) to `critical` and upgrades `model_hint` to `quality`.
+4. `classify_grill_intent(message)` returns `GRILL_REQUESTED` → **GRILL MODE** (concurrent with current mode; not exclusive)
+5. Otherwise → **AGENT MODE** (default, full orchestration). **v6.1.5+ runtime hook:** `select_context(plan_mode=True)` (or env `DEVOLAFLOW_PLAN_MODE=1`) escalates plan-relevant sections (`agent_hierarchy`, `decomposition_gate`, `rationalization_prevention`) to `critical` and upgrades `model_hint` to `quality`.
 
 ### PLAN MODE — Design the Plan, Do NOT Execute
 
@@ -105,6 +106,10 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 **Simple task shortcut** (SIMPLE/TRIVIAL, < 1 hour):
 Skip multi-stage hierarchy. Dispatch a **single Task Agent**. STANDARD+ MUST cascade per `cascade_requirement()`. Verify output and report.
 
+### GRILL MODE — Interrogate the Plan, Sharpen the Domain (v11.3.0+)
+
+**You are L0.** Grill Mode is the **parallel-orthogonal** sibling of PLAN MODE — both can be active simultaneously. When triggered (explicit "grill" / "interview me" / "stress-test plan" / "challenge the plan" / "interrogate" / "sharpen terminology" or `classify_grill_intent` returning `GRILL_REQUESTED`), L0 conducts a one-question-at-a-time interview, exploring the codebase before asking, sharpening fuzzy domain language, probing concrete scenarios, and offering ADRs only when the 3-condition gate (Hard to reverse + Surprising without context + Real trade-off) all pass. Inline updates to `CONTEXT.md` (vocabulary) and `docs/adr/` (architectural decisions) are R5 strict default-OFF — explicit operator consent required per session. NO new env flag (W-20 reuse-first); activation is purely natural-language. See `references/grill-mode.md` for the operating contract and `references/domain-awareness.md` for `CONTEXT.md` + ADR format.
+
 ## Quick Start — Workflow Selection
 Match user intent to workflow type, then load the corresponding stage template.
 
@@ -133,6 +138,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 | shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
+| grill, challenge plan, interview me, stress-test plan, domain glossary, sharpen terminology | `grill-driven` | interrogate → resolve-fuzz → cross-ref → record (CONTEXT.md/ADR) |
 
 ### Repo-Init Pre-Dispatch Contract
 
@@ -380,9 +386,11 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
 | `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro); "Degraded ≠ Full" |
+| `references/domain-awareness.md` | CONTEXT.md authoring, CONTEXT-MAP.md multi-context inference, ADR format, 3-condition ADR gate, vocabulary vs spec.md |
 | `references/env-flags.md` | DEVOLAFLOW_* env-var inventory, R5 strict patterns, W-20 reuse policy |
 | `references/evaluator-rosetta.md` | SI-3 × NineS × Si-Chip 6×9 cross-walk, C-04 split, per-cell authority citations |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
+| `references/grill-mode.md` | Grill mode active, stress-test plan, sharpen terminology, interrogate operator, codebase cross-reference, ADR offer evaluation |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
 | `references/meta-framework.md` | Workflow instantiation, stage ordering |
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
