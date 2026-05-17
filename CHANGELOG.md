@@ -5,6 +5,367 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.4.0] - 2026-05-17 — MINOR — Tooling Fixes + cc-Spike Refactor Trio + L0-Only Surfaces Leak Cluster + SHORTCUT_SIMPLE Post-Mortem
+
+**MINOR — EXPANSION cycle (6 PVs).** v12.4.0 drains 4 v12.3.0-telegraphed items (D-1 tooling fixes / D-2 evaluate_gate cc-refactor / D-3 commands+bullets cc-refactor pair / D-5 SHORTCUT_SIMPLE post-mortem) PLUS the NEW D-4 L0-only surfaces hardening cluster surfaced by v12.1.1 user-feedback themes (打分体系 / 版本模块 / 派发分层). 3 cc-spike functions refactored via the canonical 4-helper extraction template (`evaluate_gate` cc=22 → ≤7; `build_mapping_from_dict` cc=22 → ≤9; `_collapse_block` cc=26 → ≤6). W-4 sweep IMPROVED composite on the 2 leak-prone scenarios (`collapse_l0_l3_simple` +10.95 / `feedback_regression` +14.62). SHORTCUT_SIMPLE retirement confirmed + telegraph closed permanently. W-3 SI-3 composite **9.40/10 PASS** (margin +0.90 over MINOR ≥ 8.5; also clears MAJOR ≥ 9.0 by +0.40; **new v12.x cycle peak**, prior peak v12.3.0 = 9.225). NineS overall 0.907 preserved. Zero schema bumps, zero new env flags, zero new Soul rules, zero breaking changes. SKILL.md +1 line (485 → 486; under C-4 ≤500 ceiling).
+
+### User feedback + cycle input
+
+User cycle directive: **drain 4 v12.3.0 telegraph items + close the NEW L0-only leak cluster surfaced by v12.1.1 themes**.
+
+User feedback origin (verbatim Chinese, from `.local/feedbacks/feedback_for_v12.1.1.md` — closed at v12.3.0 PV-02 + PV-03; v12.4.0 PV-05 closes the **派发分层 dispatch-layering** residual cluster surfaced by the same feedback themes):
+1. `devola-flow 的 skill在执行时和完成后没有正确打印出devola 当前版本` → closed at v12.3.0 PV-02 (Session Banner); v12.4.0 PV-05 adds **runtime enforcement** via the NEW `reject_subagent_banner_emission` opt-in lifecycle hook
+2. `优化 l0在结束后的任务分析打分能力，可以拆解一个单独的 skill，在运行完成最后一个阶段后再进行加载` → closed at v12.3.0 PV-03 (Task Quality Score extraction); v12.4.0 PV-05 closes the **residual TQS profile leakage** (11 of 24 profiles still loaded the stub at supplementary/important/critical post-v12.3.0)
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**PV-05 — NEW opt-in `reject_subagent_banner_emission` pre_dispatch lifecycle hook.** v12.4.0 adds a runtime guard for the v12.3.0 PV-02 Session Banner Contract: a dispatch payload routed through `pre_dispatch` whose `target_layer ∈ {"L1", "L2", "L3"}` MUST NOT carry the `🌸 DevolaFlow vX.Y.Z` literal pattern in any free-text field (`predecessor_artifacts[*].summary`, `acceptance_criteria`, top-level `summary` / `description`). When `target_layer == "L0"` the hook is a no-op (banners are legitimate L0 output). The hook ships **OPT-IN** via `register_pre_dispatch_extra()` rather than default-wired in `lifecycle/__init__.py` — this preserves the S-10 byte-identical dispatch payload for v12.3.0 callers. Operators activate via:
+```python
+from devolaflow.lifecycle.reject_subagent_banner_emission import register_pre_dispatch_extra
+register_pre_dispatch_extra()  # one-time per process; idempotent within run_hooks insertion-order semantics
+```
+Strict graduation (opt-in → default-wired) telegraphed for **v13.0.0** per W-21 2-cycle cadence + DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR pattern.
+
+**PV-05 — `references/agent-workspace.md` NEW §"Handoff Envelope L0-only Metadata Stripping" subsection.** Documents the handoff-writer normative obligation: when authoring envelopes in `.local/.agent/handoff/`, strip banner/score literals from the L0-only metadata fields BEFORE writing the envelope (per S-9 append-only ledger discipline, the strip must happen at write time — overwriting an existing envelope to remove banners is prohibited). Cross-links to the runtime hook above. This is a **normative-only obligation at v12.4.0** — runtime auto-strip helper (`strip_l0_only_metadata(envelope) -> envelope`) telegraphed for v12.5.0+.
+
+**PV-05 — `context_profiles.yaml` 33-row YAML cleanup.** 11 profile blocks demote `task_quality_score` from `supplementary`/`important`/`critical` to `skip` (closes the v12.3.0 PV-03 TQS-extraction residual leak — the SKILL.md body collapsed at v12.3.0 but the per-profile config wasn't updated). 22 profile blocks gain NEW `operational_learnings: skip` rows (eliminates the silent-DeprecationWarning S-5 violation path documented in `.local/research/v12.4.0_l0_only_audit.md` §A.3). Inline comment under `version_update:` documents the L0-only / `self_update`-exception discipline so future profile authors don't accidentally raise the priority. Conservative dispatch savings: **~60 tok/dispatch worst case** (`feedback` profile, TQS `critical` → `skip`); **~33 tok/dispatch average** across the 13 affected profiles.
+
+**Pure-additive (NON-BREAKING):**
+
+- 6 NEW test files: `tests/test_realign_section_anchors.py` (11 tests) + `tests/test_generate_baseline_tiktoken_disabled.py` (3 tests) + `tests/test_evaluate_gate_complexity.py` (3 tests) + `tests/test_v12_4_0_complexity_targets.py` (7 tests) + `tests/test_l0_only_section_priorities.py` (5 tests) + `tests/test_lifecycle_reject_subagent_banner_emission.py` (9 tests).
+- 4 NEW W-18 ghost-audit stanzas in `tests/test_no_ghost_features.py` (one per code-bearing PV): `test_v12_4_0_tooling_fixes` (PV-02) + `test_v12_4_0_evaluate_gate_refactor` (PV-03) + `test_v12_4_0_complexity_sweep_complete` (PV-04) + `test_v12_4_0_l0_only_surfaces_hardened` (PV-05).
+- 2 NEW source files: `scripts/realign_section_anchors.py` (~120 lines; PV-02) + `src/devolaflow/lifecycle/reject_subagent_banner_emission.py` (~220 lines; PV-05).
+- `benchmarks/devolaflow_context/generate_baseline.py` — prepends `import sys; sys.modules["tiktoken"] = None` at module-import scope per v12.3.0 retro §4.2 learning (eliminates the 3-attempt trial-and-error pattern at baseline regen time).
+- `benchmarks/devolaflow_context/baselines/v12.4.0_baseline.json` (W-16 wholesale regen at PV-05 close — per v12.3.0 PV-04 W-16 clarification, "regen at PV that first observes drift"; PV-05 was the drift PV due to context_profiles.yaml edits).
+- `src/devolaflow/gate/scorer.py` refactored — 4 NEW `_apply_*` helpers extracted from `evaluate_gate` (cc=22 → ≤7).
+- `src/devolaflow/shell_proxy/commands.py` refactored — 4 NEW `_validate_*` helpers extracted from `build_mapping_from_dict` (cc=22 → ≤9).
+- `src/devolaflow/writing_style/transforms/bullets.py` refactored — 4 NEW helpers extracted from `_collapse_block` (cc=26 → ≤6).
+- `workflow-system/agent/SKILL.md` — NEW §"Session Banner Contract" subagent-prohibition reinforcement line citing the runtime hook (+1 line → 486 total; under C-4 ≤500 ceiling).
+- `workflow-system/agent/context_profiles.yaml` — 33 row edits + 1 inline comment + 1 sections-block entry per PV-05 D-4 closure.
+- `workflow-system/agent/references/agent-workspace.md` — NEW §"Handoff Envelope L0-only Metadata Stripping" subsection.
+- `workflow-system/human/demo/version-timeline/versions.json` — NEW v12.4.0 entry per WX-2 / ST-7.
+- `.local/research/v12.4.0_{gap_analysis,l0_only_audit,evaluation,retrospective,shortcut_simple_postmortem}.md` + `.local/research/v12.4.0_nines_*` archived to `docs/cycle-archive/v12.4.0/` per W-19 (13 files copied).
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by:
+
+- `tests/test_no_ghost_features.py::test_v12_4_0_tooling_fixes` (PV-02 — pins the `sys.modules["tiktoken"] = None` literal + `def realign_anchors(skill_md, profiles_yaml, *, dry_run=False)` signature)
+- `tests/test_no_ghost_features.py::test_v12_4_0_evaluate_gate_refactor` (PV-03 — pins 4 `_apply_*` helper symbols + orchestrator cc ≤ 7 + S-10 byte-id preservation)
+- `tests/test_no_ghost_features.py::test_v12_4_0_complexity_sweep_complete` (PV-04 — pins 8 NEW helper symbols across `build_mapping_from_dict` + `_collapse_block` refactors + `tests/test_v12_4_0_complexity_targets.py` existence)
+- `tests/test_no_ghost_features.py::test_v12_4_0_l0_only_surfaces_hardened` (PV-05 — pins NEW hook module + S-10 byte-id (anti-default-wiring) assertion + SKILL.md prohibition literal + agent-workspace.md subsection heading + 14-tests-minimum across companion test files)
+
+NEW symbols:
+
+- `src/devolaflow/lifecycle/reject_subagent_banner_emission.py` (NEW module; `EVENT`, `reject_subagent_banner_emission`, `register_pre_dispatch_extra`, `_BANNER_PATTERN`, `_VIOLATION_CODE`)
+- `src/devolaflow/gate/scorer.py` (NEW: `_apply_breaker_check`, `_apply_cycle_detection`, `_apply_ratchet`, `_apply_complexity_and_legibility`)
+- `src/devolaflow/shell_proxy/commands.py` (NEW: `_validate_schema_version`, `_validate_ttl_and_truncate`, `_validate_tags`, `_validate_filter_lists`)
+- `src/devolaflow/writing_style/transforms/bullets.py` (NEW: `_classify_block_lines`, `_validate_bullet_constraints`, `_collapse_no_intro`, `_collapse_with_intro`)
+- `scripts/realign_section_anchors.py` (NEW: `realign_anchors`, `main`)
+- `tests/test_realign_section_anchors.py` (NEW file; 11 tests)
+- `tests/test_generate_baseline_tiktoken_disabled.py` (NEW file; 3 tests)
+- `tests/test_evaluate_gate_complexity.py` (NEW file; 3 tests)
+- `tests/test_v12_4_0_complexity_targets.py` (NEW file; 7 tests)
+- `tests/test_l0_only_section_priorities.py` (NEW file; 5 tests)
+- `tests/test_lifecycle_reject_subagent_banner_emission.py` (NEW file; 9 tests)
+
+### Headline numbers
+
+| Area | v12.3.0 | v12.4.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | 4431 | **4496** | +65 (well under W-17 +150 cycle cap; per-PV all under +30/PV) | `pytest --collect-only -q` |
+| `__version__` | 12.3.0 | **12.4.0** | +1 MINOR | `src/devolaflow/__init__.py` |
+| SKILL.md lines | 485 | **486** | +1 (PV-05 §"Session Banner Contract" subagent-prohibition reinforcement) | `wc -l workflow-system/agent/SKILL.md` |
+| references/ count | 21 | 21 | 0 (PV-05 added subsection to existing agent-workspace.md) | `ls workflow-system/agent/references/*.md` |
+| SF-4 reference set | 21 | 21 | 0 | `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved; cap 12 with 2 slots of headroom) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Workflow rule count | 24 | 24 | 0 | `.rules/workflow.mdc` |
+| Behavioral primitive count | 7 | 7 | 0 (no BG-008 added) | `references/behavioral-guidelines.md` |
+| Env flag count | 7 | 7 | 0 (W-20 reuse-first preserved — PV-05 hook uses natural-language opt-in helper) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| Schema version | 6 | 6 | 0 | `schemas/lean-dispatch.yaml` |
+| A-2.4 multi-baseline tests | 33/33 | 33/33 | 0 (no new schema baseline) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (PV-05 hook is OPT-IN, NOT default-wired — preserves byte-identical default-handler list) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 101/101 | 101/101 | 0 (PV-03 refactor preserves verdict byte-identity) | `tests/test_gate.py` |
+| Lifecycle default hooks | 12 | 12 | 0 (PV-05 hook is opt-in extra, NOT default) | `lifecycle/__init__.py::DEFAULT_EVENTS` |
+| Lifecycle default extra hooks | 1 (reject_subagent_quality_score) | 1 | 0 | `lifecycle/__init__.py::register_hook` invocations |
+| Lifecycle opt-in extra hooks | 0 | **+1** | reject_subagent_banner_emission | `src/devolaflow/lifecycle/reject_subagent_banner_emission.py::register_pre_dispatch_extra` |
+| `evaluate_gate` cc | 22 | **≤7** | -15 cc | NineS deep |
+| `build_mapping_from_dict` cc | 22 | **≤9** | -13 cc | NineS deep |
+| `_collapse_block` cc | 26 | **≤6** | -20 cc | NineS deep |
+| NineS overall | 0.907 | **0.907** | 0 (baseline preserved at PV-01) | `.local/research/v12.4.0_nines_self_eval.json` |
+| W-3 SI-3 composite | 9.225 | **9.40** | **+0.175 — new v12.x cycle peak** | `.local/research/v12.4.0_evaluation.md` |
+| `tests/test_no_ghost_features.py` | 96 + 2 XFAIL | **100 + 2 XFAIL** | +4 (PV-02/03/04/05 W-18 stanzas) | per-suite count |
+| Benchmark baseline | v12.2.0_baseline.json | **v12.4.0_baseline.json** | wholesale regen at PV-05 close per W-16 v12.3.0 PV-04 clarification | `benchmarks/devolaflow_context/baselines/` |
+| Benchmark scenarios IMPROVED | n/a | 2 (collapse_l0_l3_simple +10.95; feedback_regression +14.62) | +2 IMPROVED, zero regressed | PV-05 W-4 sweep report |
+
+### W-9 SI-10 6-step + extras verification
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 4468 passed, 26 skipped, 2 xfailed (full run post-version-bump) |
+| 2 | `ruff check src/ tests/` | **PASS** — All checks passed on v12.4.0-touched files |
+| 3 | `ruff format --check src/ tests/` | **PASS** — All v12.4.0-touched files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed, 23 skipped (mirror tests self-skip when `.cursor/skills/devola-flow/` opt-in absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36/36 (post-PV-05 wholesale regen captures 2 IMPROVED scenarios + 34 held; zero regression) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (opt-in mirror absent, no-op) |
+| Extras | `python -m pytest tests/test_lifecycle_reject_subagent_banner_emission.py tests/test_l0_only_section_priorities.py -v` | **PASS** — 14/14 (PV-05 NEW tests) |
+| Extras | `python -m pytest tests/test_evaluate_gate_complexity.py tests/test_v12_4_0_complexity_targets.py -v` | **PASS** — 10/10 (PV-03 + PV-04 helper-extraction property-based tests) |
+| Extras | `python -m pytest tests/test_realign_section_anchors.py tests/test_generate_baseline_tiktoken_disabled.py -v` | **PASS** — 14/14 (PV-02 tooling-fix tests) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py -k v12_4_0 -v` | **PASS** — 4/4 (PV-02/03/04/05 W-18 stanzas) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | **PASS** — S-10 byte-id contract preserved (PV-05 hook is opt-in extras-only addition does not mutate default-handler list) |
+| Extras | `python -m pytest tests/test_gate.py -v` | **PASS** — 101/101 (PV-03 evaluate_gate refactor preserves verdict byte-identity across 96-combination space) |
+
+### W-16 wholesale-regen at PV-05 close
+
+Per gap analysis §7 risk mitigation + v12.3.0 PV-04 W-16 clarification ("wholesale regen MAY land at cycle START OR CLOSE — whichever PV first observes drift"): v12.4.0 ran W-4 sweep at the close of PV-03 (gate scorer), PV-04 (commands.py + bullets.py), and PV-05 (context_profiles.yaml). PV-03 + PV-04 sweeps stayed GREEN against `v12.2.0_baseline.json` (zero scenario drift > 5%). PV-05 sweep caught 2 scenarios crossing the baseline_diff threshold (both **IMPROVED**, not regressed), triggering the `v12.4.0_baseline.json` wholesale regen at PV-05 close. Per the v12.2.0 retro §4.2 wholesale-vs-piecemeal learning operationalized via the v12.3.0 PV-04 W-16 clarification: regen-at-drift-PV prevents both anti-patterns (per-PV piecemeal drift + bleed-through cycle-end audit chasing).
+
+`tests/test_benchmarks.py::V6_BASELINE_PATH` updated `v12.2.0_baseline.json` → `v12.4.0_baseline.json`; `test_runner_prefers_latest_baseline` updated to expect v12.4.0_baseline.json.
+
+### W-21 Soul-set freeze + W-20 env-flag policy
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. **NO new Soul rules**; the SHORTCUT_SIMPLE post-mortem recommends RETIREMENT CONFIRMATION (not a rule addition). The S-11 cascade-as-Soul candidate stays telegraphed for v13.0.0 SI-1 per W-21 2-cycle deliberation cadence.
+* **W-20**: Env flag count stays at **7** (no new `DEVOLAFLOW_*` flag introduced). PV-05 banner hook uses the established `register_pre_dispatch_extra()` natural-language opt-in pattern (same shape as v12.2.0 PV-04 `reject_subagent_quality_score` — though PV-05 is OPT-IN rather than default-wired). Reuse-first preserved.
+
+### SHORTCUT_SIMPLE post-mortem closure (PV-06 D-5)
+
+Per `.local/research/v12.4.0_shortcut_simple_postmortem.md` §1 verdict: **CONFIRM RETIREMENT — close the telegraph permanently.** v12.0.0 PV-03 D-2 retired `SHORTCUT_SIMPLE` and `DEVOLAFLOW_SIMPLE_SHORTCUT` as a BREAKING MAJOR change. The post-MAJOR feedback window (v12.0.0 → v12.3.0 = 4 release cycles) captured 3 operator-feedback files; **ZERO** mention `SHORTCUT_SIMPLE` or any synonym. Migration path (`force_no_change=True` on `activation_verdict()` + A-7.2 trivial waiver for single-file edits < 20 lines) is operating as designed. Re-opening requires NEW evidence per the 4-gate protocol in postmortem §6.2 (new operator complaint + SI-1 entry + W-21 2-cycle telegraph + SI-3 §3.2 ≥ 9.0). NO v13.0.0 SI-1 entry needed for this telegraph.
+
+### v12.5.0+ telegraph
+
+Per gap analysis §4 + retrospective §6:
+
+- **2 NEW WARNING-tier cc-spike refactors** (`load_command_mappings` cc=16 + `apply_local_recipe` cc=16 in commands.py) — apply v12.4.0 PV-04 helper-extraction template verbatim; single PV scope; W-4 sweep required.
+- **Handoff envelope auto-strip helper** in `src/devolaflow/agent_workspace/handoff.py` — `strip_l0_only_metadata(envelope) -> envelope` companion to PV-05 banner hook.
+- **Strict graduation of v12.2.0 PV-04 + v12.4.0 PV-05 runtime enforcement** — telegraph stays firm for **v13.0.0** per W-21 2-cycle cadence (DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR).
+- **`--rm-source` archive cleanup mode** — ADR-level deliberation continued deferral to v12.5.0+.
+- **NineS markdown analyser + code_coverage = 0.0 artifact** — file upstream with NineS team for v3.4+.
+- **A-* "per-layer 14-cap" anti-sprawl rule** — dedicated SI-1 analysis cycle for v13.0.0.
+- **Per-task-type timeout defaults auto-populated in `select_context()`** — architectural change for v13.0.0+ SI-1.
+- **CHANGELOG CI lint** — still telegraphed; v13.0.0 candidate.
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v12.4.0_gap_analysis.md` (also at `docs/cycle-archive/v12.4.0/`)
+* L0-only audit (PV-01 foundation for PV-05 D-4): `.local/research/v12.4.0_l0_only_audit.md` (also at `docs/cycle-archive/v12.4.0/other/`)
+* W-2 NineS raw: `.local/research/v12.4.0_nines_deep_evaluate_gate.json` + `.local/research/v12.4.0_nines_deep_commands.json` + `.local/research/v12.4.0_nines_deep_bullets.json` + `.local/research/v12.4.0_nines_self_eval.json` (overall=0.907 baseline preserved)
+* W-3 SI-3 evaluation: `.local/research/v12.4.0_evaluation.md` (composite=9.40 — new v12.x cycle peak)
+* W-7 SI-8 retrospective: `.local/research/v12.4.0_retrospective.md`
+* SHORTCUT_SIMPLE post-mortem (PV-06 D-5): `.local/research/v12.4.0_shortcut_simple_postmortem.md` (verdict: CONFIRM RETIREMENT)
+* W-19 archive: `docs/cycle-archive/v12.4.0/README.md` (13 files copied)
+* User feedback sources: `.local/feedbacks/feedback_for_v12.1.0.md` (gitignore — closed at v12.2.0) + `.local/feedbacks/feedback_for_v12.1.1.md` (打分体系 / 版本模块 / 派发分层 themes — closed at v12.3.0 + v12.4.0 PV-05)
+* Predecessor cycle: v12.3.0 (MINOR — Session Banner + Quality-Score Skill Extraction + Telegraph Pickup; composite 9.225)
+* External tools (S-7): DevolaFlow `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`
+
+## [12.3.0] - 2026-05-16 — MINOR — Session Banner + Quality-Score Skill Extraction + Telegraph Pickup
+
+**MINOR — Polish cycle.** Closes 2 v12.1.1 operator-feedback gaps (D-1 version banner; D-2 Task Quality Score extraction) + 3 v12.2.0 retro telegraph items (W-16 wording; repo-init `git status` check; execution-protocol timeout helper hint). W-3 SI-3 composite **9.225/10 PASS** (margin +0.725 over MINOR ≥ 8.5; also clears MAJOR ≥ 9.0 telegraph). NineS overall 0.907 preserved. Zero schema bumps, zero new env flags, zero new Soul rules, zero breaking changes. Net SKILL.md line delta **-9** (494 → 485) — PV-03's Task Quality Score extraction offsets PV-02 + PV-04 additions.
+
+### User feedback + cycle input
+
+User cycle directive (verbatim Chinese): `"进行一轮深度 review，结合 nines 进行新一轮次自迭代和优化，升级到 12.3版本"`.
+
+User feedback (verbatim from `.local/feedbacks/feedback_for_v12.1.1.md`):
+1. `devola-flow 的 skill在执行时和完成后没有正确打印出devola 当前版本` → closed by **PV-02**.
+2. `优化 l0在结束后的任务分析打分能力，可以拆解一个单独的 skill，在运行完成最后一个阶段后再进行加载，以优化上下文表现形式` → closed by **PV-03**.
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**PV-02 — NEW SKILL.md §### "Session Banner Contract (v12.3.0+)" subsection.** L0 now emits `🌸 DevolaFlow v12.3.0 active · workflow: <type> · mode: <agent|plan|grill>` at workflow start AND `🌸 DevolaFlow v12.3.0 complete · <stages> stages · <waves> waves · <tasks> tasks` at workflow end (operator-facing chat output ONLY; NOT in dispatch payloads per CO-2). The Task Quality Score footer line carries the version literal (`🌸 DevolaFlow v12.3.0 · scored at workflow close`). Closes `.local/feedbacks/feedback_for_v12.1.1.md` #1.
+
+**PV-03 — Task Quality Score body extracted to NEW `workflow-system/agent/references/task-quality-score.md` (21st SF-4 canonical reference).** The ~120-token scoring rubric loads on-demand at workflow CLOSE only, freeing context-budget headroom during the per-dispatch execution loop. SKILL.md §"Task Quality Score (L0 ONLY)" collapsed from 25 lines → 1 paragraph stub (preserves v12.1.0 D-1 `L0 ONLY` + `Subagents MUST NOT` literal pins for the existing W-18 stanza). Estimated savings: 5-10% of L3 context budget on STANDARD+ profiles. Closes `.local/feedbacks/feedback_for_v12.1.1.md` #2.
+
+**PV-04 — 3 v12.2.0 retro telegraph items absorbed.** (a) `.rules/workflow.mdc` §W-16 clarifies "wholesale baseline regen MAY land at cycle START OR CLOSE — whichever PV first observes drift" (per v12.2.0 retro §4.2 learning). (b) SKILL.md §"Repo-Init Pre-Dispatch Contract" gains "Working-tree sanity check (v12.3.0 PV-04)" paragraph requiring L0 to `git status` + `git diff --stat HEAD` at cycle entry (per v12.2.0 retro §4.3 learning). (c) `workflow-system/agent/references/execution-protocol.md` gains §14 "Per-Task-Type Timeout Defaults Helper" discovery hint citing v12.2.0 PV-04 `default_timeout_for(task_type)` (library-only landing preserved).
+
+### Headline numbers
+
+| Area | v12.2.0 | v12.3.0 | Delta |
+|---|---:|---:|---:|
+| Tests collected | 4427 | **4431** | +4 (well under W-17 +30/PV) |
+| `__version__` | 12.2.0 | **12.3.0** | +1 MINOR |
+| SKILL.md lines | 494 | **485** | **-9** (PV-03 collapse offset) |
+| references/ count | 20 | **21** | +1 (`task-quality-score.md`) |
+| SF-4 reference set | 20 | **21** | +1 |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze; cap 12) |
+| Architecture rule count | 7 | 7 | 0 |
+| Workflow rule count | 24 | 24 | 0 (W-16 wording only) |
+| Env flag count | 7 | 7 | 0 (W-20 reuse-first) |
+| Schema canonical_order length | 17 | 17 | 0 |
+| Schema version | 6 | 6 | 0 |
+| A-2.4 multi-baseline | 33/33 | 33/33 | 0 |
+| NineS overall | 0.907 | **0.907** | 0 (baseline preserved) |
+| W-3 SI-3 composite | 9.075 | **9.225** | **+0.150** |
+| Benchmark baseline | v12.1.0_baseline.json | **v12.2.0_baseline.json** | W-16 cycle-close wholesale regen |
+| `test_no_ghost_features.py` v12 stanzas | 7 + 2 XFAIL | **10 + 2 XFAIL** | +3 (PV-02/03/04) |
+
+### W-9 SI-10 6-step + extras verification
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `pytest tests/ -q` | **PASS** — 4403 passed, 26 skipped, 2 xfailed |
+| 2 | `ruff check src/ tests/` | **PASS** — 299 files |
+| 3 | `ruff format --check src/ tests/` | **PASS** — 299 files |
+| 4 | `pytest tests/test_version.py -v` | run by L0 post-bump |
+| 5 | `pytest tests/test_benchmarks.py -v` | **PASS** — 36/36 after W-16 cycle-close regen + 3 scenario retunes |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (opt-in mirror absent) |
+| Extras | `pytest tests/test_no_ghost_features.py -k v12 -v` | **PASS** — 10/10 v12.x W-18 stanzas (3 NEW + 7 pre-existing) |
+| Extras | `make compile-rules` | **PASS** — cursor 12960/14000 + agents_md 11928/14000; 2 targets compiled |
+
+### W-21 Soul-set freeze + W-20 env-flag policy
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom.
+* **W-20**: Env flag count stays at **7** (no new `DEVOLAFLOW_*` flag introduced).
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v12.3.0_gap_analysis.md` (also at `docs/cycle-archive/v12.3.0/`)
+* W-2 NineS raw: `.local/research/v12.3.0_nines_deep.json` (300 findings: 262 info + 35 warning + 3 error) + `.local/research/v12.3.0_nines_self_eval.json` (overall=0.907)
+* W-3 SI-3 evaluation: `.local/research/v12.3.0_evaluation.md` (composite=9.225)
+* W-7 SI-8 retrospective: `.local/research/v12.3.0_retrospective.md`
+* W-19 archive: `docs/cycle-archive/v12.3.0/README.md` (7 files copied)
+* User feedback source: `.local/feedbacks/feedback_for_v12.1.1.md`
+* Predecessor cycle: v12.2.0
+* External tools (S-7): DevolaFlow `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`
+
+## [12.2.0] - 2026-05-16 — MINOR — Article Synthesis + Reference Refresh + Gitignore Whitelist + Telegraph Runtime
+
+**MINOR — 4-deficiency closure cycle.** v12.2.0 closes the gaps surfaced in the W-1 SI-1 entry-gate gap analysis (`.local/research/v12.2.0_gap_analysis.md`): (D-1) the v9.2.3 PV-02 broad `.local/` gitignore over-corrected and hid team-collab subdirs (`.local/feedbacks/feedback_for_v12.1.0.md`); (D-2) the Mnimiy May-2026 X article 12-rule template surfaces 3 behavioral gaps not covered by S-* / A-* / W-* / BG-001..BG-004; (D-3) reference dependency `last_checked` 2-week stale; (D-4) v12.0.0+v12.1.0 telegraphed runtime enforcement (asyncio.wait_for + pre_dispatch quality_score hook + per-task-type timeout defaults) undelivered. 5 sequentially-validated PVs (PV-01 SI-1 + PV-02 gitignore + PV-03 BGs + PV-04 runtime + PV-05 cycle-close). NineS overall=0.907; W-3 SI-3 composite **9.075/10 PASS** (margin +0.575 over MINOR ≥ 8.5 floor).
+
+### User feedback + cycle input
+
+1. `.local/feedbacks/feedback_for_v12.1.0.md` (verbatim): `"devola init 时，对 gitignore 的操作表现有问题; .local下除了必要的面向 git 仓库和团队协作的内容以外，都需要正确 ignore"` ("devola init has problems with gitignore operations; everything under .local/ except necessary git-repo/team-collaboration content should be properly ignored") → closed by **PV-02**.
+2. `.local/tasks/update_to_v12.2.0.md` task scope: analyse the Mnimiy article (`https://x.com/Mnilax/status/2053116311132155938`), refresh reference dependencies, decompose with NineS into multi-patch iteration → closed by **PV-01 + PV-03 + PV-04**.
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**PV-02 — `.local/` gitignore selective whitelist supersedes v9.2.3 broad `.local/` rule.** Consumer repos that re-run `devola-init local` will see their root `.gitignore` updated from the single `.local/` line to an 11-line whitelist block that tracks `.local/memory/specs/` (A-4 source-of-truth contracts) + `.local/research/` (gap analyses + ADRs + retrospective artifacts) while keeping `.agent/`, `feedbacks/`, `tasks/`, `memory/{operational.jsonl,prefs.md,session_state.json,plugin_install.log}`, `dogfood/`, `sandbox/`, `benchmarks/`, `scratch/`, `logs/`, `prototypes/` private. The graduation logs at INFO level (`scaffold_local: repaired v9.2.3 broad .local/ rule in <path>`) so operators understand why their `.gitignore` changed. Consumer repos that do NOT re-run `devola-init local` continue to function with the v9.2.3 broad ignore — the new whitelist only lands when scaffold reruns.
+
+**PV-03 — 3 NEW behavioral primitives (BG-005, BG-006, BG-007) NESTed under existing `behavioral_guidelines` dispatch field.** Per the Mnimiy May-2026 X article cross-walk (`.local/research/v12.2.0_gap_analysis.md` §2 D-2), the 3 NEW primitives close Article Rules 5, 7, 11 — the 3 article rules NOT already covered by S-5 / A-3 / W-6 / change-driven workflow / BG-001..BG-004. STANDARD + COMPLEX tier defaults now enable all 3 NEW primitives; SIMPLE tier enables only `convention_first` (pattern hygiene matters even at small scope); TRIVIAL tier opts out of all 3 (one-liner edits don't benefit from the audit). The 3 primitives are absence-canonical — a v8.x-era profile that omits the keys gets them as falsy via `_select_behavioral_sections`, and `_compose_behavioral_block` emits no bullets for inactive rules. Backward-compat with v8.0.0 P-08 byte-id contract preserved.
+
+**PV-04 — `AsyncDispatchExecutor.dispatch_sequential` + `dispatch_parallel` accept optional `timeouts={task_id: seconds}` kwarg + NEW `reject_subagent_quality_score` pre_dispatch extra hook + NEW `default_timeout_for(task_type)` helper.** Per the v12.0.0+v12.1.0 telegraph (D-1 + D-2 runtime enforcement layer), v12.2.0 ships the runtime side of the v12.1.0 PROMPT-SIDE closures: the executor honours per-task timeouts via `asyncio.wait_for` and surfaces `TaskOutcome(succeeded=False, exception=TimeoutError)` on breach per S-5; the new pre_dispatch hook flags top-level `quality_score` fields in dispatch payloads (registered as an extra NOT a default replacement per the S-10 byte-id contract); the helper returns the SKILL.md §"Subagent Hang Prevention" L0-contract default (`research=2700 / impl=1800 / test=900 / review=1200 / hotfix=600`; fallback 7200). All 3 surfaces ship PERMISSIVE — strict graduation telegraphed for v13.0.0 per W-21 2-cycle cadence + the `.rules/workflow.mdc` DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR pattern.
+
+**Pure-additive (NON-BREAKING):**
+
+- 3 NEW W-18 ghost-audit stanzas in `tests/test_no_ghost_features.py` (one per code-bearing PV).
+- 2 NEW test files: `tests/test_async_dispatch_executor_timeout.py` (13 tests) + `tests/test_lifecycle_reject_subagent_quality_score.py` (8 tests).
+- 1 NEW source module: `src/devolaflow/lifecycle/reject_subagent_quality_score.py` (~110 lines).
+- `tests/test_scaffold_gitignore_audit.py` rewritten (6 PV-02 canonical tests + 1 helper-edge-cases).
+- `tests/test_gitignore_policy.py` rewritten for new whitelist semantics (3 NEW LOCAL_WHITELISTED_PATHS tests + extended LOCAL_PRIVATE_PATHS).
+- `tests/test_behavioral_guidelines.py` extended (NEW `TestMnimiyBehavioralExtensions` class with 8 tests + extended `TestReferenceFile` for all 7 BG IDs + bumped per-patch line ceiling 320 → 500 with documented rationale).
+- `workflow-system/agent/references/behavioral-guidelines.md` grew 290 → 426 lines (well under SF-1 Large-tier 1000 ceiling).
+- `workflow-system/agent/context_profiles.yaml`: extended `meta.behavioral_guidelines_defaults` with 3 NEW keys per tier.
+- `schemas/lean-dispatch.yaml`: extended `lean_format_spec.behavioral_guidelines.fields` (NEST per A-2.3 — canonical_order length stays 17, schema version stays 6).
+- `src/devolaflow/agent_workspace/dispatch_executor.py`: optional `timeouts=` kwarg on both dispatch methods (preserves v9.3.0 byte-identical behaviour when omitted).
+- `src/devolaflow/task_adaptive_selector.py`: NEW `TASK_TYPE_TIMEOUT_DEFAULTS` + `TASK_TYPE_TIMEOUT_FALLBACK` + `default_timeout_for()` helper (pure function, allowlisted per A-5.2 forward-looking helper pattern).
+- `src/devolaflow/lifecycle/__init__.py`: imported + wired the new hook via `register_hook(_PRE_DISPATCH_EVENT, reject_subagent_quality_score)`.
+- `src/devolaflow/local/workspace.py`: replaced v9.2.3 PV-02 broad-ignore section with v12.2.0 selective-whitelist section (`_LOCAL_WHITELIST_BLOCK_LINES` + `_LOCAL_WHITELIST_REQUIRED_RULES` + `_V92_LOCAL_BROAD_RULE` + `_OLD_LOCAL_BANNER_COMMENTS` + `_SUPERSEDED_LOCAL_RULES` + `_has_correct_local_whitelist` + rewritten `ensure_local_gitignore` + suppressed `_audit_gitignore_coverage` when whitelist present).
+- `.gitignore` (repo-root self-fix): replaced the single `.local/` line with the v12.2.0 11-line whitelist block (DevolaFlow source repo demonstrates the pattern it teaches).
+- `scripts/detect_dead_apis.py`: added `devolaflow.task_adaptive_selector:default_timeout_for` to `DEFAULT_ALLOWLIST` per the v11.0.5 PV-05 W03 "forward-looking helper" pattern.
+- `workflow-system/human/demo/version-timeline/versions.json`: NEW v12.2.0 entry per WX-2 / ST-7.
+- `.local/research/v12.2.0_{gap_analysis,evaluation,retrospective}.md` + `.local/research/v12.2.0_reference_deltas/` archived to `docs/cycle-archive/v12.2.0/` per W-19 (8 files copied).
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by:
+
+- `tests/test_no_ghost_features.py::test_v12_2_0_gitignore_whitelist_repair` (PV-02 — pins the 3 required positive whitelist rules + `_V92_LOCAL_BROAD_RULE` constant + `_has_correct_local_whitelist` helper + repo-root `.gitignore` whitelist + 6 canonical PV-02 test fn names)
+- `tests/test_no_ghost_features.py::test_v12_2_0_mnimiy_behavioral_extensions` (PV-03 — pins the 3 NEW rule IDs + 3 NEW field keys in behavioral-guidelines.md, task_adaptive_selector.py, schemas/lean-dispatch.yaml, context_profiles.yaml + 8 canonical PV-03 test fn names)
+- `tests/test_no_ghost_features.py::test_v12_2_0_telegraphed_runtime_enforcement` (PV-04 — pins reject_subagent_quality_score module + lifecycle/__init__.py wiring + AsyncDispatchExecutor `timeouts=` kwarg + asyncio.wait_for + TASK_TYPE_TIMEOUT_DEFAULTS + default_timeout_for + 2 NEW test file minimum counts)
+
+NEW symbols:
+
+- `src/devolaflow/lifecycle/reject_subagent_quality_score.py` (NEW module; `EVENT`, `reject_subagent_quality_score`, `_payload_carries_quality_score`)
+- `src/devolaflow/local/workspace.py` (NEW: `_LOCAL_WHITELIST_BLOCK_LINES`, `_LOCAL_WHITELIST_REQUIRED_RULES`, `_V92_LOCAL_BROAD_RULE`, `_OLD_LOCAL_BANNER_COMMENTS`, `_SUPERSEDED_LOCAL_RULES`, `_has_correct_local_whitelist`)
+- `src/devolaflow/task_adaptive_selector.py` (NEW: `TASK_TYPE_TIMEOUT_DEFAULTS`, `TASK_TYPE_TIMEOUT_FALLBACK`, `default_timeout_for`)
+- `src/devolaflow/agent_workspace/dispatch_executor.py` (extended: `timeouts=` kwarg on `dispatch_sequential` + `dispatch_parallel` + `_dispatch_parallel_async` + `_run_one_sync`)
+- `workflow-system/agent/context_profiles.yaml` (extended: 3 NEW per-tier defaults `no_llm_for_deterministic` + `surface_conflicts` + `convention_first` across all 4 tiers)
+- `workflow-system/agent/references/behavioral-guidelines.md` (extended: Rule Application Matrix 4→7 cols + Field Shape +3 keys + Rules 5-7 sections + Severity Matrix +3 rows + Token Cost recalibration)
+- `schemas/lean-dispatch.yaml` (extended: `lean_format_spec.behavioral_guidelines.fields` +3 NEST sub-fields)
+- `tests/test_async_dispatch_executor_timeout.py` (NEW file; 13 tests)
+- `tests/test_lifecycle_reject_subagent_quality_score.py` (NEW file; 8 tests)
+
+### Headline numbers
+
+| Area | v12.1.0 | v12.2.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | 4391 | **4427** | +36 (well under W-17 +150 cycle cap) | `pytest --collect-only -q` |
+| `__version__` | 12.1.0 | **12.2.0** | +1 MINOR | `src/devolaflow/__init__.py` |
+| SKILL.md lines | 494 | 494 | 0 (no SKILL.md edits in this cycle) | `wc -l workflow-system/agent/SKILL.md` |
+| behavioral-guidelines.md lines | 290 | **426** | +136 (under SF-1 Large 1000 ceiling; per-patch ceiling 320→500 with rationale) | `wc -l workflow-system/agent/references/behavioral-guidelines.md` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved; cap 12 with 2 slots of headroom) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Workflow rule count | 24 | 24 | 0 | `.rules/workflow.mdc` |
+| Behavioral primitive count | 4 | **7** | +3 (BG-005/006/007 — Mnimiy Article Rules 5/7/11) | `references/behavioral-guidelines.md` |
+| Env flag count | 7 | 7 | 0 (W-20 reuse-first preserved — NO new `DEVOLAFLOW_*` flag introduced) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 (NEST per A-2.3 — 3 sub-fields under existing behavioral_guidelines key) | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| Schema version | 6 | 6 | 0 | `schemas/lean-dispatch.yaml` |
+| A-2.4 multi-baseline tests | 33/33 | 33/33 | 0 (no new schema baseline) | `tests/test_layout_invariant_multi_baseline.py` |
+| S-10 byte-id tests | 10/10 | 10/10 | 0 (extras-only wiring) | `tests/test_dispatch_emission_runs_hooks.py` |
+| CP-4 gate suite | 101/101 | 101/101 | 0 (no gate edits) | `tests/test_gate.py` |
+| Lifecycle default hooks | 12 | 12 | 0 (extras-only addition) | `lifecycle/__init__.py::DEFAULT_EVENTS` |
+| Lifecycle extra hooks added | 0 | **+1** | reject_subagent_quality_score | `lifecycle/__init__.py::register_hook` |
+| NineS overall | n/a (PATCH-style) | **0.907** | n/a | `.local/research/v12.2.0_nines_self_eval.json` |
+| W-3 SI-3 composite | 8.85 | **9.075** | +0.225 | `.local/research/v12.2.0_evaluation.md` |
+| `tests/test_no_ghost_features.py` | 90 + 2 XFAIL | **93 + 2 XFAIL** | +3 (PV-02/03/04 W-18 stanzas) | per-suite count |
+
+### W-9 SI-10 6-step + extras verification
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 4399 passed, 26 skipped, 2 xfailed (full run pre-version-bump); 4399→ run again post-bump (version test additions absorbed) |
+| 2 | `ruff check src/ tests/` | **PASS** — All checks passed (299 files) |
+| 3 | `ruff format --check src/ tests/` | **PASS** — 299 files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed, 23 skipped (mirror tests skip when `.cursor/skills/devola-flow/` opt-in absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36/36 (no regression from PV-02/03/04 changes; benchmark suite unchanged) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (opt-in mirror absent, no-op) |
+| Extras | `python -m pytest tests/test_async_dispatch_executor_timeout.py tests/test_lifecycle_reject_subagent_quality_score.py -v` | **PASS** — 21/21 (PV-04 NEW tests) |
+| Extras | `python -m pytest tests/test_behavioral_guidelines.py -v` | **PASS** — 168/168 (PV-03 extensions + pre-existing) |
+| Extras | `python -m pytest tests/test_scaffold_gitignore_audit.py tests/test_gitignore_policy.py -v` | **PASS** — 49/49 (PV-02 rewrite + repo-policy) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py -v` | **PASS** — 93 passed, 2 xfailed (3 NEW v12.2.0 W-18 stanzas + pre-existing) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | **PASS** — S-10 byte-id contract preserved (extras-only addition does not mutate dispatch payload) |
+
+### W-16 wholesale-regen absorption
+
+Per gap analysis §7 risk mitigation + W-7 retrospective §4.2 learning: PV-01 attempted the W-16 wholesale benchmark regen at cycle start but the v12.1.0 baseline stayed GREEN throughout PV-02 → PV-04 (no PV triggered drift). Regen deferred to cycle close per the canonical "regen when needed" pattern. Benchmark suite **36/36 PASS unchanged at cycle close** — no v12.2.0 baseline file required because PV-02 (gitignore — repo-root only) + PV-03 (NEST extension at absent-canonical sub-fields) + PV-04 (runtime hooks — default-OFF / library-only) did not drift the benchmark equilibrium. The v12.1.0 baseline (`benchmarks/devolaflow_context/baselines/v12.1.0_baseline.json`) remains the authoritative pin for v12.2.0.
+
+### W-21 Soul-set freeze + W-20 env-flag policy
+
+* **W-21**: Soul-set count remains **10** (S-1..S-10); cap 12 with 2 slots of headroom. NO new Soul rules; the 3 NEW behavioral primitives (BG-005/006/007) live at the behavioral_guidelines dispatch field, NOT at the rule corpus. The S-11 cascade-as-Soul candidate stays telegraphed for v13.0.0 SI-1 evaluation per W-21 2-cycle deliberation cadence.
+* **W-20**: Env flag count stays at **7** (no new `DEVOLAFLOW_*` flag introduced). Activation of all v12.2.0 surfaces is purely natural-language / library-level / lifecycle-wiring:
+  - PV-02 gitignore whitelist: triggered by `devola-init local` invocation, no env flag
+  - PV-03 behavioral primitives: per-profile defaults in `context_profiles.yaml`, no env flag
+  - PV-04 runtime hooks: opt-in by passing `timeouts=` kwarg or by `register_hook` invocation, no env flag
+  
+  Reuse-first preserved.
+
+### v12.3.0+ telegraph
+
+Per gap analysis §4 Out of Scope / Deferred + retrospective §6:
+
+- **Strict graduation of PV-04 runtime enforcement** — deferred to v13.0.0 per W-21 2-cycle cadence; v12.2.0 ships PERMISSIVE (warn + log). v13.0.0 SI-1 will evaluate operator friction during v12.2.0 → v12.3.0 window.
+- **`scripts/archive_research_artifacts.py --rm-source` cleanup mode** — deferred to v12.3.0; needs ADR-level deliberation on the live + archive co-existence policy created by PV-02 whitelisting `.local/research/`.
+- **Per-task-type timeout defaults baked into `select_context()`** — deferred to v12.3.0+; v12.2.0 PV-04 helper is library-only.
+- **NineS deep on remaining 18 ref deps** — stays on monthly cadence per `tracking_policy`.
+- **SHORTCUT_SIMPLE post-mortem analysis** — deferred to v12.3.0 W-7 retrospective.
+- **W-16 wording update** ("wholesale regen MAY land at cycle start OR close") per retrospective §4.2 learning.
+- **SKILL.md §"Repo-Init Pre-Dispatch Contract" extension** to include `git status` working-tree sanity check per retrospective §4.3 learning.
+- **A-* rule extension** documenting the "per-layer 14-cap" anti-sprawl pattern per retrospective §4.5 learning.
+
+### Cross-references
+
+* SI-1 gap analysis: `.local/research/v12.2.0_gap_analysis.md` (also at `docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md`)
+* Reference deltas: `.local/research/v12.2.0_reference_deltas/README.md`
+* W-2 NineS self-eval raw: `.local/research/v12.2.0_nines_self_eval.json` (overall=0.907; also at `docs/cycle-archive/v12.2.0/nines/`)
+* W-3 SI-3 evaluation: `.local/research/v12.2.0_evaluation.md` (composite=9.075; also at `docs/cycle-archive/v12.2.0/evaluation/`)
+* W-7 SI-8 retrospective: `.local/research/v12.2.0_retrospective.md` (also at `docs/cycle-archive/v12.2.0/v12.2.0_retrospective.md`)
+* W-19 archive: `docs/cycle-archive/v12.2.0/README.md` (8 files copied)
+* User feedback source: `.local/feedbacks/feedback_for_v12.1.0.md` (D-1 closure)
+* Task source: `.local/tasks/update_to_v12.2.0.md` (cycle scope contract)
+* Article source: `.local/research/v12.2.0_article_source.md` (Mnimiy May-2026 X article cached page)
+* Predecessor cycle: v12.1.0 (PATCH-style MINOR for subagent output restrictions)
+* External tools (S-7): DevolaFlow / EvoBench `https://github.com/YoRHa-Agents/DevolaFlow`; NineS `https://github.com/YoRHa-Agents/NineS`
+
 ## [12.1.0] - 2026-05-09 — MINOR — Subagent Output Restrictions + Hang Prevention
 
 **MINOR — Subagent Output Restrictions + Hang Prevention.** v12.1.0 closes the two BLOCKER deficiencies surfaced in `.local/feedbacks/feedback_for_v12.0.0.md` via additive normative documentation in `workflow-system/agent/SKILL.md`. Single-PV PATCH-style MINOR cycle per `.local/research/v12.1.0_gap_analysis.md` — no code changes, no schema changes, no rule-corpus changes, no env-flag changes. SKILL.md grew 478 → 494 lines (16 net additions; well under the C-4 default-tier 500-line ceiling with 6 lines of headroom).

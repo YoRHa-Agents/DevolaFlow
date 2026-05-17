@@ -32,10 +32,13 @@ self-checkable so a Task Agent can verify compliance without invoking Review.
 
 ```yaml
 behavioral_guidelines:
-  think_first: bool       # Plan-before-code discipline (Karpathy "Think First")
-  simplicity_check: bool  # Reject over-engineering (Karpathy "Simplicity First")
-  surgical_scope: str     # 'line' | 'function' | 'module' (Karpathy "Surgical Edits")
-  goal_loop: bool         # Re-anchor to user intent each round (Karpathy "Goal-Driven")
+  think_first: bool              # Plan-before-code discipline (Karpathy "Think First")
+  simplicity_check: bool         # Reject over-engineering (Karpathy "Simplicity First")
+  surgical_scope: str            # 'line' | 'function' | 'module' (Karpathy "Surgical Edits")
+  goal_loop: bool                # Re-anchor to user intent each round (Karpathy "Goal-Driven")
+  no_llm_for_deterministic: bool # v12.2.0 — deterministic decisions in code (Mnimiy Rule 5)
+  surface_conflicts: bool        # v12.2.0 — surface pattern disagreement (Mnimiy Rule 7)
+  convention_first: bool         # v12.2.0 — match existing pattern (Mnimiy Rule 11)
 ```
 
 The field is OPTIONAL in the dispatch payload. When absent, L3 agents fall
@@ -46,12 +49,12 @@ the matching rule sections from this file into the L3 task agent context.
 
 ## Rule Application Matrix
 
-| Profile     | think_first | simplicity_check | surgical_scope | goal_loop | Rationale |
-|-------------|-------------|------------------|----------------|-----------|-----------|
-| trivial     | false       | false            | line           | false     | < 20 line edit; full ceremony unwarranted |
-| simple      | true        | false            | function       | false     | 1-3 file scope; require plan-first |
-| standard    | true        | true             | function       | false     | 3-10 file scope; add over-engineering check |
-| complex     | true        | true             | module         | true      | 10+ files; re-anchor goal each round |
+| Profile     | think_first | simplicity_check | surgical_scope | goal_loop | no_llm_for_deterministic | surface_conflicts | convention_first | Rationale |
+|-------------|-------------|------------------|----------------|-----------|--------------------------|-------------------|------------------|-----------|
+| trivial     | false       | false            | line           | false     | false                    | false             | false            | < 20 line edit; full ceremony unwarranted |
+| simple      | true        | false            | function       | false     | false                    | false             | true             | 1-3 file scope; require plan-first + pattern hygiene |
+| standard    | true        | true             | function       | false     | true                     | true              | true             | 3-10 file scope; add cross-file consistency audits |
+| complex     | true        | true             | module         | true      | true                     | true              | true             | 10+ files; full audit + re-anchor goal each round |
 
 Profile authors override per-profile defaults via
 ``context_profiles.yaml#profiles.<name>.behavioral_guidelines``. Missing
@@ -170,12 +173,138 @@ findings instead of intent.
 **When to skip**: Single-round (round_num == 1) tasks; the goal is implicit
 in the dispatch and re-anchoring adds no signal.
 
+## Rule 5 — no_llm_for_deterministic
+
+**id**: `BG-005` | **severity**: warn | **applies when**: `no_llm_for_deterministic=true`
+
+Deterministic decisions — retry policies, routing thresholds, escalation
+boundaries, validation rules, fixed constants — MUST live in deterministic
+code, NOT in LLM-driven prompts. The model decides differently each run
+because the prompt context shifts; coding the decision behind a pure
+function gives the L3 Task Agent a stable contract to call.
+
+Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 5
+([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+The article's source moment: *"A 'decide whether to retry on 503' LLM
+call worked for two weeks, then started flaking because the model began
+reading the request body as context for the decision. The retry policy
+went random because the prompt was effectively random."*
+
+**Rendered guidance** (injected into L3 dispatch when active):
+
+> Before adding any LLM call inside your implementation, audit whether
+> the decision is DETERMINISTIC (same inputs → same outputs by spec) or
+> GENERATIVE (requires natural-language reasoning). Deterministic
+> decisions belong in a pure function — write the function, write a
+> unit test, and call it from the agent path. Generative decisions
+> may legitimately call the model. If unsure, default to deterministic
+> code — model calls are 100-1000x slower AND non-reproducible.
+
+**Self-check questions**:
+
+1. Did I add an LLM call where a `dict.get()` / `if-elif` / regex / table
+   lookup / pure function would give a stable answer?
+2. Did I justify each LLM call by the need for natural-language inference
+   (free-form text generation, semantic comparison, intent classification)?
+3. Did I write tests that exercise the deterministic-decision code path
+   directly, without invoking the model?
+
+**When to skip**: Tasks that are intrinsically generative (research,
+documentation authoring, code review prose, summary synthesis); the
+behavioural primitive is about misplaced LLM calls inside otherwise
+deterministic code, not about model usage in the generative core.
+
+## Rule 6 — surface_conflicts
+
+**id**: `BG-006` | **severity**: major | **applies when**: `surface_conflicts=true`
+
+When two parts of the codebase disagree on a pattern (error handling,
+async style, state management, naming convention), the L3 Task Agent
+MUST surface the disagreement as a `ConflictFinding` in StatusReport
+rather than producing code that combines both patterns. The "averaged"
+solution is usually broken — it neither matches Pattern A's invariants
+nor Pattern B's, so the resulting code works in neither regime.
+
+Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 7
+([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+The article's source moment: *"A codebase had two error-handling
+patterns — async/await with try/catch and a global error boundary.
+Claude wrote code that did both. Errors got swallowed twice. 30
+minutes to figure out."*
+
+**Rendered guidance** (injected into L3 dispatch when active):
+
+> Before writing code that touches a pattern with multiple existing
+> implementations in the codebase, run a 2-step audit: (1) Did I
+> identify > 1 pre-existing pattern via `grep` / `SemanticSearch`?
+> (2) If yes, which pattern does my acceptance criteria mandate?
+> If the AC does NOT mandate one, surface a `ConflictFinding`
+> (severity=major) with the verbatim pattern signatures and the
+> file paths. Halt your task until the dispatcher chooses. Do NOT
+> produce code that satisfies both — that path always degrades.
+
+**Self-check questions**:
+
+1. Did I scan `owned_files` for the canonical pattern BEFORE writing?
+2. Did I scan ALL `read_only` files in the predecessor artifact summary?
+3. If a conflict surfaced, did I escalate via `ConflictFinding` rather
+   than picking the pattern that "felt natural"?
+
+**When to skip**: Tasks where only one pattern exists in the codebase
+(verified via `Grep` / `SemanticSearch`); the audit is no-op.
+
+## Rule 7 — convention_first
+
+**id**: `BG-007` | **severity**: major | **applies when**: `convention_first=true`
+
+In an established codebase, the L3 Task Agent MUST match the existing
+pattern even when a "better" pattern is available in the broader
+ecosystem. The cost of introducing a second pattern (cognitive split,
+testing harness duplication, onboarding tax) almost always exceeds
+the marginal benefit of the "better" pattern. Novelty requires
+explicit ADR / escalation.
+
+Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 11
+([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+The article's source moment: *"Claude introduced React hooks into a
+class-component codebase. The hooks worked. They also broke the
+codebase's testing patterns, which assumed `componentDidMount`. Half
+a day to remove and rewrite."*
+
+**Rendered guidance** (injected into L3 dispatch when active):
+
+> Before introducing a new pattern (a library, an abstraction style,
+> a state-management primitive, a test harness, a build tool), audit
+> the codebase for the canonical existing pattern. If one exists,
+> use it even if you believe a "better" pattern is available. To
+> introduce novelty, surface an `ADRRequiredFinding` (severity=major)
+> citing the existing pattern + your proposed alternative + the
+> 3-condition ADR gate ([W-22.3](.cursor/rules/repo-governance.mdc)):
+> (1) hard to reverse, (2) surprising without context, (3) real
+> trade-off. If all 3 pass, the dispatcher MAY authorise the novelty
+> via an explicit ADR. Otherwise, match the convention.
+
+**Self-check questions**:
+
+1. Did I scan the codebase for the existing pattern BEFORE proposing a new one?
+2. If introducing novelty, did I author the ADR per W-22.3?
+3. If the novelty fails the 3-condition gate, did I fall back to the convention?
+
+**When to skip**: Greenfield code paths (no pre-existing pattern to
+match); the audit is no-op. Also skippable when the existing pattern
+is verifiably broken — but that conclusion requires a `ConflictFinding`
+(BG-006) first.
+
 ## Token Cost
 
 Each rule's rendered guidance is bounded at ≈ 30 lines / ≈ 120 tokens. All
-four rules together total ≈ 480 tokens — under 5 % of the L3 8 K budget,
+seven rules together total ≈ 840 tokens — under 10 % of the L3 8 K budget,
 sized so they never displace `critical` SKILL.md sections (verified by
 ``tests/test_behavioral_guidelines.py::test_behavioral_block_token_bounds``).
+v12.2.0 PV-03 added BG-005..BG-007 as 1-line dispatch bullets (~ 20-30
+tokens each) so the rendered cost grew only ~ 75 tokens despite the 3-rule
+addition — the heavy prose lives in the references file (this document),
+not in the dispatch payload.
 
 ## Backward Compatibility
 
@@ -250,6 +379,9 @@ waived for trivial edits.
 | BG-002 | `simplicity_check=true` (3 YES) | blocker | Append finding + halt commit |
 | BG-003 | `surgical_scope` (any tier) | blocker | Halt commit; require ScopeEscalation |
 | BG-004 | `goal_loop=true` (round ≥ 2) | warn | Append `GoalDriftWarning` finding |
+| BG-005 | `no_llm_for_deterministic=true` (LLM call replaces deterministic code) | warn | Append `MisplacedLLMCallWarning` finding |
+| BG-006 | `surface_conflicts=true` (≥ 2 patterns disagree) | major | Append `ConflictFinding` + halt task until dispatcher resolves |
+| BG-007 | `convention_first=true` (novelty without ADR) | major | Append `ADRRequiredFinding` + halt task until ADR clears W-22.3 |
 | LL-001 | per-line max length | blocker | (line tier) Halt commit |
 | LL-002 | per-line cyclomatic delta < +1 | blocker | (line tier) Halt commit |
 | LL-003 | per-line cohesion (single logical change) | blocker | (line tier) Halt commit |

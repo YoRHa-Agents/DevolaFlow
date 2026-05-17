@@ -1856,6 +1856,163 @@ def _attach_cycle_report(verdict: GateVerdict, report: CycleReport) -> GateVerdi
     return verdict
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v12.4.0 PV-03 D-2 — ``evaluate_gate`` helper extraction (cc=22 → cc=7).
+#
+# The four ``_apply_*`` helpers below decompose the historical
+# ``evaluate_gate`` body into a linear pipeline so the orchestrator's
+# cyclomatic complexity drops from 22 to 7 (well under the cc ≤ 10
+# Code-Quality target tracked by ``.local/research/v12.3.0_evaluation.md``
+# §2.1). Each helper is private (``_`` prefixed), pure-style (mutates only
+# the verdict argument as already documented by the underlying
+# ``_attach_*`` helpers it composes), and individually cc ≤ 5 — see the
+# ``tests/test_evaluate_gate_complexity.py`` pin file for the per-symbol
+# cc ceilings.
+#
+# Public ``evaluate_gate`` signature + docstring + observable behaviour
+# are BYTE-IDENTICAL pre/post-refactor (W-4 / SI-4 / CP-4 byte-equivalence
+# verified by ``tests/test_gate.py`` 101-test invariant suite + the
+# 36-scenario EvoBench sweep). The break-path collaborator ordering
+# (cycle → ratchet → complexity → legibility) and the non-break-path
+# ordering (advisor → budget-warn → cycle → ratchet → complexity →
+# legibility) are preserved verbatim by the new pipeline composition.
+#
+# Source: ``.local/research/v12.4.0_gap_analysis.md`` §2 D-2;
+# ``.cursor/plans/v12.4.0_expansion_refactor_cycle_240b72f0.plan.md``
+# §3 PV-03; ``.local/research/v12.4.0_nines_deep_evaluate_gate.json``
+# finding ``CC-67079a-0000``.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _apply_breaker_check(
+    breaker: TokenBudgetBreaker | None,
+    cumulative_tokens: int | None,
+) -> tuple[BudgetDecision | None, GateVerdict | None]:
+    """Resolve the optional token-budget breaker and short-circuit on BREAK.
+
+    Pre-flight collaborator used by :func:`evaluate_gate`. Returns
+    ``(decision, break_verdict)`` where:
+
+    * ``decision`` is ``None`` when ``breaker`` is ``None`` (legacy
+      pre-P-03 byte-identical short-circuit; the caller skips both the
+      BREAK early-return AND the post-dispatch ``BudgetAction.WARN``
+      attachment downstream).
+    * ``decision`` is the resolved :class:`BudgetDecision` otherwise —
+      the caller threads it through to :func:`_attach_budget_warning`
+      when ``decision.action is BudgetAction.WARN``.
+    * ``break_verdict`` is a fully-built :class:`GateVerdict` (via
+      :func:`_build_budget_break_verdict`) when
+      ``decision.action is BudgetAction.BREAK``; the caller then runs
+      the collaborator chain (cycle / ratchet / complexity / legibility)
+      against this break verdict and returns it early.
+    * ``break_verdict`` is ``None`` on the no-breaker / WARN / OK paths
+      — the caller proceeds to the standard handler dispatch.
+
+    Source: v12.4.0 PV-03 D-2 — extracted from the original
+    ``evaluate_gate`` body (cc=22 → cc=7); this helper is cc=3.
+    """
+    if breaker is None:
+        return None, None
+    decision = _resolve_breaker_decision(breaker, cumulative_tokens)
+    if decision.action is BudgetAction.BREAK:
+        return decision, _build_budget_break_verdict(decision)
+    return decision, None
+
+
+def _apply_cycle_detection(
+    verdict: GateVerdict,
+    cycle_detector: CycleDetector | None,
+) -> GateVerdict:
+    """Append cycle-detection metadata to ``verdict.details`` when a cycle fires.
+
+    Composes :meth:`CycleDetector.detect_cycle` + :func:`_attach_cycle_report`
+    behind a single nullable-detector guard. ``cycle_detector=None`` (the
+    pre-P-06 byte-identical default) is a no-op — the verdict is returned
+    unchanged. When the detector fires but ``CycleReport.detected`` is
+    ``False`` (no cycle), the verdict is also returned unchanged (the
+    detector's "no cycle this round" signal is intentionally NOT recorded
+    on the verdict per ``patch_plan §3 P-06 AC #6``).
+
+    Returns the (possibly mutated) verdict for fluent chaining in
+    :func:`evaluate_gate`'s pipeline.
+
+    Source: v12.4.0 PV-03 D-2 — extracted from the original
+    ``evaluate_gate`` body; this helper is cc=3.
+    """
+    if cycle_detector is None:
+        return verdict
+    cycle_report = cycle_detector.detect_cycle()
+    if cycle_report.detected:
+        _attach_cycle_report(verdict, cycle_report)
+    return verdict
+
+
+def _apply_ratchet(
+    verdict: GateVerdict,
+    gate_input: GateInput,
+    ratchet: MonotonicRatchet | None,
+    round_num: int,
+    ratchet_artifact: dict[str, object] | None,
+) -> GateVerdict:
+    """Record this round on the monotonic ratchet when a ratchet is wired.
+
+    Thin guard over :func:`_attach_ratchet_action`: ``ratchet=None`` (the
+    pre-P-07 byte-identical default) is a no-op; otherwise the attachment
+    runs verbatim (oracle-score recording, ``verdict.details['ratchet']``
+    population, conditional ``ESCALATE`` upgrade — all preserved by the
+    underlying helper).
+
+    Returns the (possibly mutated) verdict for fluent chaining in
+    :func:`evaluate_gate`'s pipeline.
+
+    Source: v12.4.0 PV-03 D-2 — extracted from the original
+    ``evaluate_gate`` body; this helper is cc=2.
+    """
+    if ratchet is None:
+        return verdict
+    _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
+    return verdict
+
+
+def _apply_complexity_and_legibility(
+    verdict: GateVerdict,
+    profile: GateProfile,
+    complexity_detector: ComplexityDetector | None,
+    complexity_signals: ComplexitySignals | None,
+    complexity_task_complexity: str,
+    legibility_scorer: LegibilityScorer | None,
+    legibility_files: Sequence[str] | None,
+) -> GateVerdict:
+    """Run the optional complexity + legibility collaborators against *verdict*.
+
+    Composes :meth:`ComplexityDetector.evaluate` + :func:`_attach_complexity_evaluation`
+    and :func:`_attach_legibility_evaluation` behind their respective
+    "both-present" guards. Both attachments are independent — either,
+    both, or neither may fire depending on which collaborators are wired
+    by the caller. The activation conditions are byte-identical to the
+    pre-refactor ``evaluate_gate`` body:
+
+    * Complexity attaches when ``complexity_detector is not None`` AND
+      ``complexity_signals is not None``. ``complexity_task_complexity``
+      is forwarded verbatim to the detector.
+    * Legibility attaches when ``legibility_scorer is not None`` AND
+      ``legibility_files`` is truthy (per ``.local/research/v8.2.0_patch_plan.md``
+      §3 PV-02 AC-5).
+
+    Returns the (possibly mutated) verdict for fluent chaining in
+    :func:`evaluate_gate`'s pipeline.
+
+    Source: v12.4.0 PV-03 D-2 — extracted from the original
+    ``evaluate_gate`` body; this helper is cc=5.
+    """
+    if complexity_detector is not None and complexity_signals is not None:
+        evaluation = complexity_detector.evaluate(complexity_signals, complexity_task_complexity)
+        _attach_complexity_evaluation(verdict, evaluation, profile)
+    if legibility_scorer is not None and legibility_files:
+        _attach_legibility_evaluation(verdict, legibility_scorer, legibility_files, profile)
+    return verdict
+
+
 def evaluate_gate(
     gate_input: GateInput,
     profile: GateProfile,
@@ -1973,26 +2130,22 @@ def evaluate_gate(
     if history is None:
         history = []
 
-    if breaker is not None:
-        decision = _resolve_breaker_decision(breaker, cumulative_tokens)
-        if decision.action is BudgetAction.BREAK:
-            verdict = _build_budget_break_verdict(decision)
-            if cycle_detector is not None:
-                cycle_report = cycle_detector.detect_cycle()
-                if cycle_report.detected:
-                    _attach_cycle_report(verdict, cycle_report)
-            if ratchet is not None:
-                _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
-            if complexity_detector is not None and complexity_signals is not None:
-                evaluation = complexity_detector.evaluate(
-                    complexity_signals, complexity_task_complexity
-                )
-                _attach_complexity_evaluation(verdict, evaluation, profile)
-            if legibility_scorer is not None and legibility_files:
-                _attach_legibility_evaluation(verdict, legibility_scorer, legibility_files, profile)
-            return verdict
-    else:
-        decision = None
+    decision, break_verdict = _apply_breaker_check(breaker, cumulative_tokens)
+    if break_verdict is not None:
+        break_verdict = _apply_cycle_detection(break_verdict, cycle_detector)
+        break_verdict = _apply_ratchet(
+            break_verdict, gate_input, ratchet, round_num, ratchet_artifact
+        )
+        break_verdict = _apply_complexity_and_legibility(
+            break_verdict,
+            profile,
+            complexity_detector,
+            complexity_signals,
+            complexity_task_complexity,
+            legibility_scorer,
+            legibility_files,
+        )
+        return break_verdict
 
     resolved = _resolve_gate_type(gate_type)
     handler = _GATE_DISPATCH.get(resolved)
@@ -2009,20 +2162,17 @@ def evaluate_gate(
     if decision is not None and decision.action is BudgetAction.WARN:
         _attach_budget_warning(verdict, decision)
 
-    if cycle_detector is not None:
-        cycle_report = cycle_detector.detect_cycle()
-        if cycle_report.detected:
-            _attach_cycle_report(verdict, cycle_report)
-
-    if ratchet is not None:
-        _attach_ratchet_action(verdict, gate_input, ratchet, round_num, ratchet_artifact)
-
-    if complexity_detector is not None and complexity_signals is not None:
-        evaluation = complexity_detector.evaluate(complexity_signals, complexity_task_complexity)
-        _attach_complexity_evaluation(verdict, evaluation, profile)
-
-    if legibility_scorer is not None and legibility_files:
-        _attach_legibility_evaluation(verdict, legibility_scorer, legibility_files, profile)
+    verdict = _apply_cycle_detection(verdict, cycle_detector)
+    verdict = _apply_ratchet(verdict, gate_input, ratchet, round_num, ratchet_artifact)
+    verdict = _apply_complexity_and_legibility(
+        verdict,
+        profile,
+        complexity_detector,
+        complexity_signals,
+        complexity_task_complexity,
+        legibility_scorer,
+        legibility_files,
+    )
 
     return verdict
 

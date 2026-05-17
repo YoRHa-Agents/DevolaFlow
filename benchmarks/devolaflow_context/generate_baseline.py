@@ -7,6 +7,20 @@ and writes a baseline JSON keyed by scenario name.
 Closes C1 from the v6.0.0 improvement advice doc: v2.1.0_baseline.json covered
 only 3 of 29 scenarios, so 26 scenarios had no regression guard.
 
+Determinism note (v12.4.0 PV-02 — closes v12.3.0 retro §4.2 learning):
+    The pytest harness pins ``sys.modules["tiktoken"] = None`` via the
+    autouse ``_force_fallback_token_estimator`` fixture in
+    ``tests/conftest.py`` so benchmark scoring uses the deterministic
+    ``len(text) // 4`` fallback path regardless of whether ``tiktoken``
+    is installed in the runner's venv. Standalone regen scripts that do
+    NOT load conftest would otherwise produce a different composite
+    score from pytest (~7pp drift on the composite axis). v12.3.0 PV-04
+    hit this with a 3-attempt trial-and-error baseline regen.
+    v12.4.0 PV-02 applies "Option B" from the conftest docstring —
+    set ``sys.modules["tiktoken"] = None`` at module-import time, BEFORE
+    any ``devolaflow`` module gets a chance to import tiktoken — so
+    standalone regens automatically match pytest scoring.
+
 Usage
 -----
 
@@ -22,11 +36,21 @@ Repository: https://github.com/YoRHa-Agents/DevolaFlow
 
 from __future__ import annotations
 
-import argparse
-import json
 import sys
-from pathlib import Path
-from typing import Any
+
+# v12.4.0 PV-02 — pin tiktoken=None at module import (Option B from
+# ``tests/conftest.py::_force_fallback_token_estimator`` docstring).
+# MUST execute BEFORE any ``devolaflow`` / ``benchmarks`` import below
+# so the fallback token estimator is selected at first import. Do NOT
+# move this assignment; ordering is load-bearing per the conftest
+# docstring (the assignment hides any installed tiktoken from later
+# ``import tiktoken`` calls anywhere in the import graph).
+sys.modules["tiktoken"] = None  # noqa: E402  # load-bearing — see module docstring
+
+import argparse  # noqa: E402
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
 # Support `python benchmarks/devolaflow_context/generate_baseline.py` from the
 # repo root in addition to `python -m benchmarks.devolaflow_context.generate_baseline`.

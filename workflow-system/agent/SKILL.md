@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "12.1.0"
+version: "12.4.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,13 +29,24 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v12.1.0**
+> **Now Using DevolaFlow v12.4.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 12.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 12.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
+
+### Session Banner Contract (v12.3.0+)
+
+L0 MUST echo the active devola version on session boundaries so operators see live confirmation of orchestrator + version (closes `.local/feedbacks/feedback_for_v12.1.1.md` #1):
+
+* **Workflow start** (first message after skill activation OR first dispatch): emit one line — `🌸 DevolaFlow v12.3.0 active · workflow: <type> · mode: <agent|plan|grill>`. Use the literal version string from this §"Version & Update" header (kept in sync by `scripts/bump_version.py`).
+* **Workflow end** (final report after the last stage completes): emit one line — `🌸 DevolaFlow v12.3.0 complete · <stages> stages · <waves> waves · <tasks> tasks` (omit counts for SIMPLE/TRIVIAL single-task shortcuts).
+* **Task Quality Score footer** (per `references/task-quality-score.md`): footer line MUST include literal `DevolaFlow v12.3.0` so the score artifact is self-describing in chat logs.
+
+Banner output is for the OPERATOR (chat output), NOT for inter-layer dispatch payloads — keep dispatch / handoff envelopes free of decorative banners per CO-2.
+Subagent (L1/L2/L3) reports MUST NOT include banner lines — see PV-05 runtime hook `reject_subagent_banner_emission`. Banners are L0-only operator chat output.
 
 **Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
 
@@ -158,6 +169,8 @@ Match user intent to workflow type, then load the corresponding stage template.
 **Mode selects stages, NOT files.** `core` skips compile/interview/verify but scaffold MUST create all 8 paths. `standard` adds compile. `full` adds all stages.
 
 **Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 8 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 8 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
+
+**Working-tree sanity check (v12.3.0 PV-04 — `.local/research/v12.2.0_retrospective.md` §4.3 learning):** at cycle-entry PV-01 (before authoring the SI-1 gap analysis), L0 MUST run `git status` + `git diff --stat HEAD -- '*.md' '*.py'` to surface pre-existing working-tree corruption (e.g. truncated CHANGELOG.md / test_no_ghost_features.py from a prior interrupted session). Restore drifted files via `git restore <path>` BEFORE proceeding so the SI-1 entry gate operates on a clean baseline. The v12.2.0 cycle is the canonical example — PV-01 surfaced a pre-existing 4787-line CHANGELOG.md truncation + 1786-line test_no_ghost_features.py truncation that would have silently invalidated W-18 ghost-audit if not restored first.
 
 **Selection heuristics:**
 
@@ -415,6 +428,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
 | `references/subagent-patterns.md` | Subagent pattern selection (4-pattern taxonomy: Inline Tool / Fan-Out / Agent Pool / Teams), v12.0.0 NEST schema roadmap, Pattern 3 forward-compat plan, Pattern 4 P5-Forbidden rationale |
+| `references/task-quality-score.md` | LOAD AT WORKFLOW CLOSE ONLY — full Task Quality Score rubric (v12.3.0 PV-03 extraction; ~120 tokens kept out of execution-loop context) |
 | `references/team-roles.md` | Task agent config, team capabilities |
 | `references/troubleshooting.md` | Operator-friction lookup index + per-symptom diagnostics (load when a dispatch/gate/hook fails opaquely) |
 
@@ -466,29 +480,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 
 ## Task Quality Score (L0 ONLY)
 
-**L0 ONLY** — Subagents MUST NOT score. After every Standard+ workflow, L0 evaluates the user's original request (L1/L2/L3 reports carry no `quality_score` field — see §"Reporting completion").
-
-**Dimensions** (score each 1-5):
-
-| Dimension | 1 (Poor) | 3 (Adequate) | 5 (Excellent) |
-|-----------|----------|--------------|---------------|
-| **Clarity** | Vague, ambiguous intent | Understandable but imprecise | Unambiguous, single interpretation |
-| **Scope** | No boundaries stated | Partial boundaries | Clear in/out of scope |
-| **Success Criteria** | No criteria given | Implicit criteria inferable | Explicit, testable criteria |
-| **Context** | No background or constraints | Some context provided | Full context: stack, constraints, prior art |
-
-**Output format** (append to final workflow report):
-
-```
-📊 Task Quality Score: [total]/20
-  Clarity:          [n]/5 — [one-line tip if < 4]
-  Scope:            [n]/5 — [one-line tip if < 4]
-  Success Criteria: [n]/5 — [one-line tip if < 4]
-  Context:          [n]/5 — [one-line tip if < 4]
-💡 Tip: [single most impactful improvement suggestion]
-```
-
-**Rules**: Always score (positive reinforcement matters). Keep tips actionable and specific. Do not let scoring delay the workflow.
+**L0 ONLY** — Subagents MUST NOT score. L0 evaluates the user's original request at workflow close (L1/L2/L3 reports carry no `quality_score` field — see §"Reporting completion"). Full rubric (4 dimensions × per-tier criteria + 📊 output template) loads on-demand from `references/task-quality-score.md` AFTER the last stage gate PASSES — this keeps the ~120-token scoring rubric out of the per-dispatch execution-loop context (v12.3.0 PV-03 closure for `.local/feedbacks/feedback_for_v12.1.1.md` #2). Operator-facing footer line MUST include the literal version string `DevolaFlow vX.Y.Z` per the §"Session Banner Contract" above.
 
 ## Operational Learnings — Session Pinning & Decay (v7.0.3+)
 Persisted learnings (`.../learnings/operational.jsonl`) carry a confidence half-life (default 30 days per `DEFAULT_DECAY_HALF_LIFE_DAYS`): `decay_confidence()` applies `new_conf = conf - 0.5 * min(1, days_since_last_access / half_life)`, prunes entries below `DECAY_FLOOR=0.1`; `consolidate_session(session_id, session_learnings, path)` bumps matched entries by +0.05 at session end and appends new ones with `promotion_count=1` — stale entries decay while validated insights stay fresh. For cross-round convergence loops that must keep a specific insight in context regardless of confidence, call `pin_learning_for_session(key, stage, task_type, session_id, path)` — `load_relevant_learnings(..., session_id=...)` then surfaces pinned entries first. Reserve pinning for blockers (ADR-005 §3); legacy v1 entries parse unchanged, `last_accessed` lazily backfilled from `timestamp` on first decay.

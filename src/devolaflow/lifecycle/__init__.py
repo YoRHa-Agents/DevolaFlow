@@ -116,6 +116,9 @@ from devolaflow.lifecycle.pre_shell_call import (
 from devolaflow.lifecycle.pre_shell_call import (
     pre_shell_call,
 )
+from devolaflow.lifecycle.reject_subagent_quality_score import (
+    reject_subagent_quality_score,
+)
 from devolaflow.lifecycle.test_on_complete import (
     EVENT as _TASK_STOP_EVENT,
 )
@@ -188,6 +191,13 @@ _set_default_hook(_PRE_PLUGIN_INVOCATION_UPGRADE_EVENT, pre_plugin_invocation_up
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
+
+# v12.2.0 PV-04 — runtime closure of v12.1.0 D-1 (the prompt-side guarantee
+# that subagents MUST NOT score). Registered as an extra (not a default
+# replacement) per the S-10 byte-id contract — the existing default
+# `validate_dispatch` runs FIRST + this hook runs AFTER. Permissive default;
+# operators opt into strict mode at the call site.
+register_hook(_PRE_DISPATCH_EVENT, reject_subagent_quality_score)
 
 PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
 POST_DISPATCH_EVENT: str = _POST_DISPATCH_EVENT
@@ -365,6 +375,7 @@ __all__ = [
     "pre_shell_call",
     "register_hook",
     "registered_events",
+    "reject_subagent_quality_score",
     "run_hooks",
     "test_on_complete",
     "validate_dispatch",

@@ -956,3 +956,158 @@ class TestPackageSurface:
         from devolaflow import shell_proxy
 
         assert sorted(shell_proxy.__all__) == list(shell_proxy.__all__)
+
+
+# ---------------------------------------------------------------------------
+# v12.4.0 PV-04 D-3 — helper-level tests for the ``build_mapping_from_dict`` refactor.
+#
+# The PV-04 refactor extracted four ``_validate_*`` / ``_build_*`` helpers
+# from the cc=21 original (see ``.local/research/v12.4.0_gap_analysis.md``
+# §2 D-3). The orchestrator-level tests in ``TestCommandMappingValidation``
+# above cover end-to-end behaviour byte-identically; these helper-level
+# tests pin per-helper invariants so a future PV that grows a helper's
+# branch space catches the regression at the helper level instead of
+# bubbling up through orchestrator fixture tests. Per the v8.3.0 retro
+# §4.6 test-discipline lesson: loop-asserts inside single test functions
+# so the cycle stays under the W-17 +30/PV cap.
+# ---------------------------------------------------------------------------
+
+
+class TestPV04ValidationHelpers:
+    """Per-helper invariants for the v12.4.0 PV-04 refactor extraction."""
+
+    def test_validate_schema_version_accepts_supported_and_rejects_invalid(self) -> None:
+        """``_validate_schema_version`` returns the int when supported, raises loudly otherwise."""
+        from devolaflow.shell_proxy.commands import _validate_schema_version
+
+        # Accepts every value in SUPPORTED_SCHEMA_VERSIONS verbatim.
+        for ok_version in (1, 2):
+            payload: dict[str, object] = {"schema_version": ok_version}
+            assert _validate_schema_version(payload, "<src>") == ok_version
+
+        # Rejects bool (Python's ``isinstance(True, int)`` would otherwise
+        # accept this — the bool check is the load-bearing guard).
+        for bad_bool in (True, False):
+            with pytest.raises(CommandMappingError) as exc:
+                _validate_schema_version({"schema_version": bad_bool}, "<src>")
+            assert "must be an int" in str(exc.value)
+
+        # Rejects non-int.
+        for bad_type in ("1", 1.5, None, [1]):
+            with pytest.raises(CommandMappingError) as exc:
+                _validate_schema_version({"schema_version": bad_type}, "<src>")
+            assert "must be an int" in str(exc.value)
+
+        # Rejects unsupported int (e.g. schema_version=99).
+        with pytest.raises(CommandMappingError) as exc:
+            _validate_schema_version({"schema_version": 99}, "<src>")
+        assert "not supported" in str(exc.value)
+
+    def test_validate_scalar_fields_accepts_defaults_and_explicit(self) -> None:
+        """``_validate_scalar_fields`` returns the (ttl, truncate, strip_ansi) triple."""
+        from devolaflow.shell_proxy.commands import _validate_scalar_fields
+
+        # Defaults — empty payload uses DEFAULT_TTL_DAYS / truncate=0 / strip_ansi=True.
+        ttl, trunc, strip_ansi = _validate_scalar_fields({}, "pytest", "<src>")
+        assert ttl == DEFAULT_TTL_DAYS
+        assert trunc == 0
+        assert strip_ansi is True
+
+        # Explicit values pass through.
+        ttl, trunc, strip_ansi = _validate_scalar_fields(
+            {"ttl_days": 60, "truncate_lines": 200, "strip_ansi": False},
+            "pytest",
+            "<src>",
+        )
+        assert ttl == 60
+        assert trunc == 200
+        assert strip_ansi is False
+
+        # ``max_lines`` alias works when ``truncate_lines`` absent.
+        ttl, trunc, strip_ansi = _validate_scalar_fields({"max_lines": 75}, "pytest", "<src>")
+        assert trunc == 75
+
+        # Each of the 3 fields has its own rejection path.
+        bad_cases: list[tuple[dict[str, object], str]] = [
+            ({"ttl_days": True}, "ttl_days"),  # bool — sneak past isinstance(int)
+            ({"ttl_days": "30"}, "ttl_days"),
+            ({"ttl_days": 1.5}, "ttl_days"),
+            ({"truncate_lines": True}, "truncate_lines"),
+            ({"truncate_lines": "200"}, "truncate_lines"),
+            ({"strip_ansi": "true"}, "strip_ansi"),
+            ({"strip_ansi": 1}, "strip_ansi"),
+        ]
+        for payload, expected_substring in bad_cases:
+            with pytest.raises(CommandMappingError) as exc:
+                _validate_scalar_fields(payload, "pytest", "<src>")
+            assert expected_substring in str(exc.value), f"payload={payload!r}"
+
+    def test_validate_tags_coerces_list_and_tuple_rejects_other(self) -> None:
+        """``_validate_tags`` accepts list/tuple, coerces elements to str; rejects other shapes."""
+        from devolaflow.shell_proxy.commands import _validate_tags
+
+        # Empty default — payload without ``tags`` → empty tuple.
+        assert _validate_tags({}, "pytest", "<src>") == ()
+
+        # List of strings — coerced to a tuple of strings (already strings).
+        out = _validate_tags({"tags": ["pytest", "deprecation"]}, "pytest", "<src>")
+        assert out == ("pytest", "deprecation")
+
+        # Tuple input — accepted (round-trip YAML quirk).
+        out_tuple = _validate_tags({"tags": ("a", "b")}, "pytest", "<src>")
+        assert out_tuple == ("a", "b")
+
+        # Mixed types — each element string-coerced.
+        out_mixed = _validate_tags({"tags": [1, "two", 3.0]}, "pytest", "<src>")
+        assert out_mixed == ("1", "two", "3.0")
+
+        # Non-list / non-tuple — loud reject.
+        for bad_tags in ("single-string-not-list", 42, {"a": "b"}, None):
+            with pytest.raises(CommandMappingError) as exc:
+                _validate_tags({"tags": bad_tags}, "pytest", "<src>")
+            assert "tags" in str(exc.value)
+
+    def test_build_filter_lists_compiles_pre_and_post_rejects_non_list(self) -> None:
+        """``_build_filter_lists`` returns ``(pre_rules, post_rules)``; rejects non-list inputs."""
+        from devolaflow.shell_proxy.commands import _build_filter_lists
+
+        # Both absent — empty tuples (the YAML "explicit empty" idiom
+        # ``pre_filters: null`` also round-trips to None → empty tuple).
+        pre, post = _build_filter_lists({}, "pytest", "<src>")
+        assert pre == ()
+        assert post == ()
+
+        for null_payload in (
+            {"pre_filters": None, "post_filters": None},
+            {"pre_filters": [], "post_filters": []},
+        ):
+            pre, post = _build_filter_lists(null_payload, "pytest", "<src>")
+            assert pre == ()
+            assert post == ()
+
+        # Happy path — one pre + one post rule each compile correctly.
+        pre, post = _build_filter_lists(
+            {
+                "pre_filters": [{"pattern": r"^FAIL\b", "replacement": "fail"}],
+                "post_filters": [{"pattern": r"\n{3,}", "replacement": "\n\n"}],
+            },
+            "pytest",
+            "<src>",
+        )
+        assert len(pre) == 1
+        assert len(post) == 1
+        assert pre[0].raw_pattern == r"^FAIL\b"
+        assert pre[0].replacement == "fail"
+        # Pattern is pre-compiled — apply works without re.compile overhead.
+        assert pre[0].pattern.sub(pre[0].replacement, "FAIL: something") == "fail: something"
+
+        # Each list slot has its own rejection path.
+        for bad_payload, expected_substring in (
+            ({"pre_filters": "not-a-list"}, "pre_filters"),
+            ({"pre_filters": {"k": "v"}}, "pre_filters"),
+            ({"post_filters": "not-a-list"}, "post_filters"),
+            ({"post_filters": 42}, "post_filters"),
+        ):
+            with pytest.raises(CommandMappingError) as exc:
+                _build_filter_lists(bad_payload, "pytest", "<src>")
+            assert expected_substring in str(exc.value), f"payload={bad_payload!r}"

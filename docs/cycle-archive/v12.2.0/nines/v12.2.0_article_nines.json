@@ -1,0 +1,129 @@
+{
+  "target": ".local/research/v12.2.0_article_singleton",
+  "findings": [
+    {
+      "id": "AI-922f7945-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-922f7945-0001",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+      "location": "",
+      "suggestion": ""
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 0,
+    "total_lines": 0,
+    "total_functions": 0,
+    "total_classes": 0,
+    "total_imports": 0,
+    "avg_complexity": 0.0,
+    "knowledge_units": 0,
+    "duration_ms": 0.4,
+    "packages": 0,
+    "python_modules": 0,
+    "file_type_counts": {
+      ".md": 1
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 1,
+    "agent_impact": {
+      "target": ".local/research/v12.2.0_article_singleton",
+      "mechanisms": [],
+      "economics": {
+        "overhead_tokens": 0,
+        "estimated_savings_ratio": 0.0,
+        "mechanism_count": 0,
+        "agent_facing_files": 0,
+        "total_agent_context_tokens": 0,
+        "break_even_interactions": 0,
+        "per_interaction_savings_tokens": 0,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.0,
+        "economics_score": 0.0,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [],
+      "findings": [
+        {
+          "id": "AI-922f7945-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-922f7945-0001",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "No Agent-facing artifacts detected. This repository does not appear to target AI Agent integration.",
+          "location": "",
+          "suggestion": ""
+        }
+      ],
+      "knowledge_units": []
+    },
+    "key_points": {
+      "target": ".local/research/v12.2.0_article_singleton",
+      "key_points": [
+        {
+          "id": "kp-find-f3b8a9e6",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 0 Agent-facing artifact(s) across 0 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-922f7945-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-summary-b8d0810a",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 0 Python files and 1 total files. 0 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 0,
+            "knowledge_units": 0
+          }
+        }
+      ],
+      "summary": "Extracted 2 key point(s). behavioral_shaping: 1. engineering: 1.",
+      "extraction_duration_ms": 0.08,
+      "metadata": {
+        "category_counts": {
+          "behavioral_shaping": 1,
+          "engineering": 1
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-16T15:15:52.522332+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  }
+}

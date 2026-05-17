@@ -1,0 +1,632 @@
+{
+  "target": "/home/agent/reference/get-shit-done",
+  "findings": [
+    {
+      "id": "AI-f3366b3c-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 6 Agent-facing artifact(s) across 7 mechanism(s)",
+      "location": "docs/AGENTS.md",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-f3366b3c-0001",
+      "severity": "info",
+      "category": "context_economics",
+      "message": "Total Agent context: ~51106 tokens, overhead: ~51106 tokens, estimated savings ratio: 7.0%",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-f3366b3c-0002",
+      "severity": "warning",
+      "category": "context_economics",
+      "message": "Agent context overhead is high (51106 tokens). Consider compressing or splitting Agent-facing files.",
+      "location": "",
+      "suggestion": "Split large instruction files into role-specific segments or apply token-compression techniques."
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 0,
+    "total_lines": 0,
+    "total_functions": 0,
+    "total_classes": 0,
+    "total_imports": 0,
+    "avg_complexity": 0.0,
+    "knowledge_units": 0,
+    "duration_ms": 32.44,
+    "packages": 0,
+    "python_modules": 0,
+    "file_type_counts": {
+      ".json": 7,
+      ".md": 355,
+      ".ts": 49,
+      "(no ext)": 1,
+      ".cjs": 195,
+      ".sh": 6,
+      ".js": 8,
+      ".png": 2,
+      ".svg": 3
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 362,
+    "agent_impact": {
+      "target": "/home/agent/reference/get-shit-done",
+      "mechanisms": [
+        {
+          "id": "mech-1f0d29ce",
+          "name": "behavioral_rules",
+          "category": "behavioral_instruction",
+          "description": "Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 3 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md",
+            "get-shit-done/templates/context.md",
+            "get-shit-done/templates/copilot-instructions.md"
+          ],
+          "estimated_token_impact": 5495,
+          "confidence": 0.77
+        },
+        {
+          "id": "mech-5024d74f",
+          "name": "token_compression",
+          "category": "context_compression",
+          "description": "Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 1 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md"
+          ],
+          "estimated_token_impact": -3565,
+          "confidence": 0.55
+        },
+        {
+          "id": "mech-2e427154",
+          "name": "active_forgetting",
+          "category": "context_pruning",
+          "description": "Actively prunes or evicts stale context \u2014 TTL/eviction/LRU patterns and explicit forgetting policies (evidence from 1 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md"
+          ],
+          "estimated_token_impact": 3565,
+          "confidence": 0.51
+        },
+        {
+          "id": "mech-678d8b62",
+          "name": "multi_platform_sync",
+          "category": "distribution",
+          "description": "Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 5 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md",
+            "docs/ja-JP/AGENTS.md",
+            "docs/ko-KR/AGENTS.md",
+            "get-shit-done/templates/context.md",
+            "get-shit-done/templates/copilot-instructions.md"
+          ],
+          "estimated_token_impact": 10365,
+          "confidence": 0.78
+        },
+        {
+          "id": "mech-f0b74831",
+          "name": "drift_prevention",
+          "category": "persistence",
+          "description": "Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 1 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md"
+          ],
+          "estimated_token_impact": 3565,
+          "confidence": 0.64
+        },
+        {
+          "id": "mech-33fe038a",
+          "name": "safety_guardrails",
+          "category": "safety",
+          "description": "Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 2 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md",
+            "get-shit-done/templates/context.md"
+          ],
+          "estimated_token_impact": 5359,
+          "confidence": 0.67
+        },
+        {
+          "id": "mech-b69250d3",
+          "name": "productive_contradiction",
+          "category": "validation",
+          "description": "Surfaces and resolves contradictions through cross-checking, auditing, or independent validation (evidence from 3 file(s))",
+          "evidence_files": [
+            "docs/AGENTS.md",
+            "docs/ja-JP/AGENTS.md",
+            "docs/ko-KR/AGENTS.md"
+          ],
+          "estimated_token_impact": 8435,
+          "confidence": 0.72
+        }
+      ],
+      "economics": {
+        "overhead_tokens": 51106,
+        "estimated_savings_ratio": 0.07,
+        "mechanism_count": 7,
+        "agent_facing_files": 6,
+        "total_agent_context_tokens": 51106,
+        "break_even_interactions": 15,
+        "per_interaction_savings_tokens": 3565,
+        "expected_retention_rate": 0.85,
+        "mechanism_diversity_factor": 1.6,
+        "economics_score": 0.0949,
+        "formula_version": 2
+      },
+      "agent_facing_artifacts": [
+        "docs/AGENTS.md",
+        "docs/ja-JP/AGENTS.md",
+        "docs/ko-KR/AGENTS.md",
+        "docs/pt-BR/AGENTS.md",
+        "get-shit-done/templates/context.md",
+        "get-shit-done/templates/copilot-instructions.md"
+      ],
+      "findings": [
+        {
+          "id": "AI-f3366b3c-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 6 Agent-facing artifact(s) across 7 mechanism(s)",
+          "location": "docs/AGENTS.md",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-f3366b3c-0001",
+          "severity": "info",
+          "category": "context_economics",
+          "message": "Total Agent context: ~51106 tokens, overhead: ~51106 tokens, estimated savings ratio: 7.0%",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-f3366b3c-0002",
+          "severity": "warning",
+          "category": "context_economics",
+          "message": "Agent context overhead is high (51106 tokens). Consider compressing or splitting Agent-facing files.",
+          "location": "",
+          "suggestion": "Split large instruction files into role-specific segments or apply token-compression techniques."
+        }
+      ],
+      "knowledge_units": [
+        {
+          "id": "agent_mech::mech-1f0d29ce",
+          "source": "docs/AGENTS.md",
+          "content": "behavioral_rules: Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 3 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md",
+              "get-shit-done/templates/context.md",
+              "get-shit-done/templates/copilot-instructions.md"
+            ],
+            "category": "behavioral_instruction"
+          },
+          "metadata": {
+            "category": "behavioral_instruction",
+            "confidence": "0.77",
+            "token_impact": "5495"
+          }
+        },
+        {
+          "id": "agent_mech::mech-5024d74f",
+          "source": "docs/AGENTS.md",
+          "content": "token_compression: Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 1 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md"
+            ],
+            "category": "context_compression"
+          },
+          "metadata": {
+            "category": "context_compression",
+            "confidence": "0.55",
+            "token_impact": "-3565"
+          }
+        },
+        {
+          "id": "agent_mech::mech-2e427154",
+          "source": "docs/AGENTS.md",
+          "content": "active_forgetting: Actively prunes or evicts stale context \u2014 TTL/eviction/LRU patterns and explicit forgetting policies (evidence from 1 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md"
+            ],
+            "category": "context_pruning"
+          },
+          "metadata": {
+            "category": "context_pruning",
+            "confidence": "0.51",
+            "token_impact": "3565"
+          }
+        },
+        {
+          "id": "agent_mech::mech-678d8b62",
+          "source": "docs/AGENTS.md",
+          "content": "multi_platform_sync: Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 5 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md",
+              "docs/ja-JP/AGENTS.md",
+              "docs/ko-KR/AGENTS.md",
+              "get-shit-done/templates/context.md",
+              "get-shit-done/templates/copilot-instructions.md"
+            ],
+            "category": "distribution"
+          },
+          "metadata": {
+            "category": "distribution",
+            "confidence": "0.78",
+            "token_impact": "10365"
+          }
+        },
+        {
+          "id": "agent_mech::mech-f0b74831",
+          "source": "docs/AGENTS.md",
+          "content": "drift_prevention: Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 1 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md"
+            ],
+            "category": "persistence"
+          },
+          "metadata": {
+            "category": "persistence",
+            "confidence": "0.64",
+            "token_impact": "3565"
+          }
+        },
+        {
+          "id": "agent_mech::mech-33fe038a",
+          "source": "docs/AGENTS.md",
+          "content": "safety_guardrails: Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 2 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md",
+              "get-shit-done/templates/context.md"
+            ],
+            "category": "safety"
+          },
+          "metadata": {
+            "category": "safety",
+            "confidence": "0.67",
+            "token_impact": "5359"
+          }
+        },
+        {
+          "id": "agent_mech::mech-b69250d3",
+          "source": "docs/AGENTS.md",
+          "content": "productive_contradiction: Surfaces and resolves contradictions through cross-checking, auditing, or independent validation (evidence from 3 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "docs/AGENTS.md",
+              "docs/ja-JP/AGENTS.md",
+              "docs/ko-KR/AGENTS.md"
+            ],
+            "category": "validation"
+          },
+          "metadata": {
+            "category": "validation",
+            "confidence": "0.72",
+            "token_impact": "8435"
+          }
+        },
+        {
+          "id": "agent_impact::summary",
+          "source": "",
+          "content": "Agent impact profile: 7 mechanism(s), 6 artifact(s)",
+          "unit_type": "agent_impact_summary",
+          "relationships": {
+            "mechanisms": [
+              "agent_mech::mech-1f0d29ce",
+              "agent_mech::mech-5024d74f",
+              "agent_mech::mech-2e427154",
+              "agent_mech::mech-678d8b62",
+              "agent_mech::mech-f0b74831",
+              "agent_mech::mech-33fe038a",
+              "agent_mech::mech-b69250d3"
+            ],
+            "artifacts": [
+              "docs/AGENTS.md",
+              "docs/ja-JP/AGENTS.md",
+              "docs/ko-KR/AGENTS.md",
+              "docs/pt-BR/AGENTS.md",
+              "get-shit-done/templates/context.md",
+              "get-shit-done/templates/copilot-instructions.md"
+            ]
+          },
+          "metadata": {
+            "mechanism_count": "7",
+            "artifact_count": "6"
+          }
+        }
+      ]
+    },
+    "key_points": {
+      "target": "/home/agent/reference/get-shit-done",
+      "key_points": [
+        {
+          "id": "kp-mech-448ddad1",
+          "category": "cross_platform",
+          "title": "Mechanism: multi_platform_sync",
+          "description": "Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 5 file(s))",
+          "mechanism_ids": [
+            "mech-678d8b62"
+          ],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.667,
+          "validation_approach": "Deploy to multiple platforms and verify consistent behavior across IDE integrations",
+          "evidence": [
+            "docs/AGENTS.md",
+            "docs/ja-JP/AGENTS.md",
+            "docs/ko-KR/AGENTS.md",
+            "get-shit-done/templates/context.md",
+            "get-shit-done/templates/copilot-instructions.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "distribution",
+            "confidence": 0.78
+          }
+        },
+        {
+          "id": "kp-mech-9fb9d6ea",
+          "category": "behavioral_shaping",
+          "title": "Mechanism: behavioral_rules",
+          "description": "Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 3 file(s))",
+          "mechanism_ids": [
+            "mech-1f0d29ce"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.613,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [
+            "docs/AGENTS.md",
+            "get-shit-done/templates/context.md",
+            "get-shit-done/templates/copilot-instructions.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "behavioral_instruction",
+            "confidence": 0.77
+          }
+        },
+        {
+          "id": "kp-mech-ca1d179f",
+          "category": "engineering",
+          "title": "Mechanism: productive_contradiction",
+          "description": "Surfaces and resolves contradictions through cross-checking, auditing, or independent validation (evidence from 3 file(s))",
+          "mechanism_ids": [
+            "mech-b69250d3"
+          ],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.602,
+          "validation_approach": "Review code quality metrics and verify adherence to engineering best practices",
+          "evidence": [
+            "docs/AGENTS.md",
+            "docs/ja-JP/AGENTS.md",
+            "docs/ko-KR/AGENTS.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "validation",
+            "confidence": 0.72
+          }
+        },
+        {
+          "id": "kp-mech-7a00783a",
+          "category": "semantic_preservation",
+          "title": "Mechanism: safety_guardrails",
+          "description": "Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 2 file(s))",
+          "mechanism_ids": [
+            "mech-33fe038a"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.532,
+          "validation_approach": "Run semantic equivalence checks before/after applying this preservation mechanism",
+          "evidence": [
+            "docs/AGENTS.md",
+            "get-shit-done/templates/context.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "safety",
+            "confidence": 0.67
+          }
+        },
+        {
+          "id": "kp-mech-2d1b9693",
+          "category": "semantic_preservation",
+          "title": "Mechanism: drift_prevention",
+          "description": "Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 1 file(s))",
+          "mechanism_ids": [
+            "mech-f0b74831"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.484,
+          "validation_approach": "Run semantic equivalence checks before/after applying this preservation mechanism",
+          "evidence": [
+            "docs/AGENTS.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "persistence",
+            "confidence": 0.64
+          }
+        },
+        {
+          "id": "kp-mech-f83ee9a2",
+          "category": "compression",
+          "title": "Mechanism: token_compression",
+          "description": "Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 1 file(s))",
+          "mechanism_ids": [
+            "mech-5024d74f"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.416,
+          "validation_approach": "Run compression benchmark: compare output length with/without this mechanism",
+          "evidence": [
+            "docs/AGENTS.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "context_compression",
+            "confidence": 0.55
+          }
+        },
+        {
+          "id": "kp-mech-af662b64",
+          "category": "engineering",
+          "title": "Mechanism: active_forgetting",
+          "description": "Actively prunes or evicts stale context \u2014 TTL/eviction/LRU patterns and explicit forgetting policies (evidence from 1 file(s))",
+          "mechanism_ids": [
+            "mech-2e427154"
+          ],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.386,
+          "validation_approach": "Review code quality metrics and verify adherence to engineering best practices",
+          "evidence": [
+            "docs/AGENTS.md"
+          ],
+          "priority": 2,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "context_pruning",
+            "confidence": 0.51
+          }
+        },
+        {
+          "id": "kp-econ-overhead-f348d072",
+          "category": "context_management",
+          "title": "Token overhead analysis",
+          "description": "Agent context overhead is 51106 tokens across 6 file(s). This is high and may degrade agent performance.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 1.0,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "overhead_tokens": 51106
+          }
+        },
+        {
+          "id": "kp-econ-savings-b14bdb9b",
+          "category": "context_management",
+          "title": "Token savings efficiency",
+          "description": "Estimated savings ratio is 7.0% \u2014 below typical thresholds for net-positive economics.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.93,
+          "validation_approach": "Track actual token usage over multiple sessions and compare against baseline",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "savings_ratio": 0.07
+          }
+        },
+        {
+          "id": "kp-econ-breakeven-11291d8d",
+          "category": "context_management",
+          "title": "Break-even interaction threshold",
+          "description": "Break-even at 15 interaction(s) \u2014 users need many sessions to recoup overhead.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.75,
+          "validation_approach": "Simulate N agent interactions and measure cumulative token cost vs savings",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "break_even": 15
+          }
+        },
+        {
+          "id": "kp-find-24cb8f77",
+          "category": "context_management",
+          "title": "Finding: context_economics",
+          "description": "Agent context overhead is high (51106 tokens). Consider compressing or splitting Agent-facing files.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.5,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-f3366b3c-0002",
+            "severity": "warning"
+          }
+        },
+        {
+          "id": "kp-find-8f8d37ae",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 6 Agent-facing artifact(s) across 7 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [
+            "docs/AGENTS.md"
+          ],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-f3366b3c-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-summary-d22c6bd5",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 0 Python files and 362 total files. 0 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 0,
+            "knowledge_units": 0
+          }
+        }
+      ],
+      "summary": "Extracted 13 key point(s). behavioral_shaping: 2. compression: 1. context_management: 4. cross_platform: 1. engineering: 3. semantic_preservation: 2. 7 high-priority item(s).",
+      "extraction_duration_ms": 0.24,
+      "metadata": {
+        "category_counts": {
+          "cross_platform": 1,
+          "behavioral_shaping": 2,
+          "engineering": 3,
+          "semantic_preservation": 2,
+          "compression": 1,
+          "context_management": 4
+        }
+      }
+    }
+  },
+  "timestamp": "2026-05-16T15:16:11.436947+00:00",
+  "report_metadata": {
+    "id_namespace_version": 2,
+    "analyzer_schema_version": 1,
+    "nines_version": "3.3.0"
+  }
+}

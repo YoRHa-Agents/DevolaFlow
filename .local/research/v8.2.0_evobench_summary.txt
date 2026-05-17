@@ -1,0 +1,40 @@
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'dispatch_report' resolved via deprecated line-based lookup (lines='364-395'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'repo_mode' resolved via deprecated line-based lookup (lines='409-418'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'reference_navigation' resolved via deprecated line-based lookup (lines='420-448'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'rules_dispatchers' resolved via deprecated line-based lookup (lines='420-448'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'mode_detection' resolved via deprecated line-based lookup (lines='53-59'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'wave_coordination' resolved via deprecated line-based lookup (lines='213-228'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'task_quality_score' resolved via deprecated line-based lookup (lines='473-497'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'frontmatter' resolved via deprecated line-based lookup (lines='1-30'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+tests/test_benchmarks.py::TestEvaluator::test_format_compliance_field
+  /home/agent/workspace/DevolaFlow/src/devolaflow/task_adaptive_selector.py:466: DeprecationWarning: section 'version_update' resolved via deprecated line-based lookup (lines='36-40'); migrate to section_anchors registry per PV-05 (.local/research/v8.2.0_patch_plan.md §3 PV-05 AC #1).
+    text = _resolve_section_text(section_name, registry, sections_registry, skill_text)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 36 passed, 22 warnings in 14.33s =======================

@@ -98,7 +98,9 @@ Cycle start = the first PV after a tag bumps the MINOR or MAJOR digit (e.g. v8.4
 
 The wholesale regen artifact lives in `benchmarks/devolaflow_context/baselines/<cycle>_baseline.json` (e.g. `v8.5.0_baseline.json` for the PV-05 baseline that underpins PV-06..PV-N). All subsequent PVs in the cycle compare against this single baseline; per-PV regression is the delta from the wholesale baseline, not an incremental delta from the previous PV.
 
-Source: `.local/research/v8.4.0_retrospective.md` §"R-7 wholesale-vs-piecemeal baseline lesson".
+**v12.3.0 PV-04 clarification (per v12.2.0 retrospective §4.2 learning)**: the wholesale regen MAY land at cycle START OR cycle CLOSE — whichever PV first observes baseline drift. The v12.2.0 cycle is the canonical "regen-at-close" example: PV-01 attempted the regen but the v12.1.0 baseline stayed GREEN throughout PV-02 → PV-04, so the wholesale regen was DEFERRED to cycle close (and turned out to be a no-op because no PV drifted the equilibrium). The earlier "MUST at cycle start" wording over-prescribed; the actual contract is "MUST regenerate ONCE per cycle, AT the PV that first detects drift, otherwise at cycle CLOSE if no PV drifted". This preserves the original anti-piecemeal-drift intent without forcing unnecessary regen overhead.
+
+Source: `.local/research/v8.4.0_retrospective.md` §"R-7 wholesale-vs-piecemeal baseline lesson"; v12.3.0 PV-04 clarification per `.local/research/v12.2.0_retrospective.md` §4.2 + `.local/research/v12.3.0_gap_analysis.md` §2 D-3.
 
 ## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
 

@@ -45,6 +45,59 @@ VALID_MODEL_HINTS = {"quality", "balanced", "budget", "inherit"}
 
 VALID_COMPRESSION_INTENSITIES = {"minimal", "standard", "aggressive"}
 
+# v12.2.0 PV-04 — per-task-type timeout defaults (seconds). Sourced from
+# the v12.1.0 SKILL.md §"Subagent Hang Prevention" L0 contract:
+#     research=2700 / impl=1800 / test=900 / review=1200 / hotfix=600
+# (default fail-safe ceiling 7200s for unknown task types).
+#
+# Consumed by :func:`default_timeout_for` which dispatchers pass into
+# :meth:`devolaflow.agent_workspace.dispatch_executor.AsyncDispatchExecutor.dispatch_parallel`
+# as the ``timeouts={task_id: seconds}`` kwarg. Default-OFF — no auto-wire;
+# callers opt-in by invoking the helper. Per W-20 §3, this is purely
+# library-level (no env flag).
+#
+# Source: `.local/research/v12.2.0_gap_analysis.md` §2 D-4; v12.0.0
+# CHANGELOG §v12.1.0+ telegraph deferred work item #2.
+TASK_TYPE_TIMEOUT_DEFAULTS: dict[str, int] = {
+    "research": 2700,
+    "impl": 1800,
+    "test": 900,
+    "review": 1200,
+    "hotfix": 600,
+}
+
+TASK_TYPE_TIMEOUT_FALLBACK: int = 7200
+"""Fail-safe ceiling for unrecognised task types.
+
+Matches the SKILL.md §"Dispatch & Report Protocol" default. Operators
+should treat 7200 as the ceiling, not the target — pass an explicit
+per-task ``timeout_seconds`` in TaskDispatch when the task type is known.
+"""
+
+
+def default_timeout_for(task_type: str) -> int:
+    """Return the v12.2.0 PV-04 default ``timeout_seconds`` for ``task_type``.
+
+    Lookup is exact-match against :data:`TASK_TYPE_TIMEOUT_DEFAULTS`;
+    unrecognised task types fall back to :data:`TASK_TYPE_TIMEOUT_FALLBACK`
+    (7200 s — the SKILL.md fail-safe ceiling per §"Dispatch & Report
+    Protocol").
+
+    The helper is pure (no side effects, no env reads, no file IO) so it
+    is safe to call from any dispatcher layer without R5 strict gating.
+    Callers SHOULD invoke this when constructing the ``timeouts={}``
+    kwarg for :meth:`AsyncDispatchExecutor.dispatch_parallel`; the
+    library-level default-OFF discipline is preserved because callers
+    opt in by passing the kwarg at all.
+
+    Source: SKILL.md §"Subagent Hang Prevention" L0 contract +
+    `.local/research/v12.2.0_gap_analysis.md` §2 D-4.
+    """
+    if not isinstance(task_type, str):
+        return TASK_TYPE_TIMEOUT_FALLBACK
+    return TASK_TYPE_TIMEOUT_DEFAULTS.get(task_type.strip().lower(), TASK_TYPE_TIMEOUT_FALLBACK)
+
+
 _PLAN_MODE_ENV = "DEVOLAFLOW_PLAN_MODE"
 _PLAN_MODE_MARKER = ".devolaflow_plan_mode"
 
@@ -911,6 +964,24 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
             lines.append(f"  - {criterion}")
     if behavioral_guidelines.get("goal_loop"):
         lines.append("- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.")
+    # v12.2.0 PV-03 — Mnimiy 3-rule extension. Active rules render as
+    # 1-line bullets (~ 20-30 tokens each); inactive rules omit the
+    # bullet so the token cost scales with active-rule count.
+    if behavioral_guidelines.get("no_llm_for_deterministic"):
+        lines.append(
+            "- BG-005 no_llm_for_deterministic ENABLED — route deterministic "
+            "decisions (retry / routing / thresholds) through code, not prompts."
+        )
+    if behavioral_guidelines.get("surface_conflicts"):
+        lines.append(
+            "- BG-006 surface_conflicts ENABLED — when 2 patterns disagree, "
+            "flag the conflict as a finding; do NOT average both into one solution."
+        )
+    if behavioral_guidelines.get("convention_first"):
+        lines.append(
+            "- BG-007 convention_first ENABLED — match the codebase's existing "
+            "pattern; introduce novelty only via explicit ADR / escalation."
+        )
     return "\n".join(lines)
 
 

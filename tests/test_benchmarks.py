@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v12.1.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v12.4.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -406,30 +406,34 @@ class TestBaselineFile:
     def test_runner_prefers_latest_baseline(self) -> None:
         """load_baseline() picks the latest baseline file over older ones, falls back as needed.
 
-        v12.0.0 PV-02 cycle-start (cascade-strictness graduation MAJOR cycle)
-        fires the W-16 wholesale baseline regen per
-        ``.cursor/rules/repo-governance.mdc`` §W-16 (the cycle-start trigger
-        applies to MAJOR digit bumps too — v11.4.0 → v12.0.0 → v12.1.0).
-        The resulting ``v12.1.0_baseline.json`` is the new "newest" after
-        v12.0.0 (the prior wholesale-regen baseline at v12.0.0 MAJOR cycle-
-        start, cascade-strictness graduation). Prior baselines stay on
-        disk for cumulative drift detection per v8.4.0 retro §"R-7
-        wholesale-vs-piecemeal baseline lesson". v12.1.0 regen absorbs the
-        SKILL.md additive content (D-1 §"Task Quality Score (L0 ONLY)"
-        scoping marker + D-2 §"Subagent Hang Prevention" 14-line section);
-        line shift surfaced via the ``feedback`` profile's ``convergence_
-        noise_filter`` scenario whose pre-edit composite 92.81 → 85.75 at
-        the new equilibrium reflects 2 important sections falling out of
-        the 2475-token budget after task_quality_score + dispatch_report
-        token-grew. Per W-16 wholesale-regen path the new baseline pins
-        the new equilibrium; the convergence_noise_filter quality floor
-        was correspondingly retuned.
+        v12.4.0 PV-05 W-16 wholesale-regen "at the PV that first
+        detects drift" absorption (per ``.rules/workflow.mdc`` §W-16
+        v12.3.0 clarification carried forward — "wholesale regen MAY
+        land at cycle START OR cycle CLOSE — whichever PV first
+        observes baseline drift"). The v12.4.0 cycle's PV-05 L0-only
+        leak cluster closure demoted 14 profiles' ``task_quality_score``
+        priority + added 22 explicit ``operational_learnings: skip``
+        rows to ``context_profiles.yaml`` (per audit §A.2 + §A.3).
+        Two scenarios drifted beyond the 5pp envelope —
+        ``feedback_regression`` noise_ratio crept 0.07 → 0.10 (TQS
+        removed from the feedback profile's section selection;
+        scenario ``expected_sections`` retuned) and
+        ``collapse_l0_l3_simple`` composite IMPROVED 88.53 → 99.48
+        (operational_learnings explicit-skip eliminated the silent
+        ``_resolve_section_text`` DeprecationWarning fallback path
+        per the audit §A.3 S-5 cleanup). Per the W-16 contract the
+        baseline regenerates AT the PV that first drifts — PV-05.
+        The resulting ``v12.4.0_baseline.json`` is the new "newest"
+        pinning the v12.4.0 PV-05 equilibrium. Prior baselines stay
+        on disk for cumulative drift detection per v8.4.0 retro §"R-7".
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v12.1.0_baseline.json", (
-            f"Expected load_baseline() to prefer v12.1.0_baseline.json "
-            f"(W-16 wholesale regen at v12.1.0 MINOR cycle-start); got {newest.name}"
+        assert newest.name == "v12.4.0_baseline.json", (
+            f"Expected load_baseline() to prefer v12.4.0_baseline.json "
+            f"(W-16 wholesale regen at v12.4.0 cycle PV-05 — the first "
+            f"PV in the cycle to drift the baseline, per audit §A.2 / "
+            f"§A.3 L0-only surfaces hardening); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

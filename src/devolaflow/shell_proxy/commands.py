@@ -386,48 +386,17 @@ def _build_filter_rule(
     )
 
 
-def build_mapping_from_dict(
-    payload: Any,
-    *,
-    source_path: str = "<command-mapping.yaml>",
-    recipe_id: str = "",
-) -> CommandMapping:
-    """Coerce a parsed YAML recipe dict into a validated :class:`CommandMapping`.
+def _validate_schema_version(payload: dict, source_path: str) -> int:
+    """Validate the recipe's ``schema_version`` field.
 
-    Funnels every external construction through one validator so the
-    loader and the tests see identical error semantics. The
-    *recipe_id* parameter is the basename-derived identifier; defaults
-    to empty when unknown (test instantiation via direct call).
+    Two distinct schema-break paths surface here per S-5 (loud failure):
 
-    Args:
-        payload: Parsed YAML payload (expected to be a ``dict``).
-        source_path: Path to the recipe file the payload came from;
-            appears in error messages so operators can locate the offending
-            recipe.
-        recipe_id: Stable identifier (typically the YAML basename without
-            the ``.yaml`` extension).
+    1. Non-int (or ``bool``, which Python's ``isinstance(x, int)`` accepts
+       and we explicitly reject so ``True``/``False`` cannot sneak through).
+    2. Value not in :data:`SUPPORTED_SCHEMA_VERSIONS`.
 
-    Returns:
-        A frozen, validated :class:`CommandMapping` instance.
-
-    Raises:
-        CommandMappingError: When the payload is not a mapping, or when any
-            of :data:`_REQUIRED_FIELDS` is missing / has the wrong type, or
-            when a derived constraint (``ttl_days`` bounds, regex compile)
-            is violated.
+    Returns the validated integer for downstream consumers.
     """
-    if not isinstance(payload, dict):
-        raise CommandMappingError(
-            f"{source_path}: recipe top-level must be a YAML mapping; got {type(payload).__name__}"
-        )
-
-    missing = [name for name in _REQUIRED_FIELDS if not payload.get(name)]
-    if missing:
-        command_hint = payload.get("command", recipe_id or "<unknown>")
-        raise CommandMappingError(
-            f"{source_path}: recipe {command_hint!r} missing required fields: {', '.join(missing)}"
-        )
-
     schema_version = payload.get("schema_version")
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise CommandMappingError(
@@ -439,10 +408,22 @@ def build_mapping_from_dict(
             f"{source_path}: recipe schema_version {schema_version!r} not supported "
             f"(supported: {list(SUPPORTED_SCHEMA_VERSIONS)})"
         )
+    return schema_version
 
-    command = str(payload["command"])
-    version_stamp = str(payload["version_stamp"])
 
+def _validate_scalar_fields(
+    payload: dict,
+    command: str,
+    source_path: str,
+) -> tuple[int, int, bool]:
+    """Validate the trio of scalar fields ``ttl_days`` + ``truncate_lines`` + ``strip_ansi``.
+
+    Verbatim error-message text preserved per CO-2 / C-3 (operators rely
+    on the exact strings to grep their YAML diagnostics). The
+    ``truncate_lines`` field also honours the historical ``max_lines``
+    alias (``max_lines`` is the legacy spelling; ``truncate_lines`` wins
+    when both are set).
+    """
     raw_ttl = payload.get("ttl_days", DEFAULT_TTL_DAYS)
     if isinstance(raw_ttl, bool) or not isinstance(raw_ttl, int):
         raise CommandMappingError(
@@ -464,13 +445,38 @@ def build_mapping_from_dict(
             f"({type(raw_strip_ansi).__name__!s}={raw_strip_ansi!r})"
         )
 
+    return int(raw_ttl), int(raw_truncate), raw_strip_ansi
+
+
+def _validate_tags(payload: dict, command: str, source_path: str) -> tuple[str, ...]:
+    """Validate and coerce the ``tags`` field to a string tuple.
+
+    Both ``list`` and ``tuple`` shapes are accepted (YAML round-trip
+    quirks); anything else raises loudly per S-5. Each element is
+    string-coerced for in-collection homogeneity (callers can rely on
+    every tag being a ``str``).
+    """
     raw_tags = payload.get("tags", ())
     if not isinstance(raw_tags, list | tuple):
         raise CommandMappingError(
             f"{source_path}: recipe {command!r} has non-list tags ({type(raw_tags).__name__!s})"
         )
-    tags_tuple = tuple(str(t) for t in raw_tags)
+    return tuple(str(t) for t in raw_tags)
 
+
+def _build_filter_lists(
+    payload: dict,
+    command: str,
+    source_path: str,
+) -> tuple[tuple[FilterRule, ...], tuple[FilterRule, ...]]:
+    """Construct ``pre_filters`` and ``post_filters`` tuples from the payload.
+
+    Both fields default to an empty list and accept ``None`` (the YAML
+    "explicit empty" idiom — ``pre_filters: null`` is round-tripped as
+    None and we treat it as the empty list). A non-list at either slot
+    raises loudly per S-5. Per-rule construction (including the
+    raw-pattern compile) is delegated to :func:`_build_filter_rule`.
+    """
     raw_pre = payload.get("pre_filters", []) or []
     if not isinstance(raw_pre, list):
         raise CommandMappingError(
@@ -503,6 +509,70 @@ def build_mapping_from_dict(
         for rule in raw_post
     )
 
+    return pre_rules, post_rules
+
+
+def build_mapping_from_dict(
+    payload: Any,
+    *,
+    source_path: str = "<command-mapping.yaml>",
+    recipe_id: str = "",
+) -> CommandMapping:
+    """Coerce a parsed YAML recipe dict into a validated :class:`CommandMapping`.
+
+    Funnels every external construction through one validator so the
+    loader and the tests see identical error semantics. The
+    *recipe_id* parameter is the basename-derived identifier; defaults
+    to empty when unknown (test instantiation via direct call).
+
+    Args:
+        payload: Parsed YAML payload (expected to be a ``dict``).
+        source_path: Path to the recipe file the payload came from;
+            appears in error messages so operators can locate the offending
+            recipe.
+        recipe_id: Stable identifier (typically the YAML basename without
+            the ``.yaml`` extension).
+
+    Returns:
+        A frozen, validated :class:`CommandMapping` instance.
+
+    Raises:
+        CommandMappingError: When the payload is not a mapping, or when any
+            of :data:`_REQUIRED_FIELDS` is missing / has the wrong type, or
+            when a derived constraint (``ttl_days`` bounds, regex compile)
+            is violated.
+
+    v12.4.0 PV-04 decomposition (per
+    ``.local/research/v12.4.0_gap_analysis.md`` §2 D-3): the original
+    cc=21 body split into four ``_validate_*`` / ``_build_*`` helpers
+    (:func:`_validate_schema_version`, :func:`_validate_scalar_fields`,
+    :func:`_validate_tags`, :func:`_build_filter_lists`). Public
+    signature + every raised-exception message text preserved
+    byte-identically — verified by the existing
+    ``tests/test_shell_proxy_commands.py`` fixture suite + the cc-pin
+    test in ``tests/test_v12_4_0_complexity_targets.py``.
+    """
+    if not isinstance(payload, dict):
+        raise CommandMappingError(
+            f"{source_path}: recipe top-level must be a YAML mapping; got {type(payload).__name__}"
+        )
+
+    missing = [name for name in _REQUIRED_FIELDS if not payload.get(name)]
+    if missing:
+        command_hint = payload.get("command", recipe_id or "<unknown>")
+        raise CommandMappingError(
+            f"{source_path}: recipe {command_hint!r} missing required fields: {', '.join(missing)}"
+        )
+
+    _validate_schema_version(payload, source_path)
+
+    command = str(payload["command"])
+    version_stamp = str(payload["version_stamp"])
+
+    ttl_days, truncate_lines, strip_ansi = _validate_scalar_fields(payload, command, source_path)
+    tags_tuple = _validate_tags(payload, command, source_path)
+    pre_rules, post_rules = _build_filter_lists(payload, command, source_path)
+
     _validate_compose_references(
         pre_rules,
         field_label="pre_filters",
@@ -522,11 +592,11 @@ def build_mapping_from_dict(
         description=str(payload.get("description", "") or ""),
         repo_signal=str(payload.get("repo_signal", "") or ""),
         last_updated=str(payload.get("last_updated", "") or ""),
-        ttl_days=int(raw_ttl),
+        ttl_days=ttl_days,
         pre_filters=pre_rules,
         post_filters=post_rules,
-        truncate_lines=int(raw_truncate),
-        strip_ansi=raw_strip_ansi,
+        truncate_lines=truncate_lines,
+        strip_ansi=strip_ansi,
         on_empty=str(payload.get("on_empty", "") or ""),
         tags=tags_tuple,
         recipe_id=recipe_id,

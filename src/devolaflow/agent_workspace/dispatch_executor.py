@@ -187,6 +187,8 @@ class AsyncDispatchExecutor:
     def dispatch_sequential(
         self,
         tasks: list[tuple[str, TaskCallable]],
+        *,
+        timeouts: dict[str, float] | None = None,
     ) -> list[TaskOutcome]:
         """Run each ``(task_id, callable)`` tuple synchronously, in order.
 
@@ -202,17 +204,46 @@ class AsyncDispatchExecutor:
         keeps the contract uniform regardless of callable shape. Use
         :meth:`dispatch_parallel` when you have multiple async
         callables to amortise the loop cost.
+
+        v12.2.0 PV-04 — per-task ``timeouts`` map. Optional dict mapping
+        ``task_id -> seconds``; tasks whose execution exceeds the budget
+        are cancelled and surface ``TaskOutcome(succeeded=False,
+        exception=asyncio.TimeoutError)``. Tasks absent from the map
+        run without a timeout (preserves v9.3.0 byte-identical behaviour
+        for every caller that does NOT pass the kwarg — the runtime
+        contract per CHANGELOG.md §v12.1.0 telegraph "deferred to v12.2.0+"
+        closure). Async callables route through :func:`asyncio.wait_for`;
+        sync callables get the timeout enforced via :func:`asyncio.to_thread`
+        wrapped in the same ``wait_for``. The library remains opt-in: no
+        env flag, no auto-wire (per the v9.3.0 PV-05 "library-only
+        landing" discipline).
         """
         outcomes: list[TaskOutcome] = []
         for task_id, fn in tasks:
-            outcomes.append(self._run_one_sync(task_id, fn))
+            timeout = (timeouts or {}).get(task_id)
+            outcomes.append(self._run_one_sync(task_id, fn, timeout=timeout))
         return outcomes
 
     @staticmethod
-    def _run_one_sync(task_id: str, fn: TaskCallable) -> TaskOutcome:
+    def _run_one_sync(
+        task_id: str,
+        fn: TaskCallable,
+        *,
+        timeout: float | None = None,
+    ) -> TaskOutcome:
         """Internal: run a single task synchronously, capture exception."""
         try:
-            if inspect.iscoroutinefunction(fn):  # noqa: SIM108  (comment-bearing branch)
+            if timeout is not None:
+                # v12.2.0 PV-04 — route through `asyncio.run` + `wait_for`
+                # so both sync and async callables share the same timeout
+                # mechanism (S-5 explicit-error-state on timeout).
+                if inspect.iscoroutinefunction(fn):
+                    result = asyncio.run(asyncio.wait_for(fn(), timeout=timeout))  # type: ignore[arg-type]
+                else:
+                    result = asyncio.run(
+                        asyncio.wait_for(asyncio.to_thread(fn), timeout=timeout)  # type: ignore[arg-type]
+                    )
+            elif inspect.iscoroutinefunction(fn):  # noqa: SIM108  (comment-bearing branch)
                 # Async callable invoked from sync context — pay the
                 # loop-init cost per call. Callers with many async
                 # callables should use dispatch_parallel instead.
@@ -220,6 +251,17 @@ class AsyncDispatchExecutor:
             else:
                 result = fn()
             return TaskOutcome(task_id=task_id, succeeded=True, result=result)
+        except TimeoutError as exc:
+            # asyncio.TimeoutError is an alias for builtin TimeoutError on
+            # 3.11+; capture explicitly so the WARNING log distinguishes
+            # the timeout breach from a generic exception (S-5 explicit
+            # error-state).
+            logger.warning(
+                "AsyncDispatchExecutor: task %r exceeded timeout %.3fs; captured into TaskOutcome",
+                task_id,
+                timeout if timeout is not None else -1.0,
+            )
+            return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "AsyncDispatchExecutor: task %r raised %s; captured into TaskOutcome",
@@ -235,6 +277,8 @@ class AsyncDispatchExecutor:
     def dispatch_parallel(
         self,
         tasks: list[tuple[str, TaskCallable]],
+        *,
+        timeouts: dict[str, float] | None = None,
     ) -> list[TaskOutcome]:
         """Run tasks via :func:`asyncio.gather`, bounded by ``max_concurrency``.
 
@@ -246,32 +290,57 @@ class AsyncDispatchExecutor:
 
         Empty ``tasks`` is a valid no-op; returns ``[]`` immediately
         without spawning a loop.
+
+        v12.2.0 PV-04 — per-task ``timeouts`` map. Optional dict mapping
+        ``task_id -> seconds``; tasks whose execution exceeds the budget
+        are cancelled and surface ``TaskOutcome(succeeded=False,
+        exception=asyncio.TimeoutError)``. Tasks absent from the map
+        run without a timeout (preserves v9.3.0 byte-identical behaviour
+        for every caller that does NOT pass the kwarg — see the
+        :meth:`dispatch_sequential` docstring for the rollout discipline).
         """
         if not tasks:
             return []
-        return asyncio.run(self._dispatch_parallel_async(tasks))
+        return asyncio.run(self._dispatch_parallel_async(tasks, timeouts or {}))
 
     async def _dispatch_parallel_async(
         self,
         tasks: list[tuple[str, TaskCallable]],
+        timeouts: dict[str, float],
     ) -> list[TaskOutcome]:
-        """Internal coroutine: gather + semaphore.
+        """Internal coroutine: gather + semaphore + optional per-task timeout.
 
         Each task runs inside a context-managed semaphore acquire so
         no more than ``max_concurrency`` tasks are in flight at once.
         Sync callables go through :func:`asyncio.to_thread` so the
-        event loop is not blocked.
+        event loop is not blocked. When ``timeouts[task_id]`` is set
+        the call is wrapped in :func:`asyncio.wait_for`; on breach the
+        task is cancelled and the outcome carries
+        :class:`asyncio.TimeoutError` per the v12.2.0 PV-04 contract.
         """
         sem = asyncio.Semaphore(self._max_concurrency)
 
         async def run_one(task_id: str, fn: TaskCallable) -> TaskOutcome:
+            timeout = timeouts.get(task_id)
             async with sem:
                 try:
-                    if inspect.iscoroutinefunction(fn):
-                        result = await fn()  # type: ignore[misc]
+                    coro = (
+                        fn()  # type: ignore[misc]
+                        if inspect.iscoroutinefunction(fn)
+                        else asyncio.to_thread(fn)  # type: ignore[arg-type]
+                    )
+                    if timeout is not None:
+                        result = await asyncio.wait_for(coro, timeout=timeout)
                     else:
-                        result = await asyncio.to_thread(fn)  # type: ignore[arg-type]
+                        result = await coro
                     return TaskOutcome(task_id=task_id, succeeded=True, result=result)
+                except TimeoutError as exc:
+                    logger.warning(
+                        "AsyncDispatchExecutor: parallel task %r exceeded timeout %.3fs; captured",
+                        task_id,
+                        timeout if timeout is not None else -1.0,
+                    )
+                    return TaskOutcome(task_id=task_id, succeeded=False, exception=exc)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "AsyncDispatchExecutor: parallel task %r raised %s; captured",

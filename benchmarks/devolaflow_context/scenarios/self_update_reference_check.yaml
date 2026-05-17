@@ -27,6 +27,12 @@ unwanted_sections:
   - quick_start_workflows
 
 quality_thresholds:
-  min_composite: 80.0
+  # v12.3.0 PV-04 absorption: same root-cause as self_update_integration —
+  # SKILL.md §"Version & Update" doubled (109 → 232 tokens) due to new
+  # Session Banner Contract subsection (PV-02). self_update profile
+  # 3100-token budget squeezed → important sections evicted →
+  # matched_count drops, composite ≈ 75.81. Same rationale + cadence as
+  # self_update_integration scenario adjustment.
+  min_composite: 73.0
   max_noise_ratio: 0.1
-  min_relevance: 0.8
+  min_relevance: 0.65

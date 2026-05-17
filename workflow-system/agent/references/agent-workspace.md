@@ -647,6 +647,50 @@ return envelopes sorted by ascending `seq`. To compute the next seq for
 authoring an outgoing envelope: `next_seq = max(existing_seqs) + 1`, atomic
 under file-write race conditions via `O_EXCL` open.
 
+### Handoff Envelope L0-only Metadata Stripping (v12.4.0 PV-05)
+
+The handoff envelope's `predecessor_summary` block is a verbatim
+extraction from the upstream layer's output (per C-3). However, three
+L0-only literal classes leak operator-facing chrome into subagent
+contexts when copied wholesale; the writer MUST strip them at
+envelope-author time so downstream L1/L2/L3 dispatchers see no
+decorative banners:
+
+| Direction | Literal class | Source | Strip rule |
+|---|---|---|---|
+| L0 → L1 / L0 → L2 | `🌸 DevolaFlow vX.Y.Z active · …` (Session Banner workflow-start) | SKILL.md §"Session Banner Contract" line 1 | Drop the whole line from `predecessor_summary` |
+| L0 → L1 / L0 → L2 | `🌸 DevolaFlow vX.Y.Z complete · <stages> stages · <waves> waves · <tasks> tasks` (Session Banner workflow-end) | SKILL.md §"Session Banner Contract" line 2 | Drop the whole line |
+| L0 → L1 / L0 → L2 | `📊 Task Quality Score: <composite>/100 · <dimensions>` (TQS 📊 footer) + the `🌸 DevolaFlow vX.Y.Z · scored at workflow close` tail | `references/task-quality-score.md` template | Drop both lines |
+| L1 → L2 / L1 → L3 | `pin_learning_for_session(...)` / `consolidate_session(...)` / `decay_confidence()` literals from §"Operational Learnings" | SKILL.md lines 484-485 | L1 has no operational.jsonl contract — strip session-pinned references entirely |
+
+Subagents that receive the bannerless `predecessor_summary` perform
+identical work — banner content is decorative operator chat output,
+NOT load-bearing context per CO-2 / Rule C-2 (Lean Message Format).
+
+**Runtime enforcement** (PV-05 baseline): the `pre_dispatch` lifecycle
+hook `reject_subagent_banner_emission` (registered as an opt-in extra
+via `register_pre_dispatch_extra()` in
+`src/devolaflow/lifecycle/reject_subagent_banner_emission.py`) flags
+NEW emissions of the `🌸 DevolaFlow vX.Y.Z` literal in dispatch
+payloads whose `target_layer ∈ {L1, L2, L3}`. Historical evidence
+inside `predecessor_artifacts[*].summary` carried forward from prior
+rounds is NOT flagged (top-level-only discipline mirrors the v12.2.0
+`reject_subagent_quality_score` precedent). Permissive default per
+S-5 (warn + log); strict mode raises `HookViolation` per the
+lifecycle dispatcher's strict contract.
+
+**Auto-strip runtime helper telegraphed to v12.5.0+**: the
+`src/devolaflow/agent_workspace/handoff.py` writer will gain a
+`strip_l0_only_metadata(envelope)` helper that performs the table
+above's strip rules in-place before the `O_EXCL` write. At v12.4.0
+PV-05 the rule is **normative-only** (this subsection + the runtime
+hook); auto-strip lands once the v12.5.0+ SI-1 plans the
+backward-compat windowing.
+
+Source: `.local/research/v12.4.0_l0_only_audit.md` §§B.1-B.3 (banner +
+TQS + operational_learnings literal enumeration) + cycle plan §3 PV-05
+D-4 closure (L0-only surfaces leak cluster).
+
 ## 7. Source-of-Truth Specs (M-004 / Rule A-4)
 
 `.local/memory/specs/<domain>/spec.md` is the source-of-truth for current

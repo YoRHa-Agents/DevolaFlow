@@ -1406,3 +1406,164 @@ class TestLadderByteIdenticalDefaultProfile:
 # §17 ``TestLadderByteIdenticalDefaultProfile`` above for the
 # byte-stability contract). Source: v11.1.0 PV-04 cycle plan §3 W06.
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 19. v12.4.0 PV-03 D-2 — ``evaluate_gate`` helper extraction (cc=22 → cc=7)
+#
+# The 4 ``_apply_*`` helpers extracted from the original ``evaluate_gate``
+# body are independent collaborators — each guards a nullable optional
+# argument and short-circuits when the collaborator is not wired. The
+# tests below exercise the per-helper "guard" path (collaborator=None or
+# both-fields-None) in isolation to ensure the refactor's no-op contracts
+# hold byte-identically with the pre-refactor inline conditionals.
+#
+# The engaged paths (breaker present + BREAK; cycle_detector present +
+# cycle detected; ratchet present; complexity_detector + signals; etc.)
+# are covered by the existing ``TestLadderByteIdenticalDefaultProfile`` /
+# ``TestGateStandard`` / ``TestGateConvergence`` suites + the EvoBench
+# benchmarks — those continue to assert evaluate_gate's end-to-end
+# verdict shape and are the W-4 / SI-4 regression guard.
+#
+# Source: ``.local/research/v12.4.0_gap_analysis.md`` §2 D-2 +
+# ``.cursor/plans/v12.4.0_expansion_refactor_cycle_240b72f0.plan.md``
+# §3 PV-03.
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluateGateHelpers:
+    """Per-helper guard-path coverage for the v12.4.0 PV-03 D-2 refactor.
+
+    Each test verifies the "collaborator not wired" branch of one
+    ``_apply_*`` helper returns the verdict unchanged (or returns the
+    no-decision sentinel pair). The engaged paths are exercised
+    transitively through the full ``evaluate_gate`` callers in
+    ``TestGateStandard`` / ``TestGateConvergence`` above.
+    """
+
+    def test_apply_breaker_check_none_returns_none_pair(self) -> None:
+        """``breaker=None`` short-circuits to ``(None, None)`` — pre-P-03 default.
+
+        Pins the legacy v7.8.0 byte-identical path documented at
+        ``patch_plan §3 P-03 AC #2``: callers that pass no breaker get
+        zero token-budget evaluation, so both the resolved decision
+        AND the optional break verdict are ``None``.
+        """
+        from devolaflow.gate.scorer import _apply_breaker_check
+
+        decision, break_verdict = _apply_breaker_check(None, None)
+
+        assert decision is None
+        assert break_verdict is None
+
+    def test_apply_breaker_check_break_returns_decision_and_verdict(self) -> None:
+        """A BREAK budget decision yields ``(decision, GateVerdict)`` early-return shape.
+
+        Pins the BREAK path: when the breaker resolves to
+        :class:`BudgetAction.BREAK`, the helper returns BOTH the decision
+        (for the caller's downstream observability) AND the pre-built
+        :class:`GateVerdict` (so ``evaluate_gate`` can skip the standard
+        handler dispatch and run only the collaborator chain on the break
+        verdict).
+        """
+        from devolaflow.gate.budget import TokenBudgetBreaker
+        from devolaflow.gate.models import BudgetAction
+        from devolaflow.gate.scorer import _apply_breaker_check
+
+        breaker = TokenBudgetBreaker(profile=STANDARD, max_tokens=100)
+        # Cumulative tokens >= max_tokens forces BREAK regardless of
+        # threshold curves (TokenBudgetBreaker.check at 100% utilization).
+        decision, break_verdict = _apply_breaker_check(breaker, cumulative_tokens=200)
+
+        assert decision is not None
+        assert decision.action is BudgetAction.BREAK
+        assert break_verdict is not None
+        assert break_verdict.decision in {"FAIL", "ESCALATE"}
+        # The break verdict carries the budget telemetry verbatim per
+        # ``_build_budget_break_verdict`` — non-None ``details`` is the
+        # observable contract downstream consumers depend on.
+        assert break_verdict.details.get("budget_break") is True
+
+    def test_apply_cycle_detection_none_detector_is_noop(self) -> None:
+        """``cycle_detector=None`` returns the verdict unchanged — pre-P-06 default.
+
+        Pins the pre-P-06 byte-identical path documented at
+        ``patch_plan §3 P-06 AC #6``: a verdict with no cycle metadata
+        must remain free of cycle_detected / cycle_details keys when the
+        caller passes no detector.
+        """
+        from devolaflow.gate.scorer import _apply_cycle_detection
+
+        baseline = GateVerdict(
+            decision="PASS",
+            rationale="baseline",
+            composite_score=None,
+            meets_threshold=True,
+        )
+        baseline_details_snapshot = dict(baseline.details)
+
+        result = _apply_cycle_detection(baseline, None)
+
+        assert result is baseline  # same object — no copy
+        assert result.details == baseline_details_snapshot
+        assert "cycle_detected" not in result.details
+        assert "cycle_details" not in result.details
+
+    def test_apply_ratchet_none_ratchet_is_noop(self) -> None:
+        """``ratchet=None`` returns the verdict unchanged — pre-P-07 default.
+
+        Pins the pre-P-07 byte-identical path documented at
+        ``patch_plan §3 P-07 AC #4``: a verdict with no ratchet metadata
+        must remain free of the ``ratchet`` details key (and its
+        decision must not be upgraded to ESCALATE) when the caller passes
+        no ratchet.
+        """
+        from devolaflow.gate.scorer import _apply_ratchet
+
+        gi = _pass_input()
+        baseline = GateVerdict(
+            decision="PASS",
+            rationale="baseline",
+            composite_score=None,
+            meets_threshold=True,
+        )
+
+        result = _apply_ratchet(baseline, gi, None, round_num=1, ratchet_artifact=None)
+
+        assert result is baseline
+        assert result.decision == "PASS"
+        assert "ratchet" not in result.details
+
+    def test_apply_complexity_and_legibility_all_none_is_noop(self) -> None:
+        """All collaborators absent returns the verdict unchanged — composite default.
+
+        Pins both pre-P-09 (complexity) AND pre-PV-02 (legibility)
+        byte-identical paths: when neither the complexity detector +
+        signals pair nor the legibility scorer + files pair is wired,
+        the verdict must be returned unchanged with no ``complexity`` /
+        ``legibility`` details keys.
+        """
+        from devolaflow.gate.scorer import _apply_complexity_and_legibility
+
+        baseline = GateVerdict(
+            decision="PASS",
+            rationale="baseline",
+            composite_score=85.0,
+            meets_threshold=True,
+        )
+
+        result = _apply_complexity_and_legibility(
+            baseline,
+            STANDARD,
+            complexity_detector=None,
+            complexity_signals=None,
+            complexity_task_complexity="standard",
+            legibility_scorer=None,
+            legibility_files=None,
+        )
+
+        assert result is baseline
+        assert result.decision == "PASS"
+        assert result.composite_score == 85.0
+        assert "complexity" not in result.details
+        assert "legibility" not in result.details

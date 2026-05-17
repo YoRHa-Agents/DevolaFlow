@@ -45,8 +45,17 @@ _site/
 # Node (for demo pages)
 node_modules/
 
-# DevolaFlow local workspace (private)
-.local/
+# DevolaFlow local workspace (whitelist team-collab subdirs; everything else private)
+# Per feedback_for_v12.1.0.md — narrow whitelist replaces v9.2.3 broad ignore.
+# Team-tracked: .local/memory/specs/ (A-4) + .local/research/ (W-7/W-19 artifacts).
+.local/*
+!.local/.gitignore
+!.local/memory/
+.local/memory/*
+!.local/memory/specs/
+!.local/memory/specs/**
+!.local/research/
+!.local/research/**
 
 # Project-local Cursor skill mirror — opt-in, recreated on demand.
 # Tracked counterparts live under workflow-system/agent/. Devs who want the

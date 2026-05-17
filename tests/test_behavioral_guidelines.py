@@ -378,7 +378,7 @@ class TestComposeBehavioralBlock:
 
     def test_block_token_bounds(self) -> None:
         """All-active block stays under the L3 token budget allocation
-        target (~ 150 tokens / 5% of L3 8K)."""
+        target (~ 225 tokens / 3% of L3 8K, post v12.2.0 PV-03)."""
         from devolaflow.task_adaptive_selector import estimate_tokens
 
         block = _compose_behavioral_block(
@@ -387,9 +387,161 @@ class TestComposeBehavioralBlock:
                 "simplicity_check": True,
                 "surgical_scope": "module",
                 "goal_loop": True,
+                "no_llm_for_deterministic": True,
+                "surface_conflicts": True,
+                "convention_first": True,
             }
         )
-        assert estimate_tokens(block) <= 150
+        # 7-rule all-active block ~ 200 tokens (~ 30 per active bullet).
+        # Budget raised from 150 → 225 for v12.2.0 PV-03 (3-rule extension).
+        assert estimate_tokens(block) <= 225
+
+
+# ---------------------------------------------------------------------------
+# 4b. v12.2.0 PV-03 — Mnimiy 3-rule extension (BG-005..BG-007)
+# ---------------------------------------------------------------------------
+
+
+class TestMnimiyBehavioralExtensions:
+    """v12.2.0 PV-03 — `no_llm_for_deterministic` (BG-005) +
+    `surface_conflicts` (BG-006) + `convention_first` (BG-007) added per
+    the Mnimiy May-2026 X article cross-walk (`.local/research/v12.2.0_gap_analysis.md`
+    §2 D-2). Each NEW rule is a NEST sub-field under the existing
+    `behavioral_guidelines` dispatch block — canonical_order length stays
+    at 17 and schema version stays at 6 (verified in TestSchemaAdditivity
+    above).
+    """
+
+    def test_active_no_llm_for_deterministic_emits_bg005(self) -> None:
+        block = _compose_behavioral_block({"no_llm_for_deterministic": True})
+        assert "BG-005 no_llm_for_deterministic ENABLED" in block
+        assert "deterministic decisions" in block
+
+    def test_active_surface_conflicts_emits_bg006(self) -> None:
+        block = _compose_behavioral_block({"surface_conflicts": True})
+        assert "BG-006 surface_conflicts ENABLED" in block
+        assert "flag the conflict" in block
+
+    def test_active_convention_first_emits_bg007(self) -> None:
+        block = _compose_behavioral_block({"convention_first": True})
+        assert "BG-007 convention_first ENABLED" in block
+        assert "match the codebase" in block
+
+    def test_inactive_v12_2_0_rules_omit_their_bullets(self) -> None:
+        """Default-False keys MUST NOT emit bullets — backward-compat with
+        v8.x profiles that never set the 3 new fields."""
+        block = _compose_behavioral_block(
+            {
+                "think_first": True,
+                "no_llm_for_deterministic": False,
+                "surface_conflicts": False,
+                "convention_first": False,
+            }
+        )
+        assert "BG-005" not in block
+        assert "BG-006" not in block
+        assert "BG-007" not in block
+
+    def test_select_behavioral_sections_resolves_v12_2_0_keys_from_tier(self) -> None:
+        """When a profile uses `tier: standard`, the resolved block MUST
+        include the 3 NEW v12.2.0 keys (all True per the default matrix)."""
+        from devolaflow.task_adaptive_selector import _select_behavioral_sections
+
+        defaults = {
+            "standard": {
+                "think_first": True,
+                "simplicity_check": True,
+                "surgical_scope": "function",
+                "goal_loop": False,
+                "no_llm_for_deterministic": True,
+                "surface_conflicts": True,
+                "convention_first": True,
+            }
+        }
+        config = {"meta": {"behavioral_guidelines_defaults": defaults}}
+        profile = {"behavioral_guidelines": {"tier": "standard"}}
+        result = _select_behavioral_sections(profile, config)
+        assert result is not None
+        assert result["no_llm_for_deterministic"] is True
+        assert result["surface_conflicts"] is True
+        assert result["convention_first"] is True
+
+    def test_per_key_override_works_for_v12_2_0_keys(self) -> None:
+        """A profile MAY opt out of the standard-tier defaults for a
+        single new rule (e.g. disable `convention_first` for a greenfield
+        profile)."""
+        from devolaflow.task_adaptive_selector import _select_behavioral_sections
+
+        defaults = {
+            "standard": {
+                "think_first": True,
+                "simplicity_check": True,
+                "surgical_scope": "function",
+                "goal_loop": False,
+                "no_llm_for_deterministic": True,
+                "surface_conflicts": True,
+                "convention_first": True,
+            }
+        }
+        config = {"meta": {"behavioral_guidelines_defaults": defaults}}
+        profile = {
+            "behavioral_guidelines": {"tier": "standard", "convention_first": False},
+        }
+        result = _select_behavioral_sections(profile, config)
+        assert result["convention_first"] is False
+        # Other keys still inherited from standard tier
+        assert result["no_llm_for_deterministic"] is True
+        assert result["surface_conflicts"] is True
+
+    def test_pre_v12_2_0_profile_without_new_keys_resolves_falsy(self) -> None:
+        """Backward-compat: a v8.x profile that omits the 3 new keys gets
+        them as absent (falsy) so `_compose_behavioral_block` does NOT emit
+        the corresponding bullets."""
+        from devolaflow.task_adaptive_selector import _select_behavioral_sections
+
+        defaults = {
+            "standard": {
+                "think_first": True,
+                "simplicity_check": True,
+                "surgical_scope": "function",
+                "goal_loop": False,
+                # NO v12.2.0 keys — simulates a v8.x-era defaults block
+            }
+        }
+        config = {"meta": {"behavioral_guidelines_defaults": defaults}}
+        profile = {"behavioral_guidelines": {"tier": "standard"}}
+        result = _select_behavioral_sections(profile, config)
+        assert result.get("no_llm_for_deterministic") in (None, False)
+        assert result.get("surface_conflicts") in (None, False)
+        assert result.get("convention_first") in (None, False)
+        block = _compose_behavioral_block(result)
+        assert "BG-005" not in block
+        assert "BG-006" not in block
+        assert "BG-007" not in block
+
+    def test_canonical_yaml_carries_v12_2_0_defaults(self) -> None:
+        """The repo's `context_profiles.yaml` MUST carry the 3 NEW keys
+        in `meta.behavioral_guidelines_defaults` for the standard +
+        complex tiers (per the gap analysis tier-rollout table)."""
+        config = yaml.safe_load(PROFILES_PATH.read_text())
+        defaults = config["meta"]["behavioral_guidelines_defaults"]
+        for tier in ("standard", "complex"):
+            tier_defaults = defaults[tier]
+            assert tier_defaults["no_llm_for_deterministic"] is True, (
+                f"tier {tier!r} MUST opt into no_llm_for_deterministic per "
+                f"the v12.2.0 PV-03 rollout"
+            )
+            assert tier_defaults["surface_conflicts"] is True, (
+                f"tier {tier!r} MUST opt into surface_conflicts per the v12.2.0 PV-03 rollout"
+            )
+            assert tier_defaults["convention_first"] is True, (
+                f"tier {tier!r} MUST opt into convention_first per the v12.2.0 PV-03 rollout"
+            )
+        # trivial tier opts out of all 3 (one-liner edits don't benefit)
+        for new_key in ("no_llm_for_deterministic", "surface_conflicts", "convention_first"):
+            assert defaults["trivial"][new_key] is False, (
+                f"tier 'trivial' MUST opt out of {new_key!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -552,17 +704,25 @@ class TestReferenceFile:
         for key in ("id:", "version:", "purpose:", "triggers:", "tier:", "last_updated:"):
             assert key in head, f"missing {key!r} in frontmatter"
 
-    def test_file_documents_all_four_rules(self) -> None:
+    def test_file_documents_all_seven_rules(self) -> None:
         text = BEHAVIORAL_REF_PATH.read_text()
-        for rule_id in ("BG-001", "BG-002", "BG-003", "BG-004"):
+        for rule_id in ("BG-001", "BG-002", "BG-003", "BG-004", "BG-005", "BG-006", "BG-007"):
             assert rule_id in text, f"missing rule id {rule_id} in references doc"
 
     def test_file_documents_field_shape(self) -> None:
-        """The reference file MUST document the 4 dispatch sub-keys so
+        """The reference file MUST document the 7 dispatch sub-keys so
         agents can map the dispatched ``behavioral_guidelines`` payload to
-        the rule semantics."""
+        the rule semantics. v12.2.0 PV-03 added 3 NEW keys via NEST per A-2.3."""
         text = BEHAVIORAL_REF_PATH.read_text()
-        for key in ("think_first", "simplicity_check", "surgical_scope", "goal_loop"):
+        for key in (
+            "think_first",
+            "simplicity_check",
+            "surgical_scope",
+            "goal_loop",
+            "no_llm_for_deterministic",
+            "surface_conflicts",
+            "convention_first",
+        ):
             assert key in text, f"missing field key {key!r}"
 
 
@@ -909,9 +1069,17 @@ class TestReferenceFilePV04Section:
         SF-1 Large-tier 1000 ceiling so the early-warning function is
         preserved. See `.local/research/v9.0.0_reference_review.md` F-04
         + `.local/research/v9.0.0_implementation_plan.md` §6.2.
+
+        v12.2.0 PV-03 added BG-005..BG-007 (Mnimiy 3-rule extension)
+        per `.local/research/v12.2.0_gap_analysis.md` §2 D-2: 3 new Rule
+        sections (~30 lines each = ~90 LOC) + 3 new Severity Matrix rows
+        + extended Rule Application Matrix + extended Field Shape + token
+        cost recalibration text. Per-patch ceiling bumped 320 → 500 to
+        absorb the v12.2.0 PV-03 extension; still 50% of the SF-1 Large-
+        tier 1000 ceiling.
         """
         line_count = sum(1 for _ in BEHAVIORAL_REF_PATH.read_text().splitlines())
-        assert line_count <= 320, (
+        assert line_count <= 500, (
             f"behavioral-guidelines.md has {line_count} lines; "
-            "v9.0.0 PV-02 per-patch ceiling is 320 (Large-tier ceiling 1000)"
+            "v12.2.0 PV-03 per-patch ceiling is 500 (Large-tier ceiling 1000)"
         )
