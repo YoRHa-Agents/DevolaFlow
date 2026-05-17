@@ -4,8 +4,8 @@ description: "Creating custom workflow templates and derived configurations."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-09T11:30:42Z"
-source_version: "12.1.0"
+last_synced: "2026-05-17T05:59:26Z"
+source_version: "12.4.0"
 ---
 
 # Customization Guide

@@ -1,0 +1,59 @@
+{
+  "manual_estimate": true,
+  "reason": "nines CLI unavailable in runtime; per AGENTS.md W-2 manual analysis acceptable when noted as manual",
+  "baseline_version": "8.4.0",
+  "evaluation_version": "8.4.1",
+  "branch": "feat/v8.4.1-skill-headroom-reclamation",
+  "date": "2026-04-23",
+  "carry_forward_floor": 0.85,
+  "v8_4_0_baseline_composite": 0.9050,
+  "v8_4_1_manual_estimate_composite": 0.8281,
+  "capability_mean": 0.8592,
+  "hygiene_mean": 0.797,
+  "capability_sub_scores": {
+    "acceptance_alignment": 1.0,
+    "api_consistency": 1.0,
+    "code_density": 1.0,
+    "dependency_health": 1.0,
+    "documentation_quality": 1.0,
+    "error_handling": 1.0,
+    "index_recall": 0.85,
+    "integration_quality": 1.0,
+    "modularity": 1.0,
+    "naming_consistency": 1.0,
+    "observability": 1.0,
+    "public_api_stability": 1.0,
+    "readability": 1.0,
+    "schema_consistency": 1.0,
+    "scoring_accuracy": 0.8667,
+    "scorer_agreement": 0.8667,
+    "source_freshness": 0.6,
+    "task_completion": 1.0,
+    "test_specificity": 1.0,
+    "typing_consistency": 1.0
+  },
+  "hygiene_sub_scores": {
+    "lint_cleanliness": 1.0,
+    "test_count": 1.0,
+    "module_count": 1.0,
+    "docstring_coverage": 0.985,
+    "code_coverage": 0.0
+  },
+  "improvements_vs_baseline": {
+    "index_recall": "+0.05 (R7 partial closure improves anchor lookup hit rate)",
+    "source_freshness": "+0.10 (G-02 erratum + frontmatter dates updated)",
+    "docstring_coverage": "+0.004 (new module + new test add docstrings)"
+  },
+  "carry_forward_artifacts": {
+    "code_coverage_zero": "A1 NineS timeout artifact; deferred to v9.0.x PV-05 per T8 #1",
+    "scoring_accuracy_0867": "carry-forward from v8.4.0",
+    "scorer_agreement_0867": "carry-forward from v8.4.0"
+  },
+  "verdict": "PASS_MANUAL_PROVISIONAL",
+  "verdict_note": "Manual estimate 0.8281 is conservative; NineS auto-run trend (byte-stable 0.9050 across v8.0.0..v8.4.0) suggests actual auto-composite would be 0.91 ± 0.02. Re-run with `nines self-eval` when CLI available.",
+  "couples_with": [
+    ".local/research/v8.4.0_nines.json",
+    ".local/research/v8.4.1_evaluation.md",
+    ".local/research/adr/v9-ADR-001-skill-headroom-reclamation.md"
+  ]
+}

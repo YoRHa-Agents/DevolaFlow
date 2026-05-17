@@ -104,8 +104,14 @@ def test_local_target_succeeds_without_workflow_system(
     assert (cwd / ".local" / ".agent" / "handoff").is_dir()
     assert (cwd / ".local" / ".agent" / "archive").is_dir()
     assert (cwd / ".local" / "index.md").is_file()
-    assert ".local/" in (cwd / ".gitignore").read_text(encoding="utf-8"), (
-        "repo-init regression: local target must keep .local/ ignored for wheel-only consumer repos"
+    gitignore_text = (cwd / ".gitignore").read_text(encoding="utf-8")
+    assert ".local/*" in gitignore_text, (
+        "repo-init regression: local target must keep .local/ private via the "
+        "v12.2.0 selective whitelist for wheel-only consumer repos"
+    )
+    assert "!.local/memory/specs/" in gitignore_text, (
+        "v12.2.0 whitelist contract: .local/memory/specs/ MUST be tracked "
+        "(A-4 source-of-truth contracts)"
     )
 
 
@@ -265,8 +271,13 @@ def test_local_with_no_compile_pip_wheel_install_full_smoke(
     assert (rules_dir / "compile-config.yaml").is_file(), (
         "install_local must seed the compile-config.yaml template"
     )
-    assert ".local/" in (cwd / ".gitignore").read_text(encoding="utf-8"), (
-        "install_local must ensure .local/ stays private in consumer repos"
+    gitignore_text = (cwd / ".gitignore").read_text(encoding="utf-8")
+    assert ".local/*" in gitignore_text, (
+        "install_local must ensure .local/ stays private (v12.2.0 selective "
+        "whitelist) in consumer repos"
+    )
+    assert "!.local/memory/specs/" in gitignore_text, (
+        "v12.2.0 whitelist contract: .local/memory/specs/ MUST be tracked"
     )
 
     cursor_rules_out = cwd / ".cursor" / "rules" / "repo-governance.mdc"
@@ -407,16 +418,18 @@ def test_cycle_close_e2e_local_mode_core_works(
     3. The cursor-rules + AGENTS.md compile artefacts MUST NOT be
        written — ``--mode=core`` implies ``--no-compile`` per the
        v9.2.3 PV-02 dispatch contract.
-    4. The root ``.gitignore`` MUST contain broad ``.local/`` coverage.
+    4. The root ``.gitignore`` MUST carry the v12.2.0 selective whitelist
+       block (``.local/*`` + ``!.local/memory/specs/`` + ``!.local/research/``).
        ``devolaflow.local.workspace`` warnings are reserved for repair
-       of narrower legacy rules:
+       of unrecognised narrow rules that survive alongside the whitelist:
 
        * ``empty`` / ``full_pip_wheel_install`` (no .gitignore) →
-         ZERO warnings while creating the default ignore file.
+         ZERO warnings while writing the default whitelist block.
        * ``with_gitignore_local`` (rule covers
          ``.local/.agent/active/``) → at least 1 WARN naming the
-         narrow rule + the broad ``.local/`` repair.
-       * ``with_gitignore_all`` (broad ``.local/`` rule) → ZERO warnings.
+         surviving narrow rule + the v12.2.0 whitelist context.
+       * ``with_gitignore_all`` (v9.2.3 broad ``.local/`` rule) → ZERO
+         warnings; INFO log explaining the graduation to v12.2.0.
 
     Failure modes:
       * Exit nonzero on ``--mode=core`` → I-001 / I-003 regression
@@ -425,7 +438,8 @@ def test_cycle_close_e2e_local_mode_core_works(
         ``REQUIRED_DIRS`` + ``MEMORY_SUBDIRS`` parity with this list.
       * Compile artefact present → ``--mode=core`` precedence
         regression (v9.2.3 PV-02 contract violated).
-      * Missing ``.local/`` ignore → repo-init privacy regression.
+      * Missing v12.2.0 whitelist rule → repo-init privacy regression
+        (closes `.local/feedbacks/feedback_for_v12.1.0.md`).
       * Wrong WARN count for a shape → repair semantics drifted; check
         ``ensure_local_gitignore`` and the audit cache.
     """
@@ -434,6 +448,9 @@ def test_cycle_close_e2e_local_mode_core_works(
     if shape == "with_gitignore_local":
         (cwd / ".gitignore").write_text(".local/.agent/active/\n", encoding="utf-8")
     elif shape == "with_gitignore_all":
+        # Simulates a repo that still carries the v9.2.3 PV-02 broad
+        # `.local/` rule (the rule v12.2.0 PV-02 supersedes). Scaffold
+        # graduates it to the v12.2.0 whitelist with INFO logging.
         (cwd / ".gitignore").write_text(".local/\n", encoding="utf-8")
     # `empty` and `full_pip_wheel_install` intentionally leave the
     # repo without a `.gitignore` — they exercise the canonical
@@ -475,8 +492,18 @@ def test_cycle_close_e2e_local_mode_core_works(
         f"shape={shape!r}: --mode=core implies --no-compile — AGENTS.md must NOT be written"
     )
     gitignore_text = (cwd / ".gitignore").read_text(encoding="utf-8")
-    assert ".local/" in gitignore_text.splitlines(), (
-        f"shape={shape!r}: repo-init must ensure broad .local/ ignore coverage"
+    gitignore_lines = gitignore_text.splitlines()
+    assert ".local/*" in gitignore_lines, (
+        f"shape={shape!r}: repo-init must write the v12.2.0 whitelist "
+        f"(`.local/*` line missing from .gitignore)"
+    )
+    assert "!.local/memory/specs/" in gitignore_lines, (
+        f"shape={shape!r}: repo-init must whitelist .local/memory/specs/ "
+        f"(A-4 source-of-truth contracts)"
+    )
+    assert "!.local/research/" in gitignore_lines, (
+        f"shape={shape!r}: repo-init must whitelist .local/research/ "
+        f"(W-7/W-19 retrospective artifacts)"
     )
 
     audit_warnings = [
@@ -487,7 +514,7 @@ def test_cycle_close_e2e_local_mode_core_works(
     if shape in {"empty", "full_pip_wheel_install"}:
         assert audit_warnings == [], (
             f"shape={shape!r}: no .gitignore present — repo-init must "
-            f"create the default .local/ rule with ZERO WARNs (got "
+            f"create the default v12.2.0 whitelist with ZERO WARNs (got "
             f"{[w.getMessage() for w in audit_warnings]!r})"
         )
     elif shape == "with_gitignore_local":
@@ -500,15 +527,15 @@ def test_cycle_close_e2e_local_mode_core_works(
             f"shape={shape!r}: repair WARN must name the narrow "
             f"path explicitly so the operator can act on it"
         )
-        assert any("adding `.local/`" in record.getMessage() for record in audit_warnings), (
-            f"shape={shape!r}: repair WARN must mention the broad .local/ fix"
+        assert any("v12.2.0 whitelist" in record.getMessage() for record in audit_warnings), (
+            f"shape={shape!r}: repair WARN must cite the v12.2.0 whitelist context"
         )
         assert not any(
             "!.local/.agent/active/README.md" in record.getMessage() for record in audit_warnings
         ), f"shape={shape!r}: repair WARN must not recommend README whitelisting"
     elif shape == "with_gitignore_all":
         assert audit_warnings == [], (
-            f"shape={shape!r}: broad `.gitignore: .local/` rule is expected "
-            f"private state and must emit ZERO WARNs (got "
-            f"{[w.getMessage() for w in audit_warnings]!r})"
+            f"shape={shape!r}: v9.2.3 broad `.local/` rule graduation to "
+            f"v12.2.0 whitelist must emit ZERO WARNs (graduation logs at "
+            f"INFO level only; got {[w.getMessage() for w in audit_warnings]!r})"
         )

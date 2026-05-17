@@ -235,3 +235,170 @@ def test_cliches_catalog_loads_without_error() -> None:
     phrases = _load_phrases()
     assert len(phrases) >= 5
     assert all(p == p.lower() for p in phrases)
+
+
+# ---------------------------------------------------------------------------
+# v12.4.0 PV-04 D-3 — helper-level tests for the ``_collapse_block`` refactor.
+#
+# The PV-04 refactor extracted four helpers from the cc=25 original
+# (see ``.local/research/v12.4.0_gap_analysis.md`` §2 D-3):
+#
+# * ``_classify_block_lines`` — split into intro / bullets / tail
+# * ``_validate_bullet_constraints`` — ≤2 items / no indent / ≤80 chars / non-empty
+# * ``_collapse_no_intro`` — emit when intro is empty
+# * ``_collapse_with_intro`` — emit when intro is present, dispatch on suffix
+#
+# These tests pin per-helper invariants so a future PV that grows a
+# helper's branch space catches the regression at the helper level
+# instead of bubbling up through the orchestrator's fixture tests. Per
+# the v8.3.0 retro §4.6 test-discipline lesson: loop-asserts within
+# single test functions so the cycle stays under the W-17 +30/PV cap.
+# ---------------------------------------------------------------------------
+
+
+def test_classify_block_lines_partitions_and_rejects() -> None:
+    """``_classify_block_lines`` partitions normal blocks and rejects malformed ones.
+
+    Three sub-cases in one fixture: (1) happy path with intro + 2
+    bullets + tail, (2) bullet at different indent within the same
+    block returns None (mis-aligned list), (3) block with no bullets at
+    all returns None.
+    """
+    from devolaflow.writing_style.transforms.bullets import _classify_block_lines
+
+    # (1) Happy path — intro paragraph + 2 bullets + tail.
+    parts = _classify_block_lines(
+        ["Intro paragraph:", "- first item", "- second item", "tail text"]
+    )
+    assert parts is not None
+    assert parts.intro == ["Intro paragraph:"]
+    assert parts.bullets_indent == ""
+    assert parts.bullet_items == ["first item", "second item"]
+    assert parts.tail == ["tail text"]
+
+    # (2) Indent mismatch — second bullet has different indentation; reject.
+    rejected = _classify_block_lines(["- a", "  - b"])
+    assert rejected is None
+
+    # (3) No bullets — nothing to collapse, reject.
+    no_bullets = _classify_block_lines(["just prose", "more prose"])
+    assert no_bullets is None
+
+
+def test_validate_bullet_constraints_accept_and_reject_paths() -> None:
+    """``_validate_bullet_constraints`` enforces the 4 collapse-eligibility rules.
+
+    Five sub-cases: (1) happy path accepts, (2) 3+ items reject,
+    (3) non-empty indent reject (nested list), (4) bullet too long
+    reject, (5) empty bullet reject.
+    """
+    from devolaflow.writing_style.transforms.bullets import (
+        _BlockParts,
+        _validate_bullet_constraints,
+    )
+
+    # (1) Happy path — 1-2 items, no indent, all ≤ 80 chars, non-empty.
+    ok = _BlockParts(intro=[], bullets_indent="", bullet_items=["short item"], tail=[])
+    assert _validate_bullet_constraints(ok) is True
+
+    # (2) > 2 items — real list, reject.
+    too_many = _BlockParts(intro=[], bullets_indent="", bullet_items=["a", "b", "c"], tail=[])
+    assert _validate_bullet_constraints(too_many) is False
+
+    # (3) Non-empty indent — nested or indented list, reject.
+    nested = _BlockParts(intro=[], bullets_indent="  ", bullet_items=["x"], tail=[])
+    assert _validate_bullet_constraints(nested) is False
+
+    # (4) Bullet too long — real list structure, reject.
+    long_item = "x" * 150
+    too_long = _BlockParts(intro=[], bullets_indent="", bullet_items=[long_item], tail=[])
+    assert _validate_bullet_constraints(too_long) is False
+
+    # (5) Empty bullet — author was editing, reject.
+    empty = _BlockParts(intro=[], bullets_indent="", bullet_items=["   "], tail=[])
+    assert _validate_bullet_constraints(empty) is False
+
+
+def test_collapse_no_intro_one_and_two_item_shapes() -> None:
+    """``_collapse_no_intro`` emits the bullet body for 1-item and a merged pair for 2-item."""
+    from devolaflow.writing_style.transforms.bullets import _collapse_no_intro
+
+    # 1-item case — single bullet body becomes a standalone line.
+    out1 = _collapse_no_intro(["use emdash"], ["tail line"])
+    assert out1 == ["use emdash", "tail line"]
+
+    # 2-item case — merged ``"X, and Y"`` continuation.
+    out2 = _collapse_no_intro(["first thing", "second thing"], [])
+    assert out2 == ["first thing, and second thing"]
+
+    # rstrip() applied to each bullet so trailing whitespace is normalised.
+    out3 = _collapse_no_intro(["one   ", "two   "], ["tail"])
+    assert out3 == ["one, and two", "tail"]
+
+
+def test_collapse_with_intro_dispatches_on_suffix_punctuation() -> None:
+    """``_collapse_with_intro`` emits different continuation shapes based on intro suffix.
+
+    Four sub-cases dispatch on the intro's final punctuation:
+    (1) ``:`` → colon-prefix continuation,
+    (2) ``.`` → em-dash continuation with trailing period,
+    (3) ``!`` / ``?`` → space-joined continuation preserving the
+    sentence-final punctuation in the intro_body.
+    Plus the 2-item ``"X, and Y"`` merge interaction.
+    """
+    from devolaflow.writing_style.transforms.bullets import _collapse_with_intro
+
+    intro_paragraphs = ["earlier paragraph", ""]
+
+    # (1) ``:`` suffix — colon-prefix continuation.
+    out_colon = _collapse_with_intro(
+        intro_paragraphs + ["Note this:"], "Note this:", ["use emdash"], ["after"]
+    )
+    assert out_colon == [*intro_paragraphs, "Note this: use emdash", "after"]
+
+    # (2) ``.`` suffix — em-dash continuation with period.
+    out_dot = _collapse_with_intro(
+        intro_paragraphs + ["Note this."], "Note this.", ["use emdash"], []
+    )
+    assert out_dot == [*intro_paragraphs, "Note this \u2014 use emdash."]
+
+    # (3) ``!`` suffix — space-joined continuation preserves the ``!``.
+    out_bang = _collapse_with_intro(intro_paragraphs + ["Look!"], "Look!", ["use emdash"], [])
+    assert out_bang == [*intro_paragraphs, "Look! use emdash"]
+
+    # (4) 2-item merge interaction — colon suffix + merged continuation.
+    out_two = _collapse_with_intro(
+        intro_paragraphs + ["Options:"],
+        "Options:",
+        ["first thing", "second thing"],
+        ["after"],
+    )
+    assert out_two == [*intro_paragraphs, "Options: first thing, and second thing", "after"]
+
+
+def test_classify_then_validate_round_trip_through_collapse_block() -> None:
+    """Composition test — the 4 helpers compose into byte-identical ``_collapse_block`` behaviour.
+
+    Lights up the orchestrator's full pipeline (classify → validate →
+    collapse_no_intro / collapse_with_intro) for a fixture that
+    exercises every helper at least once, mirroring the pre-refactor
+    apply(text, profile) byte-identical guarantee from the
+    ``test_bullets_*`` fixture corpus above.
+    """
+    from devolaflow.writing_style.transforms.bullets import _collapse_block
+
+    # Single-bullet block with ``:`` intro suffix — colon-prefix continuation.
+    out_colon = _collapse_block(["Note this:", "- only item"])
+    assert out_colon == ["Note this: only item"]
+
+    # Two-bullet block with ``.`` intro suffix — em-dash continuation.
+    out_dot = _collapse_block(["Earlier paragraph.", "- first", "- second"])
+    assert out_dot == ["Earlier paragraph \u2014 first, and second."]
+
+    # Pure-bullet block (no intro) — emits the bullet bodies as prose.
+    out_pure = _collapse_block(["- standalone item"])
+    assert out_pure == ["standalone item"]
+
+    # Reject path (3+ bullets) — return input unchanged byte-identically.
+    out_long = _collapse_block(["Three items:", "- a", "- b", "- c"])
+    assert out_long == ["Three items:", "- a", "- b", "- c"]

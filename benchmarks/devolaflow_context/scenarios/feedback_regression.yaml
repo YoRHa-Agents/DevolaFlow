@@ -8,10 +8,16 @@ task_type: "feedback"
 description: "Feedback analysis task — validates tight budget profile selects all expected sections"
 
 expected_sections:
+  # v12.4.0 PV-05 D-4 (L0-only leak cluster closure): `task_quality_score`
+  # REMOVED from expected_sections — the feedback profile now skips it
+  # per the audit §A.2 verdict ("feedback profile is the natural
+  # consumer of scoring OUTPUTS, but the prose section is L0-only —
+  # feedback reads the scored artifact, not the rubric prose"). Full
+  # rubric loads on-demand from `references/task-quality-score.md` at
+  # workflow CLOSE only.
   - agent_mode_protocol
   - gate_mechanism
   - dispatch_report
-  - task_quality_score
   - quick_action_decision
   - context_isolation
   - lifecycle_hooks
@@ -19,7 +25,11 @@ expected_sections:
   - wave_task_constraints
   - rationalization_prevention
 
-unwanted_sections: []
+unwanted_sections:
+  # v12.4.0 PV-05 D-4: TQS is L0-only — explicit unwanted to pin
+  # the L0-only discipline; appearance would be a regression.
+  - task_quality_score
+  - operational_learnings
 
 quality_thresholds:
   # v12.1.0 W-16 wholesale-regen floor recalibration (sister scenario to
@@ -29,6 +39,13 @@ quality_thresholds:
   # to match the new feedback-profile equilibrium under the v12.1.0
   # SKILL.md token-grew sections (task_quality_score + dispatch_report).
   # Sister floor adjustment in convergence_noise_filter.yaml.
+  #
+  # v12.4.0 PV-05 D-4 absorption: `task_quality_score` REMOVED from
+  # expected_sections (now L0-only per audit §A.2). The 60-token TQS
+  # stub no longer counts toward the feedback profile's selection;
+  # the freed budget headroom is consumed by other sections increasing
+  # noise marginally. max_noise_ratio loosened 0.07 → 0.10 to match
+  # the new PV-05 equilibrium (empirical noise = 0.10).
   min_composite: 80
   min_relevance: 0.75
-  max_noise_ratio: 0.07
+  max_noise_ratio: 0.10

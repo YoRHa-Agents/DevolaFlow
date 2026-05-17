@@ -1,0 +1,196 @@
+==============================================================================
+DEVOLAFLOW v9.3.0 PV-01 — cProfile summary (1000-iteration loops)
+==============================================================================
+
+## Wall-clock per harness section
+
+  select_context                                               calls=  200 wall=41.974s  per_call=209871.4us
+  select_context (LRU warm — same args)                        calls=  200 wall=41.891s  per_call=209455.0us
+  compressor.{assert_dispatch_layout,compress_message,validate_lean_format} calls= 3000 wall=4.653s  per_call=1550.9us
+  run_hooks(pre_dispatch)                                      calls= 1000 wall=0.009s  per_call=9.2us
+  full_dispatch_simulation                                     calls=  200 wall=42.686s  per_call=213430.4us
+
+## Top 60 by cumulative time
+
+         385621585 function calls (383410852 primitive calls) in 131.165 seconds
+
+   Ordered by: cumulative time
+   List reduced from 813 to 60 due to restriction <60>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      600    0.020    0.000  125.582    0.209 task_adaptive_selector.py:844(select_context)
+      600    0.002    0.000  121.266    0.202 task_adaptive_selector.py:177(load_profiles)
+      600    0.002    0.000  121.246    0.202 __init__.py:117(safe_load)
+      600    0.371    0.001  121.245    0.202 __init__.py:74(load)
+      600    0.001    0.000  120.823    0.201 constructor.py:47(get_single_data)
+      600    0.002    0.000  115.639    0.193 composer.py:29(get_single_node)
+      600    0.001    0.000  115.362    0.192 composer.py:50(compose_document)
+1942200/600    2.943    0.000  115.357    0.192 composer.py:63(compose_node)
+134400/600    1.142    0.000  115.343    0.192 composer.py:117(compose_mapping_node)
+  5436600    2.086    0.000  106.181    0.000 parser.py:94(check_event)
+ 14529000    6.933    0.000   87.344    0.000 scanner.py:113(check_token)
+  2831400    4.353    0.000   66.415    0.000 scanner.py:156(fetch_more_tokens)
+  1023000    1.245    0.000   49.084    0.000 parser.py:427(parse_block_mapping_key)
+   888600    1.048    0.000   43.889    0.000 parser.py:446(parse_block_mapping_value)
+  1544400    1.148    0.000   27.539    0.000 scanner.py:668(fetch_plain)
+  1544400    7.368    0.000   24.274    0.000 scanner.py:1270(scan_plain)
+  1942200    4.742    0.000   21.501    0.000 parser.py:273(parse_node)
+  1777200    0.639    0.000   20.546    0.000 parser.py:270(parse_block_node_or_indentless_sequence)
+  2831400    7.859    0.000   19.614    0.000 scanner.py:752(scan_to_next_token)
+ 23535000    9.106    0.000   16.811    0.000 scanner.py:145(need_more_tokens)
+ 29547600   13.215    0.000   15.304    0.000 reader.py:99(forward)
+    47400    0.212    0.000   11.112    0.000 composer.py:99(compose_sequence_node)
+  1544400    3.850    0.000    8.878    0.000 scanner.py:1311(scan_plain_spaces)
+   132600    0.173    0.000    7.298    0.000 parser.py:381(parse_block_sequence_entry)
+ 77937000    6.813    0.000    6.961    0.000 reader.py:87(peek)
+ 24570000    6.148    0.000    6.148    0.000 scanner.py:279(stale_possible_simple_keys)
+  4049400    1.725    0.000    5.230    0.000 scanner.py:135(get_token)
+      600    0.049    0.000    5.183    0.009 constructor.py:54(construct_document)
+268800/135000    0.073    0.000    4.766    0.000 constructor.py:410(construct_yaml_map)
+   134400    0.104    0.000    4.660    0.000 constructor.py:215(construct_mapping)
+   202200    0.073    0.000    4.501    0.000 scanner.py:654(fetch_double)
+   888600    2.209    0.000    4.454    0.000 scanner.py:545(fetch_value)
+   202200    0.160    0.000    4.429    0.000 scanner.py:657(fetch_flow_scalar)
+  1760400    1.822    0.000    4.162    0.000 composer.py:88(compose_scalar_node)
+   134400    0.572    0.000    4.149    0.000 constructor.py:132(construct_mapping)
+    12549    0.054    0.000    4.117    0.000 task_adaptive_selector.py:276(estimate_tokens)
+   202200    0.710    0.000    3.934    0.000 scanner.py:1134(scan_flow_scalar)
+  6989400    2.898    0.000    3.806    0.000 reader.py:114(get_mark)
+    12549    0.027    0.000    3.664    0.000 core.py:79(encode)
+    12549    3.596    0.000    3.596    0.000 {method 'encode' of 'builtins.CoreBPE' objects}
+      600    0.015    0.000    3.421    0.006 task_adaptive_selector.py:433(_select_sections_within_budget)
+  1942200    1.348    0.000    3.419    0.000 constructor.py:67(construct_object)
+  4160400    1.631    0.000    3.143    0.000 scanner.py:1416(scan_line_break)
+     1200    0.005    0.000    3.015    0.003 compressor.py:484(compress_message)
+ 30799928    2.686    0.000    2.927    0.000 {built-in method builtins.isinstance}
+    79200    0.122    0.000    2.616    0.000 parser.py:476(parse_flow_sequence_entry)
+    16800    2.595    0.000    2.595    0.000 {method 'findall' of 're.Pattern' objects}
+37480840/37479633    2.568    0.000    2.569    0.000 {built-in method builtins.len}
+     1200    0.008    0.000    2.546    0.002 compressor.py:567(validate_lean_format)
+    13800    0.007    0.000    2.507    0.000 scanner.py:637(fetch_folded)
+    13800    0.016    0.000    2.500    0.000 scanner.py:640(fetch_block_scalar)
+    13800    0.766    0.000    2.480    0.000 scanner.py:976(scan_block_scalar)
+   134400    0.099    0.000    2.454    0.000 parser.py:422(parse_block_mapping_first_key)
+ 21738600    2.335    0.000    2.335    0.000 scanner.py:264(next_possible_simple_key)
+  5736000    1.826    0.000    2.320    0.000 reader.py:94(prefix)
+  1764000    1.289    0.000    2.236    0.000 scanner.py:295(save_possible_simple_key)
+   400800    0.925    0.000    2.124    0.000 scanner.py:1185(scan_flow_scalar_non_spaces)
+  2125200    0.534    0.000    2.007    0.000 scanner.py:125(peek_token)
+  1942200    1.241    0.000    1.929    0.000 resolver.py:143(resolve)
+    30000    0.031    0.000    1.916    0.000 parser.py:376(parse_block_sequence_first_entry)
+
+
+
+## Top 60 by tottime (self time)
+
+         385621585 function calls (383410852 primitive calls) in 131.165 seconds
+
+   Ordered by: internal time
+   List reduced from 813 to 60 due to restriction <60>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+ 29547600   13.215    0.000   15.304    0.000 reader.py:99(forward)
+ 23535000    9.106    0.000   16.811    0.000 scanner.py:145(need_more_tokens)
+  2831400    7.859    0.000   19.614    0.000 scanner.py:752(scan_to_next_token)
+  1544400    7.368    0.000   24.274    0.000 scanner.py:1270(scan_plain)
+ 14529000    6.933    0.000   87.344    0.000 scanner.py:113(check_token)
+ 77937000    6.813    0.000    6.961    0.000 reader.py:87(peek)
+ 24570000    6.148    0.000    6.148    0.000 scanner.py:279(stale_possible_simple_keys)
+  1942200    4.742    0.000   21.501    0.000 parser.py:273(parse_node)
+  2831400    4.353    0.000   66.415    0.000 scanner.py:156(fetch_more_tokens)
+  1544400    3.850    0.000    8.878    0.000 scanner.py:1311(scan_plain_spaces)
+    12549    3.596    0.000    3.596    0.000 {method 'encode' of 'builtins.CoreBPE' objects}
+1942200/600    2.943    0.000  115.357    0.192 composer.py:63(compose_node)
+  6989400    2.898    0.000    3.806    0.000 reader.py:114(get_mark)
+ 30799928    2.686    0.000    2.927    0.000 {built-in method builtins.isinstance}
+    16800    2.595    0.000    2.595    0.000 {method 'findall' of 're.Pattern' objects}
+37480840/37479633    2.568    0.000    2.569    0.000 {built-in method builtins.len}
+ 21738600    2.335    0.000    2.335    0.000 scanner.py:264(next_possible_simple_key)
+   888600    2.209    0.000    4.454    0.000 scanner.py:545(fetch_value)
+  5436600    2.086    0.000  106.181    0.000 parser.py:94(check_event)
+  5736000    1.826    0.000    2.320    0.000 reader.py:94(prefix)
+  1760400    1.822    0.000    4.162    0.000 composer.py:88(compose_scalar_node)
+    16200    1.777    0.000    1.777    0.000 {method 'search' of 're.Pattern' objects}
+  4049400    1.725    0.000    5.230    0.000 scanner.py:135(get_token)
+  4160400    1.631    0.000    3.143    0.000 scanner.py:1416(scan_line_break)
+  1942200    1.348    0.000    3.419    0.000 constructor.py:67(construct_object)
+  1764000    1.289    0.000    2.236    0.000 scanner.py:295(save_possible_simple_key)
+  1023000    1.245    0.000   49.084    0.000 parser.py:427(parse_block_mapping_key)
+  1942200    1.241    0.000    1.929    0.000 resolver.py:143(resolve)
+  9576462    1.228    0.000    1.228    0.000 {method 'append' of 'list' objects}
+  1544400    1.148    0.000   27.539    0.000 scanner.py:668(fetch_plain)
+134400/600    1.142    0.000  115.343    0.192 composer.py:117(compose_mapping_node)
+   888600    1.048    0.000   43.889    0.000 parser.py:446(parse_block_mapping_value)
+  6337864    0.935    0.000    0.935    0.000 {method 'pop' of 'list' objects}
+   400800    0.925    0.000    2.124    0.000 scanner.py:1185(scan_flow_scalar_non_spaces)
+  6989400    0.908    0.000    0.908    0.000 error.py:6(__init__)
+    13800    0.766    0.000    2.480    0.000 scanner.py:976(scan_block_scalar)
+  1760400    0.724    0.000    1.291    0.000 constructor.py:173(construct_scalar)
+   202200    0.710    0.000    3.934    0.000 scanner.py:1134(scan_flow_scalar)
+  1777200    0.639    0.000   20.546    0.000 parser.py:270(parse_block_node_or_indentless_sequence)
+   134400    0.572    0.000    4.149    0.000 constructor.py:132(construct_mapping)
+    11260    0.558    0.000    0.558    0.000 {method 'splitlines' of 'str' objects}
+  2125200    0.534    0.000    2.007    0.000 scanner.py:125(peek_token)
+  2832000    0.522    0.000    0.686    0.000 scanner.py:325(unwind_indent)
+  3189511    0.440    0.000    0.440    0.000 {method 'get' of 'dict' objects}
+  1544400    0.434    0.000    0.573    0.000 scanner.py:731(check_plain)
+  2909070    0.416    0.000    0.416    0.000 {method 'extend' of 'list' objects}
+  1252053    0.416    0.000    0.416    0.000 {method 'match' of 're.Pattern' objects}
+      600    0.371    0.001  121.245    0.202 __init__.py:74(load)
+  2288400    0.334    0.000    0.334    0.000 tokens.py:3(__init__)
+  1760400    0.326    0.000    0.429    0.000 constructor.py:117(construct_scalar)
+   134400    0.316    0.000    0.398    0.000 constructor.py:180(flatten_mapping)
+  1760400    0.305    0.000    0.305    0.000 tokens.py:98(__init__)
+  1552800    0.292    0.000    1.429    0.000 constructor.py:402(construct_yaml_str)
+1779446/1779444    0.278    0.000    0.279    0.000 {method 'join' of 'str' objects}
+  2126400    0.278    0.000    0.284    0.000 parser.py:114(get_event)
+   888600    0.267    0.000    0.345    0.000 scanner.py:721(check_value)
+  1942200    0.249    0.000    0.249    0.000 resolver.py:91(descend_resolver)
+  1942200    0.239    0.000    0.239    0.000 resolver.py:114(ascend_resolver)
+  1760400    0.238    0.000    0.238    0.000 events.py:65(__init__)
+   198600    0.235    0.000    0.470    0.000 scanner.py:1228(scan_flow_scalar_spaces)
+
+
+
+## Top 30 callers of compress_message / select_context / assert_dispatch_layout / run_hooks
+
+
+--- callers of compress_message ---
+   Ordered by: internal time
+   List reduced from 813 to 1 due to restriction <'compress_message'>
+
+Function                             was called by...
+                                         ncalls  tottime  cumtime
+compressor.py:484(compress_message)  <- 
+
+
+
+--- callers of select_context ---
+   Ordered by: internal time
+   List reduced from 813 to 1 due to restriction <'select_context'>
+
+Function                                       was called by...
+                                                   ncalls  tottime  cumtime
+task_adaptive_selector.py:844(select_context)  <- 
+
+
+
+--- callers of assert_dispatch_layout ---
+   Ordered by: internal time
+   List reduced from 813 to 1 due to restriction <'assert_dispatch_layout'>
+
+Function                                   was called by...
+                                               ncalls  tottime  cumtime
+compressor.py:812(assert_dispatch_layout)  <- 
+
+
+
+--- callers of run_hooks ---
+   Ordered by: internal time
+   List reduced from 813 to 1 due to restriction <'run_hooks'>
+
+Function                      was called by...
+                                  ncalls  tottime  cumtime
+dispatcher.py:195(run_hooks)  <- 
+
+

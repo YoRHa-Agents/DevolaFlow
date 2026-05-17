@@ -816,3 +816,52 @@ layer of the dispatcher.
 **Source**: v9.7.0 PV-03 spec — closes D-N-3 (AsyncDispatchExecutor
 library-only carry-forward) from `.local/research/v9.7.0_gap_analysis.md`
 §1.2.
+
+## 14. Per-Task-Type Timeout Defaults Helper (v12.2.0 PV-04+ / surfaced v12.3.0 PV-04)
+
+The v12.2.0 PV-04 cycle shipped `devolaflow.task_adaptive_selector.default_timeout_for(task_type)`
++ the `TASK_TYPE_TIMEOUT_DEFAULTS` 5-entry dict per the SKILL.md
+§"Subagent Hang Prevention" L0 contract (`research=2700` / `impl=1800` /
+`test=900` / `review=1200` / `hotfix=600`; fallback `7200`s). Per the
+v9.3.0 PV-05 library-only landing discipline (`src/devolaflow/agent_workspace/dispatch_executor.py`
+docstring §"Library-only landing"), the helper does NOT auto-populate
+into `select_context()` dispatch payloads — the integration is OPT-IN
+by call-site.
+
+**Operator call-site recipe** (when constructing TaskDispatch for a
+parallel L2 wave):
+
+```python
+from devolaflow.agent_workspace.dispatch_executor import AsyncDispatchExecutor
+from devolaflow.task_adaptive_selector import default_timeout_for
+
+tasks = [
+    ("task-1-research", research_callable),
+    ("task-2-impl", impl_callable),
+    ("task-3-test", test_callable),
+]
+timeouts = {
+    "task-1-research": default_timeout_for("research"),  # 2700s
+    "task-2-impl": default_timeout_for("impl"),          # 1800s
+    "task-3-test": default_timeout_for("test"),          # 900s
+}
+executor = AsyncDispatchExecutor(max_concurrency=3)
+outcomes = executor.dispatch_parallel(tasks, timeouts=timeouts)
+```
+
+Tasks absent from the `timeouts` dict run unbounded — preserves v9.3.0
+byte-identical behaviour for every caller that does NOT pass the kwarg.
+On breach the per-task `TaskOutcome.exception` is `asyncio.TimeoutError`
+per S-5 (explicit error state); the wave does NOT short-circuit (other
+tasks continue per CO-1 / W-8).
+
+**Pickup discovery hint surfaced in v12.3.0 PV-04**: this section
+exists so operators reading `references/execution-protocol.md` discover
+the helper WITHOUT grepping `src/devolaflow/`. The strict-graduation
+("auto-populate timeouts in select_context") is telegraphed for
+v13.0.0+ per W-21 2-cycle deliberation cadence; v12.3.0 ships the
+discovery surface only.
+
+**Source**: v12.2.0 PV-04 spec (`.local/research/v12.2.0_gap_analysis.md`
+§2 D-4) + v12.3.0 PV-04 discovery-hint surface
+(`.local/research/v12.3.0_gap_analysis.md` §2 D-3).

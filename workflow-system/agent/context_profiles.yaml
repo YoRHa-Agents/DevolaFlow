@@ -138,27 +138,58 @@ meta:
   # automatically receives the line-level criteria injection. The
   # ``function`` and ``module`` tier paths produce dispatch output
   # byte-identical to v8.0.0-p08 (R5 backward-compat discipline).
+  #
+  # v12.2.0 PV-03 — Mnimiy 3-rule extension. Per
+  # `.local/research/v12.2.0_gap_analysis.md` §2 D-2 the Mnimiy May-2026
+  # X article surfaces 3 failure modes not covered by the v8.0.0 P-08
+  # Karpathy 4-rule baseline:
+  #   * no_llm_for_deterministic (BG-005, warn) — deterministic decisions
+  #     belong in deterministic code, not in LLM prompts
+  #   * surface_conflicts (BG-006, major) — surface codebase pattern
+  #     disagreement instead of averaging both patterns
+  #   * convention_first (BG-007, major) — match existing pattern even
+  #     when a "better" pattern exists in established codebases
+  # Tier rollout:
+  #   * trivial — all 3 OFF (one-liner edits don't benefit from the audit)
+  #   * simple — convention_first ON (1-3 file scope; pattern hygiene matters)
+  #   * standard — all 3 ON (3-10 file scope; cross-file consistency matters)
+  #   * complex — all 3 ON (10+ files; full audit)
+  # NEST-not-APPEND per A-2.3: the 3 new fields land as sub-keys on the
+  # existing `behavioral_guidelines` dispatch block — canonical_order
+  # length stays at 17 and schema version stays at 6.
   behavioral_guidelines_defaults:
     trivial:
       think_first: false
       simplicity_check: false
       surgical_scope: line
       goal_loop: false
+      no_llm_for_deterministic: false
+      surface_conflicts: false
+      convention_first: false
     simple:
       think_first: true
       simplicity_check: false
       surgical_scope: function
       goal_loop: false
+      no_llm_for_deterministic: false
+      surface_conflicts: false
+      convention_first: true
     standard:
       think_first: true
       simplicity_check: true
       surgical_scope: function
       goal_loop: false
+      no_llm_for_deterministic: true
+      surface_conflicts: true
+      convention_first: true
     complex:
       think_first: true
       simplicity_check: true
       surgical_scope: module
       goal_loop: true
+      no_llm_for_deterministic: true
+      surface_conflicts: true
+      convention_first: true
 
   # v8.0.0 (P-10) — Automatic acceptance-criteria generation defaults.
   # Profiles that omit their own ``ac_generation`` block fall back to
@@ -455,159 +486,169 @@ sections:
     tokens_est: 231
     content_type: metadata
 
+  # v12.3.0 PV-02 re-anchor — Session Banner Contract subsection added
+  # at SKILL.md lines 40-48 (NEW §### "Session Banner Contract (v12.3.0+)"
+  # nested under §"Version & Update"), expanding version_update range
+  # by +9 lines (was 36-41 in v12.2.0; now 36-50). The Note (v9.2.2+)
+  # paragraph that previously sat at line 40 is now at line 50.
+  # v12.4.0 PV-05 (D-4) — L0-only contract: §"Version & Update" carries
+  # the v12.3.0 PV-02 Session Banner Contract subsection (operator-
+  # facing chat banner literals). Only `self_update` profile legitimately
+  # needs this section (its whole purpose is bumping version). Every
+  # other profile MUST mark `version_update: skip`. Per the audit at
+  # `.local/research/v12.4.0_l0_only_audit.md` §A.1 verdict, all 23
+  # subagent profiles already correctly carry `skip`; this comment
+  # re-affirms the discipline for future profile authors.
   version_update:
-    lines: "36-41"
-    tokens_est: 109
+    lines: "36-50"
+    tokens_est: 232
     content_type: prose
 
+  # v12.3.0 PV-02/04 re-anchor — Wave shift: SKILL.md grew from 482 to
+  # 485 lines across PV-02 (+12 Session Banner) + PV-03 (-22 Task
+  # Quality Score collapse) + PV-04 (+1 working-tree sanity check
+  # paragraph + +1 Reference Navigation row). Section line ranges
+  # below were re-derived from `grep -nE '^(#{2,3} )'` against the
+  # post-v12.3.0 SKILL.md (485 lines). Cumulative shifts vs v11.4.0:
+  #   * lines 1-38   : +0 (no shift; preserves §"Version & Update")
+  #   * lines 39-167 : +12 (Session Banner Contract paragraph push)
+  #   * lines 168-180: +12 (no PV-04 shift — repo-init paragraph was
+  #     inline in §"Repo-Init Pre-Dispatch Contract", same § header)
+  #   * lines 181-449: +12 (PV-04 working-tree paragraph inline)
+  #   * lines 450+   : -10 (Task Quality Score collapse 25 → 3 lines +
+  #     PV-04 nav row +1 - prior PV-02 + 12 = net -10)
   workspace_engagement:
-    lines: "42-57"
+    lines: "52-67"
     tokens_est: 240
     content_type: table
 
   quick_action_decision:
-    lines: "58-67"
+    lines: "68-78"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "69-76"
+    lines: "79-87"
     tokens_est: 91
     content_type: prose
 
-  # v11.3.0 PV-W4.T7 re-anchor — Wave 1+2 SKILL.md edits added 8 net
-  # lines (467 → 475) across 4 hunks (detection priority + GRILL MODE +
-  # grill-driven row + 2 Tier-2 nav rows).
-  # v11.4.0 W3.T5 re-anchor — Wave 1+2 added 3 net lines (475 → 478)
-  # across 2 hunks: a 2-line subagent-pattern paragraph inside §"Wave
-  # Coordination Modes" (insertion at v11.3.0 line 218; v11.4.0 lines
-  # 218-219), and 1 new Tier-2 nav row for `subagent-patterns.md`
-  # (insertion inside §"Reference Navigation Guide" at v11.3.0 line 399;
-  # v11.4.0 line 401). Cumulative shifts vs v11.3.0 baseline:
-  #   * lines 1-217  : +0 (no shift; preserves §"Wave Coordination Modes"
-  #     start at line 201 + body up to line 217)
-  #   * lines 218-398: +2 (the Wave Coordination paragraph push only)
-  #   * lines 399+   : +3 (Wave Coordination paragraph push +
-  #     Reference Navigation row push)
-  # Line ranges below were re-derived from `grep -nE '^(#{2,3} )'`
-  # against the post-Wave-1+2 SKILL.md (478 lines). The convergence_loop
-  # legacy range moves to ### Reinforcement Rules at lines 288-289 (was
-  # 286-287 in v11.3.0; +2 shift).
   plan_mode_template:
-    lines: "78-80"
+    lines: "88-91"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "82-107"
+    lines: "92-118"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "113-141"
+    lines: "123-152"
     tokens_est: 612
     content_type: table
 
-  # PV-W4.T7 boundary note: hierarchy_table + wave_task_constraints
-  # intentionally STOP at line 185 (the trailing blank) and exclude the
-  # v11.1.0 "**Cascade requirement (v11.1.0):**" paragraph at line 186.
-  # The OLD v11.1.3 ranges (165-179 / 175-179) used the same 15-line /
-  # 5-line content envelope — preserving that shape keeps the
-  # `feedback` profile budget pressure (tight 2475-token cap) within
-  # the same equilibrium it shipped under v11.1.3 GREEN. Cascade
-  # requirement content is independently surfaced via SKILL.md "## Quick
-  # Action Decision" §"Rule" line + the `cascade_requirement()` API in
-  # `references/plan-mode-enforcement.md` §3.2 — no information loss
-  # from omitting line 186 here.
+  # PV-W4.T7 boundary note (preserved verbatim from v11.4.0 PV-W4.T7):
+  # hierarchy_table + wave_task_constraints intentionally STOP at the
+  # trailing blank before the "**Cascade requirement (v11.1.0):**"
+  # paragraph. The OLD v11.1.3 ranges (165-179 / 175-179) used the same
+  # 15-line / 5-line content envelope — preserving that shape keeps
+  # the `feedback` profile budget pressure (tight 2475-token cap)
+  # within the v11.1.3 GREEN equilibrium. v12.3.0 PV-02/04 shift adds
+  # +12 to these anchors but the envelope width is preserved.
   hierarchy_table:
-    lines: "171-185"
+    lines: "183-197"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "171-185"
+    lines: "183-197"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "181-185"
+    lines: "193-197"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "188-199"
+    lines: "200-211"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "201-216"
+    lines: "213-230"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "220-268"
+    lines: "232-280"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "270-286"
+    lines: "282-298"
     tokens_est: 229
     content_type: formula
 
   agent_teams:
-    lines: "291-301"
+    lines: "303-313"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "303-320"
+    lines: "315-332"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "337-369"
+    lines: "349-381"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "371-381"
+    lines: "383-393"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "383-392"
+    lines: "395-404"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "394-436"
+    lines: "406-449"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "394-436"
+    lines: "406-449"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "288-289"
+    lines: "300-302"
     tokens_est: 100
     content_type: spec
 
-  # PV-W4.T7 + v11.4.0 W3.T5 boundary note: task_quality_score STOPS at
-  # line 473 (the closing ``` fence of the example output block; was
-  # line 470 in v11.3.0; +3 shift) and excludes the `**Rules**:`
-  # paragraph at line 475. The OLD v11.1.3 range (438-462) used the
-  # same envelope — section + closing fence, no Rules. Preserving the
-  # OLD envelope keeps the `feedback` profile budget pressure within
-  # the v11.1.3 GREEN equilibrium.
+  # v12.3.0 PV-03 — section body extracted to
+  # workflow-system/agent/references/task-quality-score.md so the
+  # ~120-token scoring rubric loads only at workflow CLOSE (per
+  # `.local/feedbacks/feedback_for_v12.1.1.md` #2 closure). The
+  # remaining SKILL.md stub is 1 paragraph (~5 lines / ~60 tokens)
+  # that preserves the v12.1.0 D-1 literal pins (`L0 ONLY` +
+  # `Subagents MUST NOT`) so the W-18 v12.1.0 stanza stays GREEN.
+  # v12.4.0 PV-05 (D-4 L0-only leak cluster) — TQS is L0-only;
+  # subagent profiles MUST mark this `skip`. See per-profile audit at
+  # `.local/research/v12.4.0_l0_only_audit.md` §A.2 — 14 profiles
+  # demoted from supplementary/important/critical → skip; only L0-only
+  # workflows consume this stub.
   task_quality_score:
-    lines: "467-489"
-    tokens_est: 288
+    lines: "480-482"
+    tokens_est: 60
     content_type: spec
 
   template_quick_ref:
-    lines: "438-465"
+    lines: "451-478"
     tokens_est: 188
     content_type: table
 
@@ -615,6 +656,24 @@ sections:
     lines: "N/A"
     tokens_est: 150
     content_type: integration
+
+  # v12.4.0 PV-05 (D-4) — explicit registration of the §"Operational
+  # Learnings" section so the runtime stops emitting per-profile
+  # DeprecationWarning on first lookup (S-5 silent-fallback cleanup
+  # per `.local/research/v12.4.0_l0_only_audit.md` §A.3 verdict). The
+  # section content (pin_learning_for_session / consolidate_session /
+  # decay_confidence API literals) is L0-only — only L0 mutates the
+  # operational.jsonl substrate. L1/L2/L3 only LOAD learnings via
+  # `load_relevant_learnings`; they don't see the API-prose section.
+  # Default priority below documents the L0-only contract; 23 profiles
+  # carry an explicit `operational_learnings: skip` row per the audit
+  # to make the discipline explicit at the YAML surface (was: 1 — only
+  # `repo-init` had the explicit row pre-PV-05).
+  operational_learnings:
+    lines: "484-486"
+    tokens_est: 150
+    content_type: prose
+    priority_default: skip
 
 # Context profiles per task type
 profiles:
@@ -659,6 +718,7 @@ profiles:
       rules_dispatchers: important
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -717,7 +777,8 @@ profiles:
       reference_navigation: important
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -820,6 +881,7 @@ profiles:
       rules_dispatchers: supplementary
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: critical
     learnings:
@@ -878,7 +940,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -969,7 +1032,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: important
       convergence_loop: supplementary
-      task_quality_score: important
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was important
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: skip
     learnings:
@@ -1024,7 +1088,8 @@ profiles:
       reference_navigation: important
       rules_dispatchers: supplementary
       convergence_loop: skip
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1092,7 +1157,8 @@ profiles:
       reference_navigation: skip
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: critical
     learnings:
@@ -1166,7 +1232,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1251,7 +1318,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1335,7 +1403,8 @@ profiles:
       reference_navigation: important
       rules_dispatchers: supplementary
       convergence_loop: skip
-      task_quality_score: critical
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was critical (historical; v12.3.0 PV-03 collapsed body but profile config wasn't updated)
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1393,6 +1462,7 @@ profiles:
       rules_dispatchers: supplementary
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1446,7 +1516,8 @@ profiles:
       reference_navigation: important
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1501,7 +1572,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: supplementary
       convergence_loop: supplementary
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1557,7 +1629,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1629,6 +1702,7 @@ profiles:
       rules_dispatchers: supplementary
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1682,7 +1756,8 @@ profiles:
       reference_navigation: important
       rules_dispatchers: supplementary
       convergence_loop: skip
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1739,6 +1814,7 @@ profiles:
       rules_dispatchers: important
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — self_update consumes operational.jsonl substrate via `learnings:` block below; NOT the SKILL.md §"Operational Learnings" prose
       template_quick_ref: skip
       nines_advisor: important
     learnings:
@@ -1800,7 +1876,8 @@ profiles:
       reference_navigation: supplementary
       rules_dispatchers: supplementary
       convergence_loop: supplementary
-      task_quality_score: critical
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was critical (feedback profile consumes the SCORED artifact, not the rubric prose; load `references/task-quality-score.md` on-demand if needed)
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — feedback consumes operational.jsonl via `learnings:` block below; NOT the SKILL.md prose
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:
@@ -1830,6 +1907,7 @@ profiles:
       default: balanced
       code_heavy: quality
     section_priorities:
+      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
       quick_action_decision: skip
       mode_detection: skip
       quick_start_workflows: skip
@@ -1844,6 +1922,7 @@ profiles:
       lifecycle_hooks: supplementary
       repo_mode: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       reference_navigation: skip
     rationale: "Visual testing requires understanding gate scoring with visual_fidelity dimension, convergence for iterative visual fixes, and dispatch for reporting screenshot results."
 
@@ -1859,6 +1938,7 @@ profiles:
       default: balanced
       code_heavy: quality
     section_priorities:
+      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
       quick_action_decision: skip
       mode_detection: skip
       quick_start_workflows: skip
@@ -1873,6 +1953,7 @@ profiles:
       lifecycle_hooks: supplementary
       repo_mode: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       reference_navigation: skip
     behavioral_guidelines:               # v8.0.0 P-08: simple tier (test-only edits, narrow scope)
       tier: simple
@@ -1893,6 +1974,7 @@ profiles:
       default: balanced
       code_heavy: quality
     section_priorities:
+      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
       quick_action_decision: skip
       mode_detection: skip
       quick_start_workflows: skip
@@ -1907,6 +1989,7 @@ profiles:
       lifecycle_hooks: supplementary
       repo_mode: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       reference_navigation: skip
     rationale: "Interaction testing needs gate scoring (interaction_quality dimension), convergence for fixing failing flows, and accessibility compliance evaluation."
 
@@ -1950,6 +2033,7 @@ profiles:
       default: quality
       code_heavy: quality
     section_priorities:
+      version_update: skip  # v12.4.0 PV-05 D-4 — L0-only; was implicit-skip (made explicit per audit §A.1)
       quick_action_decision: important
       mode_detection: skip
       quick_start_workflows: important
@@ -1963,7 +2047,8 @@ profiles:
       dispatch_report: critical
       lifecycle_hooks: supplementary
       repo_mode: skip
-      task_quality_score: supplementary
+      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       reference_navigation: supplementary
     extra_context:
       - "references/team-roles.md"
@@ -2017,6 +2102,7 @@ profiles:
       rules_dispatchers: skip
       convergence_loop: skip
       task_quality_score: skip
+      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
       template_quick_ref: skip
       nines_advisor: supplementary
     learnings:

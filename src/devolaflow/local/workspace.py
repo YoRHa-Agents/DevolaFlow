@@ -261,28 +261,38 @@ def generate_dir_readme(dir_path: Path, dir_name: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# v9.2.3 PV-02 + private .local repair — .gitignore coverage audit.
+# v12.2.0 PV-02 — selective `.local/` whitelist + repair surface.
 # ---------------------------------------------------------------------------
 #
-# ``.local/`` is now private runtime/planning state. ``scaffold_local(cwd)``
-# first ensures the repo root ``.gitignore`` contains broad ``.local/``
-# coverage, repairing the legacy tracked-subtree whitelist block when present.
-# The follow-up audit remains advisory for narrow, hand-authored ignore rules
-# that survive when the repair step cannot run.
+# Closes the v12.1.0 feedback `.local/feedbacks/feedback_for_v12.1.0.md`:
+# "everything under .local/ except necessary git-repo / team-collaboration
+# content should be properly ignored". The whitelist allows two team-collab
+# subdirectories to be tracked under git while keeping everything else private:
+#
+#   * `.local/memory/specs/`  — A-4 source-of-truth contracts (per the
+#                               M-004 ADR; mutated only at archive time
+#                               after the change-gate composite score
+#                               passes).
+#   * `.local/research/`      — W-1/SI-1 gap analyses + W-7/SI-8 retros +
+#                               ADRs + design docs cited by per-cycle
+#                               retrospectives + W-19 archive sources.
+#
+# Supersedes the v9.2.3 PV-02 broad `.local/` ignore (which over-corrected
+# the legacy whitelist by hiding every team-collab subdir). The repair
+# surface idempotently graduates both pre-v9.2.3 whitelists AND the v9.2.3
+# broad rule to the v12.2.0 whitelist block.
 #
 # Design constraints (S-5 strict):
-# - Zero ``raise`` paths. Failures (unreadable .gitignore, permission
+# - Zero `raise` paths. Failures (unreadable .gitignore, permission
 #   error, malformed UTF-8) log a WARNING and short-circuit to the
-#   "no rules" branch — the audit is advisory; it MUST NOT block the
+#   "no rules" branch — the helper is advisory; it MUST NOT block the
 #   scaffold.
-# - Negation rules (``!pattern``) are intentionally skipped — the audit
-#   only needs to detect positive ignore coverage.
 # - The most-recent audit result is cached at module level so callers
 #   that need programmatic access (test fixtures, CI hooks, the
-#   forthcoming v9.3.0 ``devola-init doctor`` surface) can read it
-#   without re-walking the disk via :func:`last_gitignore_audit`.
+#   `devola-init doctor` surface) can read it without re-walking the
+#   disk via :func:`last_gitignore_audit`.
 #
-# Source: v9.2.3 PV-02 dispatch + private .local repo-init hotfix.
+# Source: v12.2.0 PV-02 dispatch + `.local/feedbacks/feedback_for_v12.1.0.md`.
 
 VALID_GITIGNORE_AUDIT_REASON: tuple[str, ...] = (
     "directory_ignore_rule",
@@ -291,7 +301,47 @@ VALID_GITIGNORE_AUDIT_REASON: tuple[str, ...] = (
 
 _LAST_GITIGNORE_AUDIT: list[Path] = []
 
-_LOCAL_GITIGNORE_RULE = ".local/"
+# v12.2.0 whitelist block — single canonical multi-line block written by
+# `ensure_local_gitignore`. The three positive rules in
+# `_LOCAL_WHITELIST_REQUIRED_RULES` are the detection key (presence of all
+# three indicates the block is active and no repair is needed).
+_LOCAL_WHITELIST_BLOCK_LINES: tuple[str, ...] = (
+    "# DevolaFlow local workspace (whitelist team-collab subdirs; everything else private)",
+    "# Per feedback_for_v12.1.0.md — narrow whitelist replaces v9.2.3 broad ignore.",
+    "# Team-tracked: .local/memory/specs/ (A-4) + .local/research/ (W-7/W-19 artifacts).",
+    ".local/*",
+    "!.local/.gitignore",
+    "!.local/memory/",
+    ".local/memory/*",
+    "!.local/memory/specs/",
+    "!.local/memory/specs/**",
+    "!.local/research/",
+    "!.local/research/**",
+)
+
+_LOCAL_WHITELIST_REQUIRED_RULES: frozenset[str] = frozenset(
+    {
+        ".local/*",
+        "!.local/memory/specs/",
+        "!.local/research/",
+    }
+)
+
+# Banner comments that introduced the v9.2.3 / pre-v12.2.0 ignore blocks.
+# Stripped during repair so the v12.2.0 block lands cleanly without
+# orphaned headers.
+_OLD_LOCAL_BANNER_COMMENTS: frozenset[str] = frozenset(
+    {
+        "# DevolaFlow local workspace (private)",
+        "# DevolaFlow private workspace state",
+    }
+)
+
+# v9.2.3 PV-02 broad rule — superseded by the v12.2.0 whitelist.
+_V92_LOCAL_BROAD_RULE: str = ".local/"
+
+# Legacy whitelist set (pre-v9.2.3). The v12.2.0 repair path strips each
+# of these so the new block is the single source-of-truth in the file.
 _OLD_LOCAL_WHITELIST_RULES: frozenset[str] = frozenset(
     {
         ".local/*",
@@ -310,6 +360,13 @@ _OLD_LOCAL_WHITELIST_RULES: frozenset[str] = frozenset(
     }
 )
 
+# Union of every rule the v12.2.0 repair path KNOWS how to graduate
+# (legacy whitelist + v9.2.3 broad). Detection helpers iterate over this
+# set; rules outside it are left alone (hand-authored ignores survive).
+_SUPERSEDED_LOCAL_RULES: frozenset[str] = _OLD_LOCAL_WHITELIST_RULES | frozenset(
+    {_V92_LOCAL_BROAD_RULE}
+)
+
 
 def _parse_gitignore_rules(text: str) -> list[str]:
     """Return non-comment non-empty rules from a ``.gitignore`` text blob."""
@@ -320,33 +377,64 @@ def _parse_gitignore_rules(text: str) -> list[str]:
     ]
 
 
+def _has_correct_local_whitelist(rules: list[str]) -> bool:
+    """Return True iff parsed ``rules`` already contain the v12.2.0 whitelist.
+
+    Detection key: the 3 positive rules in
+    :data:`_LOCAL_WHITELIST_REQUIRED_RULES` must all be present. Presence
+    of any 1 or 2 (but not all 3) is treated as a partial/legacy state
+    and triggers the repair path.
+    """
+    rule_set = set(rules)
+    return _LOCAL_WHITELIST_REQUIRED_RULES.issubset(rule_set)
+
+
 def _is_broad_local_ignore_rule(rule: str) -> bool:
-    """Return True when ``rule`` ignores the root ``.local/`` tree."""
+    """Return True when ``rule`` is the v9.2.3 broad ``.local/`` rule.
+
+    Preserved as a public helper for the audit-suppression branch in
+    :func:`_audit_gitignore_coverage` and for the v9.2.3 W-18 ghost-audit
+    pin in ``tests/test_no_ghost_features.py``. The v12.2.0 PV-02 repair
+    path no longer relies on this helper directly — :func:`ensure_local_gitignore`
+    walks :data:`_SUPERSEDED_LOCAL_RULES` instead.
+    """
     if rule.startswith("!"):
         return False
     return rule.lstrip("/").rstrip("/") == ".local"
 
 
 def _narrow_local_ignore_rules(rules: list[str]) -> list[str]:
-    """Return .local-scoped ignores that are narrower than ``.local/``."""
+    """Return ``.local``-scoped ignores narrower than the v12.2.0 whitelist.
+
+    Used by :func:`ensure_local_gitignore` to surface hand-authored narrow
+    rules (e.g. ``.local/.agent/active/``) so the operator sees a WARN
+    pointing at the surviving rule when the v12.2.0 whitelist is appended
+    alongside (rather than replacing) the narrow rule.
+    """
     narrow: list[str] = []
     for rule in rules:
         if rule.startswith("!"):
             continue
-        cleaned = rule.lstrip("/")
-        if _is_broad_local_ignore_rule(rule):
+        if rule in _SUPERSEDED_LOCAL_RULES:
             continue
+        cleaned = rule.lstrip("/")
         if cleaned.startswith(".local/"):
             narrow.append(rule)
     return narrow
 
 
 def ensure_local_gitignore(cwd: str | Path) -> bool:
-    """Ensure consumer repos keep ``.local/`` private.
+    """Ensure consumer repos keep ``.local/`` private with v12.2.0 whitelist.
+
+    Idempotent: returns ``False`` (no write) when the v12.2.0 whitelist
+    block is already present. Otherwise strips superseded rules (the
+    v9.2.3 broad ``.local/`` + legacy pre-v9.2.3 whitelist entries) AND
+    their orphaned banner comments, then appends the v12.2.0 whitelist
+    block.
 
     The helper is intentionally advisory for read/write failures: normal
-    scaffold flows should still create the workspace, but failures are logged
-    as explicit states rather than being silently ignored.
+    scaffold flows still create the workspace, but failures log an explicit
+    WARNING per S-5 (no silent failures).
 
     Returns:
         True when ``.gitignore`` was created or changed, False otherwise.
@@ -359,7 +447,7 @@ def ensure_local_gitignore(cwd: str | Path) -> bool:
             text = gi.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
             _LOGGER.warning(
-                "scaffold_local: could not read %s: %s; unable to ensure .local/ is ignored",
+                "scaffold_local: could not read %s: %s; unable to ensure .local/ whitelist",
                 gi,
                 exc,
             )
@@ -369,61 +457,58 @@ def ensure_local_gitignore(cwd: str | Path) -> bool:
 
     lines = text.splitlines()
     rules = _parse_gitignore_rules(text)
-    has_broad_local_ignore = any(_is_broad_local_ignore_rule(rule) for rule in rules)
+
+    if _has_correct_local_whitelist(rules):
+        return False
+
     has_old_whitelist = any(rule in _OLD_LOCAL_WHITELIST_RULES for rule in rules)
+    has_v92_broad = any(_is_broad_local_ignore_rule(rule) for rule in rules)
 
     new_lines: list[str] = []
-    inserted_local_rule = False
-    changed = False
 
     for line in lines:
         stripped = line.strip()
-        if stripped in _OLD_LOCAL_WHITELIST_RULES:
-            changed = True
-            if (
-                not has_broad_local_ignore
-                and not inserted_local_rule
-                and not stripped.startswith("!")
-            ):
-                new_lines.append(_LOCAL_GITIGNORE_RULE)
-                inserted_local_rule = True
+        if stripped in _SUPERSEDED_LOCAL_RULES:
+            continue
+        if stripped in _OLD_LOCAL_BANNER_COMMENTS:
             continue
         new_lines.append(line)
 
     if has_old_whitelist:
         _LOGGER.info(
-            "scaffold_local: repaired legacy .local gitignore whitelist rules in %s",
+            "scaffold_local: repaired legacy .local gitignore whitelist rules in %s "
+            "(graduated to v12.2.0 selective whitelist)",
+            gi,
+        )
+    if has_v92_broad:
+        _LOGGER.info(
+            "scaffold_local: repaired v9.2.3 broad .local/ rule in %s "
+            "(graduated to v12.2.0 selective whitelist; "
+            ".local/memory/specs/ + .local/research/ now tracked by default)",
             gi,
         )
 
-    if not has_broad_local_ignore and not inserted_local_rule:
-        narrow_rules = _narrow_local_ignore_rules(rules)
-        if narrow_rules:
-            _LOGGER.warning(
-                "scaffold_local: %s has narrow .local ignore rule(s) %s; "
-                "adding `.local/` so DevolaFlow workspace state stays private.",
-                gi,
-                ", ".join(narrow_rules),
-            )
-        if new_lines and new_lines[-1].strip():
-            new_lines.append("")
-        new_lines.extend(
-            [
-                "# DevolaFlow local workspace (private)",
-                _LOCAL_GITIGNORE_RULE,
-            ]
+    surviving_rules = _parse_gitignore_rules("\n".join(new_lines))
+    narrow_rules = _narrow_local_ignore_rules(surviving_rules)
+    if narrow_rules:
+        _LOGGER.warning(
+            "scaffold_local: %s has narrow .local ignore rule(s) %s surviving alongside the "
+            "v12.2.0 whitelist; adding `.local/*` block — review the narrow rule if it "
+            "intentionally hides files the whitelist would otherwise track.",
+            gi,
+            ", ".join(narrow_rules),
         )
-        changed = True
 
-    if not changed:
-        return False
+    if new_lines and new_lines[-1].strip():
+        new_lines.append("")
+    new_lines.extend(_LOCAL_WHITELIST_BLOCK_LINES)
 
     new_text = "\n".join(new_lines).rstrip() + "\n"
     try:
         gi.write_text(new_text, encoding="utf-8")
     except OSError as exc:
         _LOGGER.warning(
-            "scaffold_local: could not write %s: %s; unable to ensure .local/ is ignored",
+            "scaffold_local: could not write %s: %s; unable to ensure .local/ whitelist",
             gi,
             exc,
         )
@@ -504,10 +589,14 @@ def _path_matches_gitignore(rel_posix: str, rules: list[str]) -> bool:
 def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
     """Return the subset of ``created`` covered by an existing gitignore rule.
 
-    Side effect — emits one WARNING log per match enumerating:
+    Side effect — emits one WARNING log per match enumerating the ignored
+    path (repo-relative POSIX). The audit is intentionally suppressed when
+    the repo root already carries either:
 
-    1. the ignored path (repo-relative POSIX)
-    2. the broad ``.local/`` rule that keeps DevolaFlow workspace state private
+    1. the v12.2.0 selective whitelist block (the canonical state after
+       :func:`ensure_local_gitignore` runs), OR
+    2. the legacy v9.2.3 broad ``.local/`` rule (still a valid private
+       state for repos that have not yet adopted the v12.2.0 whitelist).
 
     Caches the returned list at module level so :func:`last_gitignore_audit`
     can return it without re-walking the disk.
@@ -515,6 +604,9 @@ def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
     global _LAST_GITIGNORE_AUDIT
     rules = _read_gitignore_rules(cwd)
     if not rules:
+        _LAST_GITIGNORE_AUDIT = []
+        return []
+    if _has_correct_local_whitelist(rules):
         _LAST_GITIGNORE_AUDIT = []
         return []
     if any(_is_broad_local_ignore_rule(rule) for rule in rules):
@@ -541,9 +633,10 @@ def _audit_gitignore_coverage(cwd: Path, created: list[Path]) -> list[Path]:
             covered.append(path)
             _LOGGER.warning(
                 "scaffold_local: %s is covered by an existing .gitignore rule "
-                "and will remain private. Add a broad `.local/` rule to "
-                "the repo root .gitignore if all DevolaFlow workspace "
-                "state should stay out of version control.",
+                "and will remain private. Adopt the v12.2.0 whitelist block "
+                "(written automatically by `ensure_local_gitignore`) if you "
+                "want DevolaFlow's team-collab subdirs tracked while keeping "
+                "the rest private.",
                 rel_posix,
             )
 

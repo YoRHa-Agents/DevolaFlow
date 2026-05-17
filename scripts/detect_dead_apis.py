@@ -145,6 +145,19 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.lifecycle.dispatcher:register_hook",
         "devolaflow.lifecycle.dispatcher:clear_hooks",
         "devolaflow.lifecycle.dispatcher:registered_events",
+        # v12.4.0 PV-05 (D-4 L0-only surfaces hardening) —
+        # ``register_pre_dispatch_extra`` is the OPT-IN registration
+        # helper for the ``reject_subagent_banner_emission`` hook. The
+        # hook is deliberately NOT auto-wired in lifecycle/__init__.py
+        # (unlike the v12.2.0 PV-04 ``reject_subagent_quality_score``
+        # default-extra) to preserve the S-10 byte-id contract for
+        # v12.3.0 callers — operators opt in by calling this helper at
+        # process startup. Consumed by
+        # ``tests/test_lifecycle_reject_subagent_banner_emission.py``
+        # (the ``opt_in_registered`` fixture). NOT a domain-SSOT registry
+        # symbol per A-5.2 — pure module-level wrapper around
+        # ``register_hook(EVENT, reject_subagent_banner_emission)``.
+        "devolaflow.lifecycle.reject_subagent_banner_emission:register_pre_dispatch_extra",
         # v8.3.2 PV-02 — shell_proxy module-level convenience wrapper.
         # ``proxy_command(cmd, env)`` is the flat-call equivalent of
         # ``ShellProxy(env).wrap_command(cmd)``; advertised in
@@ -727,6 +740,22 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # symbols per A-5.2 — pure functions with zero module-level state.
         "devolaflow.feedback:populate_cascade_gate_fields",
         "devolaflow.gate.scorer:validate_cascade_gate_fields",
+        # v12.2.0 PV-04 — per-task-type timeout default helper -----------
+        # `default_timeout_for(task_type)` is the dispatcher-side helper that
+        # operators invoke when constructing the optional ``timeouts={}``
+        # kwarg for `AsyncDispatchExecutor.dispatch_parallel` / `dispatch_sequential`.
+        # The library-only landing discipline (no env flag, no auto-wire)
+        # from v9.3.0 PV-05 is preserved — there is intentionally NO
+        # in-repo production call site in v12.2.0; callers opt in by
+        # invoking the helper. Same allowlist pattern as
+        # `populate_cascade_gate_fields` above (forward-looking helper
+        # that lands wired-but-unused at the cycle that introduces it;
+        # actual production call sites land in a future v12.x patch or
+        # v13.0.0+ when an L0/L1/L2 dispatcher build path adopts the
+        # SKILL.md §"Subagent Hang Prevention" per-task-type default
+        # contract). NOT a domain-SSOT registry symbol per A-5.2 —
+        # pure function with zero module-level state.
+        "devolaflow.task_adaptive_selector:default_timeout_for",
     }
 )
 

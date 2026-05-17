@@ -263,28 +263,42 @@ lean_format_spec:
   #
   # Field shape:
   #   behavioral_guidelines:
-  #     think_first: bool        # plan-before-code discipline (BG-001)
-  #     simplicity_check: bool   # over-engineering audit (BG-002)
-  #     surgical_scope: str      # 'line' | 'function' | 'module' (BG-003)
-  #     goal_loop: bool          # round-N goal re-anchor (BG-004)
+  #     think_first: bool              # plan-before-code discipline (BG-001)
+  #     simplicity_check: bool         # over-engineering audit (BG-002)
+  #     surgical_scope: str            # 'line' | 'function' | 'module' (BG-003)
+  #     goal_loop: bool                # round-N goal re-anchor (BG-004)
+  #     no_llm_for_deterministic: bool # deterministic decisions in code (BG-005)
+  #     surface_conflicts: bool        # surface, don't average disagreement (BG-006)
+  #     convention_first: bool         # match existing pattern (BG-007)
+  #
+  # v12.2.0 PV-03 — NEST extension (A-2.3): adds 3 new sub-fields under the
+  # existing ``behavioral_guidelines`` block per the Mnimiy May-2026 X
+  # article cross-walk (`.local/research/v12.2.0_gap_analysis.md` §2 D-2).
+  # The 3 NEW fields close gaps the v8.0.0 P-08 Karpathy 4-rule baseline
+  # did NOT cover (Rules 5, 7, 11 from the article). canonical_order
+  # length stays at 17 and schema version stays at 6 — NEST sub-field
+  # additions per A-2.3 do NOT bump either invariant.
   #
   # Semantics: when present, ``select_context()`` injects the matching
   # rule sections from ``workflow-system/agent/references/behavioral-guidelines.md``
   # into the L3 dispatch context (each rule ≤ 30 lines / ~120 tokens;
-  # 4 rules total ≤ 5 % of L3 8K budget). When absent, behaviour is
+  # 7 rules total ≤ 5 % of L3 8K budget). When absent, behaviour is
   # byte-identical to v7.x (preserves the v7.0.0 layout golden
   # baseline). Per-profile defaults live in
   # ``workflow-system/agent/context_profiles.yaml#profiles.<name>.behavioral_guidelines``.
   # See ``references/behavioral-guidelines.md`` for full rule specs,
   # severity classification, and self-check questions.
   behavioral_guidelines:
-    description: "L3 behavioral primitives — Karpathy-derived (think_first / simplicity_check / surgical_scope / goal_loop)."
+    description: "L3 behavioral primitives — 4 Karpathy + 3 Mnimiy (BG-001..BG-007)."
     optional: true
     fields:
       think_first: "bool — plan-before-code discipline (BG-001, severity warn)"
       simplicity_check: "bool — over-engineering audit (BG-002, severity warn)"
       surgical_scope: "str — one of 'line' | 'function' | 'module' (BG-003, severity blocker)"
       goal_loop: "bool — round-N goal re-anchor (BG-004, severity warn)"
+      no_llm_for_deterministic: "bool — deterministic decisions in code (BG-005, severity warn; v12.2.0)"
+      surface_conflicts: "bool — surface conflicting patterns (BG-006, severity major; v12.2.0)"
+      convention_first: "bool — match existing codebase pattern (BG-007, severity major; v12.2.0)"
   # v8.0.0 (P-10) — Automatic Acceptance Criteria generator (Karpathy
   # Goal-Driven Execution per upstream tweet analysis ``v7.8`` §4.14).
   # NEW top-level dispatch key APPENDED to ``canonical_order`` AT THE END
