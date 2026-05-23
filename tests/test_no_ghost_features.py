@@ -587,6 +587,24 @@ _SF4_REFERENCE_SET = frozenset(
         # with the v12.3.0 PV-02 §"Session Banner Contract" (the version
         # literal flows into the footer line via SKILL.md cross-link).
         "task-quality-score.md",
+        # v12.5.0 PV-05 D-1.3 — codegraph plugin reference (22nd SF-4
+        # canonical). Tier 2 Large-tier reference (~248 lines under the
+        # ≤1000 ceiling). Documents the upstream `colbymchenry/codegraph`
+        # MCP-first pre-indexed code knowledge graph, the 9 MCP tools
+        # (search/context/callers/callees/impact/node/explore/files/
+        # status), the CLI surface, the DevolaFlow integration map
+        # (3 SSOT registries + 4 workflow templates + context profile +
+        # Python wrapper package), the structured-cause degraded-mode
+        # contract (CodegraphUnavailableError with cause: path_missing /
+        # timeout / nonzero_exit / json_parse_error), and cache
+        # management discipline. NO new env flag (W-20 reuse-first
+        # preservation: codegraph reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS
+        # for opt-in runtime install). Pairs with
+        # `src/devolaflow/codegraph/` (the Python wrapper package),
+        # `tests/test_codegraph.py` (39 tests at 98% coverage), and
+        # `tests/test_codegraph_workflow_wiring.py` (12 structural
+        # assertions across 4 workflow templates + context profile).
+        "codegraph.md",
     }
 )
 
@@ -4120,8 +4138,10 @@ def test_v9_5_0_new_symbols_have_coverage(project_root: Path) -> None:
 
 # v9.6.0 PV-04 yaml entry-count contract: 11 active + 10 periodic = 21 total.
 # Header comment was stale "10 + 9 = 19" pre-PV-04; corrected per D-R-7.
-_V9_6_0_TOTAL_REFS: int = 21
-_V9_6_0_ACTIVE_REFS: int = 11
+# v12.5.0 PV-05 D-1.1 grew active_tracking 11 → 12 by appending the codegraph
+# entry (12th of 12); header comment refreshed to "12 + 10 = 22 total".
+_V9_6_0_TOTAL_REFS: int = 22
+_V9_6_0_ACTIVE_REFS: int = 12
 _V9_6_0_PERIODIC_REFS: int = 10
 
 # v9.6.0 PV-02 reference-doc anchor contract — the 4 NEW subsections wired
@@ -4232,12 +4252,18 @@ def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
         f"{_V9_6_0_TOTAL_REFS} count per D-R-7"
     )
 
-    # §2 — Bulk freshness.
+    # §2 — Bulk freshness. v9.6.0 PV-04 D-R-5 closure pinned all 21 entries
+    # at 2026-05-02. v12.5.0 PV-05 D-1.1 added codegraph (12th active entry)
+    # at 2026-05-23 — that newer date is explicitly permitted per D-R-5
+    # which requires entries to be ≥ 2026-05-02 (the floor; not equality).
+    # The carve-out preserves the no-stale-entries invariant while allowing
+    # legitimately fresher additions to land per cycle.
     all_refs = active + periodic
-    stale = [r["id"] for r in all_refs if r.get("last_checked") != "2026-05-02"]
+    stale = [r["id"] for r in all_refs if (r.get("last_checked") or "") < "2026-05-02"]
     assert not stale, (
-        f"W-18 v9.6.0 violation: yaml entries with stale last_checked: "
-        f"{stale} (D-R-5 closure requires ALL 21 at 2026-05-02)"
+        f"W-18 v9.6.0 violation: yaml entries with stale last_checked "
+        f"(< 2026-05-02 floor): {stale} (D-R-5 closure requires ALL "
+        f"entries at 2026-05-02 or later)"
     )
 
     # §3 — primelocus-hydra graduation.
@@ -11784,4 +11810,197 @@ def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
             "tests/test_codegraph_workflow_wiring.py missing "
             f"{class_or_test!r}. The 12-test contract is documented in "
             "the cycle plan §PV-04 deliverable list."
+        )
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v12.5.0 PV-05 D-1.3 — codegraph docs landed
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v12.5.0
+# CHANGELOG entry mentioning the codegraph reference doc + degraded-mode +
+# env-flags + SKILL.md updates. This stanza pins the v12.5.0 PV-05 D-1.3
+# documentation surface:
+#
+# * workflow-system/agent/references/codegraph.md exists with the
+#   6 canonical anchor sections (§1..§6) under the C-4 Large-tier
+#   ceiling.
+# * workflow-system/agent/references/degraded-mode.md carries the
+#   codegraph row in §"Plugin Matrix" + the §"Section 5 — codegraph"
+#   detailed treatment.
+# * workflow-system/agent/references/env-flags.md §7 W-20 checklist
+#   carries the v12.5.0 PV-05 reuse-first reference case note (codegraph
+#   reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS).
+# * workflow-system/agent/SKILL.md carries the §"Workspace Engagement"
+#   .codegraph/ row + §"Reference Navigation Guide" Tier-2 codegraph
+#   row + §"Quick Start" repo-init "auto-installs codegraph index" note.
+# * SF-4 reference set updated: 21 → 22 entries
+#   (_SF4_REFERENCE_SET in tests/test_no_ghost_features.py).
+# * Companion test file tests/test_codegraph_reference_doc.py exists
+#   with the 6 structural assertion tests.
+#
+# Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.3 +
+# .local/research/v12.5.0_codegraph_benefit_analysis.md §6.3
+# PV-05 acceptance criteria.
+# ---------------------------------------------------------------------------
+_V12_5_0_PV05_REFERENCE_FILE: Path = Path("workflow-system/agent/references/codegraph.md")
+_V12_5_0_PV05_DEGRADED_FILE: Path = Path("workflow-system/agent/references/degraded-mode.md")
+_V12_5_0_PV05_ENVFLAGS_FILE: Path = Path("workflow-system/agent/references/env-flags.md")
+_V12_5_0_PV05_SKILL_FILE: Path = Path("workflow-system/agent/SKILL.md")
+
+
+def test_v12_5_0_codegraph_docs_landed(project_root: Path) -> None:
+    """W-18 v12.5.0 PV-05 D-1.3: codegraph docs surface landed.
+
+    Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
+    mentioning the codegraph documentation. The stanza asserts five
+    load-bearing surfaces:
+
+    (a) references/codegraph.md exists with the 6 canonical anchors.
+    (b) references/degraded-mode.md mentions codegraph in §Plugin Matrix
+        + §Section 5.
+    (c) references/env-flags.md §7 carries the W-20 reuse-first note.
+    (d) SKILL.md carries the .codegraph/ row + Tier-2 row + repo-init note.
+    (e) Companion test file tests/test_codegraph_reference_doc.py exists.
+
+    Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.3.
+    """
+    # --- (a) references/codegraph.md ---------------------------------
+    ref_path = project_root / _V12_5_0_PV05_REFERENCE_FILE
+    assert ref_path.is_file(), (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_REFERENCE_FILE} missing — release blocker."
+    )
+    ref_text = ref_path.read_text(encoding="utf-8")
+    for anchor in (
+        "## §1 — What codegraph is",
+        "## §2 — The 9 MCP tools",
+        "## §3 — CLI surface",
+        "## §4 — DevolaFlow integration map",
+        "## §5 — Degraded-mode contract",
+        "## §6 — Cache management",
+    ):
+        assert anchor in ref_text, (
+            f"W-18 v12.5.0 PV-05 violation: "
+            f"{_V12_5_0_PV05_REFERENCE_FILE} missing anchor {anchor!r}. "
+            "The 6 canonical sections are the PV-05 acceptance criterion."
+        )
+
+    # --- (b) references/degraded-mode.md — codegraph row + Section 5
+    degraded_text = (project_root / _V12_5_0_PV05_DEGRADED_FILE).read_text(encoding="utf-8")
+    assert "| codegraph |" in degraded_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_DEGRADED_FILE} "
+        "missing the `| codegraph |` row in §Plugin Matrix."
+    )
+    assert "### Section 5 — codegraph" in degraded_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_DEGRADED_FILE} "
+        "missing the `### Section 5 — codegraph` detailed treatment."
+    )
+
+    # --- (c) references/env-flags.md — W-20 reuse-first note ---------
+    envflags_text = (project_root / _V12_5_0_PV05_ENVFLAGS_FILE).read_text(encoding="utf-8")
+    assert "v12.5.0 PV-05 reuse-first" in envflags_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_ENVFLAGS_FILE} "
+        "§7 missing the v12.5.0 PV-05 reuse-first reference case note. "
+        "The note documents that codegraph REUSED "
+        "DEVOLAFLOW_AUTO_INSTALL_PLUGINS rather than authoring a new flag."
+    )
+
+    # --- (d) SKILL.md — 3 codegraph mentions -------------------------
+    skill_text = (project_root / _V12_5_0_PV05_SKILL_FILE).read_text(encoding="utf-8")
+    assert ".codegraph/codegraph.db" in skill_text or ".codegraph/" in skill_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
+        "§Workspace Engagement missing the .codegraph/ row."
+    )
+    assert "references/codegraph.md" in skill_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
+        "§Reference Navigation Guide Tier-2 missing the codegraph row."
+    )
+    assert "auto-installs codegraph index" in skill_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
+        "§Quick Start repo-init row missing the "
+        "'auto-installs codegraph index' note."
+    )
+
+    # --- (e) companion test file -------------------------------------
+    doc_test_path = project_root / Path("tests/test_codegraph_reference_doc.py")
+    assert doc_test_path.is_file(), (
+        "W-18 v12.5.0 PV-05 violation: "
+        "tests/test_codegraph_reference_doc.py missing — release blocker."
+    )
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v12.5.0 PV-05 D-3 — handoff envelope auto-strip helper
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v12.5.0
+# CHANGELOG entry mentioning the strip_l0_only_metadata helper. This stanza
+# pins the v12.5.0 PV-05 D-3 surface (closes the v12.4.0 retro §6 telegraph
+# item 2 — handoff envelope auto-strip helper):
+#
+# * src/devolaflow/agent_workspace/handoff.py exports the
+#   strip_l0_only_metadata public function symbol.
+# * The helper signature matches the documented contract
+#   (envelope: dict -> dict; pure / idempotent / permissive on absent /
+#   permissive on empty / S-5 explicit warn on non-dict).
+# * Companion test file tests/test_handoff_strip_metadata.py exists with
+#   the 11 contract-pin tests covering happy-path + idempotency +
+#   pure-function-invariant + degraded paths.
+#
+# Source: .local/research/v12.5.0_gap_analysis.md §2 D-3 +
+# .local/research/v12.4.0_retrospective.md §6 telegraph item 2.
+# ---------------------------------------------------------------------------
+_V12_5_0_PV05_HANDOFF_FILE: Path = Path("src/devolaflow/agent_workspace/handoff.py")
+
+
+def test_v12_5_0_handoff_strip_helper(project_root: Path) -> None:
+    """W-18 v12.5.0 PV-05 D-3: strip_l0_only_metadata helper landed.
+
+    Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
+    mentioning the handoff envelope auto-strip helper. The stanza
+    asserts three load-bearing surfaces:
+
+    (a) src/devolaflow/agent_workspace/handoff.py declares the public
+        strip_l0_only_metadata symbol with the documented signature.
+    (b) The helper is exported in __all__ so callers can import it.
+    (c) Companion test file tests/test_handoff_strip_metadata.py exists
+        with the 11 contract-pin tests.
+
+    Source: .local/research/v12.5.0_gap_analysis.md §2 D-3.
+    """
+    # --- (a) handoff.py declares the helper --------------------------
+    handoff_text = (project_root / _V12_5_0_PV05_HANDOFF_FILE).read_text(encoding="utf-8")
+    assert "def strip_l0_only_metadata(envelope: dict) -> dict:" in handoff_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_HANDOFF_FILE} "
+        "missing `def strip_l0_only_metadata(envelope: dict) -> dict:` "
+        "definition. The signature is part of the v12.5.0 PV-05 D-3 "
+        "contract surface."
+    )
+
+    # --- (b) __all__ export ------------------------------------------
+    assert '__all__.append("strip_l0_only_metadata")' in handoff_text, (
+        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_HANDOFF_FILE} "
+        'missing `__all__.append("strip_l0_only_metadata")` — the '
+        "public-API export is part of the contract."
+    )
+
+    # --- (c) companion test file -------------------------------------
+    test_path = project_root / Path("tests/test_handoff_strip_metadata.py")
+    assert test_path.is_file(), (
+        "W-18 v12.5.0 PV-05 violation: "
+        "tests/test_handoff_strip_metadata.py missing — release blocker."
+    )
+    test_text = test_path.read_text(encoding="utf-8")
+    for expected_test in (
+        "test_happy_path_strips_banner_literal_from_string_field",
+        "test_happy_path_strips_quality_score_key",
+        "test_idempotency",
+        "test_input_dict_not_mutated",
+        "test_non_dict_input_warns_and_returns_unchanged",
+        "test_companion_to_banner_hook_zero_violations_post_strip",
+    ):
+        assert f"def {expected_test}" in test_text, (
+            f"W-18 v12.5.0 PV-05 violation: "
+            "tests/test_handoff_strip_metadata.py missing test "
+            f"{expected_test!r}."
         )

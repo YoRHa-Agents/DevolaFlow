@@ -35,6 +35,8 @@ Public API:
 
 from __future__ import annotations
 
+import copy
+import logging
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -420,3 +422,142 @@ __all__.append("make_envelope")
 def _now_iso() -> str:
     """ISO-8601 UTC timestamp matching the schema's ``created`` pattern."""
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ---------------------------------------------------------------------------
+# v12.5.0 PV-05 D-3 — strip_l0_only_metadata helper
+# ---------------------------------------------------------------------------
+#
+# Companion to the v12.4.0 PV-05 ``reject_subagent_banner_emission``
+# lifecycle hook (``src/devolaflow/lifecycle/reject_subagent_banner_emission.py``).
+# The PV-05 hook DETECTS banner literals + ``quality_score`` keys in
+# subagent (L1/L2/L3) dispatch payloads and emits a WARNING via
+# HookViolation; operators previously had to manually scrub these
+# literals before authoring an envelope. This helper closes the
+# auto-cleanup loop telegraphed in the v12.4.0 retrospective §3 row 4
+# ("Handoff envelope auto-strip helper") + §6 telegraph item 2.
+#
+# Contract (per .local/research/v12.5.0_gap_analysis.md §2 D-3):
+#
+# * Pure function — operates on a deep-copy of the input dict; never
+#   mutates the input dict; never touches disk (S-9 append-only
+#   preserved — handoff envelopes on disk are written by callers, not
+#   by this helper).
+# * Idempotent — applying the helper twice produces the same output as
+#   applying it once.
+# * Permissive on absent keys — a dict without banner / quality_score
+#   keys returns a deep-copy unchanged.
+# * S-5 explicit warn — malformed input (non-dict) logs a WARNING via
+#   ``logging.getLogger(__name__)`` rather than raising or silently
+#   dropping; the caller receives the input unchanged.
+#
+# Source: .local/research/v12.5.0_gap_analysis.md §2 D-3 +
+# .local/research/v12.4.0_retrospective.md §6 telegraph item 2.
+# ---------------------------------------------------------------------------
+
+_logger_v12_5_0 = logging.getLogger(__name__)
+
+
+# Banner literal patterns per
+# `src/devolaflow/lifecycle/reject_subagent_banner_emission.py` —
+# the same regex shape that hook uses for DETECTION; this helper uses
+# them for STRIPPING. Kept verbatim-aligned to that hook so a
+# single-source-of-truth pattern surface emerges in v12.6.0+ if needed.
+_L0_ONLY_BANNER_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"🌸\s*DevolaFlow\s+v\d+\.\d+\.\d+\b[^\n]*", re.MULTILINE),
+    re.compile(r"📊[^\n]*Task\s+Quality\s+Score[^\n]*", re.MULTILINE | re.IGNORECASE),
+)
+
+_L0_ONLY_KEYS: frozenset[str] = frozenset(
+    {
+        "quality_score",
+        "task_quality_score",
+        "session_banner",
+    }
+)
+
+
+def _strip_banner_literals_from_string(text: str) -> str:
+    """Remove banner literal substrings from *text*; idempotent."""
+    out = text
+    for pat in _L0_ONLY_BANNER_PATTERNS:
+        out = pat.sub("", out)
+    # Collapse the run-of-empty-lines artifact left after stripping
+    # multi-line banner/footer blocks (defensive, idempotent).
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out
+
+
+def _strip_recursive(node):
+    """Recursive walker — strips banner literals + L0-only keys.
+
+    Operates on the in-memory dict / list / scalar tree. Pure (no IO,
+    no logging). Caller wraps invocation in :func:`strip_l0_only_metadata`
+    which guards the malformed-input + deep-copy contracts.
+    """
+    if isinstance(node, dict):
+        cleaned: dict[str, object] = {}
+        for key, value in node.items():
+            if key in _L0_ONLY_KEYS:
+                continue
+            cleaned[key] = _strip_recursive(value)
+        return cleaned
+    if isinstance(node, list):
+        return [_strip_recursive(item) for item in node]
+    if isinstance(node, str):
+        return _strip_banner_literals_from_string(node)
+    return node
+
+
+def strip_l0_only_metadata(envelope: dict) -> dict:
+    """Strip L0-only banner literals + ``quality_score`` keys from *envelope*.
+
+    Closes v12.5.0 PV-05 D-3 (handoff envelope auto-strip helper).
+    Companion to the v12.4.0 PV-05 ``reject_subagent_banner_emission``
+    hook: the hook DETECTS L0-only metadata in subagent dispatches and
+    emits a WARNING; this helper performs the actual cleanup so the
+    handoff writer can scrub envelopes before write.
+
+    Contract:
+
+    * **Pure** — operates on a deep-copy; never mutates *envelope*; never
+      touches disk. Verified by ``tests/test_handoff_strip_metadata.py``.
+    * **Idempotent** — calling twice produces a byte-equal result to
+      calling once.
+    * **Permissive on absent keys** — a dict without banner /
+      ``quality_score`` keys returns a deep-copy unchanged.
+    * **Permissive on empty dict** — ``{}`` in → ``{}`` out.
+    * **S-5 explicit warn** — non-dict input logs a WARNING and returns
+      the input unchanged (preserves caller invariants).
+
+    Args:
+        envelope: A dict-shaped envelope payload (typically a
+            :class:`HandoffEnvelope` ``asdict()`` result OR a
+            ``run_hooks("pre_dispatch", payload, ...)`` payload prior to
+            envelope authoring).
+
+    Returns:
+        A NEW dict (deep-copy of input) with L0-only metadata removed.
+        Banner literals are stripped from string values throughout the
+        tree; ``quality_score`` / ``task_quality_score`` /
+        ``session_banner`` keys are removed at every nesting depth.
+        Empty / null inputs return a deep-copy unchanged.
+
+    v12.5.0 PV-05 D-3: closes the v12.4.0 PV-05 detection-only auto-
+    cleanup gap. Pairs with
+    ``src/devolaflow/lifecycle/reject_subagent_banner_emission.py``.
+    """
+    if not isinstance(envelope, dict):
+        _logger_v12_5_0.warning(
+            "strip_l0_only_metadata received non-dict input "
+            "(type=%s); returning input unchanged per S-5 "
+            "explicit-warn contract",
+            type(envelope).__name__,
+        )
+        return envelope
+    # Deep-copy guards the caller's input dict from mutation.
+    working = copy.deepcopy(envelope)
+    return _strip_recursive(working)
+
+
+__all__.append("strip_l0_only_metadata")

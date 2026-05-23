@@ -61,6 +61,7 @@ Before applying the Quick Action Decision table, **scan the consumer repo's work
 | `.local/memory/cases/*.md` | Prior decisions cached | When `DEVOLAFLOW_MEMORY_CONSULT=1`, surface relevant cases as dispatch hints |
 | `.local/.agent/active/<id>/` | In-flight changes exist | RESUME the change rather than opening a new one (check `STATUS.yaml.state`) |
 | `.rules/*.mdc` + compiled `AGENTS.md` | Layered governance corpus present | TRUST the compiled corpus as the rule contract; opt-in `agents_md_slice` slices per task type |
+| `.codegraph/codegraph.db` (v12.5.0+) | Codegraph project-local index present | SURFACE as accelerated context — prefer `codegraph_search`/`_context`/`_callers`/`_impact` over Read+Glob+Grep planning patterns; falls back to Read/Glob/Grep when CLI unavailable per `references/degraded-mode.md` |
 
 **Defaults**: Workspace scanning is read-only and ALWAYS performed. Auto-write side effects (handoff envelopes, change folder scaffolding) are R5-strict default-OFF; opt in via `DEVOLAFLOW_AGENT_WORKSPACE=1`. **Resume + override (v10.5.0):** when `active_changes` non-empty AND idle >24h, follow `agent-workspace.md` §3.6 (5-step checklist); pass `force_no_change=True` to `activation_verdict()` for ad-hoc dispatch bypass.
 
@@ -145,7 +146,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
-| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/) → compile → interview → verify (mode: core\|standard\|full) |
+| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + auto-installs codegraph index in ALL modes) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 | shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
@@ -413,10 +414,11 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/agent-hierarchy.md` | Layer setup, delegation debugging, per-layer contracts |
 | `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
 | `references/behavioral-guidelines.md` | L3 think_first / simplicity_check / surgical_scope / goal_loop primitives |
+| `references/codegraph.md` | Pre-indexed code knowledge graph (tree-sitter + SQLite FTS5); 9 MCP tools / 5 researcher helpers; degraded-mode contract; cache management |
 | `references/compression-pipeline.md` | CompressionStage protocol, 6-transform unification, multi-pass filter chain |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
-| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro); "Degraded ≠ Full" |
+| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro / codegraph); "Degraded ≠ Full" |
 | `references/domain-awareness.md` | CONTEXT.md authoring, CONTEXT-MAP.md multi-context inference, ADR format, 3-condition ADR gate, vocabulary vs spec.md |
 | `references/env-flags.md` | DEVOLAFLOW_* env-var inventory, R5 strict patterns, W-20 reuse policy |
 | `references/evaluator-rosetta.md` | SI-3 × NineS × Si-Chip 6×9 cross-walk, C-04 split, per-cell authority citations |

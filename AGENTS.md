@@ -408,7 +408,7 @@ Agent-facing skill files are subject to tiered line-count ceilings:
 | Tier | Ceiling | Files |
 |------|---------|-------|
 | Default | < 500 | `workflow-system/agent/SKILL.md` |
-| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (10 files) |
+| Large | ≤ 1000 | `workflow-system/agent/references/*.md` (22 files) |
 | XL | ≤ 1600 | `workflow-system/agent/examples/*.md` (3 files) |
 
 Verify with:
@@ -441,7 +441,7 @@ Source: SF-3.
 
 ## C-7 — Valid Reference Links
 
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. Valid references: `agent-hierarchy.md`, `agent-workspace.md`, `behavioral-guidelines.md`, `context-isolation.md`, `decomposition-gate.md`, `execution-protocol.md`, `message-schemas.md`, `meta-framework.md`, `repo-modes.md`, `team-roles.md`.
+Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (22 entries as of v12.5.0 PV-05) is enumerated verbatim in `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in `scripts/sync_cursor_skill.py::MIRRORED_FILES`.
 
 Source: SF-4.
 

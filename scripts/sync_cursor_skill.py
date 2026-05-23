@@ -97,8 +97,17 @@ MIRRORED_FILES = [
     # degraded-mode contract). Per-plugin fallback doc for NineS / Si-Chip /
     # RTK / ui-pro with "Degraded ≠ Full" leading warning (D-C-1 §9 R1
     # mitigation). Pairs with `tests/test_degraded_mode.py` regression
-    # suite and closes the v10.3.0 retrospective §3 NineS A1 pain.
+    # suite and closes the v10.3.0 retrospective §3 NineS A1 pain. v12.5.0
+    # PV-05 D-1.3 augments §"Plugin Matrix" + Section 5 with the codegraph
+    # row + structured-cause failure-mode taxonomy.
     "references/degraded-mode.md",
+    # v12.5.0 PV-05 D-1.3 — codegraph reference (NEW Tier-2 Large-tier
+    # entry; ~248 lines under the ≤1000 ceiling). Documents the 9 MCP
+    # tools / 5 Python wrapper helpers / DevolaFlow integration map /
+    # degraded-mode contract / cache management. Pairs with
+    # src/devolaflow/codegraph/ + tests/test_codegraph.py +
+    # tests/test_codegraph_workflow_wiring.py.
+    "references/codegraph.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",
