@@ -29,10 +29,17 @@ def active_refs(yaml_data: dict) -> dict[str, dict]:
 
 
 def test_yaml_active_tracking_count_unchanged(yaml_data: dict) -> None:
-    """active_tracking still holds 11 entries (additions deferred to v9.7.0+)."""
-    assert len(yaml_data.get("active_tracking", [])) == 11, (
-        "v9.6.0 PV-02 should not add/remove active_tracking entries; "
-        "ref additions are scoped to v9.7.0+ cycles"
+    """active_tracking holds 12 entries at v12.5.0 PV-05 (codegraph appended).
+
+    v9.6.0 PV-02 baseline was 11 entries; v12.5.0 PV-05 D-1.1 grew the set to
+    12 by appending the codegraph entry as the primary integration target for
+    the v12.5.0 EXPANSION MINOR cycle. Future ref additions land via dedicated
+    PV slices per W-19 cadence.
+    """
+    assert len(yaml_data.get("active_tracking", [])) == 12, (
+        "v12.5.0 PV-05 contract: active_tracking holds 12 entries "
+        "(11 v9.6.0 baseline + codegraph appended at v12.5.0 PV-05 D-1.1); "
+        "ref additions land via dedicated PV slices"
     )
 
 
@@ -287,30 +294,49 @@ def test_primelocus_hydra_graduated_to_frozen_reference(yaml_data: dict) -> None
 
 
 def test_pv04_all_21_refs_carry_2026_05_02_last_checked(yaml_data: dict) -> None:
-    """Per gap_analysis §3.1 D-R-5: ALL 21 yaml refs must carry the v9.6.0 freshness stamp.
+    """Per gap_analysis §3.1 D-R-5: ALL yaml refs must carry the v9.6.0 freshness floor.
 
     PV-02 refreshed 5 (deep-analyzed), PV-03 refreshed 5 (score=3),
     PV-04 refreshes the remaining 11 to bring the bulk to 21/21.
+
+    v12.5.0 PV-05 update: total grew 21 → 22 (codegraph appended); the
+    bulk-freshness invariant is relaxed from equality (`== 2026-05-02`) to
+    floor (`>= 2026-05-02`) so legitimately fresher entries (codegraph at
+    2026-05-23) land per cycle without breaking the no-stale-entries guard.
     """
+    from datetime import date
+
     all_refs = yaml_data.get("active_tracking", []) + yaml_data.get("periodic_monitoring", [])
-    assert len(all_refs) == 21, (
-        f"v9.6.0 PV-04 must keep total ref count at 21 (header comment "
-        f"correction D-R-7); got {len(all_refs)}"
+    assert len(all_refs) == 22, (
+        f"v12.5.0 PV-05: total ref count is 22 (12 active_tracking + 10 "
+        f"periodic_monitoring); got {len(all_refs)}"
     )
-    stale = [r["id"] for r in all_refs if r.get("last_checked") != "2026-05-02"]
+    floor = date(2026, 5, 2)
+    stale = [
+        r["id"]
+        for r in all_refs
+        if not r.get("last_checked") or date.fromisoformat(r["last_checked"]) < floor
+    ]
     assert not stale, (
-        f"v9.6.0 PV-04 must refresh ALL 21 last_checked → 2026-05-02; still stale: {stale}"
+        f"v12.5.0 PV-05: ALL refs must carry last_checked >= 2026-05-02 "
+        f"(v9.6.0 PV-04 floor); still stale: {stale}"
     )
 
 
 def test_pv04_yaml_header_comment_corrected(yaml_data: dict) -> None:
-    """Per gap_analysis §3.2 D-R-7: yaml header must say 11 + 10 = 21, not 10 + 9 = 19."""
+    """Per gap_analysis §3.2 D-R-7: yaml header must reflect the actual count.
+
+    v9.6.0 PV-04 corrected the header from "10 + 9 = 19" → "11 + 10 = 21".
+    v12.5.0 PV-05 D-1.1 grew active_tracking 11 → 12 (codegraph appended),
+    so the header now reads "12 + 10 = 22" — the test pins the current
+    canonical line.
+    """
     raw = (REPO_ROOT / "workflow-system/agent/knowledge/reference-dependencies.yaml").read_text(
         encoding="utf-8"
     )
-    # The new header must reflect the actual 21-entry count.
-    assert "11 active_tracking + 10 periodic_monitoring = 21 total" in raw, (
-        "yaml header comment must be corrected to 11 + 10 = 21 per D-R-7"
+    assert "12 active_tracking + 10 periodic_monitoring = 22 total" in raw, (
+        "yaml header comment must reflect 12 + 10 = 22 per v12.5.0 PV-05 D-1.1 "
+        "(codegraph appended to active_tracking)"
     )
     # The original "10 + 9 = 19" claim must NOT appear except in the
     # historical correction note.

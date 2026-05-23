@@ -159,6 +159,13 @@ class TestDispatchAutoInstall:
     def test_product_verification_dispatch_triggers_ui_pro(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """v9.4.0 PV-03 baseline: product-verification → [ui-pro].
+
+        v12.5.0 PV-05 D-1.2 update: product-verification now ALSO invokes
+        codegraph (workflow wiring per ``plugins.yaml#codegraph.workflows`` +
+        ``runtime-plugins.yaml#codegraph.invoked_by_workflows``). Registry
+        order: ui-pro first (legacy), codegraph second (v12.5.0 addition).
+        """
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         invocations: list[str] = []
 
@@ -175,7 +182,10 @@ class TestDispatchAutoInstall:
                 _verdict_round1(),
                 round_num=1,
             )
-        assert invocations == ["ui-pro"]
+        assert invocations == ["ui-pro", "codegraph"], (
+            f"v12.5.0 PV-05 contract: product-verification dispatch MUST trigger "
+            f"ensure_plugin('ui-pro') AND ensure_plugin('codegraph'); got {invocations!r}"
+        )
 
     def test_dispatch_without_workflow_does_not_install(
         self, monkeypatch: pytest.MonkeyPatch

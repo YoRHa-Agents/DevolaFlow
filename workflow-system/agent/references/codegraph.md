@@ -1,3 +1,25 @@
+---
+id: codegraph
+version: "12.5.0"
+purpose: >
+  Canonical operating contract for DevolaFlow's codegraph integration —
+  a 100% local, MCP-first, pre-indexed code knowledge graph (tree-sitter
+  AST → SQLite FTS5) shipped in v12.5.0 PV-03 D-1 as a tracked reference
+  repo + fully wired plugin + Python wrapper. Covers the 9 MCP tools,
+  CLI surface, workflow integration map, degraded-mode fallback, and
+  cache management for L0/L1/L2/L3 dispatchers + L3 task agents.
+triggers:
+  - "repo-init scaffold stage installs codegraph index"
+  - "L3 needs related-symbol context for an unfamiliar function"
+  - "blast-radius / impact analysis before an edit"
+  - "callers/callees lookup replacing Grep+Read pairs"
+  - "framework route awareness across 14 frameworks"
+  - "test-impact selection via codegraph affected"
+tier: 2
+token_estimate: 3000
+last_updated: "2026-05-23"
+---
+
 # Codegraph Reference
 
 DevolaFlow's integration with `colbymchenry/codegraph` — a 100% local, MCP-first, pre-indexed code knowledge graph (tree-sitter AST → SQLite FTS5). v12.5.0 PV-03 D-1 ships codegraph as the primary deliverable: a tracked reference repo, fully wired plugin, and Python wrapper exposed to L0/L1/L2/L3 dispatchers.

@@ -5,7 +5,113 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [12.4.0] - 2026-05-17 — MINOR — Tooling Fixes + cc-Spike Refactor Trio + L0-Only Surfaces Leak Cluster + SHORTCUT_SIMPLE Post-Mortem
+## [12.5.0] - 2026-05-23 — MINOR — Codegraph Plugin Integration + cc-Spike Sweep Carry-over + Handoff Auto-Strip Helper
+
+**MINOR — EXPANSION cycle (6 PVs).** v12.5.0 lands `colbymchenry/codegraph` as a tracked reference repo + fully wired plugin (5th of 5; new `code_intelligence` role) — the v12.x cycle's first external-tool integration since Si-Chip in v9.5.0. Codegraph delivers an upstream-published benchmark of **35% cheaper / 70% fewer tool calls / 59% fewer tokens / 49% faster** across 7 codebases × 7 languages by replacing dispatcher Read+Glob+Grep planning with a pre-indexed local code knowledge graph (tree-sitter AST → SQLite FTS5; 19+ languages; 14 frameworks; 9 MCP tools; ~28KB npm + bundled Node runtime; MIT-licensed). The cycle ALSO closes 3 v12.4.0-telegraphed items: D-2 cc-spike sweep (`load_command_mappings` cc=18→9 + `apply_local_recipe` cc=17→4 via the v12.4.0 PV-04 helper-extraction template applied verbatim) + D-3 handoff auto-strip helper (`strip_l0_only_metadata` pure function, companion to v12.4.0's `reject_subagent_banner_emission` detect-only hook → DETECT+CLEAN closure). W-3 SI-3 composite **9.50/10 PASS** (margin +1.00 over MINOR ≥ 8.5; clears MAJOR ≥ 9.0 by +0.50; **new v12.x cycle peak**, prior peak v12.4.0 = 9.40). NineS overall 0.907 preserved. Zero schema bumps, zero new env flags (codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` per W-20 reuse-first), zero new Soul rules, zero breaking changes. SKILL.md +2 lines (486 → 488; under C-4 ≤500 ceiling).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**PV-03 + PV-04 — codegraph plugin landed across 5 surfaces (mirrors NineS shape).** Operators can opt in to the codegraph integration via `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (existing flag, REUSED per W-20). Once enabled, the following workflow stages auto-install + invoke codegraph: `repo-init` (scaffold stage runs `codegraph init {project_root}` in ALL modes — core / standard / full — per locked operator decision; codegraph footprint negligible), `onboarding` / `security-audit` / `product-verification` (analyze stages surface `config.codegraph_commands` hints to the L3 agent for `codegraph status` + `codegraph files` + `codegraph context` + `codegraph impact` invocations). The new Python wrapper at `src/devolaflow/codegraph/` exposes 5 helpers — `build_context`, `search_symbols`, `get_impact`, `get_callers`, `get_affected_tests` — each a thin subprocess wrapper around a codegraph CLI subcommand with timeout + structured-error contract per S-5. Degraded-mode contract (per `references/degraded-mode.md`): if the `codegraph` CLI is unreachable, the wrapper falls back to Read/Glob/Grep semantics, emits a single WARN per session, and gate scoring drops the `codegraph_impact` dimension.
+
+**PV-05 — NEW pure helper `strip_l0_only_metadata(envelope: dict) -> dict` in `src/devolaflow/agent_workspace/handoff.py`.** Companion to the v12.4.0 PV-05 `reject_subagent_banner_emission` detect-only hook. The helper deep-copies the input envelope, removes banner literals + `quality_score` keys from L0-only metadata fields, and returns the cleaned envelope. Pure function: never touches disk (S-9 append-only handoff envelopes are written by callers, not by this helper); idempotent; permissive on absent keys; logs WARN via `logging.getLogger(__name__)` on malformed input per S-5. Operators invoke this helper BEFORE writing handoff envelopes to `.local/.agent/handoff/`:
+```python
+from devolaflow.agent_workspace.handoff import strip_l0_only_metadata
+clean_envelope = strip_l0_only_metadata(envelope_dict)
+```
+The hook+helper pair (DETECT via the v12.4.0 hook + CLEAN via this helper) closes the auto-cleanup loop telegraphed in v12.4.0 retro §3.
+
+**PV-02 — `shell_proxy/commands.py` cc-spike refactor.** `load_command_mappings` cc=18 → 9 (4 `_validate_*` / `_apply_*` helpers, each cc ≤ 8); `apply_local_recipe` cc=17 → 4 (2 helpers — natural bipartite split). Public signatures byte-identical pre/post-refactor (verified by `tests/test_v12_5_0_complexity_targets.py` signature literal-match assertions). Zero behaviour change for callers.
+
+**Pure-additive (NON-BREAKING):**
+
+- 5 NEW test files: `tests/test_codegraph.py` (~39 tests; 98% coverage on the new package) + `tests/test_codegraph_workflow_wiring.py` (~12 tests) + `tests/test_codegraph_reference_doc.py` (~6 tests) + `tests/test_handoff_strip_metadata.py` (~11 tests) + `tests/test_v12_5_0_complexity_targets.py` (7 tests).
+- 4 NEW W-18 ghost-audit stanzas in `tests/test_no_ghost_features.py`: `test_v12_5_0_cc_spike_sweep_complete` (PV-02) + `test_v12_5_0_codegraph_plugin_registered` (PV-03) + `test_v12_5_0_codegraph_workflow_wired` (PV-04) + `test_v12_5_0_codegraph_docs_landed` + `test_v12_5_0_handoff_strip_helper` (PV-05).
+- 2 NEW source packages: `src/devolaflow/codegraph/` (`__init__.py` + `_cli.py` + `researcher.py`; 146 statements, 98% coverage; 5 public helpers per the operator-visible note above) + `src/devolaflow/agent_workspace/handoff.py` (NEW `strip_l0_only_metadata` pure function).
+- 2 plugin registries gain codegraph: `workflow-system/agent/plugins.yaml` (NEW `codegraph` block + NEW `code_intelligence` role under `plugin_roles:`) + `workflow-system/agent/knowledge/runtime-plugins.yaml` (NEW `codegraph` entry, `backend: npm_then_init`).
+- `workflow-system/agent/knowledge/reference-dependencies.yaml` — `active_tracking` grew 11 → 12 (codegraph appended); header comment corrected to "12 + 10 = 22 total"; bulk-freshness invariant relaxed from equality (`== "2026-05-02"`) to floor (`>= "2026-05-02"`) so legitimately fresher entries land per cycle.
+- 4 workflow templates extended with codegraph wiring: `workflow-system/agent/templates/builtin/{repo-init,onboarding,security-audit,product-verification}.yaml`.
+- `workflow-system/agent/context_profiles.yaml` — NEW `codegraph_integration` top-level block (parallel to existing `nines_integration`).
+- `workflow-system/agent/references/codegraph.md` (NEW Tier-2 reference; 248 lines + frontmatter; 6 anchor sections; under C-4 ≤1000 Large-tier ceiling). SF-4 reference set count: 21 → 22.
+- `workflow-system/agent/references/degraded-mode.md` — NEW codegraph fallback row.
+- `workflow-system/agent/references/env-flags.md` — §7 W-20 reuse-first checklist note (codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`; flag count stays at 7).
+- `workflow-system/agent/SKILL.md` — Workspace Engagement `.codegraph/` row + Reference Navigation Guide Tier-2 codegraph row + Quick Start repo-init "auto-installs codegraph index" note (+2 lines: 486 → 488).
+- `benchmarks/devolaflow_context/baselines/v12.4.0_baseline.json` — wholesale W-16 regen at PV-05 close (per W-16 v12.3.0 PV-04 clarification "regen at PV that first observes drift"; PV-05 was the drift PV due to SKILL.md +2 lines flowing into context_profile selection). Captures 1 IMPROVED scenario (`abstractive_llm` composite +21.90pp) — zero scenario regressions > 5%.
+- `scripts/detect_dead_apis.py::DEFAULT_ALLOWLIST` — added 6 entries (`strip_l0_only_metadata` + 5 codegraph researcher helpers); A-5.2 hygiene preserved (none are domain-SSOT registry symbols).
+- `.local/research/v12.5.0_{gap_analysis,codegraph_benefit_analysis,evaluation,retrospective}.md` + `.local/research/v12.5.0_nines_*` archived to `docs/cycle-archive/v12.5.0/` per W-19.
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by:
+
+- `tests/test_no_ghost_features.py::test_v12_5_0_cc_spike_sweep_complete` (PV-02 — pins 6 NEW helper symbols across the `load_command_mappings` + `apply_local_recipe` refactors + orchestrator cc ≤ targets)
+- `tests/test_no_ghost_features.py::test_v12_5_0_codegraph_plugin_registered` (PV-03 — pins codegraph keys in both YAML registries + `code_intelligence` role + Python wrapper symbols)
+- `tests/test_no_ghost_features.py::test_v12_5_0_codegraph_workflow_wired` (PV-04 — pins `codegraph_commands` presence in 4 workflow templates + context_profiles `codegraph_integration` block)
+- `tests/test_no_ghost_features.py::test_v12_5_0_codegraph_docs_landed` (PV-05 — pins `references/codegraph.md` existence + frontmatter + 6 anchor sections + SKILL.md Tier-2 row + degraded-mode.md row + env-flags.md note)
+- `tests/test_no_ghost_features.py::test_v12_5_0_handoff_strip_helper` (PV-05 — pins NEW `strip_l0_only_metadata` helper + companion-to-banner-hook integration test minimums)
+
+NEW symbols:
+
+- `src/devolaflow/codegraph/__init__.py` (NEW package marker + `__all__`)
+- `src/devolaflow/codegraph/_cli.py` (NEW: `_run_codegraph` subprocess thin wrapper + `CodegraphUnavailableError` + structured-error classification)
+- `src/devolaflow/codegraph/researcher.py` (NEW: `build_context`, `search_symbols`, `get_impact`, `get_callers`, `get_affected_tests` — 5 public helpers wrapping codegraph CLI subcommands)
+- `src/devolaflow/agent_workspace/handoff.py` (NEW: `strip_l0_only_metadata` pure function)
+- `src/devolaflow/shell_proxy/commands.py` (NEW: 6 helper symbols extracted from `load_command_mappings` + `apply_local_recipe` per the v12.4.0 PV-04 helper-extraction template)
+- `tests/test_codegraph.py` (NEW file; ~39 tests)
+- `tests/test_codegraph_workflow_wiring.py` (NEW file; ~12 tests)
+- `tests/test_codegraph_reference_doc.py` (NEW file; ~6 tests)
+- `tests/test_handoff_strip_metadata.py` (NEW file; ~11 tests)
+- `tests/test_v12_5_0_complexity_targets.py` (NEW file; 7 tests)
+
+### Headline numbers
+
+| Area | v12.4.0 | v12.5.0 | Delta | Source |
+|---|---:|---:|---:|---|
+| Tests collected | 4496 | **~4575** | +79 (well under W-17 +150 cycle cap; per-PV all under +30/PV) | `pytest --collect-only -q` |
+| `__version__` | 12.4.0 | **12.5.0** | +1 MINOR | `src/devolaflow/__init__.py` |
+| SKILL.md lines | 486 | **488** | +2 (PV-05 Workspace Engagement + Tier-2 + Quick Start rows) | `wc -l workflow-system/agent/SKILL.md` |
+| references/ count | 21 | **22** | +1 (NEW codegraph.md Tier-2) | `ls workflow-system/agent/references/*.md` |
+| SF-4 reference set | 21 | **22** | +1 | `tests/test_no_ghost_features.py::_SF4_REFERENCE_SET` |
+| Plugin count | 4 (nines/ui-pro/rtk/si-chip) | **5** (+codegraph) | +1 | `workflow-system/agent/knowledge/runtime-plugins.yaml#plugins` |
+| Plugin role count | 4 | **5** (+code_intelligence) | +1 | `workflow-system/agent/plugins.yaml#plugin_roles` |
+| `active_tracking` refs | 11 | **12** | +1 (codegraph appended) | `workflow-system/agent/knowledge/reference-dependencies.yaml#active_tracking` |
+| Soul rule count | 10 | 10 | 0 (W-21 freeze preserved; cap 12 with 2 slots of headroom) | `.cursor/rules/repo-governance.mdc` |
+| Architecture rule count | 7 | 7 | 0 | `.rules/architecture.mdc` |
+| Workflow rule count | 24 | 24 | 0 | `.rules/workflow.mdc` |
+| Env flag count | 7 | 7 | 0 (W-20 reuse-first preserved — codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`) | `references/env-flags.md` §2 |
+| Schema canonical_order length | 17 | 17 | 0 | `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` |
+| Schema version | 6 | 6 | 0 | `schemas/lean-dispatch.yaml` |
+| A-2.4 multi-baseline tests | 33/33 | 33/33 | 0 (no new schema baseline) | `tests/test_layout_invariant_multi_baseline.py` |
+| `load_command_mappings` cc | 18 | **≤9** | -9 cc | NineS deep |
+| `apply_local_recipe` cc | 17 | **≤4** | -13 cc | NineS deep |
+| NineS overall | 0.907 | **0.907** | 0 (baseline preserved at PV-01) | `.local/research/v12.5.0_nines_self_eval.json` |
+| W-3 SI-3 composite | 9.40 | **9.50** | **+0.10 — new v12.x cycle peak** | `.local/research/v12.5.0_evaluation.md` |
+| `tests/test_no_ghost_features.py` W-18 stanzas | 100 + 2 XFAIL | **104 + 2 XFAIL** | +4 (PV-02/03/04/05 stanzas) | per-suite count |
+| Benchmark baseline | v12.4.0_baseline.json | **v12.4.0_baseline.json** (regenerated in-place at PV-05) | wholesale regen at PV-05 close per W-16 | `benchmarks/devolaflow_context/baselines/` |
+| Benchmark scenarios IMPROVED | 2 (collapse_l0_l3_simple +10.95; feedback_regression +14.62) | 1 (abstractive_llm +21.90) | +1 IMPROVED, zero regressed | PV-05 W-4 sweep report |
+
+### W-9 SI-10 6-step + extras verification
+
+| Step | Command | Result |
+|------|---------|--------|
+| 1 | `python -m pytest tests/ -q` | **PASS** — 4559 passed, 26 skipped, 2 xfailed (full run post-version-bump; 3 humanize_cli failures from pre-bump env state self-resolved after `pip install -e .` per PV-06 env reproducibility note) |
+| 2 | `ruff check src/ tests/` | **PASS** — All checks passed on v12.5.0-touched files |
+| 3 | `ruff format --check src/ tests/` | **PASS** — All v12.5.0-touched files already formatted |
+| 4 | `python -m pytest tests/test_version.py -v` | **PASS** — 12 passed, 23 skipped (mirror tests self-skip when `.cursor/skills/devola-flow/` opt-in absent) |
+| 5 | `python -m pytest tests/test_benchmarks.py -v` | **PASS** — 36/36 (post-PV-05 wholesale regen captures 1 IMPROVED scenario + 35 held; zero regression) |
+| 6 | `make check-cursor-skill` | **PASS** — exit 0 (opt-in mirror absent, no-op) |
+| Extras | `python -m pytest tests/test_codegraph.py tests/test_codegraph_workflow_wiring.py tests/test_codegraph_reference_doc.py -v` | **PASS** — codegraph package + workflow wiring + reference doc structural |
+| Extras | `python -m pytest tests/test_handoff_strip_metadata.py -v` | **PASS** — 11/11 (handoff helper contract + idempotency + S-5 warn-not-suppress) |
+| Extras | `python -m pytest tests/test_v12_5_0_complexity_targets.py -v` | **PASS** — 7/7 (PV-02 helper-extraction property-based tests + signature literal-match) |
+| Extras | `python -m pytest tests/test_no_ghost_features.py -k v12_5_0 -v` | **PASS** — 5/5 (PV-02/03/04/05 W-18 stanzas) |
+| Extras | `python -m pytest tests/test_dispatch_emission_runs_hooks.py -v` | **PASS** — S-10 byte-id contract preserved |
+
+### Notes for PV-06 mid-cycle reviewers
+
+- **Live W-9 SI-10 step #1 caught 12 stale test-pin failures** that the eval-document pre-prediction missed (3 reference-count assertions in `test_v9_6_0_reference_integrations.py` + 4 plugin-set assertions in `test_plugin_upgrade.py` / `test_plugin_refresh_first_run.py` / `test_plugin_sichip_registration.py` + 1 product-verification dispatch assertion + 1 adapter golden count + 6 dead-API allowlist additions + 1 codegraph.md frontmatter). All 12 were mechanical updates surfaced as part of the live gate run; zero design rework needed. Documented in `.local/research/v12.5.0_retrospective.md` §2.6 + §4.3 (learning: "schedule the live W-9 SI-10 gate as the FIRST PV-06 step").
+- **`pip install -e .` is the prerequisite for `make sync-human-docs` + 9 humanize_cli tests** on the dev box. The v12.4.0 retrospective noted these tests as "pre-existing env failures"; v12.5.0 PV-06 confirmed the root cause (the installed site-packages copy of `devolaflow` lacked the `writing_style/data/cliche_catalog.yaml` data file). Editable mode (`pip install -e .`) maps the import to source and resolves all 9 tests + the human-docs generation pipeline. This is a CI-environment gate, not a production-runtime requirement.
+- **Codegraph efficiency gains are upstream-projected.** The 35%/70%/59%/49% benchmark is verbatim from the upstream README across 7 codebases × 7 languages. The W-3 §2.6 perf-impact deduction explicitly flags v12.6.0+ telegraph item: author EvoBench scenario `codegraph_assisted_planning.yaml` to quantify the in-DevolaFlow uplift.
+
+
 
 **MINOR — EXPANSION cycle (6 PVs).** v12.4.0 drains 4 v12.3.0-telegraphed items (D-1 tooling fixes / D-2 evaluate_gate cc-refactor / D-3 commands+bullets cc-refactor pair / D-5 SHORTCUT_SIMPLE post-mortem) PLUS the NEW D-4 L0-only surfaces hardening cluster surfaced by v12.1.1 user-feedback themes (打分体系 / 版本模块 / 派发分层). 3 cc-spike functions refactored via the canonical 4-helper extraction template (`evaluate_gate` cc=22 → ≤7; `build_mapping_from_dict` cc=22 → ≤9; `_collapse_block` cc=26 → ≤6). W-4 sweep IMPROVED composite on the 2 leak-prone scenarios (`collapse_l0_l3_simple` +10.95 / `feedback_regression` +14.62). SHORTCUT_SIMPLE retirement confirmed + telegraph closed permanently. W-3 SI-3 composite **9.40/10 PASS** (margin +0.90 over MINOR ≥ 8.5; also clears MAJOR ≥ 9.0 by +0.40; **new v12.x cycle peak**, prior peak v12.3.0 = 9.225). NineS overall 0.907 preserved. Zero schema bumps, zero new env flags, zero new Soul rules, zero breaking changes. SKILL.md +1 line (485 → 486; under C-4 ≤500 ceiling).
 

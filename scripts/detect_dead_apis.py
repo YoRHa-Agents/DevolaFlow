@@ -158,6 +158,40 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # symbol per A-5.2 — pure module-level wrapper around
         # ``register_hook(EVENT, reject_subagent_banner_emission)``.
         "devolaflow.lifecycle.reject_subagent_banner_emission:register_pre_dispatch_extra",
+        # v12.5.0 PV-05 D-3 closure — ``strip_l0_only_metadata`` is the
+        # auto-strip companion to the v12.4.0 PV-05
+        # ``reject_subagent_banner_emission`` detect-only hook. Pure
+        # function: deep-copies the envelope, removes banner literals +
+        # quality_score keys, returns the cleaned envelope. NEVER touches
+        # disk (S-9 append-only handoff envelopes are written by
+        # callers); idempotent; permissive on absent keys; logs WARN via
+        # logging.getLogger(__name__) on malformed input per S-5. The
+        # in-repo "production caller" is the operator opt-in path —
+        # external orchestrators invoke this BEFORE writing handoff
+        # envelopes to ``.local/.agent/handoff/``. Consumed by
+        # ``tests/test_handoff_strip_metadata.py``. NOT a domain-SSOT
+        # registry symbol per A-5.2 — pure transformation helper.
+        "devolaflow.agent_workspace.handoff:strip_l0_only_metadata",
+        # v12.5.0 PV-03 D-1.1 closure — codegraph researcher Python
+        # wrapper. The 5 helpers are the L3-task-agent surface for
+        # invoking codegraph CLI (the 9 MCP tools wrapped as Python
+        # subprocess calls). Each wraps a distinct codegraph CLI
+        # subcommand: ``build_context`` → ``codegraph context``,
+        # ``search_symbols`` → ``codegraph search``, ``get_impact`` →
+        # ``codegraph impact``, ``get_callers`` → ``codegraph callers``,
+        # ``get_affected_tests`` → ``codegraph affected``. Mirrors the
+        # ``devolaflow.nines.researcher`` module shape per A-5 SSOT
+        # registry pattern (the Python wrapper IS the canonical entry
+        # surface for L3 agents; the in-repo "production caller" is the
+        # L3 task agent invocation contract documented in
+        # ``workflow-system/agent/references/codegraph.md``).
+        # NOT domain-SSOT registry symbols per A-5.2 — pure subprocess
+        # wrappers with no registration data.
+        "devolaflow.codegraph.researcher:build_context",
+        "devolaflow.codegraph.researcher:search_symbols",
+        "devolaflow.codegraph.researcher:get_impact",
+        "devolaflow.codegraph.researcher:get_callers",
+        "devolaflow.codegraph.researcher:get_affected_tests",
         # v8.3.2 PV-02 — shell_proxy module-level convenience wrapper.
         # ``proxy_command(cmd, env)`` is the flat-call equivalent of
         # ``ShellProxy(env).wrap_command(cmd)``; advertised in
