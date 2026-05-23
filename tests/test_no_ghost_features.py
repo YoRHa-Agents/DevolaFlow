@@ -11663,3 +11663,125 @@ def test_v12_5_0_codegraph_plugin_registered(project_root: Path) -> None:
         "missing the test_codegraph_runtime_entry_smoke test pinning the "
         "runtime plugin entry."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v12.5.0 PV-04 D-1.2 — codegraph workflow wiring
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v12.5.0
+# CHANGELOG entry mentioning the codegraph workflow wiring. This stanza
+# pins the v12.5.0 PV-04 D-1.2 surface (closes the codegraph integration's
+# template-side surface):
+#
+# * repo-init.yaml: analyze.config.codegraph_commands + scaffold.config.
+#   codegraph_init (with on_failure: warn + add_to_gitignore: [.codegraph/])
+#   + verify.config.codegraph_smoke (mode=full only).
+# * onboarding.yaml: analyze.config.codegraph_commands.
+# * security-audit.yaml: analyze.config.codegraph_commands (callers + impact).
+# * product-verification.yaml: analyze.config.codegraph_commands (explore + impact).
+# * context_profiles.yaml: meta.codegraph_integration block (parallel to
+#   meta.nines_integration) with 5 commands recipes + 6 triggers.
+# * Companion test file tests/test_codegraph_workflow_wiring.py with the
+#   12 structural assertion tests.
+#
+# Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.2 +
+# .local/research/v12.5.0_codegraph_benefit_analysis.md §3 surface 5 +
+# §6.2 PV-04 acceptance criteria.
+# ---------------------------------------------------------------------------
+_V12_5_0_PV04_REPO_INIT_FILE: Path = Path("workflow-system/agent/templates/builtin/repo-init.yaml")
+_V12_5_0_PV04_ONBOARDING_FILE: Path = Path(
+    "workflow-system/agent/templates/builtin/onboarding.yaml"
+)
+_V12_5_0_PV04_SECURITY_FILE: Path = Path(
+    "workflow-system/agent/templates/builtin/security-audit.yaml"
+)
+_V12_5_0_PV04_PROD_VERIF_FILE: Path = Path(
+    "workflow-system/agent/templates/builtin/product-verification.yaml"
+)
+_V12_5_0_PV04_CONTEXT_PROFILES_FILE: Path = Path("workflow-system/agent/context_profiles.yaml")
+
+
+def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
+    """W-18 v12.5.0 PV-04 D-1.2: codegraph wired across 4 templates + context profile.
+
+    Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
+    mentioning the codegraph workflow wiring. The stanza asserts six
+    load-bearing surfaces:
+
+    (a) repo-init.yaml carries 3 codegraph surfaces (analyze hint +
+        scaffold init sub-step + verify smoke check).
+    (b) onboarding.yaml analyze stage carries codegraph_commands.
+    (c) security-audit.yaml analyze stage carries codegraph_commands.
+    (d) product-verification.yaml analyze stage carries codegraph_commands.
+    (e) context_profiles.yaml carries meta.codegraph_integration block.
+    (f) Companion test file tests/test_codegraph_workflow_wiring.py exists
+        with the 12 structural assertion tests.
+
+    Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.2.
+    """
+    import yaml
+
+    # --- (a) repo-init.yaml — 3 codegraph surfaces -------------------
+    repo_init_text = (project_root / _V12_5_0_PV04_REPO_INIT_FILE).read_text(encoding="utf-8")
+    for literal in (
+        "codegraph_commands:",
+        "codegraph_init:",
+        "codegraph init {project_root}",
+        ".codegraph/",
+        "codegraph_smoke:",
+    ):
+        assert literal in repo_init_text, (
+            f"W-18 v12.5.0 PV-04 violation: {_V12_5_0_PV04_REPO_INIT_FILE} "
+            f"missing required literal {literal!r}. The 3 codegraph "
+            "surfaces (analyze hint + scaffold init + verify smoke) MUST "
+            "be present per the cycle plan §PV-04 deliverable list."
+        )
+
+    # --- (b)-(d) sister templates — analyze.codegraph_commands -------
+    for path in (
+        _V12_5_0_PV04_ONBOARDING_FILE,
+        _V12_5_0_PV04_SECURITY_FILE,
+        _V12_5_0_PV04_PROD_VERIF_FILE,
+    ):
+        text = (project_root / path).read_text(encoding="utf-8")
+        assert "codegraph_commands:" in text, (
+            f"W-18 v12.5.0 PV-04 violation: {path} missing "
+            "`codegraph_commands:` literal under the analyze stage's "
+            "config block. The 3 sister templates MUST gain codegraph "
+            "wiring per the cycle plan §PV-04 deliverable list."
+        )
+
+    # --- (e) context_profiles.yaml — meta.codegraph_integration block
+    cp_path = project_root / _V12_5_0_PV04_CONTEXT_PROFILES_FILE
+    cp_payload = yaml.safe_load(cp_path.read_text(encoding="utf-8"))
+    meta = cp_payload.get("meta") or {}
+    cg_integration = meta.get("codegraph_integration")
+    assert cg_integration is not None, (
+        f"W-18 v12.5.0 PV-04 violation: {_V12_5_0_PV04_CONTEXT_PROFILES_FILE} "
+        "missing `meta.codegraph_integration` block. The block parallels "
+        "meta.nines_integration above and is a release blocker."
+    )
+    assert "commands" in cg_integration
+    assert "triggers" in cg_integration
+
+    # --- (f) companion test file -------------------------------------
+    wiring_test_path = project_root / Path("tests/test_codegraph_workflow_wiring.py")
+    assert wiring_test_path.is_file(), (
+        "W-18 v12.5.0 PV-04 violation: "
+        "tests/test_codegraph_workflow_wiring.py missing — release blocker. "
+        "The companion test file pins the workflow + context-profile "
+        "wiring contract (12 structural assertion tests)."
+    )
+    wiring_text = wiring_test_path.read_text(encoding="utf-8")
+    for class_or_test in (
+        "TestRepoInitCodegraphWiring",
+        "test_sister_template_analyze_has_codegraph_commands",
+        "TestContextProfilesCodegraphIntegration",
+    ):
+        assert class_or_test in wiring_text, (
+            f"W-18 v12.5.0 PV-04 violation: "
+            "tests/test_codegraph_workflow_wiring.py missing "
+            f"{class_or_test!r}. The 12-test contract is documented in "
+            "the cycle plan §PV-04 deliverable list."
+        )

@@ -49,6 +49,16 @@ stages:
     config:
       analysis_type: test_surface
       output_format: test_strategy
+      # v12.5.0 PV-04 D-1.2: codegraph CLI surfaces for product-verification
+      # analyze. The agent invokes `codegraph explore <feature_entry>` to
+      # pull the full source for related symbols in ONE call rather than
+      # multiple Read passes around the feature touch-files. Replaces the
+      # typical multi-Read pattern (-50% est. token spend per
+      # .local/research/v12.5.0_codegraph_benefit_analysis.md §2.4).
+      # Degraded fallback per references/degraded-mode.md (PV-05).
+      codegraph_commands:
+        explore: "codegraph explore {feature_entry} --max-nodes 20"
+        impact: "codegraph impact {feature_entry} --depth 3 --json"
 
   - id: design_tests
     primitive: design

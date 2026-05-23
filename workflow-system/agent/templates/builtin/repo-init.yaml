@@ -30,6 +30,16 @@ stages:
     config:
       analysis_type: structure
       severity_threshold: low
+      # v12.5.0 PV-04 D-1.2: codegraph CLI surfaces (informational hint —
+      # the L3 agent invokes these on demand; the workflow runner does
+      # NOT auto-execute). When .codegraph/ exists from the scaffold
+      # step's codegraph_init sub-step, these commands return rich
+      # repo-shape data without bespoke fs scanning. When absent /
+      # codegraph CLI unavailable, the agent falls back to Read/Glob/Grep
+      # per references/degraded-mode.md.
+      codegraph_commands:
+        status: "codegraph status"
+        files: "codegraph files --format tree"
 
   - id: scaffold
     primitive: implement
@@ -48,6 +58,27 @@ stages:
         - ".local/.agent/active/"
         - ".local/.agent/handoff/"
         - ".local/.agent/archive/"
+      # v12.5.0 PV-04 D-1.2: codegraph project-local index initialisation.
+      # Per the locked operator decision 2026-05-23, this sub-step runs in
+      # ALL modes (core / standard / full) — codegraph footprint is ~28KB
+      # npm package + bundled Node runtime; the index lives in .codegraph/
+      # (gitignored) and is a strict prerequisite for the downstream
+      # analyze workflows (onboarding / security-audit /
+      # product-verification) to deliver their 35%/70%/59% efficiency
+      # gains. Gating on mode would mean core-mode users miss those
+      # benefits.
+      #
+      # on_failure: "warn" — degraded-mode contract per
+      # references/degraded-mode.md (PV-05 codegraph row). When the CLI is
+      # not on $PATH AND DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 is unset, the
+      # scaffold step emits a non-blocking WARN suggesting
+      # `npm i -g @colbymchenry/codegraph` and continues — NEVER blocks
+      # the workflow (S-5 explicit warn + continue, NOT silent fail).
+      codegraph_init:
+        cmd: "codegraph init {project_root}"
+        on_failure: "warn"
+        add_to_gitignore:
+          - ".codegraph/"
     input_mapping:
       tasks: "analyze.findings"
 
@@ -90,6 +121,16 @@ stages:
       suites: [smoke]
       fail_fast: true
       coverage_threshold: 0.0
+      # v12.5.0 PV-04 D-1.2: codegraph index presence check runs ONLY at
+      # mode=full as a verification gate (the init itself ran during
+      # scaffold in ALL modes). When .codegraph/codegraph.db is missing
+      # under mode=full, this is a degraded-mode signal worth
+      # surfacing — but per S-5 the smoke test treats absence as a WARN
+      # (not a hard failure) so codegraph install / network failures do
+      # not break repo-init verification altogether.
+      codegraph_smoke:
+        path: ".codegraph/codegraph.db"
+        on_missing: "warn"
     skip_condition: "mode != 'full'"
 
 composition:
