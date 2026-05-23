@@ -11503,3 +11503,163 @@ def test_v12_5_0_cc_spike_sweep_complete(project_root: Path) -> None:
             "load_command_mappings + 3 for apply_local_recipe + 1 sentinel) "
             "is documented in the PV-02 owned-files manifest item 4."
         )
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v12.5.0 PV-03 D-1.1 — codegraph plugin landing
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v12.5.0
+# CHANGELOG entry mentioning the codegraph plugin. This stanza pins the
+# v12.5.0 PV-03 D-1.1 surface (closes the v12.4.0 retro §3 BLOCKER feedback
+# item: "codegraph integration is the primary deliverable for v12.5.0"):
+#
+# * workflow-system/agent/plugins.yaml carries the `codegraph:` block
+#   under `plugins:` with the 8 capabilities + `code_intelligence` role +
+#   the 4 stage_mapping recipes (analyze/scaffold/research/impact).
+# * workflow-system/agent/plugins.yaml `plugin_roles:` carries the NEW
+#   `code_intelligence:` block (5th role) with provider=codegraph.
+# * workflow-system/agent/knowledge/runtime-plugins.yaml `plugins:` list
+#   carries the `id: codegraph` entry with backend=npm_then_init.
+# * workflow-system/agent/knowledge/reference-dependencies.yaml
+#   `active_tracking:` list (12th entry) carries the codegraph reference
+#   pin for the W-2 / SI-2 reference review cycle.
+# * src/devolaflow/codegraph/ package exists with __init__.py + _cli.py
+#   (run_codegraph_cli + CodegraphUnavailableError) + researcher.py (5
+#   public helpers: build_context, search_symbols, get_impact,
+#   get_callers, get_affected_tests).
+# * Companion test files tests/test_codegraph.py + the 6 new
+#   TestV1250CodegraphRegistration tests in tests/test_plugins.py + the
+#   codegraph entry in tests/test_runtime_plugins_smoke.py exist.
+#
+# Source: .local/research/v12.5.0_gap_analysis.md §2 D-1 +
+# .local/research/v12.5.0_codegraph_benefit_analysis.md §3 (5-surface
+# architecture) + §6.1 PV-03 acceptance criteria. The W-18 sequencing
+# rule is at .cursor/rules/repo-governance.mdc §W-18.
+# ---------------------------------------------------------------------------
+_V12_5_0_PV03_PLUGINS_FILE: Path = Path("workflow-system/agent/plugins.yaml")
+_V12_5_0_PV03_RUNTIME_FILE: Path = Path("workflow-system/agent/knowledge/runtime-plugins.yaml")
+_V12_5_0_PV03_REFERENCES_FILE: Path = Path(
+    "workflow-system/agent/knowledge/reference-dependencies.yaml"
+)
+_V12_5_0_PV03_PACKAGE_DIR: Path = Path("src/devolaflow/codegraph")
+_V12_5_0_PV03_PACKAGE_FILES: tuple[str, ...] = (
+    "__init__.py",
+    "_cli.py",
+    "researcher.py",
+)
+_V12_5_0_PV03_RESEARCHER_PUBLIC_HELPERS: tuple[str, ...] = (
+    "build_context",
+    "search_symbols",
+    "get_impact",
+    "get_callers",
+    "get_affected_tests",
+)
+
+
+def test_v12_5_0_codegraph_plugin_registered(project_root: Path) -> None:
+    """W-18 v12.5.0 PV-03 D-1.1: codegraph plugin landed across 3 registries + Python wrapper.
+
+    Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
+    mentioning the codegraph plugin. The stanza asserts five
+    load-bearing surfaces:
+
+    (a) plugins.yaml carries the codegraph block + code_intelligence role.
+    (b) runtime-plugins.yaml carries the codegraph entry under `plugins:`.
+    (c) reference-dependencies.yaml carries the 12th active_tracking entry.
+    (d) src/devolaflow/codegraph/ package exists with the 3 expected files.
+    (e) Companion test files tests/test_codegraph.py +
+        tests/test_plugins.py::TestV1250CodegraphRegistration +
+        tests/test_runtime_plugins_smoke.py::test_codegraph_runtime_entry_smoke
+        exist.
+
+    Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.
+    """
+    import yaml
+
+    # --- (a) plugins.yaml: codegraph block + code_intelligence role ---
+    plugins_path = project_root / _V12_5_0_PV03_PLUGINS_FILE
+    assert plugins_path.is_file(), (
+        f"W-18 v12.5.0 PV-03 violation: {_V12_5_0_PV03_PLUGINS_FILE} missing — release blocker."
+    )
+    plugins_payload = yaml.safe_load(plugins_path.read_text(encoding="utf-8"))
+    plugins = plugins_payload.get("plugins") or {}
+    assert "codegraph" in plugins, (
+        "W-18 v12.5.0 PV-03 violation: plugins.yaml missing top-level "
+        "`codegraph` block under `plugins:`. The block is the canonical "
+        "plugin catalog declaration per A-5 SSOT registry pattern."
+    )
+    codegraph = plugins["codegraph"]
+    assert codegraph.get("role") == "code_intelligence"
+    assert codegraph.get("min_version") == "0.9.3"
+    assert codegraph.get("repo_url") == "https://github.com/colbymchenry/codegraph"
+    plugin_roles = plugins_payload.get("plugin_roles") or {}
+    assert "code_intelligence" in plugin_roles, (
+        "W-18 v12.5.0 PV-03 violation: plugins.yaml missing "
+        "`plugin_roles.code_intelligence` block. The 5th role MUST exist."
+    )
+
+    # --- (b) runtime-plugins.yaml: codegraph entry --------------------
+    runtime_path = project_root / _V12_5_0_PV03_RUNTIME_FILE
+    runtime_payload = yaml.safe_load(runtime_path.read_text(encoding="utf-8"))
+    runtime_plugins = runtime_payload.get("plugins") or []
+    runtime_ids = {p.get("id") for p in runtime_plugins if isinstance(p, dict)}
+    assert "codegraph" in runtime_ids, (
+        f"W-18 v12.5.0 PV-03 violation: {_V12_5_0_PV03_RUNTIME_FILE} missing "
+        "the `id: codegraph` entry under `plugins:` list."
+    )
+
+    # --- (c) reference-dependencies.yaml: 12th active_tracking entry --
+    refs_path = project_root / _V12_5_0_PV03_REFERENCES_FILE
+    refs_payload = yaml.safe_load(refs_path.read_text(encoding="utf-8"))
+    active = refs_payload.get("active_tracking") or []
+    active_ids = {entry.get("id") for entry in active if isinstance(entry, dict)}
+    assert "codegraph" in active_ids, (
+        f"W-18 v12.5.0 PV-03 violation: {_V12_5_0_PV03_REFERENCES_FILE} "
+        "missing the `id: codegraph` entry under `active_tracking:` list. "
+        "The reference pin enables the W-2 / SI-2 reference review cycle "
+        "to track upstream codegraph version drift."
+    )
+
+    # --- (d) Python wrapper package files -----------------------------
+    package_dir = project_root / _V12_5_0_PV03_PACKAGE_DIR
+    assert package_dir.is_dir(), (
+        f"W-18 v12.5.0 PV-03 violation: {_V12_5_0_PV03_PACKAGE_DIR} missing — "
+        "release blocker. The Python wrapper package is the canonical "
+        "consumer-facing surface for codegraph CLI invocations."
+    )
+    for fname in _V12_5_0_PV03_PACKAGE_FILES:
+        assert (package_dir / fname).is_file(), (
+            f"W-18 v12.5.0 PV-03 violation: {_V12_5_0_PV03_PACKAGE_DIR}/{fname} "
+            "missing — release blocker per the package skeleton contract."
+        )
+    init_text = (package_dir / "__init__.py").read_text(encoding="utf-8")
+    for helper in _V12_5_0_PV03_RESEARCHER_PUBLIC_HELPERS:
+        assert f'"{helper}"' in init_text, (
+            f"W-18 v12.5.0 PV-03 violation: __init__.py __all__ missing "
+            f"public helper {helper!r}. The 5 researcher helpers are the "
+            "v12.5.0 PV-03 D-1.1 contract surface."
+        )
+
+    # --- (e) Companion test files -------------------------------------
+    codegraph_tests = project_root / Path("tests/test_codegraph.py")
+    assert codegraph_tests.is_file(), (
+        "W-18 v12.5.0 PV-03 violation: tests/test_codegraph.py missing — "
+        "release blocker. The companion test file pins the wrapper "
+        "package contract (subprocess mocking + degraded-mode + "
+        "structured-error)."
+    )
+    plugins_tests = project_root / Path("tests/test_plugins.py")
+    plugins_text = plugins_tests.read_text(encoding="utf-8")
+    assert "TestV1250CodegraphRegistration" in plugins_text, (
+        "W-18 v12.5.0 PV-03 violation: tests/test_plugins.py missing the "
+        "TestV1250CodegraphRegistration class with the 6 plugin-registry "
+        "pin tests."
+    )
+    runtime_tests = project_root / Path("tests/test_runtime_plugins_smoke.py")
+    runtime_text = runtime_tests.read_text(encoding="utf-8")
+    assert "test_codegraph_runtime_entry_smoke" in runtime_text, (
+        "W-18 v12.5.0 PV-03 violation: tests/test_runtime_plugins_smoke.py "
+        "missing the test_codegraph_runtime_entry_smoke test pinning the "
+        "runtime plugin entry."
+    )

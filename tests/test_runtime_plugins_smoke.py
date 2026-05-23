@@ -34,7 +34,7 @@ import pytest
 from devolaflow.plugins import load_registry, resolve_plugin
 from devolaflow.plugins.installer import _SUPPORTED_BACKENDS, RuntimePluginSpec
 
-_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset({"nines", "ui-pro", "rtk", "si-chip"})
+_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset({"nines", "ui-pro", "rtk", "si-chip", "codegraph"})
 
 
 def test_registry_schema_version_is_3() -> None:
@@ -57,14 +57,14 @@ def test_registry_upgrade_check_frequency_defaults_24h() -> None:
     )
 
 
-def test_registry_contains_expected_4_plugin_ids() -> None:
-    """Exactly the 4 plugins (nines, ui-pro, rtk, si-chip) ship in v10.2.0."""
+def test_registry_contains_expected_5_plugin_ids() -> None:
+    """5 plugins ship in v12.5.0 (nines, ui-pro, rtk, si-chip, codegraph)."""
     registry = load_registry()
     registered = {p["id"] for p in registry["plugins"]}
     missing = _EXPECTED_PLUGIN_IDS - registered
     assert not missing, (
         f"runtime-plugins.yaml missing expected plugin IDs {sorted(missing)!r}; "
-        f"registered = {sorted(registered)!r}. D-P-4 smoke requires all 4."
+        f"registered = {sorted(registered)!r}. v12.5.0 PV-03 smoke requires all 5."
     )
 
 
@@ -180,4 +180,40 @@ def test_all_plugins_use_python_or_shell_that_is_available() -> None:
         f"None of the plugin install prerequisites {prerequisites!r} "
         f"are on PATH. Plugin auto-install cannot proceed in this "
         f"environment; provision at least one backend's toolchain."
+    )
+
+
+# ---------------------------------------------------------------------------
+# v12.5.0 PV-03 D-1.1 — codegraph runtime plugin entry smoke
+# ---------------------------------------------------------------------------
+
+
+def test_codegraph_runtime_entry_smoke() -> None:
+    """v12.5.0 PV-03: codegraph runtime entry has the contracted shape.
+
+    Pins the 5 contract fields documented at
+    `.local/research/v12.5.0_codegraph_benefit_analysis.md` §3 surface 2:
+      * backend = npm_then_init (reuses the ui-pro precedent)
+      * package = @colbymchenry/codegraph
+      * min_version = 0.9.3
+      * canonical_url = https://github.com/colbymchenry/codegraph
+      * invoked_by_workflows includes the 4 analyze-stage templates
+    """
+    registry = load_registry()
+    spec = resolve_plugin("codegraph", registry)
+    assert spec.id == "codegraph"
+    assert spec.backend == "npm_then_init"
+    assert spec.package == "@colbymchenry/codegraph"
+    assert spec.min_version == "0.9.3"
+    assert spec.canonical_url == "https://github.com/colbymchenry/codegraph"
+    expected_workflows = {
+        "repo-init",
+        "onboarding",
+        "security-audit",
+        "product-verification",
+    }
+    assert expected_workflows.issubset(set(spec.invoked_by_workflows or [])), (
+        f"v12.5.0 PV-03 D-1.1: codegraph invoked_by_workflows must include "
+        f"all 4 analyze-stage templates; missing: "
+        f"{expected_workflows - set(spec.invoked_by_workflows or [])}"
     )

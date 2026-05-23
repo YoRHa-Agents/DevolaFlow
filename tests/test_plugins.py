@@ -1692,3 +1692,113 @@ class TestRtkCurlScriptHelpers:
         with patch("devolaflow.plugins.installer.subprocess.run") as mock_run:
             _installer_mod._verify_distinguish(spec, timeout=30)
             assert mock_run.call_count == 0
+
+
+# ===========================================================================
+# v12.5.0 PV-03 D-1.1 — codegraph plugin registration
+# ===========================================================================
+#
+# Pins the v12.5.0 PV-03 D-1.1 surfaces in plugins.yaml + plugin_roles.
+# Companion tests for runtime-plugins.yaml live in
+# ``tests/test_runtime_plugins_smoke.py``; lifecycle / workflow-invocation
+# tests live in ``tests/test_pre_plugin_invocation.py``; and the cycle-
+# global ghost-audit pin lives in
+# ``tests/test_no_ghost_features.py::test_v12_5_0_codegraph_plugin_registered``.
+# ===========================================================================
+
+
+class TestV1250CodegraphRegistration:
+    """v12.5.0 PV-03 D-1.1 — codegraph block + code_intelligence role.
+
+    These tests load the real repository ``plugins.yaml`` (the canonical
+    source-of-truth per A-5 SSOT registry pattern) and assert the
+    codegraph integration ships with the contract documented at
+    ``.local/research/v12.5.0_codegraph_benefit_analysis.md`` §3 surface 1.
+    """
+
+    def test_codegraph_spec_registered(self) -> None:
+        """``plugins.yaml`` declares the codegraph plugin block."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        codegraph = reg.get("codegraph")
+        assert codegraph is not None, (
+            "v12.5.0 PV-03 D-1.1 violation: codegraph plugin block missing from "
+            "workflow-system/agent/plugins.yaml. The block MUST exist for the "
+            "v12.5.0 codegraph integration to function."
+        )
+        assert codegraph.cli_binary == "codegraph"
+        assert codegraph.role == "code_intelligence"
+        assert codegraph.min_version == "0.9.3"
+        assert codegraph.repo_url == "https://github.com/colbymchenry/codegraph"
+
+    def test_codegraph_install_methods(self) -> None:
+        """codegraph declares both npm + curl-script install methods."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        codegraph = reg.get("codegraph")
+        assert codegraph is not None
+        assert codegraph.install_methods.get("npm") == ("npm install -g @colbymchenry/codegraph")
+        assert "install.sh" in codegraph.install_methods.get("script", "")
+
+    def test_codegraph_capabilities(self) -> None:
+        """codegraph declares the 8 v12.5.0 PV-03 capabilities."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        codegraph = reg.get("codegraph")
+        assert codegraph is not None
+        expected = {
+            "smart_context_building",
+            "full_text_search",
+            "impact_analysis",
+            "callers_callees_trace",
+            "file_structure_lookup",
+            "test_impact_selection",
+            "framework_route_awareness",
+            "multi_language_index",
+        }
+        assert expected.issubset(set(codegraph.capabilities)), (
+            "v12.5.0 PV-03 D-1.1: codegraph capabilities MUST include all 8 "
+            "v12.5.0-defined surfaces; missing: "
+            f"{expected - set(codegraph.capabilities)}"
+        )
+
+    def test_codegraph_workflows_include_4_analyze_targets(self) -> None:
+        """codegraph workflows include the 4 analyze-stage templates wired in PV-04."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        codegraph = reg.get("codegraph")
+        assert codegraph is not None
+        for wf in ("repo-init", "onboarding", "security-audit", "product-verification"):
+            assert wf in codegraph.workflows, (
+                f"v12.5.0 PV-03 D-1.1: codegraph workflows missing {wf!r}; "
+                "the 4 analyze-stage templates wired in PV-04 MUST appear."
+            )
+
+    def test_codegraph_stage_mapping_recipes(self) -> None:
+        """codegraph declares the 4 stage_mapping recipes (analyze/scaffold/research/impact)."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        codegraph = reg.get("codegraph")
+        assert codegraph is not None
+        for stage in ("analyze", "scaffold", "research", "impact"):
+            assert stage in codegraph.stage_mapping, (
+                f"v12.5.0 PV-03 D-1.1: codegraph stage_mapping missing {stage!r}; "
+                "the 4 stage recipes are part of the PV-03 contract."
+            )
+
+    def test_code_intelligence_role_present(self) -> None:
+        """``plugins.yaml`` declares the NEW code_intelligence role under plugin_roles."""
+        import yaml
+
+        with _REPO_PLUGINS_YAML.open(encoding="utf-8") as f:
+            payload = yaml.safe_load(f)
+        plugin_roles = payload.get("plugin_roles", {})
+        ci = plugin_roles.get("code_intelligence")
+        assert ci is not None, (
+            "v12.5.0 PV-03 D-1.1 violation: plugin_roles.code_intelligence missing "
+            "from plugins.yaml. The 5th role (after research_and_iteration, "
+            "skill_self_improvement, ui_tooling, gate_scoring) MUST exist."
+        )
+        assert ci.get("provider") == "codegraph"
+        assert ci.get("invocation") == "on_demand"
+        primary_workflows = ci.get("primary_workflows") or []
+        for wf in ("repo-init", "onboarding", "security-audit", "product-verification"):
+            assert wf in primary_workflows
+        stage_affinity = ci.get("stage_affinity") or []
+        for stage in ("analyze", "scaffold", "research", "profile"):
+            assert stage in stage_affinity
