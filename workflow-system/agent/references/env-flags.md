@@ -405,6 +405,21 @@ A NEW env-flag PR that fails any of the 5 checks is a **W-20
 violation** — block at code review and either remove the flag (REUSE)
 or document the orthogonality argument explicitly.
 
+> **v12.5.0 PV-05 reuse-first reference case — codegraph.** The
+> v12.5.0 codegraph plugin integration deliberately introduces NO new
+> env flag. Codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (§2.12)
+> for opt-in runtime installation through `pre_plugin_invocation`. The
+> W-20 orthogonality test passed because codegraph shares the runtime-
+> installer activation surface with `nines` + `ui-pro` + `rtk` +
+> `si-chip` (the 4 v10.2.0 baseline plugins). Authoring a NEW
+> `DEVOLAFLOW_CODEGRAPH` flag would have conflated two activation
+> patterns that are already correctly distinguished by the
+> `runtime-plugins.yaml::plugins[id=codegraph].invoked_by_workflows`
+> declaration. Result: env-flag count stays at 7 (no growth at
+> v12.5.0). This is the canonical W-20 reuse-first reference case
+> alongside the v8.3.4 PV-04 command-mapping precedent cited in test
+> 2 above.
+
 ## 7.A Lifecycle event taxonomy (v11.0.0 PV-02 D-Q-3 PURE-ALIAS rename)
 
 > **Cross-cuts §2.12 + §2.13**: the `pre_plugin_invocation` /

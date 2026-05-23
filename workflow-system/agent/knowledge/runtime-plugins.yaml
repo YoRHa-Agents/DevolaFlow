@@ -164,6 +164,60 @@ plugins:
       - self-update
       - nines-assisted
 
+  # v12.5.0 PV-03 — Codegraph pre-indexed code knowledge graph.
+  # Spec source-of-truth: https://github.com/colbymchenry/codegraph
+  # Primary integration target for the v12.5.0 EXPANSION MINOR cycle per
+  # .local/research/v12.5.0_gap_analysis.md §2 D-1.
+  #
+  # Codegraph is an npm-distributed CLI (~28KB package + bundled Node
+  # runtime; no runtime Python deps) that ships with an MCP server + 9
+  # MCP tools (search/context/callers/callees/impact/node/explore/files/
+  # status). Index storage is project-local at .codegraph/codegraph.db
+  # (SQLite FTS5; gitignored per repo-init scaffold step).
+  #
+  # Backend: npm_then_init reuses the ui-pro precedent verbatim — npm
+  # install plus a per-target init step. For codegraph the init phase is
+  # the upstream "agent installer" (`codegraph install --target X --yes`)
+  # which writes the relevant agent-integration files (e.g.
+  # ``.cursor/rules/codegraph.mdc`` for cursor, ``CLAUDE.md`` for claude).
+  # The init step is idempotent — re-running against an already-installed
+  # target refreshes the integration files in place.
+  #
+  # The PROJECT-LOCAL index creation (``codegraph init <project_root>``
+  # → creates ``.codegraph/codegraph.db``) runs separately at workflow
+  # scaffold time per PV-04 (see
+  # ``workflow-system/agent/templates/builtin/repo-init.yaml`` ::
+  # ``scaffold.config.codegraph_init`` sub-step). Splitting installer-
+  # phase agent integration from per-workflow project-index creation
+  # mirrors the upstream codegraph install vs. init separation and keeps
+  # ensure_plugin() free of project-state side-effects (R5 strict).
+  #
+  # invoked_by_workflows lists the 4 analyze-stage templates wired in
+  # PV-04 (repo-init, onboarding, security-audit, product-verification).
+  # The 2 stage_affinity workflows from plugins.yaml (refactoring,
+  # performance-optimization) are NOT wired in PV-04 — they are forward-
+  # compat declarations for v12.6.0+ pickup.
+  - id: codegraph
+    backend: npm_then_init
+    package: "@colbymchenry/codegraph"
+    install_cmd: "npm install -g @colbymchenry/codegraph@latest"
+    upgrade_cmd: "npm install -g @colbymchenry/codegraph@latest"
+    init_cmd_template: "codegraph install --target {ai_platform} --yes"
+    init_targets:
+      - cursor
+      - claude
+      - codex
+    version_check_cmd: "codegraph --version"
+    min_version: "0.9.3"
+    expected_sha256: null
+    canonical_url: "https://github.com/colbymchenry/codegraph"
+    local_fallback_path: null
+    invoked_by_workflows:
+      - repo-init
+      - onboarding
+      - security-audit
+      - product-verification
+
 defaults:
   auto_install: true
   prefer_local_fallback: true

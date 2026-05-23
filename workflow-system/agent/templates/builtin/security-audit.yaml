@@ -52,6 +52,17 @@ stages:
       analysis_type: security
       severity_threshold: medium
       include_metrics: true
+      # v12.5.0 PV-04 D-1.2: codegraph CLI surfaces for security analyze.
+      # The agent invokes these on demand to map attack surface around
+      # auth/session/jwt/csrf identifiers — `codegraph callers` traces
+      # reverse-call edges from sensitive entry points; `codegraph
+      # impact` returns blast-radius for proposed remediation patches.
+      # Replaces the typical Grep+Read pattern (-65% est. token spend
+      # per .local/research/v12.5.0_codegraph_benefit_analysis.md §2.3).
+      # Degraded fallback per references/degraded-mode.md (PV-05).
+      codegraph_commands:
+        callers: "codegraph callers {auth_handler} --limit 20 --json"
+        impact: "codegraph impact {auth_module} --depth 3 --json"
     input_mapping:
       targets: "scan.findings"
 

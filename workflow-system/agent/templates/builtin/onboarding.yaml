@@ -31,6 +31,15 @@ stages:
     config:
       analysis_type: code
       severity_threshold: low
+      # v12.5.0 PV-04 D-1.2: codegraph CLI surfaces for onboarding analyze.
+      # The agent invokes these on demand to seed an L1 reading order for
+      # new contributors — `codegraph context "entry points"` returns
+      # ranked entry-point candidates in one call instead of multiple
+      # Read+Glob heuristics. Degraded fallback per
+      # references/degraded-mode.md (PV-05).
+      codegraph_commands:
+        entry_points: "codegraph context \"entry points\" --format markdown --max-nodes 30"
+        files: "codegraph files --format tree"
 
   - id: document
     primitive: implement

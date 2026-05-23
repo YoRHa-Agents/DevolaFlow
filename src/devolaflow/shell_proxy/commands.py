@@ -627,6 +627,189 @@ def _resolve_current_version() -> str:
     return __version__
 
 
+def _resolve_commands_root(
+    commands_dir: Path | str | None,
+    env: dict[str, str] | None,
+) -> Path | None:
+    """Validate the env-flag + commands directory; return root path or ``None``.
+
+    Returns ``None`` (caller should bail with empty dict) when:
+
+    1. The PV-02 env-flag is unset → byte-identical R5 strict zero-IO path
+    2. The resolved directory does not exist (INFO log; normal on fresh
+       checkout / CI runners)
+    3. The resolved path is a file rather than a directory (WARNING log)
+
+    Returns a resolved :class:`pathlib.Path` rooted at the discovery
+    directory otherwise. Splitting this preamble out drops
+    :func:`load_command_mappings`'s orchestrator cc by 4 (env-flag short
+    circuit + directory existence + directory type check).
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=18
+    :func:`load_command_mappings` body per the canonical helper-extraction
+    template (v12.4.0 PV-04 §4.1 "Specific copy-paste recipe").
+    """
+    if not is_command_mapping_active(env):
+        # R5 strict zero-overhead path — no PATH lookup, no file IO.
+        return None
+
+    base = Path(commands_dir) if commands_dir is not None else _resolve_default_commands_dir()
+    if not base.exists():
+        logger.info(
+            "[shell_proxy.commands] commands directory %s not present; layer disabled, "
+            "callers fall through to RTK rewrite (this is normal on a fresh checkout)",
+            base,
+        )
+        return None
+
+    if not base.is_dir():
+        logger.warning(
+            "[shell_proxy.commands] expected directory at %s but found a file; "
+            "treating as empty (no recipes loaded)",
+            base,
+        )
+        return None
+
+    return base
+
+
+def _load_recipe_payload(yaml_path: Path, rel_source: str) -> dict | None:
+    """Read + YAML-parse one recipe file; return the payload dict or ``None``.
+
+    Returns ``None`` (caller should skip this recipe) when:
+
+    1. The file cannot be read (``OSError``; e.g. permission denied)
+    2. The file is not valid YAML (``yaml.YAMLError``)
+    3. The parsed payload is empty (``yaml.safe_load`` returns ``None``)
+
+    Each failure mode logs a WARNING per S-5 (no silent failure) so the
+    operator can locate the offending file and repair / remove it. The
+    remaining recipes still load — this matches the pre-refactor
+    behaviour byte-identically.
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=18
+    :func:`load_command_mappings` body per the canonical helper-extraction
+    template.
+    """
+    try:
+        text = yaml_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        logger.warning(
+            "[shell_proxy.commands] cannot read recipe %s: %s — skipping",
+            rel_source,
+            exc,
+        )
+        return None
+    try:
+        payload = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        logger.warning(
+            "[shell_proxy.commands] recipe %s is not valid YAML: %s — skipping",
+            rel_source,
+            exc,
+        )
+        return None
+    if payload is None:
+        logger.warning(
+            "[shell_proxy.commands] recipe %s is empty — skipping",
+            rel_source,
+        )
+        return None
+    return payload
+
+
+def _filter_recipe_freshness(
+    mapping: CommandMapping,
+    current_version: str,
+    rel_source: str,
+) -> bool:
+    """Return ``True`` iff *mapping* should be DROPPED for staleness reasons.
+
+    Two distinct stale paths surface here (each logged at INFO so the
+    operator can audit which recipes are turning over):
+
+    1. ``version_stamp`` mismatch → recipe authored against a different
+       DevolaFlow version (mirrors PV-03 router invalidation).
+    2. ``ttl_days`` expiry → recipe past its freshness anchor.
+    3. Malformed date field → recipe's ``last_updated`` is not parseable
+       (logged as WARNING; treated as miss to avoid serving a recipe with
+       unverifiable freshness).
+
+    Caller drops the recipe when this returns ``True`` and continues
+    iterating the remaining files.
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=18
+    :func:`load_command_mappings` body per the canonical helper-extraction
+    template.
+    """
+    if _is_recipe_version_stale(mapping, current_version):
+        logger.info(
+            "[shell_proxy.commands] recipe %s matched but version-stale "
+            "(version_stamp=%s, current=%s); treating as miss",
+            rel_source,
+            mapping.version_stamp,
+            current_version,
+        )
+        return True
+    try:
+        expired = _is_recipe_ttl_expired(mapping)
+    except CommandMappingError as exc:
+        logger.warning(
+            "[shell_proxy.commands] recipe %s has malformed date field; treating as miss: %s",
+            rel_source,
+            exc,
+        )
+        return True
+    if expired:
+        logger.info(
+            "[shell_proxy.commands] recipe %s matched but TTL-expired "
+            "(ttl_days=%d, last_updated=%r); treating as miss",
+            rel_source,
+            mapping.ttl_days,
+            mapping.last_updated,
+        )
+        return True
+    return False
+
+
+def _should_keep_recipe(
+    mapping: CommandMapping,
+    repo_signal: str | None,
+    mappings: dict[str, CommandMapping],
+    rel_source: str,
+) -> bool:
+    """Return ``True`` iff *mapping* survives the namespace + duplicate filters.
+
+    Two filter passes (caller drops the recipe when this returns
+    ``False``):
+
+    1. ``repo_signal`` filter — when supplied, only recipes whose
+       ``repo_signal`` matches exactly survive (case-sensitive equality).
+    2. Duplicate detection — first-match-wins by directory traversal
+       order; subsequent matches for the same ``command`` are dropped
+       with an INFO log so the operator sees the conflict and can
+       disambiguate via ``repo_signal``.
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=18
+    :func:`load_command_mappings` body per the canonical helper-extraction
+    template.
+    """
+    if repo_signal is not None and mapping.repo_signal != repo_signal:
+        return False
+    if mapping.command in mappings:
+        # First-match-wins by directory order — log the conflict so
+        # the operator sees the duplicate and can disambiguate via
+        # repo_signal (per the schema's `repo_signal` semantics).
+        logger.info(
+            "[shell_proxy.commands] recipe %s shadowed by earlier recipe for "
+            "command %r (use repo_signal to disambiguate)",
+            rel_source,
+            mapping.command,
+        )
+        return False
+    return True
+
+
 def load_command_mappings(
     *,
     commands_dir: Path | str | None = None,
@@ -677,26 +860,19 @@ def load_command_mappings(
         Load only DevolaFlow recipes::
 
             mappings = load_command_mappings(repo_signal="DevolaFlow")
+
+    v12.5.0 PV-02 D-2 decomposition (per
+    ``.local/research/v12.5.0_gap_analysis.md`` §2 D-2): the original
+    cc=18 body split into four helpers
+    (:func:`_resolve_commands_root`, :func:`_load_recipe_payload`,
+    :func:`_filter_recipe_freshness`, :func:`_should_keep_recipe`).
+    Public signature + every WARNING / INFO log message preserved
+    byte-identically — verified by the existing
+    ``tests/test_shell_proxy_commands.py`` fixture suite + the cc-pin
+    test in ``tests/test_v12_5_0_complexity_targets.py``.
     """
-    if not is_command_mapping_active(env):
-        # R5 strict zero-overhead path — no PATH lookup, no file IO.
-        return {}
-
-    base = Path(commands_dir) if commands_dir is not None else _resolve_default_commands_dir()
-    if not base.exists():
-        logger.info(
-            "[shell_proxy.commands] commands directory %s not present; layer disabled, "
-            "callers fall through to RTK rewrite (this is normal on a fresh checkout)",
-            base,
-        )
-        return {}
-
-    if not base.is_dir():
-        logger.warning(
-            "[shell_proxy.commands] expected directory at %s but found a file; "
-            "treating as empty (no recipes loaded)",
-            base,
-        )
+    base = _resolve_commands_root(commands_dir, env)
+    if base is None:
         return {}
 
     version = current_version if current_version is not None else _resolve_current_version()
@@ -706,30 +882,11 @@ def load_command_mappings(
             continue
         recipe_id = yaml_path.stem
         rel_source = _safe_relative_source(yaml_path, base)
-        try:
-            text = yaml_path.read_text(encoding="utf-8")
-        except OSError as exc:
-            logger.warning(
-                "[shell_proxy.commands] cannot read recipe %s: %s — skipping",
-                rel_source,
-                exc,
-            )
-            continue
-        try:
-            payload = yaml.safe_load(text)
-        except yaml.YAMLError as exc:
-            logger.warning(
-                "[shell_proxy.commands] recipe %s is not valid YAML: %s — skipping",
-                rel_source,
-                exc,
-            )
-            continue
+
+        payload = _load_recipe_payload(yaml_path, rel_source)
         if payload is None:
-            logger.warning(
-                "[shell_proxy.commands] recipe %s is empty — skipping",
-                rel_source,
-            )
             continue
+
         try:
             mapping = build_mapping_from_dict(
                 payload,
@@ -744,48 +901,11 @@ def load_command_mappings(
             )
             continue
 
-        if _is_recipe_version_stale(mapping, version):
-            logger.info(
-                "[shell_proxy.commands] recipe %s matched but version-stale "
-                "(version_stamp=%s, current=%s); treating as miss",
-                rel_source,
-                mapping.version_stamp,
-                version,
-            )
+        if _filter_recipe_freshness(mapping, version, rel_source):
             continue
-        try:
-            expired = _is_recipe_ttl_expired(mapping)
-        except CommandMappingError as exc:
-            logger.warning(
-                "[shell_proxy.commands] recipe %s has malformed date field; treating as miss: %s",
-                rel_source,
-                exc,
-            )
-            continue
-        if expired:
-            logger.info(
-                "[shell_proxy.commands] recipe %s matched but TTL-expired "
-                "(ttl_days=%d, last_updated=%r); treating as miss",
-                rel_source,
-                mapping.ttl_days,
-                mapping.last_updated,
-            )
+        if not _should_keep_recipe(mapping, repo_signal, mappings, rel_source):
             continue
 
-        if repo_signal is not None and mapping.repo_signal != repo_signal:
-            continue
-
-        if mapping.command in mappings:
-            # First-match-wins by directory order — log the conflict so
-            # the operator sees the duplicate and can disambiguate via
-            # repo_signal (per the schema's `repo_signal` semantics).
-            logger.info(
-                "[shell_proxy.commands] recipe %s shadowed by earlier recipe for "
-                "command %r (use repo_signal to disambiguate)",
-                rel_source,
-                mapping.command,
-            )
-            continue
         mappings[mapping.command] = mapping
 
     return mappings
@@ -894,6 +1014,93 @@ def _truncate_to_lines(text: str, max_lines: int, *, recipe_id: str) -> str:
     return head + suffix
 
 
+def _resolve_apply_inputs(
+    cmd: str,
+    output: str,
+    *,
+    mappings: dict[str, CommandMapping] | None,
+    env: dict[str, str] | None,
+    commands_dir: Path | str | None,
+    repo_signal: str | None,
+) -> CommandMapping | None:
+    """Resolve the matching recipe for ``apply_local_recipe`` or return ``None``.
+
+    Returns ``None`` (caller bails to ``(output, False)``) when:
+
+    1. The PV-02 env-flag is unset (R5 strict zero-IO short-circuit)
+    2. *cmd* is not a non-empty string
+    3. *output* is not a string
+    4. *mappings* loads to an empty dict (cache miss / disabled)
+    5. :func:`_match_recipe` finds no longest-prefix match for *cmd*
+
+    Returns the matched :class:`CommandMapping` instance otherwise. The
+    extraction collapses 5 distinct early-return decisions in
+    :func:`apply_local_recipe`'s body into one helper so the orchestrator
+    drops to cc ≤ 8 (see :func:`apply_local_recipe` v12.5.0 PV-02 D-2 note).
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=17
+    :func:`apply_local_recipe` body per the canonical helper-extraction
+    template.
+    """
+    if not is_command_mapping_active(env):
+        return None
+    if not isinstance(cmd, str) or not cmd:
+        return None
+    if not isinstance(output, str):
+        return None
+
+    if mappings is None:
+        mappings = load_command_mappings(
+            commands_dir=commands_dir,
+            repo_signal=repo_signal,
+            env=env,
+        )
+    if not mappings:
+        return None
+
+    return _match_recipe(cmd, mappings)
+
+
+def _apply_recipe_transform(matched: CommandMapping, output: str) -> str:
+    """Run the strip-ansi → pre/post filter → truncate → on-empty pipeline.
+
+    Sequence (each step is conditional on the recipe's per-field flag):
+
+    1. ``strip_ansi`` — remove ECMA-48 / ANSI CSI escape codes
+    2. ``pre_filters`` — apply pre-filter regex substitutions
+    3. ``post_filters`` — apply post-filter regex substitutions
+    4. ``truncate_lines`` — cap output to a fixed line count with footer
+    5. ``on_empty`` — substitute the configured fallback text when the
+       transformed output is empty/whitespace-only
+
+    The function is pure (no IO, no logging). Callers wrap invocation in
+    a defensive ``try/except (re.error, ValueError)`` so a regex-runtime
+    failure surfaces a WARNING and falls back to passthrough — that
+    fallback is implemented by :func:`apply_local_recipe` immediately
+    around the call site.
+
+    v12.5.0 PV-02 D-2: extracted from the original cc=17
+    :func:`apply_local_recipe` body per the canonical helper-extraction
+    template.
+    """
+    rewritten = output
+    if matched.strip_ansi:
+        rewritten = _strip_ansi(rewritten)
+    if matched.pre_filters:
+        rewritten = _apply_filter_rules(rewritten, matched.pre_filters)
+    if matched.post_filters:
+        rewritten = _apply_filter_rules(rewritten, matched.post_filters)
+    if matched.truncate_lines:
+        rewritten = _truncate_to_lines(
+            rewritten,
+            matched.truncate_lines,
+            recipe_id=matched.recipe_id,
+        )
+    if matched.on_empty and not rewritten.strip():
+        rewritten = matched.on_empty + ("\n" if not matched.on_empty.endswith("\n") else "")
+    return rewritten
+
+
 def apply_local_recipe(
     cmd: str,
     output: str,
@@ -944,43 +1151,30 @@ def apply_local_recipe(
         True iff a recipe matched AND the substitutions ran without
         raising. False indicates the caller should fall back to the next
         precedence layer (RTK rewrite → passthrough).
+
+    v12.5.0 PV-02 D-2 decomposition (per
+    ``.local/research/v12.5.0_gap_analysis.md`` §2 D-2): the original
+    cc=17 body split into two helpers (:func:`_resolve_apply_inputs`
+    folding the 5 early-return decisions, :func:`_apply_recipe_transform`
+    folding the strip-ansi → pre/post filter → truncate → on-empty
+    pipeline). Public signature + every WARNING log preserved
+    byte-identically — verified by the existing
+    ``tests/test_shell_proxy_commands.py`` fixture suite + the cc-pin
+    test in ``tests/test_v12_5_0_complexity_targets.py``.
     """
-    if not is_command_mapping_active(env):
-        return output, False
-    if not isinstance(cmd, str) or not cmd:
-        return output, False
-    if not isinstance(output, str):
-        return output, False
-
-    if mappings is None:
-        mappings = load_command_mappings(
-            commands_dir=commands_dir,
-            repo_signal=repo_signal,
-            env=env,
-        )
-    if not mappings:
-        return output, False
-
-    matched = _match_recipe(cmd, mappings)
+    matched = _resolve_apply_inputs(
+        cmd,
+        output,
+        mappings=mappings,
+        env=env,
+        commands_dir=commands_dir,
+        repo_signal=repo_signal,
+    )
     if matched is None:
         return output, False
 
     try:
-        rewritten = output
-        if matched.strip_ansi:
-            rewritten = _strip_ansi(rewritten)
-        if matched.pre_filters:
-            rewritten = _apply_filter_rules(rewritten, matched.pre_filters)
-        if matched.post_filters:
-            rewritten = _apply_filter_rules(rewritten, matched.post_filters)
-        if matched.truncate_lines:
-            rewritten = _truncate_to_lines(
-                rewritten,
-                matched.truncate_lines,
-                recipe_id=matched.recipe_id,
-            )
-        if matched.on_empty and not rewritten.strip():
-            rewritten = matched.on_empty + ("\n" if not matched.on_empty.endswith("\n") else "")
+        rewritten = _apply_recipe_transform(matched, output)
     except (re.error, ValueError) as exc:
         # Defensive — patterns are compiled at load time so this branch
         # is rare. Loud per S-5; operator sees the recipe id + the raise.

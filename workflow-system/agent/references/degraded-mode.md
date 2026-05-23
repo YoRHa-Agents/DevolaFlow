@@ -86,6 +86,7 @@ multi-plugin coordination is the primary deliverable.
 | Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | `DEVOLAFLOW_SI_CHIP_DEEP` (opt-IN) | `post_skill_edit` hook; `run_dogfood_cycle`; `iteration_delta_gate` | `SiChipUnavailable` (binary missing); `SiChipError` (subprocess fail); network-unreachable mid-install | PSE001 warning; `metadata["verdict"] = "SKIPPED_PERMISSIVE"`; dispatch continues | Install Si-Chip per canonical URL OR document SKIPPED verdict in retrospective | `tests/test_degraded_mode.py::test_si_chip_unreachable_emits_pse001_and_defers` |
 | RTK | https://github.com/rtk-ai/rtk | `DEVOLAFLOW_RTK_PROXY` (opt-IN) | `pre_shell_call` hook; `shell_proxy/proxy.py::ShellProxy.wrap_command` | env-flag unset; binary missing on PATH; `rtk gain` probe fail (rtk-type-kit collision) | R5 strict passthrough to native shell; zero subprocess work | No action needed — RTK is OPT-IN by default | `tests/test_degraded_mode.py::test_rtk_unreachable_bypasses_to_native_shell` |
 | ui-pro | https://github.com/YoRHa-Agents/ui-pro | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN) | `pre_plugin_invocation` hook; `ensure_plugin('ui-pro')`; `uipro init --ai cursor --global` | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch` | PPI001 error (permissive mode); dispatch continues; strict mode blocks | Check npm registry reachability OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_ui_pro_unreachable_emits_ppi001_permissive_continues` |
+| codegraph | https://github.com/colbymchenry/codegraph | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `devolaflow.codegraph.researcher.{build_context,search_symbols,get_impact,get_callers,get_affected_tests}`; `repo-init.scaffold.codegraph_init`; `repo-init.verify.codegraph_smoke` (mode=full only) | `CodegraphUnavailableError` with structured `cause` (one of: `path_missing` / `timeout` / `nonzero_exit` / `json_parse_error`) | Helper returns empty sentinel (`""` for build_context, `[]` for list helpers, `{}` for get_impact); WARNING fires once per process (subsequent at DEBUG); caller falls back to Read/Glob/Grep planning; gate scoring drops `codegraph_impact` dimension and redistributes weight | Install codegraph per canonical URL (`npm install -g @colbymchenry/codegraph`) OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` to opt into runtime install | `tests/test_codegraph.py::TestRunCodegraphCli::test_path_missing_raises_unavailable` + sister tests across the 5 helpers |
 
 ### Section 1 — NineS (Deep-analysis evaluator)
 
@@ -317,6 +318,89 @@ pins the PPI001 + permissive-continue invariant. The test
 monkeypatches `ensure_plugin` to raise `PluginInstallError`; the
 handler aggregates the violation and returns a HookResult; no exception
 propagates to the caller.
+
+### Section 5 — codegraph (Pre-indexed code knowledge graph) [v12.5.0 PV-05]
+
+**Trigger surfaces (file:line citations relative to repo root):**
+
+* `src/devolaflow/codegraph/_cli.py::run_codegraph_cli` — the single
+  owner of every `codegraph` subprocess invocation; raises
+  `CodegraphUnavailableError` with structured `cause`.
+* `src/devolaflow/codegraph/researcher.py::{build_context,
+  search_symbols, get_impact, get_callers, get_affected_tests}` — the
+  5 public researcher helpers consumed by L0/L1/L2/L3 dispatchers.
+* `workflow-system/agent/templates/builtin/repo-init.yaml` —
+  `scaffold.config.codegraph_init` (runs in ALL modes;
+  `on_failure: warn`) AND `verify.config.codegraph_smoke` (mode=full
+  only; `on_missing: warn`).
+* `workflow-system/agent/templates/builtin/{onboarding, security-audit,
+  product-verification}.yaml` — analyze stage's
+  `config.codegraph_commands` hint (informational; agent invokes on
+  demand).
+
+**Failure-mode taxonomy:**
+
+1. **`cause="path_missing"`** — `shutil.which("codegraph")` returns
+   None (CLI not installed; `npm install -g @colbymchenry/codegraph`
+   never ran).
+2. **`cause="timeout"`** — `subprocess.run` raised `TimeoutExpired`
+   beyond the configured timeout (default 60s; cold-cache `codegraph
+   context` on monorepos may need longer).
+3. **`cause="nonzero_exit"`** — CLI present but the specific
+   subcommand exited non-zero (corrupt `.codegraph/codegraph.db`;
+   parser version drift; index incompatible with installed CLI).
+4. **`cause="json_parse_error"`** — CLI returned non-JSON output where
+   JSON was expected (typically empty stdout from a subcommand that
+   should always emit JSON; surfaces a malformed-index signal).
+
+**DF-side fallback:**
+
+* The 5 researcher helpers (`build_context`, `search_symbols`,
+  `get_impact`, `get_callers`, `get_affected_tests`) catch
+  `CodegraphUnavailableError` and return their respective empty
+  sentinels (`""`, `[]`, `{}`, `[]`, `[]`).
+* The first degraded helper call in a process emits a
+  research-layer **WARNING** through
+  `logging.getLogger("devolaflow.codegraph.researcher")`; subsequent
+  calls log at DEBUG (deduplicated via the module-level
+  `_DEGRADED_MODE_NOTIFIED` sentinel) so the operator gets the signal
+  once without log spam.
+* Repo-init scaffold step's `codegraph_init` honours `on_failure:
+  warn` — emits a non-blocking WARN suggesting `npm install -g
+  @colbymchenry/codegraph` and continues; NEVER blocks scaffold.
+* Verify smoke at mode=full honours `on_missing: warn` — the verify
+  suite reports PASS even when `.codegraph/codegraph.db` is absent
+  (codegraph index absence is a degraded-mode signal, not a
+  verification failure).
+* Gate scoring drops the `codegraph_impact` dimension when
+  `get_impact()` returns `{}`; weight redistributes proportionally to
+  the other gate inputs.
+
+**Operator action:**
+
+1. **Install the CLI**: `npm install -g @colbymchenry/codegraph` —
+   ~28KB package + bundled Node runtime; MIT-licensed.
+2. **Initialise the index**: `cd <repo> && codegraph init .` (the
+   repo-init scaffold step does this automatically in ALL modes).
+3. **Opt into auto-install**: `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`
+   (REUSES the existing flag per W-20; NO new env flag).
+4. **Verify health**: `codegraph status` reports the index path,
+   symbol count, and last-sync timestamp.
+5. **Forcing a sync**: `codegraph sync` flushes pending file-event
+   debounce.
+6. For environments deliberately running without codegraph (cost-
+   conscious CI, restricted networks): no action needed — the
+   degraded-mode contract preserves correctness.
+
+**Test coverage:**
+`tests/test_codegraph.py::TestRunCodegraphCli::test_path_missing_raises_unavailable`
++ `test_timeout_raises_unavailable` + `test_nonzero_exit_raises_unavailable`
++ `test_parse_json_invalid_raises_unavailable` pin the 4 structured-
+cause invariants. The 5 researcher helper tests (`TestBuildContext`,
+`TestSearchSymbols`, `TestGetImpact`, `TestGetCallers`,
+`TestGetAffectedTests`) each pin `test_degraded_returns_empty_*`.
+`TestDegradedModeNotificationDeduplication` pins the once-per-process
+WARNING dedup contract.
 
 ## Cross-References
 

@@ -153,8 +153,27 @@ def test_canonical_lists_match_sf3_contract() -> None:
     `tests/test_degraded_mode.py` (16 regression tests pinning the
     4-plugin fallback contract) and closes the v10.3.0 retrospective §3
     NineS A1 ticket pain point.
+
+    v12.5.0 PV-05 D-1.3 grew the reference set 17 → 18 by appending
+    ``references/codegraph.md`` (the codegraph plugin operating
+    contract — pre-indexed code knowledge graph via tree-sitter +
+    SQLite FTS5; documents the 9 MCP tools / 5 Python wrapper helpers
+    / DevolaFlow integration map / structured-cause degraded-mode /
+    cache management; ~248 lines, well within the Large tier 1000
+    ceiling per SF-1). Pairs with `src/devolaflow/codegraph/` (the
+    Python wrapper package) + `tests/test_codegraph.py` (39 tests
+    at 98% coverage) + `tests/test_codegraph_workflow_wiring.py`
+    (12 structural assertions) + `tests/test_handoff_strip_metadata.py`
+    (11 handoff-helper contract tests).
+
+    NOTE on _SF4_REFERENCE_SET (in tests/test_no_ghost_features.py):
+    the canonical reference set is 22 entries. The MIRRORED_FILES
+    list in scripts/sync_cursor_skill.py is a SUBSET (currently 18 of
+    22) — only the references that ship in the .cursor/ skill mirror
+    bundle. When a NEW reference doc lands, both lists update IN
+    LOCKSTEP per SF-3 §"Project-local opt-in mirror".
     """
-    assert len(_REF_FILES) == 17, f"expected 17 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 18, f"expected 18 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

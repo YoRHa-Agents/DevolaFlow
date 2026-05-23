@@ -168,7 +168,15 @@ def test_cursor_references_golden(cursor_build):
     Teams selection decision tree, DevolaFlow current coverage matrix,
     Pattern 3 forward-compat plan, Pattern 4 P5-Forbidden rationale, and
     v12.0.0 NEST schema roadmap pre-staging). Pairs with Workflow rule
-    W-24 (Subagent Pattern Selection)."""
+    W-24 (Subagent Pattern Selection).
+
+    v12.5.0 PV-05 grew this set 21 → 22 by appending one NEW Tier-2
+    reference: ``codegraph.md`` (the operating contract for the
+    `colbymchenry/codegraph` integration — 9 MCP tools, CLI surface,
+    workflow integration map, degraded-mode fallback, cache management;
+    primary deliverable of the v12.5.0 EXPANSION MINOR cycle). Pairs
+    with the new `code_intelligence` plugin role (5th of 5) and the
+    Python wrapper at `src/devolaflow/codegraph/`."""
     _, out_dir = cursor_build
     refs_dir = out_dir / "references"
     assert refs_dir.is_dir(), "cursor adapter must emit references/ directory"
@@ -179,7 +187,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 21, f"expected 21 reference files, got {len(actual)}"
+    assert len(actual) == 22, f"expected 22 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

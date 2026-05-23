@@ -1,11 +1,13 @@
 ---
 # Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
 # Source: S01-T06 Unified Research Synthesis (2026-04-11)
-# Split: 11 active_tracking + 10 periodic_monitoring = 21 total
+# Split: 12 active_tracking + 10 periodic_monitoring = 22 total
 # (Header originally said "10 + 9 = 19"; corrected at v9.6.0 PV-04 — actual
 # count gained openspec + understand-anything in active_tracking and
 # agent-skills-threat-taxonomy + spring-ai-agent-skills in periodic_monitoring
-# across the v8.x+ cycles. See gap_analysis §3.2 D-R-7.)
+# across the v8.x+ cycles. See gap_analysis §3.2 D-R-7. v12.5.0 PV-05 D-1.1
+# grew active_tracking 11 → 12 by appending the codegraph entry, primary
+# integration target for the v12.5.0 EXPANSION MINOR cycle.)
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 # v9.6.0 PV-04: bulk-refreshed last_checked → 2026-05-02 across all 21 entries
 # (D-R-5); primelocus-hydra graduated to frozen_reference (D-R-9).
@@ -289,6 +291,52 @@ active_tracking:
       v9.6.0 PV-01 deep re-analysis (NineS v3.3.0): confirmed 11 in-repo
       specs catalog; DevolaFlow's parallel surface is
       `.local/memory/specs/<domain>/spec.md` (A-4 source-of-truth).
+
+  - id: codegraph
+    repo_url: https://github.com/colbymchenry/codegraph
+    source_type: github_repo
+    last_checked: "2026-05-23"
+    last_known_version: "0.9.3"
+    relevance_score: 5
+    key_patterns:
+      - "tree-sitter AST → SQLite FTS5 local-only index"
+      - "MCP-first: 9 tools (search/context/callers/callees/impact/node/explore/files/status)"
+      - "auto-sync via OS file events (FSEvents/inotify/RDCW), 2s debounce"
+      - "agent installer auto-writes .cursor/rules/codegraph.mdc + CLAUDE.md"
+      - "benchmark: 35% cheaper / 70% fewer tool calls / 59% fewer tokens / 49% faster (7 repos × 7 langs)"
+      - "framework-aware routes: 14 frameworks (Django/Flask/FastAPI/Express/NestJS/Laravel/Rails/Spring/Gin/Axum/ASP.NET/Vapor/React Router/SvelteKit)"
+      - "zero-config: respects .gitignore, skips >1MB files"
+      - "codegraph affected: transitive test-impact for CI hooks"
+    update_triggers:
+      - "npm version > 0.9.3"
+      - "new language support added"
+      - "MCP tool surface changes (new tools or signature changes)"
+      - "benchmark methodology changes"
+    devolaflow_integration_points:
+      - "workflow-system/agent/plugins.yaml (codegraph block)"
+      - "workflow-system/agent/knowledge/runtime-plugins.yaml (codegraph entry)"
+      - "workflow-system/agent/templates/builtin/repo-init.yaml (scaffold stage post-step)"
+      - "workflow-system/agent/templates/builtin/onboarding.yaml (analyze codegraph_commands)"
+      - "workflow-system/agent/templates/builtin/security-audit.yaml (analyze codegraph_commands)"
+      - "workflow-system/agent/templates/builtin/product-verification.yaml (analyze codegraph_commands)"
+      - "workflow-system/agent/context_profiles.yaml (codegraph_integration block)"
+      - "workflow-system/agent/references/codegraph.md (NEW Tier-2 reference)"
+      - "workflow-system/agent/references/degraded-mode.md (codegraph fallback row)"
+      - "workflow-system/agent/SKILL.md §Reference Navigation Guide (Tier-2 row)"
+      - "src/devolaflow/codegraph/ (NEW Python wrapper package)"
+    gap_ids: []
+    note: >
+      v12.5.0 PV-01 D-1 — primary integration target for the v12.5.0
+      EXPANSION MINOR cycle. Codegraph is a 100% local, MCP-first
+      pre-indexed code knowledge graph (tree-sitter + SQLite FTS5)
+      published as `@colbymchenry/codegraph` on npm. The DevolaFlow
+      integration mirrors the NineS shape: plugin catalog block +
+      runtime registry entry + reference-dependencies entry + Python
+      wrapper package + workflow wiring across 4 analyze-stage
+      templates + context_profiles top-level codegraph_integration
+      block + new Tier-2 reference doc. Reuses
+      DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 per W-20 reuse-first; NO new
+      env flag (count stays at 7).
 
 periodic_monitoring:
 

@@ -107,6 +107,45 @@ meta:
       - design_system
       - landing_page
 
+  # v12.5.0 PV-04 D-1.2 — codegraph integration block.
+  # Parallel to nines_integration above; surfaced by L0/L1/L2 dispatchers
+  # at workflow-stage entry to inform the agent which codegraph CLI
+  # recipes are available for the active workflow + stage. The block is
+  # READ-ONLY metadata — the workflow runner does NOT auto-execute these
+  # commands. The agent invokes them on demand against the project-local
+  # .codegraph/ index (created by repo-init.yaml's scaffold step in ALL
+  # modes per the locked operator decision 2026-05-23).
+  #
+  # Per W-15 / CO-6 (section relevance): the per-profile activation of
+  # this block lives in profiles[<name>].sections — analyze-stage
+  # workflows mark codegraph_integration: important; unrelated profiles
+  # mark it: skip. See profiles.repo-init / onboarding / security-audit /
+  # product-verification for the per-profile priority assignments.
+  #
+  # tokens_est: 200 — consistent with nines_integration above; the block
+  # itself adds ~50 bytes per dispatch when active (the 4 stage_mapping
+  # recipes nest under config.codegraph_commands per A-2.3 NEST-vs-APPEND).
+  #
+  # Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.2 +
+  # .local/research/v12.5.0_codegraph_benefit_analysis.md §3 surface 5.
+  codegraph_integration:
+    auto_detect: true
+    install_hint: "npm install -g @colbymchenry/codegraph"
+    plugin_registry: "workflow-system/agent/plugins.yaml"
+    commands:
+      repo_init: "codegraph init {project_root}"
+      analyze: "codegraph status && codegraph files --format tree"
+      research: "codegraph context \"{query}\" --format markdown --max-nodes 20"
+      impact: "codegraph impact {symbol} --depth 3 --json"
+      affected: "codegraph affected --files {files} --json"
+    triggers:
+      - smart_context_building
+      - full_text_search
+      - impact_analysis
+      - callers_callees_trace
+      - file_structure_lookup
+      - test_impact_selection
+
   # v8.0.0 (P-08) — L3 behavioral guidelines defaults per complexity tier.
   # Profiles that omit their own ``behavioral_guidelines`` block fall back
   # to the matching tier here. Each tier maps to the 4 Karpathy primitives

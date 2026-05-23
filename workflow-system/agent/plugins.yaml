@@ -100,6 +100,40 @@ plugins:
     update_command: "uipro update"
     uninstall_command: "uipro uninstall"
 
+  codegraph:
+    description: "Pre-indexed code knowledge graph (tree-sitter + SQLite FTS5) — 35% cheaper / 70% fewer tool calls / 59% fewer tokens vs raw Read+Grep+Glob across 7 codebases × 7 languages"
+    cli_binary: "codegraph"
+    version_command: "codegraph --version"
+    version_regex: '(\d+\.\d+\.\d+)'
+    install_methods:
+      npm: "npm install -g @colbymchenry/codegraph"
+      script: "curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh"
+    skill_install_command: "codegraph install --yes"
+    capabilities:
+      - smart_context_building     # codegraph context — entry points + related symbols + snippets in one call
+      - full_text_search           # codegraph search — FTS5 over symbol names
+      - impact_analysis            # codegraph impact — blast radius before edit
+      - callers_callees_trace      # codegraph callers / callees
+      - file_structure_lookup      # codegraph files — replaces fs scanning
+      - test_impact_selection      # codegraph affected — CI hook for selective test runs
+      - framework_route_awareness  # 14 frameworks: Django, Flask, FastAPI, Express, NestJS, Laravel, Rails, Spring, Gin, Axum, ASP.NET, Vapor, React Router, SvelteKit
+      - multi_language_index       # 19+ languages incl. TS/JS/Python/Go/Rust/Java/C#/PHP/Ruby/C/C++/Swift/Kotlin/Scala/Dart/Lua/Luau/Svelte/Vue/Liquid/Pascal
+    role: "code_intelligence"
+    repo_url: "https://github.com/colbymchenry/codegraph"
+    min_version: "0.9.3"
+    workflows:
+      - repo-init
+      - onboarding
+      - security-audit
+      - product-verification
+      - refactoring
+      - performance-optimization
+    stage_mapping:
+      analyze: "codegraph status && codegraph files --format tree"
+      scaffold: "codegraph init -i"
+      research: "codegraph context \"{query}\" --format markdown --max-nodes 20"
+      impact: "codegraph impact {symbol} --depth 3 --json"
+
 plugin_roles:
   research_and_iteration:
     description: "Tools for agent-facing research, analysis, and self-improvement"
@@ -146,3 +180,18 @@ plugin_roles:
       - review
       - test
     invocation: "automatic"  # Invoked by gate mechanism when available
+
+  code_intelligence:
+    description: "Pre-indexed code knowledge graph providing search/context/impact/callers/callees/affected queries — replaces Read+Glob+Grep planning patterns with single-call symbol-aware lookups"
+    primary_workflows:
+      - repo-init
+      - onboarding
+      - security-audit
+      - product-verification
+    stage_affinity:
+      - analyze
+      - scaffold
+      - research
+      - profile
+    invocation: "on_demand"  # Surfaced by config.codegraph_commands hint at workflow stage entry; agent invokes via CLI or MCP tools
+    provider: "codegraph"
