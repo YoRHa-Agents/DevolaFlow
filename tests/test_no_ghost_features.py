@@ -11327,3 +11327,179 @@ def test_v12_4_0_l0_only_surfaces_hardened(project_root: Path) -> None:
         "closes the silent-fallback S-5 violation; without it the "
         "DeprecationWarning storm persists."
     )
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v12.5.0 PV-02 D-2 — cc-spike sweep carry-over
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v12.5.0
+# CHANGELOG entry mentioning the PV-02 cc-spike sweep. This stanza pins the
+# v12.5.0 PV-02 surface (closes the v12.4.0 retro §6 telegraph item 1):
+#
+# * 4 helpers extracted from ``load_command_mappings`` (was cc=18 per
+#   ``.local/research/v12.4.0_nines_deep_commands.json`` warning-tier
+#   finding) into ``_resolve_commands_root`` + ``_load_recipe_payload`` +
+#   ``_filter_recipe_freshness`` + ``_should_keep_recipe``.
+# * 2 helpers extracted from ``apply_local_recipe`` (was cc=17 per the
+#   same NineS finding) into ``_resolve_apply_inputs`` (folding the 5
+#   early-return decisions) + ``_apply_recipe_transform`` (folding the
+#   strip-ansi → pre/post filter → truncate → on-empty pipeline).
+# * Both public signatures byte-identical to the pre-refactor forms.
+# * Companion cc-pin file ``tests/test_v12_5_0_complexity_targets.py``
+#   exists with the 7 cc-pin tests (orchestrator ≤ cc=10 per target,
+#   per-helper ≤ cc=8 parametrize, signature byte-identical literal
+#   match for both targets, all-helpers-present sentinel).
+#
+# Source: ``.local/research/v12.5.0_gap_analysis.md`` §2 D-2 +
+# ``.local/research/v12.4.0_retrospective.md`` §6 telegraph item 1 +
+# ``tests/test_v12_5_0_complexity_targets.py`` (the companion cc-pin
+# file). The W-18 sequencing rule is at
+# ``.cursor/rules/repo-governance.mdc`` §W-18.
+# ---------------------------------------------------------------------------
+_V12_5_0_COMMANDS_FILE: Path = Path("src/devolaflow/shell_proxy/commands.py")
+_V12_5_0_LOAD_MAPPINGS_HELPERS: tuple[str, ...] = (
+    "_resolve_commands_root",
+    "_load_recipe_payload",
+    "_filter_recipe_freshness",
+    "_should_keep_recipe",
+)
+_V12_5_0_APPLY_RECIPE_HELPERS: tuple[str, ...] = (
+    "_resolve_apply_inputs",
+    "_apply_recipe_transform",
+)
+_V12_5_0_LOAD_MAPPINGS_SIGNATURE_LITERAL: str = (
+    "def load_command_mappings(\n"
+    "    *,\n"
+    "    commands_dir: Path | str | None = None,\n"
+    "    repo_signal: str | None = None,\n"
+    "    env: dict[str, str] | None = None,\n"
+    "    current_version: str | None = None,\n"
+    ") -> dict[str, CommandMapping]:"
+)
+_V12_5_0_APPLY_RECIPE_SIGNATURE_LITERAL: str = (
+    "def apply_local_recipe(\n"
+    "    cmd: str,\n"
+    "    output: str,\n"
+    "    *,\n"
+    "    mappings: dict[str, CommandMapping] | None = None,\n"
+    "    env: dict[str, str] | None = None,\n"
+    "    commands_dir: Path | str | None = None,\n"
+    "    repo_signal: str | None = None,\n"
+    ") -> tuple[str, bool]:"
+)
+
+
+def test_v12_5_0_cc_spike_sweep_complete(project_root: Path) -> None:
+    """W-18 v12.5.0 PV-02 D-2: ``load_command_mappings`` + ``apply_local_recipe`` cc-spike sweep.
+
+    Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
+    mentioning the PV-02 cc-spike sweep. The stanza asserts three
+    load-bearing surfaces (mirroring the v12.4.0 PV-04 stanza pattern):
+
+    (a) Every helper symbol is present at module scope in
+    ``src/devolaflow/shell_proxy/commands.py`` — 4 ``_resolve_*`` /
+    ``_load_*`` / ``_filter_*`` / ``_should_*`` helpers for
+    ``load_command_mappings`` AND 2 helpers for ``apply_local_recipe``
+    (``_resolve_apply_inputs`` + ``_apply_recipe_transform``). Without
+    these 6 symbols the cc reduction did NOT happen and the CHANGELOG
+    entry would be a ghost feature per S-4.
+
+    (b) Both public signatures are byte-identical to the pre-refactor
+    forms. The CO-2 / C-3 no-API-break invariant pins:
+      * ``def load_command_mappings(*, commands_dir, repo_signal, env,
+        current_version) -> dict[str, CommandMapping]:`` (consumed by
+        ``apply_local_recipe`` + the proxy + the compression-pipeline
+        stage + every ``tests/test_shell_proxy_*`` fixture)
+      * ``def apply_local_recipe(cmd, output, *, mappings, env,
+        commands_dir, repo_signal) -> tuple[str, bool]:`` (the public
+        API consumed by the proxy + the compression-pipeline stage)
+    Any reorder / rename / default-change is a release blocker.
+
+    (c) The companion test file
+    ``tests/test_v12_5_0_complexity_targets.py`` exists with the cc-pin
+    tests (orchestrator ≤ cc=10 per target, per-helper ≤ cc=8
+    parametrize, signature byte-identical literal match for both
+    targets, all-helpers-present sentinel).
+
+    Source: ``.local/research/v12.5.0_gap_analysis.md`` §2 D-2 +
+    ``.local/research/v12.4.0_nines_deep_commands.json`` (NineS deep
+    finding for ``load_command_mappings`` cc=16 + ``apply_local_recipe``
+    cc=16 — both warning-tier deferred from v12.4.0 to v12.5.0); the
+    W-18 sequencing rule is at
+    ``.cursor/rules/repo-governance.mdc`` §W-18.
+    """
+    # --- (a.1) load_command_mappings helpers in commands.py ------------
+    commands_path = project_root / _V12_5_0_COMMANDS_FILE
+    assert commands_path.is_file(), (
+        f"W-18 v12.5.0 PV-02 violation: {_V12_5_0_COMMANDS_FILE} missing — "
+        "release blocker. The refactor MUST land in the canonical commands "
+        "module per the PV-02 owned-files manifest item 1."
+    )
+    commands_text = commands_path.read_text(encoding="utf-8")
+    for helper_name in _V12_5_0_LOAD_MAPPINGS_HELPERS:
+        signature_literal = f"def {helper_name}("
+        assert signature_literal in commands_text, (
+            f"W-18 v12.5.0 PV-02 violation: {_V12_5_0_COMMANDS_FILE} missing "
+            f"helper function ``{helper_name}``. The 4-helper decomposition "
+            "is what brings ``load_command_mappings`` cc from 18 to 9; if "
+            "this assertion fires, the refactor was either reverted or never "
+            "applied. Expected helper signatures are documented at "
+            "``.local/research/v12.5.0_gap_analysis.md`` §2 D-2."
+        )
+
+    # --- (a.2) apply_local_recipe helpers in commands.py --------------
+    for helper_name in _V12_5_0_APPLY_RECIPE_HELPERS:
+        signature_literal = f"def {helper_name}("
+        assert signature_literal in commands_text, (
+            f"W-18 v12.5.0 PV-02 violation: {_V12_5_0_COMMANDS_FILE} missing "
+            f"helper function ``{helper_name}``. The 2-helper decomposition "
+            "is what brings ``apply_local_recipe`` cc from 17 to 4; if this "
+            "assertion fires, the refactor was either reverted or never "
+            "applied."
+        )
+
+    # --- (b.1) load_command_mappings signature byte-identical ---------
+    assert _V12_5_0_LOAD_MAPPINGS_SIGNATURE_LITERAL in commands_text, (
+        f"W-18 v12.5.0 PV-02 violation: {_V12_5_0_COMMANDS_FILE} has drifted "
+        "the public ``load_command_mappings`` signature. The CO-2 / C-3 "
+        "no-API-break invariant requires byte-identical preservation. "
+        f"Expected literal:\n\n{_V12_5_0_LOAD_MAPPINGS_SIGNATURE_LITERAL}\n\n"
+        "If a future PV needs to ADD a parameter, append it after "
+        "``current_version`` with a default value (additive change)."
+    )
+
+    # --- (b.2) apply_local_recipe signature byte-identical ------------
+    assert _V12_5_0_APPLY_RECIPE_SIGNATURE_LITERAL in commands_text, (
+        f"W-18 v12.5.0 PV-02 violation: {_V12_5_0_COMMANDS_FILE} has drifted "
+        "the public ``apply_local_recipe`` signature. Per CO-2 / C-3 the "
+        "API surface MUST stay byte-identical so the proxy + the "
+        "compression-pipeline stage + every fixture test keeps working. "
+        f"Expected literal:\n\n{_V12_5_0_APPLY_RECIPE_SIGNATURE_LITERAL}"
+    )
+
+    # --- (c) companion cc-pin test file -------------------------------
+    pv02_complexity_test_path = project_root / Path("tests/test_v12_5_0_complexity_targets.py")
+    assert pv02_complexity_test_path.is_file(), (
+        "W-18 v12.5.0 PV-02 violation: tests/test_v12_5_0_complexity_targets.py "
+        "missing — release blocker. The companion cc-pin test file guards "
+        "against future re-bloat of ``load_command_mappings`` AND "
+        "``apply_local_recipe`` per the PV-02 owned-files manifest item 4."
+    )
+    pv02_complexity_test_text = pv02_complexity_test_path.read_text(encoding="utf-8")
+    for expected_test in (
+        "test_load_command_mappings_cc_under_ceiling",
+        "test_load_command_mappings_helpers_cc_under_ceiling",
+        "test_load_command_mappings_signature_byte_identical",
+        "test_apply_local_recipe_cc_under_ceiling",
+        "test_apply_local_recipe_helpers_cc_under_ceiling",
+        "test_apply_local_recipe_signature_byte_identical",
+        "test_v12_5_0_pv02_helpers_all_present",
+    ):
+        assert f"def {expected_test}" in pv02_complexity_test_text, (
+            f"W-18 v12.5.0 PV-02 violation: "
+            f"tests/test_v12_5_0_complexity_targets.py missing test function "
+            f"``{expected_test}``. The 7-function contract (3 for "
+            "load_command_mappings + 3 for apply_local_recipe + 1 sentinel) "
+            "is documented in the PV-02 owned-files manifest item 4."
+        )
