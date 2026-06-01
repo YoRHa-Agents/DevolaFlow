@@ -418,12 +418,13 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/compression-pipeline.md` | CompressionStage protocol, 6-transform unification, multi-pass filter chain |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
-| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro / codegraph); "Degraded ≠ Full" |
+| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro / codegraph / impeccable); "Degraded ≠ Full" |
 | `references/domain-awareness.md` | CONTEXT.md authoring, CONTEXT-MAP.md multi-context inference, ADR format, 3-condition ADR gate, vocabulary vs spec.md |
 | `references/env-flags.md` | DEVOLAFLOW_* env-var inventory, R5 strict patterns, W-20 reuse policy |
 | `references/evaluator-rosetta.md` | SI-3 × NineS × Si-Chip 6×9 cross-walk, C-04 split, per-cell authority citations |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 | `references/grill-mode.md` | Grill mode active, stress-test plan, sharpen terminology, interrogate operator, codebase cross-reference, ADR offer evaluation |
+| `references/impeccable.md` | Design refinement + no-LLM anti-pattern detector; 23 /impeccable commands; `impeccable detect` exit-code gate; ui-pro → impeccable web-design composition; degraded-mode contract |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
 | `references/meta-framework.md` | Workflow instantiation, stage ordering |
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |

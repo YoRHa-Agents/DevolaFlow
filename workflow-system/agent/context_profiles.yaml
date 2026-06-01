@@ -146,6 +146,42 @@ meta:
       - file_structure_lookup
       - test_impact_selection
 
+  # v13.0.0 — impeccable integration block.
+  # Parallel to ui_integration + codegraph_integration above; surfaced by
+  # L0/L1/L2 dispatchers at web-design refine/verify stage entry to inform
+  # the agent which impeccable commands are available. READ-ONLY metadata —
+  # the workflow runner does NOT auto-execute these commands; the agent
+  # invokes the /impeccable steering commands + `impeccable detect` on
+  # demand against the built UI.
+  #
+  # Per W-15 / CO-6 (section relevance): the per-profile activation lives in
+  # profiles[web-design].sections — the web-design profile marks
+  # impeccable_integration: important; unrelated profiles mark it: skip.
+  #
+  # tokens_est: 180 — consistent with ui_integration / codegraph_integration.
+  #
+  # Source: .local/research/v13.0.0_gap_analysis.md §3 (Phase 2 D-5).
+  impeccable_integration:
+    auto_detect: true
+    install_hint: "npm install -g impeccable && impeccable skills install --yes"
+    plugin_registry: "workflow-system/agent/plugins.yaml"
+    commands:
+      polish: "/impeccable polish {target}"
+      critique: "/impeccable critique {target}"
+      audit: "/impeccable audit {target}"
+      typeset: "/impeccable typeset {target}"
+      arrange: "/impeccable arrange {target}"
+      animate: "/impeccable animate {target}"
+      detect: "impeccable detect --json {path}"
+    triggers:
+      - design_refinement
+      - ux_design_critique
+      - technical_quality_audit
+      - typography_correction
+      - layout_spatial_rhythm
+      - purposeful_motion
+      - antipattern_detection
+
   # v8.0.0 (P-08) — L3 behavioral guidelines defaults per complexity tier.
   # Profiles that omit their own ``behavioral_guidelines`` block fall back
   # to the matching tier here. Each tier maps to the 4 Karpathy primitives

@@ -29,16 +29,16 @@ def active_refs(yaml_data: dict) -> dict[str, dict]:
 
 
 def test_yaml_active_tracking_count_unchanged(yaml_data: dict) -> None:
-    """active_tracking holds 12 entries at v12.5.0 PV-05 (codegraph appended).
+    """active_tracking holds 13 entries at v13.0.0 (impeccable appended).
 
-    v9.6.0 PV-02 baseline was 11 entries; v12.5.0 PV-05 D-1.1 grew the set to
-    12 by appending the codegraph entry as the primary integration target for
-    the v12.5.0 EXPANSION MINOR cycle. Future ref additions land via dedicated
-    PV slices per W-19 cadence.
+    v9.6.0 PV-02 baseline was 11 entries; v12.5.0 PV-05 D-1.1 grew it to 12
+    (codegraph); v13.0.0 grew it to 13 by appending the impeccable entry, the
+    design-refinement plugin integrated for the v13.0.0 MAJOR cycle. Future
+    ref additions land via dedicated PV slices per W-19 cadence.
     """
-    assert len(yaml_data.get("active_tracking", [])) == 12, (
-        "v12.5.0 PV-05 contract: active_tracking holds 12 entries "
-        "(11 v9.6.0 baseline + codegraph appended at v12.5.0 PV-05 D-1.1); "
+    assert len(yaml_data.get("active_tracking", [])) == 13, (
+        "v13.0.0 contract: active_tracking holds 13 entries "
+        "(12 v12.5.0 baseline + impeccable appended at v13.0.0); "
         "ref additions land via dedicated PV slices"
     )
 
@@ -307,8 +307,8 @@ def test_pv04_all_21_refs_carry_2026_05_02_last_checked(yaml_data: dict) -> None
     from datetime import date
 
     all_refs = yaml_data.get("active_tracking", []) + yaml_data.get("periodic_monitoring", [])
-    assert len(all_refs) == 22, (
-        f"v12.5.0 PV-05: total ref count is 22 (12 active_tracking + 10 "
+    assert len(all_refs) == 23, (
+        f"v13.0.0: total ref count is 23 (13 active_tracking + 10 "
         f"periodic_monitoring); got {len(all_refs)}"
     )
     floor = date(2026, 5, 2)
@@ -334,9 +334,9 @@ def test_pv04_yaml_header_comment_corrected(yaml_data: dict) -> None:
     raw = (REPO_ROOT / "workflow-system/agent/knowledge/reference-dependencies.yaml").read_text(
         encoding="utf-8"
     )
-    assert "12 active_tracking + 10 periodic_monitoring = 22 total" in raw, (
-        "yaml header comment must reflect 12 + 10 = 22 per v12.5.0 PV-05 D-1.1 "
-        "(codegraph appended to active_tracking)"
+    assert "13 active_tracking + 10 periodic_monitoring = 23 total" in raw, (
+        "yaml header comment must reflect 13 + 10 = 23 per v13.0.0 "
+        "(impeccable appended to active_tracking)"
     )
     # The original "10 + 9 = 19" claim must NOT appear except in the
     # historical correction note.

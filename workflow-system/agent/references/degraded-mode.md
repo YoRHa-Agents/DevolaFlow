@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-05-04"
+last_updated: "2026-06-01"
 ---
 
 # Upstream-Unreachable Degraded-Mode Contract
@@ -15,9 +15,9 @@ When an operator reads this reference and takes away "I can run DevolaFlow
 without installing NineS / Si-Chip / RTK / ui-pro," they have misunderstood the
 contract. The contract is narrower:
 
-1. **Plugin-specific**: each of the 4 registered plugins (NineS, Si-Chip, RTK,
-   ui-pro) has its OWN degraded-mode story; one plugin being unreachable does
-   NOT imply the rest are.
+1. **Plugin-specific**: each of the 6 registered plugins (NineS, Si-Chip, RTK,
+   ui-pro, codegraph, impeccable) has its OWN degraded-mode story; one plugin
+   being unreachable does NOT imply the rest are.
 2. **Signal loss is EXPECTED**: SI-3 evaluations without NineS lose the
    capability / hygiene axes; Si-Chip dogfood gates without Si-Chip produce
    `SKIPPED_PERMISSIVE` verdicts; RTK passthrough without `rtk` gives you the
@@ -36,6 +36,7 @@ contract. The contract is narrower:
 | **Si-Chip** | `iteration_delta` APPLY/DEFER gate; post-skill-edit dogfood cycle verdict; `MetricsReport` composite / `task_delta` / `value_vector` scoring; every skill edit under `workflow-system/agent/**` loses its auto-evaluation signal until Si-Chip is back. |
 | **RTK** | Shell command rewriting (`git add`, `git commit`, `pytest`, etc. run as native commands; no RTK value-add); command-mapping layer `apply_recipe_to_output` still works for already-captured recipe files but NO new RTK rewrites are captured. |
 | **ui-pro** | Skill bundle install step fails with PPI001 (permissive mode continues; strict mode blocks); any workflow listed under `runtime-plugins.yaml#plugins[*].invoked_by_workflows` for `product-verification` degrades silently on subsequent invocations. |
+| **impeccable** | Skill bundle install step fails with PPI001 (permissive mode continues; strict mode blocks); the `web-design` workflow's refine stage loses the `/impeccable polish|critique|audit` surface and the verify stage's `impeccable detect` anti-pattern gate degrades to a non-gating advisory (signal loss recorded; never a fabricated PASS). |
 
 **What KEEPS working in ALL degraded-mode scenarios:**
 
@@ -86,6 +87,7 @@ multi-plugin coordination is the primary deliverable.
 | Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | `DEVOLAFLOW_SI_CHIP_DEEP` (opt-IN) | `post_skill_edit` hook; `run_dogfood_cycle`; `iteration_delta_gate` | `SiChipUnavailable` (binary missing); `SiChipError` (subprocess fail); network-unreachable mid-install | PSE001 warning; `metadata["verdict"] = "SKIPPED_PERMISSIVE"`; dispatch continues | Install Si-Chip per canonical URL OR document SKIPPED verdict in retrospective | `tests/test_degraded_mode.py::test_si_chip_unreachable_emits_pse001_and_defers` |
 | RTK | https://github.com/rtk-ai/rtk | `DEVOLAFLOW_RTK_PROXY` (opt-IN) | `pre_shell_call` hook; `shell_proxy/proxy.py::ShellProxy.wrap_command` | env-flag unset; binary missing on PATH; `rtk gain` probe fail (rtk-type-kit collision) | R5 strict passthrough to native shell; zero subprocess work | No action needed — RTK is OPT-IN by default | `tests/test_degraded_mode.py::test_rtk_unreachable_bypasses_to_native_shell` |
 | ui-pro | https://github.com/YoRHa-Agents/ui-pro | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN) | `pre_plugin_invocation` hook; `ensure_plugin('ui-pro')`; `uipro init --ai cursor --global` | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch` | PPI001 error (permissive mode); dispatch continues; strict mode blocks | Check npm registry reachability OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_ui_pro_unreachable_emits_ppi001_permissive_continues` |
+| impeccable | https://github.com/pbakaus/impeccable | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `pre_plugin_invocation` hook; `ensure_plugin('impeccable')`; web-design refine/verify stages; `impeccable detect --json` gate | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch`; detector binary missing | PPI001 error (permissive mode); dispatch continues; verify gate degrades to non-gating advisory (signal loss recorded, never fabricated PASS); strict mode blocks | Check npm registry reachability OR run `npx impeccable detect` standalone OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_impeccable_unreachable_emits_ppi001_permissive_continues` |
 | codegraph | https://github.com/colbymchenry/codegraph | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `devolaflow.codegraph.researcher.{build_context,search_symbols,get_impact,get_callers,get_affected_tests}`; `repo-init.scaffold.codegraph_init`; `repo-init.verify.codegraph_smoke` (mode=full only) | `CodegraphUnavailableError` with structured `cause` (one of: `path_missing` / `timeout` / `nonzero_exit` / `json_parse_error`) | Helper returns empty sentinel (`""` for build_context, `[]` for list helpers, `{}` for get_impact); WARNING fires once per process (subsequent at DEBUG); caller falls back to Read/Glob/Grep planning; gate scoring drops `codegraph_impact` dimension and redistributes weight | Install codegraph per canonical URL (`npm install -g @colbymchenry/codegraph`) OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` to opt into runtime install | `tests/test_codegraph.py::TestRunCodegraphCli::test_path_missing_raises_unavailable` + sister tests across the 5 helpers |
 
 ### Section 1 — NineS (Deep-analysis evaluator)
@@ -401,6 +403,54 @@ cause invariants. The 5 researcher helper tests (`TestBuildContext`,
 `TestGetAffectedTests`) each pin `test_degraded_returns_empty_*`.
 `TestDegradedModeNotificationDeduplication` pins the once-per-process
 WARNING dedup contract.
+
+### Section 6 — impeccable (Design refinement + anti-pattern detector) [v13.0.0]
+
+**Trigger surfaces:**
+
+* `pre_plugin_invocation` lifecycle hook → `ensure_plugin('impeccable')`
+  (backend `npm_then_init`: `npm install -g impeccable` then
+  `impeccable skills install --yes`, harness auto-detected).
+* `workflow-system/agent/templates/builtin/web-design.yaml` — the
+  `refine` stage's `config.ensure_plugins: [impeccable]` + the `verify`
+  stage's `impeccable detect --json` anti-pattern gate.
+
+**Failure modes (the 4 plugin domain exceptions, mirroring ui-pro):**
+
+1. **PluginInstallError** — npm registry unreachable / `npm install -g
+   impeccable` non-zero.
+2. **PluginNotFoundError** — plugin_id typoed in the dispatch payload.
+3. **PluginVersionMismatch** — installed below
+   `runtime-plugins.yaml#plugins[impeccable].min_version` (2.0.0).
+4. **PluginBackendUnsupported** — environment lacks `npm`.
+
+**Degraded behaviour:**
+
+* `pre_plugin_invocation` catches the domain exceptions and emits
+  HookViolation `PPI001` (severity `error`); **in permissive mode
+  (default) the dispatch continues**; strict mode blocks.
+* The `web-design` verify stage degrades the `impeccable detect` gate to
+  a **non-gating advisory** when the detector is unavailable — the agent
+  RECORDS the lost anti-pattern signal and NEVER fabricates a PASS
+  verdict (S-5: explicit signal-loss state, not a silent success).
+* The detector also runs standalone via `npx impeccable detect` with no
+  harness install — the recommended path for restricted-network CI.
+
+**Operator action:**
+
+1. **Install**: `npm install -g impeccable` (~537KB; Node 18+).
+2. **Skills install**: `impeccable skills install --yes` (auto-detects
+   `.cursor` / `.claude` / `.agents` / `.gemini` harness folders).
+3. **Opt into auto-install**: `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`
+   (REUSES the existing flag per W-20; NO new env flag).
+4. **Standalone detector** (no harness): `npx impeccable detect src/`.
+
+**Test coverage:**
+`tests/test_degraded_mode.py::test_impeccable_unreachable_emits_ppi001_permissive_continues`
+pins the PPI001 + permissive-continue invariant (mirrors the ui-pro
+contract — monkeypatches `ensure_plugin` to raise `PluginInstallError`;
+the handler aggregates the violation and returns a HookResult; no
+exception propagates).
 
 ## Cross-References
 

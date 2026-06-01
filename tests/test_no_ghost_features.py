@@ -605,6 +605,21 @@ _SF4_REFERENCE_SET = frozenset(
         # `tests/test_codegraph_workflow_wiring.py` (12 structural
         # assertions across 4 workflow templates + context profile).
         "codegraph.md",
+        # v13.0.0 — impeccable plugin reference (23rd SF-4 canonical).
+        # Tier 2 Large-tier reference (~179 lines under the ≤1000 ceiling).
+        # Documents the upstream `pbakaus/impeccable` design language system
+        # (1 agent skill + 23 /impeccable steering commands) + the no-LLM
+        # deterministic anti-pattern detector (`impeccable detect`; exit
+        # 0=clean / 2=anti-patterns), the npm_then_init backend (auto-detect
+        # harness; no --ai flag), the ui-pro → impeccable composition on the
+        # new web-design workflow, the DevolaFlow integration map (3 SSOT
+        # registries + web-design template + context profile), and the
+        # PPI001 permissive-continue degraded-mode contract. NO new env flag
+        # (W-20 reuse-first: reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS). Pairs
+        # with `tests/test_impeccable_reference_doc.py`,
+        # `tests/test_no_ghost_features.py::test_v13_0_0_impeccable_registered`,
+        # and the web-design workflow wiring.
+        "impeccable.md",
     }
 )
 
