@@ -100,6 +100,10 @@ plugins:
     local_fallback_path: null
     invoked_by_workflows:
       - product-verification
+      # v13.0.0 — ui-pro DESIGNS in the new web-design workflow; impeccable
+      # then REFINES + VERIFIES. plugins_for_workflow("web-design") resolves
+      # to [ui-pro, impeccable] in registry order (ui-pro precedes impeccable).
+      - web-design
 
   - id: rtk
     backend: curl_install_script
@@ -217,6 +221,48 @@ plugins:
       - onboarding
       - security-audit
       - product-verification
+
+  # v13.0.0 — Impeccable design-refinement skill + anti-pattern detector.
+  # Spec source-of-truth: https://github.com/pbakaus/impeccable
+  # 6th plugin; pairs with ui-pro (ui_tooling) on the new `web-design`
+  # workflow: ui-pro DESIGNS (style / palette / typography / design-system),
+  # impeccable REFINES (/impeccable polish, critique, typeset, arrange,
+  # animate) and VERIFIES (the no-LLM `impeccable detect` anti-pattern scan,
+  # 27 deterministic rules; exit 0 = clean, exit 2 = anti-patterns found).
+  #
+  # Backend: npm_then_init reuses the ui-pro / codegraph precedent — an npm
+  # global install followed by a per-harness skill install. UNLIKE ui-pro
+  # (`uipro init --ai {ai_platform} --global`) and codegraph
+  # (`codegraph install --target {ai_platform}`), impeccable's
+  # `skills install` AUTO-DETECTS the harness (it scans for .cursor /
+  # .claude / .agents[codex] / .gemini / ... folders, with an optional
+  # `--providers=` narrowing flag). There is NO per-AI `--ai` flag, so the
+  # init template carries no `{ai_platform}` placeholder and `init_targets`
+  # is a single sentinel `auto` entry — the npm_then_init backend runs the
+  # template exactly once and `.format(ai_platform="auto")` is a harmless
+  # no-op (the template string contains no placeholder). Verified against
+  # impeccable@2.3.2 cli/bin/cli.js + cli/bin/commands/skills.mjs on
+  # 2026-06-01.
+  #
+  # version_check_cmd: `impeccable --version` prints pkg.version (confirmed
+  # in cli.js: `if (command === '--version' || command === '-v')
+  # console.log(pkg.version)`). min_version 2.0.0 is a conservative floor
+  # below the 2.3.2 published latest.
+  - id: impeccable
+    backend: npm_then_init
+    package: impeccable
+    install_cmd: "npm install -g impeccable"
+    upgrade_cmd: "npm install -g impeccable@latest"
+    init_cmd_template: "impeccable skills install --yes"
+    init_targets:
+      - auto
+    version_check_cmd: "impeccable --version"
+    min_version: "2.0.0"
+    expected_sha256: null
+    canonical_url: "https://github.com/pbakaus/impeccable"
+    local_fallback_path: null
+    invoked_by_workflows:
+      - web-design
 
 defaults:
   auto_install: true

@@ -134,6 +134,43 @@ plugins:
       research: "codegraph context \"{query}\" --format markdown --max-nodes 20"
       impact: "codegraph impact {symbol} --depth 3 --json"
 
+  impeccable:
+    description: "Design language system + anti-pattern detection for AI coding agents — 23 /impeccable steering commands (polish/critique/audit/typeset/arrange/animate/...) + a no-LLM deterministic anti-pattern detector (27 rules + 12-rule LLM critique pass)"
+    cli_binary: "impeccable"
+    version_command: "impeccable --version"
+    version_regex: 'v?(\d+\.\d+\.\d+)'
+    install_methods:
+      npm: "npm install -g impeccable"
+    skill_install_command: "npx impeccable skills install"
+    capabilities:
+      - design_refinement           # /impeccable polish — final pass before shipping
+      - ux_design_critique          # /impeccable critique — hierarchy, clarity, emotional resonance, scoring
+      - technical_quality_audit     # /impeccable audit — a11y, performance, responsive, theming, anti-patterns
+      - typography_correction       # /impeccable typeset — font choices, hierarchy, sizing
+      - layout_spatial_rhythm       # /impeccable arrange — layout, spacing, visual rhythm
+      - purposeful_motion           # /impeccable animate — add purposeful motion
+      - feature_craft_flow          # /impeccable craft / shape — full shape-then-build flow on new features
+      - antipattern_detection       # impeccable detect — no-LLM scan (27 deterministic rules; exit 2 = found)
+    role: "ui_refinement"
+    repo_url: "https://github.com/pbakaus/impeccable"
+    min_version: "2.0.0"
+    workflows:
+      - web-design
+    stage_mapping:
+      refine: "/impeccable polish {target}"
+      critique: "/impeccable critique {target}"
+      verify: "impeccable detect --json {path}"
+    platform_install:
+      # `skills install` auto-detects the harness (.cursor / .claude / .agents
+      # codex / .gemini / ...); --providers= narrows it. There is NO per-AI
+      # --ai flag — one auto-detecting command writes the build compiled for
+      # each detected harness.
+      auto: "npx impeccable skills install --yes"
+      cursor: "npx impeccable skills install --providers=.cursor --yes"
+      claude: "npx impeccable skills install --providers=.claude --yes"
+      codex: "npx impeccable skills install --providers=.agents --yes"
+    update_command: "npx impeccable skills update"
+
 plugin_roles:
   research_and_iteration:
     description: "Tools for agent-facing research, analysis, and self-improvement"
@@ -171,6 +208,17 @@ plugin_roles:
       - design
     invocation: "on_demand"
     provider: "ui-ux-pro-max"
+
+  ui_refinement:
+    description: "Design refinement + deterministic anti-pattern detection — polishes / critiques / audits an already-built UI and gates it against a no-LLM anti-pattern scan (impeccable detect). Pairs with ui_tooling: ui-pro designs, impeccable refines + verifies."
+    primary_workflows:
+      - web-design
+    stage_affinity:
+      - refine
+      - verify
+      - review
+    invocation: "on_demand"  # Surfaced by config.ensure_plugins at refine/verify stage entry; agent invokes /impeccable commands + `impeccable detect`
+    provider: "impeccable"
 
   gate_scoring:
     description: "Tools that provide automated quality scoring for gates"
