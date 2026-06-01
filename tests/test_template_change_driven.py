@@ -214,10 +214,10 @@ def test_verify_stage_gate_profile_template(template: WorkflowTemplate) -> None:
 
 
 def test_template_registered_in_registry() -> None:
-    """Registry now has 22 entries including the change-driven row."""
+    """Registry now has 23 entries including the change-driven + web-design rows."""
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     templates = data["templates"]
-    assert len(templates) == 22, f"Expected 22 registry entries, got {len(templates)}"
+    assert len(templates) == 23, f"Expected 23 registry entries, got {len(templates)}"
 
     cd = next((e for e in templates if e["name"] == "change-driven"), None)
     assert cd is not None, "change-driven missing from registry.yaml"
