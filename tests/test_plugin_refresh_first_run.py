@@ -141,7 +141,7 @@ def test_refresh_all_triggers_upgrade_attempt_for_every_plugin_on_fresh_log(
 
     outcomes = refresh_all(force=False, log_path=fresh_log)
 
-    registered_ids = {"nines", "ui-pro", "rtk", "si-chip", "codegraph"}
+    registered_ids = {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
     attempted_ids = set(attempt_record)
     missed = registered_ids - attempted_ids
     assert not missed, (

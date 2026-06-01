@@ -3,7 +3,7 @@
     "easy": {
       "body_tokens": 500,
       "carrythrough_rate": 1.0,
-      "elapsed_s": 0.0036,
+      "elapsed_s": 0.0035,
       "entity_target": 5,
       "missed_entity_count": 0,
       "threshold_min_rate": 1.0
@@ -11,7 +11,7 @@
     "hard": {
       "body_tokens": 15000,
       "carrythrough_rate": 1.0,
-      "elapsed_s": 0.0366,
+      "elapsed_s": 0.0361,
       "entity_target": 50,
       "missed_entity_count": 0,
       "threshold_min_rate": 0.9
@@ -19,7 +19,7 @@
     "medium": {
       "body_tokens": 5000,
       "carrythrough_rate": 1.0,
-      "elapsed_s": 0.0148,
+      "elapsed_s": 0.0143,
       "entity_target": 20,
       "missed_entity_count": 0,
       "threshold_min_rate": 0.9

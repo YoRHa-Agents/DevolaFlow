@@ -34,7 +34,9 @@ import pytest
 from devolaflow.plugins import load_registry, resolve_plugin
 from devolaflow.plugins.installer import _SUPPORTED_BACKENDS, RuntimePluginSpec
 
-_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset({"nines", "ui-pro", "rtk", "si-chip", "codegraph"})
+_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset(
+    {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+)
 
 
 def test_registry_schema_version_is_3() -> None:
@@ -57,14 +59,14 @@ def test_registry_upgrade_check_frequency_defaults_24h() -> None:
     )
 
 
-def test_registry_contains_expected_5_plugin_ids() -> None:
-    """5 plugins ship in v12.5.0 (nines, ui-pro, rtk, si-chip, codegraph)."""
+def test_registry_contains_expected_6_plugin_ids() -> None:
+    """6 plugins ship in v13.0.0 (nines, ui-pro, rtk, si-chip, codegraph, impeccable)."""
     registry = load_registry()
     registered = {p["id"] for p in registry["plugins"]}
     missing = _EXPECTED_PLUGIN_IDS - registered
     assert not missing, (
         f"runtime-plugins.yaml missing expected plugin IDs {sorted(missing)!r}; "
-        f"registered = {sorted(registered)!r}. v12.5.0 PV-03 smoke requires all 5."
+        f"registered = {sorted(registered)!r}. v13.0.0 smoke requires all 6."
     )
 
 
@@ -216,4 +218,61 @@ def test_codegraph_runtime_entry_smoke() -> None:
         f"v12.5.0 PV-03 D-1.1: codegraph invoked_by_workflows must include "
         f"all 4 analyze-stage templates; missing: "
         f"{expected_workflows - set(spec.invoked_by_workflows or [])}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# v13.0.0 — impeccable runtime plugin entry smoke
+# ---------------------------------------------------------------------------
+
+
+def test_impeccable_runtime_entry_smoke() -> None:
+    """v13.0.0: impeccable runtime entry has the contracted shape.
+
+    Pins the contract fields for the 6th plugin:
+      * backend = npm_then_init (reuses the ui-pro / codegraph precedent)
+      * package = impeccable
+      * canonical_url = https://github.com/pbakaus/impeccable
+      * init_targets = [auto] (impeccable `skills install` auto-detects the
+        harness; the init template carries no {ai_platform} placeholder)
+      * version_check_cmd = "impeccable --version" (prints pkg.version)
+      * invoked_by_workflows includes web-design
+    """
+    registry = load_registry()
+    spec = resolve_plugin("impeccable", registry)
+    assert spec.id == "impeccable"
+    assert spec.backend == "npm_then_init"
+    assert spec.package == "impeccable"
+    assert spec.canonical_url == "https://github.com/pbakaus/impeccable"
+    assert spec.init_targets == ["auto"], (
+        f"impeccable init_targets must be the single sentinel [auto] (skills "
+        f"install auto-detects the harness); got {spec.init_targets!r}"
+    )
+    assert "{ai_platform}" not in (spec.init_cmd_template or ""), (
+        "impeccable init_cmd_template must NOT carry a {ai_platform} placeholder "
+        "— `impeccable skills install` auto-detects the harness (no --ai flag)"
+    )
+    assert spec.version_check_cmd == "impeccable --version"
+    assert "web-design" in (spec.invoked_by_workflows or []), (
+        "impeccable invoked_by_workflows must include web-design"
+    )
+
+
+def test_ui_pro_invoked_by_web_design() -> None:
+    """v13.0.0: ui-pro now also cites web-design (designs before impeccable refines)."""
+    registry = load_registry()
+    spec = resolve_plugin("ui-pro", registry)
+    assert "web-design" in (spec.invoked_by_workflows or []), (
+        "ui-pro invoked_by_workflows must include web-design (ui-pro DESIGNS, "
+        "impeccable REFINES); plugins_for_workflow('web-design') resolves to "
+        "[ui-pro, impeccable] in registry order"
+    )
+
+
+def test_plugins_for_web_design_resolves_ui_pro_then_impeccable() -> None:
+    """v13.0.0: plugins_for_workflow('web-design') == ['ui-pro', 'impeccable']."""
+    from devolaflow.plugins.installer import plugins_for_workflow
+
+    assert plugins_for_workflow("web-design") == ["ui-pro", "impeccable"], (
+        "registry order must yield ui-pro (design) before impeccable (refine)"
     )

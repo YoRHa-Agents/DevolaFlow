@@ -279,7 +279,7 @@ content:
 
   # ─────────────────────────────────────────────────────────────────
   # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 22 builtin templates covering all workflow types.
+  # Registry + 23 builtin templates covering all workflow types.
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:

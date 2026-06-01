@@ -101,10 +101,10 @@ def _parse_no_plugins(argv: list[str]) -> bool:
     v13.0.0 — opt-out for the bundled runtime-plugin install that runs by
     default after a ``--global`` skill install (per the v13.0.0 cycle ask
     "make devola install also install all plugins"). The flag is a CLI arg,
-    NOT a new ``DEVOLAFLOW_*`` env flag (W-20 reuse-first: dispatch-time
-    auto-install still keys on the existing ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS``
-    surface). Default-OFF (i.e. plugins DO install) for ``--global``;
-    ``--no-plugins`` suppresses the bundled install.
+    NOT a new environment flag (W-20 reuse-first: dispatch-time auto-install
+    still keys on the existing auto-install env flag — see CHANGELOG +
+    references/env-flags.md). Default-OFF (i.e. plugins DO install) for
+    ``--global``; ``--no-plugins`` suppresses the bundled install.
     """
     return "--no-plugins" in argv
 

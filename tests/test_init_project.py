@@ -647,3 +647,75 @@ def test_parse_with_examples_default_kwarg_preserves_pre_v9_2_3_behavior():
         "v9.2.3 contract: mode-derived default=False (mode=core/standard) is "
         "honoured even when `all` would otherwise have implied True"
     )
+
+
+# ---------------------------------------------------------------------------
+# v13.0.0 — bundled runtime-plugin install (install_plugins + --no-plugins)
+# ---------------------------------------------------------------------------
+
+
+def _run_main_recording_install_plugins(tmp_path, monkeypatch, argv):
+    """Run init_project.main() with install_plugins() mocked; return scope calls."""
+    agent_dir = _find_agent_dir()
+    if not (agent_dir / "SKILL.md").exists():
+        pytest.skip("workflow-system/agent/ source tree not available (wheel-only)")
+    (tmp_path / ".cursor").mkdir(exist_ok=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "_home"))
+    monkeypatch.delenv("CODEX_HOME", raising=False)
+    calls: list[str] = []
+    monkeypatch.setattr(init_project, "install_plugins", lambda scope: calls.append(scope))
+    monkeypatch.setattr(sys, "argv", argv)
+    from devolaflow.init_project import main
+
+    main()
+    return calls
+
+
+def test_main_global_triggers_install_plugins(tmp_path: Path, monkeypatch):
+    """v13.0.0: a --global skill install ALSO installs runtime plugins."""
+    calls = _run_main_recording_install_plugins(
+        tmp_path, monkeypatch, ["devola-init", "cursor", "--global"]
+    )
+    assert calls == ["global"], (
+        f"--global install must call install_plugins('global') exactly once; got {calls}"
+    )
+
+
+def test_main_global_no_plugins_skips_install_plugins(tmp_path: Path, monkeypatch):
+    """v13.0.0: --no-plugins suppresses the bundled plugin install."""
+    calls = _run_main_recording_install_plugins(
+        tmp_path, monkeypatch, ["devola-init", "cursor", "--global", "--no-plugins"]
+    )
+    assert calls == [], f"--no-plugins must skip install_plugins; got {calls}"
+
+
+def test_main_project_scope_does_not_install_plugins(tmp_path: Path, monkeypatch):
+    """v13.0.0: project-scope installs stay lean (no bundled plugin install)."""
+    calls = _run_main_recording_install_plugins(tmp_path, monkeypatch, ["devola-init", "cursor"])
+    assert calls == [], f"project-scope install must not call install_plugins; got {calls}"
+
+
+def test_parse_no_plugins_flag():
+    """`--no-plugins` is detected only when present."""
+    from devolaflow.init_project import _parse_no_plugins
+
+    assert _parse_no_plugins(["cursor", "--global", "--no-plugins"]) is True
+    assert _parse_no_plugins(["cursor", "--global"]) is False
+    assert _parse_no_plugins([]) is False
+
+
+def test_install_plugins_warn_not_fatal(monkeypatch, capsys):
+    """A failing plugin is warned (S-5) and does NOT abort the loop."""
+    from devolaflow.plugins.exceptions import PluginInstallError
+
+    def _fake_ensure(pid: str) -> str:
+        if pid == "rtk":
+            raise PluginInstallError("network down")
+        return "9.9.9"
+
+    monkeypatch.setattr("devolaflow.plugins.installer.ensure_plugin", _fake_ensure)
+    init_project.install_plugins("global")
+    out = capsys.readouterr().out
+    assert "WARN plugin rtk install failed" in out
+    assert "impeccable @ 9.9.9" in out  # loop continued past the rtk failure

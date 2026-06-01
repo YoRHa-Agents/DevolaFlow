@@ -49,18 +49,18 @@ class TestSiChipInCanonicalRegistry:
     """Pin the 4th entry in `runtime-plugins.yaml`."""
 
     def test_canonical_registry_loads_with_si_chip(self) -> None:
-        """v9.5.0 PV-01 baseline: 4 plugins; v12.5.0 PV-05 D-1.1: codegraph appended as 5th.
+        """v9.5.0: 4 plugins; v12.5.0: codegraph appended 5th; v13.0.0: impeccable 6th.
 
-        si-chip remains the 4th plugin (registry-order discipline preserved); the
-        v12.5.0 cycle preserves the existing order and appends codegraph at position 5.
+        si-chip remains the 4th plugin (registry-order discipline preserved); each
+        cycle appends the new plugin at the END of the list (append-only, A-2).
         """
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
         assert raw["schema_version"] == 3, "v9.4.0 PV-04 schema_version 3 must remain"
         plugin_ids = [p["id"] for p in raw["plugins"]]
-        assert plugin_ids == ["nines", "ui-pro", "rtk", "si-chip", "codegraph"], (
-            f"v12.5.0 PV-05 D-1.1 contract: codegraph MUST be the 5th plugin, "
-            f"appended at the END of the list; si-chip retains its 4th-position "
-            f"registry-order discipline. Actual order: {plugin_ids!r}"
+        assert plugin_ids == ["nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"], (
+            f"v13.0.0 contract: impeccable MUST be the 6th plugin, appended at the "
+            f"END of the list; si-chip retains its 4th-position registry-order "
+            f"discipline. Actual order: {plugin_ids!r}"
         )
 
     def test_si_chip_resolves_via_resolve_plugin(self) -> None:
