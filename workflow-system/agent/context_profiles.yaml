@@ -154,9 +154,11 @@ meta:
   # invokes the /impeccable steering commands + `impeccable detect` on
   # demand against the built UI.
   #
-  # Per W-15 / CO-6 (section relevance): the per-profile activation lives in
-  # profiles[web-design].sections — the web-design profile marks
-  # impeccable_integration: important; unrelated profiles mark it: skip.
+  # Per W-15 / CO-6 (section relevance): surfaced for the web-design workflow's
+  # refine/verify stages (design refinement + the impeccable detect gate);
+  # unrelated task profiles do not load it. Mirrors the ui_integration /
+  # codegraph_integration top-level-metadata pattern (READ-ONLY hint block; the
+  # workflow runner never auto-executes these recipes).
   #
   # tokens_est: 180 — consistent with ui_integration / codegraph_integration.
   #
