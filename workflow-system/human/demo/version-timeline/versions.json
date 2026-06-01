@@ -1857,5 +1857,40 @@
       "pvs_in_cycle": "6",
       "deferrals_telegraphed": "12"
     }
+  },
+  {
+    "version": "13.0.0",
+    "date": "2026-06-01",
+    "era": "design-cycle",
+    "headline": "MAJOR — impeccable lands as the 6th plugin (NEW ui_refinement role) + the NEW web-design workflow (ui-pro DESIGNS → impeccable REFINES + VERIFIES via the no-LLM `impeccable detect` anti-pattern gate) + global devola installs now bundle all runtime plugins by default (--no-plugins opt-out)",
+    "summary": "v13.0.0 is the MAJOR design-cycle integrating pbakaus/impeccable as a tracked reference repo + fully-wired plugin (6th of 6; NEW ui_refinement role): impeccable ships a single agent skill with 23 /impeccable steering commands (polish/critique/audit/typeset/arrange/animate/...) plus a no-LLM deterministic anti-pattern detector (`impeccable detect`; 27 rules; exit 0 = clean, 2 = anti-patterns found). The cycle lands the plugin across 3 SSOT registries (plugins.yaml block + ui_refinement role; runtime-plugins.yaml entry, backend npm_then_init with init_targets [auto] because `impeccable skills install` auto-detects the harness — no per-AI flag; reference-dependencies.yaml active_tracking 12→13), a NEW Tier-2 references/impeccable.md (23rd SF-4 reference; ~179 lines; 6 anchor sections), a degraded-mode §6 + matrix row (PPI001 permissive-continue mirroring ui-pro), and a context_profiles impeccable_integration block. The NEW web-design workflow template (design → implement → refine → verify with a refine↔verify convergence loop gated by `impeccable detect` exit codes) pairs ui-pro (design) with impeccable (refine + verify); plugins_for_workflow('web-design') resolves to [ui-pro, impeccable]. Global installs (devola-init <tool> --global + install.sh --global) now bundle all runtime plugins by default via the NEW registry-driven install_plugins(scope) helper (warn-not-fatal per S-5); --no-plugins opts out (a CLI arg, NOT a new env flag — W-20 reuse-first preserved at 7 flags). Zero schema bumps (canonical_order stays 17; ensure_plugins is template config, not a dispatch key; A-2.4 multi-baseline unchanged), zero new Soul rules (W-21 freeze at 10/12).",
+    "highlights": [
+      "impeccable plugin landing — 3-registry SSOT integration mirroring the ui-pro/codegraph shape: plugins.yaml `impeccable` block + NEW `ui_refinement` plugin role (6th of 6; provider=impeccable) + runtime-plugins.yaml `impeccable` entry (backend npm_then_init; install `npm install -g impeccable`; init `impeccable skills install --yes`; init_targets [auto]; version_check_cmd `impeccable --version`; min_version 2.0.0) + reference-dependencies.yaml active_tracking 12→13",
+      "NEW web-design workflow template — design (ensure ui-pro) → implement → refine (ensure impeccable; /impeccable polish|critique|typeset|arrange|animate) → verify (`impeccable detect --json` gate; exit 0 = PASS, 2 = FAIL → loop back to refine); refine↔verify convergence loop (max 3 iterations) + convergence gate; registered in registry.yaml + workflow-skill.yaml + SKILL.md (template count 22→23)",
+      "Global plugin bundling — NEW install_plugins(scope) helper in init_project.py iterates the runtime registry and calls ensure_plugin per plugin (A-5 SSOT, no command duplication); default-ON for --global, --no-plugins opt-out; per-plugin failures are warn-not-fatal (S-5: logged + counted, never silently swallowed); mirrored in install.sh (delegates to the Python path when devolaflow is importable, else emits manual-install guidance)",
+      "NEW Tier-2 references/impeccable.md (23rd SF-4 reference; ~179 lines; 6 anchor sections: §1 what impeccable is + L3 use-cases, §2 the 23 /impeccable commands, §3 the detector CLI + exit-code gate, §4 DevolaFlow integration map, §5 degraded-mode contract, §6 cache/install management); degraded-mode.md §6 + matrix row (PPI001 permissive-continue mirroring ui-pro); SKILL.md Reference Navigation + Workflow Selection + Template Quick-Reference rows (488 → 491 lines, under C-4 ≤500 ceiling)",
+      "W-20 reuse-first preserved — NO new DEVOLAFLOW_* env flag (count stays at 7); --no-plugins is a CLI arg; runtime auto-install reuses the existing DEVOLAFLOW_AUTO_INSTALL_PLUGINS surface. impeccable verified against impeccable@2.3.2 upstream: `impeccable --version` prints pkg.version; `skills install` auto-detects .cursor/.claude/.agents/.gemini harness folders (--providers= narrowing; no --ai flag)"
+    ],
+    "metrics": {
+      "plugin_count": "6",
+      "plugin_count_prev": "5",
+      "plugin_role_count": "6",
+      "plugin_role_count_prev": "5",
+      "template_count": "23",
+      "template_count_prev": "22",
+      "references_count": "23",
+      "references_count_prev": "22",
+      "sf4_reference_count": "23",
+      "sf4_reference_count_prev": "22",
+      "active_tracking_refs_count": "13",
+      "active_tracking_refs_count_prev": "12",
+      "skill_md_lines": "491",
+      "skill_md_lines_prev": "488",
+      "env_flag_count": "7",
+      "env_flags_added_in_cycle": "0",
+      "canonical_order_length": "17",
+      "soul_set_count": "10",
+      "soul_set_cap": "12"
+    }
   }
 ]

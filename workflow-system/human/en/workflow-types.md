@@ -1,16 +1,16 @@
 ---
 title: "Workflow Types Catalog"
-description: "22 built-in workflow types with selection guidance."
+description: "23 built-in workflow types with selection guidance."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-23T13:42:30Z"
+last_synced: "2026-06-01T13:50:55Z"
 source_version: "12.5.0"
 ---
 
 # Workflow Types Catalog
 
-22 built-in workflow types with selection guidance.
+23 built-in workflow types with selection guidance.
 
 ## Workflow Selection
 
@@ -19,7 +19,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Selection heuristics:**
 - Urgency signals ("urgent", "ASAP", "production down") → `hotfix`"From scratch" / "new project" →`full-pipeline`Question-form phrasing ("what", "how", "which") →`research-only`Explicit type mention → direct match (highest priority)
 
-## All 22 Built-in Workflow Types
+## All 23 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -143,6 +143,12 @@ Verify Workflows
 **Teams**: Design, Implement, Test
 **Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
 
+#### `web-design`
+**When to use**: Build a polished, non-generic frontend. The `ui-pro` plugin DESIGNS the system (style, palette, typography, design-system); `impeccable` then REFINES it (`/impeccable polish`, `critique`, `typeset`, `arrange`, `animate`) and VERIFIES it against a no-LLM anti-pattern scan (`impeccable detect`; exit 0 = clean, 2 = anti-patterns).
+**Stages**: design (ui-pro) → implement → refine (impeccable) → verify (`impeccable detect` gate); refine ↔ verify convergence loop
+**Teams**: Design, Implement, Test
+**Example prompt**: `"design a landing page"`, `"polish the pricing page UI"`, `"build a marketing site with ui-pro and impeccable"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -165,3 +171,4 @@ Verify Workflows
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
 | `self-update` | update refs, self-update, check references | 6 | standard |
 | `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |
+| `web-design` | web design, frontend, landing page, polish UI, ui-pro, impeccable | 4 | convergence |

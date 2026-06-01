@@ -1,16 +1,16 @@
 ---
 title: "工作流类型目录"
-description: "22 种内置工作流类型及选择指南。"
+description: "23 种内置工作流类型及选择指南。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-23T13:42:30Z"
+last_synced: "2026-06-01T13:50:55Z"
 source_version: "12.5.0"
 ---
 
 # 工作流类型目录
 
-22 种内置工作流类型及选择指南。
+23 种内置工作流类型及选择指南。
 
 ## 工作流选择
 
@@ -19,7 +19,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **选择策略：**
 - 紧急信号（"紧急"、"生产环境故障"）→ `hotfix`"从零开始" / "新项目" →`full-pipeline`问题形式（"什么"、"如何"、"哪个"）→`research-only`显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 22 种内置工作流类型
+## 全部 23 种内置工作流类型
 
 发现类工作流
 
@@ -125,6 +125,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：propose → apply → verify → archive（mode: lite \| full）
 **示例**：`"propose change to add dark mode"`、`"apply v8.3.0-pv09"`、`"archive add-auth-bug"`
 
+#### `web-design`
+**适用场景**：构建精致、非通用的前端界面。`ui-pro` 插件负责设计系统（风格、配色、排版、设计系统）；`impeccable` 负责精修（`/impeccable polish`、`critique`、`typeset`、`arrange`、`animate`）并通过无 LLM 的反模式扫描进行验证（`impeccable detect`；退出码 0 = 无问题，2 = 检出反模式）。
+**阶段**：design (ui-pro) → implement → refine (impeccable) → verify（`impeccable detect` 门控）；refine ↔ verify 收敛循环
+**示例**：`"design a landing page"`、`"polish the pricing page UI"`、`"用 ui-pro 和 impeccable 构建营销页面"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -147,3 +152,4 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
 | `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
 | `change-driven` | 变更, 提议, 应用, 归档, 生命周期, OpenSpec | 4 | convergence |
+| `web-design` | 网页设计, 前端, 落地页, 精修 UI, ui-pro, impeccable | 4 | convergence |
