@@ -5,6 +5,13 @@ Usage:
   devola-init cursor                Install for Cursor only
   devola-init claude                Install for Claude Code only
   devola-init claude --global       Install Claude Code globally
+  devola-init <tool> --global       Global skill install ALSO installs all
+                                    runtime plugins (nines/ui-pro/rtk/si-chip/
+                                    codegraph/impeccable) by default; per-plugin
+                                    failures are warn-not-fatal (S-5)
+  devola-init <tool> --global --no-plugins
+                                    Global install WITHOUT the bundled
+                                    runtime-plugin install (skill files only)
   devola-init copilot               Install for Copilot only
   devola-init local                 Initialize .local/ workspace + .rules/
                                     (auto-compiles .rules/ to .cursor/rules/
@@ -86,6 +93,82 @@ def _parse_scope(argv: list[str]) -> str:
         elif arg == "--project":
             scope = "project"
     return scope
+
+
+def _parse_no_plugins(argv: list[str]) -> bool:
+    """Return True iff ``--no-plugins`` is present in argv.
+
+    v13.0.0 — opt-out for the bundled runtime-plugin install that runs by
+    default after a ``--global`` skill install (per the v13.0.0 cycle ask
+    "make devola install also install all plugins"). The flag is a CLI arg,
+    NOT a new ``DEVOLAFLOW_*`` env flag (W-20 reuse-first: dispatch-time
+    auto-install still keys on the existing ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS``
+    surface). Default-OFF (i.e. plugins DO install) for ``--global``;
+    ``--no-plugins`` suppresses the bundled install.
+    """
+    return "--no-plugins" in argv
+
+
+def install_plugins(scope: str) -> None:
+    """Install every runtime-registered plugin (default-ON for ``--global``).
+
+    v13.0.0 — closes the cycle ask "make devola install also install all
+    plugins". Iterates the runtime plugin registry
+    (``workflow-system/agent/knowledge/runtime-plugins.yaml``) and calls
+    :func:`devolaflow.plugins.installer.ensure_plugin` per plugin, so the
+    install commands stay single-source-of-truth (A-5 — no duplication of the
+    per-backend install logic here).
+
+    Per-plugin failures are **warn-not-fatal** (Soul Rule S-5: every failure
+    is logged explicitly via a ``WARN`` line and an explicit ok/warn count is
+    returned to the operator — never silently swallowed). A single unreachable
+    plugin (npm/pip/curl registry down, missing toolchain, sandbox/CI without
+    network) MUST NOT abort the whole ``devola-init --global`` run.
+
+    The registry / package-import guards degrade gracefully when run from a
+    wheel-only install that lacks ``workflow-system/`` or the
+    ``devolaflow.plugins`` package — the function prints a single WARN and
+    returns instead of raising (mirrors the ``install_local`` S-5 pattern).
+    """
+    try:
+        from devolaflow.plugins.exceptions import PluginRuntimeError
+        from devolaflow.plugins.installer import ensure_plugin, load_registry
+    except ImportError as exc:
+        print(f"  WARN plugin install skipped (devolaflow.plugins unavailable): {exc}")
+        return
+
+    try:
+        registry = load_registry()
+    except FileNotFoundError as exc:
+        print(f"  WARN plugin install skipped (runtime registry not found): {exc}")
+        return
+    except PluginRuntimeError as exc:
+        print(f"  WARN plugin install skipped (runtime registry unparseable): {exc}")
+        return
+
+    plugin_ids = [
+        entry["id"]
+        for entry in registry.get("plugins", [])
+        if isinstance(entry, dict) and entry.get("id")
+    ]
+    if not plugin_ids:
+        print("  WARN plugin install skipped (no plugins registered)")
+        return
+
+    print(f"\n  Installing {len(plugin_ids)} runtime plugins ({scope}) ...")
+    ok_count = 0
+    for pid in plugin_ids:
+        try:
+            version = ensure_plugin(pid)
+        except PluginRuntimeError as exc:
+            # S-5: explicit WARN (logged, never silent); install continues
+            # so one unreachable plugin does not abort the whole run.
+            print(f"  WARN plugin {pid} install failed (non-fatal): {exc}")
+            continue
+        ok_count += 1
+        print(f"  OK   plugin {pid} @ {version}")
+    warned = len(plugin_ids) - ok_count
+    print(f"  ({ok_count}/{len(plugin_ids)} plugins installed, {warned} warned)")
 
 
 def _parse_no_compile(argv: list[str], *, default: bool = False) -> bool:
@@ -826,6 +909,13 @@ def main() -> None:
             TOOLS[t](agent_dir, cwd, scope, **extra)
         else:
             print(f"  Unknown target: {t} (use: cursor, claude, copilot, codex, local, all)")
+
+    # v13.0.0 — bundled runtime-plugin install. Default-ON for --global
+    # (the cycle ask: "make devola install also install all plugins"),
+    # suppressed by --no-plugins. Project-scope installs do NOT auto-install
+    # plugins (kept lean; plugins are user-wide tools). Warn-not-fatal per S-5.
+    if scope == "global" and not _parse_no_plugins(sys.argv[1:]):
+        install_plugins(scope)
 
     print(f"\n  Now Using DevolaFlow v{__version__}")
     print("  Start using DevolaFlow by asking your AI tool to")

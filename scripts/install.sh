@@ -11,8 +11,10 @@
 #
 # Targets:  cursor, codex, claude, copilot, kimicode, windsurf,
 #           zed, cline, roo, local, standalone, all, auto (default), update
-# Flags:    --global   install to the tool's user-wide location
-#           --project  install to the repo-local location (default)
+# Flags:    --global      install to the tool's user-wide location (ALSO
+#                         installs all runtime plugins by default)
+#           --project     install to the repo-local location (default)
+#           --no-plugins  with --global, skip the bundled runtime-plugin install
 
 set -u
 
@@ -30,12 +32,14 @@ errf() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 SCOPE="project"
 TARGET="auto"
+NO_PLUGINS="false"
 for arg in "$@"; do
   case "$arg" in
-    --global)  SCOPE="global" ;;
-    --project) SCOPE="project" ;;
-    -*)        ;;
-    *)         TARGET="$arg" ;;
+    --global)     SCOPE="global" ;;
+    --project)    SCOPE="project" ;;
+    --no-plugins) NO_PLUGINS="true" ;;
+    -*)           ;;
+    *)            TARGET="$arg" ;;
   esac
 done
 
@@ -438,6 +442,25 @@ install_standalone() {
   ok "Standalone SKILL.md downloaded"
 }
 
+# v13.0.0 — bundled runtime-plugin install for --global. Delegates to the
+# Python installer (A-5 SSOT: same ensure_plugin path devola-init uses) when
+# the devolaflow package is importable; otherwise emits clear guidance.
+# Warn-not-fatal (S-5): plugin failures NEVER abort the skill install.
+install_plugins() {
+  info "Installing runtime plugins (global) ..."
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import devolaflow" 2>/dev/null; then
+    python3 -c "from devolaflow.init_project import install_plugins; install_plugins('global')" \
+      || warn "bundled plugin install reported errors (non-fatal)"
+  else
+    warn "devolaflow package not importable — skipping bundled plugin install."
+    warn "  Install plugins manually, e.g.:"
+    warn "    pip install --upgrade nines"
+    warn "    npm install -g uipro-cli && uipro init --ai cursor --global"
+    warn "    npm install -g @colbymchenry/codegraph"
+    warn "    npm install -g impeccable && impeccable skills install --yes"
+  fi
+}
+
 # ── Update ───────────────────────────────────────────────────────
 
 do_update() {
@@ -572,8 +595,12 @@ case "$TARGET" in
     auto        Auto-detect (default)
 
   Flags:
-    --project   repo-local install path (default)
-    --global    user-wide install path when supported
+    --project     repo-local install path (default)
+    --global      user-wide install path when supported; ALSO installs all
+                  runtime plugins (nines/ui-pro/rtk/si-chip/codegraph/impeccable)
+                  by default — failures are warn-not-fatal
+    --no-plugins  with --global, skip the bundled runtime-plugin install
+                  (skill files only)
 USAGE
     exit 0 ;;
   *)
@@ -581,6 +608,13 @@ USAGE
     echo "  Run with 'help' to see options."
     exit 1 ;;
 esac
+
+# v13.0.0 — a --global skill install ALSO installs all runtime plugins by
+# default (the cycle ask: "make devola install also install all plugins").
+# --no-plugins opts out. Project-scope installs stay lean (no plugin install).
+if [ "$SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ]; then
+  install_plugins
+fi
 
 echo ""
 if [ -n "$INSTALLED_VERSION" ]; then
