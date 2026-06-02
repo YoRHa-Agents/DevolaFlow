@@ -96,14 +96,20 @@ def _make_mapping(**overrides) -> CommandMapping:
 
 def _basic_recipe_yaml(version_stamp: str | None = None) -> str:
     """A minimal valid recipe YAML body covering the canonical features."""
+    from devolaflow.shell_proxy.commands import _today_iso
+
     stamp = version_stamp if version_stamp is not None else devolaflow.__version__
+    # Compute the freshness anchor dynamically so the recipe never time-bombs
+    # (the loader correctly drops recipes older than ttl_days). Expiry tests
+    # below seed their own intentionally-old last_updated instead.
+    last_updated = _today_iso()
     return f"""\
 schema_version: 1
 command: "pytest"
 description: "Drop noisy DeprecationWarning lines."
 repo_signal: "DevolaFlow"
 version_stamp: "{stamp}"
-last_updated: "2026-04-23"
+last_updated: "{last_updated}"
 ttl_days: 30
 strip_ansi: true
 pre_filters:
