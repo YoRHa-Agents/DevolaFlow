@@ -45,9 +45,9 @@ DOCS = [
     (
         "workflow-types",
         "Workflow Types Catalog",
-        "22 built-in workflow types with selection guidance.",
+        "23 built-in workflow types with selection guidance.",
         "工作流类型目录",
-        "22 种内置工作流类型及选择指南。",
+        "23 种内置工作流类型及选择指南。",
     ),
     (
         "agent-hierarchy-guide",
@@ -87,7 +87,7 @@ DOCS = [
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "12.5.0"
+SOURCE_VERSION = "13.0.0"
 
 
 def _gen_doc(
@@ -248,7 +248,7 @@ What happens:
 
 ## Step 4: Explore More
 
-- See all 22 workflow types: [Workflow Types](workflow-types.md)
+- See all 23 workflow types: [Workflow Types](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
@@ -398,7 +398,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 - Question-form phrasing ("what", "how", "which") → `research-only`
 - Explicit type mention → direct match (highest priority)
 
-## All 22 Built-in Workflow Types
+## All 23 Built-in Workflow Types
 
 ### Discover Workflows
 
@@ -522,6 +522,12 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 **Teams**: Design, Implement, Test
 **Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
 
+#### `web-design`
+**When to use**: Build a polished, non-generic frontend. The `ui-pro` plugin DESIGNS the system (style, palette, typography, design-system); `impeccable` then REFINES it (`/impeccable polish`, `critique`, `typeset`, `arrange`, `animate`) and VERIFIES it against a no-LLM anti-pattern scan (`impeccable detect`; exit 0 = clean, 2 = anti-patterns).
+**Stages**: design (ui-pro) → implement → refine (impeccable) → verify (`impeccable detect` gate); refine ↔ verify convergence loop
+**Teams**: Design, Implement, Test
+**Example prompt**: `"design a landing page"`, `"polish the pricing page UI"`, `"build a marketing site with ui-pro and impeccable"`
+
 ## Quick Reference Table
 
 | Type | Trigger Keywords | Stages | Gate Profile |
@@ -544,6 +550,7 @@ DevolaFlow automatically selects the right workflow based on your prompt. You ca
 | `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
 | `self-update` | update refs, self-update, check references | 6 | standard |
 | `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |
+| `web-design` | web design, frontend, landing page, polish UI, ui-pro, impeccable | 4 | convergence |
 """
 
 
@@ -674,7 +681,7 @@ DevolaFlow uses **intent matching** on your prompt keywords:
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 22 types
+- And so on for all 23 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 
@@ -1239,7 +1246,7 @@ devola-version   # 应输出当前 DevolaFlow 版本
 
 ## 第四步：深入探索
 
-- 查看全部 22 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 23 种工作流：[工作流类型](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)
@@ -1361,7 +1368,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 - 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
 - 显式指定类型 → 直接匹配（最高优先级）
 
-## 全部 22 种内置工作流类型
+## 全部 23 种内置工作流类型
 
 ### 发现类工作流
 
@@ -1467,6 +1474,11 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 **阶段**：propose → apply → verify → archive（mode: lite \\| full）
 **示例**：`"propose change to add dark mode"`、`"apply v8.3.0-pv09"`、`"archive add-auth-bug"`
 
+#### `web-design`
+**适用场景**：构建精致、非通用的前端界面。`ui-pro` 插件负责设计系统（风格、配色、排版、设计系统）；`impeccable` 负责精修（`/impeccable polish`、`critique`、`typeset`、`arrange`、`animate`）并通过无 LLM 的反模式扫描进行验证（`impeccable detect`；退出码 0 = 无问题，2 = 检出反模式）。
+**阶段**：design (ui-pro) → implement → refine (impeccable) → verify（`impeccable detect` 门控）；refine ↔ verify 收敛循环
+**示例**：`"design a landing page"`、`"polish the pricing page UI"`、`"用 ui-pro 和 impeccable 构建营销页面"`
+
 ## 快速参考表
 
 | 类型 | 触发关键词 | 阶段数 | 门控配置 |
@@ -1489,6 +1501,7 @@ DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显
 | `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
 | `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
 | `change-driven` | 变更, 提议, 应用, 归档, 生命周期, OpenSpec | 4 | convergence |
+| `web-design` | 网页设计, 前端, 落地页, 精修 UI, ui-pro, impeccable | 4 | convergence |
 """
 
 

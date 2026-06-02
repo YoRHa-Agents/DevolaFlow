@@ -155,3 +155,10 @@ templates:
     version: "1.0.0"
     category: composite
     tags: [change, propose, apply, archive, lifecycle, agent-workspace, opsx]
+
+  - name: web-design
+    path: builtin/web-design.yaml
+    source: builtin
+    version: "1.0.0"
+    category: composite
+    tags: [web-design, frontend, landing-page, ui, design, polish, impeccable, ui-pro]

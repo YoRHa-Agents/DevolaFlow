@@ -333,6 +333,53 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
         assert "pre_plugin_invocation" in text
         assert "permissive" in text.lower()
 
+    def test_impeccable_unreachable_emits_ppi001_permissive_continues(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """v13.0.0: pin the PPI001 + permissive-continue contract for impeccable.
+
+        Mirrors the ui-pro contract — impeccable shares the
+        `pre_plugin_invocation` → `ensure_plugin` install path (backend
+        npm_then_init). When `npm install -g impeccable` fails the hook emits
+        PPI001 (error); permissive mode (default) continues, strict mode
+        re-raises.
+        """
+        monkeypatch.setenv("DEVOLAFLOW_AUTO_INSTALL_PLUGINS", "1")
+        from devolaflow.lifecycle.pre_plugin_invocation import pre_plugin_invocation
+        from devolaflow.plugins.exceptions import PluginInstallError
+
+        def _fake_ensure_plugin(plugin_id: str) -> str:  # type: ignore[no-untyped-def]
+            raise PluginInstallError(
+                f"npm install -g impeccable failed (registry unreachable): {plugin_id}"
+            )
+
+        with patch(
+            "devolaflow.plugins.installer.ensure_plugin",
+            side_effect=_fake_ensure_plugin,
+        ):
+            result = pre_plugin_invocation({"plugin_id": "impeccable"}, strict=False)
+
+        assert isinstance(result, HookResult)
+        ppi001 = [v for v in result.violations if v.code == "PPI001"]
+        assert len(ppi001) == 1, (
+            f"expected 1 PPI001 violation, got {len(ppi001)}: {[v.code for v in result.violations]}"
+        )
+        assert ppi001[0].severity == "error"
+        assert "impeccable" in ppi001[0].message
+        # Strict mode re-raises the same PPI001 HookViolation.
+        with patch(
+            "devolaflow.plugins.installer.ensure_plugin",
+            side_effect=_fake_ensure_plugin,
+        ):
+            with pytest.raises(HookViolation) as exc_info:
+                pre_plugin_invocation({"plugin_id": "impeccable"}, strict=True)
+            assert exc_info.value.code == "PPI001"
+            assert exc_info.value.severity == "error"
+        # degraded-mode.md must carry an impeccable section + matrix row.
+        text = _degraded_mode_doc_text()
+        assert "impeccable" in text.lower()
+        assert "Section 6 — impeccable" in text
+
 
 # ---------------------------------------------------------------------------
 # §5 — Degraded-mode coverage audit (meta-test)
@@ -343,7 +390,8 @@ class TestDegradedModeCoverageAudit:
     """Pin the 4-of-4 plugin coverage invariant from D-C-1 §5 benefit_metrics."""
 
     def test_all_four_plugins_have_an_unreachable_scenario_test(self) -> None:
-        """D-C-1 §5 metric: 100% (4/4) plugins have an unreachable scenario test."""
+        """D-C-1 §5 metric: plugins with a network-install path have an
+        unreachable scenario test. v13.0.0 adds impeccable (mirrors ui-pro)."""
         test_text = Path(__file__).read_text(encoding="utf-8")
         # Each plugin's dedicated test function must exist in THIS file.
         expected_tests = (
@@ -351,12 +399,13 @@ class TestDegradedModeCoverageAudit:
             "test_si_chip_unreachable_emits_pse001_and_defers",
             "test_rtk_unreachable_bypasses_to_native_shell",
             "test_ui_pro_unreachable_emits_ppi001_permissive_continues",
+            "test_impeccable_unreachable_emits_ppi001_permissive_continues",
         )
         for name in expected_tests:
             assert name in test_text, (
                 f"D-C-1 §5 coverage audit: missing scenario test {name!r}. "
-                f"Every registered plugin (NineS/Si-Chip/RTK/ui-pro) MUST have "
-                f"an explicit unreachable-scenario test."
+                f"Every registered plugin (NineS/Si-Chip/RTK/ui-pro/impeccable) "
+                f"MUST have an explicit unreachable-scenario test."
             )
 
     def test_reference_doc_present_and_nonempty(self) -> None:

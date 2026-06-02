@@ -1802,3 +1802,76 @@ class TestV1250CodegraphRegistration:
         stage_affinity = ci.get("stage_affinity") or []
         for stage in ("analyze", "scaffold", "research", "profile"):
             assert stage in stage_affinity
+
+
+class TestV13ImpeccableRegistration:
+    """v13.0.0 — impeccable block + ui_refinement role.
+
+    Loads the real repository ``plugins.yaml`` (canonical source-of-truth per
+    A-5 SSOT) and asserts the impeccable integration ships with the contract
+    documented at ``.local/research/v13.0.0_gap_analysis.md`` §3 Phase 1.
+    """
+
+    def test_impeccable_spec_registered(self) -> None:
+        """``plugins.yaml`` declares the impeccable plugin block."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        imp = reg.get("impeccable")
+        assert imp is not None, (
+            "v13.0.0 violation: impeccable plugin block missing from "
+            "workflow-system/agent/plugins.yaml. The block MUST exist for the "
+            "v13.0.0 impeccable integration to function."
+        )
+        assert imp.cli_binary == "impeccable"
+        assert imp.role == "ui_refinement"
+        assert imp.min_version == "2.0.0"
+        assert imp.repo_url == "https://github.com/pbakaus/impeccable"
+
+    def test_impeccable_install_method_npm(self) -> None:
+        """impeccable declares the npm install method."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        imp = reg.get("impeccable")
+        assert imp is not None
+        assert imp.install_methods.get("npm") == "npm install -g impeccable"
+
+    def test_impeccable_capabilities(self) -> None:
+        """impeccable declares its v13.0.0 capabilities incl. antipattern_detection."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        imp = reg.get("impeccable")
+        assert imp is not None
+        expected = {
+            "design_refinement",
+            "ux_design_critique",
+            "technical_quality_audit",
+            "antipattern_detection",
+        }
+        assert expected.issubset(set(imp.capabilities)), (
+            "v13.0.0: impeccable capabilities MUST include the core refine/"
+            f"critique/audit/detect surfaces; missing: {expected - set(imp.capabilities)}"
+        )
+
+    def test_impeccable_workflows_include_web_design(self) -> None:
+        """impeccable workflows include the new web-design template."""
+        reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
+        imp = reg.get("impeccable")
+        assert imp is not None
+        assert "web-design" in imp.workflows, (
+            "v13.0.0: impeccable workflows MUST include web-design"
+        )
+
+    def test_ui_refinement_role_present(self) -> None:
+        """``plugins.yaml`` declares the NEW ui_refinement role (provider=impeccable)."""
+        import yaml
+
+        with _REPO_PLUGINS_YAML.open(encoding="utf-8") as f:
+            payload = yaml.safe_load(f)
+        plugin_roles = payload.get("plugin_roles", {})
+        ur = plugin_roles.get("ui_refinement")
+        assert ur is not None, (
+            "v13.0.0 violation: plugin_roles.ui_refinement missing from "
+            "plugins.yaml. The 6th role MUST exist (provider=impeccable)."
+        )
+        assert ur.get("provider") == "impeccable"
+        assert ur.get("invocation") == "on_demand"
+        assert "web-design" in (ur.get("primary_workflows") or [])
+        for stage in ("refine", "verify"):
+            assert stage in (ur.get("stage_affinity") or [])

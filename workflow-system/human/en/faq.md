@@ -4,8 +4,8 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-05-23T13:42:30Z"
-source_version: "12.5.0"
+last_synced: "2026-06-01T13:59:13Z"
+source_version: "13.0.0"
 ---
 
 # FAQ
@@ -38,7 +38,7 @@ Without DevolaFlow, your AI tool processes the entire request in a single pass, 
 
 ### How does the agent choose a workflow?
 
-DevolaFlow uses **intent matching** on your prompt keywords: "fix bug" / "broken" / "crash" →`hotfix`"from scratch" / "new project" →`full-pipeline`"research" / "compare" →`research-only`"refactor" / "clean up" →`refactoring`And so on for all 22 types
+DevolaFlow uses **intent matching** on your prompt keywords: "fix bug" / "broken" / "crash" →`hotfix`"from scratch" / "new project" →`full-pipeline`"research" / "compare" →`research-only`"refactor" / "clean up" →`refactoring`And so on for all 23 types
 
 You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
 

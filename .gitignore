@@ -38,6 +38,9 @@ Thumbs.db
 .workflow-state/
 .workflow/
 
+# Cursor agent worker logs (local execution artifacts; expose infra IDs — never committed)
+.agent-worker-logs/
+
 # Generated outputs
 dist/
 _site/

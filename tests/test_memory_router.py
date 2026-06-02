@@ -54,6 +54,11 @@ from devolaflow.memory_router import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Fresh stamp computed at import time so happy-path fixtures always fall inside
+# the TTL window (the loader correctly drops routes older than ttl_days). The
+# TTL-expiry / version-staleness tests below keep their intentional fixed dates.
+_TODAY_ISO = today_iso()
+
 
 def _write_index(tmp_path: Path, body: str) -> Path:
     """Write *body* to a fresh ``.local/memory/cases/index.yaml`` and return the path."""
@@ -161,9 +166,9 @@ class TestLookupCaseHappyPath:
     def test_lookup_hit_returns_case(self, tmp_path: Path) -> None:
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: rtk-plugin-entry
     workflow_type: feature-implementation
@@ -183,7 +188,7 @@ cases:
         assert result is not None
         assert result.case_id == "rtk-plugin-entry"
         assert result.recipe_path == ".local/memory/cases/rtk-plugin-entry.md"
-        assert result.last_updated == "2026-04-23"
+        assert result.last_updated == _TODAY_ISO
 
     def test_lookup_miss_when_no_row_matches(self, tmp_path: Path) -> None:
         idx = _write_index(
@@ -222,9 +227,9 @@ cases:
     def test_lookup_first_match_wins_by_index_order(self, tmp_path: Path) -> None:
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: first-match
     workflow_type: feature-implementation
@@ -253,9 +258,9 @@ cases:
     def test_lookup_repo_signal_narrowing(self, tmp_path: Path) -> None:
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: devola-recipe
     workflow_type: feature-implementation
@@ -477,9 +482,9 @@ class TestIndexLoadResilience:
         caplog.set_level(logging.WARNING, logger="devolaflow.memory_router.router")
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: bad-row
     # missing required fields
@@ -640,9 +645,9 @@ cases:
     def test_subsequent_lookups_reuse_cache(self, tmp_path: Path, monkeypatch) -> None:
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: x
     workflow_type: w
@@ -750,9 +755,9 @@ class TestEndToEnd:
     def test_three_recipe_seed_lookup(self, tmp_path: Path) -> None:
         idx = _write_index(
             tmp_path,
-            """
+            f"""
 schema_version: 1
-last_updated: "2026-04-23"
+last_updated: "{_TODAY_ISO}"
 cases:
   - case_id: rtk-plugin-entry
     workflow_type: feature-implementation

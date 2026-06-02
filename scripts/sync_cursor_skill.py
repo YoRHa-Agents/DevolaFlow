@@ -108,6 +108,14 @@ MIRRORED_FILES = [
     # src/devolaflow/codegraph/ + tests/test_codegraph.py +
     # tests/test_codegraph_workflow_wiring.py.
     "references/codegraph.md",
+    # v13.0.0 — impeccable reference (NEW Tier-2 Large-tier entry; ~179
+    # lines under the ≤1000 ceiling). Documents the design language system
+    # (1 skill + 23 /impeccable commands), the no-LLM `impeccable detect`
+    # anti-pattern detector, the npm_then_init backend (auto-detect harness),
+    # the ui-pro → impeccable web-design composition, and the degraded-mode
+    # contract. Pairs with workflow-system/agent/templates/builtin/web-design.yaml
+    # + tests/test_impeccable_reference_doc.py.
+    "references/impeccable.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

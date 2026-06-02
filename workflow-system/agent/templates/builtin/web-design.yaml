@@ -1,0 +1,155 @@
+schema_version: "1.0"
+
+metadata:
+  name: web-design
+  version: "1.0.0"
+  display_name: "Web Design (ui-pro → impeccable)"
+  description: >
+    Build a polished, non-generic frontend. ui-pro DESIGNS the system (style /
+    palette / typography / design-system primitives); the UI is implemented;
+    impeccable REFINES it (/impeccable polish, critique, typeset, arrange,
+    animate) and VERIFIES it against a no-LLM anti-pattern scan
+    (`impeccable detect`; exit 0 = clean, exit 2 = anti-patterns found). The
+    refine ↔ verify convergence loop runs until the detector passes. Use for
+    landing pages, marketing sites, dashboards, and any user-facing UI where
+    design quality is a first-class acceptance criterion.
+  category: composite
+  applicable_scenarios:
+    - "Designing + building a landing page or marketing site"
+    - "Polishing an existing UI to ship-quality (typography / spacing / motion)"
+    - "Frontend design with a deterministic anti-pattern gate in CI"
+    - "ui-pro design-system generation followed by impeccable refinement"
+  tags: [web-design, frontend, landing-page, ui, design, polish, impeccable, ui-pro]
+
+stages:
+  - id: design
+    primitive: design
+    description: >
+      Design the visual system with ui-pro: pick a style, color palette,
+      typography pairing, and design-system primitives appropriate to the
+      product's audience and domain. Ensures the ui-pro plugin is installed
+      at >= min_version before running (npm install -g uipro-cli; uipro init).
+    team: design
+    duration_class: medium
+    config:
+      design_type: design_system
+      formality: standard
+      # ui-pro DESIGNS — ensured before this stage runs (npm_then_init).
+      ensure_plugins: ["ui-pro"]
+      permissive_on_missing_install: true
+      ui_pro_commands:
+        design_system: "uipro init --ai cursor"
+        style_search: "python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \"{query}\" --domain style"
+
+  - id: implement
+    primitive: implement
+    description: >
+      Build the UI to the ui-pro design: components, layout, responsive
+      breakpoints, theming tokens. Visual fidelity to the design system is the
+      goal; functional wiring follows the project's own conventions.
+    team: implement
+    duration_class: long
+    config:
+      code_style: production_quality
+      target_coverage: 0.80
+    input_mapping:
+      design_system: "design"
+
+  - id: refine
+    primitive: refine
+    description: >
+      Refine the built UI with impeccable. Ensures the impeccable plugin is
+      installed (npm install -g impeccable; impeccable skills install --yes,
+      harness auto-detected). The agent invokes the /impeccable steering
+      commands — polish, critique, typeset, arrange, animate — to sharpen
+      typography, spacing, motion, hierarchy, and emotional resonance, and to
+      design AGAINST impeccable's curated anti-patterns.
+    team: implement
+    duration_class: medium
+    config:
+      scope: targeted
+      allow_new_features: false
+      # impeccable REFINES — ensured before this stage runs (npm_then_init).
+      ensure_plugins: ["impeccable"]
+      permissive_on_missing_install: true
+      impeccable_commands:
+        polish: "/impeccable polish {target}"
+        critique: "/impeccable critique {target}"
+        typeset: "/impeccable typeset {target}"
+        arrange: "/impeccable arrange {target}"
+        animate: "/impeccable animate {target}"
+    input_mapping:
+      built_ui: "implement"
+      findings: "verify.findings"
+
+  - id: verify
+    primitive: verify
+    description: >
+      Run the no-LLM impeccable anti-pattern detector as the convergence gate.
+      `impeccable detect --json {path}` scans HTML/CSS/JSX/TSX/Vue/Svelte for
+      27 deterministic anti-pattern rules. Exit 0 → verdict PASS; exit 2 →
+      verdict FAIL (loop back to refine). Degrades to a non-gating advisory
+      when impeccable is unavailable (signal loss recorded, never a fabricated
+      PASS) per references/degraded-mode.md.
+    team: test
+    duration_class: quick
+    config:
+      # impeccable VERIFIES — the detector is the deterministic gate.
+      ensure_plugins: ["impeccable"]
+      permissive_on_missing_install: true
+      antipattern_gate:
+        enabled: true
+        command: "impeccable detect --json {path}"
+        pass_exit_code: 0
+        fail_exit_code: 2
+    input_mapping:
+      built_ui: "implement"
+      refinements: "refine"
+
+composition:
+  compose: sequence
+  stages:
+    - stage: design
+    - stage: implement
+    - compose: loop
+      ref: refine_verify_loop
+    - compose: gate
+      ref: web_design_gate
+
+loops:
+  - name: refine_verify_loop
+    body_stages: [refine, verify]
+    until: "verify.verdict == 'PASS'"
+    max_iterations: 3
+    on_exhaustion: escalate
+    escalation_target: design
+    escalation_max: 1
+
+gates:
+  - name: web_design_gate
+    position: "after:verify"
+    criteria:
+      - field: verify.verdict
+        operator: "=="
+        value: "PASS"
+      - field: verify.antipattern_count
+        operator: "=="
+        value: 0
+    on_pass: "next"
+    on_fail:
+      action: loop_back
+      target: refine
+    require_human_override: false
+    auto_insert: true
+
+environment_modes:
+  local:
+    skip_stages: []
+    gate_overrides:
+      web_design_gate:
+        criteria:
+          - field: verify.verdict
+            operator: "=="
+            value: "PASS"
+  github:
+    extra_stages: []

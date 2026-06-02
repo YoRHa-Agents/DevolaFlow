@@ -187,7 +187,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 22, f"expected 22 reference files, got {len(actual)}"
+    assert len(actual) == 23, f"expected 23 reference files, got {len(actual)}"
 
 
 def test_cursor_examples_golden(cursor_build):

@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "12.5.0"
+version: "13.0.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v12.5.0**
+> **Now Using DevolaFlow v13.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 12.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 13.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ### Session Banner Contract (v12.3.0+)
@@ -149,6 +149,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + auto-installs codegraph index in ALL modes) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
+| web design, frontend design, landing page, polish UI, ui-pro, impeccable | `web-design` | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect` gate); refine↔verify convergence loop |
 | shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
 | grill, challenge plan, interview me, stress-test plan, domain glossary, sharpen terminology | `grill-driven` | interrogate → resolve-fuzz → cross-ref → record (CONTEXT.md/ADR) |
 
@@ -418,12 +419,13 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/compression-pipeline.md` | CompressionStage protocol, 6-transform unification, multi-pass filter chain |
 | `references/context-isolation.md` | Context injection setup, debugging leaks |
 | `references/decomposition-gate.md` | Gate evaluation, threshold config, convergence loops |
-| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro / codegraph); "Degraded ≠ Full" |
+| `references/degraded-mode.md` | Per-plugin upstream-unreachable contract (NineS / Si-Chip / RTK / ui-pro / codegraph / impeccable); "Degraded ≠ Full" |
 | `references/domain-awareness.md` | CONTEXT.md authoring, CONTEXT-MAP.md multi-context inference, ADR format, 3-condition ADR gate, vocabulary vs spec.md |
 | `references/env-flags.md` | DEVOLAFLOW_* env-var inventory, R5 strict patterns, W-20 reuse policy |
 | `references/evaluator-rosetta.md` | SI-3 × NineS × Si-Chip 6×9 cross-walk, C-04 split, per-cell authority citations |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 | `references/grill-mode.md` | Grill mode active, stress-test plan, sharpen terminology, interrogate operator, codebase cross-reference, ADR offer evaluation |
+| `references/impeccable.md` | Design refinement + no-LLM anti-pattern detector; 23 /impeccable commands; `impeccable detect` exit-code gate; ui-pro → impeccable web-design composition; degraded-mode contract |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
 | `references/meta-framework.md` | Workflow instantiation, stage ordering |
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
@@ -479,6 +481,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | repo-init | 5 | standard |
 | entropy-cleanup (legacy) | 4 | standard |
 | change-driven | 4 | convergence |
+| web-design | 4 | convergence |
 
 ## Task Quality Score (L0 ONLY)
 

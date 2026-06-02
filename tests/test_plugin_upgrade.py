@@ -508,6 +508,7 @@ class TestRefreshAll:
 
         v9.5.0 PV-01 baseline: 4 plugins (nines, ui-pro, rtk, si-chip).
         v12.5.0 PV-05 D-1.1: 5 plugins (codegraph appended as the 5th).
+        v13.0.0: 6 plugins (impeccable appended as the 6th).
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
@@ -531,6 +532,12 @@ class TestRefreshAll:
                 {
                     "ts": recent_ts,
                     "plugin_id": "codegraph",
+                    "event": "plugin_installed",
+                    "details": {},
+                },
+                {
+                    "ts": recent_ts,
+                    "plugin_id": "impeccable",
                     "event": "plugin_installed",
                     "details": {},
                 },
@@ -539,7 +546,14 @@ class TestRefreshAll:
         outcomes = refresh_all(log_path=log)
         actions = {o.plugin_id: o.action for o in outcomes}
         assert all(action == "skipped_fresh" for action in actions.values())
-        assert set(actions.keys()) == {"nines", "ui-pro", "rtk", "si-chip", "codegraph"}
+        assert set(actions.keys()) == {
+            "nines",
+            "ui-pro",
+            "rtk",
+            "si-chip",
+            "codegraph",
+            "impeccable",
+        }
 
     def test_refresh_force_upgrades_all_regardless_of_staleness(
         self, tmp_path: Path, mock_subprocess: dict
@@ -547,8 +561,9 @@ class TestRefreshAll:
         """--force bypasses the staleness check.
 
         v9.5.0 PV-01 baseline: 4 plugins (nines, ui-pro, rtk, si-chip).
-        v12.5.0 PV-05 D-1.1: 5 plugins (codegraph appended as the 5th) —
-        ``--force`` must upgrade all 5.
+        v12.5.0 PV-05 D-1.1: 5 plugins (codegraph appended as the 5th).
+        v13.0.0: 6 plugins (impeccable appended as the 6th) — ``--force``
+        must upgrade all 6.
         """
         log = tmp_path / "plugin_install.log"
         recent_ts = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
@@ -575,11 +590,17 @@ class TestRefreshAll:
                     "event": "plugin_installed",
                     "details": {},
                 },
+                {
+                    "ts": recent_ts,
+                    "plugin_id": "impeccable",
+                    "event": "plugin_installed",
+                    "details": {},
+                },
             ],
         )
         outcomes = refresh_all(log_path=log, force=True)
         upgraded = [o for o in outcomes if o.action == "upgraded"]
-        assert len(upgraded) == 5, (
+        assert len(upgraded) == 6, (
             f"--force must upgrade ALL plugins regardless of staleness; "
             f"got upgraded={[o.plugin_id for o in upgraded]!r}"
         )
@@ -633,11 +654,11 @@ class TestListPlugins:
     def test_list_plugins_returns_one_row_per_plugin(
         self, tmp_path: Path, mock_subprocess: dict
     ) -> None:
-        """v9.5.0 PV-01 baseline: 4 plugins; v12.5.0 PV-05 D-1.1: 5 plugins (codegraph)."""
+        """v9.5.0: 4 plugins; v12.5.0: 5 (codegraph); v13.0.0: 6 (impeccable)."""
         log = tmp_path / "plugin_install.log"
         rows = list_plugins(log_path=log)
         ids = {row["id"] for row in rows}
-        assert ids == {"nines", "ui-pro", "rtk", "si-chip", "codegraph"}
+        assert ids == {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
 
     def test_list_plugins_carries_last_checked(self, tmp_path: Path, mock_subprocess: dict) -> None:
         log = tmp_path / "plugin_install.log"

@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-12.5.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-13.0.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -105,7 +105,7 @@ Full Development Setup
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 3092 tests, 22 templates
+make test && make validate-templates   # 3092 tests, 23 templates
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -265,7 +265,7 @@ The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle
 
 ## What's Inside
 
-### 22 Built-in Workflow Types
+### 23 Built-in Workflow Types
 
 | Type | When to use | Stages |
 |------|-------------|--------|
@@ -291,6 +291,7 @@ The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle
 | `repo-init` | init repo, scaffold workspace, setup rules, 初始化仓库 | analyze → scaffold → compile → verify (mode: minimal \| standard \| deep) |
 | `change-driven` | OpenSpec-style in-flight change folder lifecycle | propose → apply → verify → archive (mode: lite \| full) |
 | `entropy-cleanup` | Periodic GC, stale docs, drift audit, retention rules | scan → propose → review → apply |
+| `web-design` | web design, frontend, landing page, polish UI (ui-pro + impeccable) | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect`) |
 
 ### 4-Layer Agent Hierarchy
 
@@ -362,7 +363,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v12.5.0"
+devola-version                   # prints "DevolaFlow v13.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -424,7 +425,7 @@ DevolaFlow/
     agent/                    # Agent-consumed content (md + yaml only)
       SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
       references/             #   Tier 2: 10 domain reference files (190-710 lines)
-      templates/builtin/      #   22 workflow template YAMLs
+      templates/builtin/      #   23 workflow template YAMLs
       examples/               #   Tier 3: 3 execution trace walkthroughs
       knowledge/              #   Tier 3: code-rules + principle mappings
       workflow-skill.yaml     #   canonical source for adapter pipeline
@@ -473,7 +474,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |-----|-------------|
 | [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
 | [Architecture Overview](workflow-system/human/en/architecture-overview.md) | 4-layer hierarchy, primitives, gates, context isolation |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 22 workflow types with examples and selection guidance |
+| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 23 workflow types with examples and selection guidance |
 | [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
 | [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
 | [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
@@ -486,7 +487,7 @@ Or open locally: `workflow-system/human/demo/index.html`
 |------|------|
 | [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
 | [架构概述](workflow-system/human/zh/architecture-overview.md) | 4 层层级、原语、质量门、上下文隔离 |
-| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 22 种工作流类型，含示例和选择指南 |
+| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 23 种工作流类型，含示例和选择指南 |
 | [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
 | [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
 | [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |

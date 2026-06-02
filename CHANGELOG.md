@@ -5,6 +5,45 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [13.0.0] - 2026-06-01 — MAJOR — Impeccable Integration + Web-Design Workflow + Bundled Plugin Install
+
+**MAJOR — design-cycle.** v13.0.0 integrates [`pbakaus/impeccable`](https://github.com/pbakaus/impeccable) as DevolaFlow's **6th plugin** (NEW `ui_refinement` role) — a cross-provider design language system shipping a single agent skill with **23 `/impeccable` steering commands** (polish/critique/audit/typeset/arrange/animate/craft/shape/...) plus a **no-LLM deterministic anti-pattern detector** (`impeccable detect`; 27 rules; exit 0 = clean, exit 2 = anti-patterns found). It adds the **NEW `web-design` workflow** (ui-pro DESIGNS → impeccable REFINES + VERIFIES, with a refine↔verify convergence loop gated by `impeccable detect`), and makes **global devola installs bundle all runtime plugins by default** (`--no-plugins` opt-out). Zero schema bumps (canonical_order stays 17 — `ensure_plugins` is template config, not a dispatch key; A-2.4 multi-baseline unchanged), zero new env flags (W-20 reuse-first preserved at 7 — `--no-plugins` is a CLI arg; runtime install reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`), zero new Soul rules (W-21 freeze at 10/12). SKILL.md 488 → 491 lines (under C-4 ≤500 ceiling).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**Impeccable plugin (6th).** Opt in to the impeccable integration via `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (existing flag, REUSED per W-20). Backend `npm_then_init`: `npm install -g impeccable` then `impeccable skills install --yes`. **Unlike** ui-pro/codegraph (`--ai {platform}`/`--target {platform}`), impeccable's `skills install` **auto-detects** the harness (`.cursor`/`.claude`/`.agents`/`.gemini`), so the runtime entry uses `init_targets: [auto]` (single run; no `{ai_platform}` placeholder). Standalone detector usable without a harness install: `npx impeccable detect src/`.
+
+**NEW `web-design` workflow.** Triggered by intent keywords *web design / frontend / landing page / polish UI / ui-pro / impeccable*. Stages: `design` (ensure ui-pro) → `implement` → `refine` (ensure impeccable; `/impeccable polish|critique|typeset|arrange|animate`) → `verify` (`impeccable detect --json` gate). The verify stage routes on the detector exit code (0 = PASS, 2 = FAIL → loop back to refine); when impeccable is unavailable the gate degrades to a non-gating advisory (signal loss recorded, never a fabricated PASS).
+
+**Bundled global plugin install (NEW `--no-plugins` flag).** A `--global` skill install now ALSO installs all 6 runtime plugins by default (`devola-init <tool> --global` and `install.sh --global`), via the NEW registry-driven `install_plugins(scope)` helper that delegates to `ensure_plugin` per plugin (A-5 SSOT — no command duplication). Per-plugin failures are **warn-not-fatal** (S-5: logged + counted, never silently swallowed). Pass **`--no-plugins`** to install skill files only. Project-scope installs are unchanged (no plugin install). `--no-plugins` is a CLI arg, NOT a new `DEVOLAFLOW_*` env flag (W-20 reuse-first).
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py`:
+
+- `test_v13_0_0_impeccable_registered` — impeccable across plugins.yaml (block + `ui_refinement` role) + runtime-plugins.yaml (`npm_then_init` entry) + reference-dependencies.yaml (13th active_tracking) + references/impeccable.md (23rd SF-4) + ui-pro `invoked_by_workflows` gains web-design.
+- `test_v13_0_0_web_design_workflow` — web-design.yaml exists + registered + wires ui-pro (design) + impeccable (refine/verify).
+- `test_v13_0_0_global_plugin_install` — `install_plugins(scope)` + `_parse_no_plugins` in init_project.py + `--no-plugins` + `install_plugins()` in install.sh.
+
+NEW symbols:
+
+- `src/devolaflow/init_project.py` — NEW `install_plugins(scope)` + `_parse_no_plugins(argv)`.
+- `workflow-system/agent/plugins.yaml` — NEW `impeccable` block + NEW `plugin_roles.ui_refinement` (6th role).
+- `workflow-system/agent/knowledge/runtime-plugins.yaml` — NEW `impeccable` entry (backend `npm_then_init`); ui-pro `invoked_by_workflows` += `web-design`.
+- `workflow-system/agent/templates/builtin/web-design.yaml` — NEW workflow template.
+- `workflow-system/agent/references/impeccable.md` — NEW Tier-2 reference (23rd SF-4).
+- NEW test files: `tests/test_template_web_design.py`, `tests/test_impeccable_reference_doc.py`.
+
+### Pure-additive (NON-BREAKING)
+
+- `workflow-system/agent/references/degraded-mode.md` — NEW Section 6 (impeccable) + Plugin Matrix row + "What STOPS working" row + intro count 4 → 6.
+- `workflow-system/agent/context_profiles.yaml` — NEW `impeccable_integration` top-level block (parallel to `ui_integration` / `codegraph_integration`).
+- `workflow-system/agent/SKILL.md` — Reference Navigation Tier-2 row + Workflow Selection row + Template Quick-Reference row (488 → 491).
+- `scripts/sync_cursor_skill.py` — `MIRRORED_FILES` gains `references/impeccable.md` (18 → 19 references).
+- Registries: templates/registry.yaml + workflow-skill.yaml (2 lists) gain `web-design` (template count 22 → 23).
+- Docs: README + EN/ZH human docs refreshed (22 → 23 workflow types); WX-2 versions.json v13.0.0 entry; demo "What's New" v13.0.0.
+- Count moves: plugin count 5 → 6; plugin role count 5 → 6; references/SF-4 22 → 23; active_tracking 12 → 13; templates 22 → 23.
+
 ## [12.5.0] - 2026-05-23 — MINOR — Codegraph Plugin Integration + cc-Spike Sweep Carry-over + Handoff Auto-Strip Helper
 
 **MINOR — EXPANSION cycle (6 PVs).** v12.5.0 lands `colbymchenry/codegraph` as a tracked reference repo + fully wired plugin (5th of 5; new `code_intelligence` role) — the v12.x cycle's first external-tool integration since Si-Chip in v9.5.0. Codegraph delivers an upstream-published benchmark of **35% cheaper / 70% fewer tool calls / 59% fewer tokens / 49% faster** across 7 codebases × 7 languages by replacing dispatcher Read+Glob+Grep planning with a pre-indexed local code knowledge graph (tree-sitter AST → SQLite FTS5; 19+ languages; 14 frameworks; 9 MCP tools; ~28KB npm + bundled Node runtime; MIT-licensed). The cycle ALSO closes 3 v12.4.0-telegraphed items: D-2 cc-spike sweep (`load_command_mappings` cc=18→9 + `apply_local_recipe` cc=17→4 via the v12.4.0 PV-04 helper-extraction template applied verbatim) + D-3 handoff auto-strip helper (`strip_l0_only_metadata` pure function, companion to v12.4.0's `reject_subagent_banner_emission` detect-only hook → DETECT+CLEAN closure). W-3 SI-3 composite **9.50/10 PASS** (margin +1.00 over MINOR ≥ 8.5; clears MAJOR ≥ 9.0 by +0.50; **new v12.x cycle peak**, prior peak v12.4.0 = 9.40). NineS overall 0.907 preserved. Zero schema bumps, zero new env flags (codegraph reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` per W-20 reuse-first), zero new Soul rules, zero breaking changes. SKILL.md +2 lines (486 → 488; under C-4 ≤500 ceiling).

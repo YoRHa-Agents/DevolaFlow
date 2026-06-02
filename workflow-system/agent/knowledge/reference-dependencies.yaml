@@ -1,13 +1,15 @@
 ---
 # Reference Dependencies — External repos, papers, and resources tracked by DevolaFlow
 # Source: S01-T06 Unified Research Synthesis (2026-04-11)
-# Split: 12 active_tracking + 10 periodic_monitoring = 22 total
+# Split: 13 active_tracking + 10 periodic_monitoring = 23 total
 # (Header originally said "10 + 9 = 19"; corrected at v9.6.0 PV-04 — actual
 # count gained openspec + understand-anything in active_tracking and
 # agent-skills-threat-taxonomy + spring-ai-agent-skills in periodic_monitoring
 # across the v8.x+ cycles. See gap_analysis §3.2 D-R-7. v12.5.0 PV-05 D-1.1
 # grew active_tracking 11 → 12 by appending the codegraph entry, primary
-# integration target for the v12.5.0 EXPANSION MINOR cycle.)
+# integration target for the v12.5.0 EXPANSION MINOR cycle.
+# v13.0.0 grew active_tracking 12 → 13 by appending the impeccable entry,
+# the design-refinement plugin integrated for the v13.0.0 MAJOR cycle.)
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 # v9.6.0 PV-04: bulk-refreshed last_checked → 2026-05-02 across all 21 entries
 # (D-R-5); primelocus-hydra graduated to frozen_reference (D-R-9).
@@ -337,6 +339,45 @@ active_tracking:
       block + new Tier-2 reference doc. Reuses
       DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 per W-20 reuse-first; NO new
       env flag (count stays at 7).
+
+  - id: impeccable
+    repo_url: https://github.com/pbakaus/impeccable
+    source_type: github_repo
+    last_checked: "2026-06-01"
+    last_known_version: "2.3.2"
+    relevance_score: 5
+    key_patterns:
+      - "single agent skill + 23 /impeccable steering commands (polish/critique/audit/typeset/arrange/animate/craft/shape/...)"
+      - "no-LLM deterministic anti-pattern detector: `impeccable detect <path|url>` — 27 rules + 12-rule LLM critique pass"
+      - "detect exit codes: 0 = no issues, 2 = anti-patterns found (CI-friendly gate); --json + --fast flags"
+      - "harness auto-detect on `skills install` (.cursor/.claude/.agents[codex]/.gemini/...); --providers= narrowing; NO per-AI --ai flag"
+      - "design vocabulary anti-patterns: overused fonts, gray-on-color text, pure black/gray, card-nesting, bounce/elastic easing, purple gradients, side-tab borders, dark glows, cramped padding, small touch targets, skipped headings"
+      - "cross-provider: one shared build or per-harness compiled variant (Cursor/Claude/Gemini/Codex/Copilot)"
+    update_triggers:
+      - "npm version > 2.3.2"
+      - "new /impeccable commands or anti-pattern rules added"
+      - "detect CLI flag or exit-code changes"
+      - "skills install harness-detection surface changes"
+    devolaflow_integration_points:
+      - "workflow-system/agent/plugins.yaml (impeccable block + ui_refinement role)"
+      - "workflow-system/agent/knowledge/runtime-plugins.yaml (impeccable entry, backend npm_then_init)"
+      - "workflow-system/agent/templates/builtin/web-design.yaml (refine + verify stages)"
+      - "workflow-system/agent/context_profiles.yaml (impeccable_integration block)"
+      - "workflow-system/agent/references/impeccable.md (NEW Tier-2 reference)"
+      - "workflow-system/agent/references/degraded-mode.md (impeccable fallback row + section)"
+      - "workflow-system/agent/SKILL.md (Reference Navigation Guide Tier-2 row + Workflow Selection row)"
+    gap_ids: []
+    note: >
+      v13.0.0 D-1 — primary integration target for the v13.0.0 MAJOR cycle.
+      Impeccable is a cross-provider design language system published as
+      `impeccable` on npm (Apache-2.0; Node 18+). The DevolaFlow integration
+      mirrors the ui-pro / codegraph plugin shape: plugin catalog block +
+      runtime registry entry + reference-dependencies entry + workflow wiring
+      (the new web-design template, ui-pro → impeccable) + context_profiles
+      top-level impeccable_integration block + new Tier-2 reference doc.
+      Reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS per W-20 reuse-first; NO new env
+      flag. Pairs with ui-pro on the web-design workflow: ui-pro DESIGNS,
+      impeccable REFINES + VERIFIES (the no-LLM `impeccable detect` gate).
 
 periodic_monitoring:
 
