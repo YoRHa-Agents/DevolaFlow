@@ -43,6 +43,13 @@ for arg in "$@"; do
   esac
 done
 
+# v13.0.0 — capture the operator's REQUESTED scope up-front. do_update() and
+# auto_detect() mutate the global SCOPE per detected install, so the bundled
+# plugin-install gate at the end MUST key off this immutable requested scope
+# (not the post-run SCOPE) — otherwise `install.sh auto` could trigger global
+# plugin installs and `install.sh update --global` could skip them.
+REQUESTED_SCOPE="$SCOPE"
+
 dl() {
   local url="$1" dest="$2" name attempt
   name=$(basename "$dest")
@@ -612,7 +619,7 @@ esac
 # v13.0.0 — a --global skill install ALSO installs all runtime plugins by
 # default (the cycle ask: "make devola install also install all plugins").
 # --no-plugins opts out. Project-scope installs stay lean (no plugin install).
-if [ "$SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ]; then
+if [ "$REQUESTED_SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ]; then
   install_plugins
 fi
 
