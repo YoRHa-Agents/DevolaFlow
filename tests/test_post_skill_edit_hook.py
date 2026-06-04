@@ -41,6 +41,9 @@ from devolaflow.lifecycle.post_skill_edit import (
     ENV_FLAG,
     ENV_FLAG_TRUTHY,
     EVENT,
+    FEEDBACK_DIR_DEFAULT,
+    FINGERPRINT_SIDECAR_NAME,
+    LEGACY_FEEDBACK_DIR_DEFAULT,
     SKILL_CORPUS_PREFIX,
     is_deep_integration_active,
     post_skill_edit,
@@ -560,3 +563,83 @@ class TestRunSiChipEvaluationHelper:
         assert result.verdict == ApplyVerdict.APPLY
         assert violations == []
         assert terminal is None
+
+
+# ---------------------------------------------------------------------------
+# §9 — v14.0.0 ADR-8 / design §5b: relocate DEFER docs out of feedbacks/
+# ---------------------------------------------------------------------------
+
+
+class TestFeedbackDirRelocation:
+    """Pin the v14.0.0 de-pollution: agent-authored DEFER docs leave feedbacks/."""
+
+    def test_feedback_dir_default_is_agent_tree(self) -> None:
+        """The default DEFER-doc dir is the PRIVATE agent tree, NOT feedbacks/."""
+        assert Path(".local") / ".agent" / "sichip-deferred" == FEEDBACK_DIR_DEFAULT
+        # The relocated default no longer lives under the human-facing dir.
+        assert "feedbacks" not in FEEDBACK_DIR_DEFAULT.parts
+        # The legacy constant still names the pre-relocation location (for migration).
+        assert Path(".local") / "feedbacks" == LEGACY_FEEDBACK_DIR_DEFAULT
+
+    def test_resolve_legacy_feedback_dir_branches(self) -> None:
+        """Pure resolver: explicit legacy / default-new-dir / custom-dir branches.
+
+        Exercised directly (no IO) so the production branch — the relocated
+        default dir in use → the real ``.local/feedbacks/`` legacy — is
+        covered WITHOUT touching the real repo tree.
+        """
+        from devolaflow.lifecycle.post_skill_edit import _resolve_legacy_feedback_dir
+
+        # Explicit legacy override wins.
+        assert _resolve_legacy_feedback_dir({"legacy_feedback_dir": "x/leg"}, None) == Path("x/leg")
+        # Default new dir in use (no feedback_dir) → the real legacy default.
+        assert _resolve_legacy_feedback_dir({}, None) == LEGACY_FEEDBACK_DIR_DEFAULT
+        # Custom feedback_dir without explicit legacy → None (hermetic; no implicit move).
+        assert _resolve_legacy_feedback_dir({}, "some/custom/dir") is None
+
+    def test_handler_migrates_legacy_docs_and_sidecar_on_defer(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """DEFER → legacy sichip docs + sidecar move from feedbacks/ to the agent dir."""
+        monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
+        new_dir = tmp_path / ".local" / ".agent" / "sichip-deferred"
+        legacy_dir = tmp_path / ".local" / "feedbacks"
+        legacy_dir.mkdir(parents=True)
+        legacy_doc = legacy_dir / "sichip_deferred_20260101T000000_000000Z.md"
+        legacy_doc.write_text("# legacy DEFER doc\n", encoding="utf-8")
+        legacy_sidecar = legacy_dir / FINGERPRINT_SIDECAR_NAME
+        legacy_sidecar.write_text("deadbeef\n", encoding="utf-8")
+
+        def fake_dogfood(ability_name, skill_md, *, threshold):
+            return SiChipResult(
+                verdict=ApplyVerdict.DEFER,
+                delta=None,
+                install_source="cursor_global",
+                skill_md=skill_md,
+                notes=["fresh defer note"],
+            )
+
+        with patch(
+            "devolaflow.si_chip_bridge.run_dogfood_cycle",
+            side_effect=fake_dogfood,
+        ):
+            result = post_skill_edit(
+                {
+                    "touched_files": ["workflow-system/agent/SKILL.md"],
+                    "feedback_dir": str(new_dir),
+                    "legacy_feedback_dir": str(legacy_dir),
+                }
+            )
+
+        assert result.metadata["verdict"] == "DEFER"
+        # Legacy location fully drained: no docs, no sidecar (migration moved them out).
+        assert list(legacy_dir.glob("sichip_deferred_*.md")) == []
+        assert not legacy_sidecar.exists()
+        # Migrated legacy doc + the fresh DEFER doc both live in the relocated dir.
+        assert (new_dir / legacy_doc.name).is_file()
+        assert len(sorted(new_dir.glob("sichip_deferred_*.md"))) == 2
+        feedback_doc = Path(result.metadata["feedback_doc"])
+        assert feedback_doc.parent == new_dir
+        # Dedup set preserved: the migrated legacy fingerprint is in the new sidecar.
+        new_sidecar_text = (new_dir / FINGERPRINT_SIDECAR_NAME).read_text(encoding="utf-8")
+        assert "deadbeef" in new_sidecar_text

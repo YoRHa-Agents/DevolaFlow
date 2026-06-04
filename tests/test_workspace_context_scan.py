@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 import os
 import platform
 import time
@@ -29,6 +30,8 @@ import pytest
 from devolaflow.workspace_context import (
     MAX_FEEDBACKS_RETURNED,
     WorkspaceContext,
+    _scan_human_input,
+    _scan_human_output,
     scan_workspace,
 )
 
@@ -53,6 +56,10 @@ def test_empty_repo_returns_all_false_or_empty(tmp_path: Path) -> None:
     assert ctx.memory_cases_count == 0
     assert ctx.rules_layer_set == ()
     assert ctx.compiled_corpora == ()
+    assert ctx.has_human_dir is False
+    assert ctx.human_constitution is None
+    assert ctx.human_requirements is None
+    assert ctx.human_digest is None
 
 
 def test_full_stack_repo_detects_all_surfaces(tmp_path: Path) -> None:
@@ -119,6 +126,80 @@ def test_full_stack_repo_detects_all_surfaces(tmp_path: Path) -> None:
     assert ctx.memory_cases_count == 1
     assert ctx.rules_layer_set == ("soul",)
     assert ctx.compiled_corpora == ("AGENTS.md",)
+
+
+def test_scan_human_surface_detects_input_and_output(tmp_path: Path) -> None:
+    """The v14.0.0 ``.local/human/`` surface scans INPUT + OUTPUT anchors.
+
+    Creates the INPUT ``constitution.md`` + ``requirements.md`` and the
+    OUTPUT ``DIGEST.md``, asserting each of the 4 appended fields resolves
+    to the right path. A second snapshot (constitution removed) pins the
+    per-file absent default (``None``) so a PARTIAL surface degrades
+    gracefully — the discovery contract never raises on a missing anchor
+    (S-5).
+    """
+    root = tmp_path.resolve()
+    human = tmp_path / ".local" / "human"
+    (human / "input").mkdir(parents=True)
+    (human / "output").mkdir(parents=True)
+    (human / "input" / "constitution.md").write_text("# Constitution\n", encoding="utf-8")
+    (human / "input" / "requirements.md").write_text("# Requirements\n", encoding="utf-8")
+    (human / "output" / "DIGEST.md").write_text("# Digest\n", encoding="utf-8")
+
+    ctx = scan_workspace(tmp_path)
+
+    assert ctx.has_human_dir is True
+    assert ctx.human_constitution == root / ".local" / "human" / "input" / "constitution.md"
+    assert ctx.human_requirements == root / ".local" / "human" / "input" / "requirements.md"
+    assert ctx.human_digest == root / ".local" / "human" / "output" / "DIGEST.md"
+
+    # Partial surface: a missing INPUT file degrades to None, not a raise.
+    (human / "input" / "constitution.md").unlink()
+    ctx2 = scan_workspace(tmp_path)
+
+    assert ctx2.has_human_dir is True
+    assert ctx2.human_constitution is None
+    assert ctx2.human_requirements == root / ".local" / "human" / "input" / "requirements.md"
+    assert ctx2.human_digest == root / ".local" / "human" / "output" / "DIGEST.md"
+
+
+def test_scan_human_surface_absorbs_oserror_into_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The v14.0.0 human scanners degrade an unreadable probe to absent (S-5).
+
+    ``_scan_human_input`` / ``_scan_human_output`` probe candidate files via
+    ``_is_file_safe``. When the underlying ``Path.is_file`` raises (stale NFS
+    handle, an unreadable mount), the scanners MUST return the absent default
+    (``None``) and emit a WARNING — never propagate the OSError. This pins the
+    S-5 contract for the INPUT/OUTPUT probes independently of the POSIX
+    ``chmod 000`` path, which ``test_unreadable_path_does_not_raise`` skips
+    when the suite runs as root.
+    """
+    human_input = tmp_path / ".local" / "human" / "input"
+    human_input.mkdir(parents=True)
+    (human_input / "constitution.md").write_text("# C\n", encoding="utf-8")
+    (human_input / "requirements.md").write_text("# R\n", encoding="utf-8")
+
+    def _raise_oserror(_self: Path) -> bool:
+        raise OSError("simulated unreadable path")
+
+    monkeypatch.setattr(Path, "is_file", _raise_oserror)
+
+    local_dir = tmp_path / ".local"
+    with caplog.at_level(logging.WARNING, logger="devolaflow.workspace_context"):
+        constitution, requirements = _scan_human_input(local_dir)
+        digest = _scan_human_output(local_dir)
+
+    assert constitution is None
+    assert requirements is None
+    assert digest is None
+    assert any("treating as absent" in rec.getMessage() for rec in caplog.records), (
+        "S-5 contract: an OSError during a human-input/output probe must emit "
+        "an explicit WARNING (the error state), not be silently swallowed"
+    )
 
 
 def test_recent_feedbacks_returns_at_most_3_newest_first(tmp_path: Path) -> None:
@@ -285,6 +366,12 @@ def test_to_summary_dict_is_json_serializable(tmp_path: Path) -> None:
         "memory_cases_count",
         "rules_layer_set",
         "compiled_corpora",
+        # v14.0.0 — `.local/human/` surface fields (appended after
+        # compiled_corpora; existing keys stay byte-stable per ADR-6).
+        "has_human_dir",
+        "human_constitution",
+        "human_requirements",
+        "human_digest",
     }
     assert set(parsed) == expected_keys, (
         f"to_summary_dict() schema drift — expected {expected_keys}, got {set(parsed)}"
@@ -295,6 +382,11 @@ def test_to_summary_dict_is_json_serializable(tmp_path: Path) -> None:
     assert parsed["memory_cases_count"] == 0
     assert parsed["rules_layer_set"] == ["soul"]
     assert parsed["compiled_corpora"] == ["AGENTS.md"]
+    # No `.local/human/` surface in this fixture → absent defaults.
+    assert parsed["has_human_dir"] is False
+    assert parsed["human_constitution"] is None
+    assert parsed["human_requirements"] is None
+    assert parsed["human_digest"] is None
     assert parsed["recent_feedbacks"] == [".local/feedbacks/feedback_for_v9.1.0.md"]
     assert parsed["source_of_truth_specs"] == [".local/memory/specs/auth/spec.md"]
     for path_str in parsed["recent_feedbacks"] + parsed["source_of_truth_specs"]:

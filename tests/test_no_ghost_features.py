@@ -620,6 +620,23 @@ _SF4_REFERENCE_SET = frozenset(
         # `tests/test_no_ghost_features.py::test_v13_0_0_impeccable_registered`,
         # and the web-design workflow wiring.
         "impeccable.md",
+        # v14.0.0 — human-surface reference (24th SF-4 canonical). Tier 2
+        # Large-tier reference documenting the new `.local/human/` surface:
+        # the two-zone INPUT (immutable constitution + stable REQ-ID
+        # requirements + append-only amendments ledger; Lifecycle:RATIFIED
+        # append-only per Rule S-9) / OUTPUT (conclusion-first convergence
+        # report + read-first DIGEST) layout, the per-artifact C-9 token
+        # budgets, the INPUT-only git-tracking + sichip-deferred relocation
+        # de-pollution, the `scan_workspace` discovery fields
+        # (has_human_dir / human_constitution / human_requirements /
+        # human_digest) + When-to-Engage routing, and the
+        # `trace_requirements` / `lint_human` / `render_human_report`
+        # Python APIs + the `check_human_input_append_only` lifecycle hook.
+        # NO new env flag (W-20 reuse-first preservation). Pairs with
+        # src/devolaflow/agent_workspace/requirements_trace.py,
+        # src/devolaflow/lifecycle/check_human_input_append_only.py, and
+        # tests/test_no_ghost_features.py::test_v14_0_0_human_surface_symbols.
+        "human-surface.md",
     }
 )
 
@@ -9961,6 +9978,10 @@ _V12_2_0_WHITELIST_REQUIRED_RULES: frozenset[str] = frozenset(
         ".local/*",
         "!.local/memory/specs/",
         "!.local/research/",
+        # v14.0.0 — human INPUT zone re-include key (D-4 / ADR-2). The live
+        # `_LOCAL_WHITELIST_REQUIRED_RULES` grew by this 4th rule when the
+        # `.local/human/input/**` whitelist landed; this pin tracks it.
+        "!.local/human/",
     }
 )
 _V12_2_0_SUPERSEDED_RULE: str = ".local/"
@@ -10018,10 +10039,10 @@ def test_v12_2_0_gitignore_whitelist_repair(project_root: Path) -> None:
     for required_rule in sorted(_V12_2_0_WHITELIST_REQUIRED_RULES):
         assert required_rule in workspace_text, (
             f"W-18 v12.2.0 violation: {_V12_2_0_WORKSPACE_FILE} missing required "
-            f"whitelist rule literal {required_rule!r}. The v12.2.0 whitelist "
-            f"block MUST declare all 3 positive rules so consumer repos get "
-            f"the team-collab subdirs (.local/memory/specs/ + .local/research/) "
-            f"tracked by default. See gap analysis §2 D-1."
+            f"whitelist rule literal {required_rule!r}. The whitelist block MUST "
+            f"declare every positive rule so consumer repos get the team-collab "
+            f"subdirs (.local/memory/specs/ + .local/research/ + the v14.0.0 "
+            f".local/human/input/ zone) tracked by default. See gap analysis §2 D-1."
         )
 
     assert "_V92_LOCAL_BROAD_RULE" in workspace_text, (
@@ -10050,7 +10071,7 @@ def test_v12_2_0_gitignore_whitelist_repair(project_root: Path) -> None:
     assert _LOCAL_WHITELIST_REQUIRED_RULES == _V12_2_0_WHITELIST_REQUIRED_RULES, (
         f"W-18 v12.2.0 violation: workspace._LOCAL_WHITELIST_REQUIRED_RULES = "
         f"{_LOCAL_WHITELIST_REQUIRED_RULES!r}; expected {_V12_2_0_WHITELIST_REQUIRED_RULES!r}. "
-        f"The 3-element membership is the contract surface the test pins."
+        f"The required-rules membership is the contract surface the test pins."
     )
     for required in _V12_2_0_WHITELIST_REQUIRED_RULES:
         assert required in _LOCAL_WHITELIST_BLOCK_LINES, (
@@ -12156,3 +12177,156 @@ def test_v13_0_0_global_plugin_install(project_root: Path) -> None:
         "W-18 v13.0.0 violation: install.sh missing --no-plugins flag."
     )
     assert "install_plugins()" in install_sh
+
+
+# ---------------------------------------------------------------------------
+# W-18 stanza for v14.0.0 — `.local/human/` human-facing interaction surface
+# ---------------------------------------------------------------------------
+#
+# Per W-18 sequencing the ghost-audit refresh MUST land BEFORE the v14.0.0
+# CHANGELOG entry mentioning the human surface. This stanza pins the
+# v14.0.0 implementation surface (design `.local/research/v14.0.0_design.md`
+# §3-§6):
+#
+# * src/devolaflow/agent_workspace/requirements_trace.py declares
+#   trace_requirements + RequirementTraceResult (the REQ-ID → evidence
+#   producer; design §6c / finding F-2).
+# * src/devolaflow/lifecycle/check_human_input_append_only.py declares the
+#   immutability hook (design §3c; keyed on Lifecycle, NOT Status / F-1).
+# * src/devolaflow/agent_workspace/reporter.py declares the FIFTH flavour
+#   render_human_report (+ render_human_digest; design §4).
+# * src/devolaflow/agent_workspace/lint.py declares lint_human +
+#   HUMAN_ARTIFACT_BUDGETS (the C-9 human rows; design §4c).
+# * src/devolaflow/workspace_context.py declares the 4 additive
+#   WorkspaceContext fields has_human_dir / human_constitution /
+#   human_requirements / human_digest (design §6a).
+# * The agent_workspace package re-exports the new public symbols in __all__.
+# * workflow-system/agent/references/human-surface.md exists (24th SF-4
+#   reference) and is pinned in _SF4_REFERENCE_SET above.
+# * Companion test files exist.
+#
+# Source: .local/research/v14.0.0_design.md §3-§6.
+# ---------------------------------------------------------------------------
+
+
+def test_v14_0_0_human_surface_symbols(project_root: Path) -> None:
+    """W-18 v14.0.0: every NEW `.local/human/` surface symbol has coverage.
+
+    Discharges the W-18 precondition for the v14.0.0 CHANGELOG entry
+    mentioning the human surface. The stanza asserts the load-bearing
+    surfaces across src/ + docs/ + tests/:
+
+    (a) requirements_trace.py declares trace_requirements +
+        RequirementTraceResult.
+    (b) check_human_input_append_only.py declares the immutability hook.
+    (c) reporter.py declares render_human_report + render_human_digest.
+    (d) lint.py declares lint_human + HUMAN_ARTIFACT_BUDGETS (6 rows).
+    (e) workspace_context.py declares the 4 additive scan fields.
+    (f) the agent_workspace package re-exports the new public symbols.
+    (g) references/human-surface.md exists + is in _SF4_REFERENCE_SET.
+    (h) companion test files exist.
+
+    Source: .local/research/v14.0.0_design.md §3-§6.
+    """
+    # --- (a) requirements_trace.py -----------------------------------
+    trace_path = project_root / "src/devolaflow/agent_workspace/requirements_trace.py"
+    assert trace_path.is_file(), (
+        "W-18 v14.0.0 violation: requirements_trace.py missing — release blocker."
+    )
+    trace_text = trace_path.read_text(encoding="utf-8")
+    assert "def trace_requirements(" in trace_text, (
+        "W-18 v14.0.0 violation: requirements_trace.py missing trace_requirements()."
+    )
+    assert "class RequirementTraceResult" in trace_text, (
+        "W-18 v14.0.0 violation: requirements_trace.py missing RequirementTraceResult."
+    )
+
+    # --- (b) check_human_input_append_only.py ------------------------
+    hook_path = project_root / "src/devolaflow/lifecycle/check_human_input_append_only.py"
+    assert hook_path.is_file(), (
+        "W-18 v14.0.0 violation: check_human_input_append_only.py missing — release blocker."
+    )
+    hook_text = hook_path.read_text(encoding="utf-8")
+    assert "def check_human_input_append_only(" in hook_text, (
+        "W-18 v14.0.0 violation: check_human_input_append_only.py missing the hook function."
+    )
+
+    # --- (c) reporter.py FIFTH flavour -------------------------------
+    reporter_text = (project_root / "src/devolaflow/agent_workspace/reporter.py").read_text(
+        encoding="utf-8"
+    )
+    assert "def render_human_report(" in reporter_text, (
+        "W-18 v14.0.0 violation: reporter.py missing render_human_report (5th flavour)."
+    )
+    assert "def render_human_digest(" in reporter_text, (
+        "W-18 v14.0.0 violation: reporter.py missing render_human_digest."
+    )
+
+    # --- (d) lint.py human rows --------------------------------------
+    lint_text = (project_root / "src/devolaflow/agent_workspace/lint.py").read_text(
+        encoding="utf-8"
+    )
+    assert "def lint_human(" in lint_text, "W-18 v14.0.0 violation: lint.py missing lint_human()."
+    assert "HUMAN_ARTIFACT_BUDGETS" in lint_text, (
+        "W-18 v14.0.0 violation: lint.py missing HUMAN_ARTIFACT_BUDGETS."
+    )
+    for budget_key in (
+        "input/constitution.md",
+        "input/requirements.md",
+        "input/requirements/<domain>.md",
+        "input/amendments/<date>-<slug>.md",
+        "output/DIGEST.md",
+        "output/convergence/<version>-convergence.md",
+    ):
+        assert budget_key in lint_text, (
+            f"W-18 v14.0.0 violation: HUMAN_ARTIFACT_BUDGETS missing the "
+            f"{budget_key!r} row (design §4c)."
+        )
+
+    # --- (e) workspace_context.py 4 scan fields ----------------------
+    ws_text = (project_root / "src/devolaflow/workspace_context.py").read_text(encoding="utf-8")
+    for field in (
+        "has_human_dir",
+        "human_constitution",
+        "human_requirements",
+        "human_digest",
+    ):
+        assert field in ws_text, (
+            f"W-18 v14.0.0 violation: workspace_context.py missing the "
+            f"{field!r} scan field (design §6a)."
+        )
+
+    # --- (f) package __all__ re-exports ------------------------------
+    init_text = (project_root / "src/devolaflow/agent_workspace/__init__.py").read_text(
+        encoding="utf-8"
+    )
+    for sym in (
+        "trace_requirements",
+        "RequirementTraceResult",
+        "render_human_report",
+        "render_human_digest",
+        "lint_human",
+        "HUMAN_ARTIFACT_BUDGETS",
+    ):
+        assert f'"{sym}"' in init_text, (
+            f"W-18 v14.0.0 violation: agent_workspace/__init__.py __all__ missing {sym!r}."
+        )
+
+    # --- (g) reference doc + SF-4 set --------------------------------
+    assert (project_root / "workflow-system/agent/references/human-surface.md").is_file(), (
+        "W-18 v14.0.0 violation: references/human-surface.md missing — release blocker."
+    )
+    assert "human-surface.md" in set(_SF4_REFERENCE_SET), (
+        "W-18 v14.0.0 violation: _SF4_REFERENCE_SET must include human-surface.md (24th entry)."
+    )
+
+    # --- (h) companion test files ------------------------------------
+    for companion in (
+        "tests/test_requirements_trace.py",
+        "tests/test_human_input_immutability.py",
+        "tests/test_lint_human.py",
+        "tests/test_workspace_context_scan.py",
+    ):
+        assert (project_root / companion).is_file(), (
+            f"W-18 v14.0.0 violation: {companion} missing — release blocker."
+        )

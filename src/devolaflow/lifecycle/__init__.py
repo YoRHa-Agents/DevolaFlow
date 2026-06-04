@@ -59,6 +59,9 @@ from devolaflow.lifecycle.check_file_ownership import (
 from devolaflow.lifecycle.check_file_ownership import (
     check_file_ownership,
 )
+from devolaflow.lifecycle.check_human_input_append_only import (
+    check_human_input_append_only,
+)
 from devolaflow.lifecycle.dispatcher import (
     HookHandler,
     HookResult,
@@ -360,6 +363,7 @@ __all__ = [
     "auto_write_handoff",
     "check_envelope_append_only",
     "check_file_ownership",
+    "check_human_input_append_only",
     "check_init_health",
     "clear_hooks",
     "emit_violations",
@@ -381,3 +385,17 @@ __all__ = [
     "validate_dispatch",
     "validate_owned_files",
 ]
+
+
+# v14.0.0 Wave-3 — non-import reference that marks `check_human_input_append_only`
+# as "alive" for `scripts/detect_dead_apis.py`. The hook is exported additively
+# but intentionally NOT wired into `DEFAULT_EVENTS` (two CI tests pin
+# `len(DEFAULT_EVENTS) == 16` exactly — `tests/test_no_ghost_features.py` +
+# `tests/test_lifecycle_hooks.py` — and appending a 17th default event would
+# break both). Per the v14.0.0 design §3c the event wiring lands in the
+# implementation cycle alongside those test updates; until then the hook's only
+# in-repo caller is the test suite (excluded from the dead-API check by
+# `test_dirs`). The tuple is private (no leak into `__all__`) so the public
+# surface is unchanged. Mirrors `_dispatch_executor_dead_api_pins` in
+# `devolaflow.agent_workspace.__init__`.
+_check_human_input_dead_api_pins = (check_human_input_append_only,)

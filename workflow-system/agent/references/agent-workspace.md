@@ -76,6 +76,7 @@ no new variable per the cycle plan §"Two-axis activation").
 | `source_of_truth_specs` non-empty | inherit as ground truth | TREAT each as A-4 contract; per-change `spec.md` writes deltas | same + `propose_merge` at archive time |
 | `active_changes` non-empty | inspect `STATUS.yaml.state` | RESUME the change unless user explicitly opts out (`--no-change`) | MUST resume; opening a parallel change is a S-8 violation |
 | `rules_layer_set` non-empty + `compiled_corpora` complete | trust the compiled corpus | same + opt-in `agents_md_slice` for L3 task slices | same + cite layer headings in dispatch context |
+| `has_human_dir=True` (v14.0.0) | READ `human_requirements` + `human_constitution` as authoritative | same — the REQ-ID set is the binding scope contract the plan MUST cover | same + cite REQ-IDs verbatim in the design + emit the §4 convergence report at close (see `references/human-surface.md`) |
 
 **Default-OFF auto-write contract** (R5 strict): even when
 `scan_workspace` reports `has_agent_dir=True`, NO handoff envelope is
@@ -819,10 +820,24 @@ Verbatim from `.cursor/rules/repo-governance.mdc` C-9:
 | `REPORT.md` (per archive) | 1500 tokens | 3000 | Auto-generated; templated |
 | Handoff envelope | 600 tokens | 1200 | YAML envelope with `key_facts` (verbatim per CO-2) |
 
+The `.local/human/` surface (v14.0.0) carries its own C-9 rows, linted in
+TOKENS only (the line/word figures in `references/human-surface.md` §4c
+are authoring guidance, NOT a second linted axis):
+
+| File | Soft budget | Hard ceiling | Rationale |
+|------|-------------|--------------|-----------|
+| `.local/human/input/constitution.md` | 800 tokens | 1500 | Durable principles; opinionated, terse |
+| `.local/human/input/requirements.md` | 1200 tokens | 2500 | REQ list + matrix + out-of-scope; thins to an index once sharded |
+| `.local/human/input/requirements/<domain>.md` (shard) | 1200 tokens | 2500 | PER-FILE cap; one `REQ-<DOMAIN>-*` family per file |
+| `.local/human/input/amendments/<date>-<slug>.md` | 400 tokens | 800 | One delta + WHY per file (append-only) |
+| `.local/human/output/DIGEST.md` | 600 tokens | 1000 | Read-first skim surface (~100 lines) |
+| `.local/human/output/convergence/<version>-convergence.md` | 700 tokens | 1000 | Decide-in-3-min, conclusion-first (~500 words) |
+
 Verify with:
 
 ```bash
-python -m devolaflow.agent_workspace.lint <change-id>
+python -m devolaflow.agent_workspace.lint <change-id>            # agent-workspace artifacts
+python -c "from devolaflow.agent_workspace import lint_human; lint_human()"  # .local/human/ surface
 ```
 
 Soft budget over → warn (lite mode). Hard ceiling over → fail commit (full

@@ -116,6 +116,16 @@ MIRRORED_FILES = [
     # contract. Pairs with workflow-system/agent/templates/builtin/web-design.yaml
     # + tests/test_impeccable_reference_doc.py.
     "references/impeccable.md",
+    # v14.0.0 — human-surface reference (24th SF-4 canonical Tier-2 entry;
+    # ~569 lines under the ≤1000 Large-tier ceiling). Documents the new
+    # `.local/human/` surface: immutable INPUT (constitution + REQ-IDs +
+    # append-only amendments) / anti-flooding OUTPUT (convergence report +
+    # DIGEST), the C-9 token budgets, INPUT-only git tracking, the
+    # scan_workspace discovery fields, and the trace_requirements /
+    # lint_human / render_human_report APIs. Pairs with
+    # src/devolaflow/agent_workspace/requirements_trace.py +
+    # src/devolaflow/lifecycle/check_human_input_append_only.py.
+    "references/human-surface.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

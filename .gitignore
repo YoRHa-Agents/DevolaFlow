@@ -59,6 +59,13 @@ node_modules/
 !.local/memory/specs/**
 !.local/research/
 !.local/research/**
+# v14.0.0 — track the human INPUT zone ONLY (D-4 / ADR-2). The .local/human/*
+# re-exclusion keeps output/ + archive/ PRIVATE (D2 locked) while
+# !.local/human/input/** re-includes the authoritative INPUT zone.
+!.local/human/
+.local/human/*
+!.local/human/input/
+!.local/human/input/**
 
 # Project-local Cursor skill mirror — opt-in, recreated on demand.
 # Tracked counterparts live under workflow-system/agent/. Devs who want the

@@ -15,6 +15,15 @@ REQUIRED_DIRS = [
     ".agent/active",
     ".agent/handoff",
     ".agent/archive",
+    # v14.0.0 — human-interaction surface (`.local/human/`). INPUT is the
+    # durable, git-tracked, immutable-post-approval zone (D-4/ADR-2); OUTPUT
+    # + archive are private, bounded (C-9) agent-draft → human-approve zones.
+    "human",
+    "human/input",
+    "human/input/amendments",
+    "human/output",
+    "human/output/convergence",
+    "human/archive",
 ]
 ON_DEMAND_DIRS = ["research", "design", "benchmarks", "logs", "scratch"]
 
@@ -114,6 +123,56 @@ Mutated **only at archive time** after the change-gate composite score
 PASSES per W-3 / SI-3 (>= 8.5 for minor, >= 9.0 for major). Per-change
 `.local/.agent/active/<id>/spec.md` files contain DELTAS (ADDED/MODIFIED/
 REMOVED Requirements) relative to this source-of-truth.
+""",
+    "human": """\
+# human/
+
+Human-interaction surface (v14.0.0). A first-class sibling of `.agent/`,
+`memory/`, and `research/` — but with an explicit write-owner split:
+
+- `input/` — **WRITE-OWNER: human.** Durable, authoritative requirements +
+  constraints. Immutable post-approval (append amendments, never edit in
+  place). Git-TRACKED (the authoritative, PR-reviewable zone, per ADR-2).
+- `output/` — **WRITE-OWNER: agent drafts -> human approves.** Concise,
+  budget-capped convergence reports + digest. Private (gitignored) — bounded
+  reports stay local, not PR-visible.
+- `archive/` — frozen, dated snapshots of superseded INPUT + closed OUTPUT
+  (the A-4 "what changed and why" trail). Private (gitignored).
+
+human INPUT (intent) NEVER overlaps `memory/specs/` (agent behaviour, W-23.4).
+""",
+    "human/input": """\
+# human/input/
+
+**WRITE-OWNER: human.** The authoritative, durable INPUT zone.
+
+- `constitution.md` — amendable principles/constraints (per-file `Version` /
+  `Ratified` / `Last Amended` stamp + a Governance amendment protocol).
+- `requirements.md` — `REQ-<DOMAIN>-NN` entries + a Traceability matrix
+  (`Unmapped: 0`) + Out-of-Scope. Shards to `requirements/<domain>.md` on
+  overflow.
+- `amendments/` — append-only amendment ledger (S-9 discipline): one dated
+  `<YYYY-MM-DD>-<slug>.md` per change; the 引导回测 / regression lineage.
+
+**Immutability:** a `Lifecycle: RATIFIED` requirement (or a constitution with
+its `Ratified:` stamp set) is IMMUTABLE — record changes by APPENDING a dated
+amendment + bumping that file's version stamp; never edit the ratified text in
+place. `Lifecycle: DRAFT` blocks are freely editable until ratified.
+""",
+    "human/output": """\
+# human/output/
+
+**WRITE-OWNER: agent drafts -> human approves.** Private (gitignored),
+concise, budget-capped (C-9) — conclusion-first to avoid output flooding.
+
+- `DIGEST.md` — read-first STATE digest (this-cycle REQ deltas + one rollup
+  line; refreshed each cycle, superseded copies rotate to `../archive/`).
+- `convergence/<version>-convergence.md` — per-cycle report: line-1 status
+  enum (`passed` | `gaps_found` | `human_needed`), per-REQ evidence rows
+  (verbatim per C-3), and a blocking-vs-advisory finding split.
+
+These reports CITE `CHANGELOG.md` / `.local/research/<version>_retrospective.md`
+by path — they never restate them.
 """,
 }
 
@@ -223,7 +282,7 @@ def generate_tracker(feedbacks_dir: Path) -> Path:
         path.write_text(
             "# Feedback Tracker\n"
             "\n"
-            "> Auto-maintained by DevolaFlow. Do not edit feedback source files.\n"
+            "> Human-maintained. Do not edit feedback source files.\n"
             "> Last updated: (auto)\n"
             "\n"
             "## Open\n"
@@ -317,6 +376,15 @@ _LOCAL_WHITELIST_BLOCK_LINES: tuple[str, ...] = (
     "!.local/memory/specs/**",
     "!.local/research/",
     "!.local/research/**",
+    # v14.0.0 — track the human INPUT zone ONLY (D-4 / ADR-2). The
+    # `.local/human/*` re-exclusion keeps output/ + archive/ PRIVATE (D2
+    # locked) while `!.local/human/input/**` re-includes the authoritative
+    # INPUT zone — mirrors the `!.local/memory/` -> `.local/memory/*` ->
+    # `!.local/memory/specs/` precedent above.
+    "!.local/human/",
+    ".local/human/*",
+    "!.local/human/input/",
+    "!.local/human/input/**",
 )
 
 _LOCAL_WHITELIST_REQUIRED_RULES: frozenset[str] = frozenset(
@@ -324,6 +392,7 @@ _LOCAL_WHITELIST_REQUIRED_RULES: frozenset[str] = frozenset(
         ".local/*",
         "!.local/memory/specs/",
         "!.local/research/",
+        "!.local/human/",
     }
 )
 
