@@ -103,6 +103,8 @@ from devolaflow.agent_workspace.reporter import (
 from devolaflow.agent_workspace.requirements_trace import (
     RequirementsTraceError,
     RequirementTraceResult,
+    TestOutcome,
+    parse_pytest_report,
     trace_requirements,
 )
 from devolaflow.agent_workspace.spec_bootstrap import (
@@ -159,8 +161,11 @@ __all__ = [
     "render_rules_report",
     "render_workspace_report",
     # requirements_trace (v14.0.0 Wave-3 — REQ-ID → evidence trace; design §6c)
+    # + v14.1.0 §6c test-run-artifact join (TestOutcome / parse_pytest_report)
     "RequirementTraceResult",
     "RequirementsTraceError",
+    "TestOutcome",
+    "parse_pytest_report",
     "trace_requirements",
     # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
     "SpecBootstrapError",
@@ -199,5 +204,7 @@ _dispatch_executor_dead_api_pins = (
 _requirements_trace_dead_api_pins = (
     RequirementTraceResult,
     RequirementsTraceError,
+    TestOutcome,
+    parse_pytest_report,
     trace_requirements,
 )
