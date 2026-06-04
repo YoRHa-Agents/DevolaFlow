@@ -91,7 +91,7 @@ composite = test_quality × 0.30 + code_review × 0.30
 
 除了仅供 Agent 使用的 `.local/.agent/` 工作区之外，DevolaFlow 还维护一个持久化的 **`.local/human/`** 界面（v14.0.0+）, , 一个三区目录树，将 **不可变的 INPUT**（人类想要什么）与 **简洁的 OUTPUT**（Agent 回报什么）清晰分离：
 
-**`input/`**, , 由人类拥有，一经批准即不可变：包含 `constitution.md`、以 REQ-ID 为键的 `requirements.md`（+ 可选的 `requirements/<domain>.md` 分片），以及只追加的 `amendments/<date>-<slug>.md` 账本。该区由 git 跟踪，并由 `check_human_input_append_only` 钩子守护。
+**`input/`**, , 由人类拥有，一经批准即不可变：包含 `constitution.md`、以 REQ-ID 为键的 `requirements.md`（+ 可选的 `requirements/<domain>.md` 分片），以及只追加的 `amendments/<date>-<slug>.md` 账本。该区由 git 跟踪；只追加保护通过**可选启用**的 `check_human_input_append_only` 钩子提供（需经 `register_hook` 注册——它不在 `DEFAULT_EVENTS` 中，仅在操作者显式启用时才运行）。
 - **`output/`**, , 由 Agent 写入且简洁：包含 `DIGEST.md` 以及 `convergence/<version>-convergence.md` 报告（作为可再生工件保持 gitignored）。
 - **`archive/`**, , 已被取代的工件。
 

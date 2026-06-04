@@ -24,7 +24,6 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v14.0.0_evaluation.md`
 * `v14.0.0_impl_evaluation.md`
-* `v14.0.0_implementation_evaluation.md`
 
 ### retrospective
 
