@@ -360,10 +360,12 @@ def render_human_report(
     *,
     repo_root: Path | None = None,
     requirements_path: Path | None = None,
+    test_results: Mapping[str, object] | None = None,
     findings: Iterable[object] | None = None,
     verdict: str | None = None,
     next_step: str | None = None,
     author_layer: str = "L0",
+    stagnation: bool = False,
     now: datetime | None = None,
 ) -> str:
     """Render the FIFTH flavour — the human convergence report (design §4a).
@@ -404,6 +406,12 @@ def render_human_report(
         (an empty-trace report). A provided path that does NOT exist raises
         :class:`FileNotFoundError` (loud per S-5 — never a silent empty
         trace).
+      test_results: optional ``{node-id -> TestOutcome}`` map (the
+        :func:`parse_pytest_report` output) threaded into the §6c
+        :func:`trace_requirements` join; used only when ``trace`` is ``None``
+        (a pre-computed ``trace`` is already joined). When supplied, a REQ
+        whose ``Acceptance`` names a known pytest node-id is keyed off the
+        actual PASS/FAIL outcome.
       findings: an iterable of gate findings — each either a mapping or an
         object carrying a ``severity`` plus a description/suggestion. ``None``
         → no findings.
@@ -412,6 +420,8 @@ def render_human_report(
       next_step: optional override for the ``## Next step`` line; an
         owner+action default is derived from the status when omitted.
       author_layer: author layer stamp for the header (default ``L0``).
+      stagnation: when ``True`` the status is forced to ``human_needed`` (the
+        W-8/SI-9 score-stagnation → P4 escalation path; design §4a).
       now: pinned clock for deterministic testing (AC-5 idempotency).
 
     Returns:
@@ -425,12 +435,17 @@ def render_human_report(
     root = _resolve_repo_root(repo_root)
     pinned_now = _normalise_now(now)
 
-    trace_results = _resolve_human_trace(root, trace, requirements_path)
+    trace_results = _resolve_human_trace(root, trace, requirements_path, test_results)
     blocking, advisory = _split_findings(findings)
-    status = _derive_human_status(trace_results, blocking)
+    status = _derive_human_status(trace_results, blocking, stagnation=stagnation)
 
     req_rows = [
-        {"req_id": r.req_id, "result": r.result, "evidence": r.evidence}
+        {
+            "req_id": r.req_id,
+            "criterion": r.criterion,
+            "result": r.result,
+            "evidence": r.evidence,
+        }
         for r in trace_results.values()
     ]
     total = len(trace_results)
@@ -461,18 +476,25 @@ def render_human_digest(
     *,
     repo_root: Path | None = None,
     requirements_path: Path | None = None,
+    test_results: Mapping[str, object] | None = None,
     findings: Iterable[object] | None = None,
     where_we_are: str | None = None,
+    stagnation: bool = False,
     now: datetime | None = None,
 ) -> str:
     """Render the read-first human DIGEST (design §4b — ≤100-line surface).
 
     The digest is the "read-once, know where we are" surface. It lists only
-    THIS-cycle REQ deltas (≤1 line each) + ONE rollup count line
-    (``N total · M satisfied · K blocked``) so its budget stays flat as the
-    durable REQ set grows (design §4b / finding F-3); the full REQ→status
-    matrix lives in ``input/requirements.md``. "Open asks" surfaces BLOCKING
-    findings ONLY (advisory lives in the convergence report).
+    THIS-cycle REQ deltas (≤1 line each) — a REQ delta is "this-cycle" when
+    its matrix ``Cycle`` cell equals ``version`` (finding F-3; the matrix
+    ``Cycle`` column is parsed by :func:`trace_requirements`). A REQ with a
+    blank/absent ``Cycle`` is treated as this-cycle so pre-v14.1.0 matrices
+    (no ``Cycle`` column) keep listing every delta (backward compatible). The
+    rollup count line (``N total · M satisfied · K blocked``) always counts
+    the FULL durable REQ set so it stays a stable "where are we overall"
+    signal; the full REQ→status matrix lives in ``input/requirements.md``.
+    "Open asks" surfaces BLOCKING findings ONLY (advisory lives in the
+    convergence report).
 
     Shares the §6c two-producer derivation with :func:`render_human_report`
     so the digest ``Status`` line agrees with the convergence report's.
@@ -485,8 +507,12 @@ def render_human_digest(
       requirements_path: path to ``input/requirements.md`` (or shard), used
         only when ``trace`` is ``None``; same S-5 semantics as
         :func:`render_human_report`.
+      test_results: optional ``{node-id -> TestOutcome}`` map threaded into
+        the §6c join (used only when ``trace`` is ``None``).
       findings: gate findings (same shape as :func:`render_human_report`).
       where_we_are: optional override for the ``## Where we are`` block.
+      stagnation: when ``True`` the status is forced to ``human_needed``
+        (W-8/SI-9 escalation; agrees with :func:`render_human_report`).
       now: pinned clock for deterministic testing (AC-5 idempotency).
 
     Returns:
@@ -495,11 +521,19 @@ def render_human_digest(
     root = _resolve_repo_root(repo_root)
     pinned_now = _normalise_now(now)
 
-    trace_results = _resolve_human_trace(root, trace, requirements_path)
+    trace_results = _resolve_human_trace(root, trace, requirements_path, test_results)
     blocking, _advisory = _split_findings(findings)
-    status = _derive_human_status(trace_results, blocking)
+    status = _derive_human_status(trace_results, blocking, stagnation=stagnation)
 
-    req_deltas = [{"req_id": r.req_id, "result": r.result} for r in trace_results.values()]
+    # §4b/F-3: the digest lists only THIS-cycle REQ deltas (matrix Cycle ==
+    # version); a blank Cycle is this-cycle (back-compat with pre-v14.1.0
+    # matrices that carry no Cycle column).
+    req_deltas = [
+        {"req_id": r.req_id, "result": r.result}
+        for r in trace_results.values()
+        if not r.cycle or r.cycle == version
+    ]
+    # The rollup counts the FULL durable REQ set (not the cycle-filtered view).
     total = len(trace_results)
     satisfied = sum(1 for r in trace_results.values() if r.result == "met")
     blocked = sum(1 for r in trace_results.values() if r.result == "unmet")
@@ -536,7 +570,9 @@ def regenerate_all(
     memory_window_days: int = DEFAULT_MEMORY_WINDOW_DAYS,
     human_version: str | None = None,
     human_requirements_path: Path | None = None,
+    human_test_results: Mapping[str, object] | None = None,
     human_findings: Iterable[object] | None = None,
+    human_stagnation: bool = False,
 ) -> dict[str, object]:
     """Regenerate the REPORT.md files at the canonical paths.
 
@@ -560,7 +596,11 @@ def regenerate_all(
         and refresh the digest (``output/DIGEST.md``).
       human_requirements_path: path to ``input/requirements.md`` for the
         per-REQ evidence rows (consumed via :func:`trace_requirements`).
+      human_test_results: optional ``{node-id -> TestOutcome}`` map threaded
+        into the §6c test-run join (typically :func:`parse_pytest_report`).
       human_findings: gate findings feeding the blocking/advisory split.
+      human_stagnation: when ``True`` the human status is forced to
+        ``human_needed`` (W-8/SI-9 escalation).
 
     Returns:
       Dict with keys ``"workspace"``, ``"memory"``, ``"rules"`` (each
@@ -619,14 +659,18 @@ def regenerate_all(
             human_version,
             repo_root=root,
             requirements_path=human_requirements_path,
+            test_results=human_test_results,
             findings=human_findings,
+            stagnation=human_stagnation,
             now=pinned_now,
         )
         digest_text = render_human_digest(
             human_version,
             repo_root=root,
             requirements_path=human_requirements_path,
+            test_results=human_test_results,
             findings=human_findings,
+            stagnation=human_stagnation,
             now=pinned_now,
         )
         convergence_path = _write_report(
@@ -746,32 +790,38 @@ def _resolve_requirements_path(root: Path, requirements_path: Path | None) -> Pa
 
 
 def _trace_human_requirements(
-    root: Path, requirements_path: Path | None
+    root: Path,
+    requirements_path: Path | None,
+    test_results: Mapping[str, object] | None = None,
 ) -> dict[str, RequirementTraceResult]:
     """Consume the Wave-3 :func:`trace_requirements` producer (design §6c).
 
     Returns an empty mapping when no requirements path is supplied. A
     supplied-but-absent path is NOT swallowed — :func:`trace_requirements`
-    raises :class:`FileNotFoundError` (S-5: no silent empty trace).
+    raises :class:`FileNotFoundError` (S-5: no silent empty trace). When
+    ``test_results`` is supplied it is threaded into the §6c test-run join.
     """
     resolved = _resolve_requirements_path(root, requirements_path)
     if resolved is None:
         return {}
-    return trace_requirements(resolved)
+    return trace_requirements(resolved, test_results=test_results)
 
 
 def _resolve_human_trace(
     root: Path,
     trace: Mapping[str, RequirementTraceResult] | None,
     requirements_path: Path | None,
+    test_results: Mapping[str, object] | None = None,
 ) -> dict[str, RequirementTraceResult]:
     """Resolve the per-REQ trace map the render consumes (design §6c).
 
     A caller-supplied ``trace`` map wins (the explicit "accept a trace map"
-    contract — the render NEVER recomputes when handed one); otherwise the map
-    is produced from ``requirements_path`` via the Wave-3
-    :func:`trace_requirements` producer. A non-mapping ``trace`` is rejected
-    loudly (S-5: no silent failure, no silent empty trace).
+    contract — the render NEVER recomputes when handed one, so ``test_results``
+    is ignored in that case: a pre-computed trace is already joined);
+    otherwise the map is produced from ``requirements_path`` via the Wave-3
+    :func:`trace_requirements` producer, threading ``test_results`` into the
+    §6c join. A non-mapping ``trace`` is rejected loudly (S-5: no silent
+    failure, no silent empty trace).
     """
     if trace is not None:
         if not isinstance(trace, Mapping):
@@ -781,7 +831,7 @@ def _resolve_human_trace(
                 f"{type(trace).__name__}"
             )
         return dict(trace)
-    return _trace_human_requirements(root, requirements_path)
+    return _trace_human_requirements(root, requirements_path, test_results)
 
 
 def _finding_field(finding: object, *names: str) -> str:
@@ -842,15 +892,18 @@ def _split_findings(
 def _derive_human_status(
     trace_results: dict[str, RequirementTraceResult],
     blocking: list[dict[str, str]],
+    *,
+    stagnation: bool = False,
 ) -> str:
     """Derive the line-1 ``Status`` enum from the trace + blocking findings.
 
-    Per design §4a: ``human_needed`` when any blocking finding exists;
-    else ``gaps_found`` when any REQ is ``partial`` / ``unmet``; else
-    ``passed`` (all REQ ``met``, no blockers — vacuously true for an empty
-    trace).
+    Per design §4a: ``human_needed`` when any blocking finding exists OR when
+    ``stagnation`` is set (the W-8/SI-9 "score stagnated 2+ rounds" → P4
+    escalation path); else ``gaps_found`` when any REQ is ``partial`` /
+    ``unmet``; else ``passed`` (all REQ ``met``, no blockers — vacuously true
+    for an empty trace).
     """
-    if blocking:
+    if blocking or stagnation:
         return HUMAN_STATUS_HUMAN_NEEDED
     if any(r.result in ("partial", "unmet") for r in trace_results.values()):
         return HUMAN_STATUS_GAPS_FOUND

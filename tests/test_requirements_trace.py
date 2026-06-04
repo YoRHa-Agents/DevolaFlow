@@ -22,6 +22,7 @@ never the block Lifecycle).
 from __future__ import annotations
 
 import dataclasses
+import json
 import textwrap
 from pathlib import Path
 
@@ -30,6 +31,8 @@ import pytest
 from devolaflow.agent_workspace import (
     RequirementsTraceError,
     RequirementTraceResult,
+    TestOutcome,
+    parse_pytest_report,
     trace_requirements,
 )
 
@@ -166,3 +169,212 @@ def test_trace_result_is_frozen(tmp_path: Path) -> None:
     row = trace_requirements(_write_requirements(tmp_path))["REQ-INPUT-01"]
     with pytest.raises(dataclasses.FrozenInstanceError):
         row.result = "met"  # type: ignore[misc]
+
+
+def test_trace_captures_criterion_and_cycle(tmp_path: Path) -> None:
+    """The matrix ``Acceptance criterion`` + ``Cycle`` cells populate the row (v14.1.0)."""
+    row = trace_requirements(_write_requirements(tmp_path))["REQ-INPUT-01"]
+    assert row.criterion == "append-only lint passes"
+    assert row.cycle == "v14.1.0"
+
+
+# ---------------------------------------------------------------------------
+# v14.1.0 §6c — inverse-S-5: a matrix row with NO ``### REQ-*`` block.
+# ---------------------------------------------------------------------------
+
+_MATRIX_ONLY_MD = textwrap.dedent(
+    """\
+    # Requirements
+
+    ## Requirements
+
+    ### REQ-A-01: has a block
+    - **Acceptance:** `tests/test_a.py::test_a` PASSES.
+    - **Status:** Satisfied
+
+    ## Traceability
+    | REQ-ID | Acceptance criterion | Cycle | Status |
+    |---|---|---|---|
+    | REQ-A-01 | a criterion | v14.1.0 | Satisfied |
+    | REQ-GHOST-99 | unbacked matrix row | v14.1.0 | Satisfied |
+    """
+)
+
+
+def test_trace_matrix_only_req_emits_unmet_inverse_s5(tmp_path: Path) -> None:
+    """A matrix row with NO REQ block emits ``unmet`` + note — never dropped (inverse S-5).
+
+    Before v14.1.0 ``trace_requirements`` iterated block keys only, so a
+    matrix-only REQ was silently dropped (the inverse of the forward
+    block-without-matrix S-5 case). The union fix surfaces it.
+    """
+    results = trace_requirements(_write_requirements(tmp_path, _MATRIX_ONLY_MD))
+    assert "REQ-GHOST-99" in results
+    row = results["REQ-GHOST-99"]
+    assert row.result == "unmet"
+    assert row.evidence == "matrix row without REQ block"
+    # matrix criterion / cycle are still preserved on the inverse-S-5 row.
+    assert row.criterion == "unbacked matrix row"
+    assert row.cycle == "v14.1.0"
+
+
+# ---------------------------------------------------------------------------
+# v14.1.0 §6c — parse_pytest_report (pytest --report-log JSONL reader).
+# ---------------------------------------------------------------------------
+
+
+def _write_report_log(tmp_path: Path, records: list[dict]) -> Path:
+    path = tmp_path / "report.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+    return path
+
+
+def test_parse_pytest_report_keeps_call_phase_outcomes(tmp_path: Path) -> None:
+    """Only ``TestReport`` records of the ``call`` phase are kept; commit stamped."""
+    log = _write_report_log(
+        tmp_path,
+        [
+            {"$report_type": "SessionStart"},
+            {"$report_type": "TestReport", "when": "setup", "nodeid": "t.py::a", "outcome": "p"},
+            {
+                "$report_type": "TestReport",
+                "when": "call",
+                "nodeid": "t.py::a",
+                "outcome": "passed",
+            },
+            {
+                "$report_type": "TestReport",
+                "when": "call",
+                "nodeid": "t.py::b",
+                "outcome": "failed",
+            },
+            {"$report_type": "CollectReport", "nodeid": "t.py"},
+        ],
+    )
+    outcomes = parse_pytest_report(log, commit="deadbee")
+    assert set(outcomes) == {"t.py::a", "t.py::b"}
+    assert outcomes["t.py::a"] == TestOutcome("t.py::a", "passed", "deadbee")
+    assert outcomes["t.py::b"].outcome == "failed"
+
+
+def test_parse_pytest_report_missing_file_raises(tmp_path: Path) -> None:
+    """A non-existent report-log raises FileNotFoundError (S-5: loud)."""
+    with pytest.raises(FileNotFoundError):
+        parse_pytest_report(tmp_path / "absent.jsonl")
+
+
+def test_parse_pytest_report_malformed_line_raises(tmp_path: Path) -> None:
+    """A non-JSON line raises RequirementsTraceError (S-5: never partial-parse)."""
+    path = tmp_path / "bad.jsonl"
+    path.write_text('{"$report_type": "TestReport"}\nNOT JSON\n', encoding="utf-8")
+    with pytest.raises(RequirementsTraceError):
+        parse_pytest_report(path)
+
+
+def test_parse_pytest_report_none_path_raises() -> None:
+    """A ``None`` report path raises the typed RequirementsTraceError."""
+    with pytest.raises(RequirementsTraceError):
+        parse_pytest_report(None)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# v14.1.0 §6c — the test-run-artifact join (trace_requirements test_results=).
+# ---------------------------------------------------------------------------
+
+_JOIN_MD = textwrap.dedent(
+    """\
+    # Requirements
+
+    ## Requirements
+
+    ### REQ-J-01: pass path
+    - **Acceptance:** `tests/test_join.py::test_pass` PASSES.
+    - **Status:** Pending
+
+    ### REQ-J-02: fail path (matrix optimistic)
+    - **Acceptance:** `tests/test_join.py::test_fail` should pass.
+    - **Status:** Satisfied
+
+    ### REQ-J-03: no node-id named
+    - **Acceptance:** verified manually by review.
+    - **Status:** Satisfied
+
+    ## Traceability
+    | REQ-ID | Acceptance criterion | Cycle | Status |
+    |---|---|---|---|
+    | REQ-J-01 | pass | v14.1.0 | Pending |
+    | REQ-J-02 | fail | v14.1.0 | Satisfied |
+    | REQ-J-03 | manual | v14.1.0 | Satisfied |
+    """
+)
+
+
+def test_join_passed_node_overrides_matrix_to_met(tmp_path: Path) -> None:
+    """A passing pytest node → ``met`` with verbatim ``<node> PASS @ <commit>`` evidence."""
+    tr = {
+        "tests/test_join.py::test_pass": TestOutcome(
+            "tests/test_join.py::test_pass", "passed", "abc1234"
+        )
+    }
+    row = trace_requirements(_write_requirements(tmp_path, _JOIN_MD), test_results=tr)["REQ-J-01"]
+    assert row.result == "met"
+    assert row.evidence == "tests/test_join.py::test_pass PASS @ abc1234"
+
+
+def test_join_failed_node_overrides_optimistic_matrix_to_unmet(tmp_path: Path) -> None:
+    """A failing pytest node → ``unmet`` even when the matrix Status is ``Satisfied``.
+
+    This is the core §6c value: real test evidence overrides an optimistic
+    matrix cell so the convergence report can never over-claim.
+    """
+    tr = {
+        "tests/test_join.py::test_fail": TestOutcome(
+            "tests/test_join.py::test_fail", "failed", "abc1234"
+        )
+    }
+    row = trace_requirements(_write_requirements(tmp_path, _JOIN_MD), test_results=tr)["REQ-J-02"]
+    assert row.result == "unmet"
+    assert row.evidence == "tests/test_join.py::test_fail FAIL @ abc1234"
+
+
+def test_join_missing_node_falls_back_to_matrix(tmp_path: Path) -> None:
+    """A REQ whose node-id is absent from test_results keeps the matrix derivation."""
+    tr = {"tests/other.py::test_x": TestOutcome("tests/other.py::test_x", "passed")}
+    results = trace_requirements(_write_requirements(tmp_path, _JOIN_MD), test_results=tr)
+    # REQ-J-01 (Pending, node not in map) → matrix fallback ``partial``.
+    assert results["REQ-J-01"].result == "partial"
+    # REQ-J-03 names no node-id at all → matrix fallback (Satisfied → met).
+    assert results["REQ-J-03"].result == "met"
+
+
+def test_join_absent_is_backward_compatible(tmp_path: Path) -> None:
+    """No ``test_results`` → pure matrix derivation (v14.0.0 byte-identical behaviour)."""
+    no_join = trace_requirements(_write_requirements(tmp_path, _JOIN_MD))
+    assert no_join["REQ-J-01"].result == "partial"  # Pending
+    assert no_join["REQ-J-02"].result == "met"  # Satisfied (optimistic, no test evidence)
+
+
+def test_parse_then_join_end_to_end(tmp_path: Path) -> None:
+    """``parse_pytest_report`` output threads straight into ``trace_requirements``."""
+    log = _write_report_log(
+        tmp_path,
+        [
+            {
+                "$report_type": "TestReport",
+                "when": "call",
+                "nodeid": "tests/test_join.py::test_pass",
+                "outcome": "passed",
+            },
+            {
+                "$report_type": "TestReport",
+                "when": "call",
+                "nodeid": "tests/test_join.py::test_fail",
+                "outcome": "failed",
+            },
+        ],
+    )
+    tr = parse_pytest_report(log, commit="cafe123")
+    results = trace_requirements(_write_requirements(tmp_path, _JOIN_MD), test_results=tr)
+    assert results["REQ-J-01"].result == "met"
+    assert results["REQ-J-02"].result == "unmet"
+    assert "cafe123" in results["REQ-J-01"].evidence
