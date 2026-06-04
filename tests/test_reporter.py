@@ -1107,8 +1107,8 @@ class TestHumanReport:
         text = render_human_report(
             "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
         )
-        assert "| REQ-INPUT-01 | met |" in text
-        assert "| REQ-OUT-01 | unmet |" in text
+        assert "| REQ-INPUT-01 | append-only lint passes | met |" in text
+        assert "| REQ-OUT-01 | digest budget enforced | unmet |" in text
         assert "tests/test_human_input_immutability.py" in text
 
     def test_findings_severity_split(self, tmp_path: Path):
@@ -1205,14 +1205,16 @@ class TestHumanReport:
         trace_map = trace_requirements(req)
         via_map = render_human_report("v14.1.0", trace_map, repo_root=tmp_path, now=PINNED_NOW)
         assert via_map == via_path
-        assert "| REQ-INPUT-01 | met |" in via_map
+        assert "| REQ-INPUT-01 | append-only lint passes | met |" in via_map
 
     def test_supplied_trace_wins_over_requirements_path(self, tmp_path: Path):
         """A supplied ``trace`` map wins; ``requirements_path`` is ignored (not read)."""
         from devolaflow.agent_workspace import RequirementTraceResult
 
         trace_map = {
-            "REQ-X-01": RequirementTraceResult("REQ-X-01", "met", "from the map verbatim"),
+            "REQ-X-01": RequirementTraceResult(
+                "REQ-X-01", "met", "from the map verbatim", criterion="crit verbatim"
+            ),
         }
         text = render_human_report(
             "v14.1.0",
@@ -1221,7 +1223,7 @@ class TestHumanReport:
             requirements_path=tmp_path / "absent-never-read.md",
             now=PINNED_NOW,
         )
-        assert "| REQ-X-01 | met | from the map verbatim |" in text
+        assert "| REQ-X-01 | crit verbatim | met | from the map verbatim |" in text
 
     def test_non_mapping_trace_raises(self, tmp_path: Path):
         """A non-mapping ``trace`` is rejected loudly (S-5: no silent failure)."""

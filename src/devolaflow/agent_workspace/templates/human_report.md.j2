@@ -9,10 +9,10 @@
 ## Requirement evidence
 
 {% if req_rows -%}
-| REQ-ID | Result | Evidence |
-|--------|--------|----------|
+| REQ-ID | Acceptance criterion | Result | Evidence |
+|--------|----------------------|--------|----------|
 {% for row in req_rows -%}
-| {{ row.req_id }} | {{ row.result }} | {{ row.evidence }} |
+| {{ row.req_id }} | {{ row.criterion }} | {{ row.result }} | {{ row.evidence }} |
 {% endfor -%}
 {% else -%}
 _No tracked requirements._
