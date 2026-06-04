@@ -283,7 +283,11 @@ class TestProbeTelemetry:
                 "threshold_min_rate": SCENARIO_THRESHOLDS[scenario]["min_rate"],
             }
 
-        telemetry_path = PROBE_TELEMETRY_PATH.resolve()
+        # Write under tmp_path (NOT the git-tracked PROBE_TELEMETRY_PATH) so the
+        # test never dirties the working tree on every run (v14.1.0 G-8 hygiene
+        # fix). The canonical telemetry snapshot lives at PROBE_TELEMETRY_PATH and
+        # is regenerated out-of-band, not as a side effect of the test suite.
+        telemetry_path = tmp_path / PROBE_TELEMETRY_PATH.name
         telemetry_path.parent.mkdir(parents=True, exist_ok=True)
         telemetry_path.write_text(json.dumps(telemetry, indent=2, sort_keys=True))
 
@@ -300,7 +304,6 @@ class TestProbeTelemetry:
         measured rates against the contractual targets without re-deriving
         them from the test fixture.
         """
-        PROBE_TELEMETRY_PATH.parent.mkdir(parents=True, exist_ok=True)
         # Build a single scenario to keep this test cheap; validate the
         # threshold dict shape the other test writes out.
         workspace = build_probe_workspace(tmp_path, scenario="easy")

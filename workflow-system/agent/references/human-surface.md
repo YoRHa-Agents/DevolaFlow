@@ -359,14 +359,19 @@ never raise).
 
 | Symbol | Description |
 |---|---|
-| `trace_requirements(requirements_path: Path) -> dict[str, RequirementTraceResult]` | Pure REQ-ID → evidence checker; joins `requirements.md`'s `## Traceability` matrix with the per-REQ `Acceptance` text → `{REQ-ID → result}` |
-| `RequirementTraceResult` | Frozen per-REQ trace row (`result` ∈ `met`/`partial`/`unmet`, `evidence: str` verbatim per C-3) |
+| `trace_requirements(requirements_path, *, test_results=None) -> dict[str, RequirementTraceResult]` | REQ-ID → evidence checker; joins `requirements.md`'s `## Traceability` matrix (status + `Acceptance criterion` + `Cycle`) with the per-REQ `Acceptance` text. Keys the **union** of block ∪ matrix REQs (both-way S-5). When `test_results` is supplied, the §6c test-run join overrides matrix status with the actual PASS/FAIL outcome |
+| `RequirementTraceResult` | Frozen per-REQ trace row (`result` ∈ `met`/`partial`/`unmet`, `evidence: str` verbatim per C-3, `criterion: str`, `cycle: str`) |
+| `TestOutcome` | Frozen `{node_id, outcome, commit}` — the §6c test-run join input |
+| `parse_pytest_report(report_path, *, commit="") -> dict[str, TestOutcome]` | Reads a pytest `--report-log` JSONL (keeps `call`-phase `TestReport` records) → `{node-id → TestOutcome}`; S-5 loud on missing/malformed |
 | `RequirementsTraceError` | Raised on structurally-invalid input |
 | `TRACE_RESULTS` | Canonical `("met", "partial", "unmet")` tuple |
 | `NO_EVIDENCE` | S-5 sentinel for a REQ with no `## Traceability` row |
 
-S-5 behaviour: a REQ block with no matching matrix row maps to
-`result="unmet", evidence="no evidence"` — never a silent drop. A missing
+S-5 behaviour (both directions): a REQ block with no matching matrix row
+maps to `result="unmet", evidence="no evidence"`; a matrix row with no REQ
+block maps to `result="unmet", evidence="matrix row without REQ block"`
+(criterion/cycle preserved) — never a silent drop in EITHER direction. A
+missing
 requirements file raises `FileNotFoundError`; an invalid path type raises
 `RequirementsTraceError`. The trace keys `result` off the matrix *Status*,
 never off a block's `Lifecycle` field (the §3c distinction).
@@ -390,7 +395,7 @@ error). Returns a `BudgetReport` with `change_id="human"`.
 
 | Symbol | Description |
 |---|---|
-| `render_human_report(version, trace=None, *, repo_root=None, requirements_path=None, findings=None, verdict=None, next_step=None, author_layer="L0", now=None) -> str` | FIFTH flavour — the §4a convergence report; line-1 `Status` enum DERIVED from two producers (§6c) |
+| `render_human_report(version, trace=None, *, repo_root=None, requirements_path=None, test_results=None, findings=None, verdict=None, next_step=None, author_layer="L0", stagnation=False, now=None) -> str` | FIFTH flavour — the §4a convergence report (4-col `REQ-ID \| Acceptance criterion \| Result \| Evidence` table); line-1 `Status` enum DERIVED from two producers (§6c); `test_results` threads the §6c join; `stagnation=True` → `human_needed` (W-8/SI-9) |
 | `render_human_digest(...) -> str` | The §4b read-first DIGEST |
 | `regenerate_all(repo_root) -> dict[str, Path]` | Now also emits the `"human"` key alongside the four legacy reports |
 
@@ -460,7 +465,33 @@ consumes two separate inputs:
 
 The line-1 `Status` enum is then DERIVED: `passed` (all REQ `met` ∧ no
 blockers) · `gaps_found` (≥1 REQ `partial`/`unmet`, no blockers) ·
-`human_needed` (≥1 blocker).
+`human_needed` (≥1 blocker **OR** `stagnation=True`, the W-8/SI-9
+score-stagnated escalation).
+
+**Test-run-artifact join (IMPLEMENTED v14.1.0).** The per-REQ rows can be
+keyed off *actual* test outcomes rather than the optimistic matrix Status.
+The caller contract at workflow close is:
+
+1. Run the suite with the pytest report-log plugin:
+   `pytest --report-log=<path>` (the `pytest-reportlog` plugin emits one
+   JSON record per line).
+2. Capture the workflow HEAD commit (e.g. `git rev-parse --short HEAD`).
+3. `test_results = parse_pytest_report(<path>, commit=<hash>)` →
+   `{node-id → TestOutcome}`.
+4. Pass it through: `render_human_report(version, requirements_path=...,
+   test_results=test_results)` (or `regenerate_all(..., human_version=...,
+   human_test_results=...)`).
+
+For each REQ whose `Acceptance` text NAMES a pytest node-id
+(`path/to/test.py::test_name`) present in the map, the join sets
+`result` = `met` (outcome `passed`) / `unmet` (else) and the evidence to
+the verbatim `"<node_id> <PASS|FAIL> @ <commit>"` (C-3) — overriding the
+matrix Status so the report can never over-claim a `Satisfied` cell whose
+test actually failed. A REQ that names no resolvable node-id (or whose
+node-id is absent from the map) falls back to the matrix derivation, so
+mixing tested + manually-verified REQs in one cycle is supported. Omitting
+`test_results` entirely preserves the v14.0.0 matrix-only behaviour
+byte-for-byte.
 
 ## 7. Git-Tracking & De-Pollution
 

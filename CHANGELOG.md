@@ -5,6 +5,40 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.1.0] - 2026-06-04 — MINOR — Human-Surface OUTPUT Contract + v14.0.0 Review Fixes
+
+**MINOR — completes the v14.0.0 human-surface OUTPUT contract + closes the v14.0.0 review findings.** The headline is the **§6c test-run-artifact join**: the convergence report can now key each REQ off the *actual* pytest PASS/FAIL outcome (not just the optimistic Traceability-matrix `Status`), so a `Satisfied` cell whose test actually failed can no longer over-claim. The §4 OUTPUT renderers are brought up to the ratified design (Acceptance-criterion column, this-cycle DIGEST filtering, stagnation→`human_needed`), an inverse-S-5 trace bug is fixed, and a cluster of doc-accuracy + test-hygiene findings are closed. A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**§6c test-run-artifact join (NEW capability).** `trace_requirements(requirements_path, *, test_results=None)` now accepts a `{node-id → TestOutcome}` map (produced by the NEW `parse_pytest_report(report_log, *, commit=...)` from a pytest `--report-log` JSONL). When a REQ's `Acceptance` text names a pytest node-id present in the map, the join sets `result` from the actual outcome (`passed → met` / else `unmet`) with verbatim `"<node_id> <PASS|FAIL> @ <commit>"` evidence (C-3) — overriding the matrix `Status`. Omitting `test_results` preserves the v14.0.0 matrix-only behaviour byte-for-byte. The workflow-close caller contract is documented in `references/human-surface.md` §6c.
+
+**Inverse-S-5 fix.** `trace_requirements` now keys the **union** of `### REQ-*` blocks AND `## Traceability` matrix rows. A matrix row with no REQ block (previously *silently dropped* — the inverse of the forward block-without-matrix S-5 case) now emits `result="unmet"`, `evidence="matrix row without REQ block"` (criterion/cycle preserved). No REQ is dropped in either direction.
+
+**OUTPUT rendering brought up to §4 design.** The convergence report table gains the **Acceptance-criterion** column (`| REQ-ID | Acceptance criterion | Result | Evidence |`, §4a). The DIGEST now lists only **this-cycle** REQ deltas (matrix `Cycle == version`, finding F-3) while the rollup still counts the full durable set. `render_human_report` / `render_human_digest` accept `stagnation=True` → forces `human_needed` (the W-8/SI-9 score-stagnation P4 escalation path).
+
+**Immutability-hook wording corrected (NOT a behaviour change).** Docs that said the `check_human_input_append_only` hook "guards" `.local/human/input/` are corrected: the hook is **opt-in** (registered via `register_hook`; NOT in `lifecycle.DEFAULT_EVENTS`), so it runs only when an operator enables it.
+
+### NEW symbols (W-18 stanza refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v14_1_0_test_run_join_symbols`:
+
+- `src/devolaflow/agent_workspace/requirements_trace.py` — NEW `TestOutcome` (frozen `{node_id, outcome, commit}`) + `parse_pytest_report()`; NEW `test_results=` join param on `trace_requirements()`; NEW `criterion` / `cycle` fields on `RequirementTraceResult` (defaulted — back-compatible); `_parse_traceability_matrix` now captures the `Cycle` column.
+- `src/devolaflow/agent_workspace/reporter.py` — `render_human_report` / `render_human_digest` / `regenerate_all` thread `test_results` + `stagnation`; `render_human_report` emits the criterion column; `render_human_digest` filters deltas to the current cycle; `_derive_human_status` gains the stagnation path.
+- `src/devolaflow/agent_workspace/templates/human_report.md.j2` — 4-column Acceptance-criterion table (§4a).
+- `src/devolaflow/agent_workspace/__init__.py` — `__all__` re-exports `TestOutcome` + `parse_pytest_report`.
+
+### Doc-accuracy + hygiene fixes
+
+- `src/devolaflow/local/workspace.py` — added the 3 missing `_DIR_README_CONTENT` keys (`human/input/amendments`, `human/output/convergence`, `human/archive`) so all scaffolded human dirs get a README; corrected the stale "three positive rules" comments (now four after the v14.0.0 `!.local/human/` whitelist add).
+- `docs/cycle-archive/v14.0.0/README.md` — removed a stale duplicate `v14.0.0_implementation_evaluation.md` index entry.
+- `.rules/conventions.mdc` (C-4 + C-7) — corrected the `references/*.md` count 22 → 24 (recompiled into `AGENTS.md` + `.cursor/rules/repo-governance.mdc`).
+- `tests/test_e2e_compression.py` — the probe-telemetry test now writes under `tmp_path` instead of dirtying the git-tracked `.local/research/v7.0.3_probe_telemetry.json` on every run.
+
+### Verification
+
+- W-9/SI-10 6-step GREEN (see `.local/research/v14.1.0_impl_evaluation.md`); W-16 wholesale baseline `benchmarks/devolaflow_context/baselines/v14.1.0_baseline.json` (byte-identical scoring to v14.0.0 — no benchmark-affecting file changed); W-4 `tests/test_benchmarks.py` 36/36 PASS; S-3 changed-module coverage `requirements_trace` 94% / `reporter` 87%; W-17 +18 NEW test functions (≤ 30).
+
 ## [14.0.0] - 2026-06-04 — MAJOR — Human Interaction Surface (`.local/human/`)
 
 **MAJOR — human-surface cycle.** v14.0.0 introduces the **`.local/human/` human interaction surface**: the durable, human-authored counterpart to the agent-only `.local/.agent/` workspace. It adds a three-zone tree — `.local/human/{input,output,archive}/` — that cleanly separates **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back). INPUT carries a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger (`Lifecycle: RATIFIED`); OUTPUT carries a `DIGEST.md` plus `convergence/<version>-convergence.md` reports gated by a status enum and the NEW C-9 token budgets. Zero schema bumps (A-2 cache layout untouched — `canonical_order` stays 17; the human surface is artifact-level, not a dispatch key), zero new env flags (W-20 reuse-first preserved — `DEVOLAFLOW_AGENT_WORKSPACE=1` is REUSED), zero new Soul rules (W-21 freeze at 10/12).
@@ -13,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **NEW `.local/human/` three-zone tree.** `input/` is human-owned and immutable once ratified (constitution + REQ-ID requirements + append-only amendments); `output/` is agent-written and concise (DIGEST + convergence reports); `archive/` retains superseded artifacts. Per C-9 the human surface gets its own per-artifact TOKEN budgets (the sole enforced unit): `input/constitution.md` (800/1500), `input/requirements.md` + `input/requirements/<domain>.md` shards (1200/2500), `input/amendments/<date>-<slug>.md` (400/800), `output/DIGEST.md` (600/1000), `output/convergence/<version>-convergence.md` (700/1000). Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
 
-**INPUT immutability (append-only).** The NEW `check_human_input_append_only` lifecycle hook guards `.local/human/input/` so ratified requirements + amendments cannot be silently overwritten (mirrors S-9 append-only handoff semantics; warn in lite mode, block + escalate in full/STRICT).
+**INPUT immutability (append-only).** Append-only protection for `.local/human/input/` (so ratified requirements + amendments cannot be silently overwritten; mirrors S-9 append-only handoff semantics) is available via the NEW `check_human_input_append_only` lifecycle hook — **opt-in** via `register_hook` (NOT wired into `DEFAULT_EVENTS`, so it does not run unless an operator registers it; warn in lite mode, block + escalate in full/STRICT when active).
 
 **INPUT-only git tracking (D2 / ADR-2).** `.gitignore` now tracks the human **INPUT** zone ONLY — the durable constitution + requirements + amendments are versioned, while `output/` + `archive/` stay gitignored (regenerable agent artifacts).
 
