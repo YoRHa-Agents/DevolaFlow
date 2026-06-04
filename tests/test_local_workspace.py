@@ -137,15 +137,25 @@ class TestAgentWorkspaceScaffold:
         assert d.is_dir(), f"Expected directory: {d}"
         assert (d / "README.md").is_file()
 
-    def test_required_dirs_count_is_6(self) -> None:
-        """REQUIRED_DIRS extended from 3 (pre-v8.2.3) to 6 (v8.2.3+)."""
-        assert len(REQUIRED_DIRS) == 6
+    def test_required_dirs_count_is_12(self) -> None:
+        """REQUIRED_DIRS: 3 (pre-v8.2.3) -> 6 (v8.2.3) -> 12 (v14.0.0 human surface)."""
+        assert len(REQUIRED_DIRS) == 12
         assert REQUIRED_DIRS[:3] == ["feedbacks", "tasks", "memory"], (
             "Existing 3 entries MUST stay byte-identical (I-PV03-A)"
         )
         assert ".agent/active" in REQUIRED_DIRS
         assert ".agent/handoff" in REQUIRED_DIRS
         assert ".agent/archive" in REQUIRED_DIRS
+        # v14.0.0 — `.local/human/` surface dirs (INPUT tracked; OUTPUT/archive private).
+        for human_dir in (
+            "human",
+            "human/input",
+            "human/input/amendments",
+            "human/output",
+            "human/output/convergence",
+            "human/archive",
+        ):
+            assert human_dir in REQUIRED_DIRS, f"missing v14.0.0 human dir {human_dir!r}"
 
     def test_memory_subdirs_constant(self) -> None:
         """MEMORY_SUBDIRS captures memory/specs (M-004 source-of-truth)."""

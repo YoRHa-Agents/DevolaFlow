@@ -38,6 +38,8 @@ import yaml
 from devolaflow.agent_workspace import (
     regenerate_all,
     render_change_report,
+    render_human_digest,
+    render_human_report,
     render_memory_report,
     render_rules_report,
     render_workspace_report,
@@ -982,3 +984,357 @@ class TestInvariants:
         with pytest.raises(SystemExit) as exc:
             reporter_main(["--all", "--print", "--repo-root", str(workspace)])
         assert exc.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# Human convergence report + digest — the FIFTH flavour
+# (v14.0.0 Wave-2; design §4 / §6c). Consumes the Wave-3
+# ``trace_requirements`` producer; derives the line-1 ``Status`` enum.
+# ---------------------------------------------------------------------------
+
+
+_HUMAN_REQUIREMENTS_MD = textwrap.dedent(
+    """\
+    # Requirements (`artifact: human-requirements`)
+
+    ## Requirements
+
+    ### REQ-INPUT-01: Ratified requirements are append-only
+    - **Acceptance:** `tests/test_human_input_immutability.py` PASSES.
+    - **Lifecycle:** RATIFIED 2026-06-03
+    - **Status:** Pending
+
+    ### REQ-OUT-01: Digest token budget enforced
+    - **Acceptance:** `python -m devolaflow.agent_workspace.lint --human` flags it.
+    - **Lifecycle:** DRAFT
+    - **Status:** Blocked
+
+    ## Traceability
+    | REQ-ID | Acceptance criterion | Cycle | Status |
+    |---|---|---|---|
+    | REQ-INPUT-01 | append-only lint passes | v14.1.0 | Satisfied |
+    | REQ-OUT-01 | digest budget enforced | v14.1.0 | Blocked |
+    | **Unmapped** | — | — | **0** ✓ |
+
+    **Version**: 1.0.0 | **Last Amended**: 2026-06-03
+    """
+)
+
+_ALL_MET_REQUIREMENTS_MD = textwrap.dedent(
+    """\
+    # Requirements
+
+    ## Requirements
+
+    ### REQ-INPUT-01: Append-only
+    - **Acceptance:** `tests/test_x.py` PASSES.
+    - **Lifecycle:** RATIFIED 2026-06-03
+    - **Status:** Satisfied
+
+    ## Traceability
+    | REQ-ID | Acceptance criterion | Cycle | Status |
+    |---|---|---|---|
+    | REQ-INPUT-01 | append-only | v14.1.0 | Satisfied |
+
+    **Version**: 1.0.0 | **Last Amended**: 2026-06-03
+    """
+)
+
+
+def _write_human_requirements(root: Path, body: str = _HUMAN_REQUIREMENTS_MD) -> Path:
+    """Write a sample human ``requirements.md`` under ``root`` and return its path."""
+    path = root / "requirements.md"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+class TestHumanReport:
+    def test_renders_all_required_sections(self, tmp_path: Path):
+        """All §4a sections (status line + verdict + evidence + findings + next) appear."""
+        req = _write_human_requirements(tmp_path)
+        text = render_human_report(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            findings=[{"severity": "minor", "description": "naming nit"}],
+            now=PINNED_NOW,
+        )
+        assert text.startswith("# Convergence Report — v14.1.0")
+        for heading in (
+            "> **Status:**",
+            "## Verdict",
+            "## Requirement evidence",
+            "## Blocking findings",
+            "## Advisory findings",
+            "## Next step",
+        ):
+            assert heading in text, f"missing section {heading!r}"
+
+    def test_status_passed_all_met_no_blockers(self, tmp_path: Path):
+        """All REQ met + no blocking findings → ``passed``."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert "> **Status:** passed" in text
+
+    def test_status_gaps_found_unmet_no_blockers(self, tmp_path: Path):
+        """≥1 unmet/partial REQ + no blocking findings → ``gaps_found``."""
+        req = _write_human_requirements(tmp_path)  # REQ-OUT-01 Blocked → unmet
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert "> **Status:** gaps_found" in text
+
+    def test_status_human_needed_when_blocking(self, tmp_path: Path):
+        """≥1 blocking (blocker/critical) finding → ``human_needed`` + action rendered."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_report(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            findings=[
+                {"severity": "blocker", "description": "coverage < 80%", "suggestion": "add tests"}
+            ],
+            now=PINNED_NOW,
+        )
+        assert "> **Status:** human_needed" in text
+        assert "- coverage < 80% → add tests" in text
+
+    def test_consumes_trace_requirements_verbatim(self, tmp_path: Path):
+        """Per-REQ rows come from ``trace_requirements`` with verbatim evidence (C-3)."""
+        req = _write_human_requirements(tmp_path)
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert "| REQ-INPUT-01 | met |" in text
+        assert "| REQ-OUT-01 | unmet |" in text
+        assert "tests/test_human_input_immutability.py" in text
+
+    def test_findings_severity_split(self, tmp_path: Path):
+        """blocker/critical → Blocking; major/minor/info → Advisory."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_report(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            findings=[
+                {"severity": "critical", "description": "crit issue", "suggestion": "fix"},
+                {"severity": "major", "description": "maj note"},
+                {"severity": "info", "description": "info note"},
+            ],
+            now=PINNED_NOW,
+        )
+        assert "- crit issue → fix" in text
+        assert "- maj note (advisory)" in text
+        assert "- info note (advisory)" in text
+        assert "> **Status:** human_needed" in text  # critical is blocking
+
+    def test_accepts_finding_objects(self, tmp_path: Path):
+        """Findings may be gate ``Finding`` objects (attribute access), not just dicts."""
+        from devolaflow.gate.models import Finding
+
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        finding = Finding(
+            finding_id="F1",
+            severity="blocker",
+            category="test_quality",
+            location="tests/",
+            description="obj blocker",
+            suggestion="do it",
+        )
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, findings=[finding], now=PINNED_NOW
+        )
+        assert "- obj blocker → do it" in text
+        assert "> **Status:** human_needed" in text
+
+    def test_unknown_severity_routed_to_advisory_not_dropped(self, tmp_path: Path):
+        """A malformed severity is surfaced as advisory (S-5: never silently dropped)."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_report(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            findings=[{"severity": "weird", "description": "ODDBALL"}],
+            now=PINNED_NOW,
+        )
+        assert "- ODDBALL (advisory)" in text
+        assert "> **Status:** passed" in text  # not blocking → does not escalate
+
+    def test_idempotent_under_pinned_now(self, tmp_path: Path):
+        """Two renders with a pinned clock are byte-identical (AC-5)."""
+        req = _write_human_requirements(tmp_path)
+        findings = [{"severity": "blocker", "description": "b", "suggestion": "s"}]
+        first = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, findings=findings, now=PINNED_NOW
+        )
+        second = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, findings=findings, now=PINNED_NOW
+        )
+        assert first == second
+
+    def test_missing_requirements_path_raises(self, tmp_path: Path):
+        """A supplied-but-absent requirements path is loud (S-5), not a silent empty trace."""
+        with pytest.raises(FileNotFoundError):
+            render_human_report(
+                "v14.1.0",
+                repo_root=tmp_path,
+                requirements_path=tmp_path / "nope.md",
+                now=PINNED_NOW,
+            )
+
+    def test_no_requirements_no_findings_is_passed(self, tmp_path: Path):
+        """No requirements path + no findings → vacuously ``passed``."""
+        text = render_human_report("v14.1.0", repo_root=tmp_path, now=PINNED_NOW)
+        assert "> **Status:** passed" in text
+
+    def test_accepts_precomputed_trace_map(self, tmp_path: Path):
+        """A pre-computed ``trace`` map is consumed directly (design §6c).
+
+        Passing the ``trace_requirements`` output as the ``trace`` arg yields a
+        report byte-identical to passing the same file via ``requirements_path``
+        — proving the render "consumes the requirements_trace map".
+        """
+        from devolaflow.agent_workspace import trace_requirements
+
+        req = _write_human_requirements(tmp_path)
+        via_path = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        trace_map = trace_requirements(req)
+        via_map = render_human_report("v14.1.0", trace_map, repo_root=tmp_path, now=PINNED_NOW)
+        assert via_map == via_path
+        assert "| REQ-INPUT-01 | met |" in via_map
+
+    def test_supplied_trace_wins_over_requirements_path(self, tmp_path: Path):
+        """A supplied ``trace`` map wins; ``requirements_path`` is ignored (not read)."""
+        from devolaflow.agent_workspace import RequirementTraceResult
+
+        trace_map = {
+            "REQ-X-01": RequirementTraceResult("REQ-X-01", "met", "from the map verbatim"),
+        }
+        text = render_human_report(
+            "v14.1.0",
+            trace_map,
+            repo_root=tmp_path,
+            requirements_path=tmp_path / "absent-never-read.md",
+            now=PINNED_NOW,
+        )
+        assert "| REQ-X-01 | met | from the map verbatim |" in text
+
+    def test_non_mapping_trace_raises(self, tmp_path: Path):
+        """A non-mapping ``trace`` is rejected loudly (S-5: no silent failure)."""
+        with pytest.raises(TypeError):
+            render_human_report(
+                "v14.1.0", ["not", "a", "mapping"], repo_root=tmp_path, now=PINNED_NOW
+            )
+
+
+class TestHumanDigest:
+    def test_renders_sections_deltas_and_rollup(self, tmp_path: Path):
+        """Digest carries §4b sections + this-cycle REQ deltas + ONE rollup line."""
+        req = _write_human_requirements(tmp_path)
+        text = render_human_digest(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert text.startswith("# DevolaFlow Human Digest")
+        for heading in (
+            "## Where we are",
+            "## Open asks for the human",
+            "## Requirement coverage",
+            "## Latest convergence",
+        ):
+            assert heading in text, f"missing section {heading!r}"
+        assert "- REQ-INPUT-01: met" in text
+        assert "rollup: 2 total · 1 satisfied · 1 blocked" in text
+        assert "output/convergence/v14.1.0-convergence.md" in text
+
+    def test_open_asks_blocking_only(self, tmp_path: Path):
+        """ "Open asks" surfaces BLOCKING findings only — advisory stays in the report."""
+        req = _write_human_requirements(tmp_path)
+        text = render_human_digest(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            findings=[
+                {"severity": "blocker", "description": "BLOCK_ME", "suggestion": "fix"},
+                {"severity": "minor", "description": "ADVISE_ME"},
+            ],
+            now=PINNED_NOW,
+        )
+        assert "- BLOCK_ME" in text
+        assert "ADVISE_ME" not in text
+
+    def test_idempotent_under_pinned_now(self, tmp_path: Path):
+        req = _write_human_requirements(tmp_path)
+        first = render_human_digest(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        second = render_human_digest(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert first == second
+
+
+class TestRegenerateAllHuman:
+    def test_human_key_none_by_default(self, workspace: Path):
+        """Without ``human_version`` the ``human`` key is ``None`` (opt-in flavour)."""
+        _scaffold_rules(workspace / ".rules")
+        result = regenerate_all(repo_root=workspace, now=PINNED_NOW)
+        assert result["human"] is None
+        for key in ("workspace", "memory", "rules"):
+            assert isinstance(result[key], Path)
+
+    def test_human_version_writes_both_artifacts(self, workspace: Path):
+        """With ``human_version`` → convergence report + digest written at canonical paths."""
+        _scaffold_rules(workspace / ".rules")
+        req = _write_human_requirements(workspace)
+        result = regenerate_all(
+            repo_root=workspace,
+            now=PINNED_NOW,
+            human_version="v14.1.0",
+            human_requirements_path=req,
+            human_findings=[{"severity": "blocker", "description": "b", "suggestion": "s"}],
+        )
+        human = result["human"]
+        assert isinstance(human, dict)
+        conv = workspace / ".local" / "human" / "output" / "convergence" / "v14.1.0-convergence.md"
+        digest = workspace / ".local" / "human" / "output" / "DIGEST.md"
+        assert human["convergence"] == conv
+        assert human["digest"] == digest
+        assert conv.exists()
+        assert digest.exists()
+        assert "human_needed" in digest.read_text(encoding="utf-8")
+
+
+class TestHumanReporterCli:
+    def test_cli_human_writes_files(self, workspace: Path):
+        """`reporter --human <ver> --requirements <req>` writes convergence + digest."""
+        req = _write_human_requirements(workspace)
+        rc = reporter_main(
+            ["--human", "v14.1.0", "--requirements", str(req), "--repo-root", str(workspace)]
+        )
+        assert rc == 0
+        assert (
+            workspace / ".local" / "human" / "output" / "convergence" / "v14.1.0-convergence.md"
+        ).exists()
+        assert (workspace / ".local" / "human" / "output" / "DIGEST.md").exists()
+
+    def test_cli_human_print_to_stdout(self, capsys, workspace: Path):
+        """`--human ... --print` writes the convergence report to stdout, not disk."""
+        req = _write_human_requirements(workspace)
+        rc = reporter_main(
+            [
+                "--human",
+                "v14.1.0",
+                "--requirements",
+                str(req),
+                "--repo-root",
+                str(workspace),
+                "--print",
+            ]
+        )
+        assert rc == 0
+        assert "Convergence Report — v14.1.0" in capsys.readouterr().out
+        assert not (workspace / ".local" / "human" / "output" / "DIGEST.md").exists()

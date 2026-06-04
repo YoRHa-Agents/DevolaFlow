@@ -1892,5 +1892,32 @@
       "soul_set_count": "10",
       "soul_set_cap": "12"
     }
+  },
+  {
+    "version": "14.0.0",
+    "date": "2026-06-04",
+    "era": "human-surface",
+    "headline": "MAJOR — the NEW `.local/human/` Human Interaction Surface: a three-zone tree (`input/output/archive`) that cleanly separates immutable, human-authored INPUT (what humans want) from concise, agent-written OUTPUT (what agents report back) — the durable counterpart to the agent-only `.local/.agent/` workspace",
+    "summary": "v14.0.0 introduces the `.local/human/` human interaction surface. INPUT is human-owned and immutable once ratified (constitution.md + REQ-ID-keyed requirements.md + optional requirements/<domain>.md shards + append-only amendments/<date>-<slug>.md ledger with `Lifecycle: RATIFIED`); OUTPUT is agent-written and concise (DIGEST.md + convergence/<version>-convergence.md reports gated by a status enum). The NEW `check_human_input_append_only` lifecycle hook guards INPUT immutability (mirrors S-9), `.gitignore` now tracks the INPUT zone ONLY (D2/ADR-2; output/ + archive/ stay gitignored), and the human surface gets its own C-9 per-artifact TOKEN budgets. Si-Chip feedback artifacts relocate to `.local/.agent/sichip-deferred/` (ADR-8). Zero schema bumps (canonical_order stays 17), zero new env flags (DEVOLAFLOW_AGENT_WORKSPACE=1 REUSED per W-20), zero new Soul rules (W-21 freeze at 10/12).",
+    "highlights": [
+      "NEW `.local/human/` three-zone tree — `input/` (human-owned, immutable once ratified) + `output/` (agent-written, concise) + `archive/` (superseded artifacts); the durable human-authored counterpart to the agent-only `.local/.agent/` workspace",
+      "INPUT immutability — NEW `check_human_input_append_only` lifecycle hook guards `.local/human/input/` so ratified requirements + amendments cannot be silently overwritten (mirrors S-9 append-only handoff semantics; warn in lite mode, block + escalate in full/STRICT)",
+      "INPUT-only git tracking (D2/ADR-2) — `.gitignore` now tracks the human INPUT zone ONLY (durable constitution + requirements + amendments are versioned); `output/` + `archive/` stay gitignored as regenerable agent artifacts",
+      "C-9 token budgets for the human surface — `input/constitution.md` (800/1500), `input/requirements.md` + `input/requirements/<domain>.md` shards (1200/2500), `input/amendments/<date>-<slug>.md` (400/800), `output/DIGEST.md` (600/1000), `output/convergence/<version>-convergence.md` (700/1000); verify with `python -c \"from devolaflow.agent_workspace import lint_human; print(lint_human())\"`",
+      "NEW symbols — `trace_requirements()` + `RequirementTraceResult` (REQ-ID → evidence trace), `render_human_report()` + `render_human_digest()` (the FIFTH reporter flavour), `lint_human()` + `HUMAN_ARTIFACT_BUDGETS` (6 C-9 rows), 4 additive `scan_workspace` fields (`has_human_dir`, `human_constitution`, `human_requirements`, `human_digest`), and NEW Tier-2 `references/human-surface.md` (24th SF-4 entry)"
+    ],
+    "metrics": {
+      "references_count": "24",
+      "references_count_prev": "23",
+      "sf4_reference_count": "24",
+      "sf4_reference_count_prev": "23",
+      "canonical_order_length": "17",
+      "env_flag_count": "7",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "evobench_scenarios": "57",
+      "benchmark_baseline_active": "v14.0.0_baseline.json"
+    }
   }
 ]

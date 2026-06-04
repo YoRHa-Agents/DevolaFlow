@@ -79,10 +79,12 @@ from devolaflow.agent_workspace.handoff import (
     HandoffStoreError,
 )
 from devolaflow.agent_workspace.lint import (
+    HUMAN_ARTIFACT_BUDGETS,
     BudgetReport,
     BudgetViolation,
     estimate_tokens,
     lint_change,
+    lint_human,
 )
 from devolaflow.agent_workspace.memory_bridge import (
     MemoryBridgeError,
@@ -92,9 +94,16 @@ from devolaflow.agent_workspace.memory_bridge import (
 from devolaflow.agent_workspace.reporter import (
     regenerate_all,
     render_change_report,
+    render_human_digest,
+    render_human_report,
     render_memory_report,
     render_rules_report,
     render_workspace_report,
+)
+from devolaflow.agent_workspace.requirements_trace import (
+    RequirementsTraceError,
+    RequirementTraceResult,
+    trace_requirements,
 )
 from devolaflow.agent_workspace.spec_bootstrap import (
     SpecBootstrapError,
@@ -132,18 +141,27 @@ __all__ = [
     # lint
     "BudgetReport",
     "BudgetViolation",
+    "HUMAN_ARTIFACT_BUDGETS",
     "estimate_tokens",
     "lint_change",
+    "lint_human",
     # memory_bridge (v8.2.8 — closes H-006)
     "MemoryBridgeError",
     "consolidate_change_on_archive",
     "hydrate_change_context",
     # reporter (v8.2.7 — opt-in REPORT.md surface; closes H-005)
+    # + v14.0.0 Wave-2 FIFTH human flavour (render_human_report/_digest; design §4)
     "regenerate_all",
     "render_change_report",
+    "render_human_digest",
+    "render_human_report",
     "render_memory_report",
     "render_rules_report",
     "render_workspace_report",
+    # requirements_trace (v14.0.0 Wave-3 — REQ-ID → evidence trace; design §6c)
+    "RequirementTraceResult",
+    "RequirementsTraceError",
+    "trace_requirements",
     # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
     "SpecBootstrapError",
     "seed_initial_spec",
@@ -166,4 +184,20 @@ _dispatch_executor_dead_api_pins = (
     ExecutorError,
     TaskOutcome,
     DEFAULT_MAX_CONCURRENCY,
+)
+
+
+# v14.0.0 Wave-3 — non-import references that mark the requirements_trace
+# public symbols as "alive" for `scripts/detect_dead_apis.py`. Per the F-2
+# design (`.local/research/v14.0.0_design.md` §6c), `trace_requirements` is
+# the per-REQ-row producer the FIFTH `reporter.py` flavour
+# (`render_human_report`, §4d) will consume — that production caller lands in
+# the v14.0.0 implementation cycle, so until then the test suite is its only
+# in-repo caller (excluded from the dead-API check by `test_dirs`). The tuple
+# is kept private (no leak into `__all__`) so the public API surface is
+# unchanged. Mirrors the `_dispatch_executor_dead_api_pins` precedent above.
+_requirements_trace_dead_api_pins = (
+    RequirementTraceResult,
+    RequirementsTraceError,
+    trace_requirements,
 )

@@ -45,7 +45,7 @@ import json
 import logging
 import re
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Final
@@ -71,15 +71,22 @@ from devolaflow.agent_workspace.handoff import (
     HandoffStore,
     HandoffStoreError,
 )
+from devolaflow.agent_workspace.requirements_trace import (
+    RequirementTraceResult,
+    trace_requirements,
+)
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEFAULT_ARCHIVE_WINDOW_DAYS",
     "DEFAULT_MEMORY_WINDOW_DAYS",
+    "HUMAN_DIGEST_PATH_DEFAULT",
     "RULES_LAYERS",
     "regenerate_all",
     "render_change_report",
+    "render_human_digest",
+    "render_human_report",
     "render_memory_report",
     "render_rules_report",
     "render_workspace_report",
@@ -92,6 +99,25 @@ __all__ = [
 WORKSPACE_REPORT_PATH_DEFAULT: Final[Path] = Path(".local") / ".agent" / "REPORT.md"
 MEMORY_REPORT_PATH_DEFAULT: Final[Path] = Path(".local") / "memory" / "REPORT.md"
 RULES_REPORT_PATH_DEFAULT: Final[Path] = Path(".rules") / "REPORT.md"
+
+# Human-facing OUTPUT surface (v14.0.0 design §4 — the FIFTH reporter
+# flavour). The convergence report is per-cycle (``<version>-convergence.md``)
+# under ``output/convergence/``; the DIGEST is a single overwritten
+# read-first surface under ``output/``. INPUT (``input/``) is human-owned
+# and is NEVER written by the reporter (write-owner = human per §2).
+HUMAN_OUTPUT_DIR_DEFAULT: Final[Path] = Path(".local") / "human" / "output"
+HUMAN_DIGEST_PATH_DEFAULT: Final[Path] = HUMAN_OUTPUT_DIR_DEFAULT / "DIGEST.md"
+
+# Convergence-report status enum (design §4a) — line-1 conclusion.
+HUMAN_STATUS_PASSED: Final[str] = "passed"
+HUMAN_STATUS_GAPS_FOUND: Final[str] = "gaps_found"
+HUMAN_STATUS_HUMAN_NEEDED: Final[str] = "human_needed"
+
+# Severity split (mirrors ``gate/scorer.py`` SEVERITY_WEIGHTS handling):
+# blocker/critical MUST resolve before human approval; major/minor/info are
+# advisory (do NOT block). See design §4a + §6c.
+_BLOCKING_SEVERITIES: Final[frozenset[str]] = frozenset({"blocker", "critical"})
+_ADVISORY_SEVERITIES: Final[frozenset[str]] = frozenset({"major", "minor", "info"})
 
 # Knobs surfaced on both the public API and the CLI.
 DEFAULT_ARCHIVE_WINDOW_DAYS: Final[int] = 7
@@ -328,6 +354,175 @@ def render_rules_report(
     )
 
 
+def render_human_report(
+    version: str,
+    trace: Mapping[str, RequirementTraceResult] | None = None,
+    *,
+    repo_root: Path | None = None,
+    requirements_path: Path | None = None,
+    findings: Iterable[object] | None = None,
+    verdict: str | None = None,
+    next_step: str | None = None,
+    author_layer: str = "L0",
+    now: datetime | None = None,
+) -> str:
+    """Render the FIFTH flavour — the human convergence report (design §4a).
+
+    This is the OUTPUT-side counterpart to the INPUT-side plan-mode
+    ingestion: a conclusion-first, budget-capped Markdown report whose
+    line-1 ``Status`` enum is DERIVED from two distinct producers (design
+    §6c / finding F-2):
+
+    1. **Per-REQ evidence rows** come from :func:`trace_requirements`
+       (Wave-3) — REQ-ID → ``(result, evidence)`` joined from
+       ``requirements.md``'s ``## Traceability`` matrix. This module does
+       NOT reimplement that trace; it consumes it.
+    2. **Blocking / Advisory finding sections** come from ``findings`` (the
+       composite gate's ``findings_by_severity``): ``blocker`` / ``critical``
+       → Blocking; ``major`` / ``minor`` / ``info`` → Advisory.
+
+    The ``Status`` enum is then derived (design §4a):
+
+    * ``passed`` — every traced REQ is ``met`` AND there are no blocking
+      findings.
+    * ``gaps_found`` — at least one REQ is ``partial`` / ``unmet`` and there
+      are no blocking findings (advisory-resolvable).
+    * ``human_needed`` — at least one blocking finding (maps to P4
+      escalation).
+
+    Args:
+      version: the cycle version (e.g. ``v14.1.0``) — both the report H1 and
+        the per-cycle output filename derive from it.
+      trace: a pre-computed ``{REQ-ID -> RequirementTraceResult}`` map (the
+        :func:`trace_requirements` output). When supplied it is consumed
+        directly and ``requirements_path`` is ignored; when ``None`` the map
+        is derived from ``requirements_path``.
+      repo_root: repo root (default: ``Path.cwd()``); a relative
+        ``requirements_path`` resolves against it.
+      requirements_path: path to ``input/requirements.md`` (or a per-domain
+        shard), used only when ``trace`` is ``None``. ``None`` → no REQ rows
+        (an empty-trace report). A provided path that does NOT exist raises
+        :class:`FileNotFoundError` (loud per S-5 — never a silent empty
+        trace).
+      findings: an iterable of gate findings — each either a mapping or an
+        object carrying a ``severity`` plus a description/suggestion. ``None``
+        → no findings.
+      verdict: optional override for the ``## Verdict`` prose; a conclusion-
+        first default is derived from the status when omitted.
+      next_step: optional override for the ``## Next step`` line; an
+        owner+action default is derived from the status when omitted.
+      author_layer: author layer stamp for the header (default ``L0``).
+      now: pinned clock for deterministic testing (AC-5 idempotency).
+
+    Returns:
+      The convergence report Markdown text (callers — typically
+      :func:`regenerate_all` — decide whether to write it to disk).
+
+    Raises:
+      FileNotFoundError: when ``requirements_path`` is given but absent.
+      RequirementsTraceError: when ``requirements_path`` is not path-like.
+    """
+    root = _resolve_repo_root(repo_root)
+    pinned_now = _normalise_now(now)
+
+    trace_results = _resolve_human_trace(root, trace, requirements_path)
+    blocking, advisory = _split_findings(findings)
+    status = _derive_human_status(trace_results, blocking)
+
+    req_rows = [
+        {"req_id": r.req_id, "result": r.result, "evidence": r.evidence}
+        for r in trace_results.values()
+    ]
+    total = len(trace_results)
+    satisfied = sum(1 for r in trace_results.values() if r.result == "met")
+
+    if verdict is None:
+        verdict = _default_verdict(status, satisfied, total, blocking, advisory)
+    if next_step is None:
+        next_step = _default_next_step(status, blocking, trace_results)
+
+    template = _env().get_template("human_report.md.j2")
+    return template.render(
+        version=version,
+        status=status,
+        date=_format_date(pinned_now),
+        author_layer=author_layer,
+        verdict=verdict,
+        req_rows=req_rows,
+        blocking=blocking,
+        advisory=advisory,
+        next_step=next_step,
+    )
+
+
+def render_human_digest(
+    version: str,
+    trace: Mapping[str, RequirementTraceResult] | None = None,
+    *,
+    repo_root: Path | None = None,
+    requirements_path: Path | None = None,
+    findings: Iterable[object] | None = None,
+    where_we_are: str | None = None,
+    now: datetime | None = None,
+) -> str:
+    """Render the read-first human DIGEST (design §4b — ≤100-line surface).
+
+    The digest is the "read-once, know where we are" surface. It lists only
+    THIS-cycle REQ deltas (≤1 line each) + ONE rollup count line
+    (``N total · M satisfied · K blocked``) so its budget stays flat as the
+    durable REQ set grows (design §4b / finding F-3); the full REQ→status
+    matrix lives in ``input/requirements.md``. "Open asks" surfaces BLOCKING
+    findings ONLY (advisory lives in the convergence report).
+
+    Shares the §6c two-producer derivation with :func:`render_human_report`
+    so the digest ``Status`` line agrees with the convergence report's.
+
+    Args:
+      version: the latest cycle version.
+      trace: a pre-computed ``{REQ-ID -> RequirementTraceResult}`` map; when
+        supplied it is consumed directly and ``requirements_path`` is ignored.
+      repo_root: repo root (default: ``Path.cwd()``).
+      requirements_path: path to ``input/requirements.md`` (or shard), used
+        only when ``trace`` is ``None``; same S-5 semantics as
+        :func:`render_human_report`.
+      findings: gate findings (same shape as :func:`render_human_report`).
+      where_we_are: optional override for the ``## Where we are`` block.
+      now: pinned clock for deterministic testing (AC-5 idempotency).
+
+    Returns:
+      The DIGEST Markdown text.
+    """
+    root = _resolve_repo_root(repo_root)
+    pinned_now = _normalise_now(now)
+
+    trace_results = _resolve_human_trace(root, trace, requirements_path)
+    blocking, _advisory = _split_findings(findings)
+    status = _derive_human_status(trace_results, blocking)
+
+    req_deltas = [{"req_id": r.req_id, "result": r.result} for r in trace_results.values()]
+    total = len(trace_results)
+    satisfied = sum(1 for r in trace_results.values() if r.result == "met")
+    blocked = sum(1 for r in trace_results.values() if r.result == "unmet")
+    open_asks = [b["text"] for b in blocking]
+
+    if where_we_are is None:
+        where_we_are = _default_where_we_are(status, version, satisfied, total)
+
+    template = _env().get_template("human_digest.md.j2")
+    return template.render(
+        version=version,
+        status=status,
+        updated=_format_date(pinned_now),
+        where_we_are=where_we_are,
+        open_asks=open_asks,
+        req_deltas=req_deltas,
+        rollup_total=total,
+        rollup_satisfied=satisfied,
+        rollup_blocked=blocked,
+        convergence_rel=f"output/convergence/{version}-convergence.md",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public orchestrator + canonical write paths
 # ---------------------------------------------------------------------------
@@ -339,8 +534,17 @@ def regenerate_all(
     now: datetime | None = None,
     archive_window_days: int = DEFAULT_ARCHIVE_WINDOW_DAYS,
     memory_window_days: int = DEFAULT_MEMORY_WINDOW_DAYS,
+    human_version: str | None = None,
+    human_requirements_path: Path | None = None,
+    human_findings: Iterable[object] | None = None,
 ) -> dict[str, object]:
-    """Regenerate all four REPORT.md files at the canonical paths.
+    """Regenerate the REPORT.md files at the canonical paths.
+
+    Always regenerates the four agent-facing flavours (workspace / memory /
+    rules / per-change). The FIFTH human flavour (design §4 / §6c) is opt-in:
+    it renders ONLY when ``human_version`` is supplied, because the
+    convergence report path is per-cycle (``<version>-convergence.md``) and
+    the digest derives from the same cycle.
 
     Args:
       repo_root: repo root (default: ``Path.cwd()``).
@@ -351,13 +555,21 @@ def regenerate_all(
       memory_window_days: window for the memory report's "Top 10
         high-confidence learnings" section (default 30 days per
         design.md §5.3).
+      human_version: when supplied, also render + write the human
+        convergence report (``output/convergence/<version>-convergence.md``)
+        and refresh the digest (``output/DIGEST.md``).
+      human_requirements_path: path to ``input/requirements.md`` for the
+        per-REQ evidence rows (consumed via :func:`trace_requirements`).
+      human_findings: gate findings feeding the blocking/advisory split.
 
     Returns:
       Dict with keys ``"workspace"``, ``"memory"``, ``"rules"`` (each
       mapped to a single :class:`Path`) plus ``"changes"`` (list of
-      :class:`Path` for every per-archive REPORT). The plural ``changes``
-      key was chosen over the singular ``change`` so callers can tell
-      "one report for the change folder" from "many reports across all
+      :class:`Path` for every per-archive REPORT) and ``"human"`` (a
+      ``{"convergence": Path, "digest": Path}`` mapping when
+      ``human_version`` was supplied, else ``None``). The plural
+      ``changes`` key was chosen over the singular ``change`` so callers can
+      tell "one report for the change folder" from "many reports across all
       archives" at a glance.
 
     Idempotency: with a pinned ``now``, two successive invocations
@@ -401,11 +613,34 @@ def regenerate_all(
             continue
         change_paths.append(_write_report(archive_folder / "REPORT.md", text))
 
+    human_result: dict[str, Path] | None = None
+    if human_version is not None:
+        convergence_text = render_human_report(
+            human_version,
+            repo_root=root,
+            requirements_path=human_requirements_path,
+            findings=human_findings,
+            now=pinned_now,
+        )
+        digest_text = render_human_digest(
+            human_version,
+            repo_root=root,
+            requirements_path=human_requirements_path,
+            findings=human_findings,
+            now=pinned_now,
+        )
+        convergence_path = _write_report(
+            root / _human_convergence_path(human_version), convergence_text
+        )
+        digest_path = _write_report(root / HUMAN_DIGEST_PATH_DEFAULT, digest_text)
+        human_result = {"convergence": convergence_path, "digest": digest_path}
+
     return {
         "workspace": workspace_path,
         "memory": memory_path,
         "rules": rules_path,
         "changes": change_paths,
+        "human": human_result,
     }
 
 
@@ -478,6 +713,11 @@ def _format_iso(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _format_date(dt: datetime) -> str:
+    """Format ``dt`` as ``YYYY-MM-DD`` (the human-surface date granularity)."""
+    return dt.astimezone(UTC).strftime("%Y-%m-%d")
+
+
 def _write_report(path: Path, text: str) -> Path:
     """Write ``text`` to ``path`` with a trailing newline; return ``path``."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -485,6 +725,179 @@ def _write_report(path: Path, text: str) -> Path:
         text = text + "\n"
     path.write_text(text, encoding="utf-8", newline="\n")
     return path
+
+
+# ---------------------------------------------------------------------------
+# Helpers — human convergence report + digest (design §4 / §6c)
+# ---------------------------------------------------------------------------
+
+
+def _human_convergence_path(version: str) -> Path:
+    """Return the per-cycle convergence report path (relative to repo root)."""
+    return HUMAN_OUTPUT_DIR_DEFAULT / "convergence" / f"{version}-convergence.md"
+
+
+def _resolve_requirements_path(root: Path, requirements_path: Path | None) -> Path | None:
+    """Resolve ``requirements_path`` against ``root`` if relative; ``None`` passthrough."""
+    if requirements_path is None:
+        return None
+    path = Path(requirements_path)
+    return path if path.is_absolute() else root / path
+
+
+def _trace_human_requirements(
+    root: Path, requirements_path: Path | None
+) -> dict[str, RequirementTraceResult]:
+    """Consume the Wave-3 :func:`trace_requirements` producer (design §6c).
+
+    Returns an empty mapping when no requirements path is supplied. A
+    supplied-but-absent path is NOT swallowed — :func:`trace_requirements`
+    raises :class:`FileNotFoundError` (S-5: no silent empty trace).
+    """
+    resolved = _resolve_requirements_path(root, requirements_path)
+    if resolved is None:
+        return {}
+    return trace_requirements(resolved)
+
+
+def _resolve_human_trace(
+    root: Path,
+    trace: Mapping[str, RequirementTraceResult] | None,
+    requirements_path: Path | None,
+) -> dict[str, RequirementTraceResult]:
+    """Resolve the per-REQ trace map the render consumes (design §6c).
+
+    A caller-supplied ``trace`` map wins (the explicit "accept a trace map"
+    contract — the render NEVER recomputes when handed one); otherwise the map
+    is produced from ``requirements_path`` via the Wave-3
+    :func:`trace_requirements` producer. A non-mapping ``trace`` is rejected
+    loudly (S-5: no silent failure, no silent empty trace).
+    """
+    if trace is not None:
+        if not isinstance(trace, Mapping):
+            raise TypeError(
+                "render_human_report: trace must be a "
+                "Mapping[str, RequirementTraceResult], got "
+                f"{type(trace).__name__}"
+            )
+        return dict(trace)
+    return _trace_human_requirements(root, requirements_path)
+
+
+def _finding_field(finding: object, *names: str) -> str:
+    """Return the first present mapping-key / attribute among ``names``.
+
+    Accepts both mapping findings (``finding_by_severity`` dicts) and object
+    findings (e.g. :class:`devolaflow.gate.models.Finding`). The value is
+    stringified and stripped; absent / ``None`` fields are skipped.
+    """
+    for name in names:
+        value = finding.get(name) if isinstance(finding, Mapping) else getattr(finding, name, None)
+        if value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+    return ""
+
+
+def _split_findings(
+    findings: Iterable[object] | None,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Split ``findings`` into ``(blocking, advisory)`` rows by severity.
+
+    Mirrors ``gate/scorer.py`` severity handling: ``blocker`` / ``critical``
+    → blocking (each carries the required action); ``major`` / ``minor`` /
+    ``info`` → advisory. A finding with an UNRECOGNISED severity is NOT
+    dropped (S-5: no silent failure) — it is logged at WARNING and routed to
+    advisory so a derived ``Status`` can never silently over-claim ``passed``
+    on a malformed finding while still surfacing it in the report.
+    """
+    blocking: list[dict[str, str]] = []
+    advisory: list[dict[str, str]] = []
+    for finding in findings or []:
+        severity = _finding_field(finding, "severity").lower()
+        text = (
+            _finding_field(finding, "description", "text", "summary", "message")
+            or "<unspecified finding>"
+        )
+        if severity in _BLOCKING_SEVERITIES:
+            action = (
+                _finding_field(finding, "suggestion", "action", "required_action")
+                or "resolve before human approval"
+            )
+            blocking.append({"text": text, "action": action})
+        elif severity in _ADVISORY_SEVERITIES:
+            advisory.append({"text": text})
+        else:
+            logger.warning(
+                "render_human_report: finding %r has unrecognised severity %r; "
+                "routing to advisory (not dropped)",
+                text,
+                severity,
+            )
+            advisory.append({"text": text})
+    return blocking, advisory
+
+
+def _derive_human_status(
+    trace_results: dict[str, RequirementTraceResult],
+    blocking: list[dict[str, str]],
+) -> str:
+    """Derive the line-1 ``Status`` enum from the trace + blocking findings.
+
+    Per design §4a: ``human_needed`` when any blocking finding exists;
+    else ``gaps_found`` when any REQ is ``partial`` / ``unmet``; else
+    ``passed`` (all REQ ``met``, no blockers — vacuously true for an empty
+    trace).
+    """
+    if blocking:
+        return HUMAN_STATUS_HUMAN_NEEDED
+    if any(r.result in ("partial", "unmet") for r in trace_results.values()):
+        return HUMAN_STATUS_GAPS_FOUND
+    return HUMAN_STATUS_PASSED
+
+
+def _default_verdict(
+    status: str,
+    satisfied: int,
+    total: int,
+    blocking: list[dict[str, str]],
+    advisory: list[dict[str, str]],
+) -> str:
+    """Build a conclusion-first ``## Verdict`` line when none is supplied."""
+    phrase = {
+        HUMAN_STATUS_PASSED: "Converged",
+        HUMAN_STATUS_GAPS_FOUND: "Gaps remain",
+        HUMAN_STATUS_HUMAN_NEEDED: "Human decision required",
+    }[status]
+    return (
+        f"{phrase}: {satisfied}/{total} traced requirement(s) met; "
+        f"{len(blocking)} blocking, {len(advisory)} advisory finding(s)."
+    )
+
+
+def _default_next_step(
+    status: str,
+    blocking: list[dict[str, str]],
+    trace_results: dict[str, RequirementTraceResult],
+) -> str:
+    """Build an owner+action ``## Next step`` line when none is supplied."""
+    if status == HUMAN_STATUS_HUMAN_NEEDED:
+        return (
+            f"Human → resolve {len(blocking)} blocking finding(s) before approval (owner: human)."
+        )
+    if status == HUMAN_STATUS_GAPS_FOUND:
+        gaps = sum(1 for r in trace_results.values() if r.result in ("partial", "unmet"))
+        return (
+            f"L0 → close {gaps} unmet/partial requirement(s); advisory-resolvable, "
+            f"no human gate (owner: L0)."
+        )
+    return "L0 → none required; all traced requirements met with no blocking findings (owner: L0)."
+
+
+def _default_where_we_are(status: str, version: str, satisfied: int, total: int) -> str:
+    """Build the ``## Where we are`` digest line when none is supplied."""
+    return f"Cycle {version}: status {status} — {satisfied}/{total} traced requirement(s) met."
 
 
 # ---------------------------------------------------------------------------
@@ -1110,6 +1523,9 @@ def main(argv: list[str] | None = None) -> int:
       ``--change <id>``  write only the per-change report (to the change's
                          archive folder, falling back to the active folder
                          when the change is not yet archived).
+      ``--human <ver>``  write the human convergence report for ``<ver>`` and
+                         refresh the digest (pair with ``--requirements``).
+      ``--requirements`` path to ``requirements.md`` for ``--human``.
       ``--repo-root``    pin the repo root (default: cwd).
       ``--print``        write to stdout instead of disk (only valid with
                          a single ``--workspace`` / ``--memory`` /
@@ -1140,6 +1556,19 @@ def main(argv: list[str] | None = None) -> int:
         help="Render only the per-change report for <change-id>.",
     )
     parser.add_argument(
+        "--human",
+        type=str,
+        default=None,
+        metavar="VERSION",
+        help="Render the human convergence report for <version> + refresh the digest.",
+    )
+    parser.add_argument(
+        "--requirements",
+        type=Path,
+        default=None,
+        help="Path to requirements.md for --human (REQ-ID -> evidence trace).",
+    )
+    parser.add_argument(
         "--print",
         action="store_true",
         dest="print_to_stdout",
@@ -1163,10 +1592,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     flavours = sum(
-        1 for flag in (args.all, args.workspace, args.memory, args.rules, bool(args.change)) if flag
+        1
+        for flag in (
+            args.all,
+            args.workspace,
+            args.memory,
+            args.rules,
+            bool(args.change),
+            bool(args.human),
+        )
+        if flag
     )
     if flavours == 0:
-        parser.error("specify --all, --workspace, --memory, --rules, or --change <id>")
+        parser.error(
+            "specify --all, --workspace, --memory, --rules, --change <id>, or --human <ver>"
+        )
     if args.print_to_stdout and (args.all or flavours > 1):
         parser.error("--print is only valid with a single non-`--all` flavour")
 
@@ -1209,6 +1649,30 @@ def main(argv: list[str] | None = None) -> int:
             text = render_change_report(args.change, repo_root=root)
             target = _change_report_target(root, args.change)
             return _emit_one(text, target, to_stdout=args.print_to_stdout)
+        if args.human:
+            convergence_text = render_human_report(
+                args.human,
+                repo_root=root,
+                requirements_path=args.requirements,
+            )
+            if args.print_to_stdout:
+                return _emit_one(
+                    convergence_text,
+                    root / _human_convergence_path(args.human),
+                    to_stdout=True,
+                )
+            convergence_path = _write_report(
+                root / _human_convergence_path(args.human), convergence_text
+            )
+            digest_text = render_human_digest(
+                args.human,
+                repo_root=root,
+                requirements_path=args.requirements,
+            )
+            digest_path = _write_report(root / HUMAN_DIGEST_PATH_DEFAULT, digest_text)
+            print(f"wrote {convergence_path}", file=sys.stderr)
+            print(f"wrote {digest_path}", file=sys.stderr)
+            return 0
     except (ChangeNotFoundError, FileNotFoundError) as exc:
         print(f"reporter: {exc}", file=sys.stderr)
         return 2
@@ -1253,6 +1717,11 @@ def _print_results(results: dict[str, object]) -> None:
     changes = results.get("changes") or []
     if isinstance(changes, list):
         for path in changes:
+            if isinstance(path, Path):
+                print(f"wrote {path}", file=sys.stderr)
+    human = results.get("human")
+    if isinstance(human, dict):
+        for path in human.values():
             if isinstance(path, Path):
                 print(f"wrote {path}", file=sys.stderr)
 

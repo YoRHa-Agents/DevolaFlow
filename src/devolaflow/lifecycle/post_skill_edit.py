@@ -39,9 +39,17 @@ Behaviour contract (R5 strict):
    imports :mod:`devolaflow.si_chip_bridge` and calls
    :func:`run_dogfood_cycle`. The verdict (APPLY / DEFER) is captured
    in the :class:`HookResult` metadata. When the verdict is DEFER,
-   the handler ALSO writes a deferred-changes feedback doc to
-   ``.local/feedbacks/`` (the canonical operator-visible feedback
-   surface telegraphed in the v9.5.0 user requirement).
+   the handler ALSO writes a deferred-changes feedback doc to the
+   PRIVATE agent tree ``.local/.agent/sichip-deferred/`` (relocated in
+   v14.0.0 ADR-8 / design §5b out of the human-facing
+   ``.local/feedbacks/`` — these docs are AGENT output, not
+   human-authored feedback). On first run the writer performs a
+   one-time best-effort migration of any legacy
+   ``sichip_deferred_*.md`` docs + the
+   ``.sichip_deferred_fingerprints.txt`` sidecar from the old location
+   (preserving the dedup set) and dual-reads the legacy location during
+   the transition window so a pre-relocation fingerprint still
+   suppresses a duplicate.
 
 S-5 compliance (no silent failures): every failure mode is surfaced
 through a typed :class:`HookViolation`:
@@ -81,6 +89,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -105,7 +114,26 @@ DEFAULT_ABILITY: str = "devola-flow"
 # Operators review this folder for Si-Chip suggestions that didn't clear
 # the +0.10 spec §23 threshold. Per the v9.5.0 user requirement: "if not,
 # I want you to summarise into a feedback document."
-FEEDBACK_DIR_DEFAULT: Path = Path(".local") / "feedbacks"
+#
+# v14.0.0 ADR-8 / design §5b — RELOCATED from the human-facing
+# ``.local/feedbacks/`` into the PRIVATE agent tree
+# ``.local/.agent/sichip-deferred/``. These docs are AGENT output (the
+# Si-Chip dogfood pass authored them), NOT human-authored feedback, so they
+# polluted the human surface. They are NOT moved under ``.local/human/``
+# either — that tree is reserved for human INPUT / agent-draft OUTPUT (design
+# §5b). The injectable ``feedback_dir`` payload key still overrides this
+# default (e.g. tests pass a tmp dir); the path is NOT hardcoded downstream.
+FEEDBACK_DIR_DEFAULT: Path = Path(".local") / ".agent" / "sichip-deferred"
+
+# v14.0.0 ADR-8 — the LEGACY default location (pre-relocation). When the
+# default new dir is in use, the writer performs a one-time best-effort
+# migration of any ``sichip_deferred_*.md`` docs + the
+# ``.sichip_deferred_fingerprints.txt`` sidecar from here into
+# FEEDBACK_DIR_DEFAULT (preserving the dedup set verbatim, F-5), and — as a
+# transition-window safety-net — dual-reads this location for dedup
+# fingerprints so a pre-relocation fingerprint still suppresses a duplicate
+# DEFER doc. Relative path per S-2.
+LEGACY_FEEDBACK_DIR_DEFAULT: Path = Path(".local") / "feedbacks"
 
 # v10.2.1 PV-02 D-S-5 — DEFER doc dedupe sidecar. Closes the gap from
 # `.local/research/v10.2.0_gap_analysis.md` §3.2 D-S-5: with DEEP integration
@@ -230,15 +258,15 @@ def _compute_defer_fingerprint(
     return _compute_fingerprint(skill_files, verdict, notes)
 
 
-def _load_existing_fingerprints(feedback_dir: Path) -> set[str]:
-    """Return the set of fingerprints already recorded in the sidecar.
+def _read_sidecar_fingerprints(feedback_dir: Path) -> set[str]:
+    """Return the fingerprint set recorded in ``feedback_dir``'s sidecar.
 
-    Idiomatic helper introduced in v10.2.3 PV-04 to match the
-    `_compute_fingerprint` naming pattern. Returns an empty set when
-    the sidecar file does not yet exist or cannot be read (per S-5
-    the OSError is logged at WARNING but does NOT raise — a missing
-    sidecar simply means no prior fingerprint state exists, which is
-    the fresh-clone case).
+    Single-directory read — the original :func:`_load_existing_fingerprints`
+    body, extracted in v14.0.0 ADR-8 so the dual-read orchestrator can reuse
+    it per location. Returns an empty set when the sidecar file does not yet
+    exist or cannot be read (per S-5 the OSError is logged at WARNING but does
+    NOT raise — a missing sidecar simply means no prior fingerprint state
+    exists, which is the fresh-clone case).
     """
     sidecar_path = feedback_dir / FINGERPRINT_SIDECAR_NAME
     if not sidecar_path.is_file():
@@ -256,6 +284,30 @@ def _load_existing_fingerprints(feedback_dir: Path) -> set[str]:
     return {line.strip() for line in text.splitlines() if line.strip()}
 
 
+def _load_existing_fingerprints(
+    feedback_dir: Path,
+    *,
+    legacy_feedback_dir: Path | None = None,
+) -> set[str]:
+    """Return the fingerprints recorded for ``feedback_dir`` (dual-read aware).
+
+    Idiomatic helper introduced in v10.2.3 PV-04 to match the
+    `_compute_fingerprint` naming pattern. Reads the new-location sidecar;
+    when ``legacy_feedback_dir`` is supplied (and distinct), v14.0.0 ADR-8
+    ALSO unions in the legacy-location sidecar — the transition-window
+    dual-read (design §5b / F-5) so a fingerprint recorded before the
+    relocation still suppresses a duplicate DEFER doc afterwards, even if the
+    one-time migration has not yet folded the legacy sidecar in.
+
+    With ``legacy_feedback_dir=None`` (the default) the behaviour is
+    byte-identical to the pre-v14.0.0 single-directory read.
+    """
+    fingerprints = _read_sidecar_fingerprints(feedback_dir)
+    if legacy_feedback_dir is not None and legacy_feedback_dir != feedback_dir:
+        fingerprints |= _read_sidecar_fingerprints(legacy_feedback_dir)
+    return fingerprints
+
+
 def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
     """Backward-compat alias for :func:`_load_existing_fingerprints`.
 
@@ -265,27 +317,19 @@ def _read_fingerprint_sidecar(feedback_dir: Path) -> set[str]:
     return _load_existing_fingerprints(feedback_dir)
 
 
-def _find_existing_doc_for_fingerprint(
-    feedback_dir: Path,
+def _scan_dir_for_fingerprint(
+    directory: Path,
+    marker: str,
     fingerprint: str,
 ) -> Path | None:
-    """Locate the prior DEFER doc carrying ``fingerprint`` (best-effort).
+    """Return the first ``sichip_deferred_*.md`` in ``directory`` with ``marker``.
 
-    Walks ``feedback_dir`` for ``sichip_deferred_*.md`` files and returns
-    the first one whose body contains the fingerprint marker. The marker
-    is embedded as a single HTML comment line near the top of every doc
-    written by :func:`_write_feedback_doc`, so the lookup is O(N) over
-    the doc count with cheap string-substring matching (not a full YAML
-    parse).
-
-    Returns ``None`` when no prior doc carries the fingerprint — the
-    sidecar may have an entry that predates the marker convention OR
-    the corresponding doc was manually deleted.
+    Cheap O(N) substring scan over the doc count (not a full YAML parse).
+    Per S-5 an unreadable doc is logged at WARNING and skipped, never raised.
     """
-    if not feedback_dir.is_dir():
+    if not directory.is_dir():
         return None
-    marker = f"<!-- sichip_fingerprint:{fingerprint} -->"
-    for entry in sorted(feedback_dir.glob("sichip_deferred_*.md")):
+    for entry in sorted(directory.glob("sichip_deferred_*.md")):
         try:
             text = entry.read_text(encoding="utf-8")
         except OSError as exc:
@@ -302,11 +346,145 @@ def _find_existing_doc_for_fingerprint(
     return None
 
 
+def _find_existing_doc_for_fingerprint(
+    feedback_dir: Path,
+    fingerprint: str,
+    *,
+    legacy_feedback_dir: Path | None = None,
+) -> Path | None:
+    """Locate the prior DEFER doc carrying ``fingerprint`` (best-effort).
+
+    Scans ``feedback_dir`` for the doc whose body embeds the fingerprint
+    marker (written by :func:`_write_feedback_doc` as a single HTML comment
+    line near the top). v14.0.0 ADR-8: when ``legacy_feedback_dir`` is
+    supplied (and distinct) and the doc is not found in the new dir, ALSO
+    scans the legacy location — so a duplicate is suppressed with the correct
+    prior path even if the one-time migration's doc-move step has not yet run
+    (transition-window dual-read, design §5b / F-5).
+
+    Returns ``None`` when no prior doc carries the fingerprint — the
+    sidecar may have an entry that predates the marker convention OR
+    the corresponding doc was manually deleted.
+    """
+    marker = f"<!-- sichip_fingerprint:{fingerprint} -->"
+    found = _scan_dir_for_fingerprint(feedback_dir, marker, fingerprint)
+    if found is not None:
+        return found
+    if legacy_feedback_dir is not None and legacy_feedback_dir != feedback_dir:
+        return _scan_dir_for_fingerprint(legacy_feedback_dir, marker, fingerprint)
+    return None
+
+
 def _append_fingerprint_sidecar(feedback_dir: Path, fingerprint: str) -> None:
     """Append ``fingerprint`` to the sidecar; loud on OSError per S-5."""
     sidecar_path = feedback_dir / FINGERPRINT_SIDECAR_NAME
     with sidecar_path.open("a", encoding="utf-8") as fh:
         fh.write(fingerprint + "\n")
+
+
+def _migrate_legacy_sidecar(legacy_dir: Path, new_dir: Path) -> list[str]:
+    """Union the legacy fingerprint sidecar into ``new_dir``'s, then drop legacy.
+
+    Preserves the dedup set verbatim (F-5): the legacy fingerprints are
+    merged with any already present in ``new_dir`` and rewritten (sorted, so
+    the result is deterministic) to ``new_dir``'s sidecar; the legacy sidecar
+    is then removed so a re-run is a no-op (idempotent). Returns a one-element
+    issues list on OSError (also logged at WARNING per S-5), else ``[]``.
+    """
+    legacy_sidecar = legacy_dir / FINGERPRINT_SIDECAR_NAME
+    if not legacy_sidecar.is_file():
+        return []
+    try:
+        merged = _read_sidecar_fingerprints(new_dir) | _read_sidecar_fingerprints(legacy_dir)
+        if merged:
+            new_sidecar = new_dir / FINGERPRINT_SIDECAR_NAME
+            new_sidecar.write_text("\n".join(sorted(merged)) + "\n", encoding="utf-8")
+        legacy_sidecar.unlink()
+    except OSError as exc:
+        logger.warning(
+            "post_skill_edit: failed migrating legacy fingerprint sidecar %s into %s: %s",
+            legacy_sidecar,
+            new_dir,
+            exc,
+        )
+        return [f"sidecar {legacy_sidecar}: {exc}"]
+    logger.info("post_skill_edit: migrated legacy fingerprint sidecar into %s", new_dir)
+    return []
+
+
+def _migrate_legacy_docs(legacy_dir: Path, new_dir: Path) -> list[str]:
+    """Move every legacy ``sichip_deferred_*.md`` doc into ``new_dir`` (best-effort).
+
+    Already-migrated docs (target name present in ``new_dir``) have their
+    stale legacy copy removed so re-runs converge (the timestamp+fingerprint
+    name guarantees same-name == same logical doc). Per S-5 each per-file
+    failure is logged at WARNING AND appended to the returned issues list;
+    the loop continues with the remaining docs rather than aborting.
+    """
+    issues: list[str] = []
+    try:
+        legacy_docs = sorted(legacy_dir.glob("sichip_deferred_*.md"))
+    except OSError as exc:
+        logger.warning("post_skill_edit: cannot list legacy DEFER docs in %s: %s", legacy_dir, exc)
+        return [f"glob {legacy_dir}: {exc}"]
+    for doc in legacy_docs:
+        target = new_dir / doc.name
+        try:
+            if target.exists():
+                doc.unlink()
+            else:
+                shutil.move(str(doc), str(target))
+        except OSError as exc:
+            logger.warning(
+                "post_skill_edit: failed migrating legacy DEFER doc %s into %s: %s",
+                doc,
+                target,
+                exc,
+            )
+            issues.append(f"move {doc}: {exc}")
+    if legacy_docs and not issues:
+        logger.info(
+            "post_skill_edit: migrated %d legacy DEFER doc(s) into %s",
+            len(legacy_docs),
+            new_dir,
+        )
+    return issues
+
+
+def _migrate_legacy_feedback_dir(legacy_dir: Path, new_dir: Path) -> list[str]:
+    """One-time best-effort move of legacy DEFER docs + sidecar into ``new_dir``.
+
+    v14.0.0 ADR-8 / design §5b (F-5). Relocates every ``sichip_deferred_*.md``
+    doc AND the ``.sichip_deferred_fingerprints.txt`` sidecar from the legacy
+    ``.local/feedbacks/`` location into the new private agent tree, PRESERVING
+    the dedup fingerprint set verbatim (the legacy sidecar is unioned into the
+    new sidecar, never dropped).
+
+    Idempotent: after a successful migration the legacy docs + sidecar are
+    gone, so a re-run finds nothing to move and returns ``[]``.
+
+    S-5 (no silent failure): every failure is logged at WARNING AND surfaced
+    in the returned issues list; the migration continues best-effort rather
+    than aborting. Returns the list of human-readable issue strings
+    (empty == fully clean).
+    """
+    try:
+        legacy_is_dir = legacy_dir.is_dir()
+    except OSError as exc:
+        logger.warning("post_skill_edit: cannot stat legacy feedback dir %s: %s", legacy_dir, exc)
+        return [f"stat {legacy_dir}: {exc}"]
+    if not legacy_is_dir:
+        return []
+
+    try:
+        new_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning("post_skill_edit: cannot create relocation target %s: %s", new_dir, exc)
+        return [f"mkdir {new_dir}: {exc}"]
+
+    issues = _migrate_legacy_sidecar(legacy_dir, new_dir)
+    issues.extend(_migrate_legacy_docs(legacy_dir, new_dir))
+    return issues
 
 
 def _write_feedback_doc(
@@ -315,12 +493,23 @@ def _write_feedback_doc(
     notes: list[str],
     install_source: str | None,
     verdict: str,
+    *,
+    legacy_feedback_dir: Path | None = None,
 ) -> Path:
     """Write the DEFER feedback doc to ``feedback_dir``; return path.
 
     Per the v9.5.0 user requirement: "if not, I want you to summarise
     into a feedback document". This is the operator-visible deferred-
     changes record.
+
+    v14.0.0 ADR-8 (design §5b / F-5): when ``legacy_feedback_dir`` is
+    supplied (and distinct from ``feedback_dir``), a one-time best-effort
+    migration FIRST relocates any legacy ``sichip_deferred_*.md`` docs + the
+    fingerprint sidecar into ``feedback_dir`` (preserving the dedup set), and
+    the dedup check dual-reads the legacy location so a pre-relocation
+    fingerprint still suppresses a duplicate. With ``legacy_feedback_dir=None``
+    (the default) the behaviour is byte-identical to the pre-v14.0.0
+    single-directory writer.
 
     v10.2.1 PV-02 (D-S-5 closure) adds content-based deduplication: a
     SHA-256 fingerprint of ``(sorted(skill_files), sorted(notes), verdict)``
@@ -346,10 +535,20 @@ def _write_feedback_doc(
     shape than per-doc scanning every write.
     """
     feedback_dir.mkdir(parents=True, exist_ok=True)
+    if legacy_feedback_dir is not None and legacy_feedback_dir != feedback_dir:
+        migration_issues = _migrate_legacy_feedback_dir(legacy_feedback_dir, feedback_dir)
+        if migration_issues:
+            logger.warning(
+                "post_skill_edit: legacy feedback migration completed with %d issue(s): %s",
+                len(migration_issues),
+                "; ".join(migration_issues),
+            )
     fingerprint = _compute_fingerprint(skill_files, verdict, notes)
-    known = _load_existing_fingerprints(feedback_dir)
+    known = _load_existing_fingerprints(feedback_dir, legacy_feedback_dir=legacy_feedback_dir)
     if fingerprint in known:
-        prior = _find_existing_doc_for_fingerprint(feedback_dir, fingerprint)
+        prior = _find_existing_doc_for_fingerprint(
+            feedback_dir, fingerprint, legacy_feedback_dir=legacy_feedback_dir
+        )
         if prior is not None:
             logger.info(
                 "post_skill_edit: DEFER fingerprint %s already on disk; "
@@ -503,6 +702,32 @@ def _run_si_chip_evaluation(
     return result, [], None
 
 
+def _resolve_legacy_feedback_dir(
+    payload: dict[str, Any],
+    feedback_dir_raw: Any,
+) -> Path | None:
+    """Resolve the legacy DEFER-doc dir for migration + dual-read (ADR-8).
+
+    v14.0.0 design §5b. Three cases:
+
+    * Explicit ``payload["legacy_feedback_dir"]`` → use it (tests / custom
+      callers control both ends of the relocation).
+    * No explicit legacy AND no explicit ``feedback_dir`` (the relocated
+      default dir is in use) → the real legacy default
+      ``.local/feedbacks/``, so the production relocation migrates +
+      dual-reads the actual pre-v14.0.0 location.
+    * A CUSTOM ``feedback_dir`` supplied WITHOUT an explicit legacy →
+      ``None`` (no implicit migration of the real ``.local/feedbacks/`` into
+      an unrelated injected dir — keeps injected-dir callers/tests hermetic).
+    """
+    legacy_raw = payload.get("legacy_feedback_dir")
+    if legacy_raw is not None:
+        return Path(legacy_raw)
+    if feedback_dir_raw is None:
+        return LEGACY_FEEDBACK_DIR_DEFAULT
+    return None
+
+
 def post_skill_edit(
     payload: dict[str, Any],
     *,
@@ -541,7 +766,9 @@ def post_skill_edit(
     from devolaflow.si_chip_bridge import ApplyVerdict
 
     ability_name = str(payload.get("ability_name") or DEFAULT_ABILITY)
-    feedback_dir = Path(payload.get("feedback_dir") or FEEDBACK_DIR_DEFAULT)
+    feedback_dir_raw = payload.get("feedback_dir")
+    feedback_dir = Path(feedback_dir_raw or FEEDBACK_DIR_DEFAULT)
+    legacy_feedback_dir = _resolve_legacy_feedback_dir(payload, feedback_dir_raw)
     threshold = float(payload.get("threshold") or 0.10)
 
     metadata: dict[str, Any] = {
@@ -578,6 +805,7 @@ def post_skill_edit(
                 result.notes,
                 result.install_source,
                 result.verdict.value,
+                legacy_feedback_dir=legacy_feedback_dir,
             )
         except OSError:
             logger.warning(
@@ -622,6 +850,7 @@ __all__ = [
     "EVENT",
     "FEEDBACK_DIR_DEFAULT",
     "FINGERPRINT_SIDECAR_NAME",
+    "LEGACY_FEEDBACK_DIR_DEFAULT",
     "SKILL_CORPUS_PREFIX",
     "is_deep_integration_active",
     "metadata_to_json",

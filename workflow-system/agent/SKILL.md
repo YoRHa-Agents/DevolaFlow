@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "13.0.0"
+version: "14.0.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v13.0.0**
+> **Now Using DevolaFlow v14.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 13.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 14.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ### Session Banner Contract (v12.3.0+)
@@ -425,6 +425,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/evaluator-rosetta.md` | SI-3 × NineS × Si-Chip 6×9 cross-walk, C-04 split, per-cell authority citations |
 | `references/execution-protocol.md` | Task execution lifecycle, tool usage patterns |
 | `references/grill-mode.md` | Grill mode active, stress-test plan, sharpen terminology, interrogate operator, codebase cross-reference, ADR offer evaluation |
+| `references/human-surface.md` | `.local/human/` INPUT (immutable REQ-IDs + constitution + amendments) + OUTPUT (convergence report + DIGEST); `trace_requirements`/`lint_human`/`render_human_report`; scan fields |
 | `references/impeccable.md` | Design refinement + no-LLM anti-pattern detector; 23 /impeccable commands; `impeccable detect` exit-code gate; ui-pro → impeccable web-design composition; degraded-mode contract |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
 | `references/meta-framework.md` | Workflow instantiation, stage ordering |

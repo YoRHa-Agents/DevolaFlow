@@ -51,10 +51,12 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "ARTIFACT_BUDGETS",
+    "HUMAN_ARTIFACT_BUDGETS",
     "BudgetReport",
     "BudgetViolation",
     "estimate_tokens",
     "lint_change",
+    "lint_human",
     "main",
 ]
 
@@ -75,6 +77,27 @@ ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
 
 # learnings.jsonl: enforced as a file-size ceiling rather than tokens.
 LEARNINGS_JSONL_MAX_BYTES: Final[int] = 50 * 1024
+
+
+# Per the v14.0.0 design §4c — NEW C-9 rows for the ``.local/human/`` surface.
+# TOKENS are the sole enforced unit (finding F-4): the line/word figures in
+# the design are authoring guidance only, NOT a second linted axis — so these
+# reuse the existing :func:`estimate_tokens` heuristic with NO new measurement
+# machinery. Keys are the canonical artifact patterns relative to
+# ``.local/human/``; the per-file ``input/requirements/<domain>.md`` shard cap
+# (finding F-3) and the ``input/amendments/`` ledger files each apply PER FILE.
+HUMAN_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
+    "input/constitution.md": (800, 1500),
+    "input/requirements.md": (1200, 2500),
+    "input/requirements/<domain>.md": (1200, 2500),
+    "input/amendments/<date>-<slug>.md": (400, 800),
+    "output/DIGEST.md": (600, 1000),
+    "output/convergence/<version>-convergence.md": (700, 1000),
+}
+
+# Root of the human surface (relative to the repo root); INPUT + OUTPUT zones
+# are both linted, the dated ``archive/`` is not (frozen snapshots — design §2).
+HUMAN_DIR_DEFAULT: Final[Path] = Path(".local") / "human"
 
 
 @dataclass
@@ -258,6 +281,106 @@ def _find_archived_folder(archive_root: Path, change_id: str) -> Path | None:
     return None
 
 
+def _human_budget_for(rel: str) -> tuple[int, int] | None:
+    """Return the C-9 budget for a path relative to ``.local/human/``.
+
+    ``rel`` uses forward slashes. Returns ``None`` for files not governed by
+    a :data:`HUMAN_ARTIFACT_BUDGETS` row (e.g. ``README.md`` or anything under
+    the frozen ``archive/`` zone) — those are intentionally unbudgeted, not a
+    silent drop.
+    """
+    fixed = {
+        "input/constitution.md": "input/constitution.md",
+        "input/requirements.md": "input/requirements.md",
+        "output/DIGEST.md": "output/DIGEST.md",
+    }
+    if rel in fixed:
+        return HUMAN_ARTIFACT_BUDGETS[fixed[rel]]
+
+    parts = rel.split("/")
+    if len(parts) == 3 and rel.endswith(".md"):
+        zone, family, _name = parts
+        if zone == "input" and family == "requirements":
+            return HUMAN_ARTIFACT_BUDGETS["input/requirements/<domain>.md"]
+        if zone == "input" and family == "amendments":
+            return HUMAN_ARTIFACT_BUDGETS["input/amendments/<date>-<slug>.md"]
+        if zone == "output" and family == "convergence":
+            return HUMAN_ARTIFACT_BUDGETS["output/convergence/<version>-convergence.md"]
+    return None
+
+
+def lint_human(
+    repo_root: Path | None = None,
+    *,
+    human_root: Path | None = None,
+) -> BudgetReport:
+    """Lint the ``.local/human/`` INPUT + OUTPUT zones against the §4c budgets.
+
+    A sibling entry point to :func:`lint_change` (which is change-folder-only
+    and is deliberately NOT overloaded). Walks ``input/**`` + ``output/**``,
+    maps each file to its :data:`HUMAN_ARTIFACT_BUDGETS` row via
+    :func:`_human_budget_for`, and applies the TOKEN budget with the shared
+    :func:`estimate_tokens` heuristic. The per-file ``input/requirements/
+    <domain>.md`` shard cap and the ``input/amendments/`` ledger files each
+    apply PER FILE. The dated ``archive/`` zone is excluded (frozen
+    snapshots).
+
+    Args:
+      repo_root: repo root (default: ``Path.cwd()``).
+      human_root: override the ``.local/human`` root (relative to
+        ``repo_root`` when not absolute) — mainly for tests.
+
+    Returns:
+      :class:`BudgetReport` with ``change_id="human"``, all budget
+      violations, and the relative path of every budget-governed file
+      checked. An absent ``.local/human/`` directory yields an empty report
+      (the surface is opt-in / may not be scaffolded yet — that is a valid
+      state, NOT an error).
+    """
+    root = repo_root or Path.cwd()
+    base = human_root if human_root is not None else Path(HUMAN_DIR_DEFAULT)
+    if not base.is_absolute():
+        base = root / base
+
+    report = BudgetReport(change_id="human", change_folder=base)
+    if not base.is_dir():
+        return report
+
+    for path in sorted(base.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(base).as_posix()
+        budget = _human_budget_for(rel)
+        if budget is None:
+            continue
+        soft, hard = budget
+        text = path.read_text(encoding="utf-8")
+        tokens = estimate_tokens(text)
+        report.checked_files.append(rel)
+        if tokens > hard:
+            report.violations.append(
+                BudgetViolation(
+                    filename=rel,
+                    observed_tokens=tokens,
+                    soft_budget=soft,
+                    hard_budget=hard,
+                    severity="FAIL",
+                )
+            )
+        elif tokens > soft:
+            report.violations.append(
+                BudgetViolation(
+                    filename=rel,
+                    observed_tokens=tokens,
+                    soft_budget=soft,
+                    hard_budget=hard,
+                    severity="WARN",
+                )
+            )
+
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point — ``python -m devolaflow.agent_workspace.lint <id>``.
 
@@ -266,11 +389,22 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = argparse.ArgumentParser(
         prog="python -m devolaflow.agent_workspace.lint",
-        description="Lint a .local/.agent/active/<change-id>/ folder against C-9 budgets.",
+        description=(
+            "Lint a .local/.agent/active/<change-id>/ folder against C-9 budgets, "
+            "or the .local/human/ surface with --human."
+        ),
     )
     parser.add_argument(
         "change_id",
-        help="lowercase-kebab-case change id (e.g. add-dark-mode, v8.3.0-pv05)",
+        nargs="?",
+        default=None,
+        help="lowercase-kebab-case change id (e.g. add-dark-mode, v8.3.0-pv05); "
+        "omit when using --human",
+    )
+    parser.add_argument(
+        "--human",
+        action="store_true",
+        help="lint the .local/human/ INPUT + OUTPUT zones instead of a change folder",
     )
     parser.add_argument(
         "--repo-root",
@@ -297,16 +431,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    try:
-        report = lint_change(
-            args.change_id,
-            repo_root=args.repo_root,
-            active_dir=args.active_dir,
-            archive_dir=args.archive_dir,
-        )
-    except FileNotFoundError as exc:
-        print(f"lint: {exc}", file=sys.stderr)
-        return 2
+    if args.human:
+        report = lint_human(repo_root=args.repo_root)
+    else:
+        if not args.change_id:
+            parser.error("change_id is required unless --human is given")
+        try:
+            report = lint_change(
+                args.change_id,
+                repo_root=args.repo_root,
+                active_dir=args.active_dir,
+                archive_dir=args.archive_dir,
+            )
+        except FileNotFoundError as exc:
+            print(f"lint: {exc}", file=sys.stderr)
+            return 2
 
     if not args.quiet:
         # PASS rows for every checked file (so the operator sees coverage).

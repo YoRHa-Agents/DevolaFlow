@@ -5,6 +5,39 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.0.0] - 2026-06-04 — MAJOR — Human Interaction Surface (`.local/human/`)
+
+**MAJOR — human-surface cycle.** v14.0.0 introduces the **`.local/human/` human interaction surface**: the durable, human-authored counterpart to the agent-only `.local/.agent/` workspace. It adds a three-zone tree — `.local/human/{input,output,archive}/` — that cleanly separates **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back). INPUT carries a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger (`Lifecycle: RATIFIED`); OUTPUT carries a `DIGEST.md` plus `convergence/<version>-convergence.md` reports gated by a status enum and the NEW C-9 token budgets. Zero schema bumps (A-2 cache layout untouched — `canonical_order` stays 17; the human surface is artifact-level, not a dispatch key), zero new env flags (W-20 reuse-first preserved — `DEVOLAFLOW_AGENT_WORKSPACE=1` is REUSED), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**NEW `.local/human/` three-zone tree.** `input/` is human-owned and immutable once ratified (constitution + REQ-ID requirements + append-only amendments); `output/` is agent-written and concise (DIGEST + convergence reports); `archive/` retains superseded artifacts. Per C-9 the human surface gets its own per-artifact TOKEN budgets (the sole enforced unit): `input/constitution.md` (800/1500), `input/requirements.md` + `input/requirements/<domain>.md` shards (1200/2500), `input/amendments/<date>-<slug>.md` (400/800), `output/DIGEST.md` (600/1000), `output/convergence/<version>-convergence.md` (700/1000). Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
+
+**INPUT immutability (append-only).** The NEW `check_human_input_append_only` lifecycle hook guards `.local/human/input/` so ratified requirements + amendments cannot be silently overwritten (mirrors S-9 append-only handoff semantics; warn in lite mode, block + escalate in full/STRICT).
+
+**INPUT-only git tracking (D2 / ADR-2).** `.gitignore` now tracks the human **INPUT** zone ONLY — the durable constitution + requirements + amendments are versioned, while `output/` + `archive/` stay gitignored (regenerable agent artifacts).
+
+**Si-Chip relocation (ADR-8).** The `sichip-deferred` feedback artifacts RELOCATE out of the human-facing surface to `.local/.agent/sichip-deferred/`; the dual-read orchestrator reads the new location while preserving byte-identical behaviour for callers that supply the legacy directory.
+
+### NEW symbols (W-18 stanzas refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v14_0_0_human_surface_symbols`:
+
+- `src/devolaflow/agent_workspace/requirements_trace.py` — NEW `trace_requirements()` + `RequirementTraceResult` (REQ-ID → evidence trace; design §6c).
+- `src/devolaflow/lifecycle/check_human_input_append_only.py` — NEW `check_human_input_append_only()` immutability hook (design §3c).
+- `src/devolaflow/agent_workspace/reporter.py` — NEW `render_human_report()` + `render_human_digest()` (the FIFTH reporter flavour; design §4).
+- `src/devolaflow/agent_workspace/lint.py` — NEW `lint_human()` + `HUMAN_ARTIFACT_BUDGETS` (6 C-9 rows; design §4c).
+- `src/devolaflow/workspace_context.py` — 4 NEW additive `scan_workspace` fields: `has_human_dir`, `human_constitution`, `human_requirements`, `human_digest` (design §6a).
+- `src/devolaflow/agent_workspace/__init__.py` — `__all__` re-exports the 6 NEW public symbols above.
+- `workflow-system/agent/references/human-surface.md` — NEW Tier-2 reference (24th SF-4 entry).
+
+### Pure-additive (NON-BREAKING)
+
+- NEW test files: `tests/test_requirements_trace.py`, `tests/test_human_input_immutability.py`, `tests/test_lint_human.py`, `tests/test_workspace_context_scan.py`.
+- `workflow-system/agent/SKILL.md` — Reference Navigation Tier-2 row for `references/human-surface.md` (24th SF-4 entry); `scripts/sync_cursor_skill.py::MIRRORED_FILES` gains the same.
+- `benchmarks/devolaflow_context/baselines/v14.0.0_baseline.json` — wholesale W-16 regen at the v14.0.0 MAJOR cycle (the drift PV — the NEW SKILL.md human-surface nav row flows into context selection, lifting `self_update_integration` 76.56 → 83.77). All 57 scenarios covered; zero scenario regressions > 5%. Prior baselines kept on disk.
+- `tests/test_benchmarks.py` — baseline pointer (`V6_BASELINE_PATH` + `_newest_baseline_path` assertion) repointed to `v14.0.0_baseline.json`.
+
 ## [13.0.0] - 2026-06-01 — MAJOR — Impeccable Integration + Web-Design Workflow + Bundled Plugin Install
 
 **MAJOR — design-cycle.** v13.0.0 integrates [`pbakaus/impeccable`](https://github.com/pbakaus/impeccable) as DevolaFlow's **6th plugin** (NEW `ui_refinement` role) — a cross-provider design language system shipping a single agent skill with **23 `/impeccable` steering commands** (polish/critique/audit/typeset/arrange/animate/craft/shape/...) plus a **no-LLM deterministic anti-pattern detector** (`impeccable detect`; 27 rules; exit 0 = clean, exit 2 = anti-patterns found). It adds the **NEW `web-design` workflow** (ui-pro DESIGNS → impeccable REFINES + VERIFIES, with a refine↔verify convergence loop gated by `impeccable detect`), and makes **global devola installs bundle all runtime plugins by default** (`--no-plugins` opt-out). Zero schema bumps (canonical_order stays 17 — `ensure_plugins` is template config, not a dispatch key; A-2.4 multi-baseline unchanged), zero new env flags (W-20 reuse-first preserved at 7 — `--no-plugins` is a CLI arg; runtime install reuses `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`), zero new Soul rules (W-21 freeze at 10/12). SKILL.md 488 → 491 lines (under C-4 ≤500 ceiling).

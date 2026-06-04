@@ -126,6 +126,22 @@ class WorkspaceContext:
         under ``repo_root`` — ``"AGENTS.md"`` and/or
         ``".cursor/rules/repo-governance.mdc"``. Order matches
         :data:`_COMPILED_CORPUS_CANDIDATES`.
+    has_human_dir:
+        ``True`` when ``.local/human/`` exists as a directory — the
+        v14.0.0 human-interaction surface (first-class sibling of
+        ``.agent/`` / ``memory/`` / ``research/``). ``False`` when absent.
+    human_constitution:
+        :class:`Path` to ``.local/human/input/constitution.md`` when the
+        file is present, else ``None``. The authoritative, amendable
+        human principles/constraints anchor (the binding INPUT zone).
+    human_requirements:
+        :class:`Path` to ``.local/human/input/requirements.md`` when the
+        file is present, else ``None``. The durable stable-ID requirement
+        set (the plan-mode scope contract).
+    human_digest:
+        :class:`Path` to ``.local/human/output/DIGEST.md`` when the file
+        is present, else ``None``. The read-first, anti-flooding
+        convergence digest (the OUTPUT zone skim surface).
     """
 
     repo_root: Path
@@ -138,6 +154,10 @@ class WorkspaceContext:
     memory_cases_count: int = 0
     rules_layer_set: tuple[str, ...] = ()
     compiled_corpora: tuple[str, ...] = ()
+    has_human_dir: bool = False
+    human_constitution: Path | None = None
+    human_requirements: Path | None = None
+    human_digest: Path | None = None
 
     def to_summary_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable summary of this snapshot.
@@ -190,6 +210,14 @@ class WorkspaceContext:
             "memory_cases_count": self.memory_cases_count,
             "rules_layer_set": list(self.rules_layer_set),
             "compiled_corpora": list(self.compiled_corpora),
+            "has_human_dir": self.has_human_dir,
+            "human_constitution": (
+                _rel(self.human_constitution) if self.human_constitution is not None else None
+            ),
+            "human_requirements": (
+                _rel(self.human_requirements) if self.human_requirements is not None else None
+            ),
+            "human_digest": (_rel(self.human_digest) if self.human_digest is not None else None),
         }
 
 
@@ -212,6 +240,25 @@ def _is_dir_safe(path: Path) -> bool:
     except OSError as exc:
         _logger.warning(
             "scan_workspace: OSError reading %s — treating as absent: %s",
+            path,
+            exc,
+        )
+        return False
+
+
+def _is_file_safe(path: Path) -> bool:
+    """Return ``True`` iff ``path`` is a regular file; absorb PermissionError.
+
+    Single-file analogue of :func:`_is_dir_safe` (PermissionError is a
+    subclass of OSError, so the single ``except OSError`` arm catches both).
+    An unreadable path emits a WARNING and is treated as absent — the warning
+    IS the explicit error state per Soul Rule S-5; callers never raise.
+    """
+    try:
+        return path.is_file()
+    except OSError as exc:
+        _logger.warning(
+            "scan_workspace: OSError checking %s — treating as absent: %s",
             path,
             exc,
         )
@@ -371,6 +418,36 @@ def _scan_compiled_corpora(repo_root: Path) -> tuple[str, ...]:
     return tuple(present)
 
 
+def _scan_human_input(local_dir: Path) -> tuple[Path | None, Path | None]:
+    """Return ``(constitution, requirements)`` paths under ``.local/human/input/``.
+
+    Mirrors :func:`_scan_recent_feedbacks` — performs ONLY filesystem reads.
+    Each anchor (``input/constitution.md`` and ``input/requirements.md``)
+    resolves to its :class:`Path` when present, else ``None`` (S-5 explicit
+    default). :func:`_is_file_safe` degrades a PermissionError/OSError to
+    ``None`` + a WARNING — never raises — so the v14.0.0 INPUT zone is safe
+    to probe unconditionally at session start.
+    """
+    input_dir = local_dir / "human" / "input"
+    constitution = input_dir / "constitution.md"
+    requirements = input_dir / "requirements.md"
+    return (
+        constitution if _is_file_safe(constitution) else None,
+        requirements if _is_file_safe(requirements) else None,
+    )
+
+
+def _scan_human_output(local_dir: Path) -> Path | None:
+    """Return the ``.local/human/output/DIGEST.md`` path when present, else ``None``.
+
+    Mirrors :func:`_scan_recent_feedbacks` S-5 semantics — the read-first
+    digest is the only OUTPUT-zone anchor the discovery snapshot surfaces
+    (the per-cycle convergence reports stay private and are not scanned).
+    """
+    digest = local_dir / "human" / "output" / "DIGEST.md"
+    return digest if _is_file_safe(digest) else None
+
+
 def scan_workspace(repo_root: Path | str) -> WorkspaceContext:
     """Scan a consumer repo for DevolaFlow workspace surfaces.
 
@@ -421,6 +498,10 @@ def scan_workspace(repo_root: Path | str) -> WorkspaceContext:
     source_of_truth_specs: tuple[Path, ...] = ()
     memory_cases_count = 0
     rules_layer_set: tuple[str, ...] = ()
+    has_human_dir = False
+    human_constitution: Path | None = None
+    human_requirements: Path | None = None
+    human_digest: Path | None = None
 
     if has_agent_dir:
         active_changes = _scan_active_changes(agent_dir)
@@ -428,6 +509,9 @@ def scan_workspace(repo_root: Path | str) -> WorkspaceContext:
         recent_feedbacks = _scan_recent_feedbacks(local_dir)
         source_of_truth_specs = _scan_source_of_truth_specs(local_dir)
         memory_cases_count = _scan_memory_cases_count(local_dir)
+        has_human_dir = _is_dir_safe(local_dir / "human")
+        human_constitution, human_requirements = _scan_human_input(local_dir)
+        human_digest = _scan_human_output(local_dir)
     if has_rules:
         rules_layer_set = _scan_rules_layer_set(rules_dir)
 
@@ -444,4 +528,8 @@ def scan_workspace(repo_root: Path | str) -> WorkspaceContext:
         memory_cases_count=memory_cases_count,
         rules_layer_set=rules_layer_set,
         compiled_corpora=compiled_corpora,
+        has_human_dir=has_human_dir,
+        human_constitution=human_constitution,
+        human_requirements=human_requirements,
+        human_digest=human_digest,
     )

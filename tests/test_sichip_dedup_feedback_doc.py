@@ -18,18 +18,32 @@ skill-corpus commit produced a NEW feedback doc — `.local/feedbacks/`
 filled with low-information DEFER timestamps. This dedupe collapses
 duplicate writes idempotently.
 
+v14.0.0 ADR-8 / design §5b extends this with the de-pollution
+relocation: the default DEFER-doc dir moves OUT of the human-facing
+`.local/feedbacks/` into the private agent tree
+`.local/.agent/sichip-deferred/`, with a one-time migration of existing
+docs + the sidecar and a transition-window dual-read that keeps the
+dedup set intact across the move (the §"v14.0.0" tests below).
+
 Source: `.local/research/v10.2.0_cycle_plan.md` §3 PV-02 owned-files
-manifest.
+manifest; `.local/research/v14.0.0_design.md` §5b + ADR-8.
 External tool reference: https://github.com/YoRHa-Agents/Si-Chip
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
+import pytest
+
 from devolaflow.lifecycle.post_skill_edit import (
+    FEEDBACK_DIR_DEFAULT,
     FINGERPRINT_SIDECAR_NAME,
+    LEGACY_FEEDBACK_DIR_DEFAULT,
     _compute_defer_fingerprint,
+    _load_existing_fingerprints,
+    _migrate_legacy_feedback_dir,
     _write_feedback_doc,
 )
 
@@ -220,3 +234,148 @@ def test_fingerprint_is_order_invariant_across_skill_files(tmp_path: Path) -> No
         f"{[p.name for p in docs]!r}"
     )
     assert second_path == first_path
+
+
+# ---------------------------------------------------------------------------
+# v14.0.0 ADR-8 / design §5b — de-pollution relocation + migration + dual-read
+# ---------------------------------------------------------------------------
+
+
+def test_feedback_dir_default_relocated_to_agent_tree() -> None:
+    """The default DEFER-doc dir is the private agent tree, not feedbacks/ (a)."""
+    assert Path(".local") / ".agent" / "sichip-deferred" == FEEDBACK_DIR_DEFAULT
+    assert "feedbacks" not in FEEDBACK_DIR_DEFAULT.parts
+    assert Path(".local") / "feedbacks" == LEGACY_FEEDBACK_DIR_DEFAULT
+
+
+def test_migration_moves_docs_and_sidecar_into_new_dir(tmp_path: Path) -> None:
+    """First write relocates legacy docs + sidecar out of feedbacks/ into the new dir (b)."""
+    legacy_dir = tmp_path / ".local" / "feedbacks"
+    new_dir = tmp_path / ".local" / ".agent" / "sichip-deferred"
+    legacy_dir.mkdir(parents=True)
+    legacy_doc = legacy_dir / "sichip_deferred_20250101T000000_000000Z.md"
+    legacy_doc.write_text("# old DEFER doc\n", encoding="utf-8")
+    (legacy_dir / FINGERPRINT_SIDECAR_NAME).write_text("cafef00d\n", encoding="utf-8")
+
+    # A fresh, UNRELATED DEFER write into the NEW dir triggers the one-time migration.
+    out_path = _write_feedback_doc(
+        feedback_dir=new_dir,
+        skill_files=["workflow-system/agent/SKILL.md"],
+        notes=["fresh note"],
+        install_source="cursor_global",
+        verdict="DEFER",
+        legacy_feedback_dir=legacy_dir,
+    )
+
+    # Legacy dir is drained — docs + sidecar moved out of feedbacks/.
+    assert _list_defer_docs(legacy_dir) == []
+    assert not (legacy_dir / FINGERPRINT_SIDECAR_NAME).exists()
+    # The migrated legacy doc + the fresh doc both live in the relocated dir.
+    assert (new_dir / legacy_doc.name).is_file()
+    assert out_path.parent == new_dir
+    assert len(_list_defer_docs(new_dir)) == 2
+    # Migrated legacy fingerprint preserved verbatim in the new sidecar.
+    new_sidecar = (new_dir / FINGERPRINT_SIDECAR_NAME).read_text(encoding="utf-8")
+    assert "cafef00d" in new_sidecar
+
+
+def test_dedup_survives_migration_legacy_fingerprint_suppresses(tmp_path: Path) -> None:
+    """A pre-relocation fingerprint suppresses a duplicate after the move (c / F-5)."""
+    legacy_dir = tmp_path / ".local" / "feedbacks"
+    new_dir = tmp_path / ".local" / ".agent" / "sichip-deferred"
+    skill_files = ["workflow-system/agent/SKILL.md"]
+    notes = ["iteration_delta=+0.02 vs threshold +0.10 → DEFER"]
+
+    # 1) The doc was originally written to the LEGACY location (pre-relocation).
+    legacy_path = _write_feedback_doc(
+        feedback_dir=legacy_dir,
+        skill_files=skill_files,
+        notes=notes,
+        install_source="cursor_global",
+        verdict="DEFER",
+    )
+    assert legacy_path.parent == legacy_dir
+
+    # 2) Post-relocation: identical inputs land in the NEW dir with legacy migration on.
+    relocated_path = _write_feedback_doc(
+        feedback_dir=new_dir,
+        skill_files=skill_files,
+        notes=notes,
+        install_source="cursor_global",
+        verdict="DEFER",
+        legacy_feedback_dir=legacy_dir,
+    )
+
+    # Duplicate suppressed: exactly ONE doc on disk (the migrated original), none
+    # left in legacy, and the returned path is the migrated prior doc (same name).
+    assert len(_list_defer_docs(new_dir)) == 1
+    assert _list_defer_docs(legacy_dir) == []
+    assert relocated_path.parent == new_dir
+    assert relocated_path.name == legacy_path.name
+
+
+def test_dual_read_unions_legacy_fingerprints(tmp_path: Path) -> None:
+    """_load_existing_fingerprints unions new + legacy sidecars during transition (c)."""
+    legacy_dir = tmp_path / "feedbacks"
+    new_dir = tmp_path / "sichip-deferred"
+    legacy_dir.mkdir()
+    new_dir.mkdir()
+    (new_dir / FINGERPRINT_SIDECAR_NAME).write_text("aaa\n", encoding="utf-8")
+    (legacy_dir / FINGERPRINT_SIDECAR_NAME).write_text("bbb\nccc\n", encoding="utf-8")
+
+    # New dir only (no legacy) → just the new sidecar (byte-identical legacy behaviour).
+    assert _load_existing_fingerprints(new_dir) == {"aaa"}
+    # Dual-read → union across both locations so pre-relocation fingerprints still count.
+    assert _load_existing_fingerprints(new_dir, legacy_feedback_dir=legacy_dir) == {
+        "aaa",
+        "bbb",
+        "ccc",
+    }
+
+
+def test_migration_is_idempotent_and_noop_without_legacy(tmp_path: Path) -> None:
+    """Re-running migration is a no-op; a missing legacy dir yields no issues."""
+    legacy_dir = tmp_path / ".local" / "feedbacks"
+    new_dir = tmp_path / ".local" / ".agent" / "sichip-deferred"
+
+    # No legacy dir at all → clean no-op (early return, empty issues list).
+    assert _migrate_legacy_feedback_dir(legacy_dir, new_dir) == []
+
+    # Seed a legacy doc + sidecar, then migrate once.
+    legacy_dir.mkdir(parents=True)
+    legacy_doc = legacy_dir / "sichip_deferred_20240101T000000_000000Z.md"
+    legacy_doc.write_text("# old\n", encoding="utf-8")
+    (legacy_dir / FINGERPRINT_SIDECAR_NAME).write_text("f00d\n", encoding="utf-8")
+    assert _migrate_legacy_feedback_dir(legacy_dir, new_dir) == []
+    assert (new_dir / legacy_doc.name).is_file()
+    assert not (legacy_dir / FINGERPRINT_SIDECAR_NAME).exists()
+
+    # A straggler legacy doc with the same name re-appears; re-run is idempotent —
+    # the stale legacy copy is removed because the target already exists in new_dir.
+    legacy_doc.write_text("# old again\n", encoding="utf-8")
+    assert _migrate_legacy_feedback_dir(legacy_dir, new_dir) == []
+    assert not legacy_doc.exists()
+    assert len(_list_defer_docs(new_dir)) == 1
+
+
+def test_migration_records_move_failure_without_raising(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S-5: a failed doc move is recorded in issues + best-effort, never silently swallowed."""
+    legacy_dir = tmp_path / ".local" / "feedbacks"
+    new_dir = tmp_path / ".local" / ".agent" / "sichip-deferred"
+    legacy_dir.mkdir(parents=True)
+    legacy_doc = legacy_dir / "sichip_deferred_20240101T000000_000000Z.md"
+    legacy_doc.write_text("# old\n", encoding="utf-8")
+
+    def boom(*_args, **_kwargs):
+        raise OSError("simulated disk full")
+
+    monkeypatch.setattr(shutil, "move", boom)
+    issues = _migrate_legacy_feedback_dir(legacy_dir, new_dir)
+
+    # The failure is SURFACED (not swallowed) and the call returned without raising.
+    assert issues, "S-5 violation: a failed move MUST be recorded in the issues list"
+    assert any(issue.startswith("move ") for issue in issues)
+    # Best-effort: the un-moved legacy doc is left in place (not lost).
+    assert legacy_doc.exists()

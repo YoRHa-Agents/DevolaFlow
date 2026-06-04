@@ -176,14 +176,26 @@ def test_canonical_lists_match_sf3_contract() -> None:
     ceiling per SF-1). Pairs with the web-design workflow template +
     `tests/test_impeccable_reference_doc.py`.
 
+    v14.0.0 grew the reference set 19 → 20 by appending
+    ``references/human-surface.md`` (the `.local/human/` human-facing
+    interaction surface — immutable INPUT (constitution + stable REQ-IDs +
+    append-only amendments ledger) / anti-flooding OUTPUT (conclusion-first
+    convergence report + read-first DIGEST); documents the C-9 token
+    budgets / INPUT-only git tracking / scan_workspace discovery fields /
+    `trace_requirements` + `lint_human` + `render_human_report` APIs; ~569
+    lines, well within the Large tier 1000 ceiling per SF-1). Pairs with
+    `src/devolaflow/agent_workspace/requirements_trace.py` +
+    `src/devolaflow/lifecycle/check_human_input_append_only.py` +
+    `tests/test_requirements_trace.py` + `tests/test_human_input_immutability.py`.
+
     NOTE on _SF4_REFERENCE_SET (in tests/test_no_ghost_features.py):
-    the canonical reference set is 23 entries. The MIRRORED_FILES
-    list in scripts/sync_cursor_skill.py is a SUBSET (currently 19 of
-    23) — only the references that ship in the .cursor/ skill mirror
+    the canonical reference set is 24 entries. The MIRRORED_FILES
+    list in scripts/sync_cursor_skill.py is a SUBSET (currently 20 of
+    24) — only the references that ship in the .cursor/ skill mirror
     bundle. When a NEW reference doc lands, both lists update IN
     LOCKSTEP per SF-3 §"Project-local opt-in mirror".
     """
-    assert len(_REF_FILES) == 19, f"expected 19 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 20, f"expected 20 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

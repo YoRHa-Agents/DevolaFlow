@@ -117,6 +117,24 @@ LOCAL_WHITELISTED_PATHS: list[str] = [
     ".local/research/v8.3.0_gap_analysis.md",
     ".local/research/v7.5.0_ghost_audit.md",
     ".local/research/v12.2.0_gap_analysis.md",
+    # v14.0.0 — human INPUT zone (authoritative, durable, PR-reviewable)
+    # re-enabled via !.local/human/input/** (D-4 / ADR-2). output/ + archive/
+    # stay PRIVATE (D2 locked) — see LOCAL_HUMAN_PRIVATE_PATHS below.
+    ".local/human/input/constitution.md",
+    ".local/human/input/requirements.md",
+    ".local/human/input/amendments/2026-06-03-immutable-input.md",
+]
+
+# v14.0.0 — human OUTPUT + archive zones MUST stay IGNORED (D2 operator
+# decision: bounded reports + dated snapshots are local-only, not PR-visible).
+# The `.local/human/*` re-exclusion line keeps them private while INPUT is
+# tracked. Asserted via the dedicated `test_human_output_zone_stays_private`
+# (NOT folded into LOCAL_PRIVATE_PATHS, whose matching-rule assertion is
+# specific to `.local/*` / `.local/memory/*`).
+LOCAL_HUMAN_PRIVATE_PATHS: list[str] = [
+    ".local/human/output/DIGEST.md",
+    ".local/human/output/convergence/v14.0.0-convergence.md",
+    ".local/human/archive/2026-06-03-superseded-req/spec.md",
 ]
 
 # Control paths outside `.local/` keep the helper's "no rule means tracked"
@@ -128,11 +146,15 @@ TRACKED_CONTROL_PATHS: list[str] = [
 ]
 
 # v12.2.0 whitelist block — the required positive rules that the
-# `ensure_local_gitignore` write surface emits.
+# `ensure_local_gitignore` write surface emits. The 4th rule `!.local/human/`
+# (v14.0.0) re-includes the human dir so the `!.local/human/input/**` negation
+# can track the INPUT zone (D-4 / ADR-2); it is the detection key the repair
+# path uses to graduate older (pre-v14.0.0) whitelists.
 V12_2_0_WHITELIST_REQUIRED_RULES: tuple[str, ...] = (
     ".local/*",
     "!.local/memory/specs/",
     "!.local/research/",
+    "!.local/human/",
 )
 
 # v9.2.3 PV-02 broad rule — superseded; MUST NOT appear in the source repo.
@@ -190,12 +212,39 @@ def test_whitelisted_local_paths_are_tracked(path: str) -> None:
         f"path {path!r} should be TRACKED by the v12.2.0 whitelist negation "
         f"rule, but git treats it as IGNORED (matching rule: {rule!r})"
     )
-    # The negation rule MUST be one of the v12.2.0 whitelist's two negation
-    # rules (`!.local/memory/specs/**` or `!.local/research/**`).
-    assert rule.startswith("!.local/memory/specs/") or rule.startswith("!.local/research/"), (
+    # The negation rule MUST be one of the whitelist's negation rules:
+    # `!.local/memory/specs/**`, `!.local/research/**`, or the v14.0.0
+    # `!.local/human/input/**` (INPUT-only — D-4 / ADR-2).
+    assert (
+        rule.startswith("!.local/memory/specs/")
+        or rule.startswith("!.local/research/")
+        or rule.startswith("!.local/human/")
+    ), (
         f"path {path!r}: matched unexpected negation rule {rule!r}; expected "
-        f"v12.2.0 whitelist negation (`!.local/memory/specs/**` or "
-        f"`!.local/research/**`)"
+        f"a whitelist negation (`!.local/memory/specs/**`, `!.local/research/**`, "
+        f"or `!.local/human/input/**`)"
+    )
+
+
+@pytest.mark.parametrize("path", LOCAL_HUMAN_PRIVATE_PATHS)
+def test_human_output_zone_stays_private(path: str) -> None:
+    """v14.0.0 D2: `.local/human/output/` + `archive/` stay IGNORED.
+
+    The operator locked INPUT-only git tracking (ADR-2): the authoritative
+    `.local/human/input/**` zone is re-included, but the bounded (C-9-capped)
+    convergence reports + digest in `output/` and the dated snapshots in
+    `archive/` are local-only, NOT PR-visible. The `.local/human/*`
+    re-exclusion line keeps them private even though `!.local/human/`
+    re-includes the parent dir.
+    """
+    status, rule = _check_ignore(path)
+    assert status == "IGNORED", (
+        f"path {path!r} must stay IGNORED (D2 locked: output/ + archive/ are "
+        f"private), but git treats it as TRACKED (matching rule: {rule!r})"
+    )
+    assert rule == ".local/human/*", (
+        f"path {path!r}: expected the `.local/human/*` re-exclusion to keep the "
+        f"OUTPUT/archive zone private, but matched {rule!r}"
     )
 
 
