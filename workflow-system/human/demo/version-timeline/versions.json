@@ -1919,5 +1919,32 @@
       "evobench_scenarios": "57",
       "benchmark_baseline_active": "v14.0.0_baseline.json"
     }
+  },
+  {
+    "version": "14.1.0",
+    "date": "2026-06-04",
+    "era": "human-surface",
+    "headline": "MINOR — completes the human-surface OUTPUT contract: the §6c test-run-artifact join keys each requirement off the ACTUAL pytest PASS/FAIL outcome (not just the optimistic Traceability-matrix status), plus the §4 OUTPUT conformance fixes (Acceptance-criterion column, this-cycle DIGEST filtering, stagnation→human_needed) and the v14.0.0 review closures",
+    "summary": "v14.1.0 finishes the v14.0.0 human surface. The headline is the §6c test-run-artifact join: `trace_requirements(requirements_path, *, test_results=None)` now accepts a `{node-id → TestOutcome}` map (from the NEW `parse_pytest_report()` over a pytest `--report-log` JSONL + the workflow HEAD commit) so a requirement whose Acceptance names a pytest node-id is keyed off the real outcome (`passed → met` / else `unmet`) with verbatim `<node_id> <PASS|FAIL> @ <commit>` evidence — a `Satisfied` matrix cell whose test actually failed can no longer over-claim. An inverse-S-5 bug is fixed (a Traceability row with no REQ block was silently dropped; it now emits unmet). The convergence report gains the Acceptance-criterion column (4-col table), the DIGEST lists only this-cycle REQ deltas (the rollup still counts the full set), and `stagnation=True` forces `human_needed` (W-8/SI-9). The v14.0.0 immutability-hook 'guard' wording is corrected (the hook is opt-in, NOT in DEFAULT_EVENTS), 3 missing scaffold READMEs are added, a stale archive-index entry is removed, and the references count is corrected 22 → 24. A-2 untouched (canonical_order stays 17), zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "§6c test-run-artifact join (NEW capability) — `parse_pytest_report(report_log, *, commit=...)` + `TestOutcome` feed `trace_requirements(..., test_results=...)`; a passing node → `met`, a failing node → `unmet` with verbatim `<node_id> <PASS|FAIL> @ <commit>` evidence (C-3), overriding the optimistic matrix status; omitting test_results is byte-identical to v14.0.0",
+      "Inverse-S-5 fix — `trace_requirements` now keys the UNION of REQ blocks ∪ Traceability matrix rows; a matrix row with no REQ block (previously silently dropped) emits `unmet` + `matrix row without REQ block` (criterion/cycle preserved)",
+      "OUTPUT §4 conformance — convergence report gains the Acceptance-criterion column (`REQ-ID | Acceptance criterion | Result | Evidence`); the DIGEST filters deltas to the current cycle (matrix `Cycle == version`) while the rollup counts the full durable set; `stagnation=True` → `human_needed` (W-8/SI-9)",
+      "Immutability-hook wording corrected — `check_human_input_append_only` is opt-in via `register_hook` (NOT in `DEFAULT_EVENTS`); CHANGELOG, EN/ZH architecture docs, versions.json and the demo no longer imply always-on enforcement",
+      "Doc + test hygiene — 3 missing `.local/human/` scaffold READMEs added, stale archive-index dup removed, references count corrected 22 → 24 (recompiled into AGENTS.md + repo-governance.mdc), and the probe-telemetry test no longer dirties a git-tracked file"
+    ],
+    "metrics": {
+      "references_count": "24",
+      "references_count_prev": "24",
+      "sf4_reference_count": "24",
+      "sf4_reference_count_prev": "24",
+      "canonical_order_length": "17",
+      "env_flag_count": "7",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "evobench_scenarios": "57",
+      "benchmark_baseline_active": "v14.1.0_baseline.json"
+    }
   }
 ]

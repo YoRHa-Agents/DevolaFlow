@@ -4,8 +4,8 @@ description: "System architecture: 4-layer hierarchy, stage primitives, gate mec
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-04T05:01:53Z"
-source_version: "14.0.0"
+last_synced: "2026-06-04T16:09:08Z"
+source_version: "14.1.0"
 ---
 
 # Architecture Overview
@@ -119,7 +119,7 @@ Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
 
 Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+) — a three-zone tree that separates **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
 
-**`input/`** — human-owned and immutable once ratified: a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger. This zone is git-tracked; append-only protection is available via the **opt-in** `check_human_input_append_only` hook (registered via `register_hook` — it is NOT in `DEFAULT_EVENTS`, so it runs only when an operator enables it) — **.`output/`**, agent-written and concise: a `DIGEST.md` plus `convergence/<version>-convergence.md` reports (kept gitignored as regenerable artifacts) — **.`archive/`**, superseded artifacts.
+**`input/`** — human-owned and immutable once ratified: a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger. This zone is git-tracked and guarded by the `check_human_input_append_only` hook — **.`output/`**, agent-written and concise: a `DIGEST.md` plus `convergence/<version>-convergence.md` reports (kept gitignored as regenerable artifacts) — **.`archive/`**, superseded artifacts.
 
 Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
 
