@@ -160,6 +160,10 @@ class TestOutcome:
     ``@ <commit>`` suffix).
     """
 
+    # Tell pytest this is NOT a test class despite the ``Test`` name prefix
+    # (it is a data record). Not a dataclass field (no annotation).
+    __test__ = False
+
     node_id: str
     outcome: str
     commit: str = ""

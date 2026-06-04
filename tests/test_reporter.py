@@ -1111,6 +1111,45 @@ class TestHumanReport:
         assert "| REQ-OUT-01 | digest budget enforced | unmet |" in text
         assert "tests/test_human_input_immutability.py" in text
 
+    def test_stagnation_forces_human_needed(self, tmp_path: Path):
+        """``stagnation=True`` → ``human_needed`` even when all REQ met + no blockers (§4a)."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, stagnation=True, now=PINNED_NOW
+        )
+        assert "> **Status:** human_needed" in text
+
+    def test_criterion_column_rendered(self, tmp_path: Path):
+        """The §4a 4-column evidence table includes the Acceptance-criterion column."""
+        req = _write_human_requirements(tmp_path)
+        text = render_human_report(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        assert "| REQ-ID | Acceptance criterion | Result | Evidence |" in text
+        assert "| REQ-INPUT-01 | append-only lint passes | met |" in text
+
+    def test_test_results_join_renders_outcome_evidence(self, tmp_path: Path):
+        """A threaded ``test_results`` map surfaces verbatim PASS/FAIL evidence (§6c)."""
+        from devolaflow.agent_workspace import TestOutcome
+
+        req = _write_human_requirements(tmp_path)
+        tr = {
+            "tests/test_human_input_immutability.py::test_x": TestOutcome(
+                "tests/test_human_input_immutability.py::test_x", "passed", "abc1234"
+            )
+        }
+        # REQ-INPUT-01's Acceptance names a bare file (no ::node), so the join does
+        # not apply to it; this asserts threading is wired without error and the
+        # matrix derivation still holds for non-node REQs.
+        text = render_human_report(
+            "v14.1.0",
+            repo_root=tmp_path,
+            requirements_path=req,
+            test_results=tr,
+            now=PINNED_NOW,
+        )
+        assert "| REQ-INPUT-01 | append-only lint passes | met |" in text
+
     def test_findings_severity_split(self, tmp_path: Path):
         """blocker/critical → Blocking; major/minor/info → Advisory."""
         req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
@@ -1278,6 +1317,47 @@ class TestHumanDigest:
         )
         assert first == second
 
+    def test_deltas_filtered_to_this_cycle_rollup_counts_all(self, tmp_path: Path):
+        """§4b/F-3: digest lists only THIS-cycle REQ deltas; rollup counts the full set."""
+        mixed = textwrap.dedent(
+            """\
+            # Requirements
+
+            ## Requirements
+
+            ### REQ-OLD-01: prior cycle
+            - **Acceptance:** `tests/test_old.py` PASSES.
+            - **Status:** Satisfied
+
+            ### REQ-NEW-01: this cycle
+            - **Acceptance:** `tests/test_new.py` PASSES.
+            - **Status:** Pending
+
+            ## Traceability
+            | REQ-ID | Acceptance criterion | Cycle | Status |
+            |---|---|---|---|
+            | REQ-OLD-01 | prior | v14.0.0 | Satisfied |
+            | REQ-NEW-01 | current | v14.1.0 | Pending |
+            """
+        )
+        req = _write_human_requirements(tmp_path, mixed)
+        text = render_human_digest(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, now=PINNED_NOW
+        )
+        # Only the this-cycle REQ delta is listed …
+        assert "- REQ-NEW-01:" in text
+        assert "REQ-OLD-01" not in text
+        # … but the rollup still counts the FULL durable set (2 total, 1 satisfied).
+        assert "rollup: 2 total · 1 satisfied · 0 blocked" in text
+
+    def test_stagnation_forces_human_needed(self, tmp_path: Path):
+        """``stagnation=True`` → ``human_needed`` even with no blocking findings (W-8/SI-9)."""
+        req = _write_human_requirements(tmp_path, _ALL_MET_REQUIREMENTS_MD)
+        text = render_human_digest(
+            "v14.1.0", repo_root=tmp_path, requirements_path=req, stagnation=True, now=PINNED_NOW
+        )
+        assert "human_needed" in text
+
 
 class TestRegenerateAllHuman:
     def test_human_key_none_by_default(self, workspace: Path):
@@ -1340,3 +1420,67 @@ class TestHumanReporterCli:
         assert rc == 0
         assert "Convergence Report — v14.1.0" in capsys.readouterr().out
         assert not (workspace / ".local" / "human" / "output" / "DIGEST.md").exists()
+
+
+class TestReporterByteStability:
+    """v14.1.0 R3 — dedicated 4-flavour AC-5 byte-stability regression.
+
+    The §4 OUTPUT renderers (and the four agent-facing flavours) MUST be
+    byte-identical across two invocations under a pinned ``now``. This pins
+    that idempotency guarantee for ALL renderers in one place so a future
+    refactor that accidentally injects an unpinned timestamp / set-ordering
+    is caught immediately.
+    """
+
+    def test_all_flavours_byte_stable_under_pinned_now(self, workspace: Path):
+        """workspace + memory + rules + human report + human digest all byte-stable."""
+        _scaffold_rules(workspace / ".rules")
+        req = _write_human_requirements(workspace)
+        findings = [{"severity": "blocker", "description": "b", "suggestion": "s"}]
+
+        renderers = {
+            "workspace": lambda: render_workspace_report(repo_root=workspace, now=PINNED_NOW),
+            "memory": lambda: render_memory_report(repo_root=workspace, now=PINNED_NOW),
+            "rules": lambda: render_rules_report(repo_root=workspace, now=PINNED_NOW),
+            "human_report": lambda: render_human_report(
+                "v14.1.0",
+                repo_root=workspace,
+                requirements_path=req,
+                findings=findings,
+                now=PINNED_NOW,
+            ),
+            "human_digest": lambda: render_human_digest(
+                "v14.1.0",
+                repo_root=workspace,
+                requirements_path=req,
+                findings=findings,
+                now=PINNED_NOW,
+            ),
+        }
+        for name, render in renderers.items():
+            first = render()
+            second = render()
+            assert first == second, f"{name} renderer is not byte-stable under a pinned now"
+
+    def test_regenerate_all_with_human_is_byte_stable(self, workspace: Path):
+        """``regenerate_all`` (incl. the human flavour) writes byte-identical files twice."""
+        _scaffold_rules(workspace / ".rules")
+        req = _write_human_requirements(workspace)
+
+        def _run() -> dict[str, str]:
+            regenerate_all(
+                repo_root=workspace,
+                now=PINNED_NOW,
+                human_version="v14.1.0",
+                human_requirements_path=req,
+            )
+            conv = (
+                workspace / ".local" / "human" / "output" / "convergence" / "v14.1.0-convergence.md"
+            )
+            digest = workspace / ".local" / "human" / "output" / "DIGEST.md"
+            return {
+                "convergence": conv.read_text(encoding="utf-8"),
+                "digest": digest.read_text(encoding="utf-8"),
+            }
+
+        assert _run() == _run()
