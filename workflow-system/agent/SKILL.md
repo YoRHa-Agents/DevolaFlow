@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "14.2.1"
+version: "14.2.2"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -19,7 +19,7 @@ triggers:
   - "update_devola"
   - "/update-devola"
 tier: 1
-token_estimate: 2800
+token_estimate: 6000
 last_updated: "2026-05-09"
 name: devola-flow
 description: >
@@ -29,21 +29,21 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v14.2.1**
+> **Now Using DevolaFlow v14.2.2**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 14.2.1 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 14.2.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ### Session Banner Contract (v12.3.0+)
 
 L0 MUST echo the active devola version on session boundaries so operators see live confirmation of orchestrator + version (closes `.local/feedbacks/feedback_for_v12.1.1.md` #1):
 
-* **Workflow start** (first message after skill activation OR first dispatch): emit one line — `🌸 DevolaFlow v12.3.0 active · workflow: <type> · mode: <agent|plan|grill>`. Use the literal version string from this §"Version & Update" header (kept in sync by `scripts/bump_version.py`).
-* **Workflow end** (final report after the last stage completes): emit one line — `🌸 DevolaFlow v12.3.0 complete · <stages> stages · <waves> waves · <tasks> tasks` (omit counts for SIMPLE/TRIVIAL single-task shortcuts).
-* **Task Quality Score footer** (per `references/task-quality-score.md`): footer line MUST include literal `DevolaFlow v12.3.0` so the score artifact is self-describing in chat logs.
+* **Workflow start** (first message after skill activation OR first dispatch): emit one line — `🌸 DevolaFlow vX.Y.Z active · workflow: <type> · mode: <agent|plan|grill>`. Use the literal version string from this §"Version & Update" header (kept in sync by `scripts/bump_version.py`).
+* **Workflow end** (final report after the last stage completes): emit one line — `🌸 DevolaFlow vX.Y.Z complete · <stages> stages · <waves> waves · <tasks> tasks` (omit counts for SIMPLE/TRIVIAL single-task shortcuts).
+* **Task Quality Score footer** (per `references/task-quality-score.md`): footer line MUST include the literal version string `DevolaFlow vX.Y.Z` so the score artifact is self-describing in chat logs.
 
 Banner output is for the OPERATOR (chat output), NOT for inter-layer dispatch payloads — keep dispatch / handoff envelopes free of decorative banners per CO-2.
 Subagent (L1/L2/L3) reports MUST NOT include banner lines — see PV-05 runtime hook `reject_subagent_banner_emission`. Banners are L0-only operator chat output.
@@ -143,15 +143,13 @@ Match user intent to workflow type, then load the corresponding stage template.
 | setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
 | new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
-| update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → test → evaluate |
+| update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
-| nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | research → design → plan → impl → review → test → validate → release |
+| nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | precondition → research → design → plan → impl → review → test → refine → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + auto-installs codegraph index in ALL modes) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
 | web design, frontend design, landing page, polish UI, ui-pro, impeccable | `web-design` | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect` gate); refine↔verify convergence loop |
-| shell-proxy, rtk rewrite, fast-path memory, command mapping | `shell-proxy` | RTK shell-proxy + memory_router fast-path lookup at dispatch time (env-flag opt-in: `DEVOLAFLOW_RTK_PROXY=1` + `DEVOLAFLOW_MEMORY_ROUTER=1`) |
-| grill, challenge plan, interview me, stress-test plan, domain glossary, sharpen terminology | `grill-driven` | interrogate → resolve-fuzz → cross-ref → record (CONTEXT.md/ADR) |
 
 ### Repo-Init Pre-Dispatch Contract
 
@@ -385,7 +383,7 @@ Full schemas: `references/message-schemas.md`
 
 ## Lifecycle Hooks
 
-Permissive default (warn + log); strict opt-in raises HookViolation.
+Permissive default (warn + log); strict opt-in raises HookViolation. **Status:** `check_file_ownership` (file_write) and `test_on_complete` (task_stop) are validated at the API surface but not yet fired by the runtime dispatch path — runtime wiring lands v14.3.0 (see v15-ADR-003).
 
 | Hook | Event | Checks | On Violation (strict) |
 |------|-------|--------|----------------------|
@@ -444,6 +442,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `examples/full-pipeline-trace.md` | Full-pipeline walkthrough |
 | `examples/hotfix-trace.md` | Hotfix delegation example |
 | `examples/convergence-loop-trace.md` | Review-fix-test cycle walkthrough |
+| `examples/multi-stage-trace.md` | Standard+ L0→L1→L2→L3 cascade walkthrough |
 | `schemas/task-dispatch.schema.yaml` | Building TaskDispatch YAML |
 | `schemas/status-report.schema.yaml` | Building StatusReport YAML |
 | `schemas/handoff-deliverable.schema.yaml` | Inter-team handoff envelopes |

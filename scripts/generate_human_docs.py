@@ -87,7 +87,7 @@ DOCS = [
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "14.2.1"
+SOURCE_VERSION = "14.2.2"
 
 
 def _gen_doc(
@@ -386,13 +386,20 @@ Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from dev
 
 ## Repository Rules
 
-18 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+62 enforceable rules codifying iteration lessons live in `.rules/` (5 layered
+source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 
-| Rule File | Covers |
+| Rule Layer | Covers |
 |-----------|--------|
-| `skill-format-rules.mdc` (SF-1 to SF-6) | SKILL.md line budget, frontmatter, version consistency, valid references |
-| `change-process-rules.mdc` (CP-1 to CP-7) | Test coverage floor (≥80%), no ghost features, version bump protocol |
-| `context-optimization-rules.mdc` (CO-1 to CO-6) | Lean messages, verbatim extraction, token budgets, benchmark verification |
+| `soul.mdc` (S-1 to S-10, P0) | Immutable invariants — test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
+| `architecture.mdc` (A-1 to A-7, P1) | 4-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
+| `conventions.mdc` (C-1 to C-9, P2; C-8 retired) | Line budgets, frontmatter, version consistency, lean messages, verbatim extraction |
+| `workflow.mdc` (W-1 to W-24, P3) | Iteration planning, benchmark guards, version bump protocol, env-flag policy |
+| `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
+
+The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
+`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) are deprecated
+pointer stubs — their SF-/CP-/CO- content was absorbed into the layers above.
 """
 
 
@@ -713,10 +720,14 @@ Yes, in two ways:
 
 ### What are the repository rules?
 
-18 enforceable rules in `.cursor/rules/` organized into 3 files:
-- **skill-format-rules.mdc** (SF-1 to SF-6): SKILL.md line budget, frontmatter, version consistency
-- **change-process-rules.mdc** (CP-1 to CP-7): test coverage floor (≥80%), no ghost features
-- **context-optimization-rules.mdc** (CO-1 to CO-6): lean messages, verbatim extraction, benchmarks
+62 enforceable rules in `.rules/` organized into 5 layers, compiled to
+`AGENTS.md` + `.cursor/rules/repo-governance.mdc` (the legacy SF-/CP-/CO- rule
+files are deprecated pointer stubs since v14.2.1):
+- **soul.mdc** (S-1 to S-10): immutable invariants — test coverage floor (≥80%), no ghost features
+- **architecture.mdc** (A-1 to A-7): 4-layer hierarchy, cache layout, token budgets
+- **conventions.mdc** (C-1 to C-9, C-8 retired): SKILL.md line budget, frontmatter, version consistency
+- **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
+- **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
 
 ### What is EvoBench?
 
@@ -1366,13 +1377,19 @@ composite = test_quality × 0.30 + code_review × 0.30
 
 ## 仓库规则
 
-`.cursor/rules/` 中的 18 条可执行规则：
+`.rules/` 中的 62 条可执行规则（5 个分层源文件），编译输出到 `AGENTS.md` 与
+`.cursor/rules/repo-governance.mdc`：
 
-| 规则文件 | 涵盖内容 |
+| 规则层 | 涵盖内容 |
 |---------|---------|
-| `skill-format-rules.mdc` (SF-1 到 SF-6) | SKILL.md 行数预算、前置元数据、版本一致性 |
-| `change-process-rules.mdc` (CP-1 到 CP-7) | 测试覆盖率底线（≥80%）、无幽灵功能 |
-| `context-optimization-rules.mdc` (CO-1 到 CO-6) | 精简消息、逐字提取、基准验证 |
+| `soul.mdc`（S-1 到 S-10，P0） | 不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能、无静默失败、保护分支 |
+| `architecture.mdc`（A-1 到 A-7，P1） | 4 层 Agent 体系、缓存布局治理、令牌预算、单一事实源注册表 |
+| `conventions.mdc`（C-1 到 C-9，P2；C-8 已退役） | 行数预算、前置元数据、版本一致性、精简消息、逐字提取 |
+| `workflow.mdc`（W-1 到 W-24，P3） | 迭代规划、基准守护、版本升级协议、环境变量复用策略 |
+| `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
+
+v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process-rules.mdc`、
+`context-optimization-rules.mdc` 等）已转换为弃用指针存根，其 SF-/CP-/CO- 内容已并入上述各层。
 """
 
 
@@ -1665,10 +1682,13 @@ DevolaFlow 使用提示词的 **意图匹配**：
 
 ### 什么是仓库规则？
 
-`.cursor/rules/` 中的 18 条规则，分为 3 个文件：
-- **skill-format-rules.mdc** (SF-1 至 SF-6)：SKILL.md 格式约束
-- **change-process-rules.mdc** (CP-1 至 CP-7)：测试覆盖率底线（≥80%）
-- **context-optimization-rules.mdc** (CO-1 至 CO-6)：精简消息和基准测试
+`.rules/` 中的 62 条规则，分为 5 层，编译输出到 `AGENTS.md` 与
+`.cursor/rules/repo-governance.mdc`（旧的 SF-/CP-/CO- 规则文件自 v14.2.1 起为弃用指针存根）：
+- **soul.mdc**（S-1 至 S-10）：不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能
+- **architecture.mdc**（A-1 至 A-7）：4 层体系、缓存布局、令牌预算
+- **conventions.mdc**（C-1 至 C-9，C-8 已退役）：SKILL.md 格式约束、版本一致性
+- **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
+- **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
 
 ### 什么是 EvoBench？
 

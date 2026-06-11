@@ -5,6 +5,35 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.2.2] - 2026-06-12 — PATCH — Doc-Surface Truth Sweep: SKILL.md Hygiene + Reference/Template Drift Fixes + v15-ADR-002 Header Refresh
+
+**PATCH — agent-facing doc-surface truth sweep (gap register G-001/G-017/G-018/G-020/G-022/G-024/G-040).** The headline is the **four-surface stage-count drift closure (G-018)**: `references/meta-framework.md` §4 "Per-Workflow Template Catalog" is regenerated FROM the builtin yaml truth (**23 templates**; `self-update` = **8** stages incl. the optional `si_chip_gate`, `nines-assisted` = **10** stages), and the SKILL.md Template Quick-Reference rows are re-synced to the same truth (`self-update` 6 → 8, `nines-assisted` 8 → 10). The 16 legacy template yaml headers stop lying per v15-ADR-002 §interim: the lapsed-3-majors "DEPRECATED in v11.0.0; will be removed in v12.0.0" promise becomes "retained for backward compat — Phase B collapse decision lands v15.0.0 per v15-ADR-002" (same alignment applied to `scripts/audit_template_usage.py` docstring + `render_markdown_report`). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### SKILL.md hygiene (G-020 / G-001 / G-040 / G-017 slice)
+
+- **Frontmatter `token_estimate` corrected 2800 → 6000** (G-020) — the literal had drifted to less than half the measured prompt mass.
+- **NEW Tier-3 navigation row** for `examples/multi-stage-trace.md` (the Standard+ L0→L1→L2→L3 cascade walkthrough) — the 4th XL example was previously unreachable from SKILL.md navigation (G-001).
+- **3 stale Session-Banner literals fixed** — the banner contract's `DevolaFlow v12.3.0` examples become `vX.Y.Z` placeholders so the prose stops drifting on every bump (G-040).
+- **Lifecycle-hooks honesty note** — §"Lifecycle Hooks" now states that `check_file_ownership` (file_write) and `test_on_complete` (task_stop) are validated at the API surface but NOT yet fired by the runtime dispatch path; runtime wiring lands v14.3.0 per v15-ADR-003 (S-4 honesty).
+- **Section anchors realigned** with the `workflow-system/agent/context_profiles.yaml` registry shift — fixes a **5.73-pt EvoBench regression** (G-017 slice).
+- **2 non-template selection rows removed** — `shell-proxy` + `grill-driven` no longer appear in the workflow-type selection table (they are not templates) per v15-ADR-002 F-P2-4.
+- **Template Quick-Reference stage counts re-synced** — `self-update` 6 → **8** stages (adds `si_chip_gate` + `self-improve`); `nines-assisted` 8 → **10** stages (adds `precondition` + `refine`). SKILL.md is now **491 lines** (< 500 per C-4).
+
+### References + templates sweep (G-018 / G-022 / G-024 / G-017 headers / G-040 TRACKER)
+
+- **`references/meta-framework.md` §4 catalog regenerated from yaml truth** — 23 templates with per-template stage lists + primitive mappings; the "22 builtin templates" miscount (missing `web-design`) is gone (G-018).
+- **`references/degraded-mode.md` drift fixed** (G-022).
+- **`references/env-flags.md` counting basis defined + AST-derived ghost-audit lint** (G-024) — §2's counting basis is now explicit and `tests/test_no_ghost_features.py` gains `test_v14_2_2_g024_env_flag_inventory_matches_runtime` (AST walk asserts inventory ↔ runtime parity: **15 == 15** code-read flags) + `test_v14_2_2_g024_rule_prose_cites_inventory_not_numerals`; `DEVOLAFLOW_AUTO_INSTALL` is marked unwired; +2 NEW §2 rows (incl. `DEVOLAFLOW_AGENT_WORKSPACE` / `DEVOLAFLOW_MEMORY_CONSULT` / `DEVOLAFLOW_SI_CHIP_FALLBACK_DIR`).
+- **W-22.4 / W-24.4 numeric pins replaced with the inventory citation** — rule prose no longer hand-pins flag numerals; `.rules/workflow.mdc` recompiled into both corpus targets.
+- **16 legacy template yaml headers refreshed** (G-017 interim) — each now cites v15-ADR-002 + the v15.0.0 Phase B decision instead of the stale v12.0.0 removal date; `scripts/audit_template_usage.py` docstring + `render_markdown_report` emit the same aligned text; the header literal is pinned by the refreshed `_V10_5_0_DEPRECATION_HEADER_LITERAL` ghost-audit constant.
+- **`scripts/generate_human_docs.py` legacy-rules description fixed** — 16 EN/ZH human guides regenerated via `make sync-human-docs` (ST-3).
+- **`.local/feedbacks/TRACKER.md` refreshed** (G-040).
+
+### Verification
+
+- `scripts/bump_version.py 14.2.2` GREEN in hard-fail mode (11 locations updated; canonical 7 sync per C-6); `make sync-human-docs` + `make sync-cursor-skill` + `make check-cursor-skill` exit 0 (25-file `.cursor/skills/devola-flow/` mirror stamped 14.2.2).
+- W-9/SI-10 gates GREEN (suite / ruff check / ruff format / version / benchmarks / check-cursor-skill); W-4 `tests/test_benchmarks.py` PASS against `benchmarks/devolaflow_context/baselines/v14.1.0_baseline.json` (W-16: wholesale regen stays deferred to cycle close); W-17 **+2 NEW test functions** (the G-024 env-flag lints; cycle total 16 ≤ 150); zero new env flags; `canonical_order` stays 17.
+
 ## [14.2.1] - 2026-06-12 — PATCH — Rule-Corpus Hygiene: Legacy-File Dedup + Compiler/Bump Hard-Fails + Lean-Report Doctrine Rename
 
 **PATCH — rule-corpus + tooling hygiene batch (gap register G-008/G-012/G-013/G-021/G-028/G-032/G-033/G-034).** The headline is the **G-008 rule-corpus dedup**: the 4 remaining fully-migrated legacy `.cursor/rules/*.mdc` files (`change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`, `skill-format-rules.mdc`) are demoted to deprecated pointer stubs — `devolaflow.local.drift::DEPRECATED_STUB_FILES` now registers **6** stubs (2 at v9.0.0 PV-07 + these 4), each fingerprint-pinned in `.rules/.compile-hashes.json` — cutting duplicated always-applied prompt mass (net −118 lines across the 4 files) while `.rules/` stays canonical. Two silent-failure surfaces become hard-fails per S-5: `RuleCompiler` raises the NEW `TokenBudgetExceededError` on token-budget overflow (previously truncated layers silently), and `scripts/bump_version.py` exits 1 when a canonical location's version regex matches nothing (previously a silently-partial bump exited 0). Dead rule **C-8 (C++ braces) is deleted** from `.rules/conventions.mdc` per G-012 (zero C++ files in repo; remaining ids NOT renumbered). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).

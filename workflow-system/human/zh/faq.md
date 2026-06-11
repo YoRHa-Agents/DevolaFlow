@@ -4,8 +4,8 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-11T18:21:41Z"
-source_version: "14.2.1"
+last_synced: "2026-06-11T19:11:09Z"
+source_version: "14.2.2"
 ---
 
 # 常见问题
@@ -21,8 +21,8 @@ source_version: "14.2.1"
 支持哪些 AI 工具？
 
 **Cursor** — 作为 Cursor Skill 加载, and **Claude Code**, 作为`CLAUDE.md` 加载（每个会话自动生效）
-- **GitHub Copilot** — 作为 `copilot-instructions.md` 加载
-- **OpenAI Codex** — 作为 Codex Skill 加载
+- **GitHub Copilot**, 作为 `copilot-instructions.md` 加载
+- **OpenAI Codex**, 作为 Codex Skill 加载
 
 我需要学 YAML 才能使用 DevolaFlow 吗？
 
@@ -30,7 +30,7 @@ source_version: "14.2.1"
 
 DevolaFlow 和直接提示 AI 工具有什么区别？
 
-没有 DevolaFlow 时，AI 工具在单轮中处理整个请求，经常丢失上下文或混淆关注点（一边设计一边编码一边测试）。有了 DevolaFlow，工作被分解为隔离的阶段并带有质量检查点，代理先设计，再规划，再实现，再审查 — 每个边界都有质量门确保质量。
+没有 DevolaFlow 时，AI 工具在单轮中处理整个请求，经常丢失上下文或混淆关注点（一边设计一边编码一边测试）。有了 DevolaFlow，工作被分解为隔离的阶段并带有质量检查点，代理先设计，再规划，再实现，再审查, 每个边界都有质量门确保质量。
 
 ## 工作流
 
@@ -51,12 +51,15 @@ v3.0.0的 5 种新工作流是什么？
 
 ## 质量与门控
 
-什么是仓库规则？
+### 什么是仓库规则？
 
-`.cursor/rules/` 中的 18 条规则，分为 3 个文件：
-- **skill-format-rules.mdc** (SF-1 至 SF-6)：SKILL.md 格式约束
-- **change-process-rules.mdc** (CP-1 至 CP-7)：测试覆盖率底线（≥80%）
-- **context-optimization-rules.mdc** (CO-1 至 CO-6)：精简消息和基准测试
+`.rules/` 中的 62 条规则，分为 5 层，编译输出到 `AGENTS.md` 与
+`.cursor/rules/repo-governance.mdc`（旧的 SF-/CP-/CO- 规则文件自 v14.2.1 起为弃用指针存根）：
+- **soul.mdc**（S-1 至 S-10）：不可违背的红线, 测试覆盖率底线（≥80%）、无幽灵功能
+- **architecture.mdc**（A-1 至 A-7）：4 层体系、缓存布局、令牌预算
+- **conventions.mdc**（C-1 至 C-9，C-8 已退役）：SKILL.md 格式约束、版本一致性
+- **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
+- **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
 
 什么是 EvoBench？
 
@@ -70,7 +73,7 @@ v3.0.0的 5 种新工作流是什么？
 
 如何检查更新？
 
-在 AI 工具中输入 `"update devola"` — 或在终端运行 `devola-version`。
+在 AI 工具中输入 `"update devola"`, 或在终端运行 `devola-version`。
 
 如何更新？
 

@@ -61,7 +61,7 @@ Load this reference when:
 * **An operator reports "my CI is different from my laptop"** — one host has
   the plugin installed, the other does not; the degraded paths explain the
   divergence.
-* **A cycle retrospective is being authored** (W-7 / SI-8) and any of the 4
+* **A cycle retrospective is being authored** (W-7 / SI-8) and any of the 6
   plugins was not available during the cycle — the retrospective MUST
   enumerate the signal loss.
 * **A new plugin is being proposed** for addition to
@@ -462,11 +462,12 @@ exception propagates).
   invariant every degraded path must satisfy.
 * `.cursor/rules/repo-governance.mdc::S-7` — external URLs only (no
   hardcoded local paths in this reference).
-* `workflow-system/agent/references/env-flags.md` §2.13 — the
+* `workflow-system/agent/references/env-flags.md` §2.12 — the
   `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` flag governing ui-pro degraded
-  behaviour.
-* `workflow-system/agent/references/env-flags.md` §2.14 — the
-  `DEVOLAFLOW_SI_CHIP_DEEP` flag governing Si-Chip degraded behaviour.
+  behaviour (renumbered from §2.13 at v12.0.0 PV-03 D-2).
+* `workflow-system/agent/references/env-flags.md` §2.13 — the
+  `DEVOLAFLOW_SI_CHIP_DEEP` flag governing Si-Chip degraded behaviour
+  (renumbered from §2.14 at v12.0.0 PV-03 D-2).
 * `workflow-system/agent/references/shell-proxy.md` — the RTK / shell-
   proxy subsystem (includes `DEVOLAFLOW_RTK_PROXY`).
 * `workflow-system/agent/references/evaluator-rosetta.md` — the 6 × 9
