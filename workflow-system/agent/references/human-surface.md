@@ -566,16 +566,16 @@ Implemented `.local/human/` INPUT + scan_workspace surface; 2 of 3 tracked REQs 
 | REQ-ID | Acceptance criterion | Result | Evidence (verbatim) |
 |---|---|---|---|
 | REQ-INPUT-01 | append-only lint passes | met | `tests/test_human_input_immutability.py` PASS @ a1b2c3d |
-| REQ-OUT-01 | digest token budget enforced | partial | `lint_human` row added; CI wiring TODO |
+| REQ-OUT-01 | digest token budget enforced | partial | `lint_human` row added; emission blocking lands v14.2.0 |
 
 ## Blocking findings
 - none
 
 ## Advisory findings
-- REQ-OUT-01 lint is advisory this cycle; promote to blocking next cycle (advisory).
+- REQ-OUT-01 was advisory in v14.1.0; BLOCKING since v14.2.0 — `enforce_digest_budget` fails emission on a hard-ceiling violation (soft tier stays WARN-only).
 
 ## Next step
-L0 → open the next change to wire the digest budget into `lint_human` (owner: L0).
+L0 → none for REQ-OUT-01; the digest budget blocks at emission since v14.2.0 (owner: L0).
 ```
 
 ## 9. References

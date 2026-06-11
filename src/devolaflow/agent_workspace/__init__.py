@@ -82,6 +82,8 @@ from devolaflow.agent_workspace.lint import (
     HUMAN_ARTIFACT_BUDGETS,
     BudgetReport,
     BudgetViolation,
+    HumanBudgetExceededError,
+    enforce_digest_budget,
     estimate_tokens,
     lint_change,
     lint_human,
@@ -141,9 +143,13 @@ __all__ = [
     "HandoffStore",
     "HandoffStoreError",
     # lint
+    # + v14.2.0 REQ-OUT-01 blocking promotion (enforce_digest_budget +
+    #   HumanBudgetExceededError; advisory→blocking per v14.0.0 design §8b)
     "BudgetReport",
     "BudgetViolation",
     "HUMAN_ARTIFACT_BUDGETS",
+    "HumanBudgetExceededError",
+    "enforce_digest_budget",
     "estimate_tokens",
     "lint_change",
     "lint_human",

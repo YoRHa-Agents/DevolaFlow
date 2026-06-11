@@ -71,6 +71,10 @@ from devolaflow.agent_workspace.handoff import (
     HandoffStore,
     HandoffStoreError,
 )
+from devolaflow.agent_workspace.lint import (
+    HumanBudgetExceededError,
+    enforce_digest_budget,
+)
 from devolaflow.agent_workspace.requirements_trace import (
     RequirementTraceResult,
     trace_requirements,
@@ -614,6 +618,11 @@ def regenerate_all(
 
     Idempotency: with a pinned ``now``, two successive invocations
     produce byte-identical files for every output path.
+
+    Raises:
+      HumanBudgetExceededError: when the rendered digest exceeds its C-9
+        hard ceiling (REQ-OUT-01 — BLOCKING since v14.2.0); neither human
+        OUTPUT artifact is written in that case.
     """
     root = _resolve_repo_root(repo_root)
     pinned_now = _normalise_now(now)
@@ -673,6 +682,9 @@ def regenerate_all(
             stagnation=human_stagnation,
             now=pinned_now,
         )
+        # REQ-OUT-01 (BLOCKING since v14.2.0): raises before either human
+        # OUTPUT artifact is written, so a failed run leaves no partial pair.
+        _check_digest_budget(digest_text)
         convergence_path = _write_report(
             root / _human_convergence_path(human_version), convergence_text
         )
@@ -779,6 +791,25 @@ def _write_report(path: Path, text: str) -> Path:
 def _human_convergence_path(version: str) -> Path:
     """Return the per-cycle convergence report path (relative to repo root)."""
     return HUMAN_OUTPUT_DIR_DEFAULT / "convergence" / f"{version}-convergence.md"
+
+
+def _check_digest_budget(digest_text: str) -> None:
+    """Apply REQ-OUT-01 to the rendered digest (BLOCKING since v14.2.0).
+
+    Hard-ceiling violations propagate as :class:`HumanBudgetExceededError`
+    (the emission is refused); the soft tier stays advisory — logged at
+    WARNING per S-5 and the write proceeds.
+    """
+    warning = enforce_digest_budget(digest_text)
+    if warning is not None:
+        logger.warning(
+            "REQ-OUT-01: %s is %d tokens — over the C-9 soft budget of %d "
+            "(hard %d); advisory soft tier, digest still emitted",
+            warning.filename,
+            warning.observed_tokens,
+            warning.soft_budget,
+            warning.hard_budget,
+        )
 
 
 def _resolve_requirements_path(root: Path, requirements_path: Path | None) -> Path | None:
@@ -1714,13 +1745,16 @@ def main(argv: list[str] | None = None) -> int:
                     root / _human_convergence_path(args.human),
                     to_stdout=True,
                 )
-            convergence_path = _write_report(
-                root / _human_convergence_path(args.human), convergence_text
-            )
             digest_text = render_human_digest(
                 args.human,
                 repo_root=root,
                 requirements_path=args.requirements,
+            )
+            # REQ-OUT-01 (BLOCKING since v14.2.0): checked before either
+            # write so a failed run leaves no partial OUTPUT pair.
+            _check_digest_budget(digest_text)
+            convergence_path = _write_report(
+                root / _human_convergence_path(args.human), convergence_text
             )
             digest_path = _write_report(root / HUMAN_DIGEST_PATH_DEFAULT, digest_text)
             print(f"wrote {convergence_path}", file=sys.stderr)
@@ -1729,6 +1763,9 @@ def main(argv: list[str] | None = None) -> int:
     except (ChangeNotFoundError, FileNotFoundError) as exc:
         print(f"reporter: {exc}", file=sys.stderr)
         return 2
+    except HumanBudgetExceededError as exc:
+        print(f"reporter: {exc}", file=sys.stderr)
+        return 1
     except (DeltaSpecParseError, HandoffStoreError) as exc:
         print(f"reporter: render failed: {exc}", file=sys.stderr)
         return 1

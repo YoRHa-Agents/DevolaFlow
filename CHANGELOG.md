@@ -5,6 +5,31 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.2.0] - 2026-06-12 — MINOR — REQ-OUT-01 Digest Budget Promoted Advisory → BLOCKING + v15-Cycle Entry
+
+**MINOR — discharges the v14.0.0 design §8b telegraph + opens the v15-cycle ladder.** The headline is the **REQ-OUT-01 advisory → BLOCKING promotion**: the v14.0.0 design telegraphed verbatim "REQ-OUT-01 lint is advisory this cycle; promote to blocking in v14.2.0" — this release lands it. The reporter's human-OUTPUT emission paths now enforce the `output/DIGEST.md` C-9 token budget (soft 600 / hard 1000) BEFORE writing: an over-hard-ceiling digest raises the NEW `HumanBudgetExceededError` (the `--human` CLI exits 1) instead of silently writing an over-budget artifact, while the soft tier stays advisory (warn + write proceeds — the documented C-9 escape hatch). The release ALSO runs the v15-cycle SI-1 entry research (see "Cycle entry" below — research artifacts only, no feature claims). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20 reuse-first — no flag gates the budget check), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**REQ-OUT-01 digest budget is BLOCKING since v14.2.0.** The NEW `enforce_digest_budget(text)` in `src/devolaflow/agent_workspace/lint.py` measures rendered digest text against the C-9 `output/DIGEST.md` budget row (soft 600 / hard 1000 tokens): under-soft → `None`; over-soft-under-hard → a `WARN` `BudgetViolation` returned for the caller to log, and the write proceeds (the soft tier stays advisory per C-9 "Soft budget over → warn. Hard ceiling over → fail"); over-hard → raises the NEW `HumanBudgetExceededError` (a `ValueError` carrying the offending `BudgetViolation` on `.violation`). BOTH reporter emission paths consume it via `_check_digest_budget`: `regenerate_all` checks the rendered digest BEFORE writing either human OUTPUT artifact (a failed run leaves no partial convergence + DIGEST pair), and the `--human` CLI path checks before its writes and maps `HumanBudgetExceededError` → **exit 1** (S-5 explicit error state — never a silent over-budget write). The v14.1.0 state was advisory-only: `lint_human()` flagged an over-budget digest only when separately invoked, while the emission path silently wrote it.
+
+### NEW symbols (W-18 stanza refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/test_no_ghost_features.py::test_v14_2_0_digest_budget_blocking_symbols`:
+
+- `src/devolaflow/agent_workspace/lint.py` — NEW `enforce_digest_budget()` + `HumanBudgetExceededError` + `DIGEST_BUDGET_KEY` (the `output/DIGEST.md` budget-row key).
+- `src/devolaflow/agent_workspace/reporter.py` — NEW `_check_digest_budget()` wired into BOTH emission paths (`regenerate_all` + the `--human` CLI); the CLI maps `HumanBudgetExceededError` → exit 1.
+- `src/devolaflow/agent_workspace/__init__.py` — `__all__` re-exports `enforce_digest_budget` + `HumanBudgetExceededError`.
+- `workflow-system/agent/references/human-surface.md` §8b — REQ-OUT-01 documented as "BLOCKING since v14.2.0".
+
+### Cycle entry (research)
+
+v14.2.0 opens the v15-cycle ladder. The SI-1 planning gate (W-1) ran with dual design reviews (repo-facing: 28 findings; product-facing: 27 findings) + a gap analysis enumerating 41 gaps with 7 ADRs PROPOSED, and the W-2 NineS self-eval baseline holds at **0.9070** (stable vs v14.1.0). These are `.local/research/` artifacts only — they ship NO code in this release and will be archived at cycle close per W-19. W-16 verdict: benchmarks GREEN against `v14.1.0_baseline.json`; wholesale regen deferred to cycle close (no drift observed).
+
+### Verification
+
+- W-9/SI-10 6-step GREEN; W-4 `tests/test_benchmarks.py` PASS against `benchmarks/devolaflow_context/baselines/v14.1.0_baseline.json` (W-16: wholesale regen deferred to cycle close — no drift observed); W-17 +6 NEW test functions (≤ 30); suite 4716 passed.
+
 ## [14.1.0] - 2026-06-04 — MINOR — Human-Surface OUTPUT Contract + v14.0.0 Review Fixes
 
 **MINOR — completes the v14.0.0 human-surface OUTPUT contract + closes the v14.0.0 review findings.** The headline is the **§6c test-run-artifact join**: the convergence report can now key each REQ off the *actual* pytest PASS/FAIL outcome (not just the optimistic Traceability-matrix `Status`), so a `Satisfied` cell whose test actually failed can no longer over-claim. The §4 OUTPUT renderers are brought up to the ratified design (Acceptance-criterion column, this-cycle DIGEST filtering, stagnation→`human_needed`), an inverse-S-5 trace bug is fixed, and a cluster of doc-accuracy + test-hygiene findings are closed. A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).

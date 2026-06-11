@@ -26,6 +26,7 @@ real ``.local/.agent/`` tree on disk.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
 import textwrap
@@ -36,6 +37,7 @@ import pytest
 import yaml
 
 from devolaflow.agent_workspace import (
+    HumanBudgetExceededError,
     regenerate_all,
     render_change_report,
     render_human_digest,
@@ -1420,6 +1422,82 @@ class TestHumanReporterCli:
         assert rc == 0
         assert "Convergence Report — v14.1.0" in capsys.readouterr().out
         assert not (workspace / ".local" / "human" / "output" / "DIGEST.md").exists()
+
+
+class TestDigestBudgetBlocking:
+    """REQ-OUT-01 — the digest C-9 budget is BLOCKING since v14.2.0.
+
+    Per the v14.0.0 design telegraph (§8b: "REQ-OUT-01 lint is advisory this
+    cycle; promote to blocking in v14.2.0"): the v14.1.0 state was advisory —
+    ``lint_human`` flagged an over-budget digest only when separately
+    invoked, while the emission paths silently wrote it. Both emission paths
+    (``regenerate_all`` + the ``--human`` CLI) now refuse a hard-ceiling
+    digest via ``HumanBudgetExceededError``. The soft tier stays advisory
+    (WARN log + write proceeds — the documented C-9 escape hatch); zero new
+    env flags (W-20 reuse-first).
+    """
+
+    def test_regenerate_all_over_hard_digest_raises_and_writes_nothing(self, workspace: Path):
+        """Hard-ceiling digest → ``HumanBudgetExceededError``; no human OUTPUT written."""
+        _scaffold_rules(workspace / ".rules")
+        req = _write_human_requirements(workspace)
+        # One blocker whose verbatim "Open asks" line alone exceeds the
+        # 1000-token hard ceiling (5000 chars ≈ 1250 tokens).
+        findings = [{"severity": "blocker", "description": "x" * 5000, "suggestion": "trim"}]
+        with pytest.raises(HumanBudgetExceededError) as excinfo:
+            regenerate_all(
+                repo_root=workspace,
+                now=PINNED_NOW,
+                human_version="v14.2.0",
+                human_requirements_path=req,
+                human_findings=findings,
+            )
+        assert "REQ-OUT-01" in str(excinfo.value)
+        assert excinfo.value.violation.severity == "FAIL"
+        assert excinfo.value.violation.filename == "output/DIGEST.md"
+        # Neither human OUTPUT artifact was written (no partial pair).
+        output = workspace / ".local" / "human" / "output"
+        assert not (output / "DIGEST.md").exists()
+        assert not (output / "convergence" / "v14.2.0-convergence.md").exists()
+
+    def test_regenerate_all_over_soft_digest_warns_but_writes(
+        self, workspace: Path, caplog: pytest.LogCaptureFixture
+    ):
+        """Soft-tier overrun stays advisory: WARN logged, digest still emitted."""
+        _scaffold_rules(workspace / ".rules")
+        req = _write_human_requirements(workspace)
+        # ~3000 chars ≈ 750 tokens — over soft (600), under hard (1000).
+        findings = [{"severity": "blocker", "description": "y" * 3000, "suggestion": "trim"}]
+        with caplog.at_level(logging.WARNING, logger="devolaflow.agent_workspace.reporter"):
+            result = regenerate_all(
+                repo_root=workspace,
+                now=PINNED_NOW,
+                human_version="v14.2.0",
+                human_requirements_path=req,
+                human_findings=findings,
+            )
+        assert result["human"] is not None
+        assert (workspace / ".local" / "human" / "output" / "DIGEST.md").exists()
+        assert "REQ-OUT-01" in caplog.text
+
+    def test_cli_human_over_hard_digest_returns_one(self, workspace: Path, capsys):
+        """The ``--human`` CLI exits 1 on a hard-ceiling digest; nothing written."""
+        # 300 matrix-only REQ rows → ~300 digest delta lines ≈ 1500+ tokens.
+        rows = "\n".join(f"| REQ-CLI-{i:03d} | c{i} | | Blocked |" for i in range(300))
+        body = (
+            "# Requirements\n\n## Traceability\n"
+            "| REQ-ID | Acceptance criterion | Cycle | Status |\n"
+            "|---|---|---|---|\n" + rows + "\n"
+        )
+        req = _write_human_requirements(workspace, body)
+        rc = reporter_main(
+            ["--human", "v14.2.0", "--requirements", str(req), "--repo-root", str(workspace)]
+        )
+        assert rc == 1
+        assert "REQ-OUT-01" in capsys.readouterr().err
+        output = workspace / ".local" / "human" / "output"
+        assert not (output / "DIGEST.md").exists()
+        assert not (output / "convergence" / "v14.2.0-convergence.md").exists()
 
 
 class TestReporterByteStability:
