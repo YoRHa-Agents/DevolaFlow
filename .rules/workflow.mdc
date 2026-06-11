@@ -124,17 +124,17 @@ Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.m
 
 ## W-18 — Ghost-Audit Refresh Precondition
 
-Per S-4 (No Ghost Features), every CHANGELOG entry mentioning a feature MUST have working code + tests. W-18 sharpens S-4 with a **PRECONDITION**: before a PV authors a CHANGELOG entry mentioning a feature, the **ghost-audit** (`tests/test_no_ghost_features.py`) MUST be refreshed to include a coverage check for that feature's code path.
+Per S-4 (No Ghost Features), every CHANGELOG entry mentioning a feature MUST have working code + tests. W-18 sharpens S-4 with a **PRECONDITION**: before a PV authors a CHANGELOG entry mentioning a feature, the **ghost-audit** — the `tests/ghost/` package (aggregator shim `tests/test_no_ghost_features.py` until v15.0.0) — MUST be refreshed to include a coverage check for that feature's code path.
 
 Refresh mechanism:
 
-1. Add the new feature's primary symbol to the ghost-audit's coverage set (a new test function or a parametrize entry).
-2. Run `python -m pytest tests/test_no_ghost_features.py -v` to confirm the new entry passes.
+1. Add the new feature's primary symbol to the ghost-audit's coverage set (a new test function or a parametrize entry) in the CURRENT cycle's `tests/ghost/test_features_v<MAJOR>_<MINOR>.py` (domain lints live in `tests/ghost/test_{rules,schema,registries}.py` per v15-ADR-001).
+2. Run `python -m pytest tests/ghost/ -v` to confirm the new entry passes.
 3. ONLY THEN add the CHANGELOG entry that mentions the feature.
 
-This sequencing prevents the v8.4.x-era pattern where CHANGELOG entries cited "feature X ships in PV-N" but `test_no_ghost_features.py` had no coverage assertion for X — the audit silently passed because it was never asked. The new `test_ghost_audit_refresh_present` lint enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
+This sequencing prevents the v8.4.x-era pattern where CHANGELOG entries cited "feature X ships in PV-N" but the ghost audit had no coverage assertion for X — the audit silently passed because it was never asked. The `test_ghost_audit_refresh_present` lint (`tests/ghost/test_rules.py`) enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
 
-Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + ADR-005 D2.
+Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + ADR-005 D2. Package split: v14.3.0 per `.local/research/adr/v15-ADR-001-ghost-audit-decomposition.md`.
 
 ## W-19 — Research Artifact Archive at Cycle End
 
@@ -215,7 +215,7 @@ v9.2.0 L0's SI-3 §3.2 ≥ 9.5/10.
 
 Enforcement: W-21 is a HUMAN-side gating rule (no automated CI lint —
 the gating IS the multi-cycle deliberation requirement). The
-`tests/test_no_ghost_features.py::test_rule_count_under_cap` lint
+`tests/ghost/test_rules.py::test_rule_count_under_cap` lint
 enforces the broader 60-rule cap (per ADR-007 D5) but does NOT separately
 enforce the Soul-specific 12-cap; that gate IS the SI-3 review.
 

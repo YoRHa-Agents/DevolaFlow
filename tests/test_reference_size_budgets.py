@@ -188,14 +188,18 @@ def test_canonical_lists_match_sf3_contract() -> None:
     `src/devolaflow/lifecycle/check_human_input_append_only.py` +
     `tests/test_requirements_trace.py` + `tests/test_human_input_immutability.py`.
 
+    v14.3.0 grew the reference set 20 → 21 by appending
+    ``references/artifact-quality.md`` (the EVIDENCE-ONLY L3 artifact
+    rubric per v15-ADR-007 — 25th SF-4 canonical entry).
+
     NOTE on _SF4_REFERENCE_SET (in tests/test_no_ghost_features.py):
-    the canonical reference set is 24 entries. The MIRRORED_FILES
-    list in scripts/sync_cursor_skill.py is a SUBSET (currently 20 of
-    24) — only the references that ship in the .cursor/ skill mirror
+    the canonical reference set is 25 entries. The MIRRORED_FILES
+    list in scripts/sync_cursor_skill.py is a SUBSET (currently 21 of
+    25) — only the references that ship in the .cursor/ skill mirror
     bundle. When a NEW reference doc lands, both lists update IN
     LOCKSTEP per SF-3 §"Project-local opt-in mirror".
     """
-    assert len(_REF_FILES) == 20, f"expected 20 references, got {len(_REF_FILES)}: {_REF_FILES}"
+    assert len(_REF_FILES) == 21, f"expected 21 references, got {len(_REF_FILES)}: {_REF_FILES}"
     assert len(_EXAMPLE_FILES) == 4, (
         f"expected 4 examples, got {len(_EXAMPLE_FILES)}: {_EXAMPLE_FILES}"
     )

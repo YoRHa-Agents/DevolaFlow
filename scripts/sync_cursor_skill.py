@@ -126,6 +126,16 @@ MIRRORED_FILES = [
     # src/devolaflow/agent_workspace/requirements_trace.py +
     # src/devolaflow/lifecycle/check_human_input_append_only.py.
     "references/human-surface.md",
+    # v14.3.0 — artifact-quality reference (25th SF-4 canonical Tier-2
+    # entry; well under the ≤1000 Large-tier ceiling). The EVIDENCE-ONLY
+    # rubric for the L3 task artifact itself per v15-ADR-007: four
+    # excellence dimensions (correctness / minimal diff / test evidence /
+    # convention adherence), the dimension → lean-report transport map
+    # (self_check / ac_results / diff_stats), the §4 self-verify
+    # checklist, and §5 failure honesty. L3 emits evidence, NEVER a
+    # numeric score (doctrine guard: reject_subagent_quality_score hook).
+    # Pairs with references/execution-protocol.md §15 "L3 Self-Verify".
+    "references/artifact-quality.md",
     "examples/full-pipeline-trace.md",
     "examples/hotfix-trace.md",
     "examples/convergence-loop-trace.md",

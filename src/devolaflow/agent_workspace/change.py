@@ -35,6 +35,7 @@ Public API:
 
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 from dataclasses import dataclass, field
@@ -43,6 +44,8 @@ from pathlib import Path
 from typing import Final
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ACTIVE_DIR_DEFAULT",
@@ -245,10 +248,25 @@ class Change:
         folder_path = Path(folder)
         folder_path.mkdir(parents=True, exist_ok=True)
 
-        (folder_path / "goal.md").write_text(self.goal_md, encoding="utf-8")
-        (folder_path / "acceptance.md").write_text(self.acceptance_md, encoding="utf-8")
-        (folder_path / "spec.md").write_text(self.spec_md, encoding="utf-8")
-        (folder_path / "tasks.md").write_text(self.tasks_md, encoding="utf-8")
+        def _write(name: str, text: str, *, newline: str | None = None) -> None:
+            """Write one artifact through the v14.3.0 hooked write surface.
+
+            Fires the ``file_write`` lifecycle hook BEFORE the write per
+            ADR-003 (permissive at v14.3.0; byte-identical no-op when
+            ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1"), then performs the
+            exact pre-v14.3.0 ``Path.write_text`` call.
+            """
+            target = folder_path / name
+            _fire_file_write_hook(target, self.owned_files, folder_path)
+            if newline is None:
+                target.write_text(text, encoding="utf-8")
+            else:
+                target.write_text(text, encoding="utf-8", newline=newline)
+
+        _write("goal.md", self.goal_md)
+        _write("acceptance.md", self.acceptance_md)
+        _write("spec.md", self.spec_md)
+        _write("tasks.md", self.tasks_md)
 
         status_yaml = yaml.safe_dump(
             self.status,
@@ -256,17 +274,15 @@ class Change:
             default_flow_style=False,
             allow_unicode=True,
         )
-        (folder_path / "STATUS.yaml").write_text(status_yaml, encoding="utf-8")
+        _write("STATUS.yaml", status_yaml)
 
         owned_text = "\n".join(self.owned_files)
         if owned_text and not owned_text.endswith("\n"):
             owned_text += "\n"
-        (folder_path / "owned_files.txt").write_text(owned_text, encoding="utf-8", newline="\n")
+        _write("owned_files.txt", owned_text, newline="\n")
 
         if self.learnings_jsonl is not None:
-            (folder_path / "learnings.jsonl").write_text(
-                self.learnings_jsonl, encoding="utf-8", newline="\n"
-            )
+            _write("learnings.jsonl", self.learnings_jsonl, newline="\n")
 
     def with_state(self, new_state: str) -> Change:
         """Return a copy with ``status['state']`` updated; refreshes ``last_updated``.
@@ -297,6 +313,48 @@ class Change:
             owned_files=list(self.owned_files),
             learnings_jsonl=self.learnings_jsonl,
             source_folder=self.source_folder,
+        )
+
+
+def _fire_file_write_hook(
+    target: Path,
+    owned_files: list[str],
+    change_folder: Path,
+) -> None:
+    """Fire the v14.3.0 ``file_write`` lifecycle hook for one artifact write.
+
+    Production call site for
+    :func:`devolaflow.lifecycle.runtime_wiring.fire_file_write` per
+    ADR-003 (``.local/research/adr/v15-ADR-003-output-closure-
+    enforcement-locus.md``): ``Change.to_active_folder`` IS the
+    framework's change-driven write surface, so every artifact write
+    runs through the hook BEFORE touching disk. Permissive at v14.3.0
+    (``strict=False`` hard-coded; the strict flip is the v15.0.0
+    graduation) and a byte-identical zero-IO no-op when
+    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse).
+
+    Per the S-5 isolation pattern established by
+    ``feedback_emit.ProposalEmitter._fire_hook_chain``, a buggy hook
+    handler is logged at WARNING and the write proceeds — the
+    permissive wiring MUST NOT break the change-driven flow. Lazy
+    import keeps the no-cycle property between ``agent_workspace`` and
+    ``lifecycle`` (mirrors ``auto_write_handoff``'s lazy reverse import).
+    """
+    try:
+        from devolaflow.lifecycle.runtime_wiring import fire_file_write
+
+        fire_file_write(
+            target,
+            owned_files=owned_files,
+            change_folder=change_folder,
+            strict=False,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "file_write hook raised %s for %s; write proceeds unchanged "
+            "(v14.3.0 permissive wiring per ADR-003)",
+            exc,
+            target,
         )
 
 

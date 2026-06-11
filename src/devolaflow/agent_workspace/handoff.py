@@ -253,6 +253,41 @@ class HandoffEnvelope:
         return asdict(self)
 
 
+def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
+    """Fire the v14.3.0 ``task_stop`` lifecycle hook for a StatusReport envelope.
+
+    Production call site for
+    :func:`devolaflow.lifecycle.runtime_wiring.fire_task_stop` per
+    ADR-003 (``.local/research/adr/v15-ADR-003-output-closure-
+    enforcement-locus.md``): ``HandoffStore.write_envelope`` with
+    ``envelope_kind == "StatusReport"`` IS the L3 report emission
+    surface. The payload is a shallow copy of the envelope's ``report``
+    block (so a hook handler can never mutate the envelope about to be
+    written); the default ``test_on_complete`` handler reads the
+    block's in-memory ``metrics`` evidence — no subprocesses spawned.
+
+    Permissive at v14.3.0 (``strict=False`` hard-coded; strict flip is
+    the v15.0.0 graduation) and a byte-identical zero-IO no-op when
+    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse). Per the
+    S-5 isolation pattern from ``feedback_emit._fire_hook_chain``, a
+    buggy hook handler is logged at WARNING and the envelope write
+    proceeds. Lazy import preserves the no-cycle property between
+    ``agent_workspace`` and ``lifecycle``.
+    """
+    try:
+        from devolaflow.lifecycle.runtime_wiring import fire_task_stop
+
+        fire_task_stop(dict(envelope.report or {}), strict=False)
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning(
+            "task_stop hook raised %s for change_id=%r seq=%d; envelope "
+            "write proceeds unchanged (v14.3.0 permissive wiring per ADR-003)",
+            exc,
+            envelope.change_id,
+            envelope.seq,
+        )
+
+
 @dataclass
 class HandoffStore:
     """Append-only filesystem-backed handoff envelope ledger.
@@ -295,6 +330,14 @@ class HandoffStore:
           HandoffStoreError: when the envelope fails schema validation.
         """
         envelope.validate()
+        # v14.3.0 ADR-003 task_stop wiring: a StatusReport envelope IS the
+        # framework-level finalisation of an L3 task's report, so the
+        # ``task_stop`` (``test_on_complete``) hook fires here BEFORE the
+        # envelope is materialised. Permissive at v14.3.0 (warn-only;
+        # strict flip telegraphed for v15.0.0) and a byte-identical
+        # zero-IO no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1".
+        if envelope.envelope_kind == "StatusReport":
+            _fire_task_stop_hook(envelope)
         target = self.handoff_root / envelope.filename
         if target.exists():
             raise EnvelopeImmutableError(

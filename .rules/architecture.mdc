@@ -115,7 +115,7 @@ Adding a NEW whitelist / recipe / registry surface requires picking
 the registration data across two modules (e.g. half the whitelist in
 `shell_proxy/registry.py` + half in `lifecycle/pre_shell_call.py`)
 invalidates cache reasoning and is a release blocker. Enforced by
-`tests/test_no_ghost_features.py::test_registry_single_owner` which
+`tests/ghost/test_registries.py::test_registry_single_owner` which
 fails when an AST walk over `src/devolaflow/` finds more than one
 module-level definition for the same registry name.
 
