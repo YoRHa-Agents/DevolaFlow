@@ -709,7 +709,9 @@ def _install_via_cargo(
             f"cargo install failed for plugin {spec.id!r} (os-error: {exc}). "
             "Install the Rust toolchain via "
             "`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` "
-            "and retry, or set DEVOLAFLOW_AUTO_INSTALL=0 to opt out.",
+            "and retry, or opt out of auto-install by setting "
+            "defaults.auto_install: false in runtime-plugins.yaml "
+            "(or passing ensure_plugin(..., auto_install=False)).",
             details={"plugin_id": spec.id, "cmd": cmd},
         ) from exc
 

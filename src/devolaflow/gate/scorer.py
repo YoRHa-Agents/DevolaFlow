@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 import sys
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
@@ -309,6 +310,115 @@ def validate_cascade_gate_fields(
 # module-level state. Source: ``.rules/architecture.mdc`` §A-7.1
 # (STRICT graduation language) + ``.local/research/v12.0.0_gap_analysis.md``
 # §3 (D-1 spec).
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v14.4.0 (G-005 NEST slice) — Intra-task-convergence gate-field validator
+#
+# Pairs with the v14.4.0 schema NEST extension (the
+# ``gate.intra_task_convergence`` + ``gate.intra_task_max_rounds``
+# sub-fields under the existing ``gate`` block — see
+# ``schemas/lean-dispatch.yaml``) and the
+# ``feedback.py::populate_intra_task_convergence`` opt-in helper.
+# Ships PERMISSIVE-by-default (returns a warning list; ``strict=True``
+# raises :class:`IntraTaskConvergenceViolationError`) — the same
+# DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR shape the
+# v11.1.0 PV-04 cascade SOFT validator used before its v12.0.0 D-1
+# graduation. Legacy dispatches without the new sub-fields flow through
+# byte-identically (absence-canonical per A-2.3 NEST contract).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class IntraTaskConvergenceViolationError(Exception):
+    """Raised by :func:`validate_intra_task_convergence_fields` in strict mode.
+
+    v14.4.0 (G-005 NEST slice) — signals that a dispatch payload's
+    ``gate.intra_task_convergence`` / ``gate.intra_task_max_rounds``
+    sub-fields carry the wrong types or out-of-range values. Mirrors
+    :class:`CascadeViolationError` (plain :class:`Exception` subclass —
+    NOT :class:`ValueError` — so a single ``except`` clause does not
+    accidentally swallow unrelated argument-validation errors).
+
+    The string form always cites the ``G-005`` gap identifier so the
+    operator-quotable substring survives any logging pipeline that
+    strips structured fields (the same discipline ``A-7`` uses on the
+    cascade messages).
+    """
+
+
+def validate_intra_task_convergence_fields(
+    gate_block: dict[str, Any] | None,
+    *,
+    strict: bool = False,
+) -> list[str]:
+    """Validate gate.intra_task_convergence + gate.intra_task_max_rounds.
+
+    v14.4.0 (G-005 NEST slice) — type checks for the two NEST sub-fields
+    populated by :func:`devolaflow.feedback.populate_intra_task_convergence`:
+
+    * ``intra_task_convergence: bool`` — when True, the L3 receiver MUST
+      run the ``references/execution-protocol.md`` §15 self-verify
+      gen→verify→refine loop before its first StatusReport.
+    * ``intra_task_max_rounds: int >= 1`` — the §15.4 bounded self-fix
+      ceiling (default 2 when populated by the helper).
+
+    Validation paths (each sub-field is independently OPTIONAL per the
+    A-2.3 NEST contract — absence is canonical and short-circuits):
+
+    1. ``gate_block is None`` → no violations (legacy short-circuit).
+    2. Neither sub-field present → no violations (absence-canonical;
+       v14.3.0 dispatches flow through byte-identically).
+    3. ``intra_task_convergence`` present but not a ``bool`` → violation.
+    4. ``intra_task_max_rounds`` present but not ``int >= 1`` (``bool``
+       excluded explicitly — a layer/round count is never a boolean,
+       mirroring the cascade_min_layers check) → violation.
+
+    Args:
+      gate_block: the dispatch's ``gate`` sub-dict, or ``None`` when
+        absent.
+      strict: ``False`` (default — DEFAULTS-PERMISSIVE-IN-MINOR) returns
+        the violation messages as a warning list; ``True`` raises
+        :class:`IntraTaskConvergenceViolationError` on the FIRST
+        violation (the v15.0.0 strict-graduation preview, mirroring the
+        cascade SOFT → STRICT ladder).
+
+    Returns:
+      List of violation messages (empty on every passing path). Each
+      message is ALSO logged at WARNING level per S-5 (no silent
+      failures) so observability pipelines see the detection signal in
+      permissive mode too.
+
+    Raises:
+      IntraTaskConvergenceViolationError: in ``strict=True`` mode, on
+        the first violation detected. The message cites the ``G-005``
+        gap identifier verbatim.
+    """
+    warnings: list[str] = []
+    if gate_block is None:
+        return warnings
+
+    if "intra_task_convergence" in gate_block:
+        value = gate_block["intra_task_convergence"]
+        if not isinstance(value, bool):
+            msg = f"G-005 gate.intra_task_convergence must be bool, got {type(value).__name__}"
+            logger.warning(msg)
+            if strict:
+                raise IntraTaskConvergenceViolationError(msg)
+            warnings.append(msg)
+
+    if "intra_task_max_rounds" in gate_block:
+        value = gate_block["intra_task_max_rounds"]
+        # bool is a subclass of int in Python — exclude it explicitly so
+        # ``intra_task_max_rounds: True`` does NOT silently satisfy the
+        # int >= 1 check (same discipline as cascade_min_layers).
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            msg = f"G-005 gate.intra_task_max_rounds must be int >= 1, got {value!r}"
+            logger.warning(msg)
+            if strict:
+                raise IntraTaskConvergenceViolationError(msg)
+            warnings.append(msg)
+
+    return warnings
 
 
 SEVERITY_WEIGHTS: dict[str, int] = {
@@ -1580,7 +1690,11 @@ def _attach_legibility_evaluation(
 #
 #     test    — invoke ``verification_cmd`` via the supplied runner
 #               (default :mod:`subprocess`); exit 0 → pass, else → fail.
-#     metric  — skip with a deterministic message (the metric runner is
+#     metric  — v14.4.0: entries WITH a ``verification_cmd`` are executed
+#               by the metric runner (coverage / lint / number kinds —
+#               see the v14.4.0 comment block above
+#               ``_evaluate_metric_criterion``); entries WITHOUT one keep
+#               the legacy skip-with-reason verdict (the metric runner is
 #               external; the verdict surfaces the metric + threshold
 #               so a downstream analytics pass can ratify).
 #     manual  — skip with a deterministic message ("manual review
@@ -1655,6 +1769,193 @@ def _default_command_runner(criterion: AcceptanceCriterion) -> CommandRunResult:
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v14.4.0 — AC-v2 metric runners (gap register §4.1 v14.4.0 row)
+#
+# ``verification_type='metric'`` criteria that carry a ``verification_cmd``
+# are now EXECUTED rather than skipped. Two prescribed metric kinds plus a
+# generic fallback (the kind is derived from ``AcceptanceCriterion.metric``;
+# the dispatch-payload ``metric_kind`` field documented in
+# ``schemas/lean-dispatch.yaml`` maps onto the same three literals):
+#
+#     coverage — run the cmd (e.g. ``pytest --cov`` / ``coverage report``),
+#                parse the LAST percentage in the output (the TOTAL line is
+#                last in both tools), compare against the threshold.
+#     lint     — run the cmd (e.g. ``ruff check path``), pass on exit 0.
+#     number   — run the cmd, parse the LAST number in the output, compare
+#                against the threshold (any metric name other than
+#                'coverage'/'lint' selects this kind).
+#
+# Threshold expressions embed the comparison operator (``">= 80"``,
+# ``"<= 100"``, ``"== 0"``); a bare number defaults to ``>=``. Bounded
+# subprocess execution reuses the SAME injected :data:`CommandRunner` as
+# the test path (default :func:`_default_command_runner`, timeout 900s).
+# S-5: runner errors / unparsable output / unparsable thresholds produce
+# explicit ``fail`` verdicts with the cause in the message — NEVER a
+# silent skip. Metric criteria WITHOUT a ``verification_cmd`` keep the
+# legacy v8.0.0 P-10 skip-with-reason verdict byte-identically;
+# ``manual`` criteria stay skip-with-reason.
+# ─────────────────────────────────────────────────────────────────────────────
+
+METRIC_KIND_COVERAGE = "coverage"
+METRIC_KIND_LINT = "lint"
+METRIC_KIND_NUMBER = "number"
+
+# "<op> <value>" with optional trailing '%' (coverage thresholds are often
+# written ">= 80%"). Bare numbers parse with op=None → defaults to ">=".
+_THRESHOLD_EXPR_RE = re.compile(r"^\s*(>=|<=|==|>|<)?\s*([-+]?\d+(?:\.\d+)?)\s*%?\s*$")
+_PERCENT_RE = re.compile(r"([-+]?\d+(?:\.\d+)?)\s*%")
+_NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
+
+
+def _metric_kind_for(criterion: AcceptanceCriterion) -> str:
+    """Derive the metric kind from ``criterion.metric`` (case-insensitive).
+
+    ``'coverage'`` / ``'lint'`` select the two prescribed kinds; any other
+    metric name (``'latency_p95_ms'``, ``'number'``, empty, …) selects the
+    generic ``number`` kind. Mirrors the ``metric_kind`` per-entry doc in
+    ``schemas/lean-dispatch.yaml#lean_format_spec.acceptance_criteria_v2``.
+    """
+    name = (criterion.metric or "").strip().lower()
+    if name in (METRIC_KIND_COVERAGE, METRIC_KIND_LINT):
+        return name
+    return METRIC_KIND_NUMBER
+
+
+def _parse_threshold_expression(threshold: str) -> tuple[str, float] | None:
+    """Parse ``threshold`` into ``(comparison_op, target)`` or ``None``.
+
+    Accepts ``">= 80"``, ``"<=100"``, ``"== 0"``, ``"> 1.5"``, ``"< 200"``
+    and bare numbers (``"80"`` → ``(">=", 80.0)``). Unparsable input
+    returns ``None`` — the caller converts that into an explicit ``fail``
+    verdict per S-5 (never a silent skip).
+    """
+    match = _THRESHOLD_EXPR_RE.match(threshold or "")
+    if match is None:
+        return None
+    op = match.group(1) or ">="
+    return op, float(match.group(2))
+
+
+def _compare_measured(measured: float, op: str, target: float) -> bool:
+    """Apply the parsed comparison operator. Exhaustive over the 5-op set."""
+    if op == ">=":
+        return measured >= target
+    if op == "<=":
+        return measured <= target
+    if op == ">":
+        return measured > target
+    if op == "<":
+        return measured < target
+    return measured == target  # "=="
+
+
+def _evaluate_metric_criterion(
+    criterion: AcceptanceCriterion,
+    runner: CommandRunner,
+) -> AcceptanceCriterionVerdict:
+    """Run one ``verification_type='metric'`` criterion (v14.4.0).
+
+    No ``verification_cmd`` → legacy v8.0.0 P-10 skip-with-reason verdict
+    (byte-identical message — preserves the pre-v14.4.0 contract for
+    caller-driven metric evaluation). With a cmd, the kind from
+    :func:`_metric_kind_for` selects the runner semantics documented on
+    the module-level v14.4.0 comment block above.
+    """
+    if not criterion.verification_cmd:
+        # Legacy caller-driven path — byte-identical to the pre-v14.4.0
+        # skip verdict so existing dispatchers see no behaviour change.
+        return AcceptanceCriterionVerdict(
+            criterion_id=criterion.id,
+            status="skip",
+            message=(
+                f"metric '{criterion.metric}' requires external evaluator "
+                f"(threshold='{criterion.threshold}')"
+            ),
+            details={
+                "verification_type": "metric",
+                "metric": criterion.metric,
+                "threshold": criterion.threshold,
+            },
+        )
+
+    kind = _metric_kind_for(criterion)
+    result = runner(criterion)
+    details: dict[str, object] = {
+        "verification_type": "metric",
+        "metric": criterion.metric,
+        "metric_kind": kind,
+        "threshold": criterion.threshold,
+        "verification_cmd": criterion.verification_cmd,
+        "returncode": result.returncode,
+        "stdout": result.stdout[-500:],
+        "stderr": result.stderr[-500:],
+    }
+
+    if kind == METRIC_KIND_LINT:
+        if result.returncode == 0:
+            return AcceptanceCriterionVerdict(
+                criterion_id=criterion.id,
+                status="pass",
+                message=f"lint metric cmd exited 0: {criterion.verification_cmd}",
+                details=details,
+            )
+        return AcceptanceCriterionVerdict(
+            criterion_id=criterion.id,
+            status="fail",
+            message=(f"lint metric cmd exit={result.returncode}: {criterion.verification_cmd}"),
+            details=details,
+        )
+
+    # coverage / number kinds — parse the measured value from the output
+    # (stdout first, stderr fallback), then compare against the threshold.
+    pattern = _PERCENT_RE if kind == METRIC_KIND_COVERAGE else _NUMBER_RE
+    matches = pattern.findall(result.stdout) or pattern.findall(result.stderr)
+    if not matches:
+        # S-5: explicit fail — never silently skip a runner error.
+        return AcceptanceCriterionVerdict(
+            criterion_id=criterion.id,
+            status="fail",
+            message=(
+                f"{kind} metric cmd produced no parsable "
+                f"{'percentage' if kind == METRIC_KIND_COVERAGE else 'number'} "
+                f"(exit={result.returncode}): {criterion.verification_cmd}"
+            ),
+            details=details,
+        )
+    measured = float(matches[-1])
+    details["measured"] = measured
+
+    parsed = _parse_threshold_expression(criterion.threshold)
+    if parsed is None:
+        return AcceptanceCriterionVerdict(
+            criterion_id=criterion.id,
+            status="fail",
+            message=(
+                f"{kind} metric threshold {criterion.threshold!r} is not a parsable "
+                "comparison expression (expected e.g. '>= 80')"
+            ),
+            details=details,
+        )
+    op, target = parsed
+    details["comparison"] = op
+    details["target"] = target
+
+    if _compare_measured(measured, op, target):
+        return AcceptanceCriterionVerdict(
+            criterion_id=criterion.id,
+            status="pass",
+            message=f"{kind} metric measured {measured} {op} {target}",
+            details=details,
+        )
+    return AcceptanceCriterionVerdict(
+        criterion_id=criterion.id,
+        status="fail",
+        message=f"{kind} metric measured {measured} violates threshold {op} {target}",
+        details=details,
+    )
+
+
 def evaluate_acceptance_criteria_v2(
     criteria: list[AcceptanceCriterion],
     *,
@@ -1662,13 +1963,21 @@ def evaluate_acceptance_criteria_v2(
 ) -> list[AcceptanceCriterionVerdict]:
     """Auto-evaluate a list of :class:`AcceptanceCriterion`.
 
-    Per ``patch_plan §3 P-10``:
+    Per ``patch_plan §3 P-10`` (metric path extended at v14.4.0):
 
     - ``verification_type='test'`` → invoke ``verification_cmd`` via
       *runner* (default :func:`_default_command_runner`); exit 0 →
       ``pass``, else → ``fail``.
-    - ``verification_type='metric'`` → ``skip`` with the metric +
-      threshold echoed in details (caller-driven evaluation).
+    - ``verification_type='metric'`` WITH a ``verification_cmd`` →
+      executed by the v14.4.0 metric runner
+      (:func:`_evaluate_metric_criterion`): ``coverage`` kind parses the
+      last percentage from the cmd output and compares it against the
+      threshold expression; ``lint`` kind passes on exit 0; any other
+      metric name selects the generic ``number`` kind (parse last
+      number, compare). Runner errors → explicit ``fail`` per S-5.
+    - ``verification_type='metric'`` WITHOUT a ``verification_cmd`` →
+      ``skip`` with the metric + threshold echoed in details
+      (caller-driven evaluation — byte-identical pre-v14.4.0 path).
     - ``verification_type='manual'`` → ``skip`` with the message
       ``"manual review required"`` (S-5 — never silently treat as PASS).
 
@@ -1728,21 +2037,7 @@ def evaluate_acceptance_criteria_v2(
                 )
             )
         elif c.verification_type == "metric":
-            verdicts.append(
-                AcceptanceCriterionVerdict(
-                    criterion_id=c.id,
-                    status="skip",
-                    message=(
-                        f"metric '{c.metric}' requires external evaluator "
-                        f"(threshold='{c.threshold}')"
-                    ),
-                    details={
-                        "verification_type": "metric",
-                        "metric": c.metric,
-                        "threshold": c.threshold,
-                    },
-                )
-            )
+            verdicts.append(_evaluate_metric_criterion(c, actual_runner))
         else:  # manual
             verdicts.append(
                 AcceptanceCriterionVerdict(

@@ -130,6 +130,12 @@ the wave-level disjoint-ownership invariant (P2).
 | `function`| Edits restricted to declared function bodies in owned files | Standard impl / refactor | Walk diff hunks; reject hunks that cross declared function boundaries |
 | `module`  | Edits restricted to ``owned_files`` set; no out-of-scope writes | Complex multi-wave impl | Compare diff filename set against ``owned_files`` |
 
+**Enforcement**: `src/devolaflow/lifecycle/validate_surgical_scope.py`
+(v14.4.0+, opt-in) mechanically verifies the `function` + `module` tiers —
+`evaluate_surgical_scope` auto-selects the tier from available metadata;
+`register_surgical_scope_hook` opts the checker into `task_stop` (default
+chain unchanged until the v15.0.0 strict graduation).
+
 **Rendered guidance** (injected into L3 dispatch when active):
 
 > Your edits MUST stay within the declared ``surgical_scope`` tier. A
@@ -421,6 +427,7 @@ backs the prompt-side guidance:
 | Primitive | Runtime surface | Cycle |
 |-----------|-----------------|-------|
 | `surgical_scope='line'` verifier | `src/devolaflow/task_adaptive_selector.py:_load_line_level_criteria` | v8.2.0 PV-04 |
+| `surgical_scope` function/module-tier verifier (opt-in) | `src/devolaflow/lifecycle/validate_surgical_scope.py` | v14.4.0 T2 |
 | `select_context()` integration | `src/devolaflow/task_adaptive_selector.py:_select_behavioral_sections` | v8.0.0 P-08 |
 | `change_context.owned_files_ref` honoring | `src/devolaflow/agent_workspace/change.py::ChangeStore` | v8.2.5 PV-05 |
 | Append-only handoff envelope (S-9) | `src/devolaflow/agent_workspace/handoff.py` | v8.2.4+ |

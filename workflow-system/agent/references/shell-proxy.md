@@ -28,7 +28,7 @@ dependencies:
   - "agent/references/execution-protocol.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/message-schemas.md"
-last_updated: "2026-04-23"
+last_updated: "2026-06-11"
 ---
 
 # Shell-Proxy + Memory-Router Reference
@@ -84,7 +84,6 @@ RTK + memory-router surface area.
 
 | Flag | Source PV | Default | Activates |
 |------|-----------|---------|-----------|
-| `DEVOLAFLOW_AUTO_INSTALL` | v8.3.0 PV-01 (carried fwd) | `0` | Pre-existing — set to `1` to allow `installer.py::ensure_plugin('rtk')` to attempt curl/cargo install. |
 | `DEVOLAFLOW_RTK_PROXY` | v8.3.2 PV-02 | unset | When `"1"`: `pre_shell_call` rewrites whitelisted commands via `rtk rewrite`; PV-04 command-mapping layer also activates (REUSES this flag — no new env var). |
 | `DEVOLAFLOW_RTK_PROXY_TIER2` | v8.3.2 PV-02 | unset | Secondary opt-in. Adds the Tier 2 commands (`git add`, `git commit`, `git show`, `cargo test`, `npm test`, `make`) to the proxy whitelist. Has no effect unless `DEVOLAFLOW_RTK_PROXY=1`. |
 | `DEVOLAFLOW_MEMORY_ROUTER` | v8.3.3 PV-03 | unset | When `"1"`: `lookup_case()` consults `.local/memory/cases/index.yaml` BEFORE the L0/L1 dispatcher re-derives from SKILL.md. Cache-miss falls through to the existing planner. |
@@ -92,6 +91,17 @@ RTK + memory-router surface area.
 **Strict equality** — only the literal string `"1"` enables. `"01"`, `"true"`,
 `"yes"`, etc. all leave the flag DISABLED. This defends against typos that
 would otherwise silently activate the surface.
+
+**Plugin auto-install is NOT env-flag controlled** (honest-docs fix,
+v14.4.0 G-023): whether `installer.py::ensure_plugin('rtk')` may attempt
+the curl/cargo install is governed by
+`runtime-plugins.yaml#defaults.auto_install` (default `true`) and the
+`ensure_plugin(auto_install=...)` parameter. The historical
+`DEVOLAFLOW_AUTO_INSTALL` env var has NO read site in `src/devolaflow/`
+(v14.2.2 G-024 AST audit; see `references/env-flags.md` §2.5 `unwired`
+row) — setting it changes nothing. To opt out of auto-install, set
+`defaults.auto_install: false` in the registry or pass
+`auto_install=False` at the call site.
 
 ---
 
@@ -588,8 +598,9 @@ The R5 strict default-off contract is codified at THREE layers per PV:
 ### 9.1 Enabling the full v8.4.0 stack
 
 ```bash
-# Install RTK runtime plugin (one-time; respects DEVOLAFLOW_AUTO_INSTALL=0 opt-out)
-export DEVOLAFLOW_AUTO_INSTALL=1
+# Install RTK runtime plugin (one-time). Auto-install is governed by
+# runtime-plugins.yaml#defaults.auto_install (default true) — opt out by
+# setting it to false or passing ensure_plugin('rtk', auto_install=False).
 python -c "from devolaflow.plugins import ensure_plugin; ensure_plugin('rtk')"
 
 # Activate shell-proxy (Tier 1 commands: pytest, ruff check, git {diff,log,status})

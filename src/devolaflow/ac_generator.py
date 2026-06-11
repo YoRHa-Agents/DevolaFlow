@@ -146,6 +146,21 @@ _PATTERN_BUILD: re.Pattern[str] = re.compile(
 _PATTERN_LINT: re.Pattern[str] = re.compile(
     r"\b(lint|format|style|ruff|flake8|black)\b",
 )
+# v14.4.0 (G-006) — per-type minimal templates for the newly AC-enabled
+# impl-class profiles (migration / dependency-setup / repo-init / design).
+# Appended AFTER every pre-v14.4.0 pattern in :func:`_match_patterns` so
+# they only claim descriptions that previously fell through to the manual
+# catch-all (strictly additive on the None-space; existing verdicts are
+# byte-identical per the R5 backward-compat discipline).
+_PATTERN_MIGRATION: re.Pattern[str] = re.compile(
+    r"\b(migrate|migration|upgrade|port|convert)\b",
+)
+_PATTERN_SETUP: re.Pattern[str] = re.compile(
+    r"\b(install|configure|setup|set\s+up|scaffold|bootstrap|provision|initiali[sz]e)\b",
+)
+_PATTERN_DESIGN: re.Pattern[str] = re.compile(
+    r"\b(design|architect|blueprint)\b",
+)
 
 
 # Keywords that boost the specificity score (concrete proper nouns / metrics
@@ -283,6 +298,27 @@ def _match_patterns(description: str) -> _PatternHit | None:
     if _PATTERN_DOC.search(description):
         return _PatternHit(
             label="documentation",
+            verification_type="manual",
+        )
+    # v14.4.0 (G-006) — appended AFTER all pre-v14.4.0 patterns so the
+    # new templates only claim previously-unmatched (manual catch-all)
+    # descriptions. Order within the group: migration > setup > design
+    # (a "design the migration plan" description is migration-shaped).
+    if _PATTERN_MIGRATION.search(description):
+        return _PatternHit(
+            label="migration",
+            verification_type="test",
+            verification_cmd=DEFAULT_TEST_COMMAND,
+        )
+    if _PATTERN_SETUP.search(description):
+        return _PatternHit(
+            label="setup_environment",
+            verification_type="test",
+            verification_cmd=DEFAULT_TEST_COMMAND,
+        )
+    if _PATTERN_DESIGN.search(description):
+        return _PatternHit(
+            label="design",
             verification_type="manual",
         )
     return None
@@ -556,6 +592,21 @@ class ACGenerator:
                     ),
                     verification_type="test",
                     verification_cmd="pytest tests/test_benchmarks.py -v",
+                )
+            ]
+        if hit.label == "migration":
+            # v14.4.0 (G-006) — migrations get the same regression-guard
+            # companion shape as bug fixes: the migrated surface MUST NOT
+            # introduce NEW failures vs the pre-migration baseline.
+            return [
+                _CompanionTemplate(
+                    description=(
+                        f"Compatibility guard for '{original}': "
+                        f"`{DEFAULT_TEST_COMMAND}` exits 0 (no NEW failures "
+                        f"vs the pre-migration baseline)"
+                    ),
+                    verification_type="test",
+                    verification_cmd=DEFAULT_TEST_COMMAND,
                 )
             ]
         if hit.label in {"implement_feature", "implement_generic"}:

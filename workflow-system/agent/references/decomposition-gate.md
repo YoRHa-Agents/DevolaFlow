@@ -12,10 +12,10 @@ triggers:
   - "evaluating gate quality"
   - "handling failures"
 tier: 2
-token_estimate: 4800
+token_estimate: 5400
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-06-11"
 ---
 
 # Decomposition & Gate Mechanism Reference
@@ -363,6 +363,37 @@ needs its own `_disabled.yaml` scenario set before flip). Per-primitive
 opt-out per env-flag (R5 strict — set EXACTLY `"0"` to disable; see
 `references/env-flags.md` §2.6..§2.10).
 
+### 5.6 Legibility Opt-In Weight (v14.4.0)
+
+`GateProfile.legibility_weight` steers how much the per-file legibility
+mean (0–100, from `devolaflow.legibility.LegibilityScorer`) shifts the
+gate composite: `composite += weight × (mean_score − 50.0)`, clamped to
+[0, 100]. Defaults are UNCHANGED at v14.4.0 (STANDARD/RELAXED `0.0`,
+STRICT/AUDIT `0.05`) — the default flip is a v15.0.0 ladder item per the
+v14.2.0 gap register §4.1. The opt-in knob for STANDARD/RELAXED work is
+a profile override via `dataclasses.replace` (profiles are frozen
+dataclasses), consumed by the composite scorer with no further wiring:
+
+```python
+from dataclasses import replace
+from devolaflow.gate.profiles import STANDARD
+from devolaflow.gate.scorer import evaluate_gate
+
+profile = replace(STANDARD, legibility_weight=0.1)   # opt-in override
+verdict = evaluate_gate(
+    gate_input, profile, round_num=1,
+    legibility_scorer=scorer,            # LegibilityScorer()
+    legibility_files=["src/pkg/mod.py"],
+)
+# mean_score 80 → composite shifts by 0.1 × (80 − 50) = +3.0
+# mean_score 30 → composite shifts by 0.1 × (30 − 50) = −2.0
+```
+
+`verdict.details["legibility"]` carries `weight`, `mean_score`, and
+`composite_delta` so the shift is auditable per round. Weight `0.0`
+(the STANDARD/RELAXED default) keeps the composite byte-stable —
+legibility is reported but never scored into the verdict.
+
 ### Gate Evaluation Flowchart
 
 ```
@@ -458,6 +489,57 @@ reinforcement state) reach the L3 dispatch payload deterministically.
 See `references/plan-mode-enforcement.md` §10 for the S-10 contract
 detail and `tests/test_dispatch_emission_runs_hooks.py` for the
 regression suite that pins the wiring.
+
+### 6.2 Intra-Task Convergence (v14.4.0 — G-005 NEST slice)
+
+Intra-task convergence is **task-level gen→verify**: the L3 Task Agent
+runs the gen→verify→refine loop on its OWN artifact before emitting its
+first StatusReport, per the L3 Self-Verify protocol
+(`references/execution-protocol.md` §15) and the evidence rubric
+(`references/artifact-quality.md` §4). It is DISTINCT from the
+wave-level `generator_verifier` pattern (§6 above / SKILL.md "Wave
+Coordination Modes"): the wave-level loop dispatches a SEPARATE
+verifier agent across tasks; intra-task convergence is the executing
+L3's own bounded self-check — the two compose, they do not substitute.
+
+| Axis | Intra-task convergence (this section) | Wave-level `generator_verifier` |
+|------|---------------------------------------|--------------------------------|
+| Scope | One L3's own artifact | Whole wave output |
+| Verifier | The executing L3 itself (§15) | Separate verifier subagent |
+| Bound | `intra_task_max_rounds` (default 2, per §15.4) | Gate `max_rounds` (1–6 per profile) |
+| Evidence | `ac_results` + `self_check` report blocks (v14.3.0) | Gate verdict + findings |
+
+Dispatch signal — two OPTIONAL sub-fields NESTed under the existing
+`gate` block (A-2.3; `canonical_order` stays 17, schema version stays
+6; absence is canonical so all multi-baseline goldens render
+byte-identically):
+
+```yaml
+gate:
+  intra_task_convergence: true   # L3 MUST run §15 before first report
+  intra_task_max_rounds: 2       # §15.4 bounded self-fix ceiling (P4)
+```
+
+Helper pair (mirrors the v11.1.0 cascade NEST precedent):
+
+* **Populate** — `devolaflow.feedback.populate_intra_task_convergence(
+  base_dispatch, task_type)`: opt-in, deep-copy, returns the base
+  unchanged unless the warrant rule fires (implementation-class task
+  type `code`/`test`/`config` AND a non-empty `acceptance_criteria_v2`
+  block present — the §15 loop needs structured criteria to verify
+  against).
+* **Validate** — `devolaflow.gate.scorer.validate_intra_task_convergence_fields(
+  gate_block, strict=False)`: type checks for both sub-fields;
+  permissive default returns a warning list, `strict=True` raises
+  `IntraTaskConvergenceViolationError` (DEFAULTS-PERMISSIVE-IN-MINOR;
+  strict graduation follows the cascade SOFT→STRICT ladder).
+
+The loop consumes `acceptance_criteria_v2` verification per §15.2; at
+v14.4.0 the gate's `evaluate_acceptance_criteria_v2` also executes
+`verification_type: metric` entries that carry a `verification_cmd`
+(coverage / lint / number kinds — see
+`schemas/lean-dispatch.yaml#lean_format_spec.acceptance_criteria_v2`);
+`manual` entries stay skip-with-reason, never self-attested green.
 
 ## 7. Failure Handling Chain
 From §7:

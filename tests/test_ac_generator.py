@@ -46,6 +46,7 @@ import yaml
 from devolaflow.ac_generator import (
     DEFAULT_PERFORMANCE_METRIC,
     DEFAULT_PERFORMANCE_THRESHOLD,
+    DEFAULT_TEST_COMMAND,
     ACGenerator,
     ACGeneratorError,
     score_quality,
@@ -770,9 +771,64 @@ class TestR5LegacyByteIdenticalFallback:
 # ---------------------------------------------------------------------------
 
 
+# v14.4.0 (G-006) — impl-class AC-generation coverage. ENABLED = every
+# profile whose tasks WRITE repo artifacts (17 of 24); EXEMPT = read-only /
+# verification / evaluation profiles that CONSUME acceptance criteria but
+# never author artifacts (R-9 doctrine: verifiers don't self-generate the
+# criteria they verify). Source: v14.2.0 gap analysis §2.1 G-006.
+_G006_AC_ENABLED_PROFILES: tuple[str, ...] = (
+    "hotfix",
+    "feature",
+    "refactor",
+    "design",
+    "skill-optimization",
+    "migration",
+    "security-audit",
+    "documentation",
+    "spike-poc",
+    "rdrr",
+    "demo-showcase",
+    "perf-optimization",
+    "dependency-setup",
+    "onboarding",
+    "self_update",
+    "repo-init",
+    "entropy_scan",
+)
+_G006_AC_EXEMPT_PROFILES: tuple[str, ...] = (
+    "research",
+    "review",
+    "feedback",
+    "verify_visual",
+    "verify_acceptance",
+    "verify_interaction",
+    "product_verification",
+)
+
+# Representative goal-hint-shaped task description per newly-enabled
+# profile (G-006 per-profile sanity surface).
+_G006_REPRESENTATIVE_DESCRIPTIONS: dict[str, str] = {
+    "hotfix": "fix bug in auth middleware causing SEV1 crash",
+    "design": "design API schema for the dispatch envelope",
+    "skill-optimization": "compress skill context to improve EvoBench density",
+    "migration": "migrate database layer to postgres 16",
+    "security-audit": "audit src/ for CVE exposure and remediate findings",
+    "documentation": "write docs for the selector module README",
+    "spike-poc": "prototype a spike for the new compressor pipeline",
+    "rdrr": "iterate design ADR for the gate scorer loop",
+    "demo-showcase": "build presentation-ready demo of the workflow",
+    "perf-optimization": "optimize latency of the selector hot path",
+    "dependency-setup": "install and configure tools for the CI environment",
+    "onboarding": "document the codebase overview for new contributors",
+    "self_update": "update skill SKILL.md to the new version",
+    "repo-init": "scaffold workspace and initialize governance rules",
+    "entropy_scan": "entropy cleanup of stale docs and drift audit",
+}
+
+
 class TestContextProfilesIntegration:
-    """``ac_generation_defaults`` lives at ``meta`` level; profile-level
-    overrides activate auto-AC for impl/refactor stages."""
+    """``ac_generation_defaults`` lives at ``meta`` level; v14.4.0 G-006
+    extends the per-profile opt-in to ALL impl-class profiles."""
 
     @pytest.fixture
     def profiles(self) -> dict:
@@ -794,12 +850,84 @@ class TestContextProfilesIntegration:
         assert "ac_generation" in refactor
         assert refactor["ac_generation"]["enabled"] is True
 
-    def test_documentation_profile_does_not_enable(self, profiles: dict) -> None:
-        """Docs-only profile inherits the disabled meta default — no
-        per-profile override added (avoids noisy criteria)."""
-        docs = profiles["profiles"]["documentation"]
-        # No per-profile ac_generation override → falls back to meta default.
-        assert "ac_generation" not in docs
+    def test_g006_impl_class_coverage_and_exempt_list(self, profiles: dict) -> None:
+        """v14.4.0 G-006 — every impl-class profile carries
+        ``ac_generation.enabled: true`` (with the meta-default threshold +
+        prefix); every read-only / verification / evaluation profile stays
+        on the disabled ``meta.ac_generation_defaults`` fallback (no
+        per-profile block). The two lists must partition the full set."""
+        prof = profiles["profiles"]
+        assert set(_G006_AC_ENABLED_PROFILES) | set(_G006_AC_EXEMPT_PROFILES) == set(prof)
+        assert not set(_G006_AC_ENABLED_PROFILES) & set(_G006_AC_EXEMPT_PROFILES)
+        for name in _G006_AC_ENABLED_PROFILES:
+            block = prof[name].get("ac_generation")
+            assert block is not None, f"G-006: {name} must carry ac_generation"
+            assert block["enabled"] is True, f"G-006: {name} must enable auto-AC"
+            assert block["min_quality_threshold"] == 60.0
+            assert block["id_prefix"] == "AC"
+        for name in _G006_AC_EXEMPT_PROFILES:
+            assert "ac_generation" not in prof[name], (
+                f"G-006 exempt violation: {name} is a read-only/verification/"
+                f"evaluation profile and must inherit the disabled meta default"
+            )
+
+    def test_g006_newly_enabled_profiles_generate_sane_criteria(self) -> None:
+        """Per-profile sanity: for every newly-enabled impl-class profile a
+        representative goal-hint-shaped description must produce >= 1
+        criterion with a valid verification type, and the criteria set must
+        clear the profile's ``min_quality_threshold`` (60.0) on the
+        completeness dimension — i.e. the generator never crashes and never
+        emits below-threshold noise for the G-006 extension set."""
+        gen = ACGenerator()
+        for name, description in _G006_REPRESENTATIVE_DESCRIPTIONS.items():
+            criteria = gen.generate(description)
+            assert criteria, f"G-006 sanity: {name} produced no criteria"
+            for criterion in criteria:
+                assert criterion.verification_type in ("test", "metric", "manual"), (
+                    f"G-006 sanity: {name} emitted invalid verification_type "
+                    f"{criterion.verification_type!r}"
+                )
+                if criterion.verification_type == "test":
+                    assert criterion.verification_cmd, (
+                        f"G-006 sanity: {name} test criterion missing verification_cmd"
+                    )
+            quality = score_quality(criteria)
+            assert quality["completeness"] >= 60.0, (
+                f"G-006 sanity: {name} criteria completeness "
+                f"{quality['completeness']} below the min_quality_threshold 60.0"
+            )
+
+    @pytest.mark.parametrize(
+        ("description", "expected_type", "expects_companion"),
+        [
+            ("migrate the auth service to the new schema registry", "test", True),
+            ("upgrade dependencies to the next major line", "test", True),
+            ("configure and install the dev environment toolchain", "test", False),
+            ("scaffold the workspace governance files", "test", False),
+            ("design the dispatch envelope interface", "manual", False),
+            ("architect the storage layout", "manual", False),
+        ],
+    )
+    def test_g006_new_pattern_templates(
+        self, description: str, expected_type: str, expects_companion: bool
+    ) -> None:
+        """v14.4.0 G-006 pattern-catalogue extension: migration / setup /
+        design templates claim descriptions that previously fell through to
+        the manual catch-all. Migration criteria gain a compatibility-guard
+        companion (same shape as the fix_bug regression guard)."""
+        gen = ACGenerator()
+        criteria = gen.generate(description)
+        assert criteria[0].verification_type == expected_type
+        if expected_type == "test":
+            assert criteria[0].verification_cmd == DEFAULT_TEST_COMMAND
+        if expects_companion:
+            assert len(criteria) >= 2
+            assert "compatibility" in criteria[1].description.lower()
+            assert criteria[1].verification_cmd == DEFAULT_TEST_COMMAND
+        else:
+            primary_is_manual = expected_type == "manual"
+            if primary_is_manual:
+                assert len(criteria) == 1
 
 
 # ---------------------------------------------------------------------------

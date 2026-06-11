@@ -2060,5 +2060,37 @@
       "soul_set_cap": "12",
       "benchmark_baseline_active": "v14.3.0_baseline.json"
     }
+  },
+  {
+    "version": "14.4.0",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "MINOR — L3 output-quality closure II: gate.intra_task_convergence NEST (G-005 — intra_task_convergence + intra_task_max_rounds default 2 under gate per A-2.3; canonical_order stays 17, all 15 goldens byte-identical); AC-v2 metric runners (coverage/lint/number ACs now execute with explicit verdicts); NEW lifecycle/validate_surgical_scope.py diff verifier (BG-003, opt-in); context_profiles overlay refactor 2427 → 1783 lines (G-026); version-sync fan-out 11 → 9 patterns (G-031)",
+    "summary": "v14.4.0 closes the second L3 output-quality batch (G-005/G-006/G-023/G-026/G-031 + BG-003/F-P1). Intra-task convergence: populate_intra_task_convergence populates gate.intra_task_convergence + gate.intra_task_max_rounds (default 2) ONLY for impl-class tasks (code/test/config) with non-empty acceptance_criteria_v2 — absence-canonical otherwise; SOFT validator validate_intra_task_convergence_fields + IntraTaskConvergenceViolationError (strict); decomposition-gate §6.2 task-level vs wave-level gen-verify. AC-v2 metric runners: evaluate_acceptance_criteria_v2 executes metric ACs (metric_kind coverage/lint/number + threshold comparison); unparsable output → explicit FAIL (S-5); manual stays skip. Surgical scope (BG-003): collect_diff_stats / check_module_scope (S-8 exemptions) / check_function_scope (hunk-vs-line_ranges) / evaluate_surgical_scope (tier auto-selection); opt-in task_stop extra — default chain unchanged, wiring decision v15.0.0. G-006: ac_generation on 17 impl-class profiles (7 verify/read-only exempt) + migration/setup/design templates. G-026: defaults + per-profile delta overlays, 4 orphan keys relocated with EOF back-compat aliases, zero behavioral delta proven (snapshot equivalence + W-6 byte-identical for 24 profiles). G-023: env-flags §6.A 3-pattern taxonomy + 'new flags MUST be pattern 1'; AUTO_INSTALL honest docs. G-031: VERSION_LOCATIONS 11 → 9 patterns (8 → 7 files); README badge → shields.io dynamic TOML badge; benchmark-demo version → load-time derivation from versions.json; C-6 recompiled to 6 canonical sync locations. Zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "gate.intra_task_convergence NEST (G-005) — intra_task_convergence: bool + intra_task_max_rounds: int (default 2) under gate per A-2.3; populate_intra_task_convergence warrant rule (impl-class + non-empty AC-v2); SOFT validator + IntraTaskConvergenceViolationError; canonical_order stays 17, 15 goldens byte-identical; decomposition-gate §6.2",
+      "AC-v2 metric runners — evaluate_acceptance_criteria_v2 executes metric ACs (kinds coverage/lint/number with threshold comparisons); explicit FAIL on unparsable output per S-5; manual stays skip; lean-dispatch.yaml documents per-entry metric_kind / comparison",
+      "Surgical-scope diff verifier (BG-003) — NEW lifecycle/validate_surgical_scope.py: collect_diff_stats / check_module_scope (S-8 exemptions) / check_function_scope (hunk-vs-line_ranges) / evaluate_surgical_scope (tier auto-selection); opt-in task_stop extra (default wiring decision v15.0.0); line_ranges shape defined forward",
+      "context_profiles overlay refactor (G-026) + AC generation coverage (G-006) — defaults + per-profile delta overlays (2427 → 1783 lines, −26.5%); 4 orphan keys relocated with EOF back-compat aliases; zero behavioral delta proven for 24 profiles; ac_generation enabled on 17 impl-class profiles (7 exempt) + migration/setup/design templates",
+      "Version-sync fan-out reduction (G-031) — VERSION_LOCATIONS 11 → 9 patterns (8 → 7 files); README badge → shields.io dynamic TOML badge (render-time); benchmark-demo version → load-time derivation from versions.json (static fallback may lag); C-6 recompiled to 6 canonical sync locations; G-K12 lint + CLAUDE.md count fixes coordinated"
+    ],
+    "metrics": {
+      "gate_nest_subfields": "2",
+      "intra_task_max_rounds_default": "2",
+      "golden_dispatch_yamls_byte_identical": "15",
+      "metric_runner_kinds": "3",
+      "surgical_scope_entry_points": "4",
+      "ac_generation_profiles_enabled": "17",
+      "ac_generation_profiles_exempt": "7",
+      "context_profiles_lines": "2427 → 1783 (−26.5%)",
+      "version_sync_patterns": "9",
+      "version_sync_files": "7",
+      "canonical_sync_locations": "6",
+      "new_test_functions": "34",
+      "canonical_order_length": "17",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "benchmark_baseline_active": "v14.3.0_baseline.json"
+    }
   }
 ]

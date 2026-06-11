@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-14.3.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FYoRHa-Agents%2FDevolaFlow%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version&color=green)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -360,7 +360,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v14.3.0"
+devola-version                   # prints "DevolaFlow v14.4.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -391,7 +391,7 @@ devola-init claude --global
 Bumping version (for contributors)
 
 ```bash
-python scripts/bump_version.py 7.4.3            # updates all 11 version locations (7 canonical sync locations across 8 files per CP-3)
+python scripts/bump_version.py 7.4.3            # updates all 9 version locations (6 canonical sync locations across 7 files per CP-3; README badge + demo SAMPLE_DATA are render/load-time derived per C-6)
 python scripts/bump_version.py 7.4.3 --dry-run   # preview without writing
 ```
 
@@ -532,7 +532,7 @@ layer table and token-budget breakdown.
 ```bash
 make release-preflight                          # run all quality gates
 python scripts/bump_version.py X.Y.Z --dry-run  # preview version bump
-python scripts/bump_version.py X.Y.Z --tag      # bump 7 canonical sync locations + create git tag
+python scripts/bump_version.py X.Y.Z --tag      # bump 6 canonical sync locations + create git tag
 git add -A && git commit -m "chore: bump version to X.Y.Z"
 git push origin main --tags                      # triggers release workflow
 ```

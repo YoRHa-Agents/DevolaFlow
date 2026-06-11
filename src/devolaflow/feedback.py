@@ -701,6 +701,105 @@ def populate_cascade_gate_fields(
 
 
 # ---------------------------------------------------------------------------
+# v14.4.0 (G-005 NEST slice) — Intra-task-convergence gate field population
+#
+# Module-level helper mirroring the v11.1.0 PV-04 cascade precedent
+# (``populate_cascade_gate_fields`` above): L0/L1/L2 dispatchers MAY call
+# it BEFORE handing a base dispatch to
+# ``ProposalGenerator.generate_round_dispatch``. The helper conditionally
+# populates the v14.4.0 NEST sub-fields under the existing ``gate`` block
+# (schema-side wiring in ``schemas/lean-dispatch.yaml``):
+#
+# * ``gate.intra_task_convergence: bool`` — true when the warrant rule
+#   fires; the L3 receiver MUST run the execution-protocol §15
+#   self-verify gen→verify→refine loop before its first StatusReport;
+# * ``gate.intra_task_max_rounds: int`` — defaults to
+#   :data:`INTRA_TASK_MAX_ROUNDS_DEFAULT` (2 — mirrors §15.4's max-2
+#   bounded self-fix ceiling per P4 Bounded Retry).
+#
+# Warrant rule (per the v14.2.0 gap register §2.1 G-005 intent):
+# implementation-class task types (:data:`INTRA_TASK_CONVERGENCE_TASK_TYPES`)
+# WITH a non-empty ``acceptance_criteria_v2`` block present → populate.
+# Everything else (review/research/design/benchmark tasks, or impl tasks
+# without structured AC to verify against) → the deep copy is returned
+# AS-IS — canonical absence-as-default per A-2.3 preserves ALL historical
+# multi-baseline byte-tests in
+# ``tests/test_layout_invariant_multi_baseline.py``.
+#
+# Source: ``.local/research/v14.2.0_gap_analysis.md`` §2.1 G-005 +
+# §4.1 v14.4.0 row + §6 R-1.
+# ---------------------------------------------------------------------------
+
+
+# Implementation-class task types per the dispatch ``task.type`` enum
+# (``schemas/lean-dispatch.yaml#lean_format_spec.task`` +
+# ``references/decomposition-gate.md`` §4 task schema): the types whose
+# artifact is executable/verifiable work product. Review / research /
+# design / benchmark / release tasks are NOT implementation-class — the
+# §15 gen→verify loop targets artifacts with runnable verification.
+INTRA_TASK_CONVERGENCE_TASK_TYPES: frozenset[str] = frozenset({"code", "test", "config"})
+
+# Mirrors execution-protocol §15.4: "max 2 self-fix iterations, then
+# report honestly" (P4 Bounded Retry — every loop has a ceiling).
+INTRA_TASK_MAX_ROUNDS_DEFAULT: int = 2
+
+
+def populate_intra_task_convergence(
+    base_dispatch: dict[str, Any],
+    task_type: str,
+) -> dict[str, Any]:
+    """Conditionally populate the gate intra-task-convergence NEST sub-fields.
+
+    v14.4.0 (G-005 NEST slice) — opt-in helper for L0/L1/L2 dispatchers,
+    mirroring :func:`populate_cascade_gate_fields` (the v11.1.0 PV-04
+    cascade precedent): deep-copy, never mutates *base_dispatch*,
+    returns the copy unchanged when the warrant rule does not fire.
+
+    Warrant rule: *task_type* is implementation-class
+    (:data:`INTRA_TASK_CONVERGENCE_TASK_TYPES` — ``code`` / ``test`` /
+    ``config``) AND *base_dispatch* carries a non-empty
+    ``acceptance_criteria_v2`` list. When warranted, the helper writes
+    ``gate.intra_task_convergence = True`` and
+    ``gate.intra_task_max_rounds = 2``
+    (:data:`INTRA_TASK_MAX_ROUNDS_DEFAULT`) under the existing ``gate``
+    block (created as ``{}`` when absent). Otherwise the sub-fields are
+    OMITTED — canonical absence-as-default per A-2.3 NEST contract, so
+    non-warranted dispatches render byte-identical to v14.3.0.
+
+    Args:
+      base_dispatch: dispatch payload dict; never mutated.
+      task_type: the dispatch's ``task.type`` value (e.g. ``"code"`` /
+        ``"review"`` / ``"research"``). Matching is case-insensitive;
+        non-implementation-class and unknown types take the
+        absence-canonical path (the task-type enum is open across
+        workflow templates — unknown is a legitimate non-impl verdict,
+        not an error).
+
+    Returns:
+      Deep copy of *base_dispatch*, with the two NEST sub-fields
+      populated under ``gate`` iff the warrant rule fires.
+    """
+    dispatch = copy.deepcopy(base_dispatch)
+
+    ac_v2 = dispatch.get("acceptance_criteria_v2")
+    warranted = (
+        isinstance(task_type, str)
+        and task_type.strip().lower() in INTRA_TASK_CONVERGENCE_TASK_TYPES
+        and isinstance(ac_v2, list)
+        and len(ac_v2) > 0
+    )
+    if not warranted:
+        return dispatch
+
+    gate_block = dispatch.get("gate")
+    if not isinstance(gate_block, dict):
+        dispatch["gate"] = {}
+    dispatch["gate"]["intra_task_convergence"] = True
+    dispatch["gate"]["intra_task_max_rounds"] = INTRA_TASK_MAX_ROUNDS_DEFAULT
+    return dispatch
+
+
+# ---------------------------------------------------------------------------
 # v9.7.0 (PV-03 — Performance Overhaul #2) — Auto-wire AsyncDispatchExecutor
 # for L2-wave parallel L3 dispatches.
 #
