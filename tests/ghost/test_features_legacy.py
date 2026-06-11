@@ -62,15 +62,24 @@ def _skill_workflow_selection_names(project_root: Path) -> set[str]:
 
 
 def _skill_quick_reference_names(project_root: Path) -> set[str]:
-    """Extract template names from SKILL.md's Template Quick-Reference table.
+    """Extract template names from the Template Quick-Reference table.
 
     v10.5.0 PV-02 D-A-2 Phase A introduces ``(legacy)`` suffix
     annotations on TIER-2 template rows (16 of 22 templates). The
     canonical name is what's retained for registry comparison; the
     ``(legacy)`` marker is stripped here.
+
+    v14.5.0 (G-019 / T6) — the table moved from SKILL.md §"Template
+    Quick-Reference" to references/meta-framework.md §4 "Template
+    Quick-Reference — Gate Types" (IA demotion pass per product review
+    F-P3-5: template info was triplicated; meta-framework.md is the
+    single owner surface). The G-A2 invariant is unchanged: every
+    registry workflow must appear in the quick-reference table.
     """
-    skill = _read(project_root / "workflow-system/agent/SKILL.md")
-    section = re.search(r"## Template Quick-Reference\n(.*?)(?:\n## |\Z)", skill, re.DOTALL)
+    skill = _read(project_root / "workflow-system/agent/references/meta-framework.md")
+    section = re.search(
+        r"### Template Quick-Reference — Gate Types\n(.*?)(?:\n### |\n## |\Z)", skill, re.DOTALL
+    )
     if section is None:
         return set()
     rows = [ln for ln in section.group(1).splitlines() if ln.startswith("|")][2:]

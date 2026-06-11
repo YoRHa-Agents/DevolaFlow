@@ -475,7 +475,11 @@ _CC_TARGETS: list[tuple[str, str, int]] = [
     ("src/devolaflow/template_engine/runtime.py", "select_stages_for_runtime", 10),
     ("src/devolaflow/lifecycle/format_on_edit.py", "_collect_violations", 8),
     ("src/devolaflow/nines/researcher.py", "refresh_reference_dependency", 8),
-    ("src/devolaflow/task_adaptive_selector.py", "main", 8),
+    # v14.5.0 (ADR-006 G-025): `main` moved VERBATIM from
+    # task_adaptive_selector.py to the new owner module selector_cli.py
+    # (the old import path stays shimmed — see tests/test_module_split_shims.py);
+    # the radon cc pin follows the re-export truth's owner module.
+    ("src/devolaflow/selector_cli.py", "main", 8),
 ]
 
 

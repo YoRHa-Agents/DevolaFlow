@@ -66,7 +66,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # IS the CI lint. NOT a domain-SSOT registry symbol per A-5.2 —
         # `count_agents_md_rules` is a pure read-only helper that walks the
         # compiled AGENTS.md file.
-        "devolaflow.task_adaptive_selector:count_agents_md_rules",
+        "devolaflow.agents_md_slice:count_agents_md_rules",
         # v9.0.0 PV-07 (ADR-007 D2) — check_stub_drift verifies the 2
         # deprecated `.cursor/rules/{devola-flow,workflow}-rules.mdc` stubs
         # match the pinned fingerprints in `.rules/.compile-hashes.json`.
@@ -96,7 +96,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR
         # semver — see CHANGELOG `## [9.0.0]` "Adoption notes"). NOT a
         # domain-SSOT registry symbol per A-5.2 — pure read-only filter.
-        "devolaflow.task_adaptive_selector:select_agents_md_slice",
+        "devolaflow.agents_md_slice:select_agents_md_slice",
         # v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild_index() is the
         # Python entry-point invoked by the Makefile target
         # `make nines-index-rebuild` via a `python -c "from devolaflow.nines.researcher
@@ -131,7 +131,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registry symbol per A-5.2 — pure delegation wrapper around
         # `devolaflow.si_chip_bridge.runner.run_dogfood_cycle` with no
         # registration data of its own.
-        "devolaflow.feedback:dispatch_dogfood_cycle",
+        "devolaflow.dispatch:dispatch_dogfood_cycle",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
         # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
         # P-05 dispatch directive, the lifecycle package is intentionally
@@ -223,7 +223,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # False the function delegates to evaluate_gate() byte-identically
         # (patch_plan §3 P-05 AC #3). Not yet wired into evaluate_gate
         # itself — orchestrator opt-in only at v8.0.0 cut.
-        "devolaflow.gate.scorer:evaluate_ladder",
+        "devolaflow.gate.ladder:evaluate_ladder",
         # v8.0.0 P-10 acceptance-criteria auto-evaluator + verdict aggregator.
         # ``evaluate_acceptance_criteria_v2`` runs the new structured criteria
         # (canonical_order position 15, schema version 4) and emits per-criterion
@@ -238,8 +238,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ``patch_plan §3 P-10``). Verified by
         # ``tests/test_ac_generator.py::TestEvaluateAcceptanceCriteriaV2``
         # and ``::TestAggregateCriterionVerdicts``.
-        "devolaflow.gate.scorer:evaluate_acceptance_criteria_v2",
-        "devolaflow.gate.scorer:aggregate_criterion_verdicts",
+        "devolaflow.gate.acceptance_v2:evaluate_acceptance_criteria_v2",
+        "devolaflow.gate.acceptance_v2:aggregate_criterion_verdicts",
         # v8.0.0 P-10 ACGenerator — pure-Python pattern-matching synthesiser
         # for the new ``acceptance_criteria_v2`` dispatch field. Consumed by
         # external L0/L1/L2 orchestrators that opt in via
@@ -344,7 +344,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # so the in-repo "production caller" IS the ``Task`` tool surface
         # exposed via the SKILL.md dispatch contract. Documented in
         # ``workflow-system/agent/references/execution-protocol.md`` §13.
-        "devolaflow.feedback:dispatch_wave_tasks",
+        "devolaflow.dispatch:dispatch_wave_tasks",
         # v9.7.0 PV-04 — opt-in selector LRU cache pre-warmup. Activated
         # by ``DEVOLAFLOW_WARMUP=1`` per W-20 §3 orthogonality test (no
         # existing flag activates this surface). The function is a
@@ -560,7 +560,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # which exercises all 5 helpers' R5 strict opt-out / opt-in /
         # loose-value-rejection contract.
         "devolaflow.gate.budget:is_token_budget_breaker_active",
-        "devolaflow.gate.scorer:is_verification_ladder_active",
+        "devolaflow.gate.ladder:is_verification_ladder_active",
         "devolaflow.gate.ratchet:is_gate_ratchet_active",
         "devolaflow.gate.complexity_detector:is_complexity_detector_active",
         "devolaflow.ac_generator:is_ac_generator_active",
@@ -772,8 +772,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ("DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR" pattern) AND
         # per W-21 2-cycle deliberation cadence. NOT domain-SSOT registry
         # symbols per A-5.2 — pure functions with zero module-level state.
-        "devolaflow.feedback:populate_cascade_gate_fields",
-        "devolaflow.gate.scorer:validate_cascade_gate_fields",
+        "devolaflow.gate.cascade:populate_cascade_gate_fields",
+        "devolaflow.gate.cascade:validate_cascade_gate_fields",
         # ---- v14.4.0 (G-005 NEST slice) — intra-task-convergence helpers ----
         # `populate_intra_task_convergence(base_dispatch, task_type)` +
         # `validate_intra_task_convergence_fields(gate_block, *, strict=False)`
@@ -783,8 +783,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # production dispatcher call sites land when an L0/L1/L2 build path
         # adopts the §15 self-verify signal. NOT domain-SSOT registry
         # symbols per A-5.2 — pure functions with zero module-level state.
-        "devolaflow.feedback:populate_intra_task_convergence",
-        "devolaflow.gate.scorer:validate_intra_task_convergence_fields",
+        "devolaflow.gate.cascade:populate_intra_task_convergence",
+        "devolaflow.gate.cascade:validate_intra_task_convergence_fields",
         # v12.2.0 PV-04 — per-task-type timeout default helper -----------
         # `default_timeout_for(task_type)` is the dispatcher-side helper that
         # operators invoke when constructing the optional ``timeouts={}``

@@ -178,12 +178,14 @@ def test_v12_3_0_quality_score_extracted_to_reference(project_root: Path) -> Non
         f"anchor block. The line-anchor shift MUST be documented so future "
         f"PVs understand the post-collapse coordinates."
     )
-    assert 'lines: "479-481"' in profiles_text, (
+    assert 'lines: "424-427"' in profiles_text, (
         f"W-18 v12.3.0 PV-03 violation: {_V12_3_0_PV03_CONTEXT_PROFILES} missing "
-        f'the post-collapse `lines: "479-481"` anchor for task_quality_score '
+        f'the post-collapse `lines: "424-427"` anchor for task_quality_score '
         f"(v12.3.0 PV-03 landed 480-482; re-anchored -1 by the v14.2.2 "
-        f"G-017/G-020 SKILL.md line shifts). The line-anchor update MUST land "
-        f"in the same PR as the SKILL.md restructure."
+        f"G-017/G-020 SKILL.md line shifts; re-anchored to the TRUE "
+        f"§'Task Quality Score (L0 ONLY)' header by the v14.5.0 G-019 IA "
+        f"demotion pass). The line-anchor update MUST land in the same PR "
+        f"as the SKILL.md restructure."
     )
 
 

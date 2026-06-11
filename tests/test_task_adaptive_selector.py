@@ -14,6 +14,8 @@ import yaml
 
 from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
+    TASK_TYPE_TIMEOUT_DEFAULTS,
+    TASK_TYPE_TIMEOUT_FALLBACK,
     VALID_COMPRESSION_INTENSITIES,
     VALID_MODEL_HINTS,
     _resolve_advisor_text,
@@ -27,6 +29,7 @@ from devolaflow.task_adaptive_selector import (
     resolve_compression_intensity,
     resolve_decomposition_config,
     resolve_model_hint,
+    resolve_timeout_seconds,
     select_context,
 )
 
@@ -248,6 +251,7 @@ class TestSelectContext:
             "advisor_enabled",
             "decomposition",
             "compression_intensity",
+            "timeout_seconds",  # v14.5.0 G-037 — additive dispatch hint
             "round_num",
             "escalation_applied",
             "plan_mode",
@@ -1211,7 +1215,18 @@ class TestComplexityTierRouting:
 #
 # The snapshot hashes below are VENDORED verbatim from the pre-refactor
 # file (git parent of the v14.4.0-T3 change; captured mechanically by the
-# C-3 verbatim-extraction harness). Canonicalisation:
+# C-3 verbatim-extraction harness).
+#
+# v14.5.0 (G-019 / T6) re-pin: the 19 canonical-order profiles' hashes
+# were recomputed mechanically (same canonicalisation) after the
+# `template_quick_ref: skip` row was removed from the shared defaults
+# map alongside the SKILL.md §"Template Quick-Reference" demotion to
+# references/meta-framework.md §4. The DELIBERATE delta is exactly
+# `template_quick_ref` disappearing from each resolved map (it was
+# `skip` in all 24 profiles — zero behavioural change to selection);
+# the 5 explicit-map profiles (verify_* / repo-init /
+# product_verification) keep their original pre-refactor hashes.
+# Canonicalisation:
 #   * section-priority hash  = sha256(json.dumps([[k, v], ...],
 #     ensure_ascii=False)) over the profile's ordered
 #     section_priorities items — pins keys AND insertion order AND
@@ -1226,57 +1241,57 @@ class TestComplexityTierRouting:
 # ---------------------------------------------------------------------------
 
 _PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
-    "hotfix": "8ff9ab11790cf602af09b09907eca7c96fc87dd2de21244e03c69b8d153ff33e",
-    "feature": "cded7190ac2a02d3e58338442fa3b0eb971ce34cb906fbfefa214a183ff99bb9",
-    "research": "34fc5af285c3e06e3ea7f7a710caa5c73e92084a1f1ec8c89c4ace88f9e8ec89",
-    "refactor": "1a923cdbe7ddd7be50bc357167b8f52b6f1541b43d5c26b696e00fe3f9b1a0c6",
-    "review": "27116b1836a8a0be5b898d7c33869b81be86362352c383279b30a82f8aa13059",
-    "design": "b0e0e410b61976fc22548b1f24f0075d2de49dd3e4843c4958e549d55aa852bc",
-    "skill-optimization": "0011e018488bfbb71332b1bf066f0fa7f17d3aa0a0408919881edfce885521ba",
-    "migration": "754cf52351d81674e84c7073f58b33b732624459955c75f1393ef62b4834358b",
-    "security-audit": "3ec60251631dc75d3a343d7b3e7dbe97c021a6baa4f638803d672f4f093f5d8a",
-    "documentation": "a53c7e25db4a5d967ffe123aa232b1c53c86d5fd196c27514c412285a6fdc00b",
-    "spike-poc": "c871b84298fc043c021f5553445eeb65cc14caf304b5a6411a338c1fac5a218d",
-    "rdrr": "5e9848ba82813ad2eebaf6fbb8d1dbac0673cc6f9be56231e4aa1e697986b19b",
-    "demo-showcase": "27142a52eb2d7fb06a34c319107a16ee4d8e9bdb174a5e8b573b42bce14a604e",
-    "perf-optimization": "89a66993b65aa71131b54e71bc429bf0981b6200aa3e4de1ddecbdb28abbd12c",
-    "dependency-setup": "fc8b83b77c417155ee4d6fe4b48b7f01ac79b2831e2c93eb168a1a94adb108ae",
-    "onboarding": "ca45b254d5af2f35b6c11ef9ba718b24d640b937e14801337c13437e4af28d16",
-    "self_update": "23091f403d02b4ecaf43b5b32a8967b3aaa40f7ab4cc3b7b15b875f388a34a81",
-    "feedback": "515578a47a9980e5737c9a6f00e40972fb1bed0309c9bbc810bbe34f5ba38d1e",
+    "hotfix": "54cdc1620d41258355571e8f6fd7828c76ab3216ab9827820c0e6fd4c2aca853",
+    "feature": "ddfc2d15ac99af5acacb9689972645b12bf8675a48574269cb90c053efcec1c8",
+    "research": "b42e10f5f4dd3a55222053a3feb57e4a9b84f93dee7e4009c17c0339d1ccec98",
+    "refactor": "18b0857fd9599ee51d7b6dd12f4684a31d93bfd981b77609b981e297fd4a9aa0",
+    "review": "ecadfeb072d4a4cc65e032bf66e2bfb3240f35d2137c3c54ae5df4911d93e6d9",
+    "design": "a84a36a16e1c471c5b8b765d882ab186f7fdd45955958a87b8f227af4bd6b672",
+    "skill-optimization": "e22282d89cbe00c9d9a97a43812ab24420327b213b1b622148a365916f9f297a",
+    "migration": "ff7a21c16bff7677a8c539bade64abbd5b61c3d195d16e88e5985c11f6c48f86",
+    "security-audit": "729e2c0c61868203d681ac176a46f0cc7941eb52e57df438e4129c89831acda3",
+    "documentation": "70d633c4e1fb20bd97a76ab6e13c6414e87f81bf22c6a43778b4f4f919256fcb",
+    "spike-poc": "1a249b622423e5d4812ca4e06c5657ae0b402abf6c1d8adfa68f3f2d057555d0",
+    "rdrr": "628701651214586fcf4efaa62fd75485661d8f423ee2d7938f528345d30d5cfb",
+    "demo-showcase": "f21f8adbd7d7f001984733f2f39cd0ee89432f3b04a73ce765e66e691fcaccdc",
+    "perf-optimization": "362971a65349e91f50356ea124b6c87cb1899bc3af7d8163af9af5a62da1bf3f",
+    "dependency-setup": "95f7d86c27cf58d96ea163128e20d4d765ead544bd5875012071eb16921ebdb3",
+    "onboarding": "6c8682a46c39a9f3b45ce2b9130397560ce4d87e7d7faf5d6dd956c4cc72a75c",
+    "self_update": "837ba0335eb22075f15f8e743b12f4f6f1ccd193c4f6b9c7b4e84961500c0cc3",
+    "feedback": "4c5bdd6152477f17004749cc595cb20b883bed170cc5b466dea83b8253a68540",
     "verify_visual": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_acceptance": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_interaction": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "repo-init": "26e67c4133518e5b9fb44d6b40e67deab02580e62103e2fd3c61e1228fb00940",
     "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
-    "entropy_scan": "bc53bb556806462a39bf0e7fde768d66c1fc57e8b434b0b59d0d2d8c97fc19c5",
+    "entropy_scan": "d98b2e974eb5498793b1ba9495c9dbe2eaf0cc49874a9bf7206b0ff75fb94d41",
 }
 
 _PRE_G026_PROFILE_HASHES: dict[str, str] = {
-    "hotfix": "6703388f88e35ff7fd409e6eec0b0487596c541436f8551eac4ca01c632f5c74",
-    "feature": "1fbe5b5a11cc56a7d1c90489a5a6a387d6cd1776f3f8668e4d117872302412ab",
-    "research": "9721e5a368b160934f2ddb135824771060ba12995a3097f8f3f45d0f0eb82046",
-    "refactor": "4b196c371ab945e3fc6ae2547d7394cf122b3882481e729221082650ad42df54",
-    "review": "0a2eea9addba2f9ceec703e865bc02c3e0bc8ffba932541891d13765e1ca57e3",
-    "design": "c40d096e7d28c61ad5dd180940b8f482e30c9c39600fbc44f841e5de54e58778",
-    "skill-optimization": "f3de5970ed7b2baa770b4ec206f72d24e1d33aa69b16a6544bbbfa82163a172e",
-    "migration": "69b3cd654dc899cac51aac14f585172739af7de2f6ca0da9bc26ea1bae283815",
-    "security-audit": "5e7602f8fddf596fb069a48111976d7a4852d905a27bdfda7069e056e3bec27a",
-    "documentation": "d7f7891a2c22aee98dacd6707108d1c4af3c3f2fe0870f7733a2cc80b5494e2d",
-    "spike-poc": "5f64a6686729196b730f57b91b6a6eee646e885ed797f689f597127a7df02a17",
-    "rdrr": "6d5b269b561cd8aeef59b16b84e525fa0c014993b7e8ffbc88e037c3ce7172f6",
-    "demo-showcase": "5a90bad71b1068ce2526f67f8e3ddeac0d508abb9bb895c707de0b33c0807709",
-    "perf-optimization": "2dce421d953059246821f57de935199fa6fca8f979df257e3b8fc1a991e493d2",
-    "dependency-setup": "d9adfbde9edfc3e3b274995b942c53a4c56446a14393c0f3230a8967471024e3",
-    "onboarding": "7e4c97dbfe7e2e1d55774ffa8be65ecc2bc9fd7509c8ead9b15f5e881d0a8983",
-    "self_update": "a934de6cf89fb6c816b053658dbba5a37a23d0d6eec54a2567fd64b1b304e39f",
-    "feedback": "e21cb20b1113fa91358ad17e228e303ff3168dd23c1b09b6fab4e3a6bd9afe4e",
+    "hotfix": "26bc1ab7df04f3263f301396a5e2e3c3995e6feeb8f92da2d32b73c2217c04e1",
+    "feature": "1dd5285922482a7c35dc7b34aafb2e02b97707fd957f9d92640d07c85a2d34db",
+    "research": "49bda8c497d811fdd4ebcfa226be9efbfde3fe3d2b72047248480f95812bab99",
+    "refactor": "783af82426decb0f51f7de62279b885cfcdabf1b90c816aa4f57c975c5142120",
+    "review": "56f5a57a8c699de960d3079a23e072474c5d1fb7b0a60f865fdb7317fe83c4aa",
+    "design": "a96ddf00d88ec555292c7b574ecfe4b9765e660cfbecf0fa24e7551a093b719d",
+    "skill-optimization": "7619948e4ffb8bf78bec902b9ef374be4c680d04dfa6f5bf5ea5fd33120d1d8c",
+    "migration": "394e525bce061f11c1e8df8d9aa8fb62067c830f610074fdb8235f5fe19b8c4b",
+    "security-audit": "c4c314576b5b3de25fabfbe31033dd31d9cf063ef4549e4cf7f9bfbad2576c25",
+    "documentation": "416b8b3073e4b03938e3e80b114da725687258b80bebc047aeeb3bcd380c7ede",
+    "spike-poc": "c2dbf1701626b7e6a73b2955f95aced20656480698afa92546e59c86a150fe66",
+    "rdrr": "2e8d291ecea5af941ec828a785b35ff1493eb9f35dacca93668c565bfb83b2e2",
+    "demo-showcase": "a0090575c92c14aa999b7a7e026a19a425b7491c64ca998147ec5b20305989c9",
+    "perf-optimization": "d4dc3e858b67782d18d5955ee0b5cc53a084789853dd025958a9cd2da098c46a",
+    "dependency-setup": "15eecf6be60727b2db977b97ba0e016535708624290e249c2ad7aba68cb8ae9d",
+    "onboarding": "aab2448c00e5f8ad9d525e1ef85c92642d90e64c771a87c11190202255caa177",
+    "self_update": "80916fed120542e78a4344741d333132be98f2f2750a048249f62062ec2f984c",
+    "feedback": "bc4210e0730bbc4d17c856552e84ffed01fa98808ba191c7567766fe8a12a9b7",
     "verify_visual": "48c63ae115031c1d9f587c48e75288700c070cb68f5f5d58b51b715b38c0e09d",
     "verify_acceptance": "d6ff6666f67dab86b3f70bae867d05ba100400fdb6c6c7bd33563a1dd43fa70b",
     "verify_interaction": "afb7d6b50d887ca392af0ab01e3800e857c149a672d525672a1403ecb40667ac",
     "repo-init": "303059b0254a4998c44c83b81b39abfcb5c87d4d38523e37e5f2d3ca63f612d7",
     "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
-    "entropy_scan": "0790c7c4cf4e52d33fea9260dffbb228d7d7f47bc06d9e4ea76302e145382e3a",
+    "entropy_scan": "97129fec03741c6ea0eb506accb216602101a5742e240bc94d5ab9210b95d46c",
 }
 
 _PRE_G026_ORPHAN_HASHES: dict[str, str] = {
@@ -1336,17 +1351,26 @@ class TestG026OverlayEquivalence:
         advisor, decomposition, tool_output_truncation, summary,
         behavioral_guidelines, goal_hints, extra_context, rationale, ...)
         must be value-identical to the pre-refactor expansion.
-        ``ac_generation`` is the single deliberate delta (v14.4.0 G-006
-        impl-class extension), so it is excluded from the hash."""
+
+        Two keys are DELIBERATE deltas excluded from the hash:
+          * ``ac_generation`` — v14.4.0 G-006 impl-class extension.
+          * ``timeout_class`` — v14.5.0 G-037 timeout-class deltas (8
+            profiles whose class differs from the ``impl`` default).
+            Their resolution is pinned separately by
+            ``TestG037TimeoutClassResolution``; every other knob in
+            those profiles must STILL hash-match the pre-G-026 snapshot.
+        """
+        deliberate_deltas = {"ac_generation", "timeout_class"}
         profiles = config["profiles"]
         mismatches = []
         for name, expected in _PRE_G026_PROFILE_HASHES.items():
-            rest = {k: v for k, v in profiles[name].items() if k != "ac_generation"}
+            rest = {k: v for k, v in profiles[name].items() if k not in deliberate_deltas}
             if _sha256_json(rest, sort_keys=True) != expected:
                 mismatches.append(name)
         assert not mismatches, (
-            "G-026 violation — non-ac_generation profile knobs diverged from "
-            f"the pre-refactor expansion for: {mismatches}"
+            "G-026 violation — profile knobs (outside the documented "
+            "ac_generation / timeout_class deltas) diverged from the "
+            f"pre-refactor expansion for: {mismatches}"
         )
 
     def test_g026_orphan_keys_relocated_with_identical_content(self, config: dict) -> None:
@@ -1366,4 +1390,157 @@ class TestG026OverlayEquivalence:
             assert canonical == config[orphan], (
                 f"G-026 violation: canonical {parent_key}.{child_key} does not "
                 f"match the top-level {orphan!r} back-compat alias"
+            )
+
+
+# ---------------------------------------------------------------------------
+# v14.5.0 (G-037) — timeout-class SSOT map + select_context auto-population.
+#
+# ``defaults.timeout_class_map`` in context_profiles.yaml is the SSOT for
+# the per-task-type ``timeout_seconds`` defaults (SKILL.md §"Subagent Hang
+# Prevention": research=2700 / impl=1800 / test=900 / review=1200 /
+# hotfix=600; fallback 7200 = fail-safe ceiling). 8 profiles carry a
+# ``timeout_class`` delta (≠ impl default); the other 16 inherit ``impl``
+# implicitly per the G-026 delta-only overlay discipline.
+# ---------------------------------------------------------------------------
+
+# Expected profile → timeout_seconds resolution (delta profiles + two
+# impl-default representatives). Mirrors the YAML delta comments verbatim.
+_G037_PROFILE_TIMEOUTS: dict[str, int] = {
+    "hotfix": 600,
+    "research": 2700,
+    "review": 1200,
+    "feedback": 1200,
+    "verify_visual": 900,
+    "verify_acceptance": 900,
+    "verify_interaction": 900,
+    "product_verification": 900,
+    "feature": 1800,
+    "refactor": 1800,
+}
+
+
+class TestG037TimeoutClassResolution:
+    """v14.5.0 G-037 — timeout-class map resolution + absence safety."""
+
+    @pytest.fixture(scope="class")
+    def config(self) -> dict:
+        return load_profiles(PROFILES_YAML)
+
+    def test_timeout_class_map_matches_skill_md_contract(self, config: dict) -> None:
+        """The SSOT map must carry the SKILL.md §"Subagent Hang Prevention"
+        values verbatim AND stay lock-step with the v12.2.0 library mirror
+        (TASK_TYPE_TIMEOUT_DEFAULTS + TASK_TYPE_TIMEOUT_FALLBACK)."""
+        timeout_map = config["defaults"]["timeout_class_map"]
+        assert timeout_map == {
+            "research": 2700,
+            "impl": 1800,
+            "test": 900,
+            "review": 1200,
+            "hotfix": 600,
+            "fallback": 7200,
+        }
+        for cls, seconds in TASK_TYPE_TIMEOUT_DEFAULTS.items():
+            assert timeout_map[cls] == seconds, (
+                f"timeout_class_map[{cls!r}] drifted from TASK_TYPE_TIMEOUT_DEFAULTS"
+            )
+        assert timeout_map["fallback"] == TASK_TYPE_TIMEOUT_FALLBACK
+
+    def test_resolve_timeout_seconds_per_class_and_fallback(self, config: dict) -> None:
+        """Direct resolver checks: every class resolves via the YAML map;
+        unknown classes hit the map's fallback ceiling; configs without
+        the map fall back to the library constants (absence-safe)."""
+        for cls in ("research", "impl", "test", "review", "hotfix"):
+            assert (
+                resolve_timeout_seconds({"timeout_class": cls}, config)
+                == (TASK_TYPE_TIMEOUT_DEFAULTS[cls])
+            )
+        # Absent timeout_class → impl default.
+        assert resolve_timeout_seconds({}, config) == 1800
+        # Unknown / malformed class → fail-safe ceiling, never raises.
+        assert resolve_timeout_seconds({"timeout_class": "no-such-class"}, config) == 7200
+        assert resolve_timeout_seconds({"timeout_class": 42}, config) == 1800
+        # No defaults block at all → library-constant mirror.
+        assert resolve_timeout_seconds({"timeout_class": "test"}, {}) == 900
+        assert resolve_timeout_seconds({}, {}) == 1800
+        assert resolve_timeout_seconds({"timeout_class": "no-such-class"}, {}) == 7200
+
+    @pytest.mark.parametrize(
+        ("task_type", "expected_seconds"),
+        sorted(_G037_PROFILE_TIMEOUTS.items()),
+    )
+    def test_profile_timeout_class_deltas_resolve_in_select_context(
+        self, task_type: str, expected_seconds: int
+    ) -> None:
+        """The 8 delta profiles resolve their class; impl-class profiles
+        (no ``timeout_class`` key — delta-only discipline) resolve 1800."""
+        result = select_context(task_type, profiles_path=PROFILES_YAML)
+        assert result["timeout_seconds"] == expected_seconds, (
+            f"{task_type}: expected timeout_seconds={expected_seconds}, "
+            f"got {result['timeout_seconds']}"
+        )
+
+    def test_timeout_seconds_absence_safe_without_defaults_block(self, tmp_path: Path) -> None:
+        """A minimal config that predates the timeout knobs (no ``defaults:``
+        block, no ``timeout_class``) must still resolve — impl default via
+        the library mirror — with zero behavior change elsewhere."""
+        data = {
+            "meta": {"default_profile": "legacy"},
+            "sections": {"sec1": {"lines": "1-5", "tokens_est": 50}},
+            "profiles": {
+                "legacy": {
+                    "description": "pre-G-037 config",
+                    "token_budget": 1000,
+                    "section_priorities": {"sec1": "critical"},
+                    "goal_hints": [],
+                }
+            },
+        }
+        p = tmp_path / "profiles.yaml"
+        p.write_text(yaml.dump(data))
+        skill = tmp_path / "SKILL.md"
+        skill.write_text("\n".join(f"line{i}" for i in range(1, 20)))
+
+        from unittest.mock import patch
+
+        with patch(
+            "devolaflow.task_adaptive_selector.load_skill_md",
+            return_value=skill.read_text(),
+        ):
+            result = select_context("legacy", profiles_path=p)
+        assert result["timeout_seconds"] == 1800
+        assert result["profile_name"] == "legacy"
+
+    def test_round_escalation_leaves_timeout_untouched(self) -> None:
+        """Item-3 coherence pin: round-aware escalation (round-2 priority
+        bumps, round-3 model/budget bumps) must NOT alter the resolved
+        timeout — no W-8 / P4 rule grows timeouts across rounds, and the
+        escalation override schema carries no timeout keys."""
+        from devolaflow.task_adaptive_selector import _ROUND_ESCALATION_DEFAULTS
+
+        for overrides in _ROUND_ESCALATION_DEFAULTS.values():
+            assert not any("timeout" in key for key in overrides), (
+                "round-escalation overrides must not carry timeout keys; "
+                "a rule change (W-8/P4) is required first"
+            )
+        round1 = select_context("feature", profiles_path=PROFILES_YAML, round_num=1)
+        round3 = select_context("feature", profiles_path=PROFILES_YAML, round_num=3)
+        assert round1["timeout_seconds"] == round3["timeout_seconds"] == 1800
+
+    def test_w6_timeout_knobs_do_not_displace_critical_sections(self, config: dict) -> None:
+        """W-6 spot-check: the timeout knobs are zero-token metadata, so no
+        section marked ``critical`` may be dropped for any profile that
+        gained a ``timeout_class`` delta (plus two impl representatives)."""
+        for task_type in sorted(_G037_PROFILE_TIMEOUTS):
+            result = select_context(task_type, profiles_path=PROFILES_YAML)
+            profile = config["profiles"][result["profile_name"]]
+            critical = {
+                name
+                for name, prio in profile.get("section_priorities", {}).items()
+                if prio == "critical"
+            }
+            skipped = set(result["skipped_sections"])
+            dropped = critical & skipped
+            assert not dropped, (
+                f"W-6 violation for {task_type}: critical sections dropped: {sorted(dropped)}"
             )

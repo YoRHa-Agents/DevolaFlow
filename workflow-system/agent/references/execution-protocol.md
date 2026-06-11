@@ -822,11 +822,18 @@ library-only carry-forward) from `.local/research/v9.7.0_gap_analysis.md`
 The v12.2.0 PV-04 cycle shipped `devolaflow.task_adaptive_selector.default_timeout_for(task_type)`
 + the `TASK_TYPE_TIMEOUT_DEFAULTS` 5-entry dict per the SKILL.md
 §"Subagent Hang Prevention" L0 contract (`research=2700` / `impl=1800` /
-`test=900` / `review=1200` / `hotfix=600`; fallback `7200`s). Per the
-v9.3.0 PV-05 library-only landing discipline (`src/devolaflow/agent_workspace/dispatch_executor.py`
-docstring §"Library-only landing"), the helper does NOT auto-populate
-into `select_context()` dispatch payloads — the integration is OPT-IN
-by call-site.
+`test=900` / `review=1200` / `hotfix=600`; fallback `7200`s).
+
+**v14.5.0 (G-037) graduation — auto-population landed**: the values now
+auto-populate via `select_context(task_type)`, which returns an additive
+`timeout_seconds` key resolved from the profile's `timeout_class`. The
+SSOT home for the class → seconds map is
+`workflow-system/agent/context_profiles.yaml` `defaults.timeout_class_map`;
+profiles carry a `timeout_class` delta only where the class differs from
+the `impl` default (delta-only overlay per G-026). Resolution lives in
+`devolaflow.task_adaptive_selector.resolve_timeout_seconds`; the
+`TASK_TYPE_TIMEOUT_DEFAULTS` library mirror remains for direct operator
+call-sites and as the absence-safe fallback for configs without the map.
 
 **Operator call-site recipe** (when constructing TaskDispatch for a
 parallel L2 wave):
@@ -858,13 +865,15 @@ tasks continue per CO-1 / W-8).
 **Pickup discovery hint surfaced in v12.3.0 PV-04**: this section
 exists so operators reading `references/execution-protocol.md` discover
 the helper WITHOUT grepping `src/devolaflow/`. The strict-graduation
-("auto-populate timeouts in select_context") is telegraphed for
-v13.0.0+ per W-21 2-cycle deliberation cadence; v12.3.0 ships the
-discovery surface only.
+("auto-populate timeouts in select_context") telegraphed there for
+v13.0.0+ landed in v14.5.0 (G-037) — see the graduation paragraph above.
+Round escalation (`apply_round_escalation`) does NOT touch timeouts:
+the resolved `timeout_seconds` is round-invariant by design.
 
 **Source**: v12.2.0 PV-04 spec (`.local/research/v12.2.0_gap_analysis.md`
 §2 D-4) + v12.3.0 PV-04 discovery-hint surface
-(`.local/research/v12.3.0_gap_analysis.md` §2 D-3).
+(`.local/research/v12.3.0_gap_analysis.md` §2 D-3) + v14.5.0 G-037
+graduation (`.local/research/v14.2.0_gap_analysis.md` §2.7).
 
 ## 15. L3 Self-Verify (v14.3.0+)
 

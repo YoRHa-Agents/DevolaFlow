@@ -2092,5 +2092,41 @@
       "soul_set_cap": "12",
       "benchmark_baseline_active": "v14.3.0_baseline.json"
     }
+  },
+  {
+    "version": "14.5.0",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "MINOR — governance refactors: ADR-006 module split (G-025 — scorer 2840 → 1579 / selector 2051 → 1507 / feedback 1086 → 517 via 6 NEW owner modules + 24 permanent identity-preserving shims; S-10 paths verbatim-functional); D-5 CHANGELOG single-application lint (G-036, telegraphed since v11.1.0); Tier-A/B/C baseline retention (G-014 — 41 Tier-C files archived); per-task-type timeout defaults (G-037 — select_context() now returns timeout_seconds); SI-10 single-execution gate chain (G-033 — make test-core, ~81 duplicate executions eliminated); SKILL.md IA pass 492 → 429 lines (G-019)",
+    "summary": "v14.5.0 ships the governance-refactor batch (G-014/G-019/G-025/G-033/G-036/G-037 + G-035 verified no-op). ADR-006 module split: gate/cascade.py + gate/ladder.py + gate/acceptance_v2.py + dispatch.py + agents_md_slice.py + selector_cli.py extracted from the three oversized hubs; 24 PERMANENT re-export shims keep every old import path resolving to the SAME object (lifetime ≥ v16.0.0); feedback.py::populate_cascade_gate_fields stays verbatim-functional per S-10. D-5 lint: scripts/lint_changelog.py enforces R1 structure / R2 base-ref immutability / R3 release-in-flight version match (CI step + make lint-changelog). G-014: baselines/ now carries exactly the 10 Tier-A yaml witnesses + the pinned/rolling JSON keeps; backward_compat block removed from lean-dispatch.yaml (test INVERTED per ADR-005); A-2.4 recompiled to tiered retention. G-037: defaults.timeout_class_map SSOT (research 2700 / impl 1800 / test 900 / review 1200 / hotfix 600 / fallback 7200) + 8 delta overlays; resolve_timeout_seconds absence-safe; execution-protocol §14 graduated. G-033: make test-core runs the suite once minus the 3 standalone gate files; release-preflight = 6 SI-10 core targets before 6 release-only extras; W-9 recompiled. G-019: SKILL.md 492 → 429; Template Quick-Reference demoted to meta-framework.md §4 (scaffold_template.py retargeted); install note + working-tree anecdote → troubleshooting §2.17/§2.18; critical-section demotions refused. W-16 wholesale regen fires at cycle close: v14.5.0_baseline.json (57 scenarios; multi_repo_dispatch +6.52pp headline; 54/57 moved, all within the W-4 5pp envelope). Zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "ADR-006 module split (G-025) — gate/scorer.py 2840 → 1579, task_adaptive_selector.py 2051 → 1507, feedback.py 1086 → 517; 6 NEW owner modules (gate/cascade.py, gate/ladder.py, gate/acceptance_v2.py, dispatch.py, agents_md_slice.py, selector_cli.py); 24 permanent identity-preserving shims pinned by tests/test_module_split_shims.py; S-10 paths verbatim-functional",
+      "D-5 CHANGELOG single-application lint (G-036) — NEW scripts/lint_changelog.py (R1 structure / R2 base-ref immutability / R3 release-in-flight version match) + ci.yml step \"CHANGELOG lint (D-5 single-application)\" + make lint-changelog; telegraphed since v11.1.0",
+      "Tier-A/B/C baseline retention (G-014 per v15-ADR-005) — 41 Tier-C files archived via git mv to docs/cycle-archive/*/baselines/; 10 IMMUTABLE Tier-A yaml witnesses + 12 pinned/rolling JSON keeps stay in CI; backward_compat block removed from lean-dispatch.yaml (test inverted per ADR-005); A-2.4 recompiled; G-009 interim 62-denominator pin with v15.0.0 expiry",
+      "Per-task-type timeout defaults (G-037) — defaults.timeout_class_map SSOT (research 2700 / impl 1800 / test 900 / review 1200 / hotfix 600 / fallback 7200) + 8 delta-only profile overlays; select_context() returns timeout_seconds (absence-safe); execution-protocol §14 graduated",
+      "SI-10 single-execution gate chain (G-033) — make test-core --ignores the 3 standalone gate files (~81 duplicate test executions eliminated); release-preflight = 6 SI-10 core targets before 6 release-only extras; W-9 recompiled from the Makefile; G-035 verified no-op (build-skill already registry-driven 16/16)",
+      "SKILL.md IA pass (G-019) — 492 → 429 lines; Template Quick-Reference → meta-framework.md §4 \"Gate Types\" (scaffold_template.py retargeted); Stage Primitives tightened 49 → 20; troubleshooting §2.17/§2.18 absorptions; rationalization-prevention / team tables / repo-mode / lifecycle-hooks demotions REFUSED"
+    ],
+    "metrics": {
+      "new_owner_modules": "6",
+      "permanent_shims": "24",
+      "scorer_lines": "2840 → 1579",
+      "selector_lines": "2051 → 1507",
+      "feedback_lines": "1086 → 517",
+      "changelog_lint_rules": "3 (R1/R2/R3)",
+      "tier_c_files_archived": "41",
+      "tier_a_witnesses": "10",
+      "timeout_classes": "6",
+      "timeout_profile_deltas": "8",
+      "duplicate_test_executions_eliminated": "~81",
+      "skill_md_lines": "492 → 429",
+      "benchmark_scenarios": "57",
+      "multi_repo_dispatch_delta": "+6.52pp",
+      "new_test_functions": "23",
+      "canonical_order_length": "17",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "benchmark_baseline_active": "v14.5.0_baseline.json"
+    }
   }
 ]

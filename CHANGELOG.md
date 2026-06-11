@@ -5,6 +5,79 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.5.0] - 2026-06-12 — MINOR — Governance Refactors: ADR-006 Module Split (24 Permanent Shims) + D-5 CHANGELOG Single-Application Lint + Tier-A/B/C Baseline Retention + Per-Task-Type Timeout Defaults + SI-10 Single-Execution Gate Chain + SKILL.md IA Pass (429 Lines)
+
+**MINOR — governance refactors (gap register G-014/G-019/G-025/G-033/G-036/G-037 + G-035 verified no-op).** The headline is the **ADR-006 module split (G-025)**: the three oversized hubs decompose into focused owner modules — `gate/scorer.py` 2840 → **1579** lines, `task_adaptive_selector.py` 2051 → **1507** (1573 after the G-037 timeout slice lands on top), `feedback.py` 1086 → **517** — via 6 NEW modules (`gate/cascade.py`, `gate/ladder.py`, `gate/acceptance_v2.py`, `dispatch.py`, `agents_md_slice.py`, `selector_cli.py`) and **24 PERMANENT identity-preserving re-export shims** (`old_path.symbol is new_path.symbol`; lifetime ≥ v16.0.0). The S-10-named paths stay verbatim-FUNCTIONAL: `feedback.py::populate_cascade_gate_fields` and `ProposalGenerator.generate_round_dispatch` keep their contracted module homes. It pairs with the **D-5 CHANGELOG single-application lint (G-036)** — telegraphed since v11.1.0, now landed — and three more governance slices: Tier-A/B/C baseline retention (G-014), per-task-type timeout defaults (G-037), and the SI-10 single-execution gate chain (G-033). A-2 untouched (`canonical_order` stays **17**), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**SI-10 gate 1 is now `make test-core` (single-execution chain).** The pytest suite runs once MINUS the three standalone gate files (`--ignore=tests/test_version.py` / `tests/test_benchmarks.py` / `tests/test_sichip_iteration_delta_gate.py`) — ~81 duplicate test executions eliminated per chain run while gates 4/5/7 keep their own red/green attribution. `make release-preflight` (alias `make precommit-full`) = the 6 SI-10 core targets (`test-core lint test-version test-benchmarks check-cursor-skill iteration-delta-gate`) BEFORE the 6 release-only extras (`validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift`); W-9 recompiled from the Makefile (the source of truth for the gate list). `make test` keeps the undeduplicated full suite.
+
+**SKILL.md is 429 lines (was 492); Template Quick-Reference moved.** The gate-type table now lives in `references/meta-framework.md` §"Template Quick-Reference — Gate Types" (single owner surface); the install note + working-tree anecdote moved to `references/troubleshooting.md` §2.17/§2.18. The 5 surviving critical surfaces (Rationalization Prevention, AgentTeam Quick Reference, Repo Mode Detection, Lifecycle Hooks, Stage Primitives Index — tightened 49 → 20 lines, NOT removed) had their demotions REFUSED.
+
+**Dispatch timeouts auto-populate.** `select_context()` now returns a `timeout_seconds` key resolved from the profile's timeout class via `resolve_timeout_seconds` (SSOT: `defaults.timeout_class_map` in `context_profiles.yaml` — research 2700 / impl 1800 / test 900 / review 1200 / hotfix 600 / fallback 7200). Absence-safe: configs without the map fall back to the `default_timeout_for` library mirror; existing call-sites that ignore the key are unaffected.
+
+**Module-split shims keep old imports working.** Every pre-split import path (`from devolaflow.gate.scorer import validate_cascade_gate_fields`, `from devolaflow.feedback import populate_cascade_gate_fields`, …) keeps resolving to the SAME object as the new owner-module path. Prefer the new paths in NEW code; the shims are PERMANENT (revisit ≥ v16.0.0 per the ADR-006 shim clause).
+
+**New CHANGELOG entries must pass the D-5 lint.** `python scripts/lint_changelog.py --base-ref origin/main` (CI step "CHANGELOG lint (D-5 single-application)"; `make lint-changelog`) enforces R1 structure (newest block on top, `## [X.Y.Z] - YYYY-MM-DD` headers), R2 base-ref immutability (no retro-edits to released blocks), and R3 release-in-flight version match (`__version__` has a block).
+
+### ADR-006 module split (G-025)
+
+- **6 NEW owner modules** — `gate/cascade.py` (655 lines: cascade + intra-task-convergence validators AND the `populate_*` dispatch-side helpers), `gate/ladder.py` (584: verification-ladder evaluation), `gate/acceptance_v2.py` (463: AC-v2 evaluation + metric runners), `dispatch.py` (332: `dispatch_wave_tasks` + `dispatch_dogfood_cycle`), `agents_md_slice.py` (459), `selector_cli.py` (157).
+- **24 permanent identity-preserving shims** — `gate/scorer.py` + `feedback.py` + `task_adaptive_selector.py` re-export every moved public symbol with `is`-identity; pinned by NEW `tests/test_module_split_shims.py`. Deprecation note in each shim block; removal is a ≥ v16.0.0 decision.
+- **S-10 paths verbatim-functional** — Soul rule S-10 and `schemas/lean-dispatch.yaml` name `feedback.py::populate_cascade_gate_fields` / `feedback.py::ProposalGenerator.generate_round_dispatch`; neither text changes — the shim preserves the path contract and the hook chain still runs on every dispatch.
+
+### D-5 CHANGELOG single-application lint (G-036)
+
+- **NEW `scripts/lint_changelog.py`** — `parse_blocks` / `check_structure` (R1) / `check_immutability` (R2, against `--base-ref`) / `check_version_match` (R3) / `main`; NEW `tests/test_changelog_lint.py` unit suite.
+- **CI step + make target** — ci.yml step "CHANGELOG lint (D-5 single-application)" (PR base SHA on pull requests; `HEAD~1 --allow-missing-base` on pushes); `make lint-changelog`. Telegraphed since v11.1.0 (the fourth v12.0.0 graduation list); lands at v14.5.0.
+
+### Baseline tiering (G-014 per v15-ADR-005)
+
+- **41 Tier-C files archived** via `git mv` to `docs/cycle-archive/<cycle>/baselines/` — history preserved, never deleted; `benchmarks/devolaflow_context/baselines/` now carries exactly the **10 Tier-A** `layout_invariant_v*.yaml` byte-witnesses (IMMUTABLE) + the **12** pinned/rolling JSON keeps (+ the v14.5.0 W-16 regen artifact below).
+- **`backward_compat` boolean block REMOVED** from `schemas/lean-dispatch.yaml#layout_invariant.enforcement` — the hand-mirrored `v*_baseline_passes: true` booleans were a write-only sync point (CI would fail first); the executable witness is `tests/test_layout_invariant_multi_baseline.py`. The companion test INVERTED per ADR-005: `tests/test_dispatch_layout_v5.py::test_backward_compat_block_removed` now pins the ABSENCE.
+- **A-2.4 recompiled to tiered retention** — Tier A permanent byte-witnesses / Tier B rolling window (current + previous 2 cycles per W-16) / Tier C archived-out-of-CI; both corpus targets recompiled.
+- **G-009 interim 62-denominator pin** — `tests/ghost/test_rules.py` pins the documented on-disk `.rules/` denominator (62 per `.rules/index.md`) so the over-cap state (62 > 60) is visible-not-silent; EXPIRY: strict full-corpus re-pin (≤ 60, diet target ≤ 55) after the v15.0.0 rule-diet per v15-ADR-004.
+
+### Per-task-type timeout defaults (G-037)
+
+- **`defaults.timeout_class_map` SSOT** in `context_profiles.yaml` (research 2700 / impl 1800 / test 900 / review 1200 / hotfix 600 / fallback 7200) + **8 delta-only profile overlays** (`timeout_class:` only where the class differs from the `impl` default, per the G-026 overlay discipline).
+- **`resolve_timeout_seconds` + `DEFAULT_TIMEOUT_CLASS`** in `task_adaptive_selector.py` — pure function, never raises on malformed classes (fallback ceiling), absence-safe for configs predating the map; `select_context()` output gains the `timeout_seconds` key.
+- **`references/execution-protocol.md` §14 graduated** — the v12.3.0 PV-04 discovery hint ("auto-populate timeouts in select_context") is now the live contract; round escalation stays timeout-invariant.
+
+### SI-10 gate-chain reorg (G-033)
+
+- **`make test-core` single-execution design** — chosen over no-op-with-note: gates 4/5/7 run standalone and gate 1 `--ignore`s exactly those three files, so no test executes twice in one chain run (~81 duplicate executions eliminated) while failure isolation stays attributable; W-9 recompiled from the Makefile section.
+- **G-035 VERIFIED NO-OP** — `build-skill` was already truth-driven: without `--tools` it iterates `AdapterRegistry.list_names()` + the registered `adapter_configs/*.yaml` set (16/16 build); the Makefile comment documents the verification.
+
+### SKILL.md IA pass (G-019)
+
+- **492 → 429 lines** — Template Quick-Reference demoted to `meta-framework.md` §4 (gate-type column moved verbatim; stage counts stay with the yaml-truth catalog); Stage Primitives Index tightened 49 → 20 lines; install note → `troubleshooting.md` §2.17, working-tree anecdote → §2.18; section anchors realigned, final selector dry-run clean.
+- **Critical-section demotions REFUSED** — Rationalization Prevention, the AgentTeam tables, Repo Mode Detection, and Lifecycle Hooks all stay in SKILL.md (rationalization-prevention is the L0 behavioural backstop; the others are dispatch-time lookups).
+- **`template_quick_ref` section retired** from `section_registry.py` + the `context_profiles.yaml` defaults (parsed-YAML clean; comments document the removal).
+
+### Release close (T7)
+
+- **W-16 wholesale baseline regen fires** — the pre-regen run scored 35/36 vs the v14.3.0 baseline with one ABOVE-baseline improvement (`multi_repo_dispatch` **+6.52pp**, the G-019 SKILL.md re-equilibration) → drift detected → `benchmarks/devolaflow_context/baselines/v14.5.0_baseline.json` regenerated wholesale (57 scenarios; 54/57 moved vs v14.3.0 — largest other deltas `research_survey` −2.00pp / `compression_retention_easy` −1.85pp / `long_context_repo_qa` −1.85pp / `self_update_integration` +1.69pp / `rdrr_design_loop` +1.63pp, all within the W-4 5pp envelope); newest-baseline pin updated in `tests/test_benchmarks.py`; post-regen 36/36 GREEN.
+- **`scripts/scaffold_template.py` quick-reference-row retarget** — `insert_quick_reference_row` (née `insert_skill_md_row`) now appends the gate-type row to the `meta-framework.md` §4 "Template Quick-Reference — Gate Types" table (the demoted SKILL.md section is gone); scaffolded templates default to the `standard` gate type; `tests/test_scaffold_template.py` seed + assertions retargeted.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/ghost/test_features_v14_5.py` (6 stanzas, one per release task):
+
+- `src/devolaflow/gate/cascade.py` / `gate/ladder.py` / `gate/acceptance_v2.py` / `dispatch.py` / `agents_md_slice.py` / `selector_cli.py` — the 6 ADR-006 owner modules + shim `is`-identity + post-split line ceilings (scorer < 1700, selector < 1600).
+- `scripts/lint_changelog.py` — `parse_blocks` / `check_structure` / `check_immutability` / `check_version_match` / `main` + the Makefile target + the named CI step.
+- The Tier-A witness set (10 yaml goldens, exact) + the kept-JSON set (exact) + the parsed-schema `backward_compat` absence + the A-2.4 tiered wording in both corpus targets.
+- `task_adaptive_selector.py::resolve_timeout_seconds` + `DEFAULT_TIMEOUT_CLASS` + the `defaults.timeout_class_map` SSOT values + `select_context()["timeout_seconds"]` + the execution-protocol §14 graduation.
+- The `test-core` 3-ignore set (exact) + release-preflight core-before-extras ordering (exact) + compiled W-9 step-1 text + the G-035 `AdapterRegistry.list_names()` comment + the inverted `test_backward_compat_block_removed` presence.
+- SKILL.md ≤ 430 pin + the 5 surviving surfaces + the meta-framework gate-types heading + troubleshooting §2.17/§2.18 literals + `template_quick_ref` retirement (registry + parsed profiles).
+
+### Verification
+
+- W-9/SI-10 gates GREEN via the NEW single-execution chain (`make test-core` / `make lint` / `make test-version` / `make test-benchmarks` / `make check-cursor-skill` / `make iteration-delta-gate`); `python scripts/lint_changelog.py --base-ref origin/main` PASS on this entry; `scripts/bump_version.py 14.5.0` GREEN (**9 locations** updated); `make sync-human-docs` (16 EN/ZH docs) + `make sync-cursor-skill` + `make check-cursor-skill` exit 0 (26-file mirror stamped 14.5.0).
+- W-16 wholesale regen accounted (see Release close); W-4 PASS 36/36 against `v14.5.0_baseline.json`.
+- W-17 **+23 NEW test functions** for the release (T1: 3, T2: 8, T4: 6, T7: 6 ghost stanzas; T3/T5/T6: 0 — T3 inverted an existing test, T5/T6 are reorg-only) ≤ 30/PV cap honoured per-task. Zero new env flags; `canonical_order` stays 17; Soul-set stays 10/12.
+
 ## [14.4.0] - 2026-06-12 — MINOR — Intra-Task Convergence Gate NEST + AC-v2 Metric Runners + Surgical-Scope Diff Verifier + context_profiles Overlay Refactor + Version-Sync Fan-Out Reduction
 
 **MINOR — L3 output-quality closure II (gap register G-005/G-006/G-023/G-026/G-031 + product-review BG-003/F-P1).** The headline is the **`gate.intra_task_convergence` NEST (G-005)**: dispatch payloads can now carry `intra_task_convergence: bool` + `intra_task_max_rounds: int` (default **2**) NESTed under the existing `gate` block per A-2.3 (`canonical_order` stays **17**; all **15** golden dispatch YAMLs byte-identical — the sub-fields are absence-canonical). The NEW `populate_intra_task_convergence(base_dispatch, task_type)` warrant rule populates the block ONLY for impl-class tasks (`code` / `test` / `config`) with non-empty `acceptance_criteria_v2`; everything else takes the absence-canonical path. The companion **AC-v2 metric runners** make `evaluate_acceptance_criteria_v2` actually EXECUTE `metric`-typed acceptance criteria (kinds `coverage` / `lint` / `number` with threshold comparisons). It pairs with the **surgical-scope diff verifier (BG-003)** — the first mechanical check for the behavioral-guidelines surgical-scope clause. A-2 untouched, zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).

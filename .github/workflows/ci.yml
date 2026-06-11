@@ -31,6 +31,21 @@ jobs:
         run: ruff format --check src/ tests/
       - name: Ruff check
         run: ruff check src/ tests/
+      # v14.5.0 G-036 — D-5 CHANGELOG single-application lint (stdlib-only).
+      # PR events: diff against the PR base sha (fetched explicitly — the
+      # depth-1 checkout does not contain it). Push events: HEAD~1 with
+      # --allow-missing-base so shallow clones degrade to a structure-only
+      # run instead of flaking.
+      - name: CHANGELOG lint (D-5 single-application)
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$PR_BASE_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            python scripts/lint_changelog.py --base-ref "$PR_BASE_SHA"
+          else
+            python scripts/lint_changelog.py --base-ref HEAD~1 --allow-missing-base
+          fi
 
   test:
     needs: check
