@@ -12403,3 +12403,73 @@ def test_v14_1_0_test_run_join_symbols(project_root: Path) -> None:
     assert "test_join_failed_node_overrides_optimistic_matrix_to_unmet" in trace_test, (
         "W-18 v14.1.0 violation: missing the §6c join override regression test."
     )
+
+
+def test_v14_2_0_digest_budget_blocking_symbols(project_root: Path) -> None:
+    """W-18 v14.2.0: the REQ-OUT-01 advisory→blocking promotion has coverage.
+
+    Discharges the W-18 precondition for the v14.2.0 CHANGELOG entry. The
+    v14.0.0 design (§8b) telegraphed verbatim: "REQ-OUT-01 lint is advisory
+    this cycle; promote to blocking in v14.2.0". The stanza asserts the
+    load-bearing surfaces of that promotion:
+
+    (a) lint.py declares enforce_digest_budget + HumanBudgetExceededError.
+    (b) reporter.py enforces the budget on both emission paths
+        (regenerate_all + the --human CLI) via _check_digest_budget.
+    (c) the agent_workspace package re-exports the new public symbols.
+    (d) references/human-surface.md states blocking-since-v14.2.0.
+    (e) companion test coverage exists.
+
+    Source: .local/research/v14.0.0_design.md §8b (advisory finding).
+    """
+    # --- (a) lint.py enforcement symbols ------------------------------
+    lint_text = (project_root / "src/devolaflow/agent_workspace/lint.py").read_text(
+        encoding="utf-8"
+    )
+    assert "def enforce_digest_budget(" in lint_text, (
+        "W-18 v14.2.0 violation: lint.py missing enforce_digest_budget()."
+    )
+    assert "class HumanBudgetExceededError(" in lint_text, (
+        "W-18 v14.2.0 violation: lint.py missing HumanBudgetExceededError."
+    )
+
+    # --- (b) reporter.py emission-path enforcement --------------------
+    reporter_text = (project_root / "src/devolaflow/agent_workspace/reporter.py").read_text(
+        encoding="utf-8"
+    )
+    assert "enforce_digest_budget" in reporter_text, (
+        "W-18 v14.2.0 violation: reporter.py does not consume enforce_digest_budget."
+    )
+    # def + the regenerate_all call site + the --human CLI call site.
+    assert reporter_text.count("_check_digest_budget(") >= 3, (
+        "W-18 v14.2.0 violation: reporter.py must enforce the digest budget on "
+        "BOTH emission paths (regenerate_all + the --human CLI)."
+    )
+
+    # --- (c) package __all__ re-exports ------------------------------
+    init_text = (project_root / "src/devolaflow/agent_workspace/__init__.py").read_text(
+        encoding="utf-8"
+    )
+    for sym in ("enforce_digest_budget", "HumanBudgetExceededError"):
+        assert f'"{sym}"' in init_text, (
+            f"W-18 v14.2.0 violation: agent_workspace/__init__.py __all__ missing {sym!r}."
+        )
+
+    # --- (d) reference doc states the promotion ----------------------
+    ref_text = (project_root / "workflow-system/agent/references/human-surface.md").read_text(
+        encoding="utf-8"
+    )
+    assert "BLOCKING since v14.2.0" in ref_text, (
+        "W-18 v14.2.0 violation: references/human-surface.md no longer/never "
+        "states REQ-OUT-01 is BLOCKING since v14.2.0."
+    )
+
+    # --- (e) companion test coverage ---------------------------------
+    reporter_test = (project_root / "tests/test_reporter.py").read_text(encoding="utf-8")
+    assert "HumanBudgetExceededError" in reporter_test, (
+        "W-18 v14.2.0 violation: tests/test_reporter.py lacks blocking-emission coverage."
+    )
+    lint_test = (project_root / "tests/test_lint_human.py").read_text(encoding="utf-8")
+    assert "enforce_digest_budget" in lint_test, (
+        "W-18 v14.2.0 violation: tests/test_lint_human.py lacks enforce_digest_budget coverage."
+    )

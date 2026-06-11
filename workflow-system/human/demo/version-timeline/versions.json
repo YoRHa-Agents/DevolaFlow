@@ -1946,5 +1946,35 @@
       "evobench_scenarios": "57",
       "benchmark_baseline_active": "v14.1.0_baseline.json"
     }
+  },
+  {
+    "version": "14.2.0",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "MINOR — REQ-OUT-01 promoted advisory → BLOCKING: the reporter's human-OUTPUT emission paths now enforce the `output/DIGEST.md` C-9 token budget BEFORE writing — an over-hard-ceiling digest raises `HumanBudgetExceededError` (the --human CLI exits 1) instead of being silently written; the soft tier stays advisory (warn + write proceeds). Plus the v15-cycle SI-1 entry research (dual design reviews + gap analysis + NineS 0.9070 baseline)",
+    "summary": "v14.2.0 discharges the v14.0.0 design §8b telegraph ('REQ-OUT-01 lint is advisory this cycle; promote to blocking in v14.2.0'). The NEW `enforce_digest_budget(text)` in agent_workspace/lint.py measures rendered digest text against the C-9 output/DIGEST.md row (soft 600 / hard 1000 tokens): under-soft → None; over-soft-under-hard → a WARN BudgetViolation for the caller to log (write proceeds — the C-9 escape hatch); over-hard → raises the NEW HumanBudgetExceededError. BOTH reporter emission paths consume it via _check_digest_budget: regenerate_all checks BEFORE writing either human OUTPUT artifact (no partial convergence + DIGEST pair on failure), and the --human CLI maps HumanBudgetExceededError → exit 1 (S-5 explicit error state). references/human-surface.md §8b states 'BLOCKING since v14.2.0'. The release also opens the v15-cycle ladder: SI-1 gap analysis (41 gaps, 7 ADRs PROPOSED) + dual design reviews (repo 28 / product 27 findings) + NineS 0.9070 baseline (stable vs v14.1.0) — research artifacts only, archived at cycle close per W-19. W-16: benchmarks GREEN against v14.1.0_baseline.json, wholesale regen deferred to cycle close. A-2 untouched (canonical_order stays 17), zero new env flags (W-20 — no flag gates the budget check), zero new Soul rules (W-21 freeze at 10/12).",
+    "highlights": [
+      "REQ-OUT-01 BLOCKING promotion — NEW `enforce_digest_budget(text)` + `HumanBudgetExceededError` in agent_workspace/lint.py: under-soft → None; over-soft-under-hard → WARN BudgetViolation (advisory — logged, write proceeds); over-hard-ceiling → raises (the C-9 'Soft budget over → warn. Hard ceiling over → fail' contract, now enforced at emission time)",
+      "Both emission paths gated — `regenerate_all` calls `_check_digest_budget` on the rendered digest BEFORE writing either human OUTPUT artifact (a failed run leaves no partial convergence + DIGEST pair); the reporter `--human` CLI checks before its writes and maps HumanBudgetExceededError → exit 1 (S-5 explicit error state — never a silent over-budget write)",
+      "v14.1.0 state was advisory-only — `lint_human()` flagged an over-budget digest only when separately invoked while the emission path silently wrote it; the promotion closes that gap per the v14.0.0 design §8b telegraph",
+      "v15-cycle entry research (no feature claims per S-4) — SI-1 gap analysis enumerating 41 gaps with 7 ADRs PROPOSED + dual design reviews (repo-facing 28 findings; product-facing 27 findings) + W-2 NineS self-eval baseline 0.9070 (stable vs v14.1.0); .local/research/ artifacts only, archived at cycle close per W-19",
+      "Zero new env flags (W-20 reuse-first — no flag gates the budget check); zero new Soul rules (W-21 freeze at 10/12); canonical_order stays 17; W-16 benchmarks GREEN against v14.1.0_baseline.json with wholesale regen deferred to cycle close; W-17 +6 NEW test functions (≤ 30/PV cap); suite 4716 passed"
+    ],
+    "metrics": {
+      "digest_budget_soft_tokens": "600",
+      "digest_budget_hard_tokens": "1000",
+      "nines_overall": "0.9070",
+      "tests": "4716",
+      "new_test_functions": "6",
+      "references_count": "24",
+      "references_count_prev": "24",
+      "canonical_order_length": "17",
+      "env_flag_count": "7",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "evobench_scenarios": "57",
+      "benchmark_baseline_active": "v14.1.0_baseline.json"
+    }
   }
 ]

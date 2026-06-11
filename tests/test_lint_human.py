@@ -25,6 +25,8 @@ import pytest
 from devolaflow.agent_workspace import (
     HUMAN_ARTIFACT_BUDGETS,
     BudgetReport,
+    HumanBudgetExceededError,
+    enforce_digest_budget,
     estimate_tokens,
     lint_human,
 )
@@ -189,6 +191,35 @@ class TestLintHumanScope:
         report = lint_human(repo_root=tmp_path, human_root=custom)
         assert report.exit_code == 0
         assert "output/DIGEST.md" in report.checked_files
+
+
+class TestEnforceDigestBudget:
+    """REQ-OUT-01 — ``enforce_digest_budget`` is BLOCKING since v14.2.0.
+
+    Promoted from advisory per the v14.0.0 design telegraph (§8b). Hard
+    ceiling over → raises ``HumanBudgetExceededError`` (S-5 explicit error
+    state); soft tier stays advisory (WARN violation returned for the caller
+    to log — the documented C-9 escape hatch). No env flag (W-20).
+    """
+
+    def test_under_soft_is_none_over_soft_is_warn(self):
+        assert enforce_digest_budget("# Digest\nshort\n") is None
+        # DIGEST soft=600, hard=1000 ⇒ 700 tokens is the advisory WARN tier.
+        warn = enforce_digest_budget(_chars_for_tokens(700))
+        assert warn is not None
+        assert warn.severity == "WARN"
+        assert warn.filename == "output/DIGEST.md"
+        assert warn.observed_tokens == 700
+
+    def test_over_hard_raises_blocking(self):
+        with pytest.raises(HumanBudgetExceededError) as excinfo:
+            enforce_digest_budget(_chars_for_tokens(1100))
+        violation = excinfo.value.violation
+        assert violation.severity == "FAIL"
+        assert violation.filename == "output/DIGEST.md"
+        assert violation.observed_tokens == 1100
+        assert violation.hard_budget == 1000
+        assert "REQ-OUT-01" in str(excinfo.value)
 
 
 class TestLintHumanCli:

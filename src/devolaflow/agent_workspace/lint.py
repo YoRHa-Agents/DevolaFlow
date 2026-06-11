@@ -54,6 +54,8 @@ __all__ = [
     "HUMAN_ARTIFACT_BUDGETS",
     "BudgetReport",
     "BudgetViolation",
+    "HumanBudgetExceededError",
+    "enforce_digest_budget",
     "estimate_tokens",
     "lint_change",
     "lint_human",
@@ -98,6 +100,9 @@ HUMAN_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
 # Root of the human surface (relative to the repo root); INPUT + OUTPUT zones
 # are both linted, the dated ``archive/`` is not (frozen snapshots — design §2).
 HUMAN_DIR_DEFAULT: Final[Path] = Path(".local") / "human"
+
+# The REQ-OUT-01 artifact — the digest's :data:`HUMAN_ARTIFACT_BUDGETS` key.
+DIGEST_BUDGET_KEY: Final[str] = "output/DIGEST.md"
 
 
 @dataclass
@@ -379,6 +384,72 @@ def lint_human(
             )
 
     return report
+
+
+class HumanBudgetExceededError(ValueError):
+    """A rendered human OUTPUT artifact exceeds its C-9 hard ceiling.
+
+    REQ-OUT-01 enforcement — BLOCKING since v14.2.0 per the v14.0.0 design
+    telegraph (``.local/research/v14.0.0_design.md`` §8b: "REQ-OUT-01 lint is
+    advisory this cycle; promote to blocking in v14.2.0"). Raised by
+    :func:`enforce_digest_budget` so the reporter emission path refuses to
+    write an over-ceiling digest (S-5 explicit error state — never a silent
+    over-budget write). The offending :class:`BudgetViolation` is carried on
+    ``violation`` for programmatic consumers.
+    """
+
+    def __init__(self, violation: BudgetViolation) -> None:
+        self.violation = violation
+        super().__init__(
+            f"REQ-OUT-01: {violation.filename} is {violation.observed_tokens} tokens — "
+            f"over the C-9 hard ceiling of {violation.hard_budget} "
+            f"(soft {violation.soft_budget}); trim the digest before emission"
+        )
+
+
+def enforce_digest_budget(text: str) -> BudgetViolation | None:
+    """Enforce ``output/DIGEST.md``'s C-9 token budget on rendered *text*.
+
+    REQ-OUT-01 — BLOCKING since v14.2.0. The v14.1.0 state was advisory:
+    :func:`lint_human` flagged an over-budget digest only when separately
+    invoked, while the reporter emission path silently wrote it. This helper
+    is the promotion: the emission path calls it on the rendered digest text
+    BEFORE writing, and a hard-ceiling violation raises instead of warning.
+
+    The soft tier stays advisory (the documented C-9 escape hatch — "Soft
+    budget over → warn. Hard ceiling over → fail"): an over-soft digest is
+    returned as a ``WARN`` :class:`BudgetViolation` for the caller to log,
+    and the write proceeds. No env flag gates this check (W-20 reuse-first;
+    zero new flags).
+
+    Returns:
+      ``None`` when under the soft budget; the ``WARN``
+      :class:`BudgetViolation` when over soft but under hard.
+
+    Raises:
+      HumanBudgetExceededError: when *text* exceeds the hard ceiling.
+    """
+    soft, hard = HUMAN_ARTIFACT_BUDGETS[DIGEST_BUDGET_KEY]
+    tokens = estimate_tokens(text)
+    if tokens > hard:
+        raise HumanBudgetExceededError(
+            BudgetViolation(
+                filename=DIGEST_BUDGET_KEY,
+                observed_tokens=tokens,
+                soft_budget=soft,
+                hard_budget=hard,
+                severity="FAIL",
+            )
+        )
+    if tokens > soft:
+        return BudgetViolation(
+            filename=DIGEST_BUDGET_KEY,
+            observed_tokens=tokens,
+            soft_budget=soft,
+            hard_budget=hard,
+            severity="WARN",
+        )
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
