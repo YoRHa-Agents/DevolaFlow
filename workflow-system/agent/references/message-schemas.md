@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 3600
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-06-11"
 ---
 
 # Message Schemas Reference
@@ -236,7 +236,9 @@ hdr: { id, dispatch_id, task_id, layer, timestamp }
 status: { state, progress_pct, started_at, completed_at, elapsed }
 result:
   artifacts: [{ id, path, type, summary }]   # summaries are verbatim ≤30-word extractions
-  metrics: { tests_passed, tests_failed, coverage_pct, quality_score, findings: { blocker, critical, major, minor, info } }
+  # gate_input_score: gate-dimension input evidence — NOT the Task Quality
+  # Score (L0-only, see references/task-quality-score.md). v14.2.1 G-013 rename.
+  metrics: { tests_passed, tests_failed, coverage_pct, gate_input_score, findings: { blocker, critical, major, minor, info } }
 issues:
   blockers: ["..."]                          # cause→effect notation; ≤5 items
   warnings: ["..."]                          # ≤5 items
@@ -249,6 +251,9 @@ delta:                                       # CO-2 verbatim; round 2+ only
   introduced: ["finding_id"]                 # verbatim
 tool_results:
   summary: { kept_count, cleared_count, cleared_at_round }   # v7.0.1 truncation summary
+self_check: { plan_artifact, goal_anchor, simplicity, conflicts, conventions }  # v14.3.0 BG evidence (optional)
+ac_results: [{ id, verdict: pass|fail|skip, cmd_digest }]   # v14.3.0 per-AC verdicts (optional)
+diff_stats: { files, insertions, deletions }                # v14.3.0 diff evidence (optional)
 ```
 
 ### Field Documentation (Lean)
@@ -265,6 +270,18 @@ tool_results:
 | `delta` | NO (round ≥ 2) | Verbatim diff vs prior round; per CO-2 NEVER paraphrased |
 | `gate_decision` | STAGE ONLY | null for wave/task |
 | `tool_results.summary` | NO | v7.0.1 `clear_old_tool_uses` accountancy |
+| `self_check` | NO | v14.3.0 G-002 — behavioral-guidelines evidence transport: `plan_artifact` (BG-001), `goal_anchor` (BG-004), `simplicity` (BG-002), `conflicts` (BG-006), `conventions` (BG-007) |
+| `ac_results` | NO | v14.3.0 G-003 — per-AC verdicts (`pass\|fail\|skip`) keyed to `acceptance_criteria_v2` ids, with `cmd_digest` of the `verification_cmd` output |
+| `diff_stats` | NO | v14.3.0 G-003 — `{files, insertions, deletions}` sizing/scope evidence |
+
+**Evidence-only doctrine (v15-ADR-007)**: the v14.3.0 blocks carry
+falsifiable EVIDENCE (plan digests, verdicts, command digests, diff
+stats) — never a score. Subagent reports DO NOT include `quality_score`
+(L0-only; runtime guard: `reject_subagent_quality_score` pre_dispatch
+hook). `ac_results[*].verdict` MUST come from the L3 actually running
+the criterion's `verification_cmd` intra-task — self-verify protocol per
+`references/execution-protocol.md` §self-verify. L0 derives scores from
+this evidence (L0-side scoring lands v15.0.0).
 
 ### Lean Example — Task Agent reporting completion
 
@@ -282,6 +299,16 @@ result:
     findings: { blocker: 0, critical: 0, major: 0, minor: 0, info: 0 }
 issues: { blockers: [], warnings: [], deferred: [] }
 gate_decision: null
+self_check:
+  plan_artifact: "inline: manager.rs impl → barrel export → 12-test suite"
+  goal_anchor: "ConfigManager merging TOML + env + CLI config sources"
+  simplicity: "none"
+  conflicts: []
+  conventions: []
+ac_results:
+  - { id: AC-1, verdict: pass, cmd_digest: "cargo test: 12 passed → exit 0" }
+  - { id: AC-2, verdict: pass, cmd_digest: "coverage 87.3% ≥ 80% floor" }
+diff_stats: { files: 2, insertions: 156, deletions: 0 }
 ```
 
 ## 3.A StatusReport Schema (Child → Parent) — Verbose Form (DEPRECATED appendix)

@@ -22,7 +22,7 @@ from devolaflow.adapters.cursor_adapter import CursorAdapter
 # * references — the SF-4 canonical set pinned by the ghost audit;
 # * examples  — the `examples/` entries of the mirror manifest.
 from scripts.sync_cursor_skill import MIRRORED_FILES
-from tests.test_no_ghost_features import _SF4_REFERENCE_SET
+from tests.ghost.test_registries import _SF4_REFERENCE_SET
 
 _EXPECTED_REFERENCE_COUNT = len(_SF4_REFERENCE_SET)
 _EXPECTED_EXAMPLE_COUNT = sum(1 for rel in MIRRORED_FILES if rel.startswith("examples/"))
@@ -197,7 +197,7 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    # Derived from the SF-4 canonical set (tests.test_no_ghost_features.
+    # Derived from the SF-4 canonical set (tests.ghost.test_registries.
     # _SF4_REFERENCE_SET) instead of a hardcoded literal per G-028.
     assert len(actual) == _EXPECTED_REFERENCE_COUNT, (
         f"expected {_EXPECTED_REFERENCE_COUNT} reference files "

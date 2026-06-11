@@ -16,7 +16,7 @@ tier: 3
 token_estimate: 350
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-05-16"
+last_updated: "2026-06-11"
 ---
 
 # Task Quality Score (L0 ONLY)
@@ -76,6 +76,7 @@ The trailing footer line ties the score artifact to the orchestrator version per
 
 ## Cross-references
 
+* `references/artifact-quality.md` — the OTHER rubric (v14.3.0): the L3-evidence rubric for the artifact itself. THIS file = L0-only scoring of the operator REQUEST; artifact-quality = the evidence the L3 emits about its DELIVERABLE (never a score, per v15-ADR-007).
 * SKILL.md §"Task Quality Score (L0 ONLY)" — the stub that points HERE (collapsed in v12.3.0 PV-03)
 * SKILL.md §"Version & Update" → "Session Banner Contract" — provides the version literal for the footer line
 * `src/devolaflow/lifecycle/reject_subagent_quality_score.py` — v12.2.0 PV-04 runtime hook that flags top-level `quality_score` in dispatch payloads

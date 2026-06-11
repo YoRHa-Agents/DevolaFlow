@@ -9,6 +9,26 @@ acceptance criterion before being released to an L3 task agent. The
 hook recognises both the lean ``accept`` key and the verbose
 ``acceptance_criteria`` key for backward compatibility.
 
+v14.3.0 — when the payload carries the OPT-IN ``acceptance_criteria_v2``
+block (canonical_order position 15 per
+``schemas/lean-dispatch.yaml#lean_format_spec.acceptance_criteria_v2``),
+the hook additionally validates its STRUCTURE (permissive default):
+
+* the block must be a non-empty list (VD005);
+* each entry must be a mapping carrying a non-empty ``id``, a non-empty
+  criterion text (the schema-canonical ``description`` field; the
+  ``criterion`` spelling is also accepted), and a ``verification_type``
+  in ``{"test", "metric", "manual"}`` (VD006);
+* ``verification_type == "test"`` entries must carry a non-empty
+  ``verification_cmd`` (VD007 — downstream
+  ``gate.scorer.evaluate_acceptance_criteria_v2`` cannot run a test
+  criterion without one);
+* entry ids must be unique (VD008 — duplicates raise ``ValueError`` in
+  the downstream evaluator).
+
+Payloads WITHOUT ``acceptance_criteria_v2`` see byte-identical
+behaviour to v14.2.x (the block is OPT-IN per the v8.0.0 P-10 schema).
+
 Permissive default — emits a WARNING via the lifecycle logger and
 returns a :class:`HookResult` with the violations attached. Strict mode
 re-raises the top-severity :class:`HookViolation`.
@@ -64,6 +84,10 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
 
     Separated from :func:`validate_dispatch` so :func:`run_hooks` can
     invoke this directly without the wrapper's logging/strict logic.
+
+    v14.3.0 — composes the legacy ``accept`` checks with the OPT-IN
+    ``acceptance_criteria_v2`` structural checks. Payloads without the
+    AC-v2 block produce a byte-identical violation list to v14.2.x.
     """
     if not isinstance(payload, dict):
         return [
@@ -75,6 +99,13 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
             )
         ]
 
+    violations = _collect_accept_violations(payload)
+    violations.extend(_collect_ac_v2_violations(payload))
+    return violations
+
+
+def _collect_accept_violations(payload: dict[str, Any]) -> list[HookViolation]:
+    """Legacy ``accept`` / ``acceptance_criteria`` checks (pre-v14.3.0 body)."""
     accept_value = payload.get("accept")
     if accept_value is None:
         accept_value = payload.get("acceptance_criteria")
@@ -119,6 +150,116 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
         ]
 
     return []
+
+
+# Allowed values for ``acceptance_criteria_v2[*].verification_type`` —
+# verbatim from ``schemas/lean-dispatch.yaml#lean_format_spec.
+# acceptance_criteria_v2.per_entry.verification_type``.
+_AC_V2_VERIFICATION_TYPES: frozenset[str] = frozenset({"test", "metric", "manual"})
+
+
+def _is_nonempty_str(value: object) -> bool:
+    """True iff *value* is a string with non-whitespace content."""
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _collect_ac_v2_entry_violations(idx: int, item: object) -> list[HookViolation]:
+    """Structural checks for ONE ``acceptance_criteria_v2`` entry (v14.3.0)."""
+    if not isinstance(item, dict):
+        return [
+            HookViolation(
+                code="VD006",
+                message=(f"acceptance_criteria_v2[{idx}] must be a mapping"),
+                severity="error",
+                context={"index": idx, "entry_type": type(item).__name__},
+            )
+        ]
+
+    violations: list[HookViolation] = []
+    missing: list[str] = []
+    if not _is_nonempty_str(item.get("id")):
+        missing.append("id")
+    # Schema-canonical criterion-text field is `description`; the
+    # `criterion` spelling is accepted for the v14.3.0 task contract.
+    if not (_is_nonempty_str(item.get("description")) or _is_nonempty_str(item.get("criterion"))):
+        missing.append("description/criterion")
+    vtype = item.get("verification_type")
+    if vtype not in _AC_V2_VERIFICATION_TYPES:
+        missing.append("verification_type ∈ {test, metric, manual}")
+    if missing:
+        violations.append(
+            HookViolation(
+                code="VD006",
+                message=(
+                    f"acceptance_criteria_v2[{idx}] missing/invalid required "
+                    f"field(s): {', '.join(missing)}"
+                ),
+                severity="error",
+                context={"index": idx, "missing": missing, "entry_keys": sorted(item.keys())},
+            )
+        )
+
+    if vtype == "test" and not _is_nonempty_str(item.get("verification_cmd")):
+        violations.append(
+            HookViolation(
+                code="VD007",
+                message=(
+                    f"acceptance_criteria_v2[{idx}] has verification_type='test' "
+                    f"but no verification_cmd"
+                ),
+                severity="error",
+                context={"index": idx, "id": item.get("id")},
+            )
+        )
+
+    return violations
+
+
+def _collect_ac_v2_violations(payload: dict[str, Any]) -> list[HookViolation]:
+    """v14.3.0 structural checks for the OPT-IN ``acceptance_criteria_v2`` block.
+
+    Returns ``[]`` when the key is absent (R5 — payloads without the
+    block see byte-identical pre-v14.3.0 behaviour). Permissive/strict
+    escalation is centralised on the caller (:func:`finalize` /
+    :func:`run_hooks`) like every other check in this module.
+    """
+    if "acceptance_criteria_v2" not in payload:
+        return []
+
+    ac_v2 = payload["acceptance_criteria_v2"]
+    if not isinstance(ac_v2, list) or not ac_v2:
+        return [
+            HookViolation(
+                code="VD005",
+                message=("'acceptance_criteria_v2' must be a non-empty list when present"),
+                severity="error",
+                context={"ac_v2_type": type(ac_v2).__name__},
+            )
+        ]
+
+    violations: list[HookViolation] = []
+    seen_ids: set[str] = set()
+    for idx, item in enumerate(ac_v2):
+        violations.extend(_collect_ac_v2_entry_violations(idx, item))
+        if isinstance(item, dict):
+            item_id = item.get("id")
+            if _is_nonempty_str(item_id):
+                if item_id in seen_ids:
+                    violations.append(
+                        HookViolation(
+                            code="VD008",
+                            message=(
+                                f"acceptance_criteria_v2[{idx}] duplicates id {item_id!r} "
+                                f"(ids must be unique)"
+                            ),
+                            severity="error",
+                            context={"index": idx, "id": item_id},
+                        )
+                    )
+                else:
+                    seen_ids.add(item_id)
+
+    return violations
 
 
 def validate_dispatch(payload: dict[str, Any], *, strict: bool = False) -> HookResult:

@@ -21,10 +21,29 @@ enforcement modes:
   (``blocker > error > warning``) is re-raised so the caller can
   block / reject / escalate per the SKILL.md "On Violation" column.
 
-Hooks are intentionally NOT wired into existing dispatch / write /
-status-report flows by P-05 — that integration is deferred to a future
-patch (likely v7.6.x) and lives outside this module's scope. P-05's
-risk profile stays LOW because this package is purely additive.
+Runtime wiring (v14.3.0, G-001 closure per
+``.local/research/adr/v15-ADR-003-output-closure-enforcement-locus.md``):
+the dispatch-side events (``pre_dispatch`` → ``post_dispatch`` →
+``pre_handoff`` → ``pre_plugin_invocation``) fire from
+``feedback_emit.ProposalEmitter._fire_hook_chain`` on every dispatch
+emission (S-10), and — NEW at v14.3.0 — the execution-side events fire
+from :mod:`devolaflow.lifecycle.runtime_wiring`:
+
+* ``file_write`` fires from the framework's change-driven write surface
+  (``agent_workspace.change.Change.to_active_folder``) via
+  :func:`fire_file_write` BEFORE each artifact write.
+* ``task_stop`` fires from the L3 report emission surface
+  (``agent_workspace.handoff.HandoffStore.write_envelope`` for
+  ``StatusReport`` envelopes) via :func:`fire_task_stop`.
+
+Both adapters are PERMISSIVE at v14.3.0 (warn + log per S-8 "mode:
+lite") and byte-identical zero-IO no-ops unless
+``DEVOLAFLOW_AGENT_WORKSPACE=1`` (W-20 env-flag reuse — same activation
+surface as A-6 / ``pre_handoff``; NO new flag). The STRICT default flip
+(block + escalate per S-8 "mode: full") is telegraphed for v15.0.0 per
+ADR-003 §Decision 3. Out-of-band writes (raw shell) bypass the
+``file_write`` adapter by design — the ``task_stop`` evidence checks
+catch the net effect (ADR-003 §Consequences).
 
 Public API
 ----------
@@ -121,6 +140,11 @@ from devolaflow.lifecycle.pre_shell_call import (
 )
 from devolaflow.lifecycle.reject_subagent_quality_score import (
     reject_subagent_quality_score,
+)
+from devolaflow.lifecycle.runtime_wiring import (
+    fire_file_write,
+    fire_task_stop,
+    is_workspace_engaged,
 )
 from devolaflow.lifecycle.test_on_complete import (
     EVENT as _TASK_STOP_EVENT,
@@ -368,8 +392,11 @@ __all__ = [
     "clear_hooks",
     "emit_violations",
     "finalize",
+    "fire_file_write",
+    "fire_task_stop",
     "format_on_edit",
     "get_canonical_manifest",
+    "is_workspace_engaged",
     "list_handlers",
     "post_dispatch",
     "post_skill_edit",

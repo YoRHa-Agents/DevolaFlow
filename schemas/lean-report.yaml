@@ -89,6 +89,18 @@ lean_example:
       - "no rate limit on auth failures"
     deferred: ["refresh token rotation — out of scope"]
   decisions: []
+  # v14.3.0 evidence blocks (G-002 + G-003) — EVIDENCE ONLY, never scores
+  # (v15-ADR-007). All three optional; shown populated here.
+  self_check:
+    plan_artifact: "inline: auth.ts middleware → index.ts export → 12-case test suite"
+    goal_anchor: "JWT auth middleware — validate token, attach req.user, handle 401/400"
+    simplicity: "none"
+    conflicts: []
+    conventions: []
+  ac_results:
+    - { id: AC-1, verdict: pass, cmd_digest: "jest 12 passed, 0 failed → exit 0" }
+    - { id: AC-2, verdict: pass, cmd_digest: "coverage 94.2% ≥ 90% threshold" }
+  diff_stats: { files: 3, insertions: 184, deletions: 6 }
 
 # --- FORMAT SPECIFICATION ---
 lean_format_spec:
@@ -126,6 +138,32 @@ lean_format_spec:
       why: "rationale (≤10 words)"
       alt: "rejected alternative (≤8 words, optional)"
     max_entries: 5
+  # --- v14.3.0 L3 evidence blocks (G-002 + G-003, doctrine per v15-ADR-007) ---
+  # L3 emits EVIDENCE ONLY — never scores; L0 derives scores from evidence
+  # (L0-side scoring lands v15.0.0). None of the three blocks below defines a
+  # score field; the `reject_subagent_quality_score` pre_dispatch hook guards
+  # the top-level key, and these blocks keep the nested surface score-free by
+  # construction. All three blocks are OPTIONAL — omitting them is the
+  # byte-identical pre-v14.3.0 report shape (additive-safe: lean-report.yaml
+  # has NO `layout_invariant:`).
+  self_check:
+    description: "Optional. Behavioral-guidelines evidence transport (references/behavioral-guidelines.md). Evidence only — never a score (v15-ADR-007)."
+    fields:
+      plan_artifact: "BG-001 — path or inline plan digest (≤5 bullets × ≤20 words); optional"
+      goal_anchor: "BG-004 — 1-line verbatim restatement of dispatched goal at completion; optional"
+      simplicity: "BG-002 — declared abstractions-added count (int) or 'none'; optional"
+      conflicts: "BG-006 — typed ConflictFinding entries [{patterns, files}]; may be empty; optional"
+      conventions: "BG-007 — typed ADRRequiredFinding entries [{existing, proposed}]; may be empty; optional"
+  ac_results:
+    description: "Optional. Per-AC verdicts keyed to the dispatch's acceptance_criteria_v2 ids. verdict comes from the L3 ACTUALLY RUNNING the criterion's verification_cmd intra-task — self-verify protocol per references/execution-protocol.md §self-verify."
+    per_entry:
+      id: "verbatim acceptance_criteria_v2 id from the originating dispatch"
+      verdict: "pass|fail|skip"
+      cmd_digest: "≤15 words verbatim digest of the verification_cmd output"
+    max_entries: 10
+  diff_stats:
+    description: "Optional. Aggregate diff statistics for the task's edits — sizing/scope-adherence evidence for L0 VERIFY."
+    fields: { files: "int — files changed", insertions: "int — lines added", deletions: "int — lines removed" }
 
 # --- COMPACTION RULES ---
 compaction_rules:

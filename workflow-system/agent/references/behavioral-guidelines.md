@@ -16,7 +16,7 @@ tier: 2
 token_estimate: 1100
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-06-11"
 ---
 
 # Behavioral Guidelines (L3 Task Agent)
@@ -66,8 +66,11 @@ keys inherit the matrix above per complexity tier classification.
 
 Before producing any code edit, the L3 Task Agent MUST surface an explicit
 plan to the dispatcher. The plan is captured in the StatusReport's
-``plan_artifact`` field (≤ 5 bullets, each ≤ 20 words) and rendered before
-the first ``Write`` / ``StrReplace`` / ``Shell`` tool call.
+``self_check.plan_artifact`` field (≤ 5 bullets, each ≤ 20 words) and
+rendered before the first ``Write`` / ``StrReplace`` / ``Shell`` tool call.
+
+**Evidence**: ``self_check.plan_artifact`` — path-or-inline plan digest, per
+``schemas/lean-report.yaml#lean_format_spec.self_check`` (v14.3.0 G-002).
 
 **Rendered guidance** (injected into L3 dispatch when active):
 
@@ -107,6 +110,9 @@ findings list (severity=major if 2+ YES, blocker if all 3 YES).
 1. Could I delete this abstraction and inline the call site without harm?
 2. Is every new config field consumed by a passing test?
 3. Did I write code paths that have no AC reference?
+
+**Evidence**: ``self_check.simplicity`` — declared abstractions-added count
+(int) or ``"none"``, per ``schemas/lean-report.yaml#lean_format_spec.self_check``.
 
 **When to skip**: Hotfix profile (urgency outweighs purity).
 
@@ -158,10 +164,10 @@ findings instead of intent.
 **Rendered guidance** (injected into L3 dispatch when active):
 
 > At the head of each round (round_num >= 2), restate the original user
-> request VERBATIM in your StatusReport's ``goal_anchor`` field. Then read
-> the prior round's findings. If the findings would push your work AWAY
-> from the goal anchor, surface a ``GoalDriftWarning`` finding rather
-> than complying.
+> request VERBATIM in your StatusReport's ``self_check.goal_anchor``
+> field. Then read the prior round's findings. If the findings would push
+> your work AWAY from the goal anchor, surface a ``GoalDriftWarning``
+> finding rather than complying.
 
 **Self-check questions**:
 
@@ -169,6 +175,10 @@ findings instead of intent.
 2. Did I cross-check each new finding against the goal anchor?
 3. Did I flag findings that conflict with the goal rather than silently
    complying?
+
+**Evidence**: ``self_check.goal_anchor`` — 1-line verbatim restatement of
+the dispatched goal at completion, per
+``schemas/lean-report.yaml#lean_format_spec.self_check``.
 
 **When to skip**: Single-round (round_num == 1) tasks; the goal is implicit
 in the dispatch and re-anchoring adds no signal.
@@ -220,8 +230,9 @@ deterministic code, not about model usage in the generative core.
 
 When two parts of the codebase disagree on a pattern (error handling,
 async style, state management, naming convention), the L3 Task Agent
-MUST surface the disagreement as a `ConflictFinding` in StatusReport
-rather than producing code that combines both patterns. The "averaged"
+MUST surface the disagreement as a `ConflictFinding` entry in the
+StatusReport's ``self_check.conflicts`` list rather than producing code
+that combines both patterns. The "averaged"
 solution is usually broken — it neither matches Pattern A's invariants
 nor Pattern B's, so the resulting code works in neither regime.
 
@@ -239,7 +250,8 @@ minutes to figure out."*
 > identify > 1 pre-existing pattern via `grep` / `SemanticSearch`?
 > (2) If yes, which pattern does my acceptance criteria mandate?
 > If the AC does NOT mandate one, surface a `ConflictFinding`
-> (severity=major) with the verbatim pattern signatures and the
+> (severity=major) in the StatusReport's ``self_check.conflicts`` list
+> with the verbatim pattern signatures and the
 > file paths. Halt your task until the dispatcher chooses. Do NOT
 > produce code that satisfies both — that path always degrades.
 
@@ -249,6 +261,9 @@ minutes to figure out."*
 2. Did I scan ALL `read_only` files in the predecessor artifact summary?
 3. If a conflict surfaced, did I escalate via `ConflictFinding` rather
    than picking the pattern that "felt natural"?
+
+**Evidence**: ``self_check.conflicts`` — typed `ConflictFinding` list (may
+be empty), per ``schemas/lean-report.yaml#lean_format_spec.self_check``.
 
 **When to skip**: Tasks where only one pattern exists in the codebase
 (verified via `Grep` / `SemanticSearch`); the audit is no-op.
@@ -278,6 +293,7 @@ a day to remove and rewrite."*
 > the codebase for the canonical existing pattern. If one exists,
 > use it even if you believe a "better" pattern is available. To
 > introduce novelty, surface an `ADRRequiredFinding` (severity=major)
+> in the StatusReport's ``self_check.conventions`` list
 > citing the existing pattern + your proposed alternative + the
 > 3-condition ADR gate ([W-22.3](.cursor/rules/repo-governance.mdc)):
 > (1) hard to reverse, (2) surprising without context, (3) real
@@ -289,6 +305,9 @@ a day to remove and rewrite."*
 1. Did I scan the codebase for the existing pattern BEFORE proposing a new one?
 2. If introducing novelty, did I author the ADR per W-22.3?
 3. If the novelty fails the 3-condition gate, did I fall back to the convention?
+
+**Evidence**: ``self_check.conventions`` — typed `ADRRequiredFinding` list
+(may be empty), per ``schemas/lean-report.yaml#lean_format_spec.self_check``.
 
 **When to skip**: Greenfield code paths (no pre-existing pattern to
 match); the audit is no-op. Also skippable when the existing pattern
@@ -417,6 +436,7 @@ above is the L3 contract surface.
 ## See Also
 
 - ``schemas/lean-dispatch.yaml#layout_invariant`` (canonical position 14)
+- ``schemas/lean-report.yaml#lean_format_spec.self_check`` (v14.3.0 evidence transport — evidence only, never scores per v15-ADR-007)
 - ``workflow-system/agent/context_profiles.yaml`` (per-profile defaults)
 - ``src/devolaflow/task_adaptive_selector.py:_select_behavioral_sections``
 - ``src/devolaflow/task_adaptive_selector.py:_load_line_level_criteria`` (PV-04)

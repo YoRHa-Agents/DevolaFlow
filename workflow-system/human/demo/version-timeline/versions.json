@@ -2032,5 +2032,33 @@
       "soul_set_cap": "12",
       "benchmark_baseline_active": "v14.1.0_baseline.json"
     }
+  },
+  {
+    "version": "14.3.0",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "MINOR — L3 output-quality closure: report-side evidence transport (additive self_check + ac_results + diff_stats blocks in schemas/lean-report.yaml per v15-ADR-007 evidence-only doctrine); NEW 25th reference references/artifact-quality.md (evidence-only L3 rubric); lifecycle hooks now FIRE permissively from the runtime when DEVOLAFLOW_AGENT_WORKSPACE=1 (G-001 per v15-ADR-003); 12,721-line ghost-audit decomposed into the tests/ghost/ package (G-027 per v15-ADR-001)",
+    "summary": "v14.3.0 closes the L3 output-quality gap cluster (G-001/G-002/G-003/G-004 + G-027 pulled forward). Evidence transport: lean-report.yaml gains self_check (plan_artifact/goal_anchor/simplicity/conflicts/conventions), ac_results ({id, verdict pass|fail|skip, cmd_digest}), diff_stats — an L3 StatusReport carries verifiable EVIDENCE, never self-assigned scores; behavioral-guidelines Evidence clauses name the transport fields verbatim; message-schemas §3 updated. The NEW references/artifact-quality.md (25th SF-4 reference; four-place sync) carries the doctrine, 4 excellence dimensions, evidence emission map, 11-item self-verify checklist, and failure honesty; execution-protocol gains §15 L3 Self-Verify; SKILL.md VERIFY step points at it. Hook runtime wiring (discharges the v14.2.2 honesty note): NEW lifecycle/runtime_wiring.py fire_file_write/fire_task_stop, env-gated on DEVOLAFLOW_AGENT_WORKSPACE=1 (W-20 REUSE; R5 zero-IO no-op otherwise), called from agent_workspace/change.py (file_write) + handoff.py (task_stop); validate_dispatch AC-v2 structural checks VD005–VD008; strict graduation telegraphed v15.0.0. Ghost-audit: test_no_ghost_features.py → 38-line shim + tests/ghost/ (3 domain modules + legacy + 31 per-cycle files); W-18/W-21/C-7/A-5.1 recompiled; shim retires v15.0.0. W-16 wholesale regen fired at this release: v14.3.0_baseline.json pins the new equilibrium (4 scenarios re-equilibrated, all content-driven by the SKILL.md VERIFY-pointer edit; all quality_thresholds PASS). A-2 untouched (canonical_order stays 17), zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "Report-side evidence transport (G-002/G-003) — additive self_check + ac_results + diff_stats blocks in schemas/lean-report.yaml; evidence-only doctrine per v15-ADR-007 (subagent reports carry NO quality_score); behavioral-guidelines Evidence clauses + message-schemas §3 name the transport fields",
+      "25th reference references/artifact-quality.md (G-004) — evidence-only L3 artifact-quality rubric: 4 excellence dimensions, evidence emission map, 11-item self-verify checklist, failure honesty; execution-protocol §15 L3 Self-Verify; SKILL.md Tier-2 row + VERIFY pointer; four-place SF-4 sync (set now 25)",
+      "Lifecycle hook runtime wiring, permissive (G-001 per v15-ADR-003) — NEW lifecycle/runtime_wiring.py fire_file_write/fire_task_stop env-gated on DEVOLAFLOW_AGENT_WORKSPACE=1 (R5 zero-IO no-op otherwise); call sites in agent_workspace/change.py + handoff.py; validate_dispatch VD005–VD008 structural checks; strict graduation telegraphed v15.0.0",
+      "Ghost-audit decomposition (G-027 per v15-ADR-001) — 12,721-line test_no_ghost_features.py → 38-line aggregator shim + tests/ghost/ package (test_rules/test_schema/test_registries + legacy + 31 per-cycle modules); W-18/W-21/C-7/A-5.1 recompiled same-change; shim retirement v15.0.0; G-029 parametrize slice",
+      "W-16 wholesale baseline regen — v14.3.0_baseline.json (57 scenarios); collapse_l0_l3_simple 98.70 → 89.16, compression_hotfix 98.70 → 89.16, r7_section_anchor_registry_no_drift 91.03 → 83.67 (hotfix-profile budget tip; bisect-proven), multi_repo_dispatch 99.29 → 93.09 (migration profile); all per-scenario quality_thresholds PASS"
+    ],
+    "metrics": {
+      "sf4_reference_count": "25",
+      "cursor_mirror_files": "26",
+      "lean_report_new_blocks": "3",
+      "vd_structural_checks": "VD005-VD008",
+      "ghost_shim_lines": "38",
+      "ghost_per_cycle_modules": "31",
+      "benchmark_scenarios": "57",
+      "new_test_functions": "21",
+      "canonical_order_length": "17",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "benchmark_baseline_active": "v14.3.0_baseline.json"
+    }
   }
 ]

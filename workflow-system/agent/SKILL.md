@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "14.2.2"
+version: "14.3.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v14.2.2**
+> **Now Using DevolaFlow v14.3.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 14.2.2 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
+**Current version:** 14.3.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
 
 ### Session Banner Contract (v12.3.0+)
@@ -111,7 +111,7 @@ See `references/agent-workspace.md` §"When to Engage" for the full activation c
 2. **SELECT** workflow type → Workflow Selection table below
 3. **DECOMPOSE** into stages → waves → tasks (disjoint file ownership per wave)
 4. **DISPATCH** each task → `Task` tool (subagent_type: `generalPurpose`); prompt includes role, task_id, description, owned_files, read_only, acceptance_criteria, predecessor summary (3-5 sentences max)
-5. **VERIFY** task output against acceptance criteria
+5. **VERIFY** task output against acceptance criteria — L3 self-verifies per `references/artifact-quality.md` §4 before reporting; L0 verifies evidence, not vibes
 6. **GATE** stage → composite score ≥ threshold, 0 blockers → advance or converge
 7. **REPORT** final results + Task Quality Score
 
@@ -412,6 +412,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 |---|---|
 | `references/agent-hierarchy.md` | Layer setup, delegation debugging, per-layer contracts |
 | `references/agent-workspace.md` | Change folders, handoff envelopes, archive, source-of-truth specs |
+| `references/artifact-quality.md` | Authoring/verifying L3 deliverable quality, building self_check evidence (evidence-only — L3 never self-scores) |
 | `references/behavioral-guidelines.md` | L3 think_first / simplicity_check / surgical_scope / goal_loop primitives |
 | `references/codegraph.md` | Pre-indexed code knowledge graph (tree-sitter + SQLite FTS5); 9 MCP tools / 5 researcher helpers; degraded-mode contract; cache management |
 | `references/compression-pipeline.md` | CompressionStage protocol, 6-transform unification, multi-pass filter chain |

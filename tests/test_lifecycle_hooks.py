@@ -576,6 +576,106 @@ class TestValidateDispatch:
 
 
 # ---------------------------------------------------------------------------
+# validate_dispatch — v14.3.0 acceptance_criteria_v2 structural checks
+# ---------------------------------------------------------------------------
+
+
+class TestValidateDispatchAcV2:
+    """v14.3.0 — structural checks for the OPT-IN ``acceptance_criteria_v2`` block.
+
+    Per the schema shape in ``schemas/lean-dispatch.yaml#lean_format_spec.
+    acceptance_criteria_v2``: list non-empty (VD005); each entry carries
+    id + criterion text (``description`` canonical / ``criterion``
+    accepted) + verification_type ∈ {test, metric, manual} (VD006);
+    ``verification_cmd`` required when type == test (VD007); ids unique
+    (VD008). Permissive default WARNs; strict raises; payloads WITHOUT
+    the block see byte-identical pre-v14.3.0 behaviour.
+    """
+
+    _ACCEPT = ["criterion long enough to be testable"]
+
+    def test_ac_v2_valid_payload_passes_silently(self) -> None:
+        payload = {
+            "accept": self._ACCEPT,
+            "acceptance_criteria_v2": [
+                {
+                    "id": "AC-001",
+                    "description": "full suite green",
+                    "verification_type": "test",
+                    "verification_cmd": "pytest tests/ -q",
+                },
+                {
+                    "id": "AC-002",
+                    "description": "p95 latency under budget",
+                    "verification_type": "metric",
+                    "metric": "latency_p95_ms",
+                    "threshold": "<200",
+                },
+                # `criterion` spelling accepted alongside the schema-canonical
+                # `description` field.
+                {"id": "AC-003", "criterion": "manual review done", "verification_type": "manual"},
+            ],
+        }
+        r = validate_dispatch(payload)
+        assert r.passed is True
+        assert r.violations == []
+
+    def test_ac_v2_violation_classes_warn_permissive(self, caplog) -> None:
+        cases = [
+            ("not-a-list", "VD005"),
+            ([], "VD005"),
+            # missing id
+            ([{"description": "valid text", "verification_type": "manual"}], "VD006"),
+            # missing criterion text
+            ([{"id": "AC-1", "verification_type": "manual"}], "VD006"),
+            # invalid verification_type
+            ([{"id": "AC-1", "description": "valid text", "verification_type": "bogus"}], "VD006"),
+            # test type without verification_cmd
+            ([{"id": "AC-1", "description": "valid text", "verification_type": "test"}], "VD007"),
+            # duplicate ids
+            (
+                [
+                    {"id": "AC-1", "description": "first entry", "verification_type": "manual"},
+                    {"id": "AC-1", "description": "second entry", "verification_type": "manual"},
+                ],
+                "VD008",
+            ),
+        ]
+        for ac_v2, expected_code in cases:
+            caplog.clear()
+            payload = {"accept": self._ACCEPT, "acceptance_criteria_v2": ac_v2}
+            with caplog.at_level(logging.WARNING, logger="devolaflow.lifecycle.dispatcher"):
+                r = validate_dispatch(payload)  # permissive — must NOT raise
+            codes = {v.code for v in r.violations}
+            assert r.passed is False, f"case {ac_v2!r} must fail"
+            assert expected_code in codes, f"case {ac_v2!r}: expected {expected_code}, got {codes}"
+            assert any(expected_code in rec.message for rec in caplog.records), (
+                f"case {ac_v2!r}: {expected_code} must log at WARNING (S-5)"
+            )
+
+    def test_ac_v2_strict_raises_and_absent_block_byte_identical(self) -> None:
+        # Strict mode raises the structural violation.
+        bad = {
+            "accept": self._ACCEPT,
+            "acceptance_criteria_v2": [
+                {"id": "AC-1", "description": "valid text", "verification_type": "test"},
+            ],
+        }
+        with pytest.raises(HookViolation) as exc_info:
+            validate_dispatch(bad, strict=True)
+        assert exc_info.value.code == "VD007"
+
+        # R5: payloads WITHOUT the block are untouched — clean payload
+        # passes with zero violations; missing-accept payload still yields
+        # exactly the pre-v14.3.0 single VD002 blocker.
+        clean = validate_dispatch({"accept": self._ACCEPT})
+        assert clean.passed is True
+        assert clean.violations == []
+        legacy = validate_dispatch({"task": {"id": "T01"}})
+        assert [v.code for v in legacy.violations] == ["VD002"]
+
+
+# ---------------------------------------------------------------------------
 # check_file_ownership — file_write hook
 # ---------------------------------------------------------------------------
 

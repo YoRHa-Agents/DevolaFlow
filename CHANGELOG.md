@@ -5,6 +5,49 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.3.0] - 2026-06-12 — MINOR — L3 Output-Quality Closure: Report-Side Evidence Transport + artifact-quality.md (25th Reference) + Permissive Hook Runtime Wiring + Ghost-Audit Decomposition
+
+**MINOR — L3 output-quality closure (gap register G-001/G-002/G-003/G-004 + G-027 pulled forward).** The headline is the **report-side evidence transport**: `schemas/lean-report.yaml` gains three additive blocks — `self_check` (plan_artifact / goal_anchor / simplicity / conflicts / conventions), `ac_results` (`{id, verdict pass|fail|skip, cmd_digest}` per acceptance criterion), and `diff_stats` (files / insertions / deletions) — so an L3 StatusReport carries verifiable EVIDENCE instead of self-assigned scores (evidence-only doctrine per v15-ADR-007; subagent reports still carry NO `quality_score` per the v14.2.1 G-013 doctrine). The transport pairs with the NEW 25th reference `references/artifact-quality.md` (the evidence-only L3 artifact-quality rubric) and with the **lifecycle hook runtime wiring** (G-001 — discharges the v14.2.2 honesty note "runtime wiring lands v14.3.0 per v15-ADR-003"): hooks now actually FIRE from the dispatch path, permissively, when `DEVOLAFLOW_AGENT_WORKSPACE=1`. A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20 reuse-first — the wiring REUSES `DEVOLAFLOW_AGENT_WORKSPACE`), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour change (READ FIRST)
+
+**Lifecycle hooks fire permissively when `DEVOLAFLOW_AGENT_WORKSPACE=1` (G-001 per v15-ADR-003).** The NEW `src/devolaflow/lifecycle/runtime_wiring.py` exposes `fire_file_write()` / `fire_task_stop()`, env-gated on `DEVOLAFLOW_AGENT_WORKSPACE=1` (W-20 REUSE — same activation surface as A-6 workspace engagement; zero new env flags). When the flag is unset or any value other than the literal `"1"`, both helpers are R5-strict zero-IO no-ops — byte-identical behaviour to v14.2.2. When ON, the hook chain runs in PERMISSIVE mode (warn + log per S-5; never blocks a write). Call sites: `agent_workspace/change.py` fires `file_write` before active-change artifact writes (S-8 surface), and `agent_workspace/handoff.py` fires `task_stop` at StatusReport emission (S-9 surface). `validate_dispatch` gains AC-v2 structural checks **VD005–VD008** (non-empty list / evidence-type enum / verification_cmd presence / unique entry ids) — permissive this release. Strict graduation is telegraphed for v15.0.0.
+
+### Report-side evidence transport (G-002 / G-003 per v15-ADR-007)
+
+- **`schemas/lean-report.yaml` additive blocks** — `self_check` (5 sub-fields: `plan_artifact`, `goal_anchor`, `simplicity`, `conflicts`, `conventions`), `ac_results` (`{id, verdict pass|fail|skip, cmd_digest}`), `diff_stats` (`{files, insertions, deletions}`). All additive — existing v14.2.x reports validate unchanged.
+- **`references/behavioral-guidelines.md` Evidence clauses** — each behavioral primitive now names its transport field verbatim (e.g. think_first → `self_check.plan_artifact`, goal_loop → `self_check.goal_anchor`, simplicity_check → `self_check.simplicity`, plus `self_check.conflicts` / `self_check.conventions` typed-finding lists).
+- **`references/message-schemas.md` §3** updated — the canonical lean StatusReport form documents the three new blocks.
+
+### 25th reference: `references/artifact-quality.md` (G-004)
+
+- **Evidence-only L3 artifact-quality rubric** — §1 doctrine (evidence, not scores — L3 never self-scores), §2 the four excellence dimensions, §3 evidence emission map, §4 the 11-item self-verify checklist (walked BEFORE the first StatusReport), §5 failure honesty (when evidence is missing or red).
+- **`references/execution-protocol.md` §15 "L3 Self-Verify"** — protocol position in the task lifecycle: self-verify is the *work* that produces the evidence the gate validates.
+- **SKILL.md** — NEW Tier-2 navigation row + the agent-mode VERIFY step now points at `references/artifact-quality.md` §4.
+- **Four-place SF-4 sync (C-7)** — reference file + `_SF4_REFERENCE_SET` entry + SKILL.md Tier-2 row + `scripts/sync_cursor_skill.py::MIRRORED_FILES`; the SF-4 set is now **25** entries (mirror 25 → 26 files incl. SKILL.md).
+
+### Ghost-audit decomposition (G-027 per v15-ADR-001, pulled forward)
+
+- **12,721-line `tests/test_no_ghost_features.py` → 38-line aggregator shim + `tests/ghost/` package** — 3 domain lint modules (`test_rules.py`, `test_schema.py`, `test_registries.py`) + `test_features_legacy.py` + 31 per-cycle feature modules (`test_features_v9_1.py` … `test_features_v14_3.py`). The shim re-exports until its v15.0.0 retirement.
+- **W-18 / W-21 / C-7 / A-5.1 recompiled same-change** — rule prose now cites `tests/ghost/` paths (`.rules/` sources recompiled into both corpus targets).
+- **G-029 parametrize slice** — repetitive per-file assertions collapsed into parametrized entries.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/ghost/test_features_v14_3.py`:
+
+- `src/devolaflow/lifecycle/runtime_wiring.py` — NEW `fire_file_write()` + `fire_task_stop()` + `ENV_FLAG` (R5-strict zero-IO no-op when `DEVOLAFLOW_AGENT_WORKSPACE` ≠ `"1"`); pinned by NEW `tests/test_hook_runtime_wiring.py`.
+- `src/devolaflow/lifecycle/validate_dispatch.py` — AC-v2 structural checks VD005–VD008 (permissive).
+- `schemas/lean-report.yaml` — `self_check` + `ac_results` + `diff_stats` blocks (pinned via `tests/test_lean_report_schema.py`).
+- `workflow-system/agent/references/artifact-quality.md` — 25th SF-4 reference (223 lines ≤ 1000 per C-4).
+
+### Verification
+
+- W-9/SI-10 gates GREEN (suite / ruff check / ruff format / version / benchmarks / check-cursor-skill); `scripts/bump_version.py 14.3.0` GREEN in hard-fail mode (11 locations); `make sync-human-docs` + `make sync-cursor-skill` + `make check-cursor-skill` exit 0 (26-file `.cursor/skills/devola-flow/` mirror stamped 14.3.0 — gains `artifact-quality.md`).
+- **W-16 wholesale baseline regen fired AT THIS RELEASE (drift detected)** — `benchmarks/devolaflow_context/baselines/v14.3.0_baseline.json` (57 scenarios) replaces `v14.1.0_baseline.json` as the pinned newest. Four scenarios re-equilibrated beyond the 5pp band, all content-driven by the SKILL.md VERIFY-pointer edit: `collapse_l0_l3_simple` 98.70 → 89.16 and `compression_hotfix` 98.70 → 89.16 and `r7_section_anchor_registry_no_drift` 91.03 → 83.67 (all three hotfix-profile — the 2400-token budget tipped one expected section below the cutoff; bisect-proven legitimate), `multi_repo_dispatch` 99.29 → 93.09 (migration profile — `selected_count` 15 → 14). All per-scenario `quality_thresholds` still PASS; the remaining 53 scenarios moved ≤ 1.5pp. Old baselines retained per v15-ADR-005 (tiering lands v14.5.0).
+- Reference frontmatter freshness restored — `behavioral-guidelines.md` + `message-schemas.md` `last_updated` re-pinned to the runner-UTC date.
+- W-17 **+21 NEW test functions** (5 evidence-transport + 1 artifact-quality + 12 wiring/VD + 3 decomposition; ≤ 30/PV cap); zero new env flags; `canonical_order` stays 17.
+
 ## [14.2.2] - 2026-06-12 — PATCH — Doc-Surface Truth Sweep: SKILL.md Hygiene + Reference/Template Drift Fixes + v15-ADR-002 Header Refresh
 
 **PATCH — agent-facing doc-surface truth sweep (gap register G-001/G-017/G-018/G-020/G-022/G-024/G-040).** The headline is the **four-surface stage-count drift closure (G-018)**: `references/meta-framework.md` §4 "Per-Workflow Template Catalog" is regenerated FROM the builtin yaml truth (**23 templates**; `self-update` = **8** stages incl. the optional `si_chip_gate`, `nines-assisted` = **10** stages), and the SKILL.md Template Quick-Reference rows are re-synced to the same truth (`self-update` 6 → 8, `nines-assisted` 8 → 10). The 16 legacy template yaml headers stop lying per v15-ADR-002 §interim: the lapsed-3-majors "DEPRECATED in v11.0.0; will be removed in v12.0.0" promise becomes "retained for backward compat — Phase B collapse decision lands v15.0.0 per v15-ADR-002" (same alignment applied to `scripts/audit_template_usage.py` docstring + `render_markdown_report`). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
