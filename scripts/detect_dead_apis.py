@@ -774,6 +774,17 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # symbols per A-5.2 — pure functions with zero module-level state.
         "devolaflow.feedback:populate_cascade_gate_fields",
         "devolaflow.gate.scorer:validate_cascade_gate_fields",
+        # ---- v14.4.0 (G-005 NEST slice) — intra-task-convergence helpers ----
+        # `populate_intra_task_convergence(base_dispatch, task_type)` +
+        # `validate_intra_task_convergence_fields(gate_block, *, strict=False)`
+        # mirror the v11.1.0 cascade helper pair above VERBATIM: opt-in
+        # forward-looking helpers that land wired-but-unused at the cycle
+        # that introduces them (pinned by tests/test_intra_task_convergence.py);
+        # production dispatcher call sites land when an L0/L1/L2 build path
+        # adopts the §15 self-verify signal. NOT domain-SSOT registry
+        # symbols per A-5.2 — pure functions with zero module-level state.
+        "devolaflow.feedback:populate_intra_task_convergence",
+        "devolaflow.gate.scorer:validate_intra_task_convergence_fields",
         # v12.2.0 PV-04 — per-task-type timeout default helper -----------
         # `default_timeout_for(task_type)` is the dispatcher-side helper that
         # operators invoke when constructing the optional ``timeouts={}``

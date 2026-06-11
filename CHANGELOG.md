@@ -5,6 +5,76 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.4.0] - 2026-06-12 — MINOR — Intra-Task Convergence Gate NEST + AC-v2 Metric Runners + Surgical-Scope Diff Verifier + context_profiles Overlay Refactor + Version-Sync Fan-Out Reduction
+
+**MINOR — L3 output-quality closure II (gap register G-005/G-006/G-023/G-026/G-031 + product-review BG-003/F-P1).** The headline is the **`gate.intra_task_convergence` NEST (G-005)**: dispatch payloads can now carry `intra_task_convergence: bool` + `intra_task_max_rounds: int` (default **2**) NESTed under the existing `gate` block per A-2.3 (`canonical_order` stays **17**; all **15** golden dispatch YAMLs byte-identical — the sub-fields are absence-canonical). The NEW `populate_intra_task_convergence(base_dispatch, task_type)` warrant rule populates the block ONLY for impl-class tasks (`code` / `test` / `config`) with non-empty `acceptance_criteria_v2`; everything else takes the absence-canonical path. The companion **AC-v2 metric runners** make `evaluate_acceptance_criteria_v2` actually EXECUTE `metric`-typed acceptance criteria (kinds `coverage` / `lint` / `number` with threshold comparisons). It pairs with the **surgical-scope diff verifier (BG-003)** — the first mechanical check for the behavioral-guidelines surgical-scope clause. A-2 untouched, zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**AC-v2 `metric` acceptance criteria now EXECUTE (explicit verdicts).** `evaluate_acceptance_criteria_v2` runs `metric`-typed ACs — `metric_kind: coverage|lint|number` with threshold `comparison` operators — and returns explicit pass/fail verdicts; unparsable runner output or thresholds produce an explicit FAIL, never a silent skip (S-5). `manual`-typed ACs stay `skip` (human-judged). `schemas/lean-dispatch.yaml` documents the NEW per-entry `metric_kind` / `comparison` fields.
+
+**README badge + benchmark-demo version are now DERIVED (may lag a build).** The `README.md` version badge is a shields.io dynamic TOML badge reading `$.project.version` from the main-branch raw `pyproject.toml` at render time; `benchmark-results/index.html` derives its displayed version at load time from `version-timeline/versions.json` (newest entry; the in-file `SAMPLE_DATA` literal is a clearly-marked `file://` fallback that MAY lag). Neither surface is pattern-managed by `scripts/bump_version.py` any more (G-031).
+
+**`context_profiles.yaml` restructured (back-compat aliases keep raw-YAML consumers working).** The registry moves to defaults + per-profile delta overlays (2427 → **1783** lines, **−26.5%**); 4 orphan top-level keys relocate under `summary_modes:` / `meta:` with EOF back-compat aliases sharing content BY REFERENCE — raw top-level-key consumers keep working. Zero behavioral delta proven: section-priority snapshot equivalence + W-6 selector output byte-identical for all **24** profiles.
+
+### `gate.intra_task_convergence` NEST (G-005)
+
+- **`schemas/lean-dispatch.yaml`** — `intra_task_convergence: bool` + `intra_task_max_rounds: int` (default 2) NESTed under `gate` per A-2.3 (modifies how the existing gate block is interpreted); `canonical_order` stays 17; A-2.4 multi-baseline byte test GREEN — all 15 goldens byte-identical (absence-canonical sub-fields).
+- **`feedback.py::populate_intra_task_convergence`** — warrant rule: task_type ∈ `INTRA_TASK_CONVERGENCE_TASK_TYPES` (`code` / `test` / `config`) AND non-empty `acceptance_criteria_v2` → populate (`INTRA_TASK_MAX_ROUNDS_DEFAULT` = 2, mirroring the execution-protocol §15.4 max-2 bounded self-fix ceiling); else deep-copy pass-through (absence-canonical).
+- **`gate/scorer.py::validate_intra_task_convergence_fields`** — SOFT validator (returns G-005-citing warnings; default chain unchanged); `strict=True` raises the NEW `IntraTaskConvergenceViolationError`.
+- **`references/decomposition-gate.md` §6.2** — task-level (intra-task) vs wave-level gen-verify decision rule; §5.6 legibility opt-in weight.
+
+### AC-v2 metric runners
+
+- **`gate/scorer.py::evaluate_acceptance_criteria_v2`** — `metric` ACs execute with kinds `METRIC_KIND_COVERAGE` / `METRIC_KIND_LINT` / `METRIC_KIND_NUMBER` and threshold comparisons; runner errors / unparsable output / unparsable thresholds → explicit FAIL (S-5); `manual` stays `skip`.
+- **`schemas/lean-dispatch.yaml`** — per-entry `metric_kind:` / `comparison:` documentation on the `acceptance_criteria_v2` block.
+
+### Surgical-scope diff verifier (BG-003)
+
+- **NEW `src/devolaflow/lifecycle/validate_surgical_scope.py`** (485 lines) — `collect_diff_stats` (diff parsing), `check_module_scope` (owned-files containment with the S-8 exemptions), `check_function_scope` (hunk-vs-`line_ranges` adherence), `evaluate_surgical_scope` (tier auto-selection: `line_ranges` present → function tier, else module tier).
+- **Opt-in `task_stop` extra** — `register_surgical_scope_hook` appends the handler as a lifecycle EXTRA; the default `task_stop` chain stays `(test_on_complete,)` — default wiring is a v15.0.0 decision (ADR-003 cluster).
+- **`owned_files[*].line_ranges` shape defined forward** (mirrors the LL-004 prose); `validate_surgical_scope` + `register_surgical_scope_hook` re-exported via `devolaflow.lifecycle.__all__`.
+- **`references/behavioral-guidelines.md` BG-003** gains the Enforcement line citing the module.
+
+### AC generation coverage (G-006)
+
+- **`ac_generation` enabled on 17 impl-class profiles** of `context_profiles.yaml` (via the `defaults.ac_generation` anchor); the 7 verify/read-only profiles stay exempt (`feedback`, `product_verification`, `research`, `review`, `verify_acceptance`, `verify_interaction`, `verify_visual`).
+- **`ac_generator.py`** gains migration / setup / design description templates (`_PATTERN_MIGRATION` / `_PATTERN_SETUP` / `_PATTERN_DESIGN`).
+
+### context_profiles overlay refactor (G-026)
+
+- **Defaults + per-profile delta overlays** — shared section bodies anchor once under `defaults:`; profiles alias and override only their deltas; 2427 → 1783 lines (−26.5%).
+- **4 orphan top-level keys relocated** — `legibility_audit` + `session_state` → `meta:`; `complex_feature` + `abstractive_llm` → `summary_modes:`; EOF back-compat aliases keep the old top-level keys resolving BY REFERENCE to the canonical blocks.
+- **Zero behavioral delta proven** — section-priority snapshot equivalence tests + W-6 selector run byte-identical for all 24 profiles.
+
+### Env-flags pattern taxonomy (G-023)
+
+- **`references/env-flags.md` §6.A** — 3-pattern activation taxonomy (R5-strict literal-`"1"` / legacy truthy / config-file-driven) + the normative "new flags MUST be pattern 1 (R5 strict)" guidance (Pattern 2 grandfathered for `DEVOLAFLOW_PLAN_MODE` only) + the §7 W-20 checklist cross-link.
+- **`DEVOLAFLOW_AUTO_INSTALL` honest docs** — §2.5 keeps the `unwired` Read-surface marker + gains the v14.4.0 G-023 resolution (wiring-or-removal DEFERRED to v15.0.0 per G-021); `references/shell-proxy.md` stops advertising the flag as a working toggle (the honesty paragraph points at `runtime-plugins.yaml#defaults.auto_install`); `plugins/installer.py` cargo-failure hint points at the yaml knob, never the dead env var (S-5: advice must be actionable).
+
+### Version-sync fan-out reduction (G-031)
+
+- **`scripts/bump_version.py::VERSION_LOCATIONS` 11 → 9 patterns (8 → 7 files)** — the README static badge + benchmark-demo `SAMPLE_DATA` rows are gone; both surfaces are now DERIVED (see operator-visible note above).
+- **Rule C-6 recompiled to 6 canonical sync locations** — `.rules/conventions.mdc` gains the "DERIVED, not pattern-managed (v14.4.0 G-031)" paragraph; ST-4 reworded to "verify the derivation mechanism stays intact, not a literal" (`.rules/style.mdc`; both corpus targets recompiled via `make compile-rules`).
+- **Coordinated count fixes** — `tests/ghost/test_features_legacy.py` G-K12 lint + `CLAUDE.md` both move `7 canonical sync locations (8 files)` → **`6 canonical sync locations (7 files)`**; `tests/test_version.py` value pins become mechanism pins (`test_readme_version_badge_is_dynamic` + `test_benchmark_results_version_is_derived`).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by `tests/ghost/test_features_v14_4.py` (5 stanzas):
+
+- `src/devolaflow/feedback.py` — `populate_intra_task_convergence` + `INTRA_TASK_CONVERGENCE_TASK_TYPES` + `INTRA_TASK_MAX_ROUNDS_DEFAULT`; pinned alongside NEW `tests/test_intra_task_convergence.py` (14 tests).
+- `src/devolaflow/gate/scorer.py` — `validate_intra_task_convergence_fields` + `IntraTaskConvergenceViolationError` + `METRIC_KIND_COVERAGE` / `METRIC_KIND_LINT` / `METRIC_KIND_NUMBER`.
+- `src/devolaflow/lifecycle/validate_surgical_scope.py` — `collect_diff_stats` / `check_module_scope` / `check_function_scope` / `evaluate_surgical_scope` + `register_surgical_scope_hook`; pinned alongside NEW `tests/test_surgical_scope.py` (10 tests).
+- `src/devolaflow/ac_generator.py` — `_PATTERN_MIGRATION` / `_PATTERN_SETUP` / `_PATTERN_DESIGN`.
+- `workflow-system/agent/context_profiles.yaml` — `defaults:` / `summary_modes:` / `meta.legibility_audit` / `meta.session_state` consolidation homes + the 4 EOF back-compat aliases.
+- `README.md` dynamic-badge URL form + `benchmark-results/index.html` `fetch('../version-timeline/versions.json'` wiring + `.rules/conventions.mdc` C-6 DERIVED paragraph + `VERSION_LOCATIONS` 9-pattern/7-file shape (the G-031 mechanism stanza).
+
+### Verification
+
+- W-9/SI-10 gates GREEN (suite / ruff check / ruff format / version / benchmarks / check-cursor-skill); `scripts/bump_version.py 14.4.0` GREEN in hard-fail mode (**9 locations** updated); `make sync-human-docs` (16 EN/ZH docs) + `make sync-cursor-skill` + `make check-cursor-skill` exit 0 (26-file `.cursor/skills/devola-flow/` mirror stamped 14.4.0).
+- W-4 `tests/test_benchmarks.py` PASS against `benchmarks/devolaflow_context/baselines/v14.3.0_baseline.json` (W-16: the G-026 refactor is byte-identical at the selector output — no drift, wholesale regen not triggered).
+- W-17 **+34 NEW test functions** for the release (PV-1: 29 ≤ 30/PV; PV-2: 4; release-close: 1 — the G-031 mechanism stanza); raw `+def test_` count is 37, of which 3 replace same-purpose deleted functions (2 `test_version.py` value→mechanism pins + 1 G-006 rename). Zero new env flags; `canonical_order` stays 17.
+
 ## [14.3.0] - 2026-06-12 — MINOR — L3 Output-Quality Closure: Report-Side Evidence Transport + artifact-quality.md (25th Reference) + Permissive Hook Runtime Wiring + Ghost-Audit Decomposition
 
 **MINOR — L3 output-quality closure (gap register G-001/G-002/G-003/G-004 + G-027 pulled forward).** The headline is the **report-side evidence transport**: `schemas/lean-report.yaml` gains three additive blocks — `self_check` (plan_artifact / goal_anchor / simplicity / conflicts / conventions), `ac_results` (`{id, verdict pass|fail|skip, cmd_digest}` per acceptance criterion), and `diff_stats` (files / insertions / deletions) — so an L3 StatusReport carries verifiable EVIDENCE instead of self-assigned scores (evidence-only doctrine per v15-ADR-007; subagent reports still carry NO `quality_score` per the v14.2.1 G-013 doctrine). The transport pairs with the NEW 25th reference `references/artifact-quality.md` (the evidence-only L3 artifact-quality rubric) and with the **lifecycle hook runtime wiring** (G-001 — discharges the v14.2.2 honesty note "runtime wiring lands v14.3.0 per v15-ADR-003"): hooks now actually FIRE from the dispatch path, permissively, when `DEVOLAFLOW_AGENT_WORKSPACE=1`. A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20 reuse-first — the wiring REUSES `DEVOLAFLOW_AGENT_WORKSPACE`), zero new Soul rules (W-21 freeze at 10/12).

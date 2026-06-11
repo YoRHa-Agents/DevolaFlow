@@ -156,7 +156,7 @@ count.
 
 | Field | Value |
 |---|---|
-| **Read surface** | unwired — the v14.2.2 G-024 AST audit found NO `src/devolaflow/` env-read site for this name; the LIVE control surface is `runtime-plugins.yaml#defaults.auto_install` + the `ensure_plugin(auto_install=...)` parameter. The env var survives in operator-facing error text (`installer.py` cargo-failure hint) and in `references/shell-proxy.md` §recipes. Wiring the env read (or retiring this row + the operator hints) is G-023 follow-up scope (v14.4.0). |
+| **Read surface** | unwired — the v14.2.2 G-024 AST audit found NO `src/devolaflow/` env-read site for this name; the LIVE control surface is `runtime-plugins.yaml#defaults.auto_install` + the `ensure_plugin(auto_install=...)` parameter. **Resolution (v14.4.0 G-023):** the stale operator-facing advertisements are FIXED — `installer.py`'s cargo-failure hint and `references/shell-proxy.md` (§2 table + §9.1 cookbook) now point at the yaml knob instead of this dead env var. The wiring-or-removal decision for the row itself is DEFERRED to v15.0.0 (rides the G-021 plugin-registry unification). |
 | **Owner** | `src/devolaflow/plugins/installer.py` (parameter + registry default; NOT an env read) |
 | **Introduced** | v8.3.0 PV-01 (earlier baseline preserved) |
 | **Default** | `1` (auto-install ACTIVE) |
@@ -457,6 +457,32 @@ unset. The contract is verified at FOUR layers:
 | Unit  | `tests/test_memory_router.py::TestLookupCaseR5StrictOff` | `monkeypatch.setattr(Path, 'read_text', ...)` watcher |
 | Unit  | `tests/test_shell_proxy_commands.py::TestLoadR5StrictOff` | same Path.read_text watcher |
 | EvoBench | `benchmarks/devolaflow_context/scenarios/{shell_proxy_disabled,memory_router_fastpath,command_mapping_density}.yaml` | composite floor 90 vs `simple_implementation` baseline; actual ~99 |
+
+## 6.A Activation-pattern taxonomy (G-023, v14.4.0)
+
+Three activation patterns coexist across the §2 inventory (per the
+v15-cycle product review finding F-P5-4). Classification below is
+derived from the ACTUAL flag handlers (the **Owner** module of each §2
+row), not from the row prose:
+
+| # | Pattern | Parsing contract | §2 flags |
+|---|---------|------------------|----------|
+| 1 | **R5-strict literal-`"1"`** | ONLY the literal string `"1"` activates; any other value (incl. `"true"`, `"yes"`, `"on"`, `"01"`, `""`) is OFF; zero-IO no-op when unset (§6 conjunction contract) | §2.2 `RTK_PROXY`, §2.3 `RTK_PROXY_TIER2`, §2.4 `MEMORY_ROUTER`, §2.12 `AUTO_INSTALL_PLUGINS`, §2.13 `SI_CHIP_DEEP`, §2.14 `WARMUP`, §2.15 `AGENT_WORKSPACE`; the prompt-side §2.17 `MEMORY_CONSULT` row pins the same literal-`"1"` contract in SKILL.md prose |
+| 2 | **Legacy truthy (loose match)** | env value in `{"1", "true", "yes", "on"}` activates (plus a filesystem-marker OR-branch); historical contract pre-dating R5 | §2.1 `PLAN_MODE` ONLY (`task_adaptive_selector.py::_detect_plan_mode` — loose semantics pinned by `TestPlanModeDetect`; matches the Cursor SwitchMode contract) |
+| 3 | **Config-file-driven** | The config/profile default is the canonical control; the env var (when read at all) is ONLY a literal-`"1"` force-ON / literal-`"0"` force-OFF override that falls through to the config value on any other input | §2.6..§2.10 (5 gate primitives → `GateProfile.*_enabled` fallback), §2.11 `AGENTS_MD_SLICE` (→ `context_profiles.yaml#meta.agents_md_slice.enabled` fallback), §2.5 `AUTO_INSTALL` (degenerate case: NO env read exists — `runtime-plugins.yaml#defaults.auto_install` IS the control) |
+
+§2.16 `SI_CHIP_FALLBACK_DIR` sits OUTSIDE the taxonomy: it is a
+path-valued parameter, not an activation toggle (no on/off semantics
+to classify).
+
+**Normative guidance — new flags MUST be pattern 1 (R5 strict).**
+Pattern 2 is grandfathered for `DEVOLAFLOW_PLAN_MODE` only and MUST NOT
+gain new members. Pattern 3 is reserved for primitives whose canonical
+default genuinely lives in a config file (gate profiles / YAML
+registries); when proposing one, the env var MUST still parse literal
+`"1"`/`"0"` ONLY. Every new-flag proposal walks the §7 W-20 enforcement
+checklist FIRST — the pattern choice is part of checklist step 3 (R5
+strict design).
 
 ## 7. Adding a NEW env-flag — W-20 enforcement checklist
 

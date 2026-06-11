@@ -13,31 +13,17 @@ meta:
   skill_source: "workflow-system/agent/SKILL.md"
   default_profile: "feature"
   budget_hard_cap_tokens: 8000
-  # v7.0.2+ — Hierarchical predecessor summariser trigger threshold (resolves K.1).
-  # When a single predecessor artifact exceeds this percentage of the consuming
-  # layer's token_budget, dispatchers MUST call
-  # `devolaflow.compressor.summarise_predecessor()` instead of embedding the
-  # artifact body verbatim under `pred[*].body`. Default 25 % per ADR-003 §2.4
-  # (e.g. L3 budget 8000 → summarise above 2000 tokens; L2 budget 4000 →
-  # summarise above 1000). Override per-profile by setting `summary_trigger_pct:`
-  # under the profile's section_priorities sibling (additive, optional).
+  # v7.0.2+ — predecessor summariser trigger: when a single predecessor
+  # artifact exceeds this % of the consuming layer's token_budget,
+  # dispatchers MUST call `compressor.summarise_predecessor()` instead of
+  # embedding it verbatim (ADR-003 §2.4). Per-profile override: additive
+  # `summary_trigger_pct:` sibling.
   summary_trigger_pct: 25
-  # v8.0.0 (P-02) — Layer-2 recency decay factor for multi-round predecessor
-  # ranking. The dispatcher applies an exponential weighting w_round =
-  # recency_decay_factor ** rounds_since_round (so older rounds shrink in
-  # importance). Range (0.0, 1.0]:
-  #   * 1.0  → no decay (preserves v7.x byte-stable behaviour; safe default
-  #     for non-convergence dispatches that consume only the current round).
-  #   * 0.9  → ≈ 10 % per-round decay (DevolaFlow default for P-02; matches
-  #     plan §3 P-02 tuning band of 0.5-0.9 with 0.9 chosen to minimise
-  #     EvoBench drift on the 36 existing scenarios).
-  #   * 0.5  → aggressive decay (favoured when rounds carry heavy noise).
-  # Per-profile override is allowed: add `recency_decay_factor:` under the
-  # profile's `section_priorities` sibling (additive, optional). Consumed by
-  # `_select_sections_by_priority` (compressor.py) and the layered
-  # compression pipeline. P6-safe: NESTED under existing meta block, not a
-  # new top-level dispatch key — layout_invariant.canonical_order length
-  # stays 13 and version stays 2.
+  # v8.0.0 (P-02) — Layer-2 recency decay for multi-round predecessor
+  # ranking: w_round = recency_decay_factor ** rounds_since_round, range
+  # (0.0, 1.0] (1.0 = no decay / v7.x byte-stable; 0.9 = DevolaFlow
+  # default; 0.5 = aggressive). Consumed by the layered compression
+  # pipeline; per-profile override is additive.
   recency_decay_factor: 0.9
   # v7.1.0: tool_output_truncation + summariser default-on for 6 decomposition profiles; opt-out per profile.
   compression_defaults:
@@ -47,16 +33,10 @@ meta:
     l3_to_l2: aggressive
     l2_to_l1: aggressive
     l1_to_l0: aggressive
-  # v7.2.1+ — Complexity-tier model routing (P-04, eb220 §"Model Interaction").
-  # Maps the EvoBench complexity tiers (simple/medium/complex/very_complex)
-  # to model_hint tiers drawn from VALID_MODEL_HINTS. Dispatchers that detect
-  # task complexity may pass `complexity_tier=<tier>` to `select_context()` /
-  # `resolve_model_hint()`; when set, the lookup overrides the per-profile
-  # `model_hints.overrides[task_type]` and `model_hints.default_tier`.
-  # Default `complexity_tier=None` preserves the v7.1.0 lookup priority
-  # (overrides > default_tier > "inherit"). Locks in the EvoBench operational
-  # guidance "opus4.7/max for Complex+, sonnet4.6/high for Simple/Medium"
-  # (5.6x cost-efficiency win per eb220 §"Recommended Focus").
+  # v7.2.1+ (P-04) — complexity-tier → model_hint routing. When callers
+  # pass `complexity_tier=` to `select_context()` / `resolve_model_hint()`
+  # this lookup overrides per-profile `model_hints`; default None keeps the
+  # v7.1.0 priority (overrides > default_tier > "inherit").
   complexity_routing:
     simple: budget
     medium: balanced
@@ -107,27 +87,11 @@ meta:
       - design_system
       - landing_page
 
-  # v12.5.0 PV-04 D-1.2 — codegraph integration block.
-  # Parallel to nines_integration above; surfaced by L0/L1/L2 dispatchers
-  # at workflow-stage entry to inform the agent which codegraph CLI
-  # recipes are available for the active workflow + stage. The block is
-  # READ-ONLY metadata — the workflow runner does NOT auto-execute these
-  # commands. The agent invokes them on demand against the project-local
-  # .codegraph/ index (created by repo-init.yaml's scaffold step in ALL
-  # modes per the locked operator decision 2026-05-23).
-  #
-  # Per W-15 / CO-6 (section relevance): the per-profile activation of
-  # this block lives in profiles[<name>].sections — analyze-stage
-  # workflows mark codegraph_integration: important; unrelated profiles
-  # mark it: skip. See profiles.repo-init / onboarding / security-audit /
-  # product-verification for the per-profile priority assignments.
-  #
-  # tokens_est: 200 — consistent with nines_integration above; the block
-  # itself adds ~50 bytes per dispatch when active (the 4 stage_mapping
-  # recipes nest under config.codegraph_commands per A-2.3 NEST-vs-APPEND).
-  #
-  # Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.2 +
-  # .local/research/v12.5.0_codegraph_benefit_analysis.md §3 surface 5.
+  # v12.5.0 PV-04 D-1.2 — codegraph integration block (parallel to
+  # nines_integration). READ-ONLY metadata surfaced at workflow-stage
+  # entry; the runner never auto-executes these recipes — the agent
+  # invokes them on demand against the project-local .codegraph/ index.
+  # tokens_est: 200. Source: v12.5.0_gap_analysis.md §2 D-1.2.
   codegraph_integration:
     auto_detect: true
     install_hint: "npm install -g @colbymchenry/codegraph"
@@ -146,23 +110,10 @@ meta:
       - file_structure_lookup
       - test_impact_selection
 
-  # v13.0.0 — impeccable integration block.
-  # Parallel to ui_integration + codegraph_integration above; surfaced by
-  # L0/L1/L2 dispatchers at web-design refine/verify stage entry to inform
-  # the agent which impeccable commands are available. READ-ONLY metadata —
-  # the workflow runner does NOT auto-execute these commands; the agent
-  # invokes the /impeccable steering commands + `impeccable detect` on
-  # demand against the built UI.
-  #
-  # Per W-15 / CO-6 (section relevance): surfaced for the web-design workflow's
-  # refine/verify stages (design refinement + the impeccable detect gate);
-  # unrelated task profiles do not load it. Mirrors the ui_integration /
-  # codegraph_integration top-level-metadata pattern (READ-ONLY hint block; the
-  # workflow runner never auto-executes these recipes).
-  #
-  # tokens_est: 180 — consistent with ui_integration / codegraph_integration.
-  #
-  # Source: .local/research/v13.0.0_gap_analysis.md §3 (Phase 2 D-5).
+  # v13.0.0 — impeccable integration block (parallel to ui_integration /
+  # codegraph_integration). READ-ONLY metadata for the web-design
+  # refine/verify stages; the runner never auto-executes these commands.
+  # tokens_est: 180. Source: v13.0.0_gap_analysis.md §3 (Phase 2 D-5).
   impeccable_integration:
     auto_detect: true
     install_hint: "npm install -g impeccable && impeccable skills install --yes"
@@ -184,56 +135,19 @@ meta:
       - purposeful_motion
       - antipattern_detection
 
-  # v8.0.0 (P-08) — L3 behavioral guidelines defaults per complexity tier.
-  # Profiles that omit their own ``behavioral_guidelines`` block fall back
-  # to the matching tier here. Each tier maps to the 4 Karpathy primitives
-  # documented in ``workflow-system/agent/references/behavioral-guidelines.md``:
-  #   * think_first (BG-001, warn) — plan-before-code discipline
-  #   * simplicity_check (BG-002, warn) — over-engineering audit
-  #   * surgical_scope (BG-003, blocker) — 'line' | 'function' | 'module'
-  #   * goal_loop (BG-004, warn) — round-N goal re-anchor
-  # The dispatcher's ``select_context()`` reads these defaults via
-  # ``_select_behavioral_sections()`` and injects matching rule sections
-  # into the L3 dispatch payload's top-level ``behavioral_guidelines``
-  # field (canonical_order position 14, schema version 3 — P6 additive).
-  #
-  # Per-profile authors set ``behavioral_guidelines: {surgical_scope: ...}``
-  # directly on their profile; ``surgical_scope`` defaults to ``function``
-  # for backward compatibility when the key is omitted (see
-  # ``_compose_behavioral_block`` line ``scope = ... .get("surgical_scope",
-  # "function")``).
-  #
-  # v8.2.0 (PV-04) — surgical_scope='line' completion. Closes the deferred
-  # AC #2 from v8.0.0 P-08 (line-tier verification). When the resolved
-  # behavioural block sets ``surgical_scope: line``,
-  # ``_select_behavioral_sections()`` augments the dispatch context with
-  # ``line_level_criteria`` — a verbatim list of LL-001..LL-005 rules
-  # extracted from
-  # ``references/behavioral-guidelines.md#line-level-behavioral-criteria``.
-  # The ``trivial`` tier below already maps to ``surgical_scope: line``
-  # so any profile that opts into ``behavioral_guidelines: {tier: trivial}``
-  # automatically receives the line-level criteria injection. The
-  # ``function`` and ``module`` tier paths produce dispatch output
-  # byte-identical to v8.0.0-p08 (R5 backward-compat discipline).
-  #
-  # v12.2.0 PV-03 — Mnimiy 3-rule extension. Per
-  # `.local/research/v12.2.0_gap_analysis.md` §2 D-2 the Mnimiy May-2026
-  # X article surfaces 3 failure modes not covered by the v8.0.0 P-08
-  # Karpathy 4-rule baseline:
-  #   * no_llm_for_deterministic (BG-005, warn) — deterministic decisions
-  #     belong in deterministic code, not in LLM prompts
-  #   * surface_conflicts (BG-006, major) — surface codebase pattern
-  #     disagreement instead of averaging both patterns
-  #   * convention_first (BG-007, major) — match existing pattern even
-  #     when a "better" pattern exists in established codebases
-  # Tier rollout:
-  #   * trivial — all 3 OFF (one-liner edits don't benefit from the audit)
-  #   * simple — convention_first ON (1-3 file scope; pattern hygiene matters)
-  #   * standard — all 3 ON (3-10 file scope; cross-file consistency matters)
-  #   * complex — all 3 ON (10+ files; full audit)
-  # NEST-not-APPEND per A-2.3: the 3 new fields land as sub-keys on the
-  # existing `behavioral_guidelines` dispatch block — canonical_order
-  # length stays at 17 and schema version stays at 6.
+  # v8.0.0 (P-08) — L3 behavioral guideline defaults per complexity tier.
+  # Profiles omitting their own ``behavioral_guidelines`` block fall back
+  # to the matching tier. The 7 primitives map to BG-001..BG-007 in
+  # ``references/behavioral-guidelines.md``: think_first /
+  # simplicity_check / surgical_scope ('line'|'function'|'module') /
+  # goal_loop (Karpathy 4, v8.0.0 P-08) + no_llm_for_deterministic /
+  # surface_conflicts / convention_first (Mnimiy 3, v12.2.0 PV-03 —
+  # NESTed per A-2.3; canonical_order stays 17). ``select_context()``
+  # injects the resolved block into dispatch position 14 via
+  # ``_select_behavioral_sections()``; ``surgical_scope: line`` (the
+  # trivial tier) additionally injects the LL-001..LL-005
+  # line_level_criteria verbatim (v8.2.0 PV-04). function/module paths
+  # stay byte-identical to v8.0.0-p08 (R5).
   behavioral_guidelines_defaults:
     trivial:
       think_first: false
@@ -269,50 +183,28 @@ meta:
       convention_first: true
 
   # v8.0.0 (P-10) — Automatic acceptance-criteria generation defaults.
-  # Profiles that omit their own ``ac_generation`` block fall back to
-  # this meta default. Opt-in by design (``enabled: false`` default) —
-  # P-10 ships ``ACGenerator`` (``src/devolaflow/ac_generator.py``) and
-  # ``evaluate_acceptance_criteria_v2`` (``src/devolaflow/gate/scorer.py``)
-  # but does NOT silently rewrite the legacy ``acceptance_criteria:
-  # list[str]`` alias (R5 backward compatibility per
-  # ``.local/research/v8.0.0_patch_plan.md`` §9). Profiles that benefit
-  # from auto-AC (impl / refactor / feature) MAY override
-  # ``ac_generation: {enabled: true}`` per profile; trivial / docs-only
-  # profiles SHOULD leave it disabled to avoid noisy criteria for
-  # one-line edits.
-  #
-  # Field shape (when overridden per profile):
-  #   ac_generation:
-  #     enabled: bool                  # default false
-  #     min_quality_threshold: float   # 0.0-100.0; gate the criteria
-  #                                    # before injecting (skip when
-  #                                    # score_quality["completeness"] <
-  #                                    # threshold). Default 60.0.
-  #     id_prefix: str                 # default "AC"
+  # Profiles omitting their own ``ac_generation`` block fall back to this
+  # disabled meta default (R5: the legacy ``acceptance_criteria:
+  # list[str]`` alias stays the contract). v14.4.0 (G-006): every
+  # impl-class profile (tasks that WRITE repo artifacts — 17 of 24)
+  # opts in via the ``defaults.ac_generation`` (&ac_generation_impl)
+  # alias; read-only / verification / evaluation profiles inherit this
+  # disabled default. Field shape: {enabled: bool,
+  # min_quality_threshold: float 0-100 (skip criteria below the
+  # score_quality completeness floor), id_prefix: str}.
   ac_generation_defaults:
     enabled: false
     min_quality_threshold: 60.0
     id_prefix: "AC"
 
   # v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on flip.
-  # Defaults that downstream orchestrators consult when instantiating
-  # gate primitives. STRICT and AUDIT decomposition profiles flip the 5
-  # v8.0.0 gate primitives to default-ON; STANDARD and RELAXED keep
-  # them opt-in (byte-identical pre-flip behaviour).
-  #
-  # Source-of-truth for the default values lives in
-  # ``src/devolaflow/gate/profiles.py`` (the GateProfile dataclass
-  # fields ``budget_breaker_enabled``, ``ladder_enabled``,
-  # ``ratchet_enabled``, ``complexity_detector_enabled``,
-  # ``ac_generator_enabled``); the block below is the dispatcher-side
-  # mirror so L0/L1/L2 agents see the effective per-profile default
-  # without importing the gate package. Per-process opt-out goes
-  # through the env-flag listed against each row (R5 strict — set
-  # EXACTLY ``"0"`` to disable; per env-flags.md §2.6..§2.10).
-  #
-  # Schema: { primitive_name: { profile_name: bool } }. Adding a new
-  # gate-profile name (e.g. "audit-light") requires adding a row here
-  # AND updating the corresponding dataclass default in profiles.py.
+  # Dispatcher-side mirror of ``gate/profiles.py::GateProfile`` defaults
+  # (the SSOT) so L0/L1/L2 see per-profile gate-primitive defaults
+  # without importing the gate package. STRICT/AUDIT flip the 5 v8.0.0
+  # primitives ON; STANDARD/RELAXED stay opt-in. Per-process opt-out via
+  # each row's env flag (R5 strict — EXACTLY "0"; env-flags.md
+  # §2.6..§2.10). Schema: { primitive_name: { profile_name: bool } };
+  # new gate-profile names need a row here AND a dataclass default.
   gate_primitive_defaults:
     token_budget_breaker:
       env_flag: "DEVOLAFLOW_TOKEN_BUDGET_BREAKER"
@@ -345,48 +237,18 @@ meta:
       standard: false
       relaxed: false
 
-  # v9.0.0 PV-07 (v9.0.0) — Per-task-type AGENTS.md slicing.
-  # v9.1.5 PV-05 — DEFAULT-ON FLIP (operator-visible behaviour change).
-  #
-  # Codified per .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md
-  # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
-  #
-  # When ``enabled: true`` (the v9.1.5+ default), select_agents_md_slice(task_type)
-  # (in task_adaptive_selector.py) filters the compiled AGENTS.md content per
-  # the per-profile layer-prefix mapping below, hiding rules irrelevant
-  # to the task type.
-  #
-  # OPT-OUT (R5 strict): set ``DEVOLAFLOW_AGENTS_MD_SLICE=0`` to revert to
-  # the v9.1.4 byte-identical full-AGENTS.md behaviour. Per W-20, this
-  # flag was telegraphed in the v9.0.0 PV-07 ADR-007 D3 design but the
-  # runtime read landed in v9.1.5 PV-05 alongside this default flip
-  # (existing-but-unwired flag — REUSE, not new). EXACTLY ``"0"`` forces
-  # opt-out; EXACTLY ``"1"`` forces opt-in (overriding any future YAML
-  # opt-out); any other env value falls through to this YAML default.
-  # Pinned by tests/test_pv07_agents_md_slice.py.
-  #
-  # The slice never reorders or rewrites canonical rules — it only
-  # HIDES rules irrelevant to the task type. Top-level layer headings
-  # (# Soul Rules, # Architecture Rules, ...) are preserved if any rule
-  # in that layer survives; layers with all rules dropped are skipped
-  # entirely (header dropped too).
-  #
-  # Layer values:
-  #   "all"           — keep every rule in the layer
-  #   ["A-1", "A-2"]  — keep only the listed rule IDs
-  #   (key omitted)   — skip the entire layer (drop the layer header too)
-  #
-  # The 9 canonical task-profile slices are documented verbatim in
-  # .local/research/v9.0.0_pv07_rule_audit.md §2.2. Operators with custom
-  # profiles add new entries under ``profiles.<profile_name>``.
-  #
-  # MAJOR semver justification: with v9.1.5 default-ON, the cached prefix
-  # that L0 sends to L1/L2/L3 dispatchers shrinks by 15-70% depending on
-  # task type. For long-running L0 sessions that cache the AGENTS.md
-  # prefix between dispatches, this is an observable change in the input
-  # prompt — downstream tools that audit / log prompts will see different
-  # content. The opt-out env flag (DEVOLAFLOW_AGENTS_MD_SLICE=0) lets
-  # operators retain v9.1.4 byte-stable behaviour during migration.
+  # v9.0.0 PV-07 — Per-task-type AGENTS.md slicing (ADR-007 D3);
+  # v9.1.5 PV-05 DEFAULT-ON flip. When enabled,
+  # select_agents_md_slice(task_type) HIDES rules irrelevant to the task
+  # type per the layer mapping below (never reorders/rewrites; layer
+  # headers survive iff any rule in the layer survives). R5 strict
+  # opt-out: DEVOLAFLOW_AGENTS_MD_SLICE=0 reverts to the v9.1.4
+  # byte-identical full AGENTS.md; EXACTLY "1" forces opt-in; anything
+  # else falls through to this YAML default. Pinned by
+  # tests/test_pv07_agents_md_slice.py.
+  # Layer values: "all" = keep layer | ["A-1", ...] = keep listed IDs |
+  # key omitted = drop layer (header too). The 9 canonical slices are
+  # documented in v9.0.0_pv07_rule_audit.md §2.2.
   agents_md_slice:
     enabled: true
     fallback: full
@@ -448,6 +310,67 @@ meta:
         conventions: all
         workflow: all
         style: all
+
+  # v14.4.0 (G-026) — relocated orphan opt-in blocks. ``legibility_audit``
+  # (v8.2.0 PV-02 gate-scorer opt-in) and ``session_state`` (v8.2.0 PV-03
+  # unified session-state opt-in) are dispatcher-consulted defaults, so
+  # their canonical home is ``meta:`` (parallel to gate_primitive_defaults).
+  # Top-level back-compat aliases are kept at EOF for raw-YAML consumers
+  # (tests/test_session_state.py / tests/test_legibility.py readers).
+  legibility_audit: &legibility_audit_defaults
+    enabled: false
+    default_mode: mixed
+    audit_modes_code_only_globs: ["src/**/*.py", "tests/**/*.py"]
+    audit_modes_docs_only_globs: ["workflow-system/**/*.md", "README.md", "CHANGELOG.md"]
+    audit_modes_mixed_globs: ["src/**/*.py", "tests/**/*.py", "workflow-system/**/*.md", "schemas/**/*.yaml"]
+    weight_naming_consistency: 0.40
+    weight_comment_ratio: 0.30
+    weight_cyclomatic_flow: 0.30
+    threshold_min_score: 75.0
+    threshold_fail_below: 60.0
+    rationale: >
+      Opt-in (default ``enabled: false``) per-file legibility scoring.
+      When the dispatcher flips ``enabled: true`` and supplies
+      ``legibility_files`` to ``evaluate_gate``, every listed file is
+      rated 0-100 on naming consistency / comment-to-code ratio /
+      cyclomatic flow. The aggregate ``mean_score`` shifts the gate
+      composite via ``profile.legibility_weight * (mean_score - 50)``
+      (STRICT/AUDIT default weight 0.05). Three pre-canned audit modes
+      (``code_only`` / ``docs_only`` / ``mixed``) let L1/L2 dispatchers
+      pick a file set by name. The ``thresholds`` block is advisory —
+      consumers may post-process ``verdict.details['legibility']
+      ['mean_score']`` and emit a custom ReinforcementRule when the file
+      falls below ``min_score``. Default disabled per the v8.0.0 retro
+      §4.3 opt-in-by-default rule (every additive runtime primitive
+      defaults to OFF / None / False / disabled).
+  session_state: &session_state_defaults
+    enabled: false
+    default_path: ".local/memory/session_state.json"
+    schema_version: 1
+    # Flat one-key-per-profile defaults (kept inline to preserve the
+    # parent-block naming convention used by ``legibility_audit`` /
+    # ``abstractive_llm`` / ``complex_feature`` — every nested key has an
+    # inline scalar so static parsers like
+    # ``tests/test_doc_consistency.py::test_context_profiles_count`` do not
+    # mistake the block for a new entry under ``profiles:``).
+    profile_default_standard_enabled: false
+    profile_default_relaxed_enabled: false
+    profile_default_strict_enabled: true
+    profile_default_audit_enabled: true
+    rationale: >
+      Opt-in (default ``enabled: false``) unified session state model. When
+      enabled, the lifecycle ``task_stop`` hook persists a
+      :class:`devolaflow.session.SessionState` JSON snapshot to
+      ``default_path`` after each clean task_stop, capturing learnings +
+      lifecycle hook outcomes + legibility verdicts in one diffable file.
+      STRICT/AUDIT default to enabled; STANDARD/RELAXED default to
+      disabled per the v8.0.0 retro §4.3 opt-in-by-default rule. The
+      JSON is forward-compatible — :class:`devolaflow.session.SessionState.from_dict`
+      accepts unknown keys (logged at DEBUG) and tolerates higher
+      ``schema_version`` values for forward read. Migration from the
+      legacy direct-:func:`devolaflow.learnings.consolidate_session`
+      flow is a no-op: both flows write to the same JSONL substrate; the
+      SessionState snapshot is additive.
 
 # v8.2.0 (PV-05) — Section-anchor registry. Symbolic anchor → file path
 # mapping consumed by ``devolaflow.section_registry.SectionAnchorRegistry``
@@ -765,6 +688,167 @@ sections:
     content_type: prose
     priority_default: skip
 
+# v14.4.0 (G-026) — Shared profile defaults (overlay refactor).
+#
+# One canonical ``section_priorities`` map + the shared knob blocks that
+# the 19 canonical-key-order profiles previously duplicated verbatim.
+# Profiles compose via YAML anchors/merge keys (``<<:``) and override
+# ONLY the keys that differ (delta overlay). PyYAML resolves the merge
+# at parse time, so every consumer of the PARSED config — the selector,
+# the EvoBench harness, every yaml.safe_load test — sees per-profile
+# maps identical (keys, order, values) to the pre-refactor expansion.
+# Equivalence is pinned by tests/test_task_adaptive_selector.py
+# ::TestG026OverlayEquivalence against the vendored pre-refactor
+# snapshot. The 5 non-canonical profiles (verify_visual /
+# verify_acceptance / verify_interaction / product_verification /
+# repo-init) keep explicit maps — their key sets/orders differ, and a
+# merge would ADD default keys their resolved maps never carried.
+defaults:
+  # Canonical 26-key section-priority map. Per-key default = the most
+  # common value across the 19 canonical-order profiles. L0-only rows
+  # (version_update / task_quality_score / operational_learnings) are
+  # skip per the v12.4.0 PV-05 D-4 audit — `self_update` is the single
+  # documented exception (overrides version_update/frontmatter in its
+  # delta). Sources: v12.4.0 l0_only_audit §A; v14.2.0 gap G-026.
+  section_priorities: &default_section_priorities
+    frontmatter: skip
+    version_update: skip
+    quick_action_decision: critical
+    mode_detection: supplementary
+    plan_mode_template: skip
+    agent_mode_protocol: critical
+    quick_start_workflows: important
+    hierarchy_table: critical
+    hierarchy_diagram: skip
+    wave_task_constraints: critical
+    rationalization_prevention: supplementary
+    wave_coordination: skip
+    stage_primitives: skip
+    gate_mechanism: critical
+    agent_teams: important
+    context_isolation: important
+    dispatch_report: critical
+    lifecycle_hooks: skip
+    repo_mode: skip
+    reference_navigation: supplementary
+    rules_dispatchers: important
+    convergence_loop: skip
+    task_quality_score: skip
+    operational_learnings: skip
+    template_quick_ref: skip
+    nines_advisor: supplementary
+
+  # Operational-learnings injection knobs (v7.x baseline).
+  learnings: &learnings_standard
+    enabled: true
+    max_entries: 5
+    min_confidence: 0.5
+    budget_pct: 10
+    budget_max_tokens: 500
+
+  # v7.2.0 PR-D advisor block (C-001 conciseness + C-003 timing/reconcile).
+  advisor: &advisor_impl
+    enabled: true
+    max_uses: 3
+    conciseness_instruction: true
+    timing_block: true
+    reconcile_block: true
+    conversation_budget: 6
+    trigger_conditions:
+      - complexity_high
+      - cross_module_architecture
+      - stalled_convergence
+    cost_ceiling_usd: 0.30
+
+  # Decomposition fan-out (gen-verify) vs single-agent execution.
+  decomposition_fanout: &decomposition_fanout
+    enabled: true
+    max_sub_agents: 4
+    max_nesting_depth: 1
+    sub_agent_model_hint: budget
+    sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
+    coordinator_retains_advisor: true
+    gen_verify_mode: true
+    gen_verify_max_rounds: 3
+  decomposition_single: &decomposition_single
+    enabled: false
+
+  # v7.0.1+ tool-output truncation (opt-in primitive per ADR-002 §2.4).
+  tool_output_truncation: &tool_output_truncation_default
+    enabled: true
+    keep: 3
+    exclude_tool_names: ["Read"]
+    head_chars: 500
+    tail_chars: 500
+
+  # v7.1.0+ extractive summariser (default-on per ADR-003 §4.3).
+  summary: &summary_extractive
+    mode: extractive
+    max_tokens: 1200
+    trigger_pct: 25
+
+  # v14.4.0 (G-006) — impl-class auto-AC block. Aliased by every profile
+  # whose tasks WRITE repo artifacts (17 of 24). Read-only / verification
+  # / evaluation profiles (research, review, feedback, verify_visual,
+  # verify_acceptance, verify_interaction, product_verification) stay on
+  # the disabled meta.ac_generation_defaults — verifiers CONSUME
+  # acceptance_criteria_v2; they never author it (R-9 doctrine).
+  ac_generation: &ac_generation_impl
+    enabled: true
+    min_quality_threshold: 60.0
+    id_prefix: "AC"
+
+# v14.4.0 (G-026) — Summariser opt-in modes. Canonical home for the two
+# summarisation opt-in blocks that previously sat as top-level orphans
+# (v8.0.0 P-12 ``complex_feature`` Stage A + v8.2.0 PV-01
+# ``abstractive_llm`` Stage B). Consumed by dispatchers that route
+# ``devolaflow.compressor.summarise_predecessor`` modes. Top-level
+# back-compat aliases are kept at EOF for raw-YAML consumers
+# (tests/test_compressor.py::TestAbstractiveProfileWiring et al.).
+summary_modes:
+  complex_feature: &summary_mode_complex_feature
+    summary_mode: abstractive
+    max_tokens: 1200
+    low_density_threshold: 0.30
+    low_density_max_lines: 2
+    high_density_max_lines: 5
+    fallback_mode: extractive
+    rationale: >
+      Complex feature work routinely consumes long-context predecessor
+      artifacts (multi-file design docs, accumulated round-N convergence
+      reports, 50k+ token repo digests). The abstractive summariser
+      (P-12 Stage A) measures information density per section and
+      collapses low-density sections to ≤2 lines while preserving
+      high-density sections (named entities intact, ≤5 lines), freeing
+      budget for additional predecessor sections. Falls back to
+      extractive when Stage A output would be empty.
+
+  abstractive_llm: &summary_mode_abstractive_llm
+    enabled: true
+    provider: mock
+    model: null
+    max_tokens: 2000
+    timeout_s: 30.0
+    cost_ceiling_usd: 0.05
+    latency_budget_ms: 800
+    min_savings_pct: 30
+    on_failure: fallback_to_stage_a
+    fallback_mode: extractive
+    rationale: >
+      Opt-in LLM-assisted Stage B refinement of the P-12 Stage A heuristic.
+      Caller passes ``llm_assist=True`` to
+      ``summarise_predecessor(...)`` and supplies an ``LLMClient`` (or
+      accepts the deterministic ``mock`` provider for tests). All seven
+      canonical failure modes (timeout, network, parse, schema,
+      content_filter, rate_limit, fallback_disabled) trigger an immediate
+      fallback to the Stage A heuristic output and emit a structured
+      WARNING via the ``devolaflow.compressor.stage_b`` logger per S-5
+      (No Silent Failures). Production rollout follows the 4-PR plan in
+      ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` §9 —
+      PV-01 lands PR 1+2+3 (config + mock + opt-in flag). PR 4 (default
+      ``llm_assist=true`` for L0/L1 dispatch) is benched to v8.2.x
+      pending production telemetry.
+
 # Context profiles per task type
 profiles:
 
@@ -785,47 +869,26 @@ profiles:
         simple_implementation: budget
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
+      <<: *default_section_priorities
       quick_start_workflows: skip
       hierarchy_table: important
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: important
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: important
       agent_teams: supplementary
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: important
       repo_mode: supplementary
       reference_navigation: skip
-      rules_dispatchers: important
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/message-schemas.md"
       - "schemas/task-dispatch.yaml"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Hotfix tasks need fast triage→fix→test→release. No architecture overview,
       no research primitives, no template browsing. Focus on dispatch mechanics
       and quality gates to ensure the fix is validated.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   feature:
     description: "Feature development — architectural context, component patterns"
@@ -845,85 +908,34 @@ profiles:
         simple_implementation: budget
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
       quick_start_workflows: critical
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: critical
       wave_coordination: supplementary
       stage_primitives: critical
-      gate_mechanism: critical
       agent_teams: critical
       context_isolation: critical
       dispatch_report: important
       lifecycle_hooks: critical
       repo_mode: important
       reference_navigation: important
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
-    advisor:
-      enabled: true
-      max_uses: 3
-      # v7.2.0 PR-D additive flags (default true; explicit here for opt-out clarity).
-      # conciseness_instruction → C-001 (advisor responses ~35-45% shorter).
-      # timing_block / reconcile_block → C-003 (BEFORE-substantive-work + reconcile prompt).
-      conciseness_instruction: true
-      timing_block: true
-      reconcile_block: true
-      conversation_budget: 6
-      trigger_conditions:
-        - complexity_high
-        - cross_module_architecture
-        - stalled_convergence
-      cost_ceiling_usd: 0.30
+    learnings: *learnings_standard
+    advisor: *advisor_impl
     extra_context:
       - "references/agent-hierarchy.md"
       - "references/meta-framework.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     behavioral_guidelines:            # v8.0.0 P-08: standard tier (impl complexity)
       tier: standard                  # inherits meta.behavioral_guidelines_defaults.standard
       think_first: true               # explicit override; plan-before-code on every impl
       simplicity_check: true          # explicit override; reject over-engineering
       surgical_scope: function        # function-level edit discipline (P2 disjoint ownership)
       goal_loop: false                # single-round impl; goal re-anchor not needed
-    ac_generation:                    # v8.0.0 P-10: feature impl benefits from auto-AC
-      enabled: true                   # ACGenerator.generate() runs by default
-      min_quality_threshold: 60.0     # reject criteria with score_quality < 60 % completeness
-      id_prefix: "AC"
+    ac_generation: *ac_generation_impl
     rationale: >
       Feature work needs the full hierarchy, stage primitives for planning,
       gate mechanism for quality control, and team roles for task dispatch.
@@ -948,42 +960,22 @@ profiles:
         comparison: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
+      <<: *default_section_priorities
       quick_start_workflows: supplementary
       hierarchy_table: important
-      hierarchy_diagram: skip
       wave_task_constraints: supplementary
-      rationalization_prevention: supplementary
-      wave_coordination: skip
       stage_primitives: supplementary
       gate_mechanism: skip
-      agent_teams: important
-      context_isolation: important
       dispatch_report: important
-      lifecycle_hooks: skip
-      repo_mode: skip
       reference_navigation: important
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
       nines_advisor: critical
     learnings:
-      enabled: true
+      <<: *learnings_standard
       max_entries: 3
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
     extra_context:
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for research stages where defects are structural; default off.
                                          # See references/decomposition-gate.md §8 for safe-stage list.
@@ -1008,81 +1000,29 @@ profiles:
         simple_implementation: budget
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: critical
       wave_coordination: critical
       stage_primitives: important
-      gate_mechanism: critical
-      agent_teams: important
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: critical
       repo_mode: important
-      reference_navigation: supplementary
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
-    advisor:
-      enabled: true
-      max_uses: 3
-      conciseness_instruction: true
-      timing_block: true
-      reconcile_block: true
-      conversation_budget: 6
-      trigger_conditions:
-        - complexity_high
-        - cross_module_architecture
-        - stalled_convergence
-      cost_ceiling_usd: 0.30
+    learnings: *learnings_standard
+    advisor: *advisor_impl
     extra_context:
       - "references/decomposition-gate.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     behavioral_guidelines:            # v8.0.0 P-08: complex tier (refactor needs goal_loop)
       tier: complex                   # inherits meta.behavioral_guidelines_defaults.complex
       think_first: true
       simplicity_check: true
       surgical_scope: function        # refactor stays within function bodies; widen via escalation
       goal_loop: true                 # multi-round refactor needs goal re-anchor each round
-    ac_generation:                    # v8.0.0 P-10: refactor benefits from regression-guard AC
-      enabled: true                   # ACGenerator emits the "no regression" companion automatically
-      min_quality_threshold: 60.0
-      id_prefix: "AC"
+    ac_generation: *ac_generation_impl
     rationale: >
       Refactoring needs strong convergence loops and gates to ensure no
       regressions. Code review and test cycles are the primary quality mechanism.
@@ -1100,43 +1040,22 @@ profiles:
       overrides:
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
+      <<: *default_section_priorities
       quick_start_workflows: supplementary
       hierarchy_table: important
-      hierarchy_diagram: skip
       wave_task_constraints: important
       rationalization_prevention: important
       wave_coordination: supplementary
       stage_primitives: supplementary
-      gate_mechanism: critical
       agent_teams: critical
-      context_isolation: important
-      dispatch_report: critical
-      lifecycle_hooks: skip
       repo_mode: supplementary
-      reference_navigation: supplementary
-      rules_dispatchers: important
       convergence_loop: supplementary
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was important
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
       nines_advisor: skip
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Reviews focus on quality scoring, severity classification, and gate
       evaluation. The gate mechanism and team role specs are critical.
@@ -1156,43 +1075,25 @@ profiles:
         simple_implementation: budget
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
       wave_task_constraints: important
       rationalization_prevention: important
       wave_coordination: supplementary
       stage_primitives: critical
       gate_mechanism: important
       agent_teams: critical
-      context_isolation: important
       dispatch_report: important
-      lifecycle_hooks: skip
       repo_mode: supplementary
       reference_navigation: important
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
     learnings:
-      enabled: true
+      <<: *learnings_standard
       max_entries: 3
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
     extra_context:
       - "references/meta-framework.md"
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for design stages where defects are structural; default off.
                                          # See references/decomposition-gate.md §8 for safe-stage list.
@@ -1206,6 +1107,7 @@ profiles:
       Design tasks need stage primitives for planning the design flow,
       team roles for structuring design output, and hierarchy for
       understanding delegation. Convergence loops are implementation-specific.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   skill-optimization:
     description: "Agent skill optimization — benchmark context, density improvement"
@@ -1225,65 +1127,30 @@ profiles:
         benchmark_evaluation: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
+      <<: *default_section_priorities
       quick_action_decision: important
-      mode_detection: supplementary
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: important
       wave_coordination: critical
       stage_primitives: supplementary
-      gate_mechanism: critical
-      agent_teams: important
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: supplementary
-      repo_mode: skip
       reference_navigation: skip
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
       nines_advisor: critical
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/decomposition-gate.md"
       - "references/context-isolation.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     rationale: >
       Skill optimization focuses on measuring and improving context density.
       Gate mechanism is critical for evaluating optimization results. Context
       isolation and dispatch protocol matter because they define what agents
       actually receive. Convergence loop is important for the iterate cycle.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   migration:
     description: "Migration/upgrade — assessment, planning, validation heavy"
@@ -1300,76 +1167,28 @@ profiles:
         compatibility_analysis: quality
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: critical
       wave_coordination: important
       stage_primitives: important
-      gate_mechanism: critical
-      agent_teams: important
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: critical
       repo_mode: important
-      reference_navigation: supplementary
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
-    advisor:
-      enabled: true
-      max_uses: 3
-      conciseness_instruction: true
-      timing_block: true
-      reconcile_block: true
-      conversation_budget: 6
-      trigger_conditions:
-        - complexity_high
-        - cross_module_architecture
-        - stalled_convergence
-      cost_ceiling_usd: 0.30
+    learnings: *learnings_standard
+    advisor: *advisor_impl
     extra_context:
       - "references/decomposition-gate.md"
       - "references/meta-framework.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     rationale: >
       Migrations need strong validation gates, convergence for iterative
       compatibility testing, and full hierarchy for multi-wave impl.
       Repo mode matters for CI/CD pipeline changes.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   security-audit:
     description: "Security audit — threat model, scanning, remediation"
@@ -1386,75 +1205,28 @@ profiles:
       overrides:
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: critical
       wave_coordination: critical
       stage_primitives: important
-      gate_mechanism: critical
       agent_teams: critical
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: critical
       repo_mode: supplementary
-      reference_navigation: supplementary
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
-    advisor:
-      enabled: true
-      max_uses: 3
-      conciseness_instruction: true
-      timing_block: true
-      reconcile_block: true
-      conversation_budget: 6
-      trigger_conditions:
-        - complexity_high
-        - cross_module_architecture
-        - stalled_convergence
-      cost_ceiling_usd: 0.30
+    learnings: *learnings_standard
+    advisor: *advisor_impl
     extra_context:
       - "references/decomposition-gate.md"
       - "references/team-roles.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     rationale: >
       Security audits require strict gate evaluation, team roles for
       scan/analyze/remediate handoffs, and convergence for fix-verify cycles.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   documentation:
     description: "Documentation authoring — survey, content creation, review"
@@ -1471,42 +1243,17 @@ profiles:
         content_review: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
+      <<: *default_section_priorities
       quick_start_workflows: supplementary
       hierarchy_table: important
-      hierarchy_diagram: skip
       wave_task_constraints: important
-      rationalization_prevention: supplementary
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: supplementary
-      agent_teams: important
-      context_isolation: important
-      dispatch_report: critical
-      lifecycle_hooks: skip
-      repo_mode: skip
       reference_navigation: important
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was critical (historical; v12.3.0 PV-03 collapsed body but profile config wasn't updated)
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     inline_review_checklist: false       # v7.2.0+ opt-in alternative to gen_verify subagent (50x faster);
                                          # safe for documentation stages where defects are structural; default off.
                                          # See references/decomposition-gate.md §8 for safe-stage list.
@@ -1514,6 +1261,7 @@ profiles:
       Documentation tasks focus on survey-author-review cycle. No convergence
       loops or deep architecture. TQS matters for quality evaluation.
       Dispatch protocol needed for structuring authoring tasks.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   spike-poc:
     description: "Spike/PoC — rapid prototyping, experimental"
@@ -1529,45 +1277,20 @@ profiles:
       overrides:
         architecture_decisions: balanced
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
-      quick_start_workflows: important
+      <<: *default_section_priorities
       hierarchy_table: important
-      hierarchy_diagram: skip
       wave_task_constraints: important
-      rationalization_prevention: supplementary
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: skip
-      agent_teams: important
-      context_isolation: important
-      dispatch_report: critical
-      lifecycle_hooks: skip
-      repo_mode: skip
       reference_navigation: skip
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Spikes are fast and experimental. No gates, no convergence, minimal
       ceremony. Focus on dispatch for structuring exploration tasks.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   rdrr:
     description: "Research-Design-Review-Refine loop — iterative design with convergence"
@@ -1584,47 +1307,27 @@ profiles:
         simple_implementation: budget
         test_execution: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
       quick_start_workflows: critical
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: important
       wave_coordination: critical
       stage_primitives: critical
-      gate_mechanism: critical
       agent_teams: critical
-      context_isolation: important
       dispatch_report: important
       lifecycle_hooks: supplementary
-      repo_mode: skip
       reference_navigation: important
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/meta-framework.md"
       - "references/decomposition-gate.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       RDRR is convergence-heavy with research→design→review→refine loops.
       Stage primitives and convergence loop are critical for the iteration
       cycle. Gate mechanism validates each design refinement round.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   demo-showcase:
     description: "Demo/showcase — build presentation-ready deliverables"
@@ -1640,45 +1343,24 @@ profiles:
         content_review: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
-      rationalization_prevention: supplementary
       wave_coordination: supplementary
       stage_primitives: important
       gate_mechanism: important
       agent_teams: critical
-      context_isolation: important
-      dispatch_report: critical
       lifecycle_hooks: supplementary
       repo_mode: supplementary
-      reference_navigation: supplementary
       rules_dispatchers: supplementary
       convergence_loop: supplementary
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/team-roles.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Demo workflows need clear team roles for storyboard/build/polish
       stages, hierarchy for multi-wave build, and dispatch for handoffs.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   perf-optimization:
     description: "Performance optimization — profile, benchmark, optimize"
@@ -1697,63 +1379,26 @@ profiles:
         benchmark_evaluation: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
+      <<: *default_section_priorities
       plan_mode_template: critical
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
-      wave_task_constraints: critical
       rationalization_prevention: skip
       wave_coordination: critical
       stage_primitives: important
-      gate_mechanism: critical
-      agent_teams: important
       context_isolation: critical
-      dispatch_report: critical
       lifecycle_hooks: important
       repo_mode: supplementary
-      reference_navigation: supplementary
-      rules_dispatchers: important
       convergence_loop: critical
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/decomposition-gate.md"
-    decomposition:
-      enabled: true
-      max_sub_agents: 4
-      max_nesting_depth: 1
-      sub_agent_model_hint: budget
-      sub_agent_context_budget: 5000  # v7.0.1: bumped from 3000 (resolves K.8, see ADR-002 §4)
-      coordinator_retains_advisor: true
-      gen_verify_mode: true
-      gen_verify_max_rounds: 3
-    tool_output_truncation:           # v7.0.1+: opt-in primitive (per ADR-002 §2.4); default disabled
-      enabled: true
-      keep: 3
-      exclude_tool_names: ["Read"]
-      head_chars: 500
-      tail_chars: 500
-    summary:                          # v7.1.0+: extractive summariser default-on per ADR-003 §4.3
-      mode: extractive
-      max_tokens: 1200
-      trigger_pct: 25                 # summarise when pred_tokens > 25 % of total budget
+    decomposition: *decomposition_fanout
+    tool_output_truncation: *tool_output_truncation_default
+    summary: *summary_extractive
     rationale: >
       Performance optimization uses profile→optimize→benchmark convergence
       loops. Gate mechanism validates benchmark improvements. Dispatch protocol
       for structuring profiling and optimization tasks.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   dependency-setup:
     description: "Dependency/environment setup — configure, install, verify"
@@ -1769,46 +1414,23 @@ profiles:
       overrides:
         architecture_decisions: balanced
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
-      quick_start_workflows: important
+      <<: *default_section_priorities
       hierarchy_table: important
-      hierarchy_diagram: skip
       wave_task_constraints: important
-      rationalization_prevention: supplementary
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: supplementary
-      agent_teams: important
-      context_isolation: important
-      dispatch_report: critical
       lifecycle_hooks: supplementary
       repo_mode: critical
       reference_navigation: skip
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/repo-modes.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Dependency setup needs repo mode for CI/CD context, dispatch for
       structuring install/configure tasks. Minimal ceremony — no convergence
       or deep gates.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   onboarding:
     description: "Onboarding — codebase analysis, documentation, environment setup"
@@ -1824,47 +1446,24 @@ profiles:
         analysis: quality
         simple_implementation: budget
     section_priorities:
-      frontmatter: skip
-      version_update: skip
-      quick_action_decision: critical
-      mode_detection: supplementary
-      plan_mode_template: skip
-      agent_mode_protocol: critical
-      quick_start_workflows: important
-      hierarchy_table: critical
-      hierarchy_diagram: skip
+      <<: *default_section_priorities
       wave_task_constraints: important
-      rationalization_prevention: supplementary
-      wave_coordination: skip
       stage_primitives: supplementary
       gate_mechanism: supplementary
       agent_teams: critical
-      context_isolation: important
-      dispatch_report: critical
-      lifecycle_hooks: skip
       repo_mode: important
       reference_navigation: important
       rules_dispatchers: supplementary
-      convergence_loop: skip
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was supplementary
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
-    learnings:
-      enabled: true
-      max_entries: 5
-      min_confidence: 0.5
-      budget_pct: 10
-      budget_max_tokens: 500
+    learnings: *learnings_standard
     extra_context:
       - "references/team-roles.md"
       - "references/repo-modes.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Onboarding focuses on codebase analysis and documentation generation.
       Team roles define analysis/documentation tasks. Repo mode provides
       CI/CD context. No convergence loops needed.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   self_update:
     description: "Self-update workflow — meta-framework updates, reference tracking"
@@ -1881,42 +1480,27 @@ profiles:
         architecture_decisions: balanced
         code_review: balanced
     section_priorities:
+      <<: *default_section_priorities
       frontmatter: critical
       version_update: critical
       quick_action_decision: important
       mode_detection: skip
-      plan_mode_template: skip
-      agent_mode_protocol: critical
       quick_start_workflows: skip
       hierarchy_table: supplementary
-      hierarchy_diagram: skip
       wave_task_constraints: supplementary
       rationalization_prevention: important
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: supplementary
       agent_teams: supplementary
-      context_isolation: important
-      dispatch_report: critical
       lifecycle_hooks: critical
-      repo_mode: skip
       reference_navigation: critical
-      rules_dispatchers: important
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — self_update consumes operational.jsonl substrate via `learnings:` block below; NOT the SKILL.md §"Operational Learnings" prose
-      template_quick_ref: skip
       nines_advisor: important
     learnings:
-      enabled: true
+      <<: *learnings_standard
       max_entries: 3
-      min_confidence: 0.5
-      budget_pct: 10
       budget_max_tokens: 350
     extra_context:
       - "references/meta-framework.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Self-update tasks maintain the workflow system itself. Focus on
       meta-framework understanding, reference navigation for tracking
@@ -1929,6 +1513,8 @@ profiles:
   # (e.g. product-verification dispatching verify_* sub-tasks) — they have
   # NO standalone template in templates/registry.yaml by design. Tier-1
   # dispatch never instantiates these as top-level workflows.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
+
   feedback:
     description: "Feedback loop — gate evaluation, learnings integration"
     goal_hints:
@@ -1944,42 +1530,24 @@ profiles:
         analysis: balanced
         gate_evaluation: balanced
     section_priorities:
-      frontmatter: skip
-      version_update: skip
+      <<: *default_section_priorities
       quick_action_decision: important
       mode_detection: skip
-      plan_mode_template: skip
-      agent_mode_protocol: critical
       quick_start_workflows: skip
       hierarchy_table: supplementary
-      hierarchy_diagram: skip
       wave_task_constraints: supplementary
-      rationalization_prevention: supplementary
-      wave_coordination: skip
-      stage_primitives: skip
-      gate_mechanism: critical
       agent_teams: supplementary
-      context_isolation: important
-      dispatch_report: critical
       lifecycle_hooks: important
-      repo_mode: skip
-      reference_navigation: supplementary
       rules_dispatchers: supplementary
       convergence_loop: supplementary
-      task_quality_score: skip  # v12.4.0 PV-05 D-4 — L0-only; was critical (feedback profile consumes the SCORED artifact, not the rubric prose; load `references/task-quality-score.md` on-demand if needed)
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — feedback consumes operational.jsonl via `learnings:` block below; NOT the SKILL.md prose
-      template_quick_ref: skip
-      nines_advisor: supplementary
     learnings:
-      enabled: true
+      <<: *learnings_standard
       max_entries: 10
       min_confidence: 0.3
       budget_pct: 15
-      budget_max_tokens: 500
     extra_context:
       - "references/decomposition-gate.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Feedback tasks evaluate gate results and integrate learnings back
       into the system. Gate mechanism and task quality score are critical
@@ -2111,6 +1679,7 @@ profiles:
       reference_navigation: supplementary
       task_quality_score: skip
       operational_learnings: skip
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   product_verification:
     goal_hints:
@@ -2151,6 +1720,7 @@ profiles:
   # ``src/devolaflow/entropy_manager.py``. Smaller budget than ``self_update``
   # (GC tasks don't need deep meta-framework context) and higher learnings
   # count than ``feedback`` (retention policies benefit from prior decisions).
+
   entropy_scan:
     description: "Entropy cleanup / GC — documentation freshness, drift detection, retention rules"
     goal_hints:
@@ -2169,42 +1739,25 @@ profiles:
         analysis: balanced
         retention_review: balanced
     section_priorities:
-      frontmatter: skip
-      version_update: skip
+      <<: *default_section_priorities
       quick_action_decision: important
       mode_detection: skip
-      plan_mode_template: skip
-      agent_mode_protocol: critical
       quick_start_workflows: skip
       hierarchy_table: supplementary
-      hierarchy_diagram: skip
       wave_task_constraints: supplementary
-      rationalization_prevention: supplementary
-      wave_coordination: skip
-      stage_primitives: skip
       gate_mechanism: important
       agent_teams: supplementary
-      context_isolation: important
-      dispatch_report: critical
       lifecycle_hooks: important
-      repo_mode: skip
-      reference_navigation: supplementary
       rules_dispatchers: skip
-      convergence_loop: skip
-      task_quality_score: skip
-      operational_learnings: skip  # v12.4.0 PV-05 D-4 — L0-only; subagent skip
-      template_quick_ref: skip
-      nines_advisor: supplementary
     learnings:
-      enabled: true
+      <<: *learnings_standard
       max_entries: 8
       min_confidence: 0.4
       budget_pct: 12
       budget_max_tokens: 400
     extra_context:
       - "references/meta-framework.md"
-    decomposition:
-      enabled: false
+    decomposition: *decomposition_single
     rationale: >
       Entropy cleanup tasks inspect workspace artefacts (docs, templates,
       learnings JSONL) for staleness and drift, propose retention actions,
@@ -2214,214 +1767,17 @@ profiles:
       gates. Convergence loops are skipped — GC runs once and exits.
       Higher learnings budget helps reuse prior retention decisions without
       re-litigating them each cycle.
+    ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
-# v8.0.0 (P-12) — Complex-feature opt-in for the new abstractive
-# summariser path (Stage A heuristic in
-# ``src/devolaflow/compressor.py::summarise_predecessor`` with
-# ``mode='abstractive'``). Density-routed compression (low-density
-# sections collapsed to ≤2 lines, high-density preserved up to 5 with
-# named entities intact) frees ~30-50 % of the predecessor budget on
-# long-context complex-feature artifacts (50k+ token repos), targeting
-# the EvoBench ``long_context_repo_qa`` ≥ +3pp lift per P-12 AC #6.
-#
-# This is a TOP-LEVEL section (sibling to ``meta:``/``sections:``/
-# ``profiles:``), NOT a new profile. That keeps the profile count
-# stable so the demo/index.html sync test does not need updating, and
-# it isolates the abstractive opt-in behind a single named flag that
-# v8.2.0 PV-01 (Stage B) can extend without re-shaping the YAML tree.
-#
-# Stage B (LLM-assisted) opt-in is OUT OF SCOPE for v8.0.0 — see
-# ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md``.
-complex_feature:
-  summary_mode: abstractive
-  max_tokens: 1200
-  low_density_threshold: 0.30
-  low_density_max_lines: 2
-  high_density_max_lines: 5
-  fallback_mode: extractive
-  rationale: >
-    Complex feature work routinely consumes long-context predecessor
-    artifacts (multi-file design docs, accumulated round-N convergence
-    reports, 50k+ token repo digests). The abstractive summariser
-    (P-12 Stage A) measures information density per section and
-    collapses low-density sections to ≤2 lines while preserving
-    high-density sections (named entities intact, ≤5 lines), freeing
-    budget for additional predecessor sections. Falls back to
-    extractive when Stage A output would be empty.
-
-# v8.2.0 (PV-01) — LLM-assisted Stage B opt-in for abstractive summarisation.
-#
-# Sibling top-level section to ``complex_feature`` (P-12) — preserves the
-# v8.0.0 P-12 surface byte-identical (the ``complex_feature`` section is
-# unchanged) while adding a separate, opt-in surface for callers that want
-# to flip Stage B on. Wired into
-# ``src/devolaflow/compressor.py::summarise_predecessor`` via the new
-# ``llm_assist=True`` kwarg + the new ``src/devolaflow/llm_client.py``
-# module's :class:`LLMClient`. The default ``llm_assist=False`` preserves
-# v8.0.0-p10 byte-identical behaviour (no schema bump, no log-line
-# appearance, no extra dict key) — pinned by
-# ``tests/test_compressor.py::TestAbstractiveStageBLLM
-# ::test_llm_assist_false_byte_identical_to_stage_a``.
-#
-# Stage B refines Stage A's heuristic output via a bounded LLM call,
-# preserving CO-2 verbatim entities and emitting structured logs for
-# all 7 canonical failure modes (timeout / network / parse / schema /
-# content_filter / rate_limit / fallback_disabled) per S-5. On any
-# failure Stage A is returned verbatim with
-# ``predecessor[i].abstractive_stage = 'a'`` set on the status report
-# (so SI-4 EvoBench attribution can distinguish "Stage B never invoked"
-# from "Stage B invoked then fell back" — Stage B design §4 last
-# paragraph).
-#
-# Cost / latency budgets default to conservative ceilings (per Stage B
-# design §5/§6): 800 ms per-dispatch P95 wall-clock, $0.05 per-dispatch
-# USD ceiling, 30 % min Stage A savings before escalation. Production
-# default is ``enabled: true`` here (this is the OPT-IN section — callers
-# that select this profile are explicitly opting into Stage B); the
-# global kill switch still lives at ``llm_assist=False`` (the
-# ``summarise_predecessor`` kwarg default).
-#
-# P6-safe: NESTED top-level section, NOT a new dispatch field.
-# canonical_order length stays 15, schemas/lean-dispatch.yaml version
-# stays 4 throughout v8.2.0 PV-01 per
-# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
-abstractive_llm:
-  enabled: true
-  provider: mock
-  model: null
-  max_tokens: 2000
-  timeout_s: 30.0
-  cost_ceiling_usd: 0.05
-  latency_budget_ms: 800
-  min_savings_pct: 30
-  on_failure: fallback_to_stage_a
-  fallback_mode: extractive
-  rationale: >
-    Opt-in LLM-assisted Stage B refinement of the P-12 Stage A heuristic.
-    Caller passes ``llm_assist=True`` to
-    ``summarise_predecessor(...)`` and supplies an ``LLMClient`` (or
-    accepts the deterministic ``mock`` provider for tests). All seven
-    canonical failure modes (timeout, network, parse, schema,
-    content_filter, rate_limit, fallback_disabled) trigger an immediate
-    fallback to the Stage A heuristic output and emit a structured
-    WARNING via the ``devolaflow.compressor.stage_b`` logger per S-5
-    (No Silent Failures). Production rollout follows the 4-PR plan in
-    ``.local/research/v8.0.0_p12_abstractive_stage_b_design.md`` §9 —
-    PV-01 lands PR 1+2+3 (config + mock + opt-in flag). PR 4 (default
-    ``llm_assist=true`` for L0/L1 dispatch) is benched to v8.2.x
-    pending production telemetry.
-
-# v8.2.0 (PV-02) — Agent legibility scoring opt-in.
-#
-# Sibling top-level section to ``complex_feature`` (P-12) and
-# ``abstractive_llm`` (PV-01) — preserves the v8.1.0-rc.1 byte-stable
-# behaviour (the gate scorer is unchanged unless callers explicitly
-# pass ``legibility_scorer=...``). Wired into
-# :func:`devolaflow.gate.scorer.evaluate_gate` via the new
-# ``legibility_scorer`` / ``legibility_files`` kwargs + the new
-# :class:`devolaflow.legibility.LegibilityScorer`. The default
-# ``legibility_scorer=None`` preserves v8.1.0-rc.1 byte-identical
-# behaviour (no schema bump, no log-line appearance, no extra dict key)
-# — pinned by ``tests/test_legibility.py`` byte-identicality tests.
-#
-# When opt-in, the scorer rates each touched file 0-100 across three
-# dimensions (naming consistency / comment-to-code ratio / cyclomatic
-# flow) and the gate composite is shifted by
-# ``profile.legibility_weight * (mean_score - 50)``. STRICT/AUDIT
-# default to weight 0.05 (well-legible code lifts the composite by up
-# to 2.5 points; illegible code drags by up to 2.5 points);
-# STANDARD/RELAXED default to 0.0 (opt-in only).
-#
-# Three audit modes are pre-canned here so dispatchers can reference
-# them by name instead of re-deriving the file-set + weights:
-#
-#   * ``code_only``   — score touched ``src/**/*.py`` files only.
-#   * ``docs_only``   — score touched ``workflow-system/**/*.md`` files
-#                       only (useful for README / SKILL drift cycles).
-#   * ``mixed``       — score every touched text file (default — most
-#                       cycles touch a mix of code + docs).
-#
-# P6-safe: NESTED top-level section, NOT a new dispatch field.
-# canonical_order length stays 15, schemas/lean-dispatch.yaml version
-# stays 4 throughout v8.2.0 PV-02 per
-# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
-legibility_audit:
-  enabled: false
-  default_mode: mixed
-  audit_modes_code_only_globs: ["src/**/*.py", "tests/**/*.py"]
-  audit_modes_docs_only_globs: ["workflow-system/**/*.md", "README.md", "CHANGELOG.md"]
-  audit_modes_mixed_globs: ["src/**/*.py", "tests/**/*.py", "workflow-system/**/*.md", "schemas/**/*.yaml"]
-  weight_naming_consistency: 0.40
-  weight_comment_ratio: 0.30
-  weight_cyclomatic_flow: 0.30
-  threshold_min_score: 75.0
-  threshold_fail_below: 60.0
-  rationale: >
-    Opt-in (default ``enabled: false``) per-file legibility scoring.
-    When the dispatcher flips ``enabled: true`` and supplies
-    ``legibility_files`` to ``evaluate_gate``, every listed file is
-    rated 0-100 on naming consistency / comment-to-code ratio /
-    cyclomatic flow. The aggregate ``mean_score`` shifts the gate
-    composite via ``profile.legibility_weight * (mean_score - 50)``
-    (STRICT/AUDIT default weight 0.05). Three pre-canned audit modes
-    (``code_only`` / ``docs_only`` / ``mixed``) let L1/L2 dispatchers
-    pick a file set by name. The ``thresholds`` block is advisory —
-    consumers may post-process ``verdict.details['legibility']
-    ['mean_score']`` and emit a custom ReinforcementRule when the file
-    falls below ``min_score``. Default disabled per the v8.0.0 retro
-    §4.3 opt-in-by-default rule (every additive runtime primitive
-    defaults to OFF / None / False / disabled).
-
-# v8.2.0 (PV-03) — Unified session state model opt-in.
-#
-# Sibling top-level section to ``complex_feature`` (P-12),
-# ``abstractive_llm`` (PV-01), and ``legibility_audit`` (PV-02). PV-03
-# closes the v8.0.0 patch_plan §1 row 8 deferral of "Unified session
-# state model" / Karpathy 4.8 — :class:`devolaflow.session.SessionState`
-# aggregates learnings + lifecycle + legibility into one in-memory view
-# plus a JSON snapshot at :data:`devolaflow.session.DEFAULT_SESSION_STATE_PATH`
-# (``.local/memory/session_state.json``).
-#
-# When ``session_state_enabled: false`` (the default for
-# STANDARD/RELAXED) the v8.1.0-rc.1 byte-stable behaviour is preserved
-# — :mod:`devolaflow.learnings` and :mod:`devolaflow.lifecycle`
-# continue to operate via their direct JSONL substrate paths and
-# nothing in the gate / dispatcher composition reads the SessionState
-# JSON file. STRICT and AUDIT default to ``session_state_enabled:
-# true`` so high-rigour profiles get cross-domain replay (learnings +
-# lifecycle hooks + legibility verdicts) for free; explicit override
-# is honoured per-profile via the ``profile.session_state_enabled``
-# sibling key (read by L1/L2 dispatchers when present).
-#
-# P6-safe: NESTED top-level section, NOT a new dispatch field.
-# canonical_order length stays 15, schemas/lean-dispatch.yaml version
-# stays 4 throughout v8.2.0 PV-03 per
-# ``.local/research/v8.2.0_patch_plan.md`` §1.1 invariant 1.
-session_state:
-  enabled: false
-  default_path: ".local/memory/session_state.json"
-  schema_version: 1
-  # Flat one-key-per-profile defaults (kept inline to preserve the
-  # parent-block naming convention used by ``legibility_audit`` /
-  # ``abstractive_llm`` / ``complex_feature`` — every nested key has an
-  # inline scalar so static parsers like
-  # ``tests/test_doc_consistency.py::test_context_profiles_count`` do not
-  # mistake the block for a new entry under ``profiles:``).
-  profile_default_standard_enabled: false
-  profile_default_relaxed_enabled: false
-  profile_default_strict_enabled: true
-  profile_default_audit_enabled: true
-  rationale: >
-    Opt-in (default ``enabled: false``) unified session state model. When
-    enabled, the lifecycle ``task_stop`` hook persists a
-    :class:`devolaflow.session.SessionState` JSON snapshot to
-    ``default_path`` after each clean task_stop, capturing learnings +
-    lifecycle hook outcomes + legibility verdicts in one diffable file.
-    STRICT/AUDIT default to enabled; STANDARD/RELAXED default to
-    disabled per the v8.0.0 retro §4.3 opt-in-by-default rule. The
-    JSON is forward-compatible — :class:`devolaflow.session.SessionState.from_dict`
-    accepts unknown keys (logged at DEBUG) and tolerates higher
-    ``schema_version`` values for forward read. Migration from the
-    legacy direct-:func:`devolaflow.learnings.consolidate_session`
-    flow is a no-op: both flows write to the same JSONL substrate; the
-    SessionState snapshot is additive.
+# ---------------------------------------------------------------------------
+# v14.4.0 (G-026) — Back-compat aliases for the 4 relocated orphan keys.
+# Canonical locations: summary_modes.complex_feature /
+# summary_modes.abstractive_llm / meta.legibility_audit /
+# meta.session_state. These one-line aliases keep every raw
+# yaml.safe_load consumer of the TOP-LEVEL keys working (the parsed
+# content is shared by reference with the canonical blocks above).
+# ---------------------------------------------------------------------------
+complex_feature: *summary_mode_complex_feature
+abstractive_llm: *summary_mode_abstractive_llm
+legibility_audit: *legibility_audit_defaults
+session_state: *session_state_defaults

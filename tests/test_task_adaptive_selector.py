@@ -1193,3 +1193,177 @@ class TestComplexityTierRouting:
         assert complexity_routing["medium"] == "balanced"
         assert complexity_routing["complex"] == "quality"
         assert complexity_routing["very_complex"] == "quality"
+
+
+# ---------------------------------------------------------------------------
+# v14.4.0 (G-026) — overlay-refactor byte-equivalence harness.
+#
+# context_profiles.yaml was restructured from 24 fully-expanded profiles
+# into ``defaults:`` (one canonical 26-key section_priorities map + shared
+# knob anchors) + per-profile DELTA overlays composed via YAML merge keys
+# (``<<:``), and the 4 orphan top-level keys (complex_feature /
+# abstractive_llm / legibility_audit / session_state) were relocated under
+# their canonical parents (summary_modes: / meta:) with back-compat
+# top-level aliases. The refactor contract is ZERO behavioral delta: for
+# every profile the PARSED config — and therefore every ``select_context``
+# resolution — must be identical (keys, ORDER, values) to the
+# pre-refactor expansion.
+#
+# The snapshot hashes below are VENDORED verbatim from the pre-refactor
+# file (git parent of the v14.4.0-T3 change; captured mechanically by the
+# C-3 verbatim-extraction harness). Canonicalisation:
+#   * section-priority hash  = sha256(json.dumps([[k, v], ...],
+#     ensure_ascii=False)) over the profile's ordered
+#     section_priorities items — pins keys AND insertion order AND
+#     values (order feeds `_build_priority_buckets` bucket ordering).
+#   * profile hash = sha256(json.dumps({k: v for k, v in profile if
+#     k != "ac_generation"}, sort_keys=True, ensure_ascii=False)) —
+#     pins every other profile knob. ``ac_generation`` is excluded
+#     because v14.4.0 G-006 deliberately extends it to all impl-class
+#     profiles in the same change.
+#   * orphan hash = sha256(json.dumps(block, sort_keys=True,
+#     ensure_ascii=False)) over each relocated top-level block.
+# ---------------------------------------------------------------------------
+
+_PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
+    "hotfix": "8ff9ab11790cf602af09b09907eca7c96fc87dd2de21244e03c69b8d153ff33e",
+    "feature": "cded7190ac2a02d3e58338442fa3b0eb971ce34cb906fbfefa214a183ff99bb9",
+    "research": "34fc5af285c3e06e3ea7f7a710caa5c73e92084a1f1ec8c89c4ace88f9e8ec89",
+    "refactor": "1a923cdbe7ddd7be50bc357167b8f52b6f1541b43d5c26b696e00fe3f9b1a0c6",
+    "review": "27116b1836a8a0be5b898d7c33869b81be86362352c383279b30a82f8aa13059",
+    "design": "b0e0e410b61976fc22548b1f24f0075d2de49dd3e4843c4958e549d55aa852bc",
+    "skill-optimization": "0011e018488bfbb71332b1bf066f0fa7f17d3aa0a0408919881edfce885521ba",
+    "migration": "754cf52351d81674e84c7073f58b33b732624459955c75f1393ef62b4834358b",
+    "security-audit": "3ec60251631dc75d3a343d7b3e7dbe97c021a6baa4f638803d672f4f093f5d8a",
+    "documentation": "a53c7e25db4a5d967ffe123aa232b1c53c86d5fd196c27514c412285a6fdc00b",
+    "spike-poc": "c871b84298fc043c021f5553445eeb65cc14caf304b5a6411a338c1fac5a218d",
+    "rdrr": "5e9848ba82813ad2eebaf6fbb8d1dbac0673cc6f9be56231e4aa1e697986b19b",
+    "demo-showcase": "27142a52eb2d7fb06a34c319107a16ee4d8e9bdb174a5e8b573b42bce14a604e",
+    "perf-optimization": "89a66993b65aa71131b54e71bc429bf0981b6200aa3e4de1ddecbdb28abbd12c",
+    "dependency-setup": "fc8b83b77c417155ee4d6fe4b48b7f01ac79b2831e2c93eb168a1a94adb108ae",
+    "onboarding": "ca45b254d5af2f35b6c11ef9ba718b24d640b937e14801337c13437e4af28d16",
+    "self_update": "23091f403d02b4ecaf43b5b32a8967b3aaa40f7ab4cc3b7b15b875f388a34a81",
+    "feedback": "515578a47a9980e5737c9a6f00e40972fb1bed0309c9bbc810bbe34f5ba38d1e",
+    "verify_visual": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
+    "verify_acceptance": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
+    "verify_interaction": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
+    "repo-init": "26e67c4133518e5b9fb44d6b40e67deab02580e62103e2fd3c61e1228fb00940",
+    "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
+    "entropy_scan": "bc53bb556806462a39bf0e7fde768d66c1fc57e8b434b0b59d0d2d8c97fc19c5",
+}
+
+_PRE_G026_PROFILE_HASHES: dict[str, str] = {
+    "hotfix": "6703388f88e35ff7fd409e6eec0b0487596c541436f8551eac4ca01c632f5c74",
+    "feature": "1fbe5b5a11cc56a7d1c90489a5a6a387d6cd1776f3f8668e4d117872302412ab",
+    "research": "9721e5a368b160934f2ddb135824771060ba12995a3097f8f3f45d0f0eb82046",
+    "refactor": "4b196c371ab945e3fc6ae2547d7394cf122b3882481e729221082650ad42df54",
+    "review": "0a2eea9addba2f9ceec703e865bc02c3e0bc8ffba932541891d13765e1ca57e3",
+    "design": "c40d096e7d28c61ad5dd180940b8f482e30c9c39600fbc44f841e5de54e58778",
+    "skill-optimization": "f3de5970ed7b2baa770b4ec206f72d24e1d33aa69b16a6544bbbfa82163a172e",
+    "migration": "69b3cd654dc899cac51aac14f585172739af7de2f6ca0da9bc26ea1bae283815",
+    "security-audit": "5e7602f8fddf596fb069a48111976d7a4852d905a27bdfda7069e056e3bec27a",
+    "documentation": "d7f7891a2c22aee98dacd6707108d1c4af3c3f2fe0870f7733a2cc80b5494e2d",
+    "spike-poc": "5f64a6686729196b730f57b91b6a6eee646e885ed797f689f597127a7df02a17",
+    "rdrr": "6d5b269b561cd8aeef59b16b84e525fa0c014993b7e8ffbc88e037c3ce7172f6",
+    "demo-showcase": "5a90bad71b1068ce2526f67f8e3ddeac0d508abb9bb895c707de0b33c0807709",
+    "perf-optimization": "2dce421d953059246821f57de935199fa6fca8f979df257e3b8fc1a991e493d2",
+    "dependency-setup": "d9adfbde9edfc3e3b274995b942c53a4c56446a14393c0f3230a8967471024e3",
+    "onboarding": "7e4c97dbfe7e2e1d55774ffa8be65ecc2bc9fd7509c8ead9b15f5e881d0a8983",
+    "self_update": "a934de6cf89fb6c816b053658dbba5a37a23d0d6eec54a2567fd64b1b304e39f",
+    "feedback": "e21cb20b1113fa91358ad17e228e303ff3168dd23c1b09b6fab4e3a6bd9afe4e",
+    "verify_visual": "48c63ae115031c1d9f587c48e75288700c070cb68f5f5d58b51b715b38c0e09d",
+    "verify_acceptance": "d6ff6666f67dab86b3f70bae867d05ba100400fdb6c6c7bd33563a1dd43fa70b",
+    "verify_interaction": "afb7d6b50d887ca392af0ab01e3800e857c149a672d525672a1403ecb40667ac",
+    "repo-init": "303059b0254a4998c44c83b81b39abfcb5c87d4d38523e37e5f2d3ca63f612d7",
+    "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
+    "entropy_scan": "0790c7c4cf4e52d33fea9260dffbb228d7d7f47bc06d9e4ea76302e145382e3a",
+}
+
+_PRE_G026_ORPHAN_HASHES: dict[str, str] = {
+    "complex_feature": "f9adc44d5befb9ddec266d9af2779cb3df4a30c176eecb0af65abb55c22239f2",
+    "abstractive_llm": "7b6c6eee210ed7049cede7591707ecbbc9c43b656cf9ddb91f4f6de93b59c093",
+    "legibility_audit": "6a51a42340bd3235902736c5fe474b473fa3b4837d049b90f5550b22bda87c53",
+    "session_state": "f91173667bd5b55c392c1def4cbcbe0bceef290f00db5b869f3049270aeb3a4e",
+}
+
+# Canonical parent for each relocated orphan key (G-026).
+_G026_ORPHAN_CANONICAL_PARENTS: dict[str, tuple[str, ...]] = {
+    "complex_feature": ("summary_modes", "complex_feature"),
+    "abstractive_llm": ("summary_modes", "abstractive_llm"),
+    "legibility_audit": ("meta", "legibility_audit"),
+    "session_state": ("meta", "session_state"),
+}
+
+
+def _sha256_json(payload: object, *, sort_keys: bool = False) -> str:
+    import hashlib
+    import json
+
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=sort_keys, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
+class TestG026OverlayEquivalence:
+    """W-6-guarded proof that the G-026 overlay refactor is byte-equivalent."""
+
+    @pytest.fixture(scope="class")
+    def config(self) -> dict:
+        return load_profiles(PROFILES_YAML)
+
+    def test_g026_section_priorities_match_pre_refactor_snapshot(self, config: dict) -> None:
+        """Every profile's RESOLVED section_priorities map (keys + insertion
+        order + values, post merge-key expansion) must hash-match the
+        vendored pre-refactor expansion. Order matters behaviorally: the
+        ``_build_priority_buckets`` buckets preserve insertion order, which
+        decides which same-tier section wins the budget race."""
+        profiles = config["profiles"]
+        assert set(profiles) == set(_PRE_G026_SECTION_PRIORITY_HASHES), (
+            "G-026 contract: profile SET must be unchanged by the overlay refactor"
+        )
+        mismatches = []
+        for name, expected in _PRE_G026_SECTION_PRIORITY_HASHES.items():
+            pairs = [[k, v] for k, v in profiles[name]["section_priorities"].items()]
+            if _sha256_json(pairs) != expected:
+                mismatches.append(f"{name}: resolved map drifted -> {pairs}")
+        assert not mismatches, (
+            "G-026 violation — resolved section_priorities diverged from the "
+            "pre-refactor expansion for:\n  " + "\n  ".join(mismatches)
+        )
+
+    def test_g026_profiles_equivalent_modulo_ac_generation(self, config: dict) -> None:
+        """Every OTHER profile knob (budgets, model_hints, learnings,
+        advisor, decomposition, tool_output_truncation, summary,
+        behavioral_guidelines, goal_hints, extra_context, rationale, ...)
+        must be value-identical to the pre-refactor expansion.
+        ``ac_generation`` is the single deliberate delta (v14.4.0 G-006
+        impl-class extension), so it is excluded from the hash."""
+        profiles = config["profiles"]
+        mismatches = []
+        for name, expected in _PRE_G026_PROFILE_HASHES.items():
+            rest = {k: v for k, v in profiles[name].items() if k != "ac_generation"}
+            if _sha256_json(rest, sort_keys=True) != expected:
+                mismatches.append(name)
+        assert not mismatches, (
+            "G-026 violation — non-ac_generation profile knobs diverged from "
+            f"the pre-refactor expansion for: {mismatches}"
+        )
+
+    def test_g026_orphan_keys_relocated_with_identical_content(self, config: dict) -> None:
+        """The 4 former orphan top-level keys must (a) keep their TOP-LEVEL
+        back-compat aliases byte-equivalent to the pre-refactor blocks for
+        raw yaml.safe_load consumers, and (b) resolve to the SAME content
+        at their canonical relocated parents (summary_modes: / meta:)."""
+        for orphan, expected in _PRE_G026_ORPHAN_HASHES.items():
+            assert orphan in config, (
+                f"G-026 back-compat violation: top-level alias {orphan!r} missing"
+            )
+            assert _sha256_json(config[orphan], sort_keys=True) == expected, (
+                f"G-026 violation: top-level {orphan!r} content drifted from the pre-refactor block"
+            )
+            parent_key, child_key = _G026_ORPHAN_CANONICAL_PARENTS[orphan]
+            canonical = config.get(parent_key, {}).get(child_key)
+            assert canonical == config[orphan], (
+                f"G-026 violation: canonical {parent_key}.{child_key} does not "
+                f"match the top-level {orphan!r} back-compat alias"
+            )

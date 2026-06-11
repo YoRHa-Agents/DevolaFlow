@@ -33,7 +33,7 @@ Any substantive update to a guide in `workflow-system/human/en/` requires a matc
 
 ### ST-4 — Version Propagation in Human Docs (DS-4)
 
-After bumping version, verify: `README.md` badge, demo `index.html` "What's New", `benchmark-results/index.html` SAMPLE_DATA, all EN/ZH files that mention the version. Run `make sync-human-docs` and `python -m pytest tests/test_version.py -v`.
+After bumping version, verify: demo `index.html` "What's New" and all EN/ZH files that mention the version. The `README.md` version badge and the `benchmark-results/index.html` displayed version are render/load-time DERIVED per C-6 (v14.4.0 G-031) — verify the derivation mechanism stays intact, not a literal. Run `make sync-human-docs` and `python -m pytest tests/test_version.py -v`.
 
 ### ST-5 — Demo Page Consistency Checklist (DS-5)
 

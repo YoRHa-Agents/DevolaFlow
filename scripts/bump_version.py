@@ -44,16 +44,13 @@ VERSION_LOCATIONS = [
         "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
         "replacement": "**Current version:** {version}",
     },
-    {
-        "path": "workflow-system/human/demo/benchmark-results/index.html",
-        "pattern": r'"version":"\d+\.\d+\.\d+"',
-        "replacement": '"version":"{version}"',
-    },
-    {
-        "path": "README.md",
-        "pattern": r"version-\d+\.\d+\.\d+-green",
-        "replacement": "version-{version}-green",
-    },
+    # v14.4.0 G-031: two former pattern-managed surfaces are now DERIVED and
+    # intentionally absent from this list (Rule C-6):
+    #   - README.md version badge → shields.io dynamic TOML badge reading
+    #     pyproject.toml from the GitHub raw URL at render time;
+    #   - workflow-system/human/demo/benchmark-results/index.html SAMPLE_DATA
+    #     version → load-time fetch of ../version-timeline/versions.json
+    #     (newest entry; the in-file literal is a file:// fallback that may lag).
     {
         "path": "README.md",
         "pattern": r'prints "DevolaFlow v\d+\.\d+\.\d+"',

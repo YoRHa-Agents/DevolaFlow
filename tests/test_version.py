@@ -105,22 +105,57 @@ def test_skill_md_body_version_matches(project_root: Path):
     assert match.group(1) == canonical, f"SKILL.md body version {match.group(1)} != {canonical}"
 
 
-def test_readme_version_badge_matches(project_root: Path):
-    """README.md version badge must match __init__.py."""
-    canonical = _read_version_from_init(project_root)
-    readme = project_root / "README.md"
-    match = re.search(r"version-(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)-green", readme.read_text())
-    assert match, "Version badge not found in README.md"
-    assert match.group(1) == canonical, f"README badge version {match.group(1)} != {canonical}"
+def test_readme_version_badge_is_dynamic(project_root: Path):
+    """README version badge derives at render time from pyproject.toml (G-031).
+
+    v14.4.0 replaced the pre-existing value pin (badge literal == __version__)
+    with a mechanism pin: the badge is a shields.io dynamic TOML badge that
+    reads `$.project.version` from the repo's main-branch raw pyproject.toml,
+    so there is no static version literal for bump_version.py to manage.
+    """
+    readme = (project_root / "README.md").read_text()
+    badge = re.search(r"https://img\.shields\.io/badge/dynamic/toml\?(\S+?)\)", readme)
+    assert badge, "dynamic version badge not found in README.md"
+    query_string = badge.group(1)
+    assert "query=%24.project.version" in query_string, "dynamic badge must query $.project.version"
+    assert (
+        "url=https%3A%2F%2Fraw.githubusercontent.com%2FYoRHa-Agents%2FDevolaFlow"
+        "%2Fmain%2Fpyproject.toml" in query_string
+    ), "dynamic badge must read pyproject.toml from the main-branch raw URL"
+    assert not re.search(r"badge/version-\d+\.\d+\.\d+-green", readme), (
+        "static version badge found in README.md — it is no longer "
+        "pattern-managed by bump_version.py and would silently go stale; "
+        "use the shields.io dynamic TOML badge form (C-6 / G-031)"
+    )
 
 
-def test_benchmark_results_version_matches(project_root: Path):
-    """Benchmark results page SAMPLE_DATA version must match __init__.py."""
-    canonical = _read_version_from_init(project_root)
+def test_benchmark_results_version_is_derived(project_root: Path):
+    """Benchmark results page derives its version from versions.json (G-031).
+
+    v14.4.0 replaced the pre-existing value pin (SAMPLE_DATA literal ==
+    __version__) with a mechanism pin: the page fetches
+    ../version-timeline/versions.json at load time and shows the newest
+    entry's version; the SAMPLE_DATA literal is a clearly-marked static
+    fallback for file:// contexts that MAY lag __version__ and is
+    intentionally NOT synced by bump_version.py.
+    """
     bench = project_root / "workflow-system" / "human" / "demo" / "benchmark-results" / "index.html"
-    match = re.search(r'"version":"(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)"', bench.read_text())
-    assert match, "version not found in benchmark-results SAMPLE_DATA"
-    assert match.group(1) == canonical, f"benchmark-results version {match.group(1)} != {canonical}"
+    text = bench.read_text()
+    assert "fetch('../version-timeline/versions.json'" in text, (
+        "load-time version derivation (fetch of ../version-timeline/versions.json) "
+        "missing from benchmark-results/index.html"
+    )
+    # The relative fetch target must exist; scripts/build-site.sh copies
+    # demo/* to the site root, so the repo layout mirrors the deployed one.
+    versions_json = (
+        project_root / "workflow-system" / "human" / "demo" / "version-timeline" / "versions.json"
+    )
+    assert versions_json.is_file(), "version-timeline/versions.json missing"
+    assert "STATIC FALLBACK" in text, (
+        "SAMPLE_DATA fallback must stay clearly marked as a static fallback"
+    )
+    match = re.search(r'"version":"(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)"', text)
+    assert match, "SAMPLE_DATA fallback version literal missing (must stay valid semver)"
 
 
 def test_cli_version_cmd():

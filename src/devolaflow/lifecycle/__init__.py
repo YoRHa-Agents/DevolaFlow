@@ -165,6 +165,18 @@ from devolaflow.lifecycle.validate_owned_files import (
     get_canonical_manifest,
     validate_owned_files,
 )
+from devolaflow.lifecycle.validate_surgical_scope import (
+    DiffStats,
+    FileDiffStat,
+    ScopeViolation,
+    SurgicalScopeError,
+    check_function_scope,
+    check_module_scope,
+    collect_diff_stats,
+    evaluate_surgical_scope,
+    register_surgical_scope_hook,
+    validate_surgical_scope,
+)
 
 # v11.0.0 PV-02 D-Q-3 — NEW canonical lifecycle event names per the
 # `pre_*` / `post_*` / `check_*` taxonomy. Each NEW name is wired as a
@@ -364,11 +376,13 @@ __all__ = [
     "CHECK_ENVELOPE_WRITE_EVENT",
     "CHECK_FILE_WRITE_EVENT",
     "DEFAULT_EVENTS",
+    "DiffStats",
     "DoctorFinding",
     "DoctorReport",
     "ENVELOPE_WRITE_EVENT",
     "FILE_WRITE_EVENT",
     "FORMAT_ON_EDIT_EVENT",
+    "FileDiffStat",
     "HookHandler",
     "HookResult",
     "HookViolation",
@@ -382,15 +396,21 @@ __all__ = [
     "PRE_PLUGIN_INVOCATION_INSTALL_EVENT",
     "PRE_PLUGIN_INVOCATION_UPGRADE_EVENT",
     "PRE_SHELL_CALL_EVENT",
+    "ScopeViolation",
     "Severity",
+    "SurgicalScopeError",
     "TASK_STOP_EVENT",
     "auto_write_handoff",
     "check_envelope_append_only",
     "check_file_ownership",
+    "check_function_scope",
     "check_human_input_append_only",
     "check_init_health",
+    "check_module_scope",
     "clear_hooks",
+    "collect_diff_stats",
     "emit_violations",
+    "evaluate_surgical_scope",
     "finalize",
     "fire_file_write",
     "fire_task_stop",
@@ -405,12 +425,14 @@ __all__ = [
     "pre_plugin_invocation_upgrade",
     "pre_shell_call",
     "register_hook",
+    "register_surgical_scope_hook",
     "registered_events",
     "reject_subagent_quality_score",
     "run_hooks",
     "test_on_complete",
     "validate_dispatch",
     "validate_owned_files",
+    "validate_surgical_scope",
 ]
 
 
@@ -426,3 +448,13 @@ __all__ = [
 # surface is unchanged. Mirrors `_dispatch_executor_dead_api_pins` in
 # `devolaflow.agent_workspace.__init__`.
 _check_human_input_dead_api_pins = (check_human_input_append_only,)
+
+# v14.4.0 T2 — non-import reference that marks `register_surgical_scope_hook`
+# as "alive" for `scripts/detect_dead_apis.py`. The opt-in registration helper
+# is intentionally NOT called at import time: the `task_stop` default chain
+# stays byte-stable at `(test_on_complete,)` (default wiring of the BG-003
+# surgical-scope verifier is a v15.0.0 decision per the ADR-003
+# strict-graduation telegraph), so the helper's only in-repo callers are
+# operators + the test suite (excluded from the dead-API check by
+# `test_dirs`). Mirrors `_check_human_input_dead_api_pins` above.
+_surgical_scope_dead_api_pins = (register_surgical_scope_hook,)

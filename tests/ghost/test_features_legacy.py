@@ -538,11 +538,15 @@ def test_workflow_skill_yaml_template_count_comment(project_root: Path) -> None:
 
 
 def test_claude_md_version_tracking_note(project_root: Path) -> None:
-    """G-K12 pin: CLAUDE.md must claim the canonical 7 sync locations."""
+    """G-K12 pin: CLAUDE.md must claim the canonical 6 sync locations.
+
+    v14.4.0 G-031 reduced the canonical sync set 7 → 6 (README badge +
+    benchmark-demo SAMPLE_DATA became render/load-time DERIVED per C-6).
+    """
     claude = _read(project_root / "CLAUDE.md")
     match = re.search(r"Version tracked across (\d+)\s+canonical sync locations", claude)
     assert match, "CLAUDE.md must say 'Version tracked across N canonical sync locations'"
-    assert match.group(1) == "7", (
+    assert match.group(1) == "6", (
         f"CLAUDE.md claims {match.group(1)} canonical sync locations, "
-        f"expected 7 per CP-3 / SF-3 — G-K12 regressed"
+        f"expected 6 per C-6 (v14.4.0 G-031) — G-K12 regressed"
     )
