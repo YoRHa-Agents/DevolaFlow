@@ -1142,7 +1142,12 @@ def test_v9_1_5_new_symbols_have_coverage(project_root: Path) -> None:
     # (the v9.0.0 PV-07 ADR-007 D3 telegraphed flag) per the v9.2.0 cycle
     # plan §"Self-iteration constraint compliance matrix" "0 new flags
     # across the entire 7-PV cycle".
-    from devolaflow.task_adaptive_selector import (
+    #
+    # v14.5.0 (ADR-006 G-025) ghost-pin update: the two PRIVATE helpers
+    # moved from task_adaptive_selector.py to the new owner module
+    # devolaflow.agents_md_slice (private symbols are not shimmed); the
+    # pin now imports from the re-export truth's owner module.
+    from devolaflow.agents_md_slice import (
         _AGENTS_MD_SLICE_ENV_FLAG,
         _agents_md_slice_env_override,
     )

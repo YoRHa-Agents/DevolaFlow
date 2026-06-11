@@ -177,9 +177,15 @@ Historical NEST decisions (correct because each modified an existing block's int
 
 Historical APPEND decisions (correct because each carried orthogonal cross-block payload): `repos` → pos 13 (v7.2.6 P-06), `behavioral_guidelines` → pos 14 (v8.0.0 P-08), `acceptance_criteria_v2` → pos 15 (v8.0.0 P-10), `change_context` → pos 16 (v8.3.0 PV-05).
 
-### A-2.4 — Multi-Baseline Byte Test
+### A-2.4 — Multi-Baseline Byte Test (Tiered Retention per v15-ADR-005)
 
-Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseline.py` which pins ALL 6 historical baselines (v7.0.0, v7.3.0, v8.0.0 P-08, v8.0.0 P-10, v8.3.0 PV-05, v8.4.0). Any drift in any baseline fails CI immediately. Future schema bumps MUST add a new golden YAML for the new baseline AND keep all prior baselines passing.
+Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseline.py` which pins ALL historical schema-bump witnesses (the `layout_invariant_v*.yaml` golden set under `benchmarks/devolaflow_context/baselines/`). Any drift in any witness fails CI immediately. Future schema bumps MUST add a new golden YAML for the new baseline AND keep all Tier-A witnesses passing.
+
+Baseline retention is TIERED per v15-ADR-005 (G-014), replacing the former keep-all-forever wording:
+
+* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test. IMMUTABLE — never moved, renamed, or pruned; they cannot be regenerated from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
+* **Tier B — rolling window (in CI)**: per-minor `v*_baseline.json` EvoBench JSONs for the current + previous 2 cycles (W-16's comparison window) stay in `benchmarks/devolaflow_context/baselines/`. The newest-baseline pin convention (`_newest_baseline_path`) is unaffected.
+* **Tier C — archived (out of CI)**: per-minor JSONs older than the Tier-B window move via `git mv` to `docs/cycle-archive/<cycle>/baselines/` (W-19's committed-archive surface) — history preserved, never deleted. Files still loaded by in-repo tests stay in place until their readers are re-wired.
 
 ## A-3 — Context Token Budgets
 
@@ -537,15 +543,17 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 ## W-9 — Test-Then-Commit Protocol (SI-10)
 
 Every iteration follows this strict pre-commit sequence — all 7 must pass:
-1. `python -m pytest tests/ -q` — all tests pass
+1. `make test-core` — all tests pass (`pytest tests/ -q --tb=short`, `--ignore`-ing the three files gates 4/5/7 run standalone)
 2. `ruff check src/ tests/` — no lint errors
-3. `ruff format --check src/ tests/` — formatting correct
-4. `python -m pytest tests/test_version.py -v` — version consistency
-5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
+3. `ruff format --check src/ tests/` — formatting correct (`make lint` runs gates 2–3)
+4. `make test-version` — version consistency (`tests/test_version.py`, standalone)
+5. `make test-benchmarks` — no benchmark regressions (`tests/test_benchmarks.py`, standalone)
 6. `make check-cursor-skill` — exit 0
 7. `make iteration-delta-gate` — Si-Chip iteration_delta gate (7th gate per v10.2.1 D-V-1)
 
-`make precommit-full` (alias for `make release-preflight`) is the canonical runner for the full chain; the Makefile is the source of truth for the gate list (recompiled from Makefile truth at v14.2.1 per G-033).
+Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps its own red/green attribution. `make test` stays the undeduplicated full suite (not a chain gate).
+
+`make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus 6 release-only extras (NOT SI-10 gates): `validate-templates`, `build-skill`, `sync-human-docs`, `compile-rules`, `check-drift`, `check-rules-drift`.
 
 ## W-10 — Version Bump Protocol (CP-3)
 

@@ -164,7 +164,16 @@ _V10_2_1_NEW_TEST_FILES: tuple[Path, ...] = (
 
 
 # v10.2.1 PV-02 D-S-2 new public symbol on devolaflow.feedback.
+# v14.5.0 (ADR-006 G-025) ghost-pin update: the symbol's DEFINITION moved
+# to the new owner module src/devolaflow/dispatch.py; the historical
+# devolaflow.feedback import path keeps working via a permanent
+# identity-preserving re-export shim (pinned by
+# tests/test_module_split_shims.py). The AST def pin below follows the
+# re-export truth's owner module.
 _V10_2_1_FEEDBACK_NEW_SYMBOL: str = "dispatch_dogfood_cycle"
+
+
+_V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER: Path = Path("src/devolaflow/dispatch.py")
 
 
 # v10.2.1 PV-02 D-P-2 introspection constant on the lifecycle hook.
@@ -231,8 +240,12 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
             f"corresponding gap closure."
         )
 
-    feedback_path = project_root / "src/devolaflow/feedback.py"
-    assert feedback_path.is_file(), "W-18 v10.2.1 violation: src/devolaflow/feedback.py missing."
+    # v14.5.0 (ADR-006 G-025): definition moved feedback.py → dispatch.py;
+    # the old import path is shimmed (see _V10_2_1_FEEDBACK_NEW_SYMBOL note).
+    feedback_path = project_root / _V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER
+    assert feedback_path.is_file(), (
+        f"W-18 v10.2.1 violation: {_V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER} missing."
+    )
     feedback_source = feedback_path.read_text(encoding="utf-8")
     feedback_module = ast.parse(feedback_source)
     feedback_defined = {
@@ -241,10 +254,17 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
     }
     assert _V10_2_1_FEEDBACK_NEW_SYMBOL in feedback_defined, (
-        f"W-18 v10.2.1 violation: src/devolaflow/feedback.py missing "
+        f"W-18 v10.2.1 violation: {_V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER} missing "
         f"{_V10_2_1_FEEDBACK_NEW_SYMBOL!r}; v10.2.1 PV-02 D-S-2 ships "
         f"this wrapper. Either restore it OR remove the CHANGELOG "
         f"mention of D-S-2."
+    )
+    from devolaflow import dispatch as _dispatch_module
+    from devolaflow import feedback as _feedback_module
+
+    assert _feedback_module.dispatch_dogfood_cycle is _dispatch_module.dispatch_dogfood_cycle, (
+        "W-18 v10.2.1 violation: the devolaflow.feedback re-export shim for "
+        "dispatch_dogfood_cycle must stay identity-preserving (ADR-006)."
     )
 
     pre_plugin_path = project_root / "src/devolaflow/lifecycle/pre_plugin_invocation.py"

@@ -26,7 +26,14 @@ import yaml
 # ``## [12.0.0]`` substring assertions once the rollup CHANGELOG lands.
 # Source: ``.local/research/v12.0.0_gap_analysis.md`` §3 (D-1 spec) + §8.4
 # (PV-07 owns the bump).
-_V12_0_0_PV02_SCORER_FILE: Path = Path("src/devolaflow/gate/scorer.py")
+# v14.5.0 (ADR-006 G-025) ghost-pin update: CascadeViolationError +
+# validate_cascade_gate_fields moved VERBATIM from gate/scorer.py to the
+# new owner module gate/cascade.py; the historical
+# devolaflow.gate.scorer import path keeps working via a permanent
+# identity-preserving re-export shim (pinned by
+# tests/test_module_split_shims.py). The AST pins below follow the
+# re-export truth's owner module.
+_V12_0_0_PV02_SCORER_FILE: Path = Path("src/devolaflow/gate/cascade.py")
 
 
 _V12_0_0_PV02_AUDIT_FILE: Path = Path("scripts/audit_layer_usage.py")
@@ -505,7 +512,14 @@ def test_v12_0_0_pv03_d2_shortcut_simple_retirement(project_root: Path) -> None:
 _V12_0_0_PV04_SCHEMA_FILE: Path = Path("schemas/lean-dispatch.yaml")
 
 
-_V12_0_0_PV04_FEEDBACK_FILE: Path = Path("src/devolaflow/feedback.py")
+# v14.5.0 (ADR-006 G-025) ghost-pin update: populate_cascade_gate_fields —
+# the helper carrying the ``select_pattern(...)`` call this stanza pins —
+# moved VERBATIM from feedback.py to the new owner module gate/cascade.py;
+# the historical devolaflow.feedback import path keeps working via a
+# permanent identity-preserving re-export shim (pinned by
+# tests/test_module_split_shims.py). The AST call pin below follows the
+# re-export truth's owner module.
+_V12_0_0_PV04_FEEDBACK_FILE: Path = Path("src/devolaflow/gate/cascade.py")
 
 
 _V12_0_0_PV04_BASELINE_FILE: Path = Path(

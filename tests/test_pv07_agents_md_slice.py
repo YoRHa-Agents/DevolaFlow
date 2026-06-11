@@ -36,12 +36,18 @@ from pathlib import Path
 import pytest
 import yaml
 
-from devolaflow.task_adaptive_selector import (
+# v14.5.0 (ADR-006 G-025): the private slicing helpers moved to
+# devolaflow.agents_md_slice; the public symbols stay imported from the
+# historical devolaflow.task_adaptive_selector path as living proof of the
+# re-export shims.
+from devolaflow.agents_md_slice import (
     _AGENTS_MD_SLICE_ENV_FLAG,
     _agents_md_slice_env_override,
     _filter_agents_md_by_profile,
     _read_agents_md,
     _split_agents_md_into_layers,
+)
+from devolaflow.task_adaptive_selector import (
     count_agents_md_rules,
     select_agents_md_slice,
 )

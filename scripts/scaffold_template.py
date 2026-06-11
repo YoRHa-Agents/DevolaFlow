@@ -7,7 +7,10 @@ template historically required editing 9 distinct surfaces by hand:
     1. workflow-system/agent/templates/builtin/<name>.yaml
     2. workflow-system/agent/templates/registry.yaml stanza
     3. workflow-system/agent/references/meta-framework.md §4 alias rows
-    4. workflow-system/agent/SKILL.md "Template Quick-Reference" row
+    4. workflow-system/agent/references/meta-framework.md §4
+       "Template Quick-Reference — Gate Types" row (retargeted at
+       v14.5.0 G-019 — the former SKILL.md quick-ref table was demoted;
+       meta-framework.md is the single owner surface)
     5. workflow-system/agent/references/team-roles.md §7 matrix row
     6. tests/test_<name>_template.py
     7. make build-skill (verifier; not authored)
@@ -72,7 +75,6 @@ class ScaffoldPlan:
     builtin_yaml: Path
     registry_yaml: Path
     meta_framework_md: Path
-    skill_md: Path
     team_roles_md: Path
     test_file: Path
 
@@ -119,7 +121,6 @@ def build_plan(
         builtin_yaml=repo_root / "workflow-system/agent/templates/builtin" / f"{name}.yaml",
         registry_yaml=repo_root / "workflow-system/agent/templates/registry.yaml",
         meta_framework_md=repo_root / "workflow-system/agent/references/meta-framework.md",
-        skill_md=repo_root / "workflow-system/agent/SKILL.md",
         team_roles_md=repo_root / "workflow-system/agent/references/team-roles.md",
         test_file=repo_root / "tests" / f"test_{name.replace('-', '_')}_template.py",
     )
@@ -254,23 +255,41 @@ def insert_meta_framework_row(plan: ScaffoldPlan, *, force: bool = False) -> boo
     return True
 
 
-def insert_skill_md_row(plan: ScaffoldPlan, *, force: bool = False) -> bool:
-    """Append a row to SKILL.md "Template Quick-Reference" table."""
-    text = plan.skill_md.read_text(encoding="utf-8")
-    row_marker = f"| {plan.name} |"
-    if row_marker in text and not force:
-        return False
-    new_row = f"| {plan.name} | {len(plan.primitives)} | standard |"
-    section = "## Template Quick-Reference"
+def insert_quick_reference_row(plan: ScaffoldPlan, *, force: bool = False) -> bool:
+    """Append a gate-type row to meta-framework.md §4 quick-reference table.
+
+    Retargeted at v14.5.0 (G-019): the SKILL.md §"Template Quick-Reference"
+    table was demoted; meta-framework.md §"Template Quick-Reference — Gate
+    Types" is the single owner surface for gate-type rows. New templates
+    scaffold with the `standard` gate type — operators upgrade a row to
+    `convergence` by hand where warranted.
+    """
+    text = plan.meta_framework_md.read_text(encoding="utf-8")
+    new_row = f"| {plan.name} | standard |"
+    section = "### Template Quick-Reference — Gate Types"
     idx = text.find(section)
     if idx < 0:
-        text = text.rstrip("\n") + "\n" + new_row + "\n"
-        plan.skill_md.write_text(text, encoding="utf-8")
+        # Degraded tree (no gate-types table yet): append at EOF, mirroring
+        # the historical SKILL.md fallback behaviour.
+        if f"\n| {plan.name} |" in text and not force:
+            return False
+        plan.meta_framework_md.write_text(
+            text.rstrip("\n") + "\n" + new_row + "\n", encoding="utf-8"
+        )
         return True
-    after = text.find("\n\n", idx)
-    insert_at = after if after > 0 else len(text)
-    text = text[:insert_at].rstrip("\n") + "\n" + new_row + text[insert_at:]
-    plan.skill_md.write_text(text, encoding="utf-8")
+    rest = text[idx:]
+    next_heading = re.search(r"\n#{2,4} ", rest[len(section) :])
+    boundary = len(section) + (next_heading.start() if next_heading else len(rest) - len(section))
+    section_body, tail = rest[:boundary], rest[boundary:]
+    if f"\n| {plan.name} |" in section_body and not force:
+        return False
+    lines = section_body.split("\n")
+    row_indexes = [i for i, ln in enumerate(lines) if ln.startswith("|")]
+    if row_indexes:
+        lines.insert(row_indexes[-1] + 1, new_row)
+    else:
+        lines.append(new_row)
+    plan.meta_framework_md.write_text(text[:idx] + "\n".join(lines) + tail, encoding="utf-8")
     return True
 
 
@@ -320,13 +339,14 @@ def write_files(plan: ScaffoldPlan, *, force: bool = False) -> dict[str, str]:
         )
         else "skipped (already present)"
     )
-    actions[str(plan.meta_framework_md)] = (
-        "row inserted"
-        if insert_meta_framework_row(plan, force=force)
-        else "skipped (already present)"
+    alias_status = (
+        "inserted" if insert_meta_framework_row(plan, force=force) else "skipped (already present)"
     )
-    actions[str(plan.skill_md)] = (
-        "row inserted" if insert_skill_md_row(plan, force=force) else "skipped (already present)"
+    quickref_status = (
+        "inserted" if insert_quick_reference_row(plan, force=force) else "skipped (already present)"
+    )
+    actions[str(plan.meta_framework_md)] = (
+        f"§4 alias rows {alias_status}; quick-ref gate-type row {quickref_status}"
     )
     actions[str(plan.team_roles_md)] = (
         "row inserted" if insert_team_roles_row(plan, force=force) else "skipped (already present)"

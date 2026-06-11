@@ -1,7 +1,8 @@
 # DevolaFlow Build System
 # Design ref: design_dual_system.md §4.5
 
-.PHONY: all test lint build-skill sync-human-docs check-drift validate-templates clean install \
+.PHONY: all test test-core test-version test-benchmarks lint build-skill sync-human-docs \
+       check-drift validate-templates clean install \
        build-site release-preflight release-dry-run scaffold-agent agent-reports \
        compile-rules check-rules-drift precommit precommit-fast precommit-full \
        scaffold-template scaffold-reference audit-references audit-long-references
@@ -25,9 +26,56 @@ test:
 test-cov:
 	pytest tests/ -v --tb=short --cov=devolaflow --cov-report=term-missing
 
+# ---------------------------------------------------------------------------
+# v14.5.0 G-033 — SI-10 core gate targets (single-execution chain).
+#
+# The W-9 / SI-10 protocol is 7 gates; `.rules/workflow.mdc` §W-9 is
+# RECOMPILED FROM THIS SECTION (the Makefile is the source of truth for
+# the gate list per the v14.2.1 G-033 recompile). The 7 gates map to 6
+# make targets (`lint` runs gates 2+3):
+#
+#   gate 1  test-core             pytest suite MINUS the standalone gate files
+#   gate 2  lint (ruff check)     no lint errors
+#   gate 3  lint (ruff format)    formatting correct
+#   gate 4  test-version          version consistency (standalone)
+#   gate 5  test-benchmarks       EvoBench regression guard (standalone)
+#   gate 6  check-cursor-skill    cursor-skill mirror in sync
+#   gate 7  iteration-delta-gate  Si-Chip iteration_delta (standalone)
+#
+# Single-execution design (chosen over no-op-with-note): gates 4, 5 and 7
+# run their test files standalone, and gate 1 `--ignore`s exactly those
+# three files, so no test executes twice in one chain run. Failure
+# isolation stays meaningful — a version-consistency or benchmark
+# regression fails its OWN named gate, not a generic step-1 failure
+# (a no-op gate 4/5 would report green without attributable evidence).
+# Each gate remains individually invocable; `make test` keeps the
+# undeduplicated full suite for developer convenience.
+test-core:
+	pytest tests/ -q --tb=short \
+		--ignore=tests/test_version.py \
+		--ignore=tests/test_benchmarks.py \
+		--ignore=tests/test_sichip_iteration_delta_gate.py
+
+test-version:
+	python -m pytest tests/test_version.py -v
+
+test-benchmarks:
+	python -m pytest tests/test_benchmarks.py -v
+
 validate-templates:
 	validate-template --all
 
+# v14.5.0 G-035 (tooling slice) — VERIFIED NO-OP: the `build-skill`
+# console script (devolaflow.cli:build_skill_cmd → build_skill.build_all)
+# is already truth-driven. Without `--tools`, it iterates
+# `AdapterRegistry.list_names()` = the 4 core adapters registered by
+# `adapters/registry.py::create_default_registry` PLUS every YAML
+# adapter discovered under `adapter_configs/*.yaml` by
+# `adapters/data_driven.py::load_data_driven_adapters`. No hardcoded
+# adapter list exists; W-12's "4 core + registered data-driven set"
+# wording (recompiled v14.2.1) matches the implementation. The `--all`
+# flag below is inert vocabulary (only `--tools` is parsed) kept for
+# operator-facing self-documentation.
 build-skill:
 	build-skill --all
 
@@ -144,7 +192,19 @@ iteration-delta-gate:
 	@echo "Si-Chip iteration_delta gate (SI-10 step 7, v10.2.0 cycle)"
 	@python -m pytest tests/test_sichip_iteration_delta_gate.py -q --no-cov
 
-release-preflight: lint test validate-templates build-skill sync-human-docs check-cursor-skill compile-rules check-drift check-rules-drift iteration-delta-gate
+# v14.5.0 G-033 — release-preflight = SI-10 CORE (the 7 W-9 gates, in
+# W-9 order, single-execution per the `test-core` section above) plus
+# the RELEASE-ONLY EXTRAS. The extras are NOT part of the SI-10 gate
+# count; they are release-hygiene targets that only the preflight chain
+# (and `make all`) runs:
+#
+#   release-only extras: validate-templates, build-skill,
+#                        sync-human-docs, compile-rules, check-drift,
+#                        check-rules-drift
+#
+# SI-10 core:           test-core lint test-version test-benchmarks
+#                       check-cursor-skill iteration-delta-gate
+release-preflight: test-core lint test-version test-benchmarks check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift
 	@echo "--- Release preflight PASSED ---"
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"
@@ -284,3 +344,12 @@ release-dry-run:
 clean:
 	rm -rf dist/ build/ *.egg-info .pytest_cache htmlcov .coverage _site/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# v14.5.0 G-036 — D-5 CHANGELOG single-application lint (telegraphed
+# v11.1.0 retro §3 D-5; re-telegraphed v12.5.0 retro §6 #12). Standalone
+# target — deliberately NOT added to the SI-10 chain (the gate-chain
+# reorganization is a separate v14.5.0 task per G-033). CI runs the same
+# script with the PR base sha in .github/workflows/ci.yml.
+.PHONY: lint-changelog
+lint-changelog:
+	@python scripts/lint_changelog.py --base-ref origin/main

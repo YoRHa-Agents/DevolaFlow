@@ -798,24 +798,15 @@ layout_invariant:
     multi_baseline_test: "tests/test_layout_invariant_multi_baseline.py"  # v9-ADR-002 D4
     lcp_threshold_round_1_to_2: 0.80
     lcp_threshold_round_1_to_3: 0.70
-    backward_compat:
-      v4_payloads_still_valid: true
-      v4_to_v5_invariant: "positions 1..15 byte-identical; new key appended at position 16; version field bumped 4 → 5"
-      v7_0_0_baseline_passes: true
-      v7_3_0_baseline_passes: true
-      v8_0_0_p08_baseline_passes: true
-      v8_0_0_p10_baseline_passes: true
-      v8_3_0_pv05_baseline_passes: true
-      v8_4_0_baseline_passes: true
-      v5_to_v6_invariant: "positions 1..16 byte-identical; new key appended at position 17; version field bumped 5 → 6"
-      v9_7_0_baseline_passes: true
-      v9_2_0_baseline_passes: true   # v9.1.4 PV-04 NEST witness; byte-identical to v8.4.0
-      # v12.0.0 PV-04 — gate.subagent_pattern NEST (A-2.3); canonical_order
-      # length STAYS at 17 and version STAYS at 6. The 15th baseline
-      # (layout_invariant_v12.0.0.yaml) witnesses the new NEST sub-field
-      # populated; absence is canonical, so all 14 prior baselines pass
-      # byte-identically. See the v12.0.0 PV-04 schema comment block
-      # above (≈ 30 lines before `layout_invariant:`) for the full
-      # rationale.
-      v10_2_0_baseline_passes: true
-      v12_0_0_baseline_passes: true
+    # v14.5.0 G-014 (v15-ADR-005 same-PR coupling): the former
+    # `backward_compat` block of hand-mirrored `v*_baseline_passes: true`
+    # booleans is GONE — the booleans could never legitimately be false
+    # (CI would fail first), so the block was a write-only sync point.
+    # The canonical, executable witness of every historical baseline
+    # passing is `tests/test_layout_invariant_multi_baseline.py` (the
+    # Tier-A golden set per v15-ADR-005). The schema-version transition
+    # contracts formerly recorded as sibling strings remain normative:
+    # v4 → v5: positions 1..15 byte-identical; new key appended at
+    #   position 16; version field bumped 4 → 5 (v4 payloads still valid).
+    # v5 → v6: positions 1..16 byte-identical; new key appended at
+    #   position 17; version field bumped 5 → 6.

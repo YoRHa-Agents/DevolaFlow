@@ -158,10 +158,17 @@ def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
         "multi-stage-trace.md example in the Quick Action Decision "
         "advisory annotation (D-A-1)."
     )
-    assert "(legacy)" in skill_text, (
-        "W-18 v10.5.0 violation: SKILL.md Template Quick-Reference "
-        "must carry the (legacy) annotation on TIER-2 templates "
-        "(D-A-2 Phase A)."
+    # v14.5.0 (G-019 / T6): the Template Quick-Reference table moved to
+    # references/meta-framework.md §4 "Template Quick-Reference — Gate
+    # Types" (IA demotion pass); the (legacy) annotation pin follows it.
+    meta_framework_text = (
+        project_root / "workflow-system/agent/references/meta-framework.md"
+    ).read_text(encoding="utf-8")
+    assert "(legacy)" in meta_framework_text, (
+        "W-18 v10.5.0 violation: the Template Quick-Reference surface "
+        "(references/meta-framework.md §4 since the v14.5.0 G-019 "
+        "demotion) must carry the (legacy) annotation on TIER-2 "
+        "templates (D-A-2 Phase A)."
     )
 
     agent_workspace_text = (

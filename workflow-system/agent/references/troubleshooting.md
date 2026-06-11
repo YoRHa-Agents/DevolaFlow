@@ -62,6 +62,8 @@ a Part 2 §-section with the diagnostic + fix pattern.
 | `EnvelopeRecord` filename parse rejection | handoff schema | §2.4 | v8.2.4 |
 | Bridge defect (upstream shape vs unit fixture) | Si-Chip / NineS | §2.12 | v10.2.3 PV-04 |
 | Baseline regen scores diverge ~7pp from pytest scoring | tokenization determinism | §2.16 | v11.1.3 D-3 |
+| `devola-init` target fails on a pip-wheel-only install | install / CLI | §2.17 | v9.2.2 (I-001/I-004) |
+| Pre-existing working-tree corruption at cycle entry | working-tree sanity | §2.18 | v12.2.0 retro §4.3 |
 
 ### 2. Diagnostic Patterns
 
@@ -415,6 +417,39 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   divergence surfaced empirically. Source: `docs/cycle-archive/
   v11.1.0/retrospective.md` cycle-close summary; v11.1.3 D-3 closed
   the documentation gap.
+
+#### 2.17 `devola-init` on a pip-wheel-only install (I-001 / I-004)
+
+* **Symptom**: a `devola-init` target aborts on a fresh `pip install`
+  because the `workflow-system/agent/` source tree is missing.
+* **Root cause / contract** (absorbed verbatim from SKILL.md
+  §"Version & Update" at v14.5.0, G-019 / F-P1-4): `pip install` ships
+  the package but the `devola-init` CLI's `cursor` / `claude` / `codex` /
+  `copilot` targets need the `workflow-system/agent/` source tree (not
+  bundled in the wheel). For most install scenarios `devola-init local
+  --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is
+  the shorthand for `--no-compile --no-with-examples`, the lean
+  scaffolding-only install).
+* **Fix**: for other targets, install from a clone:
+  `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`.
+  Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode`
+  shorthand (v9.2.3); full bundle deferred to v9.3.0. See also
+  `tests/test_init_project_pip_wheel.py` (the I-001 closure pins).
+
+#### 2.18 Pre-existing working-tree corruption at cycle entry
+
+* **Symptom**: the SKILL.md §"Repo-Init Pre-Dispatch Contract"
+  working-tree sanity check (`git status` + `git diff --stat HEAD --
+  '*.md' '*.py'` at cycle-entry PV-01) surfaces truncated / drifted
+  files left by a prior interrupted session.
+* **Canonical case study** (absorbed verbatim from SKILL.md at v14.5.0,
+  G-019 / F-P1-4): The v12.2.0 cycle is the canonical example — PV-01
+  surfaced a pre-existing 4787-line CHANGELOG.md truncation +
+  1786-line test_no_ghost_features.py truncation that would have
+  silently invalidated W-18 ghost-audit if not restored first.
+* **Fix**: restore drifted files via `git restore <path>` BEFORE
+  proceeding so the SI-1 entry gate operates on a clean baseline
+  (source: `.local/research/v12.2.0_retrospective.md` §4.3).
 
 ### 3. Escalation Patterns
 

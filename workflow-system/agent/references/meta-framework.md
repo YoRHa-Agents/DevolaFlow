@@ -377,6 +377,40 @@ and the yaml win.
 Optional stages (declared `optional: true` in the yaml; counted above
 because they appear in the `stages:` list): `self-update.si_chip_gate`.
 
+### Template Quick-Reference — Gate Types
+
+Absorbed from the demoted SKILL.md §"Template Quick-Reference" at v14.5.0
+(G-019 IA pass per F-P1-3 / F-P3-5 — template info was triplicated; this
+file is the single owner surface). Gate-type values moved verbatim; stage
+counts live in the catalog above (the yaml truth wins). `(legacy)` markers
+follow the catalog's Phase B note (v15-ADR-002).
+
+| Template | Gate Type |
+|----------|-----------|
+| research-only (legacy) | standard |
+| design-only (legacy) | standard |
+| hotfix (legacy) | standard |
+| refactoring (legacy) | convergence |
+| migration | convergence |
+| spike-poc (legacy) | standard |
+| documentation-only (legacy) | standard |
+| security-audit (legacy) | convergence |
+| feature-enhancement (legacy) | convergence |
+| full-pipeline (legacy) | convergence |
+| research-design-review-refine (legacy) | convergence |
+| demo-showcase (legacy) | standard |
+| performance-optimization (legacy) | convergence |
+| dependency-setup (legacy) | standard |
+| onboarding (legacy) | standard |
+| skill-optimization | convergence |
+| product-verification (legacy) | convergence |
+| nines-assisted | convergence |
+| self-update | convergence |
+| repo-init | standard |
+| entropy-cleanup (legacy) | standard |
+| change-driven | convergence |
+| web-design | convergence |
+
 ### repo-init
 
 | Property | Value |

@@ -7,9 +7,9 @@ const FRAMEWORK = {
     id: "SKILL.md",
     path: "workflow-system/agent/SKILL.md",
     tier: 1,
-    lines: 494,
+    lines: 429,
     tokenEstimate: 3100,
-    purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains 19 sections covering all major concepts as compact summaries with pointers to Tier-2 references. v9.0.0 PV-01 (v8.4.1) compressed PLAN MODE + Reinforcement Rules detail into references/plan-mode-enforcement.md, reclaiming 57 lines of headroom.",
+    purpose: "Entry point for the workflow orchestration skill. Loaded first on intent match. Contains compact section summaries with pointers to Tier-2 references. v9.0.0 PV-01 (v8.4.1) compressed PLAN MODE + Reinforcement Rules detail into references/plan-mode-enforcement.md; the v14.5.0 G-019 IA pass demoted Template Quick-Reference to references/meta-framework.md and tightened the ceremony sections (492 → 429 lines).",
     designSource: "design_delivery_architecture.md §3.4",
     sections: [
       "Version & Update", "Quick Action Decision", "Mode Awareness",

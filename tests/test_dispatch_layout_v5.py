@@ -161,15 +161,24 @@ class TestSchemaFileShape:
             "v4 callers omit it and continue working)"
         )
 
-    def test_backward_compat_block_present(self):
-        """The new ``layout_invariant.enforcement.backward_compat`` block must
-        document the v4 → v5 invariant explicitly (audit trail)."""
+    def test_backward_compat_block_removed(self):
+        """The ``layout_invariant.enforcement.backward_compat`` block must be
+        ABSENT per v15-ADR-005 (v14.5.0 G-014).
+
+        The block's hand-mirrored ``v*_baseline_passes: true`` booleans could
+        never legitimately be false (CI would fail first), so it was a
+        write-only sync point. The canonical, executable witness of every
+        historical baseline passing is
+        ``tests/test_layout_invariant_multi_baseline.py`` (the Tier-A golden
+        set). See `.local/research/adr/v15-ADR-005-benchmark-baseline-tiering.md`.
+        """
         schema = _load_schema()
-        bc = schema["layout_invariant"]["enforcement"].get("backward_compat", {})
-        assert bc, "backward_compat block missing from layout_invariant.enforcement"
-        assert bc.get("v4_payloads_still_valid") is True
-        assert bc.get("v7_0_0_baseline_passes") is True
-        assert bc.get("v7_3_0_baseline_passes") is True
+        assert "backward_compat" not in schema["layout_invariant"]["enforcement"], (
+            "backward_compat block must stay REMOVED from "
+            "layout_invariant.enforcement per v15-ADR-005 — the multi-baseline "
+            "byte test is the executable witness; do not reintroduce the "
+            "hand-mirrored boolean sync point"
+        )
 
 
 # ---------------------------------------------------------------------------

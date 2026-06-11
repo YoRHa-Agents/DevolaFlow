@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v14.3.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v14.5.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -429,11 +429,12 @@ class TestBaselineFile:
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v14.3.0_baseline.json", (
-            f"Expected load_baseline() to prefer v14.3.0_baseline.json "
-            f"(W-16 wholesale regen at the v14.3.0 release close — SKILL.md "
-            f"VERIFY-pointer content change re-equilibrated the hotfix-profile "
-            f"scenarios; the new baseline pins the v14.3.0 equilibrium); "
+        assert newest.name == "v14.5.0_baseline.json", (
+            f"Expected load_baseline() to prefer v14.5.0_baseline.json "
+            f"(W-16 wholesale regen at the v14.5.0 release close — the G-019 "
+            f"SKILL.md IA pass + G-037 timeout deltas drifted 54/57 scenarios "
+            f"vs the v14.3.0 equilibrium, headlined by multi_repo_dispatch "
+            f"+6.52pp; the new baseline pins the v14.5.0 equilibrium); "
             f"got {newest.name}"
         )
 

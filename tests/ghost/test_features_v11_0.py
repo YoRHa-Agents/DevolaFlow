@@ -798,10 +798,17 @@ _V11_0_4_PV04_SCHEMA: Path = Path("schemas/lean-dispatch.yaml")
 _V11_0_4_PV04_TASK_ADAPTIVE: Path = Path("src/devolaflow/task_adaptive_selector.py")
 
 
-_V11_0_4_PV04_FEEDBACK: Path = Path("src/devolaflow/feedback.py")
+# v14.5.0 (ADR-006 G-025) ghost-pin update: the W02 populate helper
+# (formerly feedback.py) and the W03 soft validator (formerly
+# gate/scorer.py) both moved VERBATIM to the new owner module
+# src/devolaflow/gate/cascade.py; the historical import paths keep working
+# via permanent identity-preserving re-export shims (pinned by
+# tests/test_module_split_shims.py). The two source-text pins below follow
+# the re-export truth's owner module.
+_V11_0_4_PV04_FEEDBACK: Path = Path("src/devolaflow/gate/cascade.py")
 
 
-_V11_0_4_PV04_GATE_SCORER: Path = Path("src/devolaflow/gate/scorer.py")
+_V11_0_4_PV04_GATE_SCORER: Path = Path("src/devolaflow/gate/cascade.py")
 
 
 # plan-mode-enforcement.md positive surfaces — must appear post-edit.
@@ -876,13 +883,15 @@ def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
 
     feedback_text = (project_root / _V11_0_4_PV04_FEEDBACK).read_text(encoding="utf-8")
     assert "def populate_cascade_gate_fields(" in feedback_text, (
-        "W-18 v11.0.4 PV-04 violation: feedback.py must export the "
+        "W-18 v11.0.4 PV-04 violation: gate/cascade.py (owner module since "
+        "v14.5.0 ADR-006; shimmed at feedback.py) must export the "
         "`populate_cascade_gate_fields` helper per W02."
     )
 
     gate_scorer_text = (project_root / _V11_0_4_PV04_GATE_SCORER).read_text(encoding="utf-8")
     assert "def validate_cascade_gate_fields(" in gate_scorer_text, (
-        "W-18 v11.0.4 PV-04 violation: gate/scorer.py must export the "
+        "W-18 v11.0.4 PV-04 violation: gate/cascade.py (owner module since "
+        "v14.5.0 ADR-006; shimmed at gate/scorer.py) must export the "
         "`validate_cascade_gate_fields` helper per W03."
     )
 
@@ -1002,9 +1011,13 @@ _V11_0_5_PV05_REMOVED_PIN_NAMES: tuple[tuple[Path, str], ...] = (
 
 
 # DEFAULT_ALLOWLIST replacement entries that take over from the removed pin tuples.
+# v14.5.0 (ADR-006 G-025) ghost-pin update: both symbols' DEFINITIONS moved
+# to src/devolaflow/gate/cascade.py, so the dead-API detector (which keys
+# the allowlist on the DEFINING module) tracks them at the new paths; the
+# historical import paths remain shimmed.
 _V11_0_5_PV05_NEW_ALLOWLIST_ENTRIES: tuple[str, ...] = (
-    '"devolaflow.feedback:populate_cascade_gate_fields"',
-    '"devolaflow.gate.scorer:validate_cascade_gate_fields"',
+    '"devolaflow.gate.cascade:populate_cascade_gate_fields"',
+    '"devolaflow.gate.cascade:validate_cascade_gate_fields"',
 )
 
 

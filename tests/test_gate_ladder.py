@@ -27,6 +27,19 @@ from dataclasses import replace
 
 import pytest
 
+# v14.5.0 (ADR-006 G-025): the private rung-checker helpers moved to
+# devolaflow.gate.ladder; public symbols stay imported from the historical
+# devolaflow.gate.scorer path as living proof of the re-export shims.
+from devolaflow.gate.ladder import (
+    _check_benchmark,
+    _check_convergence,
+    _check_integration,
+    _check_lint,
+    _check_typecheck,
+    _check_unit_test,
+    _ladder_skip,
+    _wrap_check_result,
+)
 from devolaflow.gate.models import (
     LADDER_RUNG_NAMES,
     LADDER_RUNG_ORDER,
@@ -39,14 +52,6 @@ from devolaflow.gate.models import (
 )
 from devolaflow.gate.profiles import AUDIT, PROFILES, RELAXED, STANDARD, STRICT
 from devolaflow.gate.scorer import (
-    _check_benchmark,
-    _check_convergence,
-    _check_integration,
-    _check_lint,
-    _check_typecheck,
-    _check_unit_test,
-    _ladder_skip,
-    _wrap_check_result,
     evaluate_gate,
     evaluate_ladder,
 )

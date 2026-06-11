@@ -3,6 +3,11 @@
 Design ref: design_decomposition_gate.md §5
 """
 
+from devolaflow.gate.acceptance_v2 import (
+    CommandRunResult,
+    aggregate_criterion_verdicts,
+    evaluate_acceptance_criteria_v2,
+)
 from devolaflow.gate.budget import (
     BREAK_UTILIZATION_THRESHOLD,
     WARN_UTILIZATION_THRESHOLD,
@@ -35,6 +40,7 @@ from devolaflow.gate.cycle_detector import (
     MIN_HISTORY_FOR_DETECTION,
     CycleDetector,
 )
+from devolaflow.gate.ladder import evaluate_ladder
 from devolaflow.gate.models import (
     CYCLE_DEFAULT_SEVERITY,
     GATE_TYPE_ALIASES,
@@ -95,12 +101,8 @@ from devolaflow.gate.scorer import (
     ARS_DIMENSION_WEIGHTS,
     DEFAULT_DIMENSION_WEIGHTS,
     SEVERITY_WEIGHTS,
-    CommandRunResult,
-    aggregate_criterion_verdicts,
     composite_score,
-    evaluate_acceptance_criteria_v2,
     evaluate_gate,
-    evaluate_ladder,
     quality_score,
     run_gate_cli,
     score_acceptance_readiness,

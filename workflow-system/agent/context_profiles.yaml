@@ -504,8 +504,19 @@ sections:
   # next-header-at-any-depth contract. Runtime resolution uses the
   # symbolic `section_anchors:` registry entry (heading-based) anyway;
   # this lines value is the deprecated fallback only.
+  # v14.5.0 (G-019 / T6) shift re-anchor — SKILL.md 492 → 429 lines after
+  # the IA demotion pass (product review F-P1-3/F-P3-5/F-P1-4): Session
+  # Banner Contract tightened + install note demoted (−4 from old line 39),
+  # Stage Primitives Index collapsed to one table (−29 more from old line
+  # 282), Template Quick-Reference section demoted to
+  # references/meta-framework.md §4 (−30 more from old line 457). Legacy
+  # envelope SHAPES are preserved (pure arithmetic shift per region, per
+  # the v12.3.0 PV-02/04 + v14.2.2 G-017/G-020 precedent); the two
+  # content-edited sections (version_update / stage_primitives) carry
+  # recomputed envelopes, and task_quality_score / operational_learnings
+  # are re-anchored to their true sections (G-040-style drift fix).
   version_update:
-    lines: "36-39"
+    lines: "36-38"
     tokens_est: 232
     content_type: prose
 
@@ -523,32 +534,32 @@ sections:
   #   * lines 450+   : -10 (Task Quality Score collapse 25 → 3 lines +
   #     PV-04 nav row +1 - prior PV-02 + 12 = net -10)
   workspace_engagement:
-    lines: "52-67"
+    lines: "48-63"
     tokens_est: 240
     content_type: table
 
   quick_action_decision:
-    lines: "68-78"
+    lines: "64-74"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "79-87"
+    lines: "75-83"
     tokens_est: 91
     content_type: prose
 
   plan_mode_template:
-    lines: "88-91"
+    lines: "84-87"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "92-118"
+    lines: "88-114"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "123-152"
+    lines: "119-148"
     tokens_est: 612
     content_type: table
 
@@ -566,37 +577,41 @@ sections:
   # row insertion (post-edit line 445). Slice CONTENT is preserved
   # byte-equal to the pre-edit state (deprecated fallback path only).
   hierarchy_table:
-    lines: "181-195"
+    lines: "177-191"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "181-195"
+    lines: "177-191"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "191-195"
+    lines: "187-191"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "198-209"
+    lines: "194-205"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "211-228"
+    lines: "207-224"
     tokens_est: 226
     content_type: table
 
+  # v14.5.0 (G-019 / T6) — Stage Primitives Index collapsed from six
+  # per-category tables (49 lines) to one combined table (20 lines);
+  # all primitive/purpose/team cells verbatim. Envelope recomputed to
+  # the new content width; tokens_est re-estimated (~340 vs 413).
   stage_primitives:
-    lines: "230-278"
-    tokens_est: 413
+    lines: "226-245"
+    tokens_est: 340
     content_type: table
 
   gate_mechanism:
-    lines: "280-296"
+    lines: "247-263"
     tokens_est: 229
     content_type: formula
 
@@ -604,42 +619,42 @@ sections:
   # Reference" header (had drifted onto §### "Reinforcement Rules" since
   # v13.0.0); end recomputed per realign_section_anchors.py.
   agent_teams:
-    lines: "304-315"
+    lines: "271-282"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "313-330"
+    lines: "280-297"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "347-379"
+    lines: "314-346"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "381-391"
+    lines: "348-358"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "393-402"
+    lines: "360-369"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "404-448"
+    lines: "371-415"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "404-448"
+    lines: "371-415"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "298-300"
+    lines: "265-267"
     tokens_est: 100
     content_type: spec
 
@@ -655,15 +670,23 @@ sections:
   # `.local/research/v12.4.0_l0_only_audit.md` §A.2 — 14 profiles
   # demoted from supplementary/important/critical → skip; only L0-only
   # workflows consume this stub.
+  # v14.5.0 (G-019 / T6) — re-anchored to the TRUE §"Task Quality Score
+  # (L0 ONLY)" header (the fallback range had drifted onto Template
+  # Quick-Reference table rows across the v12.3.0+ shifts; G-040-style
+  # drift fix). Header-start range; realign_section_anchors.py now
+  # maintains the end bound.
   task_quality_score:
-    lines: "479-481"
+    lines: "424-427"
     tokens_est: 60
     content_type: spec
 
-  template_quick_ref:
-    lines: "450-477"
-    tokens_est: 188
-    content_type: table
+  # v14.5.0 (G-019 / T6) — `template_quick_ref` section REMOVED. The
+  # SKILL.md §"Template Quick-Reference" table was demoted to
+  # references/meta-framework.md §4 "Template Quick-Reference — Gate
+  # Types" (product review F-P3-5: template info was triplicated; the
+  # meta-framework catalog is the single owner surface). The section
+  # priority was `skip` in ALL 24 profiles (defaults map only; zero
+  # per-profile deltas), so no dispatch context ever carried it.
 
   nines_advisor:
     lines: "N/A"
@@ -682,8 +705,13 @@ sections:
   # carry an explicit `operational_learnings: skip` row per the audit
   # to make the discipline explicit at the YAML surface (was: 1 — only
   # `repo-init` had the explicit row pre-PV-05).
+  # v14.5.0 (G-019 / T6) — re-anchored to the true §"Operational
+  # Learnings" body line (the fallback range had drifted onto Template
+  # Quick-Reference rows). Deliberately a NON-header start so the
+  # single-paragraph body stays in the slice (the realign script's
+  # last-section recompute would otherwise truncate to the heading).
   operational_learnings:
-    lines: "483-485"
+    lines: "429-429"
     tokens_est: 150
     content_type: prose
     priority_default: skip
@@ -704,8 +732,11 @@ sections:
 # repo-init) keep explicit maps — their key sets/orders differ, and a
 # merge would ADD default keys their resolved maps never carried.
 defaults:
-  # Canonical 26-key section-priority map. Per-key default = the most
-  # common value across the 19 canonical-order profiles. L0-only rows
+  # Canonical 25-key section-priority map (26 → 25 at v14.5.0 G-019:
+  # `template_quick_ref` removed with the SKILL.md section demotion to
+  # references/meta-framework.md §4 — it was `skip` in all 24 profiles).
+  # Per-key default = the most common value across the 19
+  # canonical-order profiles. L0-only rows
   # (version_update / task_quality_score / operational_learnings) are
   # skip per the v12.4.0 PV-05 D-4 audit — `self_update` is the single
   # documented exception (overrides version_update/frontmatter in its
@@ -735,7 +766,6 @@ defaults:
     convergence_loop: skip
     task_quality_score: skip
     operational_learnings: skip
-    template_quick_ref: skip
     nines_advisor: supplementary
 
   # Operational-learnings injection knobs (v7.x baseline).
@@ -797,6 +827,28 @@ defaults:
     enabled: true
     min_quality_threshold: 60.0
     id_prefix: "AC"
+
+  # v14.5.0 (G-037) — Timeout-class SSOT map. Canonical home for the
+  # per-task-type ``timeout_seconds`` defaults that ``select_context()``
+  # auto-populates (graduation of the v12.3.0 PV-04 discovery hint in
+  # references/execution-protocol.md §14). Values mirror the normative
+  # SKILL.md §"Subagent Hang Prevention" L0 contract verbatim:
+  # research=2700 / impl=1800 / test=900 / review=1200 / hotfix=600;
+  # ``fallback`` (7200) is the fail-safe ceiling, not a target. The
+  # library mirror ``task_adaptive_selector.TASK_TYPE_TIMEOUT_DEFAULTS``
+  # (+ TASK_TYPE_TIMEOUT_FALLBACK) stays for direct operator call-sites
+  # (``default_timeout_for``); lock-step is pinned by
+  # tests/test_task_adaptive_selector.py::TestG037TimeoutClassResolution.
+  # Per-profile delta discipline: a profile carries ``timeout_class:``
+  # ONLY where its class differs from the ``impl`` default (delta-only
+  # overlay per G-026).
+  timeout_class_map:
+    research: 2700
+    impl: 1800
+    test: 900
+    review: 1200
+    hotfix: 600
+    fallback: 7200
 
 # v14.4.0 (G-026) — Summariser opt-in modes. Canonical home for the two
 # summarisation opt-in blocks that previously sat as top-level orphans
@@ -863,6 +915,7 @@ profiles:
       - "SEV2"
       - "production down"
     token_budget: 2400
+    timeout_class: hotfix  # v14.5.0 G-037 — delta from impl default (600s)
     model_hints:
       default_tier: balanced
       overrides:
@@ -953,6 +1006,7 @@ profiles:
       - "which"
       - "should we"
     token_budget: 3300
+    timeout_class: research  # v14.5.0 G-037 — delta from impl default (2700s)
     model_hints:
       default_tier: balanced
       overrides:
@@ -1035,6 +1089,7 @@ profiles:
       - "code review"
       - "design review"
     token_budget: 3850
+    timeout_class: review  # v14.5.0 G-037 — delta from impl default (1200s)
     model_hints:
       default_tier: quality
       overrides:
@@ -1524,6 +1579,7 @@ profiles:
       - "learnings"
       - "retrospective"
     token_budget: 2475
+    timeout_class: review  # v14.5.0 G-037 — evaluation profile; review class (1200s)
     model_hints:
       default_tier: budget
       overrides:
@@ -1561,6 +1617,7 @@ profiles:
       - "visual fidelity"
       - "visual test"
     token_budget: 4000
+    timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
     model_hints:
       default: balanced
       code_heavy: quality
@@ -1592,6 +1649,7 @@ profiles:
       - "UAT validation"
       - "acceptance criteria test"
     token_budget: 4000
+    timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
     model_hints:
       default: balanced
       code_heavy: quality
@@ -1628,6 +1686,7 @@ profiles:
       - "accessibility compliance"
       - "interaction test"
     token_budget: 4000
+    timeout_class: test  # v14.5.0 G-037 — verification profile; test class (900s)
     model_hints:
       default: balanced
       code_heavy: quality
@@ -1688,6 +1747,7 @@ profiles:
       - "user-facing quality"
       - "verification pipeline"
     token_budget: 6000
+    timeout_class: test  # v14.5.0 G-037 — verification pipeline; test class (900s)
     model_hints:
       default: quality
       code_heavy: quality

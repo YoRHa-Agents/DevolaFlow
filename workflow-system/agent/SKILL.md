@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "14.4.0"
+version: "14.5.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,26 +29,22 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v14.4.0**
+> **Now Using DevolaFlow v14.5.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 14.4.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`
-If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola").
+**Current version:** 14.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`; if newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola"). Wheel-only installs: see `references/troubleshooting.md` §2.17 (I-001/I-004 — `devola-init local --mode=core` works; other targets need a clone).
 
 ### Session Banner Contract (v12.3.0+)
 
-L0 MUST echo the active devola version on session boundaries so operators see live confirmation of orchestrator + version (closes `.local/feedbacks/feedback_for_v12.1.1.md` #1):
+L0 MUST echo the active devola version on session boundaries (closes `.local/feedbacks/feedback_for_v12.1.1.md` #1), using the literal version string from this §"Version & Update" header (kept in sync by `scripts/bump_version.py`):
 
-* **Workflow start** (first message after skill activation OR first dispatch): emit one line — `🌸 DevolaFlow vX.Y.Z active · workflow: <type> · mode: <agent|plan|grill>`. Use the literal version string from this §"Version & Update" header (kept in sync by `scripts/bump_version.py`).
-* **Workflow end** (final report after the last stage completes): emit one line — `🌸 DevolaFlow vX.Y.Z complete · <stages> stages · <waves> waves · <tasks> tasks` (omit counts for SIMPLE/TRIVIAL single-task shortcuts).
-* **Task Quality Score footer** (per `references/task-quality-score.md`): footer line MUST include the literal version string `DevolaFlow vX.Y.Z` so the score artifact is self-describing in chat logs.
+* **Workflow start** (first message after skill activation OR first dispatch): `🌸 DevolaFlow vX.Y.Z active · workflow: <type> · mode: <agent|plan|grill>`
+* **Workflow end** (final report after the last stage completes): `🌸 DevolaFlow vX.Y.Z complete · <stages> stages · <waves> waves · <tasks> tasks` (omit counts for SIMPLE/TRIVIAL single-task shortcuts)
+* **Task Quality Score footer** (per `references/task-quality-score.md`): MUST include the literal version string `DevolaFlow vX.Y.Z`
 
-Banner output is for the OPERATOR (chat output), NOT for inter-layer dispatch payloads — keep dispatch / handoff envelopes free of decorative banners per CO-2.
-Subagent (L1/L2/L3) reports MUST NOT include banner lines — see PV-05 runtime hook `reject_subagent_banner_emission`. Banners are L0-only operator chat output.
-
-**Note (v9.2.2+)**: `pip install` ships the package but the `devola-init` CLI's `cursor` / `claude` / `codex` / `copilot` targets need the `workflow-system/agent/` source tree (not bundled in the wheel). For most install scenarios `devola-init local --mode=core` works on a wheel-only install (v9.2.3+ — `--mode=core` is the shorthand for `--no-compile --no-with-examples`, the lean scaffolding-only install). For other targets, install from a clone: `git clone https://github.com/YoRHa-Agents/DevolaFlow && pip install -e ./DevolaFlow`. Tracked in I-001 (fixed v9.2.2) + I-004 (doc v9.2.2) + `--mode` shorthand (v9.2.3); full bundle deferred to v9.3.0.
+Banner output is for the OPERATOR (chat output), NOT for inter-layer dispatch / handoff envelopes (CO-2). Subagent (L1/L2/L3) reports MUST NOT include banner lines — see PV-05 runtime hook `reject_subagent_banner_emission`. Banners are L0-only operator chat output.
 
 ## Workspace Engagement (Read at Session Start)
 
@@ -170,7 +166,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 
 **Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 8 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 8 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
 
-**Working-tree sanity check (v12.3.0 PV-04 — `.local/research/v12.2.0_retrospective.md` §4.3 learning):** at cycle-entry PV-01 (before authoring the SI-1 gap analysis), L0 MUST run `git status` + `git diff --stat HEAD -- '*.md' '*.py'` to surface pre-existing working-tree corruption (e.g. truncated CHANGELOG.md / test_no_ghost_features.py from a prior interrupted session). Restore drifted files via `git restore <path>` BEFORE proceeding so the SI-1 entry gate operates on a clean baseline. The v12.2.0 cycle is the canonical example — PV-01 surfaced a pre-existing 4787-line CHANGELOG.md truncation + 1786-line test_no_ghost_features.py truncation that would have silently invalidated W-18 ghost-audit if not restored first.
+**Working-tree sanity check (v12.3.0 PV-04 — `.local/research/v12.2.0_retrospective.md` §4.3 learning):** at cycle-entry PV-01 (before authoring the SI-1 gap analysis), L0 MUST run `git status` + `git diff --stat HEAD -- '*.md' '*.py'` to surface pre-existing working-tree corruption (e.g. truncated CHANGELOG.md / test_no_ghost_features.py from a prior interrupted session). Restore drifted files via `git restore <path>` BEFORE proceeding so the SI-1 entry gate operates on a clean baseline. Canonical case study: `references/troubleshooting.md` §2.18.
 
 **Selection heuristics:**
 
@@ -232,53 +228,24 @@ L2 Wave auto-selects mode via O(|V|+|E|) DAG analysis. L1 may override (`topolog
 
 ## Stage Primitives Index
 
-14 universal primitives across 6 categories. Every workflow is a composition of these.
+| Category | Primitive | Purpose | Default Team |
+|---|---|---|---|
+| Discover | `research` | Gather info, survey prior art, benchmark alternatives | Research |
+| Discover | `analyze` | Examine existing artifacts for structured assessment | Research |
+| Shape | `design` | Synthesize inputs into architecture, API spec, schema, ADRs | Design |
+| Shape | `plan` | Decompose design into waves and tasks with dependencies | Design |
+| Build | `implement` | Write code, create tests, build configs per design spec | Implement |
+| Build | `refine` | Address review/test findings — fix bugs, resolve comments | Implement |
+| Verify | `review` | Evaluate artifacts against quality standards, produce findings | Review |
+| Verify | `test` | Execute test suites, measure coverage and performance | Test |
+| Verify | `validate` | Aggregate verification results into readiness verdict | Review |
+| Verify | `verify` | User-facing validation: visual regression, acceptance verification, interaction flows, accessibility | Test |
+| Deliver | `release` | Package, tag, publish artifacts, update changelog | Implement |
+| Deliver | `deploy` | Deploy released artifacts to target environments | Implement |
+| Deliver | `monitor` | Post-deploy observation, anomaly detection, stability check | Test |
+| Control | `gate` | Quality checkpoint blocking progression unless criteria met | (orchestrator) |
 
-**Discover:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `research` | Gather info, survey prior art, benchmark alternatives | Research |
-| `analyze` | Examine existing artifacts for structured assessment | Research |
-
-**Shape:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `design` | Synthesize inputs into architecture, API spec, schema, ADRs | Design |
-| `plan` | Decompose design into waves and tasks with dependencies | Design |
-
-**Build:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `implement` | Write code, create tests, build configs per design spec | Implement |
-| `refine` | Address review/test findings — fix bugs, resolve comments | Implement |
-
-**Verify:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `review` | Evaluate artifacts against quality standards, produce findings | Review |
-| `test` | Execute test suites, measure coverage and performance | Test |
-| `validate` | Aggregate verification results into readiness verdict | Review |
-| `verify` | User-facing validation: visual regression, acceptance verification, interaction flows, accessibility | Test |
-
-**Deliver:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `release` | Package, tag, publish artifacts, update changelog | Implement |
-| `deploy` | Deploy released artifacts to target environments | Implement |
-| `monitor` | Post-deploy observation, anomaly detection, stability check | Test |
-
-**Control:**
-
-| Primitive | Purpose | Default Team |
-|---|---|---|
-| `gate` | Quality checkpoint blocking progression unless criteria met | (orchestrator) |
-
-**Composition operators:** `sequence` (→), `parallel` (||), `choice` (⊕), `loop` (↻), `gate` (⊣). Full alias table + per-workflow sequences: `references/meta-framework.md`
+14 universal primitives across 6 categories — every workflow is a composition of these. **Composition operators:** `sequence` (→), `parallel` (||), `choice` (⊕), `loop` (↻), `gate` (⊣). Full alias table + per-workflow sequences: `references/meta-framework.md`
 
 ## Gate Mechanism
 
@@ -427,7 +394,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/human-surface.md` | `.local/human/` INPUT (immutable REQ-IDs + constitution + amendments) + OUTPUT (convergence report + DIGEST); `trace_requirements`/`lint_human`/`render_human_report`; scan fields |
 | `references/impeccable.md` | Design refinement + no-LLM anti-pattern detector; 23 /impeccable commands; `impeccable detect` exit-code gate; ui-pro → impeccable web-design composition; degraded-mode contract |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
-| `references/meta-framework.md` | Workflow instantiation, stage ordering |
+| `references/meta-framework.md` | Workflow instantiation, stage ordering, template quick-reference (stages + gate types + `(legacy)` markers — §4) |
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
 | `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |
@@ -453,36 +420,6 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `knowledge/index.md` | Knowledge page catalog, selective loading |
 | `knowledge/code-rules-mapping.md` | Code-to-rule lineage (S/A/C/W/ST taxonomy) |
 | `knowledge/principle-mapping.md` | P0–P6 principle ↔ rule trace |
-
-## Template Quick-Reference
-
-`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+ per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit.
-
-| Template | Stages | Gate Type |
-|----------|--------|-----------|
-| research-only (legacy) | 3 | standard |
-| design-only (legacy) | 3 | standard |
-| hotfix (legacy) | 4 | standard |
-| refactoring (legacy) | 5 | convergence |
-| migration | 5 | convergence |
-| spike-poc (legacy) | 3 | standard |
-| documentation-only (legacy) | 3 | standard |
-| security-audit (legacy) | 5 | convergence |
-| feature-enhancement (legacy) | 7 | convergence |
-| full-pipeline (legacy) | 8 | convergence |
-| research-design-review-refine (legacy) | 4-5 | convergence |
-| demo-showcase (legacy) | 6 | standard |
-| performance-optimization (legacy) | 5 | convergence |
-| dependency-setup (legacy) | 4 | standard |
-| onboarding (legacy) | 4 | standard |
-| skill-optimization | 6 | convergence |
-| product-verification (legacy) | 8 | convergence |
-| nines-assisted | 9 | convergence |
-| self-update | 7 | convergence |
-| repo-init | 5 | standard |
-| entropy-cleanup (legacy) | 4 | standard |
-| change-driven | 4 | convergence |
-| web-design | 4 | convergence |
 
 ## Task Quality Score (L0 ONLY)
 

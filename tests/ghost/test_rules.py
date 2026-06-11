@@ -214,6 +214,29 @@ def test_rule_count_under_cap(project_root: Path) -> None:
         f"sources carry {on_disk_total} rule-id headings in total."
     )
 
+    # ----- G-009 interim pin (v14.5.0; v14.2.0 gap §4.2 #7) -----------------
+    # v15-ADR-004 (RATIFIED): the cap denominator is the FULL `.rules/` source
+    # corpus (all 5 layers including Style), and the 60 HARD cap stays — but
+    # until the v15.0.0 rule-diet lands, the strict cap assertion above keeps
+    # the compiled-AGENTS.md denominator (Style compiles only to the cursor
+    # target, so AGENTS.md counts well under 60). Interim contract: pin the
+    # DOCUMENTED on-disk denominator (62 per `.rules/index.md` "Total rules")
+    # so the over-cap state (62 > 60) is visible-not-silent and any source-
+    # corpus growth/shrink surfaces here instead of drifting.
+    # EXPIRY: strict full-corpus re-pin (denominator = `.rules/` corpus,
+    # asserted ≤ 60, diet target ≤ 55) after the v15.0.0 rule-diet lands; see
+    # `.local/research/adr/v15-ADR-004-rule-cap-denominator-and-rule-diet.md`.
+    _g009_documented_denominator = 62
+    assert on_disk_total == _g009_documented_denominator, (
+        f"G-009 interim pin: the on-disk .rules/ corpus carries "
+        f"{on_disk_total} rule-id headings but the documented interim "
+        f"denominator is {_g009_documented_denominator} (v15-ADR-004; "
+        f"cap 60 HARD applies to the compiled corpus until the v15.0.0 "
+        f"rule-diet). If a rule was deliberately added/removed, update "
+        f"`.rules/index.md` AND this pin in the same PR — or, post-diet, "
+        f"replace this interim pin with the strict full-corpus cap re-pin."
+    )
+
 
 def test_rule_surfaces_compile_only(project_root: Path) -> None:
     """ADR-007 D2 + D5: `.cursor/rules/*.mdc` files must be compile-only.

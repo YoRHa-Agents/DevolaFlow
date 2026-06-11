@@ -31,18 +31,15 @@ def _seed_repo(root: Path) -> None:
         'schema_version: "1.0"\n\ntemplates:\n  - name: hotfix\n    path: builtin/hotfix.yaml\n',
         encoding="utf-8",
     )
-    (root / "workflow-system/agent/SKILL.md").write_text(
-        "# DevolaFlow\n\n## Template Quick-Reference\n\n"
-        "| Template | Stages | Gate Type |\n"
-        "|----------|--------|-----------|\n"
-        "| hotfix | 4 | standard |\n\n"
-        "## Next section\n",
-        encoding="utf-8",
-    )
     (root / "workflow-system/agent/references/meta-framework.md").write_text(
         "## 4. Alias Mapping Table\n\n| Alias | Maps To | Workflow |\n|---|---|---|\n"
         "| fix | implement | hotfix |\n\n"
-        "**Composition operators**: sequence, parallel.\n",
+        "**Composition operators**: sequence, parallel.\n\n"
+        "### Template Quick-Reference — Gate Types\n\n"
+        "| Template | Gate Type |\n"
+        "|----------|-----------|\n"
+        "| hotfix | standard |\n\n"
+        "## 5. Next section\n",
         encoding="utf-8",
     )
     (root / "workflow-system/agent/references/team-roles.md").write_text(
@@ -120,8 +117,18 @@ def test_happy_path_creates_all_surfaces(scaffold_template_module, tmp_path: Pat
         encoding="utf-8"
     )
     assert "name: demo-flow" in registry
-    skill = (tmp_path / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
-    assert "| demo-flow |" in skill
+    meta_framework = (tmp_path / "workflow-system/agent/references/meta-framework.md").read_text(
+        encoding="utf-8"
+    )
+    assert "| analyze | analyze | demo-flow |" in meta_framework, (
+        "scaffolder must insert the §4 alias-mapping rows"
+    )
+    quick_ref_section = meta_framework.split("### Template Quick-Reference — Gate Types", 1)[1]
+    quick_ref_table = quick_ref_section.split("## 5.", 1)[0]
+    assert "| demo-flow | standard |" in quick_ref_table, (
+        "scaffolder must insert the gate-type row into the meta-framework.md §4 "
+        "quick-reference table (retargeted from SKILL.md at v14.5.0 G-019)"
+    )
     team_roles = (tmp_path / "workflow-system/agent/references/team-roles.md").read_text(
         encoding="utf-8"
     )
