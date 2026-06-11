@@ -5,6 +5,44 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [14.2.1] - 2026-06-12 — PATCH — Rule-Corpus Hygiene: Legacy-File Dedup + Compiler/Bump Hard-Fails + Lean-Report Doctrine Rename
+
+**PATCH — rule-corpus + tooling hygiene batch (gap register G-008/G-012/G-013/G-021/G-028/G-032/G-033/G-034).** The headline is the **G-008 rule-corpus dedup**: the 4 remaining fully-migrated legacy `.cursor/rules/*.mdc` files (`change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`, `skill-format-rules.mdc`) are demoted to deprecated pointer stubs — `devolaflow.local.drift::DEPRECATED_STUB_FILES` now registers **6** stubs (2 at v9.0.0 PV-07 + these 4), each fingerprint-pinned in `.rules/.compile-hashes.json` — cutting duplicated always-applied prompt mass (net −118 lines across the 4 files) while `.rules/` stays canonical. Two silent-failure surfaces become hard-fails per S-5: `RuleCompiler` raises the NEW `TokenBudgetExceededError` on token-budget overflow (previously truncated layers silently), and `scripts/bump_version.py` exits 1 when a canonical location's version regex matches nothing (previously a silently-partial bump exited 0). Dead rule **C-8 (C++ braces) is deleted** from `.rules/conventions.mdc` per G-012 (zero C++ files in repo; remaining ids NOT renumbered). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### Operator-visible behaviour changes (READ FIRST)
+
+**Legacy rule files are pointer stubs now (G-008).** Tooling that read CP-1..CP-7 / CO-1..CO-6 / SI-1..SI-10 / SF-1..SF-6 from the 4 legacy files must switch to `.cursor/rules/repo-governance.mdc` (compiled corpus) or the canonical `.rules/*.mdc` layer sources. Hand-edits to any of the 6 registered stubs now fail `tests/test_no_ghost_features.py::test_rule_surfaces_compile_only` (drift detection).
+
+**`RuleCompiler.compile_all` hard-fails on overflow (S-5).** A compile whose rendered output exceeds `targets.<name>.token_budget` raises `TokenBudgetExceededError` naming the target and the dropped layers, and writes NO outputs — the pre-v14.2.1 behaviour silently truncated lower-priority layers (the v11.4.0-era "W-24 push silently dropped the Style layer" failure mode is now impossible).
+
+**`scripts/bump_version.py` hard-fails on pattern miss (G-032 / S-5).** A canonical location whose file exists but whose version pattern matches nothing prints `MISS` + exits 1 (the bump is incomplete); absent files stay a soft `SKIP` (opt-in mirrors / partial checkouts). NEW `root=` kwarg on `bump()` for test isolation. Pinned by NEW `tests/test_bump_version.py`.
+
+**`metrics.quality` → `metrics.gate_input_score` (G-013).** `schemas/lean-report.yaml` renames the lean StatusReport metrics field with an inline doctrine note: it is gate-dimension input evidence, NOT the Task Quality Score (L0-only per `references/task-quality-score.md`) — subagent reports DO NOT carry a `quality_score`. Pinned by NEW `tests/test_lean_report_schema.py`.
+
+**C-8 deleted (G-012).** `.rules/conventions.mdc` drops C-8; ids NOT renumbered (C-1..C-7 + C-9 remain). Fallout reconciled: `workflow-system/agent/context_profiles.yaml` hotfix + review `agents_md_slice` profiles drop the `"C-8"` entry, and `tests/test_pv07_agents_md_slice.py::test_slice_hotfix_includes_only_relevant_layers` pins `{C-1, C-2, C-3}`.
+
+### Recompiles + count reconciliation
+
+- **W-9 recompiled to Makefile truth (G-033)** — the SI-10 pre-commit sequence is **7 gates** (adds `make iteration-delta-gate`, the Si-Chip iteration_delta gate per v10.2.1 D-V-1); `make precommit-full` (alias `make release-preflight`) is the canonical runner.
+- **W-12 wording** — adapter build obligation covers the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`).
+- **W-17 recipe fixed** — the NEW-test-function count command is `git diff <previous-tag>..HEAD -- tests/ | grep -cE '^\+\s*def test_'` (the old `--stat`-based recipe counted nothing).
+- **`.rules/index.md` counts fixed + G-034 parity lint** — header declares **Total rules: 62** (10 S + 7 A + 8 C + 24 W + 13 ST); `tests/test_no_ghost_features.py::test_rule_count_under_cap` now asserts per-layer declared counts ↔ on-disk `.rules/*.mdc` rule-id headings parity.
+- **Count pins SSOT-derived (G-028)** — `tests/test_adapter_golden.py` derives reference/example counts from `_SF4_REFERENCE_SET` + `scripts/sync_cursor_skill.py::MIRRORED_FILES`; `tests/test_agent_workspace_schemas.py` derives schema counts from the schema index (no more hardcoded `== 24` / `== 10` literals).
+- **si-chip probe fixed (G-021)** — `workflow-system/agent/plugins.yaml` `version_command` copied verbatim from `knowledge/runtime-plugins.yaml` (the pre-v14.2.1 heuristic ALWAYS reported `si-chip/0.4.0` regardless of installed version); full registry unification deferred to v15.0.0.
+- **`schemas/lean-dispatch.yaml` stale comments era-scoped** — the "length stays 13 / version stays 2" NEST comments now cite their landing era (13/2 at v8.0.0; 17/6 since v9.7.0 PV-02 — `layout_invariant` is authoritative).
+- **Doc-surface reconciliation** — demo `index.html` Repository Rules card 42 → **62** with the `test_demo_index_rules_count` lint re-derived from canonical `.rules/*.mdc` headings; README rule-surface table rewritten to compiled-corpus truth (`.rules/` canonical; 6 legacy files are pointer stubs; C-1..C-7 + C-9); `.gitignore` mirror comment repointed from the retired skill-format SF-3 citation to `.rules/conventions.mdc` §C-6.
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+- `src/devolaflow/local/compiler.py` — NEW `TokenBudgetExceededError`; `compile_all` overflow path raises instead of truncating (3 NEW tests in `tests/test_local_compiler.py`).
+- `scripts/bump_version.py` — hard-fail on canonical pattern miss + NEW `root=` kwarg (NEW `tests/test_bump_version.py`, 3 tests).
+- `schemas/lean-report.yaml` — `metrics.gate_input_score` doctrine rename (NEW `tests/test_lean_report_schema.py`, 2 tests).
+- `src/devolaflow/local/drift.py` — `DEPRECATED_STUB_FILES` grows 2 → 6 (stub fingerprints in `.rules/.compile-hashes.json`).
+
+### Verification
+
+- W-9/SI-10 gates GREEN (suite / ruff check / ruff format / version / benchmarks / check-cursor-skill); W-4 `tests/test_benchmarks.py` PASS against `benchmarks/devolaflow_context/baselines/v14.1.0_baseline.json` (W-16: no drift — wholesale regen stays deferred to cycle close); W-17 **+8 NEW test functions** (3 compiler + 5 tooling/schema; ≤ 30/PV cap; the 2 schema-count pins are renames of deleted hardcoded tests); zero new env flags; `canonical_order` stays 17.
+
 ## [14.2.0] - 2026-06-12 — MINOR — REQ-OUT-01 Digest Budget Promoted Advisory → BLOCKING + v15-Cycle Entry
 
 **MINOR — discharges the v14.0.0 design §8b telegraph + opens the v15-cycle ladder.** The headline is the **REQ-OUT-01 advisory → BLOCKING promotion**: the v14.0.0 design telegraphed verbatim "REQ-OUT-01 lint is advisory this cycle; promote to blocking in v14.2.0" — this release lands it. The reporter's human-OUTPUT emission paths now enforce the `output/DIGEST.md` C-9 token budget (soft 600 / hard 1000) BEFORE writing: an over-hard-ceiling digest raises the NEW `HumanBudgetExceededError` (the `--human` CLI exits 1) instead of silently writing an over-budget artifact, while the soft tier stays advisory (warn + write proceeds — the documented C-9 escape hatch). The release ALSO runs the v15-cycle SI-1 entry research (see "Cycle entry" below — research artifacts only, no feature claims). A-2 untouched (`canonical_order` stays 17), zero new env flags (W-20 reuse-first — no flag gates the budget check), zero new Soul rules (W-21 freeze at 10/12).

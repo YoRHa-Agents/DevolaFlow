@@ -17,6 +17,16 @@ import pytest
 from devolaflow.adapters.base import _find_project_root, load_workflow_skill
 from devolaflow.adapters.cursor_adapter import CursorAdapter
 
+# SSOT-derived inventory counts (v14.2.1 G-028 — no hardcoded `== 24` /
+# `== 4` pins that break on every legitimate addition):
+# * references — the SF-4 canonical set pinned by the ghost audit;
+# * examples  — the `examples/` entries of the mirror manifest.
+from scripts.sync_cursor_skill import MIRRORED_FILES
+from tests.test_no_ghost_features import _SF4_REFERENCE_SET
+
+_EXPECTED_REFERENCE_COUNT = len(_SF4_REFERENCE_SET)
+_EXPECTED_EXAMPLE_COUNT = sum(1 for rel in MIRRORED_FILES if rel.startswith("examples/"))
+
 GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden" / "cursor"
 GOLDEN_META = GOLDEN_DIR / "SKILL.md.expected.meta.json"
 
@@ -92,7 +102,7 @@ def test_cursor_skill_golden_metadata(cursor_build, golden_meta):
 
 
 def test_cursor_references_golden(cursor_build):
-    """All 14 canonical reference files must be copied into ``references/``.
+    """All SF-4 canonical reference files must be copied into ``references/``.
 
     v8.0.0 P-08 grew this set 8 → 9 by appending ``behavioral-guidelines.md``
     (the L3 behavioral primitives reference wired through the new top-level
@@ -187,11 +197,16 @@ def test_cursor_references_golden(cursor_build):
     assert expected == actual, (
         f"Cursor references mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 24, f"expected 24 reference files, got {len(actual)}"
+    # Derived from the SF-4 canonical set (tests.test_no_ghost_features.
+    # _SF4_REFERENCE_SET) instead of a hardcoded literal per G-028.
+    assert len(actual) == _EXPECTED_REFERENCE_COUNT, (
+        f"expected {_EXPECTED_REFERENCE_COUNT} reference files "
+        f"(len(_SF4_REFERENCE_SET)), got {len(actual)}"
+    )
 
 
 def test_cursor_examples_golden(cursor_build):
-    """All 3 example files are copied into ``examples/``."""
+    """All canonical example files are copied into ``examples/``."""
     _, out_dir = cursor_build
     examples_dir = out_dir / "examples"
     assert examples_dir.is_dir(), "cursor adapter must emit examples/ directory"
@@ -202,7 +217,12 @@ def test_cursor_examples_golden(cursor_build):
     assert expected == actual, (
         f"Cursor examples mismatch — missing: {expected - actual}, extra: {actual - expected}"
     )
-    assert len(actual) == 4, f"expected 4 example files, got {len(actual)}"
+    # Derived from the `examples/` entries of scripts.sync_cursor_skill.
+    # MIRRORED_FILES instead of a hardcoded literal per G-028.
+    assert len(actual) == _EXPECTED_EXAMPLE_COUNT, (
+        f"expected {_EXPECTED_EXAMPLE_COUNT} example files "
+        f"(examples/ entries of MIRRORED_FILES), got {len(actual)}"
+    )
 
 
 def test_cursor_rules_mdc_created(cursor_build):

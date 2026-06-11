@@ -96,10 +96,17 @@ def _get_current_version(root: Path) -> str:
     return match.group(1)
 
 
-def bump(new_version: str, *, dry_run: bool = False, tag: bool = False) -> list[str]:
-    root = _find_root()
+def bump(
+    new_version: str,
+    *,
+    dry_run: bool = False,
+    tag: bool = False,
+    root: Path | None = None,
+) -> list[str]:
+    root = root if root is not None else _find_root()
     current = _get_current_version(root)
     updated: list[str] = []
+    missed: list[tuple[str, str]] = []
 
     print(f"Bumping version: {current} -> {new_version}")
     if dry_run:
@@ -108,6 +115,9 @@ def bump(new_version: str, *, dry_run: bool = False, tag: bool = False) -> list[
     for loc in VERSION_LOCATIONS:
         fpath = root / loc["path"]
         if not fpath.exists():
+            # File-not-found stays a soft SKIP — absent files are the
+            # legitimately-missing case (e.g. opt-in mirrors / partial
+            # checkouts), mirroring the sync_cursor_skill no-op contract.
             print(f"  SKIP  {loc['path']} (not found)")
             continue
 
@@ -123,9 +133,27 @@ def bump(new_version: str, *, dry_run: bool = False, tag: bool = False) -> list[
             print(f"  {status:6s} {loc['path']}")
             updated.append(loc["path"])
         else:
-            print(f"  SKIP  {loc['path']} (pattern not found)")
+            print(f"  MISS  {loc['path']} (pattern not found: {loc['pattern']})")
+            missed.append((loc["path"], loc["pattern"]))
 
     print(f"\n{len(updated)} locations {'would be ' if dry_run else ''}updated.")
+
+    if missed:
+        # G-032 / S-5: a canonical-location regex that matches nothing means
+        # the bump is silently partial — hard-fail instead of exiting 0.
+        print(
+            f"\nERROR: {len(missed)} canonical location(s) exist but their "
+            f"version pattern matched nothing — the bump is incomplete:",
+            file=sys.stderr,
+        )
+        for path, pat in missed:
+            print(f"  - {path}: pattern {pat!r} not found", file=sys.stderr)
+        print(
+            "Fix the file content or the VERSION_LOCATIONS pattern in "
+            "scripts/bump_version.py, then re-run.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if tag:
         tag_name = f"v{new_version}"

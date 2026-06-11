@@ -1032,20 +1032,39 @@ def test_change_status_example_parses_and_validates() -> None:
 # =============================================================================
 
 
-def test_total_schema_count_is_ten() -> None:
-    """Patch plan §v8.2.4 mandates exactly 10 files (1 index + 9 artifacts)."""
+def _index_declared_schema_count() -> int:
+    """Schema count declared by the owning SSOT — the index `schemas:` list.
+
+    `schemas/agent-workspace/__init__.yaml` states "every schema listed here
+    MUST exist as a file in this directory"; deriving the count from it (per
+    v14.2.1 G-028) means a legitimate addition updates ONE registry instead
+    of breaking hardcoded `== 10` / `== 9` pins.
+    """
+    index = _load_yaml(SCHEMA_DIR / "__init__.yaml")
+    return len(index["schemas"])
+
+
+def test_total_schema_count_matches_index() -> None:
+    """On-disk file count == index-declared artifact count + 1 (the index)."""
+    declared = _index_declared_schema_count()
     files = sorted(p for p in SCHEMA_DIR.iterdir() if p.is_file() and p.suffix == ".yaml")
-    assert len(files) == 10, f"expected exactly 10 schema files, got {len(files)}"
+    assert len(files) == declared + 1, (
+        f"expected {declared + 1} schema files (index + {declared} declared "
+        f"in __init__.yaml `schemas:`), got {len(files)}"
+    )
 
 
-def test_artifact_schema_count_is_nine() -> None:
-    """Exactly 9 artifact schemas (excluding the index)."""
+def test_artifact_schema_count_matches_index() -> None:
+    """On-disk artifact schemas (excluding the index) == index declaration."""
+    declared = _index_declared_schema_count()
     artifact_count = sum(
         1
         for p in SCHEMA_DIR.iterdir()
         if p.is_file() and p.suffix == ".yaml" and p.name != "__init__.yaml"
     )
-    assert artifact_count == 9, f"expected exactly 9 artifact schemas, got {artifact_count}"
+    assert artifact_count == declared, (
+        f"expected {declared} artifact schemas (per __init__.yaml `schemas:`), got {artifact_count}"
+    )
 
 
 def test_all_schema_names_unique(schemas: dict[str, dict[str, Any]]) -> None:

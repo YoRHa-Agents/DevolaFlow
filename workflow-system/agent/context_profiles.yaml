@@ -394,7 +394,7 @@ meta:
       hotfix:
         soul: all
         architecture: ["A-1", "A-2"]
-        conventions: ["C-1", "C-2", "C-3", "C-8"]
+        conventions: ["C-1", "C-2", "C-3"]
         workflow: ["W-9", "W-11"]
       feature:
         soul: all
@@ -416,7 +416,7 @@ meta:
       review:
         soul: all
         architecture: ["A-1", "A-2"]
-        conventions: ["C-1", "C-2", "C-3", "C-8"]
+        conventions: ["C-1", "C-2", "C-3"]
         workflow: ["W-3", "W-9", "W-11"]
       design:
         soul: all

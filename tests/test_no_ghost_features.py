@@ -1222,8 +1222,9 @@ def test_registry_single_owner(project_root: Path) -> None:
 #     headings in AGENTS.md (the operator-facing canonical compile output).
 #   * test_rule_surfaces_compile_only — `.cursor/rules/repo-governance.mdc`
 #     SHA-256 matches the value stored in `.rules/.compile-hashes.json`
-#     (drift detection); the 2 deprecated `.cursor/rules/{devola-flow,workflow}-
-#     rules.mdc` stubs match expected stub-template fingerprints (preventing
+#     (drift detection); every deprecated stub registered in
+#     `devolaflow.local.drift::DEPRECATED_STUB_FILES` (6 as of v14.2.1 G-008)
+#     matches its expected stub-template fingerprint (preventing
 #     hand-edits). Failure means the canonical-vs-compiled invariant is broken
 #     OR a stub was hand-edited to drift from the deprecation scaffold.
 
@@ -1250,8 +1251,13 @@ def test_rule_count_under_cap(project_root: Path) -> None:
 
     1. The Soul-set count at exactly 10 (S-1..S-10, frozen by W-21 Soul-set
        freeze governance per ADR-007 D4).
-    2. The Architecture count at exactly 5 (A-1..A-5).
-    3. The total stays ≤ 60.
+    2. The total stays ≤ 60.
+    3. **G-034 parity (v14.2.1)**: the per-layer "Rule count" figures
+       declared in the `.rules/index.md` layer table match the rule-id
+       headings actually present in the on-disk `.rules/*.mdc` sources,
+       and the "Total rules" header figure equals their sum. Closes the
+       v14.2.0 gap-register row G-034 (index.md said "5 (A-1..A-5)"
+       while architecture.mdc carried A-1..A-7).
 
     Future cycles proposing a new rule MUST first confirm `total + 1 ≤ 60`
     before authoring; if the projection exceeds 60, the proposing PV must
@@ -1288,6 +1294,48 @@ def test_rule_count_under_cap(project_root: Path) -> None:
         f"N+2 SI-1 gap analysis → cycle N+2 SI-3 §3.2 ≥ 9.5/10) before landing."
     )
 
+    # ----- G-034 (v14.2.1): index.md per-layer counts ↔ on-disk parity -----
+    # The `.rules/index.md` layer table declares a "Rule count" per layer
+    # (e.g. "10 (S-1..S-10)"). Each declared count must equal the number of
+    # rule-id headings actually present in that layer's `.rules/<file>.mdc`
+    # source. Rule-id headings live at H2 (soul / architecture / conventions
+    # / workflow) or H3 (style nests ST-* under DS-*/WX-* grouping H2s); the
+    # " — " separator excludes sub-section headings like `### A-2.1 — …`.
+    index_text = (project_root / ".rules" / "index.md").read_text(encoding="utf-8")
+    layer_row_re = re.compile(
+        r"^\|[^|]+\|\s*`(?P<file>[a-z]+\.mdc)`\s*\|[^|]*\|[^|]*\|\s*(?P<count>\d+)\s*\(",
+        re.MULTILINE,
+    )
+    declared_counts = {m["file"]: int(m["count"]) for m in layer_row_re.finditer(index_text)}
+    assert len(declared_counts) == 5, (
+        f"G-034: expected 5 layer rows with a 'Rule count' cell in "
+        f".rules/index.md, parsed {sorted(declared_counts)} — the layer table "
+        f"format changed; update the parity regex in this test."
+    )
+
+    rule_id_heading_re = re.compile(r"^#{2,3} (?:S|A|C|W|ST)-\d+ — ", re.MULTILINE)
+    on_disk_total = 0
+    for layer_file, declared in declared_counts.items():
+        layer_body = (project_root / ".rules" / layer_file).read_text(encoding="utf-8")
+        actual = len(rule_id_heading_re.findall(layer_body))
+        on_disk_total += actual
+        assert actual == declared, (
+            f"G-034 violation: .rules/index.md declares {declared} rules for "
+            f"`{layer_file}` but the on-disk source carries {actual} rule-id "
+            f"headings. Update the index.md layer-table row (or the layer "
+            f"source) so the declared count matches reality."
+        )
+
+    total_match = re.search(r"Total rules: \*\*(\d+)\*\*", index_text)
+    assert total_match is not None, (
+        "G-034: .rules/index.md is missing the 'Total rules: **N**' header line."
+    )
+    assert int(total_match.group(1)) == on_disk_total, (
+        f"G-034 violation: .rules/index.md header declares "
+        f"'Total rules: **{total_match.group(1)}**' but the on-disk .rules/*.mdc "
+        f"sources carry {on_disk_total} rule-id headings in total."
+    )
+
 
 def test_rule_surfaces_compile_only(project_root: Path) -> None:
     """ADR-007 D2 + D5: `.cursor/rules/*.mdc` files must be compile-only.
@@ -1301,14 +1349,15 @@ def test_rule_surfaces_compile_only(project_root: Path) -> None:
        `RuleCompiler('.rules/compile-config.yaml').compile_all()` instead
        of editing the compiled output directly.
 
-    2. **D2** — the 2 deprecated stubs
-       (`.cursor/rules/devola-flow-rules.mdc` + `.cursor/rules/workflow-rules.mdc`)
-       must match the stub-template fingerprints stored under
-       `stub_devola_flow_rules` / `stub_workflow_rules` in
-       `.rules/.compile-hashes.json`. The stubs are pinned cross-reference
-       scaffolds per ADR-007 D2 — a hand-edit either drifts the SHA-256 OR
-       grows the stub past the ≤ 50-line ceiling enforced by the inline
-       length check below.
+    2. **D2** — every deprecated stub registered in
+       `devolaflow.local.drift::DEPRECATED_STUB_FILES` (2 at v9.0.0 PV-07
+       per ADR-007 D2; +4 at v14.2.1 per G-008 — `change-process` /
+       `context-optimization` / `self-improve-iteration` / `skill-format`)
+       must match the stub-template fingerprint stored under its
+       `stub_<name>` key in `.rules/.compile-hashes.json`. The stubs are
+       pinned cross-reference scaffolds — a hand-edit either drifts the
+       SHA-256 OR grows the stub past the ≤ 50-line ceiling enforced by
+       the inline length check below.
 
     Failure modes:
       * "compiled file SHA-256 mismatch" → operator hand-edited
@@ -1355,8 +1404,8 @@ def test_rule_surfaces_compile_only(project_root: Path) -> None:
         f"ADR-007 D2 violation: deprecated stub fingerprints drifted from "
         f".rules/.compile-hashes.json: "
         f"{[(r.target, r.expected_hash, r.actual_hash) for r in drifted_stubs]}. "
-        f"The stubs at .cursor/rules/{{devola-flow,workflow}}-rules.mdc are "
-        f"PINNED cross-reference scaffolds — re-run "
+        f"The stubs registered in drift.DEPRECATED_STUB_FILES are PINNED "
+        f"cross-reference scaffolds — re-run "
         f"RuleCompiler.compile_all() after re-applying the canonical stub "
         f"template, OR investigate why the stubs were hand-edited."
     )

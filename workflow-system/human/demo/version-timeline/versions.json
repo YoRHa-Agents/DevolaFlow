@@ -1976,5 +1976,33 @@
       "evobench_scenarios": "57",
       "benchmark_baseline_active": "v14.1.0_baseline.json"
     }
+  },
+  {
+    "version": "14.2.1",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "PATCH — rule-corpus hygiene: the 4 remaining fully-migrated legacy .cursor/rules/ files (change-process, context-optimization, self-improve-iteration, skill-format) become deprecated pointer stubs (drift registry 2 → 6); RuleCompiler and bump_version.py turn silent failures into hard-fails (S-5); dead rule C-8 deleted; lean-report `metrics.quality` renamed `gate_input_score` with the one-doctrine note",
+    "summary": "v14.2.1 lands the gap-register hygiene batch. G-008: the 4 legacy rule files carry no live rules — each is a fingerprint-pinned pointer stub registered in drift.DEPRECATED_STUB_FILES (now 6), cutting duplicated always-applied prompt mass while .rules/ stays canonical. S-5 hard-fails: RuleCompiler raises the NEW TokenBudgetExceededError on token-budget overflow (no more silent layer truncation), and bump_version.py exits 1 when a canonical location's version pattern matches nothing (absent files stay soft-SKIP; NEW root= kwarg). G-012: dead rule C-8 (C++ braces — zero C++ files in repo) deleted from .rules/conventions.mdc, ids NOT renumbered; hotfix/review slice profiles and the slice pin updated. G-013: schemas/lean-report.yaml renames metrics.quality → gate_input_score with the doctrine note (gate-dimension input evidence, NOT the L0-only Task Quality Score). Recompiles: W-9 to Makefile truth (7 gates incl. make iteration-delta-gate), W-12 adapter-set wording, W-17 count recipe. Counts reconciled: .rules/index.md total 62 + G-034 parity lint; demo Repository Rules card 42 → 62 (lint re-derived from canonical .rules/ headings); README rule table rewritten; count pins SSOT-derived (G-028); si-chip version probe fixed (G-021). A-2 untouched (canonical_order stays 17), zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "G-008 rule-corpus dedup — 4 legacy .cursor/rules/*.mdc files demoted to deprecated pointer stubs; DEPRECATED_STUB_FILES 2 → 6, each fingerprint-pinned in .rules/.compile-hashes.json (hand-edits fail the drift lint); net −118 lines of duplicated always-applied prompt mass",
+      "S-5 hard-fail pair — NEW `TokenBudgetExceededError`: RuleCompiler overflow raises and writes NO outputs (the v11.4.0-era silent Style-layer drop is impossible now); bump_version.py exits 1 on canonical pattern miss (soft SKIP kept for absent files; NEW `root=` kwarg; NEW tests/test_bump_version.py)",
+      "G-012 C-8 deletion — dead C++ braces rule removed from .rules/conventions.mdc (ids NOT renumbered; C-1..C-7 + C-9 remain); hotfix/review agents_md_slice profiles + test_pv07_agents_md_slice.py pin updated",
+      "G-013 one-doctrine rename — lean-report `metrics.quality` → `metrics.gate_input_score` with the doctrine note (gate-dimension input evidence, NOT the Task Quality Score; subagent reports carry no quality_score); NEW tests/test_lean_report_schema.py",
+      "Recompiles + reconciliation — W-9 = 7 gates per Makefile truth (G-033); W-17 recipe fixed; .rules/index.md total 62 + G-034 per-layer parity lint; demo card 42 → 62 with the lint re-derived from .rules/ headings; count pins SSOT-derived (G-028); si-chip probe no longer hardcodes 0.4.0 (G-021)"
+    ],
+    "metrics": {
+      "rules_total": "62",
+      "deprecated_stub_files": "6",
+      "deprecated_stub_files_prev": "2",
+      "new_test_functions": "8",
+      "references_count": "24",
+      "canonical_order_length": "17",
+      "env_flag_count": "7",
+      "env_flags_added_in_cycle": "0",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "evobench_scenarios": "57",
+      "benchmark_baseline_active": "v14.1.0_baseline.json"
+    }
   }
 ]

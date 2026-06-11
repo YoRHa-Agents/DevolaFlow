@@ -1,109 +1,48 @@
 ---
-description: "Self-improvement iteration guardrails — codified from v5.0→v5.1→v5.2 iteration learnings to enforce disciplined planning, evaluation, and learning across version cycles"
+description: "DEPRECATED — see .rules/ for canonical 5-layer rule source"
 alwaysApply: true
 ---
 
-## Rule SI-1 — Iteration Planning Gate
+# Deprecated — see `.rules/` and `.cursor/rules/repo-governance.mdc`
 
-Before starting any version iteration (minor or major), produce a research/analysis artifact identifying gaps between current state and target goals. No implementation without documented gap analysis. Analysis artifacts live in `.local/research/` (e.g., `nines_integration_gap_analysis_v5.1.md`). The gap analysis must enumerate: (a) specific deficiencies found, (b) priority ranking, (c) proposed fixes with file-level scope. This gate is the entry point for SI-2 through SI-10 — skipping it invalidates the entire iteration.
+This file used to carry the SI-1..SI-10 self-improve iteration rules.
+As of v14.2.1 (G-008), the canonical rule sources are
+`.rules/workflow.mdc` (SI-1 → W-1, SI-2 → W-2, SI-3 → W-3, SI-4 → W-4,
+SI-5 → W-5, SI-6 → W-6, SI-8 → W-7, SI-9 → W-8, SI-10 → W-9),
+`.rules/soul.mdc` (SI-7 → S-7), and `.rules/architecture.mdc` (SI-6
+token budgets → A-3). This stub remains as a discoverable
+cross-reference so existing `.cursor/rules/` auto-load paths still
+surface a pointer to the canonical source.
 
-## Rule SI-2 — NineS-Driven Analysis
+## Canonical rule source
 
-For external reference analysis, run NineS deep analysis:
+| Layer | Canonical `.mdc` file | Compiled into |
+|---|---|---|
+| Soul (P0) | `.rules/soul.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Architecture (P1) | `.rules/architecture.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Conventions (P2) | `.rules/conventions.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Workflow (P3) | `.rules/workflow.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Style (P4) | `.rules/style.mdc` | `repo-governance.mdc` (Cursor only) |
+
+The compiled full corpus lives at `.cursor/rules/repo-governance.mdc` —
+that is the file every Cursor agent loads at session start.
+
+## Regenerate after editing `.rules/*.mdc`
+
+```bash
+python -c "from devolaflow.local.compiler import RuleCompiler; \
+RuleCompiler('.rules/compile-config.yaml').compile_all()"
 ```
-nines -f json analyze --target-path <path> --depth deep --agent-impact --keypoints
-```
 
-For end-of-iteration self-evaluation, run NineS self-eval with the repo's canonical config:
-```
-nines -f json -c nines.toml self-eval --baseline-version <version> --golden-dir data/golden_test_set --samples-dir data/golden_test_set --src-dir src/devolaflow --test-dir tests --project-root .
-```
-When `nines.toml` is present at repo root, `-c nines.toml` ensures project defaults apply. The `--golden-dir` and `--samples-dir` flags point at DevolaFlow's in-repo golden test set (required for V1 scoring evaluators).
+Drift detection (lint enforced by
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`):
+hand-edits to `.cursor/rules/repo-governance.mdc` or to any deprecated
+pointer stub registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`
+(including this file) fail the lint at CI-time.
 
-Store raw JSON output in `.local/research/`. The NineS CLI tool is documented at `https://github.com/YoRHa-Agents/NineS`. Parse results to extract gap items feeding SI-1's planning gate. When NineS is unavailable, manual analysis following the same dimensions (code quality, architecture, tests, maintainability) is acceptable but must be explicitly noted as manual.
+## Migration
 
-## Rule SI-3 — Evaluation Before Release
+Switch any tooling that reads this file to read either:
 
-Every pre-release requires an evaluation report covering these dimensions, each scored 1-10:
-
-| Dimension | Weight | Description |
-|-----------|--------|-------------|
-| Code quality | 0.20 | Lint cleanliness, complexity metrics, error handling |
-| Architecture rationality | 0.20 | Separation of concerns, layering, coupling |
-| Test adequacy | 0.20 | Coverage ≥ 80%, edge cases, regression tests |
-| Maintainability | 0.15 | Readability, documentation, naming |
-| Compatibility | 0.10 | Cross-platform, schema backward compatibility |
-| Performance impact | 0.15 | No regressions, benchmark deltas documented |
-
-**Version readiness threshold:** weighted composite ≥ 8.5/10. Below threshold → iterate (loop back to SI-1) or escalate to human. Store evaluation reports in `.local/research/` alongside the gap analysis.
-
-## Rule SI-4 — Benchmark Regression Guard
-
-Any change to `task_adaptive_selector.py`, `context_profiles.yaml`, lean message schemas (`schemas/lean-dispatch.yaml`, `schemas/lean-report.yaml`), SKILL.md sections, or gate modules (`src/devolaflow/gate/`) requires EvoBench verification. The benchmark suite lives at `benchmarks/devolaflow_context/` in this repository (canonical URL: `https://github.com/YoRHa-Agents/DevolaFlow`). Run:
-```
-python -m pytest tests/test_benchmarks.py -v
-```
-**Regression threshold:** composite score must not drop >5% below baseline per scenario. Baselines are stored in `benchmarks/devolaflow_context/baselines/`. If regression detected → fix before commit (couples with SI-10).
-
-## Rule SI-5 — Skill Format Coupling
-
-Changes to SKILL.md or CLAUDE.md trigger ALL of the following as a coupled unit — skipping any one is a violation:
-
-1. **Line count check:** `wc -l` confirms ≤ 500 lines
-2. **Adapter build:** `build-skill` succeeds for all 4 adapters (Cursor, Codex, Claude, Copilot)
-3. **Benchmark run:** `python -m pytest tests/test_benchmarks.py -v` passes (SI-4)
-4. **Version consistency:** `python -m pytest tests/test_version.py -v` passes
-
-These checks are strongly coupled to prevent SKILL drift from code, benchmarks, or version state. Partial compliance is treated as full violation.
-
-## Rule SI-6 — Context Budget Enforcement
-
-Context optimizations must demonstrate improvement (or no regression) via EvoBench benchmarks. Token budgets per agent layer are hard limits:
-
-| Layer | Budget | Role |
-|-------|--------|------|
-| L0 Project | ~3K tokens | Workflow template + status |
-| L1 Stage | ~5K tokens | Stage def + predecessor summaries |
-| L2 Wave | ~4K tokens | Task list + dependency map |
-| L3 Task | ~8K tokens | Task spec + owned files + rules |
-
-Changes to `context_profiles.yaml` require running:
-```
-python -m devolaflow.task_adaptive_selector <task_type> --verbose
-```
-for all affected task types and verifying no section marked `critical` was dropped. Couples with SI-4 (benchmark verification required).
-
-## Rule SI-7 — External Reference Protocol
-
-External tools and benchmarks MUST be referenced by their remote GitHub URL:
-- **DevolaFlow / EvoBench:** `https://github.com/YoRHa-Agents/DevolaFlow`
-- **NineS:** `https://github.com/YoRHa-Agents/NineS`
-
-Local clone paths are provided by the user at runtime and MUST NOT be hardcoded in any agent-facing file (SKILL.md, CLAUDE.md, .mdc rules, reference docs, context profiles). All external reference dependencies are tracked in `workflow-system/agent/knowledge/reference-dependencies.yaml`. At verification stage, require the user to provide their local paths — never assume them.
-
-## Rule SI-8 — Iteration Retrospective
-
-After completing a version release, produce a retrospective artifact summarizing:
-1. **Gaps identified** — from SI-1 planning gate
-2. **What was implemented** — with file-level change list
-3. **What was deferred and why** — explicit deferral rationale
-4. **Key learnings** — process improvements for next cycle
-
-Store in `.local/research/` (e.g., `retrospective_v5.1.md`). This artifact feeds the next iteration's SI-1 planning gate, creating a continuous improvement loop. Retrospectives that skip any of the 4 sections are incomplete and must be amended.
-
-## Rule SI-9 — Convergence Round Reinforcement
-
-Multi-round convergence iterations MUST use the reinforcement mechanism (`src/devolaflow/gate/reinforcement.py`). Gate findings from round N are converted via `findings_to_reinforcement()` and injected into round N+1 dispatch under `applicable_rules.reinforcement`. L3 Task Agents MUST address all reinforcement rules before other work. Maximum 5 reinforcement rules per round, severity-filtered (blockers and criticals first). If score stagnates for 2+ rounds despite reinforcement → escalate to human per P4 bounded retry.
-
-## Rule SI-10 — Test-Then-Commit Protocol
-
-Every iteration follows this strict pre-commit sequence — all 6 must pass before any commit:
-
-1. `python -m pytest tests/ -q` — all tests pass (mirror-parity tests self-skip when `.cursor/skills/devola-flow/` is absent)
-2. `ruff check src/ tests/` — no lint errors
-3. `ruff format --check src/ tests/` — formatting correct
-4. `python -m pytest tests/test_version.py -v` — canonical 7 sync locations agree; mirror checks self-skip if absent
-5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
-6. `make check-cursor-skill` — exit 0. The script is a no-op when `.cursor/skills/devola-flow/` is absent (opt-in, gitignored); when the mirror IS present locally, it asserts bytewise parity with `workflow-system/agent/` and that the `.devola-flow-version` stamp first line equals `__version__`.
-
-Commit only after all 6 pass. This protocol couples SI-4 (benchmarks), SI-5 (version), SI-6 (context), and CP-3 (version bump + opt-in mirror sync) into a single verification gate. Failure at any step blocks the commit — fix and re-run the full sequence.
+* `.cursor/rules/repo-governance.mdc` — compiled full corpus, OR
+* the canonical `.rules/*.mdc` layer files listed above.

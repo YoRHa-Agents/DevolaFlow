@@ -245,22 +245,33 @@ def test_bump_version_location_count(project_root: Path):
 
 
 def test_demo_index_rules_count(project_root: Path):
-    """Demo index.html 'Repository Rules' count must match actual rule IDs in .cursor/rules/."""
+    """Demo index.html 'Repository Rules' count must match the canonical .rules/ corpus.
+
+    v14.2.1 (G-008) demoted the 4 remaining fully-migrated legacy
+    `.cursor/rules/*.mdc` files to deprecated pointer stubs, so counting
+    `## Rule X-N` headings there no longer reflects the live corpus. The
+    honest derivation now counts rule-id headings in the canonical
+    `.rules/*.mdc` layer sources — H2 for soul/architecture/conventions/
+    workflow, H3 for style (ST-* nests under DS-*/WX-* grouping H2s); the
+    " — " separator excludes sub-section headings like `### A-2.1 — …`.
+    Mirrors the G-034 parity derivation in
+    tests/test_no_ghost_features.py::test_rule_count_under_cap.
+    """
     demo_index = (project_root / "workflow-system" / "human" / "demo" / "index.html").read_text()
 
     match = re.search(r"(\d+)\s+Repository\s+Rules", demo_index)
     assert match, "Could not find 'Repository Rules' count in demo/index.html"
     claimed = int(match.group(1))
 
-    rules_dir = project_root / ".cursor" / "rules"
-    rule_id_pattern = re.compile(r"^## Rule ([A-Z]+-\d+)", re.MULTILINE)
+    rules_dir = project_root / ".rules"
+    rule_id_pattern = re.compile(r"^#{2,3} ((?:S|A|C|W|ST)-\d+) — ", re.MULTILINE)
     actual_ids: set[str] = set()
     for mdc in rules_dir.glob("*.mdc"):
         actual_ids.update(rule_id_pattern.findall(mdc.read_text()))
 
     assert claimed == len(actual_ids), (
         f"demo/index.html claims {claimed} rules, "
-        f"but .cursor/rules/ contains {len(actual_ids)} rule IDs: {sorted(actual_ids)}"
+        f"but .rules/ contains {len(actual_ids)} rule IDs: {sorted(actual_ids)}"
     )
 
 
