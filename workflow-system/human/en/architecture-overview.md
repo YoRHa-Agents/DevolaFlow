@@ -4,8 +4,8 @@ description: "System architecture: 4-layer hierarchy, stage primitives, gate mec
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-11T18:21:41Z"
-source_version: "14.2.1"
+last_synced: "2026-06-11T19:11:09Z"
+source_version: "14.2.2"
 ---
 
 # Architecture Overview
@@ -125,10 +125,17 @@ Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from dev
 
 ## Repository Rules
 
-18 enforceable rules in `.cursor/rules/` codifying iteration lessons:
+62 enforceable rules codifying iteration lessons live in `.rules/` (5 layered
+source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 
-| Rule File | Covers |
+| Rule Layer | Covers |
 |-----------|--------|
-| `skill-format-rules.mdc` (SF-1 to SF-6) | SKILL.md line budget, frontmatter, version consistency, valid references |
-| `change-process-rules.mdc` (CP-1 to CP-7) | Test coverage floor (≥80%), no ghost features, version bump protocol |
-| `context-optimization-rules.mdc` (CO-1 to CO-6) | Lean messages, verbatim extraction, token budgets, benchmark verification |
+| `soul.mdc` (S-1 to S-10, P0) | Immutable invariants, test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
+| `architecture.mdc` (A-1 to A-7, P1) | 4-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
+| `conventions.mdc` (C-1 to C-9, P2; C-8 retired) | Line budgets, frontmatter, version consistency, lean messages, verbatim extraction |
+| `workflow.mdc` (W-1 to W-24, P3) | Iteration planning, benchmark guards, version bump protocol, env-flag policy |
+| `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
+
+The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
+`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) are deprecated
+pointer stubs, their SF-/CP-/CO- content was absorbed into the layers above.

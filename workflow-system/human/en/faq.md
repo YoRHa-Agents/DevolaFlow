@@ -4,8 +4,8 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-11T18:21:41Z"
-source_version: "14.2.1"
+last_synced: "2026-06-11T19:11:09Z"
+source_version: "14.2.2"
 ---
 
 # FAQ
@@ -60,10 +60,14 @@ Yes, in two ways:
 
 ### What are the repository rules?
 
-18 enforceable rules in `.cursor/rules/` organized into 3 files:
-- **skill-format-rules.mdc** (SF-1 to SF-6): SKILL.md line budget, frontmatter, version consistency
-- **change-process-rules.mdc** (CP-1 to CP-7): test coverage floor (≥80%), no ghost features
-- **context-optimization-rules.mdc** (CO-1 to CO-6): lean messages, verbatim extraction, benchmarks
+62 enforceable rules in `.rules/` organized into 5 layers, compiled to
+`AGENTS.md` + `.cursor/rules/repo-governance.mdc` (the legacy SF-/CP-/CO- rule
+files are deprecated pointer stubs since v14.2.1):
+- **soul.mdc** (S-1 to S-10): immutable invariants, test coverage floor (≥80%), no ghost features
+- **architecture.mdc** (A-1 to A-7): 4-layer hierarchy, cache layout, token budgets
+- **conventions.mdc** (C-1 to C-9, C-8 retired): SKILL.md line budget, frontmatter, version consistency
+- **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
+- **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
 
 ### What is EvoBench?
 

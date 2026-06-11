@@ -761,8 +761,10 @@ canonical anti-sprawl mechanism for ADRs going forward.
 
 NO new `DEVOLAFLOW_*` env flag is introduced for grill mode.
 Activation is purely natural-language via
-`classify_grill_intent`; the env-flag count remains at 8 per
-v11.1.3 baseline. Behaviourally orthogonal but activation-
+`classify_grill_intent`; the active-flag count remains unchanged —
+see `workflow-system/agent/references/env-flags.md` §2, the
+canonical inventory (counting basis per its §2.0; rule prose does
+not hand-pin numerals). Behaviourally orthogonal but activation-
 surface-distinct from the existing flags — the W-20
 orthogonality test is satisfied because grill mode does NOT
 share an env-flag activation surface with any existing
@@ -882,8 +884,10 @@ rationale citing `repo-governance.mdc` §A-1 P5 verbatim.
 ### W-24.4 — W-20 env-flag reuse-first preservation
 
 NO new `DEVOLAFLOW_*` env flag introduced. Activation is purely
-natural-language via `select_pattern()` invocation; env-flag count
-stays at 8 per v11.3.0 baseline. Mirrors W-22.4 verbatim.
+natural-language via `select_pattern()` invocation; the active-flag
+count remains unchanged — see
+`workflow-system/agent/references/env-flags.md` §2, the canonical
+inventory. Mirrors W-22.4 verbatim.
 
 ### W-24.5 — v12.0.0 graduation pre-staging
 

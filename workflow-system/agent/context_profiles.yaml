@@ -576,8 +576,13 @@ sections:
   # `.local/research/v12.4.0_l0_only_audit.md` §A.1 verdict, all 23
   # subagent profiles already correctly carry `skip`; this comment
   # re-affirms the discipline for future profile authors.
+  # v14.2.2 (G-040) — realigned via realign_section_anchors.py: range now
+  # stops before §### "Session Banner Contract" per the script's
+  # next-header-at-any-depth contract. Runtime resolution uses the
+  # symbolic `section_anchors:` registry entry (heading-based) anyway;
+  # this lines value is the deprecated fallback only.
   version_update:
-    lines: "36-50"
+    lines: "36-39"
     tokens_est: 232
     content_type: prose
 
@@ -632,78 +637,86 @@ sections:
   # the `feedback` profile budget pressure (tight 2475-token cap)
   # within the v11.1.3 GREEN equilibrium. v12.3.0 PV-02/04 shift adds
   # +12 to these anchors but the envelope width is preserved.
+  # v14.2.2 (G-017/G-020) shift re-anchor — SKILL.md 492 → 491 lines:
+  # −2 for ranges after the two removed workflow-selection rows (old
+  # lines 153-154), −1 for ranges after the Tier-3 multi-stage-trace
+  # row insertion (post-edit line 445). Slice CONTENT is preserved
+  # byte-equal to the pre-edit state (deprecated fallback path only).
   hierarchy_table:
-    lines: "183-197"
+    lines: "181-195"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "183-197"
+    lines: "181-195"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "193-197"
+    lines: "191-195"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "200-211"
+    lines: "198-209"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "213-230"
+    lines: "211-228"
     tokens_est: 226
     content_type: table
 
   stage_primitives:
-    lines: "232-280"
+    lines: "230-278"
     tokens_est: 413
     content_type: table
 
   gate_mechanism:
-    lines: "282-298"
+    lines: "280-296"
     tokens_est: 229
     content_type: formula
 
+  # v14.2.2 (G-040) — start re-anchored to the actual §"AgentTeam Quick
+  # Reference" header (had drifted onto §### "Reinforcement Rules" since
+  # v13.0.0); end recomputed per realign_section_anchors.py.
   agent_teams:
-    lines: "303-313"
+    lines: "304-315"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "315-332"
+    lines: "313-330"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "349-381"
+    lines: "347-379"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "383-393"
+    lines: "381-391"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "395-404"
+    lines: "393-402"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "406-449"
+    lines: "404-448"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "406-449"
+    lines: "404-448"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "300-302"
+    lines: "298-300"
     tokens_est: 100
     content_type: spec
 
@@ -720,12 +733,12 @@ sections:
   # demoted from supplementary/important/critical → skip; only L0-only
   # workflows consume this stub.
   task_quality_score:
-    lines: "480-482"
+    lines: "479-481"
     tokens_est: 60
     content_type: spec
 
   template_quick_ref:
-    lines: "451-478"
+    lines: "450-477"
     tokens_est: 188
     content_type: table
 
@@ -747,7 +760,7 @@ sections:
   # to make the discipline explicit at the YAML surface (was: 1 — only
   # `repo-init` had the explicit row pre-PV-05).
   operational_learnings:
-    lines: "484-486"
+    lines: "483-485"
     tokens_est: 150
     content_type: prose
     priority_default: skip

@@ -30,7 +30,7 @@ dependencies:
   - "agent/references/shell-proxy.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/plan-mode-enforcement.md"
-last_updated: "2026-04-24"
+last_updated: "2026-06-11"
 ---
 
 # Environment Flag Reference
@@ -59,12 +59,47 @@ canonical**, added in v8.5.0 PV-05):
    requires the reviewer to **see** the inventory; without this
    reference, W-20 is normative-only, not actionable.
 
-## 2. Active runtime flags (wired in `src/devolaflow/`)
+## 2. Active runtime flags
 
 These flags are read by production code paths. Tests in
 `tests/test_shell_proxy*.py`, `tests/test_memory_router.py`, and
 `tests/test_task_adaptive_selector.py` codify the parsing contract
 (strict `"1"` matching; rejects `"true"`, `"yes"`, `"on"`, `"01"`, `""`).
+
+### 2.0 Counting basis (G-024 — machine-checkable as of v14.2.2)
+
+**"Active runtime flags" = the rows of THIS §2 table (the `### 2.N
+\`DEVOLAFLOW_*\`` sub-sections).** This row count is the ONLY
+active-flag count; rule prose (W-22.4 / W-24.4) cites this section
+instead of hand-pinning a numeral. Two read surfaces exist:
+
+* **code-read** rows — a `src/devolaflow/` module reads the env var at
+  an `os.environ.get` / `os.getenv` / `os.environ[...]` site (directly
+  or via a module-level string constant).
+* **prompt-side** rows — SKILL.md instructs the L0 dispatcher to
+  consult the env var; there is NO Python read site. Such rows carry an
+  explicit `**Read surface** | prompt-side` field.
+* **unwired** rows — a documented name with NO read site on ANY
+  surface (an inventory defect held visible until wired or retired;
+  marked `**Read surface** | unwired`). One exists at the v14.2.2
+  audit: §2.5.
+
+The ghost-audit lint
+`tests/test_no_ghost_features.py::test_v14_2_2_g024_env_flag_inventory_matches_runtime`
+asserts that the §2 code-read row names EXACTLY equal the AST-derived
+set of `DEVOLAFLOW_*` env reads in `src/devolaflow/` (minus the §3
+test-fixture identifiers), and that prompt-side / unwired rows have no
+Python read site. Adding/removing a runtime env read without updating
+this table fails CI.
+
+**Distinct-identifier grep counts are a DIFFERENT measure.** A
+repo-wide `rg -o 'DEVOLAFLOW_[A-Z_0-9]+'` matches retired flags (the
+v9.3.0 simple-task auto-shortcut flag survives as a comment trail —
+see the §2.11 retirement note), telegraphed-but-never-introduced
+names (`DEVOLAFLOW_AUTO_UPGRADE_PLUGINS`), test-fixture flags (§3),
+and forward-declared rows (§4) — 26 distinct identifiers at the
+v14.2.2 audit. That number MUST NOT be quoted as the active-flag
+count.
 
 ### 2.1 `DEVOLAFLOW_PLAN_MODE` — plan-mode auto-detect
 
@@ -121,7 +156,8 @@ These flags are read by production code paths. Tests in
 
 | Field | Value |
 |---|---|
-| **Owner** | `src/devolaflow/plugins/installer.py` |
+| **Read surface** | unwired — the v14.2.2 G-024 AST audit found NO `src/devolaflow/` env-read site for this name; the LIVE control surface is `runtime-plugins.yaml#defaults.auto_install` + the `ensure_plugin(auto_install=...)` parameter. The env var survives in operator-facing error text (`installer.py` cargo-failure hint) and in `references/shell-proxy.md` §recipes. Wiring the env read (or retiring this row + the operator hints) is G-023 follow-up scope (v14.4.0). |
+| **Owner** | `src/devolaflow/plugins/installer.py` (parameter + registry default; NOT an env read) |
 | **Introduced** | v8.3.0 PV-01 (earlier baseline preserved) |
 | **Default** | `1` (auto-install ACTIVE) |
 | **Opt-out** | env value `"0"` (any truthy other-than-1 also disables) |
@@ -269,6 +305,50 @@ These flags are read by production code paths. Tests in
 | **Idempotency** | Calling `warmup_selector_cache()` a second time is cheap (LRU cache absorbs repeats in O(1) per pair). Calling without the env flag is a strict no-op. Calling with the env flag in a stale Python process where the cache is already populated also a strict no-op (same hit path). |
 | **S-5 graceful** | A single warmup call that raises (e.g. transient profiles.yaml read error) is logged at WARNING level and the helper continues with the next pair. The warmup is best-effort by contract — partial warmup is strictly better than a cold cache. |
 | **Reference** | `tests/test_selector_warmup.py` (7 NEW tests pin the activation matrix + idempotency + R5 strict + time budget + import-time invariant); `src/devolaflow/task_adaptive_selector.py::warmup_selector_cache` (the public entry point); `.local/research/v9.7.0_gap_analysis.md` §1.3 D-N-2 + `.local/research/v9.7.0_perf_research.md` §4 |
+
+> **v14.2.2 G-024/G-023 inventory closure note**: the three rows below
+> (§2.15..§2.17) were ALREADY-LIVE surfaces that pre-dated this
+> reference's row coverage — no new flag is introduced here (W-20
+> preserved). §2.15 + §2.17 pull the G-023 table-row slice forward;
+> §2.16 was surfaced by the G-024 AST audit. Rows are APPENDED so the
+> §2.12/§2.13 anchors cited by `references/degraded-mode.md` stay
+> stable.
+
+### 2.15 `DEVOLAFLOW_AGENT_WORKSPACE` — workspace-engagement auto-activation (A-6)
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/skills/change_activation.py::ENV_FLAG_NAME` (single read site: `ActivationContext.from_env`) |
+| **Introduced** | v9.1.1 PV-01 (SKILL.md §"Workspace Engagement" surface); runtime read formalised by the A-6 classification surface (`classify_complexity` / `activation_verdict`) |
+| **Default** | unset (= disabled — no workspace scaffolding) |
+| **Activation** | env value EXACTLY `"1"` (R5 strict per A-6.2 — any other value, including `"true"` / `"01"` / `""`, is default-OFF) |
+| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` before dispatching the first L1 stage; the same surface is REUSED by the v9.1.3 PV-03 `pre_handoff` hook and the `/devola:propose` slash command (opt-out via `--no-change` per A-6.3) |
+| **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py`) |
+| **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" |
+
+### 2.16 `DEVOLAFLOW_SI_CHIP_FALLBACK_DIR` — Si-Chip install-discovery escape hatch
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/si_chip_bridge/install_resolver.py::ENV_FALLBACK` (read inside `find_si_chip_install`) |
+| **Introduced** | v9.5.0 PV-02 (si_chip_bridge wrapper) |
+| **Default** | unset (= probe only the standard install locations) |
+| **Activation** | PATH-VALUED — not a `"1"` toggle. When set to a directory containing `SKILL.md`, that directory is consulted as probe location #6 in the `find_si_chip_install` resolution order |
+| **Effect** | Operator-controlled escape hatch for non-standard Si-Chip installs (e.g. CI that pre-clones the repo). Honours S-7: the path is supplied by the operator at runtime; nothing is hardcoded in any agent-facing file |
+| **R5 strict?** | N/A — path-valued config knob, not a feature toggle; when unset the resolver simply skips probe #6 (zero extra IO) |
+| **Reference** | `src/devolaflow/si_chip_bridge/install_resolver.py` module docstring (resolution order); `tests/test_si_chip_bridge.py` |
+
+### 2.17 `DEVOLAFLOW_MEMORY_CONSULT` — memory-case dispatch hints (prompt-side)
+
+| Field | Value |
+|---|---|
+| **Owner** | `workflow-system/agent/SKILL.md` §"Workspace Engagement" (the `.local/memory/cases/*.md` row) |
+| **Read surface** | prompt-side — the L0 dispatcher consults the env var per SKILL.md instruction; there is NO `src/devolaflow/` read site. The Python-side memory consult path deliberately REUSED `DEVOLAFLOW_MEMORY_ROUTER` per W-20 (see the v9.2.0 W-20 note in `src/devolaflow/memory_router/cache.py` — a separate `DEVOLAFLOW_MEMORY_CONSULT` Python flag would have failed the §7 orthogonality test) |
+| **Default** | unset (= no memory-case hints surfaced) |
+| **Activation** | env value `"1"` per the SKILL.md row ("When `DEVOLAFLOW_MEMORY_CONSULT=1`, surface relevant cases as dispatch hints") |
+| **Effect when active** | L0 surfaces relevant `.local/memory/cases/*.md` entries as dispatch hints during planning |
+| **R5 strict?** | N/A (no Python read site to hold to the zero-IO contract) |
+| **Reference** | SKILL.md §"Workspace Engagement (Read at Session Start)"; `src/devolaflow/memory_router/cache.py` W-20 reuse note |
 
 ## 3. Test-fixture flags (NOT runtime flags)
 

@@ -2004,5 +2004,33 @@
       "evobench_scenarios": "57",
       "benchmark_baseline_active": "v14.1.0_baseline.json"
     }
+  },
+  {
+    "version": "14.2.2",
+    "date": "2026-06-12",
+    "era": "human-surface",
+    "headline": "PATCH — doc-surface truth sweep: meta-framework.md §4 catalog regenerated from yaml truth (23 templates; self-update = 8 stages, nines-assisted = 10) with the SKILL.md quick-ref rows re-synced; 16 legacy template headers stop citing the lapsed v12.0.0 removal date and now telegraph the v15.0.0 Phase B decision per v15-ADR-002; env-flags inventory gains a counting basis + AST-derived parity lint (15 == 15 code-read flags)",
+    "summary": "v14.2.2 lands the agent-facing doc hygiene batch (G-001/G-017/G-018/G-020/G-022/G-024/G-040). SKILL.md: token_estimate corrected 2800 → 6000; NEW Tier-3 row for examples/multi-stage-trace.md; 3 stale banner literals become vX.Y.Z placeholders; lifecycle-hooks honesty note (check_file_ownership + test_on_complete runtime wiring lands v14.3.0 per v15-ADR-003); section anchors realigned with the context_profiles.yaml registry shift (fixes a 5.73-pt EvoBench regression); 2 non-template selection rows (shell-proxy, grill-driven) removed; quick-ref stage counts re-synced (self-update 6 → 8, nines-assisted 8 → 10); now 491 lines. References/templates: meta-framework.md §4 regenerated from the 23 builtin yamls; degraded-mode.md drift fixed; env-flags.md counting basis + 2 NEW ghost-audit lints (inventory ↔ runtime parity; rule prose cites the inventory, not numerals — W-22.4/W-24.4 recompiled); DEVOLAFLOW_AUTO_INSTALL marked unwired; 16 legacy yaml headers + audit_template_usage.py aligned to the v15-ADR-002 wording; generate_human_docs.py legacy-rules description fixed (16 EN/ZH guides regenerated). A-2 untouched (canonical_order stays 17), zero new env flags, zero new Soul rules.",
+    "highlights": [
+      "G-018 four-surface stage-count drift closed — meta-framework.md §4 Per-Workflow Template Catalog regenerated FROM the builtin yaml truth (23 templates; the '22 builtin templates' miscount missing web-design is gone); SKILL.md quick-ref re-synced: self-update 6 → 8 stages (adds si_chip_gate + self-improve), nines-assisted 8 → 10 (adds precondition + refine)",
+      "G-017 interim header refresh — 16 legacy template yamls drop the lapsed 'will be removed in v12.0.0' promise for 'retained for backward compat — Phase B collapse decision lands v15.0.0 per v15-ADR-002'; scripts/audit_template_usage.py docstring + render_markdown_report emit the same aligned text",
+      "G-024 env-flag accountability — env-flags.md §2 counting basis defined; NEW AST-derived ghost-audit lint asserts inventory ↔ runtime parity (15 == 15 code-read flags); DEVOLAFLOW_AUTO_INSTALL marked unwired; W-22.4/W-24.4 numeric pins replaced with the inventory citation",
+      "G-020/G-001/G-040 SKILL.md hygiene — token_estimate 2800 → 6000; NEW Tier-3 row for examples/multi-stage-trace.md; 3 stale v12.3.0 banner literals → vX.Y.Z placeholders; lifecycle-hooks honesty note (runtime wiring lands v14.3.0 per v15-ADR-003); 491 lines (< 500 per C-4)",
+      "G-017 slice — section anchors realigned with the context_profiles.yaml registry shift, fixing a 5.73-pt EvoBench regression; 2 non-template selection rows (shell-proxy, grill-driven) removed per v15-ADR-002 F-P2-4"
+    ],
+    "metrics": {
+      "templates_registered": "23",
+      "self_update_stages": "8",
+      "nines_assisted_stages": "10",
+      "legacy_headers_refreshed": "16",
+      "env_flags_code_read": "15",
+      "skill_md_lines": "491",
+      "skill_token_estimate": "6000",
+      "new_test_functions": "2",
+      "canonical_order_length": "17",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "benchmark_baseline_active": "v14.1.0_baseline.json"
+    }
   }
 ]

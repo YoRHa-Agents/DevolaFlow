@@ -16,13 +16,13 @@ The audit's verdict is then surfaced in 3 places:
    same ``(legacy)`` suffix.
 3. `references/team-roles.md` "Team Participation Matrix" — same
    suffix on the workflow-type column.
-4. The TIER-2/3 yaml files themselves — gain a 3-line
-   ``# DEPRECATED in v11.0.0; will be removed in v12.0.0`` comment
-   block at the top.
+4. The TIER-2/3 yaml files themselves — gain a comment block at the
+   top: ``# DEPRECATED in v11.0.0; retained for backward compat —
+   Phase B collapse decision lands v15.0.0 per v15-ADR-002``.
 
 Phase B (compose-not-define collapse — replace TIER-2/3 yaml files
-with parametrized invocations of TIER-1 templates) is DEFERRED to
-v12.0+ pending audit-evidence review.
+with parametrized invocations of TIER-1 templates) lands v15.0.0
+per v15-ADR-002.
 
 Algorithm (per PDS §2):
 
@@ -280,9 +280,9 @@ def render_markdown_report(
             "## TIER-2 REGISTERED",
             "",
             "Templates with ZERO mentions across all 3 evidence sources.",
-            "Phase A of D-A-2 ships a `# DEPRECATED in v11.0.0; will be",
-            "removed in v12.0.0` comment block on each yaml file. Phase B",
-            "(compose-not-define collapse) is DEFERRED to v12.0+.",
+            "Phase A of D-A-2 ships a `# DEPRECATED in v11.0.0; retained",
+            "for backward compat — Phase B collapse decision lands v15.0.0",
+            "per v15-ADR-002` comment block on each yaml file.",
             "",
             "| Template | Cycle mentions | CHANGELOG mentions | Git subj. mentions |",
             "|---|---:|---:|---:|",
@@ -310,7 +310,8 @@ def render_markdown_report(
             "4. CHANGELOG `## [10.5.0]` entry cites the 6 USED + 16",
             "   REGISTERED counts explicitly.",
             "",
-            "Phase B (compose-not-define collapse) deferred to v12.0+.",
+            "Phase B (compose-not-define collapse) decision lands",
+            "v15.0.0 per v15-ADR-002.",
             "",
         ]
     )

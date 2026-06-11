@@ -1,7 +1,7 @@
-# DEPRECATED in v11.0.0; will be removed in v12.0.0
+# DEPRECATED in v11.0.0; retained for backward compat — Phase B collapse decision lands v15.0.0 per v15-ADR-002
 # This template was REGISTERED but never invoked in v9.x-v10.x cycles per
 # .local/research/v11.0.0_patches/D-A-2.md §1 audit. Phase B compose-not-define
-# collapse deferred to v12.0+.
+# collapse decision lands v15.0.0 per v15-ADR-002.
 schema_version: "1.0"
 
 metadata:

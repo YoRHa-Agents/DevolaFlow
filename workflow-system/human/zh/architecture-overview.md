@@ -4,8 +4,8 @@ description: "系统架构：4 层层级、阶段原语、质量门机制。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-11T18:21:41Z"
-source_version: "14.2.1"
+last_synced: "2026-06-11T19:11:09Z"
+source_version: "14.2.2"
 ---
 
 # 架构概述
@@ -69,7 +69,7 @@ DevolaFlow 通过 **4 层代理层级** 和 **质量门** 来编排复杂的软�
 
 每种任务类型有一个 **上下文配置**，只选择相关的 SKILL.md 段落：
 
-- **热修复** 代理接收：分诊流程、修复指南、测试要求, 跳过设计原语
+- **热修复** 代理接收：分诊流程、修复指南、测试要求 — 跳过设计原语
 - **调研** 代理接收：调研方法、对比框架, 跳过收敛循环
 - **设计** 代理接收：架构模式、ADR 模板, 跳过发布流程
 
@@ -99,10 +99,16 @@ composite = test_quality × 0.30 + code_review × 0.30
 
 ## 仓库规则
 
-`.cursor/rules/` 中的 18 条可执行规则：
+`.rules/` 中的 62 条可执行规则（5 个分层源文件），编译输出到 `AGENTS.md` 与
+`.cursor/rules/repo-governance.mdc`：
 
-| 规则文件 | 涵盖内容 |
+| 规则层 | 涵盖内容 |
 |---------|---------|
-| `skill-format-rules.mdc` (SF-1 到 SF-6) | SKILL.md 行数预算、前置元数据、版本一致性 |
-| `change-process-rules.mdc` (CP-1 到 CP-7) | 测试覆盖率底线（≥80%）、无幽灵功能 |
-| `context-optimization-rules.mdc` (CO-1 到 CO-6) | 精简消息、逐字提取、基准验证 |
+| `soul.mdc`（S-1 到 S-10，P0） | 不可违背的红线, 测试覆盖率底线（≥80%）、无幽灵功能、无静默失败、保护分支 |
+| `architecture.mdc`（A-1 到 A-7，P1） | 4 层 Agent 体系、缓存布局治理、令牌预算、单一事实源注册表 |
+| `conventions.mdc`（C-1 到 C-9，P2；C-8 已退役） | 行数预算、前置元数据、版本一致性、精简消息、逐字提取 |
+| `workflow.mdc`（W-1 到 W-24，P3） | 迭代规划、基准守护、版本升级协议、环境变量复用策略 |
+| `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
+
+v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process-rules.mdc`、
+`context-optimization-rules.mdc` 等）已转换为弃用指针存根，其 SF-/CP-/CO- 内容已并入上述各层。

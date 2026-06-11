@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 4500
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-06-11"
 ---
 
 # Meta-Framework Reference
@@ -281,101 +281,110 @@ Templates may override with explicit `allow_transition` annotations.
 ## 4. Alias Mapping Table
 From §2.3:
 
-The 22 builtin templates live in `workflow-system/agent/templates/builtin/*.yaml`.
-The alias table below covers the workflow-specific names each template
-exposes plus the mapping back to the canonical primitive surface from §2.
+The 23 builtin templates live in `workflow-system/agent/templates/builtin/*.yaml`.
+The alias table below covers the workflow-specific stage ids each template
+declares (every `stages[*].id` that differs from its `primitive`) plus the
+mapping back to the canonical primitive surface from §2. Regenerated
+verbatim from the template yamls at v14.2.2 (G-018); stage ids where
+`id == primitive` are omitted.
 
-| Workflow-Specific Name | Maps To Primitive | Workflow Type |
-|------------------------|-------------------|---------------|
-| bug-triage | analyze | hotfix |
-| fix | implement + refine | hotfix |
+| Workflow-Specific Stage Id | Maps To Primitive | Workflow Type |
+|----------------------------|-------------------|---------------|
+| apply | implement | change-driven, entropy-cleanup |
+| archive | deploy | change-driven |
+| assessment | analyze | migration |
+| author | implement | documentation-only |
+| benchmark | test | performance-optimization, skill-optimization |
+| bug_triage | analyze | hotfix |
+| build | implement | demo-showcase |
+| check-refs | analyze | self-update |
 | compare | analyze | research-only |
-| report | validate + release | research-only |
-| requirements | analyze | design-only |
-| document | release | design-only |
-| refactor | implement | refactoring |
-| verify | validate | refactoring, security-audit |
-| assess | analyze | migration |
-| migrate | implement | migration |
+| compile | implement | repo-init |
+| configure | implement | dependency-setup |
 | cutover | deploy | migration |
-| hypothesis | research | spike-poc |
+| decompose | design | self-update |
+| design_tests | design | product-verification |
+| document | implement | onboarding |
+| document | release | skill-optimization |
+| evaluate | validate | self-update, spike-poc |
+| execute_dev_tests | test | product-verification |
+| execute_verification | verify | product-verification |
+| fix | implement | hotfix |
+| impl | implement | full-pipeline, nines-assisted |
+| implement_tests | implement | product-verification |
+| integrate | implement | self-update |
+| interview | analyze | repo-init |
+| knowledge_gap_research | research | research-design-review-refine |
+| optimize | implement | performance-optimization, skill-optimization |
+| package | release | demo-showcase |
+| precondition | implement | nines-assisted, product-verification |
+| profile | analyze | performance-optimization, skill-optimization |
+| propose | design | change-driven, entropy-cleanup |
 | prototype | implement | spike-poc |
-| evaluate | review + validate | spike-poc |
-| decide | gate | spike-poc |
-| audit | analyze | documentation-only |
-| write | implement | documentation-only |
-| publish | release + deploy | documentation-only |
-| scan | analyze | security-audit |
-| prioritize | plan | security-audit |
-| profile | analyze | performance-optimization |
-| optimize | implement | performance-optimization |
-| benchmark | test | performance-optimization |
+| remediate | implement | security-audit |
+| report | validate | research-only |
+| research-updates | research | self-update |
+| review_results | review | product-verification |
+| scaffold | implement | repo-init |
+| scan | analyze | entropy-cleanup, security-audit |
 | scope | analyze | feature-enhancement |
-| testgate | gate + validate | full-pipeline |
-| user-verification | verify | feature-enhancement, full-pipeline |
-| visual-test | verify | demo-showcase, full-pipeline |
-| acceptance-check | verify | feature-enhancement, full-pipeline |
-| propose | research + design | change-driven |
-| apply | implement | change-driven |
-| archive | release | change-driven |
-| storyboard | design | demo-showcase |
-| demo | release + deploy | demo-showcase |
-| install | implement | dependency-setup |
-| init-deps | analyze + implement | dependency-setup |
-| sweep | analyze + refine | entropy-cleanup |
-| consolidate | implement + release | entropy-cleanup |
-| triage | analyze | feature-enhancement |
-| enhance | implement | feature-enhancement |
-| nines-analyze | analyze | nines-assisted |
-| nines-eval | review + validate | nines-assisted |
-| onboard | implement | onboarding |
-| bootstrap-skill | release | onboarding |
-| product-verify | verify | product-verification |
-| acceptance-verify | verify | product-verification |
-| upgrade-skill | refine | self-update |
-| skill-bump | release | self-update |
-| skill-extract | refine | skill-optimization |
-| skill-compress | implement | skill-optimization |
+| scope_analysis | analyze | refactoring |
+| self-improve | validate | self-update |
+| setup | implement | onboarding |
+| si_chip_dogfood | validate | skill-optimization |
+| si_chip_gate | validate | self-update |
+| survey | research | documentation-only, skill-optimization |
+| testgate | validate | full-pipeline |
+| threat_model | research | security-audit |
+| verify | test | dependency-setup, onboarding |
+| verify | validate | security-audit |
 
 ### Per-Workflow Template Catalog
 
-The 22 builtin templates and their canonical primitive sequence.
-**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+** per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit (v10.5.0 PV-02).
+The 23 builtin templates with their stage-id sequence and canonical
+primitive sequence, REGENERATED verbatim from each yaml's `stages:` list
+at v14.2.2 (G-018 four-surface stage-count drift closure). Stage counts
+below ARE the yaml truth — when another surface disagrees, this catalog
+and the yaml win.
+**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B collapse decision lands v15.0.0 per v15-ADR-002** (audit trail: `.local/research/v11.0.0_patches/D-A-2.md` §1, v10.5.0 PV-02).
 
-| # | Template (`.yaml` basename) | Canonical primitive sequence | Notes |
-|---|-----------------------------|------------------------------|-------|
-| 1 | `change-driven` | propose → (apply ↔ verify) → archive | v8.3.0 PV-06; 4-stage with `apply ↔ verify` convergence loop (max_rounds=5 per W-8) |
-| 2 | `demo-showcase` (legacy) | design → storyboard → implement → verify → demo | visual-test + acceptance-check flavours |
-| 3 | `dependency-setup` (legacy) | analyze → install → verify | init-deps lifecycle |
-| 4 | `design-only` (legacy) | requirements → design → review | gate-passed design doc |
-| 5 | `documentation-only` (legacy) | audit → write → publish | terminal release primitive |
-| 6 | `entropy-cleanup` (legacy) | sweep → consolidate → release | v8.0.0 P-11; refine + implement |
-| 7 | `feature-enhancement` (legacy) | triage → scope → design → implement → test → review → verify | acceptance-check + user-verification flavours |
-| 8 | `full-pipeline` (legacy) | research → design → plan → implement → review → test → testgate → release | gate-guarded; visual-test + user-verification + acceptance-check flavours |
-| 9 | `hotfix` (legacy) | bug-triage → fix → test | trivial scope; minimal review |
-| 10 | `migration` | assess → migrate → cutover → verify | analyze + implement + deploy + validate |
-| 11 | `nines-assisted` | nines-analyze → nines-eval → review → validate | external NineS subprocess; analyze + review primitives |
-| 12 | `onboarding` (legacy) | onboard → bootstrap-skill | implement + release |
-| 13 | `performance-optimization` (legacy) | profile → optimize → benchmark | analyze + implement + test |
-| 14 | `product-verification` (legacy) | design → product-verify → acceptance-verify | verify primitive (visual + acceptance + interaction + a11y) |
-| 15 | `refactoring` (legacy) | refactor → verify | implement + validate; no new features |
-| 16 | `repo-init` | analyze → scaffold → compile → verify | initial repo bootstrap |
-| 17 | `research-design-review-refine` (RDRR) (legacy) | research → design → review → refine | knowledge-loop pattern |
-| 18 | `research-only` (legacy) | research → compare → report | validate + release |
-| 19 | `security-audit` (legacy) | scan → prioritize → fix → verify | analyze + plan + implement + validate |
-| 20 | `self-update` | upgrade-skill → skill-bump | refine + release |
-| 21 | `skill-optimization` | skill-extract → skill-compress | refine + implement |
-| 22 | `spike-poc` (legacy) | hypothesis → prototype → evaluate → decide | research + implement + review + gate |
+| # | Template (`.yaml` basename) | Stages | Stage-id sequence (verbatim from yaml) | Canonical primitive sequence |
+|---|-----------------------------|:------:|----------------------------------------|------------------------------|
+| 1 | `change-driven` | 4 | propose → apply → verify → archive | design → implement → verify → deploy |
+| 2 | `demo-showcase` (legacy) | 6 | research → design → build → review → refine → package | research → design → implement → review → refine → release |
+| 3 | `dependency-setup` (legacy) | 4 | research → plan → configure → verify | research → plan → implement → test |
+| 4 | `design-only` (legacy) | 3 | research → design → review | research → design → review |
+| 5 | `documentation-only` (legacy) | 3 | survey → author → review | research → implement → review |
+| 6 | `entropy-cleanup` (legacy) | 4 | scan → propose → review → apply | analyze → design → review → implement |
+| 7 | `feature-enhancement` (legacy) | 7 | scope → design → plan → implement → review → test → release | analyze → design → plan → implement → review → test → release |
+| 8 | `full-pipeline` (legacy) | 9 | design → plan → impl → review → test → verify → refine → testgate → release | design → plan → implement → review → test → verify → refine → validate → release |
+| 9 | `hotfix` (legacy) | 4 | bug_triage → fix → test → release | analyze → implement → test → release |
+| 10 | `migration` | 5 | assessment → plan → implement → validate → cutover | analyze → plan → implement → validate → deploy |
+| 11 | `nines-assisted` | 10 | precondition → research → design → plan → impl → review → test → refine → validate → release | implement → research → design → plan → implement → review → test → refine → validate → release |
+| 12 | `onboarding` (legacy) | 4 | analyze → document → setup → verify | analyze → implement → implement → test |
+| 13 | `performance-optimization` (legacy) | 5 | profile → design → optimize → benchmark → validate | analyze → design → implement → test → validate |
+| 14 | `product-verification` (legacy) | 9 | precondition → analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate | implement → analyze → design → implement → test → verify → review → refine → validate |
+| 15 | `refactoring` (legacy) | 5 | scope_analysis → plan → implement → test → review | analyze → plan → implement → test → review |
+| 16 | `repo-init` | 5 | analyze → scaffold → compile → interview → verify | analyze → implement → implement → analyze → verify |
+| 17 | `research-design-review-refine` (RDRR) (legacy) | 5 | research → design → review → refine → knowledge_gap_research | research → design → review → refine → research |
+| 18 | `research-only` (legacy) | 3 | research → compare → report | research → analyze → validate |
+| 19 | `security-audit` (legacy) | 5 | threat_model → scan → analyze → remediate → verify | research → analyze → analyze → implement → validate |
+| 20 | `self-update` | 8 | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate | analyze → research → design → implement → validate → test → validate → validate |
+| 21 | `skill-optimization` | 6 | survey → profile → optimize → si_chip_dogfood → benchmark → document | research → analyze → implement → validate → test → release |
+| 22 | `spike-poc` (legacy) | 3 | research → prototype → evaluate | research → implement → validate |
+| 23 | `web-design` | 4 | design → implement → refine → verify | design → implement → refine → verify |
+
+Optional stages (declared `optional: true` in the yaml; counted above
+because they appear in the `stages:` list): `self-update.si_chip_gate`.
 
 ### repo-init
 
 | Property | Value |
 |----------|-------|
-| **Stages** | `analyze → scaffold → compile → verify` |
-| **Gate Type** | standard |
-| **Threshold** | 85 |
-| **Description** | Initialize repo workspace (.local/) and governance rules (.rules/), compile rules to all detected AI tools |
-| **Teams** | Research (analyze), Implement (scaffold, compile), Test (verify) |
+| **Stages** | `analyze → scaffold → compile → interview → verify` (5) |
+| **Depth modes** | `mode=core` runs analyze + scaffold only; `mode=standard` adds rule compilation; `mode=full` adds compilation, the interview stage, and verification smoke tests (per the yaml header) |
+| **Description** | Initialize repo workspace (.local/) and governance rules (.rules/), detect AI tools present, and (optionally) compile rules to all detected tool-native formats |
+| **Teams** | Research (analyze, interview), Implement (scaffold, compile), Test (verify) |
 
 ## 5. Composition Operators
 From §3.1:
