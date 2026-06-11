@@ -1,6 +1,10 @@
 {
-  "agents_md": "1d2295f1ad389e27",
-  "cursor": "3919292d1f787e39",
+  "agents_md": "d0da8c8920a22ed3",
+  "cursor": "422d7217e5865dcd",
+  "stub_change_process_rules": "f89236195e0835b2",
+  "stub_context_optimization_rules": "e6984a36aa30f727",
   "stub_devola_flow_rules": "7a7af336ffbc6226",
+  "stub_self_improve_iteration_rules": "d016726a56939e08",
+  "stub_skill_format_rules": "f6b60e313c93a5a7",
   "stub_workflow_rules": "92d1f58b43268de0"
 }

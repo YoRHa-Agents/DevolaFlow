@@ -207,13 +207,15 @@ def test_agents_md_slice_env_flag_0_opts_out(project_root: Path) -> None:
 def test_slice_hotfix_includes_only_relevant_layers(
     slice_enabled_profiles_path: Path,
 ) -> None:
-    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1..C-3, C-8) + (W-9, W-11).
+    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1..C-3) + (W-9, W-11).
 
     Per `.local/research/v9.0.0_pv07_rule_audit.md` §2.2 hotfix row.
     Hotfix Task Agents skip the full Workflow layer (only W-9 SI-10 +
     W-11 gate apply to a 1-bug fix), most of Architecture (only A-1
     hierarchy + A-2 cache invariants apply), and most of Conventions
-    (only the pre-commit / lean-message / verbatim / braces rules apply).
+    (only the pre-commit / lean-message / verbatim rules apply). C-8
+    (C++ braces) was a hotfix/review slice member until its v14.2.1
+    deletion per G-012 (dead rule — zero C++ files in repo).
     """
     result = select_agents_md_slice("hotfix", profiles_path=slice_enabled_profiles_path)
     assert result["slice_enabled"] is True
@@ -233,8 +235,8 @@ def test_slice_hotfix_includes_only_relevant_layers(
     )
 
     conv_ids = {r for r in included if r.startswith("C-")}
-    assert conv_ids == {"C-1", "C-2", "C-3", "C-8"}, (
-        f"hotfix Conventions should be C-1, C-2, C-3, C-8, got {sorted(conv_ids)}"
+    assert conv_ids == {"C-1", "C-2", "C-3"}, (
+        f"hotfix Conventions should be C-1, C-2, C-3, got {sorted(conv_ids)}"
     )
 
     workflow_ids = {r for r in included if r.startswith("W-")}
@@ -255,7 +257,7 @@ def test_slice_research_minimal_corpus(slice_enabled_profiles_path: Path) -> Non
 
     Research Task Agents are single-stage with minimal ceremony — no
     architecture cache invariants (A-2..A-5), no test/lint rules
-    (C-4..C-9), no convergence-cycle Workflow rules (W-3..W-21). The
+    (C-4..C-7, C-9), no convergence-cycle Workflow rules (W-3..W-21). The
     slice should achieve > 60% token savings.
     """
     result = select_agents_md_slice("research", profiles_path=slice_enabled_profiles_path)

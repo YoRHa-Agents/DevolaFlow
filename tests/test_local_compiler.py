@@ -12,6 +12,7 @@ from devolaflow.local.compiler import (
     RuleCompiler,
     RuleLayer,
     TargetConfig,
+    TokenBudgetExceededError,
     _estimate_tokens,
     _parse_mdc,
 )
@@ -186,8 +187,16 @@ class TestRuleCompiler:
             assert len(r.content_hash) == 16
             assert all(c in "0123456789abcdef" for c in r.content_hash)
 
-    def test_token_budget_truncation(self, tmp_path: Path) -> None:
-        """Layers are dropped by priority when budget is exceeded."""
+    def test_token_budget_overflow_raises_loudly(self, tmp_path: Path) -> None:
+        """v14.2.1 G-011: budget overflow hard-fails instead of truncating.
+
+        Pre-v14.2.1 the compiler silently dropped the lowest-priority
+        non-``always_include`` layer(s) to fit the budget (S-5 violation;
+        happened twice historically — v9.0.0 PV-07 Workflow drop,
+        v11.4.0 Style drop). The error message must name the target and
+        the overflow amount so the operator can act without re-deriving
+        the arithmetic.
+        """
         rd = tmp_path / ".rules_budget"
         rd.mkdir()
 
@@ -218,34 +227,41 @@ class TestRuleCompiler:
 
         rc = RuleCompiler(config_path)
         rc.load_layers(rd)
-        results = rc.compile("tight")
-        r = results[0]
-        assert "soul" in r.layers_included
-        assert r.tokens_used <= r.tokens_budget or "soul" in r.layers_included
+        with pytest.raises(TokenBudgetExceededError) as excinfo:
+            rc.compile("tight")
 
-    def test_soul_layer_never_truncated(self, tmp_path: Path) -> None:
-        """Soul layer (always_include=True) survives truncation."""
+        msg = str(excinfo.value)
+        assert "'tight'" in msg, "error must name the overflowing target"
+        assert "token_budget=600" in msg, "error must name the configured budget"
+        # ~1000 rendered tokens vs 600 budget → overflow amount is stated.
+        assert "exceeding" in msg and "by " in msg, "error must state the overflow amount"
+
+    def test_overflow_with_only_always_include_layers_still_raises(self, tmp_path: Path) -> None:
+        """v14.2.1 G-011: no escape hatch when nothing is droppable.
+
+        Pre-v14.2.1 an all-``always_include`` overflow silently emitted
+        OVER-budget output (the drop loop broke out with nothing
+        droppable). Now it raises like every other overflow, with the
+        message flagging that no layer is droppable.
+        """
         rd = tmp_path / ".rules_soul"
         rd.mkdir()
 
-        (rd / "soul.mdc").write_text("---\npriority: P0\n---\n\n# Soul content\n", encoding="utf-8")
-        (rd / "style.mdc").write_text(
-            "---\npriority: P4\n---\n\n# Style " + "x" * 4000 + "\n",
-            encoding="utf-8",
+        (rd / "soul.mdc").write_text(
+            "---\npriority: P0\n---\n\n# Soul " + "x" * 4000 + "\n", encoding="utf-8"
         )
 
         config = {
             "version": "1.0",
             "layers": [
                 {"name": "soul", "file": "soul.mdc", "priority": 0, "always_include": True},
-                {"name": "style", "file": "style.mdc", "priority": 4, "always_include": False},
             ],
             "targets": {
                 "test": {
                     "output": "out.mdc",
                     "format": "mdc",
                     "token_budget": 100,
-                    "include_layers": ["soul", "style"],
+                    "include_layers": ["soul"],
                 }
             },
         }
@@ -254,27 +270,22 @@ class TestRuleCompiler:
 
         rc = RuleCompiler(config_path)
         rc.load_layers(rd)
-        results = rc.compile("test")
-        r = results[0]
-        assert "soul" in r.layers_included
+        with pytest.raises(TokenBudgetExceededError, match="no non-always_include layer"):
+            rc.compile("test")
 
     def test_compile_layers_included_reflects_post_truncation_state(self, tmp_path: Path) -> None:
-        """v12.0.0 PV-05 cleanup absorption — post-truncation accounting fix.
+        """v12.0.0 PV-05 accounting contract, re-pinned under v14.2.1 G-011.
 
-        Per the v11.4.0 retrospective §3 deferred-bugs inventory + §4 key
-        learning 3, the ``layers_included`` field used to reflect the
-        PRE-truncation ``selected`` list — silently reporting all layers
-        even when the rendered output dropped the lowest-priority layer(s)
-        to fit the token budget. That accounting bug masked the v11.4.0
-        cursor 11979/12000 saturation pre-bump (the Style Rules layer
-        was dropped by the truncation loop but ``RuleCompiler.compile``
-        continued to report all 5 layers in ``layers_included``).
-
-        This regression test pins the v12.0.0 PV-05 fix: when truncation
-        drops a non-always_include layer, ``layers_included`` reflects the
-        POST-truncation retained set (the layer names that actually
-        rendered into ``content``), not the pre-truncation selection.
-        Source: ``.local/research/v12.0.0_gap_analysis.md`` §6 +
+        Originally this test pinned the v12.0.0 PV-05 fix where
+        ``layers_included`` reflected the POST-truncation retained set.
+        v14.2.1 (G-011) supersedes silent truncation entirely: overflow
+        hard-fails. The post-truncation accounting now surfaces in the
+        :class:`TokenBudgetExceededError` message instead — the error
+        MUST name the exact layer(s) the legacy drop loop would have
+        silently removed (``style`` here, the lowest-priority
+        non-``always_include`` layer), preserving the v12.0.0 PV-05
+        truth-in-accounting contract in its new loud-failure form.
+        Source: ``.local/research/v14.2.0_gap_analysis.md`` §2.2 G-011 +
         ``docs/cycle-archive/v11.4.0/v11.4.0_retrospective.md`` §3 + §4.
         """
         rd = tmp_path / ".rules_post_trunc"
@@ -311,29 +322,64 @@ class TestRuleCompiler:
 
         rc = RuleCompiler(config_path)
         rc.load_layers(rd)
-        results = rc.compile("tight")
-        r = results[0]
+        with pytest.raises(TokenBudgetExceededError) as excinfo:
+            rc.compile("tight")
 
-        assert r.tokens_used <= r.tokens_budget, (
-            f"truncation loop did not converge: tokens_used={r.tokens_used} > "
-            f"tokens_budget={r.tokens_budget}; the fixture should force the "
-            "P4 style layer to be dropped within the budget."
+        msg = str(excinfo.value)
+        assert "style" in msg, (
+            "G-011 contract: the overflow error must name the layer(s) the "
+            "legacy silent-truncation path would have dropped (style is the "
+            "lowest-priority non-always_include layer in this fixture)."
+        )
+        assert "soul" not in msg.split("would have dropped")[-1].split(".")[0], (
+            "soul (always_include=True) must NOT be listed among the would-have-dropped layers."
         )
 
-        assert "style" not in r.layers_included, (
-            "v12.0.0 PV-05 violation: layers_included still reports the "
-            "pre-truncation set; style (P4, always_include=False) was "
-            "dropped by the truncation loop but is still listed in "
-            "layers_included. See v11.4.0 retrospective §3 deferred bug "
-            "+ §4 key learning 3 for the original incident."
+    def test_compile_all_overflow_writes_no_outputs(self, tmp_path: Path) -> None:
+        """v14.2.1 G-011: an overflowing ``compile_all`` leaves no partial files.
+
+        ``compile_all`` compiles every target in-memory before writing;
+        the overflow raise aborts the run before any output or hash-store
+        write, so a failed compile cannot leave a half-regenerated
+        ``.cursor/rules/`` + ``AGENTS.md`` surface behind.
+        """
+        rd = tmp_path / ".rules"
+        rd.mkdir()
+        (rd / "soul.mdc").write_text(
+            "---\npriority: P0\n---\n\n# Soul " + "x" * 4000 + "\n", encoding="utf-8"
         )
 
-        assert "soul" in r.layers_included, "soul (always_include=True) must survive truncation."
+        config = {
+            "version": "1.0",
+            "layers": [
+                {"name": "soul", "file": "soul.mdc", "priority": 0, "always_include": True},
+            ],
+            "targets": {
+                "tight": {
+                    "output": "out.mdc",
+                    "format": "mdc",
+                    "token_budget": 100,
+                    "include_layers": ["soul"],
+                }
+            },
+            "drift_detection": {
+                "enabled": True,
+                "hash_file": ".rules/.compile-hashes.json",
+            },
+        }
+        config_path = rd / "compile-config.yaml"
+        config_path.write_text(yaml.dump(config), encoding="utf-8")
 
-        assert len(r.layers_included) < 3, (
-            f"layers_included={r.layers_included!r} reports the pre-truncation "
-            "count of 3; v12.0.0 PV-05 contract requires post-truncation "
-            "reporting (at least the P4 style layer must be absent)."
+        rc = RuleCompiler(config_path)
+        rc.load_layers(rd)
+        with pytest.raises(TokenBudgetExceededError):
+            rc.compile_all()
+
+        assert not (tmp_path / "out.mdc").exists(), (
+            "compile_all must not write target outputs when any target overflows"
+        )
+        assert not (rd / ".compile-hashes.json").exists(), (
+            "compile_all must not update the drift hash store when compilation fails"
         )
 
     def test_compile_layers_included_happy_path_unchanged(self, rules_dir: Path) -> None:

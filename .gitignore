@@ -72,5 +72,6 @@ node_modules/
 # skill auto-loaded inside the DevolaFlow repo itself can recreate the mirror
 # with: make sync-cursor-skill   (or the project-local installer:
 #   curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor )
-# See .cursor/rules/skill-format-rules.mdc Rule SF-3 for the parity contract.
+# See .rules/conventions.mdc §C-6 (compiled into .cursor/rules/repo-governance.mdc)
+# for the version-consistency parity contract (formerly skill-format SF-3).
 .cursor/skills/devola-flow/

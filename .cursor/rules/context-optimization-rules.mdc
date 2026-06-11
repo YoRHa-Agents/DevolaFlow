@@ -1,32 +1,47 @@
 ---
-description: "Context optimization constraints for DevolaFlow — codified from v2.2.0 density optimization iteration"
+description: "DEPRECATED — see .rules/ for canonical 5-layer rule source"
 alwaysApply: true
 ---
 
-## Rule CO-1 — Lean Message Format
+# Deprecated — see `.rules/` and `.cursor/rules/repo-governance.mdc`
 
-Inter-layer messages (TaskDispatch, StatusReport) must use the lean format defined in `schemas/lean-dispatch.yaml` and `schemas/lean-report.yaml`. Verbose prose descriptions are prohibited in dispatch/report YAML. Use verbatim compaction (key_facts lists, cause→effect notation) instead of summarization.
+This file used to carry the CO-1..CO-6 context-optimization rules. As
+of v14.2.1 (G-008), the canonical rule sources are
+`.rules/conventions.mdc` (CO-1 → C-2, CO-2 → C-3), `.rules/architecture.mdc`
+(CO-3 → A-3), `.rules/soul.mdc` (CO-4 → S-2), and `.rules/workflow.mdc`
+(CO-5 → W-14, CO-6 → W-15). This stub remains as a discoverable
+cross-reference so existing `.cursor/rules/` auto-load paths still
+surface a pointer to the canonical source.
 
-## Rule CO-2 — Verbatim Extraction
+## Canonical rule source
 
-`key_facts` in predecessor artifacts and `delta` in status reports must be verbatim extractions from source. Never paraphrase file paths, error messages, metric values, or commit hashes. This prevents hallucination risk per the LLM Scaling Paradox research.
+| Layer | Canonical `.mdc` file | Compiled into |
+|---|---|---|
+| Soul (P0) | `.rules/soul.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Architecture (P1) | `.rules/architecture.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Conventions (P2) | `.rules/conventions.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Workflow (P3) | `.rules/workflow.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Style (P4) | `.rules/style.mdc` | `repo-governance.mdc` (Cursor only) |
 
-## Rule CO-3 — Context Token Budgets
+The compiled full corpus lives at `.cursor/rules/repo-governance.mdc` —
+that is the file every Cursor agent loads at session start.
 
-Context profiles (`workflow-system/agent/context_profiles.yaml`) must define explicit token budgets per task type. Budgets are enforced by priority-based allocation: critical sections first, then important, then supplementary.
+## Regenerate after editing `.rules/*.mdc`
 
-## Rule CO-4 — Relative Paths Only
-
-All paths in dispatch messages, status reports, and artifact references must be relative to the repository root. Absolute filesystem paths are prohibited. External benchmarks and tools are referenced via their GitHub URL: `https://github.com/YoRHa-Agents/DevolaFlow`.
-
-## Rule CO-5 — Benchmark Verification
-
-Context optimization changes must demonstrate improvement (or at minimum no regression) via EvoBench benchmarks. The benchmark suite lives at `benchmarks/devolaflow_context/` in this repository. Run with:
+```bash
+python -c "from devolaflow.local.compiler import RuleCompiler; \
+RuleCompiler('.rules/compile-config.yaml').compile_all()"
 ```
-python -m pytest tests/test_benchmarks.py -v
-```
-Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/` for regression comparison.
 
-## Rule CO-6 — Section Relevance
+Drift detection (lint enforced by
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`):
+hand-edits to `.cursor/rules/repo-governance.mdc` or to any deprecated
+pointer stub registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`
+(including this file) fail the lint at CI-time.
 
-Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. A hotfix agent must not receive design-stage primitives; a research agent must not receive convergence-loop details. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
+## Migration
+
+Switch any tooling that reads this file to read either:
+
+* `.cursor/rules/repo-governance.mdc` — compiled full corpus, OR
+* the canonical `.rules/*.mdc` layer files listed above.

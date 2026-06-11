@@ -39,7 +39,13 @@ plugins:
   si-chip:
     description: "Persistent BasicAbility optimisation factory — static profiling, iteration_delta evaluation, apply/defer threshold gate (+0.10) for skill self-improvement"
     cli_binary: "python"
-    version_command: "test -f $HOME/.cursor/skills/si-chip/SKILL.md || test -f $HOME/.cursor/skills/si-chip/si-chip/SKILL.md && echo si-chip/0.4.0"
+    # v14.2.1 (G-021 probe slice) — copied verbatim from
+    # knowledge/runtime-plugins.yaml `version_check_cmd` (fixed there at
+    # v10.2.0 PV-01 D-P-3). The pre-v14.2.1 heuristic here
+    # (`test -f ... || test -f ... && echo si-chip/0.4.0`) ALWAYS reported
+    # 0.4.0 regardless of what was installed. Full registry unification is
+    # deferred to v15.0.0 per the L0-ratified gap register §7 item 5.
+    version_command: "python -c 'import sys; sys.path.insert(0, \"src\"); from devolaflow.si_chip_bridge import find_si_chip_install; from devolaflow.si_chip_bridge.install_resolver import read_installed_si_chip_version; install=find_si_chip_install(); v=read_installed_si_chip_version(install) if install else None; print(f\"si-chip/{v}\") if v else sys.exit(1)'"
     version_regex: 'si-chip/(\d+\.\d+\.\d+)'
     install_methods:
       script: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"

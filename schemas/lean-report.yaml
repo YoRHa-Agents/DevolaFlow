@@ -52,7 +52,10 @@ original_example:
       tests_passed: 12
       tests_failed: 0
       coverage_pct: 94.2
-      quality_score: 92
+      # gate-dimension input evidence — NOT the Task Quality Score (L0-only,
+      # see references/task-quality-score.md). Renamed from `quality_score`
+      # at v14.2.1 (G-013) so subagent report examples teach one doctrine.
+      gate_input_score: 92
       findings_by_severity:
         blocker: 0
         critical: 0
@@ -76,7 +79,9 @@ lean_example:
     - { path: "src/middleware/auth.ts", type: source, delta: "JWT auth middleware — validates token, attaches req.user, handles 401/400" }
     - { path: "src/middleware/index.ts", type: source, delta: "added authenticateToken export" }
     - { path: "tests/middleware/auth.test.ts", type: test, delta: "12 tests: valid/expired/malformed/missing/edge cases" }
-  metrics: { pass: 12, fail: 0, cov: 94.2, quality: 92, findings: {B:0,C:0,M:0,m:2,i:1} }
+  # gate_input_score: gate-dimension input evidence — NOT the Task Quality
+  # Score (L0-only, see references/task-quality-score.md).
+  metrics: { pass: 12, fail: 0, cov: 94.2, gate_input_score: 92, findings: {B:0,C:0,M:0,m:2,i:1} }
   issues:
     blockers: []
     warnings:
@@ -102,7 +107,12 @@ lean_format_spec:
     max_entries: 10
   metrics:
     description: "Numeric-only. Findings abbreviated: B=blocker, C=critical, M=major, m=minor, i=info"
-    fields: { pass: int, fail: int, cov: float, quality: float, findings: "severity:count map" }
+    # gate_input_score: gate-dimension input evidence — NOT the Task Quality
+    # Score (L0-only, see references/task-quality-score.md). Subagent reports
+    # DO NOT carry a `quality_score`; the pre-v14.2.1 `quality` field was
+    # renamed per G-013 (F-P4-3) so the schema teaches one doctrine alongside
+    # the `reject_subagent_quality_score` pre_dispatch hook.
+    fields: { pass: int, fail: int, cov: float, gate_input_score: float, findings: "severity:count map" }
   issues:
     description: "Structured issue lists. Each entry ≤15 words."
     fields:

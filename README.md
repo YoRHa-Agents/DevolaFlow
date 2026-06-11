@@ -5,7 +5,7 @@
 [![CI](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/YoRHa-Agents/DevolaFlow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Version](https://img.shields.io/badge/version-14.2.0-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
+[![Version](https://img.shields.io/badge/version-14.2.1-green.svg)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
 **Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
 
@@ -342,19 +342,16 @@ The score appears at the end of the workflow report with actionable tips to impr
 
 ### Repository Development Rules
 
-9 enforceable rule files in `.cursor/rules/` codifying iteration lessons:
+62 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into two distribution surfaces — `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 
-| Rule File | Rules | What It Enforces |
-|-----------|-------|-----------------|
-| `repo-governance.mdc` | S-1..S-7, A-1..A-3, C-1..C-8, W-1..W-15, ST-1..ST-13 | Compiled aggregate: Soul invariants, architecture, conventions, workflow, style |
-| `workflow-rules.mdc` | P1..P5 | 4-layer hierarchy: Dispatcher-Not-Implementer, Minimal Context, Structured Messages, Bounded Retry, Artifacts as Contracts |
-| `devola-flow-rules.mdc` | P1..P6 | DevolaFlow-specific: P1..P5 + P6 cache-prefix invariant |
-| `skill-format-rules.mdc` | SF-1..SF-6 | SKILL.md line budget, frontmatter, version consistency, valid references, no absolute paths |
-| `change-process-rules.mdc` | CP-1..CP-7 | No ghost features, test coverage floor (>=80%), version bump protocol, pre-commit checklist |
-| `context-optimization-rules.mdc` | CO-1..CO-6 | Lean message format, verbatim extraction, token budgets, benchmark verification |
-| `self-improve-iteration-rules.mdc` | SI-1..SI-10 | Iteration planning gate, NineS analysis, evaluation, retrospective, test-then-commit |
-| `web-experience-rules.mdc` | WX-1..WX-8 | Four theme showcases, additive design tokens, motion patterns, bilingual showcase pages |
-| `documentation-sync-rules.mdc` | DS-1..DS-5 | Human-facing content registry, NieR identity, bilingual completeness, version propagation |
+| Rule Surface | Rules | What It Enforces |
+|--------------|-------|-----------------|
+| `.rules/` (canonical: soul, architecture, conventions, workflow, style) | S-1..S-10, A-1..A-7, C-1..C-7 + C-9, W-1..W-24, ST-1..ST-13 | Layered rule corpus: Soul invariants, architecture decisions, conventions, workflow process, style |
+| `.cursor/rules/repo-governance.mdc` + `AGENTS.md` | Compiled aggregate of the above | Same corpus rendered for Cursor (MDC) and AGENTS.md-aware tools — never hand-edit (drift-detected) |
+| `.cursor/rules/web-experience-rules.mdc` | WX-1..WX-8 | Four theme showcases, additive design tokens, motion patterns, bilingual showcase pages |
+| `.cursor/rules/documentation-sync-rules.mdc` | DS-1..DS-5 | Human-facing content registry, NieR identity, bilingual completeness, version propagation |
+
+The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) are **deprecated pointer stubs** — they carry no live rules and only cross-reference the canonical `.rules/` layer sources (C-8 was removed in v14.2.1; rule ids are not renumbered).
 
 ## Versioning & Updates
 
@@ -363,7 +360,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v14.2.0"
+devola-version                   # prints "DevolaFlow v14.2.1"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

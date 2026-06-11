@@ -123,8 +123,10 @@ lean_format_spec:
       summary_max_tokens: "int (default: 500); hard cap on summarise_predecessor output"
       # v8.0.0 (P-02) — directed-compaction directive. NESTED under pred[*],
       # NOT a new top-level dispatch key — layout_invariant.canonical_order
-      # length stays 13 and version stays 2 (P6 cache-layout invariant
-      # preserved per ADR-001 §2 additive rule). Consumed by
+      # length and version were unchanged by this NEST (13/2 at the v8.0.0
+      # P-02 landing; 17/6 since v9.7.0 PV-02 — the `layout_invariant` block
+      # below is authoritative). P6 cache-layout invariant preserved per
+      # ADR-001 §2 additive rule. Consumed by
       # `devolaflow.compressor.directed_compact()` (Layer-3 of the layered
       # compression pipeline). Field shape:
       #   compact_directive:
@@ -160,8 +162,10 @@ lean_format_spec:
     # v8.0.0 (P-03) — token-budget circuit breaker. NESTED under the
     # existing `gate` block (position 12 of canonical_order); NOT a new
     # top-level dispatch key — layout_invariant.canonical_order length
-    # stays 13 and version stays 2 (P6 cache-layout invariant preserved
-    # per ADR-001 §2 additive rule). Consumed by
+    # and version were unchanged by this NEST (13/2 at the v8.0.0 P-03
+    # landing; 17/6 since v9.7.0 PV-02 — the `layout_invariant` block
+    # below is authoritative). P6 cache-layout invariant preserved
+    # per ADR-001 §2 additive rule. Consumed by
     # `devolaflow.gate.budget.TokenBudgetBreaker.check()` and surfaced
     # via `evaluate_gate(..., breaker=...)`. Field shape:
     #   token_budget:

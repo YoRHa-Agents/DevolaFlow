@@ -2,13 +2,13 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-Total rules: **63** (v9.0.0 — added W-21 in PV-07 per `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4; cap 60 HARD per ADR-007 D5; v11.3.0 added W-22 grill mode + W-23 domain glossary; v11.4.0 added W-24 subagent pattern selection per the philschmid 2026 prep cycle).
+Total rules: **62** (cap 60 HARD applies to the compiled AGENTS.md surface per ADR-007 D5; v9.0.0 added W-21 per `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4; v11.3.0 added W-22 grill mode + W-23 domain glossary; v11.4.0 added W-24 subagent pattern selection; v14.2.1 removed dead rule C-8 per G-012 — rule ids NOT renumbered).
 
 | Layer | File | Priority | Always Apply | Rule count | Description |
 |-------|------|----------|-------------|------------|-------------|
 | Soul | `soul.mdc` | P0 | Yes | 10 (S-1..S-10) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8), handoff append-only (S-9), prompt-side governance contract embedding (S-10). **Frozen at 10 entries per W-21 (ADR-007 D4).** |
-| Architecture | `architecture.mdc` | P1 | Yes | 5 (A-1..A-5) | Core architectural decisions — 4-layer hierarchy (A-1), cache layout governance v2 (A-2), token budgets (A-3), source-of-truth spec location (A-4), single-source-of-truth registry pattern (A-5 — added v8.4.3 PV-03 per ADR-003) |
-| Conventions | `conventions.mdc` | P2 | Yes | 9 (C-1..C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9) |
+| Architecture | `architecture.mdc` | P1 | Yes | 7 (A-1..A-7) | Core architectural decisions — 4-layer hierarchy (A-1), cache layout governance v2 (A-2), token budgets (A-3), source-of-truth spec location (A-4), single-source-of-truth registry pattern (A-5 — added v8.4.3 PV-03 per ADR-003), workspace engagement auto-activation (A-6 — added v9.1.2 PV-02), cascade-depth invariant (A-7 — added v11.1.0 PV-04/PV-05) |
+| Conventions | `conventions.mdc` | P2 | Yes | 8 (C-1..C-7, C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9). C-8 (C++ braces) removed v14.2.1 per G-012 (dead rule — zero C++ files in repo); remaining ids NOT renumbered. |
 | Workflow | `workflow.mdc` | P3 | No | 24 (W-1..W-24) | Development process — iteration planning, NineS analysis, benchmarks, version bumps; W-16..W-20 added v8.5.0 PV-05 per ADR-005 (cycle baseline regen / per-PV test cap / ghost-audit refresh / cycle archive / env-flag reuse); W-21 added v9.0.0 PV-07 per ADR-007 D4 (Soul-set freeze governance); W-22 + W-23 added v11.3.0 (grill-mode activation contract + domain glossary maintenance); W-24 added v11.4.0 (subagent-pattern selection per philschmid 2026 prep cycle). |
 | Style | `style.mdc` | P4 | No | 13 (ST-1..ST-13) | Documentation & presentation — doc sync, web experience, bilingual completeness |
 
@@ -29,7 +29,11 @@ python -c "from devolaflow.local.compiler import RuleCompiler; RuleCompiler('.ru
 
 ## Source Mapping
 
-Rules are migrated from `.cursor/rules/*.mdc`:
+Rules were migrated from the legacy `.cursor/rules/*.mdc` files. As of v14.2.1
+(G-008) all six fully-migrated legacy files are deprecated pointer stubs
+(registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`); the two
+P4 Style sources (`documentation-sync-rules.mdc`, `web-experience-rules.mdc`)
+remain in place as on-demand rule files. Original mapping:
 
 - `workflow-rules.mdc` → P1 Architecture (P1–P5)
 - `devola-flow-rules.mdc` → P1 Architecture (P1–P6)

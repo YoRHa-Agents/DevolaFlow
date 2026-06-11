@@ -2,15 +2,16 @@
 
 v9.0.0 PV-07 (ADR-007 D2 + D5) extension:
 
-* :func:`check_stub_drift` — verifies the v9.0.0-deprecated
-  ``.cursor/rules/{devola-flow,workflow}-rules.mdc`` stubs match the
-  expected stub-template content (a hand-edit to either stub fails the
-  drift check). Used by
+* :func:`check_stub_drift` — verifies the deprecated cursor-rule
+  pointer stubs match the expected stub-template content (a hand-edit
+  to any stub fails the drift check). Used by
   ``tests/test_no_ghost_features.py::test_rule_surfaces_compile_only``.
-* :data:`DEPRECATED_STUB_FILES` — tuple of the 2 deprecated stub paths
-  enforced by the drift check. Adding a new deprecated stub requires
+* :data:`DEPRECATED_STUB_FILES` — tuple of the deprecated stub paths
+  enforced by the drift check (2 at v9.0.0 PV-07 per ADR-007 D2;
+  +4 at v14.2.1 per G-008). Adding a new deprecated stub requires
   adding the path here AND providing its expected SHA-256 fingerprint
-  in ``.rules/.compile-hashes.json`` under the matching key.
+  in ``.rules/.compile-hashes.json`` under the matching key
+  (``RuleCompiler.compile_all()`` regenerates the fingerprints).
 """
 
 from __future__ import annotations
@@ -32,13 +33,19 @@ class DriftResult:
     actual_hash: str
 
 
-# v9.0.0 PV-07 (ADR-007 D2): the 2 deprecated cursor-rule stubs
-# whose ≤ 50-line cross-reference scaffold content is pinned by the
-# drift detector. The expected hash for each lives under the matching
-# ``stub_<name>`` key in .rules/.compile-hashes.json.
+# The deprecated cursor-rule stubs whose ≤ 50-line cross-reference
+# scaffold content is pinned by the drift detector. The expected hash
+# for each lives under the matching ``stub_<name>`` key in
+# .rules/.compile-hashes.json. First 2 entries: v9.0.0 PV-07 (ADR-007
+# D2). Last 4 entries: v14.2.1 (G-008 — fully-migrated legacy
+# always-applied rule files converted to pointer stubs).
 DEPRECATED_STUB_FILES: tuple[tuple[str, str], ...] = (
     ("stub_devola_flow_rules", ".cursor/rules/devola-flow-rules.mdc"),
     ("stub_workflow_rules", ".cursor/rules/workflow-rules.mdc"),
+    ("stub_change_process_rules", ".cursor/rules/change-process-rules.mdc"),
+    ("stub_context_optimization_rules", ".cursor/rules/context-optimization-rules.mdc"),
+    ("stub_self_improve_iteration_rules", ".cursor/rules/self-improve-iteration-rules.mdc"),
+    ("stub_skill_format_rules", ".cursor/rules/skill-format-rules.mdc"),
 )
 
 
@@ -53,11 +60,11 @@ def _file_hash(path: Path) -> str:
 def compute_stub_fingerprints(repo_root: Path) -> dict[str, str]:
     """Compute SHA-256 fingerprints for every deprecated cursor-rule stub.
 
-    v9.0.0 PV-07 (ADR-007 D2): the 2 deprecated stubs
-    (`.cursor/rules/devola-flow-rules.mdc` + `.cursor/rules/workflow-rules.mdc`)
-    are the cross-reference scaffolds that point operators at the
-    canonical `.rules/` source. The fingerprints below pin their content
-    so any hand-edit fails ``check_stub_drift``.
+    The deprecated stubs registered in :data:`DEPRECATED_STUB_FILES`
+    (2 at v9.0.0 PV-07 per ADR-007 D2; +4 at v14.2.1 per G-008) are the
+    cross-reference scaffolds that point operators at the canonical
+    `.rules/` source. The fingerprints below pin their content so any
+    hand-edit fails ``check_stub_drift``.
 
     Returns a dict keyed by the stub's ``key`` (from
     :data:`DEPRECATED_STUB_FILES`) to the hash. Missing files return
@@ -109,12 +116,12 @@ def check_stub_drift(
     repo_root: Path,
     hash_file: str | Path | None = None,
 ) -> list[DriftResult]:
-    """Verify the v9.0.0-deprecated cursor-rule stubs match stored hashes.
+    """Verify the deprecated cursor-rule pointer stubs match stored hashes.
 
-    v9.0.0 PV-07 (ADR-007 D2 + D5): the 2 deprecated stubs
-    (`.cursor/rules/devola-flow-rules.mdc` + `.cursor/rules/workflow-rules.mdc`)
-    are pinned cross-reference scaffolds. A hand-edit to either stub
-    fails this drift check; CI enforcement lives in
+    The stubs registered in :data:`DEPRECATED_STUB_FILES` (2 at v9.0.0
+    PV-07 per ADR-007 D2 + D5; +4 at v14.2.1 per G-008) are pinned
+    cross-reference scaffolds. A hand-edit to any stub fails this drift
+    check; CI enforcement lives in
     ``tests/test_no_ghost_features.py::test_rule_surfaces_compile_only``.
 
     Args:

@@ -1,68 +1,47 @@
 ---
-description: "Change process guardrails for DevolaFlow — codified from v2.1.0/v2.2.0 iteration lessons to prevent ghost features and coverage gaps"
+description: "DEPRECATED — see .rules/ for canonical 5-layer rule source"
 alwaysApply: true
 ---
 
-## Rule CP-1 — No Ghost Features
+# Deprecated — see `.rules/` and `.cursor/rules/repo-governance.mdc`
 
-Every feature listed in CHANGELOG.md must have corresponding working code, tests, and (if applicable) documentation. Do not add CHANGELOG entries for code that does not yet exist.
+This file used to carry the CP-1..CP-7 change-process rules. As of
+v14.2.1 (G-008), the canonical rule sources are `.rules/soul.mdc`
+(CP-1 → S-4, CP-2 → S-3), `.rules/conventions.mdc` (CP-7 → C-1), and
+`.rules/workflow.mdc` (CP-3 → W-10, CP-4 → W-11, CP-5 → W-12,
+CP-6 → W-13). This stub remains as a discoverable cross-reference so
+existing `.cursor/rules/` auto-load paths still surface a pointer to
+the canonical source.
 
-## Rule CP-2 — Test Coverage Floor
+## Canonical rule source
 
-Every new or modified Python module must maintain >= 80% test coverage. New modules must have > 0% coverage before merge. Verify with:
-```
-python -m pytest tests/ --cov=devolaflow --cov-report=term-missing
-```
+| Layer | Canonical `.mdc` file | Compiled into |
+|---|---|---|
+| Soul (P0) | `.rules/soul.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Architecture (P1) | `.rules/architecture.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Conventions (P2) | `.rules/conventions.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Workflow (P3) | `.rules/workflow.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Style (P4) | `.rules/style.mdc` | `repo-governance.mdc` (Cursor only) |
 
-## Rule CP-3 — Version Bump Protocol
+The compiled full corpus lives at `.cursor/rules/repo-governance.mdc` —
+that is the file every Cursor agent loads at session start.
 
-When bumping the version, update ALL tracked locations consistently using `scripts/bump_version.py`. The script performs 7 pattern replacements across the canonical files, then invokes `scripts/sync_cursor_skill.py`. The sync script is a **no-op when `.cursor/skills/devola-flow/` is absent** (gitignored, opt-in mirror), so CI and fresh clones bump cleanly. After bumping, run `python -m pytest tests/test_version.py -v` to verify; mirror-parity assertions self-skip when the mirror is absent.
+## Regenerate after editing `.rules/*.mdc`
 
-The canonical list of synced locations is defined in rule SF-3 (`skill-format-rules.mdc`); the source of truth is `src/devolaflow/__init__.py`. For reference, the files touched by an actual bump are:
-
-**Canonical (pattern-replaced by `bump_version.py` — always required, tracked):**
-
-1. `src/devolaflow/__init__.py` — `__version__` (source of truth)
-2. `workflow-system/agent/SKILL.md` — frontmatter `version:`, banner, and body "Current version:" text
-3. `workflow-system/agent/workflow-skill.yaml` — identity section
-4. `pyproject.toml` — `version` field
-5. `scripts/generate_human_docs.py` — `SOURCE_VERSION`
-6. `tests/test_smoke.py` — version assertion
-7. `README.md` — badge and version example
-8. `workflow-system/human/demo/benchmark-results/index.html` — `SAMPLE_DATA.version`
-
-**Opt-in mirror (auto-synced by `sync_cursor_skill.py` when present locally; gitignored):**
-
-- `.cursor/skills/devola-flow/SKILL.md` — bytewise mirror of (2)
-- `.cursor/skills/devola-flow/references/*.md` — 9 bytewise mirrors of `workflow-system/agent/references/*.md`
-- `.cursor/skills/devola-flow/examples/*.md` — 3 bytewise mirrors of `workflow-system/agent/examples/*.md`
-- `.cursor/skills/devola-flow/.devola-flow-version` — single-line stamp = `__version__`
-
-Root `CLAUDE.md` is a lightweight project-context file and does NOT carry a version — do not add version frontmatter or banners to it. After bumping, also re-run `make sync-human-docs` to propagate the new version into generated docs. Devs who locally edit `workflow-system/agent/SKILL.md` (or any reference/example) outside a bump should run `make sync-cursor-skill` before committing IFF they have the mirror locally installed.
-
-## Rule CP-4 — Gate Module Changes
-
-Changes to `src/devolaflow/gate/` require running the full gate test suite:
-```
-python -m pytest tests/test_gate.py -v
+```bash
+python -c "from devolaflow.local.compiler import RuleCompiler; \
+RuleCompiler('.rules/compile-config.yaml').compile_all()"
 ```
 
-## Rule CP-5 — SKILL Changes Require Adapter Build
+Drift detection (lint enforced by
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`):
+hand-edits to `.cursor/rules/repo-governance.mdc` or to any deprecated
+pointer stub registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`
+(including this file) fail the lint at CI-time.
 
-Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying all 4 adapter outputs (Cursor, Codex, Claude, Copilot) build successfully and stay within their budgets.
+## Migration
 
-## Rule CP-6 — Context Optimization Changes Require Benchmarks
+Switch any tooling that reads this file to read either:
 
-Changes to `task_adaptive_selector.py`, `context_profiles.yaml`, or lean message schemas require running the EvoBench benchmark suite:
-```
-python -m pytest tests/test_benchmarks.py -v
-```
-
-## Rule CP-7 — Pre-Commit Verification Checklist
-
-Before committing to this repository, verify:
-1. `python -m pytest tests/ -q` — all tests pass
-2. `ruff check src/ tests/` — no lint errors
-3. `ruff format --check src/ tests/` — formatting correct
-4. No absolute filesystem paths introduced in agent-facing files
-5. CHANGELOG updated if user-visible changes were made
+* `.cursor/rules/repo-governance.mdc` — compiled full corpus, OR
+* the canonical `.rules/*.mdc` layer files listed above.

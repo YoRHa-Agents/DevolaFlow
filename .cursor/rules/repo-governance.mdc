@@ -448,10 +448,6 @@ Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actua
 
 Source: SF-4.
 
-## C-8 — Always Use Braces for If
-
-Always use braces for if, else if, and else branches in C++. No single-line unbracketed bodies allowed.
-
 ## C-9 — Lightweight Agent Workspace Artifacts
 
 Files inside `.local/.agent/active/<change-id>/` and
@@ -542,13 +538,16 @@ Multi-round convergence iterations MUST use the reinforcement mechanism (`src/de
 
 ## W-9 — Test-Then-Commit Protocol (SI-10)
 
-Every iteration follows this strict pre-commit sequence — all 6 must pass:
+Every iteration follows this strict pre-commit sequence — all 7 must pass:
 1. `python -m pytest tests/ -q` — all tests pass
 2. `ruff check src/ tests/` — no lint errors
 3. `ruff format --check src/ tests/` — formatting correct
 4. `python -m pytest tests/test_version.py -v` — version consistency
 5. `python -m pytest tests/test_benchmarks.py -v` — no benchmark regressions
 6. `make check-cursor-skill` — exit 0
+7. `make iteration-delta-gate` — Si-Chip iteration_delta gate (7th gate per v10.2.1 D-V-1)
+
+`make precommit-full` (alias for `make release-preflight`) is the canonical runner for the full chain; the Makefile is the source of truth for the gate list (recompiled from Makefile truth at v14.2.1 per G-033).
 
 ## W-10 — Version Bump Protocol (CP-3)
 
@@ -563,7 +562,7 @@ python -m pytest tests/test_gate.py -v
 
 ## W-12 — SKILL Changes Require Adapter Build (CP-5)
 
-Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying all 4 adapter outputs build successfully and stay within their budgets.
+Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`) build successfully and stay within their budgets.
 
 ## W-13 — Context Optimization Benchmarks (CP-6)
 
@@ -604,7 +603,7 @@ Verify with:
 python -m pytest tests/ --collect-only -q | tail -1
 
 # NEW test functions in this PV — what the cap actually counts
-git diff <previous-tag>..HEAD --stat -- tests/ | grep -cE "test_[a-z_]+\(.*\):"
+git diff <previous-tag>..HEAD -- tests/ | grep -cE '^\+\s*def test_'
 ```
 
 Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §5.

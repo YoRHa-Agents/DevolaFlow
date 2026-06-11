@@ -73,10 +73,6 @@ Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actua
 
 Source: SF-4.
 
-## C-8 — Always Use Braces for If
-
-Always use braces for if, else if, and else branches in C++. No single-line unbracketed bodies allowed.
-
 ## C-9 — Lightweight Agent Workspace Artifacts
 
 Files inside `.local/.agent/active/<change-id>/` and

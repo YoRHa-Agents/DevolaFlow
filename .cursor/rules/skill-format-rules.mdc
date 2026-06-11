@@ -1,96 +1,49 @@
 ---
-description: "Format constraints for DevolaFlow SKILL.md and CLAUDE.md — codified from v2.1.0/v2.2.0 iteration lessons"
+description: "DEPRECATED — see .rules/ for canonical 5-layer rule source"
 alwaysApply: true
 ---
 
-## Rule SF-1 — Tiered Line Budget
+# Deprecated — see `.rules/` and `.cursor/rules/repo-governance.mdc`
 
-Agent-facing skill files are subject to tiered line-count ceilings, adopted from gsd
-v1.37.0 (issue #2361) and applied to the canonical 14-file set listed in
-`scripts/sync_cursor_skill.py::MIRRORED_FILES`:
+This file used to carry the SF-1..SF-6 skill-format rules. As of
+v14.2.1 (G-008), the canonical rule sources are
+`.rules/conventions.mdc` (SF-1 → C-4, SF-2 → C-5, SF-3 → C-6,
+SF-4 → C-7) and `.rules/soul.mdc` (SF-5 → S-2, SF-6 → S-7). The
+compiled C-4/C-7 carry the CURRENT file counts (the legacy SF-1/SF-4
+copies had drifted to stale "10 files"/"3 files"/"14-file set"
+figures). This stub remains as a discoverable cross-reference so
+existing `.cursor/rules/` auto-load paths still surface a pointer to
+the canonical source.
 
-| Tier    | Ceiling | Files                                                | Enforced by |
-|---------|---------|-------------------------------------------------------|---|
-| Default | < 500   | `workflow-system/agent/SKILL.md`                      | `tests/test_integration.py::test_skill_md_under_500_lines` |
-| Large   | ≤ 1000  | `workflow-system/agent/references/*.md` (10 files)    | `tests/test_reference_size_budgets.py::test_reference_within_large_tier` |
-| XL      | ≤ 1600  | `workflow-system/agent/examples/*.md` (3 files)       | `tests/test_reference_size_budgets.py::test_example_within_xl_tier` |
+## Canonical rule source
 
-Rationale: SKILL.md is loaded into every dispatcher prompt and must stay tight;
-references are loaded on-demand by L1/L2/L3 agents and may carry richer context;
-examples are only consulted when an agent needs a worked trace, so they get the
-widest budget.
+| Layer | Canonical `.mdc` file | Compiled into |
+|---|---|---|
+| Soul (P0) | `.rules/soul.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Architecture (P1) | `.rules/architecture.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Conventions (P2) | `.rules/conventions.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Workflow (P3) | `.rules/workflow.mdc` | `repo-governance.mdc` + `AGENTS.md` |
+| Style (P4) | `.rules/style.mdc` | `repo-governance.mdc` (Cursor only) |
 
-Verify before committing changes with either:
+The compiled full corpus lives at `.cursor/rules/repo-governance.mdc` —
+that is the file every Cursor agent loads at session start.
 
-```bash
-wc -l workflow-system/agent/SKILL.md \
-      workflow-system/agent/references/*.md \
-      workflow-system/agent/examples/*.md
-python -m pytest tests/test_integration.py::test_skill_md_under_500_lines \
-                 tests/test_reference_size_budgets.py -v
-```
-
-## Rule SF-2 — Required Frontmatter Keys
-
-SKILL.md frontmatter (YAML between `---` delimiters) must include ALL of: `id`, `version`, `purpose`, `triggers`, `tier`, `token_estimate`, `last_updated`, `name`, `description`. The `description` field must describe WHEN/WHY to activate the skill (trigger conditions), not WHAT the skill does (capability summary). This prevents agents from using the description as a compressed substitute for reading the full skill content.
-
-## Rule SF-3 — Version Consistency
-
-The version string must match `src/devolaflow/__init__.py` `__version__` in ALL of these tracked locations:
-
-**Canonical 7 (the ones `scripts/bump_version.py` pattern-replaces — tracked, required):**
-
-1. SKILL.md frontmatter `version:`, banner, and body "Current version:" text (file: `workflow-system/agent/SKILL.md`)
-2. `workflow-skill.yaml` identity section
-3. `pyproject.toml` version field
-4. `scripts/generate_human_docs.py` SOURCE_VERSION
-5. `tests/test_smoke.py` version assertion
-6. `README.md` badge and version example
-7. `workflow-system/human/demo/benchmark-results/index.html` SAMPLE_DATA version
-
-**Project-local opt-in mirror (NOT tracked — gitignored as of chore/cursor-skill-mirror-untrack):**
-
-The `.cursor/skills/devola-flow/` directory is the project-local Cursor skill bundle. It is identical to what `scripts/install.sh::install_cursor` produces — devs who want the DevolaFlow skill auto-loaded while working in *this* repo can opt in with:
+## Regenerate after editing `.rules/*.mdc`
 
 ```bash
-python scripts/sync_cursor_skill.py --init   # create mirror from canonical (one-time)
-make sync-cursor-skill                        # refresh existing mirror
-make check-cursor-skill                       # exits 0 if mirror absent OR in sync; 1 only on drift
+python -c "from devolaflow.local.compiler import RuleCompiler; \
+RuleCompiler('.rules/compile-config.yaml').compile_all()"
 ```
 
-Bytewise parity is enforced **only when the mirror is present locally**:
+Drift detection (lint enforced by
+`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`):
+hand-edits to `.cursor/rules/repo-governance.mdc` or to any deprecated
+pointer stub registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`
+(including this file) fail the lint at CI-time.
 
-- `.cursor/skills/devola-flow/SKILL.md` ↔ `workflow-system/agent/SKILL.md`
-- `.cursor/skills/devola-flow/references/*.md` (10 files) ↔ `workflow-system/agent/references/*.md`
-- `.cursor/skills/devola-flow/examples/*.md` (3 files) ↔ `workflow-system/agent/examples/*.md`
-- `.cursor/skills/devola-flow/.devola-flow-version` first line == `__version__`
+## Migration
 
-`scripts/bump_version.py` invokes `scripts/sync_cursor_skill.py` automatically after every bump; the sync script is a no-op when the mirror directory doesn't exist, so CI and fresh clones pass without it. The `tests/test_version.py` mirror-parity assertions skip themselves when the mirror is absent.
+Switch any tooling that reads this file to read either:
 
-**Workflow:**
-
-```bash
-python scripts/bump_version.py <new-version>   # bumps canonical 7 + auto-syncs mirror IFF present
-make sync-human-docs                            # regenerate EN/ZH human docs
-python -m pytest tests/test_version.py -v       # asserts canonical 7; mirror tests skip if absent
-```
-
-If you locally edit `workflow-system/agent/SKILL.md` or any reference/example outside of a version bump and you have the mirror locally installed, run `make sync-cursor-skill` before committing canonical changes.
-
-## Rule SF-4 — Valid Reference Links
-
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. Do not reference files that do not exist.
-
-Current valid references: `agent-hierarchy.md`, `agent-workspace.md`, `behavioral-guidelines.md`, `context-isolation.md`, `decomposition-gate.md`, `execution-protocol.md`, `message-schemas.md`, `meta-framework.md`, `repo-modes.md`, `team-roles.md`.
-
-The 9th entry (`behavioral-guidelines.md`) was added in v8.0.0 P-08 alongside the new top-level `behavioral_guidelines` dispatch field at `schemas/lean-dispatch.yaml#layout_invariant.canonical_order` position 14 (schema version 3). Per Rule 6 (P6 Preserve Cached Prefix), positions 1–13 remained byte-identical; the new field is appended at position 14.
-
-The 10th entry (`agent-workspace.md`) was added in v8.3.0 PV-09 alongside the change-driven workflow template (v8.2.6) and the agent-workspace Python API package (v8.2.5). It documents the `.local/.agent/` tree, append-only handoff envelopes (Rule S-9), file-ownership constraints (Rule S-8), per-artifact token budgets (Rule C-9), and source-of-truth spec ADR (Rule A-4).
-
-## Rule SF-5 — No Absolute Paths
-
-SKILL.md, CLAUDE.md, and all reference documents must use relative paths from the repository root. Never use absolute filesystem paths (e.g., `/home/user/...`, `/benchmarks/...`). External resources must be referenced via their remote URL (e.g., `https://github.com/YoRHa-Agents/DevolaFlow`).
-
-## Rule SF-6 — External Resource URLs
-
-When referencing EvoBench, upstream tools, or external benchmarks, always use the remote GitHub repository URL as the canonical reference. Users provide their local clone path at runtime; the SKILL and docs must not assume any local path.
+* `.cursor/rules/repo-governance.mdc` — compiled full corpus, OR
+* the canonical `.rules/*.mdc` layer files listed above.

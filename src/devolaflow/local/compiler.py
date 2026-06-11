@@ -11,6 +11,21 @@ from typing import Any
 import yaml
 
 
+class TokenBudgetExceededError(RuntimeError):
+    """Raised when a compile target's rendered output exceeds its token budget.
+
+    v14.2.1 (G-011): the compiler previously SILENTLY DROPPED the
+    lowest-priority non-``always_include`` layer(s) to fit the budget —
+    an S-5 (No Silent Failures) violation that bit twice historically
+    (v9.0.0 PV-07: AGENTS.md at ~8180/8000 dropped the Workflow layer;
+    v11.4.0: cursor at 11979/12000 dropped the Style layer). Overflow
+    now hard-fails with a message naming the target, the overflow
+    amount, and the layer(s) the legacy path would have dropped.
+    Operators must raise ``targets.<name>.token_budget`` in
+    ``.rules/compile-config.yaml`` or trim the source layers.
+    """
+
+
 @dataclass
 class RuleLayer:
     name: str
@@ -171,15 +186,18 @@ class RuleCompiler:
         return results
 
     def _compile_target(self, tc: TargetConfig) -> CompileResult:
-        """Compile a single target, respecting token budgets.
+        """Compile a single target, enforcing the token budget loudly.
 
-        v12.0.0 PV-05 cleanup-absorption fix: when truncation runs,
-        ``layers_included`` is now derived from the post-truncation
-        retained layer list returned by :meth:`_truncate_to_budget`,
-        not from the pre-truncation ``selected`` list. The happy-path
-        branch (no truncation) still uses ``selected`` directly so the
-        existing byte-stable reporting is preserved. Closes the
-        v11.4.0 retrospective §3 deferred bug + §4 key learning 3.
+        v14.2.1 (G-011): budget overflow no longer truncates. The
+        pre-v14.2.1 behaviour silently dropped the lowest-priority
+        non-``always_include`` layer(s) until the rendered output fit
+        the budget — an S-5 violation that masked two historical
+        incidents (v9.0.0 PV-07 Workflow drop at ~8180/8000; v11.4.0
+        Style drop at 11979/12000). Overflow now raises
+        :class:`TokenBudgetExceededError` naming the target, the
+        overflow amount, and the layer(s) the legacy truncation path
+        would have dropped (computed via :meth:`_truncate_to_budget`,
+        which is retained for exactly this diagnostic purpose).
         """
         selected = [
             layer for layer in self.layers if layer.name in tc.include_layers and layer.content
@@ -193,20 +211,33 @@ class RuleCompiler:
 
         tokens = _estimate_tokens(content)
 
-        retained: list[RuleLayer] | None = None
         if tokens > tc.token_budget:
-            content, retained = self._truncate_to_budget(selected, tc)
-            tokens = _estimate_tokens(content)
+            overflow = tokens - tc.token_budget
+            _content, retained = self._truncate_to_budget(selected, tc)
+            dropped = [ly.name for ly in selected if ly not in retained]
+            dropped_note = (
+                f"the pre-v14.2.1 silent-truncation path would have dropped layer(s) {dropped}"
+                if dropped
+                else "no non-always_include layer is droppable"
+            )
+            msg = (
+                f"token budget overflow for target {tc.name!r}: rendered output "
+                f"is {tokens} tokens, exceeding token_budget={tc.token_budget} "
+                f"by {overflow} tokens; {dropped_note}. Refusing to silently "
+                f"drop layers (S-5 / G-011). Raise targets.{tc.name}."
+                f"token_budget in {self.config_path.name} or trim the source "
+                f"layers."
+            )
+            raise TokenBudgetExceededError(msg)
 
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-        layers_for_report = retained if retained is not None else selected
         return CompileResult(
             target=tc.name,
             content=content,
             tokens_used=tokens,
             tokens_budget=tc.token_budget,
-            layers_included=[ly.name for ly in layers_for_report if ly.content],
+            layers_included=[ly.name for ly in selected if ly.content],
             content_hash=content_hash,
         )
 
@@ -240,23 +271,22 @@ class RuleCompiler:
     def _truncate_to_budget(
         self, layers: list[RuleLayer], tc: TargetConfig
     ) -> tuple[str, list[RuleLayer]]:
-        """Drop lowest-priority non-always_include layers until within budget.
+        """Simulate the legacy priority-ordered layer-drop loop.
 
         Returns a ``(content, retained_layers)`` tuple. ``retained_layers``
         is the post-truncation list — the actual ``RuleLayer`` instances
-        that rendered into ``content`` after the priority-ordered drop
-        loop converged. Callers MUST use ``retained_layers`` (not the
-        pre-truncation input ``layers``) when populating
-        ``CompileResult.layers_included``; otherwise the audit surface
-        misreports truncation outcomes.
+        that would render into ``content`` after the priority-ordered
+        drop loop converges.
 
-        v12.0.0 PV-05 cleanup-absorption: pre-fix the function returned
-        only ``content`` and the dispatcher-side caller reported
-        ``layers_included`` from the pre-truncation ``selected`` list,
-        which silently masked the v11.4.0 cursor 11979/12000 saturation
-        (the Style Rules layer was dropped here but the audit reported
-        all 5 layers). See v11.4.0 retrospective §3 deferred bug + §4
-        key learning 3 for the original incident.
+        v14.2.1 (G-011): this is now a DIAGNOSTIC-ONLY helper. The
+        compile path never emits truncated output anymore — on budget
+        overflow :meth:`_compile_target` calls this function solely to
+        compute which layer(s) the legacy behaviour would have silently
+        dropped, names them in the :class:`TokenBudgetExceededError`
+        message, and aborts the compile. The tuple-return contract from
+        the v12.0.0 PV-05 accounting fix is preserved (see v11.4.0
+        retrospective §3 deferred bug + §4 key learning 3 for the
+        original silent-drop incident).
         """
         included = list(layers)
 
