@@ -799,7 +799,7 @@ so future refactors cannot regress.
 
 | Slot | Default handler | Role |
 |---|---|---|
-| `pre_dispatch` | `validate_dispatch` (+ `validate_owned_files` extra) | validate dispatch CONTENT (acceptance criteria, owned files, schema compliance) |
+| `pre_dispatch` | `validate_dispatch` (+ extras: `validate_owned_files`, `reject_subagent_quality_score`, `reject_subagent_banner_emission` — the latter default-wired since v15.0.0 G-038; opt-out `unregister_pre_dispatch_extra()`) | validate dispatch CONTENT (acceptance criteria, owned files, schema compliance, L0-only score/banner leakage) |
 | `post_dispatch` | `post_dispatch` permissive no-op | future-extensibility slot for governance contracts (Soul-set version embedding, rule-manifest URL, reinforcement state) — actual content lands in PV-07 with the rule-corpus selectivity slice |
 
 ### 10.3 R5 strict triple codification

@@ -254,7 +254,7 @@ class HandoffEnvelope:
 
 
 def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
-    """Fire the v14.3.0 ``task_stop`` lifecycle hook for a StatusReport envelope.
+    """Fire the ``task_stop`` lifecycle hook for a StatusReport envelope.
 
     Production call site for
     :func:`devolaflow.lifecycle.runtime_wiring.fire_task_stop` per
@@ -266,22 +266,34 @@ def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
     written); the default ``test_on_complete`` handler reads the
     block's in-memory ``metrics`` evidence — no subprocesses spawned.
 
-    Permissive at v14.3.0 (``strict=False`` hard-coded; strict flip is
-    the v15.0.0 graduation) and a byte-identical zero-IO no-op when
-    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse). Per the
-    S-5 isolation pattern from ``feedback_emit._fire_hook_chain``, a
-    buggy hook handler is logged at WARNING and the envelope write
-    proceeds. Lazy import preserves the no-cycle property between
-    ``agent_workspace`` and ``lifecycle``.
+    STRICT by default since v15.0.0 (G-038 graduation per ADR-003
+    §Decision 3): the call defers to ``fire_task_stop``'s own strict
+    default, so a failing report (``tests_failed > 0`` / lint not
+    clean) raises :class:`HookViolation` (block + escalate per S-8
+    "mode: full" / the P4 retry trigger) and the envelope is NOT
+    written. Opt-out is the adapter's explicit ``strict=False``
+    parameter (S-8 "mode: lite"). Still a byte-identical zero-IO no-op
+    when ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse — the
+    activation gate is UNCHANGED). Per the S-5 isolation pattern from
+    ``feedback_emit._fire_hook_chain``, a buggy hook handler (any
+    exception OTHER than the strict-mode :class:`HookViolation`) is
+    logged at WARNING and the envelope write proceeds. Lazy import
+    preserves the no-cycle property between ``agent_workspace`` and
+    ``lifecycle``.
     """
-    try:
-        from devolaflow.lifecycle.runtime_wiring import fire_task_stop
+    from devolaflow.lifecycle.dispatcher import HookViolation
+    from devolaflow.lifecycle.runtime_wiring import fire_task_stop
 
-        fire_task_stop(dict(envelope.report or {}), strict=False)
+    try:
+        fire_task_stop(dict(envelope.report or {}))
+    except HookViolation:
+        # v15.0.0 strict graduation: block the envelope write + escalate.
+        raise
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).warning(
             "task_stop hook raised %s for change_id=%r seq=%d; envelope "
-            "write proceeds unchanged (v14.3.0 permissive wiring per ADR-003)",
+            "write proceeds unchanged (S-5 isolation for non-violation "
+            "hook bugs per ADR-003)",
             exc,
             envelope.change_id,
             envelope.seq,
@@ -330,12 +342,13 @@ class HandoffStore:
           HandoffStoreError: when the envelope fails schema validation.
         """
         envelope.validate()
-        # v14.3.0 ADR-003 task_stop wiring: a StatusReport envelope IS the
+        # ADR-003 task_stop wiring (v14.3.0): a StatusReport envelope IS the
         # framework-level finalisation of an L3 task's report, so the
         # ``task_stop`` (``test_on_complete``) hook fires here BEFORE the
-        # envelope is materialised. Permissive at v14.3.0 (warn-only;
-        # strict flip telegraphed for v15.0.0) and a byte-identical
-        # zero-IO no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1".
+        # envelope is materialised. STRICT by default since v15.0.0
+        # (failing report → HookViolation raises; envelope NOT written)
+        # and a byte-identical zero-IO no-op when
+        # ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1".
         if envelope.envelope_kind == "StatusReport":
             _fire_task_stop_hook(envelope)
         target = self.handoff_root / envelope.filename

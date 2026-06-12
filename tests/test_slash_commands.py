@@ -324,3 +324,109 @@ def test_main_propose_no_change_exit_code_zero(
     out = capsys.readouterr().out
     assert "--no-change" in out
     assert not (tmp_path / ".local" / ".agent" / "active" / "foo").exists()
+
+
+def test_main_dispatches_apply_verify_archive_with_exit_codes(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v15.0.0 R3: the full ``main()`` lifecycle dispatch — apply/verify/archive.
+
+    Pins the CLI exit-code + stdout/stderr contract for the three
+    post-propose subcommands (the pre-R3 suite only drove ``propose``
+    through ``main()``): success lines go to stdout with exit 0;
+    domain errors (VerifyFailed / ChangeStoreError) go to stderr with
+    exit 1 — never a traceback.
+    """
+    import devolaflow.skills.slash_commands as slash_mod
+
+    assert main(["--repo-root", str(tmp_path), "propose", "foo"]) == 0
+
+    rc = main(["--repo-root", str(tmp_path), "apply", "foo"])
+    assert rc == 0
+    assert "/devola:apply: foo -> state=IN_PROGRESS" in capsys.readouterr().out
+
+    # verify through main(): inject a passing pytest runner via the
+    # documented run_verify kwarg (main itself exposes no runner knob).
+    real_run_verify = slash_mod.run_verify
+
+    def passing_runner(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
+        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")  # type: ignore[return-value]
+
+    monkeypatch.setattr(
+        slash_mod,
+        "run_verify",
+        lambda cid, root: real_run_verify(cid, root, pytest_runner=passing_runner),
+    )
+    rc = main(["--repo-root", str(tmp_path), "verify", "foo"])
+    assert rc == 0
+    assert "/devola:verify: foo -> state=VERIFYING" in capsys.readouterr().out
+
+    # archive through main(): gate satisfied → folder moved, exit 0.
+    status_path = tmp_path / ".local" / ".agent" / "active" / "foo" / "STATUS.yaml"
+    status = yaml.safe_load(status_path.read_text(encoding="utf-8"))
+    status["gate_score"] = ARCHIVE_GATE_THRESHOLD + 0.5
+    status_path.write_text(yaml.safe_dump(status, sort_keys=False), encoding="utf-8")
+    rc = main(["--repo-root", str(tmp_path), "archive", "foo", "--archive-date", "2026-06-12"])
+    assert rc == 0
+    assert "/devola:archive: foo -> " in capsys.readouterr().out
+    assert (tmp_path / ".local" / ".agent" / "archive" / "2026-06-12-foo").is_dir()
+
+    # Error paths on STDERR with exit 1 (S-5 — no silent success):
+    # a never-proposed id → change-store error; the just-archived id →
+    # the ArchiveError gate message (the store still resolves it).
+    rc = main(["--repo-root", str(tmp_path), "archive", "ghost", "--archive-date", "2026-06-12"])
+    assert rc == 1
+    captured = capsys.readouterr()
+    assert "change-store error" in captured.err
+    assert captured.out == ""
+    rc = main(["--repo-root", str(tmp_path), "archive", "foo", "--archive-date", "2026-06-12"])
+    assert rc == 1
+    assert "archive requires state == 'VERIFYING'" in capsys.readouterr().err
+
+
+def test_error_guards_invalid_change_id_missing_pytest_and_bad_gate_score(
+    tmp_path: Path,
+) -> None:
+    """v15.0.0 R3: the S-5 loud-failure guards left unexercised pre-R3.
+
+    (a) An explicit ``change_id`` that violates the schema pattern is
+        refused at scaffold time. (b) A missing pytest binary surfaces
+        as ``VerifyFailed`` (never a silent pass). (c) A non-numeric
+        ``gate_score`` is an ``ArchiveError`` naming the bad value.
+    (d) ``_safe_relative`` falls back to the absolute string for paths
+        outside the base instead of crashing the CLI.
+    """
+    from devolaflow.skills.slash_commands import _safe_relative
+
+    # (a) explicit change_id must satisfy the schema pattern.
+    with pytest.raises(ProposeError, match="does not match the"):
+        scaffold_change_folder("ignored topic", tmp_path, change_id="Bad_ID")
+
+    # (b) pytest binary missing → VerifyFailed, not silent success.
+    scaffold_change_folder("foo", tmp_path)
+    run_apply("foo", tmp_path)
+
+    def missing_pytest(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
+        raise FileNotFoundError("pytest not on PATH")
+
+    with pytest.raises(VerifyFailed, match="FileNotFoundError"):
+        run_verify("foo", tmp_path, pytest_runner=missing_pytest)
+    store = ChangeStore(repo_root=tmp_path)
+    assert store.get("foo").state == "IN_PROGRESS", "FSM must NOT advance on a failed verify"
+
+    # (c) non-numeric gate_score → ArchiveError naming the value.
+    _advance_to_verifying(tmp_path, "foo", gate_score=9.0)
+    status_path = tmp_path / ".local" / ".agent" / "active" / "foo" / "STATUS.yaml"
+    status = yaml.safe_load(status_path.read_text(encoding="utf-8"))
+    status["gate_score"] = "not-a-number"
+    status_path.write_text(yaml.safe_dump(status, sort_keys=False), encoding="utf-8")
+    with pytest.raises(ArchiveError, match="invalid gate_score 'not-a-number'"):
+        run_archive("foo", tmp_path, archive_date="2026-06-12")
+
+    # (d) out-of-base path → absolute-string fallback, no ValueError.
+    outside = Path("/somewhere/else/file.txt")
+    assert _safe_relative(outside, tmp_path) == str(outside)
+    inside = tmp_path / "a" / "b.txt"
+    assert _safe_relative(inside, tmp_path) == str(Path("a") / "b.txt")

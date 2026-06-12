@@ -11,19 +11,18 @@ Pins the execution-side adapter contract from
   emission surface — ``agent_workspace.handoff.HandoffStore.
   write_envelope`` for ``StatusReport`` envelopes — via
   ``lifecycle.runtime_wiring.fire_task_stop``.
-* Both adapters default PERMISSIVE (violation → WARNING log via the
-  lifecycle logger, no raise; ``strict=True`` raises the top-severity
-  ``HookViolation``) and are byte-identical ZERO-IO no-ops unless
-  ``DEVOLAFLOW_AGENT_WORKSPACE`` is the literal string ``"1"`` (W-20
-  env-flag reuse — same activation surface as A-6 / ``pre_handoff``;
-  NO new flag authored).
-* ``DEFAULT_EVENTS`` is UNCHANGED at 16 entries — the v14.3.0 landing
-  adds CALL SITES, not events; ``file_write`` / ``task_stop`` (and
-  their D-Q-3 canonical aliases) were already registered.
-
-The strict default flip is telegraphed for v15.0.0 per ADR-003
-§Decision 3 — these tests pin the v14.3.0 permissive baseline that the
-graduation will be measured against.
+* Both adapters default STRICT since v15.0.0 (G-038 flip 5 per ADR-003
+  §Decision 3: violation → top-severity ``HookViolation`` raise, S-8
+  "mode: full" block + escalate; opt-out = explicit ``strict=False``,
+  S-8 "mode: lite" warn + log) and are byte-identical ZERO-IO no-ops
+  unless ``DEVOLAFLOW_AGENT_WORKSPACE`` is the literal string ``"1"``
+  (W-20 env-flag reuse — same activation surface as A-6 /
+  ``pre_handoff``; NO new flag authored; the activation gate is
+  UNCHANGED by the strict flip).
+* ``DEFAULT_EVENTS`` is at 17 entries since v15.0.0 (G-038 flip 4
+  appended ``check_human_input_write`` at position 17 per A-2.2);
+  ``file_write`` / ``task_stop`` (and their D-Q-3 canonical aliases)
+  were already registered at v14.3.0.
 """
 
 from __future__ import annotations
@@ -98,9 +97,11 @@ def test_file_write_fires_at_change_write_surface(tmp_path, monkeypatch) -> None
 
     With the env flag ON, all 6 artifact writes (``learnings.jsonl`` is
     absent here) run through ``run_hooks("file_write", ...)`` BEFORE
-    touching disk, in permissive mode, with the owned_files manifest
-    from the change attached AND the S-8 §2 change-folder exemption
-    materialised (the target itself appears in the allowed set).
+    touching disk — in STRICT mode since v15.0.0 (the call site defers
+    to the adapter's strict default per G-038 flip 5) — with the
+    owned_files manifest from the change attached AND the S-8 §2
+    change-folder exemption materialised (the target itself appears in
+    the allowed set).
     """
     monkeypatch.setenv(ENV_FLAG, "1")
     folder = tmp_path / "active" / "t3-hook-wiring"
@@ -120,22 +121,26 @@ def test_file_write_fires_at_change_write_surface(tmp_path, monkeypatch) -> None
         "owned_files.txt",
     }
     for _, payload, strict in calls:
-        assert strict is False, "v14.3.0 call site must be permissive (strict=False)"
+        assert strict is True, (
+            "v15.0.0 G-038 flip 5: the production call site must defer to the "
+            "strict default (S-8 'mode: full')"
+        )
         assert "src/foo.py" in payload["owned_files"], "manifest must reach the hook"
         assert payload["path"] in payload["owned_files"], (
             "S-8 §2: writes inside the change folder are exempt — the adapter "
             "materialises the exemption by including the exact target"
         )
-    # The writes themselves still happened (hook fires BEFORE, never instead).
+    # The writes themselves still happened (hook fires BEFORE, never instead;
+    # in-manifest/exempt writes are clean so strict mode does not block them).
     assert (folder / "goal.md").read_text(encoding="utf-8") == "goal"
     assert (folder / "owned_files.txt").read_text(encoding="utf-8") == "src/foo.py\n"
 
 
 def test_file_write_violation_warns_permissive(monkeypatch, caplog) -> None:
-    """Permissive default: an out-of-manifest write WARNs, never raises (S-8 lite)."""
+    """Flip-5 opt-out: explicit ``strict=False`` (S-8 'mode: lite') WARNs, never raises."""
     monkeypatch.setenv(ENV_FLAG, "1")
     with caplog.at_level(logging.WARNING, logger="devolaflow.lifecycle.dispatcher"):
-        result = fire_file_write("src/outside.py", owned_files=["src/allowed.py"])
+        result = fire_file_write("src/outside.py", owned_files=["src/allowed.py"], strict=False)
     assert result is not None
     assert result.passed is False
     assert result.violations[0].code == "CFO006"
@@ -145,12 +150,56 @@ def test_file_write_violation_warns_permissive(monkeypatch, caplog) -> None:
 
 
 def test_file_write_strict_blocks(monkeypatch) -> None:
-    """Strict opt-in (the v15.0.0 graduation path) raises the blocker violation."""
+    """v15.0.0 strict DEFAULT (no explicit kwarg) raises the blocker violation."""
     monkeypatch.setenv(ENV_FLAG, "1")
     with pytest.raises(HookViolation) as exc_info:
-        fire_file_write("src/outside.py", owned_files=["src/allowed.py"], strict=True)
+        fire_file_write("src/outside.py", owned_files=["src/allowed.py"])
     assert exc_info.value.code == "CFO006"
     assert exc_info.value.severity == "blocker"
+
+
+def test_file_write_resolves_manifest_from_change_id_on_disk(tmp_path, monkeypatch) -> None:
+    """v15.0.0 R3: the ``change_id`` path reads the on-disk manifest.
+
+    ``fire_file_write(change_id=...)`` (no explicit ``owned_files``) must
+    resolve ``.local/.agent/active/<id>/owned_files.txt`` from
+    ``repo_root``, attach the change_id to the payload, enforce S-8 in
+    strict mode against the RESOLVED manifest, and treat a change with
+    no manifest on disk as "no change context" (Gate 2 → ``None``).
+    """
+    from devolaflow.agent_workspace.change import ACTIVE_DIR_DEFAULT
+
+    monkeypatch.setenv(ENV_FLAG, "1")
+    change_folder = tmp_path / ACTIVE_DIR_DEFAULT / "r3-manifest"
+    change_folder.mkdir(parents=True)
+    (change_folder / "owned_files.txt").write_text("src/mod.py\n\n  src/other.py  \n")
+
+    # In-manifest write passes; the payload carries the resolved manifest.
+    calls, fake = _make_recorder()
+    with patch(_RUN_HOOKS_TARGET, side_effect=fake):
+        result = fire_file_write("src/mod.py", change_id="r3-manifest", repo_root=tmp_path)
+    assert result is not None
+    [(event, payload, strict)] = calls
+    assert event == "file_write" and strict is True
+    assert payload["change_id"] == "r3-manifest"
+    assert payload["owned_files"] == ["src/mod.py", "src/other.py"], (
+        "manifest lines must be stripped and blank lines dropped"
+    )
+
+    # Out-of-manifest write blocks under the strict default (real hook chain).
+    with pytest.raises(HookViolation) as exc_info:
+        fire_file_write("src/outside.py", change_id="r3-manifest", repo_root=tmp_path)
+    assert exc_info.value.code == "CFO006"
+
+    # S-8 §2: a write INSIDE the resolved change folder is exempt even
+    # though it is not a manifest entry (exemption materialised).
+    in_folder = fire_file_write(
+        str(change_folder / "notes.md"), change_id="r3-manifest", repo_root=tmp_path
+    )
+    assert in_folder is not None and in_folder.passed is True
+
+    # Gate 2: a change id with NO manifest on disk → clean no-op (None).
+    assert fire_file_write("src/mod.py", change_id="ghost", repo_root=tmp_path) is None
 
 
 def test_runtime_wiring_zero_io_noop_without_env_flag(monkeypatch) -> None:
@@ -206,26 +255,52 @@ def test_task_stop_fires_at_status_report_emission(tmp_path, monkeypatch) -> Non
     assert len(calls) == 1
     event, payload, strict = calls[0]
     assert event == "task_stop"
-    assert strict is False, "v14.3.0 call site must be permissive (strict=False)"
+    assert strict is True, (
+        "v15.0.0 G-038 flip 5: the production call site must defer to the "
+        "strict default (S-8 'mode: full')"
+    )
     assert payload["task_id"] == "T-1"
     assert payload["metrics"]["tests_passed"] == 5
     assert written.is_file(), "envelope must still be materialised on disk"
 
 
-def test_task_stop_violation_warns_permissive_and_envelope_still_written(
-    tmp_path, monkeypatch, caplog
-) -> None:
-    """Permissive default: a failing report WARNs (TOC004) but never blocks the write."""
+def test_task_stop_violation_blocks_envelope_write_by_default(tmp_path, monkeypatch) -> None:
+    """v15.0.0 strict default: a failing report raises TOC004 and BLOCKS the write.
+
+    The S-8 "mode: full" / P4 retry-trigger semantics per ADR-003
+    §Decision 3: the hook fires BEFORE materialisation, so the
+    blocker-severity TOC004 raise means the envelope never lands on
+    disk — the wave-level retry classifier catches the HookViolation
+    and routes the task back through a convergence round.
+    """
     monkeypatch.setenv(ENV_FLAG, "1")
     store = HandoffStore(repo_root=tmp_path)
     envelope = _status_report_envelope(
         {"tests_passed": 3, "tests_failed": 2, "lint_status": "clean"}
     )
 
-    with caplog.at_level(logging.WARNING, logger="devolaflow.lifecycle.dispatcher"):
-        written = store.write_envelope(envelope)
+    with pytest.raises(HookViolation) as exc_info:
+        store.write_envelope(envelope)
 
-    assert written.is_file(), "permissive mode must not block the envelope write"
+    assert exc_info.value.code == "TOC004"
+    assert exc_info.value.severity == "blocker"
+    target = store.handoff_root / envelope.filename
+    assert not target.exists(), "strict default must block the envelope write (fires BEFORE disk)"
+
+
+def test_fire_task_stop_strict_false_opt_out_warns(monkeypatch, caplog) -> None:
+    """Flip-5 opt-out: ``fire_task_stop(..., strict=False)`` (S-8 'mode: lite')
+    WARNs (TOC004) and returns the populated HookResult — the v14.3.0
+    permissive behaviour, reachable per call site with no env flag."""
+    monkeypatch.setenv(ENV_FLAG, "1")
+    with caplog.at_level(logging.WARNING, logger="devolaflow.lifecycle.dispatcher"):
+        result = fire_task_stop(
+            {"tests_passed": 3, "tests_failed": 2, "lint_status": "clean"},
+            strict=False,
+        )
+    assert result is not None
+    assert result.passed is False
+    assert result.violations[0].code == "TOC004"
     assert any("TOC004" in rec.message for rec in caplog.records), (
         "S-5: the P4 retry-trigger violation must actually log at WARNING"
     )
@@ -279,14 +354,15 @@ def test_task_stop_not_fired_for_task_dispatch_envelope(tmp_path, monkeypatch) -
 
 
 def test_default_events_contains_wired_runtime_events() -> None:
-    """The 4 wired event names are registered; tuple length stays at 16.
+    """The 4 wired event names are registered; tuple length is 17 at v15.0.0.
 
-    The v14.3.0 landing adds CALL SITES (runtime_wiring adapters), not
+    The v14.3.0 landing added CALL SITES (runtime_wiring adapters), not
     events — ``file_write`` / ``task_stop`` and their D-Q-3 canonical
     aliases (``check_file_write`` / ``post_task_complete``) were already
-    in ``DEFAULT_EVENTS``, so the A-2.2-style append-only pins in
-    ``tests/test_lifecycle_hooks.py`` + ``tests/test_no_ghost_features.py``
-    (len == 16) stay byte-stable.
+    in ``DEFAULT_EVENTS``. v15.0.0 G-038 flip 4 then grew the tuple
+    16 → 17 by APPENDING ``check_human_input_write`` per A-2.2
+    (positions 1-16 byte-stable; both former ``len == 16`` pins
+    re-pinned in the same MAJOR).
     """
     import inspect
 
@@ -304,7 +380,9 @@ def test_default_events_contains_wired_runtime_events() -> None:
     assert {"file_write", "task_stop", "check_file_write", "post_task_complete"}.issubset(
         set(DEFAULT_EVENTS)
     )
-    assert len(DEFAULT_EVENTS) == 16, "v14.3.0 wiring must NOT grow the event tuple"
+    assert len(DEFAULT_EVENTS) == 17, (
+        "v15.0.0 G-038 flip 4: check_human_input_write appended at position 17"
+    )
 
     # Default handlers stay bound to the documented hooks.
     assert list_handlers("file_write") == (check_file_ownership,)

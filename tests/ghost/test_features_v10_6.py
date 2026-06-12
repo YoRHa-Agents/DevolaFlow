@@ -131,9 +131,16 @@ def test_v10_6_0_new_symbols_have_coverage(project_root: Path) -> None:
         "W-18 v10.6.0 violation: feedback.py must import ProposalEmitter "
         "(D-Q-2 §2 composition wiring) — `_emit_dispatch` was extracted."
     )
-    assert "self._emitter = ProposalEmitter()" in feedback_text, (
+    # v15.0.0 strict graduation (G-038): the composition line now threads
+    # the `pre_dispatch_strict` knob — the D-Q-2 §2 composition-over-
+    # inheritance contract is unchanged (still `self._emitter =
+    # ProposalEmitter(...)` in __init__).
+    assert "self._emitter = ProposalEmitter(pre_dispatch_strict=pre_dispatch_strict)" in (
+        feedback_text
+    ), (
         "W-18 v10.6.0 violation: ProposalGenerator.__init__ must compose "
-        "ProposalEmitter (D-Q-2 §2 composition over inheritance)."
+        "ProposalEmitter (D-Q-2 §2 composition over inheritance; "
+        "pre_dispatch_strict threading per v15.0.0 G-038)."
     )
 
     feedback_emit_tests = project_root / _V10_6_0_FEEDBACK_EMIT_TESTS

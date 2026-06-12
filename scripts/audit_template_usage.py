@@ -3,10 +3,11 @@
 
 This script implements the v10.5.0 PV-02 D-A-2 Phase A deliverable per
 `.local/research/v11.0.0_patches/D-A-2.md` §2 Phase A. It answers:
-**of the 22 builtin templates registered in
-`workflow-system/agent/templates/builtin/*.yaml`, which were actually
-invoked as a cycle workflow vs which exist only as registered
-placeholders?**
+**of the builtin templates registered in
+`workflow-system/agent/templates/builtin/*.yaml` (22 at the v10.3.0
+audit corpus; 7 survivors since the v15.0.0 Phase B collapse per
+v15-ADR-002), which were actually invoked as a cycle workflow vs which
+exist only as registered placeholders?**
 
 The audit's verdict is then surfaced in 3 places:
 
@@ -21,8 +22,12 @@ The audit's verdict is then surfaced in 3 places:
    Phase B collapse decision lands v15.0.0 per v15-ADR-002``.
 
 Phase B (compose-not-define collapse — replace TIER-2/3 yaml files
-with parametrized invocations of TIER-1 templates) lands v15.0.0
-per v15-ADR-002.
+with parametrized invocations of TIER-1 templates) LANDED at v15.0.0
+per v15-ADR-002: the 16 TIER-2 yamls were deleted and re-expressed as
+named compositions in `templates/registry.yaml#compositions` (schema
+v2.0). The baseline frozensets below are the FROZEN v10.3.0 audit
+corpus (historical record), NOT a current-disk derivation —
+:func:`scan_template_yamls` derives the live set from disk.
 
 Algorithm (per PDS §2):
 
@@ -72,6 +77,7 @@ __all__ = [
     "count_cycle_mentions",
     "render_markdown_report",
     "run",
+    "scan_compositions",
     "scan_template_yamls",
 ]
 
@@ -80,6 +86,9 @@ __all__ = [
 # These 6 templates are USED in cycle execution (cycle plan + commit
 # subject + CHANGELOG mentions all > 0 across v9.0.0..v10.3.0). The
 # remaining 16 are REGISTERED but never invoked as a cycle workflow.
+# FROZEN historical pins (v10.3.0 corpus): since the v15.0.0 Phase B
+# collapse (v15-ADR-002) the TIER-2 names live on only as compositions
+# in templates/registry.yaml — do NOT re-derive these sets from disk.
 TIER_1_USED_BASELINE: frozenset[str] = frozenset(
     {
         "change-driven",
@@ -129,6 +138,35 @@ def scan_template_yamls(repo_root: Path) -> list[str]:
     if not template_dir.is_dir():
         return []
     return sorted(p.stem for p in template_dir.glob("*.yaml"))
+
+
+def scan_compositions(repo_root: Path) -> list[str]:
+    """Return sorted composition names from registry.yaml (schema v2.0).
+
+    Since the v15.0.0 Phase B collapse (v15-ADR-002), the 16 former
+    legacy workflow types live in the ``compositions:`` manifest of
+    ``workflow-system/agent/templates/registry.yaml`` instead of as
+    per-name yaml files. The audit walks them alongside the on-disk
+    survivors so all registered workflow types stay auditable.
+
+    Args:
+      repo_root: Repository root.
+
+    Returns:
+      Sorted list of composition names. Empty list when the registry is
+      absent or carries no ``compositions:`` block (pre-v2.0 layouts).
+    """
+    registry = repo_root / "workflow-system" / "agent" / "templates" / "registry.yaml"
+    if not registry.is_file():
+        return []
+    import yaml
+
+    raw = yaml.safe_load(registry.read_text(encoding="utf-8")) or {}
+    return sorted(
+        str(entry["name"])
+        for entry in (raw.get("compositions") or [])
+        if isinstance(entry, dict) and entry.get("name")
+    )
 
 
 def count_cycle_mentions(repo_root: Path, name: str) -> int:
@@ -247,6 +285,8 @@ def render_markdown_report(
     """
     used = sorted(n for n, v in verdicts.items() if v["verdict"] == "USED")
     registered = sorted(n for n, v in verdicts.items() if v["verdict"] == "REGISTERED")
+    n_compositions = sum(1 for v in verdicts.values() if v.get("source") == "composition")
+    n_templates = len(verdicts) - n_compositions
     lines: list[str] = [
         "# v10.5.0 PV-02 D-A-2 Template Usage Audit (Phase A)",
         "",
@@ -255,7 +295,13 @@ def render_markdown_report(
         "",
         "## Summary",
         "",
-        f"- Templates registered: **{len(verdicts)}**",
+        f"- Workflow types registered: **{len(verdicts)}**"
+        + (
+            f" (**{n_templates}** survivor templates + **{n_compositions}**"
+            f" compositions per v15-ADR-002)"
+            if n_compositions
+            else ""
+        ),
         f"- Templates USED in cycles (TIER-1): **{len(used)}**",
         f"- Templates REGISTERED but never invoked (TIER-2): **{len(registered)}**",
         f"- Utilization rate: **{len(used) / max(1, len(verdicts)):.1%}**",
@@ -302,11 +348,11 @@ def render_markdown_report(
             "",
             "1. Each TIER-2 yaml file gains a 3-line deprecation comment",
             "   at the top (pure-additive — yaml still parses; tests pass).",
-            "2. SKILL.md \"Template Quick-Reference\" table appends",
+            '2. SKILL.md "Template Quick-Reference" table appends',
             "   `(legacy)` suffix to TIER-2 names.",
-            "3. `references/meta-framework.md` \"Per-Workflow Template",
-            "   Catalog\" + `references/team-roles.md` \"Team Participation",
-            "   Matrix\" — same `(legacy)` suffix.",
+            '3. `references/meta-framework.md` "Per-Workflow Template',
+            '   Catalog" + `references/team-roles.md` "Team Participation',
+            '   Matrix" — same `(legacy)` suffix.',
             "4. CHANGELOG `## [10.5.0]` entry cites the 6 USED + 16",
             "   REGISTERED counts explicitly.",
             "",
@@ -335,9 +381,13 @@ def run(
     Returns:
       Always 0 (observability-only audit).
     """
-    names = scan_template_yamls(repo_root)
+    template_names = scan_template_yamls(repo_root)
+    composition_names = scan_compositions(repo_root)
     verdicts: dict[str, dict[str, object]] = {}
-    for name in names:
+    for name, source in [
+        *((n, "template") for n in template_names),
+        *((n, "composition") for n in composition_names),
+    ]:
         cycle = count_cycle_mentions(repo_root, name)
         changelog = count_changelog_mentions(repo_root, name)
         git = count_git_subject_mentions(repo_root, name)
@@ -345,6 +395,7 @@ def run(
             "cycle_mentions": cycle,
             "changelog_mentions": changelog,
             "git_mentions": git,
+            "source": source,
             "verdict": "USED" if (cycle or changelog or git) else "REGISTERED",
         }
     payload: str

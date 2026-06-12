@@ -95,6 +95,10 @@ class TestGenerateRoundDispatch:
         return {
             "task_id": "T-001",
             "task_type": "refactor",
+            # v15.0.0 strict graduation (G-038): the pre_dispatch chain now
+            # BLOCKS dispatches without a testable acceptance criterion
+            # (VD002), so the fixture carries one like real dispatches do.
+            "accept": ["refactor preserves behaviour and the suite stays green"],
             "context": {
                 "applicable_rules": {"loading_strategy": "standard"},
                 "target_files": ["src/foo.py"],

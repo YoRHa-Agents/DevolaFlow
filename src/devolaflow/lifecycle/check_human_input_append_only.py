@@ -29,13 +29,16 @@ Payload contract (a prior↔proposed diff of ONE input file):
   ``input/amendments/<date>-<slug>.md`` is part of the same change.
 * ``path`` (``str``, optional) — file label used in violation messages.
 
-NOTE on registration: this hook is exported additively but is **NOT** wired
-into ``lifecycle.DEFAULT_EVENTS``. Two CI tests pin ``len(DEFAULT_EVENTS) ==
-16`` exactly (``tests/test_no_ghost_features.py`` + ``tests/test_lifecycle_hooks.py``);
-appending a 17th default event would break both. Per the v14.0.0 design the
-event wiring lands in the implementation cycle alongside those test updates.
-Callers invoke this hook directly (like ``tests/test_human_input_immutability.py``)
-or register it via ``register_hook(EVENT, check_human_input_append_only)``.
+NOTE on registration: since v15.0.0 (G-038 flip 4) this hook IS wired into
+``lifecycle.DEFAULT_EVENTS`` as the canonical default handler for the
+``check_human_input_write`` event (position 17, appended per A-2.2; the two
+former ``len(DEFAULT_EVENTS) == 16`` pins were re-pinned in the same MAJOR).
+The wiring is inert for non-callers — the event fires only when a caller
+dispatches ``run_hooks("check_human_input_write", payload)`` — and the
+hook's own ``strict=False`` permissive default is unchanged (callers opt
+into the raise with ``strict=True``; ``run_hooks`` applies its own strict
+policy at aggregate time). Direct invocation (like
+``tests/test_human_input_immutability.py``) keeps working unchanged.
 """
 
 from __future__ import annotations

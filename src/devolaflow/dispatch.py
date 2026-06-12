@@ -97,6 +97,39 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 
+def _resolve_task_timeout(task: dict[str, Any]) -> float | None:
+    """Resolve the enforced ``timeout_seconds`` ceiling for one task spec.
+
+    v15.0.0 (G-038 flip 1) — the v12.2.0 PV-04 ``asyncio.wait_for``
+    timeout machinery graduates from opt-in to DEFAULT-ON at the wave
+    dispatch surface, fed by the v14.5.0 G-037 ``timeout_seconds``
+    auto-population:
+
+    1. Task spec carries an explicit ``timeout_seconds`` key:
+       * ``None`` → documented OPT-OUT — the task runs with NO timeout
+         (the pre-v15.0.0 behaviour, per task).
+       * numeric → enforced verbatim (the v14.5.0
+         ``select_context``-populated value or an operator override).
+    2. Key absent → :func:`devolaflow.task_adaptive_selector.
+       default_timeout_for` on the task's ``type`` / ``task_type``
+       field (SKILL.md §"Subagent Hang Prevention" per-class budgets;
+       unknown / missing types resolve to the 7200 s fail-safe
+       ceiling).
+
+    No env flag in either direction (W-20 — the opt-out REUSES the
+    existing ``timeout_seconds`` config surface).
+    """
+    from devolaflow.task_adaptive_selector import default_timeout_for
+
+    if "timeout_seconds" in task:
+        explicit = task["timeout_seconds"]
+        if explicit is None:
+            return None
+        return float(explicit)
+    task_type = task.get("type") or task.get("task_type") or ""
+    return float(default_timeout_for(task_type))
+
+
 def dispatch_wave_tasks(
     wave_definition: dict[str, Any],
     dispatch_factory: Any,
@@ -118,6 +151,15 @@ def dispatch_wave_tasks(
     * ``"all"`` / single-task waves / unrecognised modes →
       :meth:`AsyncDispatchExecutor.dispatch_sequential` (sync fallback
       path; identical TaskOutcome capture).
+
+    Timeout enforcement — DEFAULT-ON since v15.0.0 (G-038 flip 1):
+    every task gets an ``asyncio.wait_for`` ceiling resolved by
+    :func:`_resolve_task_timeout` (explicit per-task ``timeout_seconds``
+    → its task-type class default → the 7200 s fail-safe). A breach
+    cancels the task and surfaces ``TaskOutcome(succeeded=False,
+    exception=TimeoutError)`` per the v12.2.0 PV-04 contract. Opt-out:
+    set ``timeout_seconds: null`` explicitly on the task spec (the
+    existing v14.5.0 config knob — no new env flag per W-20).
 
     Args:
       wave_definition: Parsed wave-definition dict (loaded from a YAML
@@ -172,6 +214,7 @@ def dispatch_wave_tasks(
         max_concurrency = sync_barrier.get("max_parallelism") or DEFAULT_MAX_CONCURRENCY
 
     callables: list[tuple[str, Any]] = []
+    timeouts: dict[str, float] = {}
     for idx, task in enumerate(tasks_raw):
         if not isinstance(task, dict):
             raise TypeError(
@@ -184,11 +227,14 @@ def dispatch_wave_tasks(
                 f"dispatch_factory(task[{idx}]) must return a callable, got {type(fn).__name__}"
             )
         callables.append((task_id, fn))
+        timeout = _resolve_task_timeout(task)
+        if timeout is not None:
+            timeouts[task_id] = timeout
 
     executor = AsyncDispatchExecutor(max_concurrency=max_concurrency)
     if mode == "parallel" and len(callables) > 1:
-        return executor.dispatch_parallel(callables)
-    return executor.dispatch_sequential(callables)
+        return executor.dispatch_parallel(callables, timeouts=timeouts)
+    return executor.dispatch_sequential(callables, timeouts=timeouts)
 
 
 # ---------------------------------------------------------------------------

@@ -12,28 +12,33 @@ from devolaflow.gate.models import CheckResult, Finding, GateInput
 from devolaflow.gate.profiles import STANDARD
 from devolaflow.gate.scorer import composite_score, evaluate_gate, quality_score
 from devolaflow.template_engine.parser import parse_template
+from devolaflow.template_engine.registry import TemplateRegistry
 
 
 def test_full_pipeline_template_loads(project_root: Path):
-    """Verify the full-pipeline template parses and has expected stages."""
-    tmpl_path = (
-        project_root / "workflow-system" / "agent" / "templates" / "builtin" / "full-pipeline.yaml"
-    )
-    if not tmpl_path.exists():
-        return
-    template = parse_template(tmpl_path)
+    """Verify the full-pipeline name resolves via the composition alias layer.
+
+    full-pipeline.yaml was deleted at v15.0.0 (Phase B collapse per
+    v15-ADR-002); the name resolves to its change-driven composition.
+    """
+    registry = TemplateRegistry(project_root / "workflow-system" / "agent" / "templates")
+    template = registry.load_template("full-pipeline")
+    assert template is not None
     assert template.metadata.name == "full-pipeline"
-    assert len(template.stages) >= 7
+    assert template.parameters["composition"]["alias_of"] == "change-driven"
 
 
 def test_hotfix_template_loads(project_root: Path):
-    """Verify the hotfix template parses and has expected stages."""
-    tmpl_path = project_root / "workflow-system" / "agent" / "templates" / "builtin" / "hotfix.yaml"
-    if not tmpl_path.exists():
-        return
-    template = parse_template(tmpl_path)
+    """Verify the hotfix name resolves via the composition alias layer.
+
+    hotfix.yaml was deleted at v15.0.0 (Phase B collapse per v15-ADR-002);
+    the name resolves to its change-driven composition.
+    """
+    registry = TemplateRegistry(project_root / "workflow-system" / "agent" / "templates")
+    template = registry.load_template("hotfix")
+    assert template is not None
     assert template.metadata.name == "hotfix"
-    assert len(template.stages) >= 3
+    assert template.parameters["composition"]["alias_of"] == "change-driven"
 
 
 def test_full_pipeline_gate_simulation():

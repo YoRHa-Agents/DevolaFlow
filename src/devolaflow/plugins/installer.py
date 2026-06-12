@@ -8,6 +8,13 @@ v8.3.1 PV-01 ref: ``.local/research/v8.4.0_rtk_nines_analysis.md`` §5 +
 ``verify_distinguish_cmd`` field used to detect name-collisions like RTK
 (Rust Token Killer) vs rtk-type-kit (Rust Type Kit) per RTK INSTALL.md.
 
+Registry ownership (v15.0.0 G-021): ``workflow-system/agent/knowledge/
+runtime-plugins.yaml`` — the file :func:`load_registry` reads — is the
+single A-5 SSOT owner of plugin registration data (membership, IDs,
+backends, install/upgrade/version truth, workflow wiring). The companion
+``workflow-system/agent/plugins.yaml`` is a DERIVED capability view
+(read by :mod:`devolaflow.plugins.loader`), pinned to mirror this owner.
+
 Public API
 ----------
 :func:`load_registry`     Parse ``runtime-plugins.yaml`` into a mapping.

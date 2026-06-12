@@ -3,13 +3,24 @@
 Design ref: design_meta_framework.md §5.1-§5.3
 
 Discovery priority:  custom > derived > builtin  (§5.3)
+
+v15.0.0 (v15-ADR-002 Phase B): names absent from disk additionally
+resolve through the ``compositions:`` manifest of ``registry.yaml``
+(schema v2.0) — the alias layer for the 16 collapsed legacy templates.
 """
 
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 
+from devolaflow.template_engine.compositions import (
+    CompositionEntry,
+    CompositionManifestError,
+    composition_to_template,
+    load_composition_manifest,
+)
 from devolaflow.template_engine.models import TemplateMetadata, WorkflowTemplate
 from devolaflow.template_engine.parser import TemplateParseError, parse_template
 
@@ -37,6 +48,7 @@ class TemplateRegistry:
         self._cache: dict[str, WorkflowTemplate] = {}
         self._index: list[_IndexEntry] = []
         self._indexed = False
+        self._compositions: dict[str, CompositionEntry] | None = None
 
     # ── public API ────────────────────────────────────────────────
 
@@ -75,23 +87,28 @@ class TemplateRegistry:
         return deduped
 
     def load_template(self, name: str) -> WorkflowTemplate | None:
-        """Load a template by name, checking cache first."""
+        """Load a template by name, checking cache first.
+
+        Resolution order: cache → on-disk yaml (custom > derived >
+        builtin) → compositions manifest (the v15-ADR-002 alias layer for
+        collapsed legacy names). Unknown names return ``None`` (the
+        registry's explicit-miss contract); malformed manifests raise
+        :class:`CompositionManifestError` (S-5: fail loudly).
+        """
         if name in self._cache:
             return self._cache[name]
 
-        self._ensure_indexed()
+        tpl = self._load_concrete(name)
+        if tpl is not None:
+            return tpl
 
-        for entry in sorted(self._index, key=lambda e: _TIER_PRIORITY.get(e.tier, 99)):
-            if entry.meta.name == name:
-                try:
-                    tpl = parse_template(entry.path)
-                    self._cache[name] = tpl
-                    return tpl
-                except TemplateParseError:
-                    log.exception("Failed to load template '%s'", name)
-                    return None
+        return self._resolve_composition(name)
 
-        return None
+    def compositions(self) -> dict[str, CompositionEntry]:
+        """Return the compositions manifest (empty for pre-v2.0 layouts)."""
+        if self._compositions is None:
+            self._compositions = load_composition_manifest(self._root / "registry.yaml")
+        return self._compositions
 
     def register(self, path: Path, tier: str = "custom") -> TemplateMetadata | None:
         """Manually register a template file."""
@@ -107,6 +124,74 @@ class TemplateRegistry:
         return tpl.metadata
 
     # ── private ───────────────────────────────────────────────────
+
+    def _load_concrete(self, name: str) -> WorkflowTemplate | None:
+        """Load an on-disk template by name (no composition fallback)."""
+        self._ensure_indexed()
+
+        for entry in sorted(self._index, key=lambda e: _TIER_PRIORITY.get(e.tier, 99)):
+            if entry.meta.name == name:
+                try:
+                    tpl = parse_template(entry.path)
+                    self._cache[name] = tpl
+                    return tpl
+                except TemplateParseError:
+                    log.exception("Failed to load template '%s'", name)
+                    return None
+
+        return None
+
+    def _resolve_composition(self, name: str) -> WorkflowTemplate | None:
+        """Resolve a collapsed legacy name via the compositions manifest.
+
+        Synthesizes the template from the entry's C-3 verbatim stage
+        sequence (see :func:`composition_to_template`) after confirming
+        the primary base resolves to an on-disk survivor. Emits a
+        :class:`DeprecationWarning` + WARNING log on first resolution
+        (v15-ADR-002 decision 3 — no silent rewrite). ``None`` when the
+        name is not a composition either.
+        """
+        entry = self.compositions().get(name)
+        if entry is None:
+            return None
+
+        # Fail loudly (S-5) if the declared base chain is broken.
+        self._resolve_base(entry.primary_base, visited=(name,))
+
+        resolved = composition_to_template(entry)
+        warnings.warn(entry.deprecation_note(), DeprecationWarning, stacklevel=3)
+        log.warning(
+            "Template '%s' is a deprecated composition alias — resolved via "
+            "base '%s' (v15-ADR-002; alias guaranteed until at least v16.0.0)",
+            name,
+            entry.primary_base,
+        )
+        self._cache[name] = resolved
+        return resolved
+
+    def _resolve_base(self, base: str, visited: tuple[str, ...]) -> WorkflowTemplate:
+        """Resolve a composition base to a concrete template, loudly.
+
+        A base may itself be another composition (e.g. ``onboarding`` →
+        ``documentation-only`` → ``change-driven``); cycles and unknown
+        bases raise :class:`CompositionManifestError` per S-5.
+        """
+        tpl = self._load_concrete(base)
+        if tpl is not None:
+            return tpl
+
+        if base in visited:
+            chain = " -> ".join((*visited, base))
+            raise CompositionManifestError(f"composition base cycle: {chain}")
+
+        entry = self.compositions().get(base)
+        if entry is None:
+            chain = " -> ".join(visited)
+            raise CompositionManifestError(
+                f"composition '{chain}' references unknown base '{base}' "
+                f"(neither an on-disk template nor a composition)"
+            )
+        return self._resolve_base(entry.primary_base, visited=(*visited, base))
 
     def _ensure_indexed(self) -> None:
         """Trigger directory scanning if not already indexed."""

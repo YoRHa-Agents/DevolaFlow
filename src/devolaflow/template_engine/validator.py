@@ -193,7 +193,15 @@ def validate_all_templates(
     all_flag: bool = False,
     templates_root: Path | None = None,
 ) -> bool:
-    """Discover all .yaml template files and validate each.
+    """Validate every on-disk template AND every registry composition.
+
+    v15.0.0 (v15-ADR-002 Phase B): in addition to the ``*.yaml`` files
+    under *templates_root*, the ``compositions:`` manifest of the sibling
+    ``registry.yaml`` (schema v2.0) is walked — each entry is
+    cross-checked against the manifest rules (base resolution without
+    cycles, no template shadowing, valid gate type) and its synthesized
+    template runs the same 7 validation checks. Counts are derived from
+    disk + manifest, never pinned.
 
     Returns True if all pass.
     """
@@ -216,10 +224,12 @@ def validate_all_templates(
     all_valid = True
     pass_count = 0
     fail_count = 0
+    template_names: set[str] = set()
 
     for yaml_path in yaml_files:
         try:
             tpl = parse_template(yaml_path)
+            template_names.add(tpl.metadata.name)
             result = validate_template(tpl)
             if result.valid:
                 print(f"  PASS: {yaml_path.name}")
@@ -239,8 +249,77 @@ def validate_all_templates(
             fail_count += 1
             all_valid = False
 
-    print(f"\n{pass_count} passed, {fail_count} failed, {len(yaml_files)} total")
+    comp_pass, comp_fail, comp_total = _validate_compositions(
+        templates_root.parent / "registry.yaml", template_names
+    )
+    pass_count += comp_pass
+    fail_count += comp_fail
+    if comp_fail:
+        all_valid = False
+
+    print(
+        f"\n{pass_count} passed, {fail_count} failed, "
+        f"{len(yaml_files)} templates + {comp_total} compositions"
+    )
     return all_valid
+
+
+def _validate_compositions(
+    registry_yaml: Path,
+    template_names: set[str],
+) -> tuple[int, int, int]:
+    """Walk the registry compositions manifest; return (pass, fail, total).
+
+    An absent registry or a pre-v2.0 layout (no ``compositions:`` block)
+    is a no-op ``(0, 0, 0)`` so tmp-dir test registries keep working.
+    Each entry gets a PASS/FAIL line: manifest cross-check errors plus
+    the 7-check validation of its synthesized template.
+    """
+    from devolaflow.template_engine.compositions import (
+        CompositionManifestError,
+        composition_to_template,
+        load_composition_manifest,
+        validate_composition_manifest,
+    )
+
+    try:
+        manifest = load_composition_manifest(registry_yaml)
+    except CompositionManifestError as exc:
+        print(f"  FAIL: registry.yaml compositions manifest (parse error: {exc})")
+        log.exception("Failed to parse compositions manifest %s", registry_yaml)
+        return (0, 1, 1)
+
+    if not manifest:
+        return (0, 0, 0)
+
+    pass_count = 0
+    fail_count = 0
+
+    manifest_errors = validate_composition_manifest(manifest, template_names)
+    by_name: dict[str, list[str]] = {}
+    for err in manifest_errors:
+        for name in manifest:
+            if f"'{name}'" in err:
+                by_name.setdefault(name, []).append(err)
+                break
+
+    for name, entry in sorted(manifest.items()):
+        errors = list(by_name.get(name, []))
+        result = validate_template(composition_to_template(entry))
+        errors.extend(result.errors)
+        if errors:
+            print(f"  FAIL: composition {name}")
+            for err in errors:
+                print(f"    ERROR: {err}")
+            fail_count += 1
+        else:
+            print(f"  PASS: composition {name}")
+            pass_count += 1
+        for w in result.warnings:
+            print(f"    WARNING: {w}")
+            log.warning("Composition %s: %s", name, w)
+
+    return (pass_count, fail_count, len(manifest))
 
 
 def _find_project_root() -> Path:

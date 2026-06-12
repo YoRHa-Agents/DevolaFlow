@@ -2128,5 +2128,43 @@
       "soul_set_cap": "12",
       "benchmark_baseline_active": "v14.5.0_baseline.json"
     }
+  },
+  {
+    "version": "15.0.0",
+    "date": "2026-06-12",
+    "era": "major-rollup",
+    "headline": "MAJOR — strict-by-default graduations (G-038 ×6 per v15-ADR-003: pre_dispatch chain blocks on violations; banner hook default-wired; dispatch_wave_tasks asyncio.wait_for timeouts default-ON; DEFAULT_EVENTS 16 → 17; engaged-workspace file_write/task_stop strict per S-8 mode: full; STANDARD legibility_weight 0.0 → 0.05) + template Phase B collapse (v15-ADR-002 — 16 legacy yamls → compositions manifest, aliases until ≥ v16.0.0) + rule diet 62 → 56 (v15-ADR-004) + L0 artifact scoring (v15-ADR-007 phase 2) + dedup-ledger self-containment (G-007) + plugin registry unification (G-021)",
+    "summary": "v15.0.0 is the MAJOR that flips every permissive-in-minor default telegraphed across v14.x to STRICT (G-038 per v15-ADR-003): the pre_dispatch chain raises HookViolation on missing testable ACs, malformed AC-v2 entries (VD005–VD008), subagent quality_score fields (now scanned inside metrics/self_check too), and banner literals — escape: ProposalGenerator(pre_dispatch_strict=False); reject_subagent_banner_emission default-wires (opt-out unregister_pre_dispatch_extra()); dispatch_wave_tasks enforces asyncio.wait_for ceilings (explicit → G-037 class default → 7200 s; opt-out timeout_seconds: null); DEFAULT_EVENTS grows 16 → 17 (check_human_input_write appended at position 17 per A-2.2); file_write/task_stop go S-8 mode: full under DEVOLAFLOW_AGENT_WORKSPACE=1 (flag absent = byte-identical no-op); STANDARD legibility_weight graduates 0.0 → 0.05. Template Phase B (v15-ADR-002): the 16 legacy builtin yamls are deleted; registry.yaml v2.0 re-expresses them as a 16-entry compositions: manifest with verbatim stage sequences; every legacy name resolves via the alias layer with a DeprecationWarning until ≥ v16.0.0; all 23 intents resolve (validate-templates 7 + 16). Rule diet (v15-ADR-004): W-10..W-15 fold into W-4/W-5/W-6/C-6 with zero obligations dropped; Source narrative strips to the NEW v15-ADR-008 appendix; census 62 → 56 under the strict ≤ 60 HARD full-corpus cap; compile headroom +1038 tokens. NEW gate/artifact_score.py (v15-ADR-007 phase 2): score_artifact_evidence computes per-dimension + composite scores from L3 evidence with unscored renormalization and EvidenceDoctrineError on forbidden score fields — standalone, not yet wired into evaluate_gate. G-007: position-17 dedup-ledger entries carry a self-contained verbatim digest (≤ 320 chars); ref-chaining impossible by construction; goldens byte-identical. G-021: runtime-plugins.yaml is the single A-5 SSOT owner; plugins.yaml becomes its lint-mirrored derived view (ui-pro rename, rtk added; A-5 registries 5 → 4). Zero new env flags, zero new Soul rules; canonical_order stays 17, schema version stays 6.",
+    "highlights": [
+      "Strict graduations (G-038 ×6 per v15-ADR-003) — pre_dispatch chain strict by default (HookViolation blocks missing testable ACs / malformed AC-v2 VD005–VD008 / subagent quality_score incl. metrics+self_check scan / banner literals; escape ProposalGenerator(pre_dispatch_strict=False)); reject_subagent_banner_emission default-wired (opt-out unregister_pre_dispatch_extra()); NEW lifecycle.dispatcher.unregister_hook",
+      "dispatch_wave_tasks timeouts default-ON — asyncio.wait_for ceiling resolved explicit → G-037 class default → 7200 s fail-safe; per-task opt-out timeout_seconds: null; DEFAULT_EVENTS 16 → 17 (check_human_input_write appended at position 17 per A-2.2); engaged-workspace file_write/task_stop strict (S-8 mode: full; flag absent = byte-identical no-op); STANDARD legibility_weight 0.0 → 0.05",
+      "Template Phase B collapse (v15-ADR-002) — 16 legacy yamls DELETED; registry.yaml schema v2.0 with 16-entry compositions: manifest (verbatim stage sequences; NEW template_engine/compositions.py synthesis layer); alias layer with DeprecationWarning until ≥ v16.0.0; all 23 intents resolve; validate-templates 7 + 16 PASS",
+      "Rule diet (v15-ADR-004) — W-10..W-15 folded into W-4/W-5/W-6/C-6 (zero obligations dropped); Source narrative stripped to the NEW v15-ADR-008 history appendix; A-5 table live-inventory framing; census 62 → 56; strict full-corpus cap re-pin (≤ 60 HARD); compile headroom +1038 tokens",
+      "L0 artifact scoring (v15-ADR-007 phase 2) — NEW gate/artifact_score.py: score_artifact_evidence computes per-dimension + composite from L3 evidence (ac_results/diff_stats/metrics/self_check); unscored renormalization (never fabricate); EvidenceDoctrineError on forbidden score fields; standalone (evaluate_gate wiring is a later slice)",
+      "Dedup-ledger self-containment (G-007) — position-17 entries carry a self-contained verbatim digest (≤ 320 chars per DEDUP_DIGEST_MAX_CHARS); ref-chaining impossible by construction (ref-shaped summaries excluded from index + re-dedup); Tier-A goldens byte-identical; context-isolation.md §10",
+      "Plugin registry unification (G-021) — runtime-plugins.yaml = single A-5 SSOT owner; plugins.yaml = DERIVED view (generated-from header; id set + order mirror lint-enforced; ui-pro rename, rtk added); A-5 registries 5 → 4",
+      "Release close — W-16 wholesale regen v15.0.0_baseline.json (57 scenarios; 7 sibling-attributed >5pp re-equilibrations led by spike_poc −15.23pp, all floors met; dependency_setup expectation refreshed to the new SKILL truth, floor unchanged at 80.0); benchmarks 36/36 GREEN"
+    ],
+    "metrics": {
+      "strict_graduations": "6",
+      "default_events": "16 → 17",
+      "legacy_templates_collapsed": "16",
+      "template_intents_resolving": "23",
+      "validate_templates": "7 + 16",
+      "rule_census": "62 → 56",
+      "rule_cap": "60 HARD",
+      "compile_headroom_gain_tokens": "+1038",
+      "dedup_digest_max_chars": "320",
+      "a5_registries": "5 → 4",
+      "benchmark_scenarios": "57",
+      "spike_poc_delta": "-15.23pp",
+      "dependency_setup_composite": "87.23 → 99.89",
+      "new_test_functions": "34",
+      "canonical_order_length": "17",
+      "schema_version": "6",
+      "soul_set_count": "10",
+      "soul_set_cap": "12",
+      "benchmark_baseline_active": "v15.0.0_baseline.json"
+    }
   }
 ]

@@ -214,10 +214,15 @@ def test_verify_stage_gate_profile_template(template: WorkflowTemplate) -> None:
 
 
 def test_template_registered_in_registry() -> None:
-    """Registry now has 23 entries including the change-driven + web-design rows."""
+    """Registry keeps the change-driven survivor row.
+
+    v15.0.0 (v15-ADR-002 Phase B): the former 23-entry pin became
+    7 survivor templates + 16 compositions (23 resolvable names).
+    """
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     templates = data["templates"]
-    assert len(templates) == 23, f"Expected 23 registry entries, got {len(templates)}"
+    assert len(templates) == 7, f"Expected 7 survivor entries, got {len(templates)}"
+    assert len(templates) + len(data["compositions"]) == 23
 
     cd = next((e for e in templates if e["name"] == "change-driven"), None)
     assert cd is not None, "change-driven missing from registry.yaml"

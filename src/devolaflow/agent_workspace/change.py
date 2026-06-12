@@ -249,12 +249,14 @@ class Change:
         folder_path.mkdir(parents=True, exist_ok=True)
 
         def _write(name: str, text: str, *, newline: str | None = None) -> None:
-            """Write one artifact through the v14.3.0 hooked write surface.
+            """Write one artifact through the hooked write surface (ADR-003).
 
             Fires the ``file_write`` lifecycle hook BEFORE the write per
-            ADR-003 (permissive at v14.3.0; byte-identical no-op when
-            ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1"), then performs the
-            exact pre-v14.3.0 ``Path.write_text`` call.
+            ADR-003 (STRICT default since v15.0.0 — an S-8 ownership
+            violation raises ``HookViolation`` and BLOCKS the write;
+            byte-identical no-op when ``DEVOLAFLOW_AGENT_WORKSPACE`` !=
+            "1"), then performs the exact pre-v14.3.0
+            ``Path.write_text`` call.
             """
             target = folder_path / name
             _fire_file_write_hook(target, self.owned_files, folder_path)
@@ -321,38 +323,48 @@ def _fire_file_write_hook(
     owned_files: list[str],
     change_folder: Path,
 ) -> None:
-    """Fire the v14.3.0 ``file_write`` lifecycle hook for one artifact write.
+    """Fire the ``file_write`` lifecycle hook for one artifact write.
 
     Production call site for
     :func:`devolaflow.lifecycle.runtime_wiring.fire_file_write` per
     ADR-003 (``.local/research/adr/v15-ADR-003-output-closure-
     enforcement-locus.md``): ``Change.to_active_folder`` IS the
     framework's change-driven write surface, so every artifact write
-    runs through the hook BEFORE touching disk. Permissive at v14.3.0
-    (``strict=False`` hard-coded; the strict flip is the v15.0.0
-    graduation) and a byte-identical zero-IO no-op when
-    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse).
+    runs through the hook BEFORE touching disk. STRICT by default
+    since v15.0.0 (G-038 graduation per ADR-003 §Decision 3): the call
+    defers to ``fire_file_write``'s own strict default, so an S-8
+    ownership violation raises :class:`HookViolation` (block +
+    escalate, S-8 "mode: full") and the write never happens. Opt-out
+    is the adapter's explicit ``strict=False`` parameter (S-8 "mode:
+    lite"). Still a byte-identical zero-IO no-op when
+    ``DEVOLAFLOW_AGENT_WORKSPACE`` != "1" (W-20 flag reuse — the
+    activation gate is UNCHANGED).
 
     Per the S-5 isolation pattern established by
     ``feedback_emit.ProposalEmitter._fire_hook_chain``, a buggy hook
-    handler is logged at WARNING and the write proceeds — the
-    permissive wiring MUST NOT break the change-driven flow. Lazy
-    import keeps the no-cycle property between ``agent_workspace`` and
-    ``lifecycle`` (mirrors ``auto_write_handoff``'s lazy reverse import).
+    handler (any exception OTHER than the strict-mode
+    :class:`HookViolation`) is logged at WARNING and the write
+    proceeds — infrastructure bugs MUST NOT break the change-driven
+    flow, but a real S-8 violation MUST. Lazy import keeps the
+    no-cycle property between ``agent_workspace`` and ``lifecycle``
+    (mirrors ``auto_write_handoff``'s lazy reverse import).
     """
-    try:
-        from devolaflow.lifecycle.runtime_wiring import fire_file_write
+    from devolaflow.lifecycle.dispatcher import HookViolation
+    from devolaflow.lifecycle.runtime_wiring import fire_file_write
 
+    try:
         fire_file_write(
             target,
             owned_files=owned_files,
             change_folder=change_folder,
-            strict=False,
         )
+    except HookViolation:
+        # v15.0.0 strict graduation: S-8 "mode: full" — block + escalate.
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "file_write hook raised %s for %s; write proceeds unchanged "
-            "(v14.3.0 permissive wiring per ADR-003)",
+            "(S-5 isolation for non-violation hook bugs per ADR-003)",
             exc,
             target,
         )

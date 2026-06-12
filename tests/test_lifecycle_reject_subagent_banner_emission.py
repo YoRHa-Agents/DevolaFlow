@@ -14,7 +14,7 @@ Test surface covers (per the v12.4.0 PV-05 dispatch AC):
    HookViolation per the lifecycle dispatcher's strict contract.
 3. Non-target-layer skip: dispatches with ``target_layer == "L0"`` are
    no-ops (banners are legitimate L0 output).
-4. The opt-in :func:`register_pre_dispatch_extra` helper wires the hook
+4. The :func:`register_pre_dispatch_extra` helper (re-)wires the hook
    into the ``pre_dispatch`` extras chain.
 5. Banner literal detection (positive case in a free-text field).
 6. Defensive handling of non-dict payloads.
@@ -22,8 +22,10 @@ Test surface covers (per the v12.4.0 PV-05 dispatch AC):
    NOT flag (top-level-only discipline mirrors the v12.2.0 PV-04
    ``reject_subagent_quality_score`` precedent — historical evidence
    carried forward from prior L0-authored rounds is legitimate).
-8. The hook is NOT auto-wired in ``DEFAULT_EVENTS`` (S-10 byte-id
-   contract preservation — opt-in only).
+8. v15.0.0 G-038 flip 3: the hook IS default-wired at import time in
+   ``lifecycle/__init__.py`` (graduating the v12.4.0 opt-in), and the
+   documented opt-out :func:`unregister_pre_dispatch_extra` removes
+   ONLY this hook from the extras chain.
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ from devolaflow.lifecycle.reject_subagent_banner_emission import (
     EVENT,
     register_pre_dispatch_extra,
     reject_subagent_banner_emission,
+    unregister_pre_dispatch_extra,
 )
 
 _BANNER_LITERAL_ACTIVE: str = "🌸 DevolaFlow v12.4.0 active · workflow: feature · mode: agent"
@@ -51,28 +54,30 @@ _BANNER_LITERAL_COMPLETE: str = "🌸 DevolaFlow v12.4.0 complete · 3 stages ·
 
 @pytest.fixture
 def opt_in_registered():
-    """Opt-in register the hook for wiring tests; clear extras at teardown.
+    """Ensure the hook is wired for wiring tests; restore extras at teardown.
 
-    Since the v12.4.0 PV-05 hook is **opt-in only** (NOT a default
-    extra in ``lifecycle/__init__.py`` — that distinction preserves the
-    S-10 byte-id contract for v12.3.0 callers), tests that exercise the
-    end-to-end ``run_hooks`` dispatch path MUST call
-    :func:`register_pre_dispatch_extra` to wire the hook. The teardown
-    clears extras to avoid leaking the registration into sibling test
-    modules per the v12.2.0 PV-04 hook-test convention.
+    Since v15.0.0 (G-038 flip 3) the hook IS default-wired at import
+    time in ``lifecycle/__init__.py`` — but sibling test modules call
+    ``clear_hooks()`` which strips ALL extras (defaults stay), so the
+    wiring tests re-register if absent (the v12.2.0 PV-04
+    ``hook_registered`` fixture convention). The teardown clears
+    extras and re-registers the import-time extras so sibling tests
+    inheriting the cleaned registry keep the canonical chain.
     """
-    register_pre_dispatch_extra()
+    if reject_subagent_banner_emission not in list_handlers(PRE_DISPATCH_EVENT):
+        register_pre_dispatch_extra()
     yield
     clear_hooks(PRE_DISPATCH_EVENT)
-    # Re-register the v12.2.0 PV-04 default extra that
-    # ``clear_hooks`` strips alongside our opt-in hook, so sibling
-    # tests inheriting the cleaned registry don't lose the v12.2.0
-    # ``reject_subagent_quality_score`` wiring.
+    # Re-register the import-time extras that ``clear_hooks`` strips
+    # alongside our hook, so sibling tests inheriting the cleaned
+    # registry don't lose the v12.2.0 ``reject_subagent_quality_score``
+    # + v15.0.0 banner wiring.
     from devolaflow.lifecycle import reject_subagent_quality_score
     from devolaflow.lifecycle.validate_owned_files import validate_owned_files
 
     register_hook(PRE_DISPATCH_EVENT, validate_owned_files)
     register_hook(PRE_DISPATCH_EVENT, reject_subagent_quality_score)
+    register_pre_dispatch_extra()
 
 
 # ---------------------------------------------------------------------------
@@ -240,29 +245,62 @@ def test_hook_ignores_banner_inside_predecessor_artifacts() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 6. S-10 default-events preservation — the hook is NOT auto-wired
+# 6. v15.0.0 default wiring (G-038 flip 3) + documented opt-out
 # ---------------------------------------------------------------------------
 
 
-def test_hook_is_not_in_default_handlers() -> None:
-    """The hook is **opt-in only** — it MUST NOT appear in the default
-    handler chain returned by ``list_handlers(pre_dispatch)`` when
-    ``register_pre_dispatch_extra()`` has NOT been called.
+def test_hook_is_default_wired_at_import(opt_in_registered) -> None:
+    """v15.0.0 G-038 flip 3: the hook IS default-wired into the
+    ``pre_dispatch`` extras chain at import time.
 
-    This preserves the S-10 byte-identical default for v12.3.0 callers:
-    a fresh process that loads ``devolaflow.lifecycle`` sees ONLY the
-    v12.2.0 / earlier defaults + extras (``validate_dispatch`` default,
-    ``validate_owned_files`` extra, ``reject_subagent_quality_score``
-    extra) on ``pre_dispatch``. The banner hook surfaces only when the
-    operator opts in via :func:`register_pre_dispatch_extra`.
+    Two assertions, mirroring the inverted v12.4.0 pin:
+
+    * source-level: ``lifecycle/__init__.py`` carries the canonical
+      ``register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)``
+      call (robust against sibling test modules having called
+      ``clear_hooks()`` in this process);
+    * registry-level: the handler chain includes the hook (the fixture
+      re-registers if a sibling cleared extras, per the v12.2.0
+      PV-04 convention).
+
+    The hook never mutates the payload, so the S-10 byte-identical
+    dispatch contract is preserved (pinned by
+    ``tests/test_dispatch_emission_runs_hooks.py``).
     """
-    handlers = list_handlers(PRE_DISPATCH_EVENT)
-    handler_names = [h.__name__ for h in handlers]
-    assert "reject_subagent_banner_emission" not in handler_names, (
-        f"v12.4.0 PV-05 S-10 violation: "
-        f"`reject_subagent_banner_emission` MUST NOT auto-register at "
-        f"module load. Operators opt in via `register_pre_dispatch_extra()`. "
-        f"Got handlers: {handler_names!r}"
+    import inspect
+
+    import devolaflow.lifecycle as lifecycle_pkg
+
+    pkg_source = inspect.getsource(lifecycle_pkg)
+    assert "register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)" in pkg_source, (
+        "v15.0.0 G-038 flip 3 violation: `reject_subagent_banner_emission` "
+        "must be default-wired in lifecycle/__init__.py (graduating the "
+        "v12.4.0 opt-in per the DEFAULTS-PERMISSIVE-IN-MINOR / "
+        "STRICT-IN-NEXT-MAJOR pattern)"
     )
+    handler_names = [h.__name__ for h in list_handlers(PRE_DISPATCH_EVENT)]
+    assert "reject_subagent_banner_emission" in handler_names
     # The EVENT constant is the canonical event name (= PRE_DISPATCH_EVENT).
     assert EVENT == PRE_DISPATCH_EVENT
+
+
+def test_unregister_pre_dispatch_extra_opts_out(opt_in_registered) -> None:
+    """The documented flip-3 opt-out: ``unregister_pre_dispatch_extra()``
+    removes ONLY the banner hook from the extras chain — sibling extras
+    (``reject_subagent_quality_score``) and the ``validate_dispatch``
+    default stay registered. Idempotent: a second call returns False.
+    """
+    assert unregister_pre_dispatch_extra() is True
+    handler_names = [h.__name__ for h in list_handlers(PRE_DISPATCH_EVENT)]
+    assert "reject_subagent_banner_emission" not in handler_names
+    assert "validate_dispatch" in handler_names, "defaults must survive the opt-out"
+    assert "reject_subagent_quality_score" in handler_names, (
+        "the opt-out must be per-hook — sibling extras stay registered"
+    )
+    # Idempotent no-op on the second call.
+    assert unregister_pre_dispatch_extra() is False
+    # Opt back in — the helper re-wires the hook.
+    register_pre_dispatch_extra()
+    assert "reject_subagent_banner_emission" in [
+        h.__name__ for h in list_handlers(PRE_DISPATCH_EVENT)
+    ]

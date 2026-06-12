@@ -472,21 +472,34 @@ def test_init_creates_compile_config_template(project_root: Path, tmp_path: Path
 # ── Category K: stale documentation references (closed by P-02) ─────
 
 
+def _registry_composition_names(project_root: Path) -> set[str]:
+    """Return composition names from the v2.0 registry (v15-ADR-002)."""
+    raw = _load_yaml(project_root / "workflow-system/agent/templates/registry.yaml")
+    return {entry["name"] for entry in raw.get("compositions", [])}
+
+
 def test_readme_template_count_in_project_structure(project_root: Path) -> None:
-    """G-K1 pin: README project-structure template count matches disk
-    (modulo templates whose README integration is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
+    """G-K1 pin: README project-structure template count matches the
+    workflow-type surface (modulo the v8.2.9 deferred set).
+
+    v15.0.0 (v15-ADR-002 Phase B): the surface = survivor yamls on disk
+    + named compositions in registry.yaml. The README line still says
+    "workflow template YAMLs" — rewording it to mention compositions is
+    the doc-sync slice's job (README is read-only for the template
+    slice); this pin guards count parity of the resolvable-name set.
+    """
     readme = _read(project_root / "README.md")
     actual = len(_builtin_template_files(project_root))
+    compositions = len(_registry_composition_names(project_root))
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
-    expected = actual - len(deferred_present)
+    expected = actual + compositions - len(deferred_present)
     stale = re.findall(r"#\s*(\d+)\s+workflow template YAMLs", readme)
     assert stale, "README must contain the 'N workflow template YAMLs' line"
     for s in stale:
         assert int(s) == expected, (
-            f"README claims {s} templates, disk has {actual}, expected claim "
-            f"{expected} (= disk - {len(deferred_present)} deferred to v8.2.9) — "
-            f"G-K1 regressed"
+            f"README claims {s} templates, disk has {actual} + {compositions} "
+            f"compositions, expected claim {expected} (- {len(deferred_present)} "
+            f"deferred to v8.2.9) — G-K1 regressed"
         )
 
 
@@ -506,11 +519,16 @@ def test_readme_test_count_and_coverage_current(project_root: Path) -> None:
 
 
 def test_readme_workflow_type_count_bilingual(project_root: Path) -> None:
-    """G-K2/K3 pin: EN+ZH workflow-type guide rows agree with disk
-    (modulo templates whose bilingual guide row is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
+    """G-K2/K3 pin: EN+ZH workflow-type guide rows agree with the
+    workflow-type surface (modulo the v8.2.9 deferred set).
+
+    v15.0.0 (v15-ADR-002 Phase B): "workflow types" = survivor yamls on
+    disk + named compositions (see the G-K1 note above).
+    """
     readme = _read(project_root / "README.md")
-    actual = len(_builtin_template_files(project_root))
+    actual = len(_builtin_template_files(project_root)) + len(
+        _registry_composition_names(project_root)
+    )
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
     expected = actual - len(deferred_present)
     en = re.search(r"All\s+(\d+)\s+workflow types", readme)
@@ -530,19 +548,24 @@ def test_readme_workflow_type_count_bilingual(project_root: Path) -> None:
 
 
 def test_workflow_skill_yaml_template_count_comment(project_root: Path) -> None:
-    """G-K10 pin: workflow-skill.yaml templates comment matches disk
-    (modulo templates whose workflow-skill.yaml entry is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
+    """G-K10 pin: workflow-skill.yaml templates comment matches the
+    workflow-type surface (modulo the v8.2.9 deferred set).
+
+    v15.0.0 (v15-ADR-002 Phase B): the surface = survivor yamls on disk
+    + named compositions (see G-K1 note above; workflow-skill.yaml
+    rewording belongs to the doc-sync slice).
+    """
     text = _read(project_root / "workflow-system/agent/workflow-skill.yaml")
     actual = len(_builtin_template_files(project_root))
+    compositions = len(_registry_composition_names(project_root))
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_names(project_root)
-    expected = actual - len(deferred_present)
+    expected = actual + compositions - len(deferred_present)
     match = re.search(r"#\s*Registry\s*\+\s*(\d+)\s+builtin\s+templates", text)
     assert match, "workflow-skill.yaml must contain 'Registry + N builtin templates'"
     assert int(match.group(1)) == expected, (
         f"workflow-skill.yaml claims {match.group(1)} templates, disk has "
-        f"{actual}, expected claim {expected} (= disk - {len(deferred_present)} "
-        f"deferred to v8.2.9) — G-K10 regressed"
+        f"{actual} + {compositions} compositions, expected claim {expected} "
+        f"(- {len(deferred_present)} deferred to v8.2.9) — G-K10 regressed"
     )
 
 

@@ -1989,7 +1989,25 @@ def compression_pipeline_stages() -> list[CompressionStage]:
 # Hash-based dedup for the per-task ``pred[*].summary`` field across
 # convergence rounds. When a round N>1 dispatches, summaries that match
 # a hash from round N-1 are replaced by an ``"@round-N-1:pred-K"``
-# reference and a ledger entry is emitted so the receiver can decompress.
+# reference and a ledger entry is emitted.
+#
+# v15.0.0 (G-007 design fix, source finding F-P4-4 in
+# ``.local/research/v15-cycle_design_review_product.md`` §4) — the
+# SELF-CONTAINMENT contract. The original v9.7.0 wording ("…so the
+# receiver can decompress") was incoherent with the Context Isolation
+# contract (``workflow-system/agent/references/context-isolation.md``
+# §2 Mechanism 1): a fresh round-N L3 spawns with an EMPTY context and
+# has no round-N-1 dispatch to resolve ``@round-N-1:pred-K`` into.
+# The fix (ratified disposition: design fix, NOT an ADR — the field is
+# absence-canonical; the persistent-generator shape was explicitly NOT
+# chosen): every ledger entry now carries a self-contained ``digest``
+# (verbatim key_facts extraction of the replaced summary, bounded by
+# :data:`DEDUP_DIGEST_MAX_CHARS`). References therefore resolve
+# INTRA-PAYLOAD by construction — ``pred[i].summary == ref`` →
+# ``entries[j].ref == ref`` → ``entries[j].digest`` — and never require
+# conversation history. Ref-shaped summaries are excluded from both the
+# dedup index and re-deduplication so a digest can never itself be a
+# reference (no chained ``ref → ref`` emission path exists).
 #
 # Wire-up: dispatchers (L0/L1/L2) call
 # :func:`dedup_predecessor_summaries(payload, round_num, prior_rounds)`
@@ -2000,13 +2018,19 @@ def compression_pipeline_stages() -> list[CompressionStage]:
 # ``schemas/lean-dispatch.yaml``).
 #
 # P6-safe: the new field is APPENDED at position 17 per A-2.2 append-only
-# tail. The 8 historical multi-baseline byte-tests (v7.0.0 → v9.3.0) all
+# tail. The historical multi-baseline byte-tests (v7.0.0 → v9.3.0) all
 # continue to pass because absence is canonical. Round 1 dispatches OMIT
 # the ledger entirely (byte-identical to v9.6.0); round N>1 with no
-# dedup hits also OMITS the ledger (same byte stability).
+# dedup hits also OMITS the ledger (same byte stability). The v15.0.0
+# ``digest`` sub-field nests INSIDE existing ledger entries (A-2.3
+# NEST-in-place: canonical_order length stays 17, version stays 6); the
+# digest-less entry shape in the v9.7.0/v10.2.0/v12.0.0 Tier-A golden
+# witnesses remains valid (historical-witness compat — goldens are
+# frozen renderings, not emitter contracts).
 #
 # Source: ``.local/research/v9.7.0_perf_research.md`` §2 +
-# ``.local/research/v10.0.0_cycle_plan.md`` §3 v9.7.0 PV-02.
+# ``.local/research/v10.0.0_cycle_plan.md`` §3 v9.7.0 PV-02 +
+# ``.local/research/v14.2.0_gap_analysis.md`` §2.1 G-007.
 # ---------------------------------------------------------------------------
 
 DEDUP_HASH_PREFIX_LENGTH: int = 12
@@ -2018,6 +2042,70 @@ the birthday-bound collision probability is ~10^-7 per cycle — well below
 the dispatch-layer error budget. A collision is graceful: the round-N
 dispatch falls back to emitting the verbatim summary (the dedup helper's
 S-5 explicit-no-collision path)."""
+
+
+DEDUP_DIGEST_MAX_CHARS: int = 320
+"""Upper bound (in characters) for a ledger entry's ``digest`` field.
+
+v15.0.0 G-007 design fix (F-P4-4): ~320 chars ≈ 80 tokens keeps the
+dedup profitable for the long summaries that motivated it (the
+hierarchical summariser emits 500–1200-token bodies per
+``context-isolation.md`` §12) while guaranteeing a fresh L3 receives a
+self-contained, informative stand-in for the replaced content. Short
+summaries (≤ the bound) travel verbatim in the digest — zero input-
+quality loss, per the single-task-excellence north star."""
+
+
+_DEDUP_REF_RE = re.compile(r"^@round-[^\s:]+:pred-\d+$")
+"""Matches the canonical ``"@round-N-1:pred-K"`` ledger reference shape.
+
+Used by both the index builder (never index a ref-shaped summary — it
+carries no content) and the emitter (never re-deduplicate a ref-shaped
+summary — chaining references would produce a ref-shaped ``digest``,
+which is unresolvable for a fresh L3 and forbidden per G-007)."""
+
+
+def _digest_summary(summary: str) -> str:
+    """Self-contained verbatim digest of a deduplicated summary (G-007 fix).
+
+    Pure function: no I/O, no clock, no randomness — bytewise
+    deterministic for the same input (CO-2 verbatim safety, same
+    contract as :func:`_hash_summary`).
+
+    Three tiers, all verbatim (no paraphrase ever occurs):
+
+    1. ``len(summary) <= DEDUP_DIGEST_MAX_CHARS`` → the summary itself,
+       verbatim. Maximal fidelity; the dedup saves nothing for short
+       summaries, but the reference stays fully informative.
+    2. Longer summaries → key_facts extraction via
+       :func:`extract_named_entities` (the 8 structured preserve-list
+       classes: file_paths, task_ids, version_strings, commit_hashes,
+       metric_values, error_messages, acceptance_criterion_bullets,
+       interface_signatures), joined ``"; "`` in document order until
+       the next whole entity would exceed the bound.
+    3. No extractable entities → verbatim head slice at the bound
+       (character-boundary truncation, mirroring
+       ``truncate_tool_output``'s convention).
+
+    Never returns a ref-shaped string for non-ref input: callers
+    guarantee ``summary`` is real content by guarding with
+    :data:`_DEDUP_REF_RE` before deduplicating.
+    """
+    if len(summary) <= DEDUP_DIGEST_MAX_CHARS:
+        return summary
+    entities = extract_named_entities(summary)
+    parts: list[str] = []
+    used = 0
+    for entity in entities:
+        value = entity["value"]
+        cost = len(value) + (2 if parts else 0)
+        if used + cost > DEDUP_DIGEST_MAX_CHARS:
+            break
+        parts.append(value)
+        used += cost
+    if parts:
+        return "; ".join(parts)
+    return summary[:DEDUP_DIGEST_MAX_CHARS]
 
 
 def _hash_summary(summary: str) -> str:
@@ -2051,6 +2139,13 @@ def _build_dedup_index(prior_round_payload: dict) -> dict[str, str]:
 
     Returns an empty dict when ``prior_round_payload`` lacks a ``pred``
     list (e.g. the very first dispatch, where dedup is a no-op anyway).
+
+    Ref-shaped summaries (matching :data:`_DEDUP_REF_RE` — e.g. a
+    prior-round payload that was itself deduplicated) are NEVER indexed:
+    they carry no content, and indexing them would let a later round
+    dedup against a reference and emit a ref-shaped ``digest`` —
+    unresolvable for a fresh L3 and forbidden per the G-007
+    self-containment contract.
     """
     pred_list = prior_round_payload.get("pred")
     if not isinstance(pred_list, list) or not pred_list:
@@ -2063,6 +2158,8 @@ def _build_dedup_index(prior_round_payload: dict) -> dict[str, str]:
             continue
         summary = pred_entry.get("summary", "")
         if not isinstance(summary, str) or not summary:
+            continue
+        if _DEDUP_REF_RE.match(summary):
             continue
         h = _hash_summary(summary)
         if not h:
@@ -2090,12 +2187,24 @@ def dedup_predecessor_summaries(
     payload, the function:
 
     1. Builds a hash index from the most recent prior round's
-       ``pred[*].summary`` via :func:`_build_dedup_index`.
+       ``pred[*].summary`` via :func:`_build_dedup_index` (ref-shaped
+       summaries are never indexed).
     2. For each entry in the current ``payload["pred"]``, computes the
-       hash of its ``summary`` and looks it up in the index.
+       hash of its ``summary`` and looks it up in the index. Ref-shaped
+       summaries (already a ledger reference) are preserved verbatim —
+       re-deduplicating them would chain references, which is forbidden
+       per G-007.
     3. If a hit is found, replaces the summary with the canonical
        ``"@round-N-1:pred-K"`` reference string AND emits a ledger
-       entry recording ``pred_index`` / ``hash`` / ``ref``.
+       entry recording ``pred_index`` / ``hash`` / ``ref`` / ``digest``.
+       The ``digest`` (v15.0.0 G-007 design fix, finding F-P4-4) is the
+       self-contained verbatim key_facts digest of the replaced summary
+       per :func:`_digest_summary` — the reference resolves
+       INTRA-PAYLOAD (``ref → entries[j].digest``) so a fresh L3 never
+       needs the round-N-1 dispatch it never saw. The replacement and
+       the digest emission happen in the SAME loop iteration: no code
+       path can emit a reference without its same-payload digest
+       (coherence by construction).
     4. Appends an OPTIONAL ``predecessor_dedup_ledger`` field at the
        canonical position 17 of the payload. Empty entries list (no
        hits) → the ledger field is OMITTED so the dispatch stays
@@ -2173,16 +2282,28 @@ def dedup_predecessor_summaries(
         if not isinstance(summary, str) or not summary:
             new_pred.append(pred_entry)
             continue
+        if _DEDUP_REF_RE.match(summary):
+            # Already a ledger reference (e.g. a deduplicated round-N-1
+            # payload reused verbatim by the caller). Re-deduplicating
+            # would chain references and yield a ref-shaped digest —
+            # unresolvable for a fresh L3, forbidden per G-007.
+            new_pred.append(pred_entry)
+            continue
         h = _hash_summary(summary)
         ref = dedup_index.get(h)
         if ref is None:
             new_pred.append(pred_entry)
             continue
         # Dedup hit — replace summary with reference, emit ledger entry.
+        # The self-contained digest is computed from the very summary
+        # being replaced, in the same iteration: a reference without a
+        # same-payload digest is impossible by construction (G-007).
         rewritten_entry = dict(pred_entry)
         rewritten_entry["summary"] = ref
         new_pred.append(rewritten_entry)
-        ledger_entries.append({"pred_index": i, "hash": h, "ref": ref})
+        ledger_entries.append(
+            {"pred_index": i, "hash": h, "ref": ref, "digest": _digest_summary(summary)}
+        )
 
     if not ledger_entries:
         # No hits — return unchanged. Preserves byte-stable v9.6.0 contract

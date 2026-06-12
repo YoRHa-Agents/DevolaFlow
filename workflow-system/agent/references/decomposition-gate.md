@@ -343,6 +343,7 @@ profile, regression scenario, and opt-out env-flag.
 | 5 | `gate/complexity_detector.py` | v8.0.0 P-09; flipped v8.5.1 PV-06 | **ON** for strict/audit (paired with `complexity_weight=0.10`); OFF for standard/relaxed | `complexity_subprocess` + `complexity_detector_disabled` | `DEVOLAFLOW_COMPLEXITY_DETECTOR` (=0 opts out) |
 | 6 | `ac_generator.py` | v8.0.0 P-10; flipped v8.5.1 PV-06 | **ON** for strict/audit (legacy `accept` list still the contract path; opt-out preserves byte-stable v7.x dispatch shape per R5) | `ac_generator_density` + `ac_generator_disabled` | `DEVOLAFLOW_AC_GEN` (=0 opts out) |
 | 7 | `legibility/scorer.py` | v8.2.0 PV-02 | OFF (opt-in via `decomposition.legibility_check`) | `legibility_score` | `DEVOLAFLOW_LEGIBILITY_CHECK` (forward-declared, not yet wired) |
+| 8 | `gate/artifact_score.py::score_artifact_evidence` | v15.0.0 T4; gate-wired v15.0.0 R1 | OFF (opt-in via `evaluate_gate(artifact_evidence=[...])`; weight-gated by `artifact_evidence_weight` — strict/standard/audit 0.05, relaxed 0.0) | — (pinned by `tests/test_artifact_score.py` R1 suite) | none (W-20 reuse-first — no new flag) |
 
 **Composition rule**: primitives compose multiplicatively at the gate
 verdict level — a gate FAIL by ANY enabled primitive blocks advancement;
@@ -365,14 +366,19 @@ opt-out per env-flag (R5 strict — set EXACTLY `"0"` to disable; see
 
 ### 5.6 Legibility Opt-In Weight (v14.4.0)
 
+**Status: STANDARD default-on since v15.0.0 (G-038 flip 6).**
+
 `GateProfile.legibility_weight` steers how much the per-file legibility
 mean (0–100, from `devolaflow.legibility.LegibilityScorer`) shifts the
 gate composite: `composite += weight × (mean_score − 50.0)`, clamped to
-[0, 100]. Defaults are UNCHANGED at v14.4.0 (STANDARD/RELAXED `0.0`,
-STRICT/AUDIT `0.05`) — the default flip is a v15.0.0 ladder item per the
-v14.2.0 gap register §4.1. The opt-in knob for STANDARD/RELAXED work is
-a profile override via `dataclasses.replace` (profiles are frozen
-dataclasses), consumed by the composite scorer with no further wiring:
+[0, 100]. Defaults since v15.0.0 (G-038 flip 6 — the ladder item from
+the v14.2.0 gap register §4.1): STRICT/STANDARD/AUDIT `0.05`, RELAXED
+`0.0`. The weight only engages when a `legibility_scorer` is supplied
+(STANDARD's `legibility_enabled` auto-wire flag stays `False`). The
+override knob is a profile override via `dataclasses.replace`
+(profiles are frozen dataclasses), consumed by the composite scorer
+with no further wiring — pointing it at `0.0` is the documented
+flip-6 opt-out:
 
 ```python
 from dataclasses import replace
@@ -391,8 +397,24 @@ verdict = evaluate_gate(
 
 `verdict.details["legibility"]` carries `weight`, `mean_score`, and
 `composite_delta` so the shift is auditable per round. Weight `0.0`
-(the STANDARD/RELAXED default) keeps the composite byte-stable —
-legibility is reported but never scored into the verdict.
+(the RELAXED default; the `replace(STANDARD, legibility_weight=0.0)`
+opt-out) keeps the composite byte-stable — legibility is reported but
+never scored into the verdict.
+
+### 5.6b Artifact-Evidence Opt-In Weight (v15.0.0 R1)
+
+`GateProfile.artifact_evidence_weight` mirrors the legibility knob for
+the L0-side artifact score (`gate/artifact_score.py::score_artifact_evidence`,
+v15-ADR-007): passing `artifact_evidence=[report, ...]` (lean StatusReport
+dicts) to `evaluate_gate` scores each report and shifts the composite by
+`weight × (mean_composite − 50.0)` over the SCORED reports (zero-evidence
+reports are surfaced in `verdict.details["artifact_evidence"]` but never
+fabricated into the mean). Defaults: STRICT/STANDARD/AUDIT `0.05`,
+RELAXED `0.0`; absence (`artifact_evidence=None`, the default) is
+byte-identical to the pre-wiring gate. A report smuggling a
+`quality_score`/`quality` key raises `EvidenceDoctrineError` (S-5 —
+propagated, never swallowed). Opt-out:
+`dataclasses.replace(profile, artifact_evidence_weight=0.0)`.
 
 ### Gate Evaluation Flowchart
 

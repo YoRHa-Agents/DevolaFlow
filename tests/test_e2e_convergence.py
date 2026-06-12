@@ -53,6 +53,10 @@ def _base_dispatch(task_type: str = "refactor") -> dict:
     return {
         "task_id": "T-CV-001",
         "task_type": task_type,
+        # v15.0.0 strict graduation (G-038): the pre_dispatch chain now
+        # BLOCKS dispatches without a testable acceptance criterion
+        # (VD002), so the fixture carries one like real dispatches do.
+        "accept": ["convergence rounds keep the suite green and findings shrink"],
         "context": {
             "applicable_rules": {"loading_strategy": "standard"},
             "target_files": ["src/foo.py", "src/bar.py"],

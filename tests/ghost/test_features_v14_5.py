@@ -36,7 +36,9 @@ _TIER_A_WITNESSES: frozenset[str] = frozenset(
 # The 12 documented JSON keeps after the G-014 Tier-C archive sweep
 # (Tier-B rolling window + files still loaded by in-repo tests), plus
 # the v14.5.0 W-16 wholesale-regen artifact that ships in the SAME
-# release as this stanza.
+# release as this stanza, plus the v15.0.0 W-16 cycle-start regen
+# artifact (the per-cycle Tier-B addition pinned by the newest-baseline
+# convention in tests/test_benchmarks.py).
 _KEPT_BASELINE_JSONS: frozenset[str] = frozenset(
     {
         "v2.1.0_baseline.json",
@@ -52,6 +54,7 @@ _KEPT_BASELINE_JSONS: frozenset[str] = frozenset(
         "v14.1.0_baseline.json",
         "v14.3.0_baseline.json",
         "v14.5.0_baseline.json",
+        "v15.0.0_baseline.json",
     }
 )
 

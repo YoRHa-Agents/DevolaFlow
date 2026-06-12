@@ -24,19 +24,25 @@ returns a :class:`HookResult` with the violations attached per S-5
 top-severity :class:`HookViolation` so callers can abort + escalate
 per P4.
 
-Registration is **opt-in only** — the module-level
-:func:`register_pre_dispatch_extra` helper calls
+Registration — **default-wired since v15.0.0** (G-038 flip 3, rides
+the DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR pattern):
+``lifecycle/__init__.py`` calls
 ``register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)``
-when the operator opts in. This is the structural difference from the
-v12.2.0 PV-04 ``reject_subagent_quality_score`` hook (which is wired
-as a default extra in ``lifecycle/__init__.py``): the banner hook is
-NEW v12.4.0 surface, so to preserve the S-10 byte-id contract for
-v12.3.0 callers + the W-20 zero-IO default-OFF discipline, the hook
-ships unregistered and operators opt in.
+at import time, mirroring the v12.2.0 PV-04
+``reject_subagent_quality_score`` wiring, so every
+``run_hooks("pre_dispatch", ...)`` dispatch includes the banner check
+with no operator action. The v12.4.0..v14.x opt-in helper
+:func:`register_pre_dispatch_extra` is retained for operators who
+re-wire after a ``clear_hooks()``; the documented OPT-OUT is
+:func:`unregister_pre_dispatch_extra` (removes ONLY this hook; sibling
+extras stay registered). No env flag in either direction (W-20
+zero-new-flags).
 
 Source: `.local/research/v12.4.0_l0_only_audit.md` §B.1 (banner
 literal enumeration) + `.local/research/v12.4.0_gap_analysis.md`
-§2 D-4 (L0-only surfaces leak cluster — 派发分层 user-feedback theme).
+§2 D-4 (L0-only surfaces leak cluster — 派发分层 user-feedback theme) +
+`.local/research/v14.2.0_gap_analysis.md` §2.7 G-038 (default-wire
+graduation).
 """
 
 from __future__ import annotations
@@ -49,6 +55,7 @@ from devolaflow.lifecycle.dispatcher import (
     HookViolation,
     finalize,
     register_hook,
+    unregister_hook,
 )
 
 EVENT = "pre_dispatch"
@@ -193,28 +200,46 @@ def reject_subagent_banner_emission(
 
 
 def register_pre_dispatch_extra() -> None:
-    """Opt-in registration of :func:`reject_subagent_banner_emission`.
+    """Re-registration helper for :func:`reject_subagent_banner_emission`.
 
     Calls ``register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)``
     so subsequent ``run_hooks("pre_dispatch", ...)`` invocations include
-    this hook in the extras chain. The registration is **idempotent**:
-    re-calling the helper appends the hook AGAIN (preserving the
-    ``register_hook`` insertion-order semantics), so callers MUST
-    invoke this helper exactly once per process lifetime.
+    this hook in the extras chain. The registration is **idempotent at
+    the helper-contract level only**: re-calling the helper appends the
+    hook AGAIN (preserving the ``register_hook`` insertion-order
+    semantics), so callers MUST invoke this helper at most once per
+    registry state.
 
-    NOT auto-wired in :mod:`devolaflow.lifecycle.__init__` — unlike the
-    v12.2.0 PV-04 ``reject_subagent_quality_score`` (which IS a default
-    extra), this hook is **opt-in only** to preserve the S-10
-    byte-identical default for v12.3.0 callers. The W-20 zero-IO
-    default-OFF discipline is honoured: with no operator opt-in, the
-    hook is invisible to ``DEFAULT_EVENTS`` introspection and
-    ``run_hooks`` dispatches the same handler list as v12.3.0.
+    Since v15.0.0 (G-038 flip 3) the hook is ALREADY auto-wired by
+    :mod:`devolaflow.lifecycle.__init__` at import time — this helper
+    is retained for operators re-wiring after a ``clear_hooks()`` (the
+    same convention the v12.2.0 PV-04 ``reject_subagent_quality_score``
+    test fixtures use) or after an :func:`unregister_pre_dispatch_extra`
+    opt-out.
     """
     register_hook(EVENT, reject_subagent_banner_emission)
+
+
+def unregister_pre_dispatch_extra() -> bool:
+    """Opt out of the v15.0.0 default wiring (G-038 flip 3 opt-out).
+
+    Removes :func:`reject_subagent_banner_emission` from the
+    ``pre_dispatch`` extras chain via
+    :func:`devolaflow.lifecycle.dispatcher.unregister_hook`. Sibling
+    extras (``validate_owned_files``,
+    ``reject_subagent_quality_score``) and the ``validate_dispatch``
+    default are untouched — this is the per-flip opt-out surface, NOT a
+    registry reset (use ``clear_hooks`` for that). No env flag (W-20).
+
+    Returns ``True`` when a registration was removed, ``False`` when
+    the hook was already absent (idempotent opt-out).
+    """
+    return unregister_hook(EVENT, reject_subagent_banner_emission)
 
 
 __all__ = [
     "EVENT",
     "register_pre_dispatch_extra",
     "reject_subagent_banner_emission",
+    "unregister_pre_dispatch_extra",
 ]

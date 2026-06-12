@@ -99,6 +99,7 @@ from devolaflow.compressor.transforms import (
     ABSTRACTIVE_HIGH_DENSITY_MAX_LINES,
     ABSTRACTIVE_LOW_DENSITY_MAX_LINES,
     ABSTRACTIVE_LOW_DENSITY_THRESHOLD,
+    DEDUP_DIGEST_MAX_CHARS,
     DEDUP_HASH_PREFIX_LENGTH,
     DEFAULT_DIRECTED_COMPACT_MAX_DROP_PCT,
     DEFAULT_SUMMARY_MAX_TOKENS,
@@ -158,6 +159,9 @@ from devolaflow.compressor.transforms import (
 )
 from devolaflow.compressor.transforms import (
     _compute_information_density as _compute_information_density,
+)
+from devolaflow.compressor.transforms import (
+    _digest_summary as _digest_summary,
 )
 from devolaflow.compressor.transforms import (
     _hash_summary as _hash_summary,
@@ -336,4 +340,5 @@ __all__ = [
     "compression_pipeline_stages",
     "dedup_predecessor_summaries",
     "DEDUP_HASH_PREFIX_LENGTH",
+    "DEDUP_DIGEST_MAX_CHARS",
 ]

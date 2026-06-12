@@ -1,16 +1,17 @@
 """DevolaFlow plugin system — detection, registry, and v8.2.1 auto-install.
 
-Two public surfaces live here:
+Two public surfaces live here (single registration owner per A-5 / G-021):
 
-1. **Legacy PluginRegistry** (pre-v8.2.1) — :class:`PluginRegistry` loads
-   ``workflow-system/agent/plugins.yaml`` and supports CLI detection / ensure /
-   upgrade via :class:`PluginSpec` / :class:`PluginStatus`. Kept untouched for
-   backward compatibility; see :mod:`devolaflow.plugins.registry`.
+1. **Runtime auto-install** (v8.2.1, design.md §6) — :func:`ensure_plugin`
+   consumes ``workflow-system/agent/knowledge/runtime-plugins.yaml``, the
+   A-5 SSOT owner of plugin registration data (v15.0.0 G-021). Every
+   failure raises loudly per S-5 (no silent failures).
 
-2. **Runtime auto-install** (v8.2.1, design.md §6) — :func:`ensure_plugin`
-   consumes ``workflow-system/agent/knowledge/runtime-plugins.yaml`` and
-   supports two backends: ``pip`` (for ``nines``) and ``npm_then_init`` (for
-   ``ui-pro``). Every failure raises loudly per S-5 (no silent failures).
+2. **PluginRegistry capability view** (pre-v8.2.1 callers) —
+   :class:`PluginRegistry` loads ``workflow-system/agent/plugins.yaml``,
+   the DERIVED capability/role/stage_mapping view of the owner, and
+   supports CLI detection / ensure / upgrade via :class:`PluginSpec` /
+   :class:`PluginStatus`. See :mod:`devolaflow.plugins.registry`.
 """
 
 from devolaflow.plugins.exceptions import (

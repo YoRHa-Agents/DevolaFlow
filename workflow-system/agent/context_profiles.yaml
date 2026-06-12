@@ -257,12 +257,12 @@ meta:
         soul: all
         architecture: ["A-1", "A-2"]
         conventions: ["C-1", "C-2", "C-3"]
-        workflow: ["W-9", "W-11"]
+        workflow: ["W-4", "W-9"]
       feature:
         soul: all
         architecture: all
         conventions: all
-        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-10", "W-11", "W-12", "W-13", "W-14", "W-15"]
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9"]
         style: ["ST-1", "ST-3", "ST-4", "ST-7"]
       research:
         soul: all
@@ -273,13 +273,13 @@ meta:
         soul: all
         architecture: all
         conventions: all
-        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-10", "W-11", "W-12", "W-13", "W-14", "W-15", "W-18"]
+        workflow: ["W-1", "W-2", "W-3", "W-4", "W-5", "W-6", "W-7", "W-8", "W-9", "W-18"]
         style: ["ST-1", "ST-3", "ST-4"]
       review:
         soul: all
         architecture: ["A-1", "A-2"]
         conventions: ["C-1", "C-2", "C-3"]
-        workflow: ["W-3", "W-9", "W-11"]
+        workflow: ["W-3", "W-4", "W-9"]
       design:
         soul: all
         architecture: all

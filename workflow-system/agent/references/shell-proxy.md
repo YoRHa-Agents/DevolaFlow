@@ -374,7 +374,7 @@ schema_version: 1
 last_updated: "2026-04-23"
 cases:
   - case_id: "rtk-plugin-entry"
-    workflow_type: "feature-enhancement"
+    workflow_type: "change-driven(feature-enhancement)"  # v15.0.0 ADR-002: legacy id → composition form (RC-2.3)
     task_type: "implement"
     summary: "RTK runtime auto-install via curl_install_script with cargo fallback."
     recipe_path: ".local/memory/cases/rtk-plugin-entry.md"

@@ -77,7 +77,8 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # v9.7.0 (PV-02) — appended at position 17 per A-2.2 append-only tail.
     # Schema version bumped 5 → 6 in schemas/lean-dispatch.yaml. Source:
     # ``.local/research/v9.7.0_perf_research.md`` §2 + the v10.0.0 cycle
-    # plan §3 v9.7.0 PV-02.
+    # plan §3 v9.7.0 PV-02. v15.0.0 G-007 design fix (finding F-P4-4):
+    # ledger entries gained the self-contained ``digest`` sub-field.
     #
     # Field shape:
     #   predecessor_dedup_ledger:
@@ -86,19 +87,31 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     #       - pred_index: int                  # 0-based index into pred[]
     #         hash: str                        # 12-char sha256 prefix
     #         ref: str                         # "@round-N-1:pred-K" reference
+    #         digest: str                      # v15.0.0 G-007 — self-contained
+    #                                          # verbatim key_facts digest of
+    #                                          # the replaced summary (bounded
+    #                                          # by DEDUP_DIGEST_MAX_CHARS)
     #
     # When a convergence round N>1 dispatches, the
     # :func:`devolaflow.compressor.transforms.dedup_predecessor_summaries`
     # helper compares each ``pred[i].summary`` against the ledger from
     # round N-1; matching summaries are replaced by ``"@round-N-1:pred-K"``
-    # references and the ledger records the dedup hit so the receiver can
-    # decompress.
+    # references and the ledger records the dedup hit. Per the v15.0.0
+    # G-007 self-containment contract, references resolve INTRA-PAYLOAD
+    # (``pred[i].summary == ref`` → ``entries[j].digest``) — a fresh L3
+    # receiver (Context Isolation: empty context at spawn) never needs the
+    # round-N-1 dispatch it never saw. ``digest`` is REQUIRED on every
+    # entry the emitter produces as of v15.0.0; it is OPTIONAL in the
+    # schema only for historical schema-v6 witnesses (the digest-less
+    # v9.7.0/v10.2.0/v12.0.0 Tier-A goldens remain byte-frozen per A-2.4).
     #
     # Field is OPTIONAL — when absent (round 1, or no dedup hits in round
     # N>1), the dispatch is byte-identical to the v9.6.0 / v9.3.0 / v8.4.0
-    # / v8.3.0-PV05 baselines. The 8 historical multi-baseline byte-tests
+    # / v8.3.0-PV05 baselines. The historical multi-baseline byte-tests
     # in ``tests/test_layout_invariant_multi_baseline.py`` ALL CONTINUE TO
-    # PASS unchanged because the new field's absence is canonical.
+    # PASS unchanged because the new field's absence is canonical (and the
+    # v15.0.0 ``digest`` is a NEST-in-place inside existing entries —
+    # canonical_order length stays 17, version stays 6).
     "predecessor_dedup_ledger",
 ]
 

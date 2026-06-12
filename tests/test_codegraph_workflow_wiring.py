@@ -6,21 +6,20 @@ Pins the codegraph integration surfaces in:
   stage gains ``codegraph_commands`` hint; scaffold stage gains
   ``codegraph_init`` sub-step (runs in ALL modes per locked operator
   decision); verify stage gains ``codegraph_smoke`` presence check.
-* ``workflow-system/agent/templates/builtin/onboarding.yaml`` — analyze
-  stage gains ``codegraph_commands`` for entry-point ranking.
-* ``workflow-system/agent/templates/builtin/security-audit.yaml`` —
-  analyze stage gains ``codegraph_commands`` (callers + impact for
-  attack-surface mapping).
-* ``workflow-system/agent/templates/builtin/product-verification.yaml``
-  — analyze stage gains ``codegraph_commands`` (explore + impact for
-  feature surface mapping).
+* the 3 sister templates (onboarding / security-audit /
+  product-verification) — analyze-stage ``codegraph_commands`` recipes.
+  v15.0.0 update (v15-ADR-002 Phase B): the sister yamls were deleted;
+  the recipes are carried over verbatim as ``params.codegraph_commands``
+  on the corresponding composition entries in
+  ``workflow-system/agent/templates/registry.yaml#compositions``.
 * ``workflow-system/agent/context_profiles.yaml`` — NEW
   ``meta.codegraph_integration`` block parallel to ``nines_integration``
   with 5 commands recipes + 6 triggers.
 
 Source: ``.local/research/v12.5.0_gap_analysis.md`` §2 D-1.2 +
 ``.local/research/v12.5.0_codegraph_benefit_analysis.md`` §3 surface 5
-+ §6.2 PV-04 acceptance criteria.
++ §6.2 PV-04 acceptance criteria; composition carry-over per
+`.local/research/adr/v15-ADR-002-template-phase-b-collapse.md`.
 
 NO subprocess. NO network. Pure YAML structural assertions.
 """
@@ -35,9 +34,7 @@ import yaml
 _REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 _TEMPLATES_DIR: Path = _REPO_ROOT / "workflow-system" / "agent" / "templates" / "builtin"
 _REPO_INIT_PATH: Path = _TEMPLATES_DIR / "repo-init.yaml"
-_ONBOARDING_PATH: Path = _TEMPLATES_DIR / "onboarding.yaml"
-_SECURITY_AUDIT_PATH: Path = _TEMPLATES_DIR / "security-audit.yaml"
-_PRODUCT_VERIFICATION_PATH: Path = _TEMPLATES_DIR / "product-verification.yaml"
+_REGISTRY_PATH: Path = _REPO_ROOT / "workflow-system" / "agent" / "templates" / "registry.yaml"
 _CONTEXT_PROFILES_PATH: Path = _REPO_ROOT / "workflow-system" / "agent" / "context_profiles.yaml"
 
 
@@ -127,31 +124,35 @@ class TestRepoInitCodegraphWiring:
 
 
 # ---------------------------------------------------------------------------
-# Sister templates — analyze stage gains codegraph_commands
+# Sister compositions — params carry codegraph_commands (v15-ADR-002)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    ("template_path", "expected_recipes"),
+    ("composition_name", "expected_recipes"),
     [
-        (_ONBOARDING_PATH, {"entry_points", "files"}),
-        (_SECURITY_AUDIT_PATH, {"callers", "impact"}),
-        (_PRODUCT_VERIFICATION_PATH, {"explore", "impact"}),
+        ("onboarding", {"entry_points", "files"}),
+        ("security-audit", {"callers", "impact"}),
+        ("product-verification", {"explore", "impact"}),
     ],
 )
 def test_sister_template_analyze_has_codegraph_commands(
-    template_path: Path, expected_recipes: set[str]
+    composition_name: str, expected_recipes: set[str]
 ) -> None:
-    """The 3 sister templates (onboarding/security-audit/product-verification) wire codegraph."""
-    template = _load_yaml(template_path)
-    analyze = _find_stage(template, "analyze")
-    cfg = analyze.get("config") or {}
-    codegraph_commands = cfg.get("codegraph_commands") or {}
+    """The 3 sister names (onboarding/security-audit/product-verification) keep codegraph wiring.
+
+    Their yamls were deleted at v15.0.0 (v15-ADR-002 Phase B); the
+    v12.5.0 PV-04 D-1.2 recipes are carried over verbatim as
+    ``params.codegraph_commands`` on the composition entries.
+    """
+    registry = _load_yaml(_REGISTRY_PATH)
+    entry = next(c for c in registry["compositions"] if c["name"] == composition_name)
+    codegraph_commands = (entry.get("params") or {}).get("codegraph_commands") or {}
     missing = expected_recipes - set(codegraph_commands.keys())
     assert not missing, (
-        f"v12.5.0 PV-04 D-1.2: {template_path.name} analyze stage "
-        f"missing codegraph recipes {sorted(missing)}; got "
-        f"{sorted(codegraph_commands.keys())}"
+        f"v12.5.0 PV-04 D-1.2 (carried per v15-ADR-002): composition "
+        f"{composition_name!r} missing codegraph recipes {sorted(missing)}; "
+        f"got {sorted(codegraph_commands.keys())}"
     )
 
 

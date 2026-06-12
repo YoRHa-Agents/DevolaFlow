@@ -485,7 +485,7 @@ class TestV822RulesFoundationCompile:
         cursor = repo_compile_results["cursor"]
         assert "## S-8 — No Writes Outside Active Change Owned Files" in cursor.content
         assert "owned_files.txt" in cursor.content
-        assert "v8.3.0 design.md §3.1" in cursor.content
+        assert "v15-ADR-008 §S-8" in cursor.content
 
     def test_s9_in_cursor_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]
@@ -493,7 +493,7 @@ class TestV822RulesFoundationCompile:
         cursor = repo_compile_results["cursor"]
         assert "## S-9 — Handoff Envelopes Are Append-Only" in cursor.content
         assert "append-only" in cursor.content.lower()
-        assert "v8.3.0 design.md §3.2" in cursor.content
+        assert "v15-ADR-008 §S-9" in cursor.content
 
     def test_a4_in_cursor_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]
@@ -501,7 +501,7 @@ class TestV822RulesFoundationCompile:
         cursor = repo_compile_results["cursor"]
         assert "## A-4 — Source-of-Truth Spec Location (M-004 ADR)" in cursor.content
         assert ".local/memory/specs/" in cursor.content
-        assert "v8.3.0 design.md §3.4" in cursor.content
+        assert "v15-ADR-008 §A-4" in cursor.content
 
     def test_c9_in_cursor_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]
@@ -510,7 +510,7 @@ class TestV822RulesFoundationCompile:
         assert "## C-9 — Lightweight Agent Workspace Artifacts" in cursor.content
         assert "Soft budget" in cursor.content
         assert "Hard ceiling" in cursor.content
-        assert "v8.3.0 design.md §3.3" in cursor.content
+        assert "v15-ADR-008 §C-9" in cursor.content
 
     def test_a4_c9_s8_s9_in_agents_md_compiled_output(
         self, repo_compile_results: dict[str, CompileResult]

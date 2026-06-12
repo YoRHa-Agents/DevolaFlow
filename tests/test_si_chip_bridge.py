@@ -355,6 +355,84 @@ class TestSubprocessErrorModes:
         assert "did not produce expected output file" in str(exc_info.value)
 
 
+class TestSubprocessHappyPathAndParsing:
+    """v15.0.0 R3 coverage lift — real-subprocess + YAML-parse contracts.
+
+    The pre-R3 suite only exercised the wrappers with ``_run`` mocked
+    out; the actual ``subprocess.run`` plumbing, the KEY=VALUE stdout
+    parser, and the malformed-YAML guards had no behavioural pins.
+    """
+
+    def test_count_tokens_runs_real_subprocess_and_parses_key_value_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """count_tokens drives a REAL subprocess and parses KEY=VALUE stdout.
+
+        Also pins the resolver-success path: ``install=None`` routes
+        through ``_require_install`` and uses the monkeypatched
+        resolver's install.
+        """
+        fake_install = _make_fake_install(tmp_path)
+        script = fake_install.scripts_dir / "count_tokens.py"
+        script.write_text(
+            "print('metadata_tokens=94')\nprint('body_tokens=4646')\nprint('verdict=pass')\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            "devolaflow.si_chip_bridge.runner.find_si_chip_install",
+            lambda: fake_install,
+        )
+        meta, body = _runner.count_tokens(tmp_path / "SKILL.md")
+        assert (meta, body) == (94, 4646)
+
+        # Non-zero exit → loud SiChipError with verbatim stderr (S-5).
+        script.write_text(
+            "import sys\nprint('broken', file=sys.stderr)\nsys.exit(3)\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(SiChipError) as exc_info:
+            _runner.count_tokens(tmp_path / "SKILL.md", install=fake_install)
+        assert "exited 3" in str(exc_info.value)
+        assert "broken" in exc_info.value.details["stderr"]
+
+        # Unparseable KEY=VALUE payload → loud SiChipError, never a silent 0.
+        script.write_text("print('metadata_tokens=not-a-number')\n", encoding="utf-8")
+        with pytest.raises(SiChipError) as exc_info:
+            _runner.count_tokens(tmp_path / "SKILL.md", install=fake_install)
+        assert "unparseable output" in str(exc_info.value)
+
+    def test_parse_yaml_and_missing_script_failure_modes(self, tmp_path: Path) -> None:
+        """Malformed / non-mapping YAML and partial installs all fail loudly."""
+        malformed = tmp_path / "malformed.yaml"
+        malformed.write_text("foo: [unclosed\n", encoding="utf-8")
+        with pytest.raises(SiChipError) as exc_info:
+            _runner._parse_yaml(malformed)
+        assert "Failed to parse Si-Chip YAML" in str(exc_info.value)
+
+        non_mapping = tmp_path / "list.yaml"
+        non_mapping.write_text("- 1\n- 2\n", encoding="utf-8")
+        with pytest.raises(SiChipError) as exc_info:
+            _runner._parse_yaml(non_mapping)
+        assert "did not parse into a mapping" in str(exc_info.value)
+
+        # Partial install (scripts/ missing the script) → actionable error
+        # naming the missing script (the v0.4.0 half-extracted-tar mode).
+        root = tmp_path / "partial-si-chip"
+        (root / "scripts").mkdir(parents=True)
+        (root / "SKILL.md").write_text("---\nid: si-chip\n---\n")
+        partial = SiChipInstall(
+            root=root,
+            skill_md=root / "SKILL.md",
+            scripts_dir=root / "scripts",
+            references_dir=root / "references",
+            source="cursor_global",
+        )
+        with pytest.raises(SiChipError) as exc_info:
+            _runner.profile("devola-flow", tmp_path / "out.yaml", install=partial)
+        assert "missing scripts/profile_static.py" in str(exc_info.value)
+        assert exc_info.value.details["missing_script"] == "profile_static.py"
+
+
 # ---------------------------------------------------------------------------
 # §5 — top-level orchestration (`run_dogfood_cycle`)
 # ---------------------------------------------------------------------------
@@ -410,6 +488,60 @@ class TestRunDogfoodCycle:
         )
         # The profile YAML was actually written to the work_dir.
         assert out_path_holder["profile"].is_file()
+
+    def test_dogfood_cycle_full_eval_path_computes_delta_and_default_work_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """v15.0.0 R3: the PV-05 full-eval path — delta + verdict + notes.
+
+        With runs_dir + baseline_dir supplied the cycle MUST run
+        evaluate twice (baseline then after), compute the
+        iteration_delta, and emit the APPLY verdict when the delta
+        clears the spec §23 threshold. Also pins the version-tracked
+        default work_dir (``.local/dogfood/<__version__>`` under cwd —
+        the v10.2.1 D-S-6 contract).
+        """
+        from devolaflow import __version__
+
+        monkeypatch.chdir(tmp_path)
+        fake_install = _make_fake_install(tmp_path)
+        fake_profile = BasicAbilityProfile(
+            ability_id="devola-flow",
+            metadata_tokens=94,
+            body_tokens=4646,
+            references_count=10,
+            examples_count=3,
+        )
+        before = MetricsReport(
+            composite=0.50, metadata_tokens=94, body_tokens=4646, task_delta=0.0, value_vector=0.0
+        )
+        after = MetricsReport(
+            composite=0.65, metadata_tokens=94, body_tokens=4500, task_delta=0.1, value_vector=0.1
+        )
+        with (
+            patch.object(_runner, "profile", return_value=fake_profile) as mock_profile,
+            patch.object(_runner, "evaluate", side_effect=[before, after]) as mock_evaluate,
+        ):
+            result = _runner.run_dogfood_cycle(
+                ability_name="devola-flow",
+                skill_md=tmp_path / "skill.md",
+                runs_dir=tmp_path / "runs",
+                baseline_dir=tmp_path / "baseline",
+                install=fake_install,
+            )
+        assert mock_profile.call_count == 1
+        assert mock_evaluate.call_count == 2, "full-eval path runs evaluate twice (before/after)"
+        assert result.verdict == ApplyVerdict.APPLY, "+0.15 delta clears the +0.10 threshold"
+        assert result.delta is not None
+        assert result.delta.iteration_delta == pytest.approx(0.15)
+        assert any("iteration_delta=+0.1500" in n and "APPLY" in n for n in result.notes), (
+            f"expected a verbatim delta-vs-threshold note; got {result.notes!r}"
+        )
+        # Default work_dir tracks the CURRENT version under cwd (D-S-6).
+        default_work_dir = tmp_path / ".local" / "dogfood" / __version__
+        assert default_work_dir.is_dir(), (
+            "work_dir=None must default to .local/dogfood/<__version__> under cwd"
+        )
 
 
 # ---------------------------------------------------------------------------

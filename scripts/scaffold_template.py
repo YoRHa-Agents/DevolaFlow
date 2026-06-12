@@ -168,6 +168,9 @@ def render_builtin_yaml(plan: ScaffoldPlan) -> str:
 
 
 def render_registry_stanza(plan: ScaffoldPlan) -> str:
+    # Appended at EOF by append_unique(); relies on `templates:` being the
+    # LAST top-level block in registry.yaml (schema v2.0 invariant — the
+    # `compositions:` manifest sits ABOVE it per v15-ADR-002).
     tags = list(plan.tags) if plan.tags else [plan.name]
     return "\n".join(
         [

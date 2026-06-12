@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "14.5.0"
+version: "15.0.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v14.5.0**
+> **Now Using DevolaFlow v15.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 14.5.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`; if newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola"). Wheel-only installs: see `references/troubleshooting.md` §2.17 (I-001/I-004 — `devola-init local --mode=core` works; other targets need a clone).
+**Current version:** 15.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`; if newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola"). Wheel-only installs: see `references/troubleshooting.md` §2.17 (I-001/I-004 — `devola-init local --mode=core` works; other targets need a clone).
 
 ### Session Banner Contract (v12.3.0+)
 
@@ -123,28 +123,28 @@ Match user intent to workflow type, then load the corresponding stage template.
 
 | Intent Keywords | Workflow Type | Stages (abbreviated) |
 |---|---|---|
-| research, compare, survey, investigate | `research-only` | research |
-| design, architect, API spec, schema | `design-only` | research → design → review |
-| fix bug, broken, crash, hotfix, SEV1/SEV2 | `hotfix` | triage → fix → test → release |
-| refactor, clean up, tech debt, simplify | `refactoring` | scope → plan → impl → test → review |
+| research, compare, survey, investigate | `cd(research-only)` | research |
+| design, architect, API spec, schema | `cd(design-only)` | research → design → review |
+| fix bug, broken, crash, hotfix, SEV1/SEV2 | `cd(hotfix)` | triage → fix → test → release |
+| refactor, clean up, tech debt, simplify | `cd(refactoring)` | scope → plan → impl → test → review |
 | migrate, upgrade, port, convert | `migration` | assess → plan → impl → validate → cutover |
-| prototype, spike, experiment, PoC | `spike-poc` | research → prototype → evaluate |
-| document, write docs, README, guide | `documentation-only` | survey → author → review |
-| security, audit, CVE, vulnerability | `security-audit` | threat-model → scan → analyze → remediate → verify |
-| add to existing, extend, enhance | `feature-enhancement` | design → plan → impl → review → test → release |
-| build from scratch, new project, full | `full-pipeline` | design → plan → impl → review → test → testgate → release |
-| design with research, ADR, iterate design | `research-design-review-refine` | research → design → review → refine (loop) |
-| demo, showcase, presentation, pitch | `demo-showcase` | research → storyboard → build → review → polish → package |
-| slow, optimize, profile, benchmark | `performance-optimization` | profile → design → optimize → benchmark → validate |
-| setup env, install, configure tools | `dependency-setup` | research → plan → configure → verify |
-| new to project, onboard, getting started | `onboarding` | analyze → document → setup → verify |
+| prototype, spike, experiment, PoC | `cd(spike-poc)` | research → prototype → evaluate |
+| document, write docs, README, guide | `cd(documentation-only)` | survey → author → review |
+| security, audit, CVE, vulnerability | `cd(security-audit)` | threat-model → scan → analyze → remediate → verify |
+| add to existing, extend, enhance | `cd(feature-enhancement)` | design → plan → impl → review → test → release |
+| build from scratch, new project, full | `cd(full-pipeline)` | design → plan → impl → review → test → testgate → release |
+| design with research, ADR, iterate design | `cd(research-design-review-refine)` | research → design → review → refine (loop) |
+| demo, showcase, presentation, pitch | `wd(demo-showcase)` | research → storyboard → build → review → polish → package |
+| slow, optimize, profile, benchmark | `cd(performance-optimization)` | profile → design → optimize → benchmark → validate |
+| setup env, install, configure tools | `cd(dependency-setup)` | research → plan → configure → verify |
+| new to project, onboard, getting started | `ri(onboarding)` | analyze → document → setup → verify |
 | optimize skill, benchmark context, density | `skill-optimization` | survey → profile → optimize → benchmark → iterate → document |
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate |
-| verify, product verification, visual test, UAT, user-facing quality | `product-verification` | analyze → design → implement → test → verify → review → validate |
+| verify, product verification, visual test, UAT, user-facing quality | `wd(product-verification)` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | precondition → research → design → plan → impl → review → test → refine → validate → release |
 | init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + auto-installs codegraph index in ALL modes) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
-| entropy cleanup, gc agent, stale docs, drift audit | `entropy-cleanup` | scan → propose → review → apply |
+| entropy cleanup, gc agent, stale docs, drift audit | `cd(entropy-cleanup)` | scan → propose → review → apply |
 | web design, frontend design, landing page, polish UI, ui-pro, impeccable | `web-design` | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect` gate); refine↔verify convergence loop |
 
 ### Repo-Init Pre-Dispatch Contract
@@ -205,7 +205,7 @@ Every loop has `max_iterations`. Every failure is classified (retry / escalate /
 | "One more retry should fix it" | Check `max_iterations`. If at limit, escalate — do not increment. |
 | "The gate score is close enough" | Close is FAIL. Run convergence round or escalate. |
 | "I'll skip the gate for this stage" | Gates are mandatory. No stage advances without gate PASS. |
-| "Tests can be added later" | `test_on_complete` hook checks (warns by default; strict mode blocks). Run with `strict=True` for hard enforcement. |
+| "Tests can be added later" | `test_on_complete` hook checks — strict by default since v15.0.0 at the engaged runtime surface (blocks the report); `strict=False` is the explicit permissive escape. |
 
 ### Wave Coordination Modes
 
@@ -302,6 +302,7 @@ Full context injection spec: `references/context-isolation.md`
 ## Subagent Hang Prevention
 
 **L0 contract**: ALWAYS set `timeout_seconds` in TaskDispatch per task type — `research=2700` / `impl=1800` / `test=900` / `review=1200` / `hotfix=600`. Default 7200 is a fail-safe ceiling, not a target.
+**Runtime enforcement (strict since v15.0.0)**: `dispatch_wave_tasks` enforces every task's ceiling via `asyncio.wait_for` by default (explicit `timeout_seconds` → task-type class default → 7200 fail-safe); per-task opt-out: `timeout_seconds: null`. Breach → `TaskOutcome(exception=TimeoutError)`, never a silent hang.
 
 **L3 forbidden patterns** (every dispatched subagent MUST AVOID — these are the canonical hang vectors):
 - `AskQuestion` — no human channel exists below L0; resolve via predecessor artifacts or escalate via StatusReport
@@ -350,7 +351,7 @@ Full schemas: `references/message-schemas.md`
 
 ## Lifecycle Hooks
 
-Permissive default (warn + log); strict opt-in raises HookViolation. **Status:** `check_file_ownership` (file_write) and `test_on_complete` (task_stop) are validated at the API surface but not yet fired by the runtime dispatch path — runtime wiring lands v14.3.0 (see v15-ADR-003).
+**Strict by default since v15.0.0** (G-038 cluster; v15-ADR-003 §Decision 3): the `pre_dispatch` emission chain and the runtime-wired `file_write` / `task_stop` adapters (fired since v14.3.0 when `DEVOLAFLOW_AGENT_WORKSPACE=1`) BLOCK on violation — HookViolation raises per S-8 "mode: full". Permissive escape: `strict=False` at the call site / `ProposalGenerator(pre_dispatch_strict=False)`; flag absent → byte-identical zero-IO no-op (unchanged). `pre_dispatch` extras: `reject_subagent_quality_score` (strict on direct invocation; scans top level + `metrics`/`self_check`) and `reject_subagent_banner_emission` (default-wired since v15.0.0; opt-out `unregister_pre_dispatch_extra()`).
 
 | Hook | Event | Checks | On Violation (strict) |
 |------|-------|--------|----------------------|
@@ -358,7 +359,7 @@ Permissive default (warn + log); strict opt-in raises HookViolation. **Status:**
 | `check_file_ownership` | File write | File ∈ `owned_files` | Reject + log (P1) |
 | `test_on_complete` | Task stop | Tests pass, lint clean | Auto-retry ≤ P4 limit |
 
-API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/`. v8.4.4 adds `post_dispatch` (no-op default) wired by S-10 — see `references/plan-mode-enforcement.md` §10.
+API: `run_hooks(event, payload, *, strict=False)` in `src/devolaflow/lifecycle/` (17 default events since v15.0.0 — `check_human_input_write` appended per A-2.2). v8.4.4 adds `post_dispatch` (no-op default) wired by S-10 — see `references/plan-mode-enforcement.md` §10.
 
 ## Repo Mode Detection
 
@@ -394,7 +395,7 @@ Override: `repo_mode` in `.workflow/config.yaml`. Full detection: `references/re
 | `references/human-surface.md` | `.local/human/` INPUT (immutable REQ-IDs + constitution + amendments) + OUTPUT (convergence report + DIGEST); `trace_requirements`/`lint_human`/`render_human_report`; scan fields |
 | `references/impeccable.md` | Design refinement + no-LLM anti-pattern detector; 23 /impeccable commands; `impeccable detect` exit-code gate; ui-pro → impeccable web-design composition; degraded-mode contract |
 | `references/message-schemas.md` | Constructing/parsing dispatch/report/escalation |
-| `references/meta-framework.md` | Workflow instantiation, stage ordering, template quick-reference (stages + gate types + `(legacy)` markers — §4) |
+| `references/meta-framework.md` | Workflow instantiation, stage ordering, template quick-reference (stages + gate types + named compositions — §4) |
 | `references/plan-mode-enforcement.md` | Plan-mode L0 contract, plan output template, reinforcement rules, convergence loop |
 | `references/repo-modes.md` | Repo detection, mode-specific behavior |
 | `references/shell-proxy.md` | RTK plugin + shell_proxy + pre_shell_call hook + memory_router + command mapping |

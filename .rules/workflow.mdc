@@ -34,13 +34,30 @@ python -m pytest tests/test_benchmarks.py -v
 ```
 Regression threshold: composite score must not drop >5% below baseline per scenario.
 
+Context optimization changes must demonstrate improvement (or no regression) via EvoBench benchmarks. Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/`.
+
+Changes to `src/devolaflow/gate/` require running the full gate test suite:
+```
+python -m pytest tests/test_gate.py -v
+```
+
+Absorbs W-11 (CP-4), W-13 (CP-6), W-14 (CO-5) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
+
 ## W-5 — Skill Format Coupling (SI-5)
 
 Changes to SKILL.md or CLAUDE.md trigger ALL of: (1) line count check ≤ 500, (2) `build-skill` for all 4 adapters, (3) benchmark run passes, (4) version consistency passes. Partial compliance is treated as full violation.
 
+Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`) build successfully and stay within their budgets.
+
+Absorbs W-12 (CP-5) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
+
 ## W-6 — Context Budget Enforcement (SI-6)
 
 Changes to `context_profiles.yaml` require running `python -m devolaflow.task_adaptive_selector <task_type> --verbose` for all affected task types and verifying no section marked `critical` was dropped.
+
+Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
+
+Absorbs W-15 (CO-6) — v15.0.0 fold per v15-ADR-004; see v15-ADR-008 §1.
 
 ## W-7 — Iteration Retrospective (SI-8)
 
@@ -65,36 +82,6 @@ Single-execution (v14.5.0 G-033): no test runs twice per chain; each gate keeps 
 
 `make precommit-full` (alias for `make release-preflight`) is the canonical runner; the Makefile is the source of truth for the gate list (recompiled v14.2.1; single-execution reorg v14.5.0 per G-033). `release-preflight` = the 7 SI-10 core gates plus 6 release-only extras (NOT SI-10 gates): `validate-templates`, `build-skill`, `sync-human-docs`, `compile-rules`, `check-drift`, `check-rules-drift`.
 
-## W-10 — Version Bump Protocol (CP-3)
-
-When bumping the version, update ALL tracked locations consistently using `scripts/bump_version.py`. After bumping, run `python -m pytest tests/test_version.py -v` to verify.
-
-## W-11 — Gate Module Changes (CP-4)
-
-Changes to `src/devolaflow/gate/` require running the full gate test suite:
-```
-python -m pytest tests/test_gate.py -v
-```
-
-## W-12 — SKILL Changes Require Adapter Build (CP-5)
-
-Changes to SKILL.md, CLAUDE.md, or workflow-skill.yaml require running `build-skill` and verifying the 4 core adapters (Cursor, Codex, Claude, Copilot) + the registered data-driven adapter set (`adapter_configs/*.yaml`) build successfully and stay within their budgets.
-
-## W-13 — Context Optimization Benchmarks (CP-6)
-
-Changes to `task_adaptive_selector.py`, `context_profiles.yaml`, or lean message schemas require running:
-```
-python -m pytest tests/test_benchmarks.py -v
-```
-
-## W-14 — Benchmark Verification (CO-5)
-
-Context optimization changes must demonstrate improvement (or no regression) via EvoBench benchmarks. Baseline metrics are stored in `benchmarks/devolaflow_context/baselines/`.
-
-## W-15 — Section Relevance (CO-6)
-
-Context profiles must ensure task-type-relevant sections are marked `critical`, while unrelated sections are `skip`. Verify by running `task_adaptive_selector.py <task_type> --verbose` and inspecting skipped sections.
-
 ## W-16 — Wholesale Baseline Regen on Cycle Start
 
 Per the v8.3.0 PV-09 precedent: when a new MAJOR or MINOR cycle starts, the FIRST PV MUST regenerate ALL EvoBench / golden-test baselines wholesale rather than per-PV piecemeal. Running `python -m pytest tests/test_benchmarks.py --regenerate-baselines` (or equivalent per-suite refresh script) at cycle-start prevents intra-cycle drift where each PV's micro-baseline accumulates floating-point / formatter delta that the cumulative end-of-cycle audit then has to chase.
@@ -103,13 +90,13 @@ Cycle start = the first PV after a tag bumps the MINOR or MAJOR digit (e.g. v8.4
 
 The wholesale regen artifact lives in `benchmarks/devolaflow_context/baselines/<cycle>_baseline.json` (e.g. `v8.5.0_baseline.json` for the PV-05 baseline that underpins PV-06..PV-N). All subsequent PVs in the cycle compare against this single baseline; per-PV regression is the delta from the wholesale baseline, not an incremental delta from the previous PV.
 
-**v12.3.0 PV-04 clarification (per v12.2.0 retrospective §4.2 learning)**: the wholesale regen MAY land at cycle START OR cycle CLOSE — whichever PV first observes baseline drift. The v12.2.0 cycle is the canonical "regen-at-close" example: PV-01 attempted the regen but the v12.1.0 baseline stayed GREEN throughout PV-02 → PV-04, so the wholesale regen was DEFERRED to cycle close (and turned out to be a no-op because no PV drifted the equilibrium). The earlier "MUST at cycle start" wording over-prescribed; the actual contract is "MUST regenerate ONCE per cycle, AT the PV that first detects drift, otherwise at cycle CLOSE if no PV drifted". This preserves the original anti-piecemeal-drift intent without forcing unnecessary regen overhead.
+**v12.3.0 PV-04 clarification**: the wholesale regen MAY land at cycle START OR cycle CLOSE — whichever PV first observes baseline drift. The actual contract is "MUST regenerate ONCE per cycle, AT the PV that first detects drift, otherwise at cycle CLOSE if no PV drifted".
 
-Source: `.local/research/v8.4.0_retrospective.md` §"R-7 wholesale-vs-piecemeal baseline lesson"; v12.3.0 PV-04 clarification per `.local/research/v12.2.0_retrospective.md` §4.2 + `.local/research/v12.3.0_gap_analysis.md` §2 D-3.
+Source: v15-ADR-008 §W-16.
 
 ## W-17 — Per-PV Test Cap Discipline (≤+30 NEW test functions per PV; mid-cycle audit at PV-05)
 
-Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `data/golden_test_set/*.toml` fixture surfacing through 5 parametrized assertions in `tests/test_golden_test_set.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the v8.X.0 → v8.(X+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern flagged by the v8.0.0 retrospective §3.4 (where the cycle added 743 tests but coverage stayed at 80% — many tests were redundant scaffolding).
+Each PV may add at most **+30 NEW test functions** to the suite. Parametrize expansions of EXISTING test functions over newly-added data (e.g. a new `data/golden_test_set/*.toml` fixture surfacing through 5 parametrized assertions in `tests/test_golden_test_set.py`) do NOT count toward the cap — those are cheap schema checks, not new test complexity. The cumulative cycle delta from cycle-start (the v8.X.0 → v8.(X+1).0 transition) MUST stay ≤ **+150 NEW test functions** to prevent the "test count grows faster than coverage" anti-pattern.
 
 **Mid-cycle audit at PV-05** (or the cycle's halfway point if the PV count differs from 10): the cycle-lead L0 MUST report cumulative NEW test function delta against the cycle baseline and forecast the remaining-PV budget. If the projection exceeds +150, defer non-essential tests to the next cycle.
 
@@ -122,7 +109,7 @@ python -m pytest tests/ --collect-only -q | tail -1
 git diff <previous-tag>..HEAD -- tests/ | grep -cE '^\+\s*def test_'
 ```
 
-Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §5.
+Source: v15-ADR-008 §W-17.
 
 ## W-18 — Ghost-Audit Refresh Precondition
 
@@ -134,17 +121,13 @@ Refresh mechanism:
 2. Run `python -m pytest tests/ghost/ -v` to confirm the new entry passes.
 3. ONLY THEN add the CHANGELOG entry that mentions the feature.
 
-This sequencing prevents the v8.4.x-era pattern where CHANGELOG entries cited "feature X ships in PV-N" but the ghost audit had no coverage assertion for X — the audit silently passed because it was never asked. The `test_ghost_audit_refresh_present` lint (`tests/ghost/test_rules.py`) enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
+The `test_ghost_audit_refresh_present` lint (`tests/ghost/test_rules.py`) enforces this precondition by walking the CHANGELOG `## [vX.Y.Z]` block and checking that every newly-introduced symbol has a corresponding ghost-audit entry.
 
-Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + ADR-005 D2. Package split: v14.3.0 per `.local/research/adr/v15-ADR-001-ghost-audit-decomposition.md`.
+Source: v15-ADR-008 §W-18.
 
 ## W-19 — Research Artifact Archive at Cycle End
 
-After a MAJOR or MINOR cycle ships, the L0 cycle-lead MUST run `python scripts/archive_research_artifacts.py <cycle-version>` to copy the `.local/research/<cycle-prefix>*` artifacts into `docs/cycle-archive/<cycle-version>/`. The archive is COMMITTED to the repo so that:
-
-* Future cycle-N+1 SI-1 planning gates can reference cycle-N research without depending on `.local/` (which is gitignored on most clones).
-* External reviewers / new contributors can read the design history without needing the cycle author's local clone.
-* The retrospective (W-7 / SI-8) has a stable archive URL to cite from `CHANGELOG.md`.
+After a MAJOR or MINOR cycle ships, the L0 cycle-lead MUST run `python scripts/archive_research_artifacts.py <cycle-version>` to copy the `.local/research/<cycle-prefix>*` artifacts into `docs/cycle-archive/<cycle-version>/`. The archive is COMMITTED to the repo.
 
 Archive format (per cycle):
 
@@ -161,7 +144,7 @@ docs/cycle-archive/v<MAJOR>.<MINOR>.0/
 
 The archive is created at cycle CLOSE (after the final patch of a MINOR series ships) and committed as part of the cycle-rollup release commit. Mid-cycle archive runs are no-ops if the destination already exists (idempotent).
 
-Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3.
+Source: v15-ADR-008 §W-19.
 
 ## W-20 — Env-Flag Reuse vs New-Flag Policy
 
@@ -179,7 +162,7 @@ Authoring requirements for a justified new flag:
 * Author an R5-strict zero-IO test in `tests/test_<feature>_disabled_is_noop.py`.
 * Cite the new flag by name in the CHANGELOG `## [vX.Y.Z]` entry under "Operator-visible behaviour change".
 
-Source: v9.0.0 PV-05 spec — codified per `.local/research/v9.0.0_pv05_design.md` §3 + `references/env-flags.md` §7.
+Source: v15-ADR-008 §W-20; checklist in `references/env-flags.md` §7.
 
 ## W-21 — Soul-Set Freeze Governance
 
@@ -211,9 +194,7 @@ MUST satisfy ALL of the following BEFORE landing:
    move to Architecture (P1) instead.
 
 Current Soul-set freeze locks at **10 entries** (S-1..S-10) at v9.0.0
-release. Any proposed S-11 must be telegraphed in v9.0.0's retrospective
-(deferred to v9.2.0 — cycle N+2), gap-analysed in v9.2.0 SI-1, and pass
-v9.2.0 L0's SI-3 §3.2 ≥ 9.5/10.
+release.
 
 Enforcement: W-21 is a HUMAN-side gating rule (no automated CI lint —
 the gating IS the multi-cycle deliberation requirement). The
@@ -221,9 +202,7 @@ the gating IS the multi-cycle deliberation requirement). The
 enforces the broader 60-rule cap (per ADR-007 D5) but does NOT separately
 enforce the Soul-specific 12-cap; that gate IS the SI-3 review.
 
-Source: v9.0.0 PV-07 — codified per
-`.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4
-(Soul-set freeze governance).
+Source: v15-ADR-008 §W-21.
 
 ## W-22 — Grill Mode Activation Contract
 
@@ -289,8 +268,7 @@ orthogonality test is satisfied because grill mode does NOT
 share an env-flag activation surface with any existing
 DEVOLAFLOW_* flag.
 
-Source: v11.3.0 SI-1 gap analysis §4 P1.5 + §5 risks R-7 +
-R-11 (`.local/research/v11.3.0_gap_analysis.md`).
+Source: v15-ADR-008 §W-22.
 
 ## W-23 — Domain Glossary Maintenance
 
@@ -357,9 +335,7 @@ pure function returns one of `SINGLE_CONTEXT` /
 touches disk; it raises `FileNotFoundError` when `repo_root`
 itself does not exist (S-5: no silent failure).
 
-Source: v11.3.0 SI-1 gap analysis §4 P1.5 +
-`workflow-system/agent/references/domain-awareness.md`
-(`.local/research/v11.3.0_gap_analysis.md`).
+Source: v15-ADR-008 §W-23; format spec in `references/domain-awareness.md`.
 
 ## W-24 — Subagent Pattern Selection
 
@@ -419,6 +395,4 @@ D-2 (`SHORTCUT_SIMPLE` retirement; flags 8→7), D-5 (CHANGELOG CI
 lint), per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph
 — subagent-pattern is the **fourth** v12.0.0 graduation.
 
-Source: v11.4.0 SI-1 gap analysis §4 + §5 + §7 + §8 risk register
-(`.local/research/v11.4.0_subagent_pattern_analysis.md`); upstream
-philschmid article at `https://www.philschmid.de/subagent-patterns-2026`.
+Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.

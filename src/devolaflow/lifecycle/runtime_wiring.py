@@ -35,13 +35,15 @@ Behaviour contract (R5 strict, mirrors ``auto_write_handoff``):
    manifest is a clean no-op (``None``): per Soul Rule S-8 the ownership
    check is scoped to change-driven flows with an active change folder.
 
-3. **Permissive default (v14.3.0)** — violations are logged at WARNING
-   via the lifecycle logger (S-8 "mode: lite"; S-5 — the WARN actually
-   logs) and surfaced on the returned :class:`HookResult`; behaviour is
-   otherwise unchanged. ``strict=True`` raises the top-severity
-   :class:`HookViolation` (S-8 "mode: full"). The STRICT default flip is
-   telegraphed for v15.0.0 per ADR-003 §Decision 3 (rides the G-038
-   strict-graduation cluster).
+3. **Strict default (v15.0.0)** — per ADR-003 §Decision 3 (the G-038
+   strict-graduation cluster), the engaged-mode default flips
+   permissive → STRICT: an ownership violation (``file_write``) or a
+   failing report (``task_stop``) raises the top-severity
+   :class:`HookViolation` — block + escalate per S-8 "mode: full".
+   Opt-out: pass ``strict=False`` explicitly (S-8 "mode: lite" — the
+   v14.3.0 warn + log behaviour; S-5 — the WARN actually logs). The
+   ``strict`` parameter is the sole opt-out surface; NO env flag is
+   added and the Gate-1 activation flag is UNCHANGED (W-20).
 """
 
 from __future__ import annotations
@@ -137,13 +139,13 @@ def fire_file_write(
     change_id: str | None = None,
     change_folder: str | Path | None = None,
     repo_root: str | Path | None = None,
-    strict: bool = False,
+    strict: bool = True,
 ) -> HookResult | None:
     """Fire the ``file_write`` hook for a framework-surface write to *path*.
 
     Call BEFORE performing the write (ADR-003: "fires ``file_write``
-    before owned-file writes") so the v15.0.0 strict graduation can
-    block the write instead of post-hoc reporting it.
+    before owned-file writes") so the strict default (v15.0.0
+    graduation) blocks the write instead of post-hoc reporting it.
 
     Args:
       path: Write target (relative paths are interpreted against the
@@ -158,9 +160,12 @@ def fire_file_write(
         Defaults to the folder resolved from ``change_id`` (if any).
       repo_root: Root for resolving the active/handoff trees (defaults
         to ``Path.cwd()``).
-      strict: ``False`` (v14.3.0 permissive default) → violations WARN
-        and are returned on the result. ``True`` → top-severity
-        :class:`HookViolation` raises out of ``run_hooks``.
+      strict: ``True`` (STRICT default since v15.0.0, S-8 "mode: full"
+        per ADR-003 §Decision 3) → an ownership violation raises the
+        top-severity :class:`HookViolation` out of ``run_hooks`` —
+        block + escalate. Opt-out: pass ``strict=False`` explicitly
+        (S-8 "mode: lite") → violations WARN and are returned on the
+        result, the v14.3.0 permissive behaviour.
 
     Returns:
       ``None`` when Gate 1 (env flag) or Gate 2 (no change context)
@@ -194,7 +199,7 @@ def fire_file_write(
 def fire_task_stop(
     report: dict[str, Any],
     *,
-    strict: bool = False,
+    strict: bool = True,
 ) -> HookResult | None:
     """Fire the ``task_stop`` hook for a finalised L3 status report.
 
@@ -206,9 +211,17 @@ def fire_task_stop(
     §Decision 2 — the report-side ``self_check`` / ``ac_results``
     evidence transport is the v15-ADR-007 companion).
 
+    ``strict`` is ``True`` by default since v15.0.0 (S-8 "mode: full"
+    per ADR-003 §Decision 3): a failing report (e.g. ``tests_failed >
+    0`` / lint not clean) raises the top-severity
+    :class:`HookViolation` so the P4 retry classifier can catch +
+    escalate. Opt-out: pass ``strict=False`` explicitly (S-8 "mode:
+    lite" — the v14.3.0 warn-and-return behaviour).
+
     Returns ``None`` when the env flag is OFF (Gate 1 — zero IO, zero
-    ``run_hooks`` dispatch); otherwise the aggregate
-    :class:`HookResult` from ``run_hooks("task_stop", ...)``.
+    ``run_hooks`` dispatch; the activation gate is UNCHANGED by the
+    strict flip); otherwise the aggregate :class:`HookResult` from
+    ``run_hooks("task_stop", ...)``.
     """
     if not is_workspace_engaged():
         return None

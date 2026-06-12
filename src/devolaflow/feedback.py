@@ -268,7 +268,7 @@ class ProposalGenerator:
     - DevolaFlow scope: proposals for files outside the repo are rejected
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, pre_dispatch_strict: bool = True) -> None:
         """Initialize the proposal generator with empty internal state.
 
         v10.6.0 PV-02 (D-Q-2 god-function refactor) — composes a
@@ -277,9 +277,18 @@ class ProposalGenerator:
         hook chain firing AND the deep-copy + reinforcement merge
         pipeline; this class delegates to it via the
         :meth:`generate_round_dispatch` façade.
+
+        v15.0.0 strict graduation (G-038): ``pre_dispatch_strict``
+        defaults to ``True`` — a ``pre_dispatch`` hook violation
+        (missing/placeholder acceptance criteria, malformed AC-v2
+        block, subagent ``quality_score`` / banner leakage) raises
+        :class:`devolaflow.lifecycle.HookViolation` from
+        :meth:`generate_round_dispatch` and BLOCKS the dispatch. Pass
+        ``pre_dispatch_strict=False`` for the documented permissive
+        escape (pre-v15.0.0 warn-only behaviour).
         """
         self._state = _ProposalState()
-        self._emitter = ProposalEmitter()
+        self._emitter = ProposalEmitter(pre_dispatch_strict=pre_dispatch_strict)
 
     def generate_proposals(self, analysis: dict) -> list[dict]:
         """Generate improvement proposals from an analysis dict.

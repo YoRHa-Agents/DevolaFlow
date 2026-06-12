@@ -801,6 +801,11 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # contract). NOT a domain-SSOT registry symbol per A-5.2 —
         # pure function with zero module-level state.
         "devolaflow.task_adaptive_selector:default_timeout_for",
+        # NOTE (v15.0.0 R1): `devolaflow.gate.artifact_score:score_artifact_evidence`
+        # was allowlisted here during the v15-ADR-007 phase-2 standalone
+        # landing; the entry was REMOVED when the R1 gate wiring gave it a
+        # production caller (`gate/scorer.py::_attach_artifact_evidence`
+        # via `evaluate_gate(artifact_evidence=...)`).
     }
 )
 

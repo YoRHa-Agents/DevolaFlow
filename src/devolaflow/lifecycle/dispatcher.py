@@ -232,6 +232,31 @@ def register_hook(event: str, handler: HookHandler) -> None:
     _EXTRA_REGISTRY.setdefault(_canonical(event), []).append(handler)
 
 
+def unregister_hook(event: str, handler: HookHandler) -> bool:
+    """Remove every occurrence of *handler* from *event*'s extras list.
+
+    v15.0.0 (G-038 flip 3) — the per-handler opt-out surface for
+    default-wired extras (e.g. ``reject_subagent_banner_emission``,
+    auto-wired since v15.0.0). Unlike :func:`clear_hooks` (which strips
+    ALL extras for an event), this removes ONLY the given handler so
+    sibling extras (``validate_owned_files``,
+    ``reject_subagent_quality_score``) stay registered.
+
+    Default handlers installed via :func:`_set_default_hook` are NEVER
+    removed by this function. The *event* name is resolved through the
+    alias map per :func:`_canonical`.
+
+    Returns ``True`` when at least one registration was removed,
+    ``False`` when the handler was not registered (no-op — callers may
+    treat a ``False`` return as "already opted out").
+    """
+    extras = _EXTRA_REGISTRY.get(_canonical(event))
+    if not extras or handler not in extras:
+        return False
+    extras[:] = [h for h in extras if h is not handler]
+    return True
+
+
 def clear_hooks(event: str | None = None) -> None:
     """Clear the extra-handler registry (default handlers untouched).
 
@@ -401,4 +426,5 @@ __all__ = [
     "register_hook",
     "registered_events",
     "run_hooks",
+    "unregister_hook",
 ]

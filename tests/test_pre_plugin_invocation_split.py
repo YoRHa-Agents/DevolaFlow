@@ -262,6 +262,113 @@ class TestSplitHandlersEmitDisjointViolations:
 
 
 # ---------------------------------------------------------------------------
+# §4b — v15.0.0 R3 coverage lift: upgrade-handler guard + fallback branches
+# ---------------------------------------------------------------------------
+
+
+class TestUpgradeHandlerGuardsAndFallbacks:
+    """Pin the S-5 best-effort branches the split suite left unexercised."""
+
+    def test_upgrade_threshold_fallbacks_and_payload_guards(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Registry read/parse failures fall back to the default threshold
+        (WARN, never raise — S-5 best-effort), and malformed payloads
+        short-circuit to an empty result without touching the installer."""
+        from devolaflow.lifecycle.pre_plugin_invocation_upgrade import (
+            _resolve_upgrade_threshold_hours,
+        )
+
+        # Registry unreadable → default, no raise.
+        with patch(
+            "devolaflow.plugins.installer.load_registry",
+            side_effect=FileNotFoundError("no registry"),
+        ):
+            assert _resolve_upgrade_threshold_hours(24) == 24
+        # Registry parse blew up (non-IO) → default, no raise.
+        with patch(
+            "devolaflow.plugins.installer.load_registry",
+            side_effect=RuntimeError("parse boom"),
+        ):
+            assert _resolve_upgrade_threshold_hours(24) == 24
+        # defaults section malformed / threshold invalid → default.
+        with patch(
+            "devolaflow.plugins.installer.load_registry",
+            return_value={"defaults": "not-a-dict"},
+        ):
+            assert _resolve_upgrade_threshold_hours(24) == 24
+        with patch(
+            "devolaflow.plugins.installer.load_registry",
+            return_value={"defaults": {"upgrade_check_frequency_hours": -5}},
+        ):
+            assert _resolve_upgrade_threshold_hours(24) == 24
+        # A valid registry value wins over the default.
+        with patch(
+            "devolaflow.plugins.installer.load_registry",
+            return_value={"defaults": {"upgrade_check_frequency_hours": 6}},
+        ):
+            assert _resolve_upgrade_threshold_hours(24) == 6
+
+        # Payload guards: flag ON but the payload carries no usable ids —
+        # the handler returns an empty result with ZERO installer work.
+        monkeypatch.setenv("DEVOLAFLOW_AUTO_INSTALL_PLUGINS", "1")
+        with patch("devolaflow.plugins.installer.is_plugin_stale") as mock_stale:
+            for payload in ("not-a-dict", {}, {"plugin_ids": "ui-pro"}, {"plugin_ids": [1, ""]}):
+                result = pre_plugin_invocation_upgrade(payload, strict=False)
+                assert isinstance(result, HookResult)
+                assert result.violations == []
+            assert mock_stale.call_count == 0, (
+                "guard-path payloads must never reach the staleness probe"
+            )
+
+    def test_upgrade_probe_error_fresh_plugin_and_unexpected_reraise(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Staleness-probe errors skip the plugin (WARN), fresh plugins skip
+        the upgrade, and a NON-domain upgrade exception re-raises per S-5."""
+        import logging
+
+        monkeypatch.setenv("DEVOLAFLOW_AUTO_INSTALL_PLUGINS", "1")
+
+        # is_plugin_stale raised → probe skipped with a WARNING, no upgrade.
+        with (
+            patch(
+                "devolaflow.plugins.installer.is_plugin_stale",
+                side_effect=RuntimeError("probe boom"),
+            ),
+            patch("devolaflow.plugins.installer.upgrade_plugin") as mock_upgrade,
+            caplog.at_level(logging.WARNING),
+        ):
+            result = pre_plugin_invocation_upgrade({"plugin_id": "ui-pro"}, strict=False)
+        assert result.violations == []
+        assert mock_upgrade.call_count == 0
+        assert any("is_plugin_stale" in rec.message for rec in caplog.records), (
+            "the skipped probe must log a WARNING (S-5 — no silent failure)"
+        )
+
+        # Fresh plugin (not stale) → no upgrade attempted, no violations.
+        with (
+            patch("devolaflow.plugins.installer.is_plugin_stale", return_value=False),
+            patch("devolaflow.plugins.installer.upgrade_plugin") as mock_upgrade,
+        ):
+            result = pre_plugin_invocation_upgrade({"plugin_id": "ui-pro"}, strict=False)
+        assert result.violations == []
+        assert mock_upgrade.call_count == 0
+
+        # NON-domain exception from upgrade_plugin → RE-RAISED (S-5), unlike
+        # the domain exceptions which downgrade to PPI003 warnings.
+        with (
+            patch("devolaflow.plugins.installer.is_plugin_stale", return_value=True),
+            patch(
+                "devolaflow.plugins.installer.upgrade_plugin",
+                side_effect=RuntimeError("unexpected boom"),
+            ),
+            pytest.raises(RuntimeError, match="unexpected boom"),
+        ):
+            pre_plugin_invocation_upgrade({"plugin_id": "ui-pro"}, strict=False)
+
+
+# ---------------------------------------------------------------------------
 # §5 — 1-cycle deprecation telegraph documented in env-flags.md
 # ---------------------------------------------------------------------------
 
