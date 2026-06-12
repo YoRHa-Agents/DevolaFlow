@@ -674,3 +674,112 @@ composition:
 """)
         assert tpl.metadata.name == "tiny"
         assert len(tpl.stages) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §8  Composition alias layer (v15.0.0 Phase B — v15-ADR-002)
+# ═══════════════════════════════════════════════════════════════════
+
+REPO_TEMPLATES_ROOT = Path(__file__).parent.parent / "workflow-system" / "agent" / "templates"
+
+# The full pre-collapse 23-name surface: 7 survivor yamls + the 16
+# legacy names re-expressed as compositions. Every historical name MUST
+# keep resolving through load_template() (v15-ADR-002 >=1-major alias
+# guarantee).
+PRE_COLLAPSE_TEMPLATE_NAMES = [
+    # survivors (yaml-backed)
+    "change-driven",
+    "migration",
+    "nines-assisted",
+    "repo-init",
+    "self-update",
+    "skill-optimization",
+    "web-design",
+    # collapsed legacy names (composition-backed)
+    "hotfix",
+    "refactoring",
+    "feature-enhancement",
+    "full-pipeline",
+    "documentation-only",
+    "research-only",
+    "design-only",
+    "research-design-review-refine",
+    "spike-poc",
+    "security-audit",
+    "demo-showcase",
+    "performance-optimization",
+    "dependency-setup",
+    "onboarding",
+    "product-verification",
+    "entropy-cleanup",
+]
+
+
+class TestCompositionAliasLayer:
+    @pytest.fixture()
+    def repo_registry(self) -> TemplateRegistry:
+        return TemplateRegistry(templates_root=REPO_TEMPLATES_ROOT)
+
+    @pytest.mark.parametrize("name", PRE_COLLAPSE_TEMPLATE_NAMES)
+    def test_historical_name_resolves(self, repo_registry: TemplateRegistry, name: str) -> None:
+        tpl = repo_registry.load_template(name)
+        assert tpl is not None, (
+            f"pre-collapse name {name!r} no longer resolves — violates the "
+            f"v15-ADR-002 >=1-major alias guarantee"
+        )
+        assert tpl.metadata.name == name
+
+    def test_alias_resolution_attaches_deprecation_record(
+        self, repo_registry: TemplateRegistry
+    ) -> None:
+        tpl = repo_registry.load_template("hotfix")
+        assert tpl is not None
+        record = tpl.parameters["composition"]
+        assert record["alias_of"] == "change-driven"
+        assert "v15-ADR-002" in record["deprecation"]
+        assert record["params"]["gate"] == "standard"
+        # Survivors carry NO composition record (byte-stable load path).
+        survivor = repo_registry.load_template("change-driven")
+        assert survivor is not None
+        assert "composition" not in survivor.parameters
+
+    def test_multi_step_onboarding_resolution(self, repo_registry: TemplateRegistry) -> None:
+        tpl = repo_registry.load_template("onboarding")
+        assert tpl is not None
+        record = tpl.parameters["composition"]
+        assert record["alias_of"] == "repo-init"
+        assert [s["base"] for s in record["steps"]] == ["repo-init", "documentation-only"]
+
+    def test_unknown_name_returns_none(self, repo_registry: TemplateRegistry) -> None:
+        assert repo_registry.load_template("no-such-workflow") is None
+
+    def test_manifest_valid_against_disk(self, repo_registry: TemplateRegistry) -> None:
+        from devolaflow.template_engine.compositions import validate_composition_manifest
+
+        manifest = repo_registry.compositions()
+        assert len(manifest) == 16
+        survivor_names = {m.name for m in repo_registry.discover()}
+        assert validate_composition_manifest(manifest, survivor_names) == []
+
+    def test_unknown_base_fails_loudly(self, tmp_path: Path) -> None:
+        from devolaflow.template_engine.compositions import CompositionManifestError
+
+        (tmp_path / "builtin").mkdir()
+        (tmp_path / "registry.yaml").write_text(
+            'schema_version: "2.0"\n'
+            "compositions:\n"
+            "  - name: ghost-flow\n"
+            "    base: no-such-survivor\n"
+            "    stages:\n"
+            "      - {id: design, primitive: design}\n",
+            encoding="utf-8",
+        )
+        registry = TemplateRegistry(templates_root=tmp_path)
+        with pytest.raises(CompositionManifestError, match="no-such-survivor"):
+            registry.load_template("ghost-flow")
+
+    def test_pre_v2_layout_has_empty_manifest(self, tmp_path: Path) -> None:
+        (tmp_path / "builtin").mkdir()
+        registry = TemplateRegistry(templates_root=tmp_path)
+        assert registry.compositions() == {}
+        assert registry.load_template("hotfix") is None

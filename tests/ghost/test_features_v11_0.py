@@ -276,9 +276,15 @@ def test_v11_0_0_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     # DEFAULT_EVENTS length is exactly 16 (12 base + 4 NEW canonical).
     from devolaflow.lifecycle import DEFAULT_EVENTS
 
-    assert len(DEFAULT_EVENTS) == 16, (
+    # v15.0.0 G-038 flip 4 re-pin: the former exact `== 16` freeze
+    # graduated when `check_human_input_write` was APPENDED at position
+    # 17 (A-2.2 append-only; positions 1-16 byte-stable). The v11.0.0
+    # witness is the `>= 16` floor + the position-13..16 checks below;
+    # the exact 17-entry pin lives in tests/test_lifecycle_hooks.py.
+    assert len(DEFAULT_EVENTS) >= 16, (
         f"W-18 v11.0.0 PV-02 violation: D-Q-3 §2 ships DEFAULT_EVENTS "
-        f"12 → 16 (4 NEW canonical names appended at positions 13-16); "
+        f"12 → 16 (4 NEW canonical names appended at positions 13-16; "
+        f"A-2.2 permits append-only growth — v15.0.0 grew it to 17); "
         f"got len={len(DEFAULT_EVENTS)}."
     )
     # Both NEW canonical AND OLD alias names must be present in the tuple.

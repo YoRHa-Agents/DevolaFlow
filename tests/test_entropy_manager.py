@@ -527,16 +527,22 @@ class TestCheckDriftIntegration:
         assert "No drift detected" in buf.getvalue()
 
 
-# ── Integration: entropy-cleanup.yaml template ──────────────────────────
+# ── Integration: entropy-cleanup composition (v15-ADR-002) ──────────────
+# entropy-cleanup.yaml was deleted at v15.0.0 (Phase B collapse per
+# v15-ADR-002); the name lives on as a named composition over the
+# change-driven survivor in templates/registry.yaml#compositions. The
+# original v8.0.0 P-11 pins below are updated to the alias-layer truth.
 
 
 class TestEntropyCleanupTemplate:
-    def test_template_loads_from_builtin_registry(self) -> None:
+    def test_template_registered_as_composition(self) -> None:
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
-        meta = reg.discover()
-        assert any(m.name == "entropy-cleanup" for m in meta)
+        assert "entropy-cleanup" in reg.compositions(), (
+            "entropy-cleanup must stay registered as a composition alias "
+            "(v15-ADR-002 >=1-major guarantee)"
+        )
 
     def test_template_validates(self) -> None:
         from devolaflow.template_engine.registry import TemplateRegistry
@@ -548,20 +554,30 @@ class TestEntropyCleanupTemplate:
         result = validate_template(tpl)
         assert result.valid, f"template invalid: {result.errors}"
 
-    def test_template_has_four_stages(self) -> None:
+    def test_template_resolves_via_change_driven(self) -> None:
+        # Post-collapse the alias resolves to a template SYNTHESIZED from
+        # the manifest entry's C-3 verbatim stage sequence (the deleted
+        # yaml's stages survive byte-equal), with the change-driven base
+        # + stage_aliases recorded under parameters["composition"].
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
         tpl = reg.load_template("entropy-cleanup")
         assert tpl is not None
-        stage_ids = {s.id for s in tpl.stages}
-        assert stage_ids == {"scan", "propose", "review", "apply"}
+        assert {s.id for s in tpl.stages} == {"scan", "propose", "review", "apply"}
+        record = tpl.parameters["composition"]
+        assert record["alias_of"] == "change-driven"
+        assert record["params"]["stage_aliases"] == {"propose": "scan", "verify": "review"}
 
-    def test_template_count_is_23(self) -> None:
+    def test_template_count_matches_survivor_set(self) -> None:
+        # Was `test_template_count_is_23`: the 23-name surface is now
+        # 7 survivor yamls + 16 compositions (v15-ADR-002 survivor set).
         from devolaflow.template_engine.registry import TemplateRegistry
 
         reg = TemplateRegistry()
-        assert len(reg.discover()) == 23
+        assert len(reg.discover()) == 7
+        assert len(reg.compositions()) == 16
+        assert len(reg.discover()) + len(reg.compositions()) == 23
 
 
 # ── Regression: learnings refactor preserves public API ─────────────────

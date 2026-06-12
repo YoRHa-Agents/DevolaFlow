@@ -856,11 +856,20 @@ executor = AsyncDispatchExecutor(max_concurrency=3)
 outcomes = executor.dispatch_parallel(tasks, timeouts=timeouts)
 ```
 
-Tasks absent from the `timeouts` dict run unbounded — preserves v9.3.0
-byte-identical behaviour for every caller that does NOT pass the kwarg.
+Tasks absent from the `timeouts` dict run unbounded at the EXECUTOR
+level — the `AsyncDispatchExecutor` kwarg semantics are unchanged.
 On breach the per-task `TaskOutcome.exception` is `asyncio.TimeoutError`
 per S-5 (explicit error state); the wave does NOT short-circuit (other
 tasks continue per CO-1 / W-8).
+
+**v15.0.0 strict graduation (G-038)** — timeout enforcement is
+DEFAULT-ON at the `dispatch_wave_tasks` dispatch surface: every task
+spec gets an `asyncio.wait_for` ceiling resolved as explicit
+`timeout_seconds` → task-type class default (`default_timeout_for`) →
+the 7200 s fail-safe. Per-task opt-out: set `timeout_seconds: null` on
+the task spec (the existing v14.5.0 G-037 config knob — NO new env flag
+per W-20). The operator recipe above remains valid for direct
+`AsyncDispatchExecutor` callers, which stay opt-in.
 
 **Pickup discovery hint surfaced in v12.3.0 PV-04**: this section
 exists so operators reading `references/execution-protocol.md` discover

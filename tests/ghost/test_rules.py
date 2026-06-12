@@ -91,11 +91,13 @@ def test_rules_source_directory_exists(project_root: Path) -> None:
 
 
 # ── v9.0.0 PV-07 — Rule Taxonomy Rebalancing (ADR-007) ─────────────────
-# Two new lints enforce the PV-07 governance contract:
+# Two lints enforce the governance contract:
 #
-#   * test_rule_count_under_cap — total compiled-AGENTS.md rule count ≤ 60
-#     (HARD per ADR-007 D5). Rule count = sum of `^## ([SACW]|ST)-\d+`
-#     headings in AGENTS.md (the operator-facing canonical compile output).
+#   * test_rule_count_under_cap — total rule count ≤ 60 HARD. As of the
+#     v15.0.0 rule-diet (v15-ADR-004, amending ADR-007 D5) the cap
+#     denominator is the FULL on-disk `.rules/` source corpus — all 5
+#     layers INCLUDING Style. Rule count = sum of `^#{2,3} (S|A|C|W|ST)-N — `
+#     rule-id headings across `.rules/*.mdc`.
 #   * test_rule_surfaces_compile_only — `.cursor/rules/repo-governance.mdc`
 #     SHA-256 matches the value stored in `.rules/.compile-hashes.json`
 #     (drift detection); every deprecated stub registered in
@@ -104,16 +106,11 @@ def test_rules_source_directory_exists(project_root: Path) -> None:
 #     hand-edits). Failure means the canonical-vs-compiled invariant is broken
 #     OR a stub was hand-edited to drift from the deprecation scaffold.
 
-# v9.0.0 PV-07 (ADR-007 D5) — HARD cap on the total rule count surfaced by
-# the compiled AGENTS.md. The 60 cap derives from improvements_zh.md
-# §"Rule cap" + the cumulative additions across the v9.0.0 cycle (PV-03
-# A-5 + PV-04 S-10 + PV-05 W-16..W-20 + PV-07 W-21 = 7 net additions on top
-# of the v8.4.0 baseline of 50). Post-PV-07 rule census: Soul 10 + Arch 5 +
-# Conv 9 + Workflow 21 = 45 rules in AGENTS.md (Style is excluded from
-# AGENTS.md per `compile-config.yaml#agents_md.include_layers`); the
-# repo-governance.mdc target additionally surfaces Style 13 → 58 total
-# in the cursor target. The cap is enforced on the AGENTS.md surface (the
-# operator-facing canonical compile output).
+# 60 HARD cap (ADR-007 D5, denominator re-based by v15-ADR-004 D1/D2 to the
+# full `.rules/` source corpus). Post-v15.0.0-diet census: Soul 10 + Arch 7 +
+# Conv 8 + Workflow 18 + Style 13 = 56 (4 slots headroom). The cap is the
+# forcing function — a future PV adding a rule MUST first confirm
+# `full-corpus total + 1 ≤ 60`; raising the cap requires a new ADR.
 _RULE_COUNT_CAP_HARD: int = 60
 
 
@@ -121,21 +118,21 @@ _SOUL_FREEZE_COUNT: int = 10  # post-W-21 Soul-set freeze (ADR-007 D4)
 
 
 def test_rule_count_under_cap(project_root: Path) -> None:
-    """ADR-007 D5: AGENTS.md compiled rule count ≤ 60 HARD.
+    """ADR-007 D5 (re-based by v15-ADR-004): full-corpus rule count ≤ 60 HARD.
 
-    Counts every ``^## ([SACW]|ST)-\\d+`` heading in the compiled AGENTS.md
-    file and asserts the total stays at or below the 60-rule HARD cap from
-    `improvements_zh.md` §"Rule cap" + ADR-007 D5. Also pins:
+    The cap denominator is the FULL on-disk `.rules/` source corpus — all
+    5 layers including Style (v15-ADR-004 D1; the pre-v15.0.0 compiled-
+    AGENTS.md denominator let Style escape governance). Pins:
 
     1. The Soul-set count at exactly 10 (S-1..S-10, frozen by W-21 Soul-set
        freeze governance per ADR-007 D4).
-    2. The total stays ≤ 60.
-    3. **G-034 parity (v14.2.1)**: the per-layer "Rule count" figures
+    2. **G-034 parity (v14.2.1)**: the per-layer "Rule count" figures
        declared in the `.rules/index.md` layer table match the rule-id
        headings actually present in the on-disk `.rules/*.mdc` sources,
-       and the "Total rules" header figure equals their sum. Closes the
-       v14.2.0 gap-register row G-034 (index.md said "5 (A-1..A-5)"
-       while architecture.mdc carried A-1..A-7).
+       and the "Total rules" header figure equals their sum.
+    3. The full-corpus on-disk total stays ≤ 60 HARD (strict — the G-009
+       interim AGENTS.md-denominator pin retired with the v15.0.0
+       rule-diet; post-diet census is 56).
 
     Future cycles proposing a new rule MUST first confirm `total + 1 ≤ 60`
     before authoring; if the projection exceeds 60, the proposing PV must
@@ -154,15 +151,7 @@ def test_rule_count_under_cap(project_root: Path) -> None:
     )
 
     census = count_agents_md_rules(agents_md_path=agents_md)
-    total = census["total"]
     by_layer = census["by_layer"]
-
-    assert total <= _RULE_COUNT_CAP_HARD, (
-        f"ADR-007 D5 violation: AGENTS.md rule count {total} exceeds "
-        f"the 60 HARD cap. Per-layer breakdown: {by_layer}. "
-        f"Future PVs adding rules MUST either defer an existing rule OR "
-        f"explicitly raise the cap via a new ADR."
-    )
 
     soul_count = by_layer.get("soul", 0)
     assert soul_count == _SOUL_FREEZE_COUNT, (
@@ -214,27 +203,17 @@ def test_rule_count_under_cap(project_root: Path) -> None:
         f"sources carry {on_disk_total} rule-id headings in total."
     )
 
-    # ----- G-009 interim pin (v14.5.0; v14.2.0 gap §4.2 #7) -----------------
-    # v15-ADR-004 (RATIFIED): the cap denominator is the FULL `.rules/` source
-    # corpus (all 5 layers including Style), and the 60 HARD cap stays — but
-    # until the v15.0.0 rule-diet lands, the strict cap assertion above keeps
-    # the compiled-AGENTS.md denominator (Style compiles only to the cursor
-    # target, so AGENTS.md counts well under 60). Interim contract: pin the
-    # DOCUMENTED on-disk denominator (62 per `.rules/index.md` "Total rules")
-    # so the over-cap state (62 > 60) is visible-not-silent and any source-
-    # corpus growth/shrink surfaces here instead of drifting.
-    # EXPIRY: strict full-corpus re-pin (denominator = `.rules/` corpus,
-    # asserted ≤ 60, diet target ≤ 55) after the v15.0.0 rule-diet lands; see
-    # `.local/research/adr/v15-ADR-004-rule-cap-denominator-and-rule-diet.md`.
-    _g009_documented_denominator = 62
-    assert on_disk_total == _g009_documented_denominator, (
-        f"G-009 interim pin: the on-disk .rules/ corpus carries "
-        f"{on_disk_total} rule-id headings but the documented interim "
-        f"denominator is {_g009_documented_denominator} (v15-ADR-004; "
-        f"cap 60 HARD applies to the compiled corpus until the v15.0.0 "
-        f"rule-diet). If a rule was deliberately added/removed, update "
-        f"`.rules/index.md` AND this pin in the same PR — or, post-diet, "
-        f"replace this interim pin with the strict full-corpus cap re-pin."
+    # ----- v15-ADR-004 strict full-corpus cap (v15.0.0 rule-diet re-pin) ----
+    # Denominator = the FULL on-disk `.rules/` corpus, all 5 layers including
+    # Style (the `ST` regex branch above finally matches something, per
+    # v15-ADR-004 D4). The G-009 interim exact-count pin (62) retired with
+    # the diet; the strict ≤ 60 HARD cap is the live forcing function.
+    assert on_disk_total <= _RULE_COUNT_CAP_HARD, (
+        f"v15-ADR-004 violation: the on-disk .rules/ corpus carries "
+        f"{on_disk_total} rule-id headings, exceeding the 60 HARD cap "
+        f"(denominator = full corpus, all 5 layers including Style). "
+        f"Future PVs adding rules MUST either defer/fold an existing rule "
+        f"OR explicitly raise the cap via a new ADR."
     )
 
 

@@ -1,5 +1,12 @@
 # EvoBench Scenario: Dependency Setup
 # Tests that dependency-setup profile loads repo mode and minimal ceremony sections.
+#
+# v15.0.0 expectation refresh: `agent_teams` -> `wave_task_constraints`.
+# The v15.0.0 SKILL/template rewrites re-equilibrated the dependency-setup
+# selection rows — the profile (context_profiles.yaml `dependency-setup`)
+# marks `wave_task_constraints` important and skips `agent_teams`, so the
+# old expectation referenced a section the current SKILL truth never
+# selects for this task type. Floor (min_composite 80.0) is UNCHANGED.
 
 name: "dependency_setup"
 task_type: "setup env"
@@ -8,7 +15,7 @@ description: "Set up Python development environment with linting, testing, and C
 expected_sections:
   - quick_action_decision
   - hierarchy_table
-  - agent_teams
+  - wave_task_constraints
   - context_isolation
   - dispatch_report
   - repo_mode

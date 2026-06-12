@@ -12,8 +12,18 @@
 #              .local/research/v8.4.0_gap_analysis.md §2.1 R-001 (v2 closure)
 #              .local/research/v9.4.0_gap_analysis.md §3.2 D-P-4 + D-P-5
 #              (v9.4.0 PV-04 daily-upgrade surface — THIS bump)
-# Companion:   workflow-system/agent/plugins.yaml (legacy PluginRegistry catalog,
-#              kept intact for backward compatibility with pre-v8.2.1 callers).
+# Ownership:   THIS file is the single A-5 SSOT owner of plugin
+#              REGISTRATION data (membership, canonical IDs, backends,
+#              install/upgrade commands, min_version / canonical_url truth,
+#              workflow wiring) per v15.0.0 G-021 (unification of the
+#              former dual-registry surface; .local/research/
+#              v14.2.0_gap_analysis.md §2.4, F-P5-1 / F-P5-6).
+# Companion:   workflow-system/agent/plugins.yaml — the DERIVED capability/
+#              role/stage_mapping presentation view (pre-v8.2.1
+#              PluginRegistry callers). Its plugin keys are pinned to
+#              mirror this file's `plugins[*].id` set + order by
+#              tests/test_plugins.py::TestV15PluginRegistryUnification;
+#              register new plugins HERE first, then mirror the view.
 #
 # Schema (v3 — additive bump from v2; v1+v2 entries pass v3 unchanged):
 #   plugins:    list of plugin entries; each carries backend + install + verify

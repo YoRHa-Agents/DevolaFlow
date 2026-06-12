@@ -23,6 +23,7 @@ from pathlib import Path
 
 import yaml
 
+from devolaflow.gate.artifact_score import ArtifactScore, score_artifact_evidence
 from devolaflow.gate.budget import TokenBudgetBreaker
 from devolaflow.gate.complexity_detector import (
     ComplexityDetector,
@@ -731,7 +732,8 @@ def _attach_complexity_evaluation(
 # file scored, the per-file mean (0-100) shifts the gate composite by
 # ``profile.legibility_weight * (mean_score - 50.0)`` — well-legible
 # code lifts the composite, illegible code drags it down. Default
-# weight is 0.0 in STANDARD/RELAXED, 0.05 in STRICT/AUDIT.
+# weight is 0.05 in STRICT/STANDARD/AUDIT (STANDARD graduated 0.0 →
+# 0.05 at v15.0.0 per G-038 flip 6), 0.0 in RELAXED.
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -809,6 +811,86 @@ def _attach_legibility_evaluation(
         "composite_delta": composite_delta,
         "files": findings,
         "errors": errors,
+    }
+    return verdict
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v15.0.0 (R1 gate wiring per v15-ADR-007) — Artifact Evidence Scoring
+# integration.
+#
+# ``_attach_artifact_evidence`` runs the L0-side
+# :func:`devolaflow.gate.artifact_score.score_artifact_evidence` over every
+# lean StatusReport dict in ``artifact_evidence`` and surfaces the aggregate
+# on ``verdict.details['artifact_evidence']``. ``artifact_evidence=None``
+# (or an empty list) is byte-identical to the pre-wiring T4 phase —
+# mirroring the legibility precedent (PV-02 AC-5) exactly.
+#
+# When the profile carries ``artifact_evidence_weight > 0`` AND at least
+# one report produced a composite (i.e. carried evidence), the per-report
+# composite mean (0-100) shifts the gate composite by
+# ``profile.artifact_evidence_weight * (mean_composite - 50.0)`` — strong
+# evidence lifts the composite, weak evidence drags it down. Default
+# weight is 0.05 in STRICT/STANDARD/AUDIT, 0.0 in RELAXED.
+#
+# :class:`devolaflow.gate.artifact_score.EvidenceDoctrineError` raised by
+# a report that smuggles an L3-authored score PROPAGATES (S-5 — never
+# silently accept a doctrine violation at gate time).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _attach_artifact_evidence(
+    verdict: GateVerdict,
+    artifact_evidence: Sequence[dict],
+    profile: GateProfile,
+) -> GateVerdict:
+    """Score ``artifact_evidence`` reports and surface the aggregate on details.
+
+    Mutates ``verdict.details`` in place. Each entry is a lean
+    StatusReport dict consumed by
+    :func:`devolaflow.gate.artifact_score.score_artifact_evidence`; a
+    report whose evidence blocks are all absent (``composite is None``)
+    is surfaced but EXCLUDED from the mean (the ADR-007 never-fabricate
+    rule). The composite score is shifted by
+    ``profile.artifact_evidence_weight * (mean_composite - 50.0)``
+    rounded to 4 decimal places and clamped to ``[0.0, 100.0]`` —
+    mirroring the legibility shift formula verbatim.
+
+    Raises:
+      EvidenceDoctrineError: any report carries a forbidden
+        ``quality_score`` / ``quality`` field — propagated unmodified
+        per S-5 (the gate must never score a doctrine-violating report).
+    """
+    weight = float(profile.artifact_evidence_weight)
+    scores: list[ArtifactScore] = [score_artifact_evidence(report) for report in artifact_evidence]
+    scored = [s for s in scores if s.composite is not None]
+    mean_composite = round(sum(s.composite for s in scored) / len(scored), 2) if scored else 0.0
+    mean_coverage = (
+        round(sum(s.evidence_coverage for s in scores) / len(scores), 2) if scores else 0.0
+    )
+    composite_delta = 0.0
+    if scored and weight > 0.0 and verdict.composite_score is not None:
+        composite_delta = round(weight * (mean_composite - 50.0), 4)
+        verdict.composite_score = max(
+            0.0,
+            min(100.0, round(verdict.composite_score + composite_delta, 4)),
+        )
+    reports = [
+        {
+            "composite": s.composite,
+            "evidence_coverage": s.evidence_coverage,
+            "dimensions": {name: dim.render() for name, dim in s.dimensions.items()},
+        }
+        for s in scores
+    ]
+    verdict.details["artifact_evidence"] = {
+        "weight": weight,
+        "report_count": len(scores),
+        "scored_count": len(scored),
+        "mean_composite": mean_composite,
+        "mean_evidence_coverage": mean_coverage,
+        "composite_delta": composite_delta,
+        "reports": reports,
     }
     return verdict
 
@@ -1024,6 +1106,7 @@ def evaluate_gate(
     complexity_task_complexity: str = "standard",
     legibility_scorer: LegibilityScorer | None = None,
     legibility_files: Sequence[str] | None = None,
+    artifact_evidence: Sequence[dict] | None = None,
 ) -> GateVerdict:
     """Evaluate a gate according to the §5.7 flowchart.
 
@@ -1114,13 +1197,33 @@ def evaluate_gate(
         ``verdict.details['legibility']``. The composite score is
         shifted by ``profile.legibility_weight * (mean_score - 50)``
         — well-legible code lifts the composite, illegible code drags
-        it down. Default weight is 0.0 in STANDARD/RELAXED, 0.05 in
-        STRICT/AUDIT (per ``profiles.py``).
+        it down. Default weight is 0.05 in STRICT/STANDARD/AUDIT
+        (STANDARD graduated 0.0 → 0.05 at v15.0.0 per G-038 flip 6),
+        0.0 in RELAXED (per ``profiles.py``).
     legibility_files:
         Optional sequence of file paths to score with
         ``legibility_scorer``. ``None`` (or empty) is byte-identical
         to omitting the scorer — no work performed, no details
         appended. Ignored when ``legibility_scorer is None``.
+    artifact_evidence:
+        Optional sequence of lean StatusReport dicts (the v14.3.0
+        ``ac_results`` / ``diff_stats`` / ``metrics`` / ``self_check``
+        evidence blocks per ``schemas/lean-report.yaml``). When
+        ``None`` (or empty, the default), behaviour is byte-identical
+        to the pre-wiring v15.0.0 T4 phase — no artifact-evidence
+        scoring is performed. When supplied, each report is scored
+        via :func:`devolaflow.gate.artifact_score.score_artifact_evidence`
+        and the aggregate is appended to
+        ``verdict.details['artifact_evidence']``. The composite score
+        is shifted by ``profile.artifact_evidence_weight *
+        (mean_composite - 50)`` over the SCORED reports (a report
+        with zero evidence blocks is surfaced but never fabricated
+        into the mean per ADR-007). Default weight is 0.05 in
+        STRICT/STANDARD/AUDIT, 0.0 in RELAXED (per ``profiles.py``).
+        A report carrying a forbidden L3-authored ``quality_score`` /
+        ``quality`` field raises
+        :class:`devolaflow.gate.artifact_score.EvidenceDoctrineError`
+        — propagated per S-5.
     """
     if history is None:
         history = []
@@ -1140,6 +1243,8 @@ def evaluate_gate(
             legibility_scorer,
             legibility_files,
         )
+        if artifact_evidence:
+            _attach_artifact_evidence(break_verdict, artifact_evidence, profile)
         return break_verdict
 
     resolved = _resolve_gate_type(gate_type)
@@ -1168,6 +1273,8 @@ def evaluate_gate(
         legibility_scorer,
         legibility_files,
     )
+    if artifact_evidence:
+        _attach_artifact_evidence(verdict, artifact_evidence, profile)
 
     return verdict
 

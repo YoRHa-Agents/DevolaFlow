@@ -42,7 +42,21 @@ output. The 11 (10 currently shipped) regression tests in
 ``tests/test_dispatch_emission_runs_hooks.py`` are the release-blocker
 contract — every refactor MUST keep them green.
 
-Source: v10.6.0 PV-02 — codified per D-Q-2 §2 patch_design.
+v15.0.0 strict graduation (G-038 + G-001-strict cluster): the
+``pre_dispatch`` event of the chain now runs STRICT by default — a
+violation reported by ``validate_dispatch`` (incl. the VD005-VD008
+AC-v2 structural checks), ``validate_owned_files``,
+``reject_subagent_quality_score``, or
+``reject_subagent_banner_emission`` raises :class:`HookViolation` and
+BLOCKS the dispatch instead of warn-and-continue. Documented permissive
+escape: construct ``ProposalEmitter(pre_dispatch_strict=False)`` (or
+``ProposalGenerator(pre_dispatch_strict=False)``) to restore the
+pre-v15.0.0 warn-only behaviour. The S-10 byte-identity contract is
+UNCHANGED for clean payloads: strictness never mutates the payload —
+it only decides whether a violating dispatch is released.
+
+Source: v10.6.0 PV-02 — codified per D-Q-2 §2 patch_design; strict
+graduation per `.local/research/v14.2.0_gap_analysis.md` §2.7 G-038.
 """
 
 from __future__ import annotations
@@ -134,6 +148,23 @@ class ProposalEmitter:
     pattern from re-emerging.
     """
 
+    def __init__(self, *, pre_dispatch_strict: bool = True) -> None:
+        """Construct an emitter with the v15.0.0 strict-graduation knob.
+
+        Args:
+          pre_dispatch_strict: When ``True`` (the v15.0.0 default per
+            G-038), the ``pre_dispatch`` event of the S-10 chain runs
+            with ``strict=True`` — a hook violation raises
+            :class:`devolaflow.lifecycle.HookViolation` out of
+            :meth:`emit` and BLOCKS the dispatch. Pass ``False`` for
+            the documented permissive escape (pre-v15.0.0 warn-only
+            behaviour). The remaining chain events (``post_dispatch``
+            / ``pre_handoff`` / ``pre_plugin_invocation``) always run
+            permissively — they are side-effect adapters, not content
+            validators.
+        """
+        self._pre_dispatch_strict = pre_dispatch_strict
+
     def emit(
         self,
         *,
@@ -221,10 +252,17 @@ class ProposalEmitter:
         Fires the 4-event chain
         ``pre_dispatch`` → ``post_dispatch`` → ``pre_handoff`` →
         ``pre_plugin_invocation`` against ``dispatch`` via
-        :func:`devolaflow.lifecycle.run_hooks`; ALL invocations run
-        in permissive mode (``strict=False``) so a violation only
-        emits a WARNING via the lifecycle logger and never raises out
-        of the dispatch path.
+        :func:`devolaflow.lifecycle.run_hooks`.
+
+        v15.0.0 strict graduation (G-038): ``pre_dispatch`` runs with
+        ``strict=self._pre_dispatch_strict`` (default ``True``) — a
+        content violation raises the top-severity
+        :class:`devolaflow.lifecycle.HookViolation` and BLOCKS the
+        dispatch. The permissive escape is
+        ``ProposalEmitter(pre_dispatch_strict=False)``. The other 3
+        events always run in permissive mode (``strict=False``) so a
+        violation there only emits a WARNING via the lifecycle logger
+        and never raises out of the dispatch path.
 
         v9.1.3 PV-03 — ``pre_handoff`` lands AFTER the governance
         tail (Soul Rule S-10) so the payload is fully-formed +
@@ -263,7 +301,11 @@ class ProposalEmitter:
         others (the hook chain is collectively a contract; per-event
         independence is intentional, codified by
         ``tests/test_dispatch_emission_runs_hooks.py::
-        TestHandlerExceptionsAreSwallowed``).
+        TestHandlerExceptionsAreSwallowed``). The ONLY exception type
+        that propagates is the strict-mode governance raise: a
+        :class:`HookViolation` escaping the ``pre_dispatch`` event
+        while ``pre_dispatch_strict`` is engaged (v15.0.0 graduation —
+        block, not warn).
         """
         try:
             from devolaflow import lifecycle
@@ -277,9 +319,16 @@ class ProposalEmitter:
             return dispatch
 
         for event in _HOOK_CHAIN:
+            # v15.0.0 strict graduation (G-038): only pre_dispatch is
+            # content-validating; it alone carries the strict default.
+            event_strict = self._pre_dispatch_strict and event == _HOOK_PRE_DISPATCH
             try:
-                lifecycle.run_hooks(event, dispatch, strict=False)
+                lifecycle.run_hooks(event, dispatch, strict=event_strict)
             except Exception as exc:  # noqa: BLE001
+                if event_strict and isinstance(exc, lifecycle.HookViolation):
+                    # Governance raise — BLOCK the dispatch (block, not
+                    # warn). Permissive escape: pre_dispatch_strict=False.
+                    raise
                 logger.warning(
                     "ProposalEmitter._fire_hook_chain: %s hook raised %s; "
                     "dispatch returned unchanged",

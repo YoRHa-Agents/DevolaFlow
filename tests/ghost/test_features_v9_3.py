@@ -197,10 +197,14 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     # 2 internal helpers (~220 LOC of canonical, well-isolated v9.7.0
     # PV-02 deliverable per A-2.2 append-only). Retrospective coverage
     # in `.local/research/v9.7.0_perf_research.md` §2 + the v9.7.0
-    # CHANGELOG entry under PV-02. A future PV that crosses the new
-    # 2300 cap should either decompose the file further OR bump the
-    # cap again with similar retrospective coverage.
-    per_file_max = 2300
+    # CHANGELOG entry under PV-02. Cap raised 2300 → 2350 in v15.0.0
+    # for the G-007 dedup-digest code (``DEDUP_DIGEST_MAX_CHARS`` +
+    # ``_digest_summary`` + ``_DEDUP_REF_RE`` ref-exclusion — the
+    # self-contained ledger-entry digest emission pinned by
+    # ``tests/ghost/test_features_v15_0.py``). A future PV that crosses
+    # the new 2350 cap should either decompose the file further OR bump
+    # the cap again with similar provenance coverage.
+    per_file_max = 2350
     package_total = 0
     for p in compressor_pkg.iterdir():
         if p.is_file() and p.suffix == ".py":
@@ -218,9 +222,12 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     # additive deliverable). Pre-PV-04 single-file was 2541 LOC; the
     # post-split + v9.7.0 PV-02 total stays ≤ 26 % bloat (3200 / 2541).
     # Retrospective coverage: `.local/research/v9.7.0_perf_research.md` §2.
-    assert package_total <= 3200, (
+    # Cap raised 3200 → 3250 in v15.0.0 for the G-007 dedup-digest code
+    # in transforms.py (same provenance as the per-file 2300 → 2350 bump
+    # above; pinned by ``tests/ghost/test_features_v15_0.py``).
+    assert package_total <= 3250, (
         f"W-18 v9.3.0 violation: compressor package total LOC is "
-        f"{package_total} (cap 3200, raised from 3000 in v9.7.0 PV-02). "
+        f"{package_total} (cap 3250, raised from 3200 in v15.0.0 G-007). "
         f"The pre-PV-04 single-file compressor.py was 2541 LOC; the "
-        f"post-split + v9.7.0 PV-02 overhead should stay ≤ 26% bloat."
+        f"post-split overhead should stay ≤ 28% bloat."
     )

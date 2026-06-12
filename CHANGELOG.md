@@ -5,6 +5,81 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [15.0.0] - 2026-06-12 — MAJOR — Strict-by-Default Graduations (G-038 ×6) + Template Phase B Collapse (16 Legacy YAMLs → Compositions Manifest) + Rule Diet (62 → 56) + L0 Artifact Scoring + Dedup-Ledger Self-Containment + Plugin Registry Unification
+
+**MAJOR — the v15.0.0 rollup (v15-ADR-002 / v15-ADR-003 / v15-ADR-004 / v15-ADR-007 / v15-ADR-008; gap register G-007 / G-021 / G-038).** The headline is the **strict-graduation cluster (G-038, ×6 per v15-ADR-003)**: every permissive-in-minor default telegraphed across the v14.x series flips to STRICT in this MAJOR — the `pre_dispatch` hook chain blocks on violations, the banner hook default-wires, `dispatch_wave_tasks` enforces `asyncio.wait_for` ceilings, `DEFAULT_EVENTS` grows 16 → **17**, the engaged-workspace adapters go S-8 "mode: full", and STANDARD's `legibility_weight` graduates 0.0 → **0.05**. It pairs with the **template Phase B collapse (v15-ADR-002)** — the 16 legacy builtin yamls become named entries in a `compositions:` manifest — and four more blocks: the rule diet (62 → **56**, v15-ADR-004), L0-side artifact scoring (v15-ADR-007 phase 2), dedup-ledger self-containment (G-007), and plugin-registry unification (G-021). A-2 untouched (`canonical_order` stays **17**, schema version stays **6**), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
+
+### BREAKING (READ FIRST)
+
+- **The `pre_dispatch` chain is STRICT by default.** A dispatch that carries a missing/untestable acceptance criterion, a malformed AC-v2 entry (VD005–VD008, warn-only since v14.3.0), a subagent-authored `quality_score`/`quality` field (now scanned at the top level AND inside the `metrics` / `self_check` evidence blocks), or a `🌸 DevolaFlow vX.Y.Z` banner literal raises `HookViolation` and BLOCKS emission. Documented escape: `ProposalGenerator(pre_dispatch_strict=False)` (also on `ProposalEmitter`) restores the v14.x warn-and-emit behaviour.
+- **`reject_subagent_banner_emission` is default-wired** into the `pre_dispatch` chain (was opt-in via `register_pre_dispatch_extra()` since v12.4.0). Per-handler opt-out: `reject_subagent_banner_emission.unregister_pre_dispatch_extra()` (generic surface: `lifecycle.dispatcher.unregister_hook`).
+- **`dispatch_wave_tasks` timeouts are default-ON.** Every task spec gets an `asyncio.wait_for` ceiling resolved as explicit `timeout_seconds` → G-037 task-type class default (`default_timeout_for`) → the 7200 s fail-safe. Per-task opt-out: `timeout_seconds: null` (runs unbounded, the pre-v15.0.0 behaviour). No env flag in either direction (W-20).
+- **`DEFAULT_EVENTS` grows 16 → 17** — `check_human_input_write` (exported additively since v14.0.0) joins the tuple APPENDED at position 17 per A-2.2; positions 1–16 stay byte-stable. Tests pinning `len(DEFAULT_EVENTS) == 16` must re-pin to 17.
+- **`file_write` / `task_stop` are STRICT under `DEVOLAFLOW_AGENT_WORKSPACE=1`** (S-8 "mode: full"): an ownership violation BLOCKS the write / report emission — the call sites in `agent_workspace/change.py` + `handoff.py` re-raise `HookViolation` instead of warn-and-proceed. Opt-out: `strict=False` on `fire_file_write` / `fire_task_stop` (S-8 "mode: lite"). Flag absent → byte-identical zero-IO no-op, UNCHANGED.
+- **STANDARD `legibility_weight` graduates 0.0 → 0.05** (matches STRICT/AUDIT; RELAXED stays 0.0). Engages only when a caller supplies a `legibility_scorer` to `evaluate_gate`. Opt-out: `dataclasses.replace(STANDARD, legibility_weight=0.0)`.
+- **The 16 legacy template yamls are DELETED** (Phase B per v15-ADR-002). Every legacy name keeps resolving via the alias layer (`TemplateRegistry.load_template(<name>)` synthesizes the template from its `compositions:` entry) with a `DeprecationWarning`; hard removal lands no earlier than v16.0.0. Tooling that read the yaml FILES directly must switch to the registry API.
+- **`plugins.yaml` is FROZEN as a derived view** (G-021): plugin REGISTRATION truth (membership, canonical IDs, install/upgrade/version, workflow wiring) lives ONLY in `workflow-system/agent/knowledge/runtime-plugins.yaml` (the single A-5 SSOT owner). Add a plugin to the OWNER first; the view mirrors id set AND order under a lint.
+
+### Strict graduations (G-038 per v15-ADR-003)
+
+- **Chain-strict knob** — `ProposalEmitter` / `ProposalGenerator` accept `pre_dispatch_strict: bool = True`; the emitter runs the hook chain with `strict=self._pre_dispatch_strict` on every emission path. The other 3 default `pre_dispatch` checks (AC presence, AC-v2 structure VD005–VD008, quality-score doctrine) block through the same knob.
+- **Quality-score nested scan** — `reject_subagent_quality_score` extends beyond the top level into the `metrics` / `self_check` evidence blocks (`_NESTED_SCAN_BLOCKS`); `metrics.gate_input_score` stays legitimate (G-013 one-doctrine rename); `predecessor_artifacts`/`pred` stay exempt (historical L0 scoring carried forward is read-only evidence).
+- **`lifecycle.dispatcher.unregister_hook`** — NEW per-handler opt-out surface (removes ONLY the named handler; sibling extras + defaults untouched; idempotent `False` on re-call).
+- **Doc graduations** — `references/env-flags.md` §2.15 (S-8 mode: full row), `references/execution-protocol.md` §14 (default-on timeout contract), SKILL.md §"Lifecycle Hooks" strict-since-v15.0.0 status.
+
+### Template Phase B collapse (v15-ADR-002)
+
+- **`registry.yaml` schema v2.0** — the 7 survivor yamls stay under `templates:`; the 16 former legacy names re-express as a `compositions:` manifest, each carrying the C-3 VERBATIM `stages:` sequence extracted from the deleted yaml (loader synthesizes the resolved template — legacy behaviour stays reproducible), `category`/`tags` preserved for keyword discovery, pinned stage wiring under `params`.
+- **Alias guarantee** — every composition name resolves for ≥ 1 MAJOR with a `DeprecationWarning` (S-5: no silent rewrite); all **23** intents resolve; `make validate-templates` passes **7 templates + 16 compositions**.
+- **NEW `template_engine/compositions.py`** — the composition synthesis layer; pinned by NEW `tests/test_template_compositions.py`.
+
+### Rule diet (v15-ADR-004; history appendix v15-ADR-008)
+
+- **W-10..W-15 folded into W-4 / W-5 / W-6 / C-6** — zero obligations dropped (each absorbing rule carries the "Absorbs" line); retired ids NOT renumbered/reused; census 62 → **56** with the cap re-pinned STRICT on the FULL on-disk corpus (≤ 60 HARD; 4 slots headroom).
+- **Source narrative stripped to the NEW v15-ADR-008 appendix** (`.local/research/adr/v15-ADR-008-rule-corpus-history-appendix.md`) — per-rule history (CO-*/SF-*/SI-*/CP-* lineage) lives there; the compiled corpus keeps one-line Source cites; compile headroom improves **+1038 tokens**.
+- **A-5 table re-framed as live inventory** — the registry table mirrors the `tests/ghost/test_registries.py` fixtures (the enforcement surface) instead of hand-pinning counts; both corpus targets recompiled, drift checks green.
+
+### L0 artifact scoring (v15-ADR-007 phase 2)
+
+- **NEW `src/devolaflow/gate/artifact_score.py`** — `score_artifact_evidence(report, *, owned_files_count=None)` computes per-dimension (`correctness` / `minimal_diff` / `test_evidence` / `convention_adherence`) + composite scores from the v14.3.0 L3 evidence blocks (`ac_results` / `diff_stats` / `metrics` / `self_check`); UNSCORED dimensions renormalize the remaining weights (never fabricate; no evidence → `composite=None`, `evidence_coverage=0.0`).
+- **`EvidenceDoctrineError`** — a report smuggling a forbidden `quality_score`/`quality` field (top level or nested, hook parity) raises at scoring time, so a report that bypassed the hook chain can never silently feed a smuggled score into the L0 composite.
+- **Gate-wired (R2 reinforcement)** — `ArtifactScore.to_gate_input()` is the renormalized adapter for `composite_score(**adapter)`; `evaluate_gate` consumes `artifact_evidence=` via `_attach_artifact_evidence` with `GateProfile.artifact_evidence_weight` (STANDARD/STRICT/AUDIT 0.05, RELAXED 0.0 — legibility mirror; absence-safe). Pinned by NEW `tests/test_artifact_score.py`.
+
+### Dedup-ledger self-containment (G-007)
+
+- **Position-17 `predecessor_dedup_ledger` entries are SELF-CONTAINED** — every entry the emitter produces carries a verbatim key_facts `digest` of the replaced summary (bounded by `DEDUP_DIGEST_MAX_CHARS` = **320**; at-or-under-bound summaries travel verbatim), so refs resolve INTRA-PAYLOAD (`pred[i].summary == ref` → `entries[j].digest`) — never via conversation history.
+- **Ref-chaining impossible by construction** — ref-shaped summaries (`_DEDUP_REF_RE`) are excluded from both the dedup index and re-deduplication, so a digest can never itself be a reference; replacement + digest emission happen in the same loop iteration of `dedup_predecessor_summaries`.
+- **A-2 NEST, goldens byte-identical** — `digest` nests inside existing ledger entries per A-2.3 (`canonical_order` stays 17, schema version stays 6); the digest-less entry shape in the historical Tier-A goldens stays valid; `references/context-isolation.md` §10 documents the contract.
+
+### Plugin registry unification (G-021)
+
+- **`runtime-plugins.yaml` = the single A-5 SSOT owner** of plugin REGISTRATION data; **`plugins.yaml` = its DERIVED capability/role/stage-mapping view** (generated-from header; id set AND order mirror lint-enforced by `tests/test_plugins.py::TestV15PluginRegistryUnification`; view-unique presentation fields stay with `plugins.loader`).
+- **Drift closed** — the view's 5-vs-6 membership gap closes (`rtk` added) and `ui-ux-pro-max` renames to the owner's canonical `ui-pro` id; A-5 registry census 5 → **4** rows (the dual-owner row collapses); README + `workflow-skill.yaml` re-stated at v15 template truth.
+
+### Release close (T7)
+
+- **W-16 wholesale baseline regen fires at MAJOR cycle start** — the v15.0.0 content rewrites (template collapse + rule diet + SKILL/reference rewrites) re-equilibrated **7** scenarios beyond the W-4 5pp envelope vs `v14.5.0_baseline.json`: `spike_poc` **−15.23pp**, `migration_upgrade` **−8.43**, `compression_retention_hard` **−8.21**, `self_update_integration` / `self_update_reference_check` **−7.99** each, `feedback_regression` **−7.86**, `convergence_noise_filter` **−7.07** (sibling-attributed content re-equilibrations, all still ABOVE their per-scenario quality floors) → `benchmarks/devolaflow_context/baselines/v15.0.0_baseline.json` regenerated wholesale (57 scenarios); newest-baseline pin updated in `tests/test_benchmarks.py`; post-regen 36/36 GREEN with **0** floor failures.
+- **`dependency_setup` expectation refreshed to the new SKILL truth** — the old `expected_sections` referenced `agent_teams`, which the dependency-setup profile no longer selects post-collapse; refreshed to `wave_task_constraints` (marked important in the profile). Floor UNCHANGED at 80.0; scenario composite 87.23 → **99.89** (+12.66, expectation-fix attributed).
+- **Ghost-audit housekeeping** — the v14.3.0 placeholder (nested quality-score scan deferred to v15.0.0 per the ADR-007 phase split) is DISCHARGED; the v9.3.0 compressor line-cap pins bump 2300 → **2350** per-file / 3200 → **3250** package-total with G-007 provenance; `score_artifact_evidence` gained a production caller via the R2 gate wiring, so its interim `DEFAULT_ALLOWLIST` entry was removed (A-5.2 overlap guard stays green); the W-16 regen carries the R2 `spike_poc` same-cycle correction (84.63 → 98.39 after the G-038 content-growth expectation refresh; all other baseline entries byte-identical).
+
+### NEW symbols (W-18 ghost-audit refreshed BEFORE this entry per W-18 sequencing)
+
+Pinned by NEW `tests/ghost/test_features_v15_0.py` (8 stanzas):
+
+- `pre_dispatch_strict` knob on `ProposalEmitter` / `ProposalGenerator` + the `_NESTED_SCAN_BLOCKS` quality-score scan + the banner default-wiring + `unregister_pre_dispatch_extra` / `lifecycle.dispatcher.unregister_hook`.
+- `DEFAULT_EVENTS` == 17 with `check_human_input_write` at position 17.
+- `fire_file_write` / `fire_task_stop` `strict=True` defaults + the `HookViolation` re-raise call sites + `dispatch._resolve_task_timeout` resolution order (explicit → class default → 7200; `null` opt-out).
+- `STANDARD.legibility_weight` == 0.05 (RELAXED stays 0.0) + the env-flags §2.15 / execution-protocol §14 doc pins.
+- `gate/artifact_score.py::score_artifact_evidence` + `ArtifactScore.to_gate_input` + `DimensionScore` + `EvidenceDoctrineError` (doctrine raise, renormalization honesty, standalone discipline).
+- `DEDUP_DIGEST_MAX_CHARS` (320) + `_digest_summary` bound + `_DEDUP_REF_RE` ref shape + the `entries[*].digest` schema literal + the context-isolation §10 anchor.
+- The runtime-plugins owner header + the plugins.yaml DERIVED header + the id-mirror (set AND order) + the ui-pro/rtk membership.
+
+### Verification
+
+- W-9/SI-10 gates GREEN (`make test-core` / `make lint` / `make test-version` / `make test-benchmarks` / `make check-cursor-skill` / `make iteration-delta-gate`); `python scripts/lint_changelog.py --base-ref origin/main` PASS on this entry (D-5: new block on top, zero retro-edits); `scripts/bump_version.py 15.0.0` GREEN (9 locations); `make sync-human-docs` (16 EN/ZH docs) + `make sync-cursor-skill` + `make check-cursor-skill` exit 0; `make validate-templates` 7 + 16 PASS; `make check-rules-drift` + `make check-drift` in sync.
+- W-16 wholesale regen accounted (see Release close); W-4 PASS 36/36 against `v15.0.0_baseline.json` with all per-scenario floors met (no floor lowered).
+- W-17 **+34 NEW test functions** for the whole v15.0.0 release (T7: 8 ghost stanzas; siblings: 26 across the 6 work blocks) ≤ 30/PV cap honoured per-task, ≤ 150/cycle. Zero new env flags (W-20); `canonical_order` stays 17 / schema version stays 6; Soul-set stays 10/12.
+
 ## [14.5.0] - 2026-06-12 — MINOR — Governance Refactors: ADR-006 Module Split (24 Permanent Shims) + D-5 CHANGELOG Single-Application Lint + Tier-A/B/C Baseline Retention + Per-Task-Type Timeout Defaults + SI-10 Single-Execution Gate Chain + SKILL.md IA Pass (429 Lines)
 
 **MINOR — governance refactors (gap register G-014/G-019/G-025/G-033/G-036/G-037 + G-035 verified no-op).** The headline is the **ADR-006 module split (G-025)**: the three oversized hubs decompose into focused owner modules — `gate/scorer.py` 2840 → **1579** lines, `task_adaptive_selector.py` 2051 → **1507** (1573 after the G-037 timeout slice lands on top), `feedback.py` 1086 → **517** — via 6 NEW modules (`gate/cascade.py`, `gate/ladder.py`, `gate/acceptance_v2.py`, `dispatch.py`, `agents_md_slice.py`, `selector_cli.py`) and **24 PERMANENT identity-preserving re-export shims** (`old_path.symbol is new_path.symbol`; lifetime ≥ v16.0.0). The S-10-named paths stay verbatim-FUNCTIONAL: `feedback.py::populate_cascade_gate_fields` and `ProposalGenerator.generate_round_dispatch` keep their contracted module homes. It pairs with the **D-5 CHANGELOG single-application lint (G-036)** — telegraphed since v11.1.0, now landed — and three more governance slices: Tier-A/B/C baseline retention (G-014), per-task-type timeout defaults (G-037), and the SI-10 single-execution gate chain (G-033). A-2 untouched (`canonical_order` stays **17**), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).

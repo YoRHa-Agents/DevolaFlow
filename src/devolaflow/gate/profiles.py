@@ -29,11 +29,32 @@ v8.2.0 (PV-02) — each profile carries a ``legibility_weight`` factor
 controlling how much an
 :class:`devolaflow.legibility.LegibilityScorer` per-file legibility
 score steers the gate composite. STRICT/AUDIT default to ``0.05``
-(legibility-aware quality work); STANDARD/RELAXED default to ``0.0``
+(legibility-aware quality work); RELAXED defaults to ``0.0``
 (opt-in only — supplying ``legibility_scorer=None`` keeps
 :func:`devolaflow.gate.scorer.evaluate_gate` byte-identical to
 pre-PV-02 behaviour). See
 ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-4 / AC-5.
+
+v15.0.0 (G-038 flip 6) — STANDARD's ``legibility_weight`` graduates
+``0.0`` → ``0.05``, matching the STRICT/AUDIT value (the default flip
+telegraphed as "a v15.0.0 ladder item" by the v14.4.0 opt-in landing /
+v14.2.0 gap register §4.1). RELAXED stays ``0.0``. Opt-out: profiles
+are frozen dataclasses — ``dataclasses.replace(STANDARD,
+legibility_weight=0.0)`` restores the pre-v15.0.0 composite
+byte-for-byte (the same `references/decomposition-gate.md` §5.6
+override knob, pointed the other way). NOTE: the weight only engages
+when a caller supplies a ``legibility_scorer`` to ``evaluate_gate`` —
+STANDARD's ``legibility_enabled`` auto-wire flag remains ``False``.
+
+v15.0.0 (R1 gate wiring per v15-ADR-007) — each profile carries an
+``artifact_evidence_weight`` factor controlling how much the L0-side
+:func:`devolaflow.gate.artifact_score.score_artifact_evidence`
+composite (computed from L3 evidence blocks) steers the gate
+composite. Mirrors the legibility precedent exactly:
+STRICT/STANDARD/AUDIT default to ``0.05``; RELAXED defaults to
+``0.0`` (opt-in only — supplying ``artifact_evidence=None`` keeps
+:func:`devolaflow.gate.scorer.evaluate_gate` byte-identical to the
+pre-wiring T4 phase).
 
 v8.2.0 (PV-05) — each profile carries two opt-in primitive auto-wire
 flags (``legibility_enabled`` + ``cycle_detector_enabled``) flipped to
@@ -83,6 +104,9 @@ STRICT = GateProfile(
     ladder_enabled=True,
     complexity_weight=0.10,
     legibility_weight=0.05,
+    # v15.0.0 R1 — artifact-evidence gate dimension (v15-ADR-007 wiring;
+    # mirrors the legibility default).
+    artifact_evidence_weight=0.05,
     legibility_enabled=True,
     cycle_detector_enabled=True,
     # v9.0.0 PV-06 (v8.5.1) Theme T5 — 5 primitives default-ON for STRICT.
@@ -110,6 +134,11 @@ STANDARD = GateProfile(
     acceptance_verification_threshold=90,
     max_tokens=50_000,
     ladder_enabled=False,
+    # v15.0.0 G-038 flip 6 — 0.0 → 0.05 (matches STRICT/AUDIT; RELAXED
+    # stays 0.0). Opt-out: replace(STANDARD, legibility_weight=0.0).
+    legibility_weight=0.05,
+    # v15.0.0 R1 — artifact-evidence gate dimension (v15-ADR-007 wiring).
+    artifact_evidence_weight=0.05,
 )
 
 RELAXED = GateProfile(
@@ -150,6 +179,9 @@ AUDIT = GateProfile(
     ladder_enabled=True,
     complexity_weight=0.10,
     legibility_weight=0.05,
+    # v15.0.0 R1 — artifact-evidence gate dimension (v15-ADR-007 wiring;
+    # mirrors the legibility default).
+    artifact_evidence_weight=0.05,
     # v9.0.0 PV-06 (v8.5.1) Theme T5 — 5 primitives default-ON for AUDIT.
     # AUDIT inherits the same legibility / cycle_detector defaults as STRICT
     # (B3 partial closure surface — no behaviour drift between the two

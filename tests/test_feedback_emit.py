@@ -365,16 +365,20 @@ def test_fire_hook_chain_lazy_import_fallback_when_lifecycle_missing(caplog) -> 
 
 
 # ---------------------------------------------------------------------------
-# Test (g): every hook invocation uses strict=False
+# Test (g): per-event strictness — pre_dispatch strict, the rest permissive
 # ---------------------------------------------------------------------------
 
 
 def test_fire_hook_chain_uses_permissive_mode_on_every_event() -> None:
-    """All 4 hook invocations MUST pass ``strict=False`` per the S-10 contract.
+    """pre_dispatch fires strict; the 3 side-effect events stay permissive.
 
-    Pins the v8.4.0 retro §4.1 #4 R5 strict invariant — the hook
-    chain runs in permissive mode so a violation only emits a
-    WARNING and never raises out of the dispatch path.
+    # v15.0.0 strict graduation (G-038): the default
+    # ``ProposalEmitter()`` runs ``pre_dispatch`` with ``strict=True``
+    # (content violations BLOCK the dispatch); ``post_dispatch`` /
+    # ``pre_handoff`` / ``pre_plugin_invocation`` keep the v8.4.0 retro
+    # §4.1 #4 permissive contract. The documented escape —
+    # ``ProposalEmitter(pre_dispatch_strict=False)`` — restores the
+    # all-permissive chain and is pinned in the second half below.
     """
     emitter = ProposalEmitter()
     calls, fake = _make_call_recorder()
@@ -382,10 +386,21 @@ def test_fire_hook_chain_uses_permissive_mode_on_every_event() -> None:
         emitter._fire_hook_chain(_base_dispatch())
 
     for event, _payload, strict in calls:
-        assert strict is False, (
+        expected = event == PRE_DISPATCH_EVENT
+        assert strict is expected, (
             f"event {event!r} was invoked with strict={strict!r} — "
-            f"_fire_hook_chain must always use permissive mode"
+            f"expected strict={expected!r} (v15.0.0 pre_dispatch strict default)"
         )
+
+    # Permissive escape: every event back to strict=False.
+    emitter_permissive = ProposalEmitter(pre_dispatch_strict=False)
+    calls_p, fake_p = _make_call_recorder()
+    with patch("devolaflow.lifecycle.run_hooks", side_effect=fake_p):
+        emitter_permissive._fire_hook_chain(_base_dispatch())
+    assert all(strict is False for _, _, strict in calls_p), (
+        "ProposalEmitter(pre_dispatch_strict=False) must restore the "
+        "pre-v15.0.0 all-permissive chain"
+    )
 
 
 # ---------------------------------------------------------------------------

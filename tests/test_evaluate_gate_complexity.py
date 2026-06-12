@@ -65,6 +65,10 @@ _EVALUATE_GATE_HELPERS: tuple[str, ...] = (
 # requires this literal string match against the post-refactor source.
 # This is the verbatim signature documented at
 # ``.local/research/v12.4.0_gap_analysis.md`` §2 D-2.
+# v15.0.0 R1 (additive per the pin's own append rule): the
+# ``artifact_evidence`` opt-in parameter is APPENDED after
+# ``legibility_files`` with a ``None`` default — the v15-ADR-007 gate
+# wiring. The 15 pre-existing parameter lines remain byte-identical.
 _EVALUATE_GATE_SIGNATURE: str = """\
 def evaluate_gate(
     gate_input: GateInput,
@@ -82,6 +86,7 @@ def evaluate_gate(
     complexity_task_complexity: str = "standard",
     legibility_scorer: LegibilityScorer | None = None,
     legibility_files: Sequence[str] | None = None,
+    artifact_evidence: Sequence[dict] | None = None,
 ) -> GateVerdict:"""
 
 

@@ -36,14 +36,16 @@ from :mod:`devolaflow.lifecycle.runtime_wiring`:
   (``agent_workspace.handoff.HandoffStore.write_envelope`` for
   ``StatusReport`` envelopes) via :func:`fire_task_stop`.
 
-Both adapters are PERMISSIVE at v14.3.0 (warn + log per S-8 "mode:
-lite") and byte-identical zero-IO no-ops unless
-``DEVOLAFLOW_AGENT_WORKSPACE=1`` (W-20 env-flag reuse — same activation
-surface as A-6 / ``pre_handoff``; NO new flag). The STRICT default flip
-(block + escalate per S-8 "mode: full") is telegraphed for v15.0.0 per
-ADR-003 §Decision 3. Out-of-band writes (raw shell) bypass the
-``file_write`` adapter by design — the ``task_stop`` evidence checks
-catch the net effect (ADR-003 §Consequences).
+Both adapters are STRICT by default since v15.0.0 (block + escalate
+per S-8 "mode: full"; ADR-003 §Decision 3, riding the G-038
+strict-graduation cluster) and remain byte-identical zero-IO no-ops
+unless ``DEVOLAFLOW_AGENT_WORKSPACE=1`` (W-20 env-flag reuse — same
+activation surface as A-6 / ``pre_handoff``; NO new flag; the
+activation gate is UNCHANGED by the strict flip). Opt-out: pass
+``strict=False`` explicitly to either adapter (S-8 "mode: lite" — warn
++ log, the v14.3.0 permissive behaviour). Out-of-band writes (raw
+shell) bypass the ``file_write`` adapter by design — the ``task_stop``
+evidence checks catch the net effect (ADR-003 §Consequences).
 
 Public API
 ----------
@@ -77,6 +79,9 @@ from devolaflow.lifecycle.check_file_ownership import (
 )
 from devolaflow.lifecycle.check_file_ownership import (
     check_file_ownership,
+)
+from devolaflow.lifecycle.check_human_input_append_only import (
+    EVENT as _CHECK_HUMAN_INPUT_WRITE_EVENT,
 )
 from devolaflow.lifecycle.check_human_input_append_only import (
     check_human_input_append_only,
@@ -137,6 +142,10 @@ from devolaflow.lifecycle.pre_shell_call import (
 )
 from devolaflow.lifecycle.pre_shell_call import (
     pre_shell_call,
+)
+from devolaflow.lifecycle.reject_subagent_banner_emission import (
+    reject_subagent_banner_emission,
+    unregister_pre_dispatch_extra,
 )
 from devolaflow.lifecycle.reject_subagent_quality_score import (
     reject_subagent_quality_score,
@@ -227,6 +236,13 @@ _set_default_hook(_PRE_PLUGIN_INVOCATION_EVENT, pre_plugin_invocation)
 _set_default_hook(_POST_SKILL_EDIT_EVENT, post_skill_edit)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_INSTALL_EVENT, pre_plugin_invocation_install)
 _set_default_hook(_PRE_PLUGIN_INVOCATION_UPGRADE_EVENT, pre_plugin_invocation_upgrade)
+# v15.0.0 G-038 flip 4 — the v14.0.0 Wave-3 hook graduates from
+# "exported additively, NOT wired" to a canonical default event (the
+# wiring the v14.0.0 design §3c deferred to "the implementation cycle
+# alongside those test updates"). Both former `len == 16` pins
+# (tests/ghost/test_features_v11_0.py + tests/test_lifecycle_hooks.py)
+# are re-pinned in the same MAJOR.
+_set_default_hook(_CHECK_HUMAN_INPUT_WRITE_EVENT, check_human_input_append_only)
 
 # Register validate_owned_files as an extra on pre_dispatch (runs after default).
 register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
@@ -234,9 +250,19 @@ register_hook(_PRE_DISPATCH_EVENT, validate_owned_files)
 # v12.2.0 PV-04 — runtime closure of v12.1.0 D-1 (the prompt-side guarantee
 # that subagents MUST NOT score). Registered as an extra (not a default
 # replacement) per the S-10 byte-id contract — the existing default
-# `validate_dispatch` runs FIRST + this hook runs AFTER. Permissive default;
-# operators opt into strict mode at the call site.
+# `validate_dispatch` runs FIRST + this hook runs AFTER. STRICT default on
+# direct invocation since v15.0.0 (G-038 flip 2; `run_hooks` chains stay
+# permissive at aggregate time); opt-out = explicit `strict=False`.
 register_hook(_PRE_DISPATCH_EVENT, reject_subagent_quality_score)
+
+# v15.0.0 G-038 flip 3 — the v12.4.0 PV-05 banner hook graduates from
+# opt-in (`register_pre_dispatch_extra()`) to default-wired, mirroring the
+# v12.2.0 quality-score extra above. Runs AFTER the quality-score extra in
+# insertion order. The hook never mutates the payload, so the S-10
+# byte-identical dispatch contract is preserved
+# (tests/test_dispatch_emission_runs_hooks.py). Documented opt-out:
+# `reject_subagent_banner_emission.unregister_pre_dispatch_extra()`.
+register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)
 
 PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
 POST_DISPATCH_EVENT: str = _POST_DISPATCH_EVENT
@@ -250,6 +276,7 @@ PRE_PLUGIN_INVOCATION_EVENT: str = _PRE_PLUGIN_INVOCATION_EVENT
 POST_SKILL_EDIT_EVENT: str = _POST_SKILL_EDIT_EVENT
 PRE_PLUGIN_INVOCATION_INSTALL_EVENT: str = _PRE_PLUGIN_INVOCATION_INSTALL_EVENT
 PRE_PLUGIN_INVOCATION_UPGRADE_EVENT: str = _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
+CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
 
 # v8.4.4 PV-04: bumped 5 → 6 with the addition of `post_dispatch` (the
 # symmetric tail event to `pre_dispatch`). The new slot is wired to a
@@ -353,6 +380,19 @@ PRE_PLUGIN_INVOCATION_UPGRADE_EVENT: str = _PRE_PLUGIN_INVOCATION_UPGRADE_EVENT
 # internal lifecycle tuple, NOT the dispatch payload's ``canonical_order``;
 # the A-2.1 frozen prefix on ``schemas/lean-dispatch.yaml#layout_invariant``
 # is on a SEPARATE registry surface and is unaffected).
+#
+# v15.0.0 G-038 flip 4: bumped 16 → 17 with the addition of
+# `check_human_input_write` (the v14.0.0 Wave-3
+# `check_human_input_append_only` hook — exported additively since
+# v14.0.0 but kept OUT of the tuple because two CI tests pinned
+# `len(DEFAULT_EVENTS) == 16` exactly and the v14.1.0 retro §3 deferred
+# the growth as cache-layout-sensitive). Growing the tuple is
+# in-contract for this MAJOR: the event is APPENDED at position 17 per
+# A-2.2 append-only (positions 1-16 stay byte-stable) and both former
+# `== 16` pins (tests/ghost/test_features_v11_0.py +
+# tests/test_lifecycle_hooks.py, plus the derived pins in
+# tests/test_hook_runtime_wiring.py + tests/test_human_input_immutability.py)
+# are re-pinned to the 17-entry shape in the same MAJOR.
 DEFAULT_EVENTS: tuple[str, ...] = (
     PRE_DISPATCH_EVENT,
     POST_DISPATCH_EVENT,
@@ -370,11 +410,13 @@ DEFAULT_EVENTS: tuple[str, ...] = (
     POST_TASK_COMPLETE_EVENT,
     POST_FILE_EDIT_EVENT,
     CHECK_ENVELOPE_WRITE_EVENT,
+    CHECK_HUMAN_INPUT_WRITE_EVENT,
 )
 
 __all__ = [
     "CHECK_ENVELOPE_WRITE_EVENT",
     "CHECK_FILE_WRITE_EVENT",
+    "CHECK_HUMAN_INPUT_WRITE_EVENT",
     "DEFAULT_EVENTS",
     "DiffStats",
     "DoctorFinding",
@@ -427,27 +469,29 @@ __all__ = [
     "register_hook",
     "register_surgical_scope_hook",
     "registered_events",
+    "reject_subagent_banner_emission",
     "reject_subagent_quality_score",
     "run_hooks",
     "test_on_complete",
+    "unregister_pre_dispatch_extra",
     "validate_dispatch",
     "validate_owned_files",
     "validate_surgical_scope",
 ]
 
 
-# v14.0.0 Wave-3 — non-import reference that marks `check_human_input_append_only`
-# as "alive" for `scripts/detect_dead_apis.py`. The hook is exported additively
-# but intentionally NOT wired into `DEFAULT_EVENTS` (two CI tests pin
-# `len(DEFAULT_EVENTS) == 16` exactly — `tests/test_no_ghost_features.py` +
-# `tests/test_lifecycle_hooks.py` — and appending a 17th default event would
-# break both). Per the v14.0.0 design §3c the event wiring lands in the
-# implementation cycle alongside those test updates; until then the hook's only
-# in-repo caller is the test suite (excluded from the dead-API check by
-# `test_dirs`). The tuple is private (no leak into `__all__`) so the public
-# surface is unchanged. Mirrors `_dispatch_executor_dead_api_pins` in
-# `devolaflow.agent_workspace.__init__`.
-_check_human_input_dead_api_pins = (check_human_input_append_only,)
+# v15.0.0 G-038 flip 4 note: the former v14.0.0
+# `_check_human_input_dead_api_pins` tuple is GONE — the hook is now a real
+# production default (`_set_default_hook(_CHECK_HUMAN_INPUT_WRITE_EVENT, ...)`
+# above), so the dead-API liveness no longer needs a synthetic pin.
+
+# v15.0.0 G-038 flip 3 — non-import reference that marks
+# `unregister_pre_dispatch_extra` as "alive" for `scripts/detect_dead_apis.py`.
+# The opt-out helper is intentionally NOT called at import time (calling it
+# would defeat the default wiring it opts out of); its callers are operators
+# + the test suite (excluded from the dead-API check by `test_dirs`).
+# Mirrors `_surgical_scope_dead_api_pins` below.
+_banner_opt_out_dead_api_pins = (unregister_pre_dispatch_extra,)
 
 # v14.4.0 T2 — non-import reference that marks `register_surgical_scope_hook`
 # as "alive" for `scripts/detect_dead_apis.py`. The opt-in registration helper

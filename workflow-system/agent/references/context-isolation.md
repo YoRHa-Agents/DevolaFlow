@@ -320,7 +320,7 @@ dispatch. The order is **additive**: each key may be absent, none may be
 reordered. Positions 1-12 form the **FROZEN PREFIX** — reordering any of
 the v7.0.0 baseline slots invalidates the LLM cache prefix and is a release
 blocker per `v9-ADR-002` (and Soul Rule S-2 / Architecture Rule A-2
-nest-vs-append clause). Positions 13-16 are **append-only** — new top-level
+nest-vs-append clause). Positions 13+ are **append-only** — new top-level
 keys land at position N+1 where N is the current `len(canonical_order)`,
 never inserted into a lower slot. Authors choosing between adding a new
 top-level key vs. nesting under an existing one apply the nest-vs-append
@@ -334,6 +334,23 @@ data shape allows.
 P-10) → `change_context` (v8.3.0 PV-05) → `predecessor_dedup_ledger`
 (v9.7.0 PV-02). Source of truth:
 `schemas/lean-dispatch.yaml#layout_invariant.canonical_order`.
+
+**`predecessor_dedup_ledger` self-containment (v15.0.0, G-007 / F-P4-4):**
+position 17 carries cross-round dedup state, and per §2 Mechanism 1 a
+round-N Task Agent spawns with a FRESH context — it has no round-N-1
+dispatch to resolve a bare `"@round-N-1:pred-K"` reference into. The
+contract is therefore intra-payload by construction: when a
+`pred[i].summary` is replaced by a reference, the SAME dispatch's ledger
+entry carries a self-contained `digest` (verbatim key_facts digest of
+the replaced summary, bounded by
+`devolaflow.compressor.DEDUP_DIGEST_MAX_CHARS`). The receiver resolves
+`ref → entries[j].digest` using nothing but its own dispatch; ref-shaped
+summaries are never re-deduplicated or indexed, so a digest can never
+itself be a reference. The §4 "MUST NOT leak" list (row 1: conversation
+history) remains authoritative — the ledger never requires what that
+list forbids. Emitter:
+`devolaflow.compressor.dedup_predecessor_summaries`; pinned by
+`tests/test_predecessor_dedup.py`.
 
 **Validator:** `devolaflow.compressor.assert_dispatch_layout(payload)` raises
 `DispatchLayoutError` on any out-of-order or pre-spec-end unknown key.
@@ -518,7 +535,7 @@ active scope; rows downstream of a row do not disturb rows upstream.
 
 | Stage                   | Round | Primitive                              | Reference | Scope                                                                          |
 |-------------------------|-------|----------------------------------------|-----------|--------------------------------------------------------------------------------|
-| Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 16-key top-level order (positions 1-12 frozen, 13-16 append-only) so round-N reuses round-(N−1)'s KV prefix. |
+| Dispatch render         | 1+    | Cache-layout invariant                 | §10       | Freezes the 17-key top-level order (positions 1-12 frozen, 13+ append-only) so round-N reuses round-(N−1)'s KV prefix. |
 | Predecessor embed       | 1+    | Hierarchical summariser                | §12       | Collapses pred artifact > 25 % of layer budget via `summarise_predecessor()`.  |
 | Predecessor embed       | 1+    | Preserve-list extraction               | §12 / §13 | `extract_named_entities()` surfaces 8 structured classes verbatim.             |
 | L3 status → L2 context  | ≥ 2   | Tool-output truncation                 | §11       | `clear_old_tool_uses(keep=3, exclude=["Read"])` elides prior-round payloads.   |

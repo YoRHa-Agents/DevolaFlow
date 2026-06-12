@@ -726,8 +726,12 @@ class TestGateIntegrationOptInOptOut:
     def test_audit_profile_legibility_weight_is_0_05(self) -> None:
         assert AUDIT.legibility_weight == pytest.approx(0.05)
 
-    def test_standard_profile_legibility_weight_is_zero(self) -> None:
-        assert STANDARD.legibility_weight == 0.0
+    def test_standard_profile_legibility_weight_is_0_05(self) -> None:
+        # v15.0.0 G-038 flip 6: STANDARD graduated 0.0 → 0.05 (matches
+        # STRICT/AUDIT). Opt-out: replace(STANDARD, legibility_weight=0.0) —
+        # exercised by
+        # test_attach_legibility_with_zero_weight_profile_does_not_change_composite.
+        assert STANDARD.legibility_weight == pytest.approx(0.05)
 
     def test_relaxed_profile_legibility_weight_is_zero(self) -> None:
         assert RELAXED.legibility_weight == 0.0
@@ -767,6 +771,10 @@ class TestGateIntegrationOptInOptOut:
     def test_zero_weight_profile_no_composite_change(
         self, scorer: LegibilityScorer, write_file
     ) -> None:
+        # v15.0.0 strict graduation (G-038 flip 6): STANDARD now carries
+        # weight 0.05, so the zero-weight contract is exercised through
+        # the documented opt-out — replace(STANDARD, legibility_weight=0.0).
+        zero_weight_profile = replace(STANDARD, legibility_weight=0.0)
         path = write_file(
             "any.py",
             """
@@ -776,10 +784,10 @@ class TestGateIntegrationOptInOptOut:
         )
         gi = _pass_gate_input()
         history = [_round(1, 80.0)]
-        baseline = evaluate_gate(gi, STANDARD, round_num=2, history=history)
+        baseline = evaluate_gate(gi, zero_weight_profile, round_num=2, history=history)
         with_legibility = evaluate_gate(
             gi,
-            STANDARD,
+            zero_weight_profile,
             round_num=2,
             history=history,
             legibility_scorer=scorer,

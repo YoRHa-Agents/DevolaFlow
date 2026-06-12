@@ -1,4 +1,13 @@
-"""Load plugin specifications from YAML and build default registries."""
+"""Load plugin specifications from YAML and build default registries.
+
+Registry-read contract (v15.0.0 G-021): ``workflow-system/agent/plugins.yaml``
+— the file this loader reads — is the DERIVED capability/role/stage_mapping
+view of the single A-5 SSOT owner,
+``workflow-system/agent/knowledge/runtime-plugins.yaml`` (read by
+:func:`devolaflow.plugins.installer.load_registry`). Plugin membership and
+IDs are registered in the owner first; the view mirrors them 1:1 (pinned by
+``tests/test_plugins.py::TestV15PluginRegistryUnification``).
+"""
 
 from __future__ import annotations
 
@@ -14,7 +23,8 @@ log = logging.getLogger(__name__)
 _REPO_PLUGINS_YAML = "workflow-system/agent/plugins.yaml"
 
 # Emergency-only fallback used when ``plugins.yaml`` cannot be located.
-# The canonical plugin catalog lives in ``workflow-system/agent/plugins.yaml``;
+# The derived capability view lives at ``workflow-system/agent/plugins.yaml``
+# (registration SSOT: ``knowledge/runtime-plugins.yaml`` per A-5 / G-021);
 # this stub exists solely so NineS detection remains functional in degraded
 # installs that are missing the YAML file. Keep it intentionally minimal.
 _EMERGENCY_NINES_STUB: dict[str, Any] = {
@@ -97,11 +107,13 @@ def _find_repo_plugins_yaml() -> Path | None:
 
 
 def create_default_registry(plugins_yaml: str | Path | None = None) -> PluginRegistry:
-    """Create a registry populated from the canonical ``plugins.yaml``.
+    """Create a registry populated from the derived capability view ``plugins.yaml``.
 
     When *plugins_yaml* is ``None`` (the common case), the function looks for
     ``workflow-system/agent/plugins.yaml`` relative to the installed package
-    and the current working directory. If the YAML is absent, the registry is
+    and the current working directory. That file is the DERIVED view of the
+    A-5 SSOT owner ``knowledge/runtime-plugins.yaml`` (G-021) — membership
+    and IDs mirror the owner. If the YAML is absent, the registry is
     populated with a minimal NineS emergency stub and a warning is logged —
     this keeps NineS detection functional in degraded installs but makes the
     missing YAML visible in logs.

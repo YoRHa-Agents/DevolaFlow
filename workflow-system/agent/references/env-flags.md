@@ -322,9 +322,10 @@ count.
 | **Introduced** | v9.1.1 PV-01 (SKILL.md §"Workspace Engagement" surface); runtime read formalised by the A-6 classification surface (`classify_complexity` / `activation_verdict`) |
 | **Default** | unset (= disabled — no workspace scaffolding) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict per A-6.2 — any other value, including `"true"` / `"01"` / `""`, is default-OFF) |
-| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` before dispatching the first L1 stage; the same surface is REUSED by the v9.1.3 PV-03 `pre_handoff` hook and the `/devola:propose` slash command (opt-out via `--no-change` per A-6.3) |
-| **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py`) |
-| **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" |
+| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` before dispatching the first L1 stage; the same surface is REUSED by the v9.1.3 PV-03 `pre_handoff` hook, the `/devola:propose` slash command (opt-out via `--no-change` per A-6.3), AND the v14.3.0 `file_write` / `task_stop` runtime adapters (`lifecycle/runtime_wiring.py`) |
+| **v15.0.0 strict graduation (G-038)** | With the flag set, the engaged `file_write` / `task_stop` adapters are STRICT by default — a violation raises `HookViolation` and BLOCKS the write / report emission (S-8 "mode: full" per v15-ADR-003 §Decision 3). Opt-out: pass `strict=False` to `fire_file_write` / `fire_task_stop` (S-8 "mode: lite" — the v14.3.0 warn + log behaviour). NO new env flag in either direction (W-20); flag absent → byte-identical zero-IO no-op, UNCHANGED by the strict flip |
+| **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py` + `tests/test_hook_runtime_wiring.py`) |
+| **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" + §"Lifecycle Hooks" (strict-since-v15.0.0 status) |
 
 ### 2.16 `DEVOLAFLOW_SI_CHIP_FALLBACK_DIR` — Si-Chip install-discovery escape hatch
 
@@ -551,7 +552,7 @@ partition for 100% conformance):
 |---|---|:---:|
 | `pre_*` | `pre_dispatch`, `pre_shell_call`, `pre_handoff`, `pre_plugin_invocation`, `pre_plugin_invocation_install`, `pre_plugin_invocation_upgrade` | 6 |
 | `post_*` | `post_dispatch`, `post_task_complete`, `post_file_edit`, `post_skill_edit` | 4 |
-| `check_*` | `check_file_write`, `check_envelope_write` | 2 |
+| `check_*` | `check_file_write`, `check_envelope_write`, `check_human_input_write` (wired at `DEFAULT_EVENTS` position 17 since v15.0.0 — G-038 flip; born canonical, no OLD alias) | 3 |
 
 **Alias schedule**: OLD names are PURE-ALIAS for v11.0.0..v11.x. Both
 names accept `register_hook(event, handler)` and dispatch via

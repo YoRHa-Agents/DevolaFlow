@@ -278,7 +278,10 @@ diff_stats: { files, insertions, deletions }                # v14.3.0 diff evide
 falsifiable EVIDENCE (plan digests, verdicts, command digests, diff
 stats) — never a score. Subagent reports DO NOT include `quality_score`
 (L0-only; runtime guard: `reject_subagent_quality_score` pre_dispatch
-hook). `ac_results[*].verdict` MUST come from the L3 actually running
+hook — STRICT on direct invocation since v15.0.0 G-038, scanning the
+top level AND the `metrics`/`self_check` blocks; `gate_input_score`
+stays legitimate; opt-out: explicit `strict=False`).
+`ac_results[*].verdict` MUST come from the L3 actually running
 the criterion's `verification_cmd` intra-task — self-verify protocol per
 `references/execution-protocol.md` §self-verify. L0 derives scores from
 this evidence (L0-side scoring lands v15.0.0).

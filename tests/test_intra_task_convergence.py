@@ -28,8 +28,10 @@ row + §6 R-1):
 
 * **Item 3 — legibility opt-in weight**: ``GateProfile.legibility_weight``
   override via :func:`dataclasses.replace` shifts the gate composite by
-  ``weight × (mean_score − 50)``; the four profile DEFAULTS are
-  unchanged (default flip is a v15.0.0 ladder item).
+  ``weight × (mean_score − 50)``. v15.0.0 G-038 flip 6 landed the
+  telegraphed default flip: STANDARD is now ``0.05`` (matching
+  STRICT/AUDIT; RELAXED stays ``0.0``); the ``replace(...,
+  legibility_weight=0.0)`` override doubles as the documented opt-out.
 
 W-17 note: this module adds 14 NEW test functions (at the per-PV cap
 prescribed for this task: ≤ 14).
@@ -518,13 +520,13 @@ def test_legibility_weight_override_shifts_composite_as_expected(legible_file: P
     The composite scorer already supports nonzero weight — the override
     knob is a frozen-dataclass ``dataclasses.replace`` per
     ``references/decomposition-gate.md`` §5.6 (v14.4.0 opt-in surface).
-    Also pins the four profile DEFAULTS unchanged (STANDARD/RELAXED 0.0,
-    STRICT/AUDIT 0.05 — the default flip is a v15.0.0 ladder item;
-    v14.4.0 ships ONLY the documented override knob).
+    Also pins the v15.0.0 G-038 flip-6 profile DEFAULTS: STANDARD
+    graduated 0.0 → 0.05 (matching STRICT/AUDIT); RELAXED stays 0.0.
+    The weight-0.0 baseline below doubles as the documented flip-6
+    opt-out path (``replace(STANDARD, legibility_weight=0.0)``).
     """
-    # Defaults byte-stable — guards the "do NOT change any default
-    # weight" task constraint.
-    assert STANDARD.legibility_weight == 0.0
+    # v15.0.0 default pins — STANDARD now scores legibility in by default.
+    assert STANDARD.legibility_weight == pytest.approx(0.05)
     assert RELAXED.legibility_weight == 0.0
     assert STRICT.legibility_weight == pytest.approx(0.05)
     assert AUDIT.legibility_weight == pytest.approx(0.05)
@@ -533,15 +535,15 @@ def test_legibility_weight_override_shifts_composite_as_expected(legible_file: P
     gi = _pass_gate_input()
     history = [_round(1, 88.0)]
 
+    # Flip-6 OPT-OUT: weight 0.0 via replace → reported but never scored in.
     baseline = evaluate_gate(
         gi,
-        STANDARD,
+        replace(STANDARD, legibility_weight=0.0),
         round_num=2,
         history=history,
         legibility_scorer=scorer,
         legibility_files=[str(legible_file)],
     )
-    # STANDARD default weight 0.0 → reported but never scored in.
     assert baseline.details["legibility"]["weight"] == 0.0
     assert baseline.details["legibility"]["composite_delta"] == 0.0
 

@@ -212,6 +212,10 @@ _V12_4_0_EVALUATE_GATE_HELPERS: tuple[str, ...] = (
 # Must match the literal string in
 # ``tests/test_evaluate_gate_complexity.py::_EVALUATE_GATE_SIGNATURE``
 # verbatim — the two pins reference the same source-of-truth surface.
+# v15.0.0 R1 (additive per this pin's own append rule below): the
+# ``artifact_evidence`` opt-in parameter is APPENDED after
+# ``legibility_files`` with a ``None`` default (v15-ADR-007 gate
+# wiring); the 15 pre-existing parameter lines stay byte-identical.
 _V12_4_0_EVALUATE_GATE_SIGNATURE_LITERAL: str = (
     "def evaluate_gate(\n"
     "    gate_input: GateInput,\n"
@@ -229,6 +233,7 @@ _V12_4_0_EVALUATE_GATE_SIGNATURE_LITERAL: str = (
     '    complexity_task_complexity: str = "standard",\n'
     "    legibility_scorer: LegibilityScorer | None = None,\n"
     "    legibility_files: Sequence[str] | None = None,\n"
+    "    artifact_evidence: Sequence[dict] | None = None,\n"
     ") -> GateVerdict:"
 )
 
@@ -247,7 +252,8 @@ def test_v12_4_0_evaluate_gate_refactor(project_root: Path) -> None:
 
     (b) The public signature of ``evaluate_gate`` is byte-identical to
     the pre-refactor form. The CO-2 / C-3 no-API-break invariant pins
-    the entire 16-line parameter list verbatim (whitespace included).
+    the entire pinned parameter list verbatim (whitespace included;
+    v15.0.0 R1 appended ``artifact_evidence`` per the additive rule).
     Any reorder / rename / default-change is a release blocker that
     would break all 101 ``tests/test_gate.py`` callers + the 36
     ``tests/test_benchmarks.py`` scenarios + downstream W-3 SI-3 harness.
@@ -289,7 +295,7 @@ def test_v12_4_0_evaluate_gate_refactor(project_root: Path) -> None:
         f"W-18 v12.4.0 PV-03 violation: {_V12_4_0_SCORER_FILE} has drifted "
         "the public ``evaluate_gate`` signature from the pre-refactor form. "
         "The CO-2 / C-3 no-API-break invariant requires byte-identical "
-        "preservation of the entire 16-line parameter list. Expected "
+        "preservation of the entire pinned parameter list. Expected "
         f"literal:\n\n{_V12_4_0_EVALUATE_GATE_SIGNATURE_LITERAL}\n\n"
         "If a future PV needs to ADD a parameter, append it after "
         "``legibility_files`` with a default value (additive change) — "
@@ -665,16 +671,23 @@ def test_v12_4_0_l0_only_surfaces_hardened(project_root: Path) -> None:
         "operators have no way to wire the hook at runtime."
     )
 
-    # --- (a.2) S-10 byte-id contract preservation --------------------
+    # --- (a.2) v15.0.0 G-038 flip 3 default wiring --------------------
+    # The v12.4.0 PV-05 contract pinned the hook as OPT-IN only ("MUST
+    # NOT be auto-wired") to preserve the S-10 byte-id default for
+    # v12.3.0 callers. That default graduated at v15.0.0 (G-038 flip 3,
+    # DEFAULTS-PERMISSIVE-IN-MINOR / STRICT-IN-NEXT-MAJOR): the hook IS
+    # now auto-wired in lifecycle/__init__.py, mirroring the v12.2.0
+    # PV-04 quality-score extra. The hook never mutates the payload, so
+    # the S-10 byte-identical DISPATCH contract still holds (pinned by
+    # tests/test_dispatch_emission_runs_hooks.py). Documented opt-out:
+    # `unregister_pre_dispatch_extra()`.
     init_path = project_root / Path("src/devolaflow/lifecycle/__init__.py")
     init_text = init_path.read_text(encoding="utf-8")
-    assert "register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)" not in init_text, (
-        "W-18 v12.4.0 PV-05 S-10 violation: "
-        "`reject_subagent_banner_emission` MUST NOT be auto-wired in "
-        "lifecycle/__init__.py — the hook is OPT-IN only via "
-        "`register_pre_dispatch_extra()` per the PV-05 S-10 byte-id "
-        "contract preservation discipline. Auto-wiring would break "
-        "byte-identical default-handler behaviour for v12.3.0 callers."
+    assert "register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)" in init_text, (
+        "v15.0.0 G-038 flip 3 violation: `reject_subagent_banner_emission` "
+        "MUST be default-wired in lifecycle/__init__.py since v15.0.0 "
+        "(graduating the v12.4.0 PV-05 opt-in). Opt-out is "
+        "`unregister_pre_dispatch_extra()`, NOT removal of the wiring."
     )
 
     # --- (b) SKILL.md prohibition line -------------------------------

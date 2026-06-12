@@ -213,15 +213,17 @@ def test_agents_md_slice_env_flag_0_opts_out(project_root: Path) -> None:
 def test_slice_hotfix_includes_only_relevant_layers(
     slice_enabled_profiles_path: Path,
 ) -> None:
-    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1..C-3) + (W-9, W-11).
+    """ADR-007 D3: hotfix slice keeps Soul + (A-1, A-2) + (C-1..C-3) + (W-4, W-9).
 
     Per `.local/research/v9.0.0_pv07_rule_audit.md` §2.2 hotfix row.
     Hotfix Task Agents skip the full Workflow layer (only W-9 SI-10 +
-    W-11 gate apply to a 1-bug fix), most of Architecture (only A-1
-    hierarchy + A-2 cache invariants apply), and most of Conventions
-    (only the pre-commit / lean-message / verbatim rules apply). C-8
-    (C++ braces) was a hotfix/review slice member until its v14.2.1
-    deletion per G-012 (dead rule — zero C++ files in repo).
+    the gate/benchmark guard apply to a 1-bug fix), most of Architecture
+    (only A-1 hierarchy + A-2 cache invariants apply), and most of
+    Conventions (only the pre-commit / lean-message / verbatim rules
+    apply). C-8 (C++ braces) was a hotfix/review slice member until its
+    v14.2.1 deletion per G-012 (dead rule — zero C++ files in repo);
+    W-11 (gate suite) folded into W-4 at the v15.0.0 rule-diet
+    (v15-ADR-004 / v15-ADR-008 §1), so the slice carries W-4 instead.
     """
     result = select_agents_md_slice("hotfix", profiles_path=slice_enabled_profiles_path)
     assert result["slice_enabled"] is True
@@ -246,8 +248,8 @@ def test_slice_hotfix_includes_only_relevant_layers(
     )
 
     workflow_ids = {r for r in included if r.startswith("W-")}
-    assert workflow_ids == {"W-9", "W-11"}, (
-        f"hotfix Workflow should be W-9, W-11 only, got {sorted(workflow_ids)}"
+    assert workflow_ids == {"W-4", "W-9"}, (
+        f"hotfix Workflow should be W-4, W-9 only, got {sorted(workflow_ids)}"
     )
 
     style_ids = {r for r in included if r.startswith("ST-")}
@@ -408,8 +410,11 @@ def test_split_agents_md_into_layers_handles_canonical_structure(
         f"W-24 (Subagent Pattern Selection, v11.4.0 subagent-patterns prep) "
         f"should be last Workflow rule, got {workflow_rules[-1]}"
     )
-    assert len(workflow_rules) == 24, (
-        f"Workflow should have 24 rules (W-1..W-24), got {len(workflow_rules)}"
+    # v15.0.0 rule-diet (v15-ADR-004): W-10..W-15 folded into W-4/W-5/W-6/
+    # C-6; retired ids NOT renumbered/reused, so the layer carries 18 rules
+    # (W-1..W-9, W-16..W-24) with W-24 still last.
+    assert len(workflow_rules) == 18, (
+        f"Workflow should have 18 rules (W-1..W-9, W-16..W-24), got {len(workflow_rules)}"
     )
 
 

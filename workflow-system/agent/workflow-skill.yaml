@@ -8,7 +8,7 @@
 identity:
   name: "devola-flow"
   display_name: "DevolaFlow"
-  version: "14.5.0"
+  version: "15.0.0"
   description: >
     Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
     with gate mechanisms, convergence loops, and context-isolated task delegation.
@@ -278,89 +278,23 @@ content:
       tier: 3
 
   # ─────────────────────────────────────────────────────────────────
-  # Templates: Builtin workflow templates (YAML definitions).
-  # Registry + 23 builtin templates covering all workflow types.
+  # Templates: the workflow-type surface (YAML definitions + compositions).
+  # Registry + 23 builtin templates was the v14.x layout; v15.0.0 Phase B
+  # (v15-ADR-002) keeps 7 survivor YAMLs on disk and re-expresses the
+  # other 16 as named compositions in templates/registry.yaml
+  # `compositions:` — all 23 type names still resolve via
+  # TemplateRegistry.load_template(<name>) (alias guarantee >= 1 MAJOR).
   # ─────────────────────────────────────────────────────────────────
   templates:
     registry:
       file: "templates/registry.yaml"
-      description: "Template discovery registry with priority order: custom > derived > builtin"
+      description: "Template discovery registry (schema v2.0) with priority order: custom > derived > builtin; also carries the 16-entry compositions manifest"
 
     builtin:
-      - id: "full-pipeline"
-        file: "templates/builtin/full-pipeline.yaml"
-        stages: ["design", "plan", "implement", "review", "test", "testgate", "release"]
-        description: "Complete lifecycle for new features and greenfield projects"
-
-      - id: "hotfix"
-        file: "templates/builtin/hotfix.yaml"
-        stages: ["triage", "fix", "test", "release"]
-        description: "Rapid bug fix with minimal ceremony"
-
-      - id: "refactoring"
-        file: "templates/builtin/refactoring.yaml"
-        stages: ["scope_analysis", "plan", "implement", "test", "review"]
-        description: "Code structure improvement with safety net"
-
       - id: "migration"
         file: "templates/builtin/migration.yaml"
         stages: ["assessment", "plan", "implement", "validate", "cutover"]
         description: "System/version migration with validation"
-
-      - id: "design-only"
-        file: "templates/builtin/design-only.yaml"
-        stages: ["research", "design", "review"]
-        description: "Architecture or API design with review"
-
-      - id: "research-only"
-        file: "templates/builtin/research-only.yaml"
-        stages: ["research"]
-        description: "Information gathering and comparison report"
-
-      - id: "spike-poc"
-        file: "templates/builtin/spike-poc.yaml"
-        stages: ["research", "prototype", "evaluate"]
-        description: "Feasibility exploration with decision gate"
-
-      - id: "documentation-only"
-        file: "templates/builtin/documentation-only.yaml"
-        stages: ["survey", "author", "review"]
-        description: "Documentation authoring and quality review"
-
-      - id: "security-audit"
-        file: "templates/builtin/security-audit.yaml"
-        stages: ["threat_model", "scan", "analyze", "remediate", "verify"]
-        description: "Security assessment and remediation cycle"
-
-      - id: "feature-enhancement"
-        file: "templates/builtin/feature-enhancement.yaml"
-        stages: ["design", "plan", "implement", "review", "test", "release"]
-        description: "Extend existing system functionality"
-
-      - id: "research-design-review-refine"
-        file: "templates/builtin/research-design-review-refine.yaml"
-        stages: ["research", "design", "review", "refine"]
-        description: "Iterative research-driven design convergence (RDRR)"
-
-      - id: "demo-showcase"
-        file: "templates/builtin/demo-showcase.yaml"
-        stages: ["research", "storyboard", "build", "review", "polish", "package"]
-        description: "Build presentation-ready demos and interactive showcases"
-
-      - id: "performance-optimization"
-        file: "templates/builtin/performance-optimization.yaml"
-        stages: ["profile", "design", "optimize", "benchmark", "validate"]
-        description: "Profile-driven performance improvement with benchmarks"
-
-      - id: "dependency-setup"
-        file: "templates/builtin/dependency-setup.yaml"
-        stages: ["research", "plan", "configure", "verify"]
-        description: "Environment setup, dependency installation, and tooling"
-
-      - id: "onboarding"
-        file: "templates/builtin/onboarding.yaml"
-        stages: ["analyze", "document", "setup", "verify"]
-        description: "New contributor onboarding and codebase survey"
 
       - id: "skill-optimization"
         file: "templates/builtin/skill-optimization.yaml"
@@ -372,11 +306,6 @@ content:
         stages: ["check-refs", "research-updates", "decompose", "integrate", "test", "evaluate"]
         description: "Self-referential skill and workflow update with validation"
 
-      - id: "product-verification"
-        file: "templates/builtin/product-verification.yaml"
-        stages: ["analyze", "design", "implement", "test", "verify", "review", "validate"]
-        description: "Product-level verification including visual regression, acceptance testing, and accessibility"
-
       - id: nines-assisted
         file: "templates/builtin/nines-assisted.yaml"
         tags: ["nines", "research", "iteration", "skill-optimization"]
@@ -385,11 +314,6 @@ content:
         file: "templates/builtin/repo-init.yaml"
         stages: ["analyze", "scaffold", "compile", "verify"]
         description: "Initialize repo workspace (.local/) and governance rules; depth via mode: minimal | standard | deep"
-
-      - id: "entropy-cleanup"
-        file: "templates/builtin/entropy-cleanup.yaml"
-        stages: ["scan", "propose", "review", "apply"]
-        description: "Periodic entropy / GC pass — scan for stale docs and drift, propose retention actions, apply after review"
 
       - id: "change-driven"
         file: "templates/builtin/change-driven.yaml"
@@ -400,6 +324,34 @@ content:
         file: "templates/builtin/web-design.yaml"
         stages: ["design", "implement", "refine", "verify"]
         description: "Polished frontend design — ui-pro DESIGNS the system, impeccable REFINES + VERIFIES it (refine ↔ verify convergence loop gated by the no-LLM `impeccable detect` anti-pattern scan)"
+
+    # 16 named compositions (the former builtin yamls, collapsed at
+    # v15.0.0 Phase B per v15-ADR-002) — each is a survivor template +
+    # parameter overrides declared in templates/registry.yaml
+    # `compositions:`. Every id resolves via
+    # TemplateRegistry.load_template(<id>) with a deprecation WARNING;
+    # hard alias removal lands no earlier than v16.0.0.
+    compositions:
+      file: "templates/registry.yaml"
+      manifest_key: "compositions"
+      description: "Named compositions: base survivor + params (expression / stages / gate carried verbatim from the deleted yamls)"
+      ids:
+        - "hotfix"
+        - "research-only"
+        - "design-only"
+        - "documentation-only"
+        - "spike-poc"
+        - "refactoring"
+        - "feature-enhancement"
+        - "full-pipeline"
+        - "performance-optimization"
+        - "security-audit"
+        - "research-design-review-refine"
+        - "dependency-setup"
+        - "onboarding"
+        - "demo-showcase"
+        - "product-verification"
+        - "entropy-cleanup"
 
   # ─────────────────────────────────────────────────────────────────
   # Schemas: YAML schema definitions for inter-layer messages.
@@ -637,68 +589,15 @@ manifest:
       type: "knowledge"
       design_source: "design_delivery_architecture.md §3.4 (knowledge catalog)"
 
+  # v15.0.0 Phase B (v15-ADR-002): registry + the 7 survivor YAMLs. The 16
+  # former builtin yamls live on as named compositions INSIDE registry.yaml
+  # (no standalone files to inventory).
   templates:
     - path: "templates/registry.yaml"
       tier: 3
       type: "template-registry"
       design_source: "design_meta_framework.md §5"
-    - path: "templates/builtin/full-pipeline.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/hotfix.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/refactoring.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
     - path: "templates/builtin/migration.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/design-only.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/research-only.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/spike-poc.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/documentation-only.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/security-audit.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/feature-enhancement.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/research-design-review-refine.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/demo-showcase.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/performance-optimization.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/dependency-setup.yaml"
-      tier: 3
-      type: "workflow-template"
-      design_source: "design_meta_framework.md §7"
-    - path: "templates/builtin/onboarding.yaml"
       tier: 3
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"
@@ -707,6 +606,22 @@ manifest:
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"
     - path: "templates/builtin/self-update.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/nines-assisted.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/repo-init.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/change-driven.yaml"
+      tier: 3
+      type: "workflow-template"
+      design_source: "design_meta_framework.md §7"
+    - path: "templates/builtin/web-design.yaml"
       tier: 3
       type: "workflow-template"
       design_source: "design_meta_framework.md §7"

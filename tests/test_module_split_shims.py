@@ -100,7 +100,10 @@ def test_s10_named_paths_verbatim_functional() -> None:
 
     # Smoke: STANDARD complexity populates the cascade NEST sub-fields on a
     # deep copy (input never mutated) — the v11.1.0 PV-04 W02 contract.
-    base: dict = {"task": {"id": "T-1"}}
+    # v15.0.0 strict graduation (G-038): the pre_dispatch chain now BLOCKS
+    # dispatches without a testable acceptance criterion (VD002), so the
+    # smoke payload carries one like real dispatches do.
+    base: dict = {"task": {"id": "T-1"}, "accept": ["smoke dispatch passes the hook chain"]}
     out = populate_cascade_gate_fields(base, "STANDARD")
     assert out["gate"] == {"cascade_required": True, "cascade_min_layers": 4}
     assert "gate" not in base

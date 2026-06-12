@@ -246,7 +246,15 @@ class TestHookInvocation:
         )
 
     def test_hook_invoked_in_permissive_mode(self) -> None:
-        """All hook invocations from feedback.py MUST use ``strict=False``."""
+        """Per-event strictness: pre_dispatch strict, the rest permissive.
+
+        # v15.0.0 strict graduation (G-038): the ``pre_dispatch`` event
+        # now fires with ``strict=True`` by default (violations BLOCK
+        # the dispatch); the remaining 3 chain events stay permissive
+        # (they are side-effect adapters, not content validators). The
+        # permissive escape is ``ProposalGenerator(pre_dispatch_strict=
+        # False)`` — pinned by ``TestV15StrictGraduation`` below.
+        """
         gen = ProposalGenerator()
         calls, fake = self._make_call_recorder()
         with patch("devolaflow.lifecycle.run_hooks", side_effect=fake):
@@ -256,9 +264,11 @@ class TestHookInvocation:
                 round_num=2,
             )
         for event, _payload, strict in calls:
-            assert strict is False, (
+            expected = event == PRE_DISPATCH_EVENT
+            assert strict is expected, (
                 f"event {event!r} was invoked with strict={strict!r} — "
-                f"feedback.py must always use permissive mode"
+                f"expected strict={expected!r} (v15.0.0: pre_dispatch strict "
+                f"by default, all other chain events permissive)"
             )
 
 
@@ -358,4 +368,60 @@ class TestHandlerExceptionsAreSwallowed:
         warnings = [rec for rec in caplog.records if rec.levelname == "WARNING"]
         assert any("hook raised" in rec.message for rec in warnings), (
             "handler raise must be logged at WARNING level via logger.warning"
+        )
+
+
+# ---------------------------------------------------------------------------
+# v15.0.0 strict graduation (G-038 flips 2/3/7) — pre_dispatch BLOCKS dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestV15StrictGraduation:
+    """Pre-dispatch content violations BLOCK the dispatch since v15.0.0.
+
+    The ``pre_dispatch`` chain (``validate_dispatch`` default incl. the
+    base AC checks VD001-VD004 + AC-v2 structural checks VD005-VD008,
+    plus the ``validate_owned_files`` / ``reject_subagent_quality_score``
+    / ``reject_subagent_banner_emission`` extras) runs STRICT by default
+    at the emission call site — block, not warn. The documented
+    permissive escape is ``ProposalGenerator(pre_dispatch_strict=False)``
+    (threaded to ``ProposalEmitter(pre_dispatch_strict=False)``).
+    """
+
+    def test_pre_dispatch_violation_blocks_dispatch_by_default(self) -> None:
+        """A payload with no testable AC raises VD002 out of the dispatch path."""
+        from devolaflow.lifecycle import HookViolation
+
+        gen = ProposalGenerator()
+        bad = _base_dispatch()
+        del bad["accept"]  # no acceptance criteria → VD002 blocker
+        with pytest.raises(HookViolation) as exc_info:
+            gen.generate_round_dispatch(
+                bad,
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=1,
+            )
+        assert exc_info.value.code == "VD002"
+        assert exc_info.value.severity == "blocker"
+
+    def test_pre_dispatch_permissive_escape_warns_and_returns(self, caplog) -> None:
+        """``pre_dispatch_strict=False`` restores the pre-v15.0.0 warn-only path.
+
+        The violating dispatch is still RETURNED (byte-identical deep copy
+        of the base — strictness never mutates the payload) and the
+        violation is logged at WARNING via the lifecycle logger (S-5).
+        """
+        gen = ProposalGenerator(pre_dispatch_strict=False)
+        bad = _base_dispatch()
+        del bad["accept"]
+        control = copy.deepcopy(bad)
+        with caplog.at_level("WARNING", logger="devolaflow.lifecycle.dispatcher"):
+            result = gen.generate_round_dispatch(
+                bad,
+                _verdict_with_findings([_blocker_finding()]),
+                round_num=1,
+            )
+        assert result == control, "permissive escape must return the dispatch unchanged"
+        assert any("VD002" in rec.message for rec in caplog.records), (
+            "S-5: the permissive escape must still WARN via the lifecycle logger"
         )

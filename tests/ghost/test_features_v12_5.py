@@ -391,18 +391,19 @@ def test_v12_5_0_codegraph_plugin_registered(project_root: Path) -> None:
 _V12_5_0_PV04_REPO_INIT_FILE: Path = Path("workflow-system/agent/templates/builtin/repo-init.yaml")
 
 
-_V12_5_0_PV04_ONBOARDING_FILE: Path = Path(
-    "workflow-system/agent/templates/builtin/onboarding.yaml"
-)
+# v15.0.0 (v15-ADR-002 Phase B): the 3 sister yamls (onboarding /
+# security-audit / product-verification) were deleted; their analyze-stage
+# codegraph_commands recipes are carried over verbatim as
+# params.codegraph_commands on the corresponding composition entries in
+# templates/registry.yaml#compositions. The (b)-(d) pins below are
+# retargeted to the manifest (provenance: v15-ADR-002 decision 2).
+_V12_5_0_PV04_REGISTRY_FILE: Path = Path("workflow-system/agent/templates/registry.yaml")
 
 
-_V12_5_0_PV04_SECURITY_FILE: Path = Path(
-    "workflow-system/agent/templates/builtin/security-audit.yaml"
-)
-
-
-_V12_5_0_PV04_PROD_VERIF_FILE: Path = Path(
-    "workflow-system/agent/templates/builtin/product-verification.yaml"
+_V12_5_0_PV04_SISTER_COMPOSITIONS: tuple[str, ...] = (
+    "onboarding",
+    "security-audit",
+    "product-verification",
 )
 
 
@@ -418,9 +419,11 @@ def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
 
     (a) repo-init.yaml carries 3 codegraph surfaces (analyze hint +
         scaffold init sub-step + verify smoke check).
-    (b) onboarding.yaml analyze stage carries codegraph_commands.
-    (c) security-audit.yaml analyze stage carries codegraph_commands.
-    (d) product-verification.yaml analyze stage carries codegraph_commands.
+    (b) onboarding composition carries params.codegraph_commands.
+    (c) security-audit composition carries params.codegraph_commands.
+    (d) product-verification composition carries params.codegraph_commands.
+        ((b)-(d) retargeted from the deleted sister yamls to the
+        registry.yaml compositions manifest per v15-ADR-002 Phase B.)
     (e) context_profiles.yaml carries meta.codegraph_integration block.
     (f) Companion test file tests/test_codegraph_workflow_wiring.py exists
         with the 12 structural assertion tests.
@@ -444,18 +447,25 @@ def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
             "be present per the cycle plan §PV-04 deliverable list."
         )
 
-    # --- (b)-(d) sister templates — analyze.codegraph_commands -------
-    for path in (
-        _V12_5_0_PV04_ONBOARDING_FILE,
-        _V12_5_0_PV04_SECURITY_FILE,
-        _V12_5_0_PV04_PROD_VERIF_FILE,
-    ):
-        text = (project_root / path).read_text(encoding="utf-8")
-        assert "codegraph_commands:" in text, (
-            f"W-18 v12.5.0 PV-04 violation: {path} missing "
-            "`codegraph_commands:` literal under the analyze stage's "
-            "config block. The 3 sister templates MUST gain codegraph "
-            "wiring per the cycle plan §PV-04 deliverable list."
+    # --- (b)-(d) sister compositions — params.codegraph_commands -----
+    # Retargeted at v15.0.0 (v15-ADR-002 Phase B): the sister yamls were
+    # deleted; the wiring lives on the composition manifest entries.
+    registry_payload = yaml.safe_load(
+        (project_root / _V12_5_0_PV04_REGISTRY_FILE).read_text(encoding="utf-8")
+    )
+    compositions = {c["name"]: c for c in registry_payload.get("compositions", [])}
+    for name in _V12_5_0_PV04_SISTER_COMPOSITIONS:
+        entry = compositions.get(name)
+        assert entry is not None, (
+            f"W-18 v12.5.0 PV-04 violation (v15-ADR-002 carry-over): "
+            f"composition {name!r} missing from "
+            f"templates/registry.yaml#compositions."
+        )
+        assert (entry.get("params") or {}).get("codegraph_commands"), (
+            f"W-18 v12.5.0 PV-04 violation (v15-ADR-002 carry-over): "
+            f"composition {name!r} missing `params.codegraph_commands` — "
+            f"the sister-template codegraph wiring MUST survive the "
+            f"Phase B collapse per the cycle plan §PV-04 deliverable list."
         )
 
     # --- (e) context_profiles.yaml — meta.codegraph_integration block

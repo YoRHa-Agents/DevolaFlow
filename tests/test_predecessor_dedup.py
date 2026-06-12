@@ -1,8 +1,8 @@
-"""Predecessor summary delta-compression tests (v9.7.0 PV-02).
+"""Predecessor summary delta-compression tests (v9.7.0 PV-02 + v15.0.0 G-007).
 
 Couples the production landing of
 :func:`devolaflow.compressor.transforms.dedup_predecessor_summaries` to
-a small set of pytest-native regression guards. Six concerns are
+a small set of pytest-native regression guards. Seven concerns are
 covered:
 
 1. **Round-1 pass-through** — round 1 dispatches MUST be byte-identical
@@ -21,22 +21,37 @@ covered:
    summaries are skipped (graceful S-5 fallback) without raising.
 6. **Ledger schema** — the emitted ledger conforms to the schema
    declared in ``schemas/lean-dispatch.yaml`` (`round_num: int`,
-   `entries: list[{pred_index, hash, ref}]`).
+   `entries: list[{pred_index, hash, ref, digest}]`).
+7. **G-007 self-containment (v15.0.0)** — every emitted reference is
+   resolvable INTRA-PAYLOAD via the ledger entry's self-contained
+   ``digest``; ref-shaped summaries are never re-deduplicated or
+   indexed; the contract docs (``schemas/lean-dispatch.yaml`` pos-17 +
+   ``references/context-isolation.md`` §10) pin the coherent contract.
+   Sources: ``.local/research/v14.2.0_gap_analysis.md`` §2.1 G-007 +
+   finding F-P4-4 in
+   ``.local/research/v15-cycle_design_review_product.md`` §4.
 
-W-17 NEW-test-function tally: this module adds 7 new test functions.
+W-17 NEW-test-function tally: 7 new test functions at v9.7.0 PV-02;
++4 new test functions at v15.0.0 (G-007 self-containment guards).
 Parametrize expansions are absent — the regression guards are
 deliberately separate so a failure surface identifies which axis broke.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from devolaflow.compressor import (
+    DEDUP_DIGEST_MAX_CHARS,
     DEDUP_HASH_PREFIX_LENGTH,
     _build_dedup_index,
+    _digest_summary,
     _hash_summary,
     assert_dispatch_layout,
     dedup_predecessor_summaries,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _round_payload(round_num: int, summaries: list[str]) -> dict:
@@ -106,6 +121,13 @@ def test_round_2_dedup_hit_emits_ledger_and_reference() -> None:
     assert entry["ref"] == "@round-1:pred-0"
     assert len(entry["hash"]) == DEDUP_HASH_PREFIX_LENGTH
     assert entry["hash"] == _hash_summary("alpha-summary-text")
+    # v15.0.0 G-007: the entry carries the self-contained digest of the
+    # replaced summary. Summaries at or under DEDUP_DIGEST_MAX_CHARS
+    # travel verbatim — zero input-quality loss for the fresh L3.
+    assert entry["digest"] == "alpha-summary-text", (
+        "G-007 violation: ledger entry MUST carry the self-contained verbatim "
+        "digest of the replaced summary"
+    )
 
 
 def test_round_2_no_hit_omits_ledger() -> None:
@@ -155,6 +177,8 @@ def test_chained_rounds_round_3_dedups_against_round_2() -> None:
     assert ledger["round_num"] == 3
     assert len(ledger["entries"]) == 1
     assert ledger["entries"][0]["pred_index"] == 0
+    # v15.0.0 G-007: the chained-round entry is self-contained too.
+    assert ledger["entries"][0]["digest"] == "beta-new"
 
 
 def test_empty_or_non_string_summary_skipped_gracefully() -> None:
@@ -254,3 +278,170 @@ def test_build_dedup_index_handles_missing_pred() -> None:
     idx = _build_dedup_index({"pred": [{"summary": "alpha"}]})
     assert len(idx) == 1
     assert list(idx.values())[0] == "@round-prev:pred-0"
+
+
+# ---------------------------------------------------------------------------
+# v15.0.0 G-007 self-containment guards (design fix for finding F-P4-4).
+#
+# A fresh round-N L3 spawns with an EMPTY context (context-isolation.md §2
+# Mechanism 1) — it can never resolve a reference into a conversation
+# history it never had. The 4 tests below pin the coherence-by-construction
+# contract: every emitted reference resolves INTRA-PAYLOAD via the ledger
+# entry's self-contained ``digest``.
+# ---------------------------------------------------------------------------
+
+
+def test_every_emitted_reference_is_intra_payload_resolvable() -> None:
+    """G-007 negative guard: an L3-unresolvable reference CANNOT be emitted.
+
+    Structural invariant over the emitting path: for EVERY pred entry
+    whose summary was rewritten to a ``"@round-…"`` reference, the SAME
+    payload's ledger MUST carry exactly one entry with a matching
+    ``ref`` and a non-empty, non-ref-shaped ``digest``. Resolution uses
+    nothing but the returned payload — no ``prior_rounds`` access.
+    """
+    round1 = _round_payload(1, ["alpha-summary-text", "beta-summary-text", "gamma-fresh"])
+    round2 = _round_payload(2, ["alpha-summary-text", "beta-summary-text", "delta-new"])
+
+    result = dedup_predecessor_summaries(round2, round_num=2, prior_rounds=[round1])
+
+    refs = [
+        entry["summary"]
+        for entry in result["pred"]
+        if isinstance(entry.get("summary"), str) and entry["summary"].startswith("@round-")
+    ]
+    assert refs, "fixture must produce at least one dedup hit"
+    ledger_entries = result["predecessor_dedup_ledger"]["entries"]
+    # One ledger entry per emitted reference — no orphan refs, no orphan entries.
+    assert len(ledger_entries) == len(refs)
+    by_ref = {entry["ref"]: entry for entry in ledger_entries}
+    for ref in refs:
+        entry = by_ref.get(ref)
+        assert entry is not None, (
+            f"G-007 violation: reference {ref!r} has NO same-payload ledger entry — "
+            "a fresh L3 cannot resolve it"
+        )
+        digest = entry["digest"]
+        assert isinstance(digest, str) and digest, (
+            f"G-007 violation: ledger entry for {ref!r} lacks a self-contained digest"
+        )
+        assert not digest.startswith("@round-"), (
+            f"G-007 violation: digest for {ref!r} is itself a reference — unresolvable"
+        )
+
+
+def test_ref_shaped_summary_is_never_re_deduplicated() -> None:
+    """G-007: chained ``ref → ref`` emission is impossible.
+
+    A caller that reuses a deduplicated round-2 payload verbatim as the
+    round-3 ``pred`` content presents a ref-shaped summary to the
+    emitter. The emitter MUST preserve it untouched (no re-dedup, no
+    ledger entry, no ref-shaped digest), and the index builder MUST NOT
+    index ref-shaped summaries from the prior round.
+    """
+    round1 = _round_payload(1, ["alpha-summary-text"])
+    # "beta-new" is FRESH at round 2 — it survives verbatim while
+    # "alpha-summary-text" dedups to a reference.
+    round2 = _round_payload(2, ["alpha-summary-text", "beta-new"])
+    round2_dedupd = dedup_predecessor_summaries(round2, round_num=2, prior_rounds=[round1])
+    assert round2_dedupd["pred"][0]["summary"] == "@round-1:pred-0"
+    assert round2_dedupd["pred"][1]["summary"] == "beta-new"
+
+    # Index built from the deduplicated round-2 payload skips ref-shaped
+    # summaries — only "beta-new" is indexable.
+    index = _build_dedup_index(round2_dedupd)
+    assert _hash_summary("@round-1:pred-0") not in index, (
+        "G-007 violation: ref-shaped summary was indexed — a later round could "
+        "dedup against a reference"
+    )
+    assert _hash_summary("beta-new") in index
+
+    # Round 3 reuses the deduplicated round-2 payload verbatim.
+    round3 = _round_payload(3, ["@round-1:pred-0", "beta-new"])
+    result = dedup_predecessor_summaries(round3, round_num=3, prior_rounds=[round2_dedupd])
+
+    # The ref-shaped summary is preserved untouched; only "beta-new" deduped.
+    assert result["pred"][0]["summary"] == "@round-1:pred-0"
+    assert result["pred"][1]["summary"] == "@round-2:pred-1"
+    ledger_entries = result["predecessor_dedup_ledger"]["entries"]
+    assert len(ledger_entries) == 1
+    assert ledger_entries[0]["pred_index"] == 1
+    assert ledger_entries[0]["digest"] == "beta-new"
+    for entry in ledger_entries:
+        assert not entry["digest"].startswith("@round-")
+
+
+def test_digest_is_bounded_verbatim_key_facts_for_long_summaries() -> None:
+    """G-007 digest shape: bounded, verbatim, deterministic.
+
+    Tier 1 — short summaries travel verbatim. Tier 2 — long summaries
+    collapse to the document-order key_facts extraction (verbatim
+    entity values joined by ``"; "``). Tier 3 — entity-free long
+    summaries fall back to the bounded verbatim head slice. All tiers
+    are bytewise deterministic across calls (CO-2).
+    """
+    # Tier 1: short summary → verbatim identity.
+    short = "S04_W01 scaffolded src/config/mod.rs"
+    assert _digest_summary(short) == short
+
+    # Tier 2: long summary with seeded preserve-list entities.
+    long_with_entities = (
+        "The refactor touched src/devolaflow/compressor/transforms.py and "
+        "bumped the package to v15.0.0 while keeping coverage at 94.2%. "
+    ) + ("Filler prose that dilutes information density. " * 12)
+    assert len(long_with_entities) > DEDUP_DIGEST_MAX_CHARS
+    digest = _digest_summary(long_with_entities)
+    assert len(digest) <= DEDUP_DIGEST_MAX_CHARS
+    assert "src/devolaflow/compressor/transforms.py" in digest, (
+        "key_facts digest MUST carry the file path verbatim (CO-2)"
+    )
+    assert "v15.0.0" in digest
+    # Deterministic: bytewise identical across calls.
+    assert _digest_summary(long_with_entities) == digest
+
+    # Tier 3: entity-free long summary → bounded verbatim head slice.
+    long_no_entities = "plain narrative prose with no extractable entities " * 20
+    assert len(long_no_entities) > DEDUP_DIGEST_MAX_CHARS
+    fallback = _digest_summary(long_no_entities)
+    assert fallback == long_no_entities[:DEDUP_DIGEST_MAX_CHARS]
+
+    # End-to-end: the emitter wires the same digest into the ledger entry.
+    round1 = _round_payload(1, [long_with_entities])
+    round2 = _round_payload(2, [long_with_entities])
+    result = dedup_predecessor_summaries(round2, round_num=2, prior_rounds=[round1])
+    assert result["predecessor_dedup_ledger"]["entries"][0]["digest"] == digest
+
+
+def test_pos17_contract_docs_pin_self_contained_digest() -> None:
+    """G-007 doc coherence: schema + context-isolation.md describe the fix.
+
+    Acceptance criterion 1 of the v15.0.0 G-007 design fix requires the
+    pos-17 contract docs and the Context Isolation reference to teach
+    ONE coherent contract. Pins: (a) the schema's ``entries`` field
+    documents ``digest``; (b) the schema description names the
+    self-containment contract; (c) context-isolation.md §10 carries the
+    G-007 self-containment passage while the §4 "MUST NOT leak" row 1
+    (conversation history) stays authoritative.
+    """
+    import yaml
+
+    schema = yaml.safe_load(
+        (_REPO_ROOT / "schemas" / "lean-dispatch.yaml").read_text(encoding="utf-8")
+    )
+    ledger_spec = schema["lean_format_spec"]["predecessor_dedup_ledger"]
+    assert "digest" in ledger_spec["fields"]["entries"], (
+        "lean-dispatch.yaml pos-17 entries field MUST document the digest sub-field"
+    )
+    assert "SELF-CONTAINED" in ledger_spec["description"], (
+        "lean-dispatch.yaml pos-17 description MUST name the self-containment contract"
+    )
+
+    isolation_md = (
+        _REPO_ROOT / "workflow-system" / "agent" / "references" / "context-isolation.md"
+    ).read_text(encoding="utf-8")
+    assert "`predecessor_dedup_ledger` self-containment (v15.0.0, G-007 / F-P4-4):" in (
+        isolation_md
+    ), "context-isolation.md §10 MUST carry the G-007 self-containment passage"
+    assert "**Conversation history**" in isolation_md, (
+        "context-isolation.md §4 'MUST NOT leak' row 1 MUST stay authoritative"
+    )

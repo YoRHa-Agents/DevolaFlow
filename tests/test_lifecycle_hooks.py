@@ -430,19 +430,31 @@ def test_v11_0_0_pv02_dq3_default_events_length_is_16() -> None:
     Per A-2.2 APPEND-ONLY, positions 1-12 stay byte-stable. The 4 NEW
     names land at positions 13-16 in the same order as the rename
     mapping table in D-Q-3 §2.
+
+    v15.0.0 G-038 flip 4 re-pin: this was one of the two ``len == 16``
+    exact pins that motivated the v14.0.0/v14.1.0 deferral of
+    ``check_human_input_append_only``. Growing the tuple is in-contract
+    for the MAJOR — the tuple is now pinned at EXACTLY 17 with
+    ``check_human_input_write`` appended at position 17 (the
+    cache-layout-sensitivity note from the v14.1.0 retro §3 is honoured
+    by the same A-2.2 append-only discipline: positions 1-16 are
+    byte-stable, so prefix-keyed consumers are unaffected).
     """
     from devolaflow.lifecycle import (
         CHECK_ENVELOPE_WRITE_EVENT,
         CHECK_FILE_WRITE_EVENT,
+        CHECK_HUMAN_INPUT_WRITE_EVENT,
         DEFAULT_EVENTS,
         POST_FILE_EDIT_EVENT,
         POST_TASK_COMPLETE_EVENT,
     )
 
-    assert len(DEFAULT_EVENTS) == 16, (
-        f"D-Q-3 ships DEFAULT_EVENTS 12 → 16 (4 NEW canonical names at "
-        f"positions 13-16); got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
+    assert len(DEFAULT_EVENTS) == 17, (
+        f"v15.0.0 G-038 flip 4 ships DEFAULT_EVENTS 16 → 17 "
+        f"(check_human_input_write appended at position 17 per A-2.2); "
+        f"got {len(DEFAULT_EVENTS)}: {list(DEFAULT_EVENTS)}"
     )
+    assert DEFAULT_EVENTS[16] == CHECK_HUMAN_INPUT_WRITE_EVENT == "check_human_input_write"
 
     # Positions 13-16 carry the 4 NEW canonical names per the rename table.
     assert DEFAULT_EVENTS[12] == CHECK_FILE_WRITE_EVENT

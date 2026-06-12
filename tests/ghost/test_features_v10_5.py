@@ -105,12 +105,13 @@ _V10_5_0_DEPRECATED_TEMPLATES: tuple[str, ...] = (
 
 
 # Header text refreshed at v14.2.2 (G-017): the original "will be removed in
-# v12.0.0" promise lapsed 3 majors; the headers now carry the v15-ADR-002
+# v12.0.0" promise lapsed 3 majors; the headers then carried the v15-ADR-002
 # Phase B decision telegraph instead of a stale removal date.
-_V10_5_0_DEPRECATION_HEADER_LITERAL: str = (
-    "# DEPRECATED in v11.0.0; retained for backward compat — "
-    "Phase B collapse decision lands v15.0.0 per v15-ADR-002"
-)
+# v15.0.0 update: Phase B EXECUTED per v15-ADR-002 — the 16 TIER-2 yamls were
+# deleted and re-expressed as named compositions in
+# workflow-system/agent/templates/registry.yaml#compositions (schema v2.0).
+# The D-A-2 Phase A pin below is therefore retargeted from yaml-file presence
+# to composition-manifest presence (provenance: v15-ADR-002 decision 2-3).
 
 
 def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
@@ -160,15 +161,17 @@ def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
     )
     # v14.5.0 (G-019 / T6): the Template Quick-Reference table moved to
     # references/meta-framework.md §4 "Template Quick-Reference — Gate
-    # Types" (IA demotion pass); the (legacy) annotation pin follows it.
+    # Types" (IA demotion pass); the (legacy) annotation pin followed it.
+    # v15.0.0 (v15-ADR-002 Phase B): the (legacy) markers were replaced by
+    # the Named Compositions section + (composition) row annotations.
     meta_framework_text = (
         project_root / "workflow-system/agent/references/meta-framework.md"
     ).read_text(encoding="utf-8")
-    assert "(legacy)" in meta_framework_text, (
-        "W-18 v10.5.0 violation: the Template Quick-Reference surface "
-        "(references/meta-framework.md §4 since the v14.5.0 G-019 "
-        "demotion) must carry the (legacy) annotation on TIER-2 "
-        "templates (D-A-2 Phase A)."
+    assert "(composition)" in meta_framework_text, (
+        "W-18 v10.5.0/v15.0.0 violation: the Template Quick-Reference "
+        "surface (references/meta-framework.md §4) must annotate the "
+        "former TIER-2 templates as (composition) rows (D-A-2 Phase A "
+        "lineage; Phase B executed per v15-ADR-002)."
     )
 
     agent_workspace_text = (
@@ -188,18 +191,26 @@ def test_v10_5_0_new_symbols_have_coverage(project_root: Path) -> None:
         "force_no_change parameter to activation_verdict() (D-A-4)."
     )
 
-    # D-A-2 Phase A: 16 TIER-2 yaml files carry the deprecation comment.
+    # D-A-2 Phase A lineage, retargeted at v15.0.0 (v15-ADR-002 Phase B):
+    # the 16 TIER-2 yamls were deleted; each name MUST stay registered as
+    # a composition in templates/registry.yaml (>=1-major alias guarantee)
+    # and MUST NOT reappear as a builtin yaml file.
+    import yaml as _yaml
+
+    registry_payload = _yaml.safe_load(
+        (project_root / "workflow-system/agent/templates/registry.yaml").read_text(encoding="utf-8")
+    )
+    composition_names = {c["name"] for c in registry_payload.get("compositions", [])}
     template_dir = project_root / "workflow-system/agent/templates/builtin"
     for tmpl in _V10_5_0_DEPRECATED_TEMPLATES:
-        yaml_path = template_dir / f"{tmpl}.yaml"
-        assert yaml_path.is_file(), (
-            f"W-18 v10.5.0 violation: TIER-2 template missing at {yaml_path}"
+        assert not (template_dir / f"{tmpl}.yaml").is_file(), (
+            f"W-18 v15.0.0 violation: TIER-2 template {tmpl}.yaml was deleted "
+            f"by the v15-ADR-002 Phase B collapse and must not reappear on disk."
         )
-        text = yaml_path.read_text(encoding="utf-8")
-        assert _V10_5_0_DEPRECATION_HEADER_LITERAL in text, (
-            f"W-18 v10.5.0 violation: TIER-2 template {tmpl}.yaml missing "
-            f"the deprecation comment header (D-A-2 Phase A). Re-run "
-            f"the deprecation-tagging step OR remove the CHANGELOG mention."
+        assert tmpl in composition_names, (
+            f"W-18 v15.0.0 violation: legacy name {tmpl!r} missing from "
+            f"templates/registry.yaml#compositions — the v15-ADR-002 alias "
+            f"layer guarantees resolution until at least v16.0.0."
         )
 
     makefile_text = (project_root / "Makefile").read_text(encoding="utf-8")

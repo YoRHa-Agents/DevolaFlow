@@ -1,5 +1,17 @@
 # EvoBench Scenario: Spike/PoC
 # Tests that spike-poc profile uses minimal ceremony — no gates, no convergence.
+#
+# v15.0.0 R2 expectation refresh (same-cycle correction to the W-16 regen):
+# the v15.0.0 SKILL.md strict-graduation rewrites (G-038 Lifecycle-Hooks
+# strict-by-default + §Subagent Hang Prevention runtime-enforcement line +
+# the cd()/wd()/ri() selection-table rewrite) grew the critical-tier
+# `dispatch_report` (+81 fallback tokens) and `quick_start_workflows` (+16)
+# slices, so the important-tier `context_isolation` (207) no longer fits the
+# unchanged 2975 budget (priority-based allocation per A-3 — profile-
+# conformant, not a selector bug). Expectation updated to the new selection
+# truth: `wave_task_constraints` (selected, profile-important) replaces
+# `context_isolation` — the same refresh shape as dependency_setup's
+# agent_teams → wave_task_constraints swap in the W-16 regen.
 
 name: "spike_poc"
 task_type: "prototype"
@@ -9,7 +21,7 @@ expected_sections:
   - quick_action_decision
   - hierarchy_table
   - agent_teams
-  - context_isolation
+  - wave_task_constraints
   - dispatch_report
 
 unwanted_sections:

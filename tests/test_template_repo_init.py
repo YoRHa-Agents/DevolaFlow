@@ -91,7 +91,13 @@ def test_template_composition_is_sequence(template: WorkflowTemplate) -> None:
 def test_template_registered_in_registry() -> None:
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     templates = data["templates"]
-    assert len(templates) == 23, f"Expected 23 registry entries, got {len(templates)}"
+    # v15.0.0 (v15-ADR-002 Phase B): `templates:` mirrors the survivor
+    # yamls on disk; the collapsed names live under `compositions:`.
+    disk_count = len(list((REPO_ROOT / "workflow-system/agent/templates/builtin").glob("*.yaml")))
+    assert len(templates) == disk_count, (
+        f"Expected {disk_count} registry template entries (= survivor yamls "
+        f"on disk), got {len(templates)}"
+    )
 
     repo_init = next((e for e in templates if e["name"] == "repo-init"), None)
     assert repo_init is not None, "repo-init missing from registry.yaml"

@@ -8,19 +8,24 @@ replacement) per the S-10 byte-id contract — operators registering
 their own extras on `pre_dispatch` see no behavioural drift; the
 validate_dispatch default still runs FIRST.
 
-Test surface covers (per the v12.2.0 PV-04 dispatch AC):
+Test surface covers (per the v12.2.0 PV-04 dispatch AC, updated for
+the v15.0.0 G-038 flip 2 strict graduation):
 
-1. Permissive default: a dispatch with `quality_score` returns a
-   HookResult with the violation attached (no raise).
-2. Strict mode (`strict=True`): the violation is re-raised as a
-   HookViolation per the lifecycle dispatcher's strict contract.
+1. STRICT default (since v15.0.0): a direct invocation with
+   `quality_score` and no explicit `strict` argument raises
+   HookViolation.
+2. Opt-out path: explicit `strict=False` restores the v12.2.0..v14.x
+   permissive warn-and-return behaviour.
 3. A clean dispatch (no `quality_score` field) returns a HookResult
    with NO violations.
 4. The hook is wired into the lifecycle event chain so `run_hooks`
-   invocations against `pre_dispatch` execute it.
-5. The hook ignores nested `quality_score` fields (e.g. inside
-   `predecessor_artifacts` historical evidence) per the top-level-only
-   discipline.
+   invocations against `pre_dispatch` execute it (the chain invokes
+   handlers permissively and centralises the strict policy — S-10
+   emission is unaffected by the flip).
+5. The hook ignores nested `quality_score` fields inside
+   `predecessor_artifacts` historical evidence, but DOES scan the
+   `metrics` / `self_check` evidence blocks (the v15.0.0 nested-block
+   scan; `metrics.gate_input_score` stays legitimate).
 """
 
 from __future__ import annotations
@@ -63,33 +68,38 @@ def hook_registered():
 
 
 # ---------------------------------------------------------------------------
-# 1. Permissive default — violation attached, no raise
+# 1. Opt-out path — explicit strict=False keeps the permissive behaviour
 # ---------------------------------------------------------------------------
 
 
-def test_hook_attaches_violation_in_permissive_mode() -> None:
-    """A dispatch payload carrying `quality_score` returns a HookResult
-    with the violation attached; no raise per the S-5 explicit-error-state
-    discipline."""
+def test_hook_attaches_violation_with_explicit_strict_false_opt_out() -> None:
+    """The documented v15.0.0 opt-out: an explicit `strict=False` call
+    returns a HookResult with the violation attached (the
+    v12.2.0..v14.x permissive behaviour); no raise per the S-5
+    explicit-error-state discipline."""
     payload = {
         "task": {"id": "T-001"},
         "quality_score": 18,  # forbidden — L0-only per SKILL.md
     }
-    result = reject_subagent_quality_score(payload)
+    result = reject_subagent_quality_score(payload, strict=False)
     assert isinstance(result, HookResult)
     assert len(result.violations) == 1
     violation = result.violations[0]
     assert violation.code == "QS-001"
     assert violation.severity == "error"
     assert "quality_score" in violation.message
+    # S-5: the strict-failure message names the opt-out surface.
+    assert "strict=False" in violation.message
 
 
 def test_hook_returns_clean_result_when_field_absent() -> None:
     """A dispatch payload WITHOUT `quality_score` returns a clean
-    HookResult with no violations."""
+    HookResult with no violations (strict default is a no-op on clean
+    payloads; `gate.quality` stays legitimate — the nested scan covers
+    ONLY `metrics` / `self_check`)."""
     payload = {
         "task": {"id": "T-002"},
-        "gate": {"coverage": 80},
+        "gate": {"coverage": 80, "quality": 85},
     }
     result = reject_subagent_quality_score(payload)
     assert isinstance(result, HookResult)
@@ -98,15 +108,32 @@ def test_hook_returns_clean_result_when_field_absent() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. Strict mode — re-raises HookViolation
+# 2. STRICT default (v15.0.0 G-038 flip 2) — raises HookViolation
 # ---------------------------------------------------------------------------
 
 
-def test_hook_raises_in_strict_mode_when_field_present() -> None:
-    """Strict mode re-raises the top-severity HookViolation per the
-    lifecycle dispatcher's strict contract."""
+def test_hook_raises_by_default_when_field_present() -> None:
+    """v15.0.0 G-038 flip 2: the STRICT default — a direct invocation
+    with NO explicit `strict` argument re-raises the top-severity
+    HookViolation (the v12.2.0..v14.x default merely warned)."""
     payload = {
         "task": {"id": "T-003"},
+        "quality_score": 15,
+    }
+    with pytest.raises(HookViolation) as excinfo:
+        reject_subagent_quality_score(payload)
+    assert excinfo.value.code == "QS-001"
+    assert "strict=False" in excinfo.value.message, (
+        "S-5: the strict raise must name the opt-out (strict=False)"
+    )
+
+
+def test_hook_raises_in_strict_mode_when_field_present() -> None:
+    """Explicit `strict=True` re-raises the top-severity HookViolation
+    per the lifecycle dispatcher's strict contract (unchanged by the
+    default flip)."""
+    payload = {
+        "task": {"id": "T-003b"},
         "quality_score": 15,
     }
     with pytest.raises(HookViolation) as excinfo:
@@ -123,6 +150,40 @@ def test_hook_does_not_raise_in_strict_mode_when_field_absent() -> None:
     result = reject_subagent_quality_score(payload, strict=True)
     assert isinstance(result, HookResult)
     assert result.violations == []
+
+
+def test_hook_scans_metrics_and_self_check_blocks() -> None:
+    """v15.0.0 nested-block scan (ADR-007 phase split): `quality_score`
+    / `quality` keys inside the `metrics` / `self_check` evidence
+    blocks are rejected, while `metrics.gate_input_score` (the G-013
+    one-doctrine rename) stays legitimate."""
+    # metrics.gate_input_score alone is clean evidence — no violation.
+    clean = {
+        "task": {"id": "T-010"},
+        "metrics": {"tests_passed": 5, "tests_failed": 0, "gate_input_score": 92},
+        "self_check": {"goal_anchor": "feature X", "simplicity": "none"},
+    }
+    result = reject_subagent_quality_score(clean)
+    assert result.violations == []
+
+    # quality_score smuggled inside metrics → raises by default.
+    smuggled_metrics = {
+        "task": {"id": "T-011"},
+        "metrics": {"tests_passed": 5, "quality_score": 17},
+    }
+    with pytest.raises(HookViolation) as excinfo:
+        reject_subagent_quality_score(smuggled_metrics)
+    assert excinfo.value.code == "QS-001"
+    assert excinfo.value.context.get("location") == "'metrics' block"
+
+    # bare `quality` inside self_check → flagged too (opt-out view).
+    smuggled_self_check = {
+        "task": {"id": "T-012"},
+        "self_check": {"quality": 9.5},
+    }
+    result = reject_subagent_quality_score(smuggled_self_check, strict=False)
+    assert [v.context.get("location") for v in result.violations] == ["'self_check' block"]
+    assert [v.context.get("field") for v in result.violations] == ["quality"]
 
 
 # ---------------------------------------------------------------------------

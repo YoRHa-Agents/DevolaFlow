@@ -18,9 +18,10 @@ Test strategy mirrors
 * A footer-only ``**Version**`` bump is NOT a block edit (false-positive guard).
 * Payload-shape errors emit CHI010 / CHI011 / CHI012 (error severity).
 
-The hook is exported additively but is NOT wired into ``DEFAULT_EVENTS``
-(two CI tests pin ``len(DEFAULT_EVENTS) == 16``); a guard test below confirms
-the registry was left untouched.
+Since v15.0.0 (G-038 flip 4) the hook IS wired into ``DEFAULT_EVENTS`` as the
+``check_human_input_write`` default handler (position 17, appended per A-2.2;
+the two former ``len == 16`` pins were re-pinned in the same MAJOR); the guard
+test below pins the new 17-entry shape + the default-handler binding.
 """
 
 from __future__ import annotations
@@ -208,12 +209,37 @@ def test_payload_shape_errors() -> None:
     assert not_a_mapping.violations[0].code == "CHI010"
 
 
-def test_hook_exported_but_not_registered_as_default() -> None:
-    """The hook is additively exported but NOT wired into DEFAULT_EVENTS.
+def test_hook_registered_as_default_event() -> None:
+    """v15.0.0 G-038 flip 4: the hook IS wired into DEFAULT_EVENTS.
 
-    Two CI tests pin ``len(DEFAULT_EVENTS) == 16`` exactly; this Wave-3 hook
-    therefore stays unregistered (event wiring lands in the implementation
-    cycle alongside those test updates). Guard against an accidental append.
+    The v14.0.0 Wave-3 deferral (two CI tests pinned
+    ``len(DEFAULT_EVENTS) == 16`` exactly; growth was
+    cache-layout-sensitive per the v14.1.0 retro §3) graduates in this
+    MAJOR: ``check_human_input_write`` is APPENDED at position 17 per
+    A-2.2 (positions 1-16 stay byte-stable) and the default handler is
+    the hook itself. The hook's own permissive ``strict=False`` default
+    is unchanged — callers opt into the raise per call site.
     """
-    assert EVENT not in DEFAULT_EVENTS
-    assert len(DEFAULT_EVENTS) == 16
+    from devolaflow.lifecycle import list_handlers
+
+    assert EVENT in DEFAULT_EVENTS
+    assert len(DEFAULT_EVENTS) == 17
+    assert DEFAULT_EVENTS[16] == EVENT, (
+        "A-2.2 append-only: check_human_input_write must sit at position 17"
+    )
+    assert list_handlers(EVENT) == (check_human_input_append_only,)
+
+
+def test_hook_dispatches_through_run_hooks_default_chain() -> None:
+    """v15.0.0 flip-4 new-default behaviour: ``run_hooks`` on the NEW
+    canonical event dispatches the hook with no registration step, and
+    stays permissive at the chain level unless the caller opts into
+    ``strict=True`` (the documented per-call surface)."""
+    from devolaflow.lifecycle import run_hooks
+
+    payload = {"prior": _PRIOR_REQ, "proposed": _EDIT_NO_BUMP, "amendment_added": False}
+    result = run_hooks(EVENT, payload, strict=False)
+    assert result.passed is False
+    assert [v.code for v in result.violations] == ["CHI001"]
+    with pytest.raises(HookViolation):
+        run_hooks(EVENT, payload, strict=True)

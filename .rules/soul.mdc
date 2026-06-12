@@ -65,9 +65,7 @@ Exceptions:
 - Trivial single-file edits < 20 lines (P1 trivial waiver also applies here)
 - L0/L1/L2 dispatcher reads (Read/Glob/Grep/SemanticSearch) are unrestricted
 
-Source: v8.3.0 design.md §3.1 — closes gap H-002 from v8.3.0_gap_analysis.md.
-The `change-driven` workflow ships in v8.2.6; this rule is forward-defined so
-that when v8.2.6 lands, agents already know the constraint.
+Source: v15-ADR-008 §S-8.
 
 ## S-9 — Handoff Envelopes Are Append-Only
 
@@ -79,11 +77,10 @@ To convey new information, the agent MUST author a new envelope with `seq+1`.
 Rationale: append-only ledger prevents silent overwrites between agents
 operating in parallel. Mirrors P5 (Artifacts as Contracts).
 
-Enforcement: `tests/test_handoff_envelope_immutable.py` lints CI runs (lands
-in v8.2.4 with the schema package); `lifecycle/check_envelope_append_only`
-hook blocks at write time in STRICT mode.
+Enforcement: `tests/test_handoff_envelope_immutable.py` lints CI runs;
+`lifecycle/check_envelope_append_only` hook blocks at write time in STRICT mode.
 
-Source: v8.3.0 design.md §3.2 — closes gap H-002 from v8.3.0_gap_analysis.md.
+Source: v15-ADR-008 §S-9.
 
 ## S-10 — Prompt-Side Governance Contract Embedding
 
@@ -99,9 +96,8 @@ governance contracts:
   owned files, schema compliance).
 - `post_dispatch` is the future-extensibility slot for governance
   contracts (Soul-set version embedding, rule-manifest URL,
-  reinforcement state). v8.4.4 ships a permissive no-op default to
-  preserve cache bytes; the actual content lands in PV-07 with the
-  rule-corpus selectivity slice.
+  reinforcement state); the default is a permissive no-op that
+  preserves cache bytes.
 
 R5 strict triple codification:
 1. **Hook**: `lifecycle/__init__.py::DEFAULT_EVENTS` includes both
@@ -125,6 +121,4 @@ Exceptions:
 - None. The hook chain MUST run on every dispatch — even when there
   are no extras to invoke (the default no-op handlers run in O(1)).
 
-Source: v9.0.0 PV-04 — closes C-03 from
-`.local/research/v9.0.0_gap_analysis.md` §3.1; full rationale in
-`.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.
+Source: v15-ADR-008 §S-10.

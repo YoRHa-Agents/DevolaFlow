@@ -415,10 +415,12 @@ _REPO_PLUGINS_YAML = _REPO_ROOT / "workflow-system" / "agent" / "plugins.yaml"
 class TestCreateDefaultRegistry:
     """Exercise ``create_default_registry``.
 
-    ``plugins.yaml`` is the canonical plugin catalog (v6.0.1+); the legacy
-    ``_BUILTIN_SPECS`` table was removed in favor of a single YAML source of
-    truth. These tests load the real repo YAML so regressions in the catalog
-    (missing plugins, bad command strings) fail here.
+    ``plugins.yaml`` is the derived capability view of the A-5 SSOT owner
+    ``knowledge/runtime-plugins.yaml`` (v15.0.0 G-021; pre-v15 it was the
+    standalone "canonical plugin catalog"). The legacy ``_BUILTIN_SPECS``
+    table was removed in v6.0.1 in favor of a single YAML source. These
+    tests load the real repo YAML so regressions in the view (missing
+    plugins, bad command strings) fail here.
     """
 
     def test_creates_registry_from_repo_yaml(self) -> None:
@@ -426,7 +428,7 @@ class TestCreateDefaultRegistry:
         nines = reg.get("nines")
         assert nines is not None
         assert nines.cli_binary == "nines"
-        ui = reg.get("ui-ux-pro-max")
+        ui = reg.get("ui-pro")
         assert ui is not None
         assert ui.cli_binary == "uipro"
 
@@ -442,7 +444,8 @@ class TestCreateDefaultRegistry:
         nines = reg.get("nines")
         assert nines is not None
         assert nines.role == "research_and_iteration"
-        assert nines.min_version == "1.0.0"
+        # v15.0.0 G-021 — mirrors the owner registry (was 1.0.0 pre-unification).
+        assert nines.min_version == "3.0.0"
 
     def test_repo_yaml_nines_capabilities(self) -> None:
         reg = create_default_registry(plugins_yaml=_REPO_PLUGINS_YAML)
@@ -461,7 +464,7 @@ class TestCreateDefaultRegistry:
     def test_auto_discovers_repo_yaml_when_no_arg(self) -> None:
         reg = create_default_registry()
         assert reg.get("nines") is not None
-        assert reg.get("ui-ux-pro-max") is not None
+        assert reg.get("ui-pro") is not None
 
     def test_loads_from_yaml_when_explicit(self, tmp_path: Path) -> None:
         yaml_content = textwrap.dedent("""\
@@ -482,7 +485,7 @@ class TestCreateDefaultRegistry:
         # with _BUILTIN_SPECS — it no longer exists).
         assert reg.get("extra-tool") is not None
         assert reg.get("nines") is None
-        assert reg.get("ui-ux-pro-max") is None
+        assert reg.get("ui-pro") is None
 
     def test_emergency_stub_when_yaml_missing(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -500,7 +503,7 @@ class TestCreateDefaultRegistry:
         assert nines is not None
         assert nines.cli_binary == "nines"
         assert "pip" in nines.install_methods
-        assert reg.get("ui-ux-pro-max") is None
+        assert reg.get("ui-pro") is None
         assert any("plugins.yaml not found" in rec.message for rec in caplog.records)
 
     def test_explicit_missing_path_falls_back_to_stub(
@@ -512,7 +515,7 @@ class TestCreateDefaultRegistry:
         monkeypatch.setattr("devolaflow.plugins.loader._find_repo_plugins_yaml", lambda: None)
         reg = create_default_registry(plugins_yaml=tmp_path / "nope.yaml")
         assert reg.get("nines") is not None
-        assert reg.get("ui-ux-pro-max") is None
+        assert reg.get("ui-pro") is None
 
 
 # ===========================================================================
@@ -684,7 +687,12 @@ class TestRuntimePluginsYamlContract:
 
 
 class TestWorkflowPreconditionWiring:
-    """Assert nines-assisted and product-verification register precondition stage first."""
+    """Assert the precondition/ensure_plugins contracts survive the v15.0.0 collapse.
+
+    nines-assisted (survivor yaml) keeps its precondition stage first;
+    product-verification (composition since v15-ADR-002 Phase B) carries
+    the contract via its manifest params.
+    """
 
     @staticmethod
     def _load_template(rel_path: str) -> dict:
@@ -701,15 +709,18 @@ class TestWorkflowPreconditionWiring:
         assert first["config"]["ensure_plugins"] == ["nines"]
         assert tpl["composition"]["stages"][0] == {"stage": "precondition"}
 
-    def test_product_verification_precondition_stage_first(self) -> None:
-        tpl = self._load_template(
-            "workflow-system/agent/templates/builtin/product-verification.yaml"
-        )
-        first = tpl["stages"][0]
-        assert first["id"] == "precondition"
-        assert first["primitive"] == "implement"
-        assert first["config"]["ensure_plugins"] == ["ui-pro"]
-        assert tpl["composition"]["stages"][0] == {"stage": "precondition"}
+    def test_product_verification_precondition_carried_by_composition(self) -> None:
+        """product-verification.yaml was deleted at v15.0.0 (v15-ADR-002 Phase B).
+
+        The v8.2.1 AC-4 precondition contract (`ensure_plugins: [ui-pro]`)
+        is carried over verbatim as `params.ensure_plugins` on the
+        `product-verification` composition entry in
+        templates/registry.yaml#compositions (base: web-design).
+        """
+        registry = self._load_template("workflow-system/agent/templates/registry.yaml")
+        entry = next(c for c in registry["compositions"] if c["name"] == "product-verification")
+        assert entry["base"] == "web-design"
+        assert entry["params"]["ensure_plugins"] == ["ui-pro"]
 
 
 # ---------------------------------------------------------------------------
@@ -1875,3 +1886,81 @@ class TestV13ImpeccableRegistration:
         assert "web-design" in (ur.get("primary_workflows") or [])
         for stage in ("refine", "verify"):
             assert stage in (ur.get("stage_affinity") or [])
+
+
+# ===========================================================================
+# v15.0.0 G-021 — plugin registry unification (A-5 single-owner)
+# ===========================================================================
+#
+# `knowledge/runtime-plugins.yaml` is the single A-5 SSOT owner of plugin
+# REGISTRATION data; `plugins.yaml` is its DERIVED capability/role/
+# stage_mapping view. These tests are the "generated-from truth" lint
+# cited by both file headers and by `.rules/architecture.mdc` §A-5 row 1:
+# membership/ID/order parity, registration-truth field agreement, and the
+# derived-view header declaration. Source:
+# `.local/research/v14.2.0_gap_analysis.md` §2.4 (F-P5-1 / F-P5-6).
+# ===========================================================================
+
+_RUNTIME_PLUGINS_YAML = (
+    _REPO_ROOT / "workflow-system" / "agent" / "knowledge" / "runtime-plugins.yaml"
+)
+
+
+class TestV15PluginRegistryUnification:
+    """G-021 — the derived view mirrors the SSOT owner (A-5.1)."""
+
+    @staticmethod
+    def _owner_entries() -> list[dict]:
+        import yaml
+
+        raw = yaml.safe_load(_RUNTIME_PLUGINS_YAML.read_text(encoding="utf-8"))
+        return list(raw["plugins"])
+
+    @staticmethod
+    def _view_plugins() -> dict:
+        import yaml
+
+        raw = yaml.safe_load(_REPO_PLUGINS_YAML.read_text(encoding="utf-8"))
+        return raw["plugins"]
+
+    def test_derived_view_ids_mirror_owner_set_and_order(self) -> None:
+        """plugins.yaml keys == runtime-plugins.yaml ids, in owner order."""
+        owner_ids = [entry["id"] for entry in self._owner_entries()]
+        view_ids = list(self._view_plugins().keys())
+        assert view_ids == owner_ids, (
+            f"A-5.1 / G-021 violation: derived view plugins.yaml ids {view_ids!r} "
+            f"must mirror the SSOT owner runtime-plugins.yaml ids {owner_ids!r} "
+            f"(same set AND order). Register new plugins in the OWNER first, "
+            f"then mirror the view."
+        )
+
+    def test_derived_view_registration_truth_agrees_with_owner(self) -> None:
+        """min_version + repo_url in the view match the owner's truth fields."""
+        owner_by_id = {entry["id"]: entry for entry in self._owner_entries()}
+        for plugin_id, view_entry in self._view_plugins().items():
+            owner_entry = owner_by_id[plugin_id]
+            assert view_entry.get("min_version") == owner_entry.get("min_version"), (
+                f"G-021 violation: {plugin_id!r} min_version diverged — view "
+                f"{view_entry.get('min_version')!r} vs owner "
+                f"{owner_entry.get('min_version')!r}. The owner is the truth; "
+                f"update runtime-plugins.yaml first, then mirror."
+            )
+            assert view_entry.get("repo_url") == owner_entry.get("canonical_url"), (
+                f"G-021 violation: {plugin_id!r} repo_url diverged — view "
+                f"{view_entry.get('repo_url')!r} vs owner canonical_url "
+                f"{owner_entry.get('canonical_url')!r} (S-7 URL truth lives in "
+                f"the owner)."
+            )
+
+    def test_derived_view_declares_generated_from_header(self) -> None:
+        """plugins.yaml header names the owner and its own derived status."""
+        text = _REPO_PLUGINS_YAML.read_text(encoding="utf-8")
+        header = "\n".join(text.splitlines()[:30])
+        assert "DERIVED" in header, (
+            "G-021: plugins.yaml header must declare the file a DERIVED view "
+            "(generated-from truth) — see v14.2.0 gap analysis §2.4"
+        )
+        assert "knowledge/runtime-plugins.yaml" in header, (
+            "G-021: plugins.yaml header must cite the A-5 SSOT owner path "
+            "workflow-system/agent/knowledge/runtime-plugins.yaml"
+        )

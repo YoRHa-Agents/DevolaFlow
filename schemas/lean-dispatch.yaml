@@ -467,25 +467,58 @@ lean_format_spec:
   # helper compares each ``pred[i].summary`` against the previous
   # round's ledger; matching summaries are replaced by an
   # ``"@round-N-1:pred-K"`` reference and the ledger records the dedup
-  # hit so the receiver can decompress. Round 1 dispatches OMIT the
-  # field entirely (canonical absence-as-default — preserves byte-stable
-  # v9.6.0 / v9.3.0 / v8.4.0 / v8.3.0-PV05 baselines).
+  # hit. Round 1 dispatches OMIT the field entirely (canonical
+  # absence-as-default — preserves byte-stable v9.6.0 / v9.3.0 /
+  # v8.4.0 / v8.3.0-PV05 baselines).
   #
-  # Field is OPTIONAL — when absent, the dispatch is byte-identical to
-  # the pre-v9.7.0 contract. The 8 historical multi-baseline byte-tests
-  # in ``tests/test_layout_invariant_multi_baseline.py`` (v7.0.0,
-  # v7.3.0, v8.0.0-P-08, v8.0.0-P-10, v8.3.0-PV-05, v8.4.0, v9.2.0,
-  # v9.3.0) ALL CONTINUE TO PASS unchanged because the new field's
-  # absence is canonical. The 9th baseline (v9.7.0) is added by
-  # ``benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml``
-  # and witnesses the schema-v6 17-element canonical_order with the
-  # ``predecessor_dedup_ledger`` populated (round 2 dedup demo).
+  # v15.0.0 SELF-CONTAINMENT contract (G-007 design fix; sources:
+  # ``.local/research/v14.2.0_gap_analysis.md`` §2.1 G-007 + finding
+  # F-P4-4 in ``.local/research/v15-cycle_design_review_product.md``
+  # §4). The original v9.7.0 wording ("…so the receiver can
+  # decompress") was incoherent with Context Isolation
+  # (``workflow-system/agent/references/context-isolation.md`` §2
+  # Mechanism 1 / §4 row 1): every L3 spawns with a FRESH context, so
+  # a round-N receiver has no round-N-1 dispatch to resolve
+  # ``@round-N-1:pred-K`` into — the token savings were purchased with
+  # input-quality loss, directly against the single-task-excellence
+  # north star. Ratified disposition: design fix, NOT an ADR (the
+  # field is absence-canonical; the persistent-generator dispatch
+  # shape was evaluated and explicitly NOT chosen — it would alter the
+  # isolation contract and re-enter the ADR gate). The fix:
+  #
+  #   1. Every ledger entry the emitter produces carries a
+  #      self-contained ``digest`` — the verbatim key_facts digest of
+  #      the replaced summary (bounded by
+  #      ``devolaflow.compressor.DEDUP_DIGEST_MAX_CHARS`` = 320 chars;
+  #      summaries at or under the bound travel verbatim). References
+  #      therefore resolve INTRA-PAYLOAD: ``pred[i].summary == ref``
+  #      → ``entries[j].ref == ref`` → ``entries[j].digest``. No
+  #      conversation history is ever required.
+  #   2. Ref-shaped summaries are excluded from both the dedup index
+  #      and re-deduplication, so a ``digest`` can never itself be a
+  #      reference (no chained ``ref → ref`` emission path exists).
+  #   3. The replacement and the digest emission happen in the same
+  #      loop iteration of ``dedup_predecessor_summaries`` — emitting
+  #      an L3-unresolvable reference is impossible by construction
+  #      (pinned by ``tests/test_predecessor_dedup.py``).
+  #
+  # A-2 governance: ``digest`` is a NEST-in-place inside existing
+  # ledger entries per A-2.3 — canonical_order length STAYS at 17,
+  # version STAYS at 6, position 17 itself is untouched (removing a
+  # canonical key from the append-only tail is forbidden). ``digest``
+  # is REQUIRED on every entry the v15.0.0+ emitter produces; it is
+  # OPTIONAL in the schema only so the digest-less entry shape in the
+  # historical Tier-A goldens (v9.7.0 / v10.2.0 / v12.0.0) stays
+  # valid — goldens are frozen renderings, not emitter contracts, and
+  # ALL multi-baseline byte-tests in
+  # ``tests/test_layout_invariant_multi_baseline.py`` CONTINUE TO PASS
+  # byte-identically.
   predecessor_dedup_ledger:
-    description: "Hash-based dedup state for round-N>1 predecessor summaries. Optional — absence == round 1 OR no dedup hits. Populated by devolaflow.compressor.transforms.dedup_predecessor_summaries(payload, round_num, prior_rounds)."
+    description: "Hash-based dedup state for round-N>1 predecessor summaries. Optional — absence == round 1 OR no dedup hits. Populated by devolaflow.compressor.transforms.dedup_predecessor_summaries(payload, round_num, prior_rounds). v15.0.0 G-007: entries are SELF-CONTAINED — refs resolve intra-payload via entries[*].digest, never via conversation history."
     optional: true
     fields:
       round_num: "int — current round number (>= 2 when present); MUST equal payload.reinforce.round when both are set"
-      entries: "list[{pred_index: int (0-based), hash: str (12-char sha256 prefix), ref: str ('@round-N-1:pred-K' reference)}] — one entry per dedup hit; empty list when round N>1 had no hits"
+      entries: "list[{pred_index: int (0-based), hash: str (12-char sha256 prefix), ref: str ('@round-N-1:pred-K' reference), digest: str (v15.0.0 G-007 — self-contained verbatim key_facts digest of the replaced summary, <= DEDUP_DIGEST_MAX_CHARS chars; REQUIRED on emission, optional only in historical schema-v6 witnesses)}] — one entry per dedup hit; empty list when round N>1 had no hits"
 
 # --- COMPRESSION RULES ---
 # Deterministic drop/preserve lists for inter-layer message compaction.
@@ -767,6 +800,32 @@ compression_rules:
 # implementation-class tasks carrying `acceptance_criteria_v2`;
 # `src/devolaflow/gate/scorer.py::validate_intra_task_convergence_fields`
 # validates them (permissive warnings by default, strict raises).
+#
+# v15.0.0 (G-007 dedup-ledger design fix; sources: .local/research/
+# v14.2.0_gap_analysis.md §2.1 G-007 + finding F-P4-4 in .local/research/
+# v15-cycle_design_review_product.md §4) — NEST-in-place inside the
+# existing position-17 `predecessor_dedup_ledger` key (A-2.3 nest-vs-
+# append decision rule). One new sub-field added to each ledger entry:
+# `entries[*].digest: str` — the self-contained verbatim key_facts
+# digest of the replaced summary, bounded by
+# `devolaflow.compressor.DEDUP_DIGEST_MAX_CHARS`. canonical_order length
+# STAYS AT 17 and version STAYS AT 6 — this is a NEST, not an APPEND
+# (D3 decision matrix: the new sub-field modifies how the existing
+# `predecessor_dedup_ledger` block is interpreted — references now
+# resolve INTRA-PAYLOAD instead of via conversation history a fresh L3
+# never had — and it reuses the entry's primitive str sub-field shape).
+# ALL historical multi-baseline byte tests in
+# tests/test_layout_invariant_multi_baseline.py CONTINUE TO PASS
+# unchanged: the digest-less entry shape in the v9.7.0 / v10.2.0 /
+# v12.0.0 Tier-A goldens stays valid (goldens are frozen renderings,
+# not emitter contracts; A-2.4 requires a new golden only for
+# schema-VERSION bumps, and this NEST bumps neither version nor
+# canonical_order length). The emitter contract is strict: every entry
+# produced by `dedup_predecessor_summaries` as of v15.0.0 carries the
+# digest; ref-shaped summaries are excluded from both the dedup index
+# and re-deduplication so no chained `ref → ref` (and hence no
+# L3-unresolvable reference) can ever be emitted. Pinned by
+# tests/test_predecessor_dedup.py.
 #
 layout_invariant:
   version: 6

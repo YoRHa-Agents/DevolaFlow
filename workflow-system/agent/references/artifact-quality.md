@@ -36,8 +36,12 @@ EVIDENCE.** The doctrine is the two-phase split ratified in
    falsifiable evidence about its own artifact — per-AC verdicts from
    actually-run commands, diff statistics, behavioral-guideline attestations.
    Verdicts and digests are **attestations, not numbers the L3 invents**.
-2. **v15.0.0 (scoring phase)**: L0 computes the holistic artifact score FROM
-   the report evidence fields. Holistic judgment stays L0-side permanently.
+2. **v15.0.0 (scoring phase — LANDED)**: L0 computes the holistic artifact
+   score FROM the report evidence fields via
+   `src/devolaflow/gate/artifact_score.py::score_artifact_evidence` — the
+   L0-ONLY consumer of this evidence channel. Holistic judgment stays
+   L0-side permanently; a dimension with no evidence is `unscored` and
+   excluded from the composite (weights renormalize — never fabricated).
 
 This preserves — and does NOT invert — the v12.1–12.3 closure: subagent
 reports carry no `quality_score` field, enforced at runtime by the
@@ -122,6 +126,20 @@ P6-safe).
 **Doctrine guard**: none of these fields carries a holistic number. The
 `reject_subagent_quality_score` hook rejects any L3-emitted score in the new
 blocks exactly as it rejects the top-level `quality_score` key.
+
+**Scoring-side consumer (v15.0.0)**: every transport row above is consumed by
+`src/devolaflow/gate/artifact_score.py::score_artifact_evidence` (L0-side,
+v15.0.0) — `ac_results` → Correctness, `diff_stats` → Minimal diff,
+`metrics` → Test evidence, `self_check` → Convention adherence. An absent
+block leaves its dimension `unscored` (excluded from the composite;
+`evidence_coverage` records the honesty signal), and a report that smuggles a
+`quality_score` / `quality` key raises `EvidenceDoctrineError` — the
+scoring-time mirror of the runtime hook. Gate-consumable since v15.0.0 R1:
+`evaluate_gate(artifact_evidence=[report, ...])` runs this scorer per report
+and shifts the gate composite by `artifact_evidence_weight × (mean − 50)`
+(strict/standard/audit 0.05, relaxed 0.0; absence byte-identical — see
+`references/decomposition-gate.md` §5.6b). Scoring details:
+`references/task-quality-score.md` §"Artifact Score (L0-side, v15.0.0+)".
 
 ### §3.1 Worked example (lean StatusReport evidence blocks)
 

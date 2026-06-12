@@ -60,6 +60,34 @@ def test_scan_template_yamls_handles_missing_dir(tmp_path: Path) -> None:
     assert audit.scan_template_yamls(tmp_path) == []
 
 
+def test_scan_compositions_derives_from_registry(tmp_path: Path) -> None:
+    """v15-ADR-002: composition names derive from registry.yaml; absent -> [].
+
+    The real repo manifest is walked alongside the survivors so all
+    registered workflow types stay auditable after the Phase B collapse.
+    """
+    assert audit.scan_compositions(tmp_path) == []
+
+    templates = tmp_path / "workflow-system" / "agent" / "templates"
+    templates.mkdir(parents=True)
+    (templates / "registry.yaml").write_text(
+        'schema_version: "2.0"\n'
+        "compositions:\n"
+        "  - name: hotfix\n"
+        "    base: change-driven\n"
+        "  - name: spike-poc\n"
+        "    base: change-driven\n"
+        "templates:\n"
+        "  - name: change-driven\n",
+        encoding="utf-8",
+    )
+    assert audit.scan_compositions(tmp_path) == ["hotfix", "spike-poc"]
+
+    repo_root = Path(__file__).resolve().parents[1]
+    live = audit.scan_compositions(repo_root)
+    assert len(live) == 16, f"expected the 16 collapsed names, got {len(live)}: {live}"
+
+
 def test_count_cycle_mentions_counts_across_globs(tmp_path: Path) -> None:
     """Counts every doc match across the v9.* + v10.* globs."""
     research = tmp_path / ".local" / "research"

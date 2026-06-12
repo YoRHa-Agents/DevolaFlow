@@ -2,14 +2,14 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-Total rules: **62** (cap 60 HARD applies to the compiled AGENTS.md surface per ADR-007 D5; v9.0.0 added W-21 per `.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md` D4; v11.3.0 added W-22 grill mode + W-23 domain glossary; v11.4.0 added W-24 subagent pattern selection; v14.2.1 removed dead rule C-8 per G-012 — rule ids NOT renumbered).
+Total rules: **56** (cap 60 HARD applies to the FULL on-disk `.rules/` corpus — all 5 layers including Style — per v15-ADR-004, which amends ADR-007 D5's compiled-AGENTS.md denominator; 4 slots headroom. v14.2.1 removed dead rule C-8 per G-012; v15.0.0 rule-diet folded W-10..W-15 into W-4/W-5/W-6/C-6 per v15-ADR-004 — retired ids NOT renumbered/reused; fold map + stripped Source narrative live in `.local/research/adr/v15-ADR-008-rule-corpus-history-appendix.md`).
 
 | Layer | File | Priority | Always Apply | Rule count | Description |
 |-------|------|----------|-------------|------------|-------------|
 | Soul | `soul.mdc` | P0 | Yes | 10 (S-1..S-10) | Immutable invariants — security red lines, coverage floor, no ghost features, agent-workspace ownership (S-8), handoff append-only (S-9), prompt-side governance contract embedding (S-10). **Frozen at 10 entries per W-21 (ADR-007 D4).** |
 | Architecture | `architecture.mdc` | P1 | Yes | 7 (A-1..A-7) | Core architectural decisions — 4-layer hierarchy (A-1), cache layout governance v2 (A-2), token budgets (A-3), source-of-truth spec location (A-4), single-source-of-truth registry pattern (A-5 — added v8.4.3 PV-03 per ADR-003), workspace engagement auto-activation (A-6 — added v9.1.2 PV-02), cascade-depth invariant (A-7 — added v11.1.0 PV-04/PV-05) |
 | Conventions | `conventions.mdc` | P2 | Yes | 8 (C-1..C-7, C-9) | Coding & format standards — line budgets, lean messages, version consistency, lightweight agent workspace artifact budgets (C-9). C-8 (C++ braces) removed v14.2.1 per G-012 (dead rule — zero C++ files in repo); remaining ids NOT renumbered. |
-| Workflow | `workflow.mdc` | P3 | No | 24 (W-1..W-24) | Development process — iteration planning, NineS analysis, benchmarks, version bumps; W-16..W-20 added v8.5.0 PV-05 per ADR-005 (cycle baseline regen / per-PV test cap / ghost-audit refresh / cycle archive / env-flag reuse); W-21 added v9.0.0 PV-07 per ADR-007 D4 (Soul-set freeze governance); W-22 + W-23 added v11.3.0 (grill-mode activation contract + domain glossary maintenance); W-24 added v11.4.0 (subagent-pattern selection per philschmid 2026 prep cycle). |
+| Workflow | `workflow.mdc` | P3 | No | 18 (W-1..W-9, W-16..W-24) | Development process — iteration planning, NineS analysis, benchmarks, ghost-audit refresh, cycle archive, env-flag reuse, Soul-set freeze governance, grill mode, domain glossary, subagent-pattern selection. W-10..W-15 retired by the v15.0.0 rule-diet fold (W-10→C-6, W-11/W-13/W-14→W-4, W-12→W-5, W-15→W-6 per v15-ADR-004 / v15-ADR-008 §1); retired ids NOT reused. |
 | Style | `style.mdc` | P4 | No | 13 (ST-1..ST-13) | Documentation & presentation — doc sync, web experience, bilingual completeness |
 
 ## Compilation

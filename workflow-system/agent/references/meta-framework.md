@@ -281,135 +281,150 @@ Templates may override with explicit `allow_transition` annotations.
 ## 4. Alias Mapping Table
 From §2.3:
 
-The 23 builtin templates live in `workflow-system/agent/templates/builtin/*.yaml`.
-The alias table below covers the workflow-specific stage ids each template
-declares (every `stages[*].id` that differs from its `primitive`) plus the
-mapping back to the canonical primitive surface from §2. Regenerated
-verbatim from the template yamls at v14.2.2 (G-018); stage ids where
+The 7 survivor templates live in `workflow-system/agent/templates/builtin/*.yaml`
+(v15.0.0 Phase B collapse per v15-ADR-002 — the 16 former legacy yamls are now
+named compositions in `templates/registry.yaml#compositions`, schema v2.0; see
+the Named Compositions table below). The alias table covers the
+workflow-specific stage ids each survivor yaml declares (every `stages[*].id`
+that differs from its `primitive`) plus the mapping back to the canonical
+primitive surface from §2. Regenerated verbatim from the survivor yamls at
+v15.0.0 (the same G-018 derivation as v14.2.2); stage ids where
 `id == primitive` are omitted.
 
 | Workflow-Specific Stage Id | Maps To Primitive | Workflow Type |
 |----------------------------|-------------------|---------------|
-| apply | implement | change-driven, entropy-cleanup |
+| apply | implement | change-driven |
 | archive | deploy | change-driven |
 | assessment | analyze | migration |
-| author | implement | documentation-only |
-| benchmark | test | performance-optimization, skill-optimization |
-| bug_triage | analyze | hotfix |
-| build | implement | demo-showcase |
+| benchmark | test | skill-optimization |
 | check-refs | analyze | self-update |
-| compare | analyze | research-only |
 | compile | implement | repo-init |
-| configure | implement | dependency-setup |
 | cutover | deploy | migration |
 | decompose | design | self-update |
-| design_tests | design | product-verification |
-| document | implement | onboarding |
 | document | release | skill-optimization |
-| evaluate | validate | self-update, spike-poc |
-| execute_dev_tests | test | product-verification |
-| execute_verification | verify | product-verification |
-| fix | implement | hotfix |
-| impl | implement | full-pipeline, nines-assisted |
-| implement_tests | implement | product-verification |
+| evaluate | validate | self-update |
+| impl | implement | nines-assisted |
 | integrate | implement | self-update |
 | interview | analyze | repo-init |
-| knowledge_gap_research | research | research-design-review-refine |
-| optimize | implement | performance-optimization, skill-optimization |
-| package | release | demo-showcase |
-| precondition | implement | nines-assisted, product-verification |
-| profile | analyze | performance-optimization, skill-optimization |
-| propose | design | change-driven, entropy-cleanup |
-| prototype | implement | spike-poc |
-| remediate | implement | security-audit |
-| report | validate | research-only |
+| optimize | implement | skill-optimization |
+| precondition | implement | nines-assisted |
+| profile | analyze | skill-optimization |
+| propose | design | change-driven |
 | research-updates | research | self-update |
-| review_results | review | product-verification |
 | scaffold | implement | repo-init |
-| scan | analyze | entropy-cleanup, security-audit |
-| scope | analyze | feature-enhancement |
-| scope_analysis | analyze | refactoring |
 | self-improve | validate | self-update |
-| setup | implement | onboarding |
 | si_chip_dogfood | validate | skill-optimization |
 | si_chip_gate | validate | self-update |
-| survey | research | documentation-only, skill-optimization |
-| testgate | validate | full-pipeline |
-| threat_model | research | security-audit |
-| verify | test | dependency-setup, onboarding |
-| verify | validate | security-audit |
+| survey | research | skill-optimization |
+
+Composition-level stage aliases (e.g. `hotfix` renames change-driven's
+propose/apply/verify to triage/fix/test) are declared per-entry as
+`params.stage_aliases` in `templates/registry.yaml#compositions`.
 
 ### Per-Workflow Template Catalog
 
-The 23 builtin templates with their stage-id sequence and canonical
+The 7 survivor templates with their stage-id sequence and canonical
 primitive sequence, REGENERATED verbatim from each yaml's `stages:` list
-at v14.2.2 (G-018 four-surface stage-count drift closure). Stage counts
-below ARE the yaml truth — when another surface disagrees, this catalog
-and the yaml win.
-**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B collapse decision lands v15.0.0 per v15-ADR-002** (audit trail: `.local/research/v11.0.0_patches/D-A-2.md` §1, v10.5.0 PV-02).
+at v15.0.0 (same derivation as the v14.2.2 G-018 four-surface
+stage-count drift closure). Stage counts below ARE the yaml truth — when
+another surface disagrees, this catalog and the yaml win.
 
 | # | Template (`.yaml` basename) | Stages | Stage-id sequence (verbatim from yaml) | Canonical primitive sequence |
 |---|-----------------------------|:------:|----------------------------------------|------------------------------|
 | 1 | `change-driven` | 4 | propose → apply → verify → archive | design → implement → verify → deploy |
-| 2 | `demo-showcase` (legacy) | 6 | research → design → build → review → refine → package | research → design → implement → review → refine → release |
-| 3 | `dependency-setup` (legacy) | 4 | research → plan → configure → verify | research → plan → implement → test |
-| 4 | `design-only` (legacy) | 3 | research → design → review | research → design → review |
-| 5 | `documentation-only` (legacy) | 3 | survey → author → review | research → implement → review |
-| 6 | `entropy-cleanup` (legacy) | 4 | scan → propose → review → apply | analyze → design → review → implement |
-| 7 | `feature-enhancement` (legacy) | 7 | scope → design → plan → implement → review → test → release | analyze → design → plan → implement → review → test → release |
-| 8 | `full-pipeline` (legacy) | 9 | design → plan → impl → review → test → verify → refine → testgate → release | design → plan → implement → review → test → verify → refine → validate → release |
-| 9 | `hotfix` (legacy) | 4 | bug_triage → fix → test → release | analyze → implement → test → release |
-| 10 | `migration` | 5 | assessment → plan → implement → validate → cutover | analyze → plan → implement → validate → deploy |
-| 11 | `nines-assisted` | 10 | precondition → research → design → plan → impl → review → test → refine → validate → release | implement → research → design → plan → implement → review → test → refine → validate → release |
-| 12 | `onboarding` (legacy) | 4 | analyze → document → setup → verify | analyze → implement → implement → test |
-| 13 | `performance-optimization` (legacy) | 5 | profile → design → optimize → benchmark → validate | analyze → design → implement → test → validate |
-| 14 | `product-verification` (legacy) | 9 | precondition → analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate | implement → analyze → design → implement → test → verify → review → refine → validate |
-| 15 | `refactoring` (legacy) | 5 | scope_analysis → plan → implement → test → review | analyze → plan → implement → test → review |
-| 16 | `repo-init` | 5 | analyze → scaffold → compile → interview → verify | analyze → implement → implement → analyze → verify |
-| 17 | `research-design-review-refine` (RDRR) (legacy) | 5 | research → design → review → refine → knowledge_gap_research | research → design → review → refine → research |
-| 18 | `research-only` (legacy) | 3 | research → compare → report | research → analyze → validate |
-| 19 | `security-audit` (legacy) | 5 | threat_model → scan → analyze → remediate → verify | research → analyze → analyze → implement → validate |
-| 20 | `self-update` | 8 | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate | analyze → research → design → implement → validate → test → validate → validate |
-| 21 | `skill-optimization` | 6 | survey → profile → optimize → si_chip_dogfood → benchmark → document | research → analyze → implement → validate → test → release |
-| 22 | `spike-poc` (legacy) | 3 | research → prototype → evaluate | research → implement → validate |
-| 23 | `web-design` | 4 | design → implement → refine → verify | design → implement → refine → verify |
+| 2 | `migration` | 5 | assessment → plan → implement → validate → cutover | analyze → plan → implement → validate → deploy |
+| 3 | `nines-assisted` | 10 | precondition → research → design → plan → impl → review → test → refine → validate → release | implement → research → design → plan → implement → review → test → refine → validate → release |
+| 4 | `repo-init` | 5 | analyze → scaffold → compile → interview → verify | analyze → implement → implement → analyze → verify |
+| 5 | `self-update` | 8 | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate | analyze → research → design → implement → validate → test → validate → validate |
+| 6 | `skill-optimization` | 6 | survey → profile → optimize → si_chip_dogfood → benchmark → document | research → analyze → implement → validate → test → release |
+| 7 | `web-design` | 4 | design → implement → refine → verify | design → implement → refine → verify |
 
 Optional stages (declared `optional: true` in the yaml; counted above
 because they appear in the `stages:` list): `self-update.si_chip_gate`.
+
+### Named Compositions (v15-ADR-002 Phase B)
+
+The 16 former `(legacy)` templates (REGISTERED but never invoked in
+v9.0.0..v10.3.0 cycles per the D-A-2 audit; deprecated since v11.0.0)
+were collapsed at v15.0.0 into named compositions —
+`templates/registry.yaml#compositions` (schema v2.0) is the single owner
+surface; each entry is `base` + parameter overrides expressible with the
+5 operators in §5. The historical name still resolves via
+`TemplateRegistry.load_template(<name>)` with a deprecation WARNING;
+hard alias removal lands no earlier than v16.0.0. In the SKILL.md
+workflow-selection table, `cd(x)` / `wd(x)` / `ri(x)` abbreviate
+"composition `x` of `change-driven` / `web-design` / `repo-init`"
+(token-budget compaction; this table is the expansion legend).
+
+Each entry also carries the C-3 VERBATIM `stages:` sequence from the
+deleted yaml — the loader synthesizes the resolved template from that
+sequence, so legacy behavior stays reproducible. Gate types are carried
+verbatim from the pre-collapse quick-reference rows.
+
+| Composition | Resolves Via | Stage-id sequence (verbatim from the deleted yaml) | Gate Type |
+|-------------|--------------|-----------------------------------------------------|-----------|
+| `demo-showcase` | web-design | research → design → build → review → refine → package | standard |
+| `dependency-setup` | change-driven | research → plan → configure → verify | standard |
+| `design-only` | change-driven | research → design → review | standard |
+| `documentation-only` | change-driven | survey → author → review | standard |
+| `entropy-cleanup` | change-driven | scan → propose → review → apply | standard |
+| `feature-enhancement` | change-driven | scope → design → plan → implement → review → test → release | convergence |
+| `full-pipeline` | change-driven | design → plan → impl → review → test → verify → refine → testgate → release | convergence |
+| `hotfix` | change-driven | bug_triage → fix → test → release | standard |
+| `onboarding` | repo-init → documentation-only | analyze → document → setup → verify | standard |
+| `performance-optimization` | change-driven | profile → design → optimize → benchmark → validate | convergence |
+| `product-verification` | web-design | precondition → analyze → design_tests → implement_tests → execute_dev_tests → execute_verification → review_results → refine → validate | convergence |
+| `refactoring` | change-driven | scope_analysis → plan → implement → test → review | convergence |
+| `research-design-review-refine` | change-driven | research → design → review → refine → knowledge_gap_research | convergence |
+| `research-only` | change-driven | research → compare → report | standard |
+| `security-audit` | change-driven | threat_model → scan → analyze → remediate → verify | convergence |
+| `spike-poc` | change-driven | research → prototype → evaluate | standard |
+
+The operator-facing parameterization (e.g. `hotfix` =
+`change-driven(gate=standard, stages={propose: triage, apply: fix,
+verify: test}, timeout=hotfix)`; `dependency-setup` =
+`change-driven(mode=install)`) lives per-entry as `expression` +
+`params` in the manifest. Carried-over wiring (verbatim from the
+deleted yamls, now per-entry `params` in the manifest): codegraph
+recipes on `onboarding` / `security-audit` / `product-verification`
+(v12.5.0 PV-04 D-1.2) and `ensure_plugins: [ui-pro]` on
+`product-verification` (v8.2.1 AC-4).
 
 ### Template Quick-Reference — Gate Types
 
 Absorbed from the demoted SKILL.md §"Template Quick-Reference" at v14.5.0
 (G-019 IA pass per F-P1-3 / F-P3-5 — template info was triplicated; this
 file is the single owner surface). Gate-type values moved verbatim; stage
-counts live in the catalog above (the yaml truth wins). `(legacy)` markers
-follow the catalog's Phase B note (v15-ADR-002).
+counts live in the catalog above (the yaml truth wins). `(composition)`
+rows are post-collapse aliases (v15-ADR-002) whose gate type is the
+entry's `gate:` field in `templates/registry.yaml#compositions` — carried
+verbatim from the pre-collapse rows of this table.
 
 | Template | Gate Type |
 |----------|-----------|
-| research-only (legacy) | standard |
-| design-only (legacy) | standard |
-| hotfix (legacy) | standard |
-| refactoring (legacy) | convergence |
-| migration | convergence |
-| spike-poc (legacy) | standard |
-| documentation-only (legacy) | standard |
-| security-audit (legacy) | convergence |
-| feature-enhancement (legacy) | convergence |
-| full-pipeline (legacy) | convergence |
-| research-design-review-refine (legacy) | convergence |
-| demo-showcase (legacy) | standard |
-| performance-optimization (legacy) | convergence |
-| dependency-setup (legacy) | standard |
-| onboarding (legacy) | standard |
-| skill-optimization | convergence |
-| product-verification (legacy) | convergence |
-| nines-assisted | convergence |
-| self-update | convergence |
-| repo-init | standard |
-| entropy-cleanup (legacy) | standard |
 | change-driven | convergence |
+| migration | convergence |
+| nines-assisted | convergence |
+| repo-init | standard |
+| self-update | convergence |
+| skill-optimization | convergence |
 | web-design | convergence |
+| research-only (composition) | standard |
+| design-only (composition) | standard |
+| hotfix (composition) | standard |
+| refactoring (composition) | convergence |
+| spike-poc (composition) | standard |
+| documentation-only (composition) | standard |
+| security-audit (composition) | convergence |
+| feature-enhancement (composition) | convergence |
+| full-pipeline (composition) | convergence |
+| research-design-review-refine (composition) | convergence |
+| demo-showcase (composition) | standard |
+| performance-optimization (composition) | convergence |
+| dependency-setup (composition) | standard |
+| onboarding (composition) | standard |
+| product-verification (composition) | convergence |
+| entropy-cleanup (composition) | standard |
 
 ### repo-init
 

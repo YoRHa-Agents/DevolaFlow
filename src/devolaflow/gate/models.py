@@ -229,9 +229,20 @@ class GateProfile:
     # to :func:`devolaflow.gate.scorer.evaluate_gate` then keeps the
     # behaviour byte-identical to v8.1.0-rc.1 (per
     # ``.local/research/v8.2.0_patch_plan.md`` §3 PV-02 AC-5).
-    # Profile-specific defaults: STRICT/AUDIT 0.05 (legibility-aware
-    # quality work); STANDARD/RELAXED 0.0 (opt-in only).
+    # Profile-specific defaults: STRICT/STANDARD/AUDIT 0.05 (STANDARD
+    # graduated 0.0 → 0.05 at v15.0.0 per G-038 flip 6); RELAXED 0.0
+    # (opt-in only).
     legibility_weight: float = 0.0
+    # v15.0.0 (R1 gate wiring per v15-ADR-007) — artifact-evidence dimension
+    # weight. ``0.0`` (the default) means the optional L0-side
+    # :func:`devolaflow.gate.artifact_score.score_artifact_evidence`
+    # composite contributes nothing to the gate composite — supplying
+    # ``artifact_evidence=None`` to
+    # :func:`devolaflow.gate.scorer.evaluate_gate` then keeps the
+    # behaviour byte-identical to the pre-wiring v15.0.0 T4 phase.
+    # Profile-specific defaults mirror the legibility precedent exactly:
+    # STRICT/STANDARD/AUDIT 0.05; RELAXED 0.0 (opt-in only).
+    artifact_evidence_weight: float = 0.0
     # v8.2.0 (PV-05) — opt-in primitive auto-wire flags (B3 partial per
     # ``.local/research/v8.1.0_gap_analysis.md`` §3.2 B3 list). When
     # set, downstream orchestrators that invoke

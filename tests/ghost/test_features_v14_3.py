@@ -117,10 +117,13 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
 # lifecycle runtime-wiring symbols per v15-ADR-003 — discharged by
 # ``test_v14_3_0_hook_runtime_wiring_registered`` below — and (2) the
 # ``reject_subagent_quality_score`` doctrine extension over the NEW report
-# blocks. The in-block scanning extension did NOT land in v14.3.0 (the hook
-# stays top-level-only; L0-side scoring + nested-surface scanning land
-# v15.0.0 per the v15-ADR-007 phase split), so per S-4 no lint pins it yet;
-# the prompt-side doctrine that keeps the new blocks score-free IS pinned by
+# blocks. Item (2) is now DISCHARGED: the in-block scanning extension
+# landed at v15.0.0 (G-038 — the hook scans the ``metrics`` /
+# ``self_check`` evidence blocks, strict by default) and is pinned by
+# ``tests/ghost/test_features_v15_0.py::
+# test_v15_0_0_pre_dispatch_strict_graduation_registered`` per the
+# v15-ADR-007 phase split. The prompt-side doctrine that keeps the new
+# blocks score-free remains pinned by
 # ``test_v14_3_0_report_evidence_blocks_registered`` below.
 
 

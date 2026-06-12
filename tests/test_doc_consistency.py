@@ -27,6 +27,23 @@ def _registry_template_names(project_root: Path) -> set[str]:
     return {entry["name"] for entry in raw.get("templates", [])}
 
 
+def _registry_composition_names(project_root: Path) -> set[str]:
+    """Return composition names from registry.yaml (schema v2.0).
+
+    Since the v15.0.0 Phase B collapse (v15-ADR-002) the registered
+    workflow-type universe is `templates:` (survivor yamls on disk) plus
+    `compositions:` (the 16 collapsed legacy names) — doc surfaces that
+    enumerate workflow TYPES are checked against the union, while
+    surfaces that enumerate yaml FILES are checked against disk.
+    """
+    import yaml
+
+    raw = yaml.safe_load(
+        (project_root / "workflow-system/agent/templates/registry.yaml").read_text()
+    )
+    return {entry["name"] for entry in raw.get("compositions") or []}
+
+
 def test_readme_workflow_type_count(project_root: Path):
     """README workflow types table rows must match template YAML file count.
 
@@ -53,12 +70,17 @@ def test_readme_workflow_type_count(project_root: Path):
     # v7.4.2: 19 → 20 with repo-init added; v8.0.0 P-11: 20 → 21 with
     # entropy-cleanup added; v8.2.6: 21 → 22 with change-driven added
     # (README/SKILL rows deferred to v8.2.9 — see _DEFERRED_DOC_TEMPLATES_V8_2_9).
+    # v15.0.0 (v15-ADR-002 Phase B): 16 legacy yamls became named
+    # compositions; the README enumerates workflow TYPES, so the expected
+    # row count is survivors-on-disk + compositions (every name resolves
+    # via the alias layer).
+    composition_count = len(_registry_composition_names(project_root))
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
-    expected_table_rows = yaml_count - len(deferred_present)
+    expected_table_rows = yaml_count + composition_count - len(deferred_present)
     assert table_rows == expected_table_rows, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates, "
-        f"expected {expected_table_rows} (= disk - {len(deferred_present)} deferred to v8.2.9: "
-        f"{sorted(deferred_present)})"
+        f"README table has {table_rows} rows, disk has {yaml_count} templates "
+        f"+ {composition_count} compositions, expected {expected_table_rows} "
+        f"(- {len(deferred_present)} deferred to v8.2.9: {sorted(deferred_present)})"
     )
 
 
@@ -80,11 +102,16 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
     claimed = int(match.group(1))
     actual = len(list(templates_dir.glob("*.yaml")))
 
+    # v15.0.0 (v15-ADR-002 Phase B): the README count covers workflow
+    # TYPES = survivor yamls + named compositions (see
+    # _registry_composition_names docstring).
+    composition_count = len(_registry_composition_names(project_root))
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
-    expected_claim = actual - len(deferred_present)
+    expected_claim = actual + composition_count - len(deferred_present)
     assert claimed == expected_claim, (
-        f"README dev setup claims {claimed} templates, disk has {actual}, "
-        f"expected claim {expected_claim} (= disk - {len(deferred_present)} deferred to v8.2.9)"
+        f"README dev setup claims {claimed} templates, disk has {actual} "
+        f"+ {composition_count} compositions, expected claim {expected_claim} "
+        f"(- {len(deferred_present)} deferred to v8.2.9)"
     )
 
 
@@ -152,36 +179,69 @@ def test_demo_benchmark_sample_data_scenarios(project_root: Path):
 
 
 def test_workflow_skill_yaml_template_count(project_root: Path):
-    """workflow-skill.yaml builtin template count must match disk
+    """workflow-skill.yaml workflow-type surface must match disk + registry
     (modulo templates whose workflow-skill.yaml entry is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
-    skill_yaml = (project_root / "workflow-system" / "agent" / "workflow-skill.yaml").read_text()
+    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module).
+
+    v15.0.0 (v15-ADR-002 Phase B, doc-sync slice): `content.templates.builtin`
+    carries one `file: "templates/builtin/..."` entry per SURVIVOR yaml on
+    disk, and `content.templates.compositions.ids` mirrors the registry's
+    `compositions:` names 1:1. Count parity of the resolvable-name set
+    (survivors + compositions = 23) is what this test guards.
+    """
+    import yaml
+
+    skill_yaml_path = project_root / "workflow-system" / "agent" / "workflow-skill.yaml"
+    skill_yaml = skill_yaml_path.read_text()
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
     yaml_entries = len(re.findall(r'file:\s*"templates/builtin/', skill_yaml))
     disk_count = len(list(templates_dir.glob("*.yaml")))
-
     deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
     expected_entries = disk_count - len(deferred_present)
     assert yaml_entries == expected_entries, (
-        f"workflow-skill.yaml has {yaml_entries} builtin entries, disk has "
-        f"{disk_count}, expected {expected_entries} (= disk - {len(deferred_present)} "
-        f"deferred to v8.2.9)"
+        f"workflow-skill.yaml has {yaml_entries} builtin file entries, disk has "
+        f"{disk_count} survivor yamls, expected {expected_entries} "
+        f"(- {len(deferred_present)} deferred to v8.2.9)"
+    )
+
+    payload = yaml.safe_load(skill_yaml)
+    composition_ids = set(
+        (payload.get("content", {}).get("templates", {}).get("compositions", {}) or {}).get(
+            "ids", []
+        )
+    )
+    registry_compositions = _registry_composition_names(project_root)
+    assert composition_ids == registry_compositions, (
+        f"workflow-skill.yaml content.templates.compositions.ids drifted from "
+        f"registry.yaml compositions — missing: "
+        f"{sorted(registry_compositions - composition_ids)}, extra: "
+        f"{sorted(composition_ids - registry_compositions)}"
     )
 
 
 def test_registry_template_count(project_root: Path):
-    """registry.yaml template count must match actual template files."""
-    registry = (
-        project_root / "workflow-system" / "agent" / "templates" / "registry.yaml"
-    ).read_text()
+    """registry.yaml template entries must match the on-disk yaml files.
+
+    Schema v2.0 (v15-ADR-002): the `templates:` list mirrors disk 1:1;
+    the `compositions:` manifest must not shadow any template name.
+    """
+    import yaml
+
+    raw = yaml.safe_load(
+        (project_root / "workflow-system" / "agent" / "templates" / "registry.yaml").read_text()
+    )
     templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
-    registry_entries = len(re.findall(r"^\s+- name:", registry, re.MULTILINE))
-    disk_count = len(list(templates_dir.glob("*.yaml")))
+    template_names = {entry["name"] for entry in raw.get("templates", [])}
+    composition_names = {entry["name"] for entry in raw.get("compositions", [])}
+    disk_names = {p.stem for p in templates_dir.glob("*.yaml")}
 
-    assert registry_entries == disk_count, (
-        f"registry.yaml has {registry_entries} entries, disk has {disk_count}"
+    assert template_names == disk_names, (
+        f"registry.yaml templates {sorted(template_names)} != disk {sorted(disk_names)}"
+    )
+    assert not (template_names & composition_names), (
+        f"compositions shadow templates: {sorted(template_names & composition_names)}"
     )
 
 

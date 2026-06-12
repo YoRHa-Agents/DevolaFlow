@@ -31,6 +31,13 @@ Six concerns are covered:
 W-17 NEW-test-function tally: this module adds 7 new test functions.
 Parametrize expansions are absent — the regression guards are
 deliberately separate so a failure surface identifies which axis broke.
+
+v15.0.0 G-038 flip 1 addendum (+2 test functions): the v12.2.0 PV-04
+``asyncio.wait_for`` timeout machinery is DEFAULT-ON at this dispatch
+surface — every task gets a ceiling resolved from its explicit
+``timeout_seconds`` (the v14.5.0 G-037 auto-population knob) or its
+task-type class default (7200 s fail-safe for unknown types). Opt-out:
+``timeout_seconds: null`` on the task spec.
 """
 
 from __future__ import annotations
@@ -268,3 +275,82 @@ def test_contract_violations_raise_explicitly() -> None:
     }
     with pytest.raises(TypeError):
         dispatch_wave_tasks(bad_task_wave, lambda t: lambda: None)
+
+
+# ---------------------------------------------------------------------------
+# v15.0.0 G-038 flip 1 — timeout enforcement DEFAULT-ON
+# ---------------------------------------------------------------------------
+
+
+def test_default_timeouts_auto_populated_with_explicit_null_opt_out() -> None:
+    """v15.0.0 new default: every task gets a ``wait_for`` ceiling by default.
+
+    Captures the ``timeouts={}`` map handed to the executor and pins
+    the 3-step resolution per ``_resolve_task_timeout``:
+
+    * explicit numeric ``timeout_seconds`` → enforced verbatim;
+    * absent key → task-type class default (``test`` → 900 s) or the
+      7200 s fail-safe for unknown / missing types;
+    * explicit ``timeout_seconds: None`` → documented OPT-OUT — the
+      task gets NO entry in the timeouts map (runs unbounded, the
+      pre-v15.0.0 behaviour, per task; existing knob — no new env
+      flag per W-20).
+    """
+    wave = _sequential_wave(
+        tasks=[
+            {"task_id": "T-explicit", "timeout_seconds": 42},
+            {"task_id": "T-typed", "type": "test"},
+            {"task_id": "T-unknown"},
+            {"task_id": "T-opt-out", "timeout_seconds": None},
+        ]
+    )
+    captured: list[dict] = []
+    original = AsyncDispatchExecutor.dispatch_sequential
+
+    def spy(self, tasks, *, timeouts=None):
+        captured.append(dict(timeouts or {}))
+        return original(self, tasks, timeouts=timeouts)
+
+    AsyncDispatchExecutor.dispatch_sequential = spy  # type: ignore[method-assign]
+    try:
+        outcomes = dispatch_wave_tasks(wave, lambda t: lambda: t["task_id"])
+    finally:
+        AsyncDispatchExecutor.dispatch_sequential = original  # type: ignore[method-assign]
+
+    assert all(o.succeeded for o in outcomes)
+    assert captured == [
+        {
+            "T-explicit": 42.0,
+            "T-typed": 900.0,
+            "T-unknown": 7200.0,
+            # T-opt-out is ABSENT — explicit null opts the task out.
+        }
+    ]
+
+
+def test_timeout_breach_cancels_task_into_timeout_outcome() -> None:
+    """v15.0.0 new default end-to-end: a breaching task is cancelled and
+    surfaces ``TaskOutcome(succeeded=False, exception=TimeoutError)``
+    per the v12.2.0 PV-04 contract, while its opted-out sibling
+    (``timeout_seconds: None``) completes unbounded (S-5 — the breach
+    is an explicit error state, never a silent hang)."""
+    import time
+
+    wave = _parallel_wave(
+        tasks=[
+            {"task_id": "T-slow", "timeout_seconds": 0.05},
+            {"task_id": "T-free", "timeout_seconds": None},
+        ]
+    )
+
+    def factory(task):
+        if task["task_id"] == "T-slow":
+            return lambda: time.sleep(0.5) or "never"
+        return lambda: "ok-free"
+
+    outcomes = dispatch_wave_tasks(wave, factory)
+
+    assert not outcomes[0].succeeded
+    assert isinstance(outcomes[0].exception, TimeoutError)
+    assert outcomes[1].succeeded
+    assert outcomes[1].result == "ok-free"
