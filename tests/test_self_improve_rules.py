@@ -3,11 +3,15 @@
 v14.2.1 (G-008) retargeting note: this file originally pinned
 ``.cursor/rules/self-improve-iteration-rules.mdc``, the always-applied
 legacy carrier of the SI-1..SI-10 self-improve iteration rules. That
-file is now a deprecated ≤ 50-line pointer stub (v14.2.0 gap register
-§2.2 G-008); the rule CONTENT lives in the canonical ``.rules/``
-corpus. Every assertion below is the retargeted form of its pre-v14.2.1
-ancestor (1:1 function conversion — no test was dropped), pointed at
-the canonical carrier per the SI → canonical mapping:
+file was demoted to a deprecated ≤ 50-line pointer stub at v14.2.1
+(v14.2.0 gap register §2.2 G-008) and RETIRED at v15.0.0 (clean_repo
+C1-2, decision D1 — the stub file no longer exists; resurrection is
+blocked by the reverse lint in
+``tests/ghost/test_rules.py::test_rule_surfaces_compile_only``); the
+rule CONTENT lives in the canonical ``.rules/`` corpus. Every assertion
+below is the retargeted form of its pre-v14.2.1 ancestor (1:1 function
+conversion — no test was dropped), pointed at the canonical carrier per
+the SI → canonical mapping:
 
 | Legacy | Canonical | Carrier |
 |--------|-----------|---------|
@@ -29,9 +33,9 @@ runtime plugin registry, ``canonical_url`` field) and DevolaFlow /
 EvoBench at ``benchmarks/devolaflow_context/__init__.py`` (the
 benchmark suite's own repository pointer).
 
-Complementary lints (NOT duplicated here): the stub's fingerprint +
-≤ 50-line ceiling are pinned by
-``tests/test_no_ghost_features.py::test_rule_surfaces_compile_only``;
+Complementary lints (NOT duplicated here): the retired stub's
+must-not-resurrect reverse lint lives in
+``tests/ghost/test_rules.py::test_rule_surfaces_compile_only``;
 per-layer rule counts vs ``.rules/index.md`` are pinned by the G-034
 parity assertion inside ``test_rule_count_under_cap``.
 """
@@ -43,7 +47,6 @@ import pytest
 
 WORKFLOW_REL_PATH = ".rules/workflow.mdc"
 SOUL_REL_PATH = ".rules/soul.mdc"
-STUB_REL_PATH = ".cursor/rules/self-improve-iteration-rules.mdc"
 RUNTIME_PLUGINS_REL_PATH = "workflow-system/agent/knowledge/runtime-plugins.yaml"
 EVOBENCH_INIT_REL_PATH = "benchmarks/devolaflow_context/__init__.py"
 
@@ -64,9 +67,10 @@ SI_TO_CANONICAL: dict[str, tuple[str, str]] = {
 
 ABS_PATH_PATTERN = re.compile(r"(?<!\w)(/(?:home|Users|tmp|var|opt|usr|etc|benchmarks)/\S+)")
 
-# The three rule surfaces the S-2/SF-5 relative-paths contract is
-# asserted against here: both canonical carriers + the pointer stub.
-RULE_SURFACE_REL_PATHS = (WORKFLOW_REL_PATH, SOUL_REL_PATH, STUB_REL_PATH)
+# The rule surfaces the S-2/SF-5 relative-paths contract is asserted
+# against here: the two canonical carriers. (The pointer stub retired
+# at v15.0.0 per clean_repo C1-2 decision D1.)
+RULE_SURFACE_REL_PATHS = (WORKFLOW_REL_PATH, SOUL_REL_PATH)
 
 
 @pytest.fixture
@@ -79,25 +83,17 @@ def soul_content(project_root: Path) -> str:
     return (project_root / SOUL_REL_PATH).read_text(encoding="utf-8")
 
 
-@pytest.fixture
-def stub_content(project_root: Path) -> str:
-    return (project_root / STUB_REL_PATH).read_text(encoding="utf-8")
-
-
 class TestFileExists:
     def test_mdc_file_exists(self, project_root: Path):
-        """Canonical carriers exist AND the legacy path still points at them."""
+        """Canonical carriers exist.
+
+        The legacy pointer-stub assertion retired at v15.0.0 (clean_repo
+        C1-2, decision D1) together with the stub file itself; the
+        must-not-resurrect reverse lint lives in
+        ``tests/ghost/test_rules.py::test_rule_surfaces_compile_only``.
+        """
         for rel in (WORKFLOW_REL_PATH, SOUL_REL_PATH):
             assert (project_root / rel).is_file(), f"canonical carrier missing: {rel}"
-        stub = project_root / STUB_REL_PATH
-        assert stub.is_file(), (
-            f"{STUB_REL_PATH} must remain on disk as a deprecated pointer stub "
-            f"(G-008) so legacy auto-load paths still surface the cross-reference"
-        )
-        stub_text = stub.read_text(encoding="utf-8")
-        assert "Deprecated" in stub_text and WORKFLOW_REL_PATH in stub_text, (
-            f"{STUB_REL_PATH} must point at the canonical {WORKFLOW_REL_PATH} source"
-        )
 
 
 class TestFrontmatter:
@@ -107,20 +103,18 @@ class TestFrontmatter:
             parts = content.split("---", 2)
             assert len(parts) >= 3, f".rules/{name}.mdc must have opening/closing --- delimiters"
 
-    def test_always_apply_true(self, soul_content: str, workflow_content: str, stub_content: str):
+    def test_always_apply_true(self, soul_content: str, workflow_content: str):
         """Layer semantics: Soul is always-applied; Workflow is on-demand.
 
         The legacy file asserted ``alwaysApply: true`` on the SI carrier.
         Post-G-008 the always-on guarantee is carried by the Soul layer +
-        the compiled ``repo-governance.mdc`` target; the pointer stub
-        keeps ``alwaysApply: true`` so every session still surfaces the
-        cross-reference. The Workflow layer is deliberately
-        ``alwaysApply: false`` (loaded via the compiled corpus).
+        the compiled ``repo-governance.mdc`` target (the pointer stub that
+        also carried it retired at v15.0.0 per clean_repo C1-2 decision
+        D1). The Workflow layer is deliberately ``alwaysApply: false``
+        (loaded via the compiled corpus).
         """
         soul_fm = soul_content.split("---", 2)[1]
         assert "alwaysApply: true" in soul_fm or "alwaysApply: True" in soul_fm
-        stub_fm = stub_content.split("---", 2)[1]
-        assert "alwaysApply: true" in stub_fm or "alwaysApply: True" in stub_fm
         workflow_fm = workflow_content.split("---", 2)[1]
         assert "alwaysApply: false" in workflow_fm or "alwaysApply: False" in workflow_fm
 

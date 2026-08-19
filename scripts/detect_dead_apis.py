@@ -67,24 +67,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `count_agents_md_rules` is a pure read-only helper that walks the
         # compiled AGENTS.md file.
         "devolaflow.agents_md_slice:count_agents_md_rules",
-        # v9.0.0 PV-07 (ADR-007 D2) — check_stub_drift verifies the 2
-        # deprecated `.cursor/rules/{devola-flow,workflow}-rules.mdc` stubs
-        # match the pinned fingerprints in `.rules/.compile-hashes.json`.
-        # Consumed by `tests/test_no_ghost_features.py::test_rule_surfaces_compile_only`
-        # (the ADR-007 D2 stub-drift lint). Like `check_rules_drift` (which
-        # is also test-only), it exists solely to surface the deprecation
-        # invariant. NOT a domain-SSOT registry symbol per A-5.2 — it's a
-        # pure SHA-256 comparison helper paired with the
-        # `RuleCompiler.compile_all()` writer.
-        "devolaflow.local.drift:check_stub_drift",
-        # v9.0.0 PV-07 (ADR-007 D2) — compute_stub_fingerprints is the
-        # SHA-256 helper that the rule compiler invokes when emitting
-        # the `.rules/.compile-hashes.json` store. Public so external
-        # tooling that wants to verify stub fingerprints without
-        # invoking the full `compile_all()` pipeline can do so.
-        # NOT a domain-SSOT registry symbol per A-5.2 — pure
-        # read-only fingerprint helper.
-        "devolaflow.local.drift:compute_stub_fingerprints",
         # v9.0.0 PV-07 (ADR-007 D3) — select_agents_md_slice is the OPERATOR-
         # FACING per-task-type AGENTS.md slicing entry point. Default behavior
         # (`meta.agents_md_slice.enabled: false`) returns the full AGENTS.md
@@ -284,8 +266,9 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.compressor:compress_message",
         "devolaflow.compressor:validate_lean_format",
         # v7.0.0 cache-layout invariant validators — consumed by external
-        # workflow agents before sending lean dispatches; mandated by Rule P6
-        # in .cursor/rules/devola-flow-rules.mdc and ADR v7-ADR-001.
+        # workflow agents before sending lean dispatches; mandated by A-2
+        # (P6 Preserve Cached Prefix, .rules/architecture.mdc — ex
+        # devola-flow-rules.mdc Rule 6) and ADR v7-ADR-001.
         "devolaflow.compressor:assert_dispatch_layout",
         "devolaflow.compressor:compute_dispatch_lcp_pct",
         "devolaflow.compressor:DispatchLayoutError",
@@ -385,8 +368,8 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- NineS subsystem — research, analysis, advisor APIs ----
         # All exported via devolaflow.nines.__all__ for external research
         # workflows; the NineS CLI integration is invoked by the user via
-        # SI-2 (self-improve-iteration-rules.mdc) and not from in-repo
-        # production code.
+        # W-2 / SI-2 (.rules/workflow.mdc — ex self-improve-iteration-rules.mdc)
+        # and not from in-repo production code.
         "devolaflow.nines.commands:build_command",
         "devolaflow.nines.commands:build_stage_command",
         "devolaflow.nines.detector:ensure_nines",
