@@ -58,7 +58,10 @@ while [ "$#" -gt 0 ]; do
     --dry-run)     DRY_RUN="true"; shift ;;
     --base-url)    BASE_OVERRIDE="${2:-}"; shift; shift ;;
     --base-url=*)  BASE_OVERRIDE="${1#*=}"; shift ;;
-    -*)            shift ;;
+    -h|--help)     TARGET="help"; shift ;;
+    # Unknown flags abort instead of silently falling through to a real
+    # `auto` install (S-5: no silent failure).
+    -*)            printf 'install.sh: unknown option %s (run with "help" for usage)\n' "$1" >&2; exit 2 ;;
     *)             TARGET="$1"; shift ;;
   esac
 done
