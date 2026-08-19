@@ -46,6 +46,10 @@ depending on `.local/` (which is gitignored on most clones).
 * `v10.2.4_w17_mid_cycle_audit.md`
 * `v10.2.4_w8_stagnation_check.md`
 
+### subdirs
+
+* `v10.3.0_nines_outdir/`
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [10.3.0]` — release note

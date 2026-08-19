@@ -26,6 +26,11 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v11.3.0_decision_roadmap_zh.md` — 10 项关键决策 + 6 阶段方案路线 + 不变量检查表 + 后续工作；伴随英文 gap_analysis + retrospective，供中文母语审阅者使用
 
+### subdirs
+
+* `v11.3.0_grill_with_docs_source/`
+* `v11.3.0_plan_mode_singleton/`
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [11.3.0]` — release note

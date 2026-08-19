@@ -52,6 +52,10 @@ depending on `.local/` (which is gitignored on most clones).
 * `v11.0.0_w21_threshold_empirical_check.md`
 * `v11.0.0_选型清单_中文版.md`
 
+### subdirs
+
+* `v11.0.0_patches/`
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [11.0.0]` — release note

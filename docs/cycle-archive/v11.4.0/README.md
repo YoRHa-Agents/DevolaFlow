@@ -22,6 +22,11 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v11.4.0_subagent_pattern_analysis.md`
 
+### subdirs
+
+* `v11.4.0_execution_protocol_singleton/`
+* `v11.4.0_subagent_patterns_source/`
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [11.4.0]` — release note
