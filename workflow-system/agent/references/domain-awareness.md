@@ -16,7 +16,7 @@ triggers:
   - "format-checking a v11.3.0+ ADR before commit"
 tier: 2
 token_estimate: 4200
-last_updated: "2026-05-08"
+last_updated: "2026-08-19"
 ---
 
 # Domain Awareness — CONTEXT.md and ADR Authoring Reference
@@ -37,7 +37,7 @@ Load this reference when ANY of the following trigger surfaces fires:
 | `infer_context_layout(repo_root)` returns `MULTI_CONTEXT` | `src/devolaflow/skills/grill_mode.py::infer_context_layout` | Force-load §6 (Single vs multi-context inference) — the dispatch must read `CONTEXT-MAP.md` first to pick the correct per-context glossary |
 | `infer_context_layout(repo_root)` returns `NO_CONTEXT_YET` AND grill-mode just resolved its first term | same | Force-load §7 (Lazy file creation discipline) — the L0 MUST ASK before creating the root `CONTEXT.md` |
 | Author or reviewer needs to disambiguate `CONTEXT.md` (vocabulary) vs `.local/memory/specs/<domain>/spec.md` (behaviour) | A-4 source-of-truth ADR | Force-load §2 (Domain glossary as agent-workspace artifact) — these surfaces never overlap |
-| Author needs to format-check a v11.3.0+ ADR before commit | This reference + `grill-mode.md` §"ADR offer evaluation" | Force-load §8 (ADR format) + §9 (historical-`.local/research/adr/` distinction) |
+| Author needs to format-check a v11.3.0+ ADR before commit | This reference + `grill-mode.md` §"ADR offer evaluation" | Force-load §8 (ADR format) + §9 (historical-`docs/cycle-archive/adr/` distinction) |
 
 **NOT this file** when:
 
@@ -154,7 +154,7 @@ Verbatim from `CONTEXT-FORMAT.md` line 41 (first bullet of the upstream "## Rule
 
 > **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
 
-This is the F-2 format primitive (per `.local/research/v11.3.0_gap_analysis.md` §2.3). The glossary is **opinionated by contract** — it does not tolerate "Customer / Client / Buyer / Account all mean the same thing"; it picks ONE canonical term and lists the others under `_Avoid_`. The opinionated stance is what gives downstream L3 task agents a deterministic substring to match against when they detect fuzzy terminology in a plan.
+This is the F-2 format primitive (per `docs/cycle-archive/v11.3.0/v11.3.0_gap_analysis.md` §2.3). The glossary is **opinionated by contract** — it does not tolerate "Customer / Client / Buyer / Account all mean the same thing"; it picks ONE canonical term and lists the others under `_Avoid_`. The opinionated stance is what gives downstream L3 task agents a deterministic substring to match against when they detect fuzzy terminology in a plan.
 
 ### §4.1 — Worked example
 
@@ -423,11 +423,11 @@ Example return values:
 
 The 4-state truth table is exhaustive (2³ = 8 combinations; 1 of them returns `True`, the other 7 return `False` with a non-empty `missing` list). The function's signature is the binding contract for downstream callers; callers MUST surface the `missing` list to the operator (rather than silently dropping the ADR offer) so the operator understands which condition failed and can either argue the case or accept the skip.
 
-## §9 — Distinction from Historical `.local/research/adr/` Directory
+## §9 — Distinction from Historical `docs/cycle-archive/adr/` Directory
 
-Per `.local/research/v11.3.0_gap_analysis.md` §3.3 ("Format-primitive gap"):
+Per `docs/cycle-archive/v11.3.0/v11.3.0_gap_analysis.md` §3.3 ("Format-primitive gap"):
 
-DevolaFlow's existing `.local/research/adr/` directory uses a `vN-ADR-NNN-slug.md` numbering scheme — for example `v9-ADR-007-rule-rebalancing-and-rollup.md`, `v9-ADR-004-lifecycle-wiring-and-s10.md`, `v9-ADR-002-cache-layout-governance-v2.md`. The version-prefix (`v9-`, `v10-`, `v11-`) ties each ADR to the cycle that authored it; the `ADR-NNN` is a 3-digit sequence within that cycle.
+DevolaFlow's existing `docs/cycle-archive/adr/` directory uses a `vN-ADR-NNN-slug.md` numbering scheme — for example `v9-ADR-007-rule-rebalancing-and-rollup.md`, `v9-ADR-004-lifecycle-wiring-and-s10.md`, `v9-ADR-002-cache-layout-governance-v2.md`. The version-prefix (`v9-`, `v10-`, `v11-`) ties each ADR to the cycle that authored it; the `ADR-NNN` is a 3-digit sequence within that cycle.
 
 The format-primitives F-1..F-7 documented in this reference apply to **NEW v11.3.0+ ADRs only**. Historical ADRs are NOT retrofitted to the upstream `0001-slug.md` numbering — they remain under their version-prefixed scheme as cycle-internal design records.
 
@@ -441,9 +441,9 @@ Going forward:
 * NEW ADRs that emerge from grill-mode interviews land under `docs/adr/<NNNN>-<slug>.md` per F-5. They carry the §8.2 minimum body (1–3 sentences) and the §8.3 optional sections only when warranted.
 * Cycle-internal design records (the kind that capture the rationale for a multi-PV refactor, an ADR-driven schema change, a Soul-set-freeze deliberation) continue under `.local/research/adr/vN-ADR-NNN-<slug>.md`. These are NOT subject to the §8.5 3-condition gate — they are research artifacts, not project-domain decisions.
 
-This split avoids disruption (no historical ADR has to move or change format) while introducing the cleaner upstream scheme for future grill-mode-driven ADRs. The two surfaces are deliberately orthogonal: a future cycle-internal `v11-ADR-NNN-<slug>.md` is published in `.local/research/adr/`; a future grill-mode-driven `<NNNN>-<slug>.md` is published in `docs/adr/`.
+This split avoids disruption (no historical ADR has to move or change format) while introducing the cleaner upstream scheme for future grill-mode-driven ADRs. The two surfaces are deliberately orthogonal: a future cycle-internal `v11-ADR-NNN-<slug>.md` is published in `docs/cycle-archive/adr/`; a future grill-mode-driven `<NNNN>-<slug>.md` is published in `docs/adr/`.
 
-The historical `.local/research/adr/` directory exists at v11.3.0 cut and contains 10+ ADRs accumulated across the v8.x and v9.x cycles. Reviewers reading this reference for the first time should understand that "the ADR format documented in §8 above does not match the format of the historical ADRs in `.local/research/adr/`" is **expected** and is the §3.3 gap-analysis decision rendered as repo state. Operators authoring NEW ADRs from a grill-mode interview should mechanically follow §8.1–§8.7; operators authoring NEW cycle-internal design records should follow whatever convention the in-flight cycle plan documents (typically: free-form prose, 100–500 lines, headed by an ADR ID like `v11-ADR-001`).
+The historical `docs/cycle-archive/adr/` directory exists at v11.3.0 cut and contains 10+ ADRs accumulated across the v8.x and v9.x cycles. Reviewers reading this reference for the first time should understand that "the ADR format documented in §8 above does not match the format of the historical ADRs in `docs/cycle-archive/adr/`" is **expected** and is the §3.3 gap-analysis decision rendered as repo state. Operators authoring NEW ADRs from a grill-mode interview should mechanically follow §8.1–§8.7; operators authoring NEW cycle-internal design records should follow whatever convention the in-flight cycle plan documents (typically: free-form prose, 100–500 lines, headed by an ADR ID like `v11-ADR-001`).
 
 ## §10 — Cross-References
 
@@ -480,5 +480,5 @@ This reference does **not** introduce any new dispatch payload field. The dispat
 ### §10.6 — External
 
 * DevolaFlow / EvoBench: `https://github.com/YoRHa-Agents/DevolaFlow` (per S-7 — local clone paths are operator-provided at runtime; never hardcoded in any agent-facing file).
-* Upstream grill-with-docs skill (the verbatim source for §3, §4, §5, §6, §8): `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`. The 3 verbatim-source files copied into `.local/research/v11.3.0_grill_with_docs_source/` (`SKILL.md`, `CONTEXT-FORMAT.md`, `ADR-FORMAT.md`; 204 lines combined) are the in-repo cycle-research snapshot — they are NOT the source of truth (the upstream remote is) but they preserve the exact content this reference quotes from.
+* Upstream grill-with-docs skill (the verbatim source for §3, §4, §5, §6, §8): `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`. The 3 verbatim-source files copied into `docs/cycle-archive/v11.3.0/v11.3.0_grill_with_docs_source/` (`SKILL.md`, `CONTEXT-FORMAT.md`, `ADR-FORMAT.md`; 204 lines combined) are the in-repo cycle-research snapshot — they are NOT the source of truth (the upstream remote is) but they preserve the exact content this reference quotes from.
 * NineS evaluator (used for SI-2 self-eval; see W-2 / SI-2): `https://github.com/YoRHa-Agents/NineS`.

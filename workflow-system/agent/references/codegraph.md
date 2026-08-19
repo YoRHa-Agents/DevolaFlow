@@ -17,7 +17,7 @@ triggers:
   - "test-impact selection via codegraph affected"
 tier: 2
 token_estimate: 3000
-last_updated: "2026-05-23"
+last_updated: "2026-08-19"
 ---
 
 # Codegraph Reference
@@ -267,4 +267,4 @@ The wipe is harmless — the index rebuilds on the next workflow invocation.
 
 ---
 
-**Source**: `.local/research/v12.5.0_gap_analysis.md` §2 D-1 + `.local/research/v12.5.0_codegraph_benefit_analysis.md` §1-§6. **External tool URL** (per S-7): `https://github.com/colbymchenry/codegraph`.
+**Source**: `docs/cycle-archive/v12.5.0/v12.5.0_gap_analysis.md` §2 D-1 + `docs/cycle-archive/v12.5.0/other/v12.5.0_codegraph_benefit_analysis.md` §1-§6. **External tool URL** (per S-7): `https://github.com/colbymchenry/codegraph`.

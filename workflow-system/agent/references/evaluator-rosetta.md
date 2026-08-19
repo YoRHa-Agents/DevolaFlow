@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-05-04"
+last_updated: "2026-08-19"
 ---
 
 # Evaluator Rosetta — SI-3 × NineS × Si-Chip Cross-Walk
@@ -79,7 +79,7 @@ Per `.cursor/rules/repo-governance.mdc` §W-3 and `AGENTS.md` §W-3:
 
 #### 2.2 NineS dimensions (20 capability + 5 hygiene)
 
-Per `.local/research/v10.0.0_nines.md` lines 28–67 (NineS V3.3.0 schema):
+Per `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 28–67 (NineS V3.3.0 schema):
 
 **Capability sub-scores (20 axes; weight 0.70):** scoring_accuracy,
 eval_coverage, scoring_reliability, report_quality, scorer_agreement,
@@ -106,7 +106,7 @@ reading aid for the rosetta.
 
 #### 2.3 Si-Chip dimensions (per-pass scalars)
 
-Per `.local/research/v10.3.0_evaluation.md` lines 24, 55, 60–62 +
+Per `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` lines 24, 55, 60–62 +
 `tests/test_sichip_iteration_delta_gate.py`:
 
 * **`iteration_delta`** — the cycle-level performance-improvement
@@ -164,10 +164,10 @@ verbatim per Rule C-3.
 
 #### 4.1 Code quality C-cell — NineS `lint_cleanliness`
 
-**Source 1:** `.local/research/v10.0.0_nines.md` line 64:
+**Source 1:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` line 64:
 "lint_cleanliness | 1.0000 | `ruff check src/ tests/` All checks passed!"
 
-**Source 2:** `.local/research/v10.0.0_evaluation.md` §2.1 line 33:
+**Source 2:** `docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md` §2.1 line 33:
 "ruff check src/ tests/ — All checks passed!"
 
 Both metrics are emitted by the same `ruff check` invocation. NineS
@@ -195,7 +195,7 @@ paraphrase.
 
 #### 4.3 Architecture rationality C-cell — NineS capability `decomp/abstract`
 
-**Source:** `.local/research/v10.0.0_nines.md` lines 41–44:
+**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 41–44:
 
 ```
 abstraction_quality        | 1.0000
@@ -224,7 +224,7 @@ when authoring a deduction (e.g., "decomposition_coverage = 0.97 →
 
 #### 4.5 Test adequacy DUAL C-cells — NineS `code_coverage` + NineS `test_count`
 
-**Source 1 (coverage):** `.local/research/v10.0.0_evaluation.md`
+**Source 1 (coverage):** `docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md`
 §2.3 line 64: "Coverage 93.13%" + `v10.0.0_nines.md` line 60:
 "test_count | 1.0000 | 3906 tests"
 
@@ -246,10 +246,10 @@ with `make nines-index-rebuild`.
 
 #### 4.6 Maintainability C-cell — NineS `docstring_coverage`
 
-**Source:** `.local/research/v10.0.0_nines.md` line 62:
+**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` line 62:
 "docstring_coverage | 0.9808"
 
-**Cycle citation:** `.local/research/v10.3.0_evaluation.md` line 22
+**Cycle citation:** `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` line 22
 cites docstring drift as a `−0.7` deduction in maintainability.
 NineS is the canonical authority; SI-3 cites the rate verbatim and
 applies the deduction prose.
@@ -268,7 +268,7 @@ applies the deduction prose.
 
 #### 4.8 Compatibility C-cell — NineS capability `infra/sandbox` (`structure_recognition` + `sandbox_isolation`)
 
-**Source:** `.local/research/v10.0.0_nines.md` lines 46, 48:
+**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 46, 48:
 "structure_recognition | 1.0000" + "sandbox_isolation | 1.0000"
 
 `structure_recognition` is the **byte-stability axis** explicitly tied
@@ -278,13 +278,13 @@ environment behaviour (R5 strict env-flag isolation; W-20 reuse-first
 compliance).
 
 SI-3 *Compatibility* dimension scoring at
-`.local/research/v10.0.0_evaluation.md` §2.5 lines 96–104 enumerates
+`docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md` §2.5 lines 96–104 enumerates
 "10 historical multi-baseline byte tests" — exactly the surface
 NineS measures.
 
 #### 4.9 Performance impact C-cell — Si-Chip `iteration_delta`
 
-**Source:** `.local/research/v10.3.0_evaluation.md` line 24:
+**Source:** `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` line 24:
 "EvoBench composite scores stable" + line 55: "Si-Chip dogfood
 verdict | DEFER → APPLY (passes #3 + #4 = +0.9 each)"
 
@@ -400,7 +400,7 @@ The fallback path is canonical (Rule W-2 explicit).
 **Symptom.** `index_recall` reports < 0.85 for multiple consecutive
 cycles; per-axis scores look stable but overall composite drifts.
 
-**Cause.** The NineS index (`.local/research/nines_codebase_analysis.md`)
+**Cause.** The NineS index (`docs/cycle-archive/misc/nines_codebase_analysis.md`)
 is stale — golden_test_set or src/devolaflow/ changed since the last
 index rebuild.
 

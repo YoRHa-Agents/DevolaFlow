@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-05-08"
+last_updated: "2026-08-19"
 ---
 
 # Troubleshooting
@@ -227,7 +227,7 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   spec.loader.exec_module(module)
   ```
 
-  Source: `.local/research/v10.0.0_retrospective.md` §4.2 #1.
+  Source: `docs/cycle-archive/v10.0.0/v10.0.0_retrospective.md` §4.2 #1.
 
 * **Sub-pattern — `_grep_symbol` test-file echo**: when a test searches
   for a symbol that's literally absent from the codebase, the test FILE
@@ -449,7 +449,7 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   silently invalidated W-18 ghost-audit if not restored first.
 * **Fix**: restore drifted files via `git restore <path>` BEFORE
   proceeding so the SI-1 entry gate operates on a clean baseline
-  (source: `.local/research/v12.2.0_retrospective.md` §4.3).
+  (source: `docs/cycle-archive/v12.2.0/v12.2.0_retrospective.md` §4.3).
 
 ### 3. Escalation Patterns
 

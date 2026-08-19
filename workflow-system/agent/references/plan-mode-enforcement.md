@@ -10,7 +10,7 @@ purpose: >
   escalation in src/devolaflow/task_adaptive_selector.py.
 tier: 2
 token_estimate: 3400
-last_updated: "2026-05-08"
+last_updated: "2026-08-19"
 ---
 
 # Plan-Mode Enforcement & Reinforcement Loop Contract
@@ -169,7 +169,7 @@ Escalation: Task → Wave → Stage → Project → Human
 
 ### 3.2 Multi-Step Plans (Multi-Horizon Reasoning)
 
-Added v11.0.0 PV-01 per D-P-4 — `.local/research/v11.0.0_patches/D-P-4.md`. The §3 base
+Added v11.0.0 PV-01 per D-P-4 — `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-P-4.md`. The §3 base
 template assumes a single-horizon plan (one goal, stage-by-stage execution). Real plans
 sometimes branch across horizons (e.g., "Phase A: research; Phase B: depending on
 research outcome, EITHER design path X OR design path Y"). The convergence-loop machinery
@@ -328,7 +328,7 @@ without backtracking to S02.
 * §6 (Reinforcement Rules) — the round-N>1 mechanics that operate on `[EXPLORE]` stages.
 * §7 (Convergence Loop Mechanics) — the `max_rounds` + `on_stagnation` semantics that
   underpin `[EXPLORE]` + `[REVISABLE]` plans.
-* `.local/research/v11.0.0_patches/D-P-4.md` — the PDS authoring this sub-section.
+* `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-P-4.md` — the PDS authoring this sub-section.
 
 ## 4. Constraints Checklist (verbatim — must verify before finalizing plan)
 
@@ -791,7 +791,7 @@ Prior to v8.4.4 the dispatcher ran the hook chain only at validation
 checkpoints (manual invocations from tests + CLI ops). Round-N+1
 dispatches emitted from `generate_round_dispatch` bypassed it entirely
 — a dead-wire identified in v6.0.3's highest-ROI retro precedent and
-escalated to BLOCKER C-03 in `.local/research/v9.0.0_gap_analysis.md`
+escalated to BLOCKER C-03 in `docs/cycle-archive/v9.0.0/v9.0.0_gap_analysis.md`
 §3.1. S-10 codifies the wired-up state and lifts it into the Soul-set
 so future refactors cannot regress.
 

@@ -10,7 +10,7 @@ purpose: >
   Activation Contract), and W-23 (Domain Glossary Maintenance).
 tier: 2
 token_estimate: 3200
-last_updated: "2026-05-08"
+last_updated: "2026-08-19"
 ---
 
 # Grill Mode — Operating Contract
@@ -508,9 +508,9 @@ only when the first ADR is needed. On creation, the L0 scans
 one. Detailed numbering mechanics: `references/domain-
 awareness.md` §8.
 
-### 7.5 Distinction from historical `.local/research/adr/`
+### 7.5 Distinction from historical `docs/cycle-archive/adr/`
 
-DevolaFlow's existing repo carries a `.local/research/adr/`
+DevolaFlow's existing repo carries a `docs/cycle-archive/adr/`
 directory of historical cycle-decision ADRs (e.g.,
 `v9-ADR-007-rule-rebalancing-and-rollup.md`) under an
 `vN-ADR-NNN-slug.md` ad-hoc scheme. These are **NOT**
