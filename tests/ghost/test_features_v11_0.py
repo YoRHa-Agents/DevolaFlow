@@ -821,8 +821,17 @@ _V11_0_4_PV04_GATE_SCORER: Path = Path("src/devolaflow/gate/cascade.py")
 _V11_0_4_PV04_PLAN_MODE_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
     "Cascade depth (STANDARD+)",
     "Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans",
-    'last_updated: "2026-05-08"',
 )
+
+# PV-04 bumped plan-mode-enforcement.md's frontmatter to 2026-05-08. The
+# witness is MONOTONIC (>=), not a literal pin: the file is under the F-09
+# 90-day freshness window (tests/test_reference_frontmatter_freshness.py),
+# so its last_updated legitimately moves forward at every refresh; a
+# literal date pin would break at each refresh (first hit: the 2026-08-19
+# post-clean_repo refresh). A date BEFORE the floor would mean the PV-04
+# bump was reverted — that is what this witness guards against.
+_V11_0_4_PV04_PLAN_MODE_LAST_UPDATED_FLOOR = "2026-05-08"
+_LAST_UPDATED_RE = re.compile(r'^last_updated:\s*"(\d{4}-\d{2}-\d{2})"\s*$', re.MULTILINE)
 
 
 # schemas/lean-dispatch.yaml positive surfaces — gate NEST sub-fields.
@@ -847,7 +856,11 @@ def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
     * Same file §5.1 DO list gains the bullet
       ``Use the cascade chain L0 → L1 → L2 → L3 for STANDARD+ plans``
       (G-PLAN-1 §5.1 DO bullet).
-    * Same file frontmatter ``last_updated`` is bumped to ``"2026-05-08"``.
+    * Same file frontmatter ``last_updated`` is at or after the PV-04
+      bump date ``"2026-05-08"`` (monotonic floor — see
+      ``_V11_0_4_PV04_PLAN_MODE_LAST_UPDATED_FLOOR``; the literal pin
+      was relaxed 2026-08-19 because the file sits inside the F-09
+      90-day freshness window and refreshes forward by design).
     * ``schemas/lean-dispatch.yaml`` ``lean_format_spec.gate`` block
       gains the NEST sub-fields ``cascade_required`` + ``cascade_min_layers``
       per A-2.3 (W01 schema NEST). canonical_order length stays at 17;
@@ -871,6 +884,17 @@ def test_v11_0_4_pv04_new_surfaces_have_coverage(project_root: Path) -> None:
             f"missing positive substring {sub!r} per G-PLAN-1; cycle plan "
             f"§3 PV-04 W04."
         )
+    last_updated_match = _LAST_UPDATED_RE.search(plan_mode_text)
+    assert last_updated_match is not None, (
+        "W-18 v11.0.4 PV-04 violation: plan-mode-enforcement.md frontmatter "
+        'is missing its `last_updated: "YYYY-MM-DD"` line.'
+    )
+    assert last_updated_match.group(1) >= _V11_0_4_PV04_PLAN_MODE_LAST_UPDATED_FLOOR, (
+        f"W-18 v11.0.4 PV-04 violation: plan-mode-enforcement.md frontmatter "
+        f"last_updated={last_updated_match.group(1)!r} is BEFORE the PV-04 bump "
+        f"floor {_V11_0_4_PV04_PLAN_MODE_LAST_UPDATED_FLOOR!r} — the PV-04 "
+        f"frontmatter bump appears to have been reverted."
+    )
 
     schema_text = (project_root / _V11_0_4_PV04_SCHEMA).read_text(encoding="utf-8")
     for sub in _V11_0_4_PV04_SCHEMA_POSITIVE_SUBSTRINGS:
