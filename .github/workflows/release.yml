@@ -14,9 +14,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
+  # OPT-1 / D7 (clean_repo PR-12): the release gate runs the SAME reusable
+  # check suite as ci.yml — checkout inside ci-checks.yml resolves to this
+  # tag ref, so the tagged SHA is actually re-tested (no status-reuse).
+  # Release hereby also inherits the CHANGELOG lint its old inline test job
+  # had drifted to omit.
+  checks:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci-checks.yml
+
+  # Release-only gate (not part of the shared per-PR suite): regenerate the
+  # human docs on the tagged SHA, then re-run the drift scan against the
+  # regenerated tree — preserves the old release test job's sync -> check
+  # ordering. The pristine-checkout drift scan runs in checks/validate.
+  release-extras:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -31,18 +45,9 @@ jobs:
         run: make sync-human-docs
       - name: Check drift
         run: make check-drift
-      - name: Run EvoBench benchmarks
-        run: python -m pytest tests/test_benchmarks.py -v
-      - name: Lint check
-        run: |
-          ruff check src/ tests/
-          ruff format --check src/ tests/
-      - run: pytest tests/ -v --cov=devolaflow
-      - run: validate-template --all
-      - run: build-skill
 
   release:
-    needs: test
+    needs: [checks, release-extras]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
