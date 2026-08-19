@@ -5,6 +5,12 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Operator-visible behaviour change (clean_repo Phase A, PR-1)
+
+- **`.local/research/` gitignore whitelist narrowed** — only current-cycle `v15*` research files + `adr/` stay git-tracked (`!.local/research/v15*` + `!.local/research/adr/**`); 295 old-cycle `.local/research/` files byte-identical (SHA-256 name+hash double-key) to their `docs/cycle-archive/` copies, the 5 `.cursor/plans/*.plan.md` files, and `MIGRATION-v6.md` were removed from the index via `git rm --cached` (all local files kept; canonical archived copies live in `docs/cycle-archive/` per W-19). Policy pinned by `tests/test_gitignore_policy.py` (`LOCAL_RESEARCH_ARCHIVED_PRIVATE_PATHS` + `test_archived_research_paths_are_ignored`). No new code symbols — W-18 needs no new ghost stanza (S-4 covered by the policy test). Spec: `.local/tasks/clean_repo/01-phase-A-untrack.md`.
+
 ## [15.0.0] - 2026-06-12 — MAJOR — Strict-by-Default Graduations (G-038 ×6) + Template Phase B Collapse (16 Legacy YAMLs → Compositions Manifest) + Rule Diet (62 → 56) + L0 Artifact Scoring + Dedup-Ledger Self-Containment + Plugin Registry Unification
 
 **MAJOR — the v15.0.0 rollup (v15-ADR-002 / v15-ADR-003 / v15-ADR-004 / v15-ADR-007 / v15-ADR-008; gap register G-007 / G-021 / G-038).** The headline is the **strict-graduation cluster (G-038, ×6 per v15-ADR-003)**: every permissive-in-minor default telegraphed across the v14.x series flips to STRICT in this MAJOR — the `pre_dispatch` hook chain blocks on violations, the banner hook default-wires, `dispatch_wave_tasks` enforces `asyncio.wait_for` ceilings, `DEFAULT_EVENTS` grows 16 → **17**, the engaged-workspace adapters go S-8 "mode: full", and STANDARD's `legibility_weight` graduates 0.0 → **0.05**. It pairs with the **template Phase B collapse (v15-ADR-002)** — the 16 legacy builtin yamls become named entries in a `compositions:` manifest — and four more blocks: the rule diet (62 → **56**, v15-ADR-004), L0-side artifact scoring (v15-ADR-007 phase 2), dedup-ledger self-containment (G-007), and plugin-registry unification (G-021). A-2 untouched (`canonical_order` stays **17**, schema version stays **6**), zero new env flags (W-20), zero new Soul rules (W-21 freeze at 10/12).
