@@ -57,6 +57,55 @@ def is_auto_install_active() -> bool:
     return os.environ.get(ENV_FLAG, "") == ENV_FLAG_TRUTHY
 
 
+def _ppi001_violation(plugin_id: str, exc: Exception) -> HookViolation:
+    """Build the PPI001 violation for a failed ``ensure_plugin`` call.
+
+    v15.2.0 B-6 tier-aware severity: a **suggest**-tier plugin (per
+    ``runtime-plugins.yaml`` schema v4 — every shipped plugin as of
+    v15.2.0) that fails to install degrades to ``severity="warning"``
+    with a one-time per-session hint appended (via
+    :func:`devolaflow.plugins.loader.suggest_plugin_once`) — in the
+    permissive default the dispatch proceeds on the degraded path.
+    Explicit ``strict=True`` callers still re-raise the top violation
+    regardless of severity (``finalize`` semantics are unchanged —
+    strict is strict). A **require**-tier plugin keeps the historical
+    ``severity="error"``.
+    When the tier cannot be resolved at all (registry unreadable /
+    plugin unknown), the helper conservatively falls back to
+    ``require`` semantics.
+    """
+    from devolaflow.plugins.installer import plugin_tier
+    from devolaflow.plugins.loader import suggest_plugin_once
+
+    try:
+        tier = plugin_tier(plugin_id)
+    except Exception:  # noqa: BLE001 — failure path already surfacing `exc`
+        tier = "require"
+
+    message = (
+        f"pre_plugin_invocation: ensure_plugin({plugin_id!r}) failed — {type(exc).__name__}: {exc}"
+    )
+    severity = "error"
+    if tier == "suggest":
+        severity = "warning"
+        hint = suggest_plugin_once(plugin_id)
+        if hint:
+            message = f"{message} | {hint}"
+
+    return HookViolation(
+        code="PPI001",
+        message=message,
+        severity=severity,
+        context={
+            "plugin_id": plugin_id,
+            "exception_type": type(exc).__name__,
+            "exception_args": list(exc.args),
+            "details": getattr(exc, "details", {}),
+            "tier": tier,
+        },
+    )
+
+
 def _run_install_for_plugin(plugin_id: str) -> list[HookViolation]:
     """Run ``ensure_plugin`` for a single plugin; return accumulated violations.
 
@@ -82,7 +131,11 @@ def _run_install_for_plugin(plugin_id: str) -> list[HookViolation]:
     violations: list[HookViolation] = []
 
     try:
-        version = ensure_plugin(plugin_id)
+        # v15.2.0 B-6 — auto_install=True is EXPLICIT here: this code path
+        # only runs when DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 (the operator's
+        # opt-in), so the flag's install semantics survive the registry
+        # defaults.auto_install true → false flip.
+        version = ensure_plugin(plugin_id, auto_install=True)
     except (
         PluginNotFoundError,
         PluginInstallError,
@@ -95,22 +148,7 @@ def _run_install_for_plugin(plugin_id: str) -> list[HookViolation]:
             type(exc).__name__,
             exc,
         )
-        violations.append(
-            HookViolation(
-                code="PPI001",
-                message=(
-                    f"pre_plugin_invocation: ensure_plugin({plugin_id!r}) "
-                    f"failed — {type(exc).__name__}: {exc}"
-                ),
-                severity="error",
-                context={
-                    "plugin_id": plugin_id,
-                    "exception_type": type(exc).__name__,
-                    "exception_args": list(exc.args),
-                    "details": getattr(exc, "details", {}),
-                },
-            )
-        )
+        violations.append(_ppi001_violation(plugin_id, exc))
         return violations
     except Exception:
         logger.warning(

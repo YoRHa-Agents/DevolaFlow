@@ -22,6 +22,34 @@ log = logging.getLogger(__name__)
 
 _REPO_PLUGINS_YAML = "workflow-system/agent/plugins.yaml"
 
+# v15.2.0 B-6 (04 §8.3) — session-scoped one-time-suggestion cache. The
+# probe/suggestion surface is centralised HERE (single owner per A-5): a
+# suggest-tier plugin that is missing yields exactly ONE hint per plugin per
+# Python session, then goes quiet ("一次性建议提示，同会话不重复骚扰").
+# Module-level set = zero IO; process lifetime = session lifetime.
+_SESSION_SUGGESTED: set[str] = set()
+
+
+def suggest_plugin_once(plugin_id: str) -> str | None:
+    """Return the install hint for ``plugin_id`` once per session, else ``None``.
+
+    First call for a given ``plugin_id`` returns the operator-facing hint
+    text (the caller decides the channel — log line, hook-violation message,
+    stdout); every subsequent call in the same Python session returns
+    ``None`` so degraded paths do not repeat the nag. Zero IO — no registry
+    read, no subprocess, no ``shutil.which``.
+    """
+    if plugin_id in _SESSION_SUGGESTED:
+        return None
+    _SESSION_SUGGESTED.add(plugin_id)
+    return (
+        f"plugin {plugin_id!r} is not installed — continuing on the degraded "
+        f"path. Install it manually (see its install_cmd in "
+        f"workflow-system/agent/knowledge/runtime-plugins.yaml) or opt in to "
+        f"auto-install with DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1."
+    )
+
+
 # Emergency-only fallback used when ``plugins.yaml`` cannot be located.
 # The derived capability view lives at ``workflow-system/agent/plugins.yaml``
 # (registration SSOT: ``knowledge/runtime-plugins.yaml`` per A-5 / G-021);

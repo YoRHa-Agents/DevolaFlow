@@ -34,7 +34,7 @@ stages:
     team: implement
     duration_class: quick
     config:
-      ensure_plugins: [nines]
+      suggest_plugins: [nines]
     input_mapping: {}
 
   - id: research

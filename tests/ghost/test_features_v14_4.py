@@ -301,18 +301,24 @@ def test_v14_4_0_env_flag_taxonomy_registered(project_root: Path) -> None:
             f"W-18 v14.4.0 violation: env-flags.md §6.A missing {fragment!r}."
         )
 
-    # --- (b) §2.5 unwired row + v14.4.0 resolution -------------------------
+    # --- (b) §2.5 unwired row → v15.2.0 B-6 RETIRED tombstone ----------------
+    # v15.2.0 B-6 amendment: the wiring-or-removal decision the v14.4.0
+    # G-023 row telegraphed ("DEFERRED to v15.0.0") RESOLVED to removal at
+    # v15.2.0 — the §2.5 row is now a RETIRED tombstone that keeps the
+    # unwired marker and the §-numbering. The v14.4.0 honesty contract
+    # (name documented, never env-read, yaml knob is the control) is
+    # preserved by the tombstone; the deferral-telegraph text was
+    # discharged and therefore no longer pinned.
     assert "**Read surface** | unwired" in env_text, (
         "W-18 v14.4.0 violation: env-flags.md §2.5 must keep the unwired "
-        "Read-surface marker (the row is honest, not retired)."
+        "Read-surface marker (tombstoned at v15.2.0 B-6, still unwired)."
     )
-    assert "**Resolution (v14.4.0 G-023):**" in env_text, (
-        "W-18 v14.4.0 violation: env-flags.md §2.5 missing the v14.4.0 "
-        "G-023 resolution column update."
+    assert "### 2.5 `DEVOLAFLOW_AUTO_INSTALL` — RETIRED" in env_text, (
+        "W-18 v14.4.0/v15.2.0 violation: env-flags.md §2.5 must carry the "
+        "B-6 RETIRED tombstone (the G-023 deferral's resolution)."
     )
-    assert "DEFERRED to v15.0.0" in env_text, (
-        "W-18 v14.4.0 violation: §2.5 must telegraph the wiring-or-removal "
-        "deferral to v15.0.0 (G-021)."
+    assert "v14.4.0 (G-023)" in env_text, (
+        "W-18 v14.4.0 violation: the §2.5 tombstone must cite the G-023 deferral it resolves."
     )
 
     # --- (c) shell-proxy.md honesty fix -------------------------------------
@@ -336,13 +342,18 @@ def test_v14_4_0_env_flag_taxonomy_registered(project_root: Path) -> None:
     installer_text = (project_root / "src/devolaflow/plugins/installer.py").read_text(
         encoding="utf-8"
     )
-    assert "DEVOLAFLOW_AUTO_INSTALL" not in installer_text, (
+    # v15.2.0 B-6 amendment: the negative lookahead excludes the LIVE
+    # DEVOLAFLOW_AUTO_INSTALL_PLUGINS flag, which installer.py legitimately
+    # cites since the B-6 default flip (RegistryDefaults docstring names the
+    # explicit opt-in surfaces). Only the DEAD bare name stays banned.
+    assert not re.search(r"DEVOLAFLOW_AUTO_INSTALL(?!_PLUGINS)", installer_text), (
         "W-18 v14.4.0 violation: installer.py still advises the dead "
         "DEVOLAFLOW_AUTO_INSTALL env var (S-5: advice must be actionable)."
     )
-    assert "defaults.auto_install: false in runtime-plugins.yaml" in installer_text, (
-        "W-18 v14.4.0 violation: installer.py cargo-failure hint must point "
-        "at the runtime-plugins.yaml#defaults.auto_install knob."
+    assert "defaults.auto_install is false" in installer_text, (
+        "W-18 v14.4.0/v15.2.0 violation: installer.py cargo-failure hint must "
+        "state the runtime-plugins.yaml#defaults.auto_install knob's B-6 "
+        "default (false) so the advice stays actionable."
     )
 
 

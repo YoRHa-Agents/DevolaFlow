@@ -35,8 +35,8 @@ contract. The contract is narrower:
 | **NineS** | Deep-analysis scoring; `--depth deep --agent-impact` score breakdowns; SI-3 evaluator rosetta cross-walk's NineS-authoritative axes (code quality, architecture rationality, test adequacy) lose their quantitative backing and must be manually scored per Rule W-2 fallback. |
 | **Si-Chip** | `iteration_delta` APPLY/DEFER gate; post-skill-edit dogfood cycle verdict; `MetricsReport` composite / `task_delta` / `value_vector` scoring; every skill edit under `workflow-system/agent/**` loses its auto-evaluation signal until Si-Chip is back. |
 | **RTK** | Shell command rewriting (`git add`, `git commit`, `pytest`, etc. run as native commands; no RTK value-add); command-mapping layer `apply_recipe_to_output` still works for already-captured recipe files but NO new RTK rewrites are captured. |
-| **ui-pro** | Skill bundle install step fails with PPI001 (permissive mode continues; strict mode blocks); any workflow listed under `runtime-plugins.yaml#plugins[*].invoked_by_workflows` for `product-verification` degrades silently on subsequent invocations. |
-| **impeccable** | Skill bundle install step fails with PPI001 (permissive mode continues; strict mode blocks); the `web-design` workflow's refine stage loses the `/impeccable polish|critique|audit` surface and the verify stage's `impeccable detect` anti-pattern gate degrades to a non-gating advisory (signal loss recorded; never a fabricated PASS). |
+| **ui-pro** | Skill bundle install step fails with PPI001 (suggest tier since v15.2.0 B-6: severity warning + one-time hint; permissive default continues); any workflow listed under `runtime-plugins.yaml#plugins[*].invoked_by_workflows` for `product-verification` degrades silently on subsequent invocations. |
+| **impeccable** | Skill bundle install step fails with PPI001 (suggest tier since v15.2.0 B-6: severity warning + one-time hint; permissive default continues); the `web-design` workflow's refine stage loses the `/impeccable polish|critique|audit` surface and the verify stage's `impeccable detect` anti-pattern gate degrades to a non-gating advisory (signal loss recorded; never a fabricated PASS). |
 
 **What KEEPS working in ALL degraded-mode scenarios:**
 
@@ -86,9 +86,39 @@ multi-plugin coordination is the primary deliverable.
 | NineS | https://github.com/YoRHa-Agents/NineS | (none — W-2 manual fallback) | `W-2 / SI-2 nines analyze`; `D-N-2 code_coverage` | network-unreachable / binary-missing / `nines-type-kit` collision / schema-drift (v3.x → v4.x) | Manual SI-3 scoring per W-2 precedent | Document "NineS unavailable; W-2 manual fallback applied" in retrospective | `tests/test_degraded_mode.py::test_nines_unreachable_falls_back_to_manual_w2` |
 | Si-Chip | https://github.com/YoRHa-Agents/Si-Chip | `DEVOLAFLOW_SI_CHIP_DEEP` (opt-IN) | `post_skill_edit` hook; `run_dogfood_cycle`; `iteration_delta_gate` | `SiChipUnavailable` (binary missing); `SiChipError` (subprocess fail); network-unreachable mid-install | PSE001 warning; `metadata["verdict"] = "SKIPPED_PERMISSIVE"`; dispatch continues | Install Si-Chip per canonical URL OR document SKIPPED verdict in retrospective | `tests/test_degraded_mode.py::test_si_chip_unreachable_emits_pse001_and_defers` |
 | RTK | https://github.com/rtk-ai/rtk | `DEVOLAFLOW_RTK_PROXY` (opt-IN) | `pre_shell_call` hook; `shell_proxy/proxy.py::ShellProxy.wrap_command` | env-flag unset; binary missing on PATH; `rtk gain` probe fail (rtk-type-kit collision) | R5 strict passthrough to native shell; zero subprocess work | No action needed — RTK is OPT-IN by default | `tests/test_degraded_mode.py::test_rtk_unreachable_bypasses_to_native_shell` |
-| ui-pro | https://github.com/YoRHa-Agents/ui-pro | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN) | `pre_plugin_invocation` hook; `ensure_plugin('ui-pro')`; `uipro init --ai cursor --global` | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch` | PPI001 error (permissive mode); dispatch continues; strict mode blocks | Check npm registry reachability OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_ui_pro_unreachable_emits_ppi001_permissive_continues` |
-| impeccable | https://github.com/pbakaus/impeccable | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `pre_plugin_invocation` hook; `ensure_plugin('impeccable')`; web-design refine/verify stages; `impeccable detect --json` gate | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch`; detector binary missing | PPI001 error (permissive mode); dispatch continues; verify gate degrades to non-gating advisory (signal loss recorded, never fabricated PASS); strict mode blocks | Check npm registry reachability OR run `npx impeccable detect` standalone OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_impeccable_unreachable_emits_ppi001_permissive_continues` |
+| ui-pro | https://github.com/YoRHa-Agents/ui-pro | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN) | `pre_plugin_invocation` hook; `ensure_plugin('ui-pro')`; `uipro init --ai cursor --global` | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch` | PPI001 warning (suggest tier, v15.2.0 B-6) + one-time hint; permissive default continues (explicit strict=True still re-raises) | Check npm registry reachability OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_ui_pro_unreachable_emits_ppi001_permissive_continues` |
+| impeccable | https://github.com/pbakaus/impeccable | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `pre_plugin_invocation` hook; `ensure_plugin('impeccable')`; web-design refine/verify stages; `impeccable detect --json` gate | `PluginInstallError` (npm registry unreachable); `PluginNotFoundError` (registry typo); `PluginVersionMismatch`; detector binary missing | PPI001 warning (suggest tier, v15.2.0 B-6) + one-time hint; permissive default continues (explicit strict=True still re-raises); verify gate degrades to non-gating advisory (signal loss recorded, never fabricated PASS) | Check npm registry reachability OR run `npx impeccable detect` standalone OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to bypass | `tests/test_degraded_mode.py::test_impeccable_unreachable_emits_ppi001_permissive_continues` |
 | codegraph | https://github.com/colbymchenry/codegraph | `DEVOLAFLOW_AUTO_INSTALL_PLUGINS` (opt-IN; **REUSED**, no new flag per W-20) | `devolaflow.codegraph.researcher.{build_context,search_symbols,get_impact,get_callers,get_affected_tests}`; `repo-init.scaffold.codegraph_init`; `repo-init.verify.codegraph_smoke` (mode=full only) | `CodegraphUnavailableError` with structured `cause` (one of: `path_missing` / `timeout` / `nonzero_exit` / `json_parse_error`) | Helper returns empty sentinel (`""` for build_context, `[]` for list helpers, `{}` for get_impact); WARNING fires once per process (subsequent at DEBUG); caller falls back to Read/Glob/Grep planning; gate scoring drops `codegraph_impact` dimension and redistributes weight | Install codegraph per canonical URL (`npm install -g @colbymchenry/codegraph`) OR set `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` to opt into runtime install | `tests/test_codegraph.py::TestRunCodegraphCli::test_path_missing_raises_unavailable` + sister tests across the 5 helpers |
+
+### Section 0 — Capability-Probe → Recipe Selection (first-class mechanism) [v15.2.0 B-6]
+
+Degraded mode is no longer only a warn-and-continue afterthought: since
+v15.2.0 B-6 (04 §8.2) **every plugin dependency point declares a 4-tuple**
+and the consuming agent SELECTS a recipe instead of failing:
+
+| Field | Meaning |
+|---|---|
+| Probe | zero-IO capability check (CLI on PATH via `shutil.which`, installed skill dir exists, or an equivalent tool — e.g. no codegraph but `rg` present → research recipe degrades to rg) |
+| Recipe A (present) | the enhanced path that uses the plugin |
+| Recipe B (absent) | the built-in degraded path — the workflow ALWAYS continues |
+| Hint | ONE per-session suggestion via `devolaflow.plugins.loader.suggest_plugin_once` (never repeated in the same session; S-5 — degradation is logged, never silent) |
+
+Supporting contracts:
+
+* Template stages declare `config.suggest_plugins: [...]` (renamed from
+  `ensure_plugins` at v15.2.0 — a PROBE instruction, not a hard
+  precondition). The per-section recipes below are the Recipe A/B bodies.
+* `runtime-plugins.yaml` schema v4 adds `tier: require | suggest` per
+  entry (all shipped entries are `suggest`; `require` is a kept mechanism
+  with no occupant). Suggest-tier install failures under
+  `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` surface as PPI001 **warnings**
+  (the permissive default — the only shipped wiring — proceeds on the
+  degraded path; explicit `strict=True` callers still re-raise per the
+  unchanged `finalize` contract); require-tier keeps PPI001 **error**.
+* `defaults.auto_install` is `false` since v15.2.0: bare
+  `ensure_plugin(pid)` probes and reports instead of network-installing;
+  the explicit opt-in surfaces (the `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`
+  hooks, `devola-init --global` bundling) pass `auto_install=True`.
 
 ### Section 1 — NineS (Deep-analysis evaluator)
 
@@ -291,11 +321,14 @@ returns None, `wrap_command(cmd)` returns `cmd` unchanged AND the
 **DF-side fallback:**
 
 * `pre_plugin_invocation` catches the 4 domain exceptions and emits
-  HookViolation `PPI001` (severity `error`); **in permissive mode
-  (default) the dispatch continues**; the violation is aggregated onto
-  the HookResult for observers.
-* In strict mode (opt-in via `strict=True` in `run_hooks`), the
-  top-severity violation re-raises.
+  HookViolation `PPI001` — severity `warning` since v15.2.0 B-6
+  (ui-pro is suggest-tier), with a one-time per-session hint appended;
+  **the permissive default (the only shipped wiring) continues**; the
+  violation is aggregated onto the HookResult for observers. Explicit
+  `strict=True` callers still re-raise the top violation (`finalize`
+  semantics unchanged — strict is strict).
+* A require-tier plugin (kept mechanism; no shipped occupant) would
+  keep severity `error` and re-raise in strict mode.
 * An unexpected non-domain exception logs at WARNING and RE-RAISES per
   S-5 — the handler never silently swallows non-domain failures.
 * The `metadata["install_outcomes"]` field (populated on the
@@ -417,7 +450,8 @@ WARNING dedup contract.
   (backend `npm_then_init`: `npm install -g impeccable` then
   `impeccable skills install --yes`, harness auto-detected).
 * `workflow-system/agent/templates/builtin/web-design.yaml` — the
-  `refine` stage's `config.ensure_plugins: [impeccable]` + the `verify`
+  `refine` stage's `config.suggest_plugins: [impeccable]` (suggest tier
+  since v15.2.0 B-6; formerly `ensure_plugins`) + the `verify`
   stage's `impeccable detect --json` anti-pattern gate.
 
 **Failure modes (the 4 plugin domain exceptions, mirroring ui-pro):**
@@ -432,8 +466,10 @@ WARNING dedup contract.
 **Degraded behaviour:**
 
 * `pre_plugin_invocation` catches the domain exceptions and emits
-  HookViolation `PPI001` (severity `error`); **in permissive mode
-  (default) the dispatch continues**; strict mode blocks.
+  HookViolation `PPI001` — severity `warning` since v15.2.0 B-6
+  (impeccable is suggest-tier), with a one-time per-session hint;
+  **the permissive default continues** (explicit `strict=True` still
+  re-raises per the unchanged `finalize` contract).
 * The `web-design` verify stage degrades the `impeccable detect` gate to
   a **non-gating advisory** when the detector is unavailable — the agent
   RECORDS the lost anti-pattern signal and NEVER fabricates a PASS

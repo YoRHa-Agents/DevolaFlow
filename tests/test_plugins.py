@@ -647,8 +647,9 @@ class TestRuntimePluginsYamlContract:
         #   v1 (v8.2.1) — initial nines + ui-pro
         #   v2 (v8.3.1 PV-01) — curl_install_script backend + rtk
         #   v3 (v9.4.0 PV-04) — upgrade_cmd + upgrade_check_frequency_hours
-        # v1 + v2 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS.
-        assert raw["schema_version"] == 3
+        #   v4 (v15.2.0 B-6) — tier: require|suggest + auto_install default flip
+        # v1..v3 entries continue to load via _SUPPORTED_SCHEMA_VERSIONS.
+        assert raw["schema_version"] == 4
         assert isinstance(raw["plugins"], list)
         # nines + ui-pro + rtk (rtk added in v8.3.1 PV-01).
         assert len(raw["plugins"]) >= 3
@@ -675,7 +676,9 @@ class TestRuntimePluginsYamlContract:
     def test_registry_defaults_honour_schema(self) -> None:
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
         defaults = raw["defaults"]
-        assert defaults["auto_install"] is True
+        # v15.2.0 B-6 — flipped true → false: the default path is
+        # probe + suggest; explicit opt-in surfaces pass auto_install=True.
+        assert defaults["auto_install"] is False
         assert defaults["prefer_local_fallback"] is True
         assert defaults["network_timeout_seconds"] >= 60
         assert defaults["install_log_path"].startswith(".local/")
@@ -687,7 +690,7 @@ class TestRuntimePluginsYamlContract:
 
 
 class TestWorkflowPreconditionWiring:
-    """Assert the precondition/ensure_plugins contracts survive the v15.0.0 collapse.
+    """Assert the precondition/suggest_plugins contracts survive the v15.0.0 collapse.
 
     nines-assisted (survivor yaml) keeps its precondition stage first;
     product-verification (composition since v15-ADR-002 Phase B) carries
@@ -706,21 +709,26 @@ class TestWorkflowPreconditionWiring:
         first = tpl["stages"][0]
         assert first["id"] == "precondition"
         assert first["primitive"] == "implement"
-        assert first["config"]["ensure_plugins"] == ["nines"]
+        # v15.2.0 B-6 — renamed ensure_plugins → suggest_plugins (probe
+        # instruction, not a hard precondition).
+        assert first["config"]["suggest_plugins"] == ["nines"]
         assert tpl["composition"]["stages"][0] == {"stage": "precondition"}
 
     def test_product_verification_precondition_carried_by_composition(self) -> None:
         """product-verification.yaml was deleted at v15.0.0 (v15-ADR-002 Phase B).
 
-        The v8.2.1 AC-4 precondition contract (`ensure_plugins: [ui-pro]`)
-        is carried over verbatim as `params.ensure_plugins` on the
+        The v8.2.1 AC-4 precondition contract (now `suggest_plugins: [ui-pro]`
+        per the v15.2.0 B-6 ensure→suggest rename)
+        is carried over as `params.suggest_plugins` on the
         `product-verification` composition entry in
         templates/registry.yaml#compositions (base: web-design).
         """
         registry = self._load_template("workflow-system/agent/templates/registry.yaml")
         entry = next(c for c in registry["compositions"] if c["name"] == "product-verification")
         assert entry["base"] == "web-design"
-        assert entry["params"]["ensure_plugins"] == ["ui-pro"]
+        # v15.2.0 B-6 — the v8.2.1 AC-4 hard precondition is now a
+        # capability probe (suggest_plugins); contract value unchanged.
+        assert entry["params"]["suggest_plugins"] == ["ui-pro"]
 
 
 # ---------------------------------------------------------------------------

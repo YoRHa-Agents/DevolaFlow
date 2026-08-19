@@ -337,9 +337,11 @@ compositions:
     params:
       gate: convergence
       verify_cfg: [visual, interact, a11y, accept]
-      # Pre-flight plugin contract carried over verbatim from the deleted
-      # product-verification.yaml precondition stage (v8.2.1 AC-4).
-      ensure_plugins: [ui-pro]
+      # v15.2.0 B-6 (ensure→suggest): the v8.2.1 AC-4 hard precondition is
+      # now a capability PROBE at precondition entry — ui-pro present →
+      # enhanced verify recipe; absent → basic verify recipe + one-time
+      # hint (never a hard failure; see references/degraded-mode.md).
+      suggest_plugins: [ui-pro]
       # v12.5.0 PV-04 D-1.2 codegraph wiring, carried over verbatim from
       # the deleted product-verification.yaml analyze stage.
       codegraph_commands:

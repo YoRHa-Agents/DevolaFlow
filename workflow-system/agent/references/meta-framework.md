@@ -387,8 +387,9 @@ verify: test}, timeout=hotfix)`; `dependency-setup` =
 `params` in the manifest. Carried-over wiring (verbatim from the
 deleted yamls, now per-entry `params` in the manifest): codegraph
 recipes on `onboarding` / `security-audit` / `product-verification`
-(v12.5.0 PV-04 D-1.2) and `ensure_plugins: [ui-pro]` on
-`product-verification` (v8.2.1 AC-4).
+(v12.5.0 PV-04 D-1.2) and `suggest_plugins: [ui-pro]` on
+`product-verification` (v8.2.1 AC-4 hard precondition, demoted to a
+capability probe + degraded recipe at v15.2.0 B-6).
 
 ### Template Quick-Reference — Gate Types
 

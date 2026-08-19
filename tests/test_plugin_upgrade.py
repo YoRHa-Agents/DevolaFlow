@@ -60,8 +60,9 @@ class TestSchemaV3:
     """Pin the schema v3 contract: upgrade_cmd field + 24h default."""
 
     def test_supported_schema_versions_includes_v3(self) -> None:
-        assert frozenset({1, 2, 3}) == _SUPPORTED_SCHEMA_VERSIONS, (
-            f"v9.4.0 PV-04 must include schema v3 in the supported set; "
+        assert frozenset({1, 2, 3, 4}) == _SUPPORTED_SCHEMA_VERSIONS, (
+            f"v9.4.0 PV-04 must include schema v3 in the supported set "
+            f"(v15.2.0 B-6 appended v4 — tier field + auto_install flip); "
             f"got {_SUPPORTED_SCHEMA_VERSIONS!r}"
         )
 
@@ -72,9 +73,11 @@ class TestSchemaV3:
 
     def test_canonical_registry_is_v3(self) -> None:
         registry = load_registry()
-        assert registry["schema_version"] == 3, (
-            f"runtime-plugins.yaml schema_version must be 3 in v9.4.0 PV-04; "
-            f"got {registry['schema_version']!r}"
+        assert registry["schema_version"] == 4, (
+            f"runtime-plugins.yaml schema_version must be 4 (v15.2.0 B-6 "
+            f"bump: tier field + auto_install default flip; the v3 "
+            f"upgrade_cmd contract this class pins is carried forward "
+            f"unchanged); got {registry['schema_version']!r}"
         )
 
     def test_canonical_registry_carries_upgrade_cmd_per_plugin(self) -> None:

@@ -7,7 +7,7 @@ cleanly via `resolve_plugin` until this smoke file landed.
 
 Test surface (pure registry walk + dataclass shape; NO subprocess):
 
-§1 — schema_version is 3; `defaults.upgrade_check_frequency_hours` is 24.
+§1 — schema_version is 4 (v15.2.0 B-6 bump); `defaults.upgrade_check_frequency_hours` is 24.
 §2 — all 4 expected plugin IDs (nines, ui-pro, rtk, si-chip) are present.
 §3 — every `resolve_plugin(p["id"], registry)` returns a
      RuntimePluginSpec whose backend is one of the 3 supported values
@@ -40,11 +40,15 @@ _EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset(
 
 
 def test_registry_schema_version_is_3() -> None:
-    """schema v3 baseline from v9.4.0 PV-04 remains stable."""
+    """Registry schema pin: v3 baseline bumped to v4 by the v15.2.0 B-6 sweep.
+
+    (Function name kept for W-17 diff hygiene — a rename would count as a
+    NEW test function in the `+def test_` cap accounting.)
+    """
     registry = load_registry()
-    assert registry["schema_version"] == 3, (
-        f"runtime-plugins.yaml schema_version must be 3 "
-        f"(v9.4.0 PV-04 baseline, preserved through v10.2.0); "
+    assert registry["schema_version"] == 4, (
+        f"runtime-plugins.yaml schema_version must be 4 "
+        f"(v9.4.0 PV-04 v3 baseline + v15.2.0 B-6 tier/auto_install bump); "
         f"got {registry['schema_version']!r}"
     )
 

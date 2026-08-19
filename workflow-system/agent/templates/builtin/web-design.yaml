@@ -34,8 +34,9 @@ stages:
     config:
       design_type: design_system
       formality: standard
-      # ui-pro DESIGNS — ensured before this stage runs (npm_then_init).
-      ensure_plugins: ["ui-pro"]
+      # ui-pro DESIGNS — suggest tier (v15.2.0 B-6): probe at stage entry;
+      # present → enhanced recipe, absent → degraded recipe + one-time hint.
+      suggest_plugins: ["ui-pro"]
       permissive_on_missing_install: true
       ui_pro_commands:
         design_system: "uipro init --ai cursor"
@@ -69,8 +70,9 @@ stages:
     config:
       scope: targeted
       allow_new_features: false
-      # impeccable REFINES — ensured before this stage runs (npm_then_init).
-      ensure_plugins: ["impeccable"]
+      # impeccable REFINES — suggest tier (v15.2.0 B-6): probe at stage
+      # entry; present → refine recipe, absent → degrade + one-time hint.
+      suggest_plugins: ["impeccable"]
       permissive_on_missing_install: true
       impeccable_commands:
         polish: "/impeccable polish {target}"
@@ -95,7 +97,7 @@ stages:
     duration_class: quick
     config:
       # impeccable VERIFIES — the detector is the deterministic gate.
-      ensure_plugins: ["impeccable"]
+      suggest_plugins: ["impeccable"]
       permissive_on_missing_install: true
       antipattern_gate:
         enabled: true

@@ -4,7 +4,8 @@ Covers:
   - Template file existence + parse-without-error
   - Schema validation (zero errors, zero warnings)
   - Stage identity + ordering (design → implement → refine → verify)
-  - ensure_plugins wiring: ui-pro on design, impeccable on refine + verify
+  - suggest_plugins wiring (v15.2.0 B-6 probe semantics): ui-pro on design,
+    impeccable on refine + verify
   - Composition shape (sequence with refine↔verify convergence loop + gate)
   - Registry registration
 """
@@ -58,12 +59,17 @@ def test_template_has_four_stages_in_order(template: WorkflowTemplate) -> None:
     }, f"primitive mapping mismatch: {primitives}"
 
 
-def test_ensure_plugins_wiring(template: WorkflowTemplate) -> None:
-    """ui-pro DESIGNS (design stage); impeccable REFINES + VERIFIES."""
+def test_suggest_plugins_wiring(template: WorkflowTemplate) -> None:
+    """ui-pro DESIGNS (design stage); impeccable REFINES + VERIFIES.
+
+    v15.2.0 B-6 — renamed ensure_plugins → suggest_plugins: the key is a
+    capability-probe instruction (probe → recipe A, absent → recipe B +
+    one-time hint), no longer a hard install precondition.
+    """
     by_id = {s.id: s for s in template.stages}
-    assert by_id["design"].config.get("ensure_plugins") == ["ui-pro"]
-    assert by_id["refine"].config.get("ensure_plugins") == ["impeccable"]
-    assert by_id["verify"].config.get("ensure_plugins") == ["impeccable"]
+    assert by_id["design"].config.get("suggest_plugins") == ["ui-pro"]
+    assert by_id["refine"].config.get("suggest_plugins") == ["impeccable"]
+    assert by_id["verify"].config.get("suggest_plugins") == ["impeccable"]
 
 
 def test_verify_carries_antipattern_gate(template: WorkflowTemplate) -> None:

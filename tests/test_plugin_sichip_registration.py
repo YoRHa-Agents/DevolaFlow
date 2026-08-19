@@ -2,7 +2,7 @@
 
 Pins the contract for the 4th `runtime-plugins.yaml` entry (`si-chip`):
 
-1. **Canonical registry has si-chip** — schema_version 3 + 4 plugins
+1. **Canonical registry has si-chip** — schema_version 4 (v15.2.0 B-6 bump) + plugins
    (`nines`, `ui-pro`, `rtk`, `si-chip`) with the v3 `upgrade_cmd`
    field present.
 2. **Schema parses si-chip** — `resolve_plugin('si-chip', registry)`
@@ -55,7 +55,9 @@ class TestSiChipInCanonicalRegistry:
         cycle appends the new plugin at the END of the list (append-only, A-2).
         """
         raw = load_registry(_RUNTIME_PLUGINS_YAML)
-        assert raw["schema_version"] == 3, "v9.4.0 PV-04 schema_version 3 must remain"
+        assert raw["schema_version"] == 4, (
+            "schema_version must be 4 (v9.4.0 PV-04 v3 + v15.2.0 B-6 bump)"
+        )
         plugin_ids = [p["id"] for p in raw["plugins"]]
         assert plugin_ids == ["nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"], (
             f"v13.0.0 contract: impeccable MUST be the 6th plugin, appended at the "

@@ -91,7 +91,15 @@ _SUPPORTED_BACKENDS: frozenset[str] = frozenset({"pip", "npm_then_init", "curl_i
 # v9.4.0 PV-04: schema v3 adds optional `upgrade_cmd` per plugin and
 # `defaults.upgrade_check_frequency_hours` registry-wide. v1 + v2 entries
 # pass v3 unchanged (the v3 fields are all optional with sensible defaults).
-_SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2, 3})
+_SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2, 3, 4})
+
+# v15.2.0 B-6 (dependency suggestion-ization, 04 §8) — the two tier values a
+# registry entry may declare. ``suggest`` (the default when the key is absent,
+# so v1..v3 entries pass v4 unchanged) marks a plugin the workflow PROBES for
+# and degrades without; ``require`` marks a plugin whose absence is a hard
+# error at the consuming surface. As of v15.2.0 every shipped entry is
+# ``suggest`` — the ``require`` tier is kept as a mechanism with no occupant.
+_SUPPORTED_TIERS: frozenset[str] = frozenset({"require", "suggest"})
 _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS: int = 24
 
 
@@ -129,13 +137,31 @@ class RuntimePluginSpec:
     # it in runtime-plugins.yaml; the field defaults to None so v1+v2
     # entries pass v3 unchanged.
     upgrade_cmd: str | None = None
+    # v15.2.0 B-6 schema v4 — dependency tier. ``suggest`` (default; absent
+    # key on v1..v3 entries parses to this) = probe-and-degrade: consuming
+    # surfaces MUST NOT hard-fail when the plugin is missing. ``require`` =
+    # absence is a hard error at the consuming surface (mechanism kept; no
+    # shipped occupant as of v15.2.0). Validated against _SUPPORTED_TIERS
+    # in resolve_plugin.
+    tier: str = "suggest"
 
 
 @dataclass(frozen=True)
 class RegistryDefaults:
-    """Registry-wide defaults (``defaults:`` block in runtime-plugins.yaml)."""
+    """Registry-wide defaults (``defaults:`` block in runtime-plugins.yaml).
 
-    auto_install: bool = True
+    v15.2.0 B-6 (dependency suggestion-ization, 04 §8) flipped the
+    ``auto_install`` default ``True`` → ``False``: a bare
+    ``ensure_plugin(pid)`` call now PROBES and raises
+    :class:`PluginVersionMismatch` on a missing plugin instead of
+    network-installing. Every explicit opt-in surface passes
+    ``auto_install=True`` at the call site (the
+    ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`` lifecycle hooks and the
+    ``devola-init --global`` plugin bundling — the operator opted in at
+    those surfaces already).
+    """
+
+    auto_install: bool = False
     prefer_local_fallback: bool = True
     network_timeout_seconds: int = 90
     install_log_path: str = ".local/memory/plugin_install.log"
@@ -374,6 +400,13 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
         _validate_required_keys(plugin_id, entry)
         if backend == "npm_then_init":
             _validate_npm_then_init_keys(plugin_id, entry)
+        tier = entry.get("tier", "suggest")
+        if tier not in _SUPPORTED_TIERS:
+            raise PluginInstallError(
+                f"Plugin {plugin_id!r} declares invalid tier {tier!r}; "
+                f"expected one of {sorted(_SUPPORTED_TIERS)}.",
+                details={"plugin_id": plugin_id, "tier": tier},
+            )
         return RuntimePluginSpec(
             id=str(entry["id"]),
             backend=backend,
@@ -389,6 +422,7 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
             invoked_by_workflows=list(entry.get("invoked_by_workflows") or []),
             verify_distinguish_cmd=entry.get("verify_distinguish_cmd"),
             upgrade_cmd=entry.get("upgrade_cmd"),
+            tier=str(tier),
         )
 
     raise PluginNotFoundError(
@@ -397,12 +431,27 @@ def resolve_plugin(plugin_id: str, registry: dict[str, Any]) -> RuntimePluginSpe
     )
 
 
+def plugin_tier(plugin_id: str, *, registry_path: Path | str | None = None) -> str:
+    """Return the declared tier for ``plugin_id`` (``require`` | ``suggest``).
+
+    v15.2.0 B-6 — the tier lookup consumed by the lifecycle hooks to decide
+    PPI001 severity (suggest-tier install failure degrades to a warning +
+    one-time hint; require-tier stays an error). Raises exactly like
+    :func:`load_registry` / :func:`resolve_plugin` on a missing registry or
+    unknown plugin — callers on a failure path catch and fall back to
+    ``require`` semantics (conservative).
+    """
+    return resolve_plugin(plugin_id, load_registry(registry_path)).tier
+
+
 def _load_defaults(registry: dict[str, Any]) -> RegistryDefaults:
     raw = registry.get("defaults") or {}
     if not isinstance(raw, dict):
         raw = {}
     return RegistryDefaults(
-        auto_install=bool(raw.get("auto_install", True)),
+        # v15.2.0 B-6 — absent key parses to False (probe-not-install); the
+        # shipped registry declares the value explicitly either way.
+        auto_install=bool(raw.get("auto_install", False)),
         prefer_local_fallback=bool(raw.get("prefer_local_fallback", True)),
         network_timeout_seconds=int(raw.get("network_timeout_seconds", 90)),
         install_log_path=str(raw.get("install_log_path", ".local/memory/plugin_install.log")),
@@ -716,9 +765,10 @@ def _install_via_cargo(
             f"cargo install failed for plugin {spec.id!r} (os-error: {exc}). "
             "Install the Rust toolchain via "
             "`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` "
-            "and retry, or opt out of auto-install by setting "
-            "defaults.auto_install: false in runtime-plugins.yaml "
-            "(or passing ensure_plugin(..., auto_install=False)).",
+            "and retry. (Auto-install only runs on explicit opt-in surfaces "
+            "since v15.2.0 B-6 — defaults.auto_install is false in "
+            "runtime-plugins.yaml; bare ensure_plugin(...) calls probe-and-"
+            "report instead.)",
             details={"plugin_id": spec.id, "cmd": cmd},
         ) from exc
 

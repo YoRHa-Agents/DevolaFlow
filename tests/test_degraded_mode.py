@@ -281,8 +281,9 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
     Codified at ``src/devolaflow/lifecycle/pre_plugin_invocation.py`` lines
     420-448 (the `_run_install_then_upgrade_for_plugin` helper's ensure_plugin
     catch block). This test pins the cycle-level contract: the hook
-    catches PluginInstallError; emits PPI001 (severity error); in permissive
-    mode the dispatch continues.
+    catches PluginInstallError; emits PPI001 (severity warning since the
+    v15.2.0 B-6 tier-aware degrade — ui-pro/impeccable are suggest-tier);
+    in permissive mode the dispatch continues.
     """
 
     def test_ui_pro_unreachable_emits_ppi001_permissive_continues(
@@ -293,7 +294,7 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
         from devolaflow.lifecycle.pre_plugin_invocation import pre_plugin_invocation
         from devolaflow.plugins.exceptions import PluginInstallError
 
-        def _fake_ensure_plugin(plugin_id: str) -> str:  # type: ignore[no-untyped-def]
+        def _fake_ensure_plugin(plugin_id: str, **_kwargs: object) -> str:  # type: ignore[no-untyped-def]
             raise PluginInstallError(
                 f"npm install -g uipro-cli failed (registry unreachable): {plugin_id}"
             )
@@ -311,14 +312,15 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
             )
 
         assert isinstance(result, HookResult)
-        # PPI001 present with error severity.
+        # PPI001 present with warning severity (suggest-tier per B-6).
         ppi001 = [v for v in result.violations if v.code == "PPI001"]
         assert len(ppi001) == 1, (
             f"expected 1 PPI001 violation, got {len(ppi001)}: {[v.code for v in result.violations]}"
         )
-        assert ppi001[0].severity == "error"
+        assert ppi001[0].severity == "warning"
         assert "ui-pro" in ppi001[0].message
-        # Strict mode re-raises the same PPI001 HookViolation.
+        # Strict mode re-raises the same PPI001 HookViolation (finalize
+        # raises on ANY violation regardless of severity).
         with patch(
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=_fake_ensure_plugin,
@@ -326,7 +328,7 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
             with pytest.raises(HookViolation) as exc_info:
                 pre_plugin_invocation({"plugin_id": "ui-pro"}, strict=True)
             assert exc_info.value.code == "PPI001"
-            assert exc_info.value.severity == "error"
+            assert exc_info.value.severity == "warning"
         # degraded-mode.md §4 must cite PPI001 + permissive-continue.
         text = _degraded_mode_doc_text()
         assert "PPI001" in text
@@ -341,14 +343,14 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
         Mirrors the ui-pro contract — impeccable shares the
         `pre_plugin_invocation` → `ensure_plugin` install path (backend
         npm_then_init). When `npm install -g impeccable` fails the hook emits
-        PPI001 (error); permissive mode (default) continues, strict mode
-        re-raises.
+        PPI001 (warning — suggest-tier per v15.2.0 B-6); permissive mode
+        (default) continues, strict mode re-raises.
         """
         monkeypatch.setenv("DEVOLAFLOW_AUTO_INSTALL_PLUGINS", "1")
         from devolaflow.lifecycle.pre_plugin_invocation import pre_plugin_invocation
         from devolaflow.plugins.exceptions import PluginInstallError
 
-        def _fake_ensure_plugin(plugin_id: str) -> str:  # type: ignore[no-untyped-def]
+        def _fake_ensure_plugin(plugin_id: str, **_kwargs: object) -> str:  # type: ignore[no-untyped-def]
             raise PluginInstallError(
                 f"npm install -g impeccable failed (registry unreachable): {plugin_id}"
             )
@@ -364,9 +366,10 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
         assert len(ppi001) == 1, (
             f"expected 1 PPI001 violation, got {len(ppi001)}: {[v.code for v in result.violations]}"
         )
-        assert ppi001[0].severity == "error"
+        assert ppi001[0].severity == "warning"
         assert "impeccable" in ppi001[0].message
-        # Strict mode re-raises the same PPI001 HookViolation.
+        # Strict mode re-raises the same PPI001 HookViolation (finalize
+        # raises on ANY violation regardless of severity).
         with patch(
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=_fake_ensure_plugin,
@@ -374,7 +377,7 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
             with pytest.raises(HookViolation) as exc_info:
                 pre_plugin_invocation({"plugin_id": "impeccable"}, strict=True)
             assert exc_info.value.code == "PPI001"
-            assert exc_info.value.severity == "error"
+            assert exc_info.value.severity == "warning"
         # degraded-mode.md must carry an impeccable section + matrix row.
         text = _degraded_mode_doc_text()
         assert "impeccable" in text.lower()
