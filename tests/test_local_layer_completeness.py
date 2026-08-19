@@ -189,20 +189,34 @@ def test_no_layer_silently_dropped_via_truncate() -> None:
 
 
 def test_layer_count_consistent_across_targets() -> None:
-    """Sanity floor: every target MUST include >= 4 layers.
+    """Sanity floor: every FULL-CORPUS target MUST include >= 4 layers.
 
     Prevents accidental config that ships a 1-layer corpus (e.g. a
     misguided optimization that strips conventions/workflow/style from
     the compiled output, leaving only soul + architecture). Cursor
     currently ships 5 layers; agents_md ships 4 (style intentionally
-    excluded). Tightening this floor in the future requires bumping
-    this assertion AND documenting the rationale in
-    ``.local/research/``.
+    excluded).
+
+    v15.0.x clean_repo C2-1 (decision D2): the ``style_md`` target is a
+    deliberate SINGLE-LAYER dedicated view (``docs/STYLE-RULES.md`` —
+    the P4 Style layer rendered tool-agnostically, discovered via the
+    agents_md postscript pointer). It is pinned to exactly ``[style]``
+    here rather than exempted silently: a full-corpus target dropping
+    below 4 layers still fails, and the dedicated view growing extra
+    layers (scope creep) also fails.
     """
     cfg = _load_config()
     assert cfg.get("targets"), "compile-config.yaml has no targets defined"
+    single_layer_views = {"style_md": ["style"]}
     for target_name, target_spec in cfg["targets"].items():
-        n = len(target_spec.get("include_layers", []))
+        layers = target_spec.get("include_layers", [])
+        if target_name in single_layer_views:
+            assert layers == single_layer_views[target_name], (
+                f"dedicated view target {target_name!r} must ship exactly "
+                f"{single_layer_views[target_name]}, got {layers} (D2 scope)"
+            )
+            continue
+        n = len(layers)
         assert n >= 4, (
             f"target {target_name!r} ships only {n} layer(s); the sanity "
             "floor is 4. If this is intentional, update this test and "

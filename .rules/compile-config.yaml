@@ -75,6 +75,25 @@ targets:
     format: markdown
     token_budget: 14000
     include_layers: [soul, architecture, conventions, workflow]
+    # v15.0.x clean_repo C2-1 (decision D2) — one-line pointer emitted
+    # verbatim after the compiled body so AGENTS.md-aware tools (Claude
+    # Code, Codex, KimiCode, Cline, Roo) can discover the P4 Style corpus
+    # (docs/STYLE-RULES.md) without loading its ~2K tokens into every
+    # session (A-1 P2 / A-3 minimal context).
+    postscript: "Style (P4) rules: see `docs/STYLE-RULES.md`"
+  style_md:
+    # v15.0.x clean_repo C2-1 (decision D2) — third compile target: the
+    # P4 Style layer (ST-1..ST-13, absorbing DS-1..5 + WX-1..8) rendered
+    # as a tool-agnostic on-demand view. Replaces the two hand-maintained
+    # Cursor-only on-demand copies (.cursor/rules/documentation-sync-rules.mdc
+    # + web-experience-rules.mdc, retired in the same PR — they carried
+    # no hash/drift protection). token_budget 4000 leaves ~50% headroom
+    # over the ~2K-token Style layer; drift-hash coverage is automatic
+    # (check_rules_drift / save_hashes enumerate the targets map).
+    output: "docs/STYLE-RULES.md"
+    format: markdown
+    token_budget: 4000
+    include_layers: [style]
 
 drift_detection:
   enabled: true

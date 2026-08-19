@@ -82,7 +82,7 @@ def test_token_budgets_match_compile_config() -> None:
     ``targets.<X>.token_budget`` bump in ``.rules/compile-config.yaml``.
     """
     cfg = _load_config()
-    for target_name in ("cursor", "agents_md"):
+    for target_name in ("cursor", "agents_md", "style_md"):
         expected = cfg["targets"][target_name]["token_budget"]
         actual = _find_token_budget_in_index(target_name)
         assert actual == expected, (

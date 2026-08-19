@@ -424,6 +424,148 @@ class TestRuleCompiler:
         assert all(r.tokens_used > 0 for r in results)
 
 
+def _postscript_fixture(
+    tmp_path: Path,
+    *,
+    token_budget: int = 8000,
+    postscript: str = "Style (P4) rules: see `docs/STYLE-RULES.md`",
+) -> Path:
+    """Build a minimal .rules/ dir whose two targets carry a ``postscript``.
+
+    v15.0.x clean_repo C2-1 (decision D2) — shared helper for the
+    TestPostscript cases below: one markdown target and one mdc target,
+    both configured with the same postscript text.
+    """
+    rd = tmp_path / ".rules_postscript"
+    rd.mkdir()
+    (rd / "soul.mdc").write_text(
+        "---\npriority: P0\n---\n\n# Soul\n\n## S-1 — Rule one\n\nBody one.\n",
+        encoding="utf-8",
+    )
+    (rd / "style.mdc").write_text(
+        "---\npriority: P4\n---\n\n# Style\n\n## ST-1 — Rule style\n\nBody style.\n",
+        encoding="utf-8",
+    )
+    config = {
+        "version": "1.0",
+        "layers": [
+            {"name": "soul", "file": "soul.mdc", "priority": 0, "always_include": True},
+            {"name": "style", "file": "style.mdc", "priority": 4, "always_include": False},
+        ],
+        "targets": {
+            "md_ps": {
+                "output": "out.md",
+                "format": "markdown",
+                "token_budget": token_budget,
+                "include_layers": ["soul", "style"],
+                "postscript": postscript,
+            },
+            "mdc_ps": {
+                "output": "out.mdc",
+                "format": "mdc",
+                "token_budget": token_budget,
+                "include_layers": ["soul"],
+                "frontmatter": {"description": "test", "alwaysApply": True},
+                "postscript": postscript,
+            },
+        },
+    }
+    config_path = rd / "compile-config.yaml"
+    config_path.write_text(yaml.dump(config, default_flow_style=False), encoding="utf-8")
+    return config_path
+
+
+class TestPostscript:
+    """v15.0.x clean_repo C2-1 (decision D2) — per-target ``postscript``."""
+
+    POINTER = "Style (P4) rules: see `docs/STYLE-RULES.md`"
+
+    def test_postscript_appended_after_markdown_body(self, tmp_path: Path) -> None:
+        """The postscript renders VERBATIM as the final block of a markdown target."""
+        config_path = _postscript_fixture(tmp_path)
+        rc = RuleCompiler(config_path)
+        rc.load_layers(config_path.parent)
+        r = rc.compile("md_ps")[0]
+        assert r.content.endswith(f"\n{self.POINTER}\n"), (
+            "postscript must be the last line of the rendered markdown output"
+        )
+        assert r.content.index("Body style.") < r.content.index(self.POINTER), (
+            "postscript must render AFTER the compiled layer body"
+        )
+
+    def test_postscript_appended_after_mdc_body(self, tmp_path: Path) -> None:
+        """The postscript also renders as the final block of an mdc target."""
+        config_path = _postscript_fixture(tmp_path)
+        rc = RuleCompiler(config_path)
+        rc.load_layers(config_path.parent)
+        r = rc.compile("mdc_ps")[0]
+        assert r.content.startswith("---"), "mdc frontmatter must stay first"
+        assert r.content.endswith(f"\n{self.POINTER}\n"), (
+            "postscript must be the last line of the rendered mdc output"
+        )
+
+    def test_postscript_absent_is_default_none_and_not_emitted(self, rules_dir: Path) -> None:
+        """No ``postscript`` key → TargetConfig default None → byte-stable output.
+
+        The pre-existing fixture config has no postscript on either
+        target; the compiled outputs must not grow a pointer block, so
+        legacy configs recompile byte-identically (drift hashes stable).
+        """
+        rc = RuleCompiler(rules_dir / "compile-config.yaml")
+        assert all(tc.postscript is None for tc in rc.targets.values())
+        rc.load_layers(rules_dir)
+        for r in rc.compile():
+            assert self.POINTER not in r.content
+
+    def test_postscript_deterministic_across_recompiles(self, tmp_path: Path) -> None:
+        """Two fresh compiles yield byte-identical content and equal hashes.
+
+        Determinism is the D2 contract that keeps the
+        ``.rules/.compile-hashes.json`` entries stable across recompiles.
+        """
+        config_path = _postscript_fixture(tmp_path)
+        first = RuleCompiler(config_path)
+        first.load_layers(config_path.parent)
+        second = RuleCompiler(config_path)
+        second.load_layers(config_path.parent)
+        by_target_first = {r.target: r for r in first.compile()}
+        by_target_second = {r.target: r for r in second.compile()}
+        for name, r1 in by_target_first.items():
+            r2 = by_target_second[name]
+            assert r1.content == r2.content
+            assert r1.content_hash == r2.content_hash
+
+    def test_postscript_counts_toward_token_budget(self, tmp_path: Path) -> None:
+        """Budget enforcement covers the postscript bytes (G-011 loud overflow).
+
+        The fixture body alone fits a 100-token budget; body + a ~200-token
+        postscript does not — the compile must raise instead of silently
+        emitting an over-budget output.
+        """
+        long_postscript = "pointer " * 100  # ~200 estimated tokens
+        config_path = _postscript_fixture(tmp_path, token_budget=100, postscript=long_postscript)
+        rc = RuleCompiler(config_path)
+        rc.load_layers(config_path.parent)
+
+        no_ps = rc.targets["mdc_ps"]
+        no_ps_clone = TargetConfig(
+            name=no_ps.name,
+            output=no_ps.output,
+            format=no_ps.format,
+            token_budget=no_ps.token_budget,
+            include_layers=no_ps.include_layers,
+            frontmatter=no_ps.frontmatter,
+        )
+        body_only = rc._render_layers(
+            [ly for ly in rc.layers if ly.name in no_ps.include_layers], no_ps_clone
+        )
+        assert _estimate_tokens(body_only) <= 100, (
+            "fixture arithmetic broken: the postscript-less body must fit the budget"
+        )
+        with pytest.raises(TokenBudgetExceededError):
+            rc.compile("mdc_ps")
+
+
 class TestDataclasses:
     def test_rule_layer_defaults(self) -> None:
         layer = RuleLayer(name="test", priority=0, content="body")
@@ -595,3 +737,42 @@ class TestV822RulesFoundationCompile:
             "## S-7 — External Resource URLs",
         ):
             assert rule in cursor.content, f"existing soul rule missing after append: {rule!r}"
+
+
+class TestC21StyleTarget:
+    """v15.0.x clean_repo C2-1 (decision D2) — third compile target `style_md`.
+
+    The P4 Style layer (ST-1..ST-13, absorbing DS-1..5 + WX-1..8) compiles
+    to the tool-agnostic on-demand view `docs/STYLE-RULES.md`; the
+    `agents_md` target gains a one-line postscript pointer so every
+    AGENTS.md-aware tool can discover the Style corpus without loading
+    its ~2K tokens into every session (A-1 P2 / A-3).
+    """
+
+    def test_style_md_target_compiles_within_budget(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """`style_md` renders the full ST-1..ST-13 Style layer within 4000 tokens."""
+        style = repo_compile_results["style_md"]
+        assert style.tokens_budget == 4000
+        assert style.tokens_used <= 4000, (
+            f"docs/STYLE-RULES.md exceeded its 4000-token budget: {style.tokens_used}"
+        )
+        assert style.layers_included == ["style"]
+        for heading in (
+            "### ST-1 — Human-Facing Content Registry (DS-1)",
+            "### ST-13 — Cross-Page CTA Cluster Integrity (WX-8)",
+        ):
+            assert heading in style.content, f"Style rule missing from style_md: {heading!r}"
+
+    def test_agents_md_ends_with_style_pointer_postscript(
+        self, repo_compile_results: dict[str, CompileResult]
+    ) -> None:
+        """AGENTS.md ends with the D2 pointer line; the Style body stays excluded."""
+        agents = repo_compile_results["agents_md"]
+        assert agents.content.endswith("\nStyle (P4) rules: see `docs/STYLE-RULES.md`\n"), (
+            "agents_md must emit the C2-1 postscript pointer as its final line"
+        )
+        assert "### ST-1 — Human-Facing Content Registry (DS-1)" not in agents.content, (
+            "the Style layer body must stay excluded from agents_md (pointer only, per A-1 P2)"
+        )

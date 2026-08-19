@@ -44,6 +44,11 @@ class TargetConfig:
     frontmatter: dict[str, Any] | None = None
     append_marker: str | None = None
     append_end: str | None = None
+    # v15.0.x clean_repo C2-1 (decision D2): optional fixed text emitted
+    # verbatim AFTER the compiled layer body (e.g. the agents_md target's
+    # one-line pointer to the style_md target's output). Deterministic —
+    # a pure function of the config string, so drift hashes stay stable.
+    postscript: str | None = None
 
 
 @dataclass
@@ -123,6 +128,7 @@ class RuleCompiler:
                 frontmatter=target_spec.get("frontmatter"),
                 append_marker=target_spec.get("append_marker"),
                 append_end=target_spec.get("append_end"),
+                postscript=target_spec.get("postscript"),
             )
 
     def load_layers(self, rules_dir: str | Path | None = None) -> list[RuleLayer]:
@@ -252,6 +258,7 @@ class RuleCompiler:
                 parts.append(layer.content)
                 parts.append("")
 
+        self._append_postscript(parts, tc)
         return "\n".join(parts).rstrip() + "\n"
 
     def _format_markdown(self, layers: list[RuleLayer], tc: TargetConfig) -> str:
@@ -265,7 +272,26 @@ class RuleCompiler:
                 parts.append(layer.content)
                 parts.append("")
 
+        self._append_postscript(parts, tc)
         return "\n".join(parts).rstrip() + "\n"
+
+    @staticmethod
+    def _append_postscript(parts: list[str], tc: TargetConfig) -> None:
+        """Append the target's optional ``postscript`` after the layer body.
+
+        v15.0.x clean_repo C2-1 (decision D2): the postscript is emitted
+        VERBATIM as the final block of the rendered output, separated
+        from the last layer by one blank line. It renders through both
+        formatters (and therefore through ``_render_layers``), so the
+        token-budget check, the truncation diagnostics, and the drift
+        hash all account for it. Determinism: the emitted bytes are a
+        pure function of the config string — no timestamps, no
+        environment reads — so recompiling twice yields byte-identical
+        output and stable ``.rules/.compile-hashes.json`` entries.
+        """
+        if tc.postscript:
+            parts.append(tc.postscript)
+            parts.append("")
 
     def _truncate_to_budget(
         self, layers: list[RuleLayer], tc: TargetConfig
