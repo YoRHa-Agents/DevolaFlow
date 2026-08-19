@@ -5,9 +5,10 @@ workspace is private by default, but two team-collab subdirs are explicitly
 tracked under git so PR reviewers see them mid-cycle:
 
 * `.local/memory/specs/` — A-4 source-of-truth contracts (per Rule A-4)
-* `.local/research/`     — narrowed by clean_repo Phase A: only current-cycle
-                            (v15*) research + adr/ stay tracked; archived
-                            history lives in docs/cycle-archive/ (W-19)
+* `.local/research/`     — narrowed by clean_repo Phase A + B2: only
+                            current-cycle (v15*) research + the 2 v15
+                            hard-read ADRs stay tracked; archived history
+                            lives in docs/cycle-archive/ (W-19)
 
 Everything else under `.local/` stays private (machine state, scratch dirs,
 per-developer change folders, handoff envelopes).
@@ -114,9 +115,10 @@ LOCAL_WHITELISTED_PATHS: list[str] = [
     ".local/memory/specs/auth/spec.md",
     ".local/memory/specs/agent_workspace/spec.md",
     ".local/memory/specs/example_domain/spec.md",
-    # W-7/W-19 research artifacts — narrowed by clean_repo Phase A: only
-    # current-cycle v15* files (via !.local/research/v15*) + adr/ (via
-    # !.local/research/adr/**) stay re-enabled.
+    # W-7/W-19 research artifacts — narrowed by clean_repo Phase A + B2: only
+    # current-cycle v15* files (via !.local/research/v15*) + the 2 v15
+    # hard-read ADRs (via exact-path negations, kept until Phase C1-1 per
+    # constraint D13) stay re-enabled.
     ".local/research/v15.0.0_retrospective.md",
     ".local/research/adr/v15-ADR-002-template-phase-b-collapse.md",
     ".local/research/adr/v15-ADR-006-scorer-selector-module-split.md",
@@ -128,14 +130,17 @@ LOCAL_WHITELISTED_PATHS: list[str] = [
     ".local/human/input/amendments/2026-06-03-immutable-input.md",
 ]
 
-# clean_repo Phase A — archived old-cycle research files are IGNORED after the
-# whitelist narrowing (their canonical copies live in docs/cycle-archive/;
-# local files are kept but no longer tracked).
+# clean_repo Phase A + B2 — archived old-cycle research files are IGNORED
+# after the whitelist narrowings (their canonical copies live in
+# docs/cycle-archive/; local files are kept but no longer tracked). Phase B2
+# adds an archived-ADR path: adr/ content is re-excluded via
+# `.local/research/adr/*` except the 2 v15 hard-read ADRs.
 LOCAL_RESEARCH_ARCHIVED_PRIVATE_PATHS: list[str] = [
     ".local/research/v8.3.0_gap_analysis.md",
     ".local/research/v7.5.0_ghost_audit.md",
     ".local/research/v12.2.0_gap_analysis.md",
     ".local/research/v8.3.0_design.md",
+    ".local/research/adr/v9-ADR-002-cache-layout-governance-v2.md",
 ]
 
 # v14.0.0 — human OUTPUT + archive zones MUST stay IGNORED (D2 operator
@@ -241,10 +246,10 @@ def test_whitelisted_local_paths_are_tracked(path: str) -> None:
 
 @pytest.mark.parametrize("path", LOCAL_RESEARCH_ARCHIVED_PRIVATE_PATHS)
 def test_archived_research_paths_are_ignored(path: str) -> None:
-    """clean_repo Phase A：已归档旧周期 research 改为 IGNORED。"""
+    """clean_repo Phase A + B2：已归档旧周期 research 改为 IGNORED。"""
     status, rule = _check_ignore(path)
     assert status == "IGNORED"
-    assert rule == ".local/research/*"
+    assert rule in (".local/research/*", ".local/research/adr/*")
 
 
 @pytest.mark.parametrize("path", LOCAL_HUMAN_PRIVATE_PATHS)
