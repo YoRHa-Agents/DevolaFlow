@@ -412,8 +412,36 @@ def install_local(
     OFF for ``mode: core`` per the v9.2.0 PV-06 cycle plan §"PV-06 —
     repo-init seed examples". Idempotent — never overwrites an existing
     example folder, envelope, or spec; safe to re-run.
+
+    Track C-4 (R5 F4) — pre-flight capability probe: the function starts
+    by probing the init-chain dependency tier table
+    (:data:`devolaflow.init_probe.INIT_DEPENDENCIES`) and printing the
+    capability table. Missing REQUIRED dependencies (git) exit 1 with
+    one explicit message BEFORE any filesystem write; missing optional
+    dependencies (node/npm/codegraph/nines) each surface exactly one
+    degradation hint and the install continues.
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
+
+    # Track C-4 (R5 F4): unified pre-flight capability probe. Required
+    # dependencies missing → ONE explicit error up front and exit 1
+    # BEFORE any scaffold write; optional/situational gaps print exactly
+    # one hint line each inside the table (degraded paths, never a
+    # mid-flow stack trace).
+    from devolaflow.init_probe import (
+        MissingRequiredDependencyError,
+        assert_required_present,
+        format_capability_table,
+        probe_capabilities,
+    )
+
+    findings = probe_capabilities()
+    print(format_capability_table(findings))
+    try:
+        assert_required_present(findings)
+    except MissingRequiredDependencyError as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
 
     from devolaflow.local.workspace import ScaffoldVerificationError, scaffold_local
 

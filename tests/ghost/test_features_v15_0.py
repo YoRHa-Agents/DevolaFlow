@@ -910,3 +910,55 @@ def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
     assert "§4.6" in ref_text and ".codegraph/.indexing" in ref_text, (
         "W-18 C-3 violation: references/codegraph.md lost the §4.6 marker protocol."
     )
+
+
+def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-4 — dependency tiering + unified probe (R5 F4).
+
+    Discharges the W-18 precondition for the C-4 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.init_probe` is the SINGLE owner (A-5 discipline) of
+        the init-chain dependency tier table (`INIT_DEPENDENCIES`: git
+        required; node/npm/codegraph/nines optional; curl situational)
+        plus the probe/gate helpers.
+    (b) `install_local` runs the pre-flight probe BEFORE any scaffold
+        write and `doctor_cmd` prints the same capability table (one
+        table, two readers).
+    (c) The init chain stays stdlib-only (behavioural lint:
+        tests/test_init_probe.py::test_init_chain_modules_are_stdlib_only)
+        and the E1 minimal-env matrix is CI-pinned
+        (tests/test_init_venv_matrix.py).
+    """
+    from devolaflow.init_probe import (
+        INIT_DEPENDENCIES,
+        MissingRequiredDependencyError,
+        assert_required_present,
+        format_capability_table,
+        probe_capabilities,
+    )
+
+    # --- (a) single-owner tier table -------------------------------------
+    assert callable(probe_capabilities)
+    assert callable(format_capability_table)
+    assert callable(assert_required_present)
+    assert issubclass(MissingRequiredDependencyError, RuntimeError)
+    tiers = {d.name: d.tier for d in INIT_DEPENDENCIES}
+    assert tiers["git"] == "required", (
+        "W-18 C-4 violation: git must stay required-tier (05-init-quality-fixes §5.1)."
+    )
+    assert tiers["codegraph"] == "optional"
+
+    # --- (b) both readers wired ------------------------------------------
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "probe_capabilities" in init_text and "assert_required_present" in init_text, (
+        "W-18 C-4 violation: install_local lost the pre-flight capability probe."
+    )
+    cli_text = (project_root / "src/devolaflow/cli.py").read_text(encoding="utf-8")
+    assert "format_capability_table" in cli_text, (
+        "W-18 C-4 violation: doctor_cmd lost the capability table."
+    )
+
+    # --- (c) matrix + stdlib lint exist as test surfaces ------------------
+    assert (project_root / "tests/test_init_venv_matrix.py").is_file()
+    assert (project_root / "tests/test_init_probe.py").is_file()
