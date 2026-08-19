@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed (install.sh review findings from the Track B/C chain — PR #169 / #173 Bugbot)
 
 - **`install_rule_tree` (zed/cline/roo) no longer hides failed reference downloads**: the `dl … || true` loop is replaced with the same count-and-warn pattern `install_skill_files` uses — a partial `references/` tree now prints `N/M references failed (K succeeded)` instead of finishing silently (S-5). Still warn-not-fatal.
-- **`auto` and `all` targets now propagate `install_local` scaffold failure**: both previously swallowed the Track C-1 exit 1 (broken `.gitignore` scaffold could print failure lines yet exit 0 with the success footer); they now exit 1 like the dedicated `local` target. Pinned by 2 new E2E tests in `tests/test_install_script.py` (W-17: +2 new test functions). No new code symbols — W-18 needs no new ghost stanza.
+- **`auto` and `all` targets now propagate `install_local` scaffold failure**: both previously swallowed the Track C-1 exit 1 (broken `.gitignore` scaffold could print failure lines yet exit 0 with the success footer); they now exit 1 like the dedicated `local` target. Pinned by 2 new E2E tests in `tests/test_install_script.py`.
+- **`ScaffoldStructureError` handled at every CLI boundary** (PR #174 finding): the Track C-2 structure self-check error was only caught as `ScaffoldVerificationError` at `devola-init local`, `scaffold-local`, and `python -m devolaflow.local.workspace` — a structure failure surfaced as a raw traceback instead of the FAIL-message + exit 1 contract. All three sites now catch both self-check errors identically. Pinned by `tests/test_cli_local_commands.py::TestScaffoldLocalCmd::test_structure_error_prints_fail_and_exits_1` (W-17: +3 new test functions total for this fix set). No new code symbols — W-18 needs no new ghost stanza.
 
 ### Fixed (rules-dedup — repo-governance.mdc demoted to on-demand; Cursor double-injection)
 

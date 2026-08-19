@@ -121,3 +121,24 @@ class TestScaffoldLocalCmd:
         assert ".local/ workspace initialized" in capsys.readouterr().out
         assert (tmp_path / ".local" / "research").is_dir()
         assert (tmp_path / ".local" / "logs").is_dir()
+
+    def test_structure_error_prints_fail_and_exits_1(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """PR #174 Bugbot finding: ScaffoldStructureError (Track C-2) must get
+        the same FAIL-message + exit-1 handling as ScaffoldVerificationError
+        at every CLI boundary — not a raw traceback."""
+        from devolaflow.local import workspace as ws
+
+        def _boom(*args: object, **kwargs: object) -> None:
+            raise ws.ScaffoldStructureError([".local/memory/specs"], tmp_path)
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["scaffold-local"])
+        monkeypatch.setattr(ws, "scaffold_local", _boom)
+        with pytest.raises(SystemExit) as exc:
+            scaffold_local_cmd()
+        assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "FAIL" in out
+        assert ".local/memory/specs" in out
