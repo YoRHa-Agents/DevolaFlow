@@ -33,12 +33,13 @@ _TIER_A_WITNESSES: frozenset[str] = frozenset(
     }
 )
 
-# The 12 documented JSON keeps after the G-014 Tier-C archive sweep
-# (Tier-B rolling window + files still loaded by in-repo tests), plus
-# the v14.5.0 W-16 wholesale-regen artifact that ships in the SAME
-# release as this stanza, plus the v15.0.0 W-16 cycle-start regen
-# artifact (the per-cycle Tier-B addition pinned by the newest-baseline
-# convention in tests/test_benchmarks.py).
+# The 12 documented JSON keeps after the clean_repo Phase D Tier-C
+# sweep: the Tier-B rolling window is now v15.0.0 (current cycle,
+# carrying the newest-baseline pin in tests/test_benchmarks.py) +
+# v14.5.0 + v14.3.0 (previous two cycles), plus the files still loaded
+# by in-repo tests. v14.0.0_baseline.json / v14.1.0_baseline.json slid
+# out of the window and were archived per A-2.4 Tier-C via git mv to
+# docs/cycle-archive/<cycle>/baselines/ (clean_repo Phase D).
 _KEPT_BASELINE_JSONS: frozenset[str] = frozenset(
     {
         "v2.1.0_baseline.json",
@@ -50,8 +51,6 @@ _KEPT_BASELINE_JSONS: frozenset[str] = frozenset(
         "v9.7.0_latency_intermediate.json",
         "v10.2.0_baseline.json",
         "v11.1.0_baseline.json",
-        "v14.0.0_baseline.json",
-        "v14.1.0_baseline.json",
         "v14.3.0_baseline.json",
         "v14.5.0_baseline.json",
         "v15.0.0_baseline.json",
