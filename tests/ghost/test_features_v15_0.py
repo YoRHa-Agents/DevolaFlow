@@ -693,3 +693,47 @@ def test_v15_0_x_install_manifest_ssot_registered(project_root: Path) -> None:
     assert "append_manifest_entry" in scaffold_text, (
         "W-18 B-1 violation: scaffold_reference.py no longer appends to the manifest."
     )
+
+
+def test_v15_0_x_install_lifecycle_update_uninstall_doctor(project_root: Path) -> None:
+    """W-18 v15.0.x (full_review_and_improve Track B-2).
+
+    Discharges the W-18 precondition for the install-lifecycle CHANGELOG
+    entry. Asserts the load-bearing surfaces:
+
+    (a) install.sh `update` carries the stamp-vs-remote version compare
+        (`is_up_to_date` + `maybe_update`) with the `--force` bypass.
+    (b) install.sh ships an `uninstall` target with `--dry-run` support
+        and the rule-tree-safe removal helper (`uninstall_rule_tree`).
+    (c) `devola-init-doctor --skills` scans installed skills through
+        `devolaflow.skills_doctor.scan_installed_skills`.
+
+    Behavioural assertions live in tests/test_install_script.py (update
+    skip / --force / uninstall) and tests/test_skills_doctor.py (scan
+    status matrix).
+    """
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+
+    # --- (a) update version compare ----------------------------------
+    for symbol in ("is_up_to_date()", "maybe_update()", "--force"):
+        assert symbol in install_sh, (
+            f"W-18 B-2 violation: install.sh update version-compare surface lost {symbol!r}."
+        )
+
+    # --- (b) uninstall target ----------------------------------------
+    for symbol in ("do_uninstall()", "uninstall_rule_tree()", "--dry-run", "uninstall)"):
+        assert symbol in install_sh, (
+            f"W-18 B-2 violation: install.sh uninstall surface lost {symbol!r}."
+        )
+
+    # --- (c) doctor --skills ------------------------------------------
+    from devolaflow.skills_doctor import SkillInstall, scan_installed_skills
+
+    assert callable(scan_installed_skills)
+    assert {"tool", "scope", "path", "installed_version", "status"} <= set(
+        SkillInstall.__dataclass_fields__
+    )
+    cli_text = (project_root / "src/devolaflow/cli.py").read_text(encoding="utf-8")
+    assert "--skills" in cli_text and "_doctor_skills" in cli_text, (
+        "W-18 B-2 violation: doctor_cmd lost the --skills scan path."
+    )
