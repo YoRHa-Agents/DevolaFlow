@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
-# Design reference: doc/designs/design_decomposition_gate.md §2.3
+# Design reference: docs/designs/design_decomposition_gate.md §2.3
 # StageDefinition — single stage instance inside a workflow template (id,
 # scope, inputs, outputs, acceptance, optional skip / timeout). Mirrors
 # `WorkflowTemplate.stages[*]` in src/devolaflow/template_engine/models.py.
@@ -10,7 +10,7 @@
 # and generate this stub via a documentation-extraction pass; document the
 # runtime contract for `skip_condition` once G-G2 closes in v7.4.8 (P-04).
 
-design_reference: doc/designs/design_decomposition_gate.md §2.3
+design_reference: docs/designs/design_decomposition_gate.md §2.3
 schema_name: stage-definition
 instance_top_level_required:
   - id

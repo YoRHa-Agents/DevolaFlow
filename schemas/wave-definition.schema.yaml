@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
-# Design reference: doc/designs/design_decomposition_gate.md §3.5
+# Design reference: docs/designs/design_decomposition_gate.md §3.5
 # WaveDefinition — a parallel batch of L3 Task Agent dispatches grouped by an
 # L2 Wave Agent. Encodes the task list, sync barrier, and per-wave gate that
 # blocks downstream waves until composite acceptance is reached.
@@ -12,7 +12,7 @@
 # composer treats every wave as `all` (block until all tasks PASS); the schema
 # needs to surface `any` and `n_of(k)` once parallel-with-quorum lands.
 
-design_reference: doc/designs/design_decomposition_gate.md §3.5
+design_reference: docs/designs/design_decomposition_gate.md §3.5
 schema_name: wave-definition
 instance_top_level_required:
   - id

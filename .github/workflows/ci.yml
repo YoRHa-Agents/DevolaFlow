@@ -1,4 +1,4 @@
-# DevolaFlow CI — pattern from doc/designs/design_repo_modes.md §4.2 (Python adaptation)
+# DevolaFlow CI — pattern from docs/designs/design_repo_modes.md §4.2 (Python adaptation)
 name: CI
 
 on:

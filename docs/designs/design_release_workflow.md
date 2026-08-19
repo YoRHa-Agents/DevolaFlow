@@ -121,7 +121,7 @@ _site/
 ├── (demo pages — landing)
 ├── docs-en/     ← workflow-system/human/en/*.md
 ├── docs-zh/     ← workflow-system/human/zh/*.md
-├── designs/     ← doc/designs/*.md
+├── designs/     ← docs/designs/*.md
 ├── download/    ← SKILL.md
 └── templates/   ← builtin/*.yaml
 ```

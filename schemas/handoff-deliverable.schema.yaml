@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
-# Design reference: doc/designs/design_agent_hierarchy.md §5.1
+# Design reference: docs/designs/design_agent_hierarchy.md §5.1
 # HandoffDeliverable — inter-team transfer envelope (e.g. design → implement,
 # implement → review). Carries produced artifact set + acceptance receipt so
 # the receiving team verifies completeness without re-reading upstream.
@@ -10,7 +10,7 @@
 # to the `acceptance` shape used by task-dispatch.schema.yaml; add
 # `verification_runbook` block per design_agent_hierarchy.md §5.2.
 
-design_reference: doc/designs/design_agent_hierarchy.md §5.1
+design_reference: docs/designs/design_agent_hierarchy.md §5.1
 schema_name: handoff-deliverable
 instance_top_level_required:
   - header

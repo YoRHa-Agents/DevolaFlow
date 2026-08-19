@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_meta_framework.md §4.1
+# Design reference: docs/designs/design_meta_framework.md §4.1
 # Workflow Template — YAML instance shape (documentation schema, not a template).
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_meta_framework.md §4.1
+design_reference: docs/designs/design_meta_framework.md §4.1
 schema_name: workflow-template
 instance_top_level_required:
   - schema_version

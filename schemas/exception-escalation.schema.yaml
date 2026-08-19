@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_agent_hierarchy.md §3.3
+# Design reference: docs/designs/design_agent_hierarchy.md §3.3
 # ExceptionEscalation — child→parent when the unit cannot recover locally.
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_agent_hierarchy.md §3.3
+design_reference: docs/designs/design_agent_hierarchy.md §3.3
 schema_name: exception-escalation
 instance_top_level_required:
   - header

@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
-# Design reference: doc/designs/design_decomposition_gate.md §6.2
+# Design reference: docs/designs/design_decomposition_gate.md §6.2
 # DependencyMatrix — the L2 Wave Agent's planning artifact: an adjacency list
 # over task_ids plus a file-ownership map (P5 disjoint-scope verification) and
 # a critical-path projection used to order intra-wave dispatches.
@@ -11,7 +11,7 @@
 # (currently free-form) and connect it to the gate composite-score
 # `time_pressure` dimension.
 
-design_reference: doc/designs/design_decomposition_gate.md §6.2
+design_reference: docs/designs/design_decomposition_gate.md §6.2
 schema_name: dependency-matrix
 instance_top_level_required:
   - id

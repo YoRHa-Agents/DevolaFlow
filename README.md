@@ -448,7 +448,7 @@ DevolaFlow/
     lean-dispatch.yaml        #   lean TaskDispatch format spec
     lean-report.yaml          #   lean StatusReport format spec
     primitives/               #   per-primitive I/O schemas (future)
-  doc/designs/                # 15 design documents (~12,700 lines)
+  docs/designs/               # 15 design documents (~12,700 lines)
   scripts/                    # build/sync/detect shell helpers
   tests/                      # pytest suite (3092+ tests, 94.76% coverage)
   .github/workflows/          # CI + Release + Pages
@@ -502,7 +502,7 @@ Design Documents
 
 | Doc | Description |
 |-----|-------------|
-| [Design Documents](doc/designs/) | 15 internal design specs (architecture, meta-framework, delivery, etc.) |
+| [Design Documents](docs/designs/) | 15 internal design specs (architecture, meta-framework, delivery, etc.) |
 
 ## Contributing
 
@@ -544,7 +544,7 @@ git add -A && git commit -m "chore: bump version to X.Y.Z"
 git push origin main --tags                      # triggers release workflow
 ```
 
-Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml): test → GitHub Release → Pages deploy. See [Release Workflow Design](doc/designs/design_release_workflow.md) for full details.
+Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml): test → GitHub Release → Pages deploy. See [Release Workflow Design](docs/designs/design_release_workflow.md) for full details.
 
 ## License
 
