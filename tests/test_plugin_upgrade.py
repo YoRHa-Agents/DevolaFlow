@@ -42,7 +42,14 @@ from devolaflow.plugins.exceptions import PluginInstallError
 from devolaflow.plugins.installer import (
     _DEFAULT_UPGRADE_CHECK_FREQUENCY_HOURS,
     _SUPPORTED_SCHEMA_VERSIONS,
+    resolve_plugin,
 )
+
+# Resolved from the canonical registry (not a hand-pinned literal) so the
+# mock-subprocess keys below track the registry's upgrade command — e.g. the
+# issue #152 fix that repointed nines from the phantom PyPI name to
+# `git+https://github.com/YoRHa-Agents/NineS` required no edits here.
+_NINES_UPGRADE_CMD: str = resolve_plugin("nines", load_registry()).upgrade_cmd
 
 # ---------------------------------------------------------------------------
 # §1 — Schema v3 + canonical registry shape
@@ -467,15 +474,15 @@ class TestUpgradePlugin:
         upgrade_plugin("nines", log_path=log)
         # The canonical nines registry has upgrade_cmd == install_cmd, but
         # the call recorder shows both the upgrade and the verify probe.
-        upgrade_calls = [c for c in mock_subprocess["calls"] if "pip install --upgrade nines" in c]
+        upgrade_calls = [c for c in mock_subprocess["calls"] if _NINES_UPGRADE_CMD in c]
         assert upgrade_calls, (
             f"upgrade_plugin must run the upgrade command; calls={mock_subprocess['calls']!r}"
         )
 
     def test_upgrade_failure_raises_loudly(self, tmp_path: Path, mock_subprocess: dict) -> None:
         """Exit code != 0 from upgrade_cmd raises PluginInstallError per S-5."""
-        mock_subprocess["responses"]["pip install --upgrade nines"] = subprocess.CompletedProcess(
-            args=["bash", "-c", "pip install --upgrade nines"],
+        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
+            args=["bash", "-c", _NINES_UPGRADE_CMD],
             returncode=1,
             stdout="",
             stderr="network unreachable",
@@ -485,8 +492,8 @@ class TestUpgradePlugin:
             upgrade_plugin("nines", log_path=log)
 
     def test_upgrade_failure_logs_failed_event(self, tmp_path: Path, mock_subprocess: dict) -> None:
-        mock_subprocess["responses"]["pip install --upgrade nines"] = subprocess.CompletedProcess(
-            args=["bash", "-c", "pip install --upgrade nines"],
+        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
+            args=["bash", "-c", _NINES_UPGRADE_CMD],
             returncode=1,
             stdout="",
             stderr="boom",
@@ -625,7 +632,7 @@ class TestRefreshAll:
     ) -> None:
         """CI-safe: network failure on one plugin → outcome action='failed', no raise."""
         log = tmp_path / "plugin_install.log"
-        mock_subprocess["responses"]["pip install --upgrade nines"] = subprocess.CompletedProcess(
+        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
             args=["bash", "-c", "x"], returncode=1, stdout="", stderr="boom"
         )
         outcomes = refresh_all(log_path=log, force=True, only=["nines"])
@@ -761,7 +768,7 @@ class TestPluginsCli:
         """gap analysis §6 AC-7: per-row failures → exit 1; no crash."""
         from devolaflow.cli import plugins_cmd
 
-        mock_subprocess["responses"]["pip install --upgrade nines"] = subprocess.CompletedProcess(
+        mock_subprocess["responses"][_NINES_UPGRADE_CMD] = subprocess.CompletedProcess(
             args=["bash", "-c", "x"], returncode=1, stdout="", stderr="boom"
         )
         monkeypatch.chdir(tmp_path)

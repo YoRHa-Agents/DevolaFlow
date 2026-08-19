@@ -67,7 +67,7 @@
 #     surface for plugin state per the gap analysis §3.2 D-P-4 fix.
 
 schema_version: 3
-last_updated: "2026-05-03"
+last_updated: "2026-08-19"
 # v10.2.0 PV-01 — D-P-3 closure. schema_version stays at 3 (no new field);
 # only the si-chip entry's version_check_cmd was swapped from a hardcoded
 # "echo si-chip/0.4.0" heuristic to a real SKILL.md frontmatter probe via
@@ -79,11 +79,19 @@ last_updated: "2026-05-03"
 # gap_analysis.md §3.1 D-P-3 + cycle plan §3 PV-01.
 
 plugins:
+  # Issue #152 (2026-08-19) — the `nines` distribution is NOT published on
+  # PyPI (`pip install nines` → "from versions: none"), so install/upgrade
+  # go straight to the canonical GitHub source per S-7. The derived view
+  # (plugins.yaml install_methods.pip) already carried the git+ source; this
+  # aligns the A-5 owner with it. Distribution name inside the repo's
+  # pyproject.toml IS `nines` (console script `nines`), so `package:` and
+  # the `pip uninstall -y nines` teardown path are unchanged. NOTE: NineS
+  # requires Python >= 3.12 per its pyproject.
   - id: nines
     backend: pip
     package: nines
-    install_cmd: "pip install --upgrade nines"
-    upgrade_cmd: "pip install --upgrade nines"
+    install_cmd: "pip install --upgrade \"git+https://github.com/YoRHa-Agents/NineS\""
+    upgrade_cmd: "pip install --upgrade \"git+https://github.com/YoRHa-Agents/NineS\""
     version_check_cmd: "nines --version"
     min_version: "3.0.0"
     expected_sha256: null
