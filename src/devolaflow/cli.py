@@ -156,7 +156,16 @@ def doctor_cmd() -> None:
         _doctor_skills()
         return
 
+    from devolaflow.init_probe import format_capability_table, probe_capabilities
     from devolaflow.lifecycle.validate_owned_files import check_init_health
+
+    # Track C-4 (R5 F4): the doctor surfaces the same init-chain
+    # capability table as `devola-init local` (A-5 — one dependency tier
+    # table, two readers) so existing repos can audit their environment
+    # after the fact. Informational here — doctor exit code stays keyed
+    # to the structure contract only.
+    print(format_capability_table(probe_capabilities()))
+    print()
 
     report = check_init_health(Path.cwd())
     for f in report.findings:
