@@ -2,7 +2,7 @@
 
 v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
 ``feedback.py`` (``dispatch_wave_tasks`` + ``dispatch_dogfood_cycle``) per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 3 ("``dispatch_wave_tasks`` / ``dispatch_dogfood_cycle`` move to a
 dispatch module").
 

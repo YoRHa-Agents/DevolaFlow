@@ -5,7 +5,7 @@ v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
 ``evaluate_ladder`` + the per-rung checkers) plus the v9.0.0 PV-06
 ``is_verification_ladder_active`` helper + ``VERIFICATION_LADDER_ENV_FLAG``
 env-flag constant, per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 1. Mechanical import fixes only: the two call sites of
 ``evaluate_gate`` / ``_attach_cycle_report`` (which stay in
 ``gate/scorer.py``) import them at function level to keep this module free

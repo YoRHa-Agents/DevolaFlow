@@ -5,7 +5,7 @@ v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
 subsystem: ``select_agents_md_slice`` + ``count_agents_md_rules`` + their
 private helpers — conceptually a rules-distribution concern pairing with
 ``local/compiler.py``) per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 2. Mechanical import fix only: ``select_agents_md_slice`` imports the
 selector-core ``load_profiles`` / ``estimate_tokens`` at function level to
 keep this module free of module-level cycles.

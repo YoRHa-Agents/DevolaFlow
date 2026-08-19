@@ -147,6 +147,17 @@ _W18_RESEARCH_ARCHIVE_CANDIDATES: dict[Path, tuple[Path, ...]] = {
     Path(".local/research/v11.0.0_evaluation.md"): (
         Path("docs/cycle-archive/v11.0.0/evaluation/v11.0.0_evaluation.md"),
     ),
+    # clean_repo Phase C1-1 — the 2 v15 hard-read ADRs (constraint D13).
+    # Candidates: the flat D6 governance dir first, then the W-19 per-cycle
+    # archive copy (both committed; byte-identical to the local originals).
+    Path(".local/research/adr/v15-ADR-002-template-phase-b-collapse.md"): (
+        Path("docs/cycle-archive/adr/v15-ADR-002-template-phase-b-collapse.md"),
+        Path("docs/cycle-archive/v15.0.0/adr/v15-ADR-002-template-phase-b-collapse.md"),
+    ),
+    Path(".local/research/adr/v15-ADR-006-scorer-selector-module-split.md"): (
+        Path("docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md"),
+        Path("docs/cycle-archive/v15.0.0/adr/v15-ADR-006-scorer-selector-module-split.md"),
+    ),
 }
 
 

@@ -19,7 +19,7 @@ Pins the codegraph integration surfaces in:
 Source: ``.local/research/v12.5.0_gap_analysis.md`` §2 D-1.2 +
 ``.local/research/v12.5.0_codegraph_benefit_analysis.md`` §3 surface 5
 + §6.2 PV-04 acceptance criteria; composition carry-over per
-`.local/research/adr/v15-ADR-002-template-phase-b-collapse.md`.
+`docs/cycle-archive/adr/v15-ADR-002-template-phase-b-collapse.md`.
 
 NO subprocess. NO network. Pure YAML structural assertions.
 """

@@ -6,7 +6,7 @@ v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
 ``validate_intra_task_convergence_fields``) and from ``feedback.py``
 (``populate_cascade_gate_fields``, ``populate_intra_task_convergence`` plus
 their constants) per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 items 1 + 3 ("cascade — the v15.0.0 strict-flip surface — becomes a small
 reviewable module"; "``populate_cascade_gate_fields`` moves beside
 ``gate/cascade.py``").

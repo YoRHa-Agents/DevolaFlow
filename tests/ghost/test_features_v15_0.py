@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.ghost._helpers import _w18_research_artifact_path
+
 
 def test_v15_0_0_pre_dispatch_strict_graduation_registered(project_root: Path) -> None:
     """W-18 v15.0.0: the T1 pre_dispatch strict graduation (G-038) has coverage.
@@ -422,9 +424,16 @@ def test_v15_0_0_r2_retirement_criteria_registered(project_root: Path) -> None:
     (c) ADR-006 names BOTH S-10 permanent exemptions verbatim.
     """
     heading = "## Retirement criteria (v15.0.0 R2)"
-    adr_dir = project_root / ".local/research/adr"
-    adr6 = (adr_dir / "v15-ADR-006-scorer-selector-module-split.md").read_text(encoding="utf-8")
-    adr2 = (adr_dir / "v15-ADR-002-template-phase-b-collapse.md").read_text(encoding="utf-8")
+    # clean_repo Phase C1-1: resolve via the W-18 archive fallback (local
+    # copy first, then the committed docs/cycle-archive/ candidates) so a
+    # clean clone without .local/research/adr/ still reads the ADRs.
+    adr_dir = Path(".local/research/adr")
+    adr6 = _w18_research_artifact_path(
+        project_root, adr_dir / "v15-ADR-006-scorer-selector-module-split.md"
+    ).read_text(encoding="utf-8")
+    adr2 = _w18_research_artifact_path(
+        project_root, adr_dir / "v15-ADR-002-template-phase-b-collapse.md"
+    ).read_text(encoding="utf-8")
 
     for name, text in (("v15-ADR-006", adr6), ("v15-ADR-002", adr2)):
         assert heading in text, (
