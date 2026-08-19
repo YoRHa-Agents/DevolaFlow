@@ -211,11 +211,19 @@ def test_refresh_regenerates_readme_index(archiver, tmp_path: Path) -> None:
 
 
 def test_misc_archives_only_nonversioned_root_files(archiver, tmp_path: Path) -> None:
-    """--misc gathers root files not matching v<digit>; dirs + versioned files excluded."""
+    """--misc gathers cycle-less root files; dirs + cycle-versioned files excluded.
+
+    Cycle-LESS ``v``-prefixed names (``v10_internal_...`` — no
+    ``v<MAJOR>.<MINOR>.`` component) route to misc/ because no cycle
+    prefix can ever gather them; dot-form (``v9.9.0_...``) and dash-form
+    (``v15-cycle_...``) versioned names stay out of misc.
+    """
     research = _research(tmp_path)
     (research / "survey.md").write_text("S", encoding="utf-8")
     (research / "notes_analysis.md").write_text("N", encoding="utf-8")
+    (research / "v10_internal_directions.md").write_text("I", encoding="utf-8")
     (research / "v9.9.0_gap_analysis.md").write_text("V", encoding="utf-8")
+    (research / "v15-cycle_design_review.md").write_text("C", encoding="utf-8")
     (research / "adr").mkdir()
     (research / "adr" / "some-adr.md").write_text("A", encoding="utf-8")
 
@@ -223,11 +231,13 @@ def test_misc_archives_only_nonversioned_root_files(archiver, tmp_path: Path) ->
 
     dest = _dest(tmp_path, "misc")
     produced = sorted(str(p.relative_to(dest)) for p in dest.rglob("*") if p.is_file())
-    assert produced == ["README.md", "notes_analysis.md", "survey.md"]
+    assert produced == ["README.md", "notes_analysis.md", "survey.md", "v10_internal_directions.md"]
     readme = (dest / "README.md").read_text(encoding="utf-8")
     assert "* `notes_analysis.md`" in readme
     assert "* `survey.md`" in readme
+    assert "* `v10_internal_directions.md`" in readme
     assert "v9.9.0_gap_analysis.md" not in readme
+    assert "v15-cycle_design_review.md" not in readme
 
 
 def test_misc_supports_dry_run_and_refresh(archiver, tmp_path: Path, capsys) -> None:
