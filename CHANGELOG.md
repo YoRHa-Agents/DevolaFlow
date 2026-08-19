@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Test coverage (full_review_and_improve Track B-4 — adapter test parametrization + golden ×3 + Codex budget assertion)
+
+- **All 12 `adapter_configs/*.yaml` now exercised against the real agent dir** (gap G7 — 7 of 12 data-driven adapters had no dedicated coverage): `tests/test_data_driven_adapter.py` gains two glob-parametrized tests (schema well-formedness: name↔filename parity, non-empty output.files, transforms ∈ `VALID_TRANSFORMS`, valid budget block; and a real build: files emitted + on disk + adapter budget verdict GREEN) plus a collection-sanity inventory floor — a new adapter YAML gains coverage automatically with zero test edits.
+- **Golden metadata files for the remaining 3 core adapters**: `tests/fixtures/golden/{claude,codex,copilot}/*.expected.meta.json` mirror the Cursor golden's metadata-based (not byte-exact) philosophy — required sections verbatim, size band matching the adapter's budget type (lines for Claude/Codex, chars for Copilot), frontmatter-key presence, legacy-symbol denylist — checked by the parametrized `tests/test_adapter_golden.py::test_core_adapter_golden_metadata`.
+- **Codex budget assertion added** (`tests/test_build_skill.py::test_codex_output_under_budget`) — budget parity with the existing cursor/claude/copilot siblings; Codex previously only asserted `agents/openai.yaml` existence.
+- W-17 accounting: +5 new test functions (the per-config expansion is parametrization, not new complexity), matching the plan's ≤5 cap for this PR. The build-skill CLI's budget WARN→FAIL promotion stays deferred to the Track B second wave. Test-only change — no new production symbols, so W-18 needs no new ghost stanza.
+
 ### Fixed (install.sh review findings from the Track B/C chain — PR #169 / #173 Bugbot)
 
 - **`install_rule_tree` (zed/cline/roo) no longer hides failed reference downloads**: the `dl … || true` loop is replaced with the same count-and-warn pattern `install_skill_files` uses — a partial `references/` tree now prints `N/M references failed (K succeeded)` instead of finishing silently (S-5). Still warn-not-fatal.

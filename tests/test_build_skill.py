@@ -56,3 +56,11 @@ def test_codex_has_openai_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     build_all(["--tools", "codex"])
     codex_yaml = tmp_path / "dist" / "codex" / "agents" / "openai.yaml"
     assert codex_yaml.exists()
+
+
+def test_codex_output_under_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Codex budget parity with the cursor/claude/copilot siblings (G7)."""
+    monkeypatch.chdir(tmp_path)
+    results = build_all(["--tools", "codex"])
+    codex = next(r for r in results if r.tool == "codex")
+    assert codex.budget_ok, f"Codex over budget: {codex.budget_details}"

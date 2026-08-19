@@ -1,0 +1,14 @@
+{
+  "description": "Golden metadata for Codex adapter SKILL.md output (dist/codex/)",
+  "target_file": "SKILL.md",
+  "required_sections": [
+    "## Version & Update",
+    "## Quick Action Decision",
+    "## 4-Layer Agent Hierarchy",
+    "## Gate Mechanism",
+    "## Hard Rules"
+  ],
+  "line_count_range": [300, 500],
+  "must_have_frontmatter_keys": ["name", "description"],
+  "must_not_contain": ["MVP-SKILL", "evaluate_gate_with_nines", "run_nines_advisor"]
+}
