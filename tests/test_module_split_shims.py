@@ -1,6 +1,6 @@
 """Shim contract for the v14.5.0 ADR-006 module split (gap G-025).
 
-Per ``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` the
+Per ``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` the
 v14.5.0 split extracts ``gate/cascade.py`` + ``gate/ladder.py`` +
 ``gate/acceptance_v2.py`` out of ``gate/scorer.py``, ``agents_md_slice.py``
 + ``selector_cli.py`` out of ``task_adaptive_selector.py``, and the

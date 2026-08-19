@@ -7,7 +7,7 @@ acceptance-criteria evaluation: ``CommandRunResult`` +
 ``aggregate_criterion_verdicts``) including the v14.4.0 metric runners
 (``METRIC_KIND_*`` + ``_evaluate_metric_criterion``) that extend the same
 concern, per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 1 ("the module the v14.4.0 metric runners then extend in place").
 
 PERMANENT identity-preserving re-export shims live at the old

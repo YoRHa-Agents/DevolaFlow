@@ -3,7 +3,7 @@
 v14.5.0 (ADR-006 / gap G-025 module split) — code extracted VERBATIM from
 ``task_adaptive_selector.py`` (the ~190-line CLI block: ``main`` + the
 ``_print_cli_*`` / ``_parse_*`` helpers) per
-``.local/research/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
+``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 2. Mechanical import fix only: ``main`` imports ``select_context`` /
 ``select_agents_md_slice`` at function level to keep this module free of
 module-level cycles.
