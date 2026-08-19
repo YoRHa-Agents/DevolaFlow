@@ -4,7 +4,7 @@ description: "系统架构：4 层层级、阶段原语、质量门机制。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-12T00:34:17Z"
+last_synced: "2026-08-19T09:38:05Z"
 source_version: "15.0.0"
 ---
 
@@ -111,4 +111,5 @@ composite = test_quality × 0.30 + code_review × 0.30
 | `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
 
 v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process-rules.mdc`、
-`context-optimization-rules.mdc` 等）已转换为弃用指针存根，其 SF-/CP-/CO- 内容已并入上述各层。
+`context-optimization-rules.mdc` 等）曾转换为弃用指针存根，并已于 v15.0.0 退役，
+其 SF-/CP-/CO- 内容已并入上述各层。

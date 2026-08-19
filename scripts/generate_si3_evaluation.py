@@ -63,7 +63,7 @@ def render_skeleton(version: str, *, pv: str | None = None, cycle: str | None = 
 
     return f"""# {version} — SI-3 Evaluation Report
 
-> Per W-3 / SI-3 (`.cursor/rules/self-improve-iteration-rules.mdc` + `AGENTS.md` §W-3):
+> Per W-3 / SI-3 (`.rules/workflow.mdc` + `AGENTS.md` §W-3):
 > every pre-release requires a weighted-composite evaluation across 6
 > dimensions; threshold for ACCEPT is composite ≥ 8.5/10 (MINOR/PATCH)
 > or ≥ 9.0/10 (MAJOR). Below threshold → iterate (loop back to SI-1)

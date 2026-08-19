@@ -4,7 +4,7 @@ description: "System architecture: 4-layer hierarchy, stage primitives, gate mec
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-06-12T00:34:17Z"
+last_synced: "2026-08-19T09:38:05Z"
 source_version: "15.0.0"
 ---
 
@@ -137,5 +137,6 @@ source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 | `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
 
 The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
-`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) are deprecated
-pointer stubs, their SF-/CP-/CO- content was absorbed into the layers above.
+`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) were demoted
+to deprecated pointer stubs and retired in v15.0.0, their SF-/CP-/CO- content
+was absorbed into the layers above.

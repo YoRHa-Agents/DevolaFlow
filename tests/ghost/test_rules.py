@@ -100,11 +100,12 @@ def test_rules_source_directory_exists(project_root: Path) -> None:
 #     rule-id headings across `.rules/*.mdc`.
 #   * test_rule_surfaces_compile_only — `.cursor/rules/repo-governance.mdc`
 #     SHA-256 matches the value stored in `.rules/.compile-hashes.json`
-#     (drift detection); every deprecated stub registered in
-#     `devolaflow.local.drift::DEPRECATED_STUB_FILES` (6 as of v14.2.1 G-008)
-#     matches its expected stub-template fingerprint (preventing
-#     hand-edits). Failure means the canonical-vs-compiled invariant is broken
-#     OR a stub was hand-edited to drift from the deprecation scaffold.
+#     (drift detection); the 6 deprecated pointer stubs RETIRED at
+#     v15.0.0 (clean_repo C1-2, decision D1) must NOT resurrect under
+#     `.cursor/rules/`, and `src/devolaflow/local/drift.py` must not
+#     re-grow the stub-registry machinery. Failure means the
+#     canonical-vs-compiled invariant is broken OR a retired stub (or its
+#     drift machinery) was resurrected.
 
 # 60 HARD cap (ADR-007 D5, denominator re-based by v15-ADR-004 D1/D2 to the
 # full `.rules/` source corpus). Post-v15.0.0-diet census: Soul 10 + Arch 7 +
@@ -217,44 +218,58 @@ def test_rule_count_under_cap(project_root: Path) -> None:
     )
 
 
+# The 6 deprecated `.cursor/rules/` pointer stubs RETIRED at v15.0.0
+# (clean_repo C1-2, decision D1 — dated retirement record in the
+# CHANGELOG `## [Unreleased]` PR-8 entry). Content is fully preserved in
+# the compiled `repo-governance.mdc` corpus + git history. The reverse
+# lint below replaces the retired ADR-007 D2 stub-fingerprint check,
+# maintaining S-4 continuity: a resurrected stub file (or re-grown
+# stub-registry machinery in drift.py) fails CI.
+_RETIRED_STUB_FILENAMES: tuple[str, ...] = (
+    "change-process-rules.mdc",
+    "context-optimization-rules.mdc",
+    "devola-flow-rules.mdc",
+    "self-improve-iteration-rules.mdc",
+    "skill-format-rules.mdc",
+    "workflow-rules.mdc",
+)
+
+
 def test_rule_surfaces_compile_only(project_root: Path) -> None:
-    """ADR-007 D2 + D5: `.cursor/rules/*.mdc` files must be compile-only.
+    """ADR-007 D5 + the v15.0.0 D1 stub retirement reverse lint.
 
-    Two-part invariant per ADR-007:
+    Two-part invariant:
 
-    1. **D5** — `.cursor/rules/repo-governance.mdc` (the compiled full corpus)
-       SHA-256 matches the `cursor` entry in `.rules/.compile-hashes.json`.
-       A hand-edit to the compiled file shifts the SHA-256 and fails this
-       assertion — operators MUST regenerate via
-       `RuleCompiler('.rules/compile-config.yaml').compile_all()` instead
-       of editing the compiled output directly.
+    1. **ADR-007 D5** — `.cursor/rules/repo-governance.mdc` (the compiled
+       full corpus) SHA-256 matches the `cursor` entry in
+       `.rules/.compile-hashes.json`. A hand-edit to the compiled file
+       shifts the SHA-256 and fails this assertion — operators MUST
+       regenerate via `RuleCompiler('.rules/compile-config.yaml').compile_all()`
+       instead of editing the compiled output directly.
 
-    2. **D2** — every deprecated stub registered in
-       `devolaflow.local.drift::DEPRECATED_STUB_FILES` (2 at v9.0.0 PV-07
-       per ADR-007 D2; +4 at v14.2.1 per G-008 — `change-process` /
-       `context-optimization` / `self-improve-iteration` / `skill-format`)
-       must match the stub-template fingerprint stored under its
-       `stub_<name>` key in `.rules/.compile-hashes.json`. The stubs are
-       pinned cross-reference scaffolds — a hand-edit either drifts the
-       SHA-256 OR grows the stub past the ≤ 50-line ceiling enforced by
-       the inline length check below.
+    2. **Reverse lint (v15.0.0 clean_repo C1-2, decision D1)** — the 6
+       deprecated pointer stubs (2 demoted at v9.0.0 PV-07 per ADR-007
+       D2; +4 at v14.2.1 per G-008) were RETIRED wholesale: `git rm` ×6
+       plus retirement of the stub-drift machinery that pinned them
+       (the deprecated-stub registry + fingerprint helpers formerly in
+       `devolaflow.local.drift`, their `stub_*` hash-store keys, and the
+       `DEFAULT_ALLOWLIST` entries). This part asserts the stubs must
+       NOT exist under `.cursor/rules/` and the drift module must not
+       re-grow the stub registry — preventing resurrection.
 
     Failure modes:
       * "compiled file SHA-256 mismatch" → operator hand-edited
         `repo-governance.mdc`; re-run `RuleCompiler.compile_all()`.
-      * "stub SHA-256 mismatch" → operator hand-edited a deprecated stub;
-        the stubs are intentionally frozen as cross-reference scaffolds.
-      * "stub line count > 50" → a stub grew past the deprecation ceiling;
-        either compress back or re-evaluate the deprecation decision.
-      * "compile-hashes.json missing key" → drift store wasn't regenerated
-        with the v9.0.0 PV-07 stub fingerprints; re-run
-        `RuleCompiler.compile_all()` after the v9.0.0 update.
+      * "retired stub resurrected" → a deleted pointer stub reappeared
+        under `.cursor/rules/`; the canonical content lives in `.rules/`
+        + the compiled corpus — delete the resurrected file (restore
+        decisions go through the CHANGELOG EXTEND clause, not silent
+        re-adds).
+      * "stub-registry machinery re-grown" → `drift.py` re-declares the
+        retired deprecated-stub registry; new drift surfaces must cover
+        compile TARGETS only.
     """
-    from devolaflow.local.drift import (
-        DEPRECATED_STUB_FILES,
-        check_rules_drift,
-        check_stub_drift,
-    )
+    from devolaflow.local.drift import check_rules_drift
 
     rules_dir = project_root / ".rules"
     hash_file = rules_dir / ".compile-hashes.json"
@@ -278,32 +293,27 @@ def test_rule_surfaces_compile_only(project_root: Path) -> None:
         f"RuleCompiler.compile_all() to regenerate."
     )
 
-    stub_results = check_stub_drift(repo_root=project_root, hash_file=hash_file)
-    drifted_stubs = [r for r in stub_results if r.status == "drifted"]
-    assert not drifted_stubs, (
-        f"ADR-007 D2 violation: deprecated stub fingerprints drifted from "
-        f".rules/.compile-hashes.json: "
-        f"{[(r.target, r.expected_hash, r.actual_hash) for r in drifted_stubs]}. "
-        f"The stubs registered in drift.DEPRECATED_STUB_FILES are PINNED "
-        f"cross-reference scaffolds — re-run "
-        f"RuleCompiler.compile_all() after re-applying the canonical stub "
-        f"template, OR investigate why the stubs were hand-edited."
+    # ----- v15.0.0 D1 reverse lint: retired stubs must NOT resurrect -----
+    resurrected = [
+        filename
+        for filename in _RETIRED_STUB_FILENAMES
+        if (project_root / ".cursor" / "rules" / filename).exists()
+    ]
+    assert not resurrected, (
+        f"clean_repo C1-2 (decision D1) violation: retired deprecated "
+        f"pointer stub(s) resurrected under .cursor/rules/: {resurrected}. "
+        f"The 6 stubs were retired at v15.0.0 — canonical content lives in "
+        f".rules/ + the compiled repo-governance.mdc corpus (zero loss); "
+        f"history is in git. To un-retire, follow the EXTEND fallback "
+        f"clause in the CHANGELOG retirement record instead of silently "
+        f"re-adding files."
     )
 
-    missing_stubs = [r for r in stub_results if r.status == "missing"]
-    assert not missing_stubs, (
-        f"ADR-007 D2 violation: deprecated stub or fingerprint missing: "
-        f"{[r.target for r in missing_stubs]}. Re-run RuleCompiler.compile_all() "
-        f"after restoring the deprecated stub files."
+    drift_source = (project_root / "src/devolaflow/local/drift.py").read_text(encoding="utf-8")
+    assert "DEPRECATED_STUB_FILES" not in drift_source, (
+        "clean_repo C1-2 (decision D1) violation: the stub-drift registry "
+        "machinery was retired from src/devolaflow/local/drift.py together "
+        "with the 6 pointer stubs (an empty registry would be a ghost "
+        "surface per S-4). New drift surfaces must cover compile TARGETS "
+        "declared in .rules/compile-config.yaml, not resurrected stubs."
     )
-
-    for _key, relpath in DEPRECATED_STUB_FILES:
-        stub_path = project_root / relpath
-        assert stub_path.is_file(), f"Deprecated stub missing: {relpath}"
-        line_count = stub_path.read_text(encoding="utf-8").count("\n") + 1
-        assert line_count <= 50, (
-            f"ADR-007 D2 violation: deprecated stub {relpath} has {line_count} "
-            f"lines — must be ≤ 50 (cross-reference scaffold ceiling). The stub "
-            f"is intentionally minimal; expand canonical content under .rules/ "
-            f"instead and let the compiler re-emit the full corpus."
-        )

@@ -29,17 +29,18 @@ python -c "from devolaflow.local.compiler import RuleCompiler; RuleCompiler('.ru
 
 ## Source Mapping
 
-Rules were migrated from the legacy `.cursor/rules/*.mdc` files. As of v14.2.1
-(G-008) all six fully-migrated legacy files are deprecated pointer stubs
-(registered in `devolaflow.local.drift::DEPRECATED_STUB_FILES`); the two
-P4 Style sources (`documentation-sync-rules.mdc`, `web-experience-rules.mdc`)
-remain in place as on-demand rule files. Original mapping:
+Rules were migrated from the legacy `.cursor/rules/*.mdc` files. The six
+fully-migrated legacy files (`workflow-rules` / `devola-flow-rules` /
+`change-process-rules` / `context-optimization-rules` /
+`self-improve-iteration-rules` / `skill-format-rules`) were demoted to
+deprecated pointer stubs (v9.0.0 PV-07 / v14.2.1 G-008) and **retired
+2026-08-19 in the v15.0.0 series** (clean_repo C1-2, decision D1 — dated
+retirement record in the CHANGELOG; resurrection blocked by
+`tests/ghost/test_rules.py::test_rule_surfaces_compile_only`; the SI-* /
+CP-* / CO-* / SF-* → S-*/A-*/C-*/W-* lineage lives in
+`docs/cycle-archive/adr/v15-ADR-008-rule-corpus-history-appendix.md`).
+The two P4 Style sources (`documentation-sync-rules.mdc`,
+`web-experience-rules.mdc`) remain in place as on-demand rule files:
 
-- `workflow-rules.mdc` → P1 Architecture (P1–P5)
-- `devola-flow-rules.mdc` → P1 Architecture (P1–P6)
-- `change-process-rules.mdc` → P0 Soul (CP-1, CP-2), P2 Conventions (CP-7), P3 Workflow (CP-3–CP-6)
-- `context-optimization-rules.mdc` → P1 Architecture (CO-3), P2 Conventions (CO-1, CO-2), P0 Soul (CO-4), P3 Workflow (CO-5, CO-6)
-- `self-improve-iteration-rules.mdc` → P3 Workflow (SI-1–SI-10)
-- `skill-format-rules.mdc` → P2 Conventions (SF-1–SF-4), P0 Soul (SF-5), P1 Architecture (SF-6)
 - `documentation-sync-rules.mdc` → P4 Style (DS-1–DS-5)
 - `web-experience-rules.mdc` → P4 Style (WX-1–WX-8)

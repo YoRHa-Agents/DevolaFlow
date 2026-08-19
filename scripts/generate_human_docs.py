@@ -398,8 +398,9 @@ source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 | `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
 
 The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
-`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) are deprecated
-pointer stubs — their SF-/CP-/CO- content was absorbed into the layers above.
+`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) were demoted
+to deprecated pointer stubs and retired in v15.0.0 — their SF-/CP-/CO- content
+was absorbed into the layers above.
 """
 
 
@@ -1389,7 +1390,8 @@ composite = test_quality × 0.30 + code_review × 0.30
 | `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
 
 v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process-rules.mdc`、
-`context-optimization-rules.mdc` 等）已转换为弃用指针存根，其 SF-/CP-/CO- 内容已并入上述各层。
+`context-optimization-rules.mdc` 等）曾转换为弃用指针存根，并已于 v15.0.0 退役，
+其 SF-/CP-/CO- 内容已并入上述各层。
 """
 
 
