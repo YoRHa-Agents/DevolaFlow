@@ -2199,5 +2199,37 @@
       "soul_set_count": "10",
       "benchmark_baseline_active": "v15.0.0_baseline.json"
     }
+  },
+  {
+    "version": "15.2.0",
+    "date": "2026-08-20",
+    "era": "init-reliability",
+    "headline": "MINOR — dependency suggestion-ization (runtime-plugins.yaml schema v4: per-plugin tier field, all 6 suggest; defaults.auto_install true → false — bare ensure_plugin probes loudly instead of network-installing; ensure_plugins → suggest_plugins capability-probe rename across all 6 live template dependency points; suggest-tier PPI001 degrades to warning with a one-time suggest_plugin_once hint) + v15.1.0 cycle-compliance backfill (W-16 cycle-close wholesale baseline regen; SI-3 evaluation 9.20; W-7 retrospective retro-filed)",
+    "summary": "v15.2.0 closes gap G5 (forced dependencies) from the full_review_and_improve review: plugins are now SUGGESTED, never forced. runtime-plugins.yaml bumps to schema v4 — every entry declares tier: suggest (require kept as a mechanism with no occupant; absent defaults to suggest so v1–v3 registries load unchanged) and defaults.auto_install flips to false, so a bare ensure_plugin(pid) probes and raises loudly instead of network-installing; the explicit opt-in surfaces (DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 lifecycle hooks, devola-init --global bundling) pass auto_install=True at the call site and behave exactly as before (W-20: no new env flag). The ensure_plugins template key is renamed suggest_plugins across all 6 live dependency points — a capability-probe instruction (present → enhanced recipe; absent → built-in degraded recipe + hint), no longer a hard precondition. Suggest-tier install failures degrade PPI001 to severity=warning (tier recorded in context; require keeps error; strict finalize semantics untouched) with a one-time per-session hint via devolaflow.plugins.loader.suggest_plugin_once. degraded-mode.md gains Section 0 (probe → recipe-A/recipe-B → hint 4-tuple as the first-class mechanism); env-flags.md §2.5 DEVOLAFLOW_AUTO_INSTALL is RETIRED (tombstone — the name never had an env read; resolves the G-023 wiring-or-removal deferral). The release also carries the v15.1.0 cycle-compliance backfill: the W-16 cycle-close wholesale regen (v15.1.0_baseline.json, 57 scenarios, 38 sub-envelope shifts, 0 beyond the 5 pp envelope; v14.3.0_baseline.json → Tier-C archive per A-2.4), the retro-filed SI-3 evaluation (weighted composite 9.20, READY ≥ 8.5 MINOR bar), and the retro-filed W-7 retrospective (gap-register disposition + the L-3 root cause: the operator release runbook carried no SI-3/W-7/W-16 steps).",
+    "highlights": [
+      "B-6 (1/3) — runtime-plugins.yaml schema v4: per-plugin tier field (all 6 suggest; require is a kept mechanism with no occupant; absent → suggest so v1–v3 registries pass unchanged; invalid raises PluginInstallError per S-5); new plugin_tier() resolver in installer.py",
+      "B-6 (2/3) — defaults.auto_install true → false: bare ensure_plugin(pid) probes and raises PluginVersionMismatch loudly instead of network-installing; opt-in surfaces (DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 hooks, devola-init --global) pass auto_install=True explicitly — behaviour unchanged; W-20: no new env flag",
+      "B-6 (3/3) — ensure_plugins → suggest_plugins across all 6 live template dependency points (web-design ×3, nines-assisted, self-update, skill-optimization, registry.yaml product-verification params): capability-probe instruction, not a hard install precondition",
+      "Tier-aware PPI001 — suggest-tier install failures under the opt-in flag degrade to severity=warning (tier in violation context; require keeps error; strict finalize raises on ANY violation regardless of severity) + one-time per-session hint via devolaflow.plugins.loader.suggest_plugin_once (zero-IO, session-cached)",
+      "Docs — degraded-mode.md Section 0 (probe → recipe-A/recipe-B → hint 4-tuple); env-flags.md §2.5 DEVOLAFLOW_AUTO_INSTALL RETIRED tombstone (G-023 deferral resolves to removal; §-numbering stable); shell-proxy.md + installer cargo hint updated to the new default",
+      "Compliance backfill — W-16 cycle-close wholesale regen: v15.1.0_baseline.json (57 scenarios; 38 sub-envelope equilibrium shifts vs v15.0.0, max −1.15 pp, 0 beyond the 5 pp envelope); v14.3.0_baseline.json → docs/cycle-archive/v14.3.0/baselines/ (Tier-C per A-2.4; zero test edits — the window lint derives the expectation)",
+      "Compliance backfill — SI-3 evaluation retro-filed (.local/research/v15.1.0_evaluation.md; weighted composite 9.20 READY, six dimensions scored against shipped evidence, process-violation self-report) + W-7 retrospective retro-filed (.local/research/v15.1.0_retrospective.md; 6 shipped / 5 blocked / 2 deferred; L-3 root cause: release runbook carries no SI-3/W-7/W-16 steps)",
+      "W-18 stanza tests/ghost/test_features_v15_2.py::test_v15_2_0_b6_dependency_suggestion_registered pins all B-6 contracts (W-17: +1 new test function; existing pins updated in place)"
+    ],
+    "metrics": {
+      "runtime_plugins_schema": "4",
+      "plugin_tiers": "suggest ×6 (require: kept mechanism, no occupant)",
+      "auto_install_default": "false (was true)",
+      "template_dependency_points_renamed": "6",
+      "ppi001_suggest_severity": "warning (require: error)",
+      "env_flags_retired": "DEVOLAFLOW_AUTO_INSTALL (§2.5 tombstone; never wired)",
+      "benchmark_baseline_active": "v15.1.0_baseline.json (57 scenarios)",
+      "si3_composite": "9.20 (retro-filed)",
+      "new_test_functions": "B-6 +1 (W-17 cap respected); compliance backfill +0",
+      "prs_merged": "#180 (compliance), #181 (B-6)",
+      "canonical_order_length": "17",
+      "schema_version": "6",
+      "soul_set_count": "10"
+    }
   }
 ]
