@@ -10,22 +10,24 @@
 
 -
 
-## Testing
+## W-9 Pre-Commit Gates (all 7 must pass — or run `make precommit-full`)
 
-- [ ] `make all` passes (lint + test + validate + build + sync + drift)
-- [ ] No regressions in `pytest tests/ -v --cov=devolaflow`
-- [ ] Coverage >= 80%
+- [ ] `make test-core`
+- [ ] `ruff check src/ tests/`
+- [ ] `ruff format --check src/ tests/`
+- [ ] `make test-version`
+- [ ] `make test-benchmarks`
+- [ ] `make check-cursor-skill`
+- [ ] `make iteration-delta-gate`
 
-## Checklist
+## Rule Checklist (S/A/C/W/ST — compiled corpus: `.cursor/rules/repo-governance.mdc` / `AGENTS.md`; sources: `.rules/*.mdc`)
 
-- [ ] Follows [repository rules](.cursor/rules/) (CP/SF/CO rules)
+- [ ] **S (Soul)**: no ghost features (S-4); coverage >= 80% (S-3); no absolute paths in agent-facing files (S-2); no silent failures (S-5); feature branch + PR, never push protected branches (S-6)
+- [ ] **A (Architecture)**: dispatch layout invariant intact if `schemas/` touched (A-2) — `python -m pytest tests/test_layout_invariant_multi_baseline.py -v`
+- [ ] **C (Conventions)**: CHANGELOG.md updated if user-visible (C-1); version bumped via `scripts/bump_version.py` + `make test-version` (C-6); reference links valid (C-7)
+- [ ] **W (Workflow)**: ghost-audit refreshed BEFORE authoring the CHANGELOG entry (W-18); EvoBench pass if selector/profiles/schemas/SKILL.md/gate touched (W-4); `build-skill` + adapter budgets if SKILL.md/CLAUDE.md/workflow-skill.yaml changed (W-5)
+- [ ] **ST (Style)**: EN/ZH bilingual sync (ST-3) + demo page checklist (ST-5) if `workflow-system/human/` touched; `make sync-human-docs` if version bumped (ST-4)
 - [ ] Conventional commit messages (`feat:`, `fix:`, `docs:`, `test:`, `chore:`)
-- [ ] CHANGELOG.md updated if user-visible changes
-- [ ] No absolute filesystem paths in agent-facing files
-- [ ] Version consistency verified (if version bumped): `python -m pytest tests/test_version.py -v`
-- [ ] Adapter budgets verified (if SKILL.md/CLAUDE.md/workflow-skill.yaml changed): `build-skill`
-- [ ] Human docs regenerated (if version bumped or generate_human_docs.py changed): `make sync-human-docs`
-- [ ] EvoBench pass (if context profiles or task_adaptive_selector changed): `python -m pytest tests/test_benchmarks.py -v`
 
 ## Release Impact
 
