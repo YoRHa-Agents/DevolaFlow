@@ -126,11 +126,15 @@ def check_rules_drift_cmd() -> None:
 
 def scaffold_local_cmd() -> None:
     """Initialize .local/ workspace structure."""
-    from devolaflow.local.workspace import scaffold_local
+    from devolaflow.local.workspace import ScaffoldVerificationError, scaffold_local
 
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     dirs = args if args else None
-    scaffold_local(Path.cwd(), dirs=dirs)
+    try:
+        scaffold_local(Path.cwd(), dirs=dirs)
+    except ScaffoldVerificationError as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
     print("  .local/ workspace initialized.")
 
 

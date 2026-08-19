@@ -737,3 +737,52 @@ def test_v15_0_x_install_lifecycle_update_uninstall_doctor(project_root: Path) -
     assert "--skills" in cli_text and "_doctor_skills" in cli_text, (
         "W-18 B-2 violation: doctor_cmd lost the --skills scan path."
     )
+
+
+def test_v15_0_x_scaffold_gitignore_reliability_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-1 — gitignore reliability (R5 F1).
+
+    Discharges the W-18 precondition for the C-1 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.local.workspace` owns the deterministic gitignore
+        entry path: `ensure_gitignore_entries` + `SCAFFOLD_GITIGNORE_ENTRIES`
+        (`.codegraph/` decoupled from `codegraph init` outcome; R5 F1-H1).
+    (b) The post-scaffold self-check exists: `verify_scaffold_gitignore` +
+        `ScaffoldVerificationError` raised by `scaffold_local` (S-5; R5 F1-H3).
+    (c) The module has a real `__main__` path so the historic install.sh
+        invocation `python3 -m devolaflow.local.workspace` is no longer a
+        silent no-op import (R5 F1-H2), and install.sh no longer swallows
+        the scaffold outcome.
+
+    Behavioural assertions live in
+    tests/test_local_workspace.py::TestEnsureGitignoreEntries and
+    ::TestScaffoldGitignoreSelfCheck.
+    """
+    from devolaflow.local.workspace import (
+        SCAFFOLD_GITIGNORE_ENTRIES,
+        ScaffoldVerificationError,
+        ensure_gitignore_entries,
+        verify_scaffold_gitignore,
+    )
+
+    # --- (a) deterministic entry path ---------------------------------
+    assert callable(ensure_gitignore_entries)
+    assert ".codegraph/" in SCAFFOLD_GITIGNORE_ENTRIES
+
+    # --- (b) self-check surface ----------------------------------------
+    assert callable(verify_scaffold_gitignore)
+    assert issubclass(ScaffoldVerificationError, RuntimeError)
+
+    # --- (c) __main__ path + honest install.sh reporting ---------------
+    workspace_text = (project_root / "src/devolaflow/local/workspace.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'if __name__ == "__main__":' in workspace_text, (
+        "W-18 C-1 violation: devolaflow.local.workspace lost its __main__ path — "
+        "`python3 -m devolaflow.local.workspace` would regress to a silent no-op."
+    )
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+    assert "python3 -m devolaflow.local.workspace 2>/dev/null || true" not in install_sh, (
+        "W-18 C-1 violation: install.sh regressed to swallowing scaffold failures."
+    )

@@ -387,11 +387,23 @@ install_local() {
   info "Initializing local workspace..."
   mkdir -p ".local/feedbacks" ".local/tasks"
 
+  # full_review_and_improve Track C-1 (R5 F1-H2/H3): the historic form
+  # discarded stderr and ||-true'd the module invocation, AND the module
+  # had no __main__ path — so this step was a silent no-op reported as
+  # success. Now: run the real scaffold, surface its output, and report
+  # the actual outcome (S-5 no silent failures).
   if command -v python3 >/dev/null 2>&1 && python3 -c "import devolaflow" 2>/dev/null; then
-    python3 -m devolaflow.local.workspace 2>/dev/null || true
+    if python3 -m devolaflow.local.workspace; then
+      ok "Local workspace scaffolded (.local/ tree + .gitignore entries verified)"
+    else
+      errf "devolaflow scaffold failed — .local/ may be incomplete (see error above)."
+      errf "Fix the reported issue, then re-run: devola-init local"
+      return 1
+    fi
+  else
+    warn "python3 + devolaflow package not found — created minimal .local/ only (no .gitignore setup)."
+    warn "Install the package (pip install devolaflow), then run: devola-init local"
   fi
-
-  ok "Local workspace initialized (.local/feedbacks, .local/tasks)"
 
   if [ ! -d ".rules" ]; then
     info "No .rules/ directory found. Create one with governance rules to use rule compilation."
@@ -648,7 +660,7 @@ case "$TARGET" in
   zed)      install_zed ;;
   cline)    install_cline ;;
   roo)      install_roo ;;
-  local)      install_local ;;
+  local)      install_local || exit 1 ;;
   standalone) install_standalone ;;
   # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
   # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
