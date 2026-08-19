@@ -962,3 +962,54 @@ def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:
     # --- (c) matrix + stdlib lint exist as test surfaces ------------------
     assert (project_root / "tests/test_init_venv_matrix.py").is_file()
     assert (project_root / "tests/test_init_probe.py").is_file()
+
+
+def test_v15_0_x_cursor_rules_dedup_registered(project_root: Path) -> None:
+    """Rules-dedup fix — repo-governance.mdc demoted to on-demand.
+
+    Discharges the W-18 precondition for the rules-dedup CHANGELOG entry.
+    Modern Cursor auto-loads AGENTS.md as an always-applied workspace
+    rule; keeping `alwaysApply: true` on the compiled MDC double-injected
+    the S/A/C/W corpus verbatim (~12K tokens duplicated per agent
+    context, measured 2026-08-20). Pins the dedup contract:
+
+    (a) the compile-config cursor target declares `alwaysApply: false`,
+    (b) the compiled MDC frontmatter carries it verbatim (no hand-edit
+        drift; corpus body/layers unchanged),
+    (c) AGENTS.md remains the always-loaded corpus and keeps the P4
+        Style pointer postscript, while the MDC stays the only compiled
+        surface with the Style layer inline.
+    """
+    import yaml
+
+    config = yaml.safe_load(
+        (project_root / ".rules/compile-config.yaml").read_text(encoding="utf-8")
+    )
+    cursor_fm = config["targets"]["cursor"]["frontmatter"]
+    assert cursor_fm["alwaysApply"] is False, (
+        "W-18 rules-dedup violation: compile-config cursor target reverted to "
+        "alwaysApply: true — this double-injects the corpus in Cursor contexts."
+    )
+    assert "AGENTS.md" in cursor_fm["description"], (
+        "W-18 rules-dedup violation: the agent-requested description must "
+        "explain the AGENTS.md dedup rationale."
+    )
+
+    mdc_text = (project_root / ".cursor/rules/repo-governance.mdc").read_text(encoding="utf-8")
+    assert "alwaysApply: false" in mdc_text.split("---")[1], (
+        "W-18 rules-dedup violation: compiled MDC frontmatter drifted from "
+        "the compile-config (rerun sync-rules)."
+    )
+    assert "## S-1" in mdc_text and "ST-13" in mdc_text, (
+        "W-18 rules-dedup violation: MDC must keep the full corpus incl. "
+        "the P4 Style layer (it is the only compiled surface carrying it)."
+    )
+
+    agents_text = (project_root / "AGENTS.md").read_text(encoding="utf-8")
+    assert "## S-1" in agents_text, (
+        "W-18 rules-dedup violation: AGENTS.md lost the always-loaded corpus."
+    )
+    assert "docs/STYLE-RULES.md" in agents_text, (
+        "W-18 rules-dedup violation: AGENTS.md lost the Style-layer pointer "
+        "postscript (compile drift — rerun sync-rules)."
+    )

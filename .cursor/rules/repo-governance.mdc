@@ -1,6 +1,6 @@
 ---
-description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
-alwaysApply: true
+description: "Full governance rule corpus incl. P4 Style layer (ST-1..ST-13); compiled from .rules/, do not hand-edit. Cursor sessions already auto-load the same S/A/C/W corpus via AGENTS.md — request this file only when editing human-facing docs, the web demo, or bilingual content (Style rules), or when AGENTS.md is unavailable."
+alwaysApply: false
 ---
 
 # Soul Rules (P0) — Immutable Invariants

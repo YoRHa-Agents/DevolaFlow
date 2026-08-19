@@ -36,8 +36,12 @@ DevolaFlow's governance rules live in **`.rules/`** (5 layered `.mdc` files: sou
 conventions, workflow, style). They are compiled to three distribution targets:
 
 - **`AGENTS.md`** (repo root) — the canonical Markdown corpus loaded by Claude Code, Codex,
-  KimiCode, Cline, Roo, and any AGENTS.md-aware tool. Read this for the full rule body.
-- **`.cursor/rules/repo-governance.mdc`** — the same corpus rendered as MDC for Cursor.
+  KimiCode, Cline, Roo, Cursor, and any AGENTS.md-aware tool. Read this for the full rule body.
+- **`.cursor/rules/repo-governance.mdc`** — the same corpus rendered as MDC, **on-demand**
+  (`alwaysApply: false` since the rules-dedup fix): modern Cursor already auto-loads
+  AGENTS.md, so always-applying this file double-injected ~12K tokens of identical rules
+  into every agent context. It remains the only compiled surface carrying the P4 Style
+  layer inline.
 - **`docs/STYLE-RULES.md`** — the P4 Style layer (ST-1..ST-13) alone, as an on-demand
   tool-agnostic view; AGENTS.md ends with a one-line pointer to it. Consult when editing
   human-facing docs, the web demo, or bilingual content.
