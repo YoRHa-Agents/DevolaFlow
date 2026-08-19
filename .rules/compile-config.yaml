@@ -44,13 +44,28 @@ targets:
     # `compiler.py::CompileResult.layers_included` accounting bug noted by
     # the W2.T3 stage report (post-truncation list reported as
     # pre-truncation) is tracked separately as a v11.4.x cleanup candidate.
+    #
+    # v15.0.x rules-dedup — `alwaysApply` flipped true → false. Modern
+    # Cursor auto-loads AGENTS.md as an always-applied workspace rule, so
+    # `alwaysApply: true` here double-injected the S/A/C/W corpus verbatim
+    # (~49 KB ≈ 12K tokens duplicated per agent context; measured
+    # 2026-08-20, full-chain benefit analysis). This target stays the
+    # full-corpus on-demand view — the only compiled surface carrying the
+    # P4 Style layer inline — and the description below is the Cursor
+    # agent-requested trigger. Corpus/budget/layers unchanged; drift-hash
+    # coverage unchanged.
     output: ".cursor/rules/repo-governance.mdc"
     format: mdc
     token_budget: 14000
     include_layers: [soul, architecture, conventions, workflow, style]
     frontmatter:
-      description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
-      alwaysApply: true
+      description: >-
+        Full governance rule corpus incl. P4 Style layer (ST-1..ST-13);
+        compiled from .rules/, do not hand-edit. Cursor sessions already
+        auto-load the same S/A/C/W corpus via AGENTS.md — request this file
+        only when editing human-facing docs, the web demo, or bilingual
+        content (Style rules), or when AGENTS.md is unavailable.
+      alwaysApply: false
   agents_md:
     # v9.0.0 PV-05 (v8.5.0) — token_budget bumped 6000 → 8000 (parity with
     # cursor target above) so W-16..W-20 rule additions fit without
