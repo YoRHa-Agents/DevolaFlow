@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "15.0.0"
+version: "15.1.0"
 purpose: >
   Entry point for the DevolaFlow workflow orchestration skill.
   Orchestrate multi-stage software workflows using a 4-layer agent hierarchy
@@ -29,12 +29,12 @@ description: >
   subagents.
 ---
 
-> **Now Using DevolaFlow v15.0.0**
+> **Now Using DevolaFlow v15.1.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 15.0.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`; if newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola"). Wheel-only installs: see `references/troubleshooting.md` §2.17 (I-001/I-004 — `devola-init local --mode=core` works; other targets need a clone).
+**Current version:** 15.1.0 — Check: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`; if newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`. Only check on explicit user request ("update devola" / "update_devola" / "/update-devola"). Wheel-only installs: see `references/troubleshooting.md` §2.17 (I-001/I-004 — `devola-init local --mode=core` works; other targets need a clone).
 
 ### Session Banner Contract (v12.3.0+)
 

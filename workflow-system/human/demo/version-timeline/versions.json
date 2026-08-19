@@ -2166,5 +2166,38 @@
       "soul_set_cap": "12",
       "benchmark_baseline_active": "v15.0.0_baseline.json"
     }
+  },
+  {
+    "version": "15.1.0",
+    "date": "2026-08-20",
+    "era": "init-reliability",
+    "headline": "MINOR — repo-init reliability (R5 root-cause fixes ×4: deterministic self-verified gitignore writes; machine-readable scaffold structure contract; codegraph suggest-tier + backgrounded init; dependency tiering + unified pre-flight probe) + install-manifest SSOT (manifest.yaml owns all install file lists) + install lifecycle (update version-compare, uninstall target, doctor --skills) + Cursor rules dedup (repo-governance.mdc alwaysApply false — the always-loaded corpus stays AGENTS.md)",
+    "summary": "v15.1.0 ships the full_review_and_improve Track B + Track C waves plus the rules-dedup fix. Track C closes the four R5-confirmed repo-init root causes: (C-1) .local/ scaffold gitignore writes are deterministic, self-verified (ScaffoldVerificationError with the exact missing rules), and honestly reported — the historic python3 -m devolaflow.local.workspace silent no-op is a real __main__ scaffold path now; (C-2) the scaffold structure is a machine-readable contract with a single owner (expected_scaffold_paths), asserted at scaffold time and reused by devola-init-doctor; (C-3) codegraph init no longer blocks repo-init in the foreground — suggest-tier probe + background launch with tri-state .codegraph/ markers (.indexing/.ready/.failed); (C-4) devola-init local probes external dependencies up front per a single-owner tier table (git required; node/npm/codegraph/nines optional; curl situational) and the E1 minimal-env matrix is CI-pinned. Track B unifies WHAT each installer ships under workflow-system/agent/manifest.yaml (A-5 SSOT; install.sh + sync_cursor_skill + devola-init + scaffold_reference all derive), adds install.sh update version-compare (stamp vs remote; --force), an uninstall target (--dry-run), devola-init-doctor --skills, refreshed install docs (EN/ZH), and parametrized coverage for all 12 adapter_configs. The rules-dedup fix flips .cursor/rules/repo-governance.mdc to alwaysApply: false — modern Cursor auto-loads AGENTS.md, so the always-applied MDC double-injected ~12K tokens of identical rules per agent context; the MDC stays the on-demand full-corpus view (only compiled surface with the P4 Style layer inline). Post-merge review fixes: install_rule_tree counts + warns on failed reference downloads; auto/all propagate install_local scaffold failure; ScaffoldStructureError handled at every CLI boundary.",
+    "highlights": [
+      "Track C-1 (R5 F1) — deterministic + self-verified gitignore writes: ensure_gitignore_entries idempotent owner of SCAFFOLD_GITIGNORE_ENTRIES; verify_scaffold_gitignore raises ScaffoldVerificationError with the exact missing rules; python3 -m devolaflow.local.workspace gains a real __main__ scaffold path (was a silent no-op install.sh reported as success)",
+      "Track C-2 (R5 F3) — machine-readable scaffold structure contract: expected_scaffold_paths/expected_stub_first_lines derive from the SAME constants the scaffold writes from; ScaffoldStructureError with the exact diff at scaffold tail; devola-init-doctor replaces its drifted hand list with the derived contract (advisory findings never flip healthy)",
+      "Track C-3 (R5 F2, D-11 overturn) — codegraph init backgrounded: repo-init.yaml sub-step declares tier: suggest + execution: background + tri-state markers via devolaflow.codegraph.markers (.indexing → .ready/.failed, crash-leftover precedence ready > failed > indexing); CLI absent → SKIP with ONE install hint",
+      "Track C-4 (R5 F4) — dependency tiering + unified pre-flight probe: devolaflow.init_probe owns INIT_DEPENDENCIES (git required; node/npm/codegraph/nines optional; curl situational); install_local gates on assert_required_present BEFORE any write; doctor prints the same capability table; init chain pinned stdlib-only; E1 minimal-env venv matrix in CI",
+      "Track B-1 — install-manifest SSOT: workflow-system/agent/manifest.yaml owns core/references (25)/examples (4) + per-tool install_profiles; install.sh downloads per profile (--base-url for mirrors/file://), sync_cursor_skill MIRRORED_FILES + devola-init + scaffold_reference derive; three-way parity CI-pinned",
+      "Track B-2 — install lifecycle: install.sh update version-compares the .devola-flow-version stamp vs remote (skip-if-current; --force); new uninstall target (--dry-run; content-sniffed single-file removals; rmdir only-if-empty); devola-init-doctor --skills scans the full location matrix (current/stale/unknown-version)",
+      "Track B-3 + B-4 — install docs refresh (EN/ZH; Claude dest corrected to .claude/skills/devola-flow/; 2 ghost install claims removed per S-4) + all 12 adapter_configs parametrized against the real agent dir + goldens for Claude/Codex/Copilot + Codex budget assertion",
+      "Rules dedup — .cursor/rules/repo-governance.mdc alwaysApply true → false (compile-config cursor target; sync-rules recompile): Cursor auto-loads AGENTS.md, so the always-applied MDC double-injected the identical S/A/C/W corpus (~49 KB ≈ 12K tokens per agent context); MDC stays the on-demand full-corpus view incl. the P4 Style layer; AGENTS.md Style-pointer postscript drift repaired",
+      "Post-merge review fixes (PR #178) — install_rule_tree counts + warns N/M failed references (was dl || true); auto/all propagate install_local exit 1 (was success footer on broken scaffold); ScaffoldStructureError caught at devola-init local / scaffold-local / python -m devolaflow.local.workspace (FAIL + exit 1, no traceback)"
+    ],
+    "metrics": {
+      "r5_root_causes_closed": "4",
+      "manifest_references": "25",
+      "manifest_examples": "4",
+      "adapter_configs_covered": "12",
+      "rules_dedup_tokens_per_context": "~12K",
+      "rules_dedup_bytes_per_context": "~49 KB",
+      "required_init_dependency": "git",
+      "new_test_functions": "B-1 +8, B-2 +9, B-4 +5, C-1 +7, C-2 +6, C-3 +10, C-4 +9, review fixes +3, rules-dedup +1 (per-PR W-17 caps respected)",
+      "prs_merged": "#168–#173, #175–#178 (#174 landed via #175)",
+      "canonical_order_length": "17",
+      "schema_version": "6",
+      "soul_set_count": "10",
+      "benchmark_baseline_active": "v15.0.0_baseline.json"
+    }
   }
 ]
