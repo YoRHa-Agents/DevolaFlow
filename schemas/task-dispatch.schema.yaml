@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_agent_hierarchy.md §3.1
+# Design reference: docs/designs/design_agent_hierarchy.md §3.1
 # TaskDispatch — parent→child dispatch message shape (all layers use same schema).
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_agent_hierarchy.md §3.1
+design_reference: docs/designs/design_agent_hierarchy.md §3.1
 schema_name: task-dispatch
 instance_top_level_required:
   - header

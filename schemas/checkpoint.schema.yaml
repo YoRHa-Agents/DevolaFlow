@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_execution_protocol.md §4.3
+# Design reference: docs/designs/design_execution_protocol.md §4.3
 # Checkpoint — durable workflow state for resume after interrupt.
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_execution_protocol.md §4.3
+design_reference: docs/designs/design_execution_protocol.md §4.3
 schema_name: checkpoint
 instance_top_level_required:
   - metadata

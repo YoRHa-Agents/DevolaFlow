@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_agent_hierarchy.md §3.2
+# Design reference: docs/designs/design_agent_hierarchy.md §3.2
 # StatusReport — child→parent completion or progress update.
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_agent_hierarchy.md §3.2
+design_reference: docs/designs/design_agent_hierarchy.md §3.2
 schema_name: status-report
 instance_top_level_required:
   - header

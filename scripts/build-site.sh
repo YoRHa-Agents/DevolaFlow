@@ -22,7 +22,7 @@ cp "$REPO_ROOT/workflow-system/human/zh/"*.md "$SITE/docs-zh/"
 
 # Design docs
 mkdir -p "$SITE/designs"
-cp "$REPO_ROOT/doc/designs/"*.md "$SITE/designs/"
+cp "$REPO_ROOT/docs/designs/"*.md "$SITE/designs/"
 
 # Downloadable skill files
 mkdir -p "$SITE/download"

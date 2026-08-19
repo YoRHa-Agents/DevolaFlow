@@ -118,7 +118,7 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
 def test_readme_design_docs_count(project_root: Path):
     """README project structure design doc count must match disk."""
     readme = (project_root / "README.md").read_text()
-    design_dir = project_root / "doc" / "designs"
+    design_dir = project_root / "docs" / "designs"
 
     matches = re.findall(r"(\d+)\s+design\s+(?:documents?|specs?)", readme, re.IGNORECASE)
     assert matches, "Could not find design docs count in README"

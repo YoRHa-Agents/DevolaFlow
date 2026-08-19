@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# Design reference: doc/designs/design_decomposition_gate.md §5.5
+# Design reference: docs/designs/design_decomposition_gate.md §5.5
 # GateReport — structured output of a gate evaluation (build/test/lint/review/acceptance).
 # -----------------------------------------------------------------------------
 
-design_reference: doc/designs/design_decomposition_gate.md §5.5
+design_reference: docs/designs/design_decomposition_gate.md §5.5
 schema_name: gate-report
 instance_top_level_required:
   - header
