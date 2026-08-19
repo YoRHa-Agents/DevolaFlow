@@ -159,12 +159,14 @@ def doctor_cmd() -> None:
     from devolaflow.lifecycle.validate_owned_files import check_init_health
 
     report = check_init_health(Path.cwd())
-    icons = {True: "✅", False: "❌"}
     for f in report.findings:
-        print(f"  {icons[f.ok]} {f.path} — {f.detail}")
+        icon = "⚠️" if (f.advisory and not f.ok) else ("✅" if f.ok else "❌")
+        print(f"  {icon} {f.path} — {f.detail}")
     print()
     if report.healthy:
         print("  All canonical paths present. Workspace is healthy.")
+        if report.advisories:
+            print(f"  {len(report.advisories)} advisory finding(s) (non-blocking).")
     else:
         print(f"  {len(report.missing)} missing path(s): {report.missing}")
         print("  Run 'devola-init local' to fix.")

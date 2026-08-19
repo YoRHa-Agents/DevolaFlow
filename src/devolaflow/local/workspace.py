@@ -301,6 +301,118 @@ def ensure_gitignore_entries(cwd: str | Path, entries: tuple[str, ...] | list[st
     return missing
 
 
+class ScaffoldStructureError(RuntimeError):
+    """Raised when the post-scaffold structure self-check finds missing paths.
+
+    full_review_and_improve Track C-2 (R5 F3): scaffolded structures had no
+    machine validation — deviations (missing dirs, name variants, missing
+    stub files) were only caught by humans. The scaffold now diffs its own
+    output against the machine-readable contract
+    (:func:`expected_scaffold_paths`) and raises this error with the exact
+    missing paths (S-5). The contract has a single owner — this module —
+    and is reused verbatim by ``devola-init-doctor``
+    (``devolaflow.lifecycle.validate_owned_files.check_init_health``).
+    """
+
+    def __init__(self, missing_paths: list[str], root: Path) -> None:
+        self.missing_paths = list(missing_paths)
+        self.root = root
+        super().__init__(
+            f"scaffold structure self-check failed under {root}: "
+            f"{len(self.missing_paths)} expected path(s) missing: {self.missing_paths}. "
+            "Re-run the scaffold; if it persists, check filesystem permissions."
+        )
+
+
+# Track C-2 — first lines of the generated stub files, shared between the
+# generators below and the structure contract (single owner; the doctor's
+# skeleton check derives from these same constants).
+TRACKER_FIRST_LINE: str = "# Feedback Tracker"
+MEMORY_INDEX_FIRST_LINE: str = "# Memory Index"
+INDEX_FIRST_LINE: str = "# .local/ workspace index"
+
+
+def expected_scaffold_paths() -> list[tuple[str, str]]:
+    """Return the machine-readable structure contract for ``scaffold_local``.
+
+    Track C-2 (R5 F3): the single source-of-truth for WHAT a healthy
+    scaffold looks like, derived from the same constants the scaffold
+    writes from (:data:`REQUIRED_DIRS`, :data:`MEMORY_SUBDIRS`,
+    :data:`_DIR_README_CONTENT`) — never a second hand-maintained list
+    (A-5 single-owner). Consumed by the scaffold's own self-check
+    (:func:`verify_scaffold_structure`) and by ``devola-init-doctor``
+    (``check_init_health``).
+
+    Returns:
+        ``(relative_path, description)`` pairs. Paths ending in ``/`` are
+        directories; all paths are repo-root-relative (S-2).
+    """
+    paths: list[tuple[str, str]] = []
+    for d in [*REQUIRED_DIRS, *MEMORY_SUBDIRS]:
+        paths.append((f".local/{d}/", f"{d} directory"))
+        if d in _DIR_README_CONTENT:
+            paths.append((f".local/{d}/README.md", f"{d} dir README"))
+    paths.append((".local/feedbacks/TRACKER.md", "feedback tracker"))
+    paths.append((".local/memory/MEMORY.md", "memory index"))
+    paths.append((".local/index.md", "workspace index"))
+    return paths
+
+
+def expected_stub_first_lines() -> dict[str, str]:
+    """Return ``{relative_path: expected_first_line}`` for generated stubs.
+
+    Derived from the same templates the scaffold writes
+    (:data:`_DIR_README_CONTENT` + the ``TRACKER_FIRST_LINE`` /
+    ``MEMORY_INDEX_FIRST_LINE`` / ``INDEX_FIRST_LINE`` constants). Used for
+    the ADVISORY skeleton check: a present-but-edited stub is legitimate
+    (stubs are never overwritten on re-scaffold), so first-line drift is
+    surfaced as a WARNING / advisory doctor finding — never a failure.
+    """
+    lines: dict[str, str] = {}
+    for d, content in _DIR_README_CONTENT.items():
+        if d in REQUIRED_DIRS or d in MEMORY_SUBDIRS:
+            lines[f".local/{d}/README.md"] = content.splitlines()[0]
+    lines[".local/feedbacks/TRACKER.md"] = TRACKER_FIRST_LINE
+    lines[".local/memory/MEMORY.md"] = MEMORY_INDEX_FIRST_LINE
+    lines[".local/index.md"] = INDEX_FIRST_LINE
+    return lines
+
+
+def verify_scaffold_structure(cwd: str | Path) -> tuple[list[str], list[tuple[str, str, str]]]:
+    """Diff ``cwd`` against the scaffold structure contract.
+
+    Returns:
+        ``(missing, drifted)`` where ``missing`` is the list of contract
+        paths absent from disk (BLOCKING — the scaffold raises on these)
+        and ``drifted`` is a list of ``(path, expected_first_line,
+        actual_first_line)`` for stub files whose first line differs from
+        the generated template (ADVISORY — logged, never raised, because
+        user-customised stubs survive re-scaffolds by design).
+    """
+    root = Path(cwd)
+    missing: list[str] = []
+    for rel, _desc in expected_scaffold_paths():
+        full = root / rel
+        if rel.endswith("/"):
+            if not full.is_dir():
+                missing.append(rel)
+        elif not full.is_file():
+            missing.append(rel)
+
+    drifted: list[tuple[str, str, str]] = []
+    for rel, expected_first in expected_stub_first_lines().items():
+        full = root / rel
+        if not full.is_file():
+            continue  # already reported via `missing`
+        try:
+            actual_first = full.read_text(encoding="utf-8").splitlines()[0]
+        except (OSError, UnicodeDecodeError, IndexError):
+            actual_first = ""
+        if actual_first != expected_first:
+            drifted.append((rel, expected_first, actual_first))
+    return missing, drifted
+
+
 def verify_scaffold_gitignore(cwd: str | Path) -> list[str]:
     """Return the scaffold-required gitignore rules missing from ``cwd``.
 
@@ -408,6 +520,21 @@ def scaffold_local(
         missing_rules = verify_scaffold_gitignore(cwd)
         if missing_rules:
             raise ScaffoldVerificationError(missing_rules, cwd / ".gitignore")
+        # Track C-2 (R5 F3): structure contract assertion. Missing paths are
+        # BLOCKING (S-5 explicit error); first-line drift in stubs is
+        # ADVISORY (stubs are user-editable and never overwritten).
+        missing_paths, drifted_stubs = verify_scaffold_structure(cwd)
+        if missing_paths:
+            raise ScaffoldStructureError(missing_paths, cwd)
+        for rel, expected_first, actual_first in drifted_stubs:
+            _LOGGER.warning(
+                "scaffold_local: %s first line differs from the generated template "
+                "(expected %r, found %r) — fine if intentionally customised; "
+                "delete the file and re-run the scaffold to regenerate the stub.",
+                rel,
+                expected_first,
+                actual_first,
+            )
 
     return local_dir
 
@@ -424,7 +551,7 @@ def generate_memory_index(memory_dir: Path) -> Path:
     path = memory_dir / "MEMORY.md"
     if not path.exists():
         path.write_text(
-            "# Memory Index\n"
+            f"{MEMORY_INDEX_FIRST_LINE}\n"
             "\n"
             "> Auto-maintained by DevolaFlow. Updated on scaffold.\n"
             "\n"
@@ -448,7 +575,7 @@ def generate_tracker(feedbacks_dir: Path) -> Path:
     path = feedbacks_dir / "TRACKER.md"
     if not path.exists():
         path.write_text(
-            "# Feedback Tracker\n"
+            f"{TRACKER_FIRST_LINE}\n"
             "\n"
             "> Human-maintained. Do not edit feedback source files.\n"
             "> Last updated: (auto)\n"
@@ -910,7 +1037,7 @@ def generate_index(local_dir: str | Path) -> Path:
     subdirs = sorted(p.name for p in local_dir.iterdir() if p.is_dir())
 
     lines = [
-        "# .local/ workspace index",
+        INDEX_FIRST_LINE,
         "",
         "Auto-generated directory listing.",
         "",

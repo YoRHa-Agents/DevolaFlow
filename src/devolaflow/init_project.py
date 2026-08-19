@@ -443,6 +443,7 @@ def install_local(
 
     if not compile_rules:
         print("  SKIP compile (--no-compile flag set)")
+        _verify_local_install_health(cwd)
         return
 
     if config_path.exists():
@@ -450,8 +451,12 @@ def install_local(
             from devolaflow.local.compiler import RuleCompiler
 
             compiler = RuleCompiler(config_path)
-            compiler.compile_all()
-            print("  OK   compiled .rules/ → .cursor/rules/repo-governance.mdc + AGENTS.md")
+            results = compiler.compile_all()
+            # Track C-2 (R5 F3): report the ACTUAL compiled targets instead
+            # of the historic hardcoded ".cursor/rules/... + AGENTS.md"
+            # claim, which was wrong for user-edited configs.
+            targets = ", ".join(r.target for r in results) or "(no targets configured)"
+            print(f"  OK   compiled .rules/ → {targets}")
         except Exception as exc:
             # S-5 graceful degradation: log + continue. Init must still
             # succeed even when the compiler hits a read-only FS, a
@@ -459,6 +464,38 @@ def install_local(
             # non-fatal issue. Operators can re-run `devola-init sync-rules`
             # to retry the compile step in isolation.
             print(f"  WARN compile failed (non-fatal): {exc}")
+
+    _verify_local_install_health(cwd)
+
+
+def _verify_local_install_health(cwd: Path) -> None:
+    """Track C-2 (R5 F3): mandatory post-install structure contract check.
+
+    Runs the same doctor contract (`check_init_health`, itself derived from
+    `devolaflow.local.workspace.expected_scaffold_paths` — A-5 single owner)
+    that `devola-init-doctor` exposes, immediately after `install_local`
+    finishes. Missing paths print an explicit diff list and exit 1 (S-5 —
+    no silent "success" with a deviant structure). Advisory skeleton drift
+    is summarised but never fatal.
+    """
+    from devolaflow.lifecycle.validate_owned_files import check_init_health
+
+    report = check_init_health(cwd)
+    if report.healthy:
+        advisory_note = (
+            f"; {len(report.advisories)} advisory finding(s) — run devola-init-doctor"
+            if report.advisories
+            else ""
+        )
+        print(f"  OK   structure contract verified ({report.summary()}){advisory_note}")
+        return
+
+    print(f"  FAIL structure contract check: {report.summary()}")
+    for f in report.findings:
+        if not f.ok and not f.advisory:
+            print(f"       ❌ {f.path} — {f.detail}")
+    print("       Re-run `devola-init local`; if it persists, check filesystem permissions.")
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------

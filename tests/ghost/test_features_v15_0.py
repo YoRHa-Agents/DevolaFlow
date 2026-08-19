@@ -786,3 +786,62 @@ def test_v15_0_x_scaffold_gitignore_reliability_registered(project_root: Path) -
     assert "python3 -m devolaflow.local.workspace 2>/dev/null || true" not in install_sh, (
         "W-18 C-1 violation: install.sh regressed to swallowing scaffold failures."
     )
+
+
+def test_v15_0_x_init_structure_contract_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-2 — structure contract fixation (R5 F3).
+
+    Discharges the W-18 precondition for the C-2 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.local.workspace` is the SINGLE owner (A-5) of the
+        machine-readable scaffold structure contract:
+        `expected_scaffold_paths` / `expected_stub_first_lines` /
+        `verify_scaffold_structure` / `ScaffoldStructureError`; the
+        contract covers the v14.0.0 human surface.
+    (b) The doctor derives from the owner: `check_init_health` imports the
+        contract and the pre-C-2 hand-maintained `extras` list is GONE
+        (anti-second-list lint per the plan's "契约仅一处定义").
+    (c) `DoctorFinding` carries the `advisory` flag (skeleton drift is
+        non-blocking) and `install_local` runs the mandatory post-install
+        contract check (`_verify_local_install_health`).
+
+    Behavioural assertions live in
+    tests/test_init_doctor.py::TestStructureContract.
+    """
+    from devolaflow.lifecycle.validate_owned_files import DoctorFinding
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        expected_scaffold_paths,
+        expected_stub_first_lines,
+        verify_scaffold_structure,
+    )
+
+    # --- (a) single-owner contract --------------------------------------
+    assert callable(expected_scaffold_paths)
+    assert callable(expected_stub_first_lines)
+    assert callable(verify_scaffold_structure)
+    assert issubclass(ScaffoldStructureError, RuntimeError)
+    contract_paths = {p for p, _ in expected_scaffold_paths()}
+    assert ".local/human/input/" in contract_paths, (
+        "W-18 C-2 violation: structure contract lost the v14.0.0 human surface."
+    )
+
+    # --- (b) doctor derives; no second hand-maintained list -------------
+    vof_text = (project_root / "src/devolaflow/lifecycle/validate_owned_files.py").read_text(
+        encoding="utf-8"
+    )
+    assert "expected_scaffold_paths" in vof_text, (
+        "W-18 C-2 violation: check_init_health no longer derives from the owner contract."
+    )
+    assert '(".local/.agent/active/README.md", ".agent/active dir README")' not in vof_text, (
+        "W-18 C-2 violation: the hand-maintained extras list resurfaced in the doctor "
+        "(A-5 single-owner: derive from devolaflow.local.workspace instead)."
+    )
+
+    # --- (c) advisory flag + mandatory post-install check ----------------
+    assert "advisory" in DoctorFinding.__dataclass_fields__
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "_verify_local_install_health" in init_text, (
+        "W-18 C-2 violation: install_local lost the mandatory structure contract check."
+    )
