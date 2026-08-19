@@ -10,7 +10,8 @@
 #   curl -fsSL ... | bash -s update
 #
 # Targets:  cursor, codex, claude, copilot, kimicode, windsurf,
-#           zed, cline, roo, local, standalone, all, auto (default), update
+#           zed, cline, roo, local, standalone, all, auto (default),
+#           update, uninstall
 # Flags:    --global      install to the tool's user-wide location (ALSO
 #                         installs all runtime plugins by default)
 #           --project     install to the repo-local location (default)
@@ -18,6 +19,10 @@
 #           --base-url U  override the download base (mirrors / offline
 #                         file:// sources / E2E tests). Default is the
 #                         raw.githubusercontent.com main-branch tree.
+#           --force       with update: reinstall even when the stamped
+#                         version already matches the remote version
+#           --dry-run     with uninstall: list what would be removed
+#                         without deleting anything
 #
 # File lists are NOT hardcoded here: the installer fetches the install
 # manifest (workflow-system/agent/manifest.yaml — the A-5 single source
@@ -42,14 +47,21 @@ SCOPE="project"
 TARGET="auto"
 NO_PLUGINS="false"
 BASE_OVERRIDE=""
+FORCE="false"
+DRY_RUN="false"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --global)      SCOPE="global"; shift ;;
     --project)     SCOPE="project"; shift ;;
     --no-plugins)  NO_PLUGINS="true"; shift ;;
+    --force)       FORCE="true"; shift ;;
+    --dry-run)     DRY_RUN="true"; shift ;;
     --base-url)    BASE_OVERRIDE="${2:-}"; shift; shift ;;
     --base-url=*)  BASE_OVERRIDE="${1#*=}"; shift ;;
-    -*)            shift ;;
+    -h|--help)     TARGET="help"; shift ;;
+    # Unknown flags abort instead of silently falling through to a real
+    # `auto` install (S-5: no silent failure).
+    -*)            printf 'install.sh: unknown option %s (run with "help" for usage)\n' "$1" >&2; exit 2 ;;
     *)             TARGET="$1"; shift ;;
   esac
 done
@@ -413,52 +425,174 @@ install_plugins() {
 
 # ── Update ───────────────────────────────────────────────────────
 
+# Version compare for `update`: an install whose stamp's first line equals the
+# remote __version__ is already current — re-downloading it wastes bandwidth
+# and (worse) hides real drift behind a always-green "ok" wall. Date-fallback
+# stamps (written when the version fetch failed at install time) never match
+# a semver string, so they conservatively re-download. `--force` bypasses.
+is_up_to_date() {
+  [ "$FORCE" = "true" ] && return 1
+  [ -n "$INSTALLED_VERSION" ] || return 1
+  local stamp_file="$1/$STAMP" local_ver
+  [ -f "$stamp_file" ] || return 1
+  local_ver=$(head -n 1 "$stamp_file" 2>/dev/null || true)
+  [ -n "$local_ver" ] && [ "$local_ver" = "$INSTALLED_VERSION" ]
+}
+
+# $1 = stamp dir, $2 = human label, $3 = installer function.
+maybe_update() {
+  if is_up_to_date "$1"; then
+    ok "$2 up-to-date (v${INSTALLED_VERSION}) — skipped; use --force to reinstall"
+  else
+    "$3"
+  fi
+}
+
 do_update() {
   info "Looking for existing DevolaFlow installs..."
+  if [ "$FORCE" = "true" ]; then
+    info "(--force: reinstalling even when already up-to-date)"
+  fi
   local found=0
 
   if [ -f ".cursor/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="project"; install_cursor; found=1
+    SCOPE="project"
+    maybe_update ".cursor/skills/devola-flow" "Cursor (project)" install_cursor
+    found=1
   fi
   if [ -f "$HOME/.cursor/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="global"; install_cursor; found=1
+    SCOPE="global"
+    maybe_update "$HOME/.cursor/skills/devola-flow" "Cursor (global)" install_cursor
+    found=1
   fi
   local cdir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
-  if [ -f "$cdir/SKILL.md" ]; then install_codex; found=1; fi
+  if [ -f "$cdir/SKILL.md" ]; then
+    maybe_update "$cdir" "Codex" install_codex
+    found=1
+  fi
   if [ -f ".claude/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="project"; install_claude; found=1
+    SCOPE="project"
+    maybe_update ".claude/skills/devola-flow" "Claude Code (project)" install_claude
+    found=1
   fi
   if [ -f "$HOME/.claude/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="global"; install_claude; found=1
+    SCOPE="global"
+    maybe_update "$HOME/.claude/skills/devola-flow" "Claude Code (global)" install_claude
+    found=1
   fi
   if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
+    # Copilot's single-file install carries no version stamp — always refresh.
     install_copilot; found=1
   fi
   if [ -f ".kimi/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="project"; install_kimicode; found=1
+    SCOPE="project"
+    maybe_update ".kimi/skills/devola-flow" "KimiCode (project)" install_kimicode
+    found=1
   fi
   if [ -f "$HOME/.kimi/skills/devola-flow/SKILL.md" ]; then
-    SCOPE="global"; install_kimicode; found=1
+    SCOPE="global"
+    maybe_update "$HOME/.kimi/skills/devola-flow" "KimiCode (global)" install_kimicode
+    found=1
   fi
   if [ -f ".windsurfrules" ] && head -20 ".windsurfrules" 2>/dev/null | grep -q "devola-flow"; then
-    install_windsurf; found=1
+    maybe_update "." "Windsurf" install_windsurf
+    found=1
   fi
   if [ -f ".rules/devola-flow.md" ]; then
-    SCOPE="project"; install_zed; found=1
+    SCOPE="project"
+    maybe_update ".rules" "Zed (project)" install_zed
+    found=1
   fi
   if [ -f "$HOME/.config/zed/rules/devola-flow.md" ]; then
-    SCOPE="global"; install_zed; found=1
+    SCOPE="global"
+    maybe_update "$HOME/.config/zed/rules" "Zed (global)" install_zed
+    found=1
   fi
   if [ -f ".clinerules/devola-flow.md" ]; then
-    install_cline; found=1
+    maybe_update ".clinerules" "Cline" install_cline
+    found=1
   fi
   if [ -f ".roo/rules/devola-flow.md" ]; then
-    install_roo; found=1
+    maybe_update ".roo/rules" "Roo Code" install_roo
+    found=1
   fi
 
   if [ "$found" -eq 0 ]; then
     warn "No existing installs found. Run: curl ... | bash -s cursor"
     return 1
+  fi
+}
+
+# ── Uninstall ────────────────────────────────────────────────────
+
+# Remove a path, honouring --dry-run. Skill dirs are exclusively ours
+# (.../skills/devola-flow/) so whole-dir removal is safe; rule-tree targets
+# share their directory with user rules, so only devola-owned entries go.
+rm_path() {
+  local path="$1"
+  { [ -e "$path" ] || [ -L "$path" ]; } || return 0
+  if [ "$DRY_RUN" = "true" ]; then
+    info "would remove: $path"
+  else
+    rm -rf "$path"
+    ok "removed: $path"
+  fi
+}
+
+# $1 = rule-tree dir: remove devola-flow.md + references/ + stamp, then the
+# directory itself only when that left it empty (sibling user rules survive).
+uninstall_rule_tree() {
+  local dir="$1"
+  rm_path "$dir/devola-flow.md"
+  rm_path "$dir/references"
+  rm_path "$dir/$STAMP"
+  if [ "$DRY_RUN" != "true" ]; then
+    rmdir "$dir" 2>/dev/null || true
+  fi
+}
+
+do_uninstall() {
+  info "Scanning for DevolaFlow installs to remove..."
+  if [ "$DRY_RUN" = "true" ]; then
+    info "(--dry-run: nothing will be deleted)"
+  fi
+  local found=0 d
+
+  for d in ".cursor/skills/devola-flow" "$HOME/.cursor/skills/devola-flow" \
+           "${CODEX_HOME:-$HOME/.codex}/skills/devola-flow" \
+           ".claude/skills/devola-flow" "$HOME/.claude/skills/devola-flow" \
+           ".kimi/skills/devola-flow" "$HOME/.kimi/skills/devola-flow"; do
+    if [ -f "$d/SKILL.md" ]; then
+      rm_path "$d"
+      found=1
+    fi
+  done
+
+  if [ -f ".github/copilot-instructions.md" ] && head -5 ".github/copilot-instructions.md" 2>/dev/null | grep -q "devola-flow"; then
+    rm_path ".github/copilot-instructions.md"
+    found=1
+  fi
+  if [ -f ".windsurfrules" ] && head -20 ".windsurfrules" 2>/dev/null | grep -q "devola-flow"; then
+    rm_path ".windsurfrules"
+    rm_path "./$STAMP"
+    found=1
+  fi
+  if [ -f ".rules/devola-flow.md" ]; then uninstall_rule_tree ".rules"; found=1; fi
+  if [ -f "$HOME/.config/zed/rules/devola-flow.md" ]; then
+    uninstall_rule_tree "$HOME/.config/zed/rules"
+    found=1
+  fi
+  if [ -f ".clinerules/devola-flow.md" ]; then uninstall_rule_tree ".clinerules"; found=1; fi
+  if [ -f ".roo/rules/devola-flow.md" ]; then uninstall_rule_tree ".roo/rules"; found=1; fi
+
+  if [ "$found" -eq 0 ]; then
+    warn "No DevolaFlow installs found — nothing to remove."
+    return 0
+  fi
+  if [ "$DRY_RUN" = "true" ]; then
+    ok "Dry run complete — re-run without --dry-run to delete."
+  else
+    ok "Uninstall complete."
   fi
 }
 
@@ -519,7 +653,8 @@ case "$TARGET" in
   # Deprecated legacy alias: MVP-SKILL.md was removed in v6.0.1; 'mvp' now maps to
   # 'standalone' (full SKILL.md) for backward compatibility with older install commands.
   mvp)        install_standalone ;;
-  update)  do_update ;;
+  update)    do_update ;;
+  uninstall) do_uninstall ;;
   all)     install_cursor; install_codex; install_claude; install_copilot; \
            install_kimicode; install_windsurf; \
            install_zed; install_cline; install_roo; install_local ;;
@@ -541,7 +676,9 @@ case "$TARGET" in
     local       Initialize .local/ workspace + .rules/ governance (project-only)
     standalone  Download standalone SKILL.md
     all         All tools
-    update      Re-download latest to existing installs
+    update      Refresh existing installs (skips installs whose stamped
+                version already matches the remote; --force reinstalls)
+    uninstall   Remove all detected DevolaFlow installs (--dry-run to preview)
     auto        Auto-detect (default)
 
   Flags:
@@ -551,6 +688,8 @@ case "$TARGET" in
                   by default — failures are warn-not-fatal
     --no-plugins  with --global, skip the bundled runtime-plugin install
                   (skill files only)
+    --force       with update: reinstall even when the stamp matches remote
+    --dry-run     with uninstall: list removals without deleting
     --base-url U  override the download base URL (mirror / file:// source);
                   file lists always come from the manifest at
                   <base>/workflow-system/agent/manifest.yaml
@@ -565,12 +704,15 @@ esac
 # v13.0.0 — a --global skill install ALSO installs all runtime plugins by
 # default (the cycle ask: "make devola install also install all plugins").
 # --no-plugins opts out. Project-scope installs stay lean (no plugin install).
-if [ "$REQUESTED_SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ]; then
+# uninstall never installs plugins regardless of scope.
+if [ "$REQUESTED_SCOPE" = "global" ] && [ "$NO_PLUGINS" = "false" ] && [ "$TARGET" != "uninstall" ]; then
   install_plugins
 fi
 
 echo ""
-if [ -n "$INSTALLED_VERSION" ]; then
+if [ "$TARGET" = "uninstall" ]; then
+  ok "Done."
+elif [ -n "$INSTALLED_VERSION" ]; then
   ok "Now Using DevolaFlow v${INSTALLED_VERSION}"
 else
   ok "Done."
