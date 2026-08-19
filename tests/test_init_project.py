@@ -75,7 +75,9 @@ def test_install_cursor_global(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     install_cursor(agent_dir, tmp_path / "project", scope="global")
     assert (tmp_path / ".cursor" / "skills" / "devola-flow" / "SKILL.md").exists()
-    assert (tmp_path / ".cursor" / "rules" / "devola-flow-rules.mdc").exists()
+    # The legacy devola-flow-rules.mdc copy retired at v15.0.0 (clean_repo
+    # C1-2, decision D1) together with its workflow-rules.mdc stub source.
+    assert not (tmp_path / ".cursor" / "rules" / "devola-flow-rules.mdc").exists()
 
 
 def test_install_claude(tmp_path: Path):

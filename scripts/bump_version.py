@@ -197,9 +197,9 @@ def main() -> None:
     # Keep the .cursor/skills/devola-flow/ project-local mirror in sync with the
     # freshly-bumped canonical skill under workflow-system/agent/. The mirror is
     # opt-in (gitignored) — skip the subprocess entirely when it's not present
-    # so fresh clones / CI bump cleanly. See
-    # .cursor/rules/skill-format-rules.mdc Rule SF-3 and
-    # .cursor/rules/change-process-rules.mdc Rule CP-3.
+    # so fresh clones / CI bump cleanly. See C-6 in .rules/conventions.mdc
+    # (ex skill-format-rules.mdc SF-3 + change-process-rules.mdc CP-3;
+    # both legacy files retired v15.0.0 per clean_repo C1-2).
     sync_script = Path(__file__).parent / "sync_cursor_skill.py"
     mirror_dir = _find_root() / ".cursor" / "skills" / "devola-flow"
     if dry_run:

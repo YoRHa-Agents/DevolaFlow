@@ -358,7 +358,7 @@ The score appears at the end of the workflow report with actionable tips to impr
 | `.cursor/rules/web-experience-rules.mdc` | WX-1..WX-8 | Four theme showcases, additive design tokens, motion patterns, bilingual showcase pages |
 | `.cursor/rules/documentation-sync-rules.mdc` | DS-1..DS-5 | Human-facing content registry, NieR identity, bilingual completeness, version propagation |
 
-The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) are **deprecated pointer stubs** — they carry no live rules and only cross-reference the canonical `.rules/` layer sources (C-8 was removed in v14.2.1; rule ids are not renumbered).
+The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) were demoted to deprecated pointer stubs (v9.0.0 / v14.2.1) and **retired in v15.0.0** (clean_repo C1-2, decision D1) — their rule content lives verbatim in the canonical `.rules/` layer sources + the compiled `repo-governance.mdc` corpus, and a reverse lint blocks resurrection (C-8 was removed in v14.2.1; rule ids are not renumbered).
 
 ## Versioning & Updates
 

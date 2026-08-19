@@ -275,7 +275,15 @@ def _parse_mode(argv: list[str]) -> str | None:
 
 
 def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
-    """Install DevolaFlow skill files and rules for Cursor IDE."""
+    """Install DevolaFlow skill files for Cursor IDE.
+
+    v15.0.0 (clean_repo C1-2, decision D1): the legacy rules copy
+    (`.cursor/rules/workflow-rules.mdc` → `<base>/rules/devola-flow-rules.mdc`)
+    retired together with the source pointer stub — the stub carried no
+    live rules and its cross-references were repo-relative, dangling
+    outside this repository. The SKILL.md carries the orchestrator
+    contract; no separate rules file is installed.
+    """
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Cursor ({scope}) -> {skill_dir}/")
@@ -283,10 +291,6 @@ def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     refs = _copy_dir(agent_dir / "references", skill_dir / "references")
     examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
     print(f"  ({refs} references, {examples} examples)")
-
-    rules_src = agent_dir.parent.parent / ".cursor" / "rules" / "workflow-rules.mdc"
-    rules_dest = base_dir / "rules" / "devola-flow-rules.mdc"
-    _copy_file(rules_src, rules_dest)
 
 
 def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:

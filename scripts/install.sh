@@ -163,13 +163,12 @@ install_cursor() {
     "examples/hotfix-trace.md" \
     "examples/convergence-loop-trace.md"
 
-  local rdir
-  if [ "$SCOPE" = "global" ]; then rdir="$HOME/.cursor/rules"; else rdir=".cursor/rules"; fi
-  mkdir -p "$rdir"
-  dl "$BASE/.cursor/rules/workflow-rules.mdc" "$rdir/devola-flow-rules.mdc" || true
+  # v15.0.0 (clean_repo C1-2, decision D1): the legacy rules download
+  # (.cursor/rules/workflow-rules.mdc -> <rules>/devola-flow-rules.mdc)
+  # retired with the deprecated pointer stub it copied.
 
   stamp "$dir"
-  ok "Cursor installed (SKILL.md + 13 refs + 3 examples + rules)"
+  ok "Cursor installed (SKILL.md + 13 refs + 3 examples)"
 }
 
 install_codex() {

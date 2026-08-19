@@ -18,7 +18,7 @@ description: >-
 Drives the canonical installer at
 `https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh`
 so the `devola-flow` skill is available user-wide in **Cursor**
-(`~/.cursor/skills/devola-flow/` + `~/.cursor/rules/devola-flow-rules.mdc`)
+(`~/.cursor/skills/devola-flow/`)
 **and Claude Code** (`~/.claude/skills/devola-flow/`).
 
 ## When to Trigger
@@ -82,7 +82,6 @@ it "skipped (~/.X absent)". Example when both are present:
 ```
 Install DevolaFlow globally:
   • Cursor       → ~/.cursor/skills/devola-flow/        (SKILL + refs + examples)
-                   ~/.cursor/rules/devola-flow-rules.mdc
   • Claude Code  → ~/.claude/skills/devola-flow/        (SKILL + refs + examples)
                    (no separate rules file — rules are inlined in SKILL.md)
 Source: github.com/YoRHa-Agents/DevolaFlow (branch: main)
@@ -104,7 +103,6 @@ Expected artifacts on success:
 ~/.cursor/skills/devola-flow/references/         (9 files)
 ~/.cursor/skills/devola-flow/examples/           (3 files)
 ~/.cursor/skills/devola-flow/.devola-flow-version
-~/.cursor/rules/devola-flow-rules.mdc
 ```
 
 The installer prints one `ok` line per file; any `✗ failed:` must be
@@ -146,7 +144,6 @@ test -f ~/.cursor/skills/devola-flow/SKILL.md      && echo "[PASS] Cursor SKILL.
                                                    && echo "[PASS] Cursor 10 references" || echo "[FAIL] Cursor references"
 [ "$(ls ~/.cursor/skills/devola-flow/examples   2>/dev/null | wc -l)" = "3" ] \
                                                    && echo "[PASS] Cursor 3 examples"    || echo "[FAIL] Cursor examples"
-test -f ~/.cursor/rules/devola-flow-rules.mdc      && echo "[PASS] Cursor rules"         || echo "[FAIL] Cursor rules"
 UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py \
   | grep '__version__' | head -1 | sed 's/.*"\(.*\)".*/\1/')
 LOCAL=$(head -1 ~/.cursor/skills/devola-flow/.devola-flow-version)
@@ -181,7 +178,7 @@ Use this format verbatim (substitute `{VERSION}`, `{CURSOR_STATUS}`,
 ✓ DevolaFlow v{VERSION} installed
   Cursor (global): {CURSOR_STATUS}
     Path  : ~/.cursor/skills/devola-flow/   (SKILL + 8 refs + 3 examples)
-    Rules : ~/.cursor/rules/devola-flow-rules.mdc
+    Rules : (inlined in SKILL.md — no separate file since v15.0.0)
   Claude Code (global): {CLAUDE_STATUS}
     Path  : ~/.claude/skills/devola-flow/   (SKILL + 8 refs + 3 examples)
     Rules : (inlined in SKILL.md — no separate file)
@@ -336,7 +333,8 @@ the exact filename(s) that failed.
 - Uninstall:
 
   ```bash
-  # Cursor
+  # Cursor (the legacy ~/.cursor/rules/devola-flow-rules.mdc pointer
+  # was retired in v15.0.0 — remove it too if present from old installs)
   rm -rf ~/.cursor/skills/devola-flow \
          ~/.cursor/rules/devola-flow-rules.mdc
   # Claude Code
