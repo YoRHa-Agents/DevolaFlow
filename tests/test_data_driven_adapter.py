@@ -618,3 +618,75 @@ def test_load_data_driven_adapters_missing_dir(tmp_path: Path):
     # Should not raise when the directory does not exist.
     load_data_driven_adapters(reg, configs_dir=tmp_path / "nonexistent")
     assert reg.list_names() == []
+
+
+# ---------------------------------------------------------------------------
+# Full parametrization over the REAL adapter_configs/*.yaml registry
+# (full_review_and_improve Track B-4, gap G7 — 7 of 12 data-driven adapters
+# had no dedicated coverage). Every config on disk is exercised; a new
+# adapter YAML gains coverage automatically with zero test edits.
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_ADAPTER_CONFIGS = sorted((_REPO_ROOT / "adapter_configs").glob("*.yaml"))
+_AGENT_DIR = _REPO_ROOT / "workflow-system" / "agent"
+
+
+def test_adapter_configs_inventory_nonempty():
+    """Collection sanity: the glob above must actually see the registry."""
+    assert len(_ADAPTER_CONFIGS) >= 12, (
+        f"expected the 12+ adapter_configs/*.yaml registry, found {len(_ADAPTER_CONFIGS)}"
+    )
+
+
+@pytest.mark.parametrize("config_path", _ADAPTER_CONFIGS, ids=lambda p: p.stem)
+def test_real_adapter_config_schema(config_path: Path):
+    """Every shipped adapter config is well-formed for the engine.
+
+    Pins: name matches the filename stem (registry key stability), the
+    output block declares at least one file, every transform is a member of
+    ``VALID_TRANSFORMS``, and the optional budget block carries a valid
+    type + positive cap + target_file.
+    """
+    import yaml
+
+    from devolaflow.adapters.data_driven import VALID_TRANSFORMS
+
+    config = yaml.safe_load(config_path.read_text())
+    assert config["name"] == config_path.stem, (
+        f"{config_path.name}: name {config['name']!r} != filename stem"
+    )
+    files = config["output"]["files"]
+    assert files, f"{config_path.name}: output.files must not be empty"
+    for entry in files:
+        assert entry.get("source"), f"{config_path.name}: file entry missing source"
+        assert entry.get("target"), f"{config_path.name}: file entry missing target"
+        assert entry.get("transform") in VALID_TRANSFORMS, (
+            f"{config_path.name}: unknown transform {entry.get('transform')!r}"
+        )
+    budget = config.get("budget")
+    if budget is not None:
+        assert budget["type"] in {"lines", "chars"}
+        assert isinstance(budget["max"], int) and budget["max"] > 0
+        assert budget.get("target_file"), f"{config_path.name}: budget missing target_file"
+
+
+@pytest.mark.parametrize("config_path", _ADAPTER_CONFIGS, ids=lambda p: p.stem)
+def test_real_adapter_config_builds_within_budget(config_path: Path, tmp_path: Path):
+    """Every shipped adapter config builds against the REAL agent dir.
+
+    Asserts the build emits files, every reported file exists on disk, and
+    the adapter's own budget verdict is GREEN. (The build-skill CLI keeps
+    budget overruns as WARN — the FAIL promotion is the deferred Track B
+    second wave — but at test time a shipped config over its own declared
+    budget is a regression worth failing on.)
+    """
+    import yaml
+
+    config = yaml.safe_load(config_path.read_text())
+    result = DataDrivenAdapter(config).build({}, _AGENT_DIR, tmp_path)
+    assert result.tool == config_path.stem
+    assert result.files_created, f"{config_path.name}: build created no files"
+    for rel in result.files_created:
+        assert (tmp_path / rel).exists(), f"{config_path.name}: reported file missing: {rel}"
+    assert result.budget_ok, f"{config_path.name} over budget: {result.budget_details}"

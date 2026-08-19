@@ -236,3 +236,86 @@ def test_cursor_rules_mdc_created(cursor_build):
     assert "alwaysApply" in text, (
         "workflow-hard-rules.mdc should contain Cursor alwaysApply frontmatter"
     )
+
+
+# ---------------------------------------------------------------------------
+# Golden metadata for the remaining 3 core adapters (full_review_and_improve
+# Track B-4, gap G7 — "Claude/Codex/Copilot 无 golden"). Same metadata-based
+# (not byte-exact) philosophy as the Cursor golden above; each meta JSON
+# declares its own target file and either a line- or char-count band matching
+# the adapter's budget type.
+# ---------------------------------------------------------------------------
+
+_CORE_GOLDENS: dict[str, tuple[str, str]] = {
+    # tool -> (meta JSON relative to fixtures/golden/, target file in out_dir)
+    "claude": ("claude/CLAUDE.md.expected.meta.json", "CLAUDE.md"),
+    "codex": ("codex/SKILL.md.expected.meta.json", "SKILL.md"),
+    "copilot": (
+        "copilot/copilot-instructions.md.expected.meta.json",
+        ".github/copilot-instructions.md",
+    ),
+}
+
+
+def _core_adapter(tool: str):
+    """Late import so a broken adapter module fails the test, not collection."""
+    if tool == "claude":
+        from devolaflow.adapters.claude_adapter import ClaudeAdapter
+
+        return ClaudeAdapter()
+    if tool == "codex":
+        from devolaflow.adapters.codex_adapter import CodexAdapter
+
+        return CodexAdapter()
+    from devolaflow.adapters.copilot_adapter import CopilotAdapter
+
+    return CopilotAdapter()
+
+
+@pytest.mark.parametrize("tool", sorted(_CORE_GOLDENS))
+def test_core_adapter_golden_metadata(tool: str, tmp_path: Path):
+    """Claude/Codex/Copilot outputs satisfy their golden meta files.
+
+    Mirrors ``test_cursor_skill_golden_metadata`` for the other 3 core
+    adapters: required sections present verbatim, size inside the documented
+    band (lines or chars per the adapter's budget type), frontmatter keys
+    present when the target carries frontmatter, no legacy symbols, and the
+    adapter's own budget verdict GREEN.
+    """
+    meta_rel, target_rel = _CORE_GOLDENS[tool]
+    meta = json.loads((Path(__file__).parent / "fixtures" / "golden" / meta_rel).read_text())
+
+    source, agent_dir = load_workflow_skill()
+    out_dir = tmp_path / tool
+    result = _core_adapter(tool).build(source, agent_dir, out_dir)
+
+    target = out_dir / target_rel
+    assert target.exists(), f"{tool} adapter must emit {target_rel}"
+    text = target.read_text()
+
+    for section in meta["required_sections"]:
+        assert section in text, f"required section missing from {tool} output: {section!r}"
+
+    if "line_count_range" in meta:
+        lo, hi = meta["line_count_range"]
+        actual = len(text.splitlines())
+        assert lo <= actual <= hi, (
+            f"{tool} {target_rel} line count {actual} outside golden range [{lo}, {hi}]"
+        )
+    if "char_count_range" in meta:
+        lo, hi = meta["char_count_range"]
+        actual = len(text)
+        assert lo <= actual <= hi, (
+            f"{tool} {target_rel} char count {actual} outside golden range [{lo}, {hi}]"
+        )
+
+    fm = _extract_frontmatter(text)
+    for key in meta["must_have_frontmatter_keys"]:
+        assert key in fm, f"{tool} {target_rel} frontmatter missing key: {key!r}"
+
+    for forbidden in meta["must_not_contain"]:
+        assert forbidden not in text, (
+            f"{tool} output contains forbidden legacy symbol: {forbidden!r}"
+        )
+
+    assert result.budget_ok, f"{tool} over budget: {result.budget_details}"
