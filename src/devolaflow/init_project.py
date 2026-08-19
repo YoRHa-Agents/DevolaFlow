@@ -443,14 +443,19 @@ def install_local(
         print(f"  FAIL {exc}")
         sys.exit(1)
 
-    from devolaflow.local.workspace import ScaffoldVerificationError, scaffold_local
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        ScaffoldVerificationError,
+        scaffold_local,
+    )
 
     try:
         scaffold_local(cwd)
-    except ScaffoldVerificationError as exc:
-        # Track C-1 (S-5): the post-scaffold gitignore self-check failed.
-        # Surface the exact missing rules + a recovery hint instead of a
-        # traceback, and exit non-zero — no more silent "success".
+    except (ScaffoldVerificationError, ScaffoldStructureError) as exc:
+        # Track C-1/C-2 (S-5): a post-scaffold self-check failed (gitignore
+        # rules or structure contract). Surface the exact diff + a recovery
+        # hint instead of a traceback, and exit non-zero — no more silent
+        # "success".
         print(f"  FAIL {exc}")
         sys.exit(1)
 

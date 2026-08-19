@@ -162,6 +162,67 @@ def test_uninstall_dry_run_then_real(tmp_path: Path):
     assert not skill_dir.exists()
 
 
+def test_rule_tree_warns_on_partial_reference_downloads(tmp_path: Path):
+    """PR #169 Bugbot finding: install_rule_tree must count + warn on failed
+    reference downloads (the || true form hid partial references/ trees)."""
+    env, project_dir, _home_dir, script_path = _install_env(tmp_path)
+
+    # Fake curl variant: SKILL.md + manifest succeed, every reference fails.
+    fake_curl = Path(env["PATH"].split(os.pathsep)[0]) / "curl"
+    patched = _FAKE_CURL.replace(
+        'elif echo "$basename" | grep -q \'\\.md$\'; then\n  echo "# $basename" > "$dest"\n',
+        "elif echo \"$url\" | grep -q '/references/'; then\n  exit 22\n",
+    )
+    assert patched != _FAKE_CURL, "fake-curl patch anchor drifted"
+    fake_curl.write_text(patched)
+
+    zed = subprocess.run(
+        ["bash", str(script_path), "zed", "--no-plugins"],
+        cwd=project_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    # Partial reference tree stays warn-not-fatal (S-5 warn path) …
+    assert zed.returncode == 0, zed.stderr
+    # … but the failure count must now be operator-visible.
+    combined = zed.stdout + zed.stderr
+    assert "references failed" in combined, combined
+    assert (project_dir / ".rules" / "devola-flow.md").exists()
+
+
+def test_auto_and_all_propagate_local_scaffold_failure(tmp_path: Path):
+    """PR #173 Bugbot finding: `auto` and `all` must propagate install_local's
+    exit 1 instead of finishing with the success footer on a broken scaffold."""
+    env, project_dir, _home_dir, script_path = _install_env(tmp_path)
+
+    # Fake python3: devolaflow imports fine, but the scaffold module fails —
+    # the exact Track C-1 failure mode auto/all used to swallow.
+    fakebin = Path(env["PATH"].split(os.pathsep)[0])
+    fake_python = fakebin / "python3"
+    fake_python.write_text(
+        "#!/usr/bin/env bash\n"
+        'case "$*" in\n'
+        '  *"devolaflow.local.workspace"*) echo "forced scaffold failure" >&2; exit 1 ;;\n'
+        "  *) exit 0 ;;\n"
+        "esac\n"
+    )
+    fake_python.chmod(0o755)
+
+    for target in ("auto", "all"):
+        run = subprocess.run(
+            ["bash", str(script_path), target, "--no-plugins"],
+            cwd=project_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert run.returncode == 1, f"{target}: {run.stdout}\n{run.stderr}"
+        assert "Now Using DevolaFlow" not in run.stdout, f"{target} printed success footer"
+
+
 def _install_env(tmp_path: Path) -> tuple[dict, Path, Path, Path]:
     """Shared fixture body: fake curl + isolated HOME/project dirs."""
     repo_root = Path(__file__).resolve().parents[1]

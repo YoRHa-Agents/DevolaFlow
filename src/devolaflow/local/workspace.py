@@ -1059,8 +1059,15 @@ if __name__ == "__main__":
     # has invoked `python3 -m devolaflow.local.workspace` since v9.x, but the
     # module had no __main__ path — the call imported the module and exited 0
     # without scaffolding anything (silent no-op). This block makes the
-    # historic invocation real. Failures propagate as a traceback + non-zero
-    # exit per S-5; the ScaffoldVerificationError message carries the exact
-    # missing rules.
-    scaffold_local(Path.cwd())
+    # historic invocation real. Self-check failures (gitignore rules per C-1,
+    # structure contract per C-2) print the exact diff + exit 1 (S-5) instead
+    # of a low-signal traceback — matching `devola-init local`/`scaffold-local`;
+    # unexpected errors still propagate as a traceback.
+    import sys
+
+    try:
+        scaffold_local(Path.cwd())
+    except (ScaffoldVerificationError, ScaffoldStructureError) as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
     print(".local/ workspace scaffolded (directories + gitignore verified).")

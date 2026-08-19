@@ -229,10 +229,18 @@ install_rule_tree() {
 
   if fetch_manifest; then
     info "references (per manifest):"
-    local f
+    local f total=0 ok_count=0 fail_count=0
     for f in $(manifest_set references); do
-      dl "${AGENT_BASE}/${f}" "${dir}/${f}" || true
+      total=$((total + 1))
+      if dl "${AGENT_BASE}/${f}" "${dir}/${f}"; then
+        ok_count=$((ok_count + 1))
+      else
+        fail_count=$((fail_count + 1))
+      fi
     done
+    if [ "$fail_count" -gt 0 ]; then
+      warn "${fail_count}/${total} references failed (${ok_count} succeeded) — partial references/ tree"
+    fi
   else
     warn "install manifest unavailable — installed the rules file only"
   fi
@@ -620,8 +628,10 @@ auto_detect() {
     SCOPE="global"; install_claude; found=1
   fi
   if [ -d ".github" ]; then install_copilot; found=1; fi
-  # Auto-init .local/ when missing — feedback #1 root cause (v7.4.2)
-  if [ ! -d ".local" ]; then install_local; found=1; fi
+  # Auto-init .local/ when missing — feedback #1 root cause (v7.4.2).
+  # Track C-1 follow-up: propagate the scaffold's failure instead of
+  # swallowing it (S-5) — a broken .gitignore scaffold must not exit 0.
+  if [ ! -d ".local" ]; then install_local || return 1; found=1; fi
 
   if [ "$found" -eq 0 ]; then
     warn "No AI tools detected. Pick one:"
@@ -669,8 +679,8 @@ case "$TARGET" in
   uninstall) do_uninstall ;;
   all)     install_cursor; install_codex; install_claude; install_copilot; \
            install_kimicode; install_windsurf; \
-           install_zed; install_cline; install_roo; install_local ;;
-  auto)    auto_detect ;;
+           install_zed; install_cline; install_roo; install_local || exit 1 ;;
+  auto)    auto_detect || exit 1 ;;
   help|--help|-h)
     cat << USAGE
   Usage: install.sh [target] [flags]
