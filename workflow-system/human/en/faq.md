@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -21,7 +21,7 @@ A composable workflow meta-framework for AI-assisted software development. It de
 ### What AI tools does it support?
 
 **Cursor** — loaded as a Cursor Skill (`.cursor/skills/devola-flow/SKILL.md`)
-- **Claude Code** — loaded as `CLAUDE.md` (always active in every session)
+- **Claude Code** — loaded as a Claude Code Skill (`.claude/skills/devola-flow/SKILL.md`)
 - **GitHub Copilot** — loaded as `copilot-instructions.md`**OpenAI Codex** — loaded as a Codex Skill
 
 A single source (`workflow-skill.yaml`) is adapted to each tool's format via the `build-skill` pipeline.
@@ -87,6 +87,9 @@ The gate triggers a **convergence loop**: review findings → fix issues → re-
 How do I check for updates?
 
 Ask your AI agent: `"update devola"`, or run `devola-version` in the terminal.
+To audit every installed copy at once, run `devola-init-doctor --skills`: it
+scans all known install locations and reports each install as `current`,
+`stale`, or `unknown-version`.
 
 How do I update?
 
@@ -94,6 +97,14 @@ How do I update?
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
-# installer
+# installer (skips installs already at the latest version; --force re-downloads)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
+```
+
+### How do I uninstall?
+
+```bash
+# preview what would be removed, then remove for real
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```

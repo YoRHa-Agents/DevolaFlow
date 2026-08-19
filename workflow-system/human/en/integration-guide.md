@@ -4,7 +4,7 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -17,9 +17,13 @@ Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Codex.
 | Platform | Install Method | Skill Format | Scope |
 |----------|---------------|-------------|-------|
 | **Cursor** | `devola-init cursor` | SKILL.md + references/ + examples/ | Project or global |
-| **Claude Code** | `devola-init claude` | CLAUDE.md (self-contained) | Project or global |
+| **Claude Code** | `devola-init claude` | SKILL.md + references/ + examples/ | Project or global |
 | **Copilot** | `devola-init copilot` | copilot-instructions.md | Project only |
-| **Codex** | `devola-init codex` | SKILL.md + openai.yaml | Global only |
+| **Codex** | `devola-init codex` | SKILL.md + references/ | Global only |
+
+The per-tool file lists are declared in `workflow-system/agent/manifest.yaml`
+(the install-manifest single source of truth) — the table above mirrors its
+`install_profiles` section.
 
 ## Cursor — Detailed Setup
 
@@ -33,10 +37,10 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl -fsSL $INSTALLER | bash -s cursor --global
 ```
 
-This installs:
+This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`):
 - `.cursor/skills/devola-flow/SKILL.md` — the main skill file
-- `.cursor/skills/devola-flow/references/` — 9 domain reference files
-- `.cursor/skills/devola-flow/examples/` — 3 execution trace examples
+- `.cursor/skills/devola-flow/references/` — Tier-2 domain reference files
+- `.cursor/skills/devola-flow/examples/`, Tier-3 execution trace examples
 
 How It Works in Cursor
 
@@ -92,11 +96,11 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl -fsSL $INSTALLER | bash -s claude --global
 ```
 
-This installs a single self-contained `CLAUDE.md` file. Claude Code reads this file at the start of every session.
+This installs the skill package into `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (with `--global`): `SKILL.md` plus the `references/` and `examples/` trees, per the `claude` profile in `workflow-system/agent/manifest.yaml`.
 
 How It Works in Claude Code
 
-`CLAUDE.md` is always active, Claude Code loads it automatically. Every prompt benefits from DevolaFlow's workflow structure.
+DevolaFlow is loaded as a **Claude Code Skill**. It activates on intent-matched prompts (implement / fix / refactor / research), and Claude Code pulls in reference files on demand instead of loading everything into every session.
 
 ### Example Session
 
@@ -114,7 +118,7 @@ Claude Code will:
 
 Tips for Claude Code
 
-- CLAUDE.md is self-contained, no external references needed
+- References and examples ship alongside SKILL.md, the skill loads them on demand
 - Works with Claude Code's native subagent support
 - Use `"update devola"` to trigger version checks within a session
 
@@ -127,8 +131,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 ```
 
 This installs:
-- `.github/copilot-instructions.md`, root instructions
-- `.github/instructions/workflow.instructions.md`, workflow-specific instructions
+- `.github/copilot-instructions.md`, the full SKILL.md content as root instructions
 
 How It Works in Copilot
 
@@ -145,16 +148,16 @@ Copilot follows the `refactoring` workflow: scope analysis → plan → implemen
 
 ## OpenAI Codex, Detailed Setup
 
-Installation
+### Installation
 
 ```bash
 # Codex uses global skills
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex
 ```
 
-This installs:
+This installs (per the `codex` profile in `workflow-system/agent/manifest.yaml`):
 - `~/.codex/skills/devola-flow/SKILL.md`
-- `~/.codex/skills/devola-flow/agents/openai.yaml`
+- `~/.codex/skills/devola-flow/references/`
 
 How It Works in Codex
 

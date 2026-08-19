@@ -4,7 +4,7 @@ description: "10 分钟内开始使用 DevolaFlow。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -50,7 +50,7 @@ devola-init all          # 所有工具
 | 工具 | 路径 |
 |------|------|
 | Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `./CLAUDE.md` |
+| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 

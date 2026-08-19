@@ -4,7 +4,7 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -17,11 +17,14 @@ source_version: "15.0.0"
 | 平台 | 安装方式 | Skill 格式 | 范围 |
 |------|---------|-----------|------|
 | **Cursor** | `devola-init cursor` | SKILL.md + references/ + examples/ | 项目或全局 |
-| **Claude Code** | `devola-init claude` | CLAUDE.md（自包含） | 项目或全局 |
+| **Claude Code** | `devola-init claude` | SKILL.md + references/ + examples/ | 项目或全局 |
 | **Copilot** | `devola-init copilot` | copilot-instructions.md | 仅项目 |
-| **Codex** | `devola-init codex` | SKILL.md + openai.yaml | 仅全局 |
+| **Codex** | `devola-init codex` | SKILL.md + references/ | 仅全局 |
 
-## Cursor — 详细设置
+各工具的安装文件清单声明在 `workflow-system/agent/manifest.yaml`
+（安装清单的单一事实源）— 上表与其 `install_profiles` 段保持一致。
+
+## Cursor, 详细设置
 
 ### 安装
 
@@ -33,10 +36,10 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl -fsSL $INSTALLER | bash -s cursor --global
 ```
 
-安装内容：
+安装内容（依 `workflow-system/agent/manifest.yaml` 的 `cursor` profile）：
 - `.cursor/skills/devola-flow/SKILL.md`, 主 skill 文件
-- `.cursor/skills/devola-flow/references/`, 9 个领域参考文件
-- `.cursor/skills/devola-flow/examples/`, 3 个执行追踪示例
+- `.cursor/skills/devola-flow/references/`, Tier-2 领域参考文件
+- `.cursor/skills/devola-flow/examples/`, Tier-3 执行追踪示例
 
 在 Cursor 中如何工作
 
@@ -70,7 +73,7 @@ Cursor 使用技巧
 
 ## Claude Code, 详细设置
 
-安装
+### 安装
 
 ```bash
 # 项目级
@@ -80,11 +83,11 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl -fsSL $INSTALLER | bash -s claude --global
 ```
 
-安装一个自包含的 `CLAUDE.md` 文件。Claude Code 在每个会话开始时自动读取。
+将 skill 包安装到 `.claude/skills/devola-flow/`（项目级）或 `~/.claude/skills/devola-flow/`（`--global`）：`SKILL.md` 加上 `references/` 与 `examples/` 目录树，依 `workflow-system/agent/manifest.yaml` 的 `claude` profile。
 
 在 Claude Code 中如何工作
 
-`CLAUDE.md` 始终生效, Claude Code 自动加载。每个提示词都受益于 DevolaFlow 的工作流结构。
+DevolaFlow 作为 **Claude Code Skill** 加载。它在意图匹配的提示词（实现 / 修复 / 重构 / 调研）上激活，Claude Code 按需读取参考文件，而非每个会话全量加载。
 
 示例会话
 
@@ -109,8 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 ```
 
 安装内容：
-- `.github/copilot-instructions.md`, 根指令
-- `.github/instructions/workflow.instructions.md`, 工作流指令
+- `.github/copilot-instructions.md`, 完整 SKILL.md 内容作为根指令
 
 在 Copilot 中如何工作
 
@@ -124,9 +126,9 @@ Copilot 为每个请求读取 `copilot-instructions.md`。工作流启发式规�
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex
 ```
 
-安装内容：
+安装内容（依 `workflow-system/agent/manifest.yaml` 的 `codex` profile）：
 - `~/.codex/skills/devola-flow/SKILL.md`
-- `~/.codex/skills/devola-flow/agents/openai.yaml`
+- `~/.codex/skills/devola-flow/references/`
 
 ## CI/CD 集成
 
