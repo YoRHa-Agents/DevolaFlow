@@ -25,7 +25,7 @@ python -m pytest tests/test_benchmarks.py -v  # EvoBench benchmarks
 - `src/devolaflow/` — Python package (gate, template_engine, nines, adapters)
 - `workflow-system/agent/` — SKILL.md, references, templates, context profiles
 - `workflow-system/human/` — Human docs (EN/ZH), demo pages
-- `tests/` — Pytest suite (822+ tests)
+- `tests/` — Pytest suite (`python -m pytest tests/ -q` prints the live count)
 - `benchmarks/` — EvoBench context density benchmarks
 - `schemas/` — YAML message schemas
 - `scripts/` — Version bump, doc generation, install
