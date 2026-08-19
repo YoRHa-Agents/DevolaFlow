@@ -5,8 +5,9 @@ workspace is private by default, but two team-collab subdirs are explicitly
 tracked under git so PR reviewers see them mid-cycle:
 
 * `.local/memory/specs/` — A-4 source-of-truth contracts (per Rule A-4)
-* `.local/research/`     — W-1/SI-1 gap analyses + W-7/SI-8 retrospectives +
-                            ADRs + design docs cited by per-cycle retros
+* `.local/research/`     — narrowed by clean_repo Phase A: only current-cycle
+                            (v15*) research + adr/ stay tracked; archived
+                            history lives in docs/cycle-archive/ (W-19)
 
 Everything else under `.local/` stays private (machine state, scratch dirs,
 per-developer change folders, handoff envelopes).
@@ -113,16 +114,28 @@ LOCAL_WHITELISTED_PATHS: list[str] = [
     ".local/memory/specs/auth/spec.md",
     ".local/memory/specs/agent_workspace/spec.md",
     ".local/memory/specs/example_domain/spec.md",
-    # W-7/W-19 research artifacts — re-enabled via !.local/research/**
-    ".local/research/v8.3.0_gap_analysis.md",
-    ".local/research/v7.5.0_ghost_audit.md",
-    ".local/research/v12.2.0_gap_analysis.md",
+    # W-7/W-19 research artifacts — narrowed by clean_repo Phase A: only
+    # current-cycle v15* files (via !.local/research/v15*) + adr/ (via
+    # !.local/research/adr/**) stay re-enabled.
+    ".local/research/v15.0.0_retrospective.md",
+    ".local/research/adr/v15-ADR-002-template-phase-b-collapse.md",
+    ".local/research/adr/v15-ADR-006-scorer-selector-module-split.md",
     # v14.0.0 — human INPUT zone (authoritative, durable, PR-reviewable)
     # re-enabled via !.local/human/input/** (D-4 / ADR-2). output/ + archive/
     # stay PRIVATE (D2 locked) — see LOCAL_HUMAN_PRIVATE_PATHS below.
     ".local/human/input/constitution.md",
     ".local/human/input/requirements.md",
     ".local/human/input/amendments/2026-06-03-immutable-input.md",
+]
+
+# clean_repo Phase A — archived old-cycle research files are IGNORED after the
+# whitelist narrowing (their canonical copies live in docs/cycle-archive/;
+# local files are kept but no longer tracked).
+LOCAL_RESEARCH_ARCHIVED_PRIVATE_PATHS: list[str] = [
+    ".local/research/v8.3.0_gap_analysis.md",
+    ".local/research/v7.5.0_ghost_audit.md",
+    ".local/research/v12.2.0_gap_analysis.md",
+    ".local/research/v8.3.0_design.md",
 ]
 
 # v14.0.0 — human OUTPUT + archive zones MUST stay IGNORED (D2 operator
@@ -224,6 +237,14 @@ def test_whitelisted_local_paths_are_tracked(path: str) -> None:
         f"a whitelist negation (`!.local/memory/specs/**`, `!.local/research/**`, "
         f"or `!.local/human/input/**`)"
     )
+
+
+@pytest.mark.parametrize("path", LOCAL_RESEARCH_ARCHIVED_PRIVATE_PATHS)
+def test_archived_research_paths_are_ignored(path: str) -> None:
+    """clean_repo Phase A：已归档旧周期 research 改为 IGNORED。"""
+    status, rule = _check_ignore(path)
+    assert status == "IGNORED"
+    assert rule == ".local/research/*"
 
 
 @pytest.mark.parametrize("path", LOCAL_HUMAN_PRIVATE_PATHS)
@@ -332,15 +353,15 @@ def test_real_existing_research_file_now_tracked() -> None:
 
     Inverted from the v9.2.3 expectation — under v12.2.0, research artifacts
     are visible to PR reviewers mid-cycle. The matching negation rule
-    `!.local/research/**` re-includes the file.
+    `!.local/research/v15*` re-includes the file.
     """
-    target = REPO_ROOT / ".local/research/v8.3.0_design.md"
+    target = REPO_ROOT / ".local/research/v15.0.0_retrospective.md"
     if not target.exists():
-        pytest.skip("v8.3.0_design.md not present (run from a clean checkout?)")
-    status, rule = _check_ignore(".local/research/v8.3.0_design.md")
+        pytest.skip("v15.0.0_retrospective.md not present (run from a clean checkout?)")
+    status, rule = _check_ignore(".local/research/v15.0.0_retrospective.md")
     assert status == "TRACKED", (
-        f".local/research/v8.3.0_design.md unexpectedly IGNORED under v12.2.0 "
-        f"whitelist (rule: {rule!r}). The negation `!.local/research/**` MUST "
+        f".local/research/v15.0.0_retrospective.md unexpectedly IGNORED under v12.2.0 "
+        f"whitelist (rule: {rule!r}). The negation `!.local/research/v15*` MUST "
         f"re-include the file."
     )
 
