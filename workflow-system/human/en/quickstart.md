@@ -4,7 +4,7 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -50,7 +50,7 @@ Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/ma
 | Tool | Path |
 |------|------|
 | Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `./CLAUDE.md` |
+| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
 | Copilot | `.github/copilot-instructions.md` |
 | Codex | `~/.codex/skills/devola-flow/SKILL.md` |
 

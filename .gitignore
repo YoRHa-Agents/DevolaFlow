@@ -85,6 +85,13 @@ node_modules/
 # for the version-consistency parity contract (formerly skill-format SF-3).
 .cursor/skills/devola-flow/
 
+# Copilot install artifact (G9) — a consumer product written by
+# `install.sh copilot` / `devola-init copilot` (byte-identical copy of
+# workflow-system/agent/SKILL.md). Same semantics as the Cursor mirror
+# above: the tracked source of truth is SKILL.md; the install output
+# never enters the index (like dist/).
+.github/copilot-instructions.md
+
 # clean_repo Phase A — untracked (kept locally / archived in docs/cycle-archive/).
 .cursor/plans/
 MIGRATION-v6.md
