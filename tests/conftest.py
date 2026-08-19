@@ -140,7 +140,7 @@ def project_root() -> Path:
 @pytest.fixture
 def design_docs_dir(project_root: Path) -> Path:
     """Return the design docs directory."""
-    return project_root / "doc" / "designs"
+    return project_root / "docs" / "designs"
 
 
 @pytest.fixture
