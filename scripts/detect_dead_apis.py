@@ -535,7 +535,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # llm_client) wrap the existing functions for the unified
         # pipeline; production callers (L0/L1 dispatchers using
         # ``CompressionPipeline.run`` directly) ship in v9.x cycle PVs
-        # per .local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
+        # per docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
         # §"Migration". Allowlisted here until the dispatcher integration
         # PV lands — matches the pattern used for v8.2.5 ChangeStore +
         # v8.2.8 memory_bridge entries above. Tests exercise every entry

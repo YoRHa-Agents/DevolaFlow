@@ -79,7 +79,7 @@ runtime flags) — operators opt OUT per-primitive via the env-flag
 listed in env-flags.md §2.6..§2.10 (each set EXACTLY to ``"0"`` per R5
 strict parsing). Composite ≥ 90 floor preserved by the 5 new
 ``benchmarks/devolaflow_context/scenarios/*_disabled.yaml`` scenarios.
-See ``.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``
+See ``docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``
 for the full rationale and the rollback plan.
 """
 

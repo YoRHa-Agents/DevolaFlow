@@ -1,6 +1,6 @@
 """DEPRECATED aggregator — the ghost audit moved to ``tests/ghost/`` (v14.3.0).
 
-Per ``.local/research/adr/v15-ADR-001-ghost-audit-decomposition.md`` the
+Per ``docs/cycle-archive/adr/v15-ADR-001-ghost-audit-decomposition.md`` the
 monolithic ghost audit was split by enforcement domain:
 
 * ``tests/ghost/test_rules.py`` — rule-cap, compile-drift, rule-surface lints.

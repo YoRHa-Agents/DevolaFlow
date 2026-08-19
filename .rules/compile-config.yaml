@@ -31,7 +31,7 @@ targets:
     # which silently dropped the workflow layer from the compiled output).
     # The 12000 bump gives ~30% headroom for v9.x sustaining additions while
     # preserving the canonical 5-layer corpus. Documented in
-    # .local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md D5.
+    # docs/cycle-archive/adr/v9-ADR-007-rule-rebalancing-and-rollup.md D5.
     #
     # v11.4.0 (this PV) — bumped 12000 → 14000 to absorb the W-24 Subagent
     # Pattern Selection rule (~+60 LOC source). Pre-bump utilization was
@@ -58,7 +58,7 @@ targets:
     # (97.6%); the bump leaves headroom for PV-06..PV-N additions and
     # mirrors the cursor-target ceiling so AGENTS.md-aware tools (Codex,
     # KimiCode, Cline, Roo) get the same rule corpus as Cursor users.
-    # Documented in .local/research/adr/v9-ADR-005-nines-hygiene-and-w-rules.md D5.
+    # Documented in docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md D5.
     #
     # v9.0.0 PV-07 (v9.0.0) — bumped 8000 → 12000 to absorb the W-21 Soul-set
     # freeze governance rule (~+30 LOC source). Pre-PV-07 utilization was

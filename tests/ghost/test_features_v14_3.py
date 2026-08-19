@@ -33,7 +33,7 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
     (f) references/task-quality-score.md cross-references the rubric split.
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.1 G-004 + G-005;
-    .local/research/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md.
+    docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md.
     """
     # --- (a) the 25th reference + doctrine guard ----------------------
     ref_path = project_root / "workflow-system/agent/references/artifact-quality.md"
@@ -149,7 +149,7 @@ def test_v14_3_0_report_evidence_blocks_registered(project_root: Path) -> None:
         ``reject_subagent_quality_score`` runtime guard (v15-ADR-007).
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.1 G-002 + G-003;
-    .local/research/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md.
+    docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md.
     """
     # --- (a)-(c) lean_format_spec structural pins ----------------------
     report_spec = yaml.safe_load(
@@ -235,7 +235,7 @@ def test_v14_3_0_hook_runtime_wiring_registered(project_root: Path) -> None:
         suite for the wiring layer).
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.1 G-001;
-    .local/research/adr/v15-ADR-003 (permissive hook wiring).
+    docs/cycle-archive/adr/v15-ADR-003 (permissive hook wiring).
     """
     # --- (a) runtime_wiring public surface ------------------------------
     from devolaflow.lifecycle import runtime_wiring

@@ -651,7 +651,7 @@ class TestLayoutInvariantBaseline:
         )
         assert rendered == recorded, (
             "layout_invariant_v7.0.0.yaml has drifted from the canonical renderer output. "
-            "See .local/research/adr/v7-ADR-001-cache-layout-invariant.md §6."
+            "See docs/cycle-archive/adr/v7-ADR-001-cache-layout-invariant.md §6."
         )
 
     def test_layout_invariant_baseline_v7_3_0(self) -> None:

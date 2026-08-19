@@ -1,6 +1,6 @@
 """Multi-baseline byte-stability tests for the cache-layout invariant.
 
-Per ``.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md`` D4:
+Per ``docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md`` D4:
 CI enforcement pins ALL 6 historical schema baselines so any drift in
 ANY baseline fails CI immediately. The combinatorial coverage scales
 O(N) with prior baselines and catches three distinct attack classes

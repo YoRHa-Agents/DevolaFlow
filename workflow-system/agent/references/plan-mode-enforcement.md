@@ -768,7 +768,7 @@ Default routing (configurable per `context_profiles.yaml::profiles.<name>.escala
 - `tests/test_no_ghost_features.py::test_round_aware_dispatch_escalation_exists` — pins the round-aware dispatch wiring.
 - `tests/test_no_ghost_features.py::test_reinforcement_findings_function_exists` — pins `findings_to_reinforcement()` callable.
 - `tests/test_dispatch_emission_runs_hooks.py` — end-to-end pre_dispatch / post_dispatch hook coverage; landed in v8.4.4 PV-04 per
-  `.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.
+  `docs/cycle-archive/adr/v9-ADR-004-lifecycle-wiring-and-s10.md`.
 - `tests/test_task_adaptive_selector_plan_mode.py` — `_detect_plan_mode()`
   + `_PLAN_MODE_OVERRIDES` application coverage.
 

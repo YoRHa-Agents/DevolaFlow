@@ -258,7 +258,7 @@ def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
 
     Production call site for
     :func:`devolaflow.lifecycle.runtime_wiring.fire_task_stop` per
-    ADR-003 (``.local/research/adr/v15-ADR-003-output-closure-
+    ADR-003 (``docs/cycle-archive/adr/v15-ADR-003-output-closure-
     enforcement-locus.md``): ``HandoffStore.write_envelope`` with
     ``envelope_kind == "StatusReport"`` IS the L3 report emission
     surface. The payload is a shallow copy of the envelope's ``report``

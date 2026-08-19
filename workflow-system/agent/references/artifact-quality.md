@@ -30,7 +30,7 @@ last_updated: "2026-06-11"
 
 **L3 MUST NOT compute or report numeric quality scores — this rubric defines
 EVIDENCE.** The doctrine is the two-phase split ratified in
-`.local/research/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`:
+`docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`:
 
 1. **v14.3.0 (evidence phase — THIS document)**: the L3 Task Agent emits
    falsifiable evidence about its own artifact — per-AC verdicts from
@@ -237,5 +237,5 @@ possible "evidence" would be the L3's own opinion.
   transport blocks (additive, v14.3.0)
 * `src/devolaflow/lifecycle/reject_subagent_quality_score.py` — the runtime
   doctrine guard
-* `.local/research/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`
+* `docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`
   — the ratified evidence-vs-scoring split this reference implements

@@ -170,7 +170,7 @@ class TestSchemaFileShape:
         write-only sync point. The canonical, executable witness of every
         historical baseline passing is
         ``tests/test_layout_invariant_multi_baseline.py`` (the Tier-A golden
-        set). See `.local/research/adr/v15-ADR-005-benchmark-baseline-tiering.md`.
+        set). See `docs/cycle-archive/adr/v15-ADR-005-benchmark-baseline-tiering.md`.
         """
         schema = _load_schema()
         assert "backward_compat" not in schema["layout_invariant"]["enforcement"], (

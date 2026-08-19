@@ -148,7 +148,7 @@ Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dis
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-Per `.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2/L3 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2/L3 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
@@ -237,7 +237,7 @@ Pre-v15.0.0 this table carried 5 rows — "Plugin catalog"
 (`plugins.yaml`) and "Runtime plugin registry" (`runtime-plugins.yaml`)
 as two sibling owners. v15.0.0 G-021 unified them: the runtime registry
 is the sole registration owner; the catalog became its derived view
-(per `.local/research/v14.2.0_gap_analysis.md` §2.4, F-P5-1/F-P5-6).
+(per `docs/cycle-archive/v15.0.0/v14.2.0_gap_analysis.md` §2.4, F-P5-1/F-P5-6).
 
 ### A-5.1 — Single-Owner Invariant
 

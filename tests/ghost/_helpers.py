@@ -1,7 +1,7 @@
 """Shared helpers for the ``tests/ghost/`` audit package.
 
 Moved verbatim from ``tests/test_no_ghost_features.py`` per
-``.local/research/adr/v15-ADR-001-ghost-audit-decomposition.md``
+``docs/cycle-archive/adr/v15-ADR-001-ghost-audit-decomposition.md``
 (v14.3.0 split). Pure utilities only — shared *pins* (SF-4 set, SSOT
 registries, rule-cap constants) live in their domain owner modules.
 """

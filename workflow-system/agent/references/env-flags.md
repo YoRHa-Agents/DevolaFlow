@@ -405,7 +405,7 @@ scenario set before flip. Both are tracked for the v9.x cycle's TBD
 "completion theme".
 
 **Cross-reference**: the PV-06 flip plan + acceptance criteria + opt-out
-path live in `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
+path live in `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
 The 5 promoted flags' R5 strict opt-out contract is pinned by
 `tests/test_pv06_primitive_flip.py` and verified end-to-end by the 5 new
 `benchmarks/devolaflow_context/scenarios/*_disabled.yaml` EvoBench scenarios.
@@ -593,7 +593,7 @@ NEW canonical names.
 * `references/behavioral-guidelines.md` — BG-001..BG-004 spec (cross-link from §5)
 * `AGENTS.md` §"W-20" — env-flag reuse vs new-flag policy (the rule this reference enforces)
 * `.local/research/v9.0.0_pv05_design.md` §1 — full PV-05 audit + decision rationale
-* `.local/research/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` D5 — ADR for AGENTS.md ceiling bump + W-rule batch
+* `docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` D5 — ADR for AGENTS.md ceiling bump + W-rule batch
 
 ---
 

@@ -125,7 +125,7 @@ class DispatchLayoutError(ValueError):
 # v9.0.0 PV-02 (v8.4.2) — Cache-Layout Governance v2 (nest-vs-append rule).
 #
 # FROZEN_PREFIX_V7 is the v7.0.0 canonical 12-key prefix. Per
-# ``.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md`` D1, these
+# ``docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md`` D1, these
 # 12 positions are FROZEN — reordering any of them is a release blocker
 # (LLM cache-prefix invalidation cost is prohibitive). Positions 13-16 are
 # APPEND-ONLY per D2; new top-level keys land at position N+1, never
@@ -184,7 +184,7 @@ class LayoutSpecInvariantError(DispatchLayoutError):
 def assert_layout_spec_invariant(spec: list[str] | tuple[str, ...] | None = None) -> None:
     """Validate that ``spec``'s first 12 positions match :data:`FROZEN_PREFIX_V7`.
 
-    Per ``.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md`` D1
+    Per ``docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md`` D1
     + D5: positions 1-12 of any layout spec MUST be byte-identical to the
     v7.0.0 canonical sequence. This is the spec-level guard that catches
     a renamer / re-orderer / sneaky inserter at module-load time, before
@@ -263,7 +263,7 @@ def assert_dispatch_layout(
       canonical) for legacy interop without copying the canonical list.
 
     v9.0.0 PV-02 (v8.4.2) — nest-vs-append rule (per
-    ``.local/research/adr/v9-ADR-002-cache-layout-governance-v2.md`` D5):
+    ``docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md`` D5):
 
     * The first 12 positions of ``layout_spec`` are the FROZEN PREFIX
       (:data:`FROZEN_PREFIX_V7`); reordering any of them is a release

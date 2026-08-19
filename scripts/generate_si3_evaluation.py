@@ -191,7 +191,7 @@ TBD (exit 0)
 - `.local/research/{version}_nines.json` — raw NineS output (Part B source)
 - `.local/research/{version}_nines.md` — NineS summary (Part B source)
 - `.local/research/v9.0.0_implementation_plan.md` §<PV section> — runbook
-- `.local/research/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` — C-04 split ADR
+- `docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` — C-04 split ADR
 - `AGENTS.md` §W-3 — SI-3 ACCEPT threshold definition
 - `AGENTS.md` §W-9 — SI-10 6-step verification harness
 - DevolaFlow canonical URL: https://github.com/YoRHa-Agents/DevolaFlow

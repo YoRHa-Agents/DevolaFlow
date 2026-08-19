@@ -1580,7 +1580,7 @@ def summarise_predecessor(
 ) -> dict:
     """Produce a bounded-token summary of a predecessor artifact.
 
-    See ``.local/research/adr/v7-ADR-003-hierarchical-summary.md`` §2 for the
+    See ``docs/cycle-archive/adr/v7-ADR-003-hierarchical-summary.md`` §2 for the
     full algorithm. The default ``extractive`` mode is deterministic and
     verbatim per CO-2: it parses the artifact by extension, runs
     :func:`extract_named_entities` on the full body, and emits a

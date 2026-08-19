@@ -327,7 +327,7 @@ def _fire_file_write_hook(
 
     Production call site for
     :func:`devolaflow.lifecycle.runtime_wiring.fire_file_write` per
-    ADR-003 (``.local/research/adr/v15-ADR-003-output-closure-
+    ADR-003 (``docs/cycle-archive/adr/v15-ADR-003-output-closure-
     enforcement-locus.md``): ``Change.to_active_folder`` IS the
     framework's change-driven write surface, so every artifact write
     runs through the hook BEFORE touching disk. STRICT by default

@@ -2,7 +2,7 @@
 
 Layered rule system compiled to multiple AI tool formats via `src/devolaflow/local/compiler.py`.
 
-Total rules: **56** (cap 60 HARD applies to the FULL on-disk `.rules/` corpus — all 5 layers including Style — per v15-ADR-004, which amends ADR-007 D5's compiled-AGENTS.md denominator; 4 slots headroom. v14.2.1 removed dead rule C-8 per G-012; v15.0.0 rule-diet folded W-10..W-15 into W-4/W-5/W-6/C-6 per v15-ADR-004 — retired ids NOT renumbered/reused; fold map + stripped Source narrative live in `.local/research/adr/v15-ADR-008-rule-corpus-history-appendix.md`).
+Total rules: **56** (cap 60 HARD applies to the FULL on-disk `.rules/` corpus — all 5 layers including Style — per v15-ADR-004, which amends ADR-007 D5's compiled-AGENTS.md denominator; 4 slots headroom. v14.2.1 removed dead rule C-8 per G-012; v15.0.0 rule-diet folded W-10..W-15 into W-4/W-5/W-6/C-6 per v15-ADR-004 — retired ids NOT renumbered/reused; fold map + stripped Source narrative live in `docs/cycle-archive/adr/v15-ADR-008-rule-corpus-history-appendix.md`).
 
 | Layer | File | Priority | Always Apply | Rule count | Description |
 |-------|------|----------|-------------|------------|-------------|
@@ -25,7 +25,7 @@ python -c "from devolaflow.local.compiler import RuleCompiler; RuleCompiler('.ru
 | cursor | `.cursor/rules/repo-governance.mdc` | MDC | 14000 |
 | agents_md | `AGENTS.md` | Markdown | 14000 |
 
-> Token budgets are sourced from `.rules/compile-config.yaml` — bumped from 8000/6000 to 12000/12000 in v9.0.0 PV-07 per ADR-007 D5; bumped 12000 → 14000 in v11.4.0 (cursor + agents_md parity bump) to absorb the new W-24 Subagent Pattern Selection rule. Pre-v11.4.0 cursor utilization was 11979/12000 (saturated; W-24 push silently dropped the Style Rules layer); post-bump 12740/14000 (~9% headroom; all 5 layers preserved). See `.local/research/v11.4.0_subagent_pattern_analysis.md`.
+> Token budgets are sourced from `.rules/compile-config.yaml` — bumped from 8000/6000 to 12000/12000 in v9.0.0 PV-07 per ADR-007 D5; bumped 12000 → 14000 in v11.4.0 (cursor + agents_md parity bump) to absorb the new W-24 Subagent Pattern Selection rule. Pre-v11.4.0 cursor utilization was 11979/12000 (saturated; W-24 push silently dropped the Style Rules layer); post-bump 12740/14000 (~9% headroom; all 5 layers preserved). See `docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md`.
 
 ## Source Mapping
 
