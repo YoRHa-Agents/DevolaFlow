@@ -73,9 +73,14 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
     )
 
     # --- (d) mirror manifest entry ------------------------------------
-    sync_text = (project_root / "scripts/sync_cursor_skill.py").read_text(encoding="utf-8")
-    assert '"references/artifact-quality.md"' in sync_text, (
-        "W-18 v14.3.0 violation: scripts/sync_cursor_skill.py MIRRORED_FILES "
+    # Since the v15.0.x install-manifest SSOT (Track B-1), MIRRORED_FILES
+    # derives from workflow-system/agent/manifest.yaml — the entry check
+    # targets the owner surface (C-7 place 4).
+    manifest_text = (project_root / "workflow-system/agent/manifest.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "references/artifact-quality.md" in manifest_text, (
+        "W-18 v14.3.0 violation: workflow-system/agent/manifest.yaml "
         "missing references/artifact-quality.md."
     )
 

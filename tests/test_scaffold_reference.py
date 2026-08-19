@@ -24,7 +24,6 @@ def scaffold_reference_module():
 def _seed_repo(root: Path) -> None:
     (root / "pyproject.toml").write_text("[tool.test]\n", encoding="utf-8")
     (root / "workflow-system/agent/references").mkdir(parents=True)
-    (root / "scripts").mkdir(parents=True)
     (root / "workflow-system/agent/SKILL.md").write_text(
         "# DevolaFlow\n\n## Reference Navigation Guide\n\n"
         "**Tier 2 — Domain references**:\n\n"
@@ -36,16 +35,19 @@ def _seed_repo(root: Path) -> None:
         "**Tier 3** — On-demand:\n",
         encoding="utf-8",
     )
-    (root / "scripts/sync_cursor_skill.py").write_text(
-        '#!/usr/bin/env python3\n"""mock"""\n\n'
-        "MIRRORED_FILES = [\n"
-        '    "SKILL.md",\n'
-        '    "references/agent-hierarchy.md",\n'
-        '    "references/meta-framework.md",\n'
-        '    "references/team-roles.md",\n'
-        '    "examples/full-pipeline-trace.md",\n'
-        '    "examples/hotfix-trace.md",\n'
-        "]\n",
+    (root / "workflow-system/agent/manifest.yaml").write_text(
+        'schema_version: "1.0"\n'
+        "core:\n"
+        "  - SKILL.md\n"
+        "references:\n"
+        "  - references/agent-hierarchy.md\n"
+        "  - references/meta-framework.md\n"
+        "  - references/team-roles.md\n"
+        "examples:\n"
+        "  - examples/full-pipeline-trace.md\n"
+        "  - examples/hotfix-trace.md\n"
+        "install_profiles:\n"
+        "  cursor:   {kind: skill-dir, sets: [core, references, examples]}\n",
         encoding="utf-8",
     )
 
@@ -87,8 +89,8 @@ def test_dry_run_does_not_mutate(scaffold_reference_module, tmp_path: Path, caps
     assert "[dry-run]" in out
     ref_path = tmp_path / "workflow-system/agent/references/troubleshooting.md"
     assert not ref_path.exists()
-    sync = (tmp_path / "scripts/sync_cursor_skill.py").read_text(encoding="utf-8")
-    assert "troubleshooting" not in sync, "dry-run must not edit MIRRORED_FILES"
+    manifest = (tmp_path / "workflow-system/agent/manifest.yaml").read_text(encoding="utf-8")
+    assert "troubleshooting" not in manifest, "dry-run must not edit the install manifest"
 
 
 def test_happy_path_writes_three_surfaces(scaffold_reference_module, tmp_path: Path) -> None:
@@ -109,8 +111,10 @@ def test_happy_path_writes_three_surfaces(scaffold_reference_module, tmp_path: P
     assert ref_path.is_file()
     skill = (tmp_path / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
     assert "`references/troubleshooting.md`" in skill
-    sync = (tmp_path / "scripts/sync_cursor_skill.py").read_text(encoding="utf-8")
-    assert '"references/troubleshooting.md"' in sync
+    manifest = (tmp_path / "workflow-system/agent/manifest.yaml").read_text(encoding="utf-8")
+    assert "  - references/troubleshooting.md" in manifest
+    ref_lines = [ln for ln in manifest.splitlines() if ln.startswith("  - references/")]
+    assert ref_lines == sorted(ref_lines), "manifest references list must stay alphabetical"
 
 
 def test_skill_md_alphabetical_insertion(scaffold_reference_module, tmp_path: Path) -> None:

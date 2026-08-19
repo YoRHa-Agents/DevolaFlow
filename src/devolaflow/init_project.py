@@ -84,6 +84,36 @@ def _copy_dir(src: Path, dest: Path) -> int:
     return count
 
 
+def _profile_file_list(agent_dir: Path, profile: str) -> list[str] | None:
+    """Resolve *profile*'s file list from the install-manifest SSOT.
+
+    Returns ``None`` (after printing an explicit WARN per S-5) when the
+    manifest is absent or unusable — e.g. an old clone predating
+    ``workflow-system/agent/manifest.yaml`` — so callers can fall back to
+    the legacy whole-directory copy instead of aborting the install.
+    """
+    try:
+        from devolaflow.install_manifest import ManifestError, load_manifest, profile_files
+    except ImportError as exc:  # pragma: no cover — wheel without the module
+        print(f"  WARN install manifest loader unavailable ({exc}); using directory copy")
+        return None
+    try:
+        manifest = load_manifest(agent_dir)
+        return profile_files(manifest, profile)
+    except ManifestError as exc:
+        print(f"  WARN install manifest unusable ({exc}); using directory copy")
+        return None
+
+
+def _copy_profile_files(agent_dir: Path, skill_dir: Path, files: list[str]) -> int:
+    """Copy manifest-declared files preserving their relative layout."""
+    copied = 0
+    for rel in files:
+        if _copy_file(agent_dir / rel, skill_dir / rel):
+            copied += 1
+    return copied
+
+
 def _parse_scope(argv: list[str]) -> str:
     """Parse --global/--project flags from argv to determine install scope."""
     scope = "project"
@@ -287,10 +317,15 @@ def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Cursor ({scope}) -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
-    print(f"  ({refs} references, {examples} examples)")
+    files = _profile_file_list(agent_dir, "cursor")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+        print(f"  ({refs} references, {examples} examples)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'cursor')")
 
 
 def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
@@ -298,10 +333,15 @@ def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     base_dir = Path.home() / ".claude" if scope == "global" else cwd / ".claude"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Claude Code ({scope}) -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
-    print(f"  ({refs} references, {examples} examples)")
+    files = _profile_file_list(agent_dir, "claude")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+        print(f"  ({refs} references, {examples} examples)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'claude')")
 
 
 def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
@@ -320,9 +360,14 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
     skill_dir = codex_home / "skills" / "devola-flow"
     print(f"\n  Codex -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    print(f"  ({refs} references)")
+    files = _profile_file_list(agent_dir, "codex")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        print(f"  ({refs} references)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'codex')")
 
 
 def install_local(

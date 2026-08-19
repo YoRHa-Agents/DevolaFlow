@@ -632,3 +632,64 @@ def test_v15_0_x_style_compile_target_and_postscript_registered(project_root: Pa
         f"Canonical content lives in .rules/style.mdc (ST-1..ST-13), compiled "
         f"to docs/STYLE-RULES.md + repo-governance.mdc."
     )
+
+
+def test_v15_0_x_install_manifest_ssot_registered(project_root: Path) -> None:
+    """W-18 v15.0.x (full_review_and_improve Track B-1, decision D-5).
+
+    Discharges the W-18 precondition for the install-manifest SSOT
+    CHANGELOG entry. Asserts the load-bearing surfaces:
+
+    (a) workflow-system/agent/manifest.yaml exists and loads through the
+        canonical Python read path (`devolaflow.install_manifest`).
+    (b) The three consumers derive from it — install.sh fetches
+        manifest.yaml (and carries no hardcoded reference list),
+        sync_cursor_skill.py derives MIRRORED_FILES, and
+        init_project.py resolves per-profile file lists.
+    (c) The manifest is registered as the 3rd YAML-backed SSOT registry
+        (`_SSOT_YAML_REGISTRIES`, per A-5).
+    (d) scaffold_reference.py appends new references to the manifest
+        (the C-7 place-4 surface after the SSOT migration).
+
+    Deep parity assertions (manifest ↔ disk ↔ _SF4_REFERENCE_SET ↔
+    MIRRORED_FILES) live in tests/test_install_manifest.py.
+    """
+    # --- (a) owner file + loader ------------------------------------
+    from devolaflow.install_manifest import load_manifest, profile_files
+
+    agent_dir = project_root / "workflow-system/agent"
+    assert (agent_dir / "manifest.yaml").is_file(), (
+        "W-18 B-1 violation: workflow-system/agent/manifest.yaml missing."
+    )
+    manifest = load_manifest(agent_dir)
+    assert profile_files(manifest, "cursor"), (
+        "W-18 B-1 violation: manifest cursor profile resolves empty."
+    )
+
+    # --- (b) consumer derivation ------------------------------------
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+    assert "manifest.yaml" in install_sh, (
+        "W-18 B-1 violation: install.sh no longer fetches the install manifest."
+    )
+    sync_text = (project_root / "scripts/sync_cursor_skill.py").read_text(encoding="utf-8")
+    assert "_load_mirrored_files" in sync_text and "manifest.yaml" in sync_text, (
+        "W-18 B-1 violation: sync_cursor_skill.py MIRRORED_FILES no longer "
+        "derives from the manifest."
+    )
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "_profile_file_list" in init_text, (
+        "W-18 B-1 violation: init_project.py lost the manifest profile resolver."
+    )
+
+    # --- (c) SSOT registration --------------------------------------
+    from tests.ghost.test_registries import _SSOT_YAML_REGISTRIES
+
+    assert _SSOT_YAML_REGISTRIES.get("manifest.yaml") == "workflow-system/agent/manifest.yaml", (
+        "W-18 B-1 violation: manifest.yaml not registered in _SSOT_YAML_REGISTRIES."
+    )
+
+    # --- (d) scaffold writes the manifest ---------------------------
+    scaffold_text = (project_root / "scripts/scaffold_reference.py").read_text(encoding="utf-8")
+    assert "append_manifest_entry" in scaffold_text, (
+        "W-18 B-1 violation: scaffold_reference.py no longer appends to the manifest."
+    )

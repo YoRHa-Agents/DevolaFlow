@@ -42,6 +42,8 @@ done
 basename="${url##*/}"
 if [ "$basename" = "SKILL.md" ]; then
   cp "$FAKE_SKILL_SOURCE" "$dest"
+elif [ "$basename" = "manifest.yaml" ]; then
+  cp "$FAKE_MANIFEST_SOURCE" "$dest"
 elif [ "$basename" = "__init__.py" ]; then
   echo '__version__ = "0.0.0"'
 elif echo "$basename" | grep -q '\\.md$'; then
@@ -63,6 +65,7 @@ fi
     env["HOME"] = str(home_dir)
     env["PATH"] = f"{fakebin}:{env['PATH']}"
     env["FAKE_SKILL_SOURCE"] = str(skill_source)
+    env["FAKE_MANIFEST_SOURCE"] = str(repo_root / "workflow-system" / "agent" / "manifest.yaml")
 
     install = subprocess.run(
         ["bash", str(script_path), "claude", "--global"],
