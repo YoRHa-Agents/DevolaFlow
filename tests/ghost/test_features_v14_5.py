@@ -112,7 +112,12 @@ def test_v14_5_0_changelog_lint_registered(project_root: Path) -> None:
         check_version_match / main).
     (b) tests/test_changelog_lint.py (the dedicated unit suite) exists.
     (c) Makefile ``lint-changelog`` target.
-    (d) ci.yml step named "CHANGELOG lint (D-5 single-application)".
+    (d) [MIGRATED — clean_repo PR-12, decision D7/OPT-1] the CI step named
+        "CHANGELOG lint (D-5 single-application)" moved VERBATIM from
+        ci.yml into the reusable .github/workflows/ci-checks.yml
+        (``on: workflow_call``), which both ci.yml and release.yml now
+        consume — the release path inherits the lint it previously
+        lacked. The pin follows the step to its single owner file.
     """
     # --- (a) script module + entry points ----------------------------------
     mod = _load_script_module(project_root, "scripts/lint_changelog.py", "lint_changelog_w18")
@@ -137,9 +142,9 @@ def test_v14_5_0_changelog_lint_registered(project_root: Path) -> None:
     assert "\nlint-changelog:" in makefile, (
         "W-18 v14.5.0 violation: Makefile missing the lint-changelog target (D-5)."
     )
-    ci_text = (project_root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    ci_text = (project_root / ".github/workflows/ci-checks.yml").read_text(encoding="utf-8")
     assert "CHANGELOG lint (D-5 single-application)" in ci_text, (
-        "W-18 v14.5.0 violation: ci.yml missing the named D-5 CHANGELOG lint step."
+        "W-18 v14.5.0 violation: ci-checks.yml missing the named D-5 CHANGELOG lint step."
     )
 
 
