@@ -1,2 +1,0 @@
-run_all() called with ctx=None but 1 ctx-aware dim(s) registered (['decomposition_coverage']); they will fall back to their constructor-time src_dir defaults
-pytest --cov timed out after 54.0s (budget-derived)
