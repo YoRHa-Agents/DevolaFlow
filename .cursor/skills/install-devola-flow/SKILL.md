@@ -15,11 +15,20 @@ description: >-
 
 # Install DevolaFlow (Global Cursor + Claude)
 
-Drives the canonical installer at
-`https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh`
-so the `devola-flow` skill is available user-wide in **Cursor**
-(`~/.cursor/skills/devola-flow/`)
-**and Claude Code** (`~/.claude/skills/devola-flow/`).
+> **Installation SSOT: `scripts/install.sh`** (canonical remote:
+> `https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh`).
+> This skill carries NO install procedure of its own — every step below
+> DELEGATES to that installer, which owns the target semantics
+> (`cursor, codex, claude, copilot, kimicode, windsurf, zed, cline, roo,
+> local, standalone, all, auto (default), update` — see its header
+> comment), the per-file download/retry logic, the installed artifact
+> layout, and the `.devola-flow-version` stamping. If this document and
+> the script ever disagree, the script wins.
+
+This skill's default job: make the `devola-flow` skill available
+user-wide in **Cursor** (`~/.cursor/skills/devola-flow/`) **and Claude
+Code** (`~/.claude/skills/devola-flow/`) by invoking the installer with
+the right target and scope.
 
 ## When to Trigger
 
@@ -80,116 +89,74 @@ will be installed. Omit any target whose parent dir is absent and mark
 it "skipped (~/.X absent)". Example when both are present:
 
 ```
-Install DevolaFlow globally:
-  • Cursor       → ~/.cursor/skills/devola-flow/        (SKILL + refs + examples)
-  • Claude Code  → ~/.claude/skills/devola-flow/        (SKILL + refs + examples)
-                   (no separate rules file — rules are inlined in SKILL.md)
+Install DevolaFlow globally (via scripts/install.sh):
+  • Cursor       → ~/.cursor/skills/devola-flow/
+  • Claude Code  → ~/.claude/skills/devola-flow/
 Source: github.com/YoRHa-Agents/DevolaFlow (branch: main)
 ```
 
-### Step 2a — Install to Cursor (global)
+### Step 2 — Delegate to the installer
 
-Conditional on `~/.cursor` present. Skip this step if Cursor is absent.
+Run one installer invocation per present target; skip a target whose
+parent directory is absent:
 
 ```bash
+# Cursor (skip if ~/.cursor absent)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
   | bash -s cursor --global
-```
 
-Expected artifacts on success:
-
-```
-~/.cursor/skills/devola-flow/SKILL.md
-~/.cursor/skills/devola-flow/references/         (9 files)
-~/.cursor/skills/devola-flow/examples/           (3 files)
-~/.cursor/skills/devola-flow/.devola-flow-version
-```
-
-The installer prints one `ok` line per file; any `✗ failed:` must be
-treated as a Step 2a failure and surfaced up.
-
-### Step 2b — Install to Claude Code (global)
-
-Conditional on `~/.claude` present. Skip this step if Claude is absent.
-
-```bash
+# Claude Code (skip if ~/.claude absent)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
   | bash -s claude --global
 ```
 
-Expected artifacts on success:
+The success signal is the installer's OWN output: exit code 0, one `ok`
+line per downloaded file, and zero `✗ failed:` lines. Do NOT re-check
+the downloaded set against a hardcoded file manifest here — the
+artifact list is owned by `scripts/install.sh` and changes across
+versions. Any `✗ failed:` line means the invocation failed; surface the
+exact filename(s) verbatim.
 
-```
-~/.claude/skills/devola-flow/SKILL.md
-~/.claude/skills/devola-flow/references/         (9 files)
-~/.claude/skills/devola-flow/examples/           (3 files)
-~/.claude/skills/devola-flow/.devola-flow-version
-```
+### Step 3 — Verify (lean)
 
-**Note:** There is **no** separate rules file for Claude Code — the
-rules are inlined in `SKILL.md`. Any `✗ failed:` line must be treated
-as a Step 2b failure and surfaced up.
-
-### Step 3 — Verify
-
-Run only the block(s) matching the target(s) that were actually
-installed. Do not report success until **all** applicable checks return
-`[PASS]`.
-
-**Cursor block** (skip if Step 2a was skipped):
+Per installed target, confirm the two installer-owned markers exist:
+the skill entry point and the version stamp the installer wrote.
 
 ```bash
-test -f ~/.cursor/skills/devola-flow/SKILL.md      && echo "[PASS] Cursor SKILL.md"      || echo "[FAIL] Cursor SKILL.md"
-[ "$(ls ~/.cursor/skills/devola-flow/references 2>/dev/null | wc -l)" = "10" ] \
-                                                   && echo "[PASS] Cursor 10 references" || echo "[FAIL] Cursor references"
-[ "$(ls ~/.cursor/skills/devola-flow/examples   2>/dev/null | wc -l)" = "3" ] \
-                                                   && echo "[PASS] Cursor 3 examples"    || echo "[FAIL] Cursor examples"
-UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py \
-  | grep '__version__' | head -1 | sed 's/.*"\(.*\)".*/\1/')
-LOCAL=$(head -1 ~/.cursor/skills/devola-flow/.devola-flow-version)
-[ "$UPSTREAM" = "$LOCAL" ] && echo "[PASS] Cursor v$LOCAL matches upstream" \
-                          || echo "[FAIL] Cursor mismatch: upstream=$UPSTREAM local=$LOCAL"
-```
-
-**Claude block** (skip if Step 2b was skipped):
-
-```bash
-test -f ~/.claude/skills/devola-flow/SKILL.md     && echo "[PASS] Claude SKILL.md"     || echo "[FAIL] Claude SKILL.md"
-[ "$(ls ~/.claude/skills/devola-flow/references 2>/dev/null | wc -l)" = "10" ] \
-                                                  && echo "[PASS] Claude 10 references" || echo "[FAIL] Claude references"
-[ "$(ls ~/.claude/skills/devola-flow/examples   2>/dev/null | wc -l)" = "3" ] \
-                                                  && echo "[PASS] Claude 3 examples"   || echo "[FAIL] Claude examples"
-UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py \
-  | grep '__version__' | head -1 | sed 's/.*"\(.*\)".*/\1/')
-LOCAL=$(head -1 ~/.claude/skills/devola-flow/.devola-flow-version)
-[ "$UPSTREAM" = "$LOCAL" ] && echo "[PASS] Claude v$LOCAL matches upstream" \
-                          || echo "[FAIL] Claude mismatch: upstream=$UPSTREAM local=$LOCAL"
+for ROOT in ~/.cursor ~/.claude; do
+  DIR="$ROOT/skills/devola-flow"
+  [ -d "$DIR" ] || continue
+  test -f "$DIR/SKILL.md" && echo "[PASS] $DIR/SKILL.md" || echo "[FAIL] $DIR/SKILL.md"
+  test -f "$DIR/.devola-flow-version" \
+    && echo "[PASS] stamp: $(head -1 "$DIR/.devola-flow-version")" \
+    || echo "[FAIL] $DIR/.devola-flow-version missing"
+done
 ```
 
 `head -1` is important because older stamps may contain a timestamp
-second line that is not part of the semver.
+second line that is not part of the semver. Deeper artifact or version
+validation is the installer's job — if anything looks stale or partial,
+re-run `bash -s update` instead of hand-checking files.
 
 ### Step 4 — Report
 
-Use this format verbatim (substitute `{VERSION}`, `{CURSOR_STATUS}`,
-`{CLAUDE_STATUS}`):
+Use this format (substitute `{VERSION}` from the stamp,
+`{CURSOR_STATUS}`, `{CLAUDE_STATUS}`):
 
 ```
-✓ DevolaFlow v{VERSION} installed
+✓ DevolaFlow v{VERSION} installed via scripts/install.sh
   Cursor (global): {CURSOR_STATUS}
-    Path  : ~/.cursor/skills/devola-flow/   (SKILL + 8 refs + 3 examples)
-    Rules : (inlined in SKILL.md — no separate file since v15.0.0)
+    Path : ~/.cursor/skills/devola-flow/
   Claude Code (global): {CLAUDE_STATUS}
-    Path  : ~/.claude/skills/devola-flow/   (SKILL + 8 refs + 3 examples)
-    Rules : (inlined in SKILL.md — no separate file)
+    Path : ~/.claude/skills/devola-flow/
   Docs  : https://yorha-agents.github.io/DevolaFlow/
   Repo  : https://github.com/YoRHa-Agents/DevolaFlow
   Re-run: trigger this skill again, or
           curl -fsSL <...>/install.sh | bash -s update
 ```
 
-`{*_STATUS}` is one of: `"v7.1.1 installed"`, `"skipped (~/.X absent)"`,
-or `"failed — see Step 2X"`.
+`{*_STATUS}` is one of: `"v{VERSION} installed"`, `"skipped (~/.X
+absent)"`, or `"failed — see Step 2"`.
 
 ## Network Fallback (Proxy)
 
@@ -242,11 +209,13 @@ Common sandbox symptom to match on: TLS handshake to
 with zero body bytes. Forcing `curl -4` usually avoids the IPv6 path; if
 that still fails, fall through to the proxy fallback above.
 
-## Variants
+## Variants — installer target semantics
+
+Every variant is just a different `scripts/install.sh` target/flag
+combination; the script header documents the full target list and the
+`--global` / `--project` / `--no-plugins` flags.
 
 ### Cursor only (global)
-
-When the user explicitly scopes to Cursor only:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
@@ -255,8 +224,6 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ### Claude only (global)
 
-When the user explicitly scopes to Claude Code only:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
   | bash -s claude --global
@@ -264,35 +231,19 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ### Both Cursor + Claude (global) — default
 
-Run both commands sequentially (this is the default when both
-`~/.cursor` and `~/.claude` are present):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
-  | bash -s cursor --global
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
-  | bash -s claude --global
-```
+Run both Step 2 commands sequentially (this is the default when both
+`~/.cursor` and `~/.claude` are present).
 
 ### Project-local (current repo)
 
 Drop `--global` to write under the current repository instead of
-`$HOME`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
-  | bash -s cursor
-```
-
-Claude Code also supports project-local — `bash -s claude` (no
-`--global`) writes to `./.claude/skills/devola-flow/`.
+`$HOME` — e.g. `bash -s cursor` writes to `./.cursor/skills/devola-flow/`
+and `bash -s claude` writes to `./.claude/skills/devola-flow/`.
 
 ### Update existing installs on this machine
 
-Refreshes whichever installs the installer detects — now auto-detects
-**both** Cursor and Claude installs. `do_update` walks
-`~/.cursor/skills/devola-flow/`, `~/.claude/skills/devola-flow/`, and
-the project-local equivalents, refreshing each that exists:
+The installer's `update` target auto-detects and refreshes every
+existing install it finds (Cursor + Claude, global + project-local):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
@@ -301,9 +252,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ### All supported tools at once
 
-Covers Cursor, Codex, Claude, Copilot, KimiCode, Windsurf, Zed, Cline,
-and Roo. Only use when the user explicitly asks for a multi-tool
-install — this skill's default scope is Cursor + Claude:
+The `all` target covers every tool adapter the installer supports. Only
+use when the user explicitly asks for a multi-tool install — this
+skill's default scope is Cursor + Claude:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh \
@@ -317,11 +268,10 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 | `curl: (6) Could not resolve host` | No network / DNS | Try **Network Fallback (Proxy)**; if still failing, stop |
 | `curl: (28) Operation timed out` | Firewall / IPv6 black-hole to `raw.githubusercontent.com` | Try **Network Fallback (Proxy)**; `-4` alone can also help |
 | `✗ failed: SKILL.md (after 3 attempts)` | GitHub rate-limit or transient 5xx | Wait 30 s, retry once; if still failing, stop and surface the filename |
-| `Unknown target: ...` from installer | Typo in target argument | Re-run with `cursor`, `claude`, or `update` |
-| Version stamp differs from upstream | Partial download | Re-run `bash -s update`; if still mismatched, escalate |
+| `Unknown target: ...` from installer | Typo in target argument | Re-run with a target from the script-header list (e.g. `cursor`, `claude`, `update`) |
+| Version stamp missing or timestamp-only | Partial download or legacy install predating the version-fetch upgrade | Re-run `bash -s update` — the installer stamps the canonical `X.Y.Z` as the FIRST line; if still broken, escalate |
 | `~/.cursor` missing | Cursor not installed on this machine | Skip the Cursor step; Claude install still proceeds. If BOTH `~/.cursor` and `~/.claude` are missing, stop and tell the user to install at least one of them first |
 | `~/.claude` missing | Claude Code not installed | Skip the Claude step; Cursor install still proceeds. If BOTH `~/.cursor` and `~/.claude` are missing, stop and tell the user to install at least one of them first |
-| Claude version stamp contains only a timestamp (no semver line) | Legacy install predating the version-fetch upgrade | Re-run `bash -s update` — new installs stamp the canonical `X.Y.Z` as the FIRST line |
 
 Never silently skip `✗ failed:` lines in the installer output. Report
 the exact filename(s) that failed.
