@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # v9.0.0 (PV-07) — Per-task-type AGENTS.md slicing.
 #
-# Codified per ``.local/research/adr/v9-ADR-007-rule-rebalancing-and-rollup.md``
+# Codified per ``docs/cycle-archive/adr/v9-ADR-007-rule-rebalancing-and-rollup.md``
 # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR semver).
 #
 # select_agents_md_slice(task_type) filters the compiled AGENTS.md content by

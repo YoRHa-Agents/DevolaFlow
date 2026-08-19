@@ -61,10 +61,16 @@ node_modules/
 # clean_repo Phase A — narrow whitelist: only current-cycle research (v15*)
 # + adr/ stay tracked; archived history lives in docs/cycle-archive/ (W-19).
 # See .local/tasks/clean_repo/01-phase-A-untrack.md.
+# clean_repo Phase B2 — second narrowing: adr/ content re-excluded except the
+# 2 v15 hard-read ADRs (kept until Phase C1-1 per constraint D13; the other
+# 19 ADRs are archived in docs/cycle-archive/adr/).
+# See .local/tasks/clean_repo/02-phase-B-archive.md.
 .local/research/*
 !.local/research/v15*
 !.local/research/adr/
-!.local/research/adr/**
+.local/research/adr/*
+!.local/research/adr/v15-ADR-002-template-phase-b-collapse.md
+!.local/research/adr/v15-ADR-006-scorer-selector-module-split.md
 # v14.0.0 — track the human INPUT zone ONLY (D-4 / ADR-2). The .local/human/*
 # re-exclusion keeps output/ + archive/ PRIVATE (D2 locked) while
 # !.local/human/input/** re-includes the authoritative INPUT zone.

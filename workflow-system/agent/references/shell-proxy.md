@@ -727,5 +727,5 @@ and `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by
   reject any `DEFAULT_ALLOWLIST` entry that names a domain-SSOT symbol
   per A-5.2 (such symbols HAVE in-repo callers, so they are not eligible
   for the "no production caller" allowlist).
-- ADR: `.local/research/adr/v9-ADR-003-a5-ssot-registry.md` (rationale,
+- ADR: `docs/cycle-archive/adr/v9-ADR-003-a5-ssot-registry.md` (rationale,
   alternatives considered, staged rollout).

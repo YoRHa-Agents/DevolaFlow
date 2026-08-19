@@ -9,7 +9,7 @@ purpose: >
   LLM-assisted, `directed_compact`, `apply_local_recipe`) behind one
   `transform(payload, context) -> payload` contract. Pairs with
   `schemas/compression-pipeline.yaml` (declaration schema) and
-  `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
+  `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
   (the governance ADR).
 triggers:
   - "designing a new compression transform"
@@ -56,7 +56,7 @@ six compression transforms that ship across the v8.x cycle behind one
    by `tests/test_layout_invariant_multi_baseline.py` against all 6 historical
    baselines).
 
-Design source: `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
+Design source: `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`
 (v9.0.0 PV-06 / v8.5.1 cycle entry).
 
 ---
@@ -423,7 +423,7 @@ per P4 bounded retry — the pipeline itself does NOT classify the failure.
 
 ## 9. Cross-references
 
-* `.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md` —
+* `docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md` —
   cycle entry with full rationale + alternatives considered.
 * `src/devolaflow/compression_pipeline.py` — the canonical implementation.
 * `schemas/compression-pipeline.yaml` — the schema mirror of the Python API.

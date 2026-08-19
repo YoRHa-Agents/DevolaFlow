@@ -1,7 +1,7 @@
 """Tests for the v9.0.0 PV-06 CompressionPipeline orchestrator + stage protocol.
 
 Pins the four R5 strict invariants per
-``.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``:
+``docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``:
 
 1. Empty pipeline → byte-identical pass-through
 2. All stages bypassed → byte-identical pass-through

@@ -1,7 +1,7 @@
 """Runtime-wiring regression tests — v14.3.0 G-001 closure (ADR-003).
 
 Pins the execution-side adapter contract from
-``.local/research/adr/v15-ADR-003-output-closure-enforcement-locus.md``:
+``docs/cycle-archive/adr/v15-ADR-003-output-closure-enforcement-locus.md``:
 
 * ``file_write`` (``check_file_ownership``) fires from the framework's
   change-driven write surface —

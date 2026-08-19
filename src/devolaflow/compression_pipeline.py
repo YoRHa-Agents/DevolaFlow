@@ -24,7 +24,7 @@ strict invariant the v9-ADR-006 tests pin (see
 and ``::test_all_stages_bypassed_is_byte_identical``).
 
 Design ref: ``.local/research/v9.0.0_implementation_plan.md`` §6.6.2 T03/T05
-            ``.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``
+            ``docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md``
             ``schemas/compression-pipeline.yaml`` (the schema this module
             implements)
 

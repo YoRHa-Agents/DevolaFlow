@@ -357,7 +357,7 @@ exercise it (`decomposition_feature`, `gate_ladder_score`).
 
 **v9.0.0 PV-06 flip closure**: primitives 1, 2, 4, 5, 6 flipped to ON
 for STRICT and AUDIT decomposition profiles per
-`.local/research/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
+`docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md`.
 Primitives 3 and 7 stayed opt-in for a future cycle (legacy `accept`
 list remains the canonical cycle-detection surface; legibility_check
 needs its own `_disabled.yaml` scenario set before flip). Per-primitive

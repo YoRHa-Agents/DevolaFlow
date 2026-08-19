@@ -1,7 +1,7 @@
 """L0-side artifact-quality scoring computed FROM L3 evidence blocks.
 
 v15.0.0 SCORING PHASE of the evidence-vs-scoring doctrine split ratified
-in `.local/research/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`:
+in `docs/cycle-archive/adr/v15-ADR-007-artifact-evidence-vs-scoring-doctrine.md`:
 the L3 Task Agent emits EVIDENCE ONLY (the v14.3.0 ``self_check`` /
 ``ac_results`` / ``diff_stats`` blocks per ``schemas/lean-report.yaml``
 and the 4-dimension rubric in

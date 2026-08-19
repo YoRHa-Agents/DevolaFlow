@@ -22,7 +22,7 @@ enforcement modes:
   block / reject / escalate per the SKILL.md "On Violation" column.
 
 Runtime wiring (v14.3.0, G-001 closure per
-``.local/research/adr/v15-ADR-003-output-closure-enforcement-locus.md``):
+``docs/cycle-archive/adr/v15-ADR-003-output-closure-enforcement-locus.md``):
 the dispatch-side events (``pre_dispatch`` → ``post_dispatch`` →
 ``pre_handoff`` → ``pre_plugin_invocation``) fire from
 ``feedback_emit.ProposalEmitter._fire_hook_chain`` on every dispatch

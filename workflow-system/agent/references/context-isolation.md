@@ -357,7 +357,7 @@ list forbids. Emitter:
 `compute_dispatch_lcp_pct(a, b)` returns the round-over-round prefix
 stability fraction. **SLO:** LCP ≥ 80 % round 1→2 and ≥ 70 % round 1→3,
 enforced by `tests/test_compressor.py::test_dispatch_prefix_is_stable_across_rounds`.
-**Rationale:** `.local/research/adr/v7-ADR-001-cache-layout-invariant.md`.
+**Rationale:** `docs/cycle-archive/adr/v7-ADR-001-cache-layout-invariant.md`.
 
 ## 11. Tool-Output Truncation (v7.0.1+)
 
@@ -415,7 +415,7 @@ to drift. Together with the cache-layout invariant (§10), this is the
 prompt-side mechanism for keeping convergence-round dispatches inside
 their token budget without sacrificing recent-call fidelity.
 
-**Rationale:** `.local/research/adr/v7-ADR-002-tool-output-truncation.md`.
+**Rationale:** `docs/cycle-archive/adr/v7-ADR-002-tool-output-truncation.md`.
 **Sub-agent budget bump (K.8 resolution):** the same six profiles raise
 `decomposition.sub_agent_context_budget` from 3000 → 5000 tokens at the
 v7.0.1 cut so a sub-agent can absorb the verbatim recent-N records without
@@ -463,7 +463,7 @@ default to `summary.mode: extractive` with `max_tokens: 1200` —
 roomier than the schema default because these profiles consume 5000-
 token sub-agent contexts.
 
-**Rationale:** `.local/research/adr/v7-ADR-003-hierarchical-summary.md`.
+**Rationale:** `docs/cycle-archive/adr/v7-ADR-003-hierarchical-summary.md`.
 
 ## 13. Persistence Probe (v7.0.3+)
 
@@ -493,7 +493,7 @@ SI-3 evaluation. The probe is marked `@pytest.mark.persistence_probe`
 and runs in the default pytest suite so SI-10 step 5 cannot merge a
 summariser regression.
 
-**Rationale:** `.local/research/adr/v7-ADR-004-persistence-probe.md`.
+**Rationale:** `docs/cycle-archive/adr/v7-ADR-004-persistence-probe.md`.
 
 ## 14. Operational Learnings v2 (v7.0.3+)
 
@@ -525,7 +525,7 @@ is backfilled from the existing `timestamp` so the linear formula has a
 stable anchor — no file-wide rewrite is forced and no writer ever
 overwrites a non-empty `last_accessed`.
 
-**Rationale:** `.local/research/adr/v7-ADR-005-learnings-v2.md`.
+**Rationale:** `docs/cycle-archive/adr/v7-ADR-005-learnings-v2.md`.
 
 ## 15. Staged Compression — End-to-End Flow (v7.1.0+)
 

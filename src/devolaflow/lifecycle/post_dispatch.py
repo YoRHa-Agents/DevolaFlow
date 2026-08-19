@@ -9,7 +9,7 @@ the canonical dispatch path.
 
 Contract: this default handler is intentionally a **permissive no-op**.
 Per the v8.4.4 PV-04 R5 strict-byte-identical invariant
-(`.local/research/adr/v9-ADR-004-lifecycle-wiring-and-s10.md` §3),
+(`docs/cycle-archive/adr/v9-ADR-004-lifecycle-wiring-and-s10.md` §3),
 adding ``post_dispatch`` to ``DEFAULT_EVENTS`` MUST NOT change the
 returned dispatch payload when no extra handlers are registered. The
 no-op default returns a clean :class:`HookResult` with metadata

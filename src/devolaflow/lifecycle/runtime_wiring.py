@@ -1,7 +1,7 @@
 """Runtime wiring adapters — ``fire_file_write`` + ``fire_task_stop``.
 
 v14.3.0 G-001 closure per
-``.local/research/adr/v15-ADR-003-output-closure-enforcement-locus.md``
+``docs/cycle-archive/adr/v15-ADR-003-output-closure-enforcement-locus.md``
 ("WIRE the hooks — two-phase"): the ``file_write`` (``check_file_ownership``)
 and ``task_stop`` (``test_on_complete``) lifecycle hooks shipped UNWIRED for
 7 major versions while SKILL.md §"Lifecycle Hooks" advertised write/stop-time
