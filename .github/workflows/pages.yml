@@ -1,9 +1,19 @@
-# Deploy demo + docs to GitHub Pages on every push to main
+# Deploy demo + docs to GitHub Pages when site-relevant paths change on main.
+# OPT-4 (clean_repo PR-11): the paths list mirrors the cp inventory in
+# scripts/build-site.sh — keep the two in sync when the builder changes.
+# workflow_dispatch stays as the manual fallback if the filter misjudges.
 name: Deploy Pages
 
 on:
   push:
     branches: [main]
+    paths:
+      - "workflow-system/human/**"
+      - "workflow-system/agent/SKILL.md"
+      - "workflow-system/agent/templates/builtin/**"
+      - "docs/designs/**"
+      - "scripts/build-site.sh"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -18,6 +28,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +42,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

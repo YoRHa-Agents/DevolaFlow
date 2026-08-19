@@ -8,9 +8,15 @@ on:
 permissions:
   contents: write
 
+# OPT-3 (clean_repo PR-11): never cancel an in-flight release run.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -38,10 +44,13 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: softprops/action-gh-release@v2
+      # OPT-8 (clean_repo PR-11): SHA-pinned — third-party action with
+      # contents:write; tag pins can be moved upstream. Dependabot bumps it.
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           generate_release_notes: true

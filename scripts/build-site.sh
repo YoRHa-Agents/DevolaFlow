@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Shared site builder for GitHub Pages — used by both pages.yml and release.yml
 # Produces _site/ with demo, docs (en/zh), designs, downloads, and templates.
+# NOTE (OPT-4): the cp inventory below is mirrored by the `paths:` filter in
+# .github/workflows/pages.yml — update that filter whenever a cp line changes.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
