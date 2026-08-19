@@ -25,7 +25,7 @@ dependencies:
   - "agent/references/agent-hierarchy.md"
   - "agent/references/message-schemas.md"
   - "agent/references/decomposition-gate.md"
-last_updated: "2026-04-23"
+last_updated: "2026-08-19"
 ---
 
 # Agent Workspace Reference
@@ -96,7 +96,7 @@ the v8.2.4 schema package).
 
 ## 2. The `.local/.agent/` Tree Layout
 
-Verbatim from `.local/research/v8.3.0_design.md` §1.1:
+Verbatim from `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §1.1:
 
 ```
 .local/
@@ -153,7 +153,7 @@ Verbatim from `.local/research/v8.3.0_design.md` §1.1:
 
 ## 3. Lifecycle FSM
 
-Verbatim from `.local/research/v8.3.0_design.md` §1.3:
+Verbatim from `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §1.3:
 
 ```
 [NEW IDEA / FEEDBACK]
@@ -688,7 +688,7 @@ PV-05 the rule is **normative-only** (this subsection + the runtime
 hook); auto-strip lands once the v12.5.0+ SI-1 plans the
 backward-compat windowing.
 
-Source: `.local/research/v12.4.0_l0_only_audit.md` §§B.1-B.3 (banner +
+Source: `docs/cycle-archive/v12.4.0/other/v12.4.0_l0_only_audit.md` §§B.1-B.3 (banner +
 TQS + operational_learnings literal enumeration) + cycle plan §3 PV-05
 D-4 closure (L0-only surfaces leak cluster).
 
@@ -729,7 +729,7 @@ auto-merged. This preserves W-3 / SI-3 + W-4 / SI-4 invariants.
 
 Each requirement uses RFC 2119 keywords (MUST / MUST NOT / SHOULD / MAY) and
 optional Scenario blocks (GIVEN / WHEN / THEN). Format borrowed verbatim from
-OpenSpec — adopted in v8.3.0 per `.local/research/v8.3.0_openspec_deep_analysis.md`.
+OpenSpec — adopted in v8.3.0 per `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md`.
 
 ## 8. REPORT.md Surface
 
@@ -933,9 +933,9 @@ When `change_context` is absent, dispatch is a "free-floating" workflow
 - `schemas/agent-workspace/source-of-truth-spec.yaml` — `.local/memory/specs/<domain>/spec.md` schema
 - `schemas/lean-dispatch.yaml#layout_invariant` — cache layout v5 with `change_context` at position 16
 - `workflow-system/agent/templates/builtin/change-driven.yaml` — workflow template binding
-- `.local/research/v8.3.0_design.md` — full design (this reference is the SKILL-surface summary)
-- `.local/research/v8.3.0_openspec_deep_analysis.md` — OpenSpec patterns adopted/adapted/rejected
-- `.local/research/v8.3.0_gap_analysis.md` — gap inventory (C-002, C-003, H-002, H-003, H-004, H-005, H-006, M-003, M-004, M-005)
+- `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` — full design (this reference is the SKILL-surface summary)
+- `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md` — OpenSpec patterns adopted/adapted/rejected
+- `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md` — gap inventory (C-002, C-003, H-002, H-003, H-004, H-005, H-006, M-003, M-004, M-005)
 - `.cursor/rules/repo-governance.mdc` — S-8 (file ownership), S-9 (handoff append-only), C-9 (token budgets), A-4 (source-of-truth ADR)
 - `references/agent-hierarchy.md` — 4-layer agent hierarchy this workspace serves
 - `references/decomposition-gate.md` — wave/task constraints that determine `owned_files.txt` shape

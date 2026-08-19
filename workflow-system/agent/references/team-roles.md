@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 4200
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-08-19"
 ---
 
 # Team Roles Reference
@@ -471,7 +471,7 @@ The matrix below covers all 22 builtin templates (verbatim from
 match the template `.yaml` basename so a Wave/Task agent loading a
 specific template can route directly to the correct team boundary.
 
-**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+** per `.local/research/v11.0.0_patches/D-A-2.md` §1 audit (v10.5.0 PV-02).
+**`(legacy)` = REGISTERED but v9.0.0..v10.3.0 cycle did NOT invoke; preserved for backward compat; Phase B compose-not-define collapse deferred to v12.0+** per `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-A-2.md` §1 audit (v10.5.0 PV-02).
 
 | Workflow Type | Research | Design | Implement | Test | Review |
 |---------------|----------|--------|-----------|------|--------|

@@ -25,7 +25,7 @@ dependencies:
   - "agent/references/env-flags.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/shell-proxy.md"
-last_updated: "2026-04-24"
+last_updated: "2026-08-19"
 ---
 
 # Compression Pipeline — CompressionStage Protocol + 6-Transform Unification

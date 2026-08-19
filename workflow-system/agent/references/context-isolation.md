@@ -14,7 +14,7 @@ tier: 2
 token_estimate: 3400
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-04-23"
+last_updated: "2026-08-19"
 ---
 
 # Context Isolation Reference
@@ -488,7 +488,7 @@ tiers: **easy** (500-token artifact, 5 seeded entities, rate ≥ 1.0,
 ≥ 0.9, ≤ 2 misses), **hard** (15000-token artifact, 50 seeded
 entities, rate ≥ 0.9, ≤ 5 misses). Per-scenario elapsed time plus
 the realised carry-through rate land in
-`.local/research/v7.0.3_probe_telemetry.json` after each run, feeding
+`docs/cycle-archive/v7.0.0/other/v7.0.3_probe_telemetry.json` after each run, feeding
 SI-3 evaluation. The probe is marked `@pytest.mark.persistence_probe`
 and runs in the default pytest suite so SI-10 step 5 cannot merge a
 summariser regression.
@@ -584,4 +584,4 @@ Opt-in via `context_profiles.yaml#complex_feature.summary_mode`
 `profiles:`, NOT a new profile — keeps profile count stable). All
 existing profiles remain `extractive` (CO-2 verbatim). Stage B
 (LLM-assisted, v8.2.0 PV-01) design lives in
-`.local/research/v8.0.0_p12_abstractive_stage_b_design.md`.
+`docs/cycle-archive/v8.0.0/design/v8.0.0_p12_abstractive_stage_b_design.md`.

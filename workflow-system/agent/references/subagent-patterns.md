@@ -10,7 +10,7 @@ purpose: >
   selection helper) and W-24 (Subagent Pattern Selection workflow rule).
 tier: 2
 token_estimate: 3700
-last_updated: "2026-05-09"
+last_updated: "2026-08-19"
 ---
 
 # Subagent Patterns — 4-Pattern Taxonomy and DevolaFlow Coverage
