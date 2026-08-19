@@ -28,7 +28,7 @@ dependencies:
   - "agent/SKILL.md"
   - "agent/references/agent-workspace.md"
   - "agent/references/plan-mode-enforcement.md"
-last_updated: "2026-06-04"
+last_updated: "2026-08-19"
 ---
 
 # Human Surface Reference
@@ -45,7 +45,7 @@ two long-standing gaps the v13.0.0 driver feedback named:
 2. **Concise human OUTPUT** — conclusion-first, budget-capped convergence
    reports + a read-first digest, so human-facing output never floods.
 
-Authoritative design: `.local/research/v14.0.0_design.md` (§2–§9). This
+Authoritative design: `docs/cycle-archive/v14.0.0/design/v14.0.0_design.md` (§2–§9). This
 reference is the SKILL-surface summary of that design.
 
 ## 1. When to Load This Reference
@@ -582,7 +582,7 @@ L0 → none for REQ-OUT-01; the digest budget blocks at emission since v14.2.0 (
 
 ### Internal
 
-- `.local/research/v14.0.0_design.md` — full design (this reference is the SKILL-surface summary)
+- `docs/cycle-archive/v14.0.0/design/v14.0.0_design.md` — full design (this reference is the SKILL-surface summary)
 - `references/agent-workspace.md` — sibling `.local/.agent/` tree; §9 C-9 budgets (shared rule surface)
 - `references/plan-mode-enforcement.md` §5.5 — feedback ingestion (the advisory counterpart to binding human INPUT)
 - `.cursor/rules/repo-governance.mdc` — S-9 (append-only), C-9 (token budgets), A-4 (truth/delta/archive ADR), W-23.4 (vocabulary vs spec separation)

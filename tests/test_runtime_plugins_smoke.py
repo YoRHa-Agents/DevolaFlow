@@ -97,6 +97,26 @@ def test_resolve_plugin_returns_valid_spec(plugin_id: str) -> None:
     assert spec.min_version, f"plugin {plugin_id!r} has empty min_version"
 
 
+def test_nines_install_cmd_uses_git_source_not_pypi() -> None:
+    """Issue #152: the `nines` distribution is NOT published on PyPI, so the
+    install/upgrade commands MUST point at the canonical GitHub source
+    (`git+https://github.com/YoRHa-Agents/NineS`) per S-7. A plain
+    `pip install nines` fails with "from versions: none" — this pin
+    prevents regression to the phantom PyPI name.
+    """
+    registry = load_registry()
+    nines = resolve_plugin("nines", registry)
+    assert "git+https://github.com/YoRHa-Agents/NineS" in nines.install_cmd, (
+        f"Issue #152 regression: nines install_cmd must install from the "
+        f"canonical GitHub source (no `nines` package exists on PyPI); "
+        f"actual: {nines.install_cmd!r}"
+    )
+    assert nines.upgrade_cmd == nines.install_cmd, (
+        "nines upgrade_cmd should equal install_cmd (pip git installs are "
+        "idempotent and self-upgrading with --upgrade)"
+    )
+
+
 def test_si_chip_version_check_cmd_no_longer_hardcoded() -> None:
     """D-P-3 closure: si-chip version_check_cmd reads the installed
     SKILL.md frontmatter instead of echoing a fixed '0.4.0' string.

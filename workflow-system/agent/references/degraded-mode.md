@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-06-01"
+last_updated: "2026-08-19"
 ---
 
 # Upstream-Unreachable Degraded-Mode Contract
@@ -98,7 +98,7 @@ multi-plugin coordination is the primary deliverable.
   planning gate (`.cursor/rules/repo-governance.mdc::W-2`) and end-of-
   iteration self-evaluation.
 * `D-N-2 code_coverage` collector path — documented in
-  `.local/research/v10.3.0_retrospective.md` §3 row "NineS A1 ticket —
+  `docs/cycle-archive/v10.3.0/v10.3.0_retrospective.md` §3 row "NineS A1 ticket —
   `code_coverage` collector timeout" — the first surfaced NineS-
   unreachability pain point.
 * `scripts/nines_to_sichip_eval_adapter.py` — the adapter consumes NineS
@@ -171,7 +171,7 @@ evaluation script accepts manual JSON inputs when NineS is unreachable.
    Si-Chip scripts); documented in the same catch block.
 3. **Schema drift (MVP-8 nested vs legacy top-level)** — exposed by the
    v10.2.2 bridge defect chronicled in
-   `.local/research/v10.2.3_iteration_round1.md` §1. Closed by v10.2.3
+   `docs/cycle-archive/v10.3.0/other/v10.2.3_iteration_round1.md` §1. Closed by v10.2.3
    PV-04 via the `MetricsReport.from_yaml_dict` nested-path lookup.
 4. **Network-unreachable mid-install** — the canonical `curl install.sh`
    pipeline can partial-succeed and leave the binary in a broken state;
@@ -454,7 +454,7 @@ exception propagates).
 
 ## Cross-References
 
-* `.local/research/v11.0.0_patches/D-C-1.md` — PDS authoring this
+* `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-1.md` — PDS authoring this
   contract.
 * `.cursor/rules/repo-governance.mdc::W-2` — NineS manual-fallback
   governance rule.

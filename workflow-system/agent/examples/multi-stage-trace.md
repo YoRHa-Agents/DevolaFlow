@@ -224,7 +224,7 @@ disguise:
   walkthrough (the SIMPLE-tier collapse case).
 - `scripts/audit_layer_usage.py` — the v10.5.0 PV-01 audit that
   produced the empirical evidence.
-- `.local/research/v10.5.1_layer_usage_audit.md` — the audit's
+- `docs/cycle-archive/v11.0.0/other/v10.5.1_layer_usage_audit.md` — the audit's
   output (gitignored; re-run via `make audit-layers` per the
   v10.5.0 Makefile target).
 

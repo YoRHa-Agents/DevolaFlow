@@ -30,7 +30,7 @@ dependencies:
   - "agent/references/shell-proxy.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/plan-mode-enforcement.md"
-last_updated: "2026-06-11"
+last_updated: "2026-08-19"
 ---
 
 # Environment Flag Reference
@@ -263,7 +263,7 @@ count.
 | Field | Value |
 |---|---|
 | **Owner** | `src/devolaflow/lifecycle/pre_plugin_invocation.py::ENV_FLAG` (alias helper: `is_auto_install_active`); the v10.8.0 D-C-3 split handlers `pre_plugin_invocation_install` (event slot #11) + `pre_plugin_invocation_upgrade` (event slot #12) REUSE the same env flag during the 1-cycle alias window |
-| **Introduced** | v9.4.0 PV-02 (closes D-P-1 + D-P-3 from `.local/research/v9.4.0_gap_analysis.md` §3.1); **SPLIT in v10.8.0 D-C-3** (closes D-C-3 from `.local/research/v11.0.0_patches/D-C-3.md`) — 2 new events appended at `DEFAULT_EVENTS` positions 11 + 12 (A-2.2 append-only); alias at position 9 preserved BYTE-IDENTICALLY for 1 cycle |
+| **Introduced** | v9.4.0 PV-02 (closes D-P-1 + D-P-3 from `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1); **SPLIT in v10.8.0 D-C-3** (closes D-C-3 from `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md`) — 2 new events appended at `DEFAULT_EVENTS` positions 11 + 12 (A-2.2 append-only); alias at position 9 preserved BYTE-IDENTICALLY for 1 cycle |
 | **Default** | unset (= disabled — dispatcher does NOT pre-flight install OR upgrade plugins) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
 | **Effect when active (v10.8.0+)** | Three lifecycle events fire on every dispatch with populated `plugin_ids` / `plugin_id` / `workflow` payload: (1) `pre_plugin_invocation` (event slot #9) — the v10.8.0 ALIAS, body delegates to the two new handlers in sequence; emits PPI001 + PPI003. (2) `pre_plugin_invocation_install` (event slot #11) — install-only; emits PPI001 for `ensure_plugin` failures. (3) `pre_plugin_invocation_upgrade` (event slot #12) — upgrade-only; emits PPI003 for `upgrade_plugin` failures on stale plugins. The alias path fires AFTER the v9.1.3 PV-03 `pre_handoff` slot in `feedback.py::_emit_dispatch`. The v10.2.1 PV-02 D-P-2 daily-upgrade integration now lives in the dedicated upgrade handler. |
@@ -272,14 +272,14 @@ count.
 | **R5 strict?** | YES — `is_auto_install_active` (alias + install handler) and `is_auto_upgrade_active` (upgrade handler) are pure ``os.environ.get`` comparisons with no IO + no subprocess. Every hook body lazy-imports `devolaflow.plugins.installer` ONLY when active; codified by `tests/test_pre_plugin_invocation.py::TestDisabledIsNoopByteIdentical::test_disabled_is_noop_byte_identical` + `tests/test_pre_plugin_invocation_split.py::TestAliasByteIdentical::test_alias_byte_identical_when_disabled`. |
 | **Lifecycle telegraph** | The v9.4.0 cycle shipped the flag as opt-in with default-OFF; v10.8.0 D-C-3 preserved default-OFF across the split. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. **Alias deprecation telegraph (v10.8.0 → v12.0.0+)**: the `pre_plugin_invocation` event at position 9 remains as a BYTE-IDENTICAL alias through v11.x; operators registering extra handlers on this event should migrate to `pre_plugin_invocation_install` / `pre_plugin_invocation_upgrade` before v12.0.0 SI-1 re-evaluation. The 1-cycle alias cadence mirrors the W-21 Soul-set governance telegraph pattern. |
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=0` to preserve v9.4.x dispatch behaviour byte-identically |
-| **Reference** | `tests/test_pre_plugin_invocation.py` (alias path coverage); `tests/test_pre_plugin_invocation_split.py` (v10.8.0 D-C-3 split contract: install-only / upgrade-only / alias-byte-identical / disjoint-violations / deprecation-telegraph); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (alias entry point); `src/devolaflow/lifecycle/pre_plugin_invocation_install.py::pre_plugin_invocation_install` (install handler at event slot #11); `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py::pre_plugin_invocation_upgrade` (upgrade handler at event slot #12); `.local/research/v9.4.0_gap_analysis.md` §3.1 D-P-3 + `.local/research/v11.0.0_patches/D-C-3.md` |
+| **Reference** | `tests/test_pre_plugin_invocation.py` (alias path coverage); `tests/test_pre_plugin_invocation_split.py` (v10.8.0 D-C-3 split contract: install-only / upgrade-only / alias-byte-identical / disjoint-violations / deprecation-telegraph); `src/devolaflow/lifecycle/pre_plugin_invocation.py::pre_plugin_invocation` (alias entry point); `src/devolaflow/lifecycle/pre_plugin_invocation_install.py::pre_plugin_invocation_install` (install handler at event slot #11); `src/devolaflow/lifecycle/pre_plugin_invocation_upgrade.py::pre_plugin_invocation_upgrade` (upgrade handler at event slot #12); `docs/cycle-archive/v10.0.0/v9.4.0_gap_analysis.md` §3.1 D-P-3 + `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-C-3.md` |
 
 ### 2.13 `DEVOLAFLOW_SI_CHIP_DEEP` — v9.5.0 PV-04 Si-Chip DEEP integration (post-skill-edit dogfood gate)
 
 | Field | Value |
 |---|---|
 | **Owner** | `src/devolaflow/lifecycle/post_skill_edit.py::ENV_FLAG` (helper: `is_deep_integration_active`) |
-| **Introduced** | v9.5.0 PV-04 (closes D-S-4 + D-S-5 from `.local/research/v9.5.0_gap_analysis.md` §3.1; user Q2=B DEEP integration signoff) |
+| **Introduced** | v9.5.0 PV-04 (closes D-S-4 + D-S-5 from `docs/cycle-archive/v10.0.0/v9.5.0_gap_analysis.md` §3.1; user Q2=B DEEP integration signoff) |
 | **Default** | unset (= disabled — `post_skill_edit` hook is a zero-IO no-op) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO + no `shutil.which` lookup + no Path.read_text |
 | **Effect when active** | `post_skill_edit` lifecycle hook (event slot #10 in `DEFAULT_EVENTS`, A-2.2 append-only at position 10) auto-runs the Si-Chip iteration_delta gate (`devolaflow.si_chip_bridge.run_dogfood_cycle`) after any commit touching `workflow-system/agent/**`. APPLY verdict → no-op (continue). DEFER verdict → write a deferred-changes feedback doc to `.local/feedbacks/sichip_deferred_<timestamp>.md` per the v9.5.0 user requirement ("if not, summarise into a feedback document"). The hook fires AFTER the v9.4.0 PV-02 `pre_plugin_invocation` slot at DEFAULT_EVENTS position 10. |
@@ -288,14 +288,14 @@ count.
 | **R5 strict?** | YES — `is_deep_integration_active` is a pure ``os.environ.get`` comparison with no IO + no subprocess. The hook body lazy-imports `devolaflow.si_chip_bridge` ONLY when active; codified by `tests/test_post_skill_edit_hook.py::TestDisabledIsNoop::test_disabled_is_noop_byte_identical`. |
 | **Lifecycle telegraph** | The v9.5.0 cycle ships the flag as opt-in with default-OFF. A future cycle MAY consider promotion to default-ON after one cycle of operator-adoption observation, mirroring the v9.0.0 PV-06 → v9.1.5 PV-05 default-flip pattern. NOT yet committed — the v9.5.0 retrospective will assess the operator-feedback signal. |
 | **Opt-out path (when default-ON in a future cycle)** | TELEGRAPHED — operators will set `export DEVOLAFLOW_SI_CHIP_DEEP=0` to preserve v9.5.x dispatch behaviour byte-identically |
-| **Reference** | `tests/test_post_skill_edit_hook.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/post_skill_edit.py::post_skill_edit` (the public entry point); `.local/research/v9.5.0_gap_analysis.md` §3.1 D-S-4 + §3.2 D-S-5; canonical Si-Chip URL: `https://github.com/YoRHa-Agents/Si-Chip` |
+| **Reference** | `tests/test_post_skill_edit_hook.py` (NEW tests pin the verdict matrix); `src/devolaflow/lifecycle/post_skill_edit.py::post_skill_edit` (the public entry point); `docs/cycle-archive/v10.0.0/v9.5.0_gap_analysis.md` §3.1 D-S-4 + §3.2 D-S-5; canonical Si-Chip URL: `https://github.com/YoRHa-Agents/Si-Chip` |
 
 ### 2.14 `DEVOLAFLOW_WARMUP` — v9.7.0 PV-04 selector LRU cache pre-warmup (opt-in)
 
 | Field | Value |
 |---|---|
 | **Owner** | `src/devolaflow/task_adaptive_selector.py::WARMUP_ENV_FLAG` (helper: `warmup_selector_cache`) |
-| **Introduced** | v9.7.0 PV-04 (closes D-N-2 from `.local/research/v9.7.0_gap_analysis.md` §1.3 — selector LRU cache cold on session start) |
+| **Introduced** | v9.7.0 PV-04 (closes D-N-2 from `docs/cycle-archive/v10.0.0/v9.7.0_gap_analysis.md` §1.3 — selector LRU cache cold on session start) |
 | **Default** | unset (= disabled — `warmup_selector_cache()` is a strict no-op returning `0`) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `" 1 "`, `""`); pure env-var read against the literal `WARMUP_TRUTHY_VALUE` constant |
 | **Effect when active** | A session-start call to `warmup_selector_cache()` pre-populates the v9.3.0 PV-03 LRU caches (`_load_profiles_cached` / `_load_skill_md_cached`) by iterating the cartesian product of `WARMUP_TASK_TYPES` (top-5: `implement`, `research`, `design`, `hotfix`, `review`) × `WARMUP_ROUND_NUMS` ((1, 2, 3)) — 15 cache entries total. Pre-warmup, the first session dispatch pays ~80 ms cold-cache miss for `load_profiles`; post-warmup, every dispatch hits the cache in O(1). Net: an N-dispatch session amortises the warmup over N calls; for N ≥ 4, warmup is a strict win (saves ~80 ms × (N-1) ≈ ~240 ms on a 4-dispatch session, costs ~80-300 ms upfront on the first run, ~5 ms on subsequent invocations within the same process). |
@@ -304,7 +304,7 @@ count.
 | **R5 strict?** | YES — `warmup_selector_cache` reads `os.environ.get(WARMUP_ENV_FLAG)` EXACTLY against the literal `WARMUP_TRUTHY_VALUE = "1"`. No IO, no subprocess, no Path.read_text when unset (codified by `tests/test_selector_warmup.py::test_warmup_skips_env_flag_at_module_import`). |
 | **Idempotency** | Calling `warmup_selector_cache()` a second time is cheap (LRU cache absorbs repeats in O(1) per pair). Calling without the env flag is a strict no-op. Calling with the env flag in a stale Python process where the cache is already populated also a strict no-op (same hit path). |
 | **S-5 graceful** | A single warmup call that raises (e.g. transient profiles.yaml read error) is logged at WARNING level and the helper continues with the next pair. The warmup is best-effort by contract — partial warmup is strictly better than a cold cache. |
-| **Reference** | `tests/test_selector_warmup.py` (7 NEW tests pin the activation matrix + idempotency + R5 strict + time budget + import-time invariant); `src/devolaflow/task_adaptive_selector.py::warmup_selector_cache` (the public entry point); `.local/research/v9.7.0_gap_analysis.md` §1.3 D-N-2 + `.local/research/v9.7.0_perf_research.md` §4 |
+| **Reference** | `tests/test_selector_warmup.py` (7 NEW tests pin the activation matrix + idempotency + R5 strict + time budget + import-time invariant); `src/devolaflow/task_adaptive_selector.py::warmup_selector_cache` (the public entry point); `docs/cycle-archive/v10.0.0/v9.7.0_gap_analysis.md` §1.3 D-N-2 + `docs/cycle-archive/v10.0.0/other/v9.7.0_perf_research.md` §4 |
 
 > **v14.2.2 G-024/G-023 inventory closure note**: the three rows below
 > (§2.15..§2.17) were ALREADY-LIVE surfaces that pre-dated this
@@ -536,7 +536,7 @@ or document the orthogonality argument explicitly.
 > (`pre_*` / `post_*` / `check_*`) with PURE-ALIAS preservation of the
 > 4 OLD names for 1 cycle.
 
-Per `.local/research/v11.0.0_patches/D-Q-3.md` §2 the rename mapping is:
+Per `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-Q-3.md` §2 the rename mapping is:
 
 | OLD event name (PURE-ALIAS, v11.x) | NEW canonical name | Position in DEFAULT_EVENTS | Handler module |
 |---|---|:---:|---|
@@ -579,7 +579,7 @@ NEW canonical names.
 
 **Cross-references**:
 
-* `.local/research/v11.0.0_patches/D-Q-3.md` — full PDS authoring this rename.
+* `docs/cycle-archive/v11.0.0/v11.0.0_patches/D-Q-3.md` — full PDS authoring this rename.
 * `tests/test_lifecycle_hooks.py::test_v11_0_0_pv02_dq3_*` — the 5 PURE-ALIAS regression tests.
 * `src/devolaflow/lifecycle/dispatcher.py::_EVENT_ALIASES` — the alias map.
 * `src/devolaflow/lifecycle/__init__.py::DEFAULT_EVENTS` — the 16-entry tuple after the v11.0.0 PV-02 D-Q-3 append.
@@ -592,7 +592,7 @@ NEW canonical names.
 * `references/plan-mode-enforcement.md` §2 — plan-mode detection table (cross-link from §2.1)
 * `references/behavioral-guidelines.md` — BG-001..BG-004 spec (cross-link from §5)
 * `AGENTS.md` §"W-20" — env-flag reuse vs new-flag policy (the rule this reference enforces)
-* `.local/research/v9.0.0_pv05_design.md` §1 — full PV-05 audit + decision rationale
+* `docs/cycle-archive/v9.0.0/design/v9.0.0_pv05_design.md` §1 — full PV-05 audit + decision rationale
 * `docs/cycle-archive/adr/v9-ADR-005-nines-hygiene-and-w-rules.md` D5 — ADR for AGENTS.md ceiling bump + W-rule batch
 
 ---

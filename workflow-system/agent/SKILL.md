@@ -166,7 +166,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 
 **Pre-dispatch self-check (REQUIRED for repo-init):** Before dispatching scaffold, L0 MUST verify `owned_files ⊇ canonical_manifest` (all 8 paths above). Any missing path = `VOF001` blocker. L0 MUST include this assertion in the dispatch: *"owned_files covers all 8 canonical paths per SKILL.md §Repo-Init Pre-Dispatch Contract."* Post-init verify: `devola-init doctor`.
 
-**Working-tree sanity check (v12.3.0 PV-04 — `.local/research/v12.2.0_retrospective.md` §4.3 learning):** at cycle-entry PV-01 (before authoring the SI-1 gap analysis), L0 MUST run `git status` + `git diff --stat HEAD -- '*.md' '*.py'` to surface pre-existing working-tree corruption (e.g. truncated CHANGELOG.md / test_no_ghost_features.py from a prior interrupted session). Restore drifted files via `git restore <path>` BEFORE proceeding so the SI-1 entry gate operates on a clean baseline. Canonical case study: `references/troubleshooting.md` §2.18.
+**Working-tree sanity check (v12.3.0 PV-04 — `docs/cycle-archive/v12.2.0/v12.2.0_retrospective.md` §4.3 learning):** at cycle-entry PV-01 (before authoring the SI-1 gap analysis), L0 MUST run `git status` + `git diff --stat HEAD -- '*.md' '*.py'` to surface pre-existing working-tree corruption (e.g. truncated CHANGELOG.md / test_no_ghost_features.py from a prior interrupted session). Restore drifted files via `git restore <path>` BEFORE proceeding so the SI-1 entry gate operates on a clean baseline. Canonical case study: `references/troubleshooting.md` §2.18.
 
 **Selection heuristics:**
 
