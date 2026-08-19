@@ -330,6 +330,13 @@ _SSOT_PYTHON_REGISTRIES: dict[str, str] = {
 _SSOT_YAML_REGISTRIES: dict[str, str] = {
     "plugins.yaml": "workflow-system/agent/plugins.yaml",
     "runtime-plugins.yaml": "workflow-system/agent/knowledge/runtime-plugins.yaml",
+    # v15.0.x (full_review_and_improve Track B-1, D-5): the install manifest —
+    # single owner of the per-tool install file lists consumed by
+    # scripts/install.sh, scripts/sync_cursor_skill.py::MIRRORED_FILES, and
+    # devola-init (src/devolaflow/init_project.py). Three-way parity with the
+    # on-disk files + _SF4_REFERENCE_SET is linted by
+    # tests/test_install_manifest.py.
+    "manifest.yaml": "workflow-system/agent/manifest.yaml",
 }
 
 

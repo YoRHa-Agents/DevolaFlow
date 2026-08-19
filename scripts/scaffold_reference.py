@@ -6,8 +6,9 @@ reference historically required editing 7 surfaces by hand:
 
     1. workflow-system/agent/references/<name>.md
     2. workflow-system/agent/SKILL.md "## Reference Navigation Guide" row
-    3. scripts/sync_cursor_skill.py::MIRRORED_FILES (the canonical 14+
-       reference list mirrored to .cursor/skills/devola-flow/)
+    3. workflow-system/agent/manifest.yaml `references:` list (the A-5
+       install-manifest SSOT from which sync_cursor_skill.py::MIRRORED_FILES,
+       install.sh, and devola-init all derive)
     4. tests/test_reference_size_budgets.py (auto-covered via parametrize)
     5. tests/test_integration.py (SKILL.md <500-line check; auto)
     6. tests/test_no_ghost_features.py W-18 lint stanza
@@ -45,7 +46,7 @@ class ReferencePlan:
     repo_root: Path
     reference_md: Path
     skill_md: Path
-    sync_script: Path
+    manifest_yaml: Path
 
     @property
     def relative_reference(self) -> str:
@@ -75,7 +76,7 @@ def build_plan(name: str, tier: str, load_when: str, *, repo_root: Path) -> Refe
         repo_root=repo_root,
         reference_md=repo_root / "workflow-system/agent/references" / f"{name}.md",
         skill_md=repo_root / "workflow-system/agent/SKILL.md",
-        sync_script=repo_root / "scripts/sync_cursor_skill.py",
+        manifest_yaml=repo_root / "workflow-system/agent/manifest.yaml",
     )
 
 
@@ -152,19 +153,33 @@ def insert_skill_row(plan: ReferencePlan, *, force: bool = False) -> bool:
     return True
 
 
-def append_mirrored_files(plan: ReferencePlan, *, force: bool = False) -> bool:
-    """Append `references/<name>.md` to MIRRORED_FILES in sync_cursor_skill.py."""
-    text = plan.sync_script.read_text(encoding="utf-8")
-    entry = f'    "references/{plan.name}.md",'
-    if f'"references/{plan.name}.md"' in text and not force:
+def append_manifest_entry(plan: ReferencePlan, *, force: bool = False) -> bool:
+    """Insert `references/<name>.md` into the manifest.yaml `references:` list.
+
+    The install manifest (workflow-system/agent/manifest.yaml) is the A-5
+    SSOT for install file lists; MIRRORED_FILES / install.sh / devola-init
+    all derive from it, so this is the ONLY list surface the scaffold has
+    to touch. Insertion preserves alphabetical order; idempotent unless
+    ``force`` is set.
+    """
+    text = plan.manifest_yaml.read_text(encoding="utf-8")
+    entry = f"  - references/{plan.name}.md"
+    if f"references/{plan.name}.md" in text and not force:
         return False
-    examples_anchor = '    "examples/full-pipeline-trace.md",'
-    if examples_anchor not in text:
+    lines = text.splitlines()
+    try:
+        start = lines.index("references:") + 1
+    except ValueError:
         raise SystemExit(
-            f"{plan.sync_script}: missing anchor {examples_anchor!r} — refusing to mutate"
-        )
-    new_text = text.replace(examples_anchor, entry + "\n" + examples_anchor, 1)
-    plan.sync_script.write_text(new_text, encoding="utf-8")
+            f"{plan.manifest_yaml}: missing 'references:' section — refusing to mutate"
+        ) from None
+    end = start
+    while end < len(lines) and lines[end].startswith("  - "):
+        end += 1
+    block = lines[start:end] + [entry]
+    block.sort()
+    new_lines = lines[:start] + block + lines[end:]
+    plan.manifest_yaml.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
     return True
 
 
@@ -179,9 +194,9 @@ def write_files(plan: ReferencePlan, *, force: bool = False) -> dict[str, str]:
     actions[str(plan.skill_md)] = (
         "row inserted" if insert_skill_row(plan, force=force) else "skipped (already present)"
     )
-    actions[str(plan.sync_script)] = (
-        "MIRRORED_FILES appended"
-        if append_mirrored_files(plan, force=force)
+    actions[str(plan.manifest_yaml)] = (
+        "manifest references entry inserted"
+        if append_manifest_entry(plan, force=force)
         else "skipped (already present)"
     )
     return actions

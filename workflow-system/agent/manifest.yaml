@@ -1,0 +1,82 @@
+# DevolaFlow install manifest — the single source of truth (Rule A-5) for
+# WHAT each install entrypoint ships. Registered in
+# tests/ghost/test_registries.py::_SSOT_YAML_REGISTRIES; three-way parity
+# (manifest ↔ on-disk files ↔ _SF4_REFERENCE_SET) is linted by
+# tests/test_install_manifest.py.
+#
+# Consumers (NONE may keep a local copy of these lists — Rule A-5.1):
+#   * scripts/install.sh            — fetches this file remotely, then downloads
+#                                     per install_profiles (awk/sed line parser:
+#                                     keep sections as flat "  - path" lists and
+#                                     install_profiles entries in single-line
+#                                     flow style, or the shell parser breaks)
+#   * scripts/sync_cursor_skill.py  — MIRRORED_FILES derives from the `cursor`
+#                                     profile at import time
+#   * src/devolaflow/init_project.py — devola-init copies per profile via
+#                                     devolaflow.install_manifest.load_manifest
+#   * scripts/scaffold_reference.py — appends new references/<name>.md entries
+#                                     to the `references:` list below
+#
+# Adding a NEW reference: run scripts/scaffold_reference.py (updates this file,
+# SKILL.md, and prints the W-18 stanza) and add the `_SF4_REFERENCE_SET` entry
+# per Rule C-7.
+schema_version: "1.0"
+
+# Files every install form ships.
+core:
+  - SKILL.md
+
+# Tier-2 domain references — must stay in exact parity with
+# workflow-system/agent/references/*.md and _SF4_REFERENCE_SET (Rule C-7).
+references:
+  - references/agent-hierarchy.md
+  - references/agent-workspace.md
+  - references/artifact-quality.md
+  - references/behavioral-guidelines.md
+  - references/codegraph.md
+  - references/compression-pipeline.md
+  - references/context-isolation.md
+  - references/decomposition-gate.md
+  - references/degraded-mode.md
+  - references/domain-awareness.md
+  - references/env-flags.md
+  - references/evaluator-rosetta.md
+  - references/execution-protocol.md
+  - references/grill-mode.md
+  - references/human-surface.md
+  - references/impeccable.md
+  - references/message-schemas.md
+  - references/meta-framework.md
+  - references/plan-mode-enforcement.md
+  - references/repo-modes.md
+  - references/shell-proxy.md
+  - references/subagent-patterns.md
+  - references/task-quality-score.md
+  - references/team-roles.md
+  - references/troubleshooting.md
+
+# Tier-3 worked traces — must stay in exact parity with
+# workflow-system/agent/examples/*.md.
+examples:
+  - examples/convergence-loop-trace.md
+  - examples/full-pipeline-trace.md
+  - examples/hotfix-trace.md
+  - examples/multi-stage-trace.md
+
+# Per-tool install profiles (machine-readable form of the dual-track ruling):
+#   kind: skill-dir  — tool loads files on demand; ships the full skill package
+#   kind: rule-file  — single rules document that enters context whole
+#                      (wave 1: full SKILL.md; wave 2 switches to the adapter
+#                      compressed artifact per the D-6 dual-track ruling)
+#   kind: rule-tree  — frontmatter-stripped SKILL.md + references tree
+# NOTE for shell parser: keep each profile on ONE line in flow style.
+install_profiles:
+  cursor:   {kind: skill-dir, sets: [core, references, examples]}
+  claude:   {kind: skill-dir, sets: [core, references, examples]}
+  codex:    {kind: skill-dir, sets: [core, references]}
+  kimicode: {kind: skill-dir, sets: [core, references, examples]}
+  copilot:  {kind: rule-file, sets: [core]}
+  windsurf: {kind: rule-file, sets: [core]}
+  zed:      {kind: rule-tree, sets: [core, references]}
+  cline:    {kind: rule-tree, sets: [core, references]}
+  roo:      {kind: rule-tree, sets: [core, references]}

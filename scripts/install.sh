@@ -15,15 +15,23 @@
 #                         installs all runtime plugins by default)
 #           --project     install to the repo-local location (default)
 #           --no-plugins  with --global, skip the bundled runtime-plugin install
+#           --base-url U  override the download base (mirrors / offline
+#                         file:// sources / E2E tests). Default is the
+#                         raw.githubusercontent.com main-branch tree.
+#
+# File lists are NOT hardcoded here: the installer fetches the install
+# manifest (workflow-system/agent/manifest.yaml — the A-5 single source
+# of truth shared with sync_cursor_skill.py and devola-init) and downloads
+# whatever the target's install profile declares. When the manifest is
+# unreachable the installer degrades to a SKILL.md-only install with an
+# explicit warning (warn-not-fatal per S-5).
 
 set -u
 
 REPO="YoRHa-Agents/DevolaFlow"
 BRANCH="main"
-BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
-AGENT_BASE="${BASE}/workflow-system/agent"
+BASE_DEFAULT="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 STAMP=".devola-flow-version"
-VERSION_URL="${BASE}/src/devolaflow/__init__.py"
 
 info() { printf '  \033[34m>\033[0m %s\n' "$*"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -33,15 +41,22 @@ errf() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 SCOPE="project"
 TARGET="auto"
 NO_PLUGINS="false"
-for arg in "$@"; do
-  case "$arg" in
-    --global)     SCOPE="global" ;;
-    --project)    SCOPE="project" ;;
-    --no-plugins) NO_PLUGINS="true" ;;
-    -*)           ;;
-    *)            TARGET="$arg" ;;
+BASE_OVERRIDE=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --global)      SCOPE="global"; shift ;;
+    --project)     SCOPE="project"; shift ;;
+    --no-plugins)  NO_PLUGINS="true"; shift ;;
+    --base-url)    BASE_OVERRIDE="${2:-}"; shift; shift ;;
+    --base-url=*)  BASE_OVERRIDE="${1#*=}"; shift ;;
+    -*)            shift ;;
+    *)             TARGET="$1"; shift ;;
   esac
 done
+
+BASE="${BASE_OVERRIDE:-$BASE_DEFAULT}"
+AGENT_BASE="${BASE}/workflow-system/agent"
+VERSION_URL="${BASE}/src/devolaflow/__init__.py"
 
 # v13.0.0 — capture the operator's REQUESTED scope up-front. do_update() and
 # auto_detect() mutate the global SCOPE per detected install, so the bundled
@@ -69,26 +84,6 @@ dl() {
   return 1
 }
 
-dl_batch() {
-  local dest_dir="$1"
-  shift
-  local total=$#
-  local ok_count=0
-  local fail_count=0
-
-  for name in "$@"; do
-    if dl "${AGENT_BASE}/${name}" "${dest_dir}/${name}"; then
-      ok_count=$((ok_count + 1))
-    else
-      fail_count=$((fail_count + 1))
-    fi
-  done
-
-  if [ "$fail_count" -gt 0 ]; then
-    warn "${fail_count}/${total} files failed (${ok_count} succeeded)"
-  fi
-}
-
 fetch_version() {
   curl -fsSL --connect-timeout 5 "$VERSION_URL" 2>/dev/null \
     | grep '__version__' | head -1 | sed 's/.*"\(.*\)".*/\1/'
@@ -105,9 +100,91 @@ stamp() {
   fi
 }
 
+# ── Install manifest (A-5 SSOT) ──────────────────────────────────
+# workflow-system/agent/manifest.yaml is the single owner of the per-tool
+# install file lists. It is fetched ONCE per run and parsed with the
+# line-oriented helpers below (the manifest keeps flat "  - path" lists and
+# single-line flow-style profiles specifically so this parser stays trivial).
+
+MANIFEST_FILE=""
+trap '[ -n "$MANIFEST_FILE" ] && rm -f "$MANIFEST_FILE"' EXIT
+
+fetch_manifest() {
+  if [ -n "$MANIFEST_FILE" ] && [ -s "$MANIFEST_FILE" ]; then
+    return 0
+  fi
+  local tmp
+  tmp=$(mktemp 2>/dev/null) || tmp=".devola-flow-manifest.tmp"
+  if curl -fsSL --connect-timeout 10 --max-time 30 --retry 2 \
+      "${AGENT_BASE}/manifest.yaml" -o "$tmp" </dev/null 2>/dev/null && [ -s "$tmp" ]; then
+    MANIFEST_FILE="$tmp"
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
+}
+
+# Print the entries of a top-level flat-list section, e.g. `manifest_set references`.
+manifest_set() {
+  awk -v section="$1:" '
+    $0 == section { insec = 1; next }
+    insec && /^[a-zA-Z_]/ { insec = 0 }
+    insec && /^  - / { sub(/^  - /, ""); print }
+  ' "$MANIFEST_FILE"
+}
+
+# Print the space-separated set names of a profile, e.g. `manifest_profile_sets cursor`.
+manifest_profile_sets() {
+  sed -n "s/^  $1: *{.*sets: *\[\([^]]*\)\].*}.*/\1/p" "$MANIFEST_FILE" \
+    | tr -d ' ' | tr ',' ' '
+}
+
+# Print the full newline-separated file list for a profile.
+manifest_profile_files() {
+  local tool="$1" sets s
+  sets=$(manifest_profile_sets "$tool")
+  [ -n "$sets" ] || return 1
+  for s in $sets; do
+    manifest_set "$s"
+  done
+}
+
+# Download every file in a profile into a destination directory.
+# Falls back to a SKILL.md-only install (with an explicit warning) when the
+# manifest is unreachable or lacks the profile — warn-not-fatal per S-5.
+install_skill_files() {
+  local tool="$1" dir="$2"
+  if ! fetch_manifest; then
+    warn "install manifest unavailable (${AGENT_BASE}/manifest.yaml)"
+    warn "falling back to SKILL.md-only install for '$tool'"
+    dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
+    return 0
+  fi
+  local files
+  files=$(manifest_profile_files "$tool")
+  if [ -z "$files" ]; then
+    warn "manifest has no install profile for '$tool'"
+    warn "falling back to SKILL.md-only install"
+    dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
+    return 0
+  fi
+  local total=0 ok_count=0 fail_count=0 f
+  for f in $files; do
+    total=$((total + 1))
+    if dl "${AGENT_BASE}/${f}" "${dir}/${f}"; then
+      ok_count=$((ok_count + 1))
+    else
+      fail_count=$((fail_count + 1))
+    fi
+  done
+  if [ "$fail_count" -gt 0 ]; then
+    warn "${fail_count}/${total} files failed (${ok_count} succeeded)"
+  fi
+}
+
 # Download SKILL.md and strip its YAML frontmatter into <dest>.
 # Used by adapters that consume rules-style markdown without frontmatter
-# (zed, cline, roo). Falls back to a raw copy if awk is unavailable.
+# (zed, cline, roo, windsurf). Falls back to a raw copy if awk is unavailable.
 dl_skill_no_frontmatter() {
   local dest="$1"
   local tmp
@@ -125,6 +202,32 @@ dl_skill_no_frontmatter() {
   return 1
 }
 
+# Frontmatter-stripped SKILL.md + the manifest `references` set — the shared
+# body for the rule-tree targets (zed, cline, roo).
+install_rule_tree() {
+  local tool="$1" dir="$2"
+  mkdir -p "$dir/references"
+
+  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
+    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
+  else
+    warn "$tool install failed (SKILL.md download empty)"
+    return 1
+  fi
+
+  if fetch_manifest; then
+    info "references (per manifest):"
+    local f
+    for f in $(manifest_set references); do
+      dl "${AGENT_BASE}/${f}" "${dir}/${f}" || true
+    done
+  else
+    warn "install manifest unavailable — installed the rules file only"
+  fi
+
+  stamp "$dir"
+}
+
 # ── Installers ───────────────────────────────────────────────────
 
 install_cursor() {
@@ -137,64 +240,26 @@ install_cursor() {
     info "Cursor (project) -> $dir/"
   fi
 
-  mkdir -p "$dir/references" "$dir/examples"
-
-  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  info "examples (3 files):"
-  dl_batch "$dir" \
-    "examples/full-pipeline-trace.md" \
-    "examples/hotfix-trace.md" \
-    "examples/convergence-loop-trace.md"
+  mkdir -p "$dir"
+  info "files (manifest profile 'cursor'):"
+  install_skill_files cursor "$dir"
 
   # v15.0.0 (clean_repo C1-2, decision D1): the legacy rules download
   # (.cursor/rules/workflow-rules.mdc -> <rules>/devola-flow-rules.mdc)
   # retired with the deprecated pointer stub it copied.
 
   stamp "$dir"
-  ok "Cursor installed (SKILL.md + 13 refs + 3 examples)"
+  ok "Cursor installed (manifest profile 'cursor')"
 }
 
 install_codex() {
   local dir="${CODEX_HOME:-$HOME/.codex}/skills/devola-flow"
   info "Codex -> $dir/"
-  mkdir -p "$dir/references"
-  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
+  mkdir -p "$dir"
+  info "files (manifest profile 'codex'):"
+  install_skill_files codex "$dir"
   stamp "$dir"
-  ok "Codex installed (SKILL.md + 13 refs)"
+  ok "Codex installed (manifest profile 'codex')"
 }
 
 install_claude() {
@@ -207,34 +272,11 @@ install_claude() {
     info "Claude Code (project) -> $dir/"
   fi
 
-  mkdir -p "$dir/references" "$dir/examples"
-
-  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  info "examples (3 files):"
-  dl_batch "$dir" \
-    "examples/full-pipeline-trace.md" \
-    "examples/hotfix-trace.md" \
-    "examples/convergence-loop-trace.md"
-
+  mkdir -p "$dir"
+  info "files (manifest profile 'claude'):"
+  install_skill_files claude "$dir"
   stamp "$dir"
-  ok "Claude installed (SKILL.md + 13 refs + 3 examples)"
+  ok "Claude installed (manifest profile 'claude')"
 }
 
 install_copilot() {
@@ -254,34 +296,11 @@ install_kimicode() {
     info "KimiCode (project) -> $dir/"
   fi
 
-  mkdir -p "$dir/references" "$dir/examples"
-
-  dl "$AGENT_BASE/SKILL.md" "$dir/SKILL.md" || true
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  info "examples (3 files):"
-  dl_batch "$dir" \
-    "examples/full-pipeline-trace.md" \
-    "examples/hotfix-trace.md" \
-    "examples/convergence-loop-trace.md"
-
+  mkdir -p "$dir"
+  info "files (manifest profile 'kimicode'):"
+  install_skill_files kimicode "$dir"
   stamp "$dir"
-  ok "KimiCode installed (SKILL.md + 13 refs + 3 examples)"
+  ok "KimiCode installed (manifest profile 'kimicode')"
 }
 
 install_windsurf() {
@@ -320,33 +339,8 @@ install_zed() {
     info "Zed (project) -> $dir/"
   fi
 
-  mkdir -p "$dir/references"
-
-  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
-    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
-  else
-    warn "Zed install failed (SKILL.md download empty)"
-    return 1
-  fi
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  stamp "$dir"
-  ok "Zed installed (devola-flow.md + 13 refs)"
+  install_rule_tree zed "$dir" || return 1
+  ok "Zed installed (devola-flow.md + manifest references)"
 }
 
 install_cline() {
@@ -359,33 +353,8 @@ install_cline() {
   fi
   info "Cline (project) -> $dir/"
 
-  mkdir -p "$dir/references"
-
-  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
-    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
-  else
-    warn "Cline install failed (SKILL.md download empty)"
-    return 1
-  fi
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  stamp "$dir"
-  ok "Cline installed (devola-flow.md + 13 refs)"
+  install_rule_tree cline "$dir" || return 1
+  ok "Cline installed (devola-flow.md + manifest references)"
 }
 
 install_roo() {
@@ -398,33 +367,8 @@ install_roo() {
   fi
   info "Roo Code (project) -> $dir/"
 
-  mkdir -p "$dir/references"
-
-  if dl_skill_no_frontmatter "$dir/devola-flow.md"; then
-    printf '    %-35s %s\n' "devola-flow.md" "ok (frontmatter stripped)"
-  else
-    warn "Roo Code install failed (SKILL.md download empty)"
-    return 1
-  fi
-
-  info "references (13 files):"
-  dl_batch "$dir" \
-    "references/agent-hierarchy.md" \
-    "references/agent-workspace.md" \
-    "references/meta-framework.md" \
-    "references/decomposition-gate.md" \
-    "references/repo-modes.md" \
-    "references/execution-protocol.md" \
-    "references/message-schemas.md" \
-    "references/team-roles.md" \
-    "references/context-isolation.md" \
-    "references/behavioral-guidelines.md" \
-    "references/shell-proxy.md" \
-    "references/plan-mode-enforcement.md" \
-    "references/env-flags.md"
-
-  stamp "$dir"
-  ok "Roo Code installed (devola-flow.md + 13 refs)"
+  install_rule_tree roo "$dir" || return 1
+  ok "Roo Code installed (devola-flow.md + manifest references)"
 }
 
 install_local() {
@@ -585,11 +529,11 @@ case "$TARGET" in
   Usage: install.sh [target] [flags]
 
   Targets:
-    cursor      Cursor (SKILL.md + refs + examples + rules)
-    codex       Codex (SKILL.md + refs)
-    claude      Claude Code (SKILL.md + refs + examples as skill)
+    cursor      Cursor (manifest profile: SKILL.md + refs + examples)
+    codex       Codex (manifest profile: SKILL.md + refs)
+    claude      Claude Code (manifest profile: SKILL.md + refs + examples)
     copilot     Copilot (SKILL.md as instructions)
-    kimicode    KimiCode (SKILL.md + refs + examples)
+    kimicode    KimiCode (manifest profile: SKILL.md + refs + examples)
     windsurf    Windsurf (.windsurfrules, frontmatter stripped)
     zed         Zed (.rules/devola-flow.md + references; --global supported)
     cline       Cline (.clinerules/devola-flow.md + references; project-only)
@@ -607,6 +551,9 @@ case "$TARGET" in
                   by default — failures are warn-not-fatal
     --no-plugins  with --global, skip the bundled runtime-plugin install
                   (skill files only)
+    --base-url U  override the download base URL (mirror / file:// source);
+                  file lists always come from the manifest at
+                  <base>/workflow-system/agent/manifest.yaml
 USAGE
     exit 0 ;;
   *)
