@@ -95,13 +95,15 @@ would otherwise silently activate the surface.
 **Plugin auto-install is NOT env-flag controlled** (honest-docs fix,
 v14.4.0 G-023): whether `installer.py::ensure_plugin('rtk')` may attempt
 the curl/cargo install is governed by
-`runtime-plugins.yaml#defaults.auto_install` (default `true`) and the
+`runtime-plugins.yaml#defaults.auto_install` (default `false` since
+v15.2.0 B-6 — bare calls probe-and-report instead of installing) and the
 `ensure_plugin(auto_install=...)` parameter. The historical
 `DEVOLAFLOW_AUTO_INSTALL` env var has NO read site in `src/devolaflow/`
-(v14.2.2 G-024 AST audit; see `references/env-flags.md` §2.5 `unwired`
-row) — setting it changes nothing. To opt out of auto-install, set
-`defaults.auto_install: false` in the registry or pass
-`auto_install=False` at the call site.
+(v14.2.2 G-024 AST audit; RETIRED tombstone at `references/env-flags.md`
+§2.5) — setting it changes nothing. To opt IN to an install at a specific
+surface, pass `auto_install=True` at the call site (the
+`DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` hooks and `devola-init --global`
+bundling already do).
 
 ---
 
@@ -598,10 +600,10 @@ The R5 strict default-off contract is codified at THREE layers per PV:
 ### 9.1 Enabling the full v8.4.0 stack
 
 ```bash
-# Install RTK runtime plugin (one-time). Auto-install is governed by
-# runtime-plugins.yaml#defaults.auto_install (default true) — opt out by
-# setting it to false or passing ensure_plugin('rtk', auto_install=False).
-python -c "from devolaflow.plugins import ensure_plugin; ensure_plugin('rtk')"
+# Install RTK runtime plugin (one-time). defaults.auto_install is false
+# since v15.2.0 B-6, so pass auto_install=True explicitly for a one-shot
+# install (bare ensure_plugin('rtk') probes and reports instead).
+python -c "from devolaflow.plugins import ensure_plugin; ensure_plugin('rtk', auto_install=True)"
 
 # Activate shell-proxy (Tier 1 commands: pytest, ruff check, git {diff,log,status})
 export DEVOLAFLOW_RTK_PROXY=1

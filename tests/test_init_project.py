@@ -711,7 +711,7 @@ def test_install_plugins_warn_not_fatal(monkeypatch, capsys):
     """A failing plugin is warned (S-5) and does NOT abort the loop."""
     from devolaflow.plugins.exceptions import PluginInstallError
 
-    def _fake_ensure(pid: str) -> str:
+    def _fake_ensure(pid: str, **_kwargs: object) -> str:
         if pid == "rtk":
             raise PluginInstallError("network down")
         return "9.9.9"

@@ -12,9 +12,10 @@ Test surfaces (kept tight per W-17 +30/PV cap):
    integrate and test).
 3. The new gate ``si_chip_dogfood_gate`` is registered in
    ``skill-optimization.yaml`` after the new stage.
-4. Both stages declare ``ensure_plugins: ["si-chip"]`` so the v9.4.0
-   dispatcher pre-flight (`pre_plugin_invocation` hook) auto-installs
-   Si-Chip when the workflow runs.
+4. Both stages declare ``suggest_plugins: ["si-chip"]`` (v15.2.0 B-6
+   rename; probe semantics) so the v9.4.0 dispatcher pre-flight
+   (`pre_plugin_invocation` hook) installs Si-Chip when the operator
+   opted in via DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1.
 5. The ``self-update.yaml`` ``si_chip_gate`` stage is marked optional
    so v9.4.x callers without skill-corpus-touch get byte-identical
    behaviour.
@@ -79,14 +80,14 @@ class TestSkillOptimizationTemplateWiresSiChip:
     def test_si_chip_dogfood_stage_declares_si_chip_plugin(
         self, skill_optimization_template: dict
     ) -> None:
-        """Stage MUST cite si-chip in ensure_plugins for the v9.4.0 dispatcher pre-flight."""
+        """Stage MUST cite si-chip in suggest_plugins for the dispatcher pre-flight."""
         stage = next(
             s for s in skill_optimization_template["stages"] if s["id"] == "si_chip_dogfood"
         )
         assert stage["primitive"] == "validate"
         assert stage["team"] == "test"
-        assert stage["config"]["ensure_plugins"] == ["si-chip"], (
-            "si_chip_dogfood stage MUST cite ['si-chip'] in ensure_plugins "
+        assert stage["config"]["suggest_plugins"] == ["si-chip"], (
+            "si_chip_dogfood stage MUST cite ['si-chip'] in suggest_plugins "
             "so v9.4.0 PV-02's pre_plugin_invocation hook auto-installs "
             "Si-Chip before the L3 Task Agent attempts to call its scripts."
         )
@@ -168,7 +169,7 @@ class TestSelfUpdateTemplateWiresSiChipOptional:
             f"si_chip_gate skip_when MUST reference requires_skill_corpus_touch "
             f"context flag; got {skip_when!r}"
         )
-        assert stage["config"]["ensure_plugins"] == ["si-chip"]
+        assert stage["config"]["suggest_plugins"] == ["si-chip"]
         assert stage["config"]["bridge_module"] == "devolaflow.si_chip_bridge"
 
     def test_integrate_test_cycle_includes_si_chip_gate(self, self_update_template: dict) -> None:

@@ -270,7 +270,7 @@ plugin_roles:
       - refine
       - verify
       - review
-    invocation: "on_demand"  # Surfaced by config.ensure_plugins at refine/verify stage entry; agent invokes /impeccable commands + `impeccable detect`
+    invocation: "on_demand"  # Surfaced by config.suggest_plugins at refine/verify stage entry; agent invokes /impeccable commands + `impeccable detect`
     provider: "impeccable"
 
   # v15.0.0 G-021 — rtk's role; not stage-dispatched (the shell proxy wraps

@@ -189,7 +189,11 @@ def install_plugins(scope: str) -> None:
     ok_count = 0
     for pid in plugin_ids:
         try:
-            version = ensure_plugin(pid)
+            # v15.2.0 B-6 — auto_install=True is EXPLICIT: the operator ran
+            # a --global install WITHOUT --no-plugins, i.e. asked for the
+            # plugin bundle, so this surface keeps installing after the
+            # registry defaults.auto_install true → false flip.
+            version = ensure_plugin(pid, auto_install=True)
         except PluginRuntimeError as exc:
             # S-5: explicit WARN (logged, never silent); install continues
             # so one unreachable plugin does not abort the whole run.

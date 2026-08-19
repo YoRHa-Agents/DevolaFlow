@@ -416,7 +416,12 @@ def _run_install_then_upgrade_for_plugin(
     violations: list[HookViolation] = []
 
     try:
-        version = ensure_plugin(plugin_id)
+        # v15.2.0 B-6 — auto_install=True is EXPLICIT: this path only runs
+        # when DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 (operator opt-in), so the
+        # flag's install semantics survive the registry
+        # defaults.auto_install true → false flip. Mirrors the split
+        # install handler byte-for-byte per the alias contract.
+        version = ensure_plugin(plugin_id, auto_install=True)
     except (
         PluginNotFoundError,
         PluginInstallError,
@@ -429,22 +434,13 @@ def _run_install_then_upgrade_for_plugin(
             type(exc).__name__,
             exc,
         )
-        violations.append(
-            HookViolation(
-                code="PPI001",
-                message=(
-                    f"pre_plugin_invocation: ensure_plugin({plugin_id!r}) "
-                    f"failed — {type(exc).__name__}: {exc}"
-                ),
-                severity="error",
-                context={
-                    "plugin_id": plugin_id,
-                    "exception_type": type(exc).__name__,
-                    "exception_args": list(exc.args),
-                    "details": getattr(exc, "details", {}),
-                },
-            )
+        # v15.2.0 B-6 — tier-aware PPI001 severity shared with the split
+        # install handler (single owner for the violation shape).
+        from devolaflow.lifecycle.pre_plugin_invocation_install import (
+            _ppi001_violation,
         )
+
+        violations.append(_ppi001_violation(plugin_id, exc))
         return violations
     except Exception:
         logger.warning(

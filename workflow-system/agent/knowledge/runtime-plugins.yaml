@@ -44,6 +44,14 @@
 #               No verify_distinguish_cmd because Si-Chip has no known
 #               name collision (RTK's distinguish-cmd only fires because
 #               of the rtk-type-kit collision documented in RTK INSTALL.md).
+#               v4 additions (v15.2.0 B-6, 04 §8 dependency suggestion-ization;
+#               all optional — v1..v3 entries pass v4 unchanged):
+#                 - tier: require | suggest. Defaults to suggest when absent.
+#                   suggest = probe-and-degrade (consuming surfaces MUST NOT
+#                   hard-fail on absence; one-time hint per session instead).
+#                   require = absence is a hard error at the consuming
+#                   surface. All shipped entries are suggest as of v15.2.0 —
+#                   the require tier is a kept mechanism with no occupant.
 #   defaults:   registry-wide defaults (auto_install, prefer_local_fallback,
 #               network_timeout_seconds, install_log_path).
 #               v3 additions:
@@ -51,6 +59,12 @@
 #                   considers a plugin "stale" when last_checked > N hours
 #                   ago. Defaults to 24 (daily upgrade cadence per the
 #                   v9.4.0 user-feedback "auto-upgrade daily" requirement).
+#               v4 change (v15.2.0 B-6): auto_install flipped true → false.
+#                 The DEFAULT path is now probe + suggest — a bare
+#                 ensure_plugin(pid) call never network-installs. Explicit
+#                 opt-in surfaces (DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 hooks,
+#                 devola-init --global bundling) pass auto_install=True at
+#                 the call site, so their semantics are unchanged.
 #   backends:   enumerates supported install backends. New backends require an
 #               installer.py implementation in the same patch (v3 adds no
 #               new backends — extends behaviour on existing 3 backends).
@@ -66,8 +80,8 @@
 #     trail). v9.4.0 PV-04 deliberately avoids adding a second write
 #     surface for plugin state per the gap analysis §3.2 D-P-4 fix.
 
-schema_version: 3
-last_updated: "2026-08-19"
+schema_version: 4
+last_updated: "2026-08-20"
 # v10.2.0 PV-01 — D-P-3 closure. schema_version stays at 3 (no new field);
 # only the si-chip entry's version_check_cmd was swapped from a hardcoded
 # "echo si-chip/0.4.0" heuristic to a real SKILL.md frontmatter probe via
@@ -88,6 +102,7 @@ plugins:
   # the `pip uninstall -y nines` teardown path are unchanged. NOTE: NineS
   # requires Python >= 3.12 per its pyproject.
   - id: nines
+    tier: suggest
     backend: pip
     package: nines
     install_cmd: "pip install --upgrade \"git+https://github.com/YoRHa-Agents/NineS\""
@@ -102,6 +117,7 @@ plugins:
       - skill-optimization
 
   - id: ui-pro
+    tier: suggest
     backend: npm_then_init
     package: uipro-cli
     install_cmd: "npm install -g uipro-cli"
@@ -124,6 +140,7 @@ plugins:
       - web-design
 
   - id: rtk
+    tier: suggest
     backend: curl_install_script
     package: rtk
     install_cmd: "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh"
@@ -172,6 +189,7 @@ plugins:
   # _probe_version (not as a hard failure), so the fallback path is
   # network-safe.
   - id: si-chip
+    tier: suggest
     backend: curl_install_script
     package: si-chip
     install_cmd: "curl -fsSL https://yorha-agents.github.io/Si-Chip/install.sh | bash -s -- --target cursor --scope global --yes --force"
@@ -220,6 +238,7 @@ plugins:
   # performance-optimization) are NOT wired in PV-04 — they are forward-
   # compat declarations for v12.6.0+ pickup.
   - id: codegraph
+    tier: suggest
     backend: npm_then_init
     package: "@colbymchenry/codegraph"
     install_cmd: "npm install -g @colbymchenry/codegraph@latest"
@@ -267,6 +286,7 @@ plugins:
   # console.log(pkg.version)`). min_version 2.0.0 is a conservative floor
   # below the 2.3.2 published latest.
   - id: impeccable
+    tier: suggest
     backend: npm_then_init
     package: impeccable
     install_cmd: "npm install -g impeccable"
@@ -283,7 +303,11 @@ plugins:
       - web-design
 
 defaults:
-  auto_install: true
+  # v15.2.0 B-6 — flipped true → false (default probe + suggest; see the v4
+  # change note in the header). Opt-in installs are unchanged: the
+  # DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 hooks and devola-init --global
+  # bundling pass auto_install=True explicitly.
+  auto_install: false
   prefer_local_fallback: true
   network_timeout_seconds: 90
   install_log_path: ".local/memory/plugin_install.log"

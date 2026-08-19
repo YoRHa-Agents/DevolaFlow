@@ -180,7 +180,10 @@ class TestAliasByteIdentical:
         # PPI001 surfaced (install-failure path); dispatch did NOT raise.
         ppi001 = [v for v in result.violations if v.code == "PPI001"]
         assert len(ppi001) == 1
-        assert ppi001[0].severity == "error"
+        # v15.2.0 B-6 — ui-pro is suggest-tier: severity degrades to warning
+        # (alias + split handler share _ppi001_violation, so the shape stays
+        # byte-identical between the two paths).
+        assert ppi001[0].severity == "warning"
 
     def test_alias_byte_identical_when_disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Env flag OFF → alias + both split handlers are zero-IO no-ops.

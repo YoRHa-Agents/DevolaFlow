@@ -341,7 +341,10 @@ class TestFailureHandling:
         assert len(result.violations) == 1
         violation = result.violations[0]
         assert violation.code == "PPI001"
-        assert violation.severity == "error"
+        # v15.2.0 B-6 — nines is suggest-tier: PPI001 degrades to warning
+        # severity (tier recorded in context; one-time hint appended).
+        assert violation.severity == "warning"
+        assert violation.context["tier"] == "suggest"
         assert "nines" in violation.message
         assert "PluginInstallError" in violation.message
         assert violation.context["plugin_id"] == "nines"
@@ -413,7 +416,10 @@ class TestFailureHandling:
         ):
             pre_plugin_invocation({"plugin_id": "nines"}, strict=True)
         assert exc_info.value.code == "PPI001"
-        assert exc_info.value.severity == "error"
+        # v15.2.0 B-6 — nines is suggest-tier so the severity is warning,
+        # but finalize's strict contract is unchanged: strict=True re-raises
+        # the TOP violation regardless of severity (strict is strict).
+        assert exc_info.value.severity == "warning"
 
     def test_unexpected_exception_reraised_per_s5(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """S-5: non-domain exceptions are logged loudly AND re-raised."""
@@ -823,4 +829,5 @@ class TestRunInstallThenUpgradeHelper:
             )
         assert len(violations) == 1
         assert violations[0].code == "PPI001"
-        assert violations[0].severity == "error"
+        # v15.2.0 B-6 — suggest-tier install failure is warning severity.
+        assert violations[0].severity == "warning"

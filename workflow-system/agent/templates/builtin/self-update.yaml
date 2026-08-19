@@ -99,7 +99,7 @@ stages:
     config:
       analysis_type: iteration_delta
       threshold: 0.10
-      ensure_plugins: ["si-chip"]
+      suggest_plugins: ["si-chip"]
       bridge_module: "devolaflow.si_chip_bridge"
       bridge_entry_point: "run_dogfood_cycle"
       permissive_on_missing_install: true

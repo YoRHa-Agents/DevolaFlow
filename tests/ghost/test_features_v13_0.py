@@ -112,9 +112,11 @@ def test_v13_0_0_web_design_workflow(project_root: Path) -> None:
     tpl = yaml.safe_load(tpl_path.read_text(encoding="utf-8"))
     assert tpl["metadata"]["name"] == "web-design"
     stage_by_id = {s["id"]: s for s in tpl["stages"]}
-    assert stage_by_id["design"]["config"]["ensure_plugins"] == ["ui-pro"]
-    assert stage_by_id["refine"]["config"]["ensure_plugins"] == ["impeccable"]
-    assert stage_by_id["verify"]["config"]["ensure_plugins"] == ["impeccable"]
+    # v15.2.0 B-6 — key renamed ensure_plugins → suggest_plugins (probe
+    # semantics); the v13.0.0 plugin-pairing contract itself is unchanged.
+    assert stage_by_id["design"]["config"]["suggest_plugins"] == ["ui-pro"]
+    assert stage_by_id["refine"]["config"]["suggest_plugins"] == ["impeccable"]
+    assert stage_by_id["verify"]["config"]["suggest_plugins"] == ["impeccable"]
 
     registry = yaml.safe_load(
         (project_root / "workflow-system/agent/templates/registry.yaml").read_text(encoding="utf-8")
