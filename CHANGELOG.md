@@ -5,7 +5,7 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [15.2.0] - 2026-08-20 — MINOR — Dependency Suggestion-ization (plugin `tier` field, `auto_install` default flip, `ensure_plugins` → `suggest_plugins` probe-and-degrade rename, tier-aware PPI001) + v15.1.0 Cycle-Compliance Backfill (W-16 cycle-close baseline regen + SI-3 evaluation + W-7 retrospective retro-filed)
 
 ### Operator-visible behaviour change (full_review_and_improve Track B-6 — dependency suggestion-ization; G5 remainder ×3 per phase2-convergence-plan §2.3; 04 §8)
 
