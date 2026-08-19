@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v15.0.0_baseline.json"
+V6_BASELINE_PATH = BASELINES_DIR / "v15.1.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -429,23 +429,18 @@ class TestBaselineFile:
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v15.0.0_baseline.json", (
-            f"Expected load_baseline() to prefer v15.0.0_baseline.json "
-            f"(W-16 wholesale regen at the v15.0.0 MAJOR cycle start — the "
-            f"template Phase B collapse + rule diet + SKILL/reference "
-            f"rewrites re-equilibrated 7 scenarios beyond the 5pp envelope "
-            f"vs the v14.5.0 equilibrium, headlined by spike_poc -15.23pp; "
-            f"the dependency_setup expectation was refreshed to the new "
-            f"SKILL truth (agent_teams -> wave_task_constraints) in the "
-            f"same regen. R2 same-cycle correction: the spike_poc drop was "
-            f"root-caused to the G-038 strict-graduation SKILL growth "
-            f"squeezing the important-tier context_isolation slice out of "
-            f"the unchanged 2975 budget — the scenario expectation was "
-            f"refreshed (context_isolation -> wave_task_constraints, the "
-            f"same shape as dependency_setup) and the baseline entry "
-            f"regenerated 84.63 -> 98.39, recovering toward the v14.5.0 "
-            f"99.86 level with no floor change; all 56 other entries "
-            f"byte-identical); got {newest.name}"
+        assert newest.name == "v15.1.0_baseline.json", (
+            f"Expected load_baseline() to prefer v15.1.0_baseline.json "
+            f"(W-16 wholesale regen at the v15.1.0 cycle CLOSE — no PV in "
+            f"the cycle observed drift beyond the 5pp envelope, so per the "
+            f"v12.3.0 clarification the regen lands at cycle close; the "
+            f"regen captured 38 sub-envelope equilibrium shifts from the "
+            f"v15.1.0 SKILL/reference edits, headlined by "
+            f"adversarial_data_instruction and security_audit "
+            f"100.0 -> 98.85 and dependency_setup 99.89 -> 100.0, all "
+            f"within tolerance; scenario count unchanged at 57. The "
+            f"out-of-window v14.3.0_baseline.json moved to Tier-C archive "
+            f"per A-2.4 in the same sweep); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines

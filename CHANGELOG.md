@@ -5,6 +5,14 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Governance (v15.1.0 cycle-compliance sweep — DR-2/DR-3/DR-4 cures from `phase2-convergence-plan.md` §3)
+
+- **W-16 cycle-close wholesale baseline regen (retro-run)**: the v15.1.0 cycle closed with no PV observing drift, so per the v12.3.0 W-16 clarification the wholesale regen was owed at cycle CLOSE — it did not run at the release cut. Now regenerated: `benchmarks/devolaflow_context/baselines/v15.1.0_baseline.json` (57 scenarios; 38 sub-envelope equilibrium shifts vs `v15.0.0_baseline.json`, max −1.15 pp — adversarial_data_instruction / security_audit 100.0 → 98.85 — 0 beyond the 5 pp envelope). `V6_BASELINE_PATH` + the newest-baseline pin in `tests/test_benchmarks.py` updated to the new witness. Per A-2.4 Tier-B (current + previous 2 cycles), `v14.3.0_baseline.json` slid out of the window and moved via `git mv` to `docs/cycle-archive/v14.3.0/baselines/` (Tier-C; zero test edits by design — the `tests/ghost/test_registries.py` window lint derives the expectation). No new code symbols; no new test functions (W-17: +0).
+- **SI-3 / W-3 evaluation retro-filed**: `.local/research/v15.1.0_evaluation.md` — weighted composite **9.20** (READY; MINOR bar ≥ 8.5), six dimensions scored against shipped evidence, process-violation self-report in its §3.
+- **W-7 / SI-8 retrospective retro-filed**: `.local/research/v15.1.0_retrospective.md` — gap-register disposition (6 shipped / 5 blocked on direction-lock / 2 deferred), stacked-PR + review-thread playbooks (L-1/L-2), and the root cause of all three violations (L-3: the operator-driven release runbook carries no SI-3/W-7/W-16 steps).
+
 ## [15.1.0] - 2026-08-20 — MINOR — Repo-Init Reliability (R5 Root-Cause Fixes ×4: gitignore / structure contract / codegraph backgrounding / dependency tiering) + Install-Manifest SSOT + Install Lifecycle (update compare / uninstall / doctor --skills) + Cursor Rules Dedup (repo-governance.mdc on-demand, −12K tokens/context)
 
 ### Test coverage (full_review_and_improve Track B-4 — adapter test parametrization + golden ×3 + Codex budget assertion)
