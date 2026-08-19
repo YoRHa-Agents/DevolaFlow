@@ -786,3 +786,127 @@ def test_v15_0_x_scaffold_gitignore_reliability_registered(project_root: Path) -
     assert "python3 -m devolaflow.local.workspace 2>/dev/null || true" not in install_sh, (
         "W-18 C-1 violation: install.sh regressed to swallowing scaffold failures."
     )
+
+
+def test_v15_0_x_init_structure_contract_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-2 — structure contract fixation (R5 F3).
+
+    Discharges the W-18 precondition for the C-2 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.local.workspace` is the SINGLE owner (A-5) of the
+        machine-readable scaffold structure contract:
+        `expected_scaffold_paths` / `expected_stub_first_lines` /
+        `verify_scaffold_structure` / `ScaffoldStructureError`; the
+        contract covers the v14.0.0 human surface.
+    (b) The doctor derives from the owner: `check_init_health` imports the
+        contract and the pre-C-2 hand-maintained `extras` list is GONE
+        (anti-second-list lint per the plan's "契约仅一处定义").
+    (c) `DoctorFinding` carries the `advisory` flag (skeleton drift is
+        non-blocking) and `install_local` runs the mandatory post-install
+        contract check (`_verify_local_install_health`).
+
+    Behavioural assertions live in
+    tests/test_init_doctor.py::TestStructureContract.
+    """
+    from devolaflow.lifecycle.validate_owned_files import DoctorFinding
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        expected_scaffold_paths,
+        expected_stub_first_lines,
+        verify_scaffold_structure,
+    )
+
+    # --- (a) single-owner contract --------------------------------------
+    assert callable(expected_scaffold_paths)
+    assert callable(expected_stub_first_lines)
+    assert callable(verify_scaffold_structure)
+    assert issubclass(ScaffoldStructureError, RuntimeError)
+    contract_paths = {p for p, _ in expected_scaffold_paths()}
+    assert ".local/human/input/" in contract_paths, (
+        "W-18 C-2 violation: structure contract lost the v14.0.0 human surface."
+    )
+
+    # --- (b) doctor derives; no second hand-maintained list -------------
+    vof_text = (project_root / "src/devolaflow/lifecycle/validate_owned_files.py").read_text(
+        encoding="utf-8"
+    )
+    assert "expected_scaffold_paths" in vof_text, (
+        "W-18 C-2 violation: check_init_health no longer derives from the owner contract."
+    )
+    assert '(".local/.agent/active/README.md", ".agent/active dir README")' not in vof_text, (
+        "W-18 C-2 violation: the hand-maintained extras list resurfaced in the doctor "
+        "(A-5 single-owner: derive from devolaflow.local.workspace instead)."
+    )
+
+    # --- (c) advisory flag + mandatory post-install check ----------------
+    assert "advisory" in DoctorFinding.__dataclass_fields__
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "_verify_local_install_health" in init_text, (
+        "W-18 C-2 violation: install_local lost the mandatory structure contract check."
+    )
+
+
+def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-3 — codegraph suggest-tier + backgrounding (R5 F2).
+
+    Discharges the W-18 precondition for the C-3 CHANGELOG entry (D-11:
+    overturns the 2026-05-23 "synchronous in ALL modes" locked decision).
+    Asserts the load-bearing surfaces:
+
+    (a) `devolaflow.codegraph.markers` ships the tri-state marker protocol
+        (mark_indexing / mark_ready / mark_failed / read_marker_state /
+        MarkerState) and does NOT duplicate the CLI probe (A-5 — the
+        probe stays `devolaflow.codegraph.is_codegraph_available`).
+    (b) `repo-init.yaml` declares codegraph_init as tier: suggest +
+        execution: background with the marker paths.
+    (c) The agent-facing docs no longer promise a synchronous ALL-modes
+        install (SKILL.md workflow row + references/codegraph.md §4.2).
+
+    Behavioural assertions live in tests/test_codegraph_markers.py +
+    tests/test_codegraph_workflow_wiring.py.
+    """
+    import devolaflow.codegraph as codegraph_pkg
+    import devolaflow.codegraph.markers as markers_mod
+
+    # --- (a) marker protocol + no probe duplicate ------------------------
+    for symbol in (
+        "mark_indexing",
+        "mark_ready",
+        "mark_failed",
+        "read_marker_state",
+        "MarkerState",
+    ):
+        assert hasattr(markers_mod, symbol), f"W-18 C-3 violation: markers.{symbol} missing"
+        assert symbol in codegraph_pkg.__all__
+    assert not hasattr(markers_mod, "codegraph_cli_available"), (
+        "W-18 C-3 violation: markers.py grew a second CLI probe — reuse "
+        "devolaflow.codegraph.is_codegraph_available per A-5."
+    )
+
+    # --- (b) template declares suggest-tier + background + markers -------
+    import yaml as _yaml
+
+    template = _yaml.safe_load(
+        (project_root / "workflow-system/agent/templates/builtin/repo-init.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    scaffold = next(s for s in template["stages"] if s.get("id") == "scaffold")
+    codegraph_init = scaffold["config"]["codegraph_init"]
+    assert codegraph_init.get("tier") == "suggest"
+    assert codegraph_init.get("execution") == "background"
+    assert set(codegraph_init.get("markers", {})) == {"indexing", "ready", "failed"}
+
+    # --- (c) docs no longer promise synchronous ALL-modes install --------
+    skill_text = (project_root / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
+    assert "auto-installs codegraph index in ALL modes" not in skill_text, (
+        "W-18 C-3 violation: SKILL.md still advertises the overturned "
+        "synchronous ALL-modes codegraph install."
+    )
+    ref_text = (project_root / "workflow-system/agent/references/codegraph.md").read_text(
+        encoding="utf-8"
+    )
+    assert "§4.6" in ref_text and ".codegraph/.indexing" in ref_text, (
+        "W-18 C-3 violation: references/codegraph.md lost the §4.6 marker protocol."
+    )

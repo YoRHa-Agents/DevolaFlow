@@ -332,9 +332,10 @@ propagates to the caller.
   search_symbols, get_impact, get_callers, get_affected_tests}` — the
   5 public researcher helpers consumed by L0/L1/L2/L3 dispatchers.
 * `workflow-system/agent/templates/builtin/repo-init.yaml` —
-  `scaffold.config.codegraph_init` (runs in ALL modes;
-  `on_failure: warn`) AND `verify.config.codegraph_smoke` (mode=full
-  only; `on_missing: warn`).
+  `scaffold.config.codegraph_init` (suggest-tier + backgrounded per
+  Track C-3 D-11; `on_failure: warn`; probe + tri-state markers per
+  `references/codegraph.md` §4.6) AND `verify.config.codegraph_smoke`
+  (mode=full only; `on_missing: warn`; marker-aware wording).
 * `workflow-system/agent/templates/builtin/{onboarding, security-audit,
   product-verification}.yaml` — analyze stage's
   `config.codegraph_commands` hint (informational; agent invokes on
@@ -368,8 +369,10 @@ propagates to the caller.
   `_DEGRADED_MODE_NOTIFIED` sentinel) so the operator gets the signal
   once without log spam.
 * Repo-init scaffold step's `codegraph_init` honours `on_failure:
-  warn` — emits a non-blocking WARN suggesting `npm install -g
-  @colbymchenry/codegraph` and continues; NEVER blocks scaffold.
+  warn` — probe absent → SKIP with one hint suggesting `npm install -g
+  @colbymchenry/codegraph`; probe present → background init whose
+  failure lands in `.codegraph/.failed` (S-5, never silent); NEVER
+  blocks scaffold either way.
 * Verify smoke at mode=full honours `on_missing: warn` — the verify
   suite reports PASS even when `.codegraph/codegraph.db` is absent
   (codegraph index absence is a degraded-mode signal, not a
@@ -383,7 +386,9 @@ propagates to the caller.
 1. **Install the CLI**: `npm install -g @colbymchenry/codegraph` —
    ~28KB package + bundled Node runtime; MIT-licensed.
 2. **Initialise the index**: `cd <repo> && codegraph init .` (the
-   repo-init scaffold step does this automatically in ALL modes).
+   repo-init scaffold step launches this as a BACKGROUND task when the
+   CLI is present — suggest-tier per Track C-3 D-11; progress is
+   reported via the `.codegraph/.indexing|.ready|.failed` markers).
 3. **Opt into auto-install**: `export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`
    (REUSES the existing flag per W-20; NO new env flag).
 4. **Verify health**: `codegraph status` reports the index path,

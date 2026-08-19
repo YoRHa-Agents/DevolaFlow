@@ -58,25 +58,53 @@ stages:
         - ".local/.agent/active/"
         - ".local/.agent/handoff/"
         - ".local/.agent/archive/"
-      # v12.5.0 PV-04 D-1.2: codegraph project-local index initialisation.
-      # Per the locked operator decision 2026-05-23, this sub-step runs in
-      # ALL modes (core / standard / full) — codegraph footprint is ~28KB
-      # npm package + bundled Node runtime; the index lives in .codegraph/
-      # (gitignored) and is a strict prerequisite for the downstream
-      # analyze workflows (onboarding / security-audit /
-      # product-verification) to deliver their 35%/70%/59% efficiency
-      # gains. Gating on mode would mean core-mode users miss those
-      # benefits.
+      # Track C-3 D-11 (full_review_and_improve): OVERTURNS the locked
+      # operator decision 2026-05-23 ("codegraph_init runs synchronously
+      # in ALL modes"). The R5 F2 clean-venv reproduction showed the npm
+      # cold install is minutes + tens of MB (not the documented ~28KB)
+      # and large-repo indexing blocks the foreground. codegraph is now
+      # SUGGEST-tier + backgrounded:
       #
-      # on_failure: "warn" — degraded-mode contract per
-      # references/degraded-mode.md (PV-05 codegraph row). When the CLI is
-      # not on $PATH AND DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 is unset, the
-      # scaffold step emits a non-blocking WARN suggesting
-      # `npm i -g @colbymchenry/codegraph` and continues — NEVER blocks
-      # the workflow (S-5 explicit warn + continue, NOT silent fail).
+      #   1. PROBE (tier: suggest) — `command -v codegraph` (code surface:
+      #      devolaflow.codegraph.is_codegraph_available). CLI
+      #      absent → SKIP: do not install, do not run; emit ONE hint
+      #      suggesting `npm i -g @colbymchenry/codegraph`. Runtime install
+      #      happens ONLY under the existing
+      #      DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1 opt-in (W-20 reuse — no new
+      #      flag). Downstream analyze falls back to Read/Glob/Grep per
+      #      references/degraded-mode.md.
+      #   2. BACKGROUND (execution: background) — CLI present → launch the
+      #      init as a background task (tool-native background shell),
+      #      write `.codegraph/.indexing` (pid + started_at) and continue
+      #      the scaffold IMMEDIATELY. On completion the task swaps the
+      #      marker to `.codegraph/.ready` (duration verbatim) or
+      #      `.codegraph/.failed` (error summary; S-5 not silent). Marker
+      #      helpers: devolaflow.codegraph.markers.{mark_indexing,
+      #      mark_ready, mark_failed, read_marker_state}.
+      #   3. DOWNSTREAM — analyze consumers (onboarding / security-audit /
+      #      product-verification) check the marker FIRST: ready → use the
+      #      index; indexing → bounded wait or degrade; failed / absent →
+      #      degrade immediately (one WARN).
+      #
+      # The `.codegraph/` gitignore entry is OWNED by the deterministic
+      # scaffold code path since Track C-1
+      # (devolaflow.local.workspace.SCAFFOLD_GITIGNORE_ENTRIES — written
+      # BEFORE any codegraph run, decoupled from its outcome). The
+      # add_to_gitignore hint below is retained as documentation for
+      # pre-C-1 consumers; it is NOT the mechanism.
+      #
+      # on_failure: "warn" — degraded-mode contract unchanged (PV-05
+      # codegraph row): codegraph failures NEVER block the workflow.
       codegraph_init:
         cmd: "codegraph init {project_root}"
         on_failure: "warn"
+        tier: suggest
+        execution: background
+        probe: "command -v codegraph"
+        markers:
+          indexing: ".codegraph/.indexing"
+          ready: ".codegraph/.ready"
+          failed: ".codegraph/.failed"
         add_to_gitignore:
           - ".codegraph/"
     input_mapping:
@@ -122,12 +150,16 @@ stages:
       fail_fast: true
       coverage_threshold: 0.0
       # v12.5.0 PV-04 D-1.2: codegraph index presence check runs ONLY at
-      # mode=full as a verification gate (the init itself ran during
-      # scaffold in ALL modes). When .codegraph/codegraph.db is missing
-      # under mode=full, this is a degraded-mode signal worth
+      # mode=full as a verification gate. When .codegraph/codegraph.db is
+      # missing under mode=full, this is a degraded-mode signal worth
       # surfacing — but per S-5 the smoke test treats absence as a WARN
       # (not a hard failure) so codegraph install / network failures do
       # not break repo-init verification altogether.
+      #
+      # Track C-3: with the scaffold init now BACKGROUNDED, absence at
+      # verify time may simply mean "still indexing" — check
+      # `.codegraph/.indexing` / `.ready` / `.failed` (marker protocol,
+      # devolaflow.codegraph.markers) before wording the WARN.
       codegraph_smoke:
         path: ".codegraph/codegraph.db"
         on_missing: "warn"
