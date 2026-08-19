@@ -24,8 +24,11 @@ python -c "from devolaflow.local.compiler import RuleCompiler; RuleCompiler('.ru
 |--------|--------|--------|-------------|
 | cursor | `.cursor/rules/repo-governance.mdc` | MDC | 14000 |
 | agents_md | `AGENTS.md` | Markdown | 14000 |
+| style_md | `docs/STYLE-RULES.md` | Markdown | 4000 |
 
 > Token budgets are sourced from `.rules/compile-config.yaml` — bumped from 8000/6000 to 12000/12000 in v9.0.0 PV-07 per ADR-007 D5; bumped 12000 → 14000 in v11.4.0 (cursor + agents_md parity bump) to absorb the new W-24 Subagent Pattern Selection rule. Pre-v11.4.0 cursor utilization was 11979/12000 (saturated; W-24 push silently dropped the Style Rules layer); post-bump 12740/14000 (~9% headroom; all 5 layers preserved). See `docs/cycle-archive/v11.4.0/other/v11.4.0_subagent_pattern_analysis.md`.
+>
+> The third target `style_md` (added in the v15.0.x series — clean_repo C2-1, decision D2) renders the P4 Style layer ALONE into the tool-agnostic on-demand view `docs/STYLE-RULES.md` (token_budget 4000 ≈ 50% headroom over the ~2K-token layer). The `agents_md` target emits a one-line `postscript` pointer ("Style (P4) rules: see `docs/STYLE-RULES.md`") after its compiled body so AGENTS.md-aware tools discover the Style corpus without loading it into every session (A-1 P2 / A-3). Drift-hash coverage is automatic — `check_rules_drift` enumerates the `targets` map.
 
 ## Source Mapping
 
@@ -39,8 +42,13 @@ retirement record in the CHANGELOG; resurrection blocked by
 `tests/ghost/test_rules.py::test_rule_surfaces_compile_only`; the SI-* /
 CP-* / CO-* / SF-* → S-*/A-*/C-*/W-* lineage lives in
 `docs/cycle-archive/adr/v15-ADR-008-rule-corpus-history-appendix.md`).
-The two P4 Style sources (`documentation-sync-rules.mdc`,
-`web-experience-rules.mdc`) remain in place as on-demand rule files:
-
-- `documentation-sync-rules.mdc` → P4 Style (DS-1–DS-5)
-- `web-experience-rules.mdc` → P4 Style (WX-1–WX-8)
+The two hand-maintained P4 Style on-demand copies
+(`documentation-sync-rules.mdc` → DS-1–DS-5, `web-experience-rules.mdc`
+→ WX-1–WX-8) were **retired 2026-08-19 in the v15.0.x series**
+(clean_repo C2-1, decision D2 — they carried no hash/drift protection
+and had demonstrably drifted from the canonical corpus). Their absorbed
+content lives in `.rules/style.mdc` (ST-1..ST-13) and compiles to the
+tool-agnostic `docs/STYLE-RULES.md` (the `style_md` target) in addition
+to the always-loaded `repo-governance.mdc`; `AGENTS.md` carries a
+one-line postscript pointer to it. `.cursor/rules/` is now exactly one
+file: the compiled `repo-governance.mdc`.

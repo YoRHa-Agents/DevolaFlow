@@ -867,3 +867,5 @@ lint), per `docs/cycle-archive/v11.1.0/retrospective.md` §3 telegraph
 — subagent-pattern is the **fourth** v12.0.0 graduation.
 
 Source: v15-ADR-008 §W-24; taxonomy in `references/subagent-patterns.md`.
+
+Style (P4) rules: see `docs/STYLE-RULES.md`
