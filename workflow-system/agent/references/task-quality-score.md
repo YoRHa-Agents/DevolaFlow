@@ -16,7 +16,7 @@ tier: 3
 token_estimate: 900
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-06-11"
+last_updated: "2026-08-19"
 ---
 
 # Task Quality Score (L0 ONLY)
@@ -104,4 +104,4 @@ The SECOND L0-only score — same doctrine, opposite axis. THIS rubric scores th
 * `src/devolaflow/lifecycle/reject_subagent_quality_score.py` — v12.2.0 PV-04 runtime hook that flags top-level `quality_score` in dispatch payloads
 * `workflow-system/agent/context_profiles.yaml#meta.task_quality_score_skip_layers` — declares which profile tiers MUST skip loading this section
 * `.local/feedbacks/feedback_for_v12.1.1.md` — the feedback that motivated this extraction
-* `.local/research/v12.3.0_gap_analysis.md` §2 D-2 — the closure decision
+* `docs/cycle-archive/v12.3.0/v12.3.0_gap_analysis.md` §2 D-2 — the closure decision

@@ -16,7 +16,7 @@ tier: 2
 token_estimate: 1100
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-06-11"
+last_updated: "2026-08-19"
 ---
 
 # Behavioral Guidelines (L3 Task Agent)
@@ -200,7 +200,7 @@ because the prompt context shifts; coding the decision behind a pure
 function gives the L3 Task Agent a stable contract to call.
 
 Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 5
-([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+([article cross-walk](docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md) §2 D-2).
 The article's source moment: *"A 'decide whether to retry on 503' LLM
 call worked for two weeks, then started flaking because the model began
 reading the request body as context for the decision. The retry policy
@@ -243,7 +243,7 @@ solution is usually broken — it neither matches Pattern A's invariants
 nor Pattern B's, so the resulting code works in neither regime.
 
 Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 7
-([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+([article cross-walk](docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md) §2 D-2).
 The article's source moment: *"A codebase had two error-handling
 patterns — async/await with try/catch and a global error boundary.
 Claude wrote code that did both. Errors got swallowed twice. 30
@@ -286,7 +286,7 @@ the marginal benefit of the "better" pattern. Novelty requires
 explicit ADR / escalation.
 
 Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 11
-([article cross-walk](.local/research/v12.2.0_gap_analysis.md) §2 D-2).
+([article cross-walk](docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md) §2 D-2).
 The article's source moment: *"Claude introduced React hooks into a
 class-component codebase. The hooks worked. They also broke the
 codebase's testing patterns, which assumed `componentDidMount`. Half
@@ -447,6 +447,6 @@ above is the L3 contract surface.
 - ``workflow-system/agent/context_profiles.yaml`` (per-profile defaults)
 - ``src/devolaflow/task_adaptive_selector.py:_select_behavioral_sections``
 - ``src/devolaflow/task_adaptive_selector.py:_load_line_level_criteria`` (PV-04)
-- ``.local/research/v8.0.0_patch_plan.md`` §3 P-08
-- ``.local/research/v8.2.0_patch_plan.md`` §3 PV-04
+- ``docs/cycle-archive/v8.0.0/v8.0.0_patch_plan.md`` §3 P-08
+- ``docs/cycle-archive/v8.2.0/v8.2.0_patch_plan.md`` §3 PV-04
 - ``https://github.com/forrestchang/andrej-karpathy-skills`` (upstream rules)

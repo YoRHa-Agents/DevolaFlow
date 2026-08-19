@@ -15,7 +15,7 @@ tier: 2
 token_estimate: 4600
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-06-11"
+last_updated: "2026-08-19"
 ---
 
 # Execution Protocol Reference
@@ -814,7 +814,7 @@ architectural pattern unlocks future asyncio extension at every
 layer of the dispatcher.
 
 **Source**: v9.7.0 PV-03 spec — closes D-N-3 (AsyncDispatchExecutor
-library-only carry-forward) from `.local/research/v9.7.0_gap_analysis.md`
+library-only carry-forward) from `docs/cycle-archive/v10.0.0/v9.7.0_gap_analysis.md`
 §1.2.
 
 ## 14. Per-Task-Type Timeout Defaults Helper (v12.2.0 PV-04+ / surfaced v12.3.0 PV-04)
@@ -879,10 +879,10 @@ v13.0.0+ landed in v14.5.0 (G-037) — see the graduation paragraph above.
 Round escalation (`apply_round_escalation`) does NOT touch timeouts:
 the resolved `timeout_seconds` is round-invariant by design.
 
-**Source**: v12.2.0 PV-04 spec (`.local/research/v12.2.0_gap_analysis.md`
+**Source**: v12.2.0 PV-04 spec (`docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md`
 §2 D-4) + v12.3.0 PV-04 discovery-hint surface
-(`.local/research/v12.3.0_gap_analysis.md` §2 D-3) + v14.5.0 G-037
-graduation (`.local/research/v14.2.0_gap_analysis.md` §2.7).
+(`docs/cycle-archive/v12.3.0/v12.3.0_gap_analysis.md` §2 D-3) + v14.5.0 G-037
+graduation (`docs/cycle-archive/v15.0.0/v14.2.0_gap_analysis.md` §2.7).
 
 ## 15. L3 Self-Verify (v14.3.0+)
 

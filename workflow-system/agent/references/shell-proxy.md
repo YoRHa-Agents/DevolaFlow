@@ -28,7 +28,7 @@ dependencies:
   - "agent/references/execution-protocol.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/message-schemas.md"
-last_updated: "2026-06-11"
+last_updated: "2026-08-19"
 ---
 
 # Shell-Proxy + Memory-Router Reference
@@ -181,7 +181,7 @@ src/devolaflow/lifecycle/
 ```
 
 The split mirrors RTK's own `src/discover/{registry,rules}.rs` pattern per
-`.local/research/v8.4.0_rtk_nines_analysis.md` §4.1: `registry.py` owns the
+`docs/cycle-archive/v8.4.0/nines/v8.4.0_rtk_nines_analysis.md` §4.1: `registry.py` owns the
 whitelist + the rewrite metadata; `proxy.py` owns the runtime orchestration
 (activation snapshot + per-call dispatch).
 
@@ -565,7 +565,7 @@ that don't invoke it see no behavior change.
 
 **Cycle-wide test count:** 3110 (v8.3.0) → 3215 (v8.3.4) = +105 net new
 tests across 4 PVs (slight +5 over the +100 cycle cap, documented in
-`.local/research/v8.4.0_evaluation.md`).
+`docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evaluation.md`).
 
 ### 8.2 EvoBench scenarios
 
@@ -665,17 +665,17 @@ the unit test alone is insufficient.
 
 ## 10. Cross-References
 
-- **SI-1 gap analysis:** `.local/research/v8.4.0_gap_analysis.md` (R-001 / R-002 / M-001 / M-002 in §2.1; D-001 split decision in §3; cycle invariants in §5)
-- **SI-2 NineS analysis on RTK:** `.local/research/v8.4.0_rtk_nines_analysis.md` (§4.1 single-source-of-truth pattern; §4.3 RTK `[filters.<name>]` schema; §6.1 Tier 1/Tier 2 whitelist; §6.2 hook delegator; §5.2 collision-warning enforcement)
+- **SI-1 gap analysis:** `docs/cycle-archive/v8.4.0/v8.4.0_gap_analysis.md` (R-001 / R-002 / M-001 / M-002 in §2.1; D-001 split decision in §3; cycle invariants in §5)
+- **SI-2 NineS analysis on RTK:** `docs/cycle-archive/v8.4.0/nines/v8.4.0_rtk_nines_analysis.md` (§4.1 single-source-of-truth pattern; §4.3 RTK `[filters.<name>]` schema; §6.1 Tier 1/Tier 2 whitelist; §6.2 hook delegator; §5.2 collision-warning enforcement)
 - **Per-PV evaluations (W-3 / SI-3):**
-  - `.local/research/v8.3.1_evaluation.md` (PV-01 RTK plugin) — composite 9.10/10
-  - `.local/research/v8.3.2_evaluation.md` (PV-02 shell-proxy) — composite 9.10/10
-  - `.local/research/v8.3.3_evaluation.md` (PV-03 memory router) — composite 9.10/10
-  - `.local/research/v8.3.4_evaluation.md` (PV-04 command mapping) — composite 9.10/10
+  - `docs/cycle-archive/v8.3.0/evaluation/v8.3.1_evaluation.md` (PV-01 RTK plugin) — composite 9.10/10
+  - `docs/cycle-archive/v8.3.0/evaluation/v8.3.2_evaluation.md` (PV-02 shell-proxy) — composite 9.10/10
+  - `docs/cycle-archive/v8.3.0/evaluation/v8.3.3_evaluation.md` (PV-03 memory router) — composite 9.10/10
+  - `docs/cycle-archive/v8.3.0/evaluation/v8.3.4_evaluation.md` (PV-04 command mapping) — composite 9.10/10
 - **Per-PV NineS:** `.local/research/v8.3.{1,2,3,4}_nines.{json,md}` (composite 0.9050 byte-stable across all 4 PVs)
-- **Rollup evaluation:** `.local/research/v8.4.0_evaluation.md` (cycle composite ≥ 8.5)
+- **Rollup evaluation:** `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evaluation.md` (cycle composite ≥ 8.5)
 - **Rollup NineS:** `.local/research/v8.4.0_nines.{json,md}`
-- **EvoBench summary:** `.local/research/v8.4.0_evobench_summary.md` (per-scenario delta vs v8.3.0_baseline.json)
+- **EvoBench summary:** `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evobench_summary.md` (per-scenario delta vs v8.3.0_baseline.json)
 - **Source:**
   - `src/devolaflow/plugins/installer.py` (PV-01)
   - `src/devolaflow/shell_proxy/{__init__,proxy,registry,commands}.py` (PV-02 + PV-04)

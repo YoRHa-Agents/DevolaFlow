@@ -1,8 +1,8 @@
 # Agent Workspace Schemas — Reference
 
 > Patch slot: **v8.2.4** (`feat/v8.3.0-pv04-agent-workspace-schemas`).
-> Closes gaps **C-002, M-003, M-005** from `.local/research/v8.3.0_gap_analysis.md`.
-> Authoritative spec: [`.local/research/v8.3.0_design.md` §2](../.local/research/v8.3.0_design.md).
+> Closes gaps **C-002, M-003, M-005** from `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md`.
+> Authoritative spec: [`docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §2](../docs/cycle-archive/v8.3.0/design/v8.3.0_design.md).
 
 Human-readable companion to the 10 YAML files under
 [`schemas/agent-workspace/`](../schemas/agent-workspace/). Use this when
@@ -75,7 +75,7 @@ this file carries deltas relative to the source-of-truth at
 Frontmatter: `parent`, `delta_target` (domain), `delta_kind` (`lite` ⇒ gate
 threshold 8.5; `full` ⇒ 9.0 per W-3 / SI-3). Schema:
 [`change-spec.yaml`](../schemas/agent-workspace/change-spec.yaml). External
-adoption: see `.local/research/v8.3.0_openspec_deep_analysis.md` and
+adoption: see `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md` and
 [OpenSpec](https://github.com/Fission-AI/OpenSpec). Validate with
 `pytest tests/test_agent_workspace_schemas.py -k change_spec -v`.
 
@@ -204,9 +204,9 @@ git check-ignore -v .local/memory/operational.jsonl    # rule does NOT start wit
 - [`tests/test_agent_workspace_schemas.py`](../tests/test_agent_workspace_schemas.py) — 154 schema tests.
 - [`tests/test_gitignore_policy.py`](../tests/test_gitignore_policy.py) — 37 gitignore policy tests.
 - [`.cursor/rules/repo-governance.mdc`](../.cursor/rules/repo-governance.mdc) + [`AGENTS.md`](../AGENTS.md) — compiled rule-layer copies of S-8 / S-9 / C-9 / A-4.
-- `.local/research/v8.3.0_design.md` §2, §3 — authoritative design.
-- `.local/research/v8.3.0_patch_plan.md` §v8.2.4 — patch decomposition.
-- `.local/research/v8.3.0_gap_analysis.md` §2.1 C-002, §2.3 M-003, M-005 — gap context.
+- `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §2, §3 — authoritative design.
+- `docs/cycle-archive/v8.3.0/v8.3.0_patch_plan.md` §v8.2.4 — patch decomposition.
+- `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md` §2.1 C-002, §2.3 M-003, M-005 — gap context.
 - DevolaFlow source: `https://github.com/YoRHa-Agents/DevolaFlow`
 - OpenSpec source: `https://github.com/Fission-AI/OpenSpec`
 - NineS source: `https://github.com/YoRHa-Agents/NineS`
