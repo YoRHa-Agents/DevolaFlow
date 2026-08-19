@@ -10,11 +10,15 @@ from devolaflow.local.workspace import (
     MEMORY_SUBDIRS,
     ON_DEMAND_DIRS,
     REQUIRED_DIRS,
+    SCAFFOLD_GITIGNORE_ENTRIES,
+    ScaffoldVerificationError,
+    ensure_gitignore_entries,
     generate_dir_readme,
     generate_index,
     generate_memory_index,
     generate_tracker,
     scaffold_local,
+    verify_scaffold_gitignore,
 )
 
 
@@ -317,3 +321,104 @@ class TestGenerateHelpers:
 
         assert out == d / "README.md"
         assert not out.exists()
+
+
+class TestEnsureGitignoreEntries:
+    """full_review_and_improve Track C-1 — deterministic gitignore entries.
+
+    R5 F1-H1: `.codegraph/` historically depended on the prompt-side
+    `add_to_gitignore` template semantic and was lost whenever `codegraph
+    init` failed. These tests pin the code-path replacement.
+    """
+
+    def test_creates_file_when_absent(self, tmp_repo: Path) -> None:
+        added = ensure_gitignore_entries(tmp_repo, (".codegraph/",))
+
+        assert added == [".codegraph/"]
+        text = (tmp_repo / ".gitignore").read_text(encoding="utf-8")
+        assert ".codegraph/" in text.splitlines()
+
+    def test_appends_missing_and_preserves_user_content(self, tmp_repo: Path) -> None:
+        gi = tmp_repo / ".gitignore"
+        user_content = "# my rules\nnode_modules/\n*.pyc\n"
+        gi.write_text(user_content, encoding="utf-8")
+
+        added = ensure_gitignore_entries(tmp_repo, (".codegraph/", "dist/"))
+
+        assert added == [".codegraph/", "dist/"]
+        text = gi.read_text(encoding="utf-8")
+        assert text.startswith(user_content.rstrip("\n") + "\n") or "# my rules" in text
+        lines = text.splitlines()
+        assert "node_modules/" in lines
+        assert "*.pyc" in lines
+        assert ".codegraph/" in lines
+        assert "dist/" in lines
+
+    def test_idempotent_across_three_runs(self, tmp_repo: Path) -> None:
+        ensure_gitignore_entries(tmp_repo, SCAFFOLD_GITIGNORE_ENTRIES)
+        after_first = (tmp_repo / ".gitignore").read_text(encoding="utf-8")
+
+        for _ in range(2):
+            added = ensure_gitignore_entries(tmp_repo, SCAFFOLD_GITIGNORE_ENTRIES)
+            assert added == []
+
+        after_third = (tmp_repo / ".gitignore").read_text(encoding="utf-8")
+        assert after_third == after_first
+        assert after_third.splitlines().count(".codegraph/") == 1
+
+
+class TestScaffoldGitignoreSelfCheck:
+    """Track C-1 — scaffold writes .codegraph/ deterministically + verifies."""
+
+    def test_scaffold_writes_codegraph_entry_without_codegraph_cli(self, tmp_repo: Path) -> None:
+        # No codegraph CLI exists in the test environment — the entry must
+        # land anyway (decoupled from `codegraph init` outcome; R5 F1-H1).
+        scaffold_local(tmp_repo)
+
+        rules = (tmp_repo / ".gitignore").read_text(encoding="utf-8").splitlines()
+        assert ".codegraph/" in rules
+        assert verify_scaffold_gitignore(tmp_repo) == []
+
+    def test_verify_reports_missing_rules(self, tmp_repo: Path) -> None:
+        missing = verify_scaffold_gitignore(tmp_repo)
+
+        assert ".codegraph/" in missing
+        assert ".local/*" in missing
+
+    def test_scaffold_raises_when_gitignore_unwritable(self, tmp_repo: Path) -> None:
+        # A directory named `.gitignore` defeats both read and write paths;
+        # the scaffold must fail LOUDLY (S-5) instead of reporting success.
+        (tmp_repo / ".gitignore").mkdir()
+
+        with pytest.raises(ScaffoldVerificationError) as excinfo:
+            scaffold_local(tmp_repo)
+
+        assert ".codegraph/" in excinfo.value.missing_rules
+        # verify=False restores the old advisory-only behaviour.
+        local_dir = scaffold_local(tmp_repo, verify=False)
+        assert local_dir.is_dir()
+
+    def test_python_dash_m_module_scaffolds(self, tmp_repo: Path) -> None:
+        # R5 F1-H2: `python3 -m devolaflow.local.workspace` was a silent
+        # no-op import (no __main__ path) that install.sh reported as
+        # success. Pin the healed behaviour end-to-end via subprocess.
+        import os
+        import subprocess
+        import sys
+
+        repo_root = Path(__file__).resolve().parents[1]
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(repo_root / "src") + os.pathsep + env.get("PYTHONPATH", "")
+
+        result = subprocess.run(
+            [sys.executable, "-m", "devolaflow.local.workspace"],
+            cwd=tmp_repo,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert (tmp_repo / ".local").is_dir()
+        assert ".codegraph/" in (tmp_repo / ".gitignore").read_text(encoding="utf-8")

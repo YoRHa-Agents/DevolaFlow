@@ -212,9 +212,121 @@ place once written.
 }
 
 
+class ScaffoldVerificationError(RuntimeError):
+    """Raised when the post-scaffold gitignore self-check finds missing rules.
+
+    full_review_and_improve Track C-1 (R5 F1-H3): the scaffold previously
+    relied on advisory WARN logs for gitignore write failures, so a broken
+    ``.gitignore`` (read-only FS, path-is-a-directory, partial user edits)
+    produced a "successful" scaffold with missing entries that nobody
+    noticed. Per S-5 the scaffold now verifies its own output and raises
+    this error with the exact missing rules so the operator (or calling
+    agent) can repair and re-run — the scaffold itself stays idempotent.
+    """
+
+    def __init__(self, missing_rules: list[str], gitignore_path: Path) -> None:
+        self.missing_rules = list(missing_rules)
+        self.gitignore_path = gitignore_path
+        super().__init__(
+            f"scaffold self-check failed: {gitignore_path} is missing "
+            f"{len(self.missing_rules)} required rule(s): {self.missing_rules}. "
+            "Fix the file (or its permissions) and re-run the scaffold."
+        )
+
+
+# full_review_and_improve Track C-1 (R5 F1-H1): entries the scaffold writes
+# DETERMINISTICALLY, decoupled from any plugin/CLI outcome. `.codegraph/`
+# historically depended on the repo-init template's prompt-side
+# `codegraph_init.add_to_gitignore` semantic — when `codegraph init` failed
+# (on_failure: warn) the entry was silently skipped. The scaffold now owns
+# the entry: it is written BEFORE any codegraph invocation and regardless
+# of whether the CLI exists.
+SCAFFOLD_GITIGNORE_ENTRIES: tuple[str, ...] = (".codegraph/",)
+
+_SCAFFOLD_ENTRIES_HEADER: str = "# DevolaFlow scaffold entries (tool-local caches; safe to keep)"
+
+
+def ensure_gitignore_entries(cwd: str | Path, entries: tuple[str, ...] | list[str]) -> list[str]:
+    """Idempotently append missing ignore ``entries`` to ``cwd/.gitignore``.
+
+    Deterministic replacement for the prompt-side ``add_to_gitignore``
+    template semantic (R5 F1-H1/H3): existing user content and comments are
+    preserved verbatim; entries already present as exact rules are skipped;
+    missing entries are appended under a single header comment. Safe to
+    re-run any number of times — a no-op run leaves the file byte-identical.
+
+    Read/write failures log an explicit WARNING (S-5) and return ``[]``;
+    the caller's verification step (:func:`verify_scaffold_gitignore` via
+    ``scaffold_local``) is responsible for escalating persistent failures.
+
+    Returns:
+        The list of entries actually appended (empty when all were present).
+    """
+    cwd = Path(cwd)
+    gi = cwd / ".gitignore"
+
+    text = ""
+    if gi.exists():
+        try:
+            text = gi.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _LOGGER.warning(
+                "ensure_gitignore_entries: could not read %s: %s; entries not written",
+                gi,
+                exc,
+            )
+            return []
+
+    existing_rules = set(_parse_gitignore_rules(text))
+    missing = [e for e in entries if e not in existing_rules]
+    if not missing:
+        return []
+
+    lines = text.splitlines()
+    if lines and lines[-1].strip():
+        lines.append("")
+    if _SCAFFOLD_ENTRIES_HEADER not in text:
+        lines.append(_SCAFFOLD_ENTRIES_HEADER)
+    lines.extend(missing)
+
+    try:
+        gi.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    except OSError as exc:
+        _LOGGER.warning(
+            "ensure_gitignore_entries: could not write %s: %s; entries not written",
+            gi,
+            exc,
+        )
+        return []
+    return missing
+
+
+def verify_scaffold_gitignore(cwd: str | Path) -> list[str]:
+    """Return the scaffold-required gitignore rules missing from ``cwd``.
+
+    The required set is the v12.2.0 ``.local/`` whitelist detection key
+    (:data:`_LOCAL_WHITELIST_REQUIRED_RULES`) plus the deterministic
+    scaffold entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`). Empty list means
+    the ``.gitignore`` is in the expected post-scaffold state. Pure check —
+    never writes; unreadable files report every required rule as missing.
+    """
+    cwd = Path(cwd)
+    gi = cwd / ".gitignore"
+    required = sorted(_LOCAL_WHITELIST_REQUIRED_RULES) + list(SCAFFOLD_GITIGNORE_ENTRIES)
+    if not gi.is_file():
+        return required
+    try:
+        rules = set(_parse_gitignore_rules(gi.read_text(encoding="utf-8")))
+    except (OSError, UnicodeDecodeError):
+        return required
+    return [r for r in required if r not in rules]
+
+
 def scaffold_local(
     cwd: str | Path,
     dirs: list[str] | None = None,
+    *,
+    verify: bool = True,
 ) -> Path:
     """Create .local/ with required dirs + optional on-demand dirs.
 
@@ -231,17 +343,33 @@ def scaffold_local(
       ``TRACKER.md`` / ``MEMORY.md`` on the next run. Both helpers no-op
       when the target file already exists.
 
+    full_review_and_improve Track C-1 adds two gitignore guarantees:
+
+    - Deterministic entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`, e.g.
+      ``.codegraph/``) are written via :func:`ensure_gitignore_entries`
+      BEFORE any plugin/CLI runs — decoupled from `codegraph init` outcome.
+    - A post-scaffold self-check (:func:`verify_scaffold_gitignore`) raises
+      :class:`ScaffoldVerificationError` when required rules are missing
+      (S-5: no silent success). Pass ``verify=False`` to restore the old
+      advisory-only behaviour.
+
     Args:
         cwd: Working directory (repo root).
         dirs: Additional on-demand directories to create.  Only names
               listed in ON_DEMAND_DIRS are accepted; unknown names are
               silently ignored.
+        verify: Run the post-scaffold gitignore self-check (default True).
 
     Returns:
         Path to the .local/ directory.
+
+    Raises:
+        ScaffoldVerificationError: when ``verify=True`` and required
+            gitignore rules are still missing after the scaffold ran.
     """
     cwd = Path(cwd)
     ensure_local_gitignore(cwd)
+    ensure_gitignore_entries(cwd, SCAFFOLD_GITIGNORE_ENTRIES)
 
     local_dir = cwd / ".local"
     local_dir.mkdir(exist_ok=True)
@@ -275,6 +403,11 @@ def scaffold_local(
         + on_demand_created
     )
     _audit_gitignore_coverage(cwd, created_roots)
+
+    if verify:
+        missing_rules = verify_scaffold_gitignore(cwd)
+        if missing_rules:
+            raise ScaffoldVerificationError(missing_rules, cwd / ".gitignore")
 
     return local_dir
 
@@ -792,3 +925,15 @@ def generate_index(local_dir: str | Path) -> Path:
 
     index_path.write_text(new_content, encoding="utf-8")
     return index_path
+
+
+if __name__ == "__main__":
+    # full_review_and_improve Track C-1 (R5 F1-H2): `scripts/install.sh local`
+    # has invoked `python3 -m devolaflow.local.workspace` since v9.x, but the
+    # module had no __main__ path — the call imported the module and exited 0
+    # without scaffolding anything (silent no-op). This block makes the
+    # historic invocation real. Failures propagate as a traceback + non-zero
+    # exit per S-5; the ScaffoldVerificationError message carries the exact
+    # missing rules.
+    scaffold_local(Path.cwd())
+    print(".local/ workspace scaffolded (directories + gitignore verified).")

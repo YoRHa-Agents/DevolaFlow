@@ -415,9 +415,16 @@ def install_local(
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
 
-    from devolaflow.local.workspace import scaffold_local
+    from devolaflow.local.workspace import ScaffoldVerificationError, scaffold_local
 
-    scaffold_local(cwd)
+    try:
+        scaffold_local(cwd)
+    except ScaffoldVerificationError as exc:
+        # Track C-1 (S-5): the post-scaffold gitignore self-check failed.
+        # Surface the exact missing rules + a recovery hint instead of a
+        # traceback, and exit non-zero — no more silent "success".
+        print(f"  FAIL {exc}")
+        sys.exit(1)
 
     rules_dir = cwd / ".rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
