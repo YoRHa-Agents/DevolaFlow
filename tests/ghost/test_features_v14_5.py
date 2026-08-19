@@ -15,48 +15,6 @@ from pathlib import Path
 
 import yaml
 
-# The 10 Tier-A byte-witnesses (IMMUTABLE per A-2.4 tiered retention /
-# v15-ADR-005 G-014) — pruning or relocating ANY of these is a release
-# blocker.
-_TIER_A_WITNESSES: frozenset[str] = frozenset(
-    {
-        "layout_invariant_v7.0.0.yaml",
-        "layout_invariant_v7.3.0.yaml",
-        "layout_invariant_v8.0.0.yaml",
-        "layout_invariant_v8.3.0.yaml",
-        "layout_invariant_v8.4.0.yaml",
-        "layout_invariant_v9.2.0.yaml",
-        "layout_invariant_v9.3.0.yaml",
-        "layout_invariant_v9.7.0.yaml",
-        "layout_invariant_v10.2.0.yaml",
-        "layout_invariant_v12.0.0.yaml",
-    }
-)
-
-# The 12 documented JSON keeps after the clean_repo Phase D Tier-C
-# sweep: the Tier-B rolling window is now v15.0.0 (current cycle,
-# carrying the newest-baseline pin in tests/test_benchmarks.py) +
-# v14.5.0 + v14.3.0 (previous two cycles), plus the files still loaded
-# by in-repo tests. v14.0.0_baseline.json / v14.1.0_baseline.json slid
-# out of the window and were archived per A-2.4 Tier-C via git mv to
-# docs/cycle-archive/<cycle>/baselines/ (clean_repo Phase D).
-_KEPT_BASELINE_JSONS: frozenset[str] = frozenset(
-    {
-        "v2.1.0_baseline.json",
-        "v9.2.0_baseline.json",
-        "v9.3.0_baseline.json",
-        "v9.3.0_latency.json",
-        "v9.7.0_baseline.json",
-        "v9.7.0_latency.json",
-        "v9.7.0_latency_intermediate.json",
-        "v10.2.0_baseline.json",
-        "v11.1.0_baseline.json",
-        "v14.3.0_baseline.json",
-        "v14.5.0_baseline.json",
-        "v15.0.0_baseline.json",
-    }
-)
-
 
 def _load_script_module(project_root: Path, rel_path: str, name: str):
     spec = importlib.util.spec_from_file_location(name, project_root / rel_path)
@@ -191,33 +149,19 @@ def test_v14_5_0_baseline_tiering_registered(project_root: Path) -> None:
     Discharges the W-18 precondition for the v14.5.0 CHANGELOG entry on
     the T3 slice. The stanza pins:
 
-    (a) benchmarks/devolaflow_context/baselines/ contains EXACTLY the
-        kept set — the 10 Tier-A yaml witnesses + the documented JSON
-        keeps (Tier-B window + in-repo-test loads + the v14.5.0 W-16
-        regen artifact). Tier-C files live under
-        docs/cycle-archive/*/baselines/ instead.
+    (a) [MIGRATED — clean_repo Phase C1-3, decision D4] the exact
+        baselines/ listing lint moved to tests/ghost/test_registries.py::
+        test_baselines_dir_matches_tier_a_pin_and_derived_tier_b — the
+        Tier-A witness pin moved there VERBATIM (still hand-frozen per
+        A-2.4) and the hand-pinned ``_KEPT_BASELINE_JSONS`` frozenset was
+        retired in favour of the derived Tier-B window
+        (``_tier_b_window`` ∪ ``_TEST_LOADED_KEEPS`` ∪ newest). Single
+        authority per A-5 — no listing assertion remains here.
     (b) The write-only ``backward_compat`` boolean block is GONE from
         schemas/lean-dispatch.yaml#layout_invariant.enforcement.
     (c) The compiled A-2.4 rule text carries the Tier-A/B/C tiered
         retention wording in BOTH corpus targets.
     """
-    # --- (a) exact kept set ---------------------------------------------
-    baselines_dir = project_root / "benchmarks/devolaflow_context/baselines"
-    yaml_names = {p.name for p in baselines_dir.glob("*.yaml")}
-    json_names = {p.name for p in baselines_dir.glob("*.json")}
-    assert yaml_names == set(_TIER_A_WITNESSES), (
-        f"W-18 v14.5.0 violation: Tier-A witness set drifted — "
-        f"missing {sorted(set(_TIER_A_WITNESSES) - yaml_names)}, "
-        f"unexpected {sorted(yaml_names - set(_TIER_A_WITNESSES))}. "
-        "Tier-A goldens are IMMUTABLE per A-2.4 (v15-ADR-005)."
-    )
-    assert json_names == set(_KEPT_BASELINE_JSONS), (
-        f"W-18 v14.5.0 violation: kept baseline-JSON set drifted — "
-        f"missing {sorted(set(_KEPT_BASELINE_JSONS) - json_names)}, "
-        f"unexpected {sorted(json_names - set(_KEPT_BASELINE_JSONS))}. "
-        "Tier-C archival goes through git mv to docs/cycle-archive/<cycle>/baselines/."
-    )
-
     # --- (b) backward_compat block removed (parsed, not text — the schema
     # keeps an explanatory comment) -----------------------------------------
     schema = yaml.safe_load(
