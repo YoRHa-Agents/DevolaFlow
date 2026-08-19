@@ -142,7 +142,7 @@ Match user intent to workflow type, then load the corresponding stage template.
 | update refs, self-update, check references | `self-update` | check-refs → research-updates → decompose → integrate → si_chip_gate → test → self-improve → evaluate |
 | verify, product verification, visual test, UAT, user-facing quality | `wd(product-verification)` | analyze → design → implement → test → verify → review → validate |
 | nines-assisted self-eval, NineS analysis, evaluation pipeline | `nines-assisted` | precondition → research → design → plan → impl → review → test → refine → validate → release |
-| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + auto-installs codegraph index in ALL modes) → compile → interview → verify (mode: core\|standard\|full) |
+| init repo, initialize, scaffold workspace, setup rules, 初始化仓库 | `repo-init` | analyze → scaffold(.local/ + .rules/ + codegraph suggest-tier: background init when CLI present, skip otherwise) → compile → interview → verify (mode: core\|standard\|full) |
 | change, propose, apply, archive, lifecycle, OpenSpec | `change-driven` | propose → apply → verify → archive (lite/full mode); Rule A-6 auto-activates when `DEVOLAFLOW_AGENT_WORKSPACE=1` AND complexity ≥ Standard (CLI: `/devola:{propose,apply,verify,archive}`; `--no-change` opt-out) |
 | entropy cleanup, gc agent, stale docs, drift audit | `cd(entropy-cleanup)` | scan → propose → review → apply |
 | web design, frontend design, landing page, polish UI, ui-pro, impeccable | `web-design` | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect` gate); refine↔verify convergence loop |

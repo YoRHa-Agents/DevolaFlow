@@ -102,6 +102,22 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registry symbol per A-5.2 — pure read-only YAML-frontmatter
         # parser.
         "devolaflow.si_chip_bridge.install_resolver:read_installed_si_chip_version",
+        # Track C-3 D-11 (full_review_and_improve) — the tri-state marker
+        # protocol for the backgrounded `codegraph init`. The writers +
+        # reader are invoked at WORKFLOW RUNTIME: the repo-init scaffold
+        # step (`repo-init.yaml::codegraph_init`, `execution: background`)
+        # and downstream analyze consumers call them via agent-side
+        # `python -c "..."` subprocesses, which the AST walk cannot see —
+        # same shape as `rebuild_index` / `read_installed_si_chip_version`
+        # above. Behaviour pinned by tests/test_codegraph_markers.py; the
+        # W-18 stanza is
+        # tests/ghost/test_features_v15_0.py::test_v15_0_x_codegraph_backgrounding_registered.
+        # NOT domain-SSOT registry symbols per A-5.2 — pure marker-file
+        # IO helpers with no registration data.
+        "devolaflow.codegraph.markers:mark_indexing",
+        "devolaflow.codegraph.markers:mark_ready",
+        "devolaflow.codegraph.markers:mark_failed",
+        "devolaflow.codegraph.markers:read_marker_state",
         # v10.2.1 PV-02 (D-S-2 closure) — dispatch_dogfood_cycle is the
         # public L0/L1 wrapper that exposes the persistent BasicAbility
         # optimisation factory at the workflow-stage surface. v10.2.1

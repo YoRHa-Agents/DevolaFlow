@@ -4,8 +4,10 @@ Pins the codegraph integration surfaces in:
 
 * ``workflow-system/agent/templates/builtin/repo-init.yaml`` — analyze
   stage gains ``codegraph_commands`` hint; scaffold stage gains
-  ``codegraph_init`` sub-step (runs in ALL modes per locked operator
-  decision); verify stage gains ``codegraph_smoke`` presence check.
+  ``codegraph_init`` sub-step (Track C-3 D-11: suggest-tier +
+  backgrounded with tri-state markers, overturning the 2026-05-23
+  ALL-modes-synchronous decision); verify stage gains
+  ``codegraph_smoke`` presence check.
 * the 3 sister templates (onboarding / security-audit /
   product-verification) — analyze-stage ``codegraph_commands`` recipes.
   v15.0.0 update (v15-ADR-002 Phase B): the sister yamls were deleted;
@@ -88,20 +90,54 @@ class TestRepoInitCodegraphWiring:
             "leak into git."
         )
 
-    def test_scaffold_codegraph_init_runs_in_all_modes(self) -> None:
-        """Per locked operator decision 2026-05-23: codegraph_init has NO mode gate.
+    def test_scaffold_stage_has_no_mode_gate(self) -> None:
+        """The scaffold stage itself has NO mode gate (unchanged by C-3).
 
-        The scaffold stage has no skip_condition (runs in all modes), and
-        the codegraph_init sub-step inherits that — codegraph footprint
-        is small enough that even mode=core users get the index for the
-        downstream analyze workflows' efficiency gains.
+        Track C-3 D-11 changed HOW codegraph_init runs (suggest-tier +
+        backgrounded), not WHEN the scaffold stage runs — scaffold still
+        executes in all modes; only the codegraph sub-step is now gated
+        by the CLI-presence probe.
         """
         template = _load_yaml(_REPO_INIT_PATH)
         scaffold = _find_stage(template, "scaffold")
-        # Scaffold itself MUST not have a skip_condition that gates by mode.
         assert "skip_condition" not in scaffold, (
-            "v12.5.0 PV-04 D-1.2: repo-init.scaffold MUST NOT carry a "
-            "skip_condition (the codegraph_init sub-step runs in all modes)."
+            "repo-init.scaffold MUST NOT carry a skip_condition — the "
+            "scaffold stage runs in all modes (C-3 only gates the "
+            "codegraph_init sub-step behind the CLI probe)."
+        )
+
+    def test_scaffold_codegraph_init_is_suggest_tier_background(self) -> None:
+        """Track C-3 D-11: codegraph_init is suggest-tier + backgrounded.
+
+        Overturns the 2026-05-23 locked decision (synchronous in ALL
+        modes) per the R5 F2 root cause: npm cold install + large-repo
+        indexing block the foreground for minutes. The template declares
+        the probe (CLI absent → skip with one hint) and the tri-state
+        marker protocol (coordination surface for downstream consumers).
+        """
+        template = _load_yaml(_REPO_INIT_PATH)
+        scaffold = _find_stage(template, "scaffold")
+        codegraph_init = (scaffold.get("config") or {}).get("codegraph_init") or {}
+        assert codegraph_init.get("tier") == "suggest", (
+            "Track C-3 D-11: codegraph_init.tier must be 'suggest' — "
+            "CLI absent means skip (one install hint), never a forced "
+            "install outside DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1."
+        )
+        assert codegraph_init.get("execution") == "background", (
+            "Track C-3 D-11: codegraph_init.execution must be "
+            "'background' — the init must not block the scaffold "
+            "foreground (R5 F2 root cause)."
+        )
+        assert codegraph_init.get("probe") == "command -v codegraph"
+        markers = codegraph_init.get("markers") or {}
+        assert markers == {
+            "indexing": ".codegraph/.indexing",
+            "ready": ".codegraph/.ready",
+            "failed": ".codegraph/.failed",
+        }, (
+            "Track C-3: codegraph_init.markers must declare the "
+            "tri-state marker paths matching devolaflow.codegraph.markers "
+            "constants."
         )
 
     def test_verify_stage_has_codegraph_smoke(self) -> None:
