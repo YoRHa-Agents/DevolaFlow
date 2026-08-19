@@ -1,0 +1,759 @@
+{
+  "target": "/home/agent/reference/Understand-Anything",
+  "findings": [
+    {
+      "id": "CC-caacb8-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'merge_and_normalize' has cyclomatic complexity 33",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-batch-graphs.py:195",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-caacb8-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-batch-graphs.py: 409 lines, 7 functions, 0 classes, 6 imports, avg complexity 10.3",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-batch-graphs.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-caacb8-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: collections, json, pathlib, re, sys, typing",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-batch-graphs.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-a2f016-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'merge_graphs' has cyclomatic complexity 44",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-subdomain-graphs.py:52",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-a2f016-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'main' has cyclomatic complexity 12",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-subdomain-graphs.py:235",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-a2f016-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-subdomain-graphs.py: 308 lines, 4 functions, 0 classes, 5 imports, avg complexity 15.5",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-subdomain-graphs.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-a2f016-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: collections, json, pathlib, sys, typing",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-subdomain-graphs.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-1abec8-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'scan_file_tree' has cyclomatic complexity 14",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py:151",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-1abec8-0001",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function '_walk' has cyclomatic complexity 14",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py:159",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-1abec8-0002",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'extract_metadata' has cyclomatic complexity 13",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py:306",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-1abec8-0003",
+      "severity": "info",
+      "category": "summary",
+      "message": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py: 428 lines, 10 functions, 0 classes, 6 imports, avg complexity 8.1",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-1abec8-0004",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: json, os, pathlib, re, sys, typing",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-domain/extract-domain-context.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-8636c4-0000",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'merge' has cyclomatic complexity 59",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/merge-knowledge-graph.py:92",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-8636c4-0001",
+      "severity": "info",
+      "category": "summary",
+      "message": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/merge-knowledge-graph.py: 397 lines, 5 functions, 0 classes, 7 imports, avg complexity 13.0",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/merge-knowledge-graph.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-8636c4-0002",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: datetime, json, os, pathlib, re, subprocess, sys",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/merge-knowledge-graph.py",
+      "suggestion": ""
+    },
+    {
+      "id": "CC-26ac96-0000",
+      "severity": "warning",
+      "category": "complexity",
+      "message": "Function 'extract_first_paragraph' has cyclomatic complexity 17",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/parse-knowledge-base.py:113",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "CC-26ac96-0001",
+      "severity": "error",
+      "category": "complexity",
+      "message": "Function 'parse_wiki' has cyclomatic complexity 42",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/parse-knowledge-base.py:278",
+      "suggestion": "Consider breaking this function into smaller pieces."
+    },
+    {
+      "id": "SUM-26ac96-0002",
+      "severity": "info",
+      "category": "summary",
+      "message": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/parse-knowledge-base.py: 509 lines, 14 functions, 0 classes, 5 imports, avg complexity 8.1",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/parse-knowledge-base.py",
+      "suggestion": ""
+    },
+    {
+      "id": "DEP-26ac96-0003",
+      "severity": "info",
+      "category": "dependencies",
+      "message": "Imports: json, os, pathlib, re, sys",
+      "location": "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand-knowledge/parse-knowledge-base.py",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-0000",
+      "severity": "info",
+      "category": "agent_impact",
+      "message": "Repository contains 10 Agent-facing artifact(s) across 5 mechanism(s)",
+      "location": ".codex/INSTALL.md",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-0001",
+      "severity": "info",
+      "category": "context_economics",
+      "message": "Total Agent context: ~55531 tokens, overhead: ~55531 tokens, estimated savings ratio: 50.0%",
+      "location": "",
+      "suggestion": ""
+    },
+    {
+      "id": "AI-0002",
+      "severity": "warning",
+      "category": "context_economics",
+      "message": "Agent context overhead is high (55531 tokens). Consider compressing or splitting Agent-facing files.",
+      "location": "",
+      "suggestion": "Split large instruction files into role-specific segments or apply token-compression techniques."
+    }
+  ],
+  "metrics": {
+    "files_analyzed": 5,
+    "total_lines": 2051,
+    "total_functions": 40,
+    "total_classes": 0,
+    "total_imports": 29,
+    "avg_complexity": 11.01,
+    "knowledge_units": 40,
+    "duration_ms": 68.88,
+    "packages": 3,
+    "python_modules": 5,
+    "file_type_counts": {
+      ".md": 88,
+      ".yaml": 4,
+      ".json": 13,
+      "(no ext)": 1,
+      ".png": 2,
+      ".jpg": 2,
+      ".gif": 4,
+      ".mjs": 2,
+      ".ts": 135,
+      ".py": 5,
+      ".html": 1,
+      ".tsx": 29,
+      ".css": 2,
+      ".ico": 1,
+      ".svg": 1,
+      ".woff2": 4,
+      ".astro": 9
+    },
+    "strategy": "functional",
+    "depth": "deep",
+    "total_files_scanned": 110,
+    "agent_impact": {
+      "target": "/home/agent/reference/Understand-Anything",
+      "mechanisms": [
+        {
+          "id": "mech-f49c01c9",
+          "name": "behavioral_rules",
+          "category": "behavioral_instruction",
+          "description": "Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 10 file(s))",
+          "evidence_files": [
+            ".codex/INSTALL.md",
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-diff/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "estimated_token_impact": 11206,
+          "confidence": 1.0
+        },
+        {
+          "id": "mech-896c5f2f",
+          "name": "token_compression",
+          "category": "context_compression",
+          "description": "Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 4 file(s))",
+          "evidence_files": [
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "estimated_token_impact": -7260,
+          "confidence": 1.0
+        },
+        {
+          "id": "mech-cc577d06",
+          "name": "multi_platform_sync",
+          "category": "distribution",
+          "description": "Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 10 file(s))",
+          "evidence_files": [
+            ".codex/INSTALL.md",
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-diff/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "estimated_token_impact": 11206,
+          "confidence": 1.0
+        },
+        {
+          "id": "mech-8891ab37",
+          "name": "drift_prevention",
+          "category": "persistence",
+          "description": "Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 3 file(s))",
+          "evidence_files": [
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "estimated_token_impact": 6922,
+          "confidence": 1.0
+        },
+        {
+          "id": "mech-43b579f4",
+          "name": "safety_guardrails",
+          "category": "safety",
+          "description": "Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 4 file(s))",
+          "evidence_files": [
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "estimated_token_impact": 7735,
+          "confidence": 1.0
+        }
+      ],
+      "economics": {
+        "overhead_tokens": 55531,
+        "estimated_savings_ratio": 0.5,
+        "mechanism_count": 5,
+        "agent_facing_files": 10,
+        "total_agent_context_tokens": 55531,
+        "break_even_interactions": 2
+      },
+      "agent_facing_artifacts": [
+        ".codex/INSTALL.md",
+        "CLAUDE.md",
+        "understand-anything-plugin/skills/understand-chat/SKILL.md",
+        "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+        "understand-anything-plugin/skills/understand-diff/SKILL.md",
+        "understand-anything-plugin/skills/understand-domain/SKILL.md",
+        "understand-anything-plugin/skills/understand-explain/SKILL.md",
+        "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+        "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+        "understand-anything-plugin/skills/understand/SKILL.md"
+      ],
+      "findings": [
+        {
+          "id": "AI-0000",
+          "severity": "info",
+          "category": "agent_impact",
+          "message": "Repository contains 10 Agent-facing artifact(s) across 5 mechanism(s)",
+          "location": ".codex/INSTALL.md",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-0001",
+          "severity": "info",
+          "category": "context_economics",
+          "message": "Total Agent context: ~55531 tokens, overhead: ~55531 tokens, estimated savings ratio: 50.0%",
+          "location": "",
+          "suggestion": ""
+        },
+        {
+          "id": "AI-0002",
+          "severity": "warning",
+          "category": "context_economics",
+          "message": "Agent context overhead is high (55531 tokens). Consider compressing or splitting Agent-facing files.",
+          "location": "",
+          "suggestion": "Split large instruction files into role-specific segments or apply token-compression techniques."
+        }
+      ],
+      "knowledge_units": [
+        {
+          "id": "agent_mech::mech-f49c01c9",
+          "source": ".codex/INSTALL.md",
+          "content": "behavioral_rules: Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 10 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              ".codex/INSTALL.md",
+              "CLAUDE.md",
+              "understand-anything-plugin/skills/understand-chat/SKILL.md",
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand-diff/SKILL.md",
+              "understand-anything-plugin/skills/understand-domain/SKILL.md",
+              "understand-anything-plugin/skills/understand-explain/SKILL.md",
+              "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+              "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ],
+            "category": "behavioral_instruction"
+          },
+          "metadata": {
+            "category": "behavioral_instruction",
+            "confidence": "1.0",
+            "token_impact": "11206"
+          }
+        },
+        {
+          "id": "agent_mech::mech-896c5f2f",
+          "source": "understand-anything-plugin/skills/understand-chat/SKILL.md",
+          "content": "token_compression: Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 4 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "understand-anything-plugin/skills/understand-chat/SKILL.md",
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand-explain/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ],
+            "category": "context_compression"
+          },
+          "metadata": {
+            "category": "context_compression",
+            "confidence": "1.0",
+            "token_impact": "-7260"
+          }
+        },
+        {
+          "id": "agent_mech::mech-cc577d06",
+          "source": ".codex/INSTALL.md",
+          "content": "multi_platform_sync: Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 10 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              ".codex/INSTALL.md",
+              "CLAUDE.md",
+              "understand-anything-plugin/skills/understand-chat/SKILL.md",
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand-diff/SKILL.md",
+              "understand-anything-plugin/skills/understand-domain/SKILL.md",
+              "understand-anything-plugin/skills/understand-explain/SKILL.md",
+              "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+              "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ],
+            "category": "distribution"
+          },
+          "metadata": {
+            "category": "distribution",
+            "confidence": "1.0",
+            "token_impact": "11206"
+          }
+        },
+        {
+          "id": "agent_mech::mech-8891ab37",
+          "source": "CLAUDE.md",
+          "content": "drift_prevention: Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 3 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "CLAUDE.md",
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ],
+            "category": "persistence"
+          },
+          "metadata": {
+            "category": "persistence",
+            "confidence": "1.0",
+            "token_impact": "6922"
+          }
+        },
+        {
+          "id": "agent_mech::mech-43b579f4",
+          "source": "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+          "content": "safety_guardrails: Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 4 file(s))",
+          "unit_type": "agent_mechanism",
+          "relationships": {
+            "evidence_files": [
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand-domain/SKILL.md",
+              "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ],
+            "category": "safety"
+          },
+          "metadata": {
+            "category": "safety",
+            "confidence": "1.0",
+            "token_impact": "7735"
+          }
+        },
+        {
+          "id": "agent_impact::summary",
+          "source": "",
+          "content": "Agent impact profile: 5 mechanism(s), 10 artifact(s)",
+          "unit_type": "agent_impact_summary",
+          "relationships": {
+            "mechanisms": [
+              "agent_mech::mech-f49c01c9",
+              "agent_mech::mech-896c5f2f",
+              "agent_mech::mech-cc577d06",
+              "agent_mech::mech-8891ab37",
+              "agent_mech::mech-43b579f4"
+            ],
+            "artifacts": [
+              ".codex/INSTALL.md",
+              "CLAUDE.md",
+              "understand-anything-plugin/skills/understand-chat/SKILL.md",
+              "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+              "understand-anything-plugin/skills/understand-diff/SKILL.md",
+              "understand-anything-plugin/skills/understand-domain/SKILL.md",
+              "understand-anything-plugin/skills/understand-explain/SKILL.md",
+              "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+              "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+              "understand-anything-plugin/skills/understand/SKILL.md"
+            ]
+          },
+          "metadata": {
+            "mechanism_count": "5",
+            "artifact_count": "10"
+          }
+        }
+      ]
+    },
+    "key_points": {
+      "target": "/home/agent/reference/Understand-Anything",
+      "key_points": [
+        {
+          "id": "kp-mech-f4e1458c",
+          "category": "behavioral_shaping",
+          "title": "Mechanism: behavioral_rules",
+          "description": "Provides behavioral rules and conventions that shape Agent output style and decision-making (evidence from 10 file(s))",
+          "mechanism_ids": [
+            "mech-f49c01c9"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.862,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [
+            ".codex/INSTALL.md",
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-diff/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "priority": 1,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "behavioral_instruction",
+            "confidence": 1.0
+          }
+        },
+        {
+          "id": "kp-mech-9e2bdc67",
+          "category": "cross_platform",
+          "title": "Mechanism: multi_platform_sync",
+          "description": "Distributes Agent configuration across multiple platforms or synchronizes rules between IDE integrations (evidence from 10 file(s))",
+          "mechanism_ids": [
+            "mech-cc577d06"
+          ],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.862,
+          "validation_approach": "Deploy to multiple platforms and verify consistent behavior across IDE integrations",
+          "evidence": [
+            ".codex/INSTALL.md",
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-diff/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand-onboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "priority": 1,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "distribution",
+            "confidence": 1.0
+          }
+        },
+        {
+          "id": "kp-mech-022fd49e",
+          "category": "semantic_preservation",
+          "title": "Mechanism: safety_guardrails",
+          "description": "Implements safety guardrails such as confirmation prompts, auto-clarity checks, or irreversible-action protections (evidence from 4 file(s))",
+          "mechanism_ids": [
+            "mech-43b579f4"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.828,
+          "validation_approach": "Run semantic equivalence checks before/after applying this preservation mechanism",
+          "evidence": [
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-domain/SKILL.md",
+            "understand-anything-plugin/skills/understand-knowledge/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "priority": 1,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "safety",
+            "confidence": 1.0
+          }
+        },
+        {
+          "id": "kp-mech-a640e3c8",
+          "category": "compression",
+          "title": "Mechanism: token_compression",
+          "description": "Reduces token usage through compression, abbreviation, or compact representation strategies (evidence from 4 file(s))",
+          "mechanism_ids": [
+            "mech-896c5f2f"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.822,
+          "validation_approach": "Run compression benchmark: compare output length with/without this mechanism",
+          "evidence": [
+            "understand-anything-plugin/skills/understand-chat/SKILL.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand-explain/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "priority": 1,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "context_compression",
+            "confidence": 1.0
+          }
+        },
+        {
+          "id": "kp-mech-8a868360",
+          "category": "semantic_preservation",
+          "title": "Mechanism: drift_prevention",
+          "description": "Enforces behavioral persistence through drift prevention, mode locking, or invariant enforcement (evidence from 3 file(s))",
+          "mechanism_ids": [
+            "mech-8891ab37"
+          ],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.817,
+          "validation_approach": "Run semantic equivalence checks before/after applying this preservation mechanism",
+          "evidence": [
+            "CLAUDE.md",
+            "understand-anything-plugin/skills/understand-dashboard/SKILL.md",
+            "understand-anything-plugin/skills/understand/SKILL.md"
+          ],
+          "priority": 1,
+          "metadata": {
+            "source": "mechanism",
+            "mechanism_category": "persistence",
+            "confidence": 1.0
+          }
+        },
+        {
+          "id": "kp-econ-overhead-3e10d80b",
+          "category": "context_management",
+          "title": "Token overhead analysis",
+          "description": "Agent context overhead is 55531 tokens across 10 file(s). This is high and may degrade agent performance.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 1.0,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "overhead_tokens": 55531
+          }
+        },
+        {
+          "id": "kp-econ-savings-d7f3daab",
+          "category": "context_management",
+          "title": "Token savings efficiency",
+          "description": "Estimated savings ratio is 50.0% \u2014 indicates effective token reuse.",
+          "mechanism_ids": [],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.5,
+          "validation_approach": "Track actual token usage over multiple sessions and compare against baseline",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "savings_ratio": 0.5
+          }
+        },
+        {
+          "id": "kp-find-3aea713d",
+          "category": "context_management",
+          "title": "Finding: context_economics",
+          "description": "Agent context overhead is high (55531 tokens). Consider compressing or splitting Agent-facing files.",
+          "mechanism_ids": [],
+          "expected_impact": "negative",
+          "impact_magnitude": 0.5,
+          "validation_approach": "Measure token overhead across N interactions and compute break-even point",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-0002",
+            "severity": "warning"
+          }
+        },
+        {
+          "id": "kp-econ-breakeven-fce42e58",
+          "category": "context_management",
+          "title": "Break-even interaction threshold",
+          "description": "Break-even at 2 interaction(s) \u2014 overhead is recovered quickly.",
+          "mechanism_ids": [],
+          "expected_impact": "positive",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Simulate N agent interactions and measure cumulative token cost vs savings",
+          "evidence": [],
+          "priority": 3,
+          "metadata": {
+            "source": "economics",
+            "break_even": 2
+          }
+        },
+        {
+          "id": "kp-find-28606556",
+          "category": "behavioral_shaping",
+          "title": "Finding: agent_impact",
+          "description": "Repository contains 10 Agent-facing artifact(s) across 5 mechanism(s)",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.2,
+          "validation_approach": "A/B test agent output quality with this behavioral rule enabled vs disabled",
+          "evidence": [
+            ".codex/INSTALL.md"
+          ],
+          "priority": 4,
+          "metadata": {
+            "source": "finding",
+            "finding_id": "AI-0000",
+            "severity": "info"
+          }
+        },
+        {
+          "id": "kp-eng-184943c3",
+          "category": "engineering",
+          "title": "Engineering observation",
+          "description": "Function 'merge_and_normalize' has cyclomatic complexity 33",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.5,
+          "validation_approach": "Review code quality metrics and verify adherence to engineering best practices",
+          "evidence": [
+            "/home/agent/reference/Understand-Anything/understand-anything-plugin/skills/understand/merge-batch-graphs.py:195"
+          ],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis",
+            "analysis_target": "/home/agent/reference/Understand-Anything"
+          }
+        },
+        {
+          "id": "kp-summary-6f7a4135",
+          "category": "engineering",
+          "title": "Analysis coverage summary",
+          "description": "Analysis covered 5 Python files and 110 total files. 40 knowledge units extracted.",
+          "mechanism_ids": [],
+          "expected_impact": "neutral",
+          "impact_magnitude": 0.1,
+          "validation_approach": "Verify analysis coverage is comprehensive",
+          "evidence": [],
+          "priority": 5,
+          "metadata": {
+            "source": "analysis_summary",
+            "files_analyzed": 5,
+            "knowledge_units": 40
+          }
+        }
+      ],
+      "summary": "Extracted 12 key point(s). behavioral_shaping: 2. compression: 1. context_management: 4. cross_platform: 1. engineering: 2. semantic_preservation: 2. 5 high-priority item(s).",
+      "extraction_duration_ms": 0.25,
+      "metadata": {
+        "category_counts": {
+          "behavioral_shaping": 2,
+          "cross_platform": 1,
+          "semantic_preservation": 2,
+          "compression": 1,
+          "context_management": 4,
+          "engineering": 2
+        }
+      }
+    }
+  },
+  "timestamp": "2026-04-14T19:01:51.851853+00:00"
+}

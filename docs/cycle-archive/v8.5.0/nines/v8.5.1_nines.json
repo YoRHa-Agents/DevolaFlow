@@ -1,0 +1,33 @@
+{
+  "version": "8.5.1",
+  "cycle": "v9.0.0 PV-06",
+  "date": "2026-04-24",
+  "status": "manual_analysis_per_w2_r6_fallback_active",
+  "source_of_truth": ".local/research/v8.5.1_nines.md",
+  "upstream_blockers": [
+    "A1 — nines self-eval cov_timeout hardcoded (awaits NineS v3.4+ fix)",
+    "A3 — nines index cached between invocations (awaits NineS v3.4+ fix)"
+  ],
+  "composite_advisory": 0.9050,
+  "composite_target": 0.91,
+  "composite_delta_from_pv05": 0.0,
+  "per_dimension_carry_forward": {
+    "code_coverage": 0.80,
+    "cyclomatic_complexity": 0.89,
+    "docstring_coverage": 0.95,
+    "naming_consistency": 0.94,
+    "registry_discipline": 0.95,
+    "scoring_accuracy": 0.9,
+    "scorer_agreement": 0.9,
+    "index_recall": 0.8
+  },
+  "pv06_regression_risk": "none_expected",
+  "pv06_new_symbols_docstring_coverage": 1.0,
+  "pv06_new_test_functions": 27,
+  "pv06_evobench_scenarios_added": 5,
+  "pv06_evobench_composite_held": true,
+  "gate_verdict_part_a": "ACCEPT",
+  "gate_composite_part_a": 9.31,
+  "gate_threshold_minor": 8.5,
+  "gate_margin": 0.81
+}

@@ -469,3 +469,78 @@ def test_v15_0_0_r2_retirement_criteria_registered(project_root: Path) -> None:
             f"longer name the S-10 permanent exemption {exempt_path} — the "
             "exemptions must stay named so no retirement PR touches them."
         )
+
+
+def test_v15_0_x_archiver_refresh_misc_subdirs_registered(project_root: Path) -> None:
+    """W-18 clean_repo B1: archiver --refresh / --misc / subdir recursion has coverage.
+
+    Discharges the W-18 precondition for the clean_repo Phase B1
+    CHANGELOG entry (``## [Unreleased]``; spec
+    ``.local/tasks/clean_repo/02-phase-B-archive.md`` step 3). The
+    stanza pins:
+
+    (a) ``_copy_one`` grew the ``refresh: bool = False`` keyword —
+        STALE (differing copy surfaced, never overwritten by default,
+        S-5) vs REFRESH (overwritten under the flag); the ``False``
+        default keeps the legacy never-overwrite semantics so the
+        pre-B1 stanzas (e.g. test_features_v9_2.py) stay valid.
+    (b) ``_copy_tree`` exists — subdirectory recursion archives
+        research subdirs whole-tree under their ORIGINAL name (the
+        directory itself is the classification; no flattening into
+        the 7 flat buckets).
+    (c) ``archive()`` threads ``refresh=`` and ``archive_misc()``
+        exists — the D5 single-flat ``docs/cycle-archive/misc/``
+        destination for non-versioned research root files.
+    (d) The CLI wires ``--refresh`` + ``--misc`` with ``version``
+        optional (``nargs="?"``) for the exactly-one contract.
+    (e) The dedicated regression suite
+        ``tests/test_archiver_refresh_and_subdirs.py`` exists —
+        including the DEFAULT-path byte-equivalence pin.
+    """
+    import importlib.util
+    import sys
+
+    script_path = project_root / "scripts/archive_research_artifacts.py"
+    spec = importlib.util.spec_from_file_location("archive_research_artifacts_w18", script_path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["archive_research_artifacts_w18"] = mod
+    spec.loader.exec_module(mod)
+
+    # --- (a) refresh keyword, default False (legacy semantics preserved) ----
+    param = inspect.signature(mod._copy_one).parameters.get("refresh")
+    assert param is not None and param.default is False, (
+        "W-18 clean_repo B1 violation: _copy_one lost the "
+        "refresh: bool = False keyword (STALE/REFRESH semantics; the "
+        "False default preserves pre-B1 never-overwrite behaviour)."
+    )
+
+    # --- (b) subdirectory recursion helper ----------------------------------
+    assert callable(getattr(mod, "_copy_tree", None)), (
+        "W-18 clean_repo B1 violation: _copy_tree missing — subdir "
+        "recursion (whole-tree archive keeping the subdir name) regressed."
+    )
+
+    # --- (c) archive() refresh threading + the D5 misc entry point ----------
+    assert "refresh" in inspect.signature(mod.archive).parameters, (
+        "W-18 clean_repo B1 violation: archive() no longer threads the "
+        "refresh keyword through to _copy_one/_write_readme."
+    )
+    assert callable(getattr(mod, "archive_misc", None)), (
+        "W-18 clean_repo B1 violation: archive_misc missing — the D5 "
+        "docs/cycle-archive/misc/ destination regressed."
+    )
+
+    # --- (d) CLI wiring -------------------------------------------------------
+    script_text = script_path.read_text(encoding="utf-8")
+    for literal in ('"--refresh"', '"--misc"', 'nargs="?"'):
+        assert literal in script_text, (
+            f"W-18 clean_repo B1 violation: archiver CLI lost the "
+            f"{literal} wiring (--refresh/--misc with optional version)."
+        )
+
+    # --- (e) dedicated regression suite ---------------------------------------
+    assert (project_root / "tests/test_archiver_refresh_and_subdirs.py").is_file(), (
+        "W-18 clean_repo B1 violation: tests/test_archiver_refresh_and_subdirs.py "
+        "missing (incl. the default-path byte-equivalence regression pin)."
+    )

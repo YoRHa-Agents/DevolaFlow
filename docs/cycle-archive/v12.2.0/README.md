@@ -30,6 +30,11 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v12.2.0_article_source.md`
 
+### subdirs
+
+* `v12.2.0_article_singleton/`
+* `v12.2.0_reference_deltas/`
+
 ## Cross-references
 
 * `CHANGELOG.md` `## [12.2.0]` — release note

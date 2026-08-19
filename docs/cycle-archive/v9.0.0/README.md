@@ -19,16 +19,21 @@ depending on `.local/` (which is gitignored on most clones).
 
 * `v9.0.0_pv04_design.md`
 * `v9.0.0_pv05_design.md`
+* `v9.0.0_pv08_design.md`
 
 ### nines
 
 * `v9.0.0_nines.json`
 * `v9.0.0_nines.md`
+* `v9.0.1_nines.json`
+* `v9.0.1_nines.md`
+* `v9.0.1_nines.stderr.log`
 
 ### evaluation
 
 * `v9.0.0_evaluation.md`
 * `v9.0.0_evobench_summary.md`
+* `v9.0.1_evaluation.md`
 
 ### retrospective
 

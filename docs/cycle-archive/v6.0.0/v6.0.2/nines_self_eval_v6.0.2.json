@@ -1,0 +1,686 @@
+{
+  "version": "v6.0.2",
+  "timestamp": "2026-04-16T18:34:43.198769+00:00",
+  "duration": 48.17694123694673,
+  "overall": 0.7404894999999999,
+  "capability_mean": 0.714985,
+  "hygiene_mean": 0.8,
+  "weights": {
+    "capability": 0.7,
+    "hygiene": 0.3
+  },
+  "capability_scores": [
+    {
+      "name": "scoring_accuracy",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "eval_coverage",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "total_files": 0,
+        "error": "no TOML files found"
+      }
+    },
+    {
+      "name": "scoring_reliability",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "report_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks": {
+          "md_generates": true,
+          "md_has_summary": true,
+          "md_has_results": true,
+          "md_has_scores": true,
+          "json_valid": true,
+          "json_has_required_keys": true
+        },
+        "passed": 6,
+        "total": 6
+      }
+    },
+    {
+      "name": "scorer_agreement",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "source_coverage",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "configured_sources": 2,
+        "active_sources": 2,
+        "details": {
+          "github": {
+            "importable": true,
+            "has_search": true,
+            "has_fetch": true
+          },
+          "arxiv": {
+            "importable": true,
+            "has_search": true,
+            "has_fetch": true
+          }
+        }
+      }
+    },
+    {
+      "name": "source_freshness",
+      "value": 0.5,
+      "max_value": 1.0,
+      "normalized": 0.5,
+      "metadata": {
+        "fresh_count": 1,
+        "total": 2,
+        "staleness_days": 30
+      }
+    },
+    {
+      "name": "change_detection",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "change_detected": true
+      }
+    },
+    {
+      "name": "data_completeness",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "valid_fields": 17,
+        "total_fields": 17,
+        "field_details": {
+          "repo.name": true,
+          "repo.owner": true,
+          "repo.url": true,
+          "repo.stars": true,
+          "repo.forks": true,
+          "repo.description": true,
+          "repo.language": true,
+          "repo.topics": true,
+          "repo.last_updated": true,
+          "paper.id": true,
+          "paper.title": true,
+          "paper.authors": true,
+          "paper.abstract": true,
+          "paper.categories": true,
+          "paper.published": true,
+          "paper.updated": true,
+          "paper.pdf_url": true
+        }
+      }
+    },
+    {
+      "name": "collection_throughput",
+      "value": 0.9997,
+      "max_value": 1.0,
+      "normalized": 0.9997,
+      "metadata": {
+        "elapsed_seconds": 0.0013,
+        "inserted": 200,
+        "retrieved": 200,
+        "batch_size": 200
+      }
+    },
+    {
+      "name": "decomposition_coverage",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_elements": 319,
+        "captured_units": 319,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "abstraction_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_units": 319,
+        "well_classified": 319,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "code_review_accuracy",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_findings": 97,
+        "valid_findings": 97,
+        "finding_quality_rate": 1.0,
+        "complexity_checks": 248,
+        "reasonable_complexities": 248,
+        "complexity_reasonableness": 1.0,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "index_recall",
+      "value": 0.8,
+      "max_value": 1.0,
+      "normalized": 0.8,
+      "metadata": {
+        "indexed_units": 319,
+        "queries_tested": 5,
+        "queries_with_results": 4,
+        "query_details": {
+          "evaluation runner": true,
+          "code review": true,
+          "sandbox isolation": false,
+          "self improvement": true,
+          "knowledge decomposition": true
+        }
+      }
+    },
+    {
+      "name": "structure_recognition",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "detected_packages": 7,
+        "actual_packages": 7,
+        "detected_modules": 48,
+        "actual_py_files": 48,
+        "dependency_edges": 33,
+        "check_details": {
+          "package_detection": true,
+          "module_count_accuracy": true,
+          "py_file_type_detected": true,
+          "dependencies_detected": true,
+          "coupling_computed": true
+        }
+      }
+    },
+    {
+      "name": "pipeline_latency",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "target not found: src/nines/__init__.py"
+      }
+    },
+    {
+      "name": "sandbox_isolation",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks": {
+          "executed": true,
+          "correct_output": true,
+          "no_timeout": true,
+          "cleanup_ok": true
+        },
+        "passed": 4,
+        "total": 4
+      }
+    },
+    {
+      "name": "convergence_rate",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "components_verified": 4,
+        "total_checks": 4,
+        "gap_count": 0,
+        "plan_generated": true
+      }
+    },
+    {
+      "name": "cross_vertex_synergy",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "v1_importable": true,
+        "v2_importable": true,
+        "v3_importable": true,
+        "orchestrator_importable": true,
+        "iteration_importable": true
+      }
+    },
+    {
+      "name": "agent_analysis_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "details": {
+          "artifacts_detected": true,
+          "mechanisms_identified": true,
+          "economics_calculated": true,
+          "findings_produced": true,
+          "keypoints_extracted": true
+        }
+      }
+    }
+  ],
+  "hygiene_scores": [
+    {
+      "name": "code_coverage",
+      "value": 0.0,
+      "max_value": 100.0,
+      "normalized": 0.0,
+      "metadata": {
+        "unit": "percent",
+        "source": "pytest"
+      }
+    },
+    {
+      "name": "test_count",
+      "value": 791.0,
+      "max_value": 791.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "tests",
+        "method": "pytest-collect"
+      }
+    },
+    {
+      "name": "module_count",
+      "value": 41.0,
+      "max_value": 41.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "modules"
+      }
+    },
+    {
+      "name": "docstring_coverage",
+      "value": 100.0,
+      "max_value": 100.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "percent",
+        "total": 201,
+        "documented": 201
+      }
+    },
+    {
+      "name": "lint_cleanliness",
+      "value": 100.0,
+      "max_value": 100.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "score",
+        "violation_count": 0
+      }
+    }
+  ],
+  "scores": [
+    {
+      "name": "scoring_accuracy",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "eval_coverage",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "total_files": 0,
+        "error": "no TOML files found"
+      }
+    },
+    {
+      "name": "scoring_reliability",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "report_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks": {
+          "md_generates": true,
+          "md_has_summary": true,
+          "md_has_results": true,
+          "md_has_scores": true,
+          "json_valid": true,
+          "json_has_required_keys": true
+        },
+        "passed": 6,
+        "total": 6
+      }
+    },
+    {
+      "name": "scorer_agreement",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "no golden tasks found in data/golden_test_set"
+      }
+    },
+    {
+      "name": "source_coverage",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "configured_sources": 2,
+        "active_sources": 2,
+        "details": {
+          "github": {
+            "importable": true,
+            "has_search": true,
+            "has_fetch": true
+          },
+          "arxiv": {
+            "importable": true,
+            "has_search": true,
+            "has_fetch": true
+          }
+        }
+      }
+    },
+    {
+      "name": "source_freshness",
+      "value": 0.5,
+      "max_value": 1.0,
+      "normalized": 0.5,
+      "metadata": {
+        "fresh_count": 1,
+        "total": 2,
+        "staleness_days": 30
+      }
+    },
+    {
+      "name": "change_detection",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "change_detected": true
+      }
+    },
+    {
+      "name": "data_completeness",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "valid_fields": 17,
+        "total_fields": 17,
+        "field_details": {
+          "repo.name": true,
+          "repo.owner": true,
+          "repo.url": true,
+          "repo.stars": true,
+          "repo.forks": true,
+          "repo.description": true,
+          "repo.language": true,
+          "repo.topics": true,
+          "repo.last_updated": true,
+          "paper.id": true,
+          "paper.title": true,
+          "paper.authors": true,
+          "paper.abstract": true,
+          "paper.categories": true,
+          "paper.published": true,
+          "paper.updated": true,
+          "paper.pdf_url": true
+        }
+      }
+    },
+    {
+      "name": "collection_throughput",
+      "value": 0.9997,
+      "max_value": 1.0,
+      "normalized": 0.9997,
+      "metadata": {
+        "elapsed_seconds": 0.0013,
+        "inserted": 200,
+        "retrieved": 200,
+        "batch_size": 200
+      }
+    },
+    {
+      "name": "decomposition_coverage",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_elements": 319,
+        "captured_units": 319,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "abstraction_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_units": 319,
+        "well_classified": 319,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "code_review_accuracy",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "total_findings": 97,
+        "valid_findings": 97,
+        "finding_quality_rate": 1.0,
+        "complexity_checks": 248,
+        "reasonable_complexities": 248,
+        "complexity_reasonableness": 1.0,
+        "files_analyzed": 48
+      }
+    },
+    {
+      "name": "index_recall",
+      "value": 0.8,
+      "max_value": 1.0,
+      "normalized": 0.8,
+      "metadata": {
+        "indexed_units": 319,
+        "queries_tested": 5,
+        "queries_with_results": 4,
+        "query_details": {
+          "evaluation runner": true,
+          "code review": true,
+          "sandbox isolation": false,
+          "self improvement": true,
+          "knowledge decomposition": true
+        }
+      }
+    },
+    {
+      "name": "structure_recognition",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "detected_packages": 7,
+        "actual_packages": 7,
+        "detected_modules": 48,
+        "actual_py_files": 48,
+        "dependency_edges": 33,
+        "check_details": {
+          "package_detection": true,
+          "module_count_accuracy": true,
+          "py_file_type_detected": true,
+          "dependencies_detected": true,
+          "coupling_computed": true
+        }
+      }
+    },
+    {
+      "name": "pipeline_latency",
+      "value": 0.0,
+      "max_value": 1.0,
+      "normalized": 0.0,
+      "metadata": {
+        "error": "target not found: src/nines/__init__.py"
+      }
+    },
+    {
+      "name": "sandbox_isolation",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks": {
+          "executed": true,
+          "correct_output": true,
+          "no_timeout": true,
+          "cleanup_ok": true
+        },
+        "passed": 4,
+        "total": 4
+      }
+    },
+    {
+      "name": "convergence_rate",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "components_verified": 4,
+        "total_checks": 4,
+        "gap_count": 0,
+        "plan_generated": true
+      }
+    },
+    {
+      "name": "cross_vertex_synergy",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "v1_importable": true,
+        "v2_importable": true,
+        "v3_importable": true,
+        "orchestrator_importable": true,
+        "iteration_importable": true
+      }
+    },
+    {
+      "name": "agent_analysis_quality",
+      "value": 1.0,
+      "max_value": 1.0,
+      "normalized": 1.0,
+      "metadata": {
+        "checks_passed": 5,
+        "total_checks": 5,
+        "details": {
+          "artifacts_detected": true,
+          "mechanisms_identified": true,
+          "economics_calculated": true,
+          "findings_produced": true,
+          "keypoints_extracted": true
+        }
+      }
+    },
+    {
+      "name": "code_coverage",
+      "value": 0.0,
+      "max_value": 100.0,
+      "normalized": 0.0,
+      "metadata": {
+        "unit": "percent",
+        "source": "pytest"
+      }
+    },
+    {
+      "name": "test_count",
+      "value": 791.0,
+      "max_value": 791.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "tests",
+        "method": "pytest-collect"
+      }
+    },
+    {
+      "name": "module_count",
+      "value": 41.0,
+      "max_value": 41.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "modules"
+      }
+    },
+    {
+      "name": "docstring_coverage",
+      "value": 100.0,
+      "max_value": 100.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "percent",
+        "total": 201,
+        "documented": 201
+      }
+    },
+    {
+      "name": "lint_cleanliness",
+      "value": 100.0,
+      "max_value": 100.0,
+      "normalized": 1.0,
+      "metadata": {
+        "unit": "score",
+        "violation_count": 0
+      }
+    }
+  ]
+}

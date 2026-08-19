@@ -40,6 +40,10 @@ depending on `.local/` (which is gitignored on most clones).
 * `v11.1.0_pv04_stage_report.md`
 * `v11.1.0_pv05_stage_report.md`
 * `v11.1.0_pv06_stage_report.md`
+* `v11.1.0_pv07_stage_report.md`
+* `v11.1.1_stage_report.md`
+* `v11.1.2_stage_report.md`
+* `v11.1.3_stage_report.md`
 
 ## Cross-references
 
