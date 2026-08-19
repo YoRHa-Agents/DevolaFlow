@@ -19,6 +19,11 @@ Per the v12.5.0 PV-03 D-1.1 design, the package mirrors the structure of
   helper catches :exc:`CodegraphUnavailableError` and returns an empty
   sentinel result so callers can transparently fall back to
   :mod:`devolaflow`'s built-in Read/Glob/Grep planning paths.
+* :mod:`devolaflow.codegraph.markers` — tri-state marker files
+  (``.codegraph/.indexing`` / ``.ready`` / ``.failed``) coordinating the
+  backgrounded ``codegraph init`` with downstream analyze consumers
+  (Track C-3 D-11; suggest-tier probe stays
+  :func:`is_codegraph_available`).
 
 Per S-5 (no silent failures): every CLI failure path logs a WARNING
 through ``logging.getLogger("devolaflow.codegraph")`` so operators can
@@ -38,6 +43,13 @@ from devolaflow.codegraph._cli import (
     CodegraphUnavailableError,
     is_codegraph_available,
     run_codegraph_cli,
+)
+from devolaflow.codegraph.markers import (
+    MarkerState,
+    mark_failed,
+    mark_indexing,
+    mark_ready,
+    read_marker_state,
 )
 from devolaflow.codegraph.researcher import (
     build_context,
@@ -60,4 +72,10 @@ __all__ = [
     "get_callers",
     "get_impact",
     "search_symbols",
+    # Backgrounded-init marker protocol (Track C-3)
+    "MarkerState",
+    "mark_failed",
+    "mark_indexing",
+    "mark_ready",
+    "read_marker_state",
 ]

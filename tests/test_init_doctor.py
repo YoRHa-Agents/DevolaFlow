@@ -350,3 +350,118 @@ class TestPromptOnlyContractSimulation:
         }
         result = validate_owned_files(payload)
         assert result.passed
+
+
+# ---------------------------------------------------------------------------
+# TestStructureContract — full_review_and_improve Track C-2 (R5 F3)
+# ---------------------------------------------------------------------------
+
+
+class TestStructureContract:
+    """The scaffold structure contract: single owner, scaffold assertion,
+    doctor reuse, and 4-deviation-class detection."""
+
+    def test_expected_scaffold_paths_cover_all_required_dirs(self) -> None:
+        """Contract parity with the scaffold's own constants (A-5 owner)."""
+        from devolaflow.local.workspace import (
+            MEMORY_SUBDIRS,
+            REQUIRED_DIRS,
+            expected_scaffold_paths,
+        )
+
+        contract_paths = {p for p, _ in expected_scaffold_paths()}
+        for d in [*REQUIRED_DIRS, *MEMORY_SUBDIRS]:
+            assert f".local/{d}/" in contract_paths, f"contract lost dir {d!r}"
+        assert ".local/feedbacks/TRACKER.md" in contract_paths
+        assert ".local/memory/MEMORY.md" in contract_paths
+        assert ".local/index.md" in contract_paths
+
+    def test_doctor_covers_human_surface(self, tmp_path: Path) -> None:
+        """The v14.0.0 human surface is now doctor-checked (the pre-C-2
+        hand-maintained extras list had drifted and never covered it)."""
+        scaffold_local(tmp_path)
+
+        report = check_init_health(tmp_path)
+        checked = {f.path for f in report.findings}
+        assert ".local/human/input/" in checked
+        assert ".local/human/input/README.md" in checked
+        human_findings = [f for f in report.findings if f.path.startswith(".local/human/")]
+        assert human_findings and all(f.found for f in human_findings)
+
+    @pytest.mark.parametrize(
+        ("deviation", "expect_missing", "expect_advisory"),
+        [
+            ("missing-dir", ".local/human/input/", None),
+            ("wrong-name", ".local/feedbacks/", None),
+            ("missing-stub", ".local/feedbacks/TRACKER.md", None),
+            ("skeleton-break", None, ".local/tasks/README.md"),
+        ],
+    )
+    def test_doctor_detects_injected_deviations(
+        self,
+        tmp_path: Path,
+        deviation: str,
+        expect_missing: str | None,
+        expect_advisory: str | None,
+    ) -> None:
+        """The 4 deviation classes from the Track C plan §4: missing dir /
+        wrong name / missing stub → blocking; skeleton break → advisory."""
+        import shutil
+
+        scaffold_local(tmp_path)
+        # Baseline-complete workspace so only the injected deviation shows.
+        (tmp_path / ".rules").mkdir()
+        (tmp_path / ".rules" / "compile-config.yaml").write_text("version: 1\n")
+        assert check_init_health(tmp_path).healthy, "fixture precondition"
+
+        if deviation == "missing-dir":
+            shutil.rmtree(tmp_path / ".local" / "human" / "input")
+        elif deviation == "wrong-name":
+            (tmp_path / ".local" / "feedbacks").rename(tmp_path / ".local" / "feedback")
+        elif deviation == "missing-stub":
+            (tmp_path / ".local" / "feedbacks" / "TRACKER.md").unlink()
+        elif deviation == "skeleton-break":
+            readme = tmp_path / ".local" / "tasks" / "README.md"
+            readme.write_text("Totally custom content\n", encoding="utf-8")
+
+        report = check_init_health(tmp_path)
+        if expect_missing is not None:
+            assert not report.healthy
+            assert expect_missing in report.missing
+        if expect_advisory is not None:
+            assert report.healthy, "skeleton drift must stay non-blocking"
+            assert expect_advisory in report.advisories
+
+    def test_verify_scaffold_structure_clean_after_scaffold(self, tmp_path: Path) -> None:
+        from devolaflow.local.workspace import verify_scaffold_structure
+
+        scaffold_local(tmp_path)
+
+        missing, drifted = verify_scaffold_structure(tmp_path)
+        assert missing == []
+        assert drifted == []
+
+    def test_scaffold_raises_structure_error_on_gap(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """S-5: a scaffold that cannot produce the contracted structure must
+        fail loudly with the exact missing paths."""
+        from devolaflow.local import workspace as ws
+
+        monkeypatch.setattr(ws, "generate_tracker", lambda _dir: _dir)
+
+        with pytest.raises(ws.ScaffoldStructureError) as excinfo:
+            ws.scaffold_local(tmp_path)
+
+        assert ".local/feedbacks/TRACKER.md" in excinfo.value.missing_paths
+
+    def test_install_local_reports_contract_verification(
+        self,
+        tmp_path: Path,
+        agent_dir: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        install_local(agent_dir, tmp_path)
+
+        out = capsys.readouterr().out
+        assert "structure contract verified" in out

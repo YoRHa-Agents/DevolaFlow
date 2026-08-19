@@ -1,6 +1,6 @@
 ---
-description: "仓库治理规则（由 .rules/ 编译生成，勿手动编辑）"
-alwaysApply: true
+description: "Full governance rule corpus incl. P4 Style layer (ST-1..ST-13); compiled from .rules/, do not hand-edit. Cursor sessions already auto-load the same S/A/C/W corpus via AGENTS.md — request this file only when editing human-facing docs, the web demo, or bilingual content (Style rules), or when AGENTS.md is unavailable."
+alwaysApply: false
 ---
 
 # Soul Rules (P0) — Immutable Invariants
@@ -436,7 +436,7 @@ Source: SF-3. Absorbs W-10 (CP-3) — v15.0.0 fold per v15-ADR-004; see v15-ADR-
 
 ## C-7 — Valid Reference Links
 
-Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (24 entries as of v14.0.0) is enumerated verbatim in `tests/ghost/test_registries.py::_SF4_REFERENCE_SET` (re-exported by the `tests/test_no_ghost_features.py` aggregator shim until v15.0.0) and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in `scripts/sync_cursor_skill.py::MIRRORED_FILES`.
+Every `references/xxx.md` path mentioned in SKILL.md must correspond to an actual file under `workflow-system/agent/references/`. The canonical SF-4 reference set (24 entries as of v14.0.0) is enumerated verbatim in `tests/ghost/test_registries.py::_SF4_REFERENCE_SET` (re-exported by the `tests/test_no_ghost_features.py` aggregator shim until v15.0.0) and pinned by `test_skill_reference_links_match_sf4_set` (asserts the on-disk set ↔ pinned set parity); see that fixture for the authoritative current list. Adding a NEW reference requires (a) the file under `workflow-system/agent/references/`, (b) a corresponding entry in `_SF4_REFERENCE_SET`, (c) a SKILL.md Tier-2 navigation table row, AND (d) an entry in the `references:` list of `workflow-system/agent/manifest.yaml` — the install-manifest SSOT (per A-5) from which `scripts/sync_cursor_skill.py::MIRRORED_FILES`, `scripts/install.sh`, and `devola-init` all derive their file lists (machine-readable parity linted by `tests/test_install_manifest.py`; `scripts/scaffold_reference.py` automates places (a)+(c)+(d)).
 
 Source: SF-4.
 

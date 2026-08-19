@@ -84,6 +84,36 @@ def _copy_dir(src: Path, dest: Path) -> int:
     return count
 
 
+def _profile_file_list(agent_dir: Path, profile: str) -> list[str] | None:
+    """Resolve *profile*'s file list from the install-manifest SSOT.
+
+    Returns ``None`` (after printing an explicit WARN per S-5) when the
+    manifest is absent or unusable — e.g. an old clone predating
+    ``workflow-system/agent/manifest.yaml`` — so callers can fall back to
+    the legacy whole-directory copy instead of aborting the install.
+    """
+    try:
+        from devolaflow.install_manifest import ManifestError, load_manifest, profile_files
+    except ImportError as exc:  # pragma: no cover — wheel without the module
+        print(f"  WARN install manifest loader unavailable ({exc}); using directory copy")
+        return None
+    try:
+        manifest = load_manifest(agent_dir)
+        return profile_files(manifest, profile)
+    except ManifestError as exc:
+        print(f"  WARN install manifest unusable ({exc}); using directory copy")
+        return None
+
+
+def _copy_profile_files(agent_dir: Path, skill_dir: Path, files: list[str]) -> int:
+    """Copy manifest-declared files preserving their relative layout."""
+    copied = 0
+    for rel in files:
+        if _copy_file(agent_dir / rel, skill_dir / rel):
+            copied += 1
+    return copied
+
+
 def _parse_scope(argv: list[str]) -> str:
     """Parse --global/--project flags from argv to determine install scope."""
     scope = "project"
@@ -287,10 +317,15 @@ def install_cursor(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     base_dir = Path.home() / ".cursor" if scope == "global" else cwd / ".cursor"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Cursor ({scope}) -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
-    print(f"  ({refs} references, {examples} examples)")
+    files = _profile_file_list(agent_dir, "cursor")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+        print(f"  ({refs} references, {examples} examples)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'cursor')")
 
 
 def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
@@ -298,10 +333,15 @@ def install_claude(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     base_dir = Path.home() / ".claude" if scope == "global" else cwd / ".claude"
     skill_dir = base_dir / "skills" / "devola-flow"
     print(f"\n  Claude Code ({scope}) -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
-    print(f"  ({refs} references, {examples} examples)")
+    files = _profile_file_list(agent_dir, "claude")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        examples = _copy_dir(agent_dir / "examples", skill_dir / "examples")
+        print(f"  ({refs} references, {examples} examples)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'claude')")
 
 
 def install_copilot(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
@@ -320,9 +360,14 @@ def install_codex(agent_dir: Path, cwd: Path, scope: str = "project") -> None:
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
     skill_dir = codex_home / "skills" / "devola-flow"
     print(f"\n  Codex -> {skill_dir}/")
-    _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
-    refs = _copy_dir(agent_dir / "references", skill_dir / "references")
-    print(f"  ({refs} references)")
+    files = _profile_file_list(agent_dir, "codex")
+    if files is None:
+        _copy_file(agent_dir / "SKILL.md", skill_dir / "SKILL.md")
+        refs = _copy_dir(agent_dir / "references", skill_dir / "references")
+        print(f"  ({refs} references)")
+        return
+    copied = _copy_profile_files(agent_dir, skill_dir, files)
+    print(f"  ({copied}/{len(files)} files per manifest profile 'codex')")
 
 
 def install_local(
@@ -367,12 +412,52 @@ def install_local(
     OFF for ``mode: core`` per the v9.2.0 PV-06 cycle plan §"PV-06 —
     repo-init seed examples". Idempotent — never overwrites an existing
     example folder, envelope, or spec; safe to re-run.
+
+    Track C-4 (R5 F4) — pre-flight capability probe: the function starts
+    by probing the init-chain dependency tier table
+    (:data:`devolaflow.init_probe.INIT_DEPENDENCIES`) and printing the
+    capability table. Missing REQUIRED dependencies (git) exit 1 with
+    one explicit message BEFORE any filesystem write; missing optional
+    dependencies (node/npm/codegraph/nines) each surface exactly one
+    degradation hint and the install continues.
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")
 
-    from devolaflow.local.workspace import scaffold_local
+    # Track C-4 (R5 F4): unified pre-flight capability probe. Required
+    # dependencies missing → ONE explicit error up front and exit 1
+    # BEFORE any scaffold write; optional/situational gaps print exactly
+    # one hint line each inside the table (degraded paths, never a
+    # mid-flow stack trace).
+    from devolaflow.init_probe import (
+        MissingRequiredDependencyError,
+        assert_required_present,
+        format_capability_table,
+        probe_capabilities,
+    )
 
-    scaffold_local(cwd)
+    findings = probe_capabilities()
+    print(format_capability_table(findings))
+    try:
+        assert_required_present(findings)
+    except MissingRequiredDependencyError as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
+
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        ScaffoldVerificationError,
+        scaffold_local,
+    )
+
+    try:
+        scaffold_local(cwd)
+    except (ScaffoldVerificationError, ScaffoldStructureError) as exc:
+        # Track C-1/C-2 (S-5): a post-scaffold self-check failed (gitignore
+        # rules or structure contract). Surface the exact diff + a recovery
+        # hint instead of a traceback, and exit non-zero — no more silent
+        # "success".
+        print(f"  FAIL {exc}")
+        sys.exit(1)
 
     rules_dir = cwd / ".rules"
     rules_dir.mkdir(parents=True, exist_ok=True)
@@ -391,6 +476,7 @@ def install_local(
 
     if not compile_rules:
         print("  SKIP compile (--no-compile flag set)")
+        _verify_local_install_health(cwd)
         return
 
     if config_path.exists():
@@ -398,8 +484,12 @@ def install_local(
             from devolaflow.local.compiler import RuleCompiler
 
             compiler = RuleCompiler(config_path)
-            compiler.compile_all()
-            print("  OK   compiled .rules/ → .cursor/rules/repo-governance.mdc + AGENTS.md")
+            results = compiler.compile_all()
+            # Track C-2 (R5 F3): report the ACTUAL compiled targets instead
+            # of the historic hardcoded ".cursor/rules/... + AGENTS.md"
+            # claim, which was wrong for user-edited configs.
+            targets = ", ".join(r.target for r in results) or "(no targets configured)"
+            print(f"  OK   compiled .rules/ → {targets}")
         except Exception as exc:
             # S-5 graceful degradation: log + continue. Init must still
             # succeed even when the compiler hits a read-only FS, a
@@ -407,6 +497,38 @@ def install_local(
             # non-fatal issue. Operators can re-run `devola-init sync-rules`
             # to retry the compile step in isolation.
             print(f"  WARN compile failed (non-fatal): {exc}")
+
+    _verify_local_install_health(cwd)
+
+
+def _verify_local_install_health(cwd: Path) -> None:
+    """Track C-2 (R5 F3): mandatory post-install structure contract check.
+
+    Runs the same doctor contract (`check_init_health`, itself derived from
+    `devolaflow.local.workspace.expected_scaffold_paths` — A-5 single owner)
+    that `devola-init-doctor` exposes, immediately after `install_local`
+    finishes. Missing paths print an explicit diff list and exit 1 (S-5 —
+    no silent "success" with a deviant structure). Advisory skeleton drift
+    is summarised but never fatal.
+    """
+    from devolaflow.lifecycle.validate_owned_files import check_init_health
+
+    report = check_init_health(cwd)
+    if report.healthy:
+        advisory_note = (
+            f"; {len(report.advisories)} advisory finding(s) — run devola-init-doctor"
+            if report.advisories
+            else ""
+        )
+        print(f"  OK   structure contract verified ({report.summary()}){advisory_note}")
+        return
+
+    print(f"  FAIL structure contract check: {report.summary()}")
+    for f in report.findings:
+        if not f.ok and not f.advisory:
+            print(f"       ❌ {f.path} — {f.detail}")
+    print("       Re-run `devola-init local`; if it persists, check filesystem permissions.")
+    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------

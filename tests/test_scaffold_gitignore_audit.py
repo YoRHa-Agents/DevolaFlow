@@ -58,6 +58,25 @@ def _whitelist_lines() -> list[str]:
     return list(_LOCAL_WHITELIST_BLOCK_LINES)
 
 
+def _fresh_scaffold_lines() -> list[str]:
+    """Return the full expected fresh-repo `.gitignore` (Track C-1 contract).
+
+    The v12.2.0 whitelist block, then one blank separator, then the
+    deterministic scaffold-entries block (`_SCAFFOLD_ENTRIES_HEADER` +
+    `SCAFFOLD_GITIGNORE_ENTRIES`) written by `ensure_gitignore_entries`.
+    """
+    from devolaflow.local.workspace import (
+        _SCAFFOLD_ENTRIES_HEADER,
+        SCAFFOLD_GITIGNORE_ENTRIES,
+    )
+
+    return (
+        list(_LOCAL_WHITELIST_BLOCK_LINES)
+        + ["", _SCAFFOLD_ENTRIES_HEADER]
+        + list(SCAFFOLD_GITIGNORE_ENTRIES)
+    )
+
+
 def test_no_gitignore_writes_v12_2_0_whitelist_block(
     tmp_repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -65,7 +84,9 @@ def test_no_gitignore_writes_v12_2_0_whitelist_block(
 
     The default rules track `.local/memory/specs/` (A-4) + `.local/research/`
     (W-7/W-19) and keep every other `.local/` subdir private. ZERO warnings
-    on a fresh repo (no narrow rules to repair).
+    on a fresh repo (no narrow rules to repair). Since Track C-1 the file
+    additionally carries the deterministic scaffold-entries block
+    (`.codegraph/` et al.) appended by `ensure_gitignore_entries`.
     """
     caplog.set_level(logging.WARNING, logger="devolaflow.local.workspace")
     assert not (tmp_repo / ".gitignore").exists(), "fixture precondition"
@@ -73,10 +94,11 @@ def test_no_gitignore_writes_v12_2_0_whitelist_block(
     scaffold_local(tmp_repo)
 
     actual_lines = (tmp_repo / ".gitignore").read_text(encoding="utf-8").splitlines()
-    expected_lines = _whitelist_lines()
+    expected_lines = _fresh_scaffold_lines()
     assert actual_lines == expected_lines, (
-        f"fresh-repo contract: ensure_local_gitignore must write the v12.2.0 "
-        f"whitelist block verbatim (got {actual_lines!r}, expected {expected_lines!r})"
+        f"fresh-repo contract: scaffold must write the v12.2.0 whitelist block "
+        f"+ the Track C-1 scaffold-entries block verbatim "
+        f"(got {actual_lines!r}, expected {expected_lines!r})"
     )
     warnings = _scaffold_warnings(caplog)
     assert warnings == [], (

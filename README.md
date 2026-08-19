@@ -37,14 +37,20 @@ User Request
 ```bash
 INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
 
-curl -fsSL $INSTALLER | bash -s cursor            # Cursor (project-local)
-curl -fsSL $INSTALLER | bash -s cursor --global    # Cursor (user-global ~/.cursor/)
-curl -fsSL $INSTALLER | bash -s claude             # Claude Code (project-local ./CLAUDE.md)
-curl -fsSL $INSTALLER | bash -s claude --global    # Claude Code (user-global ~/.claude/CLAUDE.md)
-curl -fsSL $INSTALLER | bash -s copilot            # Copilot (.github/)
+curl -fsSL $INSTALLER | bash -s cursor             # Cursor (project-local .cursor/skills/devola-flow/)
+curl -fsSL $INSTALLER | bash -s cursor --global    # Cursor (user-global ~/.cursor/skills/devola-flow/)
+curl -fsSL $INSTALLER | bash -s claude             # Claude Code (project-local .claude/skills/devola-flow/)
+curl -fsSL $INSTALLER | bash -s claude --global    # Claude Code (user-global ~/.claude/skills/devola-flow/)
+curl -fsSL $INSTALLER | bash -s copilot            # Copilot (.github/copilot-instructions.md)
 curl -fsSL $INSTALLER | bash -s all                # all tools at once
-curl -fsSL $INSTALLER | bash -s update             # update existing installs
+curl -fsSL $INSTALLER | bash -s update             # update installs (skips up-to-date; --force re-downloads)
+curl -fsSL $INSTALLER | bash -s uninstall          # remove detected installs (--dry-run to preview)
 ```
+
+The file list each target ships is declared in
+[`workflow-system/agent/manifest.yaml`](workflow-system/agent/manifest.yaml)
+(the install-manifest single source of truth). Pass `--base-url <mirror>` to
+download from a mirror instead of GitHub raw.
 
 ### pip install + init
 
@@ -96,7 +102,7 @@ Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/
 |------|--------------|-------------|
 | **Cursor** | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
 | **Codex** | — | `~/.codex/skills/devola-flow/SKILL.md` |
-| **Claude Code** | `./CLAUDE.md` | `~/.claude/CLAUDE.md` |
+| **Claude Code** | `.claude/skills/devola-flow/SKILL.md` | `~/.claude/skills/devola-flow/SKILL.md` |
 | **Copilot** | `.github/copilot-instructions.md` | — |
 
 Full Development Setup
@@ -146,7 +152,7 @@ DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords l
 
 Claude Code
 
-DevolaFlow is loaded as your `CLAUDE.md` file (always active). The same prompts work. Claude Code will follow the hierarchy rules and workflow structure in every session.
+DevolaFlow is loaded as a Claude Code Skill from `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (user-global). The same prompts work. Claude Code will follow the hierarchy rules and workflow structure whenever the skill activates.
 
 GitHub Copilot
 
@@ -167,6 +173,11 @@ DevolaFlow includes a built-in update check you can trigger from inside your AI 
 ```
 
 The agent will compare your installed version against the latest on GitHub and tell you if an update is available, along with the exact command to run. This check is **manual only** — it never runs automatically, so it won't consume context tokens unless you ask for it.
+
+From the shell, `devola-init-doctor --skills` scans every known install
+location (project + user-global, all supported tools) and reports each
+found install's stamped version against the running package version
+(`current` / `stale` / `unknown-version`; exit 1 when anything is stale).
 
 ### Prompt Patterns
 

@@ -523,7 +523,11 @@ def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
 #   reuses DEVOLAFLOW_AUTO_INSTALL_PLUGINS).
 # * workflow-system/agent/SKILL.md carries the §"Workspace Engagement"
 #   .codegraph/ row + §"Reference Navigation Guide" Tier-2 codegraph
-#   row + §"Quick Start" repo-init "auto-installs codegraph index" note.
+#   row + §"Quick Start" repo-init codegraph note (originally
+#   "auto-installs codegraph index in ALL modes"; revised to the
+#   suggest-tier background wording by Track C-3 D-11 — see
+#   tests/ghost/test_features_v15_0.py::
+#   test_v15_0_x_codegraph_backgrounding_registered).
 # * SF-4 reference set updated: 21 → 22 entries
 #   (_SF4_REFERENCE_SET in tests/test_no_ghost_features.py).
 # * Companion test file tests/test_codegraph_reference_doc.py exists
@@ -611,10 +615,15 @@ def test_v12_5_0_codegraph_docs_landed(project_root: Path) -> None:
         f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
         "§Reference Navigation Guide Tier-2 missing the codegraph row."
     )
-    assert "auto-installs codegraph index" in skill_text, (
+    # Track C-3 D-11 revised the original "auto-installs codegraph index
+    # in ALL modes" wording: codegraph is now suggest-tier + backgrounded.
+    # The stanza keeps pinning that the repo-init row MENTIONS codegraph
+    # (the PV-05 deliverable); the current wording is pinned by the v15
+    # stanza (test_v15_0_x_codegraph_backgrounding_registered).
+    assert "codegraph suggest-tier" in skill_text, (
         f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
-        "§Quick Start repo-init row missing the "
-        "'auto-installs codegraph index' note."
+        "§Quick Start repo-init row lost its codegraph note "
+        "(suggest-tier wording per Track C-3 D-11)."
     )
 
     # --- (e) companion test file -------------------------------------

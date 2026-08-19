@@ -129,8 +129,8 @@ Most subcommands accept `--json` to force JSON output (machine-friendly); the de
 | Workflow | Stage | Codegraph wiring |
 |---|---|---|
 | repo-init | analyze | `config.codegraph_commands` (status + files) |
-| repo-init | scaffold | `config.codegraph_init` (cmd + on_failure: warn + add_to_gitignore) — runs in **ALL modes** (core/standard/full) |
-| repo-init | verify | `config.codegraph_smoke` (path presence check) — mode=full only |
+| repo-init | scaffold | `config.codegraph_init` (cmd + on_failure: warn + tier: suggest + execution: background + probe + markers) — **suggest-tier, backgrounded** per Track C-3 D-11: probe `command -v codegraph`; CLI absent → skip with ONE install hint; CLI present → background init + tri-state markers (see §4.6) |
+| repo-init | verify | `config.codegraph_smoke` (path presence check) — mode=full only; check markers (§4.6) before wording the WARN — absence may mean "still indexing" |
 | onboarding | analyze | `config.codegraph_commands` (entry_points + files) |
 | security-audit | analyze | `config.codegraph_commands` (callers + impact for attack-surface) |
 | product-verification | analyze | `config.codegraph_commands` (explore + impact for feature surface) |
@@ -167,6 +167,38 @@ export DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1
 ```
 
 When the env flag is unset (default), codegraph CLI is expected to be on `$PATH` already (manually installed via `npm install -g @colbymchenry/codegraph`); when both fail, the degraded-mode contract takes over.
+
+### §4.6 — Backgrounded init + tri-state markers (Track C-3 D-11)
+
+D-11 OVERTURNS the 2026-05-23 locked decision ("codegraph_init runs
+synchronously in ALL modes"): the R5 F2 clean-venv reproduction measured a
+minutes-long npm cold install + foreground-blocking indexing on large repos.
+`codegraph init` is now SUGGEST-tier and runs as a BACKGROUND task. The
+coordination surface is `devolaflow.codegraph.markers` (stdlib-only):
+
+| Marker | Meaning | Payload (verbatim per C-3) |
+|---|---|---|
+| `.codegraph/.indexing` | init started, still running | `pid`, `started_at` |
+| `.codegraph/.ready` | init finished OK | `completed_at`, `duration_seconds` |
+| `.codegraph/.failed` | init failed (S-5 — never silent) | `failed_at`, `error_summary` |
+
+API: `is_codegraph_available()` (the EXISTING §4.4 probe, reused per A-5 —
+no second probe), `mark_indexing()` /
+`mark_ready()` / `mark_failed()` (writers — each clears its siblings), and
+`read_marker_state(root)` → `MarkerState(state, payload)` where `state` is
+`absent | indexing | ready | failed`. Crash-leftover precedence:
+ready > failed > indexing (a finished index IS usable).
+
+Downstream consumer rule (analyze workflows + verify smoke):
+
+1. `ready` → use the index normally.
+2. `indexing` → bounded wait (≤30s) OR degrade to Read/Glob/Grep for this
+   step and retry next step; NEVER foreground-block on the init.
+3. `failed` / `absent` → degrade immediately per §5 with ONE WARN.
+
+The `.codegraph/` gitignore entry is owned by the deterministic scaffold
+path (`devolaflow.local.workspace.SCAFFOLD_GITIGNORE_ENTRIES`, Track C-1) —
+written BEFORE any codegraph run and decoupled from init outcome.
 
 ## §5 — Degraded-mode contract
 

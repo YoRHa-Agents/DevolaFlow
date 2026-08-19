@@ -632,3 +632,384 @@ def test_v15_0_x_style_compile_target_and_postscript_registered(project_root: Pa
         f"Canonical content lives in .rules/style.mdc (ST-1..ST-13), compiled "
         f"to docs/STYLE-RULES.md + repo-governance.mdc."
     )
+
+
+def test_v15_0_x_install_manifest_ssot_registered(project_root: Path) -> None:
+    """W-18 v15.0.x (full_review_and_improve Track B-1, decision D-5).
+
+    Discharges the W-18 precondition for the install-manifest SSOT
+    CHANGELOG entry. Asserts the load-bearing surfaces:
+
+    (a) workflow-system/agent/manifest.yaml exists and loads through the
+        canonical Python read path (`devolaflow.install_manifest`).
+    (b) The three consumers derive from it — install.sh fetches
+        manifest.yaml (and carries no hardcoded reference list),
+        sync_cursor_skill.py derives MIRRORED_FILES, and
+        init_project.py resolves per-profile file lists.
+    (c) The manifest is registered as the 3rd YAML-backed SSOT registry
+        (`_SSOT_YAML_REGISTRIES`, per A-5).
+    (d) scaffold_reference.py appends new references to the manifest
+        (the C-7 place-4 surface after the SSOT migration).
+
+    Deep parity assertions (manifest ↔ disk ↔ _SF4_REFERENCE_SET ↔
+    MIRRORED_FILES) live in tests/test_install_manifest.py.
+    """
+    # --- (a) owner file + loader ------------------------------------
+    from devolaflow.install_manifest import load_manifest, profile_files
+
+    agent_dir = project_root / "workflow-system/agent"
+    assert (agent_dir / "manifest.yaml").is_file(), (
+        "W-18 B-1 violation: workflow-system/agent/manifest.yaml missing."
+    )
+    manifest = load_manifest(agent_dir)
+    assert profile_files(manifest, "cursor"), (
+        "W-18 B-1 violation: manifest cursor profile resolves empty."
+    )
+
+    # --- (b) consumer derivation ------------------------------------
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+    assert "manifest.yaml" in install_sh, (
+        "W-18 B-1 violation: install.sh no longer fetches the install manifest."
+    )
+    sync_text = (project_root / "scripts/sync_cursor_skill.py").read_text(encoding="utf-8")
+    assert "_load_mirrored_files" in sync_text and "manifest.yaml" in sync_text, (
+        "W-18 B-1 violation: sync_cursor_skill.py MIRRORED_FILES no longer "
+        "derives from the manifest."
+    )
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "_profile_file_list" in init_text, (
+        "W-18 B-1 violation: init_project.py lost the manifest profile resolver."
+    )
+
+    # --- (c) SSOT registration --------------------------------------
+    from tests.ghost.test_registries import _SSOT_YAML_REGISTRIES
+
+    assert _SSOT_YAML_REGISTRIES.get("manifest.yaml") == "workflow-system/agent/manifest.yaml", (
+        "W-18 B-1 violation: manifest.yaml not registered in _SSOT_YAML_REGISTRIES."
+    )
+
+    # --- (d) scaffold writes the manifest ---------------------------
+    scaffold_text = (project_root / "scripts/scaffold_reference.py").read_text(encoding="utf-8")
+    assert "append_manifest_entry" in scaffold_text, (
+        "W-18 B-1 violation: scaffold_reference.py no longer appends to the manifest."
+    )
+
+
+def test_v15_0_x_install_lifecycle_update_uninstall_doctor(project_root: Path) -> None:
+    """W-18 v15.0.x (full_review_and_improve Track B-2).
+
+    Discharges the W-18 precondition for the install-lifecycle CHANGELOG
+    entry. Asserts the load-bearing surfaces:
+
+    (a) install.sh `update` carries the stamp-vs-remote version compare
+        (`is_up_to_date` + `maybe_update`) with the `--force` bypass.
+    (b) install.sh ships an `uninstall` target with `--dry-run` support
+        and the rule-tree-safe removal helper (`uninstall_rule_tree`).
+    (c) `devola-init-doctor --skills` scans installed skills through
+        `devolaflow.skills_doctor.scan_installed_skills`.
+
+    Behavioural assertions live in tests/test_install_script.py (update
+    skip / --force / uninstall) and tests/test_skills_doctor.py (scan
+    status matrix).
+    """
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+
+    # --- (a) update version compare ----------------------------------
+    for symbol in ("is_up_to_date()", "maybe_update()", "--force"):
+        assert symbol in install_sh, (
+            f"W-18 B-2 violation: install.sh update version-compare surface lost {symbol!r}."
+        )
+
+    # --- (b) uninstall target ----------------------------------------
+    for symbol in ("do_uninstall()", "uninstall_rule_tree()", "--dry-run", "uninstall)"):
+        assert symbol in install_sh, (
+            f"W-18 B-2 violation: install.sh uninstall surface lost {symbol!r}."
+        )
+
+    # --- (c) doctor --skills ------------------------------------------
+    from devolaflow.skills_doctor import SkillInstall, scan_installed_skills
+
+    assert callable(scan_installed_skills)
+    assert {"tool", "scope", "path", "installed_version", "status"} <= set(
+        SkillInstall.__dataclass_fields__
+    )
+    cli_text = (project_root / "src/devolaflow/cli.py").read_text(encoding="utf-8")
+    assert "--skills" in cli_text and "_doctor_skills" in cli_text, (
+        "W-18 B-2 violation: doctor_cmd lost the --skills scan path."
+    )
+
+
+def test_v15_0_x_scaffold_gitignore_reliability_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-1 — gitignore reliability (R5 F1).
+
+    Discharges the W-18 precondition for the C-1 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.local.workspace` owns the deterministic gitignore
+        entry path: `ensure_gitignore_entries` + `SCAFFOLD_GITIGNORE_ENTRIES`
+        (`.codegraph/` decoupled from `codegraph init` outcome; R5 F1-H1).
+    (b) The post-scaffold self-check exists: `verify_scaffold_gitignore` +
+        `ScaffoldVerificationError` raised by `scaffold_local` (S-5; R5 F1-H3).
+    (c) The module has a real `__main__` path so the historic install.sh
+        invocation `python3 -m devolaflow.local.workspace` is no longer a
+        silent no-op import (R5 F1-H2), and install.sh no longer swallows
+        the scaffold outcome.
+
+    Behavioural assertions live in
+    tests/test_local_workspace.py::TestEnsureGitignoreEntries and
+    ::TestScaffoldGitignoreSelfCheck.
+    """
+    from devolaflow.local.workspace import (
+        SCAFFOLD_GITIGNORE_ENTRIES,
+        ScaffoldVerificationError,
+        ensure_gitignore_entries,
+        verify_scaffold_gitignore,
+    )
+
+    # --- (a) deterministic entry path ---------------------------------
+    assert callable(ensure_gitignore_entries)
+    assert ".codegraph/" in SCAFFOLD_GITIGNORE_ENTRIES
+
+    # --- (b) self-check surface ----------------------------------------
+    assert callable(verify_scaffold_gitignore)
+    assert issubclass(ScaffoldVerificationError, RuntimeError)
+
+    # --- (c) __main__ path + honest install.sh reporting ---------------
+    workspace_text = (project_root / "src/devolaflow/local/workspace.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'if __name__ == "__main__":' in workspace_text, (
+        "W-18 C-1 violation: devolaflow.local.workspace lost its __main__ path — "
+        "`python3 -m devolaflow.local.workspace` would regress to a silent no-op."
+    )
+    install_sh = (project_root / "scripts/install.sh").read_text(encoding="utf-8")
+    assert "python3 -m devolaflow.local.workspace 2>/dev/null || true" not in install_sh, (
+        "W-18 C-1 violation: install.sh regressed to swallowing scaffold failures."
+    )
+
+
+def test_v15_0_x_init_structure_contract_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-2 — structure contract fixation (R5 F3).
+
+    Discharges the W-18 precondition for the C-2 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.local.workspace` is the SINGLE owner (A-5) of the
+        machine-readable scaffold structure contract:
+        `expected_scaffold_paths` / `expected_stub_first_lines` /
+        `verify_scaffold_structure` / `ScaffoldStructureError`; the
+        contract covers the v14.0.0 human surface.
+    (b) The doctor derives from the owner: `check_init_health` imports the
+        contract and the pre-C-2 hand-maintained `extras` list is GONE
+        (anti-second-list lint per the plan's "契约仅一处定义").
+    (c) `DoctorFinding` carries the `advisory` flag (skeleton drift is
+        non-blocking) and `install_local` runs the mandatory post-install
+        contract check (`_verify_local_install_health`).
+
+    Behavioural assertions live in
+    tests/test_init_doctor.py::TestStructureContract.
+    """
+    from devolaflow.lifecycle.validate_owned_files import DoctorFinding
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        expected_scaffold_paths,
+        expected_stub_first_lines,
+        verify_scaffold_structure,
+    )
+
+    # --- (a) single-owner contract --------------------------------------
+    assert callable(expected_scaffold_paths)
+    assert callable(expected_stub_first_lines)
+    assert callable(verify_scaffold_structure)
+    assert issubclass(ScaffoldStructureError, RuntimeError)
+    contract_paths = {p for p, _ in expected_scaffold_paths()}
+    assert ".local/human/input/" in contract_paths, (
+        "W-18 C-2 violation: structure contract lost the v14.0.0 human surface."
+    )
+
+    # --- (b) doctor derives; no second hand-maintained list -------------
+    vof_text = (project_root / "src/devolaflow/lifecycle/validate_owned_files.py").read_text(
+        encoding="utf-8"
+    )
+    assert "expected_scaffold_paths" in vof_text, (
+        "W-18 C-2 violation: check_init_health no longer derives from the owner contract."
+    )
+    assert '(".local/.agent/active/README.md", ".agent/active dir README")' not in vof_text, (
+        "W-18 C-2 violation: the hand-maintained extras list resurfaced in the doctor "
+        "(A-5 single-owner: derive from devolaflow.local.workspace instead)."
+    )
+
+    # --- (c) advisory flag + mandatory post-install check ----------------
+    assert "advisory" in DoctorFinding.__dataclass_fields__
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "_verify_local_install_health" in init_text, (
+        "W-18 C-2 violation: install_local lost the mandatory structure contract check."
+    )
+
+
+def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-3 — codegraph suggest-tier + backgrounding (R5 F2).
+
+    Discharges the W-18 precondition for the C-3 CHANGELOG entry (D-11:
+    overturns the 2026-05-23 "synchronous in ALL modes" locked decision).
+    Asserts the load-bearing surfaces:
+
+    (a) `devolaflow.codegraph.markers` ships the tri-state marker protocol
+        (mark_indexing / mark_ready / mark_failed / read_marker_state /
+        MarkerState) and does NOT duplicate the CLI probe (A-5 — the
+        probe stays `devolaflow.codegraph.is_codegraph_available`).
+    (b) `repo-init.yaml` declares codegraph_init as tier: suggest +
+        execution: background with the marker paths.
+    (c) The agent-facing docs no longer promise a synchronous ALL-modes
+        install (SKILL.md workflow row + references/codegraph.md §4.2).
+
+    Behavioural assertions live in tests/test_codegraph_markers.py +
+    tests/test_codegraph_workflow_wiring.py.
+    """
+    import devolaflow.codegraph as codegraph_pkg
+    import devolaflow.codegraph.markers as markers_mod
+
+    # --- (a) marker protocol + no probe duplicate ------------------------
+    for symbol in (
+        "mark_indexing",
+        "mark_ready",
+        "mark_failed",
+        "read_marker_state",
+        "MarkerState",
+    ):
+        assert hasattr(markers_mod, symbol), f"W-18 C-3 violation: markers.{symbol} missing"
+        assert symbol in codegraph_pkg.__all__
+    assert not hasattr(markers_mod, "codegraph_cli_available"), (
+        "W-18 C-3 violation: markers.py grew a second CLI probe — reuse "
+        "devolaflow.codegraph.is_codegraph_available per A-5."
+    )
+
+    # --- (b) template declares suggest-tier + background + markers -------
+    import yaml as _yaml
+
+    template = _yaml.safe_load(
+        (project_root / "workflow-system/agent/templates/builtin/repo-init.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    scaffold = next(s for s in template["stages"] if s.get("id") == "scaffold")
+    codegraph_init = scaffold["config"]["codegraph_init"]
+    assert codegraph_init.get("tier") == "suggest"
+    assert codegraph_init.get("execution") == "background"
+    assert set(codegraph_init.get("markers", {})) == {"indexing", "ready", "failed"}
+
+    # --- (c) docs no longer promise synchronous ALL-modes install --------
+    skill_text = (project_root / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
+    assert "auto-installs codegraph index in ALL modes" not in skill_text, (
+        "W-18 C-3 violation: SKILL.md still advertises the overturned "
+        "synchronous ALL-modes codegraph install."
+    )
+    ref_text = (project_root / "workflow-system/agent/references/codegraph.md").read_text(
+        encoding="utf-8"
+    )
+    assert "§4.6" in ref_text and ".codegraph/.indexing" in ref_text, (
+        "W-18 C-3 violation: references/codegraph.md lost the §4.6 marker protocol."
+    )
+
+
+def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:
+    """full_review_and_improve Track C-4 — dependency tiering + unified probe (R5 F4).
+
+    Discharges the W-18 precondition for the C-4 CHANGELOG entry. Asserts
+    the load-bearing surfaces:
+
+    (a) `devolaflow.init_probe` is the SINGLE owner (A-5 discipline) of
+        the init-chain dependency tier table (`INIT_DEPENDENCIES`: git
+        required; node/npm/codegraph/nines optional; curl situational)
+        plus the probe/gate helpers.
+    (b) `install_local` runs the pre-flight probe BEFORE any scaffold
+        write and `doctor_cmd` prints the same capability table (one
+        table, two readers).
+    (c) The init chain stays stdlib-only (behavioural lint:
+        tests/test_init_probe.py::test_init_chain_modules_are_stdlib_only)
+        and the E1 minimal-env matrix is CI-pinned
+        (tests/test_init_venv_matrix.py).
+    """
+    from devolaflow.init_probe import (
+        INIT_DEPENDENCIES,
+        MissingRequiredDependencyError,
+        assert_required_present,
+        format_capability_table,
+        probe_capabilities,
+    )
+
+    # --- (a) single-owner tier table -------------------------------------
+    assert callable(probe_capabilities)
+    assert callable(format_capability_table)
+    assert callable(assert_required_present)
+    assert issubclass(MissingRequiredDependencyError, RuntimeError)
+    tiers = {d.name: d.tier for d in INIT_DEPENDENCIES}
+    assert tiers["git"] == "required", (
+        "W-18 C-4 violation: git must stay required-tier (05-init-quality-fixes §5.1)."
+    )
+    assert tiers["codegraph"] == "optional"
+
+    # --- (b) both readers wired ------------------------------------------
+    init_text = (project_root / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+    assert "probe_capabilities" in init_text and "assert_required_present" in init_text, (
+        "W-18 C-4 violation: install_local lost the pre-flight capability probe."
+    )
+    cli_text = (project_root / "src/devolaflow/cli.py").read_text(encoding="utf-8")
+    assert "format_capability_table" in cli_text, (
+        "W-18 C-4 violation: doctor_cmd lost the capability table."
+    )
+
+    # --- (c) matrix + stdlib lint exist as test surfaces ------------------
+    assert (project_root / "tests/test_init_venv_matrix.py").is_file()
+    assert (project_root / "tests/test_init_probe.py").is_file()
+
+
+def test_v15_0_x_cursor_rules_dedup_registered(project_root: Path) -> None:
+    """Rules-dedup fix — repo-governance.mdc demoted to on-demand.
+
+    Discharges the W-18 precondition for the rules-dedup CHANGELOG entry.
+    Modern Cursor auto-loads AGENTS.md as an always-applied workspace
+    rule; keeping `alwaysApply: true` on the compiled MDC double-injected
+    the S/A/C/W corpus verbatim (~12K tokens duplicated per agent
+    context, measured 2026-08-20). Pins the dedup contract:
+
+    (a) the compile-config cursor target declares `alwaysApply: false`,
+    (b) the compiled MDC frontmatter carries it verbatim (no hand-edit
+        drift; corpus body/layers unchanged),
+    (c) AGENTS.md remains the always-loaded corpus and keeps the P4
+        Style pointer postscript, while the MDC stays the only compiled
+        surface with the Style layer inline.
+    """
+    import yaml
+
+    config = yaml.safe_load(
+        (project_root / ".rules/compile-config.yaml").read_text(encoding="utf-8")
+    )
+    cursor_fm = config["targets"]["cursor"]["frontmatter"]
+    assert cursor_fm["alwaysApply"] is False, (
+        "W-18 rules-dedup violation: compile-config cursor target reverted to "
+        "alwaysApply: true — this double-injects the corpus in Cursor contexts."
+    )
+    assert "AGENTS.md" in cursor_fm["description"], (
+        "W-18 rules-dedup violation: the agent-requested description must "
+        "explain the AGENTS.md dedup rationale."
+    )
+
+    mdc_text = (project_root / ".cursor/rules/repo-governance.mdc").read_text(encoding="utf-8")
+    assert "alwaysApply: false" in mdc_text.split("---")[1], (
+        "W-18 rules-dedup violation: compiled MDC frontmatter drifted from "
+        "the compile-config (rerun sync-rules)."
+    )
+    assert "## S-1" in mdc_text and "ST-13" in mdc_text, (
+        "W-18 rules-dedup violation: MDC must keep the full corpus incl. "
+        "the P4 Style layer (it is the only compiled surface carrying it)."
+    )
+
+    agents_text = (project_root / "AGENTS.md").read_text(encoding="utf-8")
+    assert "## S-1" in agents_text, (
+        "W-18 rules-dedup violation: AGENTS.md lost the always-loaded corpus."
+    )
+    assert "docs/STYLE-RULES.md" in agents_text, (
+        "W-18 rules-dedup violation: AGENTS.md lost the Style-layer pointer "
+        "postscript (compile drift — rerun sync-rules)."
+    )

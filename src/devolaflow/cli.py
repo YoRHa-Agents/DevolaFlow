@@ -126,33 +126,89 @@ def check_rules_drift_cmd() -> None:
 
 def scaffold_local_cmd() -> None:
     """Initialize .local/ workspace structure."""
-    from devolaflow.local.workspace import scaffold_local
+    from devolaflow.local.workspace import (
+        ScaffoldStructureError,
+        ScaffoldVerificationError,
+        scaffold_local,
+    )
 
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     dirs = args if args else None
-    scaffold_local(Path.cwd(), dirs=dirs)
+    try:
+        scaffold_local(Path.cwd(), dirs=dirs)
+    except (ScaffoldVerificationError, ScaffoldStructureError) as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
     print("  .local/ workspace initialized.")
 
 
 def doctor_cmd() -> None:
-    """Check repo-init canonical manifest health.
+    """Check repo-init canonical manifest health (default) or skill installs.
 
-    Scans the current working directory against the canonical manifest
-    for repo-init and reports missing paths. Exit 0 if healthy, 1 if not.
+    Default mode scans the current working directory against the canonical
+    manifest for repo-init and reports missing paths. Exit 0 if healthy,
+    1 if not.
+
+    ``--skills`` mode (full_review_and_improve Track B-2) scans the known
+    DevolaFlow skill install locations (project + user-global, mirroring
+    the ``scripts/install.sh`` detection matrix) and reports each install's
+    stamped version against the running package ``__version__``. Exit 0
+    when every found install is current (or none found), 1 when any is
+    stale or carries an unknown version.
     """
+    if "--skills" in sys.argv:
+        _doctor_skills()
+        return
+
+    from devolaflow.init_probe import format_capability_table, probe_capabilities
     from devolaflow.lifecycle.validate_owned_files import check_init_health
 
+    # Track C-4 (R5 F4): the doctor surfaces the same init-chain
+    # capability table as `devola-init local` (A-5 — one dependency tier
+    # table, two readers) so existing repos can audit their environment
+    # after the fact. Informational here — doctor exit code stays keyed
+    # to the structure contract only.
+    print(format_capability_table(probe_capabilities()))
+    print()
+
     report = check_init_health(Path.cwd())
-    icons = {True: "✅", False: "❌"}
     for f in report.findings:
-        print(f"  {icons[f.ok]} {f.path} — {f.detail}")
+        icon = "⚠️" if (f.advisory and not f.ok) else ("✅" if f.ok else "❌")
+        print(f"  {icon} {f.path} — {f.detail}")
     print()
     if report.healthy:
         print("  All canonical paths present. Workspace is healthy.")
+        if report.advisories:
+            print(f"  {len(report.advisories)} advisory finding(s) (non-blocking).")
     else:
         print(f"  {len(report.missing)} missing path(s): {report.missing}")
         print("  Run 'devola-init local' to fix.")
     sys.exit(0 if report.healthy else 1)
+
+
+def _doctor_skills() -> None:
+    """`devola-init-doctor --skills` — skill-install version scan."""
+    from devolaflow import __version__
+    from devolaflow.skills_doctor import scan_installed_skills
+
+    installs = scan_installed_skills()
+    if not installs:
+        print("  No DevolaFlow skill installs found (project or user-global).")
+        print("  Install one: bash scripts/install.sh <tool>  (or devola-init <tool>)")
+        sys.exit(0)
+
+    icons = {"current": "✅", "stale": "⚠️", "unknown-version": "❓"}
+    for inst in installs:
+        version = inst.installed_version or "(no stamp)"
+        print(f"  {icons[inst.status]} {inst.tool:<9} {inst.scope:<8} {version:<12} {inst.path}")
+    print()
+    not_current = [i for i in installs if i.status != "current"]
+    if not_current:
+        print(f"  {len(not_current)}/{len(installs)} install(s) not at v{__version__}.")
+        print("  Refresh: bash scripts/install.sh update  (or devola-init <tool>)")
+        sys.exit(1)
+    print(f"  All {len(installs)} install(s) current (v{__version__}).")
+    sys.exit(0)
 
 
 # ---------------------------------------------------------------------------

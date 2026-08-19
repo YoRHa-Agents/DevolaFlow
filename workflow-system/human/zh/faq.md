@@ -4,7 +4,7 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T09:38:05Z"
+last_synced: "2026-08-19T17:59:12Z"
 source_version: "15.0.0"
 ---
 
@@ -20,7 +20,7 @@ source_version: "15.0.0"
 
 支持哪些 AI 工具？
 
-**Cursor** — 作为 Cursor Skill 加载, and **Claude Code**, 作为`CLAUDE.md` 加载（每个会话自动生效）
+**Cursor** — 作为 Cursor Skill 加载, and **Claude Code**, 作为 Claude Code Skill 加载（`.claude/skills/devola-flow/SKILL.md`）
 - **GitHub Copilot**, 作为 `copilot-instructions.md` 加载
 - **OpenAI Codex**, 作为 Codex Skill 加载
 
@@ -74,6 +74,8 @@ v3.0.0的 5 种新工作流是什么？
 如何检查更新？
 
 在 AI 工具中输入 `"update devola"`, 或在终端运行 `devola-version`。
+要一次性审计所有已安装副本，运行 `devola-init-doctor --skills`：它会扫描
+全部已知安装位置，并将每个安装标记为 `current` / `stale` / `unknown-version`。
 
 如何更新？
 
@@ -81,6 +83,14 @@ v3.0.0的 5 种新工作流是什么？
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
-# 安装器
+# 安装器（已是最新版本的安装会跳过；--force 强制重新下载）
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
+```
+
+如何卸载？
+
+```bash
+# 先预览将删除的内容，再实际删除
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```

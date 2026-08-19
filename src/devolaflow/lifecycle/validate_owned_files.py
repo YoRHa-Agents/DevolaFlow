@@ -92,12 +92,18 @@ def get_canonical_manifest(workflow: str) -> list[str]:
 
 @dataclass
 class DoctorFinding:
-    """A single finding from ``check_init_health``."""
+    """A single finding from ``check_init_health``.
+
+    ``advisory=True`` findings (Track C-2: stub first-line skeleton drift)
+    never affect :attr:`DoctorReport.healthy` — stubs are user-editable and
+    survive re-scaffolds by design, so drift is surfaced but non-fatal.
+    """
 
     path: str
     expected: bool
     found: bool
     detail: str
+    advisory: bool = False
 
     @property
     def ok(self) -> bool:
@@ -112,31 +118,51 @@ class DoctorReport:
 
     @property
     def healthy(self) -> bool:
-        return all(f.ok for f in self.findings)
+        return all(f.ok for f in self.findings if not f.advisory)
 
     @property
     def missing(self) -> list[str]:
-        return [f.path for f in self.findings if f.expected and not f.found]
+        return [f.path for f in self.findings if f.expected and not f.found and not f.advisory]
+
+    @property
+    def advisories(self) -> list[str]:
+        """Paths with non-blocking advisory findings (skeleton drift)."""
+        return [f.path for f in self.findings if f.advisory and not f.ok]
 
     def summary(self) -> str:
         total = len(self.findings)
         ok = sum(1 for f in self.findings if f.ok)
-        return f"{ok}/{total} checks passed" + (
-            "" if self.healthy else f"; missing: {self.missing}"
-        )
+        text = f"{ok}/{total} checks passed"
+        if not self.healthy:
+            text += f"; missing: {self.missing}"
+        if self.advisories:
+            text += f"; advisory: {self.advisories}"
+        return text
 
 
 def check_init_health(cwd: str | Path) -> DoctorReport:
-    """Check a directory against the repo-init canonical manifest.
+    """Check a directory against the repo-init canonical manifest + contract.
 
     Inspects ``cwd`` for ALL paths declared in
-    ``WORKFLOW_MANIFESTS["repo-init"]``, plus the expected sub-artifacts
-    (dir READMEs, TRACKER.md, MEMORY.md).
+    ``WORKFLOW_MANIFESTS["repo-init"]``, then for the FULL scaffold
+    structure contract derived from the scaffold's own constants
+    (``devolaflow.local.workspace.expected_scaffold_paths`` — Track C-2,
+    A-5 single owner; the pre-C-2 hand-maintained ``extras`` list is gone,
+    it had already drifted from the v14.0.0 human-surface additions).
+    Stub first-line skeleton drift is reported as ADVISORY findings that
+    never flip :attr:`DoctorReport.healthy`.
     """
     from pathlib import Path as _Path
 
+    from devolaflow.local.workspace import (
+        expected_scaffold_paths,
+        expected_stub_first_lines,
+        verify_scaffold_structure,
+    )
+
     root = _Path(cwd)
     findings: list[DoctorFinding] = []
+    seen: set[str] = set()
 
     manifest = get_canonical_manifest("repo-init")
     for p in manifest:
@@ -148,30 +174,38 @@ def check_init_health(cwd: str | Path) -> DoctorReport:
             found = full.is_file()
             detail = "file" if found else "missing file"
         findings.append(DoctorFinding(path=p, expected=True, found=found, detail=detail))
+        seen.add(p)
 
-    extras: list[tuple[str, str]] = [
-        (".local/feedbacks/TRACKER.md", "feedback tracker"),
-        (".local/feedbacks/README.md", "feedbacks dir README"),
-        (".local/tasks/README.md", "tasks dir README"),
-        (".local/memory/README.md", "memory dir README"),
-        (".local/memory/MEMORY.md", "memory index"),
-        # v8.2.3 — README placeholders for the new .agent/* dirs and memory/specs/.
-        # Acts as both a placeholder (since .local/ is gitignored until v8.2.4
-        # lifts the exception per Q-5) and inline documentation of the dir's
-        # purpose. See src/devolaflow/local/workspace.py::_DIR_README_CONTENT.
-        (".local/.agent/active/README.md", ".agent/active dir README"),
-        (".local/.agent/handoff/README.md", ".agent/handoff dir README"),
-        (".local/.agent/archive/README.md", ".agent/archive dir README"),
-        (".local/memory/specs/README.md", "memory/specs dir README"),
-    ]
-    for rel, desc in extras:
+    for rel, desc in expected_scaffold_paths():
+        if rel in seen:
+            continue
+        seen.add(rel)
         full = root / rel
+        found = full.is_dir() if rel.endswith("/") else full.is_file()
         findings.append(
             DoctorFinding(
                 path=rel,
                 expected=True,
-                found=full.is_file(),
-                detail=desc if full.is_file() else f"missing {desc}",
+                found=found,
+                detail=desc if found else f"missing {desc}",
+            )
+        )
+
+    # Advisory skeleton check (first-line drift only; same derivation the
+    # scaffold's own self-check uses).
+    _missing, drifted = verify_scaffold_structure(root)
+    expected_lines = expected_stub_first_lines()
+    for rel, _expected_first, actual_first in drifted:
+        findings.append(
+            DoctorFinding(
+                path=rel,
+                expected=True,
+                found=False,
+                detail=(
+                    f"skeleton drifted: first line {actual_first!r} != template "
+                    f"{expected_lines[rel]!r} (advisory — fine if intentionally customised)"
+                ),
+                advisory=True,
             )
         )
 

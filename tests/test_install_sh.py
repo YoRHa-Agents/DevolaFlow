@@ -123,4 +123,7 @@ def test_install_sh_local_target_explicit_still_works(tmp_path: Path) -> None:
     )
     assert (tmp_path / ".local" / "feedbacks").is_dir()
     assert (tmp_path / ".local" / "tasks").is_dir()
-    assert "Local workspace initialized" in result.stdout
+    # Track C-1: the success line now reflects the REAL scaffold outcome
+    # (previously an unconditional "initialized" even when the python
+    # scaffold silently no-op'd — R5 F1-H3).
+    assert "Local workspace scaffolded" in result.stdout

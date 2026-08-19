@@ -212,9 +212,233 @@ place once written.
 }
 
 
+class ScaffoldVerificationError(RuntimeError):
+    """Raised when the post-scaffold gitignore self-check finds missing rules.
+
+    full_review_and_improve Track C-1 (R5 F1-H3): the scaffold previously
+    relied on advisory WARN logs for gitignore write failures, so a broken
+    ``.gitignore`` (read-only FS, path-is-a-directory, partial user edits)
+    produced a "successful" scaffold with missing entries that nobody
+    noticed. Per S-5 the scaffold now verifies its own output and raises
+    this error with the exact missing rules so the operator (or calling
+    agent) can repair and re-run — the scaffold itself stays idempotent.
+    """
+
+    def __init__(self, missing_rules: list[str], gitignore_path: Path) -> None:
+        self.missing_rules = list(missing_rules)
+        self.gitignore_path = gitignore_path
+        super().__init__(
+            f"scaffold self-check failed: {gitignore_path} is missing "
+            f"{len(self.missing_rules)} required rule(s): {self.missing_rules}. "
+            "Fix the file (or its permissions) and re-run the scaffold."
+        )
+
+
+# full_review_and_improve Track C-1 (R5 F1-H1): entries the scaffold writes
+# DETERMINISTICALLY, decoupled from any plugin/CLI outcome. `.codegraph/`
+# historically depended on the repo-init template's prompt-side
+# `codegraph_init.add_to_gitignore` semantic — when `codegraph init` failed
+# (on_failure: warn) the entry was silently skipped. The scaffold now owns
+# the entry: it is written BEFORE any codegraph invocation and regardless
+# of whether the CLI exists.
+SCAFFOLD_GITIGNORE_ENTRIES: tuple[str, ...] = (".codegraph/",)
+
+_SCAFFOLD_ENTRIES_HEADER: str = "# DevolaFlow scaffold entries (tool-local caches; safe to keep)"
+
+
+def ensure_gitignore_entries(cwd: str | Path, entries: tuple[str, ...] | list[str]) -> list[str]:
+    """Idempotently append missing ignore ``entries`` to ``cwd/.gitignore``.
+
+    Deterministic replacement for the prompt-side ``add_to_gitignore``
+    template semantic (R5 F1-H1/H3): existing user content and comments are
+    preserved verbatim; entries already present as exact rules are skipped;
+    missing entries are appended under a single header comment. Safe to
+    re-run any number of times — a no-op run leaves the file byte-identical.
+
+    Read/write failures log an explicit WARNING (S-5) and return ``[]``;
+    the caller's verification step (:func:`verify_scaffold_gitignore` via
+    ``scaffold_local``) is responsible for escalating persistent failures.
+
+    Returns:
+        The list of entries actually appended (empty when all were present).
+    """
+    cwd = Path(cwd)
+    gi = cwd / ".gitignore"
+
+    text = ""
+    if gi.exists():
+        try:
+            text = gi.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _LOGGER.warning(
+                "ensure_gitignore_entries: could not read %s: %s; entries not written",
+                gi,
+                exc,
+            )
+            return []
+
+    existing_rules = set(_parse_gitignore_rules(text))
+    missing = [e for e in entries if e not in existing_rules]
+    if not missing:
+        return []
+
+    lines = text.splitlines()
+    if lines and lines[-1].strip():
+        lines.append("")
+    if _SCAFFOLD_ENTRIES_HEADER not in text:
+        lines.append(_SCAFFOLD_ENTRIES_HEADER)
+    lines.extend(missing)
+
+    try:
+        gi.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    except OSError as exc:
+        _LOGGER.warning(
+            "ensure_gitignore_entries: could not write %s: %s; entries not written",
+            gi,
+            exc,
+        )
+        return []
+    return missing
+
+
+class ScaffoldStructureError(RuntimeError):
+    """Raised when the post-scaffold structure self-check finds missing paths.
+
+    full_review_and_improve Track C-2 (R5 F3): scaffolded structures had no
+    machine validation — deviations (missing dirs, name variants, missing
+    stub files) were only caught by humans. The scaffold now diffs its own
+    output against the machine-readable contract
+    (:func:`expected_scaffold_paths`) and raises this error with the exact
+    missing paths (S-5). The contract has a single owner — this module —
+    and is reused verbatim by ``devola-init-doctor``
+    (``devolaflow.lifecycle.validate_owned_files.check_init_health``).
+    """
+
+    def __init__(self, missing_paths: list[str], root: Path) -> None:
+        self.missing_paths = list(missing_paths)
+        self.root = root
+        super().__init__(
+            f"scaffold structure self-check failed under {root}: "
+            f"{len(self.missing_paths)} expected path(s) missing: {self.missing_paths}. "
+            "Re-run the scaffold; if it persists, check filesystem permissions."
+        )
+
+
+# Track C-2 — first lines of the generated stub files, shared between the
+# generators below and the structure contract (single owner; the doctor's
+# skeleton check derives from these same constants).
+TRACKER_FIRST_LINE: str = "# Feedback Tracker"
+MEMORY_INDEX_FIRST_LINE: str = "# Memory Index"
+INDEX_FIRST_LINE: str = "# .local/ workspace index"
+
+
+def expected_scaffold_paths() -> list[tuple[str, str]]:
+    """Return the machine-readable structure contract for ``scaffold_local``.
+
+    Track C-2 (R5 F3): the single source-of-truth for WHAT a healthy
+    scaffold looks like, derived from the same constants the scaffold
+    writes from (:data:`REQUIRED_DIRS`, :data:`MEMORY_SUBDIRS`,
+    :data:`_DIR_README_CONTENT`) — never a second hand-maintained list
+    (A-5 single-owner). Consumed by the scaffold's own self-check
+    (:func:`verify_scaffold_structure`) and by ``devola-init-doctor``
+    (``check_init_health``).
+
+    Returns:
+        ``(relative_path, description)`` pairs. Paths ending in ``/`` are
+        directories; all paths are repo-root-relative (S-2).
+    """
+    paths: list[tuple[str, str]] = []
+    for d in [*REQUIRED_DIRS, *MEMORY_SUBDIRS]:
+        paths.append((f".local/{d}/", f"{d} directory"))
+        if d in _DIR_README_CONTENT:
+            paths.append((f".local/{d}/README.md", f"{d} dir README"))
+    paths.append((".local/feedbacks/TRACKER.md", "feedback tracker"))
+    paths.append((".local/memory/MEMORY.md", "memory index"))
+    paths.append((".local/index.md", "workspace index"))
+    return paths
+
+
+def expected_stub_first_lines() -> dict[str, str]:
+    """Return ``{relative_path: expected_first_line}`` for generated stubs.
+
+    Derived from the same templates the scaffold writes
+    (:data:`_DIR_README_CONTENT` + the ``TRACKER_FIRST_LINE`` /
+    ``MEMORY_INDEX_FIRST_LINE`` / ``INDEX_FIRST_LINE`` constants). Used for
+    the ADVISORY skeleton check: a present-but-edited stub is legitimate
+    (stubs are never overwritten on re-scaffold), so first-line drift is
+    surfaced as a WARNING / advisory doctor finding — never a failure.
+    """
+    lines: dict[str, str] = {}
+    for d, content in _DIR_README_CONTENT.items():
+        if d in REQUIRED_DIRS or d in MEMORY_SUBDIRS:
+            lines[f".local/{d}/README.md"] = content.splitlines()[0]
+    lines[".local/feedbacks/TRACKER.md"] = TRACKER_FIRST_LINE
+    lines[".local/memory/MEMORY.md"] = MEMORY_INDEX_FIRST_LINE
+    lines[".local/index.md"] = INDEX_FIRST_LINE
+    return lines
+
+
+def verify_scaffold_structure(cwd: str | Path) -> tuple[list[str], list[tuple[str, str, str]]]:
+    """Diff ``cwd`` against the scaffold structure contract.
+
+    Returns:
+        ``(missing, drifted)`` where ``missing`` is the list of contract
+        paths absent from disk (BLOCKING — the scaffold raises on these)
+        and ``drifted`` is a list of ``(path, expected_first_line,
+        actual_first_line)`` for stub files whose first line differs from
+        the generated template (ADVISORY — logged, never raised, because
+        user-customised stubs survive re-scaffolds by design).
+    """
+    root = Path(cwd)
+    missing: list[str] = []
+    for rel, _desc in expected_scaffold_paths():
+        full = root / rel
+        if rel.endswith("/"):
+            if not full.is_dir():
+                missing.append(rel)
+        elif not full.is_file():
+            missing.append(rel)
+
+    drifted: list[tuple[str, str, str]] = []
+    for rel, expected_first in expected_stub_first_lines().items():
+        full = root / rel
+        if not full.is_file():
+            continue  # already reported via `missing`
+        try:
+            actual_first = full.read_text(encoding="utf-8").splitlines()[0]
+        except (OSError, UnicodeDecodeError, IndexError):
+            actual_first = ""
+        if actual_first != expected_first:
+            drifted.append((rel, expected_first, actual_first))
+    return missing, drifted
+
+
+def verify_scaffold_gitignore(cwd: str | Path) -> list[str]:
+    """Return the scaffold-required gitignore rules missing from ``cwd``.
+
+    The required set is the v12.2.0 ``.local/`` whitelist detection key
+    (:data:`_LOCAL_WHITELIST_REQUIRED_RULES`) plus the deterministic
+    scaffold entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`). Empty list means
+    the ``.gitignore`` is in the expected post-scaffold state. Pure check —
+    never writes; unreadable files report every required rule as missing.
+    """
+    cwd = Path(cwd)
+    gi = cwd / ".gitignore"
+    required = sorted(_LOCAL_WHITELIST_REQUIRED_RULES) + list(SCAFFOLD_GITIGNORE_ENTRIES)
+    if not gi.is_file():
+        return required
+    try:
+        rules = set(_parse_gitignore_rules(gi.read_text(encoding="utf-8")))
+    except (OSError, UnicodeDecodeError):
+        return required
+    return [r for r in required if r not in rules]
+
+
 def scaffold_local(
     cwd: str | Path,
     dirs: list[str] | None = None,
+    *,
+    verify: bool = True,
 ) -> Path:
     """Create .local/ with required dirs + optional on-demand dirs.
 
@@ -231,17 +455,33 @@ def scaffold_local(
       ``TRACKER.md`` / ``MEMORY.md`` on the next run. Both helpers no-op
       when the target file already exists.
 
+    full_review_and_improve Track C-1 adds two gitignore guarantees:
+
+    - Deterministic entries (:data:`SCAFFOLD_GITIGNORE_ENTRIES`, e.g.
+      ``.codegraph/``) are written via :func:`ensure_gitignore_entries`
+      BEFORE any plugin/CLI runs — decoupled from `codegraph init` outcome.
+    - A post-scaffold self-check (:func:`verify_scaffold_gitignore`) raises
+      :class:`ScaffoldVerificationError` when required rules are missing
+      (S-5: no silent success). Pass ``verify=False`` to restore the old
+      advisory-only behaviour.
+
     Args:
         cwd: Working directory (repo root).
         dirs: Additional on-demand directories to create.  Only names
               listed in ON_DEMAND_DIRS are accepted; unknown names are
               silently ignored.
+        verify: Run the post-scaffold gitignore self-check (default True).
 
     Returns:
         Path to the .local/ directory.
+
+    Raises:
+        ScaffoldVerificationError: when ``verify=True`` and required
+            gitignore rules are still missing after the scaffold ran.
     """
     cwd = Path(cwd)
     ensure_local_gitignore(cwd)
+    ensure_gitignore_entries(cwd, SCAFFOLD_GITIGNORE_ENTRIES)
 
     local_dir = cwd / ".local"
     local_dir.mkdir(exist_ok=True)
@@ -276,6 +516,26 @@ def scaffold_local(
     )
     _audit_gitignore_coverage(cwd, created_roots)
 
+    if verify:
+        missing_rules = verify_scaffold_gitignore(cwd)
+        if missing_rules:
+            raise ScaffoldVerificationError(missing_rules, cwd / ".gitignore")
+        # Track C-2 (R5 F3): structure contract assertion. Missing paths are
+        # BLOCKING (S-5 explicit error); first-line drift in stubs is
+        # ADVISORY (stubs are user-editable and never overwritten).
+        missing_paths, drifted_stubs = verify_scaffold_structure(cwd)
+        if missing_paths:
+            raise ScaffoldStructureError(missing_paths, cwd)
+        for rel, expected_first, actual_first in drifted_stubs:
+            _LOGGER.warning(
+                "scaffold_local: %s first line differs from the generated template "
+                "(expected %r, found %r) — fine if intentionally customised; "
+                "delete the file and re-run the scaffold to regenerate the stub.",
+                rel,
+                expected_first,
+                actual_first,
+            )
+
     return local_dir
 
 
@@ -291,7 +551,7 @@ def generate_memory_index(memory_dir: Path) -> Path:
     path = memory_dir / "MEMORY.md"
     if not path.exists():
         path.write_text(
-            "# Memory Index\n"
+            f"{MEMORY_INDEX_FIRST_LINE}\n"
             "\n"
             "> Auto-maintained by DevolaFlow. Updated on scaffold.\n"
             "\n"
@@ -315,7 +575,7 @@ def generate_tracker(feedbacks_dir: Path) -> Path:
     path = feedbacks_dir / "TRACKER.md"
     if not path.exists():
         path.write_text(
-            "# Feedback Tracker\n"
+            f"{TRACKER_FIRST_LINE}\n"
             "\n"
             "> Human-maintained. Do not edit feedback source files.\n"
             "> Last updated: (auto)\n"
@@ -777,7 +1037,7 @@ def generate_index(local_dir: str | Path) -> Path:
     subdirs = sorted(p.name for p in local_dir.iterdir() if p.is_dir())
 
     lines = [
-        "# .local/ workspace index",
+        INDEX_FIRST_LINE,
         "",
         "Auto-generated directory listing.",
         "",
@@ -792,3 +1052,22 @@ def generate_index(local_dir: str | Path) -> Path:
 
     index_path.write_text(new_content, encoding="utf-8")
     return index_path
+
+
+if __name__ == "__main__":
+    # full_review_and_improve Track C-1 (R5 F1-H2): `scripts/install.sh local`
+    # has invoked `python3 -m devolaflow.local.workspace` since v9.x, but the
+    # module had no __main__ path — the call imported the module and exited 0
+    # without scaffolding anything (silent no-op). This block makes the
+    # historic invocation real. Self-check failures (gitignore rules per C-1,
+    # structure contract per C-2) print the exact diff + exit 1 (S-5) instead
+    # of a low-signal traceback — matching `devola-init local`/`scaffold-local`;
+    # unexpected errors still propagate as a traceback.
+    import sys
+
+    try:
+        scaffold_local(Path.cwd())
+    except (ScaffoldVerificationError, ScaffoldStructureError) as exc:
+        print(f"  FAIL {exc}")
+        sys.exit(1)
+    print(".local/ workspace scaffolded (directories + gitignore verified).")
