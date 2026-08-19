@@ -553,3 +553,82 @@ def test_v15_0_x_archiver_refresh_misc_subdirs_registered(project_root: Path) ->
         "W-18 clean_repo B1 violation: tests/test_archiver_refresh_and_subdirs.py "
         "missing (incl. the default-path byte-equivalence regression pin)."
     )
+
+
+def test_v15_0_x_style_compile_target_and_postscript_registered(project_root: Path) -> None:
+    """W-18 clean_repo C2-1 (decision D2): style_md target + postscript coverage.
+
+    Discharges the W-18 precondition for the clean_repo Phase C2-1
+    CHANGELOG entry (``## [Unreleased]``; spec
+    ``.local/tasks/clean_repo/04-phase-C-decouple-and-generalize.md``
+    §C2-1). The stanza pins:
+
+    (a) ``compiler.py::TargetConfig`` grew the optional ``postscript``
+        field (default ``None`` — legacy configs recompile
+        byte-identically) and ``_load_config`` threads the config key;
+        behavioural coverage lives in
+        ``tests/test_local_compiler.py::TestPostscript``.
+    (b) ``.rules/compile-config.yaml`` declares the third target
+        ``style_md`` → ``docs/STYLE-RULES.md`` (format markdown,
+        token_budget 4000, include_layers exactly ``[style]``) and the
+        ``agents_md`` target carries the one-line pointer postscript.
+    (c) The compiled ``docs/STYLE-RULES.md`` exists and the drift-hash
+        store gained the ``style_md`` key (automatic enrolment — the
+        drift surface enumerates the targets map).
+    (d) Reverse lint: the 2 retired hand-maintained P4 Style on-demand
+        copies must NOT resurrect under ``.cursor/rules/`` (their
+        absorbed ST-1..ST-13 content compiles from ``.rules/style.mdc``;
+        restore decisions go through the CHANGELOG record, not silent
+        re-adds).
+    """
+    import json
+
+    # --- (a) compiler feature surface ----------------------------------------
+    from devolaflow.local.compiler import RuleCompiler, TargetConfig
+
+    fields = TargetConfig.__dataclass_fields__
+    assert "postscript" in fields and fields["postscript"].default is None, (
+        "W-18 clean_repo C2-1 violation: TargetConfig lost the optional "
+        "postscript field (default None keeps legacy configs byte-stable)."
+    )
+
+    # --- (b) config: third target + agents_md pointer ------------------------
+    rc = RuleCompiler(project_root / ".rules/compile-config.yaml")
+    style_tc = rc.targets.get("style_md")
+    assert style_tc is not None, (
+        "W-18 clean_repo C2-1 violation: the style_md compile target left "
+        ".rules/compile-config.yaml (decision D2 third target)."
+    )
+    assert style_tc.output == "docs/STYLE-RULES.md"
+    assert style_tc.format == "markdown"
+    assert style_tc.token_budget == 4000
+    assert style_tc.include_layers == ["style"]
+    agents_tc = rc.targets["agents_md"]
+    assert agents_tc.postscript == "Style (P4) rules: see `docs/STYLE-RULES.md`", (
+        "W-18 clean_repo C2-1 violation: the agents_md target lost its "
+        "one-line D2 pointer postscript to docs/STYLE-RULES.md."
+    )
+
+    # --- (c) compiled output + automatic drift-hash enrolment ----------------
+    assert (project_root / "docs/STYLE-RULES.md").is_file(), (
+        "W-18 clean_repo C2-1 violation: compiled docs/STYLE-RULES.md missing "
+        "— run RuleCompiler('.rules/compile-config.yaml').compile_all()."
+    )
+    stored = json.loads((project_root / ".rules/.compile-hashes.json").read_text(encoding="utf-8"))
+    assert "style_md" in stored, (
+        "W-18 clean_repo C2-1 violation: .rules/.compile-hashes.json has no "
+        "style_md key — the third target fell out of drift-hash coverage."
+    )
+
+    # --- (d) retired hand copies must NOT resurrect ---------------------------
+    resurrected = [
+        name
+        for name in ("documentation-sync-rules.mdc", "web-experience-rules.mdc")
+        if (project_root / ".cursor" / "rules" / name).exists()
+    ]
+    assert not resurrected, (
+        f"clean_repo C2-1 (decision D2) violation: retired hand-maintained "
+        f"P4 Style cop(ies) resurrected under .cursor/rules/: {resurrected}. "
+        f"Canonical content lives in .rules/style.mdc (ST-1..ST-13), compiled "
+        f"to docs/STYLE-RULES.md + repo-governance.mdc."
+    )

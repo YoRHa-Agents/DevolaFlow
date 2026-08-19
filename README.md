@@ -349,16 +349,15 @@ The score appears at the end of the workflow report with actionable tips to impr
 
 ### Repository Development Rules
 
-62 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into two distribution surfaces — `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
+62 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into three distribution surfaces — `AGENTS.md`, `.cursor/rules/repo-governance.mdc`, and `docs/STYLE-RULES.md`:
 
 | Rule Surface | Rules | What It Enforces |
 |--------------|-------|-----------------|
 | `.rules/` (canonical: soul, architecture, conventions, workflow, style) | S-1..S-10, A-1..A-7, C-1..C-7 + C-9, W-1..W-24, ST-1..ST-13 | Layered rule corpus: Soul invariants, architecture decisions, conventions, workflow process, style |
 | `.cursor/rules/repo-governance.mdc` + `AGENTS.md` | Compiled aggregate of the above | Same corpus rendered for Cursor (MDC) and AGENTS.md-aware tools — never hand-edit (drift-detected) |
-| `.cursor/rules/web-experience-rules.mdc` | WX-1..WX-8 | Four theme showcases, additive design tokens, motion patterns, bilingual showcase pages |
-| `.cursor/rules/documentation-sync-rules.mdc` | DS-1..DS-5 | Human-facing content registry, NieR identity, bilingual completeness, version propagation |
+| `docs/STYLE-RULES.md` | ST-1..ST-13 (absorbing DS-1..5 + WX-1..8) | Compiled tool-agnostic view of the P4 Style layer (doc sync, web experience, bilingual completeness) — never hand-edit (drift-detected); AGENTS.md ends with a one-line pointer to it |
 
-The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) were demoted to deprecated pointer stubs (v9.0.0 / v14.2.1) and **retired in v15.0.0** (clean_repo C1-2, decision D1) — their rule content lives verbatim in the canonical `.rules/` layer sources + the compiled `repo-governance.mdc` corpus, and a reverse lint blocks resurrection (C-8 was removed in v14.2.1; rule ids are not renumbered).
+The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) were demoted to deprecated pointer stubs (v9.0.0 / v14.2.1) and **retired in v15.0.0** (clean_repo C1-2, decision D1) — their rule content lives verbatim in the canonical `.rules/` layer sources + the compiled `repo-governance.mdc` corpus, and a reverse lint blocks resurrection (C-8 was removed in v14.2.1; rule ids are not renumbered). The two hand-maintained P4 Style on-demand copies (`web-experience-rules.mdc`, `documentation-sync-rules.mdc`) retired in the same v15.0.x series (clean_repo C2-1, decision D2) — their absorbed ST-1..ST-13 content now compiles to `docs/STYLE-RULES.md`.
 
 ## Versioning & Updates
 
@@ -510,7 +509,7 @@ Design Documents
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make changes following the [repository rules](.cursor/rules/) (9 .mdc rule files)
+3. Make changes following the [repository rules](.rules/) (5 layered `.mdc` sources, compiled to `AGENTS.md` / `.cursor/rules/repo-governance.mdc` / `docs/STYLE-RULES.md`)
 4. Run `make all` to verify (tests, lint, templates, adapters, docs sync, drift check)
 5. Update `CHANGELOG.md` if your changes are user-visible
 6. Submit a Pull Request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md) (never push directly to `main`)
@@ -520,9 +519,10 @@ Commit messages use [Conventional Commits](https://www.conventionalcommits.org/)
 ### Editing rules
 
 Governance rules are sourced from `.rules/*.mdc` (5 layered files: soul, architecture, conventions, workflow,
-style) and compiled to two distribution targets, `AGENTS.md` (the canonical Markdown corpus loaded by Codex /
-Claude Code / KimiCode / Cline / Roo) and `.cursor/rules/repo-governance.mdc` (the MDC rendering for Cursor).
-After editing any `.rules/*.mdc` source, refresh both targets with:
+style) and compiled to three distribution targets, `AGENTS.md` (the canonical Markdown corpus loaded by Codex /
+Claude Code / KimiCode / Cline / Roo), `.cursor/rules/repo-governance.mdc` (the MDC rendering for Cursor), and
+`docs/STYLE-RULES.md` (the P4 Style layer alone, as a tool-agnostic on-demand view pointed to from the end of
+`AGENTS.md`). After editing any `.rules/*.mdc` source, refresh all targets with:
 
 ```bash
 make compile-rules

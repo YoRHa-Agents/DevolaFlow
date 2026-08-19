@@ -33,11 +33,14 @@ python -m pytest tests/test_benchmarks.py -v  # EvoBench benchmarks
 ## Rules
 
 DevolaFlow's governance rules live in **`.rules/`** (5 layered `.mdc` files: soul, architecture,
-conventions, workflow, style). They are compiled to two distribution targets:
+conventions, workflow, style). They are compiled to three distribution targets:
 
 - **`AGENTS.md`** (repo root) — the canonical Markdown corpus loaded by Claude Code, Codex,
   KimiCode, Cline, Roo, and any AGENTS.md-aware tool. Read this for the full rule body.
 - **`.cursor/rules/repo-governance.mdc`** — the same corpus rendered as MDC for Cursor.
+- **`docs/STYLE-RULES.md`** — the P4 Style layer (ST-1..ST-13) alone, as an on-demand
+  tool-agnostic view; AGENTS.md ends with a one-line pointer to it. Consult when editing
+  human-facing docs, the web demo, or bilingual content.
 
 To edit a rule: modify the relevant `.rules/<layer>.mdc` source, then recompile:
 
