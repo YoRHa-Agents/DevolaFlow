@@ -286,3 +286,61 @@ def test_v16_0_0_m2_round_dispatch_context_registered(project_root: Path) -> Non
         "test_warm_handler_mean_under_five_ms_and_payload_unchanged",
     ):
         assert coverage_anchor in telemetry_tests
+
+    import devolaflow.agent_workspace.checkpoint as checkpoint
+    import devolaflow.agent_workspace.preflight as preflight
+    import devolaflow.agent_workspace.preflight_runtime as preflight_runtime
+    import devolaflow.agent_workspace.resume as resume
+    import devolaflow.lifecycle.preflight_authorization as preflight_guard
+
+    m3_symbols = {
+        checkpoint: (
+            "load_checkpoint",
+            "write_checkpoint",
+        ),
+        preflight: (
+            "discover_preflight_baseline",
+            "draft_preflight_section0",
+            "sign_preflight",
+            "invalidate_preflight",
+        ),
+        preflight_runtime: (
+            "evaluate_permitted_stops",
+            "refresh_preflight_snapshot",
+        ),
+        resume: (
+            "ChecklistResumePlan",
+            "ResumeDisposition",
+            "plan_checklist_resume",
+        ),
+        preflight_guard: (
+            "HBP_CODE",
+            "guard_preflight_authorization",
+        ),
+    }
+    for module, symbols in m3_symbols.items():
+        for symbol in symbols:
+            assert hasattr(module, symbol), (
+                f"v16 M3 ghost symbol missing: {module.__name__}.{symbol}"
+            )
+
+    resume_tests = (project_root / "tests" / "test_agent_workspace_resume.py").read_text(
+        encoding="utf-8"
+    )
+    for coverage_anchor in (
+        "test_mid_round_interruption_resumes_without_rechecking_completed_items",
+        "test_between_round_resume_returns_ready_or_complete",
+    ):
+        assert coverage_anchor in resume_tests
+
+    protocol = (
+        project_root / "workflow-system" / "agent" / "references" / "execution-protocol.md"
+    ).read_text(encoding="utf-8")
+    for contract_anchor in (
+        "## 1. Preflight Phase",
+        "standalone `pre_decision`",
+        "HBP-01",
+        "non-skippable",
+        "checklist",
+    ):
+        assert contract_anchor in protocol

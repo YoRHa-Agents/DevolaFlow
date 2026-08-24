@@ -65,6 +65,11 @@ from devolaflow.agent_workspace.change import (
     detect_change_layout,
     reconcile_round_boundary,
 )
+from devolaflow.agent_workspace.checkpoint import (
+    CheckpointError,
+    load_checkpoint,
+    write_checkpoint,
+)
 from devolaflow.agent_workspace.delta_parser import (
     DeltaRequirement,
     DeltaSpec,
@@ -99,6 +104,17 @@ from devolaflow.agent_workspace.memory_bridge import (
     consolidate_change_on_archive,
     hydrate_change_context,
 )
+from devolaflow.agent_workspace.preflight import (
+    PreflightAuthorization,
+    PreflightAuthorizationError,
+    PreflightConfigBaseline,
+    PreflightDraftError,
+    PreflightSection0Draft,
+    PreflightSignature,
+    draft_preflight_section0,
+    invalidate_preflight,
+    sign_preflight,
+)
 from devolaflow.agent_workspace.reporter import (
     regenerate_all,
     render_change_report,
@@ -114,6 +130,12 @@ from devolaflow.agent_workspace.requirements_trace import (
     TestOutcome,
     parse_pytest_report,
     trace_requirements,
+)
+from devolaflow.agent_workspace.resume import (
+    ChecklistResumePlan,
+    ResumeDisposition,
+    ResumePlanningError,
+    plan_checklist_resume,
 )
 from devolaflow.agent_workspace.round_dispatch import populate_round_change_context
 from devolaflow.agent_workspace.round_engine import (
@@ -179,6 +201,10 @@ __all__ = [
     "derive_checklist_progress",
     "detect_change_layout",
     "reconcile_round_boundary",
+    # checkpoint (v16.0.0 M3 — immutable round-boundary resume state)
+    "CheckpointError",
+    "load_checkpoint",
+    "write_checkpoint",
     # delta_parser
     "DeltaRequirement",
     "DeltaSpec",
@@ -210,6 +236,16 @@ __all__ = [
     "MemoryBridgeError",
     "consolidate_change_on_archive",
     "hydrate_change_context",
+    # preflight (v16.0.0 M3 — draft/sign/invalidate lifecycle)
+    "PreflightAuthorization",
+    "PreflightAuthorizationError",
+    "PreflightConfigBaseline",
+    "PreflightDraftError",
+    "PreflightSection0Draft",
+    "PreflightSignature",
+    "draft_preflight_section0",
+    "invalidate_preflight",
+    "sign_preflight",
     # reporter (v8.2.7 — opt-in REPORT.md surface; closes H-005)
     # + v14.0.0 Wave-2 FIFTH human flavour (render_human_report/_digest; design §4)
     "regenerate_all",
@@ -226,6 +262,11 @@ __all__ = [
     "TestOutcome",
     "parse_pytest_report",
     "trace_requirements",
+    # resume (v16.0.0 M3 — read-only checklist recovery planning)
+    "ChecklistResumePlan",
+    "ResumeDisposition",
+    "ResumePlanningError",
+    "plan_checklist_resume",
     # round_engine
     "BlockedItem",
     "ChecklistItemView",

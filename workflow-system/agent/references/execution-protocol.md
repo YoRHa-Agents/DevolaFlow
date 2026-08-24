@@ -2,12 +2,13 @@
 id: "agent/references/execution-protocol"
 version: "1.0.0"
 purpose: >
-  Covers the pre-decision phase (6 steps, 8-section checklist, auto-detection
-  rules), checkpoint/resume mechanism, exception severity classification
+  Covers the preflight phase (6 steps, 8-section project configuration,
+  authorization), checklist checkpoint/resume, exception severity classification
   (4 levels), human intervention breakpoints (7 HARD, 6 SOFT), execution
   log format, and progress calculation.
 triggers:
-  - "running pre-decision phase"
+  - "running preflight phase"
+  - "authorizing checklist loop"
   - "checkpoint management"
   - "handling exceptions"
   - "resuming workflow"
@@ -15,78 +16,117 @@ tier: 2
 token_estimate: 4600
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-24"
 ---
 
 # Execution Protocol Reference
 
-## 1. Pre-Decision Phase
-From §2:
-
+## 1. Preflight Phase
 ### Phase Sequence (6 Steps)
-
 ```
 Step 1: DETECT   — Auto-detect repo mode, language, platform
-Step 2: COLLECT  — Present checklist to user with detected values
+Step 2: COLLECT  — Draft preflight.md §0 with detected/defaulted values
 Step 3: VALIDATE — Check consistency (e.g., Rust + npm = error)
-Step 4: FREEZE   — Write project_config.yaml, lock decisions
-Step 5: RECOMMEND— Auto-recommend workflow type, present for confirmation
-Step 6: DISPATCH — Hand off frozen config to Project Agent
+Step 4: SIGN     — User signs §0 plus stop-card authorizations
+Step 5: MIRROR   — Export project_config.yaml and seal its byte hash
+Step 6: START    — HBP-01 passes; the bounded checklist loop may start
 ```
 
-### Checklist (8 Sections)
-From §2.3:
+`preflight.md` is the only execution-before-confirmation surface. Its
+frontmatter binds the change, signed time, inherited provenance, mirror hash,
+and authorization seal. Sections 1–3 freeze stop cards, authorization records,
+and the closed permitted-stop list after signing; Section 4 is the per-round
+progress snapshot.
+
+### Baseline Discovery and Draft Modes
+Baseline discovery is read-only. It combines the current
+`.local/project_config.yaml` values with provenance from the newest valid
+signed `preflight.md` under `.local/.agent/active/` or
+`.local/.agent/archive/`. A malformed candidate, a mirror without signed
+provenance, or a signed preflight without its mirror is an explicit error;
+discovery never silently falls back.
+
+* **First change — full draft:** render all eight §0 subsections and keep
+  `authorized_at`, `project_config_hash`, and `authorization_hash` null.
+* **Later change, no drift — inherited draft:** render the canonical one-line
+  inherited record with source change id, signed timestamp, and matching hash.
+  Preserve `config_inherited_from`; the new preflight remains unsigned.
+* **Later change, drift — delta draft:** render only changed fields, preserve
+  source provenance, and require a new signature before the loop. A change-id
+  slug identifies the workspace folder; it MUST NOT overwrite inherited
+  project name or purpose.
+
+### Project Configuration (8 Subsections)
 
 ```yaml
-pre_decision_checklist:
-  # Section 1: Project Identity
+preflight_section_0:
+  # 0.1 Project
   project:
     name: ""                           # MANDATORY
     purpose: ""                        # MANDATORY
+    scope_keywords: []                 # DEFAULTED
     existing_codebase: false           # CONFIRM — detected from scan
 
-  # Section 2: Tech Stack
+  # 0.2 Tech Stack
   tech_stack:
     primary_language: ""               # MANDATORY (auto-detect → CONFIRM)
+    secondary_languages: []            # DEFAULTED
+    framework: ""                      # CONFIRM
     build_system: ""                   # CONFIRM — auto-detected
     dependency_manifest: ""            # CONFIRM — auto-detected
-    runtime_version: ""                # DEFAULTED — "latest stable"
+    runtime_version: ""                # CONFIRM
+    pinned_dependencies: []            # DEFAULTED
+    banned_dependencies: []            # DEFAULTED
 
-  # Section 3: Repository Mode
+  # 0.3 Repository
   repository:
     mode: ""                           # CONFIRM — auto-detected
     remote_url: ""                     # CONFIRM — auto-detected
     default_branch: "main"             # CONFIRM
+    branching_strategy: "feature-branches"
     features:
       ci_cd: false                     # DEFAULTED per mode
       release_publishing: false        # DEFAULTED per mode
 
-  # Section 4: Language & Localization
+  # 0.4 Localization
   localization:
     primary_language: "en"             # DEFAULTED
+    secondary_language: null           # DEFAULTED
+    bilingual_output: false            # CONFIRM
+    doc_language: "en"                 # CONFIRM
     code_comments_language: "en"       # DEFAULTED
 
-  # Section 5: Target Platforms
+  # 0.5 Platforms
   platforms:
     os: ["linux"]                      # DEFAULTED — current OS
     architectures: ["x86_64"]          # DEFAULTED — current arch
+    additional_targets: []             # DEFAULTED
+    min_os_versions: {}                # DEFAULTED
 
-  # Section 6: Quality Standards
+  # 0.6 Quality
   quality:
     coverage_target_pct: 80            # DEFAULTED
-    quality_score_threshold: 85        # DEFAULTED
+    quality_score_threshold: 8.5       # DEFAULTED
+    lint_strictness: "standard"        # CONFIRM
     gate_profile: "standard"           # DEFAULTED
-    max_convergence_rounds: 3          # DEFAULTED
+    max_rounds: 3                      # DEFAULTED
+    security_review_required: false    # DEFAULTED
+    harness_evaluation_required: false # DEFAULTED
 
-  # Section 7: Release Strategy
+  # 0.7 Release
   release:
     versioning: "semver"               # DEFAULTED
     initial_version: "0.1.0"           # DEFAULTED
+    channels: []                       # CONFIRM
+    publishing_targets: []             # CONFIRM
+    signing: false                     # CONFIRM
+    changelog_format: "keep-a-changelog"
 
-  # Section 8: Workflow Selection
+  # 0.8 Workflow
   workflow:
-    type: ""                           # CONFIRM — auto-recommended
-    skip_stages: []                    # DEFAULTED
+    seed_mode: ""                      # CONFIRM — auto-recommended
+    runtime_loop: "checklist_rounds"   # DEFAULTED
+    seed_overrides: {}                 # CONFIRM
 ```
 
 ### Decision Point Categories
@@ -98,7 +138,6 @@ pre_decision_checklist:
 | **CONFIRM** | `☑` | Auto-detected; user should verify | SOFT |
 
 ### Auto-Detection Rules
-From §2.4:
 
 | Target | Method | Examples |
 |--------|--------|---------|
@@ -109,7 +148,6 @@ From §2.4:
 | Workflow type | Keyword heuristics | "fix bug" → hotfix; "build from scratch" → full_pipeline |
 
 ### Consistency Validation Rules
-From §3.4:
 
 | Rule | Condition | Severity |
 |------|-----------|----------|
@@ -120,6 +158,13 @@ From §3.4:
 | coverage_in_range | coverage < 0 or > 100 | error |
 | gate_profile_consistency | strict profile + coverage < 90% | warning |
 | local_no_publish | local mode + publishing targets | warning |
+
+### Standalone API Deprecation
+The standalone `pre_decision` package remains a deprecated compatibility
+pointer for detection, normalization, and validation helpers. It no longer
+owns an artifact or an independent breakpoint. New callers use
+`devolaflow.agent_workspace.preflight`; HBP-01 authorizes the resulting
+`preflight.md`.
 
 ## 1b. Verification-First Micro-Plan (L3 Tasks)
 
@@ -179,7 +224,6 @@ The `pre_handoff` lifecycle hook validates the StatusReport's
 rejected with PHF001 (in STRICT mode) or warned (in lite mode).
 
 ## 2. Checkpoint/Resume Mechanism
-From §4:
 
 ### Checkpoint Storage
 
@@ -187,52 +231,44 @@ From §4:
 .local/
 ├── checkpoints/
 │   ├── checkpoint_latest.yaml          # symlink → most recent
-│   ├── cp_20260404T103000Z_S01_gate.yaml
-│   ├── cp_20260404T110000Z_S02_gate.yaml
+│   ├── cp_<change>_round_1.yaml         # immutable, no-clobber
+│   ├── cp_<change>_round_2.yaml
 │   └── ...
-├── project_config.yaml                 # frozen pre-decision config
-└── project_status.yaml                 # live dashboard
+├── project_config.yaml                 # signed preflight §0 mirror
+└── .agent/active/<change-id>/
+    ├── checklist.md                     # item truth + checked evidence
+    └── stage.md                         # closed rounds + checkpoint refs
 ```
 
 ### Checkpoint Schema
 
 ```yaml
-checkpoint:
-  metadata:
-    checkpoint_id: "cp_{timestamp}_{trigger}"
-    timestamp: "ISO8601"
-    trigger: "stage_gate_pass | wave_complete | manual | error_recovery"
-    workflow_run_id: "string"
-
-  project_state:
-    workflow_type: "string"
-    config_hash: "sha256:..."          # drift detection
-
-  stage_progress:
-    completed_stages:
-      - stage_id: "string"
-        gate_verdict: "PASS"
-        artifacts: [{ path, hash }]
-    current_stage:
-      stage_id: "string"
-      status: "in_progress"
-      current_wave: "string"
-      waves_completed: ["string"]
-    pending_stages: ["string"]
-
-  convergence_state:
-    current_round: "integer"
-    max_rounds: "integer"
-    round_history: [{ round, score, timestamp }]
-
-  quality_snapshot:
-    last_composite_score: "number | null"
-    last_coverage_pct: "number | null"
-    total_findings: { blocker, critical, major, minor, info }
+metadata:
+  checkpoint_id: "cp_<change>_round_<n>"
+  timestamp: "ISO8601 UTC"
+  trigger: "convergence_round_complete"
+  workflow_run_id: "string"
+  schema_version: "1.0"
+project_state:
+  workflow_type: "checklist_rounds"
+  project_name: "string"
+  config_hash: "sha256:<64 lowercase hex>"
+stage_progress: {}
+wave_state: {}
+convergence_state:
+  current_round: 2
+  max_rounds: 5
+  round_history:
+    - round: 2
+      score: 90.0
+      timestamp: "ISO8601 UTC"
+      checked_ids: ["C-G1.1", "C-G1.2"]
+quality_snapshot: {}
+deferred_items: []
+active_escalations: []
 ```
 
 ### Checkpoint Trigger Rules
-From §4.4:
 
 | Trigger | When | Retention |
 |---------|------|-----------|
@@ -244,33 +280,40 @@ From §4.4:
 | human_intervene_pause | When workflow pauses for human | Permanent |
 | manual | User explicitly requests | Permanent |
 
+Checklist resume accepts only `convergence_round_complete`: it represents a
+closed round whose `checked_ids` and stage history can be cross-validated.
+Other triggers remain valid general workflow checkpoints, but are not
+checklist resume points.
+
 ### Resume Logic
-From §4.5:
 
 ```
-Workflow Start Request
+Checklist Resume Request (read-only)
   │
-  ├─ checkpoint_latest.yaml exists?
-  │   ├─ NO → Start fresh (Pre-Decision Phase)
-  │   └─ YES → Load checkpoint
-  │       ├─ Config hash matches? → Identify resume point
-  │       └─ Config drift? → Present diff → User approves? → Update / Restart
+  ├─ Load explicit checkpoint or checkpoint_latest.yaml
+  ├─ Require convergence_round_complete + valid checked_ids
+  ├─ Cross-check stage.md latest round and checkpoint reference
+  ├─ Compare project_config.yaml bytes with project_state.config_hash
+  │   └─ Drift → CONFIG_DRIFT; do not select or write
   │
-  ├─ Active escalations? → Present to user first → Resolve → Resume
+  ├─ Active escalations? → ACTIVE_ESCALATIONS; resolve before resume
   │
-  └─ Resume from checkpoint:
-      ├─ current_stage completed → Advance to next pending stage
-      ├─ current_wave completed → Dispatch next wave
-      ├─ tasks partially complete → Re-dispatch only incomplete tasks
-      └─ no tasks complete → Re-dispatch entire wave
+  └─ Derive the next bounded selection:
+      ├─ Between rounds: stage.current_round == checkpoint round
+      │   └─ resume at checkpoint round + 1
+      ├─ Mid-round: stage.current_round == checkpoint round + 1
+      │   └─ continue that round from open/reverted items
+      ├─ All checklist items checked → COMPLETE
+      └─ Otherwise → READY with priority-ordered open/reverted items only
 ```
 
 **Critical resume invariants:**
-1. Never re-execute a completed stage (gate PASS = done)
-2. Never re-execute completed tasks in a wave
-3. Verify artifact integrity (hash check) before resuming
-4. Preserve convergence round state (resume mid-round)
-5. Config drift requires user approval
+1. Resume planning performs zero filesystem writes.
+2. Already checked checklist items are reported but never selected again.
+3. A reopened historical item requires its verbatim `reverted:` reason.
+4. Checkpoint, stage history, checked ids, and `max_rounds` must agree.
+5. Preserve between-round and mid-round coordinates exactly.
+6. Config drift and active escalations return explicit non-ready dispositions.
 
 ## 3. Exception Severity Classification
 From §5:
@@ -356,13 +399,17 @@ From §6:
 
 | ID | Name | When | Skip Condition |
 |----|------|------|----------------|
-| HBP-01 | Pre-Decision Confirmation | Before first stage dispatches | Never |
+| HBP-01 | Preflight Signature | Before the checklist loop starts | Never — valid signature and mirror hash required |
 | HBP-02 | Architecture Design Approval | After Design stage gates PASS | hotfix, refactoring, documentation |
 | HBP-03 | Security-Sensitive Change | Task modifies auth/crypto/secrets | security_review=false AND test files only |
 | HBP-04 | External Service Configuration | Needs API key or service account | Never when credentials needed |
 | HBP-05 | Release Publication Approval | Before publishing to registries | local mode OR no publishing targets |
 | HBP-06 | Divergence Report Review | Max convergence rounds reached | Never |
 | HBP-07 | Full Rollback Acknowledgment | After FULL_ROLLBACK event | Never |
+
+HBP-01 is non-skippable: `authorized_at`, `project_config_hash`, and
+`authorization_hash` must be valid, and the mirror bytes must match the signed
+hash before `/devola:apply` or a canonical checklist-round dispatch can start.
 
 ### SOFT Breakpoints (6) — Workflow CAN Continue
 
@@ -706,21 +753,21 @@ mutate source-of-truth specs. It binds a dispatch payload to the
 `change_context` top-level dispatch key (canonical position 16, schema
 version 5).
 
-**4-stage lifecycle**: `propose → (apply ↔ verify) → archive`.
+**4-stage lifecycle**: `propose → preflight → checklist loop → archive`.
 
 | Stage | Primitive | Input | Output |
 |-------|-----------|-------|--------|
-| propose | research + design | user request + relevant SoT specs | `.local/.agent/active/<id>/{goal.md, acceptance.md, spec.md, owned_files.txt, STATUS.yaml=PROPOSED}` |
-| apply | implement | spec.md DELTAs + owned_files.txt | source code edits within owned_files; `STATUS.yaml=IN_PROGRESS` |
-| verify | review + test | apply output + acceptance.md | `STATUS.yaml=VERIFYING`; on FAIL → loop back to apply |
+| propose | research + design | user request + relevant SoT specs | unsigned checklist-layout change folder; first/full or inherited/delta preflight §0 |
+| preflight | validate + authorize | eight-section §0 + stop cards | signed `preflight.md` + sealed `.local/project_config.yaml` mirror |
+| checklist loop | select + implement + verify | priority-ordered open/reverted checklist items | evidence-backed checks, round history, immutable round checkpoint |
 | archive | release | gate-PASSED change | `.local/.agent/archive/<YYYY-MM-DD>-<id>/` + spec merge proposal to `.local/memory/specs/<domain>/spec.md` |
 
-**`apply ↔ verify` convergence loop** with `max_rounds=5` per W-8 /
-SI-9. Each round builds reinforcement rules from the prior round's gate
-findings via `findings_to_reinforcement()`; round-N L3 task agents MUST
-address all reinforcement rules before other work. Stagnation (2+
-rounds with no improvement despite reinforcement) escalates to human
-per P4.
+**Checklist convergence loop** is bounded by `stage.md max_rounds` per W-8 /
+SI-9. Each round selects only open/reverted items, emits evidence, reconciles
+checks, refreshes the progress snapshot, and closes with a
+`convergence_round_complete` checkpoint. Reinforcement carries prior findings
+and verbatim reverted reasons. Two stagnant rounds or the maximum round bound
+escalates per P4.
 
 **Append-only handoff envelopes** (Soul Rule **S-9**): inter-stage
 handoff lives in `.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml`.

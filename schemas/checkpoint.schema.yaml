@@ -22,7 +22,7 @@ fields:
     children:
       checkpoint_id: { type: string, description: Unique id (often time + stage). }
       timestamp: { type: string, description: ISO8601 write time. }
-      trigger: { type: string, description: stage_gate_pass | wave_complete | manual | error_recovery, etc. }
+      trigger: { type: string, description: stage_gate_pass | wave_complete | convergence_round_complete | manual | error_recovery, etc. }
       workflow_run_id: { type: string }
       schema_version: { type: string, description: Checkpoint file format version. }
 
@@ -70,7 +70,20 @@ fields:
     children:
       current_round: { type: int }
       max_rounds: { type: int }
-      round_history: { type: list, description: Past round summaries. }
+      round_history:
+        type: list
+        description: Past round summaries in ascending round order.
+        item_fields:
+          round: { type: int }
+          score: { type: number, optional: true }
+          timestamp: { type: string }
+          checked_ids:
+            type: list
+            item_pattern: "^C-G[1-9][0-9]*\\.[1-9][0-9]*$"
+            allow_empty: true
+            required_when: metadata.trigger == convergence_round_complete on latest row
+            description: Ordered unique checklist ids checked in that round.
+            example: [C-G1.1]
 
   quality_snapshot:
     children:

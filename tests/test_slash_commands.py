@@ -27,7 +27,14 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from devolaflow.agent_workspace import ArchiveError, ChangeStore
+from devolaflow.agent_workspace import (
+    ArchiveError,
+    ChangeStore,
+    PreflightAuthorization,
+    draft_preflight_section0,
+    sign_preflight,
+)
+from devolaflow.agent_workspace.preflight import discover_preflight_baseline
 from devolaflow.skills.slash_commands import (
     ARCHIVE_GATE_THRESHOLD,
     REQUIRE_VERIFY_STATE,
@@ -60,6 +67,37 @@ _ABSENT_LEGACY_FILES: tuple[str, ...] = (
     "tasks.md",
     "learnings.jsonl",
 )
+
+
+def _sign_seeded_preflight(
+    change_folder: Path,
+    *,
+    authorized_at: str = "2026-08-24T12:00:00Z",
+) -> None:
+    """Authorize a scaffold before exercising a successful loop lifecycle."""
+    root = change_folder.parents[3]
+    change_id = change_folder.name
+    inherited = discover_preflight_baseline(root)
+    draft = draft_preflight_section0(
+        root,
+        project_name=change_id if inherited is None else None,
+        project_purpose=f"Complete {change_id}" if inherited is None else None,
+        seed_mode="feature-enhancement",
+        inherited=inherited,
+    )
+    sign_preflight(
+        root,
+        change_id,
+        draft=draft,
+        authorizations=[
+            PreflightAuthorization(
+                card_id="PF-A1",
+                disposition="reserved_stop",
+                quote="Approved checklist execution",
+            )
+        ],
+        authorized_at=authorized_at,
+    )
 
 
 def _complete_seeded_checklist(change_folder: Path) -> None:
@@ -196,6 +234,65 @@ def test_propose_creates_change_folder(tmp_path: Path) -> None:
     assert preflight_frontmatter["project_config_hash"] is None
     assert "Pending user signature" in preflight
 
+    _sign_seeded_preflight(target)
+    mirror_path = tmp_path / ".local" / "project_config.yaml"
+    mirror_before = mirror_path.read_bytes()
+    signed = yaml.safe_load(
+        (target / "preflight.md").read_text(encoding="utf-8").split("---", 2)[1]
+    )
+
+    inherited = run_propose("Follow Up", tmp_path)
+    inherited_text = (inherited / "preflight.md").read_text(encoding="utf-8")
+    inherited_frontmatter = yaml.safe_load(inherited_text.split("---", 2)[1])
+    expected_line = (
+        f"- Inherited from foo (signed {signed['authorized_at']}); "
+        f"config hash {signed['project_config_hash']} matches; no drift."
+    )
+    assert expected_line in inherited_text
+    assert inherited_frontmatter["config_inherited_from"] == "foo"
+    assert inherited_frontmatter["authorized_at"] is None
+    assert inherited_frontmatter["project_config_hash"] is None
+    assert "- name: follow-up |" not in inherited_text
+    assert mirror_path.read_bytes() == mirror_before
+
+    git = tmp_path / ".git"
+    git.mkdir()
+    (git / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    (git / "config").write_text(
+        "[core]\nrepositoryformatversion = 0\n"
+        '[remote "origin"]\nurl = https://github.com/example/project.git\n',
+        encoding="utf-8",
+    )
+    drifted = run_propose("Drifted Follow Up", tmp_path)
+    drifted_text = (drifted / "preflight.md").read_text(encoding="utf-8")
+    drifted_frontmatter = yaml.safe_load(drifted_text.split("---", 2)[1])
+    section0 = drifted_text.split("## 0. Project Configuration\n", 1)[1].split(
+        "\n\n## 1. Stop Cards",
+        1,
+    )[0]
+    assert section0.count("### 0.") == 1
+    assert "### 0.3 Repository" in section0
+    assert "- Δ mode: previous=local | proposed=github" in section0
+    assert "name:" not in section0 and "purpose:" not in section0
+    assert drifted_frontmatter["config_inherited_from"] == "foo"
+    assert drifted_frontmatter["authorized_at"] is None
+    assert drifted_frontmatter["project_config_hash"] is None
+    assert mirror_path.read_bytes() == mirror_before
+
+    _sign_seeded_preflight(
+        drifted,
+        authorized_at="2026-08-24T13:00:00Z",
+    )
+    archive_root = tmp_path / ".local" / ".agent" / "archive"
+    archive_root.mkdir(exist_ok=True)
+    drifted.rename(archive_root / "2026-08-24-drifted-follow-up")
+    post_archive = run_propose("Post Archive", tmp_path)
+    post_archive_text = (post_archive / "preflight.md").read_text(encoding="utf-8")
+    assert "- Inherited from drifted-follow-up (signed 2026-08-24T13:00:00Z);" in (
+        post_archive_text
+    )
+    assert "- name: post-archive |" not in post_archive_text
+
 
 def test_propose_no_change_opt_out_skips_scaffold(tmp_path: Path) -> None:
     """``--no-change`` is the A-6.3 escape hatch; no folder created.
@@ -219,6 +316,30 @@ def test_propose_refuses_existing_folder(tmp_path: Path) -> None:
     with pytest.raises(ProposeError, match="already exists"):
         scaffold_change_folder("foo", tmp_path)
 
+    malformed_root = tmp_path / "malformed"
+    malformed_root.mkdir()
+    signed_folder = scaffold_change_folder("signed", malformed_root)
+    _sign_seeded_preflight(signed_folder)
+    preflight_path = signed_folder / "preflight.md"
+    preflight_path.write_text(
+        preflight_path.read_text(encoding="utf-8").replace(
+            "authorization_hash: ",
+            "authorization_hash: malformed-",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ProposeError, match="malformed preflight baseline candidate"):
+        scaffold_change_folder("next", malformed_root)
+
+    orphan_root = tmp_path / "orphan"
+    (orphan_root / ".local").mkdir(parents=True)
+    (orphan_root / ".local" / "project_config.yaml").write_bytes(
+        (malformed_root / ".local" / "project_config.yaml").read_bytes()
+    )
+    with pytest.raises(ProposeError, match="orphaned .local/project_config.yaml"):
+        scaffold_change_folder("next", orphan_root)
+
 
 # ── apply ──────────────────────────────────────────────────────────────
 
@@ -231,7 +352,8 @@ def test_apply_sets_in_progress(tmp_path: Path) -> None:
     The returned :class:`Change` carries the updated state and a
     refreshed ``last_updated`` timestamp.
     """
-    scaffold_change_folder("foo", tmp_path)
+    target = scaffold_change_folder("foo", tmp_path)
+    _sign_seeded_preflight(target)
     updated = run_apply("foo", tmp_path)
     assert updated.state == "IN_PROGRESS"
 
@@ -257,6 +379,7 @@ def test_verify_runs_pytest(tmp_path: Path) -> None:
     owned_files_path = target / "owned_files.txt"
     owned_files_path.write_text("tests/test_foo.py\n", encoding="utf-8", newline="\n")
     # Apply first — verify requires IN_PROGRESS as the start state.
+    _sign_seeded_preflight(target)
     run_apply("foo", tmp_path)
     _complete_seeded_checklist(target)
 
@@ -287,6 +410,7 @@ def test_verify_pytest_failure_keeps_in_progress(tmp_path: Path) -> None:
     """
     target = scaffold_change_folder("foo", tmp_path)
     (target / "owned_files.txt").write_text("tests/test_foo.py\n", encoding="utf-8", newline="\n")
+    _sign_seeded_preflight(target)
     run_apply("foo", tmp_path)
 
     def failing_runner(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
@@ -304,9 +428,15 @@ def test_verify_pytest_failure_keeps_in_progress(tmp_path: Path) -> None:
 
 def _advance_to_verifying(repo_root: Path, change_id: str, *, gate_score: float) -> None:
     """Helper: walk the FSM PROPOSED → IN_PROGRESS → VERIFYING + set gate_score."""
-    run_apply(change_id, repo_root)
+    folder = repo_root / ".local" / ".agent" / "active" / change_id
+    state = ChangeStore(repo_root=repo_root).get(change_id).state
+    if state == "PROPOSED":
+        _sign_seeded_preflight(folder)
+        run_apply(change_id, repo_root)
+    else:
+        assert state == "IN_PROGRESS"
     _complete_seeded_checklist(
-        repo_root / ".local" / ".agent" / "active" / change_id,
+        folder,
     )
 
     def passing_runner(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
@@ -336,13 +466,14 @@ def test_archive_requires_gate_pass(tmp_path: Path) -> None:
     The canonical FSM uses ``VERIFYING`` (not ``VERIFIED``); the
     slash command uses the canonical name.
     """
-    scaffold_change_folder("foo", tmp_path)
+    target = scaffold_change_folder("foo", tmp_path)
 
     # State PROPOSED — refuses.
     with pytest.raises(ArchiveError, match="archive requires state == 'VERIFYING'"):
         run_archive("foo", tmp_path, archive_date="2026-05-01")
 
     # Advance to IN_PROGRESS — still refuses.
+    _sign_seeded_preflight(target)
     run_apply("foo", tmp_path)
     with pytest.raises(ArchiveError, match="archive requires state == 'VERIFYING'"):
         run_archive("foo", tmp_path, archive_date="2026-05-01")
@@ -351,6 +482,7 @@ def test_archive_requires_gate_pass(tmp_path: Path) -> None:
 def test_archive_requires_gate_score(tmp_path: Path) -> None:
     """Archive refuses when ``gate_score`` is absent or below the W-3 floor."""
     target = scaffold_change_folder("foo", tmp_path)
+    _sign_seeded_preflight(target)
     run_apply("foo", tmp_path)
     _complete_seeded_checklist(target)
 
@@ -435,6 +567,9 @@ def test_main_dispatches_apply_verify_archive_with_exit_codes(
     import devolaflow.skills.slash_commands as slash_mod
 
     assert main(["--repo-root", str(tmp_path), "propose", "foo"]) == 0
+    _sign_seeded_preflight(
+        tmp_path / ".local" / ".agent" / "active" / "foo",
+    )
 
     rc = main(["--repo-root", str(tmp_path), "apply", "foo"])
     assert rc == 0
@@ -501,7 +636,8 @@ def test_error_guards_invalid_change_id_missing_pytest_and_bad_gate_score(
         scaffold_change_folder("ignored topic", tmp_path, change_id="Bad_ID")
 
     # (b) pytest binary missing → VerifyFailed, not silent success.
-    scaffold_change_folder("foo", tmp_path)
+    target = scaffold_change_folder("foo", tmp_path)
+    _sign_seeded_preflight(target)
     run_apply("foo", tmp_path)
 
     def missing_pytest(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:

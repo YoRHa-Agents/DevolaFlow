@@ -66,7 +66,20 @@ from devolaflow.agent_workspace import (
     ChangeNotFoundError,
     ChangeStore,
     ChangeStoreError,
+    PreflightDraftError,
+    draft_preflight_section0,
+    invalidate_preflight,
+    plan_checklist_resume,
+    sign_preflight,
+    write_checkpoint,
 )
+from devolaflow.agent_workspace.preflight import discover_preflight_baseline
+from devolaflow.agent_workspace.preflight_runtime import (
+    evaluate_permitted_stops,
+    refresh_preflight_snapshot,
+)
+from devolaflow.lifecycle.dispatcher import HookViolation
+from devolaflow.lifecycle.preflight_authorization import guard_preflight_authorization
 
 __all__ = [
     "ARCHIVE_GATE_THRESHOLD",
@@ -125,6 +138,18 @@ _SLUGIFY_REPLACE_RE = re.compile(r"[^a-z0-9]+")
 _SLUGIFY_TRIM_RE = re.compile(r"^-+|-+$")
 _VALID_CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$")
 _PROPOSE_OWNER_SESSION_ID = "00000000-0000-4000-8000-000000000000"
+
+# These public M3 control APIs are intentionally operator-invoked rather than
+# auto-run by slash commands. Non-import references keep their liveness
+# explicit without adding an unsafe implicit sign, checkpoint, or resume step.
+_M3_OPERATOR_API_PINS = (
+    write_checkpoint,
+    sign_preflight,
+    invalidate_preflight,
+    evaluate_permitted_stops,
+    refresh_preflight_snapshot,
+    plan_checklist_resume,
+)
 
 
 # ── Custom error types (S-5 explicit error states) ─────────────────────
@@ -240,6 +265,22 @@ def scaffold_change_folder(
 
     now = _now_iso()
     goal_title = f"Complete {slug}"
+    try:
+        inherited = discover_preflight_baseline(repo_root)
+        section0_draft = draft_preflight_section0(
+            repo_root,
+            project_name=slug if inherited is None else None,
+            project_purpose=goal_title if inherited is None else None,
+            seed_mode="feature-enhancement",
+            inherited=inherited,
+        )
+    except PreflightDraftError as exc:
+        raise ProposeError(f"/devola:propose: preflight baseline discovery failed: {exc}") from exc
+    inherited_from = (
+        "null"
+        if section0_draft.config_inherited_from is None
+        else section0_draft.config_inherited_from
+    )
     status = {
         "schema_version": 2,
         "change_id": slug,
@@ -326,62 +367,13 @@ def scaffold_change_folder(
             "schema_version: 1\n"
             "authorized_at: null\n"
             "snapshot_round: 0\n"
-            "config_inherited_from: null\n"
+            f"config_inherited_from: {inherited_from}\n"
             "project_config_hash: null\n"
+            "authorization_hash: null\n"
             "---\n\n"
             "# Preflight\n\n"
             "## 0. Project Configuration\n"
-            "### 0.1 Project\n"
-            f'- name: {slug} | decision: MANDATORY | source: "propose topic"\n'
-            f'- purpose: {goal_title} | decision: MANDATORY | source: "goal.md"\n'
-            f"- scope_keywords: [{slug}] | decision: DEFAULTED | source: "
-            '"propose topic"\n'
-            "- existing_codebase: true | decision: CONFIRM | source: "
-            '"repository root; confirm before signing"\n\n'
-            "### 0.2 Tech Stack\n"
-            "- primary_language: pending | decision: CONFIRM | source: "
-            '"detect before signing"\n'
-            "- runtime_version: pending | decision: CONFIRM | source: "
-            '"detect before signing"\n'
-            "- dependency_manifest: pending | decision: CONFIRM | source: "
-            '"detect before signing"\n\n'
-            "### 0.3 Repository\n"
-            "- mode: local | decision: CONFIRM | source: "
-            '"safe draft default; detect before signing"\n'
-            "- default_branch: pending | decision: CONFIRM | source: "
-            '"detect before signing"\n'
-            "- branching_strategy: pending | decision: CONFIRM | source: "
-            '"confirm before signing"\n\n'
-            "### 0.4 Localization\n"
-            "- primary_language: en | decision: CONFIRM | source: "
-            '"safe draft default; confirm before signing"\n'
-            "- bilingual_output: false | decision: CONFIRM | source: "
-            '"safe draft default; confirm before signing"\n'
-            "- doc_language: en | decision: CONFIRM | source: "
-            '"safe draft default; confirm before signing"\n'
-            "- code_comments_language: en | decision: DEFAULTED | source: "
-            '"safe draft default; confirm before signing"\n\n'
-            "### 0.5 Platforms\n"
-            "- os: [pending] | decision: CONFIRM | source: "
-            '"detect before signing"\n'
-            "- architectures: [pending] | decision: CONFIRM | source: "
-            '"detect before signing"\n\n'
-            "### 0.6 Quality\n"
-            "- coverage_target_pct: 80 | decision: CONFIRM | source: "
-            '"default; confirm before signing"\n'
-            "- gate_profile: standard | decision: CONFIRM | source: "
-            '"default; confirm before signing"\n'
-            '- max_rounds: 3 | decision: CONFIRM | source: "stage.md"\n\n'
-            "### 0.7 Release\n"
-            "- versioning: semver | decision: CONFIRM | source: "
-            '"default; confirm before signing"\n'
-            "- channels: [] | decision: CONFIRM | source: "
-            '"confirm before signing"\n\n'
-            "### 0.8 Workflow\n"
-            "- seed_mode: feature-enhancement | decision: CONFIRM | source: "
-            '"propose scaffold"\n'
-            "- runtime_loop: checklist_rounds | decision: DEFAULTED | source: "
-            '"schema default"\n\n'
+            f"{section0_draft.markdown}\n\n"
             "## 1. Stop Cards\n"
             "| ID | Category | Description | Checklist Items | Disposition |\n"
             "|---|---|---|---|---|\n"
@@ -393,7 +385,8 @@ def scaffold_change_folder(
             "1. STOP-1: A Section 1 card with disposition=reserved_stop is reached.\n"
             "2. STOP-2: The two-round stagnation rule fires or max_rounds is reached.\n"
             "3. STOP-3: A FULL_ROLLBACK exception reports state corruption or data loss.\n"
-            "4. STOP-4: The user reopens an item and explicitly instructs a stop.\n\n"
+            "4. STOP-4: The user reopens an item and the verbatim reverted reason "
+            "explicitly instructs a stop.\n\n"
             "## 4. Progress Snapshot\n"
             "- Checked: 0/1 (P0: 0/0, P1: 0/1, P2: 0/0)\n"
             "- Remaining stop cards: [PF-A1] | Reached this round: []\n"
@@ -412,8 +405,8 @@ def scaffold_change_folder(
             "Authored via `/devola:propose` using the v16 checklist layout.\n\n"
             "## Checklist and preflight lifecycle\n"
             "1. Review `goal.md` and refine the assertions in `checklist.md` before work starts.\n"
-            "2. Complete `preflight.md`; it remains unsigned while `authorized_at` and "
-            "`project_config_hash` are null.\n"
+            "2. Complete `preflight.md`; it remains unsigned while `authorized_at`, "
+            "`project_config_hash`, and `authorization_hash` are null.\n"
             "3. Use `stage.md` to select at most five checklist items per round.\n"
             "4. Store verification output under `evidence/`, then check only the matching "
             "evidence-backed item.\n"
@@ -471,11 +464,16 @@ def run_apply(change_id: str, repo_root: Path) -> Change:
 
     Raises:
       ChangeNotFoundError: when ``change_id`` is not active.
+      HookViolation: when a checklist change has not passed the HBP-01
+        preflight signature checkpoint.
       ChangeStoreError: when the FSM transition is illegal (e.g. the
         change is already past PROPOSED — operator should
         ``/devola:verify`` instead).
     """
     store = ChangeStore(repo_root=repo_root)
+    change = store.get(change_id)
+    if change.layout is ChangeLayout.CHECKLIST:
+        guard_preflight_authorization(repo_root, change_id)
     return store.transition_state(change_id, "IN_PROGRESS")
 
 
@@ -727,7 +725,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _emit(f"/devola:archive: {args.change_id} -> {rel}/")
             return _EXIT_OK
 
-    except (ProposeError, VerifyFailed, ArchiveError) as exc:
+    except (ProposeError, VerifyFailed, ArchiveError, HookViolation) as exc:
         _emit_error(str(exc))
         return _EXIT_FAILURE
     except (ChangeStoreError, ChangeNotFoundError) as exc:

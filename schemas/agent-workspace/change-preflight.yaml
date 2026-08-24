@@ -65,18 +65,26 @@ frontmatter:
       nullable: true
       pattern: "^[0-9a-f]{64}$"
       description: "SHA-256 of `.local/project_config.yaml` compiled from the signed Section 0."
+    authorization_hash:
+      type: string
+      nullable: true
+      pattern: "^[0-9a-f]{64}$"
+      description: "Self-contained SHA-256 seal for signed frontmatter identity fields and canonical Sections 0–3."
 
 authorization_coupling:
   unsigned_state:
     condition: "authorized_at == null"
     effects:
       - "The execution loop is blocked at the Preflight signature checkpoint (Skip=Never)."
-      - "project_config_hash MAY be null while the initial Section 0 draft is incomplete."
+      - "project_config_hash MUST be null; an inherited no-drift Section 0 line may carry its expected prior hash until signing."
+      - "authorization_hash MUST be null or absent for a backward-compatible unsigned draft."
   signed_state:
     condition: "authorized_at != null"
     required:
       - "project_config_hash is a 64-character lowercase SHA-256 digest."
+      - "authorization_hash is a 64-character lowercase SHA-256 digest."
       - "project_config_hash equals the SHA-256 of `.local/project_config.yaml`."
+      - "authorization_hash equals the authorization_seal digest defined below."
       - "All eight Section 0 configuration sections are present or inherited without drift."
       - "Every Section 1 card has exactly one user-signed Section 2 disposition."
       - "Section 3 equals the closed four-item stop whitelist in this schema."
@@ -87,8 +95,18 @@ authorization_coupling:
       - "Any Section 1 card is added, removed, or changed."
       - "Any Section 2 authorization is added, removed, or changed."
       - "The project_config mirror hash does not match project_config_hash."
-    action: "Set authorized_at to null and require the user to sign again before loop execution."
+    action: "Atomically set authorized_at, project_config_hash, and authorization_hash to null; preserve config_inherited_from, snapshot_round, body bytes, and mirror bytes."
   signer: user
+
+authorization_seal:
+  algorithm: sha256
+  metadata_encoding: "UTF-8 JSON with insertion order parent, schema_version, authorized_at, config_inherited_from, project_config_hash; ensure_ascii=false; separators=(',', ':'); no sorted keys."
+  payload: "<metadata-json> + LF + <canonical-sections-0-through-3>"
+  canonical_sections: "Exact canonical LF rendering from the `## 0. Project Configuration` heading through the final byte of the fourth Section 3 STOP line, with one empty line between sections and no trailing LF."
+  excluded:
+    - snapshot_round
+    - "Section 4 Progress Snapshot"
+  rationale: "Round snapshots may advance without invalidating the frozen project configuration and stop authorization."
 
 body:
   required_sections:
@@ -281,6 +299,8 @@ section_3_permitted_stops:
       condition: "A FULL_ROLLBACK exception reports state corruption or data loss."
     - id: STOP-4
       condition: "The user reopens an item and the verbatim reverted reason explicitly instructs a stop."
+      matching_rule: "Trim surrounding whitespace, then require the case-sensitive literal prefix `STOP:`."
+      non_matches: ["stop:", "STOP", "Please STOP:", "ordinary reversion text"]
   behavior: "Execution MUST NOT pause for any condition outside this list; use its preauthorized path or escalate at the next bounded round boundary."
 
 section_4_progress_snapshot:
@@ -326,8 +346,10 @@ invariants:
   - "Sections 0 through 4 occur exactly once and in canonical order."
   - "Section 0 contains all eight project configuration sections or a hash-aligned inherited representation."
   - "authorized_at is non-null only when the mirror hash matches and every stop card is signed."
+  - "A signed preflight carries an authorization_hash sealing frontmatter identity fields and Sections 0–3."
   - "The loop MUST NOT start while authorized_at is null; the preflight checkpoint has Skip=Never."
   - "The permitted-stop list is closed and contains exactly STOP-1 through STOP-4."
+  - "STOP-4 matches only when `reverted_reason.strip().startswith('STOP:')`; all other reopened reasons continue."
   - "Sections 1 and 2 freeze after signing; any edit invalidates authorization."
   - "Section 4 is overwritten at each round boundary and aligns with checklist.md, stage.md, and STATUS.yaml."
   - "MUST NOT contain absolute filesystem paths."
@@ -341,6 +363,7 @@ example: |
   snapshot_round: 1
   config_inherited_from: null
   project_config_hash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  authorization_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   ---
 
   # Preflight
@@ -394,10 +417,10 @@ example: |
   - PF-E1: preauthorized_fallback at 2026-08-24T09:30:00Z — "Repair the environment once, then continue without asking again."
 
   ## 3. Permitted Stops
-  1. STOP-1: A reserved-stop card is reached.
-  2. STOP-2: Two-round stagnation fires or max_rounds is reached.
-  3. STOP-3: FULL_ROLLBACK reports state corruption or data loss.
-  4. STOP-4: A user reversion explicitly instructs a stop.
+  1. STOP-1: A Section 1 card with disposition=reserved_stop is reached.
+  2. STOP-2: The two-round stagnation rule fires or max_rounds is reached.
+  3. STOP-3: A FULL_ROLLBACK exception reports state corruption or data loss.
+  4. STOP-4: The user reopens an item and the verbatim reverted reason explicitly instructs a stop.
 
   ## 4. Progress Snapshot
   - Checked: 1/3 (P0: 1/1, P1: 0/1, P2: 0/1)

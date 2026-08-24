@@ -44,6 +44,9 @@ from devolaflow.agent_workspace.layers import (
     normalize_hdr_layer,
 )
 from devolaflow.lifecycle.dispatcher import HookResult, HookViolation, finalize
+from devolaflow.lifecycle.preflight_authorization import (
+    collect_preflight_authorization_violations,
+)
 
 EVENT = "pre_dispatch"
 
@@ -107,6 +110,7 @@ def _collect_violations(payload: dict[str, Any]) -> list[HookViolation]:
     violations = _collect_accept_violations(payload)
     violations.extend(_collect_ac_v2_violations(payload))
     violations.extend(_collect_hdr_layer_violations(payload))
+    violations.extend(collect_preflight_authorization_violations(payload))
     return violations
 
 

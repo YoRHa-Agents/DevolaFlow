@@ -52,6 +52,18 @@ from devolaflow.agent_workspace.change import (
     ChangeLayout,
     detect_change_layout,
 )
+from devolaflow.agent_workspace.preflight import (
+    PreflightAuthorizationError,
+    _authorization_digest,
+    _deterministic_mirror_bytes,
+    _extract_preflight_sections,
+    _frontmatter_shape,
+    _parse_authorization_records,
+    _parse_stop_cards,
+    _validate_permitted_stops,
+    _validate_section0,
+    _validate_timestamp,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -596,21 +608,46 @@ def _check_evidence_paths(
 
 
 def _check_preflight(
-    frontmatter: dict[str, object],
+    text: str,
     *,
+    change_id: str,
+    checklist_ids: set[str] | None,
     repo_root: Path,
     archived: bool,
     report: BudgetReport,
 ) -> None:
-    """Validate preflight authorization syntax and active mirror bytes."""
+    """Validate canonical Sections 0–3, mirror bytes, and authorization seal."""
+    try:
+        frontmatter, sections = _extract_preflight_sections(text)
+    except PreflightAuthorizationError as exc:
+        report.violations.append(
+            SemanticViolation("preflight.md", "PREFLIGHT_SECTION_ORDER", str(exc))
+        )
+        return
+
+    try:
+        _frontmatter_shape(frontmatter, change_id=change_id)
+    except PreflightAuthorizationError as exc:
+        report.violations.append(
+            SemanticViolation("preflight.md", "PREFLIGHT_AUTHORIZATION", str(exc))
+        )
+
     authorized_at = frontmatter.get("authorized_at")
     config_hash = frontmatter.get("project_config_hash")
+    authorization_hash = frontmatter.get("authorization_hash")
 
-    authorization_valid = authorized_at is None or (
-        isinstance(authorized_at, str) and _UTC_TIMESTAMP_RE.fullmatch(authorized_at)
-    )
+    authorization_valid = authorized_at is None
+    if authorized_at is not None:
+        try:
+            _validate_timestamp(authorized_at, field_name="authorized_at")
+            authorization_valid = True
+        except PreflightAuthorizationError:
+            authorization_valid = False
     hash_valid = config_hash is None or (
         isinstance(config_hash, str) and _SHA256_RE.fullmatch(config_hash)
+    )
+    seal_valid = authorization_hash is None or (
+        isinstance(authorization_hash, str) and _SHA256_RE.fullmatch(authorization_hash)
     )
     if not authorization_valid:
         report.violations.append(
@@ -628,6 +665,14 @@ def _check_preflight(
                 "project_config_hash must be null or 64 lowercase hexadecimal characters",
             )
         )
+    if not seal_valid:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_SEAL",
+                "authorization_hash must be null or 64 lowercase hexadecimal characters",
+            )
+        )
     if authorized_at is not None and authorization_valid and config_hash is None:
         report.violations.append(
             SemanticViolation(
@@ -636,29 +681,129 @@ def _check_preflight(
                 "a signed preflight requires project_config_hash",
             )
         )
+    if authorized_at is not None and authorization_valid and authorization_hash is None:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_SEAL",
+                "a signed preflight requires authorization_hash",
+            )
+        )
+    if authorized_at is None and config_hash is not None:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_HASH",
+                "an unsigned preflight must not retain project_config_hash",
+            )
+        )
+    if authorized_at is None and authorization_hash is not None:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_SEAL",
+                "an unsigned preflight must not retain authorization_hash",
+            )
+        )
 
-    if archived or config_hash is None or not hash_valid:
-        return
-    mirror = repo_root / ".local" / "project_config.yaml"
+    section0_state = None
     try:
-        mirror_digest = hashlib.sha256(mirror.read_bytes()).hexdigest()
-    except OSError:
-        report.violations.append(
-            SemanticViolation(
-                "preflight.md",
-                "PREFLIGHT_HASH",
-                "active project configuration mirror is missing or unreadable",
-            )
+        section0_state = _validate_section0(sections.contents[0], frontmatter)
+    except PreflightAuthorizationError as exc:
+        report.violations.append(SemanticViolation("preflight.md", "PREFLIGHT_SECTION_0", str(exc)))
+
+    cards = None
+    try:
+        cards = _parse_stop_cards(
+            sections.contents[1],
+            checklist_ids=checklist_ids,
         )
-        return
-    if mirror_digest != config_hash:
-        report.violations.append(
-            SemanticViolation(
-                "preflight.md",
-                "PREFLIGHT_HASH",
-                "project_config_hash does not match raw .local/project_config.yaml bytes",
+    except PreflightAuthorizationError as exc:
+        report.violations.append(SemanticViolation("preflight.md", "PREFLIGHT_STOP_CARD", str(exc)))
+
+    if cards is not None and authorization_valid:
+        try:
+            _parse_authorization_records(
+                sections.contents[2],
+                cards=cards,
+                authorized_at=authorized_at,
             )
+        except PreflightAuthorizationError as exc:
+            report.violations.append(
+                SemanticViolation("preflight.md", "PREFLIGHT_AUTHORIZATION", str(exc))
+            )
+
+    try:
+        _validate_permitted_stops(sections.contents[3])
+    except PreflightAuthorizationError as exc:
+        report.violations.append(
+            SemanticViolation("preflight.md", "PREFLIGHT_PERMITTED_STOPS", str(exc))
         )
+
+    expected_mirror_hash = config_hash
+    if section0_state is not None and section0_state.inherited_hash is not None:
+        expected_mirror_hash = section0_state.inherited_hash
+    if (
+        section0_state is not None
+        and section0_state.config is not None
+        and config_hash is not None
+        and hash_valid
+    ):
+        compiled_hash = hashlib.sha256(
+            _deterministic_mirror_bytes(section0_state.config)
+        ).hexdigest()
+        if compiled_hash != config_hash:
+            report.violations.append(
+                SemanticViolation(
+                    "preflight.md",
+                    "PREFLIGHT_HASH",
+                    "project_config_hash does not match deterministic full Section 0 YAML",
+                )
+            )
+
+    if (
+        not archived
+        and isinstance(expected_mirror_hash, str)
+        and _SHA256_RE.fullmatch(expected_mirror_hash)
+    ):
+        mirror = repo_root / ".local" / "project_config.yaml"
+        try:
+            mirror_digest = hashlib.sha256(mirror.read_bytes()).hexdigest()
+        except OSError:
+            report.violations.append(
+                SemanticViolation(
+                    "preflight.md",
+                    "PREFLIGHT_HASH",
+                    "active project configuration mirror is missing or unreadable",
+                )
+            )
+        else:
+            if mirror_digest != expected_mirror_hash:
+                report.violations.append(
+                    SemanticViolation(
+                        "preflight.md",
+                        "PREFLIGHT_HASH",
+                        "project_config_hash does not match raw .local/project_config.yaml bytes",
+                    )
+                )
+
+    if (
+        authorized_at is not None
+        and authorization_valid
+        and config_hash is not None
+        and hash_valid
+        and authorization_hash is not None
+        and seal_valid
+    ):
+        expected_seal = _authorization_digest(frontmatter, sections)
+        if authorization_hash != expected_seal:
+            report.violations.append(
+                SemanticViolation(
+                    "preflight.md",
+                    "PREFLIGHT_SEAL",
+                    "authorization_hash does not match signed Sections 0 through 3",
+                )
+            )
 
 
 def _lint_checklist_semantics(
@@ -680,11 +825,8 @@ def _lint_checklist_semantics(
         _read_artifact(change_folder, "checklist.md", report, cache),
         report,
     )
-    preflight = _parse_markdown_frontmatter(
-        "preflight.md",
-        _read_artifact(change_folder, "preflight.md", report, cache),
-        report,
-    )
+    preflight_result = _read_artifact(change_folder, "preflight.md", report, cache)
+    preflight = _parse_markdown_frontmatter("preflight.md", preflight_result, report)
 
     goal_entries = _goal_entries(goal.body, report) if goal is not None else None
     checklist_headings = (
@@ -740,9 +882,11 @@ def _lint_checklist_semantics(
                 )
         _check_evidence_paths(change_folder, items, report)
 
-    if preflight is not None and preflight.frontmatter is not None:
+    if preflight is not None and preflight_result.text is not None:
         _check_preflight(
-            preflight.frontmatter,
+            preflight_result.text,
+            change_id=report.change_id,
+            checklist_ids={item.item_id for item in items} if items is not None else None,
             repo_root=repo_root,
             archived=archived,
             report=report,

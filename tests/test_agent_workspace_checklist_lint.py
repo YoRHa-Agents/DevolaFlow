@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
+import devolaflow.agent_workspace.preflight as preflight_module
+from devolaflow.agent_workspace import (
+    PreflightAuthorization,
+    PreflightAuthorizationError,
+    PreflightConfigBaseline,
+    draft_preflight_section0,
+    invalidate_preflight,
+    sign_preflight,
+)
 from devolaflow.agent_workspace.lint import (
     ARTIFACT_BUDGETS,
     CHECKLIST_ARTIFACT_BUDGETS,
@@ -18,6 +28,7 @@ from devolaflow.agent_workspace.lint import (
     lint_change,
 )
 from devolaflow.agent_workspace.lint import main as lint_main
+from devolaflow.skills.slash_commands import scaffold_change_folder
 
 CHANGE_ID = "checklist-lint"
 CHECKED_ITEM = "C-G1.1"
@@ -84,37 +95,68 @@ def _preflight_text(
     *,
     authorized_at: str | None = "2026-08-24T12:00:00Z",
     project_config_hash: str | None = "matching",
+    authorization_hash: str | None = "computed",
 ) -> str:
     if project_config_hash == "matching":
         project_config_hash = hashlib.sha256(MIRROR_BYTES).hexdigest()
+    inherited_hash = (
+        project_config_hash
+        if isinstance(project_config_hash, str) and len(project_config_hash) == 64
+        else hashlib.sha256(MIRROR_BYTES).hexdigest()
+    )
     authorized_yaml = "null" if authorized_at is None else f'"{authorized_at}"'
     hash_yaml = "null" if project_config_hash is None else f'"{project_config_hash}"'
+    sections_0_to_3 = (
+        "## 0. Project Configuration\n"
+        f"- Inherited from prior-change (signed 2026-08-23T12:00:00Z); config hash "
+        f"{inherited_hash} matches; no drift.\n\n"
+        "## 1. Stop Cards\n"
+        "| ID | Category | Description | Checklist Items | Disposition |\n"
+        "|---|---|---|---|---|\n\n"
+        "## 2. Authorization Record\n\n"
+        "## 3. Permitted Stops\n"
+        "1. STOP-1: A Section 1 card with disposition=reserved_stop is reached.\n"
+        "2. STOP-2: The two-round stagnation rule fires or max_rounds is reached.\n"
+        "3. STOP-3: A FULL_ROLLBACK exception reports state corruption or data loss.\n"
+        "4. STOP-4: The user reopens an item and the verbatim reverted reason "
+        "explicitly instructs a stop."
+    )
+    if authorization_hash == "computed" and authorized_at is not None and project_config_hash:
+        metadata = {
+            "parent": CHANGE_ID,
+            "schema_version": 1,
+            "authorized_at": authorized_at,
+            "config_inherited_from": "prior-change",
+            "project_config_hash": project_config_hash,
+        }
+        seal_payload = (
+            json.dumps(
+                metadata,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=False,
+            ).encode()
+            + b"\n"
+            + sections_0_to_3.encode()
+        )
+        authorization_hash = hashlib.sha256(seal_payload).hexdigest()
+    elif authorization_hash == "computed":
+        authorization_hash = None
+    authorization_hash_yaml = "null" if authorization_hash is None else f'"{authorization_hash}"'
     return f"""\
 ---
 parent: {CHANGE_ID}
 schema_version: 1
 authorized_at: {authorized_yaml}
 snapshot_round: 1
-config_inherited_from: null
+config_inherited_from: prior-change
 project_config_hash: {hash_yaml}
+authorization_hash: {authorization_hash_yaml}
 ---
 
 # Preflight
 
-## 0. Project Configuration
-- inherited configuration matches the compiled mirror
-
-## 1. Stop Cards
-| ID | Category | Description | Checklist Items | Disposition |
-|---|---|---|---|---|
-
-## 2. Authorization Record
-
-## 3. Permitted Stops
-1. STOP-1
-2. STOP-2
-3. STOP-3
-4. STOP-4
+{sections_0_to_3}
 
 ## 4. Progress Snapshot
 - Checked: 1/3 (P0: 1/1, P1: 0/1, P2: 0/1)
@@ -166,6 +208,54 @@ def _semantic_kinds(report) -> list[str]:
         for violation in report.hard_failures
         if isinstance(violation, SemanticViolation)
     ]
+
+
+def _section0_draft(repo_root: Path, change_id: str):
+    return draft_preflight_section0(
+        repo_root,
+        project_name=change_id,
+        project_purpose=f"Complete {change_id}",
+        seed_mode="feature-enhancement",
+    )
+
+
+def _replace_section0(preflight_path: Path, markdown: str) -> None:
+    text = preflight_path.read_text(encoding="utf-8")
+    prefix, remainder = text.split("## 0. Project Configuration\n", 1)
+    _old_section0, suffix = remainder.split("\n\n## 1. Stop Cards", 1)
+    preflight_path.write_text(
+        f"{prefix}## 0. Project Configuration\n{markdown}\n\n## 1. Stop Cards{suffix}",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def _authorization(quote: str = 'Approved "verbatim" with a \\ path') -> PreflightAuthorization:
+    return PreflightAuthorization(
+        card_id="PF-A1",
+        disposition="reserved_stop",
+        quote=quote,
+    )
+
+
+def _signed_prior(repo_root: Path) -> tuple[PreflightConfigBaseline, bytes]:
+    prior_id = "prior-change"
+    draft = _section0_draft(repo_root, prior_id)
+    folder = scaffold_change_folder("Prior Change", repo_root, change_id=prior_id)
+    signature = sign_preflight(
+        repo_root,
+        prior_id,
+        draft=draft,
+        authorizations=[_authorization()],
+        authorized_at="2026-08-24T11:00:00Z",
+    )
+    baseline = PreflightConfigBaseline(
+        change_id=prior_id,
+        authorized_at=signature.authorized_at,
+        project_config_hash=signature.project_config_hash,
+        config=draft.config,
+    )
+    return baseline, (folder / "preflight.md").read_bytes()
 
 
 @pytest.mark.parametrize("archived", [False, True], ids=["active", "archived"])
@@ -471,6 +561,242 @@ def test_preflight_signature_and_mirror_hash_cases(
     else:
         assert report.exit_code == 1
         assert expected_kind in _semantic_kinds(report)
+
+
+@pytest.mark.parametrize("mode", ["draft", "inherited", "delta"])
+def test_sign_preflight_commits_canonical_first_inherited_and_delta_paths(
+    tmp_path: Path,
+    mode: str,
+) -> None:
+    if mode == "draft":
+        draft = _section0_draft(tmp_path, CHANGE_ID)
+        folder = scaffold_change_folder("Checklist Lint", tmp_path, change_id=CHANGE_ID)
+        prior_mirror = None
+    else:
+        baseline, _prior_preflight = _signed_prior(tmp_path)
+        draft = draft_preflight_section0(
+            tmp_path,
+            inherited=baseline,
+            overrides={"quality.max_rounds": 4} if mode == "delta" else None,
+        )
+        prior_mirror = (tmp_path / ".local" / "project_config.yaml").read_bytes()
+        folder = scaffold_change_folder("Checklist Lint", tmp_path, change_id=CHANGE_ID)
+        _replace_section0(folder / "preflight.md", draft.markdown)
+
+    quote = 'Approved "verbatim" with a \\ path'
+    signature = sign_preflight(
+        tmp_path,
+        CHANGE_ID,
+        draft=draft,
+        authorizations=[_authorization(quote)],
+        authorized_at="2026-08-24T12:00:00Z",
+    )
+
+    preflight = (folder / "preflight.md").read_text(encoding="utf-8")
+    frontmatter = preflight_module.parse_frontmatter(
+        preflight,
+        filename="preflight.md",
+    ).frontmatter
+    mirror_bytes = signature.mirror_path.read_bytes()
+    assert draft.mode == mode
+    assert frontmatter["authorized_at"] == signature.authorized_at
+    assert frontmatter["project_config_hash"] == hashlib.sha256(mirror_bytes).hexdigest()
+    assert frontmatter["authorization_hash"] == signature.authorization_hash
+    assert json.dumps(quote, ensure_ascii=False) in preflight
+    assert not [
+        finding
+        for finding in lint_change(CHANGE_ID, repo_root=tmp_path).hard_failures
+        if isinstance(finding, SemanticViolation)
+    ]
+    if mode == "inherited":
+        assert mirror_bytes == prior_mirror
+    elif mode == "delta":
+        assert mirror_bytes != prior_mirror
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "stale-draft",
+        "blocking-finding",
+        "orphan-authorization",
+        "multiline-quote",
+        "preflight-replace-failure",
+    ],
+)
+def test_sign_preflight_failures_leave_targets_byte_identical(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    draft = _section0_draft(tmp_path, CHANGE_ID)
+    folder = scaffold_change_folder("Checklist Lint", tmp_path, change_id=CHANGE_ID)
+    preflight_path = folder / "preflight.md"
+    mirror_path = tmp_path / ".local" / "project_config.yaml"
+    authorizations = [_authorization()]
+
+    if case == "stale-draft":
+        stale = preflight_path.read_text(encoding="utf-8").replace(
+            "- name: checklist-lint |",
+            "- name: stale |",
+            1,
+        )
+        preflight_path.write_text(stale, encoding="utf-8", newline="\n")
+    elif case == "blocking-finding":
+        draft = draft_preflight_section0(
+            tmp_path,
+            project_name=CHANGE_ID,
+            project_purpose=f"Complete {CHANGE_ID}",
+            seed_mode="feature-enhancement",
+            overrides={
+                "tech_stack.primary_language": "rust",
+                "tech_stack.build_system": "npm",
+            },
+        )
+        _replace_section0(preflight_path, draft.markdown)
+    elif case == "orphan-authorization":
+        authorizations = [PreflightAuthorization("PF-X9", "reserved_stop", "Orphan approval")]
+    elif case == "multiline-quote":
+        authorizations = [_authorization("line one\nline two")]
+    elif case == "preflight-replace-failure":
+        real_replace = preflight_module.os.replace
+
+        def fail_preflight_replace(source: Path, target: Path) -> None:
+            if Path(target) == preflight_path:
+                raise OSError("injected preflight replacement failure")
+            real_replace(source, target)
+
+        monkeypatch.setattr(preflight_module.os, "replace", fail_preflight_replace)
+
+    before_preflight = preflight_path.read_bytes()
+    before_mirror = mirror_path.read_bytes() if mirror_path.exists() else None
+    with pytest.raises(PreflightAuthorizationError):
+        sign_preflight(
+            tmp_path,
+            CHANGE_ID,
+            draft=draft,
+            authorizations=authorizations,
+            authorized_at="2026-08-24T12:00:00Z",
+        )
+
+    assert preflight_path.read_bytes() == before_preflight
+    assert (mirror_path.read_bytes() if mirror_path.exists() else None) == before_mirror
+
+
+def test_invalidate_preflight_is_atomic_idempotent_and_preserves_body_and_mirror(
+    tmp_path: Path,
+) -> None:
+    draft = _section0_draft(tmp_path, CHANGE_ID)
+    folder = scaffold_change_folder("Checklist Lint", tmp_path, change_id=CHANGE_ID)
+    sign_preflight(
+        tmp_path,
+        CHANGE_ID,
+        draft=draft,
+        authorizations=[_authorization()],
+        authorized_at="2026-08-24T12:00:00Z",
+    )
+    preflight_path = folder / "preflight.md"
+    mirror_path = tmp_path / ".local" / "project_config.yaml"
+    before_text = preflight_path.read_text(encoding="utf-8")
+    before_body = before_text.split("---", 2)[2]
+    before_mirror = mirror_path.read_bytes()
+
+    assert invalidate_preflight(tmp_path, CHANGE_ID) is True
+    invalidated = preflight_path.read_text(encoding="utf-8")
+    frontmatter = preflight_module.parse_frontmatter(
+        invalidated,
+        filename="preflight.md",
+    ).frontmatter
+    assert frontmatter["authorized_at"] is None
+    assert frontmatter["project_config_hash"] is None
+    assert frontmatter["authorization_hash"] is None
+    assert invalidated.split("---", 2)[2] == before_body
+    assert mirror_path.read_bytes() == before_mirror
+
+    first_invalidation = preflight_path.read_bytes()
+    assert invalidate_preflight(tmp_path, CHANGE_ID) is False
+    assert preflight_path.read_bytes() == first_invalidation
+    assert mirror_path.read_bytes() == before_mirror
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_kind"),
+    [
+        ("section-order", "PREFLIGHT_SECTION_ORDER"),
+        ("section-zero", "PREFLIGHT_SECTION_0"),
+        ("stop-card", "PREFLIGHT_STOP_CARD"),
+        ("authorization", "PREFLIGHT_AUTHORIZATION"),
+        ("permitted-stops", "PREFLIGHT_PERMITTED_STOPS"),
+        ("seal", "PREFLIGHT_SEAL"),
+        ("archived-seal", "PREFLIGHT_SEAL"),
+    ],
+)
+def test_preflight_sections_and_seal_emit_stable_findings(
+    tmp_path: Path,
+    case: str,
+    expected_kind: str,
+) -> None:
+    folder = _scaffold_checklist(tmp_path)
+    path = folder / "preflight.md"
+    text = path.read_text(encoding="utf-8")
+    if case == "section-order":
+        text = (
+            text.replace(
+                "## 1. Stop Cards",
+                "## SWAP",
+                1,
+            )
+            .replace(
+                "## 2. Authorization Record",
+                "## 1. Stop Cards",
+                1,
+            )
+            .replace(
+                "## SWAP",
+                "## 2. Authorization Record",
+                1,
+            )
+        )
+    elif case == "section-zero":
+        text = text.replace("- Inherited from prior-change", "- Inherited by prior-change", 1)
+    elif case == "stop-card":
+        text = text.replace(
+            "|---|---|---|---|---|",
+            "| PF-A1 | external_resource | Risk. | C-G1.1 | reserved_stop |",
+            1,
+        )
+    elif case == "authorization":
+        text = text.replace(
+            "## 2. Authorization Record\n\n",
+            "## 2. Authorization Record\n"
+            '- PF-A1: reserved_stop at 2026-08-24T12:00:00Z — "Approved"\n\n',
+            1,
+        )
+    elif case == "permitted-stops":
+        text = text.replace("1. STOP-1:", "1. STOP-ONE:", 1)
+    elif case in {"seal", "archived-seal"}:
+        text = text.replace(
+            "|---|---|---|---|---|",
+            "|---|---|---|---|---|\n"
+            "| PF-A1 | human_touch | Valid new risk. | C-G1.1 | reserved_stop |",
+            1,
+        )
+        text = text.replace(
+            "## 2. Authorization Record\n\n",
+            "## 2. Authorization Record\n"
+            '- PF-A1: reserved_stop at 2026-08-24T12:00:00Z — "Approved"\n\n',
+            1,
+        )
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+    if case == "archived-seal":
+        archived = tmp_path / ".local" / ".agent" / "archive" / "2026-08-24-checklist-lint"
+        archived.parent.mkdir(parents=True)
+        folder.rename(archived)
+        (tmp_path / ".local" / "project_config.yaml").unlink()
+
+    report = lint_change(CHANGE_ID, repo_root=tmp_path)
+    assert expected_kind in _semantic_kinds(report)
 
 
 @pytest.mark.parametrize(
