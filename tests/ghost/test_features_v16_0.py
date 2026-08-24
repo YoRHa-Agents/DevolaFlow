@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from tests.ghost._helpers import _load_yaml
 
@@ -194,3 +195,94 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         assert coverage_anchor in test_source, (
             f"focused companion coverage missing {coverage_anchor!r} from {relative_path}"
         )
+
+
+def test_v16_0_0_m2_round_dispatch_context_registered(project_root: Path) -> None:
+    """W-18 v16.0.0 M2: round selection is emitted through one public NEST helper."""
+    import devolaflow.agent_workspace as agent_workspace
+    import devolaflow.harness as harness
+
+    schema = _load_yaml(project_root / "schemas" / "lean-dispatch.yaml")
+    fields = schema["lean_format_spec"]["change_context"]["fields"]
+    checklist_items = fields["checklist_items"]
+    round_context = fields["round_context"]
+
+    assert checklist_items["min_items"] == 1
+    assert checklist_items["max_items"] == 5
+    assert checklist_items["required_with"] == "round_context"
+    assert checklist_items["per_entry"]["assert"]["verbatim"] is True
+    assert checklist_items["per_entry"]["verify"]["verbatim"] is True
+    assert checklist_items["per_entry"]["priority"]["enum"] == ["P0", "P1", "P2"]
+    assert round_context["required_with"] == "checklist_items"
+    assert round_context["fields"]["round_n"]["minimum"] == 1
+    assert round_context["fields"]["reverted_ids"]["unique_items"] is True
+    assert round_context["fields"]["reverted_ids"]["subset_of"] == "checklist_items[*].id"
+    assert schema["layout_invariant"]["version"] == 6
+    assert len(schema["layout_invariant"]["canonical_order"]) == 17
+
+    assert hasattr(agent_workspace, "populate_round_change_context")
+    assert "populate_round_change_context" in agent_workspace.__all__
+    result = agent_workspace.populate_round_change_context(
+        {"change_context": {"change_id": "ghost-round-dispatch"}},
+        SimpleNamespace(
+            items=(
+                SimpleNamespace(
+                    item_id="C-G1.1",
+                    assertion='Preserve "verbatim" assertion',
+                    verify="python -m pytest tests/test_x.py -q",
+                ),
+            )
+        ),
+        SimpleNamespace(
+            selected=(
+                SimpleNamespace(
+                    item_id="C-G1.1",
+                    priority="P0",
+                    reverted=True,
+                ),
+            )
+        ),
+        round_n=2,
+    )
+    assert result["change_context"]["checklist_items"][0] == {
+        "id": "C-G1.1",
+        "assert": 'Preserve "verbatim" assertion',
+        "verify": "python -m pytest tests/test_x.py -q",
+        "priority": "P0",
+    }
+    assert result["change_context"]["round_context"] == {
+        "round_n": 2,
+        "reverted_ids": ["C-G1.1"],
+    }
+
+    focused_tests = (project_root / "tests" / "test_agent_workspace_round_dispatch.py").read_text(
+        encoding="utf-8"
+    )
+    assert "test_populate_round_change_context_emits_selected_items_verbatim" in focused_tests
+
+    telemetry_exports = {
+        "build_dispatch_record",
+        "append_harness_record",
+        "record_dispatch_telemetry",
+    }
+    assert telemetry_exports <= set(harness.__all__)
+    assert all(callable(getattr(harness, name)) for name in telemetry_exports)
+    assert harness.HARNESS_SEGMENT_MAX_BYTES == 64 * 1024
+    assert harness.LAYER_TOKEN_BUDGETS == {"L0": 5_000, "L1": 5_000, "L2": 8_000}
+
+    lifecycle_source = (
+        project_root / "src" / "devolaflow" / "lifecycle" / "__init__.py"
+    ).read_text(encoding="utf-8")
+    default_anchor = "_set_default_hook(_POST_DISPATCH_EVENT, post_dispatch)"
+    telemetry_anchor = "register_hook(_POST_DISPATCH_EVENT, record_dispatch_telemetry)"
+    assert lifecycle_source.index(default_anchor) < lifecycle_source.index(telemetry_anchor)
+
+    telemetry_tests = (project_root / "tests" / "test_harness_telemetry.py").read_text(
+        encoding="utf-8"
+    )
+    for coverage_anchor in (
+        "test_build_dispatch_record_uses_exact_schema_and_stable_yaml",
+        "test_append_harness_record_is_compact_and_rotates_without_rewrite",
+        "test_warm_handler_mean_under_five_ms_and_payload_unchanged",
+    ):
+        assert coverage_anchor in telemetry_tests

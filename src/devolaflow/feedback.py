@@ -16,11 +16,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from devolaflow.agent_workspace.round_dispatch import populate_round_change_context
+from devolaflow.agent_workspace.round_engine import RoundSelection
+from devolaflow.agent_workspace.round_parser import ChecklistDocument
 from devolaflow.feedback_emit import ProposalEmitter
 from devolaflow.gate.models import Finding, GateVerdict, Severity
 from devolaflow.gate.reinforcement import (
     ReinforcementBlock,
     findings_to_reinforcement,
+    reverted_items_to_reinforcement,
 )
 from devolaflow.learnings import _now_iso, _read_lines
 
@@ -450,6 +454,10 @@ class ProposalGenerator:
         round_num: int,
         target_score: float = 85.0,
         severity_floor: Severity = "major",
+        *,
+        checklist: ChecklistDocument | None = None,
+        selection: RoundSelection | None = None,
+        round_n: int | None = None,
     ) -> dict[str, Any]:
         """Produce a dispatch for convergence round ``round_num``.
 
@@ -480,14 +488,47 @@ class ProposalGenerator:
 
         The input ``base_dispatch`` is never mutated; a deep copy is
         returned in all cases.
+
+        ``checklist``, ``selection``, and ``round_n`` are an optional
+        keyword-only group. Complete round inputs populate the existing
+        ``change_context`` NEST before emission and prepend selected open
+        revert reasons as blocker reinforcement. Partial input fails before
+        any lifecycle hook fires. Omitting all three preserves the legacy
+        positional API and byte output.
         """
+        prepared_dispatch = base_dispatch
+        supplemental_reinforcement = None
+        round_inputs = (checklist is not None, selection is not None, round_n is not None)
+        if any(round_inputs):
+            prepared_dispatch = populate_round_change_context(
+                base_dispatch,
+                checklist,
+                selection,
+                round_n=round_n,
+            )
+            # The population helper rejects partial/invalid input above, so
+            # these values are complete and structurally validated here.
+            assert checklist is not None
+            assert selection is not None
+            assert round_n is not None
+            checklist_by_id = {item.item_id: item for item in checklist.items}
+            selected_reverts = tuple(
+                checklist_by_id[item.item_id] for item in selection.selected if item.reverted
+            )
+            if selected_reverts:
+                supplemental_reinforcement = reverted_items_to_reinforcement(
+                    selected_reverts,
+                    round_num=round_n,
+                )
+
         return self._emitter.emit(
-            base_dispatch=base_dispatch,
+            base_dispatch=prepared_dispatch,
             verdict=verdict,
             round_num=round_num,
             target_score=target_score,
             severity_floor=severity_floor,
             reinforcement_factory=self.generate_reinforcement,
+            supplemental_reinforcement=supplemental_reinforcement,
         )
 
 

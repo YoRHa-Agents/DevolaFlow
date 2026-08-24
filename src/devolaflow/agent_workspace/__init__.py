@@ -115,6 +115,7 @@ from devolaflow.agent_workspace.requirements_trace import (
     parse_pytest_report,
     trace_requirements,
 )
+from devolaflow.agent_workspace.round_dispatch import populate_round_change_context
 from devolaflow.agent_workspace.round_engine import (
     ITEM_UNSUCCESSFUL_THREE_ROUNDS,
     MAX_ROUNDS_REACHED,
@@ -263,6 +264,8 @@ __all__ = [
     "parse_checklist",
     "parse_frontmatter",
     "parse_stage",
+    # round_dispatch
+    "populate_round_change_context",
     # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
     "SpecBootstrapError",
     "seed_initial_spec",
@@ -291,6 +294,7 @@ _dispatch_executor_dead_api_pins = (
 # Public pure-control APIs are operator-invoked; runtime auto-wiring is
 # intentionally deferred so importing the workspace performs no writes.
 _round_control_dead_api_pins = (
+    populate_round_change_context,
     revert_checklist_item,
     select_round,
 )

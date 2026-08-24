@@ -38,7 +38,7 @@ import pytest
 from devolaflow.feedback import ProposalGenerator
 from devolaflow.feedback_emit import ProposalEmitter
 from devolaflow.gate.models import Finding, GateVerdict
-from devolaflow.gate.reinforcement import ReinforcementBlock
+from devolaflow.gate.reinforcement import ReinforcementBlock, ReinforcementRule
 from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     PRE_DISPATCH_EVENT,
@@ -235,6 +235,43 @@ def test_emit_reinforcement_applied_merges_block_and_fires_chain() -> None:
         PRE_HANDOFF_EVENT,
         PRE_PLUGIN_INVOCATION_EVENT,
     ], "reinforcement-applied path still fires the full S-10 hook chain"
+
+
+def test_emit_accepts_supplemental_reinforcement_without_gate_findings() -> None:
+    """Supplemental blockers are emitted even when the legacy gate path is idle."""
+    emitter = ProposalEmitter()
+    supplemental = ReinforcementBlock(
+        round=1,
+        prior_score=0.0,
+        target_score=0.0,
+        severity_floor="blocker",
+        rules=(
+            ReinforcementRule(
+                id="R-C-G1.1-001",
+                severity="blocker",
+                mandate="verbatim user revert reason",
+            ),
+        ),
+        escalation_note="selected revert",
+    )
+
+    with patch("devolaflow.lifecycle.run_hooks", return_value=None):
+        result = emitter.emit(
+            base_dispatch=_base_dispatch(),
+            verdict=None,
+            round_num=1,
+            reinforcement_factory=lambda *_args, **_kwargs: None,
+            supplemental_reinforcement=supplemental,
+        )
+
+    reinforcement = result["context"]["applicable_rules"]["reinforcement"]
+    assert reinforcement["rules"] == [
+        {
+            "id": "R-C-G1.1-001",
+            "severity": "blocker",
+            "mandate": "verbatim user revert reason",
+        }
+    ]
 
 
 # ---------------------------------------------------------------------------
