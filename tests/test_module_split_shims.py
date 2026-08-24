@@ -105,7 +105,7 @@ def test_s10_named_paths_verbatim_functional() -> None:
     # smoke payload carries one like real dispatches do.
     base: dict = {"task": {"id": "T-1"}, "accept": ["smoke dispatch passes the hook chain"]}
     out = populate_cascade_gate_fields(base, "STANDARD")
-    assert out["gate"] == {"cascade_required": True, "cascade_min_layers": 4}
+    assert out["gate"] == {"cascade_required": True, "cascade_min_layers": 3}
     assert "gate" not in base
 
     # Smoke: round-1 dispatch emission still runs (S-10 hook chain inside).

@@ -19,6 +19,7 @@ outside the per-test scratch directory.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -59,6 +60,79 @@ _ABSENT_LEGACY_FILES: tuple[str, ...] = (
     "tasks.md",
     "learnings.jsonl",
 )
+
+
+def _complete_seeded_checklist(change_folder: Path) -> None:
+    """Complete scaffolded C-G1.1 with synchronized v16 lifecycle metadata."""
+    status_path = change_folder / "STATUS.yaml"
+    status = yaml.safe_load(status_path.read_text(encoding="utf-8"))
+    completed_at = str(status["last_updated"])
+
+    checklist_path = change_folder / "checklist.md"
+    checklist = checklist_path.read_text(encoding="utf-8")
+    checklist = checklist.replace("checked: 0\n", "checked: 1\n", 1)
+    checklist = checklist.replace("- [ ] C-G1.1", "- [x] C-G1.1", 1)
+    checklist = checklist.replace(
+        "      verify: manual\n",
+        "      verify: manual\n"
+        "      evidence: evidence/C-G1.1.txt | checked_by: user | round: 1 "
+        f"| at: {completed_at}\n",
+        1,
+    )
+    checklist_path.write_text(checklist, encoding="utf-8", newline="\n")
+    evidence_output = "PASS\n"
+    evidence_digest = hashlib.sha256(evidence_output.encode()).hexdigest()
+    (change_folder / "evidence" / "C-G1.1.txt").write_text(
+        "verify: manual\n"
+        "attestation: user confirmed the seeded C-G1.1 goal is satisfied\n"
+        f"final output: {evidence_output.rstrip()}\n"
+        f"complete output digest: sha256:{evidence_digest}\n"
+        "verdict: PASS\n"
+        f"at: {completed_at}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    stage_path = change_folder / "stage.md"
+    stage = stage_path.read_text(encoding="utf-8")
+    stage = stage.replace(
+        "current_round: 0\n",
+        "current_round: 1\n",
+        1,
+    )
+    stage = stage.replace(
+        "|---|---|---|---|---|---|---|\n\n"
+        "## Next Round Plan\n"
+        "- Candidates: [C-G1.1]\n"
+        "- Estimated remaining rounds: 1\n",
+        "|---|---|---|---|---|---|---|\n"
+        "| 1 | C-G1.1(P1) | W1 | 1/1 | 0 | "
+        ".local/checkpoints/cp_slash_commands_round_1.yaml | null |\n\n"
+        "## Next Round Plan\n"
+        "- Candidates: []\n"
+        "- Estimated remaining rounds: 0\n",
+        1,
+    )
+    stage_path.write_text(stage, encoding="utf-8", newline="\n")
+    checkpoint_path = (
+        change_folder.parents[3] / ".local" / "checkpoints" / "cp_slash_commands_round_1.yaml"
+    )
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        "event: convergence_round_complete\nround: 1\nresult: PASS\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    status["percent_complete"] = 100
+    status["checklist_checked"] = 1
+    status["checklist_total"] = 1
+    status["current_round"] = 1
+    status_path.write_text(
+        yaml.safe_dump(status, sort_keys=False, default_flow_style=False),
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 # ── slugify ────────────────────────────────────────────────────────────
@@ -184,6 +258,7 @@ def test_verify_runs_pytest(tmp_path: Path) -> None:
     owned_files_path.write_text("tests/test_foo.py\n", encoding="utf-8", newline="\n")
     # Apply first — verify requires IN_PROGRESS as the start state.
     run_apply("foo", tmp_path)
+    _complete_seeded_checklist(target)
 
     captured: dict[str, object] = {}
 
@@ -230,6 +305,9 @@ def test_verify_pytest_failure_keeps_in_progress(tmp_path: Path) -> None:
 def _advance_to_verifying(repo_root: Path, change_id: str, *, gate_score: float) -> None:
     """Helper: walk the FSM PROPOSED → IN_PROGRESS → VERIFYING + set gate_score."""
     run_apply(change_id, repo_root)
+    _complete_seeded_checklist(
+        repo_root / ".local" / ".agent" / "active" / change_id,
+    )
 
     def passing_runner(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
         return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")  # type: ignore[return-value]
@@ -272,8 +350,9 @@ def test_archive_requires_gate_pass(tmp_path: Path) -> None:
 
 def test_archive_requires_gate_score(tmp_path: Path) -> None:
     """Archive refuses when ``gate_score`` is absent or below the W-3 floor."""
-    scaffold_change_folder("foo", tmp_path)
+    target = scaffold_change_folder("foo", tmp_path)
     run_apply("foo", tmp_path)
+    _complete_seeded_checklist(target)
 
     def passing_runner(cmd: list[str], cwd: Path, check: bool) -> subprocess.CompletedProcess:
         return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")  # type: ignore[return-value]
@@ -360,6 +439,9 @@ def test_main_dispatches_apply_verify_archive_with_exit_codes(
     rc = main(["--repo-root", str(tmp_path), "apply", "foo"])
     assert rc == 0
     assert "/devola:apply: foo -> state=IN_PROGRESS" in capsys.readouterr().out
+    _complete_seeded_checklist(
+        tmp_path / ".local" / ".agent" / "active" / "foo",
+    )
 
     # verify through main(): inject a passing pytest runner via the
     # documented run_verify kwarg (main itself exposes no runner knob).

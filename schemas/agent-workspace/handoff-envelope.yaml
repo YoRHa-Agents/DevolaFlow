@@ -2,16 +2,16 @@
 # Schema: handoff-envelope
 # Target: .local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml
 # Design ref: .local/research/v8.3.0_design.md §2.7
-# Patch slot: v8.2.4 (PV04 — agent workspace schemas)
+# Patch slot: v16.0.0 M2 (three-layer token normalization)
 # Token budget: soft 600 / hard 1200 (per Rule C-9)
 # -----------------------------------------------------------------------------
 # A handoff envelope is the ONLY supported channel for inter-agent messaging
-# inside DevolaFlow's 4-layer hierarchy. Envelopes are append-only (Rule S-9):
+# inside DevolaFlow's v16 three-layer hierarchy. Envelopes are append-only (Rule S-9):
 # once a file with sequence N exists, the next message MUST be authored at
 # sequence N+1 — never overwrite. The discriminator field `envelope_kind`
 # selects one of three variants:
 #
-#   - TaskDispatch     — parent → child work assignment (L0→L2, L2→L3, ...)
+#   - TaskDispatch     — parent → child work assignment (L0→L1, L1→L2)
 #   - StatusReport     — child → parent completion / progress update
 #   - EscalationEvent  — child → parent (or upward) when local recovery fails
 #
@@ -20,8 +20,8 @@
 
 design_reference: .local/research/v8.3.0_design.md §2.7
 schema_name: handoff-envelope
-schema_version: 1
-last_updated: "2026-04-22"
+schema_version: 2
+last_updated: "2026-08-24"
 governing_rules: [S-9, P3, P4, P5, C-9]
 
 instance_path_template: ".local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml"
@@ -46,10 +46,10 @@ filename_contract:
     from_layer:
       position: 0
       separator: "__"
-      values: [L0, L1, L2, L3]
+      values: [L0, L1, L2]
     to_layer:
       position: 1
-      values: [L0, L1, L2, L3]
+      values: [L0, L1, L2]
     change_id:
       position: 2
       pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
@@ -82,8 +82,8 @@ instance_top_level_optional:
 fields:
   schema_version:
     type: int
-    enum: [1]
-    description: "Schema version pin — bump on incompatible changes only."
+    enum: [2]
+    description: "Schema version pin. Version 2 emits only the v16 three-layer tokens. Version 1 remains read-compatible in HandoffStore with explicit legacy provenance; historical files are never rewritten."
 
   seq:
     type: int
@@ -93,13 +93,13 @@ fields:
 
   from_layer:
     type: string
-    enum: [L0, L1, L2, L3]
-    description: "Originating agent layer."
+    enum: [L0, L1, L2]
+    description: "Originating v16 agent layer: L0 Project, L1 Wave, or L2 Task. Legacy schema-v1 L0/L1/L2/L3 values are accepted only by the read path and normalized via layers.LEGACY_V1_LAYER_MAP."
 
   to_layer:
     type: string
-    enum: [L0, L1, L2, L3]
-    description: "Destination agent layer. MUST differ from from_layer (no self-handoff)."
+    enum: [L0, L1, L2]
+    description: "Destination v16 agent layer: L0 Project, L1 Wave, or L2 Task. MUST differ from from_layer (no self-handoff). Legacy schema-v1 values are read-only compatibility data."
 
   change_id:
     type: string
@@ -238,14 +238,15 @@ invariants:
   - "At archive time, all envelopes for the change-id are compacted into `.local/.agent/archive/<date>-<id>/handoff_chain.yaml` (frozen ledger; per design.md §1.1)."
   - "MUST NOT contain absolute filesystem paths (S-2 / SF-5)."
   - "External references MUST use canonical GitHub URLs (S-7 / SF-6)."
+  - "Schema-v1 envelopes are read with explicit legacy provenance (L0→L0, L1→L0, L2→L1, L3→L2); their body and filename MUST remain verbatim and MUST NOT be migrated (S-9)."
 
 # Worked examples — one per variant.
 examples:
   task_dispatch: |
-    schema_version: 1
+    schema_version: 2
     seq: 1
     from_layer: L0
-    to_layer: L2
+    to_layer: L1
     change_id: add-dark-mode
     created: "2026-04-22T10:14:33Z"
     envelope_kind: TaskDispatch
@@ -259,10 +260,10 @@ examples:
           summary: "Spec ADDS dark-mode CSS palette via [data-theme=\"dark\"] selector and localStorage key devola.theme."
 
   status_report: |
-    schema_version: 1
+    schema_version: 2
     seq: 4
-    from_layer: L3
-    to_layer: L2
+    from_layer: L2
+    to_layer: L1
     change_id: add-dark-mode
     created: "2026-04-22T11:02:18Z"
     envelope_kind: StatusReport
@@ -283,9 +284,9 @@ examples:
           major: 0
 
   escalation_event: |
-    schema_version: 1
+    schema_version: 2
     seq: 7
-    from_layer: L3
+    from_layer: L2
     to_layer: L0
     change_id: add-dark-mode
     created: "2026-04-22T11:48:09Z"

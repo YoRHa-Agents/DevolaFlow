@@ -71,7 +71,7 @@ def _make_dispatch(seq: int, change_id: str = _CHANGE_ID) -> HandoffEnvelope:
     return make_envelope(
         seq=seq,
         from_layer="L0",
-        to_layer="L3",
+        to_layer="L2",
         change_id=change_id,
         envelope_kind="TaskDispatch",
         payload={
@@ -101,7 +101,7 @@ def test_envelope_file_cannot_be_overwritten_via_write_envelope(tmp_path: Path) 
     colliding = make_envelope(
         seq=1,
         from_layer="L0",
-        to_layer="L3",
+        to_layer="L2",
         change_id=_CHANGE_ID,
         envelope_kind="TaskDispatch",
         payload={

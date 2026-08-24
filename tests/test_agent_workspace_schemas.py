@@ -60,7 +60,7 @@ EXPECTED_SCHEMA_FILES: list[Path] = [
 ARTIFACT_SCHEMA_FILES: list[Path] = [p for p in EXPECTED_SCHEMA_FILES if p.name != "__init__.yaml"]
 
 EXPECTED_SCHEMA_VERSIONS: dict[str, int] = {
-    path.stem: 2 if path.stem in {"change-goal", "change-status"} else 1
+    path.stem: 2 if path.stem in {"change-goal", "change-status", "handoff-envelope"} else 1
     for path in EXPECTED_SCHEMA_FILES
 }
 
@@ -201,7 +201,7 @@ def test_schema_carries_canonical_metadata(schema_path: Path) -> None:
 
 @pytest.mark.parametrize("schema_path", EXPECTED_SCHEMA_FILES, ids=lambda p: p.name)
 def test_schema_versions_match_registry_generation(schema_path: Path) -> None:
-    """Goal/status are v2; the index and all additive schemas remain v1."""
+    """Goal/status/handoff are v2; the index and additive schemas remain v1."""
     doc = _load_yaml(schema_path)
     expected = EXPECTED_SCHEMA_VERSIONS[schema_path.stem]
     assert doc["schema_version"] == expected, (
@@ -726,6 +726,21 @@ def _validate_envelope(env: dict[str, Any]) -> list[str]:
     for key in doc["instance_top_level_required"]:
         if key not in env:
             errors.append(f"missing required field: {key}")
+    version = env.get("schema_version")
+    if version == 1:
+        allowed_layers = {"L0", "L1", "L2", "L3"}
+    elif version == doc["schema_version"]:
+        allowed_layers = set(doc["fields"]["from_layer"]["enum"])
+    else:
+        allowed_layers = set(doc["fields"]["from_layer"]["enum"])
+        errors.append(f"unsupported schema_version: {version!r}")
+    for field in ("from_layer", "to_layer"):
+        layer = env.get(field)
+        if layer is not None and layer not in allowed_layers:
+            errors.append(
+                f"{field} {layer!r} is invalid for schema_version {version!r}; "
+                f"expected one of {sorted(allowed_layers)}"
+            )
     if env.get("envelope_kind") not in doc["fields"]["envelope_kind"]["enum"]:
         errors.append(f"invalid envelope_kind: {env.get('envelope_kind')!r}")
     if env.get("from_layer") == env.get("to_layer") and env.get("from_layer") is not None:
@@ -747,10 +762,10 @@ def _validate_envelope(env: dict[str, Any]) -> list[str]:
 def test_envelope_task_dispatch_valid_passes() -> None:
     """AC-4: minimal valid TaskDispatch envelope passes validation."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
-        "to_layer": "L2",
+        "to_layer": "L1",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T10:14:33Z",
         "envelope_kind": "TaskDispatch",
@@ -766,12 +781,12 @@ def test_envelope_task_dispatch_valid_passes() -> None:
 
 
 def test_envelope_status_report_valid_passes() -> None:
-    """AC-4: minimal valid StatusReport envelope passes validation."""
+    """AC-4: v2 rejects L3 while an explicit legacy-v1 report remains readable."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 4,
-        "from_layer": "L3",
-        "to_layer": "L2",
+        "from_layer": "L2",
+        "to_layer": "L1",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T11:02:18Z",
         "envelope_kind": "StatusReport",
@@ -780,13 +795,20 @@ def test_envelope_status_report_valid_passes() -> None:
     errors = _validate_envelope(env)
     assert not errors, f"valid StatusReport rejected: {errors}"
 
+    invalid_v2 = {**env, "from_layer": "L3"}
+    assert any("from_layer" in error for error in _validate_envelope(invalid_v2))
+
+    legacy_v1 = {**env, "schema_version": 1, "from_layer": "L3", "to_layer": "L2"}
+    legacy_errors = _validate_envelope(legacy_v1)
+    assert not legacy_errors, f"explicit legacy-v1 StatusReport rejected: {legacy_errors}"
+
 
 def test_envelope_escalation_event_valid_passes() -> None:
     """AC-4: minimal valid EscalationEvent envelope passes validation."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 7,
-        "from_layer": "L3",
+        "from_layer": "L2",
         "to_layer": "L0",
         "change_id": "add-dark-mode",
         "created": "2026-04-22T11:48:09Z",
@@ -804,7 +826,7 @@ def test_envelope_escalation_event_valid_passes() -> None:
 def test_envelope_invalid_kind_rejected() -> None:
     """AC-4: invalid envelope_kind is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -819,7 +841,7 @@ def test_envelope_invalid_kind_rejected() -> None:
 def test_envelope_missing_variant_block_rejected() -> None:
     """AC-4: TaskDispatch envelope without `dispatch:` block is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -835,7 +857,7 @@ def test_envelope_missing_variant_block_rejected() -> None:
 def test_envelope_multiple_variant_blocks_rejected() -> None:
     """AC-4: envelope with TWO variant blocks (dispatch AND report) is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L0",
         "to_layer": "L2",
@@ -857,7 +879,7 @@ def test_envelope_multiple_variant_blocks_rejected() -> None:
 def test_envelope_self_handoff_rejected() -> None:
     """AC-4: envelope with from_layer == to_layer is rejected."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 1,
         "from_layer": "L2",
         "to_layer": "L2",  # same layer — invalid
@@ -878,7 +900,7 @@ def test_envelope_self_handoff_rejected() -> None:
 def test_envelope_seq_zero_rejected() -> None:
     """AC-4: seq=0 is rejected (counter starts at 1)."""
     env = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seq": 0,  # invalid — must be >= 1
         "from_layer": "L0",
         "to_layer": "L2",

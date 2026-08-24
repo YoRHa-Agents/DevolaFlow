@@ -45,6 +45,12 @@ from typing import Final
 
 import yaml
 
+from devolaflow.agent_workspace.layers import (
+    CURRENT_HANDOFF_SCHEMA_VERSION,
+    CURRENT_LAYER_TOKENS,
+    normalize_layer,
+)
+
 __all__ = [
     "ENVELOPE_DISCRIMINATOR_TO_BLOCK",
     "ENVELOPE_KINDS",
@@ -59,7 +65,8 @@ __all__ = [
 
 HANDOFF_DIR_DEFAULT: Final[Path] = Path(".local") / ".agent" / "handoff"
 
-LAYERS: Final[tuple[str, ...]] = ("L0", "L1", "L2", "L3")
+# Backward-compatible export; v16's semantic owner is ``layers.py``.
+LAYERS: Final[tuple[str, ...]] = CURRENT_LAYER_TOKENS
 ENVELOPE_KINDS: Final[tuple[str, ...]] = ("TaskDispatch", "StatusReport", "EscalationEvent")
 ENVELOPE_DISCRIMINATOR_TO_BLOCK: Final[dict[str, str]] = {
     "TaskDispatch": "dispatch",
@@ -91,14 +98,14 @@ class EnvelopeImmutableError(HandoffStoreError):
 class HandoffEnvelope:
     """In-memory representation of a handoff envelope.
 
-    Mirrors the v8.2.4 ``schemas/agent-workspace/handoff-envelope.yaml``
+    Mirrors the v16 ``schemas/agent-workspace/handoff-envelope.yaml``
     schema. Required envelope-level fields are explicit attributes; the
     discriminated variant block (``dispatch`` / ``report`` /
     ``escalation``) is held as a free-form dict to avoid an N×M dataclass
     explosion — the discriminator is enforced via :meth:`validate`.
     """
 
-    schema_version: int = 1
+    schema_version: int = CURRENT_HANDOFF_SCHEMA_VERSION
     seq: int = 0
     from_layer: str = ""
     to_layer: str = ""
@@ -108,6 +115,26 @@ class HandoffEnvelope:
     dispatch: dict | None = None
     report: dict | None = None
     escalation: dict | None = None
+
+    @property
+    def normalized_from_layer(self) -> str:
+        """Return ``from_layer`` in the current v16 token space."""
+
+        return normalize_layer(
+            self.from_layer,
+            schema_version=self.schema_version,
+            context="handoff.from_layer",
+        )
+
+    @property
+    def normalized_to_layer(self) -> str:
+        """Return ``to_layer`` in the current v16 token space."""
+
+        return normalize_layer(
+            self.to_layer,
+            schema_version=self.schema_version,
+            context="handoff.to_layer",
+        )
 
     @property
     def filename(self) -> str:
@@ -148,7 +175,8 @@ class HandoffEnvelope:
         """Verify the envelope satisfies the schema contract.
 
         Checks (in order):
-        1. ``from_layer`` / ``to_layer`` ∈ ``LAYERS`` and ``from_layer != to_layer``.
+        1. Layer tokens are valid for the envelope's explicit schema
+           provenance and ``from_layer != to_layer``.
         2. ``envelope_kind`` ∈ ``ENVELOPE_KINDS``.
         3. ``change_id`` matches the kebab-case pattern.
         4. ``seq`` ∈ [1, 9999].
@@ -157,11 +185,20 @@ class HandoffEnvelope:
 
         Raises :exc:`HandoffStoreError` (loud per S-5) on the first failure.
         """
-        if self.from_layer not in LAYERS or self.to_layer not in LAYERS:
+        try:
+            for token, context in (
+                (self.from_layer, "handoff.from_layer"),
+                (self.to_layer, "handoff.to_layer"),
+            ):
+                normalize_layer(
+                    token,
+                    schema_version=self.schema_version,
+                    context=context,
+                )
+        except ValueError as exc:
             raise HandoffStoreError(
-                f"from_layer/to_layer must each be one of {LAYERS}; "
-                f"got from_layer={self.from_layer!r}, to_layer={self.to_layer!r}"
-            )
+                f"invalid layer provenance for schema_version={self.schema_version!r}: {exc}"
+            ) from exc
         if self.from_layer == self.to_layer:
             raise HandoffStoreError(
                 f"from_layer == to_layer == {self.from_layer!r}; self-handoff is forbidden"
@@ -234,7 +271,7 @@ class HandoffEnvelope:
             )
         # Pull only the recognised top-level keys; ignore extras (forward-compat).
         envelope = cls(
-            schema_version=int(data.get("schema_version", 1)),
+            schema_version=int(data.get("schema_version", CURRENT_HANDOFF_SCHEMA_VERSION)),
             seq=int(data.get("seq", 0)),
             from_layer=str(data.get("from_layer", "")),
             to_layer=str(data.get("to_layer", "")),
@@ -332,7 +369,8 @@ class HandoffStore:
 
         The file is created atomically via temp-file + rename so a partial
         write cannot leave a half-formed envelope visible to a concurrent
-        reader.
+        reader. New writes are schema v2 only; schema-v1 envelopes are a
+        read-only compatibility surface and remain untouched on disk.
 
         Returns:
           Absolute path to the written file.
@@ -341,9 +379,15 @@ class HandoffStore:
           EnvelopeImmutableError: when the target seq already exists.
           HandoffStoreError: when the envelope fails schema validation.
         """
+        if envelope.schema_version != CURRENT_HANDOFF_SCHEMA_VERSION:
+            raise HandoffStoreError(
+                "new handoff writes require schema_version=2 and v16 layer tokens; "
+                "schema-v1 envelopes are read-only history and MUST NOT be migrated "
+                "or re-emitted (S-9)"
+            )
         envelope.validate()
         # ADR-003 task_stop wiring (v14.3.0): a StatusReport envelope IS the
-        # framework-level finalisation of an L3 task's report, so the
+        # framework-level finalisation of an L2 task's report, so the
         # ``task_stop`` (``test_on_complete``) hook fires here BEFORE the
         # envelope is materialised. STRICT by default since v15.0.0
         # (failing report → HookViolation raises; envelope NOT written)
@@ -369,7 +413,7 @@ class HandoffStore:
         """Return the next seq number to author for ``change_id``.
 
         Returns 1 when no envelopes exist yet for that change. Returns
-        ``max(existing_seqs) + 1`` otherwise. Useful for an L3 agent that
+        ``max(existing_seqs) + 1`` otherwise. Useful for an agent that
         wants to append without race-checking.
         """
         existing = self.list_envelope_files_for(change_id)
@@ -445,7 +489,7 @@ def make_envelope(
     envelope_kind: str,
     payload: dict,
     created: str | None = None,
-    schema_version: int = 1,
+    schema_version: int = CURRENT_HANDOFF_SCHEMA_VERSION,
 ) -> HandoffEnvelope:
     """Convenience constructor for a fully-validated :class:`HandoffEnvelope`.
 

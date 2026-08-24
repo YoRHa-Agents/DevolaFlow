@@ -45,8 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
-import yaml
-
+from devolaflow.agent_workspace import round_parser
 from devolaflow.agent_workspace.change import (
     ACTIVE_DIR_DEFAULT,
     ARCHIVE_DIR_DEFAULT,
@@ -109,9 +108,6 @@ _GOAL_ENTRY_RE: Final[re.Pattern[str]] = re.compile(
     r"^- (G(?:[1-9]|10)): (.+) → checklist\.md ## (G(?:[1-9]|10))\s*$"
 )
 _CHECKLIST_GOAL_RE: Final[re.Pattern[str]] = re.compile(r"^## (G(?:[1-9]|1[0-5])): (.+)$")
-_CHECKLIST_ITEM_RE: Final[re.Pattern[str]] = re.compile(
-    r"^- \[([ x])\] (C-G(?:[1-9]|1[0-5])\.[1-9][0-9]*) \((P[012])\) .+$"
-)
 _EVIDENCE_METADATA_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s{6}evidence:\s*([^|\s]+)(?:\s*\|.*)?$"
 )
@@ -215,29 +211,11 @@ class BudgetReport:
 
 
 @dataclass(frozen=True)
-class _ParsedMarkdown:
-    """A fenced Markdown document after deterministic frontmatter parsing."""
-
-    body: str
-    frontmatter: dict[str, object] | None
-
-
-@dataclass(frozen=True)
 class _ReadResult:
     """Cached artifact read outcome used by budgets and semantic checks."""
 
     text: str | None
     state: str
-
-
-@dataclass(frozen=True)
-class _ChecklistItem:
-    """Derived checklist item state and its attached metadata lines."""
-
-    item_id: str
-    checked: bool
-    priority: str
-    metadata: tuple[str, ...]
 
 
 def estimate_tokens(text: str) -> int:
@@ -426,7 +404,7 @@ def _parse_markdown_frontmatter(
     filename: str,
     result: _ReadResult,
     report: BudgetReport,
-) -> _ParsedMarkdown | None:
+) -> round_parser.MarkdownArtifact | None:
     """Strictly parse a required fenced YAML mapping without raising."""
     if result.state == "missing":
         report.violations.append(
@@ -436,52 +414,11 @@ def _parse_markdown_frontmatter(
     if result.text is None:
         return None
 
-    lines = result.text.splitlines()
-    if not lines or lines[0] != "---":
-        report.violations.append(
-            SemanticViolation(
-                filename,
-                "FRONTMATTER_PARSE",
-                "frontmatter must start with an exact '---' line",
-            )
-        )
-        return None
-
     try:
-        closing_index = lines.index("---", 1)
-    except ValueError:
-        report.violations.append(
-            SemanticViolation(
-                filename,
-                "FRONTMATTER_PARSE",
-                "frontmatter is missing its closing '---' line",
-            )
-        )
+        return round_parser.parse_frontmatter(result.text, filename=filename)
+    except round_parser.RoundArtifactParseError as exc:
+        report.violations.append(SemanticViolation(filename, exc.kind, exc.message))
         return None
-
-    yaml_text = "\n".join(lines[1:closing_index])
-    body = "\n".join(lines[closing_index + 1 :])
-    try:
-        parsed = yaml.safe_load(yaml_text)
-    except yaml.YAMLError:
-        report.violations.append(
-            SemanticViolation(
-                filename,
-                "FRONTMATTER_PARSE",
-                "frontmatter is not valid YAML",
-            )
-        )
-        return _ParsedMarkdown(body=body, frontmatter=None)
-    if not isinstance(parsed, dict):
-        report.violations.append(
-            SemanticViolation(
-                filename,
-                "FRONTMATTER_PARSE",
-                "frontmatter YAML must decode to a mapping",
-            )
-        )
-        return _ParsedMarkdown(body=body, frontmatter=None)
-    return _ParsedMarkdown(body=body, frontmatter=parsed)
 
 
 def _goal_entries(
@@ -558,46 +495,18 @@ def _checklist_goal_headings(
 def _checklist_items(
     body: str,
     report: BudgetReport,
-) -> list[_ChecklistItem] | None:
-    """Extract checklist items and associate their indented metadata."""
-    items: list[_ChecklistItem] = []
-    current: tuple[str, bool, str] | None = None
-    metadata: list[str] = []
-
-    def flush() -> None:
-        nonlocal current, metadata
-        if current is not None:
-            items.append(
-                _ChecklistItem(
-                    item_id=current[0],
-                    checked=current[1],
-                    priority=current[2],
-                    metadata=tuple(metadata),
-                )
-            )
-        current = None
-        metadata = []
-
-    for line in body.splitlines():
-        if line.startswith("- ["):
-            flush()
-            match = _CHECKLIST_ITEM_RE.fullmatch(line)
-            if match is None:
-                report.violations.append(
-                    SemanticViolation(
-                        "checklist.md",
-                        "CHECKLIST_ITEM_PARSE",
-                        "checklist item does not match the canonical checkbox syntax",
-                    )
-                )
-                return None
-            current = (match.group(2), match.group(1) == "x", match.group(3))
-        elif line.startswith("## "):
-            flush()
-        elif current is not None and line.startswith("      "):
-            metadata.append(line)
-    flush()
-    return items
+) -> list[round_parser.ChecklistItem] | None:
+    """Adapt the shared item parser to deterministic lint findings."""
+    try:
+        items = round_parser._parse_checklist_items(  # noqa: SLF001
+            body,
+            "checklist.md",
+            strict_metadata=False,
+        )
+    except round_parser.RoundArtifactParseError as exc:
+        report.violations.append(SemanticViolation("checklist.md", exc.kind, exc.message))
+        return None
+    return list(items)
 
 
 def _strict_frontmatter_equal(actual: object, expected: object) -> bool:
@@ -633,7 +542,7 @@ def _check_derived_field(
 
 def _check_evidence_paths(
     change_folder: Path,
-    items: list[_ChecklistItem],
+    items: list[round_parser.ChecklistItem],
     report: BudgetReport,
 ) -> None:
     """Require one exact, safe, regular evidence file per checked item."""

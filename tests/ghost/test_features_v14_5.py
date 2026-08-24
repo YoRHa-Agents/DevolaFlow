@@ -74,7 +74,7 @@ def test_v14_5_0_adr006_module_split_registered(project_root: Path) -> None:
     # The S-10-named path stays FUNCTIONAL, not just importable.
     populated = feedback.populate_cascade_gate_fields({}, "STANDARD")
     assert populated["gate"]["cascade_required"] is True
-    assert populated["gate"]["cascade_min_layers"] == 4
+    assert populated["gate"]["cascade_min_layers"] == 3
 
     # --- (c) post-split line ceilings --------------------------------------
     scorer_lines = len(

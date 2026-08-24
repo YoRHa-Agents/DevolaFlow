@@ -99,8 +99,8 @@ lean_example:
 # --- FORMAT SPECIFICATION ---
 lean_format_spec:
   hdr:
-    description: "Dispatch envelope — fixed key names, no descriptions needed"
-    fields: { id: "dispatch UUID", parent: "parent dispatch id", layer: "wave|stage|project", timeout: "seconds" }
+    description: "Dispatch envelope — fixed key names. v16 emitters use project|wave; legacy schema-v1 stage is read-compatible as project with a deprecation warning."
+    fields: { id: "dispatch UUID", parent: "parent dispatch id", layer: "project|wave (v16 emission); legacy v1 stage→project on read", timeout: "seconds" }
   task:
     description: "Work unit identity"
     fields: { id: "human-readable task id", type: "code|test|review|research|design|benchmark", title: "≤10 words" }

@@ -60,7 +60,10 @@ from devolaflow.agent_workspace.change import (
     ChangeNotFoundError,
     ChangeStore,
     ChangeStoreError,
+    ChecklistProgress,
+    derive_checklist_progress,
     detect_change_layout,
+    reconcile_round_boundary,
 )
 from devolaflow.agent_workspace.delta_parser import (
     DeltaRequirement,
@@ -112,6 +115,46 @@ from devolaflow.agent_workspace.requirements_trace import (
     parse_pytest_report,
     trace_requirements,
 )
+from devolaflow.agent_workspace.round_engine import (
+    ITEM_UNSUCCESSFUL_THREE_ROUNDS,
+    MAX_ROUNDS_REACHED,
+    NET_STAGNATION_TWO_ROUNDS,
+    ROUND_BLOCKERS_PRESENT,
+    ROUND_PICKED_ITEMS_OPEN,
+    ROUND_REVERTED_REINFORCEMENT_OPEN,
+    BlockedItem,
+    ChecklistItemView,
+    ChecklistView,
+    PriorityChangeView,
+    RankedItem,
+    RoundEngineError,
+    RoundPassResult,
+    RoundProgress,
+    RoundSelection,
+    RoundStopResult,
+    StageView,
+    effective_priority,
+    evaluate_round_pass,
+    evaluate_stop_guard,
+    revert_checklist_item,
+    round_pass,
+    select_round,
+    stop_guard,
+)
+from devolaflow.agent_workspace.round_parser import (
+    ChecklistDocument,
+    ChecklistItem,
+    MarkdownArtifact,
+    Priority,
+    PriorityChange,
+    RoundArtifactParseError,
+    RoundHistoryRow,
+    RoundPick,
+    StageDocument,
+    parse_checklist,
+    parse_frontmatter,
+    parse_stage,
+)
 from devolaflow.agent_workspace.spec_bootstrap import (
     SpecBootstrapError,
     seed_initial_spec,
@@ -126,12 +169,15 @@ __all__ = [
     "MergeConflict",
     # change
     "ARTIFACT_FILES_V16",
+    "ChecklistProgress",
     "Change",
     "ChangeLayout",
     "ChangeNotFoundError",
     "ChangeStore",
     "ChangeStoreError",
+    "derive_checklist_progress",
     "detect_change_layout",
+    "reconcile_round_boundary",
     # delta_parser
     "DeltaRequirement",
     "DeltaSpec",
@@ -179,6 +225,44 @@ __all__ = [
     "TestOutcome",
     "parse_pytest_report",
     "trace_requirements",
+    # round_engine
+    "BlockedItem",
+    "ChecklistItemView",
+    "ChecklistView",
+    "ITEM_UNSUCCESSFUL_THREE_ROUNDS",
+    "MAX_ROUNDS_REACHED",
+    "NET_STAGNATION_TWO_ROUNDS",
+    "PriorityChangeView",
+    "ROUND_BLOCKERS_PRESENT",
+    "ROUND_PICKED_ITEMS_OPEN",
+    "ROUND_REVERTED_REINFORCEMENT_OPEN",
+    "RankedItem",
+    "RoundEngineError",
+    "RoundPassResult",
+    "RoundProgress",
+    "RoundSelection",
+    "RoundStopResult",
+    "StageView",
+    "effective_priority",
+    "evaluate_round_pass",
+    "evaluate_stop_guard",
+    "revert_checklist_item",
+    "round_pass",
+    "select_round",
+    "stop_guard",
+    # round_parser
+    "ChecklistDocument",
+    "ChecklistItem",
+    "MarkdownArtifact",
+    "Priority",
+    "PriorityChange",
+    "RoundArtifactParseError",
+    "RoundHistoryRow",
+    "RoundPick",
+    "StageDocument",
+    "parse_checklist",
+    "parse_frontmatter",
+    "parse_stage",
     # spec_bootstrap (v9.1.5 PV-05 — closes M-004 first-time seed)
     "SpecBootstrapError",
     "seed_initial_spec",
@@ -201,6 +285,14 @@ _dispatch_executor_dead_api_pins = (
     ExecutorError,
     TaskOutcome,
     DEFAULT_MAX_CONCURRENCY,
+)
+
+
+# Public pure-control APIs are operator-invoked; runtime auto-wiring is
+# intentionally deferred so importing the workspace performs no writes.
+_round_control_dead_api_pins = (
+    revert_checklist_item,
+    select_round,
 )
 
 

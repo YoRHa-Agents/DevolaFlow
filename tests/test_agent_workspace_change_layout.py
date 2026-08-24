@@ -17,6 +17,7 @@ from devolaflow.agent_workspace import (
     ChangeStoreError,
     detect_change_layout,
     lint_change,
+    parse_checklist,
 )
 from devolaflow.agent_workspace.change import ARTIFACT_FILES
 from devolaflow.agent_workspace.lint import (
@@ -104,6 +105,67 @@ def _write_checklist(
     for basename, text in (evidence or {}).items():
         (evidence_dir / basename).write_text(text, encoding="utf-8")
     return folder
+
+
+def _canonical_checklist(
+    *,
+    checked: bool,
+    frontmatter_checked: int,
+    frontmatter_reverted: int,
+) -> str:
+    checkbox = "x" if checked else " "
+    completion = (
+        "      evidence: evidence/C-G1.1.txt | checked_by: user | round: 2 "
+        "| at: 2026-08-24T11:00:00Z\n"
+        if checked
+        else ""
+    )
+    prior_revert = (
+        "      reverted: Reopen this exact assertion. | at: 2026-08-24T10:30:00Z\n"
+        if checked
+        else ""
+    )
+    return f"""\
+---
+parent: guarded-change
+schema_version: 1
+total_items: 1
+checked: {frontmatter_checked}
+priority_dist: {{P0: 1, P1: 0, P2: 0}}
+reverted_open: {frontmatter_reverted}
+---
+
+# Checklist
+
+## G1: Guard state from the parsed checklist body
+- [{checkbox}] C-G1.1 (P0) The parsed body controls lifecycle readiness
+      verify: manual
+{prior_revert}{completion}"""
+
+
+def _canonical_stage() -> str:
+    return """\
+---
+parent: guarded-change
+schema_version: 1
+current_round: 2
+max_rounds: 4
+capacity_per_round: 5
+---
+
+# Stage — Round Control
+
+## Priority Settings
+- 2026-08-24T09:00:00Z initial: P0=[C-G1.1] P1=[] P2=[]
+
+## Round History
+| Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |
+|---|---|---|---|---|---|---|
+
+## Next Round Plan
+- Candidates: []
+- Estimated remaining rounds: 0
+"""
 
 
 @pytest.mark.parametrize(
@@ -337,3 +399,76 @@ def test_archive_manager_preserves_checklist_artifacts_and_evidence(tmp_path: Pa
     assert archived.layout is ChangeLayout.CHECKLIST
     assert archived.state == "ARCHIVED"
     assert archived.evidence_files == {"C-G1.1.txt": "verify: pytest\nPASS\n"}
+
+
+def test_store_guards_verifying_and_reconciles_user_revert_at_round_boundary(
+    tmp_path: Path,
+) -> None:
+    active = tmp_path / ".local" / ".agent" / "active"
+    folder = _write_checklist(active / "guarded-change", "guarded-change")
+    checklist_path = folder / "checklist.md"
+    stage_path = folder / "stage.md"
+    checklist_path.write_text(
+        _canonical_checklist(
+            checked=False,
+            frontmatter_checked=1,
+            frontmatter_reverted=0,
+        ),
+        encoding="utf-8",
+    )
+    stage_path.write_text(_canonical_stage(), encoding="utf-8")
+    store = ChangeStore(repo_root=tmp_path)
+
+    with pytest.raises(ChangeStoreError, match="CHECKLIST_NOT_READY"):
+        store.transition_state("guarded-change", "VERIFYING")
+
+    checklist_path.write_text(
+        _canonical_checklist(
+            checked=True,
+            frontmatter_checked=0,
+            frontmatter_reverted=1,
+        ),
+        encoding="utf-8",
+    )
+    verifying = store.transition_state("guarded-change", "VERIFYING")
+    assert verifying.state == "VERIFYING"
+    assert verifying.status["checklist_checked"] == 1
+    assert verifying.status["checklist_total"] == 1
+    assert verifying.status["percent_complete"] == 100
+
+    stage_before = stage_path.read_bytes()
+    with pytest.raises(ValueError, match="REVERT_ACTOR_FORBIDDEN"):
+        store.revert_checklist_item(
+            "guarded-change",
+            "C-G1.1",
+            "dispatcher may not reopen",
+            actor="L0",
+            at="2026-08-24T12:00:00Z",
+        )
+
+    reverted = store.revert_checklist_item(
+        "guarded-change",
+        "C-G1.1",
+        'Preserve "verbatim" -> reason.',
+        actor="user",
+        at="2026-08-24T12:00:00Z",
+    )
+    parsed = parse_checklist(reverted.checklist_md)
+    assert parsed.artifact.frontmatter["checked"] == 0
+    assert parsed.artifact.frontmatter["reverted_open"] == 1
+    assert parsed.items[0].reverted_reason == 'Preserve "verbatim" -> reason.'
+    assert store.get("guarded-change").state == "VERIFYING"
+    assert stage_path.read_bytes() == stage_before
+
+    reconciled = store.reconcile_round_boundary(
+        "guarded-change",
+        at="2026-08-24T12:05:00Z",
+    )
+    assert reconciled.state == "IN_PROGRESS"
+    assert reconciled.status["checklist_checked"] == 0
+    assert reconciled.status["checklist_total"] == 1
+    assert reconciled.status["percent_complete"] == 0
+    assert reconciled.status["current_round"] == 2
+    assert reconciled.status["gate_score"] is None
+    assert reconciled.status["verify_pass"] is None
+    assert stage_path.read_bytes() == stage_before
