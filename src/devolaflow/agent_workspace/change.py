@@ -4,10 +4,11 @@ Closes C-003 (Python half) per ``.local/research/v8.3.0_gap_analysis.md`` §2.1
 and the M-005 Python binding for ``schemas/agent-workspace/change-status.yaml``.
 
 A :class:`Change` is the in-memory representation of a single
-``.local/.agent/active/<change-id>/`` folder, mapping the seven on-disk
-artifacts (``goal.md`` / ``acceptance.md`` / ``spec.md`` / ``tasks.md`` /
-``STATUS.yaml`` / ``owned_files.txt`` / ``learnings.jsonl``) to attributes
-plus the parsed STATUS frontmatter values.
+``.local/.agent/active/<change-id>/`` folder. During the v16 compatibility
+window it maps either the legacy ``acceptance.md`` + ``tasks.md`` layout or
+the checklist-anchored ``checklist.md`` + ``stage.md`` + ``preflight.md`` +
+``evidence/*.txt`` layout, plus their shared artifacts and parsed STATUS
+values.
 
 The :class:`ChangeStore` exposes list / get / move semantics on top of
 ``.local/.agent/active/`` and ``.local/.agent/archive/``. It is the sole
@@ -40,6 +41,7 @@ import re
 import shutil
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
@@ -51,12 +53,15 @@ __all__ = [
     "ACTIVE_DIR_DEFAULT",
     "ARCHIVE_DIR_DEFAULT",
     "ARTIFACT_FILES",
+    "ARTIFACT_FILES_V16",
     "Change",
+    "ChangeLayout",
     "ChangeNotFoundError",
     "ChangeStore",
     "ChangeStoreError",
     "FSM_STATES",
     "STATE_TRANSITIONS",
+    "detect_change_layout",
 ]
 
 
@@ -70,6 +75,19 @@ ARTIFACT_FILES: Final[tuple[str, ...]] = (
     "acceptance.md",
     "spec.md",
     "tasks.md",
+    "STATUS.yaml",
+    "owned_files.txt",
+    "learnings.jsonl",
+)
+
+# The checklist-anchored v16 artifact set. ``evidence/*.txt`` is represented
+# separately by ``Change.evidence_files`` because its filenames are dynamic.
+ARTIFACT_FILES_V16: Final[tuple[str, ...]] = (
+    "goal.md",
+    "checklist.md",
+    "stage.md",
+    "preflight.md",
+    "spec.md",
     "STATUS.yaml",
     "owned_files.txt",
     "learnings.jsonl",
@@ -109,13 +127,44 @@ class ChangeNotFoundError(ChangeStoreError):
     """Raised when a change-id is not present in active or archive."""
 
 
+class ChangeLayout(StrEnum):
+    """Canonical active/archive folder layouts supported during the v16 window."""
+
+    LEGACY = "LEGACY"
+    CHECKLIST = "CHECKLIST"
+    INVALID_MIXED = "INVALID_MIXED"
+
+
+def detect_change_layout(folder: Path | str) -> ChangeLayout:
+    """Detect a change folder's canonical storage layout without mutating it.
+
+    A checklist marker wins only when neither legacy marker is present.
+    Presence of ``checklist.md`` together with ``tasks.md`` or
+    ``acceptance.md`` is an invalid mixed layout. Folders without
+    ``checklist.md`` remain legacy-compatible for the full v16 window.
+    """
+
+    folder_path = Path(folder)
+    if not folder_path.is_dir():
+        raise ChangeNotFoundError(
+            f"change folder {folder_path!s} does not exist or is not a directory"
+        )
+
+    has_checklist = (folder_path / "checklist.md").exists()
+    has_legacy = any((folder_path / name).exists() for name in ("tasks.md", "acceptance.md"))
+    if has_checklist and has_legacy:
+        return ChangeLayout.INVALID_MIXED
+    if has_checklist:
+        return ChangeLayout.CHECKLIST
+    return ChangeLayout.LEGACY
+
+
 @dataclass
 class Change:
     """In-memory representation of one ``.local/.agent/active/<id>/`` folder.
 
-    The seven artifact attributes hold the verbatim on-disk text (or
-    ``None`` when the file is absent — only ``learnings.jsonl`` is
-    legitimately optional). The ``status`` attribute carries the parsed
+    Artifact attributes hold verbatim on-disk text for the detected legacy
+    or checklist layout. The ``status`` attribute carries the parsed
     ``STATUS.yaml`` mapping.
 
     ``Change.from_active_folder(path)`` is the canonical constructor;
@@ -132,6 +181,13 @@ class Change:
     learnings_jsonl: str | None = None
     # Source folder — populated by from_active_folder; useful for diagnostics.
     source_folder: Path | None = None
+    # v16 fields are appended to preserve positional compatibility for all
+    # pre-v16 callers of the dataclass constructor.
+    layout: ChangeLayout = ChangeLayout.LEGACY
+    checklist_md: str = ""
+    stage_md: str = ""
+    preflight_md: str = ""
+    evidence_files: dict[str, str] = field(default_factory=dict)
 
     @property
     def state(self) -> str:
@@ -179,9 +235,11 @@ class Change:
           ChangeStoreError: when STATUS.yaml is malformed (loud per S-5).
         """
         folder_path = Path(folder)
-        if not folder_path.is_dir():
-            raise ChangeNotFoundError(
-                f"change folder {folder_path!s} does not exist or is not a directory"
+        layout = detect_change_layout(folder_path)
+        if layout is ChangeLayout.INVALID_MIXED:
+            raise ChangeStoreError(
+                f"change folder {folder_path!s} has INVALID_MIXED layout: "
+                "checklist.md cannot coexist with tasks.md or acceptance.md"
             )
 
         change_id = _derive_change_id(folder_path.name)
@@ -214,24 +272,40 @@ class Change:
             learnings_path.read_text(encoding="utf-8") if learnings_path.exists() else None
         )
 
+        evidence_files: dict[str, str] = {}
+        if layout is ChangeLayout.CHECKLIST:
+            evidence_dir = folder_path / "evidence"
+            if evidence_dir.is_dir():
+                evidence_files = {
+                    evidence_path.name: evidence_path.read_text(encoding="utf-8")
+                    for evidence_path in sorted(evidence_dir.glob("*.txt"))
+                    if evidence_path.is_file()
+                }
+
         return cls(
             change_id=change_id,
             goal_md=_read("goal.md"),
-            acceptance_md=_read("acceptance.md"),
+            acceptance_md=_read("acceptance.md") if layout is ChangeLayout.LEGACY else "",
             spec_md=_read("spec.md"),
-            tasks_md=_read("tasks.md"),
+            tasks_md=_read("tasks.md") if layout is ChangeLayout.LEGACY else "",
             status=status_data,
             owned_files=owned_files,
             learnings_jsonl=learnings_jsonl,
             source_folder=folder_path,
+            layout=layout,
+            checklist_md=_read("checklist.md") if layout is ChangeLayout.CHECKLIST else "",
+            stage_md=_read("stage.md") if layout is ChangeLayout.CHECKLIST else "",
+            preflight_md=_read("preflight.md") if layout is ChangeLayout.CHECKLIST else "",
+            evidence_files=evidence_files,
         )
 
     def to_active_folder(self, folder: Path | str) -> None:
         """Write this :class:`Change` to ``folder`` (creating it if absent).
 
-        Existing files in ``folder`` are OVERWRITTEN. The seven
-        artifacts are written in the canonical order from
-        :data:`ARTIFACT_FILES`.
+        Existing files in a matching layout are overwritten. A non-empty
+        target with the other layout (or mixed markers) is rejected rather
+        than cleaned or migrated. Only the selected canonical artifact set
+        (:data:`ARTIFACT_FILES` or :data:`ARTIFACT_FILES_V16`) is written.
 
         Round-trip contract (AC-2): when the source was loaded via
         :meth:`from_active_folder`, the output is byte-identical to the
@@ -246,6 +320,34 @@ class Change:
           treats it as opt-in).
         """
         folder_path = Path(folder)
+        layout = ChangeLayout(self.layout)
+        if layout is ChangeLayout.INVALID_MIXED:
+            raise ChangeStoreError("cannot write a Change with INVALID_MIXED layout")
+        if folder_path.exists() and not folder_path.is_dir():
+            raise ChangeStoreError(f"change target {folder_path!s} exists and is not a directory")
+        if folder_path.is_dir() and any(folder_path.iterdir()):
+            target_layout = detect_change_layout(folder_path)
+            if target_layout is ChangeLayout.INVALID_MIXED:
+                raise ChangeStoreError(
+                    f"change target {folder_path!s} has INVALID_MIXED layout; "
+                    "refusing to clean or migrate it implicitly"
+                )
+            if target_layout is not layout:
+                raise ChangeStoreError(
+                    f"change target {folder_path!s} uses {target_layout.value!r} layout, "
+                    f"not {layout.value!r}; refusing implicit migration"
+                )
+
+        evidence_items: list[tuple[str, str]] = []
+        if layout is ChangeLayout.CHECKLIST:
+            for basename, text in self.evidence_files.items():
+                evidence_name = Path(basename)
+                if evidence_name.name != basename or evidence_name.suffix != ".txt":
+                    raise ChangeStoreError(
+                        f"evidence filename {basename!r} must be a .txt basename"
+                    )
+                evidence_items.append((basename, text))
+
         folder_path.mkdir(parents=True, exist_ok=True)
 
         def _write(name: str, text: str, *, newline: str | None = None) -> None:
@@ -266,9 +368,15 @@ class Change:
                 target.write_text(text, encoding="utf-8", newline=newline)
 
         _write("goal.md", self.goal_md)
-        _write("acceptance.md", self.acceptance_md)
+        if layout is ChangeLayout.LEGACY:
+            _write("acceptance.md", self.acceptance_md)
+        else:
+            _write("checklist.md", self.checklist_md)
+            _write("stage.md", self.stage_md)
+            _write("preflight.md", self.preflight_md)
         _write("spec.md", self.spec_md)
-        _write("tasks.md", self.tasks_md)
+        if layout is ChangeLayout.LEGACY:
+            _write("tasks.md", self.tasks_md)
 
         status_yaml = yaml.safe_dump(
             self.status,
@@ -282,6 +390,12 @@ class Change:
         if owned_text and not owned_text.endswith("\n"):
             owned_text += "\n"
         _write("owned_files.txt", owned_text, newline="\n")
+
+        if layout is ChangeLayout.CHECKLIST:
+            evidence_dir = folder_path / "evidence"
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            for basename, text in evidence_items:
+                _write(str(Path("evidence") / basename), text)
 
         if self.learnings_jsonl is not None:
             _write("learnings.jsonl", self.learnings_jsonl, newline="\n")
@@ -315,6 +429,11 @@ class Change:
             owned_files=list(self.owned_files),
             learnings_jsonl=self.learnings_jsonl,
             source_folder=self.source_folder,
+            layout=self.layout,
+            checklist_md=self.checklist_md,
+            stage_md=self.stage_md,
+            preflight_md=self.preflight_md,
+            evidence_files=dict(self.evidence_files),
         )
 
 

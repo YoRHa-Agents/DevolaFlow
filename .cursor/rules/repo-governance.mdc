@@ -449,12 +449,14 @@ budgets:
 | File | Soft budget | Hard ceiling |
 |------|-------------|--------------|
 | goal.md | 200 | 400 |
-| acceptance.md | 400 | 800 |
+| checklist.md | 1200 | 2400 |
+| stage.md | 400 | 800 |
+| preflight.md | 600 | 1200 |
 | spec.md | 1500 | 3000 |
-| tasks.md | 800 | 1500 |
-| STATUS.yaml | 100 | 200 |
+| STATUS.yaml | 150 | 300 |
 | owned_files.txt | 50 | 100 |
 | Handoff envelope | 600 | 1200 |
+| evidence/ | No token limit | ≤ 10 KB/file; ≤ 50 KB/directory |
 
 The `.local/human/` surface (v14.0.0) carries its own per-artifact token
 budgets (TOKENS are the sole enforced unit; line/word figures are

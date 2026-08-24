@@ -3,11 +3,11 @@
 Closes M-007 from the v9.0.0 retrospective §3.3 (operator-facing slash
 command surface was telegraphed). Four commands ship in this PV:
 
-* ``/devola:propose <topic>`` — scaffolds
-  ``.local/.agent/active/<slug>/`` with the canonical 7-artifact set
-  (six standard artifacts produced by
-  :meth:`devolaflow.agent_workspace.Change.to_active_folder` plus an
-  initial ``README.md`` per the cycle plan §PV-02 verbatim list).
+* ``/devola:propose <topic>`` — scaffolds the v16 checklist layout at
+  ``.local/.agent/active/<slug>/``. The canonical storage API writes
+  ``goal.md``, ``checklist.md``, ``stage.md``, ``preflight.md``,
+  ``spec.md``, ``STATUS.yaml``, ``owned_files.txt``, and ``evidence/``;
+  this module adds an operator-facing ``README.md``.
 * ``/devola:apply <change-id>`` — flips the change's STATUS.yaml
   ``state`` from ``PROPOSED`` to ``IN_PROGRESS`` via
   :meth:`devolaflow.agent_workspace.ChangeStore.transition_state`
@@ -62,6 +62,7 @@ from devolaflow.agent_workspace import (
     ArchiveError,
     ArchiveManager,
     Change,
+    ChangeLayout,
     ChangeNotFoundError,
     ChangeStore,
     ChangeStoreError,
@@ -123,6 +124,7 @@ REQUIRE_VERIFY_STATE: str = "VERIFYING"
 _SLUGIFY_REPLACE_RE = re.compile(r"[^a-z0-9]+")
 _SLUGIFY_TRIM_RE = re.compile(r"^-+|-+$")
 _VALID_CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$")
+_PROPOSE_OWNER_SESSION_ID = "00000000-0000-4000-8000-000000000000"
 
 
 # ── Custom error types (S-5 explicit error states) ─────────────────────
@@ -199,7 +201,7 @@ def scaffold_change_folder(
     *,
     change_id: str | None = None,
 ) -> Path:
-    """Create ``.local/.agent/active/<slug>/`` with the canonical 7 artifacts.
+    """Create ``.local/.agent/active/<slug>/`` with the v16 checklist layout.
 
     Args:
       topic: Free-form topic string (passed through :func:`slugify`).
@@ -216,25 +218,11 @@ def scaffold_change_folder(
         the operator's contract — re-propose by passing a fresh
         topic), or when the topic slug is invalid.
 
-    The 7 artifacts written (matching the cycle plan §PV-02 verbatim
-    list):
-
-      1. ``goal.md`` — one-line goal placeholder + author hint.
-      2. ``acceptance.md`` — empty AC list with header guidance.
-      3. ``spec.md`` — frontmatter scaffold pointing at A-4 source-of-
-         truth contract (``delta_target: TBD``).
-      4. ``tasks.md`` — empty wave/task scaffold.
-      5. ``STATUS.yaml`` — populated with ``state: PROPOSED`` +
-         ``percent_complete: 0`` + ``created_at`` / ``last_updated``
-         timestamps.
-      6. ``owned_files.txt`` — empty (operator fills before
-         ``/devola:apply``).
-      7. ``README.md`` — operator orientation + lifecycle pointer.
-
-    Note: ``learnings.jsonl`` (the optional 8th artifact per
-    :data:`devolaflow.agent_workspace.change.ARTIFACT_FILES`) is NOT
-    written at scaffold time — per the schema it is opt-in and only
-    populated as L3 task agents author session reflections.
+    New proposals use :class:`ChangeLayout.CHECKLIST`: one initial goal
+    (G1) maps to one unchecked item (C-G1.1), round control starts at
+    zero with capacity five, and preflight remains unsigned. Legacy
+    ``acceptance.md`` and ``tasks.md`` are intentionally absent, as is
+    the optional ``learnings.jsonl``.
     """
     slug = change_id if change_id is not None else slugify(topic)
     if not _VALID_CHANGE_ID_RE.match(slug):
@@ -251,25 +239,40 @@ def scaffold_change_folder(
         )
 
     now = _now_iso()
+    goal_title = f"Complete {slug}"
     status = {
-        "schema_version": 1,
+        "schema_version": 2,
         "change_id": slug,
         "state": "PROPOSED",
         "percent_complete": 0,
-        "last_handoff_seq": 0,
-        "created_at": now,
+        "owner_layer": "L0",
+        "owner_session_id": _PROPOSE_OWNER_SESSION_ID,
         "last_updated": now,
+        "last_handoff_seq": 0,
+        "gate_score": None,
+        "verify_pass": None,
+        "checklist_checked": 0,
+        "checklist_total": 1,
+        "current_round": 0,
+        "next_blockers": ["PF-A1", "preflight authorization pending"],
     }
 
     change = Change(
         change_id=slug,
         goal_md=(
-            f"# Goal — {slug}\n\n<!-- One-paragraph statement of the user-visible goal. -->\n"
-        ),
-        acceptance_md=(
-            f"# Acceptance Criteria — {slug}\n\n"
-            "<!-- Bulleted list of testable pass conditions. -->\n"
-            "- [ ] TODO\n"
+            "---\n"
+            f"id: {slug}\n"
+            f'created: "{now}"\n'
+            "priority: P2\n"
+            "intent_class: feature\n"
+            "goals_count: 1\n"
+            "---\n\n"
+            f"# Goal: {goal_title}\n\n"
+            "## Why\n"
+            f"The operator proposed `{slug}` as a tracked, evidence-backed change.\n\n"
+            "## Goals\n"
+            f"- G1: {goal_title} → checklist.md ## G1\n\n"
+            "## Out of scope\n"
         ),
         spec_md=(
             "---\n"
@@ -280,10 +283,124 @@ def scaffold_change_folder(
             f"# Spec — {slug}\n\n"
             "<!-- ADDED / MODIFIED / REMOVED Requirements per A-4. -->\n"
         ),
-        tasks_md=(f"# Tasks — {slug}\n\n<!-- Wave ▸ Task decomposition. -->\n"),
         status=status,
         owned_files=[],
         learnings_jsonl=None,
+        layout=ChangeLayout.CHECKLIST,
+        checklist_md=(
+            "---\n"
+            f"parent: {slug}\n"
+            "schema_version: 1\n"
+            "total_items: 1\n"
+            "checked: 0\n"
+            "priority_dist: {P0: 0, P1: 1, P2: 0}\n"
+            "reverted_open: 0\n"
+            "---\n\n"
+            "# Checklist\n\n"
+            f"## G1: {goal_title}\n"
+            f"- [ ] C-G1.1 (P1) User confirms the `{slug}` goal is satisfied by "
+            "evidence-backed results\n"
+            "      verify: manual\n"
+        ),
+        stage_md=(
+            "---\n"
+            f"parent: {slug}\n"
+            "schema_version: 1\n"
+            "current_round: 0\n"
+            "max_rounds: 3\n"
+            "capacity_per_round: 5\n"
+            "---\n\n"
+            "# Stage — Round Control\n\n"
+            "## Priority Settings\n"
+            f"- {now} initial: P0=[] P1=[C-G1.1] P2=[]\n\n"
+            "## Round History\n"
+            "| Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |\n"
+            "|---|---|---|---|---|---|---|\n\n"
+            "## Next Round Plan\n"
+            "- Candidates: [C-G1.1]\n"
+            "- Estimated remaining rounds: 1\n"
+        ),
+        preflight_md=(
+            "---\n"
+            f"parent: {slug}\n"
+            "schema_version: 1\n"
+            "authorized_at: null\n"
+            "snapshot_round: 0\n"
+            "config_inherited_from: null\n"
+            "project_config_hash: null\n"
+            "---\n\n"
+            "# Preflight\n\n"
+            "## 0. Project Configuration\n"
+            "### 0.1 Project\n"
+            f'- name: {slug} | decision: MANDATORY | source: "propose topic"\n'
+            f'- purpose: {goal_title} | decision: MANDATORY | source: "goal.md"\n'
+            f"- scope_keywords: [{slug}] | decision: DEFAULTED | source: "
+            '"propose topic"\n'
+            "- existing_codebase: true | decision: CONFIRM | source: "
+            '"repository root; confirm before signing"\n\n'
+            "### 0.2 Tech Stack\n"
+            "- primary_language: pending | decision: CONFIRM | source: "
+            '"detect before signing"\n'
+            "- runtime_version: pending | decision: CONFIRM | source: "
+            '"detect before signing"\n'
+            "- dependency_manifest: pending | decision: CONFIRM | source: "
+            '"detect before signing"\n\n'
+            "### 0.3 Repository\n"
+            "- mode: local | decision: CONFIRM | source: "
+            '"safe draft default; detect before signing"\n'
+            "- default_branch: pending | decision: CONFIRM | source: "
+            '"detect before signing"\n'
+            "- branching_strategy: pending | decision: CONFIRM | source: "
+            '"confirm before signing"\n\n'
+            "### 0.4 Localization\n"
+            "- primary_language: en | decision: CONFIRM | source: "
+            '"safe draft default; confirm before signing"\n'
+            "- bilingual_output: false | decision: CONFIRM | source: "
+            '"safe draft default; confirm before signing"\n'
+            "- doc_language: en | decision: CONFIRM | source: "
+            '"safe draft default; confirm before signing"\n'
+            "- code_comments_language: en | decision: DEFAULTED | source: "
+            '"safe draft default; confirm before signing"\n\n'
+            "### 0.5 Platforms\n"
+            "- os: [pending] | decision: CONFIRM | source: "
+            '"detect before signing"\n'
+            "- architectures: [pending] | decision: CONFIRM | source: "
+            '"detect before signing"\n\n'
+            "### 0.6 Quality\n"
+            "- coverage_target_pct: 80 | decision: CONFIRM | source: "
+            '"default; confirm before signing"\n'
+            "- gate_profile: standard | decision: CONFIRM | source: "
+            '"default; confirm before signing"\n'
+            '- max_rounds: 3 | decision: CONFIRM | source: "stage.md"\n\n'
+            "### 0.7 Release\n"
+            "- versioning: semver | decision: CONFIRM | source: "
+            '"default; confirm before signing"\n'
+            "- channels: [] | decision: CONFIRM | source: "
+            '"confirm before signing"\n\n'
+            "### 0.8 Workflow\n"
+            "- seed_mode: feature-enhancement | decision: CONFIRM | source: "
+            '"propose scaffold"\n'
+            "- runtime_loop: checklist_rounds | decision: DEFAULTED | source: "
+            '"schema default"\n\n'
+            "## 1. Stop Cards\n"
+            "| ID | Category | Description | Checklist Items | Disposition |\n"
+            "|---|---|---|---|---|\n"
+            "| PF-A1 | human_touch | User confirms the goal is satisfied. | "
+            "C-G1.1 | reserved_stop |\n\n"
+            "## 2. Authorization Record\n"
+            "- Pending user signature; `authorized_at` remains null.\n\n"
+            "## 3. Permitted Stops\n"
+            "1. STOP-1: A Section 1 card with disposition=reserved_stop is reached.\n"
+            "2. STOP-2: The two-round stagnation rule fires or max_rounds is reached.\n"
+            "3. STOP-3: A FULL_ROLLBACK exception reports state corruption or data loss.\n"
+            "4. STOP-4: The user reopens an item and explicitly instructs a stop.\n\n"
+            "## 4. Progress Snapshot\n"
+            "- Checked: 0/1 (P0: 0/0, P1: 0/1, P2: 0/0)\n"
+            "- Remaining stop cards: [PF-A1] | Reached this round: []\n"
+            "- Estimated remaining rounds: 1\n"
+            "- Current blockers: PF-A1; preflight authorization pending\n"
+        ),
+        evidence_files={},
     )
 
     change.to_active_folder(target)
@@ -292,14 +409,20 @@ def scaffold_change_folder(
     readme_path.write_text(
         (
             f"# Change — {slug}\n\n"
-            "Authored via `/devola:propose`. Lifecycle:\n\n"
-            "1. `/devola:apply` — flip STATUS.yaml `state` to `IN_PROGRESS`.\n"
-            "2. (L3 task agents implement; populate `owned_files.txt` first).\n"
-            "3. `/devola:verify` — run pytest on owned files; flip to `VERIFYING` on PASS.\n"
-            "4. `/devola:archive` — gate on `state == VERIFYING` AND `gate_score >= 8.5`;\n"
-            "   moves the folder to `.local/.agent/archive/<YYYY-MM-DD>-<id>/`.\n\n"
-            'See `workflow-system/agent/SKILL.md` §"When to engage `change-driven`" and\n'
-            "Rule **A-6** in `.rules/architecture.mdc` for the activation contract.\n"
+            "Authored via `/devola:propose` using the v16 checklist layout.\n\n"
+            "## Checklist and preflight lifecycle\n"
+            "1. Review `goal.md` and refine the assertions in `checklist.md` before work starts.\n"
+            "2. Complete `preflight.md`; it remains unsigned while `authorized_at` and "
+            "`project_config_hash` are null.\n"
+            "3. Use `stage.md` to select at most five checklist items per round.\n"
+            "4. Store verification output under `evidence/`, then check only the matching "
+            "evidence-backed item.\n"
+            "5. Keep `STATUS.yaml` counters and current round aligned with the Markdown "
+            "artifacts.\n"
+            "6. Continue through the existing apply, verify, and archive lifecycle when "
+            "the artifacts are ready.\n\n"
+            "This scaffold documents the artifact lifecycle only; it does not assert "
+            "automatic authorization or checklist-completion enforcement.\n"
         ),
         encoding="utf-8",
         newline="\n",
@@ -517,7 +640,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_propose = sub.add_parser(
         "propose",
-        help="Scaffold .local/.agent/active/<slug>/ with the 7-artifact set.",
+        help="Scaffold .local/.agent/active/<slug>/ with the v16 checklist layout.",
     )
     p_propose.add_argument("topic", type=str, help="Free-form change topic.")
     p_propose.add_argument(

@@ -54,10 +54,13 @@ from devolaflow.agent_workspace.archive import (
     MergeConflict,
 )
 from devolaflow.agent_workspace.change import (
+    ARTIFACT_FILES_V16,
     Change,
+    ChangeLayout,
     ChangeNotFoundError,
     ChangeStore,
     ChangeStoreError,
+    detect_change_layout,
 )
 from devolaflow.agent_workspace.delta_parser import (
     DeltaRequirement,
@@ -122,10 +125,13 @@ __all__ = [
     "GateThresholdNotMet",
     "MergeConflict",
     # change
+    "ARTIFACT_FILES_V16",
     "Change",
+    "ChangeLayout",
     "ChangeNotFoundError",
     "ChangeStore",
     "ChangeStoreError",
+    "detect_change_layout",
     # delta_parser
     "DeltaRequirement",
     "DeltaSpec",

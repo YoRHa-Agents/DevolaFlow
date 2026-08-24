@@ -1,0 +1,242 @@
+# -----------------------------------------------------------------------------
+# Schema: change-checklist
+# Target: .local/.agent/active/<change-id>/checklist.md
+# Design ref: checklist_iteration_design.md §§4, 9.2
+# Token budget: soft 1200 / hard 2400 (Rule C-9)
+# -----------------------------------------------------------------------------
+# `checklist.md` is the user-and-agent acceptance contract for an in-flight
+# change. Each item is a measurable assertion tied to one numbered goal.
+# L2 Task agents submit evidence, L1 Wave aggregates it, and L0 may check an
+# item only after verification. Only the user may reopen a checked item.
+# -----------------------------------------------------------------------------
+
+design_reference: ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §§4, 9.2"
+schema_name: change-checklist
+schema_version: 1
+last_updated: "2026-08-24"
+governing_rules: [S-2, P4, C-3, C-9]
+
+instance_path_template: ".local/.agent/active/<change-id>/checklist.md"
+archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/checklist.md"
+format: markdown_with_frontmatter
+
+token_budget:
+  soft: 1200
+  hard: 2400
+  units: tokens
+  enforcement:
+    - lint: "python -m devolaflow.agent_workspace.lint <change-id>"
+  on_soft_breach: warn
+  on_hard_breach: fail_commit
+
+frontmatter:
+  required:
+    - parent
+    - schema_version
+    - total_items
+    - checked
+    - priority_dist
+    - reverted_open
+  fields:
+    parent:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+      description: "Parent change-id; MUST equal the active change folder name."
+    schema_version:
+      type: int
+      enum: [1]
+      description: "Checklist format version."
+    total_items:
+      type: int
+      minimum: 1
+      maximum: 60
+      description: "Count of all `- [ ]` and `- [x]` item lines; re-derived on every save."
+    checked:
+      type: int
+      minimum: 0
+      maximum: 60
+      relation: "checked <= total_items"
+      description: "Count of `- [x]` item lines; re-derived on every save."
+    priority_dist:
+      type: object
+      required: [P0, P1, P2]
+      fields:
+        P0: { type: int, minimum: 0 }
+        P1: { type: int, minimum: 0 }
+        P2: { type: int, minimum: 0 }
+      relation: "P0 + P1 + P2 == total_items"
+      description: "Current item count by user-assigned priority; re-derived on every save."
+    reverted_open:
+      type: int
+      minimum: 0
+      maximum: 60
+      relation: "reverted_open <= total_items - checked"
+      description: "Open items most recently reopened by the user and not subsequently rechecked."
+
+body:
+  required_sections:
+    - heading: "# Checklist"
+      pattern: "^# Checklist\\s*$"
+      description: "H1 must be the exact title `Checklist`."
+
+  goal_partitions:
+    heading_pattern: "^## G([1-9]|1[0-5]): .+$"
+    minimum: 1
+    maximum: 15
+    item_minimum: 1
+    item_maximum: 15
+    ordering: "Goal numbers MUST start at G1, be contiguous, and match goal.md exactly."
+    title_source: "Text after `## Gn:` MUST be copied verbatim from goal.md goal Gn."
+    description: "One partition per numbered goal; no unpartitioned checklist items are allowed."
+
+  checklist_item:
+    line_pattern: "^- \\[[ x]\\] C-G([1-9]|1[0-5])\\.[1-9][0-9]* \\(P[012]\\) .+$"
+    id_pattern: "^C-G([1-9]|1[0-5])\\.[1-9][0-9]*$"
+    priority_enum: [P0, P1, P2]
+    assertion:
+      type: string
+      max_words: 25
+      measurable: true
+      description: "Assertion text after priority; MUST state an observable result, not an implementation activity."
+    identity_rules:
+      - "The G number in the item id MUST equal its enclosing goal partition."
+      - "The item suffix starts at 1 and increases monotonically within its partition."
+      - "An item id is never reused, including after removal."
+      - "A removed item keeps a non-checkbox tombstone: `- dropped C-Gn.m (dropped: <reason>)`."
+    dropped_tombstone_pattern: "^- dropped C-G([1-9]|1[0-5])\\.[1-9][0-9]* \\(dropped: .+\\)$"
+
+  item_metadata:
+    indentation: 6
+    verify:
+      required: true
+      line_pattern: "^\\s{6}verify: .+$"
+      modes:
+        command:
+          form: "verify: `<repo-relative executable command>`"
+          timeout_seconds:
+            default: 300
+            maximum: 300
+          description: "Command execution MUST be explicitly bounded and finish within 300 seconds."
+        metric:
+          form: "verify: metric: <machine-evaluable expression>"
+          timeout_seconds:
+            default: 300
+            maximum: 300
+          description: "Metric evaluation MUST be machine-readable and finish within 300 seconds."
+        manual:
+          form: "verify: manual"
+          checked_by_required: user
+          description: "Manual assertions can be checked only by the user; L0 may not check them."
+    depends:
+      required: false
+      line_pattern: "^\\s{6}depends: \\[(C-G[1-9][0-9]*\\.[1-9][0-9]*(, )?)*\\]\\s*$"
+      description: "Optional item ids; every dependency MUST be checked before selection."
+    completion:
+      required_when: "checkbox == `[x]`"
+      forbidden_when: "checkbox == `[ ]`"
+      line_pattern: "^\\s{6}evidence: evidence/C-G[1-9][0-9]*\\.[1-9][0-9]*\\.txt \\| checked_by: (L0|user) \\| round: [1-9][0-9]* \\| at: .+$"
+      fields:
+        evidence:
+          type: string
+          pattern: "^evidence/C-G([1-9]|1[0-5])\\.[1-9][0-9]*\\.txt$"
+          description: "Repo-relative path whose item id MUST match the checked item."
+        checked_by:
+          type: string
+          enum: [L0, user]
+        round:
+          type: int
+          minimum: 1
+          description: "Round in which the item was checked; MUST exist in stage.md history."
+        at:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+          description: "ISO-8601 UTC check timestamp."
+    reversion:
+      required_when: "A checked item is reopened by the user."
+      line_pattern: "^\\s{6}reverted: .+ \\| at: \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      actor: user
+      description: "Reason text is preserved verbatim and the completion metadata is removed."
+
+evidence_contract:
+  directory: ".local/.agent/active/<change-id>/evidence/"
+  file_pattern: "^C-G([1-9]|1[0-5])\\.[1-9][0-9]*\\.txt$"
+  max_file_bytes: 10240
+  max_directory_bytes: 51200
+  token_budget: null
+  required_contents:
+    - "The verification command or metric expression, copied verbatim."
+    - "The verbatim final output line and a digest of the complete output."
+    - "The verification verdict and ISO-8601 UTC timestamp."
+  path_rules:
+    - "Evidence references MUST be repo-relative."
+    - "One evidence file maps to exactly one checklist item."
+    - "A single evidence file MUST be no larger than 10 KB."
+    - "The complete evidence directory MUST be no larger than 50 KB."
+
+checking_contract:
+  transition: "[ ] -> [x]"
+  allowed_actors: [L0, user]
+  preconditions:
+    - "For command or metric verification, the corresponding StatusReport ac_results entry has the same checklist id and verdict=pass."
+    - "L0 confirms the evidence digest matches the item's verify declaration."
+    - "The referenced evidence file exists and satisfies evidence_contract."
+    - "A manual item is checked_by=user and its evidence records the user's attestation."
+    - "A previously reverted item has its blocker reinforcement closed."
+  l0_write_scope:
+    - "Checkbox state."
+    - "Completion metadata line."
+  contract_text_edits_require_user_confirmation: true
+
+reversion_contract:
+  transition: "[x] -> [ ]"
+  allowed_actors: [user]
+  forbidden_actors: [L0, L1, L2]
+  effects:
+    - "Append the verbatim `reverted:` reason and UTC timestamp under the item."
+    - "Increment reverted_open and re-derive checked."
+    - "If STATUS state is VERIFYING, return it to IN_PROGRESS at the round boundary."
+    - "Reconcile in-flight work at the round boundary; never mutate a completed checkpoint."
+
+reinforcement_contract:
+  trigger: user_reversion
+  next_round_priority: "Before every P0 item."
+  severity: blocker
+  finding_text_source: "The user's reverted reason copied verbatim."
+  dispatch_target: applicable_rules.reinforcement
+  close_requirement: "The Task result MUST list the item in closes_reinforcement before it may be checked again."
+
+invariants:
+  - "There are 1..15 goal partitions, each with 1..15 items, and total_items is <= 60."
+  - "Every assertion is <= 25 words and has exactly one required verify mode."
+  - "Every command or metric verification is bounded to <= 300 seconds."
+  - "A checked item has evidence, checked_by, round, and at metadata; open items do not."
+  - "Only the user may reopen an item, and every reopened item produces blocker reinforcement for the next round."
+  - "frontmatter counts and priority distribution are re-derived on every save."
+  - "Goal ids and titles match goal.md; item ids are stable and never reused."
+  - "MUST NOT contain absolute filesystem paths."
+  - "The archived file is copied byte-identical after the archive gate passes."
+
+example: |
+  ---
+  parent: checklist-rounds
+  schema_version: 1
+  total_items: 3
+  checked: 2
+  priority_dist: {P0: 1, P1: 1, P2: 1}
+  reverted_open: 0
+  ---
+
+  # Checklist
+
+  ## G1: Make checklist completion evidence-backed
+  - [x] C-G1.1 (P0) A passing report exists before L0 checks the item
+        verify: `python -m pytest tests/test_agent_workspace.py -q`
+        evidence: evidence/C-G1.1.txt | checked_by: L0 | round: 1 | at: 2026-08-24T10:15:00Z
+  - [ ] C-G1.2 (P1) Every open item retains a machine-verifiable declaration
+        verify: metric: undeclared_verify_count == 0
+        depends: [C-G1.1]
+
+  ## G2: Preserve user control
+  - [x] C-G2.1 (P2) User confirms the preflight wording is clear and complete
+        verify: manual
+        evidence: evidence/C-G2.1.txt | checked_by: user | round: 1 | at: 2026-08-24T10:20:00Z

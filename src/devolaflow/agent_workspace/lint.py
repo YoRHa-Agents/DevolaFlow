@@ -29,6 +29,7 @@ Public API (importable for use by ArchiveManager / lifecycle hooks):
 
 * :class:`BudgetReport` — full per-file budget report.
 * :class:`BudgetViolation` — one violation row (FILE / OBSERVED / SOFT / HARD / KIND).
+* :class:`SemanticViolation` — one deterministic v16 semantic failure.
 * :func:`lint_change` — programmatic entry point.
 * :func:`estimate_tokens` — the shared 4-char heuristic.
 """
@@ -36,25 +37,35 @@ Public API (importable for use by ArchiveManager / lifecycle hooks):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import logging
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+import yaml
+
 from devolaflow.agent_workspace.change import (
     ACTIVE_DIR_DEFAULT,
     ARCHIVE_DIR_DEFAULT,
+    ChangeLayout,
+    detect_change_layout,
 )
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "ARTIFACT_BUDGETS",
+    "CHECKLIST_ARTIFACT_BUDGETS",
+    "EVIDENCE_DIRECTORY_MAX_BYTES",
+    "EVIDENCE_FILE_MAX_BYTES",
     "HUMAN_ARTIFACT_BUDGETS",
     "BudgetReport",
     "BudgetViolation",
     "HumanBudgetExceededError",
+    "SemanticViolation",
     "enforce_digest_budget",
     "estimate_tokens",
     "lint_change",
@@ -77,8 +88,33 @@ ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     # learnings.jsonl is bounded by file size (50 KB), not token count.
 }
 
+CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
+    "goal.md": (200, 400),
+    "checklist.md": (1200, 2400),
+    "stage.md": (400, 800),
+    "preflight.md": (600, 1200),
+    "spec.md": (1500, 3000),
+    "STATUS.yaml": (150, 300),
+    "owned_files.txt": (50, 100),
+}
+
 # learnings.jsonl: enforced as a file-size ceiling rather than tokens.
 LEARNINGS_JSONL_MAX_BYTES: Final[int] = 50 * 1024
+EVIDENCE_FILE_MAX_BYTES: Final[int] = 10_240
+EVIDENCE_DIRECTORY_MAX_BYTES: Final[int] = 51_200
+
+_UTC_TIMESTAMP_RE: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_SHA256_RE: Final[re.Pattern[str]] = re.compile(r"^[0-9a-f]{64}$")
+_GOAL_ENTRY_RE: Final[re.Pattern[str]] = re.compile(
+    r"^- (G(?:[1-9]|10)): (.+) → checklist\.md ## (G(?:[1-9]|10))\s*$"
+)
+_CHECKLIST_GOAL_RE: Final[re.Pattern[str]] = re.compile(r"^## (G(?:[1-9]|1[0-5])): (.+)$")
+_CHECKLIST_ITEM_RE: Final[re.Pattern[str]] = re.compile(
+    r"^- \[([ x])\] (C-G(?:[1-9]|1[0-5])\.[1-9][0-9]*) \((P[012])\) .+$"
+)
+_EVIDENCE_METADATA_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s{6}evidence:\s*([^|\s]+)(?:\s*\|.*)?$"
+)
 
 
 # Per the v14.0.0 design §4c — NEW C-9 rows for the ``.local/human/`` surface.
@@ -133,6 +169,20 @@ class BudgetViolation:
 
 
 @dataclass
+class SemanticViolation:
+    """One deterministic checklist-layout semantic failure."""
+
+    filename: str
+    kind: str
+    message: str
+    severity: str = "FAIL"
+
+    def render(self, change_id: str) -> str:
+        """Render a one-line semantic failure for stderr / CLI output."""
+        return f"{change_id}/{self.filename:18s} {self.severity:4s} [{self.kind}] {self.message}"
+
+
+@dataclass
 class BudgetReport:
     """Aggregate budget report for a single change folder.
 
@@ -145,23 +195,49 @@ class BudgetReport:
 
     change_id: str
     change_folder: Path
-    violations: list[BudgetViolation] = field(default_factory=list)
+    violations: list[BudgetViolation | SemanticViolation] = field(default_factory=list)
     checked_files: list[str] = field(default_factory=list)
 
     @property
-    def hard_failures(self) -> list[BudgetViolation]:
+    def hard_failures(self) -> list[BudgetViolation | SemanticViolation]:
         """Subset of ``violations`` with severity ``"FAIL"``."""
         return [v for v in self.violations if v.severity == "FAIL"]
 
     @property
-    def soft_warnings(self) -> list[BudgetViolation]:
+    def soft_warnings(self) -> list[BudgetViolation | SemanticViolation]:
         """Subset of ``violations`` with severity ``"WARN"``."""
         return [v for v in self.violations if v.severity == "WARN"]
 
     @property
     def exit_code(self) -> int:
-        """``1`` when any HARD violations exist; ``0`` otherwise (WARN-only OK)."""
+        """``1`` for any hard/semantic failure; ``0`` otherwise."""
         return 1 if self.hard_failures else 0
+
+
+@dataclass(frozen=True)
+class _ParsedMarkdown:
+    """A fenced Markdown document after deterministic frontmatter parsing."""
+
+    body: str
+    frontmatter: dict[str, object] | None
+
+
+@dataclass(frozen=True)
+class _ReadResult:
+    """Cached artifact read outcome used by budgets and semantic checks."""
+
+    text: str | None
+    state: str
+
+
+@dataclass(frozen=True)
+class _ChecklistItem:
+    """Derived checklist item state and its attached metadata lines."""
+
+    item_id: str
+    checked: bool
+    priority: str
+    metadata: tuple[str, ...]
 
 
 def estimate_tokens(text: str) -> int:
@@ -176,6 +252,594 @@ def estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
+def _record_checked(report: BudgetReport, filename: str) -> None:
+    """Record *filename* once while preserving deterministic order."""
+    if filename not in report.checked_files:
+        report.checked_files.append(filename)
+
+
+def _read_artifact(
+    change_folder: Path,
+    filename: str,
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> _ReadResult:
+    """Read one UTF-8 artifact once and convert I/O failures into findings."""
+    cached = cache.get(filename)
+    if cached is not None:
+        return cached
+
+    target = change_folder / filename
+    if not target.exists():
+        result = _ReadResult(text=None, state="missing")
+    elif not target.is_file():
+        report.violations.append(
+            SemanticViolation(
+                filename,
+                "READ_ERROR",
+                "artifact exists but is not a regular file",
+            )
+        )
+        result = _ReadResult(text=None, state="error")
+    else:
+        try:
+            result = _ReadResult(text=target.read_text(encoding="utf-8"), state="ok")
+        except (OSError, UnicodeError):
+            report.violations.append(
+                SemanticViolation(
+                    filename,
+                    "READ_ERROR",
+                    "artifact could not be read as UTF-8",
+                )
+            )
+            result = _ReadResult(text=None, state="error")
+
+    cache[filename] = result
+    return result
+
+
+def _lint_token_budgets(
+    change_folder: Path,
+    budgets: dict[str, tuple[int, int]],
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> None:
+    """Apply the selected layout's token budgets."""
+    for filename, (soft, hard) in budgets.items():
+        _record_checked(report, filename)
+        result = _read_artifact(change_folder, filename, report, cache)
+        if result.text is None:
+            continue
+        tokens = estimate_tokens(result.text)
+        if tokens > hard:
+            severity = "FAIL"
+        elif tokens > soft:
+            severity = "WARN"
+        else:
+            continue
+        report.violations.append(
+            BudgetViolation(
+                filename=filename,
+                observed_tokens=tokens,
+                soft_budget=soft,
+                hard_budget=hard,
+                severity=severity,
+            )
+        )
+
+
+def _lint_learnings_size(change_folder: Path, report: BudgetReport) -> None:
+    """Apply the layout-independent ``learnings.jsonl`` byte ceiling."""
+    learnings = change_folder / "learnings.jsonl"
+    if not learnings.exists():
+        return
+    _record_checked(report, "learnings.jsonl")
+    try:
+        size = learnings.stat().st_size
+    except OSError:
+        report.violations.append(
+            SemanticViolation(
+                "learnings.jsonl",
+                "READ_ERROR",
+                "artifact size could not be read",
+            )
+        )
+        return
+    if size > LEARNINGS_JSONL_MAX_BYTES:
+        report.violations.append(
+            BudgetViolation(
+                filename="learnings.jsonl",
+                observed_tokens=size,
+                soft_budget=LEARNINGS_JSONL_MAX_BYTES,
+                hard_budget=LEARNINGS_JSONL_MAX_BYTES,
+                severity="FAIL",
+            )
+        )
+
+
+def _lint_evidence_sizes(change_folder: Path, report: BudgetReport) -> None:
+    """Enforce the v16 evidence per-file and aggregate byte ceilings."""
+    evidence_dir = change_folder / "evidence"
+    if not evidence_dir.exists():
+        return
+    if evidence_dir.is_symlink() or not evidence_dir.is_dir():
+        report.violations.append(
+            SemanticViolation(
+                "evidence/",
+                "EVIDENCE_DIRECTORY",
+                "evidence must be a real directory inside the change folder",
+            )
+        )
+        return
+
+    try:
+        candidates = sorted(evidence_dir.rglob("*"))
+    except OSError:
+        report.violations.append(
+            SemanticViolation(
+                "evidence/",
+                "READ_ERROR",
+                "evidence directory could not be enumerated",
+            )
+        )
+        return
+
+    total_bytes = 0
+    for path in candidates:
+        try:
+            if path.is_symlink() or not path.is_file():
+                continue
+            size = path.stat().st_size
+        except OSError:
+            relative = path.relative_to(change_folder).as_posix()
+            report.violations.append(
+                SemanticViolation(
+                    relative,
+                    "READ_ERROR",
+                    "evidence file size could not be read",
+                )
+            )
+            continue
+        relative = path.relative_to(change_folder).as_posix()
+        _record_checked(report, relative)
+        total_bytes += size
+        if size > EVIDENCE_FILE_MAX_BYTES:
+            report.violations.append(
+                SemanticViolation(
+                    relative,
+                    "EVIDENCE_FILE_SIZE",
+                    f"{size} bytes exceeds {EVIDENCE_FILE_MAX_BYTES}-byte ceiling",
+                )
+            )
+
+    if total_bytes > EVIDENCE_DIRECTORY_MAX_BYTES:
+        report.violations.append(
+            SemanticViolation(
+                "evidence/",
+                "EVIDENCE_DIRECTORY_SIZE",
+                f"{total_bytes} bytes exceeds {EVIDENCE_DIRECTORY_MAX_BYTES}-byte ceiling",
+            )
+        )
+
+
+def _parse_markdown_frontmatter(
+    filename: str,
+    result: _ReadResult,
+    report: BudgetReport,
+) -> _ParsedMarkdown | None:
+    """Strictly parse a required fenced YAML mapping without raising."""
+    if result.state == "missing":
+        report.violations.append(
+            SemanticViolation(filename, "MISSING_ARTIFACT", "required v16 artifact is missing")
+        )
+        return None
+    if result.text is None:
+        return None
+
+    lines = result.text.splitlines()
+    if not lines or lines[0] != "---":
+        report.violations.append(
+            SemanticViolation(
+                filename,
+                "FRONTMATTER_PARSE",
+                "frontmatter must start with an exact '---' line",
+            )
+        )
+        return None
+
+    try:
+        closing_index = lines.index("---", 1)
+    except ValueError:
+        report.violations.append(
+            SemanticViolation(
+                filename,
+                "FRONTMATTER_PARSE",
+                "frontmatter is missing its closing '---' line",
+            )
+        )
+        return None
+
+    yaml_text = "\n".join(lines[1:closing_index])
+    body = "\n".join(lines[closing_index + 1 :])
+    try:
+        parsed = yaml.safe_load(yaml_text)
+    except yaml.YAMLError:
+        report.violations.append(
+            SemanticViolation(
+                filename,
+                "FRONTMATTER_PARSE",
+                "frontmatter is not valid YAML",
+            )
+        )
+        return _ParsedMarkdown(body=body, frontmatter=None)
+    if not isinstance(parsed, dict):
+        report.violations.append(
+            SemanticViolation(
+                filename,
+                "FRONTMATTER_PARSE",
+                "frontmatter YAML must decode to a mapping",
+            )
+        )
+        return _ParsedMarkdown(body=body, frontmatter=None)
+    return _ParsedMarkdown(body=body, frontmatter=parsed)
+
+
+def _goal_entries(
+    body: str,
+    report: BudgetReport,
+) -> list[tuple[str, str]] | None:
+    """Extract exact ordered goal ids/titles and validate their links."""
+    lines = body.splitlines()
+    try:
+        start = lines.index("## Goals") + 1
+    except ValueError:
+        report.violations.append(
+            SemanticViolation("goal.md", "GOAL_ALIGNMENT", "body is missing '## Goals'")
+        )
+        return None
+
+    section: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        if line.strip():
+            section.append(line)
+
+    entries: list[tuple[str, str]] = []
+    for line in section:
+        match = _GOAL_ENTRY_RE.fullmatch(line)
+        if match is None or match.group(1) != match.group(3):
+            report.violations.append(
+                SemanticViolation(
+                    "goal.md",
+                    "GOAL_ALIGNMENT",
+                    "goal entries must use '- Gn: title → checklist.md ## Gn' with equal ids",
+                )
+            )
+            return None
+        entries.append((match.group(1), match.group(2)))
+
+    expected_ids = [f"G{index}" for index in range(1, len(entries) + 1)]
+    if not entries or [entry[0] for entry in entries] != expected_ids:
+        report.violations.append(
+            SemanticViolation(
+                "goal.md",
+                "GOAL_ALIGNMENT",
+                "goal ids must be contiguous and ordered from G1",
+            )
+        )
+        return None
+    return entries
+
+
+def _checklist_goal_headings(
+    body: str,
+    report: BudgetReport,
+) -> list[tuple[str, str]] | None:
+    """Extract exact ordered ``## Gn: title`` checklist headings."""
+    headings: list[tuple[str, str]] = []
+    for line in body.splitlines():
+        if not line.startswith("## G"):
+            continue
+        match = _CHECKLIST_GOAL_RE.fullmatch(line)
+        if match is None:
+            report.violations.append(
+                SemanticViolation(
+                    "checklist.md",
+                    "GOAL_ALIGNMENT",
+                    "goal headings must use exact '## Gn: title' syntax",
+                )
+            )
+            return None
+        headings.append((match.group(1), match.group(2)))
+    return headings
+
+
+def _checklist_items(
+    body: str,
+    report: BudgetReport,
+) -> list[_ChecklistItem] | None:
+    """Extract checklist items and associate their indented metadata."""
+    items: list[_ChecklistItem] = []
+    current: tuple[str, bool, str] | None = None
+    metadata: list[str] = []
+
+    def flush() -> None:
+        nonlocal current, metadata
+        if current is not None:
+            items.append(
+                _ChecklistItem(
+                    item_id=current[0],
+                    checked=current[1],
+                    priority=current[2],
+                    metadata=tuple(metadata),
+                )
+            )
+        current = None
+        metadata = []
+
+    for line in body.splitlines():
+        if line.startswith("- ["):
+            flush()
+            match = _CHECKLIST_ITEM_RE.fullmatch(line)
+            if match is None:
+                report.violations.append(
+                    SemanticViolation(
+                        "checklist.md",
+                        "CHECKLIST_ITEM_PARSE",
+                        "checklist item does not match the canonical checkbox syntax",
+                    )
+                )
+                return None
+            current = (match.group(2), match.group(1) == "x", match.group(3))
+        elif line.startswith("## "):
+            flush()
+        elif current is not None and line.startswith("      "):
+            metadata.append(line)
+    flush()
+    return items
+
+
+def _strict_frontmatter_equal(actual: object, expected: object) -> bool:
+    """Compare derived frontmatter values without bool/int coercion."""
+    if isinstance(expected, int):
+        return type(actual) is int and actual == expected
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict) or set(actual) != set(expected):
+            return False
+        return all(_strict_frontmatter_equal(actual[key], value) for key, value in expected.items())
+    return type(actual) is type(expected) and actual == expected
+
+
+def _check_derived_field(
+    filename: str,
+    frontmatter: dict[str, object],
+    field_name: str,
+    expected: object,
+    report: BudgetReport,
+) -> None:
+    """Compare one stored derived field with its body-derived value."""
+    actual = frontmatter.get(field_name)
+    if _strict_frontmatter_equal(actual, expected):
+        return
+    report.violations.append(
+        SemanticViolation(
+            filename,
+            "DERIVED_FIELD",
+            f"{field_name}={actual!r}; derived value is {expected!r}",
+        )
+    )
+
+
+def _check_evidence_paths(
+    change_folder: Path,
+    items: list[_ChecklistItem],
+    report: BudgetReport,
+) -> None:
+    """Require one exact, safe, regular evidence file per checked item."""
+    for item in items:
+        if not item.checked:
+            continue
+        evidence_lines = [line for line in item.metadata if line.lstrip().startswith("evidence:")]
+        if len(evidence_lines) != 1:
+            report.violations.append(
+                SemanticViolation(
+                    "checklist.md",
+                    "EVIDENCE_PATH",
+                    f"{item.item_id} must declare exactly one evidence path",
+                )
+            )
+            continue
+        match = _EVIDENCE_METADATA_RE.fullmatch(evidence_lines[0])
+        if match is None:
+            report.violations.append(
+                SemanticViolation(
+                    "checklist.md",
+                    "EVIDENCE_PATH",
+                    f"{item.item_id} evidence metadata is malformed",
+                )
+            )
+            continue
+        declared = match.group(1)
+        expected = f"evidence/{item.item_id}.txt"
+        if declared != expected:
+            report.violations.append(
+                SemanticViolation(
+                    "checklist.md",
+                    "EVIDENCE_PATH",
+                    f"{item.item_id} evidence path must be exactly {expected!r}",
+                )
+            )
+            continue
+        target = change_folder / expected
+        try:
+            regular_file = not target.is_symlink() and target.is_file()
+        except OSError:
+            regular_file = False
+        if not regular_file:
+            report.violations.append(
+                SemanticViolation(
+                    expected,
+                    "EVIDENCE_PATH",
+                    f"{item.item_id} evidence path is not an existing regular file",
+                )
+            )
+
+
+def _check_preflight(
+    frontmatter: dict[str, object],
+    *,
+    repo_root: Path,
+    archived: bool,
+    report: BudgetReport,
+) -> None:
+    """Validate preflight authorization syntax and active mirror bytes."""
+    authorized_at = frontmatter.get("authorized_at")
+    config_hash = frontmatter.get("project_config_hash")
+
+    authorization_valid = authorized_at is None or (
+        isinstance(authorized_at, str) and _UTC_TIMESTAMP_RE.fullmatch(authorized_at)
+    )
+    hash_valid = config_hash is None or (
+        isinstance(config_hash, str) and _SHA256_RE.fullmatch(config_hash)
+    )
+    if not authorization_valid:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_AUTHORIZATION",
+                "authorized_at must be null or an ISO-8601 UTC timestamp",
+            )
+        )
+    if not hash_valid:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_HASH",
+                "project_config_hash must be null or 64 lowercase hexadecimal characters",
+            )
+        )
+    if authorized_at is not None and authorization_valid and config_hash is None:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_AUTHORIZATION",
+                "a signed preflight requires project_config_hash",
+            )
+        )
+
+    if archived or config_hash is None or not hash_valid:
+        return
+    mirror = repo_root / ".local" / "project_config.yaml"
+    try:
+        mirror_digest = hashlib.sha256(mirror.read_bytes()).hexdigest()
+    except OSError:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_HASH",
+                "active project configuration mirror is missing or unreadable",
+            )
+        )
+        return
+    if mirror_digest != config_hash:
+        report.violations.append(
+            SemanticViolation(
+                "preflight.md",
+                "PREFLIGHT_HASH",
+                "project_config_hash does not match raw .local/project_config.yaml bytes",
+            )
+        )
+
+
+def _lint_checklist_semantics(
+    change_folder: Path,
+    *,
+    repo_root: Path,
+    archived: bool,
+    report: BudgetReport,
+    cache: dict[str, _ReadResult],
+) -> None:
+    """Run the four v16 semantic check families with dependency gating."""
+    goal = _parse_markdown_frontmatter(
+        "goal.md",
+        _read_artifact(change_folder, "goal.md", report, cache),
+        report,
+    )
+    checklist = _parse_markdown_frontmatter(
+        "checklist.md",
+        _read_artifact(change_folder, "checklist.md", report, cache),
+        report,
+    )
+    preflight = _parse_markdown_frontmatter(
+        "preflight.md",
+        _read_artifact(change_folder, "preflight.md", report, cache),
+        report,
+    )
+
+    goal_entries = _goal_entries(goal.body, report) if goal is not None else None
+    checklist_headings = (
+        _checklist_goal_headings(checklist.body, report) if checklist is not None else None
+    )
+    if (
+        goal_entries is not None
+        and checklist_headings is not None
+        and goal_entries != checklist_headings
+    ):
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "GOAL_ALIGNMENT",
+                f"goal entries {goal_entries!r} do not equal checklist headings "
+                f"{checklist_headings!r}",
+            )
+        )
+
+    if goal is not None and goal.frontmatter is not None and goal_entries is not None:
+        _check_derived_field(
+            "goal.md",
+            goal.frontmatter,
+            "goals_count",
+            len(goal_entries),
+            report,
+        )
+
+    items = _checklist_items(checklist.body, report) if checklist is not None else None
+    if items is not None:
+        if checklist is not None and checklist.frontmatter is not None:
+            priority_dist = {
+                priority: sum(item.priority == priority for item in items)
+                for priority in ("P0", "P1", "P2")
+            }
+            reverted_open = sum(
+                not item.checked
+                and any(line.startswith("      reverted:") for line in item.metadata)
+                for item in items
+            )
+            for field_name, expected in (
+                ("total_items", len(items)),
+                ("checked", sum(item.checked for item in items)),
+                ("priority_dist", priority_dist),
+                ("reverted_open", reverted_open),
+            ):
+                _check_derived_field(
+                    "checklist.md",
+                    checklist.frontmatter,
+                    field_name,
+                    expected,
+                    report,
+                )
+        _check_evidence_paths(change_folder, items, report)
+
+    if preflight is not None and preflight.frontmatter is not None:
+        _check_preflight(
+            preflight.frontmatter,
+            repo_root=repo_root,
+            archived=archived,
+            report=report,
+        )
+
+
 def lint_change(
     change_id: str,
     *,
@@ -183,11 +847,11 @@ def lint_change(
     active_dir: Path | None = None,
     archive_dir: Path | None = None,
 ) -> BudgetReport:
-    """Lint a single active change folder against its per-artifact budgets.
+    """Lint one active or archived change using its detected layout contract.
 
-    The lint inspects each filename in :data:`ARTIFACT_BUDGETS` plus the
-    learnings.jsonl byte-size cap. Files that do not exist contribute
-    zero violations (treated as ``0/budget`` — under-budget is the goal).
+    Legacy folders retain their original budgets and budget-only behavior.
+    Checklist folders use the v16 budgets, evidence byte ceilings, strict
+    frontmatter parsing, and four semantic check families.
 
     Args:
       change_id: id of the active change to lint.
@@ -212,6 +876,7 @@ def lint_change(
         archive_root = root / archive_root
 
     change_folder = active_root / change_id
+    archived = False
     if not change_folder.is_dir():
         # Fall back to archive lookup (linear scan; date prefix unknown).
         change_folder = _find_archived_folder(archive_root, change_id)
@@ -220,53 +885,42 @@ def lint_change(
                 f"lint_change: no folder for {change_id!r} found under "
                 f"{active_root!s} or {archive_root!s}"
             )
+        archived = True
 
     report = BudgetReport(change_id=change_id, change_folder=change_folder)
+    cache: dict[str, _ReadResult] = {}
+    layout = detect_change_layout(change_folder)
+    if layout is ChangeLayout.LEGACY:
+        budgets = ARTIFACT_BUDGETS
+    elif layout is ChangeLayout.CHECKLIST:
+        budgets = CHECKLIST_ARTIFACT_BUDGETS
+    else:
+        budgets = {
+            **ARTIFACT_BUDGETS,
+            **CHECKLIST_ARTIFACT_BUDGETS,
+            "acceptance.md": ARTIFACT_BUDGETS["acceptance.md"],
+            "tasks.md": ARTIFACT_BUDGETS["tasks.md"],
+        }
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "INVALID_MIXED",
+                "checklist.md cannot coexist with tasks.md or acceptance.md",
+            )
+        )
 
-    for filename, (soft, hard) in ARTIFACT_BUDGETS.items():
-        target = change_folder / filename
-        if not target.exists():
-            report.checked_files.append(filename)
-            continue
-        text = target.read_text(encoding="utf-8")
-        tokens = estimate_tokens(text)
-        report.checked_files.append(filename)
-        if tokens > hard:
-            report.violations.append(
-                BudgetViolation(
-                    filename=filename,
-                    observed_tokens=tokens,
-                    soft_budget=soft,
-                    hard_budget=hard,
-                    severity="FAIL",
-                )
-            )
-        elif tokens > soft:
-            report.violations.append(
-                BudgetViolation(
-                    filename=filename,
-                    observed_tokens=tokens,
-                    soft_budget=soft,
-                    hard_budget=hard,
-                    severity="WARN",
-                )
-            )
-
-    # learnings.jsonl: enforced by file-size ceiling rather than tokens.
-    learnings = change_folder / "learnings.jsonl"
-    if learnings.exists():
-        size = learnings.stat().st_size
-        report.checked_files.append("learnings.jsonl")
-        if size > LEARNINGS_JSONL_MAX_BYTES:
-            report.violations.append(
-                BudgetViolation(
-                    filename="learnings.jsonl",
-                    observed_tokens=size,
-                    soft_budget=LEARNINGS_JSONL_MAX_BYTES,
-                    hard_budget=LEARNINGS_JSONL_MAX_BYTES,
-                    severity="FAIL",
-                )
-            )
+    _lint_token_budgets(change_folder, budgets, report, cache)
+    _lint_learnings_size(change_folder, report)
+    if layout is not ChangeLayout.LEGACY:
+        _lint_evidence_sizes(change_folder, report)
+    if layout is ChangeLayout.CHECKLIST:
+        _lint_checklist_semantics(
+            change_folder,
+            repo_root=root,
+            archived=archived,
+            report=report,
+            cache=cache,
+        )
 
     return report
 
@@ -528,8 +1182,13 @@ def main(argv: list[str] | None = None) -> int:
         print(v.render(report.change_id), file=sys.stderr)
 
     if report.hard_failures:
+        failure_label = (
+            "hard/semantic"
+            if any(isinstance(v, SemanticViolation) for v in report.hard_failures)
+            else "hard ceiling"
+        )
         print(
-            f"lint: FAIL — {len(report.hard_failures)} hard ceiling violation(s) in "
+            f"lint: FAIL — {len(report.hard_failures)} {failure_label} violation(s) in "
             f"{report.change_id!r}",
             file=sys.stderr,
         )

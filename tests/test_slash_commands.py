@@ -3,7 +3,7 @@
 Pins the public CLI contract of
 :mod:`devolaflow.skills.slash_commands`:
 
-1. ``propose <topic>`` slugifies + scaffolds a 7-artifact folder.
+1. ``propose <topic>`` slugifies + scaffolds the v16 checklist layout.
 2. ``apply <change-id>`` flips STATUS.yaml ``state`` to ``IN_PROGRESS``.
 3. ``verify <change-id>`` invokes pytest on owned tests + flips to
    ``VERIFYING`` on success (FSM canonical name; the cycle plan
@@ -41,19 +41,23 @@ from devolaflow.skills.slash_commands import (
     slugify,
 )
 
-# Per the cycle plan §PV-02 the propose surface writes the seven
-# artifacts in this order. The first six come from
-# `Change.to_active_folder` (one-shot YAML+text dump) and the seventh
-# is `README.md` written separately as the operator orientation file.
-# We assert all seven exist together.
-_EXPECTED_ARTIFACTS: tuple[str, ...] = (
+# The first seven files come from `Change.to_active_folder`; `README.md`
+# is written separately as the operator orientation file. `evidence/`
+# is the only required directory, while all legacy-only artifacts stay absent.
+_EXPECTED_FILES: tuple[str, ...] = (
     "goal.md",
-    "acceptance.md",
+    "checklist.md",
+    "stage.md",
+    "preflight.md",
     "spec.md",
-    "tasks.md",
     "STATUS.yaml",
     "owned_files.txt",
     "README.md",
+)
+_ABSENT_LEGACY_FILES: tuple[str, ...] = (
+    "acceptance.md",
+    "tasks.md",
+    "learnings.jsonl",
 )
 
 
@@ -83,30 +87,40 @@ def test_propose_slugifies_topic(tmp_path: Path) -> None:
 
 
 def test_propose_creates_change_folder(tmp_path: Path) -> None:
-    """``propose foo`` creates ``active/foo/`` with all 7 artifacts.
+    """``propose foo`` creates the checklist layout with unsigned preflight.
 
-    Pins the cycle plan §PV-02 verbatim list: goal.md, acceptance.md,
-    spec.md, tasks.md, STATUS.yaml, owned_files.txt, README.md.
-    Asserts STATUS.yaml carries ``state: PROPOSED`` so subsequent
-    ``/devola:apply`` is the legal next FSM transition.
+    STATUS.yaml uses schema v2 and carries ``state: PROPOSED`` so subsequent
+    ``/devola:apply`` is the legal next FSM transition. Legacy-only files are
+    not scaffolded during the v16 compatibility window.
     """
     target = run_propose("foo", tmp_path)
     assert target.is_dir()
     assert target == tmp_path / ".local" / ".agent" / "active" / "foo"
 
-    for name in _EXPECTED_ARTIFACTS:
+    for name in _EXPECTED_FILES:
         artifact = target / name
         assert artifact.is_file(), f"missing artifact: {name}"
-        # owned_files.txt is intentionally empty at propose-time per the
-        # cycle plan §PV-02 ("operator fills before /devola:apply"); every
-        # other artifact carries placeholder text and is non-empty.
         if name != "owned_files.txt":
             assert artifact.stat().st_size > 0, f"empty artifact: {name}"
+    assert (target / "evidence").is_dir()
+    assert list((target / "evidence").iterdir()) == []
+    for name in _ABSENT_LEGACY_FILES:
+        assert not (target / name).exists(), f"unexpected legacy artifact: {name}"
 
     status = yaml.safe_load((target / "STATUS.yaml").read_text(encoding="utf-8"))
+    assert status["schema_version"] == 2
     assert status["state"] == "PROPOSED"
     assert status["change_id"] == "foo"
     assert status["percent_complete"] == 0
+    assert status["checklist_checked"] == 0
+    assert status["checklist_total"] == 1
+    assert status["current_round"] == 0
+
+    preflight = (target / "preflight.md").read_text(encoding="utf-8")
+    preflight_frontmatter = yaml.safe_load(preflight.split("---", 2)[1])
+    assert preflight_frontmatter["authorized_at"] is None
+    assert preflight_frontmatter["project_config_hash"] is None
+    assert "Pending user signature" in preflight
 
 
 def test_propose_no_change_opt_out_skips_scaffold(tmp_path: Path) -> None:
