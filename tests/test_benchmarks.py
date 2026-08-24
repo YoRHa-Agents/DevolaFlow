@@ -27,7 +27,7 @@ from benchmarks.devolaflow_context.runner import (
     run_scenario,
 )
 
-V6_BASELINE_PATH = BASELINES_DIR / "v15.1.0_baseline.json"
+V16_BASELINE_PATH = BASELINES_DIR / "v16.0.0_baseline.json"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -359,34 +359,34 @@ class TestBaselineFile:
     # ------------------------------------------------------------------
 
     def test_v6_baseline_exists(self) -> None:
-        """v7.4.0_baseline.json must be present in baselines/ (regenerated each release cut)."""
-        assert V6_BASELINE_PATH.exists(), (
-            f"Missing {V6_BASELINE_PATH.relative_to(REPO_ROOT)}. "
+        """v16.0.0_baseline.json must be present as the full transition baseline."""
+        assert V16_BASELINE_PATH.exists(), (
+            f"Missing {V16_BASELINE_PATH.relative_to(REPO_ROOT)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
         )
 
     def test_v6_baseline_covers_all_scenarios(self) -> None:
         """Full coverage: every scenario YAML has a baseline entry."""
-        with open(V6_BASELINE_PATH) as f:
+        with open(V16_BASELINE_PATH) as f:
             data = json.load(f)
         baseline_keys = set(data.keys())
         scenario_stems = {p.stem for p in SCENARIOS_DIR.glob("*.yaml")}
         missing_from_baseline = scenario_stems - baseline_keys
         extra_in_baseline = baseline_keys - scenario_stems
         assert not missing_from_baseline, (
-            f"{V6_BASELINE_PATH.name} is missing entries for scenarios "
+            f"{V16_BASELINE_PATH.name} is missing entries for scenarios "
             f"{sorted(missing_from_baseline)}. "
             f"Regenerate via: python -m benchmarks.devolaflow_context.generate_baseline"
         )
         assert not extra_in_baseline, (
-            f"{V6_BASELINE_PATH.name} has entries for scenarios that no longer exist: "
+            f"{V16_BASELINE_PATH.name} has entries for scenarios that no longer exist: "
             f"{sorted(extra_in_baseline)}. Regenerate the baseline."
         )
         assert baseline_keys == scenario_stems
 
     def test_v6_baseline_scores_positive(self) -> None:
         """Every scenario in the latest baseline has a strictly positive composite."""
-        with open(V6_BASELINE_PATH) as f:
+        with open(V16_BASELINE_PATH) as f:
             data = json.load(f)
         for name, entry in data.items():
             assert entry["composite"] > 0, (
@@ -429,18 +429,9 @@ class TestBaselineFile:
         """
         newest = _newest_baseline_path()
         assert newest is not None
-        assert newest.name == "v15.1.0_baseline.json", (
-            f"Expected load_baseline() to prefer v15.1.0_baseline.json "
-            f"(W-16 wholesale regen at the v15.1.0 cycle CLOSE — no PV in "
-            f"the cycle observed drift beyond the 5pp envelope, so per the "
-            f"v12.3.0 clarification the regen lands at cycle close; the "
-            f"regen captured 38 sub-envelope equilibrium shifts from the "
-            f"v15.1.0 SKILL/reference edits, headlined by "
-            f"adversarial_data_instruction and security_audit "
-            f"100.0 -> 98.85 and dependency_setup 99.89 -> 100.0, all "
-            f"within tolerance; scenario count unchanged at 57. The "
-            f"out-of-window v14.3.0_baseline.json moved to Tier-C archive "
-            f"per A-2.4 in the same sweep); got {newest.name}"
+        assert newest.name == "v16.0.0_baseline.json", (
+            f"Expected load_baseline() to prefer v16.0.0_baseline.json "
+            f"(W-16 transition baseline covering all 57 scenarios); got {newest.name}"
         )
 
         # load_baseline() returns data for a scenario covered only by v6+ baselines
@@ -458,7 +449,7 @@ class TestBaselineFile:
         A recorded composite that drifts >5pp from a fresh re-run indicates the
         baseline is stale and must be regenerated.
         """
-        with open(V6_BASELINE_PATH) as f:
+        with open(V16_BASELINE_PATH) as f:
             data = json.load(f)
         for path in discover_scenarios("all"):
             scenario_data = load_scenario(path)
@@ -480,7 +471,7 @@ class TestBaselineRegressionDetection:
 
     def test_ten_percent_drop_is_flagged_as_regression(self) -> None:
         """A -10% composite vs baseline must be classified as REGRESSION."""
-        with open(V6_BASELINE_PATH) as f:
+        with open(V16_BASELINE_PATH) as f:
             data = json.load(f)
         baseline_entry = data["hotfix_jwt"]
         baseline_composite = baseline_entry["composite"]
