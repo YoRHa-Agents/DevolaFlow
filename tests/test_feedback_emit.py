@@ -270,6 +270,7 @@ def test_emit_accepts_supplemental_reinforcement_without_gate_findings() -> None
             "id": "R-C-G1.1-001",
             "severity": "blocker",
             "mandate": "verbatim user revert reason",
+            "tier": "guard",
         }
     ]
 

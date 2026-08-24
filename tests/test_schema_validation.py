@@ -116,10 +116,8 @@ class TestLeanDispatch:
 
     def test_lean_spec_has_reinforce(self, lean_dispatch: dict) -> None:
         spec = lean_dispatch.get("lean_format_spec", {})
-        rules = spec.get("rules", {})
-        assert "reinforce" in rules, (
-            "lean_format_spec.rules must have 'reinforce' field (v5.1+ addition)"
-        )
+        assert "reinforce" in spec, "lean_format_spec must have top-level 'reinforce' field"
+        assert "reinforce" not in spec.get("rules", {})
 
     def test_compression_rules_structure(self, lean_dispatch: dict) -> None:
         comp = lean_dispatch.get("compression_rules", {})

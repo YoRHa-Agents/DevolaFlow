@@ -128,6 +128,65 @@ def test_build_dispatch_record_enforces_m2_checklist_count_guard(bad_items) -> N
         build_dispatch_record(payload, change_id="bad-checklist")
 
 
+def test_build_dispatch_record_summarizes_tiers_and_traces_exact_true_fold() -> None:
+    payload = _payload(change_id="folded-advisory")
+    payload["gate"] = {"mode": "strict"}
+    payload["behavioral_guidelines"] = {
+        "think_first": True,
+        "simplicity_check": True,
+        "surgical_scope": "function",
+        "goal_loop": False,
+        "constraint_tiers": {
+            "think_first": "advisory",
+            "simplicity_check": "advisory",
+            "surgical_scope": "guard",
+            "goal_loop": "advisory",
+        },
+        "advisory_folded": True,
+    }
+    payload["rules"] = {
+        "focus": "tests",
+        "constraint_tiers": {"focus": "advisory"},
+    }
+    before = copy.deepcopy(payload)
+
+    record = build_dispatch_record(payload, change_id="folded-advisory")
+
+    assert payload == before
+    assert list(record) == [*EXPECTED_RECORD_KEYS, "fold_trace"]
+    assert record["constraint_count"] == 7
+    assert record["tier_breakdown"] == {"invariant": 1, "guard": 3, "advisory": 3}
+    assert record["quantifiable_ratio"] == pytest.approx(4 / 7)
+    assert record["advisory_folded"] is True
+    assert record["fold_trace"] == {
+        "folded_count": 2,
+        "ref": "workflow-system/agent/references/behavioral-guidelines.md",
+        "model_hint": "quality",
+    }
+
+
+@pytest.mark.parametrize(
+    "fold_metadata",
+    [{}, {"advisory_folded": False}, {"advisory_folded": 1}, {"advisory_folded": "true"}],
+)
+def test_non_true_fold_metadata_preserves_legacy_record_shape(fold_metadata) -> None:
+    payload = _payload(change_id="unfolded-advisory")
+    payload["behavioral_guidelines"] = {
+        "think_first": True,
+        "constraint_tiers": {"think_first": "advisory"},
+        **fold_metadata,
+    }
+
+    record = build_dispatch_record(payload, change_id="unfolded-advisory")
+
+    assert list(record) == EXPECTED_RECORD_KEYS
+    assert record["constraint_count"] == 3
+    assert record["tier_breakdown"] == {"invariant": 0, "guard": 2, "advisory": 1}
+    assert record["quantifiable_ratio"] == pytest.approx(2 / 3)
+    assert record["advisory_folded"] is False
+    assert "fold_trace" not in record
+
+
 def test_append_harness_record_is_compact_and_rotates_without_rewrite(tmp_path: Path) -> None:
     folder = tmp_path / "change"
     folder.mkdir()

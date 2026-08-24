@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from devolaflow.gate.models import CYCLE_DEFAULT_SEVERITY, CycleReport, Finding, Severity
+from devolaflow.harness.tiers import SOURCE_TIERS
 
 SEVERITY_ORDER: dict[str, int] = {
     "blocker": 0,
@@ -196,6 +197,7 @@ def reinforcement_to_dict(block: ReinforcementBlock) -> dict[str, Any]:
                 "severity": r.severity,
                 "mandate": r.mandate,
                 **({"file": r.file} if r.file else {}),
+                "tier": SOURCE_TIERS["reinforcement_rule"],
             }
             for r in block.rules
         ],

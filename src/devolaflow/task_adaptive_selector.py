@@ -973,7 +973,10 @@ def _select_behavioral_sections(
     return base
 
 
-def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> str:
+def _compose_behavioral_block(
+    behavioral_guidelines: dict[str, Any] | None,
+    fold_advisory: bool = False,
+) -> str:
     """Render the active behavioral guidelines into an injectable text block.
 
     The block is a compact ``## Behavioral Guidelines (L2 Task active)`` markdown
@@ -995,6 +998,11 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
     ``'module'`` paths emit output byte-identical to v8.0.0-p08
     (R5 backward-compat discipline).
 
+    When ``fold_advisory`` is true, active fields explicitly classified as
+    ``advisory`` are replaced by one authorization line. Guard fields remain
+    verbatim, including BG-003 and any line-level criteria. The default is
+    false so legacy callers retain byte-identical text and ordering.
+
     Returns "" when ``behavioral_guidelines`` is None or empty so callers
     can ``if block:`` without a None-check.
     """
@@ -1002,36 +1010,60 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
         return ""
 
     lines = ["## Behavioral Guidelines (L2 Task active)"]
-    if behavioral_guidelines.get("think_first"):
-        lines.append("- BG-001 think_first ENABLED — emit numbered plan before any source edit.")
-    if behavioral_guidelines.get("simplicity_check"):
-        lines.append(
-            "- BG-002 simplicity_check ENABLED — audit 3 over-engineering smells before commit."
-        )
+    constraint_tiers = behavioral_guidelines.get("constraint_tiers")
+    if not isinstance(constraint_tiers, dict):
+        constraint_tiers = {}
+    folded_count = 0
+
+    def append_rule(field: str, text: str) -> None:
+        nonlocal folded_count
+        if not behavioral_guidelines.get(field):
+            return
+        if fold_advisory and constraint_tiers.get(field) == "advisory":
+            folded_count += 1
+            return
+        lines.append(text)
+
+    append_rule(
+        "think_first",
+        "- BG-001 think_first ENABLED — emit numbered plan before any source edit.",
+    )
+    append_rule(
+        "simplicity_check",
+        "- BG-002 simplicity_check ENABLED — audit 3 over-engineering smells before commit.",
+    )
     scope = behavioral_guidelines.get("surgical_scope", "function")
     lines.append(f"- BG-003 surgical_scope = {scope!r} — diff hunks MUST stay within this tier.")
     if scope == "line":
         for criterion in behavioral_guidelines.get("line_level_criteria") or []:
             lines.append(f"  - {criterion}")
-    if behavioral_guidelines.get("goal_loop"):
-        lines.append("- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.")
+    append_rule(
+        "goal_loop",
+        "- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.",
+    )
     # v12.2.0 PV-03 — Mnimiy 3-rule extension. Active rules render as
     # 1-line bullets (~ 20-30 tokens each); inactive rules omit the
     # bullet so the token cost scales with active-rule count.
-    if behavioral_guidelines.get("no_llm_for_deterministic"):
+    append_rule(
+        "no_llm_for_deterministic",
+        "- BG-005 no_llm_for_deterministic ENABLED — route deterministic "
+        "decisions (retry / routing / thresholds) through code, not prompts.",
+    )
+    append_rule(
+        "surface_conflicts",
+        "- BG-006 surface_conflicts ENABLED — when 2 patterns disagree, "
+        "flag the conflict as a finding; do NOT average both into one solution.",
+    )
+    append_rule(
+        "convention_first",
+        "- BG-007 convention_first ENABLED — match the codebase's existing "
+        "pattern; introduce novelty only via explicit ADR / escalation.",
+    )
+    if folded_count:
         lines.append(
-            "- BG-005 no_llm_for_deterministic ENABLED — route deterministic "
-            "decisions (retry / routing / thresholds) through code, not prompts."
-        )
-    if behavioral_guidelines.get("surface_conflicts"):
-        lines.append(
-            "- BG-006 surface_conflicts ENABLED — when 2 patterns disagree, "
-            "flag the conflict as a finding; do NOT average both into one solution."
-        )
-    if behavioral_guidelines.get("convention_first"):
-        lines.append(
-            "- BG-007 convention_first ENABLED — match the codebase's existing "
-            "pattern; introduce novelty only via explicit ADR / escalation."
+            f"advisory 约束 {folded_count} 条已折叠"
+            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
+            "授权模型自行判断遵从"
         )
     return "\n".join(lines)
 
@@ -1157,10 +1189,10 @@ def select_context(
         :func:`_detect_plan_mode` when *plan_mode* is ``None``)
       - plan_mode_applied: alias of ``plan_mode`` for explicit downstream
         checks; True when :func:`apply_plan_mode_overrides` was applied
-      - behavioral_guidelines (v8.0.0 P-08): resolved 4-key dict (think_first,
-        simplicity_check, surgical_scope, goal_loop) when the profile
-        carries the block, otherwise ``None`` (preserves v7.x byte-stable
-        dispatch shape for backward compatibility)
+      - behavioral_guidelines (v8.0.0 P-08, v16.0.0 M5-a): resolved guideline
+        dict with nested ``constraint_tiers`` and ``advisory_folded`` metadata
+        when the profile carries the block, otherwise ``None`` (preserves the
+        exact no-block return shape)
       - timeout_seconds (v14.5.0 G-037): per-task-type ``timeout_seconds``
         default resolved from the profile's ``timeout_class`` via
         :func:`resolve_timeout_seconds` (SSOT:
@@ -1209,12 +1241,32 @@ def select_context(
     )
     budget = profile.get("token_budget", 6000)
 
+    escalation_applied = round_num > 1
+    profile_overrides_applied = escalation_applied or active_plan_mode
+    model_hint, compression_intensity = _resolve_dispatch_overrides(
+        profile, task_type, complexity_tier, config, profile_overrides_applied
+    )
+
     advisor_enabled, advisor_text, advisor_reserve = _resolve_advisor_text(profile)
     learnings_config = profile.get("learnings", {})
     learnings_reserve = _compute_learnings_reserve(learnings_config, profiles_path, budget)
 
-    behavioral_guidelines = _select_behavioral_sections(profile, config, anchor_registry)
-    behavioral_text = _compose_behavioral_block(behavioral_guidelines)
+    # Imported at the selector boundary to avoid the harness package's
+    # telemetry -> selector import cycle during module initialization.
+    from devolaflow.harness.tiers import (
+        annotate_behavioral_guidelines,
+        should_fold_advisory,
+    )
+
+    resolved_behavioral = _select_behavioral_sections(profile, config, anchor_registry)
+    behavioral_guidelines = annotate_behavioral_guidelines(resolved_behavioral)
+    advisory_folded = behavioral_guidelines is not None and should_fold_advisory(model_hint)
+    behavioral_text = _compose_behavioral_block(
+        behavioral_guidelines,
+        fold_advisory=advisory_folded,
+    )
+    if behavioral_guidelines is not None:
+        behavioral_guidelines["advisory_folded"] = advisory_folded
     behavioral_reserve = estimate_tokens(behavioral_text) if behavioral_text else 0
 
     section_budget = budget - advisor_reserve - learnings_reserve - behavioral_reserve
@@ -1245,11 +1297,6 @@ def select_context(
         ],
     )
 
-    escalation_applied = round_num > 1
-    profile_overrides_applied = escalation_applied or active_plan_mode
-    model_hint, compression_intensity = _resolve_dispatch_overrides(
-        profile, task_type, complexity_tier, config, profile_overrides_applied
-    )
     # v14.5.0 (G-037) — additive dispatch hint resolved from the profile's
     # timeout class (SSOT: defaults.timeout_class_map). Deliberately NOT
     # round-escalated: no W-8 / P4 rule grows timeouts across convergence
@@ -1418,33 +1465,10 @@ def apply_round_escalation(
     return result
 
 
-# ---------------------------------------------------------------------------
 # v9.7.0 (PV-04 — Performance Overhaul #2) — Selector cache warmup.
-#
-# The v9.3.0 PV-03 LRU cache on ``load_profiles`` / ``load_skill_md`` /
-# ``estimate_tokens`` is COLD on session start. A fresh
-# ``select_context(...)`` pays the full pre-LRU cost for ``load_profiles``
-# (~80 ms YAML re-parse) on the first call until the cache populates.
-# After ~5 calls the steady-state pattern is covered, but the first 5
-# dispatches of a session experience a "warm-up tax."
-#
-# :func:`warmup_selector_cache` pre-populates the LRU caches for the top-5
-# task_types × 3 round_nums (15 cache entries) at session start. Opt-in
-# via ``DEVOLAFLOW_WARMUP=1`` per W-20 §3 orthogonality test (no existing
-# flag activates this surface; new flag justified). When the env flag is
-# unset, the function is a STRICT no-op (zero IO, zero CPU) — preserves
-# byte-stable v9.6.0 behaviour for operators who haven't opted in.
-#
-# R5 strict env-flag pattern (v8.3.4 PV-04 RTK_PROXY precedent): the
-# function reads ``os.environ.get("DEVOLAFLOW_WARMUP")`` EXACTLY against
-# the literal string ``"1"`` — no truthy-coercion (``"true"`` / ``"yes"``
-# / ``"on"`` are all DEFAULT-OFF, only ``"1"`` activates). This keeps
-# the activation surface auditable and prevents ambiguity when the
-# operator means "off" but typed "false" / "0" / etc.
-#
-# Source: v9.7.0 PV-04 spec — closes D-N-2 (selector LRU cache cold on
-# session start) from ``.local/research/v9.7.0_gap_analysis.md`` §1.3.
-# ---------------------------------------------------------------------------
+# Pre-populates top-5 task types × rounds 1-3 to avoid cold-cache dispatches.
+# ``DEVOLAFLOW_WARMUP`` is R5-strict: only literal ``"1"`` opts in.
+# Source: `.local/research/v9.7.0_gap_analysis.md` §1.3 D-N-2.
 
 WARMUP_ENV_FLAG: str = "DEVOLAFLOW_WARMUP"
 """Env-flag name. Activates :func:`warmup_selector_cache` when set EXACTLY

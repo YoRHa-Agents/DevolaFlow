@@ -396,6 +396,90 @@ class TestComposeBehavioralBlock:
         # Budget raised from 150 → 225 for v12.2.0 PV-03 (3-rule extension).
         assert estimate_tokens(block) <= 225
 
+    def test_nontrigger_metadata_preserves_exact_legacy_bytes_and_order(self) -> None:
+        guidelines = {
+            "think_first": True,
+            "simplicity_check": True,
+            "surgical_scope": "function",
+            "goal_loop": True,
+            "no_llm_for_deterministic": True,
+            "surface_conflicts": True,
+            "convention_first": True,
+        }
+        expected = "\n".join(
+            [
+                "## Behavioral Guidelines (L2 Task active)",
+                "- BG-001 think_first ENABLED — emit numbered plan before any source edit.",
+                "- BG-002 simplicity_check ENABLED — audit 3 over-engineering "
+                "smells before commit.",
+                "- BG-003 surgical_scope = 'function' — diff hunks MUST stay within this tier.",
+                "- BG-004 goal_loop ENABLED — restate user goal verbatim at round start.",
+                "- BG-005 no_llm_for_deterministic ENABLED — route deterministic "
+                "decisions (retry / routing / thresholds) through code, not prompts.",
+                "- BG-006 surface_conflicts ENABLED — when 2 patterns disagree, "
+                "flag the conflict as a finding; do NOT average both into one solution.",
+                "- BG-007 convention_first ENABLED — match the codebase's existing "
+                "pattern; introduce novelty only via explicit ADR / escalation.",
+            ]
+        )
+        annotated = {
+            **guidelines,
+            "constraint_tiers": {
+                **{name: "advisory" for name in guidelines if name != "surgical_scope"},
+                "surgical_scope": "guard",
+            },
+            "advisory_folded": False,
+        }
+
+        assert _compose_behavioral_block(guidelines) == expected
+        assert _compose_behavioral_block(annotated, fold_advisory=False) == expected
+
+    @pytest.mark.parametrize(
+        ("scope", "criteria"),
+        [
+            ("function", []),
+            ("line", ["LL-001 keep changed lines minimal", "LL-002 preserve local order"]),
+        ],
+    )
+    def test_fold_replaces_only_active_advisories_and_preserves_guards(
+        self,
+        scope: str,
+        criteria: list[str],
+    ) -> None:
+        guidelines = {
+            "think_first": True,
+            "simplicity_check": True,
+            "surgical_scope": scope,
+            "goal_loop": False,
+            "no_llm_for_deterministic": True,
+            "surface_conflicts": True,
+            "convention_first": True,
+            "line_level_criteria": criteria,
+            "constraint_tiers": {
+                "think_first": "advisory",
+                "simplicity_check": "advisory",
+                "surgical_scope": "guard",
+                "goal_loop": "advisory",
+                "no_llm_for_deterministic": "advisory",
+                "surface_conflicts": "advisory",
+                "convention_first": "advisory",
+                "line_level_criteria": "guard",
+            },
+        }
+
+        block = _compose_behavioral_block(guidelines, fold_advisory=True)
+
+        assert (
+            "advisory 约束 5 条已折叠"
+            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
+            "授权模型自行判断遵从"
+        ) in block
+        assert f"BG-003 surgical_scope = {scope!r}" in block
+        for criterion in criteria:
+            assert f"  - {criterion}" in block
+        for folded_id in ("BG-001", "BG-002", "BG-004", "BG-005", "BG-006", "BG-007"):
+            assert folded_id not in block
+
 
 # ---------------------------------------------------------------------------
 # 4b. v12.2.0 PV-03 — Mnimiy 3-rule extension (BG-005..BG-007)
@@ -566,6 +650,9 @@ class TestSelectContextIntegration:
         assert bg.get("simplicity_check") is True
         assert bg.get("surgical_scope") == "function"
         assert bg.get("goal_loop") is False
+        assert bg["constraint_tiers"]["think_first"] == "advisory"
+        assert bg["constraint_tiers"]["surgical_scope"] == "guard"
+        assert bg["advisory_folded"] is False
 
     def test_refactor_profile_resolves_complex_tier(self) -> None:
         result = select_context("refactor", profiles_path=PROFILES_PATH)
@@ -590,6 +677,7 @@ class TestSelectContextIntegration:
         the resolved field MUST be None (preserves v7.x byte-stable shape)."""
         result = select_context("hotfix", profiles_path=PROFILES_PATH)
         assert result["behavioral_guidelines"] is None
+        assert "advisory_folded" not in result
 
     def test_assembled_text_contains_behavioral_block_when_active(self) -> None:
         result = select_context("feature", profiles_path=PROFILES_PATH)
@@ -619,6 +707,57 @@ class TestSelectContextIntegration:
         assert critical_sections.isdisjoint(feature_skipped), (
             f"Behavioral block displaced critical sections: {critical_sections & feature_skipped}"
         )
+
+    @pytest.mark.parametrize(
+        ("model_hint", "expected_folded"),
+        [
+            ("quality", True),
+            ("frontier", True),
+            ("QUALITY", False),
+            ("balanced", False),
+        ],
+    )
+    def test_explicit_model_hint_controls_fold_without_frontier_inference(
+        self,
+        tmp_path: Path,
+        model_hint: str,
+        expected_folded: bool,
+    ) -> None:
+        config = yaml.safe_load(PROFILES_PATH.read_text())
+        config["profiles"]["fold_contract"] = {
+            "description": "Explicit advisory-fold integration fixture",
+            "goal_hints": ["fold contract"],
+            "token_budget": 4000,
+            "model_hints": {"default_tier": "balanced"},
+            "section_priorities": {"agent_mode_protocol": "critical"},
+            "behavioral_guidelines": {
+                "think_first": True,
+                "simplicity_check": False,
+                "surgical_scope": "function",
+                "goal_loop": False,
+            },
+        }
+        profile_path = tmp_path / f"profiles-{model_hint}.yaml"
+        profile_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+        result = select_context(
+            "fold contract",
+            profiles_path=profile_path,
+            round_num=2,
+            escalation_config={2: {"model_hint_override": model_hint}},
+            plan_mode=False,
+        )
+
+        assert result["model_hint"] == model_hint
+        assert result["behavioral_guidelines"]["advisory_folded"] is expected_folded
+        authorization = (
+            "advisory 约束 1 条已折叠"
+            "（清单见 workflow-system/agent/references/behavioral-guidelines.md），"
+            "授权模型自行判断遵从"
+        )
+        assert (authorization in result["assembled_text"]) is expected_folded
+        assert ("BG-001 think_first ENABLED" in result["assembled_text"]) is not expected_folded
+        assert "BG-003 surgical_scope = 'function'" in result["assembled_text"]
 
 
 # ---------------------------------------------------------------------------

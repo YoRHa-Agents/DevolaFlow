@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 import yaml
 
+from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
 from devolaflow.task_adaptive_selector import estimate_tokens
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ LAYER_TOKEN_BUDGETS: Final[dict[str, int]] = {
 
 _ACTIVE_ROOT = Path(".local") / ".agent" / "active"
 _BASE_LEDGER_NAME = "harness.jsonl"
+_BEHAVIORAL_GUIDELINES_REF = "workflow-system/agent/references/behavioral-guidelines.md"
 _SEGMENT_RE = re.compile(r"^harness\.(?P<index>[1-9]\d*)\.jsonl$")
 _LAYER_ALIASES: Final[dict[str, str]] = {
     "L0": "L0",
@@ -175,18 +177,35 @@ def _stable_yaml(payload: dict[str, Any]) -> str:
     )
 
 
+def _constraint_summary_view(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return an annotated copy without advisory-fold metadata."""
+
+    view = dict(payload)
+    behavioral = _mapping(payload, "behavioral_guidelines")
+    if behavioral is not None and "advisory_folded" in behavioral:
+        view["behavioral_guidelines"] = {
+            name: value for name, value in behavioral.items() if name != "advisory_folded"
+        }
+    return annotate_rule_surfaces(view)
+
+
+def _behavioral_advisory_count(summary_view: dict[str, Any]) -> int:
+    """Count active advisory constraints from behavioral guidelines only."""
+
+    behavioral = _mapping(summary_view, "behavioral_guidelines")
+    if behavioral is None:
+        return 0
+    _, breakdown, _ = summarize_constraints({"behavioral_guidelines": behavioral})
+    return breakdown["advisory"]
+
+
 def build_dispatch_record(
     payload: dict[str, Any],
     *,
     change_id: str,
     timestamp: str | None = None,
 ) -> dict[str, Any]:
-    """Build one exact-schema harness record from a dispatch payload.
-
-    M2 has no explicit constraint tiers or advisory folding yet. Selected
-    ``checklist_items`` are machine-verifiable guards, so they are the only
-    constraints counted until the M5 tier metadata lands.
-    """
+    """Build one exact-schema harness record from a dispatch payload."""
 
     if not isinstance(payload, dict):
         raise _AttributionError("payload must be a dict")
@@ -195,17 +214,16 @@ def build_dispatch_record(
         raise _AttributionError("change_id must be one active-folder basename")
 
     layer = _dispatch_layer(payload)
-    constraint_count = _checklist_constraint_count(payload)
-    tier_breakdown = {
-        "invariant": 0,
-        "guard": constraint_count,
-        "advisory": 0,
-    }
-    quantifiable_ratio = 1.0 if constraint_count else 0.0
+    _checklist_constraint_count(payload)
+    summary_view = _constraint_summary_view(payload)
+    constraint_count, tier_breakdown, quantifiable_ratio = summarize_constraints(summary_view)
+    behavioral = _mapping(payload, "behavioral_guidelines")
+    advisory_folded = behavioral is not None and behavioral.get("advisory_folded") is True
+    model_hint = _model_hint(payload)
     measured = estimate_tokens(_stable_yaml(payload))
     record_timestamp = timestamp or datetime.now(UTC).isoformat()
 
-    return {
+    record = {
         "ts": record_timestamp,
         "change_id": attributed_change_id,
         "round": _round_number(payload),
@@ -216,9 +234,16 @@ def build_dispatch_record(
         "constraint_count": constraint_count,
         "quantifiable_ratio": quantifiable_ratio,
         "tier_breakdown": tier_breakdown,
-        "advisory_folded": False,
-        "model_hint": _model_hint(payload),
+        "advisory_folded": advisory_folded,
+        "model_hint": model_hint,
     }
+    if advisory_folded:
+        record["fold_trace"] = {
+            "folded_count": _behavioral_advisory_count(summary_view),
+            "ref": _BEHAVIORAL_GUIDELINES_REF,
+            "model_hint": model_hint,
+        }
+    return record
 
 
 def _segment_index(path: Path) -> int | None:

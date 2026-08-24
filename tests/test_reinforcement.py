@@ -15,6 +15,7 @@ from devolaflow.gate.reinforcement import (
     merge_reinforcement_into_dispatch,
     reinforcement_to_dict,
 )
+from devolaflow.harness.tiers import SOURCE_TIERS, summarize_constraints
 
 
 def _make_finding(
@@ -48,6 +49,7 @@ class TestFindingsToReinforcement:
         assert len(block.rules) == 1
         assert block.rules[0].id == "F-001"
         assert "MUST fix" in block.rules[0].mandate
+        assert reinforcement_to_dict(block)["rules"][0]["tier"] == "guard"
 
     def test_severity_floor_filters(self) -> None:
         findings = [
@@ -121,7 +123,15 @@ class TestReinforcementToDict:
         assert d["round"] == 2
         assert d["prior_score"] == 72.0
         assert len(d["rules"]) == 1
-        assert d["rules"][0]["file"] == "a.py"
+        rule = d["rules"][0]
+        assert rule["file"] == "a.py"
+        assert rule["tier"] == SOURCE_TIERS["reinforcement_rule"] == "guard"
+        assert list(rule) == ["id", "severity", "mandate", "file", "tier"]
+        assert summarize_constraints({"reinforce": d}) == (
+            1,
+            {"invariant": 0, "guard": 1, "advisory": 0},
+            1.0,
+        )
         assert d["escalation_note"] == "test note"
 
     def test_omits_empty_file(self) -> None:
@@ -134,6 +144,24 @@ class TestReinforcementToDict:
         )
         d = reinforcement_to_dict(block)
         assert "file" not in d["rules"][0]
+        assert d["rules"][0]["tier"] == "guard"
+        assert list(d["rules"][0]) == ["id", "severity", "mandate", "tier"]
+
+    def test_empty_serialization_preserves_shape(self) -> None:
+        block = ReinforcementBlock(
+            round=1,
+            prior_score=0.0,
+            target_score=85.0,
+            severity_floor="major",
+        )
+        assert reinforcement_to_dict(block) == {
+            "round": 1,
+            "prior_score": 0.0,
+            "target_score": 85.0,
+            "severity_floor": "major",
+            "rules": [],
+            "escalation_note": "",
+        }
 
 
 class TestMergeIntoDispatch:
@@ -148,11 +176,13 @@ class TestMergeIntoDispatch:
             prior_score=72.0,
             target_score=85.0,
             severity_floor="major",
+            rules=(ReinforcementRule(id="F-1", severity="major", mandate="fix"),),
         )
         result = merge_reinforcement_into_dispatch(dispatch, block)
         assert result is dispatch
-        assert "reinforcement" in result["context"]["applicable_rules"]
-        assert result["context"]["applicable_rules"]["loading_strategy"] == "standard"
+        applicable_rules = result["context"]["applicable_rules"]
+        assert applicable_rules["reinforcement"]["rules"][0]["tier"] == "guard"
+        assert applicable_rules["loading_strategy"] == "standard"
 
     def test_creates_missing_context(self) -> None:
         dispatch: dict = {}
@@ -361,5 +391,6 @@ class TestFenceToInstructionReturnType:
         data = reinforcement_to_dict(block)
         ids = [r["id"] for r in data["rules"]]
         assert ids == ["F-lint-001", "F-test-001"]
+        assert [r["tier"] for r in data["rules"]] == ["guard", "guard"]
         assert data["rules"][0]["file"] == "a.py"
         assert "file" not in data["rules"][1]
