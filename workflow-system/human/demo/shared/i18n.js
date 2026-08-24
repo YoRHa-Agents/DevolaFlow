@@ -36,7 +36,7 @@
       /* -- Landing page: header -- */
       'landing.title':      'DevolaFlow',
       'landing.tagline':    'A guardian\'s song for your code — orchestrating workflows so nothing is left behind.',
-      'landing.subtitle':   'Define multi-stage delivery pipelines as declarative YAML. A 4-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.',
+      'landing.subtitle':   'Anchor every change in a verifiable checklist seeded from declarative YAML. A 3-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.',
 
       /* -- Landing: Design Philosophy (mid-fold beat between hero and Quick Start) -- */
       'landing.philosophy.heading':   'Design Philosophy',
@@ -53,17 +53,15 @@
       'landing.howItWorks':        'How It Works',
       'landing.howItWorks.desc':   'Like Devola watching over the old world, the hierarchy ensures every task is protected and guided. Upper layers dispatch; only the bottom layer works.',
       'landing.layer.project':     'Project',
-      'landing.layer.project.desc':'the overseer — picks workflow type, dispatches stages',
-      'landing.layer.stage':       'Stage',
-      'landing.layer.stage.desc':  'the conductor — decomposes into waves, runs quality gates',
+      'landing.layer.project.desc':'the overseer — picks a seed, owns the checklist, runs rounds and gates',
       'landing.layer.wave':        'Wave',
       'landing.layer.wave.desc':   'the coordinator — dispatches tasks in parallel, collects results',
       'landing.layer.task':        'Task',
       'landing.layer.task.desc':   'the hands that build — writes code, runs tests, reviews. The ONLY layer that works.',
 
       /* -- Landing: Workflow Types -- */
-      'landing.workflows':         '22 Built-in Workflow Types',
-      'landing.workflows.desc':    'Every task deserves the right approach. Each workflow is a different arrangement of the same 13 stage primitives.',
+      'landing.workflows':         'Checklist Seed Library',
+      'landing.workflows.desc':    'Every task deserves the right approach. 23 seeds pre-populate the change checklist, each compiled from the same 13 stage primitives as provenance.',
       'landing.workflow.col.name': 'Workflow',
       'landing.workflow.col.when': 'When to use',
       'landing.workflow.col.stages':'Stages',
@@ -133,7 +131,7 @@
       'card.zhGuide':           'Chinese Guide',
       'card.zhGuide.desc':      'Quick start: install, configure, run your first workflow, integrate with AI tools.',
       'card.archOverview':      'Architecture Overview',
-      'card.archOverview.desc': 'System architecture: 4-layer hierarchy, 13 stage primitives, gate mechanism, context isolation.',
+      'card.archOverview.desc': 'System architecture: 3-layer hierarchy, checklist-anchored rounds, gate mechanism, context isolation.',
 
       /* -- Buttons -- */
       'btn.openArchMap':    'Open Architecture Map',
@@ -235,7 +233,7 @@
       'card.designSystem':          'Design System',
       'card.designSystem.desc':     'Palette, typography, motion, components, states, accessibility — the Devola design language as an artifact.',
       'card.frameworkChain':        'Framework Chain',
-      'card.frameworkChain.desc':   'Animated 4-layer hierarchy + 5 AgentTeams + gate convergence + reinforcement loop.',
+      'card.frameworkChain.desc':   'Animated 3-layer hierarchy + gate convergence + reinforcement loop.',
       'card.contextFlow':           'Context Flow',
       'card.contextFlow.desc':      'Dispatch / Report / Escalation / Round-Reinforcement message routing animations.',
       'card.versionTimeline':       'R&D Timeline',
@@ -268,9 +266,9 @@
       'ds.a11y.bilingual':            'EN/ZH switch is one click; preference persists in localStorage.',
 
       /* -- Framework Chain page -- */
-      'fc.subtitle':                       'Project → Stage → Wave → Task — see the chain move.',
-      'fc.section.hierarchy':              '4-Layer Hierarchy',
-      'fc.section.hierarchy.desc':         'Each layer dispatches downward and reports upward; only L3 does work.',
+      'fc.subtitle':                       'Project → Wave → Task — see the chain move.',
+      'fc.section.hierarchy':              '3-Layer Hierarchy',
+      'fc.section.hierarchy.desc':         'Each layer dispatches downward and reports upward; only L2 does work.',
       'fc.section.teams':                  'AgentTeams',
       'fc.section.teams.desc':             'Five teams: Research / Design / Implement / Test / Review.',
       'fc.section.gate':                   'Gate Mechanism',
@@ -372,7 +370,7 @@
       /* -- 首页：头部 -- */
       'landing.title':      'DevolaFlow',
       'landing.tagline':    '守护者为代码而歌——编排工作流，不让任何任务被遗忘。',
-      'landing.subtitle':   '将多阶段交付流水线定义为声明式 YAML。四层代理层次结构守护每一个任务，以质量门控确保代码万无一失。',
+      'landing.subtitle':   '以声明式 YAML 种子生成可验证的变更清单。三层代理层次结构守护每一个任务，以质量门控确保代码万无一失。',
 
       /* -- 首页：设计哲学（在 hero 与快速开始之间的中段铺垫） -- */
       'landing.philosophy.heading':   '设计哲学',
@@ -389,17 +387,15 @@
       'landing.howItWorks':        '工作原理',
       'landing.howItWorks.desc':   '如同 Devola 守望旧世界，层级结构确保每个任务都受到保护与引导。上层调度，只有底层执行。',
       'landing.layer.project':     '项目层',
-      'landing.layer.project.desc':'监督者——选择工作流类型，分派阶段',
-      'landing.layer.stage':       '阶段层',
-      'landing.layer.stage.desc':  '指挥者——分解为波次，运行质量门控',
+      'landing.layer.project.desc':'监督者——选择种子，持有清单，运行轮次与门控',
       'landing.layer.wave':        '波次层',
       'landing.layer.wave.desc':   '协调者——并行分派任务，收集结果',
       'landing.layer.task':        '任务层',
       'landing.layer.task.desc':   '建造之手——写代码、跑测试、做审查。唯一执行工作的层。',
 
       /* -- 首页：工作流类型 -- */
-      'landing.workflows':         '22 种内置工作流类型',
-      'landing.workflows.desc':    '每项任务都值得最合适的方案。每种工作流是 13 个阶段原语的不同编排。',
+      'landing.workflows':         '清单种子库',
+      'landing.workflows.desc':    '每项任务都值得最合适的方案。23 个种子为变更清单预填目标组，均以 13 个阶段原语为来源编译而成。',
       'landing.workflow.col.name': '工作流',
       'landing.workflow.col.when': '使用场景',
       'landing.workflow.col.stages':'阶段',
@@ -469,7 +465,7 @@
       'card.zhGuide':           '中文指南',
       'card.zhGuide.desc':      '快速入门：安装、配置、运行第一个工作流、接入 AI 工具。',
       'card.archOverview':      '架构概览',
-      'card.archOverview.desc': '系统架构：四层层次结构、13 个阶段原语、门控机制、上下文隔离。',
+      'card.archOverview.desc': '系统架构：三层层次结构、清单锚定轮次、门控机制、上下文隔离。',
 
       /* -- 按钮 -- */
       'btn.openArchMap':    '打开架构地图',
@@ -571,7 +567,7 @@
       'card.designSystem':          '设计体系',
       'card.designSystem.desc':     '调色板、排版、动效、组件、状态、可访问性——将 Devola 设计语言作为可见的艺术品呈现。',
       'card.frameworkChain':        '框架链路',
-      'card.frameworkChain.desc':   '动态展示四层层次结构 + 5 个代理团队 + 门控收敛 + 强化循环。',
+      'card.frameworkChain.desc':   '动态展示三层层次结构 + 门控收敛 + 强化循环。',
       'card.contextFlow':           '上下文流转',
       'card.contextFlow.desc':      '派发 / 报告 / 升级 / 轮次强化的消息路由动画。',
       'card.versionTimeline':       '研发演进',
@@ -604,9 +600,9 @@
       'ds.a11y.bilingual':            '一键切换中英文，偏好保存于 localStorage。',
 
       /* -- 框架链路页 -- */
-      'fc.subtitle':                       '项目 → 阶段 → 波次 → 任务——让链路动起来。',
-      'fc.section.hierarchy':              '四层层次结构',
-      'fc.section.hierarchy.desc':         '每层向下派发、向上汇报；只有 L3 真正执行工作。',
+      'fc.subtitle':                       '项目 → 波次 → 任务——让链路动起来。',
+      'fc.section.hierarchy':              '三层层次结构',
+      'fc.section.hierarchy.desc':         '每层向下派发、向上汇报；只有 L2 真正执行工作。',
       'fc.section.teams':                  '代理团队',
       'fc.section.teams.desc':             '五大团队：调研 / 设计 / 实现 / 测试 / 评审。',
       'fc.section.gate':                   '门控机制',

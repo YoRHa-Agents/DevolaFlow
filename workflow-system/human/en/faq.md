@@ -4,8 +4,8 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # FAQ
@@ -71,14 +71,12 @@ files are deprecated pointer stubs since v14.2.1):
 - **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
 - **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
 
-### What is EvoBench?
+How does built-in evaluation work?
 
-A built-in benchmark suite that measures how effectively context is routed to agents. It scores:
-- **Section relevance**: Are the right SKILL.md sections selected for each task type?
-- **Information density**: Quality per token
-- **Noise ratio**: Irrelevant sections included
+The built-in harness validates deterministic fixtures, dispatch constraints,
+telemetry aggregation, and bounded model-compliance probes.
 
-Run with: `python -m benchmarks.devolaflow_context.runner --scenario all`
+Run its contract suite with: `python -m pytest tests/harness/ -v`
 
 What happens when a gate fails?
 

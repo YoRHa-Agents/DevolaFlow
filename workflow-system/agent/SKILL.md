@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "15.2.0"
+version: "16.0.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -28,12 +28,12 @@ description: >
   and auditable quality gates.
 ---
 
-> **Now Using DevolaFlow v15.2.0**
+> **Now Using DevolaFlow v16.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 15.2.0 — Check only on explicit update request:
+**Current version:** 16.0.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`.
 Wheel-only limits: `references/troubleshooting.md` §2.17.
@@ -157,7 +157,7 @@ Match intent to a registry-v3 checklist seed. Every row uses
 | skill/context optimization | `skill-optimization` |
 | self-update or reference audit | `self-update` |
 | user-facing verification/UAT | `product-verification` |
-| NineS-style evaluation knowledge | `nines-assisted` |
+| historical compatibility lookup (opaque ID only) | `nines-assisted` |
 | initialize repository workspace | `repo-init` |
 | change lifecycle explicitly | `change-driven` |
 | stale docs or drift cleanup | `entropy-cleanup` |
@@ -166,6 +166,9 @@ Match intent to a registry-v3 checklist seed. Every row uses
 Seeds are non-executable decomposition knowledge. `source_stages` retain
 historical provenance only; order does not imply execution order. Details:
 `references/meta-framework.md`.
+`nines-assisted` is an opaque historical seed ID, not an external evaluator or
+plugin recommendation. New evaluation work uses `skill-optimization` and the
+built-in harness.
 
 ### Repo-Init Pre-Dispatch Contract
 
@@ -259,6 +262,15 @@ findings, and no unresolved ownership/interface conflict.
 
 Existing quality composite remains a recorded trend signal. It is not a
 round-PASS condition.
+
+### Built-in Harness Truth
+
+Cross-change analysis and self-evaluation use
+`python -m devolaflow.harness evaluate`; aggregation, bounded model probes,
+proposal generation, and explicit approval/application live in the same
+`devolaflow.harness` domain. Missing evidence remains `INSUFFICIENT`, never an
+implicit manual pass. `devolaflow.nines` is deprecated v16 compatibility only
+and is scheduled for removal in v17.
 
 When evidence is supplied, `evaluate_gate(artifact_evidence=...)` adds the
 profile's `artifact_evidence_weight` dimension: `0.05` in

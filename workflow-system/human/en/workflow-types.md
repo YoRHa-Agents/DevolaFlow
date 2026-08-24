@@ -4,8 +4,8 @@ description: "23 built-in checklist seeds plus the change-driven runtime."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Checklist Seed Catalog
@@ -48,7 +48,7 @@ All 23 seeds are **non-executable decomposition knowledge**. The primitive lists
 | `migration` | Upgrade or port a system with rollback readiness | analyze, plan, implement, validate, deploy |
 | `skill-optimization` | Profile and improve an agent skill | research, analyze, implement, test, refine |
 | `self-update` | Research and integrate reference updates | research, plan, implement, test, validate |
-| `nines-assisted` | Preserve historical NineS-oriented evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
+| `nines-assisted` | Apply built-in harness-backed evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
 | `repo-init` | Initialize repository workspace and governance surfaces | analyze, implement, validate |
 | `change-driven` | Materialize an evidence-backed change lifecycle checklist | design, implement, verify, deploy |
 | `web-design` | Design, refine, and deterministically verify a frontend | design, implement, refine, verify |

@@ -4,8 +4,8 @@ description: "Common issues and solutions for workflow execution."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Troubleshooting
@@ -77,18 +77,17 @@ Common causes: Missing seed fields (`schema_version`, `kind`, `metadata`, `place
 - `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
 - Command or metric verification without a bounded `template`
 
-## Benchmark Issues
+## Harness Issues
 
-### EvoBench shows regressions
+**Harness contracts fail**
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+python -m pytest tests/harness/ -v
 ```
 
-If a scenario regressed:
-1. Check recent changes to `context_profiles.yaml` or SKILL.md section boundaries
-2. Review the specific scenario's expected vs actual section selection
-3. After fixing, update baselines: `python -m benchmarks.devolaflow_context.runner --generate-baseline`
+1. Check the failing fixture, telemetry, evaluation, or probe contract
+2. Review the reported schema, path, or guard mismatch
+3. Fix the source contract; archived baselines remain historical evidence
 
 **Context profiles not loading**
 

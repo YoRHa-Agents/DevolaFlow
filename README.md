@@ -195,9 +195,16 @@ found install's stamped version against the running package version
 | "X is slow" / "Optimize X" | `performance-optimization`, profile, optimize, benchmark |
 | "Set up dev environment" / "Install X" | `dependency-setup`, research, configure, verify |
 | "I'm new to this project" | `onboarding`, codebase survey, docs, env setup |
-| "Optimize SKILL.md" / "EvoBench" | `skill-optimization`, survey → profile → optimize → benchmark → iterate → document |
+| "Optimize SKILL.md" / "harness evaluation" | `skill-optimization`, survey → measure → optimize → evaluate → iterate → document |
 | "update refs" / "check references" | `self-update`, track and integrate external reference changes |
 | "update devola" | Check for newer version and get update instructions |
+
+> **Historical release record (pre-v16):** The release narratives below are
+> retained verbatim as project history. Their NineS, plugin, benchmark, and
+> baseline references describe the releases that introduced them; they are not
+> current operating guidance. The v16 built-in harness documented under
+> [Built-in Harness Evaluation](#built-in-harness-evaluation) is the current
+> evaluation source of truth.
 
 ## What's New in v10.3.0 (MINOR cycle close)
 
@@ -301,9 +308,9 @@ runtime.
 | `product-verification` | Visual, interaction, accessibility, UAT | user-facing verification axes |
 | `entropy-cleanup` | Stale docs, drift, retention | scan, proposal, cleanup evidence |
 | `migration` | Upgrade, port systems | migration, cutover, rollback readiness |
-| `skill-optimization` | Skills, EvoBench, context density | profile, optimize, benchmark |
+| `skill-optimization` | Skills, harness telemetry, context density | measure, optimize, evaluate |
 | `self-update` | External reference updates | research, integration, evaluation |
-| `nines-assisted` | NineS-assisted evaluation | analysis and quality evidence |
+| `nines-assisted` | Opaque historical compatibility ID; do not select for new work | built-in harness-backed quality evidence |
 | `repo-init` | Initialize workspace and governance | canonical scaffold assertions |
 | `change-driven` | In-flight change lifecycle | checklist assertions plus sole runtime name |
 | `web-design` | Frontend and visual polish | design, implementation, deterministic checks |
@@ -327,21 +334,31 @@ TREND: composite is recorded for direction; it does not replace item evidence
 ESCALATE: produce divergence report for human review
 ```
 
-### EvoBench Context Benchmarks
+### Built-in Harness Evaluation
 
-DevolaFlow includes a built-in benchmark suite (57 scenarios covering all 23
-checklist seeds and the sole runtime) that measures how effectively context is
-routed to agents:
+DevolaFlow records real dispatch telemetry and evaluates token injection,
+constraint quantifiability, checklist completion, and quality signals through
+the built-in harness:
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all              # run all 57 scenarios
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline  # detect regressions
-python -m benchmarks.devolaflow_context.runner --generate-baseline          # update baseline after improvements
-python -m benchmarks.devolaflow_context.runner --round N --round-label "description"  # save optimization round
-python -m pytest tests/test_benchmarks.py -v                               # run benchmark tests
+make test-harness
+python -m devolaflow.harness aggregate --ledger .local/telemetry/harness.jsonl
+python -m devolaflow.harness evaluate --ledger .local/telemetry/harness.jsonl --repo .
+python -m devolaflow.harness probe --provider mock --model mock --cycle v16.0.0
 ```
 
-Current avg composite: **99.49/100** with 100% relevance and 0% noise across all 57 scenarios. Baselines are stored in `benchmarks/devolaflow_context/baselines/` for regression detection. Compare runs visually on the **[Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/)** page (local: `workflow-system/human/demo/benchmark-results/index.html`).
+The built-in harness is the current source of truth for analysis, evaluation,
+model probes, and tuning proposals. `src/devolaflow/nines/` remains importable
+only as deprecated v16 compatibility for legacy callers and is scheduled for
+removal in v17; it is not a current evaluator or runtime-plugin recommendation.
+The `nines-assisted` string likewise remains only as an opaque historical seed
+ID.
+
+W-16 settles one `harness_baseline_<cycle>.json` per MAJOR or MINOR cycle.
+The active comparison window lives under `.local/telemetry/baselines/`; older
+evidence is committed under the corresponding cycle archive. The
+`benchmarks/devolaflow_context/baselines/` directory is not a live benchmark
+suite—it contains only the ten immutable A-2.4 cache-layout byte witnesses.
 
 ### Task Quality Score
 
@@ -358,7 +375,7 @@ reports. Scoring is skipped for trivial tasks.
 
 ### Repository Development Rules
 
-62 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into three distribution surfaces — `AGENTS.md`, `.cursor/rules/repo-governance.mdc`, and `docs/STYLE-RULES.md`:
+56 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into three distribution surfaces — `AGENTS.md`, `.cursor/rules/repo-governance.mdc`, and `docs/STYLE-RULES.md`:
 
 | Rule Surface | Rules | What It Enforces |
 |--------------|-------|-----------------|
@@ -375,7 +392,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v15.2.0"
+devola-version                   # prints "DevolaFlow v16.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 
@@ -430,6 +447,8 @@ DevolaFlow/
     template_engine/          #   checklist-seed registry + sole runtime loader
     pre_decision/             #   repo detection, checklist, seed recommender
     gate/                     #   composite scorer, profiles, convergence
+    harness/                  #   telemetry aggregation, evaluation, proposals, probes
+    nines/                    #   deprecated v16 compatibility only; removal in v17
     adapters/                 #   Cursor / Codex / Claude / Copilot output adapters
     build_skill.py            #   adapter pipeline entry
     cli.py                    #   CLI entry points
@@ -447,11 +466,8 @@ DevolaFlow/
       zh/                     #   8 Chinese docs
       demo/                   #   interactive web demo (GitHub Pages)
   benchmarks/
-    devolaflow_context/        # EvoBench context density benchmarks
-      evaluator.py             #   scoring: relevance, density, noise, utilization
-      runner.py                #   CLI runner with baseline comparison
-      scenarios/               #   benchmark scenarios (all 23 workflow types)
-      baselines/               #   stored baseline results for regression detection
+    devolaflow_context/        # retired runtime location; byte witnesses only
+      baselines/               #   ten immutable A-2.4 layout witnesses
   schemas/                    # All schema definitions (system + primitives)
     *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
     lean-dispatch.yaml        #   lean TaskDispatch format spec
@@ -475,7 +491,7 @@ provenance labels interactively:
 |------|--------------|
 | [Design Architecture](https://yorha-agents.github.io/DevolaFlow/design-architecture/) | Complete framework map: every skill file, design source, tier, token budget, dependency graph |
 | [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | Checklist seed provenance projected as non-executable diagrams |
-| [Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/) | EvoBench scenario scores, baseline comparison, and trend-style visualization |
+| [Historical Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/) | Archived pre-v16 scenario scores retained for release provenance |
 | [Provenance Explorer](https://yorha-agents.github.io/DevolaFlow/stage-explorer/) | Historical labels retained for seed traceability, not runtime ordering |
 
 Or open locally: `workflow-system/human/demo/index.html`

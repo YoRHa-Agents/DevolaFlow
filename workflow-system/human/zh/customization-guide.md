@@ -4,8 +4,8 @@ description: "创建不可执行的清单种子与派生配置。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 自定义指南
@@ -96,6 +96,6 @@ checkbox、证据路径、轮次号、checked-by 元数据和运行时依赖也�
 ```bash
 validate-template --all                # 23 个种子 + 一个运行时有效
 python -m pytest tests/ -q             # 所有测试通过
-python -m benchmarks.devolaflow_context.runner --scenario all  # 无回退
+python -m pytest tests/harness/ -v       # harness 合约通过
 build-skill --all                      # 适配器构建成功
 ```

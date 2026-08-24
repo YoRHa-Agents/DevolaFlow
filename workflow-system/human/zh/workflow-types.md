@@ -4,8 +4,8 @@ description: "23 个内置清单种子与 change-driven 运行时。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 清单种子目录
@@ -48,7 +48,7 @@ DevolaFlow 根据提示词意图匹配清单种子，也可以直接指定种子
 | `migration` | 在具备回滚准备的前提下升级或迁移系统 | analyze, plan, implement, validate, deploy |
 | `skill-optimization` | 分析并改进 Agent Skill | research, analyze, implement, test, refine |
 | `self-update` | 调研并集成参考资料更新 | research, plan, implement, test, validate |
-| `nines-assisted` | 保留历史 NineS 评估领域知识 | research, design, plan, implement, review, test, refine, validate, release |
+| `nines-assisted` | 使用内建 harness 支撑的评估知识 | research, design, plan, implement, review, test, refine, validate, release |
 | `repo-init` | 初始化仓库工作区与治理面 | analyze, implement, validate |
 | `change-driven` | 实体化有证据的变更生命周期清单 | design, implement, verify, deploy |
 | `web-design` | 设计、精修并确定性验证前端 | design, implement, refine, verify |

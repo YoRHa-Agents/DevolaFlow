@@ -5,6 +5,52 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [16.0.0] - 2026-08-25 — MAJOR — Checklist-Anchored Iteration (checklist replaces tasks/acceptance, priority-driven rounds replace stage DAGs, 4-layer → 3-layer hierarchy, signed preflight, constraint tiers, built-in harness evaluator) + EvoBench/NineS Retirement
+
+Design contract: `.local/tasks/plan_mode_full_update/design/checklist_iteration_design.md` (v4, ADR-1..14). Gap analysis + S-1 revision case: `.local/research/v16.0.0_gap_analysis.md` (W-1); SI-3 two-round review: `.local/research/v16.0.0_evaluation.md` (S-1 APPROVED at architecture rationality 9.7 ≥ the W-21-3 floor 9.5).
+
+### BREAKING — 3-layer agent hierarchy (M2/M4 atomic tuple)
+
+- **Stage layer retired**: hierarchy is now `L0 Project → L1 Wave → L2 Task`. Layer SSOT lives in `devolaflow.agent_workspace.layers::CURRENT_LAYER_ROLES`; legacy v1 tokens (`L3`, `stage`, 4-layer `hdr.layer` values) normalize through explicit schema-provenance mapping — old handoff envelopes stay byte-identical and are never rewritten (S-9). `.rules/soul.mdc` S-1/S-8 and `.rules/architecture.mdc` A-1/A-3/A-7 rewritten and recompiled; the v15 wording is preserved verbatim only in the archive.
+- **Cascade depth default 4 → 3**: `devolaflow.gate.cascade` validates `gate.cascade_min_layers` against an effective minimum of 3; a legacy `cascade_min_layers: 4` declaration emits a WARNING and validates without input mutation. `tests/test_cascade_enforcement.py` re-pinned.
+- **Rollback contract**: only two release tuples are legal — full v15 four-layer or full v16 three-layer; any mixed state blocks merge/tag/package/release (SI-3 R2 §6).
+
+### BREAKING — checklist-anchored artifact layer (M1)
+
+- `checklist.md` **replaces** `tasks.md` + `acceptance.md` as the per-change execution contract: new schemas `schemas/agent-workspace/change-checklist.yaml` (item IDs `C-G<n>.<m>`, mandatory `verify`, evidence/checked_by/round metadata, ≤60 items), `change-stage.yaml` (round history, capacity 5, `max_rounds`), `change-preflight.yaml` (§0 project-config block + stop-point enumeration + pre-authorization + snapshot). `change-status.yaml` bumps to v2 (`checklist_checked/total`, `current_round`, `next_blockers`); `change-goal.yaml` gains the numbered Goals block. Old `change-tasks.yaml`/`change-acceptance.yaml` carry `deprecated_since: 16.0.0` (one-MAJOR dual track). Lint/scaffold: `devolaflow.agent_workspace.lint` gains goal↔checklist partition, frontmatter-count re-export, and evidence-reference checks; scaffold emits the new seven-artifact set + `evidence/`. C-9 budget table replaced in `.rules/conventions.mdc`.
+
+### BREAKING — round engine + templates-to-seeds (M2/M4)
+
+- **Priority-driven checklist rounds replace fixed stage DAGs**: item-selection (4-level ordering), three stop guards (`max_rounds` formula, net-checked stagnation, single-item 3-round escalation), check/revert APIs with `reverted → reinforcement` wiring (reuses `findings_to_reinforcement`). Dispatch NEST: `change_context.checklist_items` + `change_context.round_context` — `canonical_order` stays 17, frozen prefix untouched, A-2.4 multi-baseline byte tests green.
+- **Workflow templates become a checklist seed library**: 23 seeds under `workflow-system/agent/templates/seeds/` (schema `schemas/checklist-seed.schema.yaml`); `builtin/change-driven.yaml` is the sole executable runtime loop (propose → preflight → loop → archive); the 16 composition aliases still resolve with `DeprecationWarning`.
+
+### BREAKING — signed preflight (M3)
+
+- Preflight lifecycle draft → sign → snapshot (`devolaflow.agent_workspace.preflight` / `preflight_runtime` / `lifecycle.preflight_authorization`); HBP-01 is redefined as the preflight signing breakpoint and the loop refuses to start unsigned. The stop-point whitelist is a closed enumeration (`FULL_ROLLBACK` cannot be pre-authorized). `pre_decision_checklist`'s 8 sections are absorbed into preflight §0. Resume recovers from `stage.md` current round + unchecked checklist items; checkpoint `round_history` gains `checked_ids` (zero schema change via the `convergence_round_complete` trigger).
+
+### Added — built-in harness domain (`src/devolaflow/harness/`, M2/M5)
+
+- **Telemetry**: `harness.telemetry.record_dispatch_telemetry` rides the S-10 `post_dispatch` slot — append-only `harness.jsonl` (64 KB rotating segments) per active change; token measurement via `estimate_tokens`; byte-identical dispatches guaranteed (handler failures degrade to WARNING per S-5).
+- **Constraint tiers** (`harness.tiers`): invariant/guard/advisory annotations NESTed as `constraint_tiers` under `behavioral_guidelines`/`rules`; reinforcement rules carry `tier: guard`; advisory folding only for `model_hint ∈ {quality, frontier}` with `fold_trace` ledger evidence; legacy acceptance strings that exactly mirror an `acceptance_criteria_v2` description are counted once at the machine tier.
+- **Evaluator**: `python -m devolaflow.harness evaluate` — deterministic six-dimension W-3 rubric over ledger aggregation + bounded local probes (`harness.evaluator.evaluate_harness`, `collect_signals`); `aggregate`, `propose`/`apply` (approval-only proposal loop — unapproved proposal causes byte-zero parameter change), `probe --model` (≤10 fixtures, reuses `devolaflow.llm_client`, profiles land in `.local/telemetry/model_profiles/`, `SKIPPED_NO_KEY` without keys), and `cross-validate` (historical companion comparison, ≤1.0/dimension). Migration cross-validation artifact: `.local/research/v16.0.0_harness_nines_cross_validation.json` — **PASS**, max delta 0.92 vs the v15 final R2 companion vector.
+- **Probe fixtures**: 10 canonical fixtures under `tests/fixtures/harness/` preserving 25 `legacy-evobench:` provenance labels; every lean `accept` condition now has an exact machine `acceptance_criteria_v2` mirror (quantifiable ratio 68/95).
+
+### Removed — EvoBench + NineS retirement (M5)
+
+- **EvoBench**: `benchmarks/devolaflow_context/` runner/evaluator/scenarios (57 YAMLs) and `tests/test_benchmarks.py` deleted; historical JSON baselines moved to `docs/cycle-archive/v15.2.0/evobench-baselines/`; the **10 Tier-A `layout_invariant_v*.yaml` witnesses stay in place byte-identical** (sha256-verified against `main`). Makefile gate 5 `test-benchmarks` → `test-harness`; W-2/W-4/W-16 rewritten to the harness-driven contract (`make compile-rules`).
+- **NineS**: `devolaflow.nines` is deprecated v16 compatibility only (DeprecationWarning on import; removal scheduled v17); the `nines` runtime-plugin entry, `template_engine/nines_bridge.py`, `nines.toml`, and the refresh/adapter scripts are deleted; `gate/complexity_detector.py` now measures complexity via deterministic local AST inspection (LOC/files/classes/nesting/cyclomatic) — `NinesWrapResult`/`wrap_nines_complexity`/`NINES_*` remain as never-executing compatibility aliases.
+
+### Operator-visible behaviour change
+
+- `workflow-system/agent/knowledge/runtime-plugins.yaml` si-chip `version_check_cmd` now invokes `python3` instead of bare `python` (portability defect: macOS/minimal environments ship no `python` shim; requires-python stays ≥3.11).
+- W-16 settlement: `.local/telemetry/baselines/harness_baseline_v16.0.0.json` freezes the cycle's canonical-fixture telemetry aggregate as the active Tier-B comparison artifact.
+
+### Governance accounting
+
+- W-17: +23 new test functions this PV (cap 30); cumulative raw `+def test_` vs `main` is 151 with 3 rename/signature-move exemptions → ≤148 NEW (cap 150).
+- W-3 release evaluation: built-in evaluator composite **9.70 READY** (major bar ≥9.0, `auto_fill_rate` 1.0); SI-3 narrative composite 9.34 with S-1 dimension 9.7 (W-21-3 ≥9.5 met).
+- Ghost audit refreshed before this entry per W-18: `tests/ghost/test_features_v16_0.py` + domain suites (`tests/harness/`, `tests/test_complexity_detector.py`, seed/template/layer/cascade/preflight suites).
+
 ## [15.2.0] - 2026-08-20 — MINOR — Dependency Suggestion-ization (plugin `tier` field, `auto_install` default flip, `ensure_plugins` → `suggest_plugins` probe-and-degrade rename, tier-aware PPI001) + v15.1.0 Cycle-Compliance Backfill (W-16 cycle-close baseline regen + SI-3 evaluation + W-7 retrospective retro-filed)
 
 ### Operator-visible behaviour change (full_review_and_improve Track B-6 — dependency suggestion-ization; G5 remainder ×3 per phase2-convergence-plan §2.3; 04 §8)

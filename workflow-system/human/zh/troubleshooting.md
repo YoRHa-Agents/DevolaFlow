@@ -4,8 +4,8 @@ description: "工作流执行中的常见问题和解决方案。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 故障排查
@@ -73,18 +73,17 @@ validate-template path/to/template.yaml
 - `source_stages` 没有保留 ID 与 14 种来源原语之一
 - command 或 metric 验证没有有界 `template`
 
-## 基准测试问题
+## Harness 问题
 
-EvoBench 显示回退
+Harness 合约失败
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+python -m pytest tests/harness/ -v
 ```
 
-如果某个场景回退：
-1. 检查近期对 `context_profiles.yaml` 或 SKILL.md 段落边界的更改
-2. 审查特定场景的预期 vs 实际段落选择
-3. 修复后更新基线：`python -m benchmarks.devolaflow_context.runner --generate-baseline`
+1. 检查失败的 fixture、遥测、评估或 probe 合约
+2. 审查报告中的 schema、路径或 guard 不匹配
+3. 修复源合约；归档基线继续作为历史证据保留
 
 ## 获取帮助
 

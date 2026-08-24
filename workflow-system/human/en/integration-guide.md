@@ -4,8 +4,8 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Integration Guide
@@ -167,12 +167,13 @@ Add DevolaFlow validation to your CI pipeline:
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
-    python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+    python -m pytest tests/harness/ -v
 ```
 
-## EvoBench in CI
+## Built-in harness in CI
 
-The benchmark suite detects context selection regressions. Add `--compare-baseline` to flag regressions > 5% against stored baselines. Generate new baselines after intentional optimizations with `--generate-baseline`.
+The harness suite validates fixture schemas, cache-layout compatibility,
+telemetry aggregation, evaluation, proposals, and bounded probe behavior.

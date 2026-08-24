@@ -4,8 +4,8 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 常见问题
@@ -63,9 +63,10 @@ DevolaFlow 使用提示词的 **意图匹配**：
 - **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
 - **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
 
-什么是 EvoBench？
+内建评估如何运作？
 
-内置的上下文密度基准测试套件。运行：`python -m benchmarks.devolaflow_context.runner --scenario all`
+内置 harness 负责验证确定性 fixture、dispatch 约束、遥测聚合与有界模型合规探测。
+运行：`python -m pytest tests/harness/ -v`
 
 质量门失败时会发生什么？
 

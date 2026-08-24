@@ -4,8 +4,8 @@ description: "Creating non-executable checklist seeds and derived configurations
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # Customization Guide
@@ -96,6 +96,6 @@ After customizing, always verify:
 ```bash
 validate-template --all                # 23 seeds + one runtime are valid
 python -m pytest tests/ -q             # all tests pass
-python -m benchmarks.devolaflow_context.runner --scenario all  # no regressions
+python -m pytest tests/harness/ -v       # harness contracts pass
 build-skill --all                      # adapters build successfully
 ```

@@ -87,7 +87,7 @@ DOCS = [
 ]
 
 SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "15.2.0"
+SOURCE_VERSION = "16.0.0"
 
 
 def _gen_doc(
@@ -453,7 +453,7 @@ All 23 seeds are **non-executable decomposition knowledge**. The primitive lists
 | `migration` | Upgrade or port a system with rollback readiness | analyze, plan, implement, validate, deploy |
 | `skill-optimization` | Profile and improve an agent skill | research, analyze, implement, test, refine |
 | `self-update` | Research and integrate reference updates | research, plan, implement, test, validate |
-| `nines-assisted` | Preserve historical NineS-oriented evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
+| `nines-assisted` | Apply built-in harness-backed evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
 | `repo-init` | Initialize repository workspace and governance surfaces | analyze, implement, validate |
 | `change-driven` | Materialize an evidence-backed change lifecycle checklist | design, implement, verify, deploy |
 | `web-design` | Design, refine, and deterministically verify a frontend | design, implement, refine, verify |
@@ -648,14 +648,12 @@ files are deprecated pointer stubs since v14.2.1):
 - **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
 - **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
 
-### What is EvoBench?
+### How does built-in evaluation work?
 
-A built-in benchmark suite that measures how effectively context is routed to agents. It scores:
-- **Section relevance**: Are the right SKILL.md sections selected for each task type?
-- **Information density**: Quality per token
-- **Noise ratio**: Irrelevant sections included
+The built-in harness validates deterministic fixtures, dispatch constraints,
+telemetry aggregation, and bounded model-compliance probes.
 
-Run with: `python -m benchmarks.devolaflow_context.runner --scenario all`
+Run its contract suite with: `python -m pytest tests/harness/ -v`
 
 ### What happens when a gate fails?
 
@@ -847,15 +845,16 @@ Add DevolaFlow validation to your CI pipeline:
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
-    python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+    python -m pytest tests/harness/ -v
 ```
 
-## EvoBench in CI
+## Built-in harness in CI
 
-The benchmark suite detects context selection regressions. Add `--compare-baseline` to flag regressions > 5% against stored baselines. Generate new baselines after intentional optimizations with `--generate-baseline`.
+The harness suite validates fixture schemas, cache-layout compatibility,
+telemetry aggregation, evaluation, proposals, and bounded probe behavior.
 """
 
 
@@ -945,7 +944,7 @@ After customizing, always verify:
 ```bash
 validate-template --all                # 23 seeds + one runtime are valid
 python -m pytest tests/ -q             # all tests pass
-python -m benchmarks.devolaflow_context.runner --scenario all  # no regressions
+python -m pytest tests/harness/ -v       # harness contracts pass
 build-skill --all                      # adapters build successfully
 ```
 """
@@ -1019,18 +1018,17 @@ Common causes:
 - `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
 - Command or metric verification without a bounded `template`
 
-## Benchmark Issues
+## Harness Issues
 
-### EvoBench shows regressions
+### Harness contracts fail
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+python -m pytest tests/harness/ -v
 ```
 
-If a scenario regressed:
-1. Check recent changes to `context_profiles.yaml` or SKILL.md section boundaries
-2. Review the specific scenario's expected vs actual section selection
-3. After fixing, update baselines: `python -m benchmarks.devolaflow_context.runner --generate-baseline`
+1. Check the failing fixture, telemetry, evaluation, or probe contract
+2. Review the reported schema, path, or guard mismatch
+3. Fix the source contract; archived baselines remain historical evidence
 
 ### Context profiles not loading
 
@@ -1320,7 +1318,7 @@ DevolaFlow 根据提示词意图匹配清单种子，也可以直接指定种子
 | `migration` | 在具备回滚准备的前提下升级或迁移系统 | analyze, plan, implement, validate, deploy |
 | `skill-optimization` | 分析并改进 Agent Skill | research, analyze, implement, test, refine |
 | `self-update` | 调研并集成参考资料更新 | research, plan, implement, test, validate |
-| `nines-assisted` | 保留历史 NineS 评估领域知识 | research, design, plan, implement, review, test, refine, validate, release |
+| `nines-assisted` | 使用内建 harness 支撑的评估知识 | research, design, plan, implement, review, test, refine, validate, release |
 | `repo-init` | 初始化仓库工作区与治理面 | analyze, implement, validate |
 | `change-driven` | 实体化有证据的变更生命周期清单 | design, implement, verify, deploy |
 | `web-design` | 设计、精修并确定性验证前端 | design, implement, refine, verify |
@@ -1505,9 +1503,10 @@ DevolaFlow 使用提示词的 **意图匹配**：
 - **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
 - **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
 
-### 什么是 EvoBench？
+### 内建评估如何运作？
 
-内置的上下文密度基准测试套件。运行：`python -m benchmarks.devolaflow_context.runner --scenario all`
+内置 harness 负责验证确定性 fixture、dispatch 约束、遥测聚合与有界模型合规探测。
+运行：`python -m pytest tests/harness/ -v`
 
 ### 质量门失败时会发生什么？
 
@@ -1669,7 +1668,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
 ```
@@ -1762,7 +1761,7 @@ checkbox、证据路径、轮次号、checked-by 元数据和运行时依赖也�
 ```bash
 validate-template --all                # 23 个种子 + 一个运行时有效
 python -m pytest tests/ -q             # 所有测试通过
-python -m benchmarks.devolaflow_context.runner --scenario all  # 无回退
+python -m pytest tests/harness/ -v       # harness 合约通过
 build-skill --all                      # 适配器构建成功
 ```
 """
@@ -1831,18 +1830,17 @@ validate-template path/to/template.yaml
 - `source_stages` 没有保留 ID 与 14 种来源原语之一
 - command 或 metric 验证没有有界 `template`
 
-## 基准测试问题
+## Harness 问题
 
-### EvoBench 显示回退
+### Harness 合约失败
 
 ```bash
-python -m benchmarks.devolaflow_context.runner --scenario all --compare-baseline
+python -m pytest tests/harness/ -v
 ```
 
-如果某个场景回退：
-1. 检查近期对 `context_profiles.yaml` 或 SKILL.md 段落边界的更改
-2. 审查特定场景的预期 vs 实际段落选择
-3. 修复后更新基线：`python -m benchmarks.devolaflow_context.runner --generate-baseline`
+1. 检查失败的 fixture、遥测、评估或 probe 合约
+2. 审查报告中的 schema、路径或 guard 不匹配
+3. 修复源合约；归档基线继续作为历史证据保留
 
 ## 获取帮助
 

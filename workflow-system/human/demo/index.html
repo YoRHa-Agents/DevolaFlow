@@ -12,7 +12,7 @@
     <header class="slide-up scan-flicker">
       <h1><span class="accent">Devola</span>Flow</h1>
       <p class="tagline" data-i18n="landing.tagline">A guardian's song for your code — orchestrating workflows so nothing is left behind.</p>
-      <p data-i18n="landing.subtitle">Define multi-stage delivery pipelines as declarative YAML. A 4-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.</p>
+      <p data-i18n="landing.subtitle">Anchor every change in a verifiable checklist seeded from declarative YAML. A 3-layer agent hierarchy watches over every task with quality gates, so your code is never unprotected.</p>
       <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
         <a href="design-architecture/index.html" class="btn btn-primary" data-i18n="card.designArch">Design Architecture</a>
         <a href="workflow-visualizer/index.html" class="btn btn-primary" data-i18n="card.visualizer">Workflow Visualizer</a>
@@ -78,7 +78,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
     <!-- How It Works -->
     <section class="slide-up">
       <h2 data-i18n="landing.howItWorks">How It Works</h2>
-      <p class="desc" data-i18n="landing.howItWorks.desc">Every workflow executes through a strict 4-layer hierarchy. Upper layers dispatch; only the bottom layer works.</p>
+      <p class="desc" data-i18n="landing.howItWorks.desc">Every change executes through a strict 3-layer hierarchy. Upper layers dispatch; only the bottom layer works.</p>
 
       <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;align-items:center;">
 
@@ -86,22 +86,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
           <span style="background:var(--accent);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L0</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.project">Project</strong>
-            <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.project.desc">picks workflow type, dispatches stages</div>
-          </div>
-          <span class="badge badge-accent" style="white-space:nowrap;">~3K ctx</span>
-        </div>
-
-        <div style="display:flex;flex-direction:column;align-items:center;padding:.125rem 0;color:var(--muted);">
-          <div style="width:2px;height:.75rem;background:var(--border);"></div>
-          <span style="font-size:.7rem;letter-spacing:.03em;">&#9660; dispatches</span>
-          <div style="width:2px;height:.75rem;background:var(--border);"></div>
-        </div>
-
-        <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--warning);">
-          <span style="background:var(--warning);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L1</span>
-          <div style="flex:1;">
-            <strong data-i18n="landing.layer.stage">Stage</strong>
-            <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.stage.desc">decomposes into waves, runs quality gates</div>
+            <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.project.desc">picks a seed, owns the checklist, runs rounds and gates</div>
           </div>
           <span class="badge badge-accent" style="white-space:nowrap;">~5K ctx</span>
         </div>
@@ -113,12 +98,12 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
 
         <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--success);">
-          <span style="background:var(--success);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L2</span>
+          <span style="background:var(--success);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L1</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.wave">Wave</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.wave.desc">dispatches tasks in parallel, collects results</div>
           </div>
-          <span class="badge badge-accent" style="white-space:nowrap;">~4K ctx</span>
+          <span class="badge badge-accent" style="white-space:nowrap;">~5K ctx</span>
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;padding:.125rem 0;color:var(--muted);">
@@ -128,7 +113,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         </div>
 
         <div class="card" style="display:flex;align-items:center;gap:1rem;width:100%;border-left:4px solid var(--secondary);">
-          <span style="background:var(--secondary);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L3</span>
+          <span style="background:var(--secondary);color:#fff;min-width:2.5rem;height:2.5rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">L2</span>
           <div style="flex:1;">
             <strong data-i18n="landing.layer.task">Task</strong>
             <div class="text-muted" style="font-size:.875rem;" data-i18n="landing.layer.task.desc">writes code, runs tests, reviews — the ONLY layer that works</div>
@@ -139,17 +124,17 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
       </div>
     </section>
 
-    <!-- 22 Built-in Workflow Types -->
+    <!-- Checklist Seed Library (v16: templates became seeds; change-driven is the sole runtime loop) -->
     <section class="fade-in">
-      <h2 data-i18n="landing.workflows">22 Built-in Workflow Types</h2>
-      <p class="desc" data-i18n="landing.workflows.desc">Pick the right workflow for your task. Each is a different composition of the same 13 stage primitives.</p>
+      <h2 data-i18n="landing.workflows">Checklist Seed Library</h2>
+      <p class="desc" data-i18n="landing.workflows.desc">Pick the right seed for your task. 23 seeds pre-populate the change checklist — each compiled from the same 13 stage primitives as provenance — and one change-driven loop executes them all.</p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th data-i18n="landing.workflow.col.name">Workflow</th>
+              <th data-i18n="landing.workflow.col.name">Seed</th>
               <th data-i18n="landing.workflow.col.when">When to use</th>
-              <th data-i18n="landing.workflow.col.stages">Stages</th>
+              <th data-i18n="landing.workflow.col.stages">Stage provenance</th>
             </tr>
           </thead>
           <tbody>
@@ -189,7 +174,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.frameworkChain">FRAMEWORK CHAIN</span>
           <h3 data-i18n="card.frameworkChain">Framework Chain</h3>
-          <p data-i18n="card.frameworkChain.desc">Animated 4-layer hierarchy + 5 AgentTeams + gate convergence + reinforcement loop.</p>
+          <p data-i18n="card.frameworkChain.desc">Animated 3-layer hierarchy + gate convergence + reinforcement loop.</p>
           <a href="framework-chain/index.html"><span data-i18n="card.frameworkChain">Framework Chain</span> &rarr;</a>
         </div>
         <div class="card">
@@ -245,10 +230,16 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
         <div class="card">
           <span class="label" data-i18n="label.docs">DOCS</span>
           <h3 data-i18n="card.archOverview">Architecture Overview</h3>
-          <p data-i18n="card.archOverview.desc">System architecture: 4-layer hierarchy, 13 stage primitives, gate mechanism (preflight, revision, escalation, abort), context isolation.</p>
+          <p data-i18n="card.archOverview.desc">System architecture: 3-layer hierarchy, checklist-anchored rounds, gate mechanism (preflight, revision, escalation, abort), context isolation.</p>
           <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/architecture-overview.md"><span data-i18n="btn.readOverview">Read Overview</span> &rarr;</a>
         </div>
       </div>
+    </section>
+
+    <!-- What's New in v16.0.0 (MAJOR — checklist-anchored iteration: checklist.md replaces tasks.md + acceptance.md; priority-driven rounds replace fixed stage DAGs; 4-layer → 3-layer hierarchy (Stage retired, cascade 4 → 3); signed preflight (HBP-01); constraint tiers invariant/guard/advisory + advisory folding; built-in harness (telemetry ledger, deterministic six-dimension W-3 evaluator, approval-only proposal loop, multi-model probe, historical cross-validate); EvoBench + NineS retirement (Tier-A witnesses stay byte-identical)) -->
+    <section class="fade-in">
+      <h2>New in v16.0.0 — MAJOR, <strong>checklist-anchored iteration</strong>: the per-change contract is now a single verifiable <code>checklist.md</code> (replaces <code>tasks.md</code> + <code>acceptance.md</code>; old schemas dual-track one MAJOR) executed by <strong>priority-driven rounds</strong> instead of fixed stage DAGs, under a <strong>3-layer hierarchy</strong> — <code>L0 Project → L1 Wave → L2 Task</code> (Stage retired; cascade depth 4 → 3; legacy tokens map via schema provenance and old envelopes stay byte-identical). Loops refuse to start without a <strong>signed preflight</strong> (HBP-01) whose stop-point whitelist is a closed enumeration. Every dispatch constraint now carries a tier — <code>invariant / guard / advisory</code> — and advisory guidance folds for quality/frontier models with ledger-recorded <code>fold_trace</code> evidence.</h2>
+      <p class="desc">v16.0.0 also ships the <strong>built-in harness</strong> (<code>src/devolaflow/harness/</code>): append-only dispatch telemetry on the S-10 <code>post_dispatch</code> slot, a deterministic six-dimension W-3 evaluator (<code>python -m devolaflow.harness evaluate</code> — composite <strong>9.70 READY</strong> this cycle), an approval-only tuning-proposal loop (unapproved proposal = byte-zero change), a bounded multi-model probe (<code>probe --model</code>, ≤10 fixtures, no-key = explicit skip), and historical <code>cross-validate</code> (six-dimension deltas ≤ 1.0; this migration measured max <strong>0.92</strong>). The 22 workflow templates become a <strong>23-seed checklist library</strong> with <code>change-driven</code> as the sole runtime loop. <strong>EvoBench and NineS retire</strong>: benchmark runner/scenarios and the external-CLI bridge are gone, complexity detection is local + deterministic, and the 10 immutable Tier-A <code>layout_invariant_v*.yaml</code> witnesses remain in place byte-identical (sha256-verified). Soul-set stays at 10/12; <code>canonical_order</code> stays 17 (round context NESTs under <code>change_context</code>); W-17: +23 new test functions this PV (cap 30), cumulative ≤148 (cap 150).</p>
     </section>
 
     <!-- What's New in v15.2.0 (MINOR — dependency suggestion-ization: runtime-plugins.yaml schema v4 per-plugin tier field (all suggest); defaults.auto_install true → false (bare ensure_plugin probes loudly); ensure_plugins → suggest_plugins capability-probe rename ×6; tier-aware PPI001 warning + one-time suggest_plugin_once hint; env-flags §2.5 DEVOLAFLOW_AUTO_INSTALL RETIRED; plus the v15.1.0 cycle-compliance backfill: W-16 cycle-close regen + SI-3 9.20 + W-7 retrospective) -->

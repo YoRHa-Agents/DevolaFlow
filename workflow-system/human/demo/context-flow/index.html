@@ -27,37 +27,31 @@
     </header>
 
     <!-- ============================================================
-         #cf-dispatch — TaskDispatch route (L0 -> L3)
+         #cf-dispatch — TaskDispatch route (L0 -> L2)
          ============================================================ -->
     <section id="cf-dispatch" class="cf-section">
-      <h2 data-i18n="cf.section.dispatch">Dispatch (L0 &rarr; L3)</h2>
+      <h2 data-i18n="cf.section.dispatch">Dispatch (L0 &rarr; L2)</h2>
       <p class="desc" data-i18n="cf.section.dispatch.desc">TaskDispatch envelopes travel down the route track from Project to Task.</p>
 
       <div class="cf-route-wrap">
 
-        <!-- Vertical route diagram: 4 stacked LayerNodes + animated envelope -->
-        <div class="cf-route" data-direction="down" aria-label="Dispatch route, L0 to L3">
+        <!-- Vertical route diagram: 3 stacked LayerNodes + animated envelope -->
+        <div class="cf-route" data-direction="down" aria-label="Dispatch route, L0 to L2">
           <ol class="layer-stack">
             <li class="layer-node" data-layer="L0" style="--layer-index:0;">
               <span class="layer-badge badge-l0">L0</span>
               <strong class="layer-name">Project</strong>
-              <span class="layer-budget">~3K ctx</span>
-              <p class="layer-role">Selects workflow, sequences stages</p>
+              <span class="layer-budget">~5K ctx</span>
+              <p class="layer-role">Selects workflow, decomposes into waves, runs gates</p>
             </li>
             <li class="layer-node" data-layer="L1" style="--layer-index:1;">
               <span class="layer-badge badge-l1">L1</span>
-              <strong class="layer-name">Stage</strong>
+              <strong class="layer-name">Wave</strong>
               <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Decomposes into waves, runs gates</p>
+              <p class="layer-role">Dispatches parallel tasks, checks conflicts</p>
             </li>
             <li class="layer-node" data-layer="L2" style="--layer-index:2;">
               <span class="layer-badge badge-l2">L2</span>
-              <strong class="layer-name">Wave</strong>
-              <span class="layer-budget">~4K ctx</span>
-              <p class="layer-role">Dispatches parallel tasks, checks conflicts</p>
-            </li>
-            <li class="layer-node" data-layer="L3" style="--layer-index:3;">
-              <span class="layer-badge badge-l3">L3</span>
               <strong class="layer-name">Task</strong>
               <span class="layer-budget">~8K ctx</span>
               <p class="layer-role">Only layer that does work</p>
@@ -106,7 +100,7 @@
             <li><code>acceptance_criteria</code>: concrete pass conditions</li>
             <li><code>timeout_seconds</code>: max execution time (default 7200)</li>
             <li><code>model_hint</code>: quality | balanced | budget | inherit (default: inherit) &mdash; model tier suggestion</li>
-            <li><code>decomposition_mode</code>: single | sub_agents (default: single) &mdash; L3 execution strategy</li>
+            <li><code>decomposition_mode</code>: single | sub_agents (default: single) &mdash; L2 execution strategy</li>
             <li><code>compression_intensity</code>: minimal | standard | aggressive (default: standard) &mdash; dispatch message compression</li>
             <li><code>verification_config</code>: visual/acceptance/interaction/accessibility test settings (optional)</li>
           </ul>
@@ -117,14 +111,14 @@ title: Build Context Flow demo page
 description: Render dispatch / report / escalation / reinforcement / isolation routes.
 predecessor_artifacts:
   - path: .local/research/v6.3.0_web_redesign_spec.md
-    summary: "Design contract: 4-layer route, 26 i18n keys, AC-CF-1..6."
+    summary: "Design contract: 3-layer route, 26 i18n keys, AC-CF-1..6."
 owned_files:
   - workflow-system/human/demo/context-flow/index.html
   - workflow-system/human/demo/context-flow/styles.css
   - workflow-system/human/demo/context-flow/context-flow.js
 acceptance_criteria:
   - "AC-CF-1: page loads at context-flow/index.html"
-  - "AC-CF-2: 4 LayerNodes with TaskDispatch envelope traveling downward"
+  - "AC-CF-2: 3 LayerNodes with TaskDispatch envelope traveling downward"
 timeout_seconds: 7200
 model_hint: inherit
 decomposition_mode: single
@@ -135,36 +129,30 @@ verification_config: null</code></pre>
     </section>
 
     <!-- ============================================================
-         #cf-report — StatusReport route (L3 -> L0)
+         #cf-report — StatusReport route (L2 -> L0)
          ============================================================ -->
     <section id="cf-report" class="cf-section">
-      <h2 data-i18n="cf.section.report">Status Report (L3 &rarr; L0)</h2>
+      <h2 data-i18n="cf.section.report">Status Report (L2 &rarr; L0)</h2>
       <p class="desc" data-i18n="cf.section.report.desc">StatusReport envelopes travel up the route on completion or partial progress.</p>
 
       <div class="cf-route-wrap">
 
-        <div class="cf-route" data-direction="up" aria-label="Status report route, L3 to L0">
+        <div class="cf-route" data-direction="up" aria-label="Status report route, L2 to L0">
           <ol class="layer-stack">
             <li class="layer-node" data-layer="L0" style="--layer-index:0;">
               <span class="layer-badge badge-l0">L0</span>
               <strong class="layer-name">Project</strong>
-              <span class="layer-budget">~3K ctx</span>
-              <p class="layer-role">Aggregates stage reports, decides next stage</p>
+              <span class="layer-budget">~5K ctx</span>
+              <p class="layer-role">Aggregates wave reports, evaluates gate, decides next round</p>
             </li>
             <li class="layer-node" data-layer="L1" style="--layer-index:1;">
               <span class="layer-badge badge-l1">L1</span>
-              <strong class="layer-name">Stage</strong>
+              <strong class="layer-name">Wave</strong>
               <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Aggregates wave reports, evaluates gate</p>
+              <p class="layer-role">Aggregates task reports, checks conflicts</p>
             </li>
             <li class="layer-node" data-layer="L2" style="--layer-index:2;">
               <span class="layer-badge badge-l2">L2</span>
-              <strong class="layer-name">Wave</strong>
-              <span class="layer-budget">~4K ctx</span>
-              <p class="layer-role">Aggregates task reports, checks conflicts</p>
-            </li>
-            <li class="layer-node" data-layer="L3" style="--layer-index:3;">
-              <span class="layer-badge badge-l3">L3</span>
               <strong class="layer-name">Task</strong>
               <span class="layer-budget">~8K ctx</span>
               <p class="layer-role">Emits StatusReport on completion</p>
@@ -239,7 +227,7 @@ metrics:
          ============================================================ -->
     <section id="cf-escalation" class="cf-section">
       <h2 data-i18n="cf.section.escalation">Escalation Chain</h2>
-      <p class="desc" data-i18n="cf.section.escalation.desc">Always upward, never skip levels &mdash; Task &rarr; Wave &rarr; Stage &rarr; Project &rarr; Human.</p>
+      <p class="desc" data-i18n="cf.section.escalation.desc">Always upward, never skip levels &mdash; Task &rarr; Wave &rarr; Project &rarr; Human.</p>
 
       <div class="cf-escalation-grid">
 
@@ -264,7 +252,7 @@ metrics:
                 </tr>
                 <tr data-severity="HUMAN_INTERVENE">
                   <td><code class="cf-ember">HUMAN_INTERVENE</code></td>
-                  <td>Stop stage, present options to human</td>
+                  <td>Stop the affected wave/round, present options to human</td>
                 </tr>
                 <tr data-severity="FULL_ROLLBACK">
                   <td><code class="cf-ember">FULL_ROLLBACK</code></td>
@@ -284,7 +272,7 @@ metrics:
                     data-i18n="cf.escalation.severity.pause">PAUSE &mdash; pause task, queue question, continue parallel work</button>
             <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
                     data-severity="HUMAN_INTERVENE"
-                    data-i18n="cf.escalation.severity.humanIntervene">HUMAN_INTERVENE &mdash; stop stage, present options to human</button>
+                    data-i18n="cf.escalation.severity.humanIntervene">HUMAN_INTERVENE &mdash; stop the affected wave/round, present options to human</button>
             <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
                     data-severity="FULL_ROLLBACK"
                     data-i18n="cf.escalation.severity.fullRollback">FULL_ROLLBACK &mdash; rollback to checkpoint, halt all</button>
@@ -301,14 +289,10 @@ metrics:
               </li>
               <li class="layer-node layer-node-mini" data-layer="L1">
                 <span class="layer-badge badge-l1">L1</span>
-                <strong class="layer-name">Stage</strong>
+                <strong class="layer-name">Wave</strong>
               </li>
               <li class="layer-node layer-node-mini" data-layer="L2">
                 <span class="layer-badge badge-l2">L2</span>
-                <strong class="layer-name">Wave</strong>
-              </li>
-              <li class="layer-node layer-node-mini" data-layer="L3">
-                <span class="layer-badge badge-l3">L3</span>
                 <strong class="layer-name">Task</strong>
               </li>
             </ol>
@@ -338,12 +322,12 @@ metrics:
       <blockquote class="cf-cite">
         <p>
           <strong>Reinforcement Rules (v5.1+):</strong>
-          Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into next dispatch <code>applicable_rules.reinforcement</code> → L3 MUST address before other work.
+          Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into next dispatch <code>applicable_rules.reinforcement</code> → L2 MUST address before other work.
         </p>
         <p>
           <strong>Round-aware dispatch (v6.0.3+):</strong>
           <code>select_context(task_type, round_num=N)</code> auto-applies escalation for N&gt;1 (critical-section bump, +20% budget on round 3, <code>model_hint → quality</code>).
-          <code>ProposalGenerator.generate_round_dispatch()</code> merges prior-round gate findings into <code>context.applicable_rules.reinforcement</code> as explicit MUST-fix mandates for L3.
+          <code>ProposalGenerator.generate_round_dispatch()</code> merges prior-round gate findings into <code>context.applicable_rules.reinforcement</code> as explicit MUST-fix mandates for L2.
         </p>
       </blockquote>
 

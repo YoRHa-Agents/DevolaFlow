@@ -210,7 +210,7 @@ const WORKFLOWS = {
   "skill-optimization": {
     name: "Skill Optimization",
     description:
-      "Iterative skill and context optimization: survey targets, profile with EvoBench, optimize artifacts, benchmark, iterate, then document results.",
+      "Iterative skill and context optimization: survey targets, profile with the built-in harness, optimize artifacts, evaluate measured telemetry, iterate, then document results.",
     stages: [
       { id: "survey", label: "Survey", team: "Research", gate: "standard" },
       { id: "profile", label: "Profile", team: "Test", gate: "standard" },
@@ -221,7 +221,7 @@ const WORKFLOWS = {
     ],
     loops: ["optimize->benchmark (max 3)"],
     category: "composite",
-    useWhen: "SKILL.md density, context profiles, EvoBench-driven iteration on agent skills",
+    useWhen: "SKILL.md density, context profiles, harness-driven iteration on agent skills",
   },
   "self-update": {
     name: "Self-Update",
@@ -321,24 +321,18 @@ function renderWorkflow(key) {
     <div class="agent-chain">
       <div class="agent-box project">
         <strong>Project Agent (L0)</strong>
-        <p>Selects <em>${wf.name}</em> workflow, dispatches ${wf.stages.length} stages sequentially, evaluates gates, decides loop-back vs advance.</p>
-        <span class="ctx">~3K tokens | MUST NOT: read code, write code, run tests</span>
+        <p>Selects the <em>${wf.name}</em> seed, owns the change checklist, decomposes rounds into waves, evaluates gates, decides loop-back vs advance. Round groups for <em>${wf.name}</em>: ${wf.stages.map(s => s.label).join(" / ")}.</p>
+        <span class="ctx">~5K tokens | MUST NOT: read code, write code, run tests</span>
       </div>
-      <div class="agent-arrow">dispatches each stage to</div>
-      <div class="agent-box stage">
-        <strong>Stage Agent (L1)</strong> &mdash; one per stage
-        <p>Decomposes stage into waves (max 7), sequences wave execution, runs stage gate. For <em>${wf.name}</em>: ${wf.stages.map(s => s.label).join(" / ")}.</p>
-        <span class="ctx">~5K tokens | MUST NOT: write code, run tests, do review</span>
-      </div>
-      <div class="agent-arrow">decomposes each wave to</div>
+      <div class="agent-arrow">dispatches each wave to</div>
       <div class="agent-box wave">
-        <strong>Wave Agent (L2)</strong> &mdash; one per wave
+        <strong>Wave Agent (L1)</strong> &mdash; one per wave
         <p>Dispatches up to 5 parallel tasks, collects results, checks cross-task conflicts (file ownership).</p>
-        <span class="ctx">~4K tokens | MUST NOT: execute task work, modify outputs</span>
+        <span class="ctx">~5K tokens | MUST NOT: execute task work, modify outputs</span>
       </div>
       <div class="agent-arrow">dispatches each task to</div>
       <div class="agent-box task">
-        <strong>Task Agent (L3)</strong> &mdash; the ONLY layer that works
+        <strong>Task Agent (L2)</strong> &mdash; the ONLY layer that works
         <p>Assigned to a team (${teams.join(" / ")}). Writes code, runs tests, authors documents, performs reviews. Owns a disjoint file set.</p>
         <span class="ctx">~8K tokens | MUST NOT: spawn sub-agents, modify files outside owned set</span>
       </div>

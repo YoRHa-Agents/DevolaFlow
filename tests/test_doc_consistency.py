@@ -1,10 +1,9 @@
 """Tests that verify documentation numeric claims match actual repo state.
 
 Prevents drift where README, demo pages, or other docs claim stale counts
-for checklist seeds, runtime templates, benchmark scenarios, tests, etc.
+for checklist seeds, runtime templates, tests, etc.
 """
 
-import json
 import re
 from pathlib import Path
 
@@ -77,55 +76,6 @@ def test_readme_design_docs_count(project_root: Path):
     for claimed_str in matches:
         claimed = int(claimed_str)
         assert claimed == actual, f"README claims {claimed} design docs, disk has {actual}"
-
-
-def test_readme_benchmark_scenario_count(project_root: Path):
-    """README benchmark scenario count must match actual scenario files."""
-    readme = (project_root / "README.md").read_text()
-    scenario_dir = project_root / "benchmarks" / "devolaflow_context" / "scenarios"
-
-    match = re.search(r"(\d+)\s+scenarios", readme)
-    assert match, "Could not find scenario count in README"
-    claimed = int(match.group(1))
-    actual = len(list(scenario_dir.glob("*.yaml")))
-
-    assert claimed == actual, f"README claims {claimed} scenarios, disk has {actual}"
-
-
-def test_demo_index_scenario_count(project_root: Path):
-    """Demo index.html scenario references must match actual count."""
-    demo_index = (project_root / "workflow-system" / "human" / "demo" / "index.html").read_text()
-    scenario_dir = project_root / "benchmarks" / "devolaflow_context" / "scenarios"
-    actual = len(list(scenario_dir.glob("*.yaml")))
-
-    counts = [
-        int(m.group(1)) for m in re.finditer(r"(\d+)\s+(?:benchmark\s+)?scenarios", demo_index)
-    ]
-    assert counts, "Could not find scenario counts in demo/index.html"
-
-    for claimed in counts:
-        assert claimed == actual, f"demo/index.html claims {claimed} scenarios, disk has {actual}"
-
-
-def test_demo_benchmark_sample_data_scenarios(project_root: Path):
-    """SAMPLE_DATA in benchmark-results/index.html must cover all scenario files."""
-    bench_html = (
-        project_root / "workflow-system" / "human" / "demo" / "benchmark-results" / "index.html"
-    ).read_text()
-    scenario_dir = project_root / "benchmarks" / "devolaflow_context" / "scenarios"
-
-    match = re.search(r"const\s+SAMPLE_DATA\s*=\s*(\{.*?\});", bench_html)
-    assert match, "Could not find SAMPLE_DATA in benchmark-results/index.html"
-
-    data = json.loads(match.group(1))
-    sample_scenarios: set[str] = set()
-    for round_data in data["rounds"]:
-        sample_scenarios.update(round_data["scenarios"].keys())
-
-    disk_scenarios = {f.stem for f in scenario_dir.glob("*.yaml")}
-
-    missing = disk_scenarios - sample_scenarios
-    assert not missing, f"SAMPLE_DATA missing scenarios: {sorted(missing)}"
 
 
 def test_workflow_skill_yaml_template_count(project_root: Path):
@@ -273,25 +223,12 @@ def test_demo_index_gate_types(project_root: Path):
     for canonical in ("preflight", "revision", "escalation", "abort"):
         assert canonical in demo_index, f"demo/index.html missing canonical gate type '{canonical}'"
 
-    for stale in ("advisory", "automated"):
+    # v16 introduced "advisory" as a constraint-tier term, so the stale-name
+    # ban targets gate-type phrasing only, not the bare words.
+    for stale in ("advisory gate", "automated gate", "gate: advisory", "gate: automated"):
         assert stale not in demo_index, (
-            f"demo/index.html still references stale gate type '{stale}'"
+            f"demo/index.html still references stale gate type phrasing '{stale}'"
         )
-
-
-def test_readme_evobench_composite_not_stale(project_root: Path):
-    """README composite score claim must be >= 95.0 and baselines must exist."""
-    readme = (project_root / "README.md").read_text()
-
-    match = re.search(r"avg composite:\s*\*\*(\d+(?:\.\d+)?)/100\*\*", readme)
-    assert match, "Could not find avg composite score in README"
-    claimed = float(match.group(1))
-
-    assert claimed >= 95.0, f"README claims composite {claimed}, expected >= 95.0"
-
-    baselines_dir = project_root / "benchmarks" / "devolaflow_context" / "baselines"
-    assert baselines_dir.exists(), f"Baselines directory missing: {baselines_dir}"
-    assert list(baselines_dir.iterdir()), "Baselines directory is empty"
 
 
 def test_demo_index_version_matches_package(project_root: Path):

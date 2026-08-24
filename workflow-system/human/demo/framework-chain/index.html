@@ -16,7 +16,7 @@
 
     <header class="slide-up scan-flicker">
       <h1><span class="accent">Framework</span> Chain</h1>
-      <p class="tagline" data-i18n="fc.subtitle">Project &rarr; Stage &rarr; Wave &rarr; Task &mdash; see the chain move.</p>
+      <p class="tagline" data-i18n="fc.subtitle">Project &rarr; Wave &rarr; Task &mdash; see the chain move.</p>
       <div class="cta-cluster">
         <a href="../context-flow/index.html" class="btn btn-primary">Context Flow &rarr;</a>
         <a href="../design-system/index.html" class="btn btn-primary">Design System &rarr;</a>
@@ -26,8 +26,8 @@
 
     <!-- ===== #fc-hierarchy ===== -->
     <section id="fc-hierarchy" class="slide-up">
-      <h2 data-i18n="fc.section.hierarchy">4-Layer Hierarchy</h2>
-      <p class="desc" data-i18n="fc.section.hierarchy.desc">Each layer dispatches downward and reports upward; only L3 does work.</p>
+      <h2 data-i18n="fc.section.hierarchy">3-Layer Hierarchy</h2>
+      <p class="desc" data-i18n="fc.section.hierarchy.desc">Each layer dispatches downward and reports upward; only L2 does work.</p>
 
       <div class="hierarchy-controls">
         <button id="fc-replay" class="btn btn-outline" type="button" data-i18n="fc.replay">Replay cascade</button>
@@ -36,31 +36,14 @@
       <div class="layer-cascade" id="fc-layer-cascade">
         <div class="layer-node" data-layer="L0"
              data-name="Project"
-             data-budget="~3K tok"
-             data-delegates="Stage Agents"
+             data-budget="~5K tok"
+             data-delegates="Wave Agents"
              data-mustnot="Write code|run tests|read source|author docs"
              role="button" tabindex="0" aria-haspopup="dialog">
           <span class="layer-badge badge-l0">L0</span>
           <strong>Project</strong>
-          <span class="layer-budget">~3K</span>
-          <p class="layer-role">Selects workflow, sequences stages, evaluates gates, reports to human</p>
-          <p class="layer-delegates">&rarr; Stage Agents</p>
-        </div>
-
-        <div class="route-track" aria-hidden="true">
-          <span class="dispatch-dot has-pulse-dispatch"></span>
-        </div>
-
-        <div class="layer-node" data-layer="L1"
-             data-name="Stage"
-             data-budget="~5K tok"
-             data-delegates="Wave Agents"
-             data-mustnot="Write code|run tests|review|author content"
-             role="button" tabindex="0" aria-haspopup="dialog">
-          <span class="layer-badge badge-l1">L1</span>
-          <strong>Stage</strong>
           <span class="layer-budget">~5K</span>
-          <p class="layer-role">Owns one stage; decomposes into waves, runs convergence, evaluates gate</p>
+          <p class="layer-role">Selects workflow, decomposes into waves, evaluates gates, reports to human</p>
           <p class="layer-delegates">&rarr; Wave Agents</p>
         </div>
 
@@ -68,15 +51,15 @@
           <span class="dispatch-dot has-pulse-dispatch"></span>
         </div>
 
-        <div class="layer-node" data-layer="L2"
+        <div class="layer-node" data-layer="L1"
              data-name="Wave"
-             data-budget="~4K tok"
+             data-budget="~5K tok"
              data-delegates="Task Agents"
              data-mustnot="Do any task's work|modify outputs|retry >1"
              role="button" tabindex="0" aria-haspopup="dialog">
-          <span class="layer-badge badge-l2">L2</span>
+          <span class="layer-badge badge-l1">L1</span>
           <strong>Wave</strong>
-          <span class="layer-budget">~4K</span>
+          <span class="layer-budget">~5K</span>
           <p class="layer-role">Dispatches parallel tasks, collects results, checks cross-task conflicts</p>
           <p class="layer-delegates">&rarr; Task Agents</p>
         </div>
@@ -85,13 +68,13 @@
           <span class="dispatch-dot has-pulse-dispatch"></span>
         </div>
 
-        <div class="layer-node" data-layer="L3"
+        <div class="layer-node" data-layer="L2"
              data-name="Task"
              data-budget="~8K tok"
              data-delegates="Nothing (leaf)"
              data-mustnot="Spawn sub-agents|modify files outside owned set"
              role="button" tabindex="0" aria-haspopup="dialog">
-          <span class="layer-badge badge-l3">L3</span>
+          <span class="layer-badge badge-l2">L2</span>
           <strong>Task</strong>
           <span class="layer-budget">~8K</span>
           <p class="layer-role">Only layer that does work. Executes single atomic task</p>
@@ -103,8 +86,8 @@
         <button class="cf-aside-close" id="fc-aside-close" type="button">
           <span data-i18n="fc.aside.close">Close</span> &times;
         </button>
-        <h3 id="fc-aside-title">L0 Project &mdash; ~3K tok</h3>
-        <p class="cf-aside-deleg"><code id="fc-aside-deleg">&rarr; Stage Agents</code></p>
+        <h3 id="fc-aside-title">L0 Project &mdash; ~5K tok</h3>
+        <p class="cf-aside-deleg"><code id="fc-aside-deleg">&rarr; Wave Agents</code></p>
         <h4 data-i18n="fc.layer.mustNot">MUST NOT</h4>
         <ul id="fc-aside-mustnot"></ul>
       </aside>
@@ -261,7 +244,7 @@
       </div>
 
       <h3>Gen-Verify loop</h3>
-      <p>Wave dispatches a <strong>generator</strong> + <strong>verifier</strong>. Verifier evaluates &rarr; <code>{PASS | FAIL + feedback}</code>. PASS &rarr; done. FAIL &rarr; generator refines (round N+1). Terminates on verifier PASS, <code>max_rounds</code> reached, or score stagnant 2 rounds &rarr; escalate L1.</p>
+      <p>Wave dispatches a <strong>generator</strong> + <strong>verifier</strong>. Verifier evaluates &rarr; <code>{PASS | FAIL + feedback}</code>. PASS &rarr; done. FAIL &rarr; generator refines (round N+1). Terminates on verifier PASS, <code>max_rounds</code> reached, or score stagnant 2 rounds &rarr; escalate L0.</p>
 
       <div class="genverify-diagram">
         <div class="round">
@@ -363,9 +346,9 @@
       'page.frameworkChain':           'Framework Chain — DevolaFlow',
 
       /* 26 page-specific keys (verbatim from spec §6.3). */
-      'fc.subtitle':                   'Project → Stage → Wave → Task — see the chain move.',
-      'fc.section.hierarchy':          '4-Layer Hierarchy',
-      'fc.section.hierarchy.desc':     'Each layer dispatches downward and reports upward; only L3 does work.',
+      'fc.subtitle':                   'Project → Wave → Task — see the chain move.',
+      'fc.section.hierarchy':          '3-Layer Hierarchy',
+      'fc.section.hierarchy.desc':     'Each layer dispatches downward and reports upward; only L2 does work.',
       'fc.section.teams':              'AgentTeams',
       'fc.section.teams.desc':         'Five teams: Research / Design / Implement / Test / Review.',
       'fc.section.gate':               'Gate Mechanism',
@@ -393,9 +376,9 @@
     addTranslations('zh', {
       'page.frameworkChain':           '框架链路 — DevolaFlow',
 
-      'fc.subtitle':                   '项目 → 阶段 → 波次 → 任务——让链路动起来。',
-      'fc.section.hierarchy':          '四层层次结构',
-      'fc.section.hierarchy.desc':     '每层向下派发、向上汇报；只有 L3 真正执行工作。',
+      'fc.subtitle':                   '项目 → 波次 → 任务——让链路动起来。',
+      'fc.section.hierarchy':          '三层层次结构',
+      'fc.section.hierarchy.desc':     '每层向下派发、向上汇报；只有 L2 真正执行工作。',
       'fc.section.teams':              '代理团队',
       'fc.section.teams.desc':         '五大团队：调研 / 设计 / 实现 / 测试 / 评审。',
       'fc.section.gate':               '门控机制',

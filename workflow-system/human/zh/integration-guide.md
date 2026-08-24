@@ -4,8 +4,8 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T18:04:48Z"
-source_version: "15.2.0"
+last_synced: "2026-08-24T23:40:32Z"
+source_version: "16.0.0"
 ---
 
 # 集成指南
@@ -138,7 +138,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
   run: |
     pip install -e '.[dev]'
     python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/ benchmarks/
+    ruff check src/ tests/
     validate-template --all
     build-skill --all
 ```
