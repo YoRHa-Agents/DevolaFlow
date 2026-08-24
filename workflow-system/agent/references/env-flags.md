@@ -4,7 +4,7 @@ version: "9.1.5"
 purpose: >
   Canonical inventory of every `DEVOLAFLOW_*` environment variable consumed
   by the runtime, the test fixtures, and the gate primitives. Pairs with
-  Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every L3 Task
+  Workflow Rule W-20 (env-flag reuse vs new-flag policy) — every L2 Task
   Agent that proposes a new env-flag MUST consult this reference FIRST
   and prefer reuse of an existing flag whenever the data shape allows.
   v9.0.0 PV-06 (v8.5.1) moved the 5 v8.0.0 gate-primitive flags from §4
@@ -30,7 +30,7 @@ dependencies:
   - "agent/references/shell-proxy.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/plan-mode-enforcement.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Environment Flag Reference
@@ -148,7 +148,7 @@ count.
 | **Introduced** | v8.3.3 PV-03 |
 | **Default** | unset (= disabled) |
 | **Activation** | env value EXACTLY `"1"` AND `.local/memory/cases/index.yaml` exists AND yields a matching case |
-| **Effect** | `lookup_case(intent, env)` consults the cases index BEFORE the L0/L1 dispatcher re-derives workflow + stage decomposition from SKILL.md; cache-hit short-circuits ~3K tokens of planning context per matched route (~93% reduction per the v8.3.3 PV-03 retrospective) |
+| **Effect** | `lookup_case(intent, env)` consults the cases index before L0/L1 re-derives seed selection and checklist decomposition; a cache hit short-circuits ~3K tokens of planning context per matched route (~93% reduction in the historical v8.3.3 measurement) |
 | **Cache-miss path** | Returns `None` in O(1); caller falls through to the existing planner per cycle plan §6 R3 "cache-miss is the safe path" |
 | **R5 strict?** | YES — codified in `tests/test_memory_router.py::TestLookupCaseR5StrictOff` with `monkeypatch.setattr(Path, "read_text", watcher)` proving zero IO when off; the EvoBench scenario `memory_router_fastpath.yaml` codifies the dispatch-surface invariant (composite floor 90, actual 99.73 at v8.3.3 cut) |
 | **Reference** | `references/shell-proxy.md` §5 (memory-router fast-path) + §7 (R5 strict zero-overhead breakdown) |
@@ -235,8 +235,8 @@ count.
 | **Introduced** | telegraphed v9.0.0 PV-07 ADR-007 D3; runtime read landed v9.1.5 PV-05 alongside the YAML default flip |
 | **Default** | unset → respect `meta.agents_md_slice.enabled` in `workflow-system/agent/context_profiles.yaml` (v9.1.5 canonical default: `true`) |
 | **Activation** | env value EXACTLY `"1"` → force opt-IN; EXACTLY `"0"` → force opt-OUT; otherwise YAML default wins |
-| **Effect when active** | `select_agents_md_slice(task_type)` filters the compiled AGENTS.md by per-task-type rule slice (Soul / Architecture / Conventions / Workflow / Style layer-prefix mapping in `meta.agents_md_slice.profiles`); typically reduces L3 dispatch cache prefix by 15-70% |
-| **Effect when opted out** | Returns AGENTS.md byte-identical to the v9.1.4 unsliced surface — preserves the cache prefix every L3 dispatcher keys on |
+| **Effect when active** | `select_agents_md_slice(task_type)` filters compiled AGENTS.md by per-task-type rule slice; typically reduces the L2 Task dispatch cache prefix by 15-70% |
+| **Effect when opted out** | Returns AGENTS.md byte-identical to the v9.1.4 unsliced surface — preserves the cache prefix Task dispatches key on |
 | **R5 strict?** | YES — pure dict.get with no IO; `references/env-flags.md` §6 conjunction contract pins literal-only matching (`"true"` / `"yes"` / `"on"` / `" 1 "` / `"01"` / `"0.0"` all fall through to YAML default) |
 | **Why default-on?** | The v9.0.0 MAJOR cycle telegraphed the slice in PV-07 ADR-007 D3 but kept it OFF until operators had time to adopt; v9.1.5 PV-05 flips the canonical default ON now that two cycles of ADR review + retrospective coverage have closed the migration gap. The opt-out env flag preserves byte-stable behaviour for operators who still need the v9.1.4 surface. |
 | **Opt-out path** | `export DEVOLAFLOW_AGENTS_MD_SLICE=0` |
@@ -318,7 +318,7 @@ count.
 | **Introduced** | v9.1.1 PV-01 (SKILL.md §"Workspace Engagement" surface); runtime read formalised by the A-6 classification surface (`classify_complexity` / `activation_verdict`) |
 | **Default** | unset (= disabled — no workspace scaffolding) |
 | **Activation** | env value EXACTLY `"1"` (R5 strict per A-6.2 — any other value, including `"true"` / `"01"` / `""`, is default-OFF) |
-| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` before dispatching the first L1 stage; the same surface is REUSED by the v9.1.3 PV-03 `pre_handoff` hook, the `/devola:propose` slash command (opt-out via `--no-change` per A-6.3), AND the v14.3.0 `file_write` / `task_stop` runtime adapters (`lifecycle/runtime_wiring.py`) |
+| **Effect when active** | Per Architecture rule A-6: when complexity ≥ STANDARD, L0 MUST scaffold `.local/.agent/active/<id>/` and materialize goal/checklist/preflight before dispatching the first L1 wave; the same surface is reused by `pre_handoff`, `/devola:propose`, and the `file_write` / `task_stop` runtime adapters |
 | **v15.0.0 strict graduation (G-038)** | With the flag set, the engaged `file_write` / `task_stop` adapters are STRICT by default — a violation raises `HookViolation` and BLOCKS the write / report emission (S-8 "mode: full" per v15-ADR-003 §Decision 3). Opt-out: pass `strict=False` to `fire_file_write` / `fire_task_stop` (S-8 "mode: lite" — the v14.3.0 warn + log behaviour). NO new env flag in either direction (W-20); flag absent → byte-identical zero-IO no-op, UNCHANGED by the strict flip |
 | **R5 strict?** | YES — `from_env` is a pure `os.environ.get` comparison; byte-stable no-op when the flag is absent (pinned by `tests/test_change_activation_heuristic.py` + `tests/test_hook_runtime_wiring.py`) |
 | **Reference** | `.cursor/rules/repo-governance.mdc` §A-6; `tests/test_change_activation_heuristic.py`; SKILL.md §"Workspace Engagement (Read at Session Start)" + §"Lifecycle Hooks" (strict-since-v15.0.0 status) |
@@ -358,7 +358,7 @@ them in CI configs and need to know they have NO production effect.
 | Field | Value |
 |---|---|
 | **Owner** | `tests/test_plugins.py` (line 549, fixture only) |
-| **Default** | `/home/agent/workspace/NineS` |
+| **Default** | Fixture-specific local checkout; no agent-facing absolute path |
 | **Effect** | When the plugin-install integration test runs, it uses this path as the local fallback for `pip install -e <path>` instead of fetching from PyPI |
 | **Production effect** | NONE — production paths use `pip install nines==<min_version>` per `runtime-plugins.yaml` |
 | **Per S-7** | This is a test-side override; the production reference file MUST NOT hardcode this path |
@@ -422,7 +422,7 @@ Operators who want to disable them adjust the per-profile
 
 **Why no env-flag?** The behavioral primitives are part of the
 **dispatch payload contract** — they ship at the per-task granularity,
-not the per-process granularity. An env-flag would force every L3 Task
+not the per-process granularity. An env-flag would force every L2 Task
 Agent in a process to share the same value; the dispatch field allows
 per-task tuning. See `references/behavioral-guidelines.md` for the full
 BG-001..BG-004 spec.
@@ -483,7 +483,7 @@ strict design).
 
 ## 7. Adding a NEW env-flag — W-20 enforcement checklist
 
-Before authoring a NEW `DEVOLAFLOW_*` env-flag, an L3 Task Agent MUST
+Before authoring a NEW `DEVOLAFLOW_*` env-flag, an L2 Task Agent MUST
 walk the W-20 checklist:
 
 1. **Inventory check** — read this reference §2..§5 to confirm no

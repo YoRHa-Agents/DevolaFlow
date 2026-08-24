@@ -1,13 +1,10 @@
-"""Tests for the v13.0.0 `web-design` workflow template.
+"""Tests for the v13.0.0 ``web-design`` checklist seed.
 
 Covers:
-  - Template file existence + parse-without-error
-  - Schema validation (zero errors, zero warnings)
-  - Stage identity + ordering (design → implement → refine → verify)
-  - suggest_plugins wiring (v15.2.0 B-6 probe semantics): ui-pro on design,
-    impeccable on refine + verify
-  - Composition shape (sequence with refine↔verify convergence loop + gate)
-  - Registry registration
+  - registry-v3 seed loading and metadata
+  - historical ``source_stages`` provenance
+  - ui-pro/impeccable plugin registration
+  - sole executable ``change-driven`` runtime registration
 """
 
 from __future__ import annotations
@@ -17,20 +14,21 @@ from pathlib import Path
 import pytest
 import yaml
 
-from devolaflow.template_engine.models import Sequence, WorkflowTemplate
-from devolaflow.template_engine.parser import parse_template
-from devolaflow.template_engine.validator import validate_template
+from devolaflow.template_engine.models import WorkflowTemplate
+from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.seeds import ChecklistSeed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE_PATH = (
-    REPO_ROOT / "workflow-system" / "agent" / "templates" / "builtin" / "web-design.yaml"
-)
+TEMPLATES_ROOT = REPO_ROOT / "workflow-system" / "agent" / "templates"
+TEMPLATE_PATH = TEMPLATES_ROOT / "seeds" / "web-design.yaml"
 REGISTRY_PATH = REPO_ROOT / "workflow-system" / "agent" / "templates" / "registry.yaml"
 
 
 @pytest.fixture()
-def template() -> WorkflowTemplate:
-    return parse_template(TEMPLATE_PATH)
+def template() -> ChecklistSeed:
+    seed = TemplateRegistry(TEMPLATES_ROOT).load_seed("web-design")
+    assert seed is not None
+    return seed
 
 
 def test_template_file_exists() -> None:
@@ -39,64 +37,64 @@ def test_template_file_exists() -> None:
 
 def test_template_parses_and_validates_clean(template: WorkflowTemplate) -> None:
     assert template.metadata.name == "web-design"
-    result = validate_template(template)
-    assert result.valid, f"Validation errors: {result.errors}"
-    assert len(result.errors) == 0
-    assert len(result.warnings) == 0, f"Unexpected warnings: {result.warnings}"
+    assert template.schema_version == "1.0"
+    assert template.kind == "checklist-seed"
+    assert template.partitions
 
 
 def test_template_has_four_stages_in_order(template: WorkflowTemplate) -> None:
-    stage_ids = [s.id for s in template.stages]
-    assert stage_ids == ["design", "implement", "refine", "verify"], (
-        f"Expected design→implement→refine→verify, got {stage_ids}"
-    )
-    primitives = {s.id: s.primitive for s in template.stages}
-    assert primitives == {
-        "design": "design",
-        "implement": "implement",
-        "refine": "refine",
-        "verify": "verify",
-    }, f"primitive mapping mismatch: {primitives}"
+    """Retain four historical id/primitive pairs as provenance only."""
+    assert template.source_stage_sequence() == [
+        ("design", "design"),
+        ("implement", "implement"),
+        ("refine", "refine"),
+        ("verify", "verify"),
+    ]
+    assert not hasattr(template, "composition")
 
 
 def test_suggest_plugins_wiring(template: WorkflowTemplate) -> None:
-    """ui-pro DESIGNS (design stage); impeccable REFINES + VERIFIES.
-
-    v15.2.0 B-6 — renamed ensure_plugins → suggest_plugins: the key is a
-    capability-probe instruction (probe → recipe A, absent → recipe B +
-    one-time hint), no longer a hard install precondition.
-    """
-    by_id = {s.id: s for s in template.stages}
-    assert by_id["design"].config.get("suggest_plugins") == ["ui-pro"]
-    assert by_id["refine"].config.get("suggest_plugins") == ["impeccable"]
-    assert by_id["verify"].config.get("suggest_plugins") == ["impeccable"]
+    """Plugin ownership stays in the runtime registry, not executable seed config."""
+    runtime_plugins = yaml.safe_load(
+        (REPO_ROOT / "workflow-system/agent/knowledge/runtime-plugins.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    by_id = {entry["id"]: entry for entry in runtime_plugins["plugins"]}
+    assert "web-design" in by_id["ui-pro"]["invoked_by_workflows"]
+    assert "web-design" in by_id["impeccable"]["invoked_by_workflows"]
+    assert {"ui-pro", "impeccable"} <= set(template.metadata.intent_keywords)
 
 
 def test_verify_carries_antipattern_gate(template: WorkflowTemplate) -> None:
-    """verify stage gates on `impeccable detect` exit codes (0=pass, 2=fail)."""
-    verify = next(s for s in template.stages if s.id == "verify")
-    gate = verify.config.get("antipattern_gate") or {}
-    assert gate.get("enabled") is True
-    assert "impeccable detect" in gate.get("command", "")
-    assert gate.get("pass_exit_code") == 0
-    assert gate.get("fail_exit_code") == 2
+    """The materializable assertion retains deterministic antipattern evidence."""
+    assertion = next(
+        assertion
+        for partition in template.partitions
+        for assertion in partition.assertions
+        if assertion.key == "antipatterns-clear"
+    )
+    assert "Impeccable" in assertion.statement_template
+    assert assertion.verify.mode == "metric"
+    assert assertion.verify.template == "antipattern_count == 0"
 
 
 def test_composition_is_sequence_with_convergence_loop(template: WorkflowTemplate) -> None:
-    assert isinstance(template.composition, Sequence)
-    loop = next((lp for lp in template.loops if lp.name == "refine_verify_loop"), None)
-    assert loop is not None, "refine_verify_loop missing"
-    assert loop.body_stages == ["refine", "verify"]
-    assert loop.max_iterations and loop.max_iterations > 0
-    assert loop.until, "convergence loop must declare an `until` condition"
+    """Seeds carry no execution order, loops, gates, or teams."""
+    assert not hasattr(template, "composition")
+    assert not hasattr(template, "loops")
+    assert not hasattr(template, "gates")
+    assert not hasattr(template, "team")
 
 
 def test_template_registered_in_registry() -> None:
     data = yaml.safe_load(REGISTRY_PATH.read_text())
     web_design = next((e for e in data["templates"] if e["name"] == "web-design"), None)
     assert web_design is not None, "web-design missing from registry.yaml"
-    assert web_design["path"] == "builtin/web-design.yaml"
-    assert web_design["source"] == "builtin"
+    assert web_design["seed"] == "seeds/web-design.yaml"
+    assert "path" not in web_design
     assert web_design["category"] == "composite"
     for tag in ("web-design", "ui-pro", "impeccable"):
         assert tag in web_design["tags"], f"registry entry missing tag {tag!r}"
+    executable = [entry for entry in data["compositions"] + data["templates"] if "path" in entry]
+    assert [entry["name"] for entry in executable] == ["change-driven"]

@@ -1,108 +1,84 @@
 ---
 title: "自定义指南"
-description: "创建自定义工作流模板和派生配置。"
+description: "创建不可执行的清单种子与派生配置。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
 # 自定义指南
 
-创建自定义工作流模板和派生配置。
+创建不可执行的清单种子与派生配置。
 
-## 创建自定义工作流模板
+## 创建清单种子
 
-工作流模板是 `workflow-system/agent/templates/builtin/` 中的 YAML 文件。每个模板遵循 `schemas/workflow-template.schema.yaml` 中定义的架构。
+清单种子是 `workflow-system/agent/templates/seeds/` 下的 YAML 文件，遵循 `schemas/checklist-seed.schema.yaml`。它保存领域分解知识，但不会创建新的可执行运行时。
 
-### 模板结构
+唯一可执行模板是 `workflow-system/agent/templates/builtin/change-driven.yaml`。自定义种子会实体化到这个共享清单轮次运行时中。
 
-```yaml
-schema_version: "1.0"
-
-metadata:
-  name: my-workflow          # 唯一的 kebab-case id
-  version: "1.0.0"
-  display_name: "我的工作流"
-  description: "这个工作流的用途"
-  category: build            # discover | shape | build | deliver | composite
-  applicable_scenarios:
-    - "何时推荐这个工作流"
-  tags: [关键词1, 关键词2]
-
-stages:
-  - id: stage_id
-    primitive: implement     # 13 个原语之一
-    alias: friendly-name     # 可选显示名
-    description: "这个阶段的用途"
-    team: implement          # research | design | implement | test | review
-    duration_class: medium   # quick | medium | long
-    config:
-      test_strategy: tdd
-
-composition:
-  compose: sequence
-  stages:
-    - stage: stage_id
-    - compose: loop
-      ref: my_loop
-
-loops:
-  - name: my_loop
-    body_stages: [stage_a, stage_b]
-    until: "stage_b.pass_rate == 1.0"
-    max_iterations: 3
-    on_exhaustion: escalate
-
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
-```
-
-### 示例：自定义 "仅代码审查" 模板
+### 种子结构
 
 ```yaml
 schema_version: "1.0"
-
+kind: checklist-seed
 metadata:
   name: code-review
   version: "1.0.0"
-  display_name: "仅代码审查"
-  description: "独立的代码审查，不包含实现。"
-  category: verify
-  applicable_scenarios:
-    - "审查 PR 或代码提交"
-  tags: [review, quality, check]
+  description: "独立代码审查证据种子。"
+  category: composite
+  intent_keywords: [review, quality, pull-request]
+  source:
+    kind: composition
+    name: code-review
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "3.0"
 
-stages:
-  - id: review
-    primitive: review
-    description: "审查代码的质量、安全性和风格"
-    team: review
-    duration_class: medium
-    config:
-      review_type: code
-      pass_threshold: 0.80
+placeholders:
+  review_command:
+    description: "仓库批准的有界审查命令。"
+    required: true
+    example: "ruff check src/ tests/"
 
-composition:
-  compose: sequence
-  stages:
-    - stage: review
-
-loops: []
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
+partitions:
+  - key: review
+    title_template: "代码审查"
+    source_stages:                 # 只记录来源，绝不表示执行顺序
+      - {id: review, primitive: review}
+    assertions:
+      - key: findings-resolved
+        statement_template: "所有 blocker 与 critical 审查发现均已解决"
+        suggested_priority: P0
+        verify:
+          mode: metric
+          template: "open_blocker_count == 0 and open_critical_count == 0"
+      - key: checks-pass
+        statement_template: "批准的静态审查命令通过"
+        suggested_priority: P1
+        verify:
+          mode: command
+          template: "{{ review_command }}"
 ```
+
+种子可以表达什么
+
+- 意图关键词与可选场景
+- 面向用户的清单分区
+- 渲染后不超过 25 词的可测断言模板
+- 用户可以修改的 P0/P1/P2 建议优先级
+- 有界命令、指标或人工检查三种验证方式
+- `source_stages` 中仅含历史来源 ID 与 14 种原语标签之一
+
+种子禁止表达什么
+
+种子不是运行时 DAG。禁止顶层 `stages`、`composition`、`loops`、`gates`，也禁止 `team`、`duration_class`、`input_mapping`、`skip_condition` 等运行时字段。种子顺序仅供展示。
+
+checkbox、证据路径、轮次号、checked-by 元数据和运行时依赖也不属于种子。只有 L0 将种子实体化为用户确认的变更清单时，才会分配这些信息。
+
+## 注册种子
+
+在注册表中新增一个带 `seed:` 路径且不含可执行 `path:` 的条目。只有 `change-driven` 条目可以声明 `path: builtin/change-driven.yaml`。
 
 ## 自定义上下文配置
 
@@ -118,7 +94,7 @@ environment_modes:
 自定义后，务必验证：
 
 ```bash
-validate-template --all                # 模板有效
+validate-template --all                # 23 个种子 + 一个运行时有效
 python -m pytest tests/ -q             # 所有测试通过
 python -m benchmarks.devolaflow_context.runner --scenario all  # 无回退
 build-skill --all                      # 适配器构建成功

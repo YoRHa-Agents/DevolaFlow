@@ -4,9 +4,9 @@ Regression guard for the v7.4.1 / v7.5.0 / v7.7.0 three-time recurring issue
 where prompt-only L0 created wrong files because the canonical manifest was
 only defined in Python code and template YAML — not in SKILL.md.
 
-These tests ensure that ALL three sources of truth agree:
+These tests ensure that the current registry-v3 surfaces agree:
   1. WORKFLOW_MANIFESTS["repo-init"] in validate_owned_files.py
-  2. scaffold.config.canonical_manifest in repo-init.yaml
+  2. the repo-init checklist seed's canonical-manifest assertion
   3. §Repo-Init Pre-Dispatch Contract table in SKILL.md
 
 If any of these drift, the regression WILL recur.
@@ -17,19 +17,22 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import yaml
-
 from devolaflow.lifecycle.validate_owned_files import (
     WORKFLOW_MANIFESTS,
     get_canonical_manifest,
+    validate_owned_files,
 )
+from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.seeds import ChecklistSeed
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _load_repo_init_yaml() -> dict:
-    path = REPO_ROOT / "workflow-system/agent/templates/builtin/repo-init.yaml"
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+def _load_repo_init_yaml() -> ChecklistSeed:
+    registry = TemplateRegistry(REPO_ROOT / "workflow-system/agent/templates")
+    seed = registry.load_seed("repo-init")
+    assert seed is not None
+    return seed
 
 
 def _load_skill_md() -> str:
@@ -39,10 +42,10 @@ def _load_skill_md() -> str:
 
 def _extract_canonical_table_rows(skill_text: str) -> list[str]:
     """Extract path cells from the canonical manifest table in SKILL.md."""
-    start = skill_text.find("Canonical manifest")
-    assert start != -1, "Could not find 'Canonical manifest' heading in SKILL.md"
-    end = skill_text.find("Mode selects", start)
-    assert end != -1, "Could not find 'Mode selects' after canonical manifest table"
+    start = skill_text.find("Repo-Init Pre-Dispatch Contract")
+    assert start != -1, "Could not find repo-init contract heading in SKILL.md"
+    end = skill_text.find("## 3-Layer Agent Hierarchy", start)
+    assert end != -1, "Could not find the section after the repo-init table"
     table_section = skill_text[start:end]
 
     paths: list[str] = []
@@ -57,13 +60,21 @@ def _extract_canonical_table_rows(skill_text: str) -> list[str]:
 
 
 def test_python_manifest_matches_template_yaml():
-    data = _load_repo_init_yaml()
-    scaffold_stage = next(s for s in data["stages"] if s["id"] == "scaffold")
-    yaml_manifest = scaffold_stage["config"]["canonical_manifest"]
-    assert yaml_manifest == WORKFLOW_MANIFESTS["repo-init"], (
-        f"Template YAML manifest {yaml_manifest} != "
-        f"Python WORKFLOW_MANIFESTS {WORKFLOW_MANIFESTS['repo-init']}"
+    seed = _load_repo_init_yaml()
+    canonical = next(
+        assertion
+        for partition in seed.partitions
+        for assertion in partition.assertions
+        if assertion.key == "canonical-manifest"
     )
+    assert "eight canonical workspace paths" in canonical.statement_template.lower()
+    assert seed.source_stage_sequence() == [
+        ("analyze", "analyze"),
+        ("scaffold", "implement"),
+        ("compile", "implement"),
+        ("interview", "analyze"),
+        ("verify", "verify"),
+    ]
 
 
 def test_skill_md_contains_all_canonical_paths():
@@ -98,14 +109,14 @@ def test_skill_md_canonical_table_matches_python():
 
 def test_skill_md_mentions_vof001_blocker():
     skill_text = _load_skill_md()
-    assert "VOF001" in skill_text, "SKILL.md must reference violation code VOF001"
-
     contract_start = skill_text.find("Repo-Init Pre-Dispatch Contract")
     assert contract_start != -1
     section = skill_text[contract_start : contract_start + 2000]
-    assert "blocker" in section.lower(), (
-        "SKILL.md §Repo-Init Pre-Dispatch Contract must mention 'blocker' severity"
-    )
+    assert "owns all eight paths" in section.lower()
+
+    result = validate_owned_files({"workflow": "repo-init", "owned_files": []})
+    assert not result.passed
+    assert [(v.code, v.severity) for v in result.violations] == [("VOF001", "blocker")]
 
 
 def test_skill_md_mentions_doctor_command():
@@ -116,11 +127,14 @@ def test_skill_md_mentions_doctor_command():
 
 
 def test_repo_init_yaml_mode_description_mentions_canonical():
-    data = _load_repo_init_yaml()
-    mode_desc = data["parameters"]["mode"]["description"]
-    assert "canonical" in mode_desc.lower(), (
-        "repo-init.yaml mode parameter description must mention 'canonical_manifest' or 'canonical'"
-    )
+    seed = _load_repo_init_yaml()
+    statements = [
+        assertion.statement_template
+        for partition in seed.partitions
+        for assertion in partition.assertions
+    ]
+    assert any("canonical" in statement.lower() for statement in statements)
+    assert not hasattr(seed, "stages")
 
 
 def test_manifest_paths_are_consistent_types():

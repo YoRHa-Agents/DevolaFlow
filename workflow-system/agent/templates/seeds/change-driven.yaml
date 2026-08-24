@@ -1,0 +1,43 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: change-driven
+  version: "1.0.0"
+  description: "Seed for an evidence-backed change lifecycle."
+  category: composite
+  intent_keywords: [change, propose, apply, verify, archive, lifecycle, agent-workspace]
+  source:
+    kind: template
+    name: change-driven
+    path: workflow-system/agent/templates/builtin/change-driven.yaml
+    schema_version: "1.0"
+placeholders: {}
+partitions:
+  - key: proposal
+    title_template: "Change proposal"
+    source_stages:
+      - {id: propose, primitive: design}
+    assertions:
+      - key: contract-anchored
+        statement_template: "Goal, scope, and acceptance assertions are anchored with the user"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: execution
+    title_template: "Change execution and verification"
+    source_stages:
+      - {id: apply, primitive: implement}
+      - {id: verify, primitive: verify}
+    assertions:
+      - key: evidence-complete
+        statement_template: "Every completed assertion has valid evidence and zero unresolved blockers"
+        suggested_priority: P0
+        verify: {mode: metric, template: "evidence_coverage == 1.0 and blocker_count == 0"}
+  - key: archive
+    title_template: "Guarded archive"
+    source_stages:
+      - {id: archive, primitive: deploy}
+    assertions:
+      - key: archive-ready
+        statement_template: "All acceptance assertions pass before source truth or archive state changes"
+        suggested_priority: P0
+        verify: {mode: metric, template: "acceptance_pass_rate == 1.0"}

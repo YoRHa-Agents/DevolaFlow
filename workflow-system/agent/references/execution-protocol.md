@@ -931,12 +931,13 @@ the resolved `timeout_seconds` is round-invariant by design.
 (`docs/cycle-archive/v12.3.0/v12.3.0_gap_analysis.md` §2 D-3) + v14.5.0 G-037
 graduation (`docs/cycle-archive/v15.0.0/v14.2.0_gap_analysis.md` §2.7).
 
-## 15. L3 Self-Verify (v14.3.0+)
+## 15. L2 Task Self-Verify (v14.3.0+)
 
-The general intra-task self-verify protocol: the L3 Task Agent verifies its
+The current three-layer intra-task protocol: the L2 Task Agent verifies its
 OWN artifact before emitting its first StatusReport. Closes gap G-005
 (v14.2.0 SI-1 §2.1, source F-P1-5); the evidence rubric the protocol walks
 is `references/artifact-quality.md` (G-004 / v15-ADR-007 companion).
+Legacy four-layer releases named this leaf role L3; that label is historical.
 
 ### 15.1 Protocol position in the task lifecycle
 
@@ -953,17 +954,17 @@ dispatch received
 
 Self-verify is NOT the same as §1b.1: §1b.1 is the *gate* that validates the
 report envelope at handoff; §15 is the *work* that produces the evidence the
-gate validates. An L3 that skips §15 arrives at §1b.1 with nothing to attest.
+gate validates. An L2 Task that skips §15 arrives at §1b.1 with nothing to attest.
 
 ### 15.2 Consuming `acceptance_criteria_v2.verification_cmd`
 
 When the dispatch carries an `acceptance_criteria_v2` block
-(`schemas/lean-dispatch.yaml`, canonical position 15), the L3 runs each
+(`schemas/lean-dispatch.yaml`, canonical position 15), the L2 Task runs each
 entry's `verification_cmd` itself — **bounded execution** per SKILL.md
 §"Subagent Hang Prevention" (every Shell invocation sets an explicit
 timeout; ≤60s fast commands, ≤300s pytest-class runs; abandon-and-report
 rather than wait forever). For `verification_type: 'metric'` entries
-without a runnable command, the L3 records the measured metric against the
+without a runnable command, the L2 Task records the measured metric against the
 `threshold` expression. `verification_type: 'manual'` entries are reported
 as `NOT_RUN` with the manual-verification note — never self-attested green.
 
@@ -985,11 +986,11 @@ of `ac_results`, never the obligation to verify.
 
 ### 15.4 Bounded self-fix: max 2 iterations, then report honestly
 
-When self-verify surfaces a red verdict, the L3 MAY fix-and-rerun at most
+When self-verify surfaces a red verdict, the L2 Task MAY fix-and-rerun at most
 **2 self-fix iterations** (each iteration = fix + full re-run of the
 affected verification). After the 2nd iteration, stop and report honestly
-per P4 (Bounded Retry — every loop has a ceiling; escalation always moves
-upward) and `references/artifact-quality.md` §5 (Failure Honesty): the
+per P4 (Bounded Retry — every loop has a ceiling; escalation follows
+Task → Wave → Project → Human) and `references/artifact-quality.md` §5 (Failure Honesty): the
 report carries the verbatim failing digest, `rs: DONE_WITH_CONCERNS` or
 `BLOCKED`, and the evidence trail. Never burn the task timeout chasing a
 3rd iteration; never claim green without command output (S-5).

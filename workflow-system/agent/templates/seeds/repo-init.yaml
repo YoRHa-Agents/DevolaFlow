@@ -1,0 +1,44 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: repo-init
+  version: "1.0.0"
+  description: "Seed for repository workspace and governance initialization."
+  category: discover
+  intent_keywords: [init, scaffold, bootstrap, repo, workspace, rules]
+  source:
+    kind: template
+    name: repo-init
+    path: workflow-system/agent/templates/builtin/repo-init.yaml
+    schema_version: "1.0"
+placeholders: {}
+partitions:
+  - key: repository-analysis
+    title_template: "Repository analysis"
+    source_stages:
+      - {id: analyze, primitive: analyze}
+    assertions:
+      - key: environment-known
+        statement_template: "Languages, build commands, AI tooling, and codegraph availability are recorded with explicit degraded behavior"
+        suggested_priority: P0
+        verify: {mode: manual}
+  - key: workspace-scaffold
+    title_template: "Workspace and rule scaffold"
+    source_stages:
+      - {id: scaffold, primitive: implement}
+      - {id: compile, primitive: implement}
+    assertions:
+      - key: canonical-manifest
+        statement_template: "All eight canonical workspace paths exist and rule outputs compile without drift"
+        suggested_priority: P0
+        verify: {mode: metric, template: "canonical_paths_present == 8 and rule_drift_count == 0"}
+  - key: operator-fit
+    title_template: "Operator fit and verification"
+    source_stages:
+      - {id: interview, primitive: analyze}
+      - {id: verify, primitive: verify}
+    assertions:
+      - key: initialization-verified
+        statement_template: "Requested initialization depth completes and degraded optional tooling is reported without fabricated success"
+        suggested_priority: P1
+        verify: {mode: manual}

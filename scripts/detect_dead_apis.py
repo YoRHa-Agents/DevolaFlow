@@ -441,6 +441,15 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # All exported via devolaflow.template_engine.__all__ for external
         # template authoring tools and the validate-template CLI.
         "devolaflow.template_engine.composer:collect_all_refs",
+        # v16 registry-v3 compatibility window — these two public helpers
+        # remain importable so legacy callers receive the classified
+        # CompositionManifestError retirement message instead of an import
+        # failure. They intentionally have no production caller because
+        # executable composition synthesis/validation is retired; remove
+        # both compatibility APIs and these pins in v17.0.0. NOT domain-SSOT
+        # registry symbols per A-5.2 — they hold no registration data.
+        "devolaflow.template_engine.compositions:composition_to_template",
+        "devolaflow.template_engine.compositions:validate_composition_manifest",
         "devolaflow.template_engine.models:JoinStrategy",
         "devolaflow.template_engine.models:OnExhaustion",
         "devolaflow.template_engine.models:GateFailAction",

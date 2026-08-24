@@ -690,12 +690,7 @@ class TestRuntimePluginsYamlContract:
 
 
 class TestWorkflowPreconditionWiring:
-    """Assert the precondition/suggest_plugins contracts survive the v15.0.0 collapse.
-
-    nines-assisted (survivor yaml) keeps its precondition stage first;
-    product-verification (composition since v15-ADR-002 Phase B) carries
-    the contract via its manifest params.
-    """
+    """Assert plugin ownership and seed provenance survive registry v3."""
 
     @staticmethod
     def _load_template(rel_path: str) -> dict:
@@ -705,30 +700,29 @@ class TestWorkflowPreconditionWiring:
         return _yaml.safe_load(path.read_text())
 
     def test_nines_assisted_precondition_stage_first(self) -> None:
-        tpl = self._load_template("workflow-system/agent/templates/builtin/nines-assisted.yaml")
-        first = tpl["stages"][0]
-        assert first["id"] == "precondition"
-        assert first["primitive"] == "implement"
-        # v15.2.0 B-6 — renamed ensure_plugins → suggest_plugins (probe
-        # instruction, not a hard precondition).
-        assert first["config"]["suggest_plugins"] == ["nines"]
-        assert tpl["composition"]["stages"][0] == {"stage": "precondition"}
+        from devolaflow.template_engine.registry import TemplateRegistry
+
+        registry = TemplateRegistry(_REPO_ROOT_V821 / "workflow-system/agent/templates")
+        seed = registry.load_seed("nines-assisted")
+        assert seed is not None
+        assert ("precondition", "implement") in seed.source_stage_sequence()
+        assert not hasattr(seed, "composition")
+
+        plugin = resolve_plugin("nines", load_registry(_RUNTIME_PLUGINS_YAML))
+        assert "nines-assisted" in plugin.invoked_by_workflows
 
     def test_product_verification_precondition_carried_by_composition(self) -> None:
-        """product-verification.yaml was deleted at v15.0.0 (v15-ADR-002 Phase B).
+        """Product-verification retains precondition provenance only."""
+        from devolaflow.template_engine.registry import TemplateRegistry
 
-        The v8.2.1 AC-4 precondition contract (now `suggest_plugins: [ui-pro]`
-        per the v15.2.0 B-6 ensure→suggest rename)
-        is carried over as `params.suggest_plugins` on the
-        `product-verification` composition entry in
-        templates/registry.yaml#compositions (base: web-design).
-        """
-        registry = self._load_template("workflow-system/agent/templates/registry.yaml")
-        entry = next(c for c in registry["compositions"] if c["name"] == "product-verification")
-        assert entry["base"] == "web-design"
-        # v15.2.0 B-6 — the v8.2.1 AC-4 hard precondition is now a
-        # capability probe (suggest_plugins); contract value unchanged.
-        assert entry["params"]["suggest_plugins"] == ["ui-pro"]
+        registry = TemplateRegistry(_REPO_ROOT_V821 / "workflow-system/agent/templates")
+        seed = registry.load_seed("product-verification")
+        assert seed is not None
+        assert ("precondition", "implement") in seed.source_stage_sequence()
+        assert not hasattr(seed, "composition")
+
+        plugin = resolve_plugin("ui-pro", load_registry(_RUNTIME_PLUGINS_YAML))
+        assert "product-verification" in plugin.invoked_by_workflows
 
 
 # ---------------------------------------------------------------------------

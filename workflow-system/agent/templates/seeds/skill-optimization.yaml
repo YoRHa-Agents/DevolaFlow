@@ -1,0 +1,45 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: skill-optimization
+  version: "1.0.0"
+  description: "Seed for measurable agent-skill optimization."
+  category: composite
+  intent_keywords: [skill, optimize, benchmark, context, compress, iterate, density]
+  source:
+    kind: template
+    name: skill-optimization
+    path: workflow-system/agent/templates/builtin/skill-optimization.yaml
+    schema_version: "1.0"
+placeholders: {}
+partitions:
+  - key: baseline
+    title_template: "Skill survey and profile"
+    source_stages:
+      - {id: survey, primitive: research}
+      - {id: profile, primitive: analyze}
+    assertions:
+      - key: baseline-measured
+        statement_template: "Optimization targets have measured relevance, density, and context baselines"
+        suggested_priority: P1
+        verify: {mode: manual}
+  - key: optimization
+    title_template: "Optimization and quality gates"
+    source_stages:
+      - {id: optimize, primitive: implement}
+      - {id: si_chip_dogfood, primitive: validate}
+      - {id: benchmark, primitive: test}
+    assertions:
+      - key: candidate-improves
+        statement_template: "The candidate clears the 0.10 iteration delta, has no regressions, and retains eighty percent coverage"
+        suggested_priority: P0
+        verify: {mode: metric, template: "iteration_delta >= 0.10 and regression_count == 0 and coverage_pct >= 80"}
+  - key: documentation
+    title_template: "Optimization record"
+    source_stages:
+      - {id: document, primitive: release}
+    assertions:
+      - key: results-recorded
+        statement_template: "Measured results and approved changes are recorded for future comparison"
+        suggested_priority: P1
+        verify: {mode: manual}

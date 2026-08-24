@@ -158,7 +158,7 @@ _SF4_REFERENCE_SET = frozenset(
         "subagent-patterns.md",
         # v12.3.0 PV-03 — Task Quality Score extraction (21st SF-4
         # canonical). Tier 3 on-demand reference loaded only at workflow
-        # CLOSE (after the last stage gate PASSES); full extracted rubric
+        # CLOSE after checklist/archive readiness; full extracted rubric
         # (4-dimension scoring matrix + 📊 output template + v12.3.0
         # PV-02 version-literal footer) moved here from SKILL.md to free
         # ~120 tokens of per-dispatch execution-loop context per
@@ -221,9 +221,9 @@ _SF4_REFERENCE_SET = frozenset(
         # tests/test_no_ghost_features.py::test_v14_0_0_human_surface_symbols.
         "human-surface.md",
         # v14.3.0 — artifact-quality evidence rubric (25th SF-4 canonical).
-        # Tier 2 Large-tier reference: the EVIDENCE-ONLY rubric for the L3
+        # Tier 2 Large-tier reference: the EVIDENCE-ONLY rubric for the L2
         # task artifact itself per v15-ADR-007 (closes G-004 / F-P1-2 from
-        # the v14.2.0 SI-1 gap analysis §2.1). §1 doctrine (L3 MUST NOT
+        # the v14.2.0 SI-1 gap analysis §2.1). §1 doctrine (L2 MUST NOT
         # compute or report numeric quality scores — evidence only; the
         # reject_subagent_quality_score hook stays the runtime guard),
         # §2 four excellence dimensions (correctness / minimal diff / test
@@ -231,8 +231,8 @@ _SF4_REFERENCE_SET = frozenset(
         # BG-003, C-3), §3 dimension → lean-report transport map
         # (self_check / ac_results / diff_stats / metrics.*), §4 ordered
         # self-verify checklist, §5 failure honesty. Pairs with
-        # references/execution-protocol.md §15 "L3 Self-Verify" (G-005
-        # protocol slice) and references/task-quality-score.md (the L0-only
+        # references/decomposition-gate.md §5.2 intra-task convergence and
+        # references/task-quality-score.md (the L0-only
         # OPERATOR-REQUEST rubric — the two never overlap). Numeric scoring
         # stays L0-side and lands v15.0.0 per the v15-ADR-007 phase split.
         "artifact-quality.md",
@@ -307,6 +307,38 @@ def test_reference_skill_md_tier2_parity(project_root: Path) -> None:
         f"_SF4_REFERENCE_SET — missing rows: {sorted(missing_in_nav)}, "
         f"extra rows: {sorted(extra_in_nav)}. Canonical SF-4 set has "
         f"{len(canonical_set)} entries; SKILL.md Tier-2 nav has {len(nav_set)}."
+    )
+
+    skill = _read(project_root / "workflow-system/agent/SKILL.md")
+    knowledge_on_disk = {
+        path.relative_to(project_root / "workflow-system/agent").as_posix()
+        for path in (project_root / "workflow-system/agent/knowledge").iterdir()
+        if path.is_file() and path.suffix in {".md", ".yaml"}
+    }
+    knowledge_in_nav = set(re.findall(r"`(knowledge/[a-z][a-z0-9-]*\.(?:md|yaml))`", skill))
+    assert knowledge_in_nav == knowledge_on_disk, (
+        f"SKILL.md Tier-3 knowledge navigation drifted — missing: "
+        f"{sorted(knowledge_on_disk - knowledge_in_nav)}, extra: "
+        f"{sorted(knowledge_in_nav - knowledge_on_disk)}"
+    )
+
+    architecture = _read(
+        project_root / "workflow-system/human/demo/design-architecture/architecture.js"
+    )
+    architecture_refs = {
+        f"{name}.md" for name in re.findall(r'reference\("([a-z][a-z0-9-]*)"', architecture)
+    }
+    assert architecture_refs == canonical_set, (
+        "architecture.js Tier-2 reference inventory drifted from _SF4_REFERENCE_SET"
+    )
+    architecture_knowledge = set(
+        re.findall(
+            r'path:\s*"workflow-system/agent/(knowledge/[a-z][a-z0-9-]*\.(?:md|yaml))"',
+            architecture,
+        )
+    )
+    assert architecture_knowledge == knowledge_on_disk, (
+        "architecture.js Tier-3 knowledge inventory drifted from disk"
     )
 
 

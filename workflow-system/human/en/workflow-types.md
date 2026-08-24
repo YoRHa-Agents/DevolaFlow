@@ -1,174 +1,82 @@
 ---
-title: "Workflow Types Catalog"
-description: "23 built-in workflow types with selection guidance."
+title: "Checklist Seed Catalog"
+description: "23 built-in checklist seeds plus the change-driven runtime."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
-# Workflow Types Catalog
+# Checklist Seed Catalog
 
-23 built-in workflow types with selection guidance.
+23 built-in checklist seeds plus the change-driven runtime.
 
-## Workflow Selection
+## Seed Selection
 
-DevolaFlow automatically selects the right workflow based on your prompt. You can also specify one explicitly.
+DevolaFlow matches prompt intent to a checklist seed. You can also name a seed explicitly. The selected seed is materialized into user-confirmed goals and measurable checklist assertions before execution.
 
-**Selection heuristics:**
-- Urgency signals ("urgent", "ASAP", "production down") → `hotfix`"From scratch" / "new project" →`full-pipeline`Question-form phrasing ("what", "how", "which") →`research-only`Explicit type mention → direct match (highest priority)
+| Signal | Selected seed |
+|--------|---------------|
+| "urgent", "ASAP", "production down" | `hotfix` |
+| "from scratch", "new project" | `full-pipeline` |
+| Question-form phrasing such as "what", "how", "which" | `research-only` |
+| Explicit seed name | Direct match |
 
-## All 23 Built-in Workflow Types
+## The 23 Built-in Checklist Seeds
 
-### Discover Workflows
+All 23 seeds are **non-executable decomposition knowledge**. The primitive lists below are source provenance only: they explain where each seed's domain knowledge came from, but neither list order nor source IDs prescribe runtime order.
 
-`research-only`
-**When to use**: Survey prior art, compare alternatives, evaluate options.
-**Stages**: research → compare → report
-**Teams**: Research (primary)
-**Example prompt**: `"Research the best ORM for our Python project — compare SQLAlchemy, Peewee, and Tortoise"`
+| Seed | Use when | Primitive provenance (non-executable) |
+|------|----------|---------------------------------------|
+| `hotfix` | Urgent defect diagnosis and bounded remediation | analyze, implement, test, release |
+| `research-only` | Compare alternatives and produce an evidenced recommendation | research, analyze, validate |
+| `design-only` | Create an architecture, API, or schema with review evidence | research, design, review |
+| `documentation-only` | Survey, author, and review documentation | research, implement, review |
+| `spike-poc` | Test feasibility with a bounded throwaway prototype | research, implement, validate |
+| `refactoring` | Restructure code while preserving behavior | analyze, plan, implement, test, review |
+| `feature-enhancement` | Extend an existing feature through release evidence | design, plan, implement, review, test, release |
+| `full-pipeline` | Build a greenfield or end-to-end capability | design, plan, implement, review, test, refine, gate, release |
+| `performance-optimization` | Improve a measured latency, memory, or throughput problem | analyze, design, implement, test, validate |
+| `security-audit` | Threat-model, scan, remediate, and verify security | research, analyze, implement, validate |
+| `research-design-review-refine` | Iterate on research-backed design | research, design, review, refine |
+| `dependency-setup` | Configure an environment, dependency, or toolchain | research, plan, implement, verify |
+| `onboarding` | Help a contributor understand and verify a repository setup | analyze, implement, verify |
+| `demo-showcase` | Build a presentation-ready demonstration | research, design, implement, review, refine, release |
+| `product-verification` | Verify visual, interaction, accessibility, and acceptance quality | analyze, design, implement, test, verify, review, validate |
+| `entropy-cleanup` | Find and repair stale documentation or drift | analyze, plan, review, implement |
+| `migration` | Upgrade or port a system with rollback readiness | analyze, plan, implement, validate, deploy |
+| `skill-optimization` | Profile and improve an agent skill | research, analyze, implement, test, refine |
+| `self-update` | Research and integrate reference updates | research, plan, implement, test, validate |
+| `nines-assisted` | Preserve historical NineS-oriented evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
+| `repo-init` | Initialize repository workspace and governance surfaces | analyze, implement, validate |
+| `change-driven` | Materialize an evidence-backed change lifecycle checklist | design, implement, verify, deploy |
+| `web-design` | Design, refine, and deterministically verify a frontend | design, implement, refine, verify |
 
-#### `onboarding`
-**When to use**: New contributor joining, understanding an unfamiliar codebase, resuming a dormant project.
-**Stages**: analyze (codebase survey) → document (onboarding docs) → setup (dev environment) → verify (smoke tests)
-**Teams**: Research, Implement, Test
-**Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
+## How a Seed Becomes Work
 
-Optimize Workflows
+1. Intent matching selects one seed.
+2. L0 renders its partitions and assertion templates into `goal.md` and `checklist.md`.
+3. The user confirms wording, P0/P1/P2 priorities, manual checks, and preflight decisions.
+4. The `change-driven` runtime executes the confirmed checklist in bounded rounds.
 
-`skill-optimization`
-**When to use**: Optimize agent skills, benchmark context density, improve information routing.
-**Stages**: survey → profile → optimize → benchmark → iterate → document
-**Teams**: Research, Implement, Test, Review
-**Example prompt**: `"Optimize the DevolaFlow skill — benchmark context density and reduce noise"`
+Suggested priorities are advisory. A seed contains no checkboxes, evidence, round state, or runtime dependency state; those belong to the materialized change workspace.
 
-### Shape Workflows
+## The Sole Executable Runtime
 
-`design-only`
-**When to use**: Architecture decisions, API design, schema design.
-**Stages**: research → design → review
-**Teams**: Design (primary), Review
-**Example prompt**: `"Design the API for a multi-tenant notification service"`
+`change-driven` is the only executable template. Its lifecycle is:
 
-`RDRR` (Research-Design-Review-Refine)
-**When to use**: Iterative design that needs research backing and multiple review rounds.
-**Stages**: research → design → review → refine (loop)
-**Teams**: Research, Design, Review (all primary)
-**Example prompt**: `"Design a caching architecture — research options first, then iterate the design"`
+```
+propose → preflight → bounded checklist rounds → archive
+```
 
-### Build Workflows
+During each round, L0 picks open items, L1 Wave dispatches isolated L2 Tasks, Tasks report evidence, and L0 checks only verified assertions. The same runtime serves all 23 seeds.
 
-`hotfix`
-**When to use**: Production bug, urgent fix, security patch.
-**Stages**: triage → fix → test → release
-**Teams**: Implement (primary), Test
-**Example prompt**: `"Fix the login timeout bug — users get 500 errors after 30 seconds"`
+## Example Prompts
 
-`refactoring`
-**When to use**: Tech debt, code restructuring, simplification.
-**Stages**: scope → plan → implement → test → review
-**Teams**: Implement, Test (both primary)
-**Example prompt**: `"Refactor the payment module to use the strategy pattern"`
-
-`migration`
-**When to use**: Upgrade frameworks, port between systems, database migrations.
-**Stages**: assess → plan → implement → validate → cutover
-**Teams**: Research, Implement, Test
-**Example prompt**: `"Migrate from Express.js to Fastify — keep all existing endpoints"`
-
-`performance-optimization`
-**When to use**: Slow app, high latency, memory issues, build time optimization.
-**Stages**: profile → design (optimization plan) → optimize → benchmark → validate
-**Teams**: Research, Design, Implement, Test
-**Example prompt**: `"Our API response time is >2 seconds — profile and optimize the hot paths"`
-
-`dependency-setup`
-**When to use**: Setting up dev environment, adding major dependencies, configuring tooling.
-**Stages**: research → plan (dependency graph) → configure → verify
-**Teams**: Research, Design, Implement, Test
-**Example prompt**: `"Set up Docker development environment with hot reloading for our Python API"`
-
-`feature-enhancement`
-**When to use**: Adding to existing features, extending functionality.
-**Stages**: scope → design → plan → implement → review → test → release
-**Teams**: All (Design and Implement primary)
-**Example prompt**: `"Add dark mode support to the settings page"`
-
-`full-pipeline`
-**When to use**: Greenfield features, new projects, anything requiring the full lifecycle.
-**Stages**: design → plan → implement → review → test → refine → gate → release
-**Teams**: All (all primary)
-**Example prompt**: `"Build a user authentication system with OAuth2, JWT, and role-based access"`
-
-Verify Workflows
-
-`security-audit`
-**When to use**: Vulnerability scanning, compliance checks, CVE remediation.
-**Stages**: threat-model → scan → analyze → remediate → verify
-**Teams**: Research, Implement, Test, Review (all active)
-**Example prompt**: `"Run a security audit on our authentication module — check for OWASP Top 10"`
-
-### Deliver Workflows
-
-`documentation`
-**When to use**: Writing or updating docs, README, API references, tutorials.
-**Stages**: survey → author → review
-**Teams**: Research, Review
-**Example prompt**: `"Write comprehensive API documentation for the payments module"`
-
-`demo-showcase`
-**When to use**: Building demos for stakeholders, interactive showcases, conference presentations.
-**Stages**: research → storyboard (design) → build-demo → demo-review → polish → package
-**Teams**: Research, Design, Implement, Review
-**Example prompt**: `"Build an interactive demo showcasing our new dashboard — make it presentation-ready"`
-
-### Composite Workflows
-
-`spike-poc`
-**When to use**: Testing feasibility, prototyping, evaluating new tech.
-**Stages**: research (hypothesis) → prototype → evaluate
-**Teams**: Research, Implement
-**Example prompt**: `"Prototype real-time collaboration using CRDTs — is it feasible for our scale?"`
-
-`self-update`
-**When to use**: Track external reference dependencies and integrate improvements.
-**Stages**: check-refs → research-updates → decompose → integrate → test → evaluate
-**Teams**: Research, Implement, Test
-**Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
-
-#### `change-driven`
-**When to use**: Manage an in-flight change with structured `.local/.agent/active/<id>/` artifacts (goal, acceptance, spec, tasks, STATUS, owned_files); archive on success with auto-generated REPORT.md and propose delta merge to source-of-truth specs.
-**Stages**: propose → apply → verify → archive (mode: lite \| full)
-**Teams**: Design, Implement, Test
-**Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
-
-#### `web-design`
-**When to use**: Build a polished, non-generic frontend. The `ui-pro` plugin DESIGNS the system (style, palette, typography, design-system); `impeccable` then REFINES it (`/impeccable polish`, `critique`, `typeset`, `arrange`, `animate`) and VERIFIES it against a no-LLM anti-pattern scan (`impeccable detect`; exit 0 = clean, 2 = anti-patterns).
-**Stages**: design (ui-pro) → implement → refine (impeccable) → verify (`impeccable detect` gate); refine ↔ verify convergence loop
-**Teams**: Design, Implement, Test
-**Example prompt**: `"design a landing page"`, `"polish the pricing page UI"`, `"build a marketing site with ui-pro and impeccable"`
-
-## Quick Reference Table
-
-| Type | Trigger Keywords | Stages | Gate Profile |
-|------|-----------------|--------|-------------|
-| `research-only` | research, compare, survey | 3 | — |
-| `design-only` | design, architect, API spec | 3 | standard |
-| `hotfix` | fix bug, broken, crash, SEV1 | 4 | relaxed |
-| `refactoring` | refactor, clean up, tech debt | 5 | standard |
-| `migration` | migrate, upgrade, port | 5 | standard |
-| `spike-poc` | prototype, experiment, PoC | 3 | — |
-| `documentation` | write docs, README, guide | 3 | relaxed |
-| `security-audit` | security, audit, CVE | 5 | strict |
-| `feature-enhancement` | add to, extend, enhance | 7 | standard |
-| `full-pipeline` | from scratch, new project | 8 | standard |
-| `RDRR` | design with research, ADR | 4 (loop) | standard |
-| `demo-showcase` | demo, showcase, presentation | 6 | relaxed |
-| `performance-optimization` | slow, optimize, benchmark | 5 | standard |
-| `dependency-setup` | setup, install, configure env | 4 | relaxed |
-| `onboarding` | new to project, getting started | 4 | — |
-| `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
-| `self-update` | update refs, self-update, check references | 6 | standard |
-| `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |
-| `web-design` | web design, frontend, landing page, polish UI, ui-pro, impeccable | 4 | convergence |
+- `hotfix`: `"Fix the login timeout bug; users get 500 errors after 30 seconds"`
+- `security-audit`: `"Audit the authentication module against OWASP Top 10"`
+- `research-design-review-refine`: `"Research caching options, design one, and refine it after review"`
+- `product-verification`: `"Verify the checkout flow visually and against accessibility requirements"`
+- `repo-init`: `"Initialize this repository for DevolaFlow"`
+- `web-design`: `"Build and polish a non-generic pricing page"`

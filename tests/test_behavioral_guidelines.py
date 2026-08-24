@@ -1,4 +1,4 @@
-"""v8.0.0 P-08 — L3 behavioral guidelines injection tests.
+"""v8.0.0 P-08 — L2 Task behavioral guidelines injection tests.
 
 Coverage targets:
 1. Schema additivity (canonical_order grew 13→14, version 2→3, last entry =
@@ -347,7 +347,7 @@ class TestComposeBehavioralBlock:
 
     def test_emits_heading_when_active(self) -> None:
         block = _compose_behavioral_block({"think_first": True})
-        assert block.startswith("## Behavioral Guidelines (L3 active)")
+        assert block.startswith("## Behavioral Guidelines (L2 Task active)")
 
     def test_active_think_first_rule_emits_bg001(self) -> None:
         block = _compose_behavioral_block({"think_first": True})
@@ -377,8 +377,8 @@ class TestComposeBehavioralBlock:
         assert "BG-004 goal_loop ENABLED" in block
 
     def test_block_token_bounds(self) -> None:
-        """All-active block stays under the L3 token budget allocation
-        target (~ 225 tokens / 3% of L3 8K, post v12.2.0 PV-03)."""
+        """All-active block stays under the L2 Task token budget allocation
+        target (~ 225 tokens / 3% of L2 Task 8K, post v12.2.0 PV-03)."""
         from devolaflow.task_adaptive_selector import estimate_tokens
 
         block = _compose_behavioral_block(
@@ -593,7 +593,7 @@ class TestSelectContextIntegration:
 
     def test_assembled_text_contains_behavioral_block_when_active(self) -> None:
         result = select_context("feature", profiles_path=PROFILES_PATH)
-        assert "## Behavioral Guidelines (L3 active)" in result["assembled_text"]
+        assert "## Behavioral Guidelines (L2 Task active)" in result["assembled_text"]
 
     def test_assembled_text_omits_behavioral_block_when_inactive(self) -> None:
         """Profiles without behavioral_guidelines MUST NOT see the block in

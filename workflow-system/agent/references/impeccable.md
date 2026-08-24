@@ -6,40 +6,47 @@ purpose: >
   a cross-provider design language system (1 agent skill + 23 /impeccable
   steering commands) plus a no-LLM deterministic anti-pattern detector
   (`impeccable detect`). Shipped in v13.0.0 as a tracked reference repo +
-  fully wired 6th plugin + the new web-design workflow's refine/verify
-  surface. Covers the command catalog, the detector exit-code contract,
-  the ui-pro → impeccable composition, the DevolaFlow integration map, and
-  the degraded-mode fallback for L0/L1/L2/L3 dispatchers + L3 task agents.
+  fully wired 6th plugin + web-design seed knowledge. Covers the command
+  catalog, detector exit-code contract, historical ui-pro → impeccable
+  provenance, integration map, and fallback for L0/L1 and L2 Task agents.
 triggers:
-  - "web-design workflow refine stage polishes / critiques an UI"
-  - "web-design workflow verify stage runs the anti-pattern gate"
-  - "L3 needs to refine an already-built UI (typography / spacing / motion)"
+  - "web-design checklist needs UI refinement"
+  - "web-design verification runs the anti-pattern check"
+  - "L2 Task needs to refine an already-built UI"
   - "pre-ship design audit (a11y / performance / responsive / theming)"
   - "deterministic anti-pattern scan in CI (no LLM, no API key)"
   - "ui-pro designed a system; impeccable refines + verifies it"
 tier: 2
 token_estimate: 2600
-last_updated: "2026-06-01"
+last_updated: "2026-08-25"
 ---
 
 # Impeccable Reference
 
-DevolaFlow's integration with `pbakaus/impeccable` — a cross-provider **design language system** for AI coding agents (1 agent skill + 23 `/impeccable` steering commands) plus a **no-LLM deterministic anti-pattern detector** (`impeccable detect`). v13.0.0 ships impeccable as the cycle's primary deliverable: a tracked reference repo, the 6th fully-wired plugin, and the refine + verify surface of the new `web-design` workflow.
+DevolaFlow's integration with `pbakaus/impeccable` is a cross-provider
+design language system plus the deterministic `impeccable detect` scanner.
+The `web-design` checklist seed carries the relevant refinement and
+verification decomposition knowledge.
 
 **Upstream**: <https://github.com/pbakaus/impeccable> · npm: `impeccable@>=2.0.0` (Apache-2.0; Node 18+)
 
-## §1 — What impeccable is + when L3 should use it
+## §1 — What impeccable is + when L2 should use it
 
-Impeccable is the **refinement + verification** half of DevolaFlow's UI flow. Where `ui-pro` (the `ui_tooling` role) DESIGNS a system from scratch — style, palette, typography, design-system primitives — impeccable REFINES an already-built UI and then VERIFIES it against a deterministic anti-pattern scan. The two compose on the `web-design` workflow: **ui-pro designs → implement → impeccable refines → impeccable verifies**.
+Impeccable supplies refinement and verification knowledge for UI work.
+`ui-pro designs → implement → impeccable refines → impeccable verifies` is
+historical `source_stages` provenance in the `web-design` seed, not an
+executable DAG. L0 materializes only the assertions and dependencies needed
+for the actual change.
 
 Impeccable has two surfaces:
 
 1. **The agent skill** — a single skill exposing 23 sub-commands accessed via `/impeccable <command> <target>` (e.g. `/impeccable polish the pricing page`). The skill teaches a shared design vocabulary and a curated set of anti-patterns the agent should design *against*.
-2. **The detector CLI** — `impeccable detect <file|dir|url>`, a 100% deterministic, no-LLM, no-API-key scanner. It runs 27 anti-pattern rules (a 12-rule LLM critique pass is available inside the skill) and is the canonical CI / verify-stage gate.
+2. **The detector CLI** — `impeccable detect <file|dir|url>`, a deterministic,
+   no-LLM, no-API-key scanner used as a bounded checklist verification.
 
-L3 task agents should reach for impeccable when:
+L2 Task agents should reach for impeccable when:
 
-| L3 use-case | impeccable surface |
+| L2 use-case | impeccable surface |
 |---|---|
 | "Polish this page before shipping" | `/impeccable polish <target>` |
 | "Run a UX design review with scoring" | `/impeccable critique <target>` |
@@ -49,7 +56,9 @@ L3 task agents should reach for impeccable when:
 | "Add purposeful motion" | `/impeccable animate <target>` |
 | "Gate the build on anti-patterns (CI / verify)" | `impeccable detect --json <path>` |
 
-Impeccable is NOT a substitute for ui-pro: ui-pro picks styles / palettes / typography systems; impeccable assumes a built UI and sharpens it. On the `web-design` workflow both are auto-ensured at their respective stages.
+Impeccable is not a substitute for ui-pro: ui-pro picks styles, palettes, and
+typography systems; impeccable assumes a built UI and sharpens it. The
+materialized checklist and TaskDispatch determine when each plugin is needed.
 
 ## §2 — The 23 /impeccable commands
 
@@ -95,14 +104,16 @@ impeccable detect --fast --json src/     # regex-only (faster), JSON output
 
 **Flags**: `--json` (machine-readable findings for CI/tooling), `--fast` (regex-only mode, skip jsdom; faster but less accurate), `--help`.
 
-**Exit codes (the verify-stage gate contract):**
+**Exit codes (the checklist-verification contract):**
 
 | Exit | Meaning | web-design verify verdict |
 |---|---|---|
 | `0` | No issues found | PASS |
 | `2` | Anti-patterns detected | FAIL → loop back to refine |
 
-This exit-code contract is what the `web-design` workflow's `verify` stage keys on: a non-zero exit (`2`) routes the convergence loop back to `refine`; exit `0` passes the gate.
+L0 may materialize an item whose verification command uses this contract:
+exit `2` leaves the item open and creates reinforcement; exit `0` is passing
+evidence for that item.
 
 ## §4 — DevolaFlow integration map
 
@@ -124,9 +135,14 @@ init_targets: [auto]
 version_check_cmd: "impeccable --version"   # prints pkg.version
 ```
 
-### §4.3 — Workflow (per W-15 / CO-6 section relevance)
+### §4.3 — Seed and runtime
 
-`workflow-system/agent/templates/builtin/web-design.yaml` — stages `design` (ensure `ui-pro`) → `implement` → `refine` (ensure `impeccable`; `/impeccable polish|critique|typeset|arrange|animate`) → `verify` (`impeccable detect --json`). The `refine ↔ verify` convergence loop runs until the detector exits `0`. `plugins_for_workflow("web-design")` resolves to `[ui-pro, impeccable]` in registry order.
+`workflow-system/agent/templates/seeds/web-design.yaml` retains historical
+design/implement/refine/verify provenance and assertion templates.
+`TemplateRegistry.load_seed("web-design")` loads that knowledge;
+`TemplateRegistry.load_template("change-driven")` loads the sole runtime.
+`plugins_for_workflow("web-design")` remains the compatibility API for
+resolving `[ui-pro, impeccable]` in registry order.
 
 ### §4.4 — Context profile
 
@@ -148,7 +164,9 @@ The `pre_plugin_invocation` lifecycle hook calls `ensure_plugin('impeccable')`. 
 
 * The hook emits `PPI001` (severity `error`); **in permissive mode (default) the dispatch continues** — the violation is aggregated onto the `HookResult` for observers.
 * In strict mode the dispatch blocks.
-* The `web-design` verify stage degrades to a non-gating advisory when `impeccable detect` is unavailable: the agent records that the anti-pattern signal was lost (it does not fabricate a PASS).
+* A web-design checklist item using `impeccable detect` remains unverified when
+  the detector is unavailable; the Task records the lost signal and never
+  fabricates PASS.
 
 ### §5.3 — Operator action
 

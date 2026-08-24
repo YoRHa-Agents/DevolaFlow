@@ -64,7 +64,7 @@ def test_windsurf_budget_chars_under_9000(build_result):
     # v6.1.2: the ``keep_sections`` compression step brings Windsurf output
     # under budget, so the adapter now reports budget_ok=True. v11.4.0
     # bumped 8000 → 9000 to absorb the Wave 1+2 SKILL.md addition of the
-    # "Subagent pattern selection" pointer inside §"4-Layer Agent Hierarchy"
+    # "Subagent pattern selection" pointer inside the hierarchy section
     # (one of the four `keep_sections`); pre-bump was 8089/8000, post-bump
     # 8089/9000 with ~10% headroom — mirrors the cursor + agents_md
     # 12000 → 14000 parity bump per the v11.4.0 retrospective §2 Q7.
@@ -91,7 +91,7 @@ def test_windsurf_under_9000_chars(build_result):
     [WARN] status from v6.0.4–v6.1.1 (24,625 chars). v11.4.0 cycle bumped
     8000 → 9000 to absorb Wave 1+2's SKILL.md +3-line addition of the
     "Subagent pattern selection (v11.4.0+)" pointer at SKILL.md:218 inside
-    §"4-Layer Agent Hierarchy" (one of the four `keep_sections`); pre-bump
+    the hierarchy section (one of the four `keep_sections`); pre-bump
     output was 8089/8000 chars, post-bump 8089/9000 with ~10% headroom.
     Mirrors the cursor + agents_md 12000 → 14000 parity bump per the
     v11.4.0 retrospective §2 Q7.
@@ -112,10 +112,12 @@ def test_windsurf_contains_quick_action(build_result):
 
 
 def test_windsurf_contains_hierarchy(build_result):
-    """High-value section ``4-Layer Agent Hierarchy`` must survive compression."""
+    """High-value section ``3-Layer Agent Hierarchy`` must survive compression."""
     _, out_dir = build_result
     text = (out_dir / ".windsurfrules").read_text()
-    assert "4-Layer Agent Hierarchy" in text
+    assert "3-Layer Agent Hierarchy" in text
+    assert "L2 Task" in text
+    assert "Task → Wave → Project → Human" in text
 
 
 def test_windsurf_has_header_prefix(build_result, windsurf_config: dict):

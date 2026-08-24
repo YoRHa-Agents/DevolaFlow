@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Evaluator Rosetta — SI-3 × NineS × Si-Chip Cross-Walk
@@ -13,7 +13,7 @@ signals measure overlapping phenomena vs orthogonal phenomena. This
 reference is the **canonical 6 × 9 mapping table** between the three
 evaluators, with verbatim citations to per-cell sources of authority.
 
-The rosetta is a **reading-time artifact**: an L3 task agent authoring
+The rosetta is a **reading-time artifact**: an L2 Task agent authoring
 a `.local/research/vX.Y.Z_evaluation.md` looks up the row for the
 SI-3 dimension being scored, follows the canonical (**C**-cell)
 column to the NineS or Si-Chip metric that is the authoritative
@@ -312,24 +312,24 @@ gate), the recommended starting weighting is:
 
 | Composite | Weight | Justification |
 |---|:---:|---|
-| Objective (auto-collected) | 0.6 | The 19/22 sub-components D-O-2 auto-fills are objective signals (ruff exit, coverage %, baseline pass count) free of L3-author judgment variance. |
-| Subjective (L3 deduction prose) | 0.4 | The 3/22 subjective sub-components (architecture rationale, edge-case adequacy, naming clarity) require human judgment that auto-collection cannot replace. |
+| Objective (auto-collected) | 0.6 | The 19/22 sub-components D-O-2 auto-fills are objective signals (ruff exit, coverage %, baseline pass count) free of Task-author judgment variance. |
+| Subjective (L2 deduction prose) | 0.4 | The 3/22 subjective sub-components (architecture rationale, edge-case adequacy, naming clarity) require judgment that auto-collection cannot replace. |
 
 This 0.6 / 0.4 weighting is the **starting point** per the v11.0.0
 cycle plan §6 R-10 risk mitigation and the D-O-2 §2.1 decision. If
-a cycle's reproducibility variance σ exceeds 0.30 across two L3
+a cycle's reproducibility variance σ exceeds 0.30 across two L2 Task
 authors, escalate to W-7 retrospective for cycle-lead recalibration.
 
 The weighting only applies WHEN auto-collection is in use (D-O-2
 shipped); v10.7.0 ships the collector + this weighting recommendation,
 but cycle-close composites continue to use the SI-3 binding 6-dim
 formula unchanged. The 0.6/0.4 split lives **inside each dim's score
-cell** (auto-fill = 0.6 weight, L3 prose = 0.4 weight) — not on top
+cell** (auto-fill = 0.6 weight, Task prose = 0.4 weight) — not on top
 of the dim weights.
 
 ### 6. Reading workflow for an SI-3 evaluation report
 
-Step-by-step procedure for the L3 cycle-lead authoring
+Step-by-step procedure for the L2 evaluation Task authoring
 `.local/research/vX.Y.Z_evaluation.md`:
 
 1. **Run the auto-collector** (D-O-2):
@@ -437,7 +437,7 @@ Once D-O-1 lands, future evaluations are expected to:
   evaluation report). Verifiable via `rg "evaluator-rosetta\.md"
   .local/research/v*_evaluation.md`.
 * Reference rate ≥ 80% within the first MINOR after landing.
-* L3 evaluation authoring time drops from ~90 min (manual) to ~50
+* L2 evaluation authoring time drops from ~90 min (manual) to ~50
   min (rosetta-assisted) per the D-O-1 §4 expected delta.
 
 The D-O-3 mid-cycle research index (`scripts/index_mid_cycle_research.py`)

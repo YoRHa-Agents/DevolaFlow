@@ -1,7 +1,7 @@
 """Tests for the validate_owned_files lifecycle hook (v7.5.0 P-05).
 
 Covers:
-  - WORKFLOW_MANIFESTS registry contents and parity with repo-init.yaml
+  - WORKFLOW_MANIFESTS contents and repo-init checklist-seed parity
   - validate_owned_files() — happy path, missing paths, non-repo-init, non-dict
   - _path_covered() — exact match, prefix match, trailing slash normalization
   - get_canonical_manifest() — known workflow, unknown workflow
@@ -15,7 +15,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
 
 from devolaflow.lifecycle.dispatcher import HookViolation
 from devolaflow.lifecycle.validate_owned_files import (
@@ -27,6 +26,7 @@ from devolaflow.lifecycle.validate_owned_files import (
     get_canonical_manifest,
     validate_owned_files,
 )
+from devolaflow.template_engine.registry import TemplateRegistry
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -54,15 +54,17 @@ class TestWorkflowManifests:
         assert WORKFLOW_MANIFESTS["repo-init"] == EXPECTED_REPO_INIT_PATHS
 
     def test_manifest_parity_with_template_yaml(self):
-        template_path = (
-            REPO_ROOT / "workflow-system" / "agent" / "templates" / "builtin" / "repo-init.yaml"
+        registry = TemplateRegistry(REPO_ROOT / "workflow-system/agent/templates")
+        seed = registry.load_seed("repo-init")
+        assert seed is not None
+        canonical = next(
+            assertion
+            for partition in seed.partitions
+            for assertion in partition.assertions
+            if assertion.key == "canonical-manifest"
         )
-        with open(template_path, encoding="utf-8") as f:
-            template = yaml.safe_load(f)
-
-        scaffold_stage = next(s for s in template["stages"] if s["id"] == "scaffold")
-        yaml_manifest = scaffold_stage["config"]["canonical_manifest"]
-        assert yaml_manifest == WORKFLOW_MANIFESTS["repo-init"]
+        assert "eight canonical workspace paths" in canonical.statement_template.lower()
+        assert WORKFLOW_MANIFESTS["repo-init"] == EXPECTED_REPO_INIT_PATHS
 
 
 class TestPathCovered:

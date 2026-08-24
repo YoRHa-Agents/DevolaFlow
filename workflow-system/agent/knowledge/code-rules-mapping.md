@@ -1,240 +1,165 @@
 ---
 id: "agent/knowledge/code-rules-mapping"
-version: "1.0.0"
+version: "2.0.0"
 purpose: >
-  Maps how the DevolaFlow workflow system integrates with a code-rules
-  system for context-aware rule loading, quality enforcement during
-  implementation, and compliance checking during review.
+  Maps repository rules into bounded L2 Implement and Review Task contexts
+  without duplicating the rule source of truth.
 triggers:
-  - "How are code rules loaded during implementation"
-  - "How does the review agent use code rules"
-  - "What rules apply to my task"
+  - "loading rules for an implementation task"
+  - "loading rules for a review task"
+  - "choosing a rule-loading strategy"
 tier: 3
-token_estimate: 2800
-last_updated: "2026-04-04"
+token_estimate: 1500
+last_updated: "2026-08-25"
 ---
 
 # Code-Rules Integration Mapping
 
-## Overview
+## 1. Current Flow
 
-The DevolaFlow workflow system integrates with an external code-rules system
-(such as the one at `/home/agent/workspace/code-rules`) to provide
-context-aware coding standards to Task Agents. Rules flow into the system
-through the `applicable_rules` field of `TaskDispatch` messages and are
-consumed by Implement and Review team agents.
-
-## Rule Loading During the Implement Stage
-
-### Loading Strategies
-
-The `applicable_rules.loading_strategy` field in TaskDispatch controls how
-many rules are loaded into the Task Agent's context window. The strategy
-is selected by the Stage Agent based on task complexity and available
-context budget.
-
-| Strategy | Rules Loaded | Context Cost | Use When |
-|----------|-------------|--------------|----------|
-| `minimal` | Core rules only (universal MUST constraints) | ~500 tokens | Hotfix tasks, trivial changes, context-constrained tasks |
-| `standard` | Core + language-specific + task-type rules | ~2000 tokens | Normal implementation tasks, most code changes |
-| `full` | Core + language + task-type + quality-focus rules | ~5000 tokens | Complex features, security-critical code, audit-profile gates |
-
-### Rule Categories and Loading Order
-
-Rules are loaded in a layered order. Each layer adds specificity:
-
-```
-Layer 1: Core Rules (always loaded)
-├── universal MUST constraints (e.g., no silent failures, brace rules)
-├── project-wide conventions (naming, file organization)
-└── error handling patterns
-
-Layer 2: Language Rules (loaded when language is specified)
-├── language idioms (e.g., Rust ownership patterns, Python type hints)
-├── standard library preferences
-└── language-specific anti-patterns
-
-Layer 3: Task-Type Rules (loaded for standard/full strategies)
-├── new_feature: scaffolding patterns, test-first workflow
-├── bug_fix: regression test requirement, minimal change principle
-├── refactoring: behavior preservation, incremental change strategy
-└── migration: compatibility checks, fallback patterns
-
-Layer 4: Quality-Focus Rules (loaded for full strategy only)
-├── security: input validation, injection prevention, auth checks
-├── performance: complexity bounds, allocation patterns, caching
-├── maintainability: SOLID compliance, coupling limits, documentation
-├── accessibility: WCAG patterns, ARIA requirements
-└── testability: dependency injection, mock-friendly interfaces
+```text
+.rules/*.mdc (source)
+  → compiled AGENTS.md / Cursor surface
+  → L0 selects relevant rule dimensions
+  → L1 writes compact TaskDispatch.rules
+  → L2 Implement or Review Task loads its bounded slice
+  → StatusReport carries evidence and rule-linked findings
 ```
 
-### Context Injection Template Integration
+The rule corpus is not copied into checklist seeds. Seeds can suggest a
+strategy or quality focus as decomposition knowledge; `source_stages` are
+provenance and do not prescribe rule-loading phases.
 
-The `applicable_rules` field maps directly to the context injection template
-defined in the agent hierarchy design (§6.3). Here is how rules flow into
-a Task Agent's context:
+## 2. Dispatch Shape
+
+Canonical lean field:
 
 ```yaml
-context_injection:
-  # ... identity, task, context, files sections ...
-
-  rules:
-    loading_strategy: "standard"    # from TaskDispatch.context.applicable_rules
-    language: "rust"                # determines Layer 2 selection
-    task_type: "new_feature"        # determines Layer 3 selection
-    quality_focus:                  # determines Layer 4 selection (full only)
-      - "security"
-      - "maintainability"
-
-  # The Task Agent loads rules in this order:
-  # 1. Read core rules (always)
-  # 2. Read rust-specific rules (language = "rust")
-  # 3. Read new_feature rules (task_type = "new_feature")
-  # 4. If full: read security + maintainability focus rules
+rules:
+  strategy: minimal | standard | full
+  lang: python
+  focus: [security, maintainability]
 ```
 
-### Stage-Level Rule Configuration
+Legacy verbose callers may expose the same data as
+`context.applicable_rules`. Treat that name as a compatibility code symbol;
+new writers use `rules`.
 
-The Stage Agent configures `applicable_rules` for each wave based on the
-stage's scope and the project's gate profile:
+L1 selects the strategy from checklist scope, risk, and the L2 8K context
+budget. L0/L1 do not execute implementation or review work.
 
-| Gate Profile | Default Strategy | Quality Focus Dimensions |
-|-------------|-----------------|-------------------------|
-| `relaxed` | `minimal` | (none) |
-| `standard` | `standard` | `["maintainability"]` |
-| `strict` | `full` | `["security", "maintainability", "performance"]` |
-| `audit` | `full` | `["security", "maintainability", "performance", "testability"]` |
+## 3. Loading Strategies
 
-## Quality Focus Dimensions
+| Strategy | Rule slice | Typical use |
+|---|---|---|
+| `minimal` | Immutable/core MUST rules plus owned-file constraints | trivial fix, narrow hotfix |
+| `standard` | Core + language + task-type rules | normal implementation/review |
+| `full` | Standard + explicit quality-focus rules | security, migration, audit, complex work |
 
-Each quality focus dimension maps to specific rule categories and review
-checklist items. These dimensions drive both implementation guidance and
-review scoring.
+Priority order:
 
-### Dimension Mapping Table
+1. Soul/Architecture invariants;
+2. repository conventions and ownership;
+3. language rules;
+4. task-type rules;
+5. dispatched quality-focus rules.
 
-| Dimension | Implement Rules | Review Checklist | Gate Weight |
-|-----------|----------------|------------------|-------------|
-| **security** | Input validation, parameterized queries, auth checks, secret handling | OWASP top 10 scan, injection points, auth flows, data exposure | Part of `code_review` (0.30) |
-| **maintainability** | SOLID principles, max function length, coupling limits, naming conventions | Cyclomatic complexity, code duplication, documentation coverage | Part of `architecture` (0.20) |
-| **performance** | Complexity bounds, allocation patterns, caching strategies, lazy evaluation | Hot path analysis, memory profiling, benchmark regression | Part of `benchmark` (0.20) |
-| **correctness** | Exhaustive matching, null safety, boundary checks, error propagation | Logic review, edge case coverage, invariant verification | Part of `code_review` (0.30) |
-| **testability** | Dependency injection, interface segregation, mock-friendly design | Test coverage gaps, test isolation, fixture quality | Part of `test_quality` (0.30) |
+Critical rules are never dropped to fit budget. Remove supplementary prose or
+escalate an underspecified dispatch.
 
-### Composite Score Dimension Alignment
+## 4. Quality-Focus Dimensions
 
-The gate's composite score formula uses 4 dimensions with fixed weights.
-Quality focus rules influence scores through these mappings:
+| Focus | Implement guidance | Review evidence |
+|---|---|---|
+| Security | validation, authorization, secret handling | located exploit/risk findings |
+| Correctness | boundaries, invariants, error propagation | failing case or logic trace |
+| Maintainability | dependency direction, naming, cohesion | specific coupling/duplication evidence |
+| Performance | measured hot paths, bounded complexity | benchmark/profile delta |
+| Testability | interfaces, deterministic dependencies | coverage/gap evidence |
+| Accessibility | semantic structure, keyboard/ARIA behavior | standard and failing interaction |
 
+Focus dimensions guide evidence; L2 does not self-author a Task Quality Score.
+
+## 5. Implement Task Usage
+
+An L2 Implement Task:
+
+1. reads the dispatched checklist assertion and owned files;
+2. loads the selected rule slice;
+3. implements the smallest compliant change;
+4. runs bounded verification;
+5. reports exact commands, results, and deviations.
+
+Example:
+
+```yaml
+self_check:
+  plan_artifact: "inline: reproduce → patch → verify"
+  goal_anchor: "C-G2.1: missing config → explicit error"
+  simplicity: "none"
+  conflicts: []
+  conventions: []
 ```
-composite = Σ(dimension_score × weight)
 
-  test_quality   × 0.30  ← influenced by: correctness, testability rules
-  code_review    × 0.30  ← influenced by: security, correctness rules
-  architecture   × 0.20  ← influenced by: maintainability rules
-  benchmark      × 0.20  ← influenced by: performance rules
-```
+Any MUST-rule violation blocks `DONE`. A justified SHOULD deviation is
+reported as a warning with its rule ID.
 
-## Review Agent Rule Usage
+## 6. Review Task Usage
 
-### Rule-Based Compliance Checking
-
-The Review Agent loads rules using the same `applicable_rules` configuration
-as the Implement Agent, then uses them as a review checklist:
-
-```
-Review Agent Workflow:
-  1. LOAD_RULES  → Load applicable code-rules per loading_strategy
-  2. STRUCTURAL  → Check architecture against maintainability rules
-  3. BEHAVIORAL  → Check logic against correctness and security rules
-  4. STYLISTIC   → Check conventions against language and core rules
-  5. SCORE       → Calculate quality_score using severity-weighted formula
-  6. REPORT      → Classify each finding by severity and rule_id
-```
-
-### Finding-to-Rule Mapping
-
-Each review finding links back to a specific rule when applicable:
+An L2 Review Task loads the same rule snapshot used by the artifact's
+Implement Task. It emits located evidence:
 
 ```yaml
 findings:
-  - finding_id: "F003"
-    severity: "critical"
-    category: "security"
+  - id: F003
+    severity: critical
+    category: security
     location: "src/sync/engine.rs:42"
-    description: "User-supplied path not sanitized before file system access"
-    suggestion: "Use canonicalize() and validate against allowed base paths"
+    description: "user path reaches filesystem without base-path check"
+    suggestion: "canonicalize and validate against allowed root"
     rule_id: "security/input-validation-001"
 ```
 
-The `rule_id` field traces findings to the originating code rule, enabling:
-- Targeted rule refinement when false positives occur
-- Rule coverage analysis across review rounds
-- Cross-project compliance reporting
+`rule_id` enables targeted remediation and false-positive analysis. Findings
+use repository severity policy; they are not converted into an L2-authored
+score.
 
-### Severity Classification from Rules
+## 7. Cross-Round Consistency
 
-Rules define their own severity level, which the Review Agent uses for
-finding classification:
+Rule snapshots remain stable for one checklist item across implement, review,
+and remediation dispatches:
 
-| Rule Severity | Review Finding Severity | Score Impact |
-|--------------|------------------------|--------------|
-| `MUST` | `blocker` (if violated) | -25 per finding |
-| `MUST` | `critical` (if partially violated) | -15 per finding |
-| `SHOULD` | `major` (if violated without justification) | -5 per finding |
-| `SHOULD` | `minor` (if deviated with justification) | -1 per finding |
-| `MAY` | `info` (advisory) | 0 per finding |
+1. L1 records the same `rules` block in successor dispatches.
+2. Review evaluates the rules the implementer actually received.
+3. Reinforcement adds at most 5 finding-specific mandates; it does not replace
+   the base snapshot.
+4. A material rule change reopens planning or creates a new checklist item.
+5. L0 records the result in `stage.md` round history and evidence.
 
-## Cross-Stage Rule Consistency
+This prevents moving-goalpost review while allowing explicit later-round
+reinforcement.
 
-Rules must be consistent across the implement → review → fix cycle within
-a convergence loop. The Stage Agent ensures:
+## 8. Ownership and Handoff
 
-1. **Same rules for implement and review:** The Review Agent loads the same
-   `applicable_rules` configuration that the Implement Agent used, so
-   findings are fair and actionable.
+- L0 Project owns checklist and round adjudication.
+- L1 Wave owns rule-slice dispatch and evidence aggregation.
+- L2 Task owns implementation/review evidence.
+- Reports travel Task → Wave → Project.
+- Unresolvable conflicts escalate Project → Human.
 
-2. **Rules don't change mid-convergence:** The `applicable_rules` for a
-   stage are frozen at stage dispatch time. Adding new rules mid-loop
-   would invalidate prior review findings.
+Rules and findings move through lean TaskDispatch/StatusReport artifacts.
+Agents never share mutable rule state.
 
-3. **Fix tasks inherit parent rules:** When the Implement Agent receives
-   fix tasks during convergence, it loads the same rules as the original
-   implementation task.
+## 9. External Rule Corpora
 
-## Integration Points Summary
+If a project uses an external rule corpus, cite its remote URL in
+agent-facing artifacts. Never hardcode a local clone path. The repository's
+`.rules/` directory remains the source of truth for DevolaFlow governance.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    CODE-RULES INTEGRATION FLOW                      │
-│                                                                     │
-│  Project Config                                                     │
-│    └── gate_profile (standard)                                      │
-│         └── default loading_strategy (standard)                     │
-│              └── default quality_focus (["maintainability"])         │
-│                                                                     │
-│  Stage Agent                                                        │
-│    └── Configures applicable_rules per task                         │
-│         └── Includes in TaskDispatch.context.applicable_rules       │
-│                                                                     │
-│  Implement Agent (L3)                                               │
-│    └── Loads rules per loading_strategy                             │
-│         ├── Core rules (always)                                     │
-│         ├── Language rules (if specified)                            │
-│         ├── Task-type rules (standard+)                              │
-│         └── Quality-focus rules (full only)                         │
-│    └── Follows rules during implementation                          │
-│    └── Self-checks against MUST rules before reporting              │
-│                                                                     │
-│  Review Agent (L3)                                                  │
-│    └── Loads same rules as Implement Agent                          │
-│    └── Uses rules as review checklist                               │
-│    └── Tags findings with rule_id for traceability                  │
-│    └── Calculates quality_score using severity weights              │
-│                                                                     │
-│  Gate Evaluation (L1)                                               │
-│    └── Aggregates quality_score into composite_score                │
-│    └── Checks blocker/critical counts against thresholds            │
-│    └── PASS/FAIL decision feeds back into convergence loop          │
-└─────────────────────────────────────────────────────────────────────┘
-```
+## 10. See Also
+
+- `references/team-roles.md`
+- `references/message-schemas.md`
+- `references/context-isolation.md`
+- `schemas/lean-dispatch.yaml`
+- `schemas/lean-report.yaml`

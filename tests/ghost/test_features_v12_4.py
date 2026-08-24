@@ -593,9 +593,8 @@ _V12_4_0_PV05_CONTEXT_PROFILES_FILE: Path = Path("workflow-system/agent/context_
 
 
 _V12_4_0_PV05_SKILL_PROHIBITION_LITERAL: str = (
-    "Subagent (L1/L2/L3) reports MUST NOT include banner lines — see "
-    "PV-05 runtime hook `reject_subagent_banner_emission`. Banners are "
-    "L0-only operator chat output."
+    "Banners are operator chat output only. L1/L2 reports MUST NOT include them;\n"
+    "`reject_subagent_banner_emission` enforces the prohibition."
 )
 
 

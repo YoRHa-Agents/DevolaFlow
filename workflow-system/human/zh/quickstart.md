@@ -4,7 +4,7 @@ description: "10 分钟内开始使用 DevolaFlow。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
@@ -71,11 +71,11 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 幕后发生了什么：
-1. DevolaFlow 从 "修复" + "bug" 检测到 **hotfix** 意图
-2. **分诊阶段**：Agent 分析 bug，定位根因
-3. **修复阶段**：Agent 实现最小化修复
-4. **测试阶段**：Agent 对受影响代码运行聚焦测试
-5. **发布阶段**：Agent 准备补丁部署
+1. DevolaFlow 从“修复”与“bug”匹配 **hotfix 清单种子**
+2. L0 与你共同锚定目标、实体化清单和已签署的 preflight
+3. L0 选取最高优先级清单项并划分波次
+4. L1 Wave 向隔离的 L2 Task 下发诊断、修复和取证工作
+5. L0 核验证据并勾选已通过的断言；如有未完成项，再开启一个有界轮次
 
 示例：构建新功能（完整流水线）
 
@@ -84,13 +84,12 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 发生了什么：
-1. DevolaFlow 选择 **full-pipeline** 工作流（8 个阶段）
-2. **设计**：通知系统架构
-3. **规划**：分解为批次和任务
-4. **实现**：TDD 编写代码（目标 80% 覆盖率）
-5. **审查 → 测试 → 修正**：收敛循环直到质量达标
-6. **质量门**：复合评分须达到 ≥85 且零阻断问题
-7. **发布**：打包和标签
+1. DevolaFlow 选择 **full-pipeline 清单种子**
+2. 种子依据历史原语来源实体化可测的设计、实现、审查、测试和发布断言；这些来源不规定执行顺序
+3. 你确认清单优先级和 preflight 决策
+4. L0 通过 L1 Wave 与隔离的 L2 Task 运行有界清单轮次
+5. 每个已勾选项都附带证据，未解决的 blocker 保持未勾选
+6. 只有清单合同通过 archive gate 后，源真相才可变更
 
 示例：快速调研（无代码）
 
@@ -99,12 +98,12 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 发生了什么：
-1. DevolaFlow 选择 **research-only** 工作流
-2. Agent 生成结构化对比报告 — 不写代码
+1. DevolaFlow 选择 **research-only 清单种子**
+2. 实体化后的清单要求产出有证据的结构化对比报告，不写代码
 
 ## 第四步：深入探索
 
-查看全部 23 种工作流：[工作流类型](workflow-types.md)了解架构：[架构概述](architecture-overview.md)为你的工具进行设置：[集成指南](integration-guide.md)自定义工作流：[自定义指南](customization-guide.md)
+查看全部 23 个清单种子：[清单种子目录](workflow-types.md)了解架构：[架构概述](architecture-overview.md)为你的工具进行设置：[集成指南](integration-guide.md)自定义工作流：[自定义指南](customization-guide.md)
 
 ## 检查更新
 

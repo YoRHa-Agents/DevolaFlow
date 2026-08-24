@@ -7,27 +7,25 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
 [![Version](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FYoRHa-Agents%2FDevolaFlow%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version&color=green)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
-**Composable workflow meta-framework** for AI-assisted software development. Define multi-stage delivery pipelines, agent hierarchies, and quality gates as declarative YAML templates — then let any AI coding tool orchestrate them.
+**Checklist-round orchestration meta-framework** for AI-assisted software
+development. Select one of 23 non-executable checklist seeds for decomposition
+knowledge, then execute the sole `change-driven` runtime through a three-layer
+Project → Wave → Task hierarchy.
 
 ```
 User Request
     |
     v
- [Pre-Decision] -> detect repo mode, recommend workflow type
+ [Project Agent] -> confirm goal, checklist, preflight, and seed
     |
     v
- [Project Agent] -> dispatches stages sequentially
+ [Round] -> select ready checklist items by priority/dependency
     |
-    +-- [Stage Agent: Design]    -> decomposes into waves
-    |       +-- [Wave Agent]     -> dispatches tasks in parallel
-    |           +-- [Task Agent] -> writes code / runs tests / reviews
-    |
-    +-- [Stage Agent: Implement] -> convergence loop (review-fix-test-fix)
-    |
-    +-- [Stage Agent: Release]   -> tag, changelog, publish
-    |
+    +-- [Wave Agent] -> dispatch <=5 ownership-safe tasks
+            +-- [Task Agent] -> implement, review, fix, re-review
+                               and return evidence
     v
- [Gate: composite >= 85, 0 blockers] -> PASS -> advance | FAIL -> refine
+ [Evidence Gate] -> PASS: check items | FAIL: bounded reinforce/escalate
 ```
 
 ## Quick Install (Pick One)
@@ -111,7 +109,7 @@ Full Development Setup
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # 3092 tests; 23 templates resolve (7 builtin YAMLs + 16 registry compositions)
+make test && make validate-templates   # tests pass; 23 non-executable seeds + sole runtime validate
 make build-skill                        # generate all 4 tool outputs
 devola-init all                         # install to all detected tools
 ```
@@ -128,27 +126,27 @@ DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords l
 
 ```
 "Implement a user authentication system from scratch"
-  -> Agent selects full-pipeline workflow (8 stages: design -> plan -> impl -> review -> test -> refine -> gate -> release)
-  -> Sets up 4-layer hierarchy: dispatches Design stage first
+  -> Agent loads the full-pipeline checklist seed
+  -> Confirms goal/checklist/preflight, then runs change-driven rounds
 
 "Fix the login timeout bug in production"
-  -> Agent selects hotfix workflow (4 stages: triage -> fix -> test -> release)
-  -> Skips design/plan, goes straight to triage
+  -> Agent loads the hotfix seed's concise assertions
+  -> Dispatches an ownership-bounded fix task with focused verification
 
 "Refactor the database layer to use repository pattern"
-  -> Agent selects refactoring workflow (5 stages: scope -> plan -> impl -> test -> review)
+  -> Agent loads refactoring decomposition knowledge
 
 "Research the best approach for real-time notifications"
-  -> Agent selects research-only workflow (3 stages: research -> compare -> report)
+  -> Agent loads the research-only seed
   -> Produces a report, no code
 ```
 
 **What the agent does differently with DevolaFlow:**
 
-1. **Dispatches instead of diving in** — the main agent selects a workflow and dispatches stage-by-stage via subagents, instead of trying to do everything in one pass
+1. **Dispatches instead of diving in** — L0 confirms a checklist and sends ready items through L1 waves to bounded L2 tasks
 2. **Uses subagents with isolated context**, each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
-3. **Runs quality gates**, after implementation, the agent runs review + test passes and checks `composite score >= 85` before advancing
-4. **Follows convergence loops** — if review finds issues, the agent refines and re-tests (up to 3 rounds) instead of shipping broken code
+3. **Runs evidence gates** — a round passes only when selected items have valid evidence, configured checks pass, and blockers are zero
+4. **Follows bounded convergence** — implementation tasks run implement → review → fix → re-review before reporting
 
 Claude Code
 
@@ -184,7 +182,7 @@ found install's stamped version against the running package version
 | Prompt pattern | What it triggers |
 |---------------|-----------------|
 | "Implement X from scratch" | `full-pipeline` — full lifecycle with design, plan, implementation, review, test, release |
-| "Fix bug in X" / "X is broken" | `hotfix` — fast 4-stage triage-fix-test-release |
+| "Fix bug in X" / "X is broken" | `hotfix` — concise triage, fix, verification, and release-readiness assertions |
 | "Refactor X" / "Clean up X" | `refactoring` — restructure with regression testing |
 | "Research X" / "Compare X vs Y" | `research-only` — structured report, no code |
 | "Design the architecture for X" | `design-only` or `RDRR` — research-backed design |
@@ -276,66 +274,64 @@ The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle
 
 ## What's Inside
 
-### 23 Built-in Workflow Types
+### 23 Non-Executable Checklist Seeds + One Runtime
 
-Since v15.0.0 (Phase B collapse), the 23 workflow types ship as **7 builtin
-template YAMLs** (`migration`, `skill-optimization`, `self-update`,
-`nines-assisted`, `repo-init`, `change-driven`, `web-design`) plus **16 named
-compositions** in `workflow-system/agent/templates/registry.yaml` — each
-composition is a survivor template + parameter overrides. Every type name
-below still resolves via `TemplateRegistry.load_template(<name>)`.
+The registry exposes 23 checklist seeds through
+`TemplateRegistry.load_seed(<name>)`. Seeds carry decomposition knowledge and
+historical provenance only: they do not define ordering, gates, or executable
+pipelines. `TemplateRegistry.load_template("change-driven")` is the sole
+runtime.
 
-| Type | When to use | Stages |
-|------|-------------|--------|
-| `full-pipeline` | New feature, greenfield project | design → plan → impl → review → test → refine → gate → release |
-| `hotfix` | Production bug, urgent fix | triage → fix → test → release |
-| `refactoring` | Tech debt, restructure | scope → plan → impl → test → review |
-| `research-only` | Compare alternatives, survey | research → compare → report |
-| `design-only` | Architecture, API design | research → design → review |
-| `migration` | Upgrade, port systems | assess → plan → impl → validate → cutover |
-| `spike-poc` | Prototype, experiment | research → prototype → evaluate |
-| `documentation` | Docs, guides, API refs | survey → author → review |
-| `security-audit` | Vulnerability scan, compliance | threat → scan → analyze → remediate → verify |
-| `feature-enhancement` | Extend existing features | scope → design → plan → impl → review → test → release |
-| `RDRR` | Design with research, ADR | research → design → review → refine (loop) |
-| `demo-showcase` | Demos, presentations, showcases | research → storyboard → build → review → polish → package |
-| `performance-optimization` | Slow app, latency, profiling | profile → design → optimize → benchmark → validate |
-| `dependency-setup` | Environment setup, tooling | research → plan → configure → verify |
-| `onboarding` | New contributor, codebase intro | analyze → document → setup → verify |
-| `skill-optimization` | SKILL.md / skills, EvoBench, context density | survey → profile → optimize → benchmark → iterate → document |
-| `self-update` | Update references, track external changes | check-refs → research-updates → decompose → integrate → test → evaluate |
-| `product-verification` | verify, visual, acceptance, uat, e2e, product | composite |
-| NineS-Assisted | Full pipeline with NineS evaluation and quality gates | `nines eval`, quality, benchmark |
-| `repo-init` | init repo, scaffold workspace, setup rules, 初始化仓库 | analyze → scaffold → compile → verify (mode: minimal \| standard \| deep) |
-| `change-driven` | OpenSpec-style in-flight change folder lifecycle | propose → apply → verify → archive (mode: lite \| full) |
-| `entropy-cleanup` | Periodic GC, stale docs, drift audit, retention rules | scan → propose → review → apply |
-| `web-design` | web design, frontend, landing page, polish UI (ui-pro + impeccable) | design(ui-pro) → implement → refine(impeccable) → verify(`impeccable detect`) |
+| Seed | When to use | Decomposition knowledge |
+|------|-------------|-------------------------|
+| `hotfix` | Production bug, urgent fix | triage, minimal fix, focused checks |
+| `research-only` | Compare alternatives, survey | sources, comparison, report |
+| `design-only` | Architecture, API design | research, decisions, review |
+| `documentation-only` | Docs, guides, API refs | survey, authoring, review |
+| `spike-poc` | Prototype, experiment | bounded prototype, verdict |
+| `refactoring` | Tech debt, restructure | scope, regression safety, review |
+| `feature-enhancement` | Extend existing features | design, implementation, release evidence |
+| `full-pipeline` | New feature, greenfield project | end-to-end delivery assertions |
+| `performance-optimization` | Slow app, latency, profiling | profile, optimize, benchmark |
+| `security-audit` | Vulnerability scan, compliance | threat model, scan, remediation |
+| `research-design-review-refine` | Research-backed iterative design | research, design, review, refinement |
+| `dependency-setup` | Environment setup, tooling | setup and bounded verification |
+| `onboarding` | New contributor, codebase intro | analysis, docs, setup |
+| `demo-showcase` | Demos, presentations, showcases | story, build, visual evidence |
+| `product-verification` | Visual, interaction, accessibility, UAT | user-facing verification axes |
+| `entropy-cleanup` | Stale docs, drift, retention | scan, proposal, cleanup evidence |
+| `migration` | Upgrade, port systems | migration, cutover, rollback readiness |
+| `skill-optimization` | Skills, EvoBench, context density | profile, optimize, benchmark |
+| `self-update` | External reference updates | research, integration, evaluation |
+| `nines-assisted` | NineS-assisted evaluation | analysis and quality evidence |
+| `repo-init` | Initialize workspace and governance | canonical scaffold assertions |
+| `change-driven` | In-flight change lifecycle | checklist assertions plus sole runtime name |
+| `web-design` | Frontend and visual polish | design, implementation, deterministic checks |
 
-### 4-Layer Agent Hierarchy
+### Three-Layer Agent Hierarchy
 
 | Layer | Role | Context Budget | Key Rule |
 |-------|------|---------------|----------|
-| **Project** | Dispatch stages, track status | ~3K tokens | Never reads source code |
-| **Stage** | Decompose to waves, run gates | ~5K tokens | Never writes code |
-| **Wave** | Parallel-dispatch tasks | ~4K tokens | Never executes task work |
-| **Task** | **The only layer that works** | ~8K tokens | Never spawns sub-agents |
+| **Project (L0)** | Confirm contract, select rounds, adjudicate gates | ~5K tokens | Dispatches; does not implement |
+| **Wave (L1)** | Partition and aggregate ownership-safe tasks | ~5K tokens | Never edits task output |
+| **Task (L2)** | Implement, converge, and emit evidence | ~8K tokens | Never spawns sub-agents |
 
 ### Quality Gate Mechanism
 
-Every stage passes through a quality gate before advancing:
+Every round passes only when selected checklist assertions have valid evidence:
 
 ```
-composite = test_quality * 0.30 + code_review * 0.30
-          + architecture * 0.20 + benchmark * 0.20
-
-PASS when: composite >= 85 AND blockers == 0 AND round >= 1
-FAIL: run convergence loop (review -> fix -> test -> fix), max 3 rounds
+PASS: selected-item evidence valid, configured checks pass, blockers == 0
+FAIL: bounded reinforcement or escalation
+TREND: composite is recorded for direction; it does not replace item evidence
 ESCALATE: produce divergence report for human review
 ```
 
 ### EvoBench Context Benchmarks
 
-DevolaFlow includes a built-in benchmark suite (57 scenarios covering all 23 workflow types — 7 builtin templates + 16 named compositions) that measures how effectively context is routed to agents:
+DevolaFlow includes a built-in benchmark suite (57 scenarios covering all 23
+checklist seeds and the sole runtime) that measures how effectively context is
+routed to agents:
 
 ```bash
 python -m benchmarks.devolaflow_context.runner --scenario all              # run all 57 scenarios
@@ -349,14 +345,16 @@ Current avg composite: **99.49/100** with 100% relevance and 0% noise across all
 
 ### Task Quality Score
 
-After every workflow completes, DevolaFlow evaluates your original request on 4 dimensions (1-5 each, total /20):
+After a workflow completes, L0 can evaluate your original request on four
+dimensions (1–5 each, total /20) when you explicitly ask for a score:
 
 - **Clarity**, Was the intent unambiguous?
 - **Scope**, Were boundaries defined?
 - **Success Criteria**, Were pass/fail conditions stated?
 - **Context**, Was relevant background provided?
 
-The score appears at the end of the workflow report with actionable tips to improve future requests. Scoring is skipped for trivial tasks.
+The rubric loads on demand after completion and never appears in L1/L2
+reports. Scoring is skipped for trivial tasks.
 
 ### Repository Development Rules
 
@@ -429,8 +427,8 @@ check-drift                      # verify human docs are in sync
 ```
 DevolaFlow/
   src/devolaflow/             # Python package (engine code)
-    template_engine/          #   YAML parser, 5 composition operators, validator
-    pre_decision/             #   repo detection, checklist, workflow recommender
+    template_engine/          #   checklist-seed registry + sole runtime loader
+    pre_decision/             #   repo detection, checklist, seed recommender
     gate/                     #   composite scorer, profiles, convergence
     adapters/                 #   Cursor / Codex / Claude / Copilot output adapters
     build_skill.py            #   adapter pipeline entry
@@ -438,10 +436,11 @@ DevolaFlow/
   workflow-system/
     agent/                    # Agent-consumed content (md + yaml only)
       SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
-      references/             #   Tier 2: 10 domain reference files (190-710 lines)
-      templates/builtin/      #   23 workflow template YAMLs → v15: 7 survivors here + 16 compositions in templates/registry.yaml
-      examples/               #   Tier 3: 3 execution trace walkthroughs
-      knowledge/              #   Tier 3: code-rules + principle mappings
+      references/             #   Tier 2: 25 domain references
+      templates/seeds/        #   23 non-executable checklist seeds
+      templates/builtin/      #   sole change-driven runtime
+      examples/               #   Tier 3: 4 trace walkthroughs
+      knowledge/              #   Tier 3: 6 on-demand knowledge files
       workflow-skill.yaml     #   canonical source for adapter pipeline
     human/                    # Human-readable documentation + demo
       en/                     #   8 English docs
@@ -467,16 +466,17 @@ DevolaFlow/
 
 ## Interactive Demo
 
-Browse the framework architecture, workflow types, and stage primitives interactively:
+Browse the framework architecture, checklist seeds, runtime, and historical
+provenance labels interactively:
 
 **[Live Demo](https://yorha-agents.github.io/DevolaFlow/)** (GitHub Pages)
 
 | Page | What it shows |
 |------|--------------|
 | [Design Architecture](https://yorha-agents.github.io/DevolaFlow/design-architecture/) | Complete framework map: every skill file, design source, tier, token budget, dependency graph |
-| [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | Built-in workflow types as interactive pipeline diagrams with teams, gates, and loops |
+| [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | Checklist seed provenance projected as non-executable diagrams |
 | [Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/) | EvoBench scenario scores, baseline comparison, and trend-style visualization |
-| [Stage Explorer](https://yorha-agents.github.io/DevolaFlow/stage-explorer/) | 13 stage primitives with I/O types, delegation chains, and context budgets |
+| [Provenance Explorer](https://yorha-agents.github.io/DevolaFlow/stage-explorer/) | Historical labels retained for seed traceability, not runtime ordering |
 
 Or open locally: `workflow-system/human/demo/index.html`
 
@@ -487,8 +487,8 @@ Or open locally: `workflow-system/human/demo/index.html`
 | Doc | Description |
 |-----|-------------|
 | [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
-| [Architecture Overview](workflow-system/human/en/architecture-overview.md) | 4-layer hierarchy, primitives, gates, context isolation |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 23 workflow types (7 builtin templates + 16 named compositions) with examples and selection guidance |
+| [Architecture Overview](workflow-system/human/en/architecture-overview.md) | Three-layer hierarchy, checklist rounds, gates, context isolation |
+| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 23 non-executable seeds, the sole runtime, and selection guidance |
 | [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
 | [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
 | [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
@@ -500,8 +500,8 @@ Or open locally: `workflow-system/human/demo/index.html`
 | 文档 | 说明 |
 |------|------|
 | [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
-| [架构概述](workflow-system/human/zh/architecture-overview.md) | 4 层层级、原语、质量门、上下文隔离 |
-| [工作流类型](workflow-system/human/zh/workflow-types.md) | 全部 23 种工作流类型（7 个内置模板 + 16 个具名组合），含示例和选择指南 |
+| [架构概述](workflow-system/human/zh/architecture-overview.md) | 三层层级、清单轮次、质量门、上下文隔离 |
+| [工作流类型](workflow-system/human/zh/workflow-types.md) | 23 个非执行清单种子、唯一运行时及选择指南 |
 | [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
 | [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
 | [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |

@@ -43,6 +43,11 @@ class TestLoadProfiles:
         assert "meta" in config
         assert "profiles" in config
         assert "sections" in config
+        assert config["meta"]["layer_token_budgets"] == {
+            "l0_project": 5000,
+            "l1_wave": 5000,
+            "l2_task": 8000,
+        }
 
     def test_loads_explicit_path(self, tmp_path: Path) -> None:
         data = {
@@ -553,34 +558,40 @@ class TestResolveDecompositionConfig:
 
 class TestResolveCompressionIntensity:
     def test_known_boundary(self) -> None:
-        config = {"meta": {"compression_defaults": {"l2_to_l3": "minimal"}}}
-        assert resolve_compression_intensity("l2_to_l3", config) == "minimal"
+        config = {"meta": {"compression_defaults": {"l1_to_l2": "minimal"}}}
+        assert resolve_compression_intensity("l1_to_l2", config) == "minimal"
 
     def test_unknown_boundary_defaults_to_standard(self) -> None:
         config = {"meta": {"compression_defaults": {}}}
         assert resolve_compression_intensity("unknown", config) == "standard"
 
     def test_missing_compression_defaults(self) -> None:
-        assert resolve_compression_intensity("l2_to_l3", {}) == "standard"
+        assert resolve_compression_intensity("l1_to_l2", {}) == "standard"
 
     def test_invalid_value_defaults_to_standard(self) -> None:
-        config = {"meta": {"compression_defaults": {"l2_to_l3": "invalid"}}}
-        assert resolve_compression_intensity("l2_to_l3", config) == "standard"
+        config = {"meta": {"compression_defaults": {"l1_to_l2": "invalid"}}}
+        assert resolve_compression_intensity("l1_to_l2", config) == "standard"
 
     def test_all_valid_intensities(self) -> None:
         for intensity in VALID_COMPRESSION_INTENSITIES:
-            config = {"meta": {"compression_defaults": {"l2_to_l3": intensity}}}
-            assert resolve_compression_intensity("l2_to_l3", config) == intensity
+            config = {"meta": {"compression_defaults": {"l1_to_l2": intensity}}}
+            assert resolve_compression_intensity("l1_to_l2", config) == intensity
 
     def test_compression_intensity_in_select_context(self) -> None:
         result = select_context("feature", profiles_path=PROFILES_YAML)
         assert "compression_intensity" in result
         assert result["compression_intensity"] in VALID_COMPRESSION_INTENSITIES
 
-    def test_compression_intensity_matches_l2_to_l3_config(self) -> None:
+    def test_compression_intensity_matches_l1_to_l2_config(self) -> None:
         config = load_profiles(PROFILES_YAML)
         result = select_context("hotfix", profiles_path=PROFILES_YAML)
-        expected = resolve_compression_intensity("l2_to_l3", config)
+        assert set(config["meta"]["compression_defaults"]) == {
+            "l0_to_l1",
+            "l1_to_l2",
+            "l2_to_l1",
+            "l1_to_l0",
+        }
+        expected = resolve_compression_intensity("l1_to_l2", config)
         assert result["compression_intensity"] == expected
 
     def test_all_profiles_have_compression_intensity(self) -> None:
@@ -698,10 +709,8 @@ class TestPlanModeDetection:
         """plan_mode=True escalates plan-relevant sections + sets quality model.
 
         Section-priority overrides are verified at the profile level via
-        :func:`apply_plan_mode_overrides` (the names ``agent_hierarchy`` and
-        ``decomposition_gate`` are aspirational keys that may not all exist
-        in the section registry yet — what matters is that the priority dict
-        carries the ``critical`` mark so future registry additions inherit it).
+        :func:`apply_plan_mode_overrides`; every override name is a current
+        ``context_profiles.yaml`` section key backed by the live SKILL.md.
         ``model_hint`` is verified via :func:`select_context` directly.
         """
         monkeypatch.delenv("DEVOLAFLOW_PLAN_MODE", raising=False)
@@ -711,12 +720,12 @@ class TestPlanModeDetection:
         assert result["plan_mode"] is True
         assert result["model_hint"] == "quality"
 
-        baseline_profile = {"section_priorities": {"execution_protocol": "important"}}
+        baseline_profile = {"section_priorities": {"agent_mode_protocol": "important"}}
         plan_profile = apply_plan_mode_overrides(baseline_profile)
-        assert plan_profile["section_priorities"]["agent_hierarchy"] == "critical"
-        assert plan_profile["section_priorities"]["decomposition_gate"] == "critical"
+        assert plan_profile["section_priorities"]["hierarchy_table"] == "critical"
+        assert plan_profile["section_priorities"]["gate_mechanism"] == "critical"
         assert plan_profile["section_priorities"]["rationalization_prevention"] == "critical"
-        assert plan_profile["section_priorities"]["execution_protocol"] == "supplementary"
+        assert plan_profile["section_priorities"]["agent_mode_protocol"] == "supplementary"
 
     def test_plan_mode_explicit_false_skips_detection(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -779,8 +788,8 @@ class TestPlanModeDetection:
 
         baseline = {"section_priorities": {}, "token_budget": 5000}
         composed = apply_round_escalation(apply_plan_mode_overrides(baseline), 3)
-        assert composed["section_priorities"]["agent_hierarchy"] == "critical"
-        assert composed["section_priorities"]["decomposition_gate"] == "critical"
+        assert composed["section_priorities"]["hierarchy_table"] == "critical"
+        assert composed["section_priorities"]["rationalization_prevention"] == "critical"
         assert composed["section_priorities"]["convergence_loop"] == "critical"
         assert composed["section_priorities"]["gate_mechanism"] == "critical"
         assert composed["token_budget"] == int(5000 * 1.2)
@@ -801,8 +810,8 @@ class TestPlanModeDetection:
         """The helper must return a new dict and leave its input untouched."""
         original = {
             "section_priorities": {
-                "agent_hierarchy": "supplementary",
-                "execution_protocol": "critical",
+                "hierarchy_table": "supplementary",
+                "agent_mode_protocol": "critical",
             },
             "model_hint": "balanced",
             "compression_intensity": "standard",
@@ -823,8 +832,8 @@ class TestPlanModeDetection:
 
         assert result["model_hint"] == "quality"
         assert result["compression_intensity"] == "minimal"
-        assert result["section_priorities"]["agent_hierarchy"] == "critical"
-        assert result["section_priorities"]["execution_protocol"] == "supplementary"
+        assert result["section_priorities"]["hierarchy_table"] == "critical"
+        assert result["section_priorities"]["agent_mode_protocol"] == "supplementary"
         assert result["token_budget"] == 4000
 
     def test_plan_mode_invalid_env_value_treated_as_false(
@@ -1224,8 +1233,9 @@ class TestComplexityTierRouting:
 # references/meta-framework.md §4. The DELIBERATE delta is exactly
 # `template_quick_ref` disappearing from each resolved map (it was
 # `skip` in all 24 profiles — zero behavioural change to selection);
-# the 5 explicit-map profiles (verify_* / repo-init /
-# product_verification) keep their original pre-refactor hashes.
+# the explicit-map profiles keep their original pre-refactor hashes except
+# repo-init, whose five retired section IDs were migrated to current SKILL
+# anchors by M4-W4-A1 without changing their priorities.
 # Canonicalisation:
 #   * section-priority hash  = sha256(json.dumps([[k, v], ...],
 #     ensure_ascii=False)) over the profile's ordered
@@ -1262,7 +1272,7 @@ _PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
     "verify_visual": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_acceptance": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_interaction": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
-    "repo-init": "26e67c4133518e5b9fb44d6b40e67deab02580e62103e2fd3c61e1228fb00940",
+    "repo-init": "2858037d83647ce0e067cf92f57ed6e712b2086bec2861401c46fe10d07c4b3d",
     "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
     "entropy_scan": "d98b2e974eb5498793b1ba9495c9dbe2eaf0cc49874a9bf7206b0ff75fb94d41",
 }
@@ -1289,7 +1299,7 @@ _PRE_G026_PROFILE_HASHES: dict[str, str] = {
     "verify_visual": "48c63ae115031c1d9f587c48e75288700c070cb68f5f5d58b51b715b38c0e09d",
     "verify_acceptance": "d6ff6666f67dab86b3f70bae867d05ba100400fdb6c6c7bd33563a1dd43fa70b",
     "verify_interaction": "afb7d6b50d887ca392af0ab01e3800e857c149a672d525672a1403ecb40667ac",
-    "repo-init": "303059b0254a4998c44c83b81b39abfcb5c87d4d38523e37e5f2d3ca63f612d7",
+    "repo-init": "82dfa7335f3175dc69079ab6286eb6391e02cb19c675ad7c0e0088a72867aa46",
     "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
     "entropy_scan": "97129fec03741c6ea0eb506accb216602101a5742e240bc94d5ab9210b95d46c",
 }

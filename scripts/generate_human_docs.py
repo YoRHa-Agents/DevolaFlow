@@ -38,30 +38,30 @@ DOCS = [
     (
         "architecture-overview",
         "Architecture Overview",
-        "System architecture: 4-layer hierarchy, stage primitives, gate mechanism.",
+        "Three-layer checklist-round architecture, provenance primitives, and quality gates.",
         "架构概述",
-        "系统架构：4 层层级、阶段原语、质量门机制。",
+        "三层清单轮次架构、来源原语与质量门机制。",
     ),
     (
         "workflow-types",
-        "Workflow Types Catalog",
-        "23 built-in workflow types with selection guidance.",
-        "工作流类型目录",
-        "23 种内置工作流类型及选择指南。",
+        "Checklist Seed Catalog",
+        "23 built-in checklist seeds plus the change-driven runtime.",
+        "清单种子目录",
+        "23 个内置清单种子与 change-driven 运行时。",
     ),
     (
         "agent-hierarchy-guide",
         "Agent Hierarchy Guide",
-        "Understanding the 4-layer delegation hierarchy.",
+        "Understanding the three-layer Project, Wave, and Task hierarchy.",
         "Agent 层级指南",
-        "理解 4 层委托层级架构。",
+        "理解 Project、Wave、Task 三层委托架构。",
     ),
     (
         "customization-guide",
         "Customization Guide",
-        "Creating custom workflow templates and derived configurations.",
+        "Creating non-executable checklist seeds and derived configurations.",
         "自定义指南",
-        "创建自定义工作流模板和派生配置。",
+        "创建不可执行的清单种子与派生配置。",
     ),
     (
         "integration-guide",
@@ -215,11 +215,11 @@ Fix the login timeout bug — users report 500 errors after 30 seconds of inacti
 ```
 
 What happens behind the scenes:
-1. DevolaFlow detects **hotfix** intent from "fix" + "bug"
-2. **Triage stage**: Agent analyzes the bug, identifies root cause
-3. **Fix stage**: Agent implements a minimal targeted fix
-4. **Test stage**: Agent runs focused tests on affected code
-5. **Release stage**: Agent prepares the patch for deployment
+1. DevolaFlow matches the **hotfix checklist seed** from "fix" + "bug"
+2. L0 anchors the goal, materialized checklist, and signed preflight with you
+3. L0 picks the highest-priority checklist items and groups them into a wave
+4. L1 Wave dispatches isolated L2 Tasks for diagnosis, remediation, and evidence
+5. L0 verifies the evidence, checks completed assertions, and opens another bounded round if needed
 
 ### Example: Build a New Feature (Full Pipeline)
 
@@ -228,13 +228,12 @@ Implement a user notification system with email and in-app channels
 ```
 
 What happens:
-1. DevolaFlow selects **full-pipeline** workflow (8 stages)
-2. **Design**: Architecture for notification system
-3. **Plan**: Break into waves and tasks with dependencies
-4. **Implement**: Write code with TDD (target 80% coverage)
-5. **Review → Test → Refine**: Convergence loop until quality passes
-6. **Gate**: Composite score must reach ≥85 with zero blockers
-7. **Release**: Package and tag
+1. DevolaFlow selects the **full-pipeline checklist seed**
+2. The seed's historical primitive provenance helps materialize measurable design, implementation, review, test, and release assertions; it does not prescribe execution order
+3. You confirm the checklist priorities and preflight decisions
+4. L0 runs bounded checklist rounds through L1 Waves and isolated L2 Tasks
+5. Each checked item carries evidence; unresolved blockers remain open
+6. The archive gate requires the checklist contract to pass before source truth changes
 
 ### Example: Quick Research (No Code)
 
@@ -243,12 +242,12 @@ Research the best approach for real-time notifications — compare WebSocket vs 
 ```
 
 What happens:
-1. DevolaFlow selects **research-only** workflow
-2. Agent produces a structured comparison report — no code written
+1. DevolaFlow selects the **research-only checklist seed**
+2. The materialized checklist asks for a structured, evidenced comparison — no code written
 
 ## Step 4: Explore More
 
-- See all 23 workflow types: [Workflow Types](workflow-types.md)
+- See all 23 checklist seeds: [Checklist Seed Catalog](workflow-types.md)
 - Understand the architecture: [Architecture Overview](architecture-overview.md)
 - Set up for your specific tool: [Integration Guide](integration-guide.md)
 - Customize workflows: [Customization Guide](customization-guide.md)
@@ -273,58 +272,68 @@ def _en_architecture() -> str:
     return """\
 ## System Overview
 
-DevolaFlow orchestrates complex software tasks through a **4-layer agent hierarchy** with **quality gates** at every stage boundary. Instead of one agent trying to do everything, work is decomposed into isolated tasks executed by specialized agents.
+DevolaFlow orchestrates complex software work through **checklist rounds** and a **three-layer agent hierarchy**. A user-approved checklist is the execution contract: every item is measurable, every completion has evidence, and every loop is bounded.
 
 ```
 User Request
     │
     ▼
 ┌─────────────────────┐
-│   Pre-Decision       │  Detect repo mode, recommend workflow type
+│  Checklist Seed      │  Select domain decomposition knowledge
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L0: Project Agent   │  Select workflow, sequence stages    (~3K tok)
+│  L0: Project Agent   │  Anchor checklist, manage rounds     (~5K tok)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L1: Stage Agent     │  Decompose into waves, run gates     (~5K tok)
+│  L1: Wave Agent      │  Dispatch tasks, aggregate evidence  (~5K tok)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L2: Wave Agent      │  Dispatch parallel tasks              (~4K tok)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L3: Task Agent      │  **Execute actual work**              (~8K tok)
+│  L2: Task Agent      │  **Execute actual work**              (~8K tok)
 └─────────────────────┘
 ```
 
-**Key invariant**: Only Layer 3 (Task Agents) perform actual work — writing code, running tests, reviewing, authoring documents. Layers 0–2 exclusively dispatch, monitor, and report.
+**Key invariant**: Only L2 Task Agents perform actual work — writing code, running tests, reviewing, or authoring documents. L0 Project and L1 Wave agents only dispatch, monitor, verify evidence, and report.
 
-## The 4-Layer Hierarchy
+## The Three-Layer Hierarchy
 
 | Layer | Role | Context Budget | Delegates To | Must NOT |
 |-------|------|---------------|-------------|----------|
-| **L0: Project** | Selects workflow, sequences stages, tracks status | ~3K tokens | Stage Agents | Write code, read source files |
-| **L1: Stage** | Decomposes stage into waves, runs convergence loops | ~5K tokens | Wave Agents | Write code, execute tests |
-| **L2: Wave** | Dispatches parallel tasks, checks for conflicts | ~4K tokens | Task Agents | Modify any task's output |
-| **L3: Task** | Executes a single atomic unit of work | ~8K tokens | Nothing (leaf) | Spawn sub-agents |
+| **L0: Project** | Anchors goal/checklist/preflight, picks each round, evaluates evidence and gates | ~5K tokens | L1 Wave | Implement or alter Task output |
+| **L1: Wave** | Dispatches parallel Tasks, checks ownership conflicts, aggregates evidence proposals | ~5K tokens | L2 Task | Perform any Task's work |
+| **L2: Task** | Executes one atomic checklist assignment and reports evidence | ~8K tokens | Nothing (leaf) | Spawn sub-agents or write outside its owned set |
 
-## 13 Stage Primitives
+The escalation chain is always upward: **Task → Wave → Project → Human**.
 
-Every workflow is composed from 13 universal primitives organized into 6 categories:
+## Checklist-Round Runtime
+
+`change-driven` is the sole executable runtime:
+
+1. **Propose**: L0 and the user anchor numbered goals and a measurable checklist.
+2. **Preflight**: The user signs project decisions and blocker pre-authorizations once.
+3. **Round**: L0 picks the highest-priority open items, partitions them into waves, and records the plan in `stage.md`.
+4. **Execute**: L1 dispatches up to five isolated L2 Tasks per wave.
+5. **Verify**: Tasks report evidence; L1 aggregates it; L0 verifies it before checking any item.
+6. **Repeat or archive**: A round passes when its picked items are checked with evidence and no blockers remain. Once the full checklist and archive gate pass, the change can be archived.
+
+Composite gate scores remain a trend signal during rounds. They do not replace the primary contract: checked assertions with valid evidence and zero blockers.
+
+## 23 Checklist Seeds and Primitive Provenance
+
+The registry contains **23 non-executable checklist seeds** plus the one `change-driven` runtime. A seed supplies intent keywords, checklist partitions, measurable assertion templates, and verification suggestions. It never supplies a runtime DAG.
+
+Each seed's `source_stages` field is **provenance only**. It preserves the historical source ID and one of 14 primitive labels; list order is presentation-only and must not determine execution order:
 
 | Category | Primitives | Purpose |
 |----------|-----------|---------|
 | **Discover** | `research`, `analyze` | Gather information, assess current state |
 | **Shape** | `design`, `plan` | Define architecture, decompose into tasks |
 | **Build** | `implement`, `refine` | Write code, fix issues |
-| **Verify** | `review`, `test`, `validate` | Check quality, run tests, aggregate results |
+| **Verify** | `review`, `test`, `validate`, `verify` | Check quality, run tests, aggregate results |
 | **Deliver** | `release`, `deploy`, `monitor` | Package, ship, observe |
 | **Control** | `gate` | Quality checkpoint blocking progression |
-
-Primitives compose via 5 operators: **sequence** (→), **parallel** (||), **choice** (⊕), **loop** (↻), **gate** (⊣).
 
 ## Task-Adaptive Context Selection
 
@@ -338,7 +347,7 @@ Profiles are defined in `workflow-system/agent/context_profiles.yaml`.
 
 ## Quality Gate Mechanism
 
-Gates are quality checkpoints between stages. Every gate evaluates a **composite score**:
+Gates are quality checkpoints at round and archive boundaries. Every gate can evaluate a **composite score**:
 
 ```
 composite = test_quality × 0.30 + code_review × 0.30
@@ -346,11 +355,11 @@ composite = test_quality × 0.30 + code_review × 0.30
 ```
 
 **Pass conditions** (all required):
-1. `composite_score >= threshold` (default: 85)
-2. Zero blocker findings AND zero MUST-priority violations
-3. `coverage >= coverage_threshold` (default: 80%)
+1. Every checklist item picked for the round has valid evidence and is checked
+2. Zero blocker findings and zero MUST-priority violations
+3. Archive additionally satisfies its configured composite and coverage thresholds
 
-**On failure**: The gate triggers a convergence loop (review → fix → test → recheck), up to 3 rounds. If still failing, it escalates to the human.
+**On failure**: Open items and findings enter the next bounded round as reinforcement. If progress stagnates or the round limit is reached, escalation follows Task → Wave → Project → Human.
 
 **Gate profiles**:
 
@@ -366,7 +375,7 @@ composite = test_quality × 0.30 + code_review × 0.30
 Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
 
 - **Identity**: role, task_id, team assignment
-- **Task spec**: title, description, acceptance criteria
+- **Task spec**: checklist item IDs, assertions, verification criteria
 - **Context**: predecessor summaries, design excerpts, interface contracts
 - **Files**: owned files (create/modify) + read-only references
 - **Rules**: coding conventions, quality focus areas
@@ -376,11 +385,13 @@ Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
 
 ## Human Interaction Surface
 
-Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+) — a three-zone tree that separates **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
+Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+). Its three zones separate **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
 
-- **`input/`** — human-owned and immutable once ratified: a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger. This zone is git-tracked and guarded by the `check_human_input_append_only` hook.
-- **`output/`** — agent-written and concise: a `DIGEST.md` plus `convergence/<version>-convergence.md` reports (kept gitignored as regenerable artifacts).
-- **`archive/`** — superseded artifacts.
+| Zone | Ownership and contents |
+|------|------------------------|
+| **`input/`** | Human-owned and immutable once ratified: constitution, REQ-ID-keyed requirements, and an append-only amendment ledger |
+| **`output/`** | Agent-written and concise: `DIGEST.md` plus convergence reports |
+| **`archive/`** | Superseded artifacts |
 
 Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
 
@@ -392,7 +403,7 @@ source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 | Rule Layer | Covers |
 |-----------|--------|
 | `soul.mdc` (S-1 to S-10, P0) | Immutable invariants — test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
-| `architecture.mdc` (A-1 to A-7, P1) | 4-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
+| `architecture.mdc` (A-1 to A-7, P1) | Three-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
 | `conventions.mdc` (C-1 to C-9, P2; C-8 retired) | Line budgets, frontmatter, version consistency, lean messages, verbatim extraction |
 | `workflow.mdc` (W-1 to W-24, P3) | Iteration planning, benchmark guards, version bump protocol, env-flag policy |
 | `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
@@ -406,169 +417,74 @@ was absorbed into the layers above.
 
 def _en_workflow_types() -> str:
     return """\
-## Workflow Selection
+## Seed Selection
 
-DevolaFlow automatically selects the right workflow based on your prompt. You can also specify one explicitly.
+DevolaFlow matches prompt intent to a checklist seed. You can also name a seed explicitly. The selected seed is materialized into user-confirmed goals and measurable checklist assertions before execution.
 
-**Selection heuristics:**
-- Urgency signals ("urgent", "ASAP", "production down") → `hotfix`
-- "From scratch" / "new project" → `full-pipeline`
-- Question-form phrasing ("what", "how", "which") → `research-only`
-- Explicit type mention → direct match (highest priority)
+| Signal | Selected seed |
+|--------|---------------|
+| "urgent", "ASAP", "production down" | `hotfix` |
+| "from scratch", "new project" | `full-pipeline` |
+| Question-form phrasing such as "what", "how", "which" | `research-only` |
+| Explicit seed name | Direct match |
 
-## All 23 Built-in Workflow Types
+## The 23 Built-in Checklist Seeds
 
-### Discover Workflows
+All 23 seeds are **non-executable decomposition knowledge**. The primitive lists below are source provenance only: they explain where each seed's domain knowledge came from, but neither list order nor source IDs prescribe runtime order.
 
-#### `research-only`
-**When to use**: Survey prior art, compare alternatives, evaluate options.
-**Stages**: research → compare → report
-**Teams**: Research (primary)
-**Example prompt**: `"Research the best ORM for our Python project — compare SQLAlchemy, Peewee, and Tortoise"`
+| Seed | Use when | Primitive provenance (non-executable) |
+|------|----------|---------------------------------------|
+| `hotfix` | Urgent defect diagnosis and bounded remediation | analyze, implement, test, release |
+| `research-only` | Compare alternatives and produce an evidenced recommendation | research, analyze, validate |
+| `design-only` | Create an architecture, API, or schema with review evidence | research, design, review |
+| `documentation-only` | Survey, author, and review documentation | research, implement, review |
+| `spike-poc` | Test feasibility with a bounded throwaway prototype | research, implement, validate |
+| `refactoring` | Restructure code while preserving behavior | analyze, plan, implement, test, review |
+| `feature-enhancement` | Extend an existing feature through release evidence | design, plan, implement, review, test, release |
+| `full-pipeline` | Build a greenfield or end-to-end capability | design, plan, implement, review, test, refine, gate, release |
+| `performance-optimization` | Improve a measured latency, memory, or throughput problem | analyze, design, implement, test, validate |
+| `security-audit` | Threat-model, scan, remediate, and verify security | research, analyze, implement, validate |
+| `research-design-review-refine` | Iterate on research-backed design | research, design, review, refine |
+| `dependency-setup` | Configure an environment, dependency, or toolchain | research, plan, implement, verify |
+| `onboarding` | Help a contributor understand and verify a repository setup | analyze, implement, verify |
+| `demo-showcase` | Build a presentation-ready demonstration | research, design, implement, review, refine, release |
+| `product-verification` | Verify visual, interaction, accessibility, and acceptance quality | analyze, design, implement, test, verify, review, validate |
+| `entropy-cleanup` | Find and repair stale documentation or drift | analyze, plan, review, implement |
+| `migration` | Upgrade or port a system with rollback readiness | analyze, plan, implement, validate, deploy |
+| `skill-optimization` | Profile and improve an agent skill | research, analyze, implement, test, refine |
+| `self-update` | Research and integrate reference updates | research, plan, implement, test, validate |
+| `nines-assisted` | Preserve historical NineS-oriented evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
+| `repo-init` | Initialize repository workspace and governance surfaces | analyze, implement, validate |
+| `change-driven` | Materialize an evidence-backed change lifecycle checklist | design, implement, verify, deploy |
+| `web-design` | Design, refine, and deterministically verify a frontend | design, implement, refine, verify |
 
-#### `onboarding`
-**When to use**: New contributor joining, understanding an unfamiliar codebase, resuming a dormant project.
-**Stages**: analyze (codebase survey) → document (onboarding docs) → setup (dev environment) → verify (smoke tests)
-**Teams**: Research, Implement, Test
-**Example prompt**: `"I'm new to this project — help me understand the codebase and set up my dev environment"`
+## How a Seed Becomes Work
 
-### Optimize Workflows
+1. Intent matching selects one seed.
+2. L0 renders its partitions and assertion templates into `goal.md` and `checklist.md`.
+3. The user confirms wording, P0/P1/P2 priorities, manual checks, and preflight decisions.
+4. The `change-driven` runtime executes the confirmed checklist in bounded rounds.
 
-#### `skill-optimization`
-**When to use**: Optimize agent skills, benchmark context density, improve information routing.
-**Stages**: survey → profile → optimize → benchmark → iterate → document
-**Teams**: Research, Implement, Test, Review
-**Example prompt**: `"Optimize the DevolaFlow skill — benchmark context density and reduce noise"`
+Suggested priorities are advisory. A seed contains no checkboxes, evidence, round state, or runtime dependency state; those belong to the materialized change workspace.
 
-### Shape Workflows
+## The Sole Executable Runtime
 
-#### `design-only`
-**When to use**: Architecture decisions, API design, schema design.
-**Stages**: research → design → review
-**Teams**: Design (primary), Review
-**Example prompt**: `"Design the API for a multi-tenant notification service"`
+`change-driven` is the only executable template. Its lifecycle is:
 
-#### `RDRR` (Research-Design-Review-Refine)
-**When to use**: Iterative design that needs research backing and multiple review rounds.
-**Stages**: research → design → review → refine (loop)
-**Teams**: Research, Design, Review (all primary)
-**Example prompt**: `"Design a caching architecture — research options first, then iterate the design"`
+```
+propose → preflight → bounded checklist rounds → archive
+```
 
-### Build Workflows
+During each round, L0 picks open items, L1 Wave dispatches isolated L2 Tasks, Tasks report evidence, and L0 checks only verified assertions. The same runtime serves all 23 seeds.
 
-#### `hotfix`
-**When to use**: Production bug, urgent fix, security patch.
-**Stages**: triage → fix → test → release
-**Teams**: Implement (primary), Test
-**Example prompt**: `"Fix the login timeout bug — users get 500 errors after 30 seconds"`
+## Example Prompts
 
-#### `refactoring`
-**When to use**: Tech debt, code restructuring, simplification.
-**Stages**: scope → plan → implement → test → review
-**Teams**: Implement, Test (both primary)
-**Example prompt**: `"Refactor the payment module to use the strategy pattern"`
-
-#### `migration`
-**When to use**: Upgrade frameworks, port between systems, database migrations.
-**Stages**: assess → plan → implement → validate → cutover
-**Teams**: Research, Implement, Test
-**Example prompt**: `"Migrate from Express.js to Fastify — keep all existing endpoints"`
-
-#### `performance-optimization`
-**When to use**: Slow app, high latency, memory issues, build time optimization.
-**Stages**: profile → design (optimization plan) → optimize → benchmark → validate
-**Teams**: Research, Design, Implement, Test
-**Example prompt**: `"Our API response time is >2 seconds — profile and optimize the hot paths"`
-
-#### `dependency-setup`
-**When to use**: Setting up dev environment, adding major dependencies, configuring tooling.
-**Stages**: research → plan (dependency graph) → configure → verify
-**Teams**: Research, Design, Implement, Test
-**Example prompt**: `"Set up Docker development environment with hot reloading for our Python API"`
-
-#### `feature-enhancement`
-**When to use**: Adding to existing features, extending functionality.
-**Stages**: scope → design → plan → implement → review → test → release
-**Teams**: All (Design and Implement primary)
-**Example prompt**: `"Add dark mode support to the settings page"`
-
-#### `full-pipeline`
-**When to use**: Greenfield features, new projects, anything requiring the full lifecycle.
-**Stages**: design → plan → implement → review → test → refine → gate → release
-**Teams**: All (all primary)
-**Example prompt**: `"Build a user authentication system with OAuth2, JWT, and role-based access"`
-
-### Verify Workflows
-
-#### `security-audit`
-**When to use**: Vulnerability scanning, compliance checks, CVE remediation.
-**Stages**: threat-model → scan → analyze → remediate → verify
-**Teams**: Research, Implement, Test, Review (all active)
-**Example prompt**: `"Run a security audit on our authentication module — check for OWASP Top 10"`
-
-### Deliver Workflows
-
-#### `documentation`
-**When to use**: Writing or updating docs, README, API references, tutorials.
-**Stages**: survey → author → review
-**Teams**: Research, Review
-**Example prompt**: `"Write comprehensive API documentation for the payments module"`
-
-#### `demo-showcase`
-**When to use**: Building demos for stakeholders, interactive showcases, conference presentations.
-**Stages**: research → storyboard (design) → build-demo → demo-review → polish → package
-**Teams**: Research, Design, Implement, Review
-**Example prompt**: `"Build an interactive demo showcasing our new dashboard — make it presentation-ready"`
-
-### Composite Workflows
-
-#### `spike-poc`
-**When to use**: Testing feasibility, prototyping, evaluating new tech.
-**Stages**: research (hypothesis) → prototype → evaluate
-**Teams**: Research, Implement
-**Example prompt**: `"Prototype real-time collaboration using CRDTs — is it feasible for our scale?"`
-
-#### `self-update`
-**When to use**: Track external reference dependencies and integrate improvements.
-**Stages**: check-refs → research-updates → decompose → integrate → test → evaluate
-**Teams**: Research, Implement, Test
-**Example prompt**: `"update refs"`, `"self-update"`, `"check references"`
-
-#### `change-driven`
-**When to use**: Manage an in-flight change with structured `.local/.agent/active/<id>/` artifacts (goal, acceptance, spec, tasks, STATUS, owned_files); archive on success with auto-generated REPORT.md and propose delta merge to source-of-truth specs.
-**Stages**: propose → apply → verify → archive (mode: lite \\| full)
-**Teams**: Design, Implement, Test
-**Example prompt**: `"propose change to add dark mode"`, `"apply v8.3.0-pv09"`, `"archive add-auth-bug"`
-
-#### `web-design`
-**When to use**: Build a polished, non-generic frontend. The `ui-pro` plugin DESIGNS the system (style, palette, typography, design-system); `impeccable` then REFINES it (`/impeccable polish`, `critique`, `typeset`, `arrange`, `animate`) and VERIFIES it against a no-LLM anti-pattern scan (`impeccable detect`; exit 0 = clean, 2 = anti-patterns).
-**Stages**: design (ui-pro) → implement → refine (impeccable) → verify (`impeccable detect` gate); refine ↔ verify convergence loop
-**Teams**: Design, Implement, Test
-**Example prompt**: `"design a landing page"`, `"polish the pricing page UI"`, `"build a marketing site with ui-pro and impeccable"`
-
-## Quick Reference Table
-
-| Type | Trigger Keywords | Stages | Gate Profile |
-|------|-----------------|--------|-------------|
-| `research-only` | research, compare, survey | 3 | — |
-| `design-only` | design, architect, API spec | 3 | standard |
-| `hotfix` | fix bug, broken, crash, SEV1 | 4 | relaxed |
-| `refactoring` | refactor, clean up, tech debt | 5 | standard |
-| `migration` | migrate, upgrade, port | 5 | standard |
-| `spike-poc` | prototype, experiment, PoC | 3 | — |
-| `documentation` | write docs, README, guide | 3 | relaxed |
-| `security-audit` | security, audit, CVE | 5 | strict |
-| `feature-enhancement` | add to, extend, enhance | 7 | standard |
-| `full-pipeline` | from scratch, new project | 8 | standard |
-| `RDRR` | design with research, ADR | 4 (loop) | standard |
-| `demo-showcase` | demo, showcase, presentation | 6 | relaxed |
-| `performance-optimization` | slow, optimize, benchmark | 5 | standard |
-| `dependency-setup` | setup, install, configure env | 4 | relaxed |
-| `onboarding` | new to project, getting started | 4 | — |
-| `skill-optimization` | optimize skill, benchmark context | 6 | convergence |
-| `self-update` | update refs, self-update, check references | 6 | standard |
-| `change-driven` | change, propose, apply, archive, lifecycle, OpenSpec | 4 | convergence |
-| `web-design` | web design, frontend, landing page, polish UI, ui-pro, impeccable | 4 | convergence |
+- `hotfix`: `"Fix the login timeout bug; users get 500 errors after 30 seconds"`
+- `security-audit`: `"Audit the authentication module against OWASP Top 10"`
+- `research-design-review-refine`: `"Research caching options, design one, and refine it after review"`
+- `product-verification`: `"Verify the checkout flow visually and against accessibility requirements"`
+- `repo-init`: `"Initialize this repository for DevolaFlow"`
+- `web-design`: `"Build and polish a non-generic pricing page"`
 """
 
 
@@ -580,51 +496,55 @@ A single AI agent attempting a complex task (e.g., "build an auth system") faces
 1. **Context overflow** — it tries to hold everything in memory at once
 2. **Scope creep** — it drifts between design, implementation, and review without structure
 
-DevolaFlow solves this by splitting work across 4 layers, each with a strict context budget and a clear role.
+DevolaFlow uses three layers to constrain context drift while keeping the dispatch chain short.
 
-## Layer 0: Project Agent (~3K tokens)
+## L0: Project Agent (~5K tokens)
 
-The Project Agent is the **orchestra conductor**. It:
-- Receives the user's request and selects a workflow type
-- Sequences stages and dispatches them one at a time
-- Evaluates gate results to decide: advance, retry, or escalate
+The Project Agent is the **orchestra conductor**. It selects a checklist seed and anchors `goal.md`, `checklist.md`, and `preflight.md` with the user. It also:
+- Picks P0/P1/P2 items for each bounded round and partitions them into waves
+- Verifies Task evidence before checking assertions
+- Evaluates round and archive gates, then decides: advance, retry, or escalate
 - Reports final status to the human
 
-**Never does**: Read source code, write files, run tests, or review code.
+**Never does**: Implement, run tests, author deliverables, or modify Task output.
 
-## Layer 1: Stage Agent (~5K tokens)
+## L1: Wave Agent (~5K tokens)
 
-Each Stage Agent owns **one stage** of the workflow (e.g., "Design", "Implement"). It:
-- Receives the stage definition and predecessor summaries
-- Decomposes the stage into waves (groups of parallel tasks)
-- Runs convergence loops if review/test findings require iteration
-- Evaluates the stage's quality gate
+A Wave Agent coordinates a bounded group of parallel Tasks. It:
+- Receives checklist item IDs, verbatim assertions, verification rules, and file ownership
+- Dispatches up to five L2 Tasks with disjoint writable files
+- Collects StatusReports and checks for cross-task conflicts
+- Aggregates evidence and submits a concise check proposal to L0
 
-**Constraints**: Max 7 waves per stage. Gate evaluation is mandatory before advancing.
+**Never does**: Perform any Task's work or modify its output.
 
-## Layer 2: Wave Agent (~4K tokens)
+## L2: Task Agent (~8K tokens)
 
-A Wave Agent dispatches **parallel tasks** within a wave. It:
-- Assigns tasks to Task Agents with disjoint file ownership
-- Collects results and checks for cross-task conflicts
-- Reports wave completion status to the Stage Agent
+The Task Agent is the **only implementation layer**. It:
+- Receives one atomic assignment tied to checklist item IDs
+- Works within its owned files only
+- Self-verifies against the supplied assertions without self-scoring
+- Reports artifacts, test results, and verbatim evidence to L1
 
-**Constraints**: Max 5 tasks per wave. File ownership must not overlap between parallel tasks.
+**Constraints**: It cannot spawn sub-agents or write outside the owned set.
 
-## Layer 3: Task Agent (~8K tokens)
+## Checklist-Round Flow
 
-The Task Agent is the **only layer that does actual work**. It:
-- Receives a single, atomic task with clear acceptance criteria
-- Works within its owned files only (max 6 writable files)
-- Produces artifacts (code, tests, docs, reports)
-- Reports completion with metrics (tests passed, coverage, findings)
+```
+L0 picks open checklist assertions and records the round in stage.md
+  └─ L1 Wave dispatches isolated L2 Tasks
+       ├─ L2 Task executes and reports evidence
+       └─ L2 Task executes and reports evidence
+  └─ L1 aggregates evidence and proposes checks
+L0 verifies evidence, checks passing assertions, and closes or repeats the round
+```
 
-**Constraints**: Max 30 min (implementation) or 45 min (research). Cannot spawn sub-agents.
+`stage.md` is a round-control artifact, not an agent role. In checklist seeds, `source_stages` stores only historical source IDs and primitive provenance; it has no executable ordering semantics.
 
 ## Escalation Chain
 
 ```
-Task Agent → Wave Agent → Stage Agent → Project Agent → Human
+Task Agent → Wave Agent → Project Agent → Human
 ```
 
 Escalation always moves **upward**, never skips levels. Every failure is classified:
@@ -633,7 +553,7 @@ Escalation always moves **upward**, never skips levels. Every failure is classif
 |----------|--------|
 | `AUTO_RECOVER` | Retry up to 3× with exponential backoff |
 | `PAUSE` | Pause task, queue question, continue parallel work |
-| `HUMAN_INTERVENE` | Stop stage, present options to human |
+| `HUMAN_INTERVENE` | Stop the round, present options to the human |
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt everything |
 
 ## Communication Protocol
@@ -648,19 +568,15 @@ All inter-layer communication uses **typed YAML messages** (not free-form chat):
 
 ```
 Human: "Fix the login timeout bug"
-  └─ Project Agent: selects hotfix workflow
-       └─ Stage Agent (Triage): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: analyzes bug, identifies root cause
-       └─ Stage Agent (Fix): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: implements minimal fix (3 files changed)
-       └─ Stage Agent (Test): dispatches 1 wave
-            └─ Wave Agent: dispatches 1 task
-                 └─ Task Agent: runs focused test suite (42 pass, 0 fail)
-       └─ Stage Agent (Release): dispatches 1 wave
-            └─ Task Agent: tags v1.2.1, updates changelog
-  └─ Project Agent: reports SUCCESS to human
+  └─ L0 Project: selects hotfix seed; user confirms checklist and preflight
+       └─ Round 1 / L1 Wave
+            └─ L2 Task: reproduces defect and reports root-cause evidence
+       └─ L0: verifies evidence and checks diagnosis assertion
+       └─ Round 2 / L1 Wave
+            ├─ L2 Task: implements the minimal fix
+            └─ L2 Task: runs focused regression tests
+       └─ L1: aggregates evidence; L0 verifies and checks both assertions
+  └─ L0 Project: archive gate passes; reports SUCCESS to human
 ```
 """
 
@@ -671,7 +587,7 @@ def _en_faq() -> str:
 
 ### What is DevolaFlow?
 
-A composable workflow meta-framework for AI-assisted software development. It defines multi-stage delivery pipelines as declarative YAML templates and orchestrates them through a 4-layer agent hierarchy with quality gates. Think of it as a project management framework that your AI coding tool follows automatically.
+A composable workflow meta-framework for AI-assisted software development. It turns one of 23 domain checklist seeds into a user-confirmed execution contract, then runs that contract through a three-layer Project → Wave → Task hierarchy and the `change-driven` checklist-round runtime.
 
 ### What AI tools does it support?
 
@@ -684,32 +600,34 @@ A single source (`workflow-skill.yaml`) is adapted to each tool's format via the
 
 ### Do I need to learn YAML to use DevolaFlow?
 
-No. DevolaFlow activates automatically based on your natural language prompts. Say "fix the login bug" and it selects the hotfix workflow. Say "build a new feature from scratch" and it selects full-pipeline. You only need YAML if you want to create custom workflow templates.
+No. DevolaFlow activates automatically from natural language. Say "fix the login bug" and it selects the `hotfix` seed. Say "build a new feature from scratch" and it selects `full-pipeline`. You only need YAML to author custom checklist seeds.
 
 ### How does DevolaFlow differ from just prompting my AI tool?
 
-Without DevolaFlow, your AI tool processes the entire request in a single pass, often losing context or mixing concerns (designing while coding while testing). With DevolaFlow, work is decomposed into isolated stages with quality checkpoints, so the agent designs first, then plans, then implements, then reviews — with gates ensuring quality at each boundary.
+Without DevolaFlow, your AI tool may process the whole request in one pass and mix design, implementation, and verification. DevolaFlow anchors measurable checklist assertions with you, executes a bounded set each round, and checks an item only after evidence is verified.
 
 ## Workflows
 
-### How does the agent choose a workflow?
+### How does the agent choose a checklist seed?
 
 DevolaFlow uses **intent matching** on your prompt keywords:
 - "fix bug" / "broken" / "crash" → `hotfix`
 - "from scratch" / "new project" → `full-pipeline`
 - "research" / "compare" → `research-only`
 - "refactor" / "clean up" → `refactoring`
-- And so on for all 23 types
+- And so on for all 23 seeds
 
-You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
+You can also specify one explicitly: "Use the migration seed to upgrade from React 17 to 18."
 
-### Can I skip stages?
+### Can I reduce the ceremony?
 
 Yes, in two ways:
-1. **Complexity scaling**: For trivial tasks (< 20 lines, single file), DevolaFlow skips the workflow entirely
-2. **Environment modes**: In `local` mode, release stages are typically skipped
+1. **Complexity scaling**: A trivial task (< 20 lines, single file) can use the direct-execution waiver
+2. **Seed materialization**: Only relevant assertions are materialized; provenance primitives never force unnecessary runtime work
 
-### What are the 5 new workflow types in v3.0.0+?
+### Which seeds came from the five v3.0.0 workflow additions?
+
+Historically, v3.0.0 introduced these as executable workflow types. They now preserve that domain knowledge as non-executable checklist seeds:
 
 - **demo-showcase**: Build presentation-ready demos and interactive showcases
 - **performance-optimization**: Profile-driven performance improvement with before/after benchmarks
@@ -725,7 +643,7 @@ Yes, in two ways:
 `AGENTS.md` + `.cursor/rules/repo-governance.mdc` (the legacy SF-/CP-/CO- rule
 files are deprecated pointer stubs since v14.2.1):
 - **soul.mdc** (S-1 to S-10): immutable invariants — test coverage floor (≥80%), no ghost features
-- **architecture.mdc** (A-1 to A-7): 4-layer hierarchy, cache layout, token budgets
+- **architecture.mdc** (A-1 to A-7): three-layer hierarchy, cache layout, token budgets
 - **conventions.mdc** (C-1 to C-9, C-8 retired): SKILL.md line budget, frontmatter, version consistency
 - **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
 - **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
@@ -806,7 +724,7 @@ This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`
 
 ### How It Works in Cursor
 
-DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's workflow selection heuristics then activate based on your intent keywords.
+DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's seed-selection heuristics then activate from your intent keywords.
 
 ### Example Session: Building a Feature
 
@@ -819,14 +737,12 @@ Implement a REST API for user management with CRUD operations, JWT auth, and rol
 ```
 
 4. DevolaFlow activates and the agent:
-   - Selects `full-pipeline` workflow
-   - **Design stage**: Defines API endpoints, data models, auth flow
-   - **Plan stage**: Breaks into waves — auth module (Wave 1), CRUD endpoints (Wave 2), RBAC (Wave 3)
-   - **Implement stage**: Creates source files with tests via parallel task agents
-   - **Review stage**: Checks code quality, security, style
-   - **Test stage**: Runs unit + integration tests, measures coverage
-   - **Gate**: Verifies composite score ≥ 85, coverage ≥ 80%
-   - **Release stage**: Updates changelog, prepares commit
+   - Selects the `full-pipeline` checklist seed
+   - Materializes API design, implementation, review, test, and release assertions from provenance primitives
+   - Asks you to confirm checklist priorities and preflight decisions
+   - Runs bounded rounds: L0 Project picks items, L1 Wave dispatches parallel L2 Tasks
+   - Verifies evidence before checking each assertion
+   - Applies the archive gate before changing source truth
 
 ### Example Session: Hotfix
 
@@ -834,17 +750,13 @@ Implement a REST API for user management with CRUD operations, JWT auth, and rol
 Fix: the /api/users endpoint returns 500 when the email field contains unicode characters
 ```
 
-The agent selects `hotfix` and:
-1. **Triage**: Reads the endpoint code, identifies the encoding issue
-2. **Fix**: Adds proper unicode handling (minimal diff)
-3. **Test**: Runs focused tests on the affected endpoint
-4. **Release**: Prepares the patch
+The agent selects the `hotfix` seed, materializes diagnosis and remediation assertions, and runs them through the shared checklist-round runtime. Primitive labels such as analyze, implement, test, and release are provenance for the seed; L0 chooses actual round order from confirmed priorities and dependencies.
 
 ### Tips for Cursor
 
 - **Attach the skill manually** for complex tasks: Type `@devola-flow` to explicitly reference the skill
 - **Use Plan mode** for architectural decisions: The agent will produce a structured plan instead of executing
-- **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's Wave→Task delegation
+- **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's L1 Wave → L2 Task delegation
 
 ## Claude Code — Detailed Setup
 
@@ -873,10 +785,10 @@ claude
 ```
 
 Claude Code will:
-1. Detect `full-pipeline` intent
-2. Use `Task` subagents for parallel implementation
-3. Follow the convergence loop for quality
-4. Report with a task quality score at the end
+1. Detect `full-pipeline` seed intent
+2. Anchor a measurable checklist and signed preflight
+3. Use L1 Wave coordination and L2 Tasks for isolated implementation
+4. Repeat bounded evidence-backed rounds until the archive gate passes or escalation is required
 
 ### Tips for Claude Code
 
@@ -906,7 +818,7 @@ In Copilot Chat:
 @workspace Refactor the payment processing module to use the strategy pattern
 ```
 
-Copilot follows the `refactoring` workflow: scope analysis → plan → implement → test → review.
+Copilot uses the `refactoring` seed's historical analyze/plan/implement/test/review primitives as provenance, materializes a checklist, and executes it through the shared round runtime.
 
 ## OpenAI Codex — Detailed Setup
 
@@ -923,7 +835,7 @@ This installs (per the `codex` profile in `workflow-system/agent/manifest.yaml`)
 
 ### How It Works in Codex
 
-Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's wave structure maps well to Codex's parallel execution model.
+Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's L1 Wave → L2 Task structure maps to Codex's parallel execution model.
 
 ## CI/CD Integration
 
@@ -949,109 +861,73 @@ The benchmark suite detects context selection regressions. Add `--compare-baseli
 
 def _en_customization() -> str:
     return """\
-## Creating Custom Workflow Templates
+## Creating Checklist Seeds
 
-Workflow templates are YAML files in `workflow-system/agent/templates/builtin/`. Each template follows the schema defined in `schemas/workflow-template.schema.yaml`.
+Checklist seeds are YAML files under `workflow-system/agent/templates/seeds/`. They follow `schemas/checklist-seed.schema.yaml` and preserve domain decomposition knowledge without creating another executable runtime.
 
-### Template Structure
+The only executable template is `workflow-system/agent/templates/builtin/change-driven.yaml`. A custom seed is materialized into that shared checklist-round runtime.
 
-```yaml
-schema_version: "1.0"
-
-metadata:
-  name: my-workflow          # unique kebab-case id
-  version: "1.0.0"
-  display_name: "My Workflow"
-  description: "What this workflow does"
-  category: build            # discover | shape | build | deliver | composite
-  applicable_scenarios:
-    - "When to recommend this workflow"
-  tags: [keyword1, keyword2]
-
-stages:
-  - id: stage_id
-    primitive: implement     # one of 13 primitives
-    alias: friendly-name     # optional display name
-    description: "What this stage does"
-    team: implement          # research | design | implement | test | review
-    duration_class: medium   # quick | medium | long
-    config:
-      test_strategy: tdd
-    input_mapping:
-      tasks: "previous_stage.output"
-
-composition:
-  compose: sequence
-  stages:
-    - stage: stage_id
-    - compose: loop
-      ref: my_loop
-
-loops:
-  - name: my_loop
-    body_stages: [stage_a, stage_b]
-    until: "stage_b.pass_rate == 1.0"
-    max_iterations: 3
-    on_exhaustion: escalate
-
-gates:
-  - name: quality_gate
-    position: "after:stage_id"
-    criteria:
-      - field: stage_id.metric
-        operator: ">="
-        value: 0.80
-    on_pass: "next"
-    on_fail:
-      action: loop_back
-      target: stage_id
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
-```
-
-### Example: Custom "Code Review Only" Template
+### Seed Structure
 
 ```yaml
 schema_version: "1.0"
-
+kind: checklist-seed
 metadata:
   name: code-review
   version: "1.0.0"
-  display_name: "Code Review Only"
-  description: "Standalone code review without implementation."
-  category: verify
-  applicable_scenarios:
-    - "Reviewing a PR or code submission"
-  tags: [review, quality, check]
+  description: "Seed for standalone code review evidence."
+  category: composite
+  intent_keywords: [review, quality, pull-request]
+  source:
+    kind: composition
+    name: code-review
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "3.0"
 
-stages:
-  - id: review
-    primitive: review
-    description: "Review code for quality, security, and style"
-    team: review
-    duration_class: medium
-    config:
-      review_type: code
-      pass_threshold: 0.80
+placeholders:
+  review_command:
+    description: "Repository-approved bounded review command."
+    required: true
+    example: "ruff check src/ tests/"
 
-composition:
-  compose: sequence
-  stages:
-    - stage: review
-
-loops: []
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
+partitions:
+  - key: review
+    title_template: "Code review"
+    source_stages:                 # provenance only; never execution order
+      - {id: review, primitive: review}
+    assertions:
+      - key: findings-resolved
+        statement_template: "Every blocker and critical review finding is resolved"
+        suggested_priority: P0
+        verify:
+          mode: metric
+          template: "open_blocker_count == 0 and open_critical_count == 0"
+      - key: checks-pass
+        statement_template: "The approved static review command passes"
+        suggested_priority: P1
+        verify:
+          mode: command
+          template: "{{ review_command }}"
 ```
+
+### What a Seed May Express
+
+- Intent keywords and optional scenarios
+- User-facing checklist partitions
+- Measurable assertion templates, each no longer than 25 rendered words
+- Suggested P0/P1/P2 priorities that the user can change
+- Verification by bounded command, metric, or manual user check
+- `source_stages` entries containing only historical source IDs and one of 14 primitive labels
+
+### What a Seed Must Not Express
+
+A seed is not a runtime DAG. Top-level `stages`, `composition`, `loops`, and `gates` are forbidden, as are runtime fields such as `team`, `duration_class`, `input_mapping`, and `skip_condition`. Seed order is presentation-only.
+
+Checkboxes, evidence paths, round numbers, checked-by metadata, and runtime dependencies are also absent. They are assigned only when L0 materializes the seed into a user-confirmed change checklist.
+
+## Registering a Seed
+
+Add one registry entry with a `seed:` path and no executable `path:`. The `change-driven` entry is the only one allowed to declare `path: builtin/change-driven.yaml`.
 
 ## Custom Context Profiles
 
@@ -1062,28 +938,12 @@ Edit `workflow-system/agent/context_profiles.yaml` to add profiles for new task 
 - **supplementary**: Included only if space remains
 - **skip**: Never included for this task type
 
-## Deriving Templates
-
-Use the `extends` field to inherit from a builtin template and override specific stages:
-
-```yaml
-metadata:
-  name: my-enhanced-hotfix
-  extends: hotfix
-
-stages:
-  - id: notify
-    primitive: release
-    alias: notify
-    description: "Send Slack notification after fix"
-```
-
 ## Validating Changes
 
 After customizing, always verify:
 
 ```bash
-validate-template --all                # templates are valid
+validate-template --all                # 23 seeds + one runtime are valid
 python -m pytest tests/ -q             # all tests pass
 python -m benchmarks.devolaflow_context.runner --scenario all  # no regressions
 build-skill --all                      # adapters build successfully
@@ -1147,17 +1007,17 @@ Run `python -m pytest tests/test_version.py -v` to check version consistency. Us
 
 SKILL.md must stay under 500 lines (rule SF-1). Check with `wc -l` and compress verbose sections. Run `build-skill --all` to verify after changes.
 
-### Template validation fails
+### Seed or runtime validation fails
 
 ```bash
 validate-template path/to/template.yaml
 ```
 
 Common causes:
-- Missing required fields (`schema_version`, `metadata`, `stages`, `composition`)
-- Stage references in `composition` that don't match any `stages[].id`
-- Loop references that don't match any `loops[].name`
-- Invalid primitive names (must be one of the 13 primitives)
+- Missing seed fields (`schema_version`, `kind`, `metadata`, `placeholders`, `partitions`)
+- Executable DAG fields such as top-level `stages`, `composition`, `loops`, or `gates` in a seed
+- `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
+- Command or metric verification without a bounded `template`
 
 ## Benchmark Issues
 
@@ -1249,11 +1109,11 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 幕后发生了什么：
-1. DevolaFlow 从 "修复" + "bug" 检测到 **hotfix** 意图
-2. **分诊阶段**：Agent 分析 bug，定位根因
-3. **修复阶段**：Agent 实现最小化修复
-4. **测试阶段**：Agent 对受影响代码运行聚焦测试
-5. **发布阶段**：Agent 准备补丁部署
+1. DevolaFlow 从“修复”与“bug”匹配 **hotfix 清单种子**
+2. L0 与你共同锚定目标、实体化清单和已签署的 preflight
+3. L0 选取最高优先级清单项并划分波次
+4. L1 Wave 向隔离的 L2 Task 下发诊断、修复和取证工作
+5. L0 核验证据并勾选已通过的断言；如有未完成项，再开启一个有界轮次
 
 ### 示例：构建新功能（完整流水线）
 
@@ -1262,13 +1122,12 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 发生了什么：
-1. DevolaFlow 选择 **full-pipeline** 工作流（8 个阶段）
-2. **设计**：通知系统架构
-3. **规划**：分解为批次和任务
-4. **实现**：TDD 编写代码（目标 80% 覆盖率）
-5. **审查 → 测试 → 修正**：收敛循环直到质量达标
-6. **质量门**：复合评分须达到 ≥85 且零阻断问题
-7. **发布**：打包和标签
+1. DevolaFlow 选择 **full-pipeline 清单种子**
+2. 种子依据历史原语来源实体化可测的设计、实现、审查、测试和发布断言；这些来源不规定执行顺序
+3. 你确认清单优先级和 preflight 决策
+4. L0 通过 L1 Wave 与隔离的 L2 Task 运行有界清单轮次
+5. 每个已勾选项都附带证据，未解决的 blocker 保持未勾选
+6. 只有清单合同通过 archive gate 后，源真相才可变更
 
 ### 示例：快速调研（无代码）
 
@@ -1277,12 +1136,12 @@ devola-version   # 应输出当前 DevolaFlow 版本
 ```
 
 发生了什么：
-1. DevolaFlow 选择 **research-only** 工作流
-2. Agent 生成结构化对比报告 — 不写代码
+1. DevolaFlow 选择 **research-only 清单种子**
+2. 实体化后的清单要求产出有证据的结构化对比报告，不写代码
 
 ## 第四步：深入探索
 
-- 查看全部 23 种工作流：[工作流类型](workflow-types.md)
+- 查看全部 23 个清单种子：[清单种子目录](workflow-types.md)
 - 了解架构：[架构概述](architecture-overview.md)
 - 为你的工具进行设置：[集成指南](integration-guide.md)
 - 自定义工作流：[自定义指南](customization-guide.md)
@@ -1307,54 +1166,66 @@ def _zh_architecture() -> str:
     return """\
 ## 系统概述
 
-DevolaFlow 通过 **4 层代理层级** 和 **质量门** 来编排复杂的软件任务。工作被分解为隔离的任务，由专门的代理执行，而不是让一个代理尝试完成所有事情。
+DevolaFlow 通过 **清单轮次** 与 **三层 Agent 架构** 编排复杂软件任务。经用户确认的 checklist 是执行合同：每项都可测、每次完成都有证据、每个循环都有上限。
 
 ```
 用户请求
     │
     ▼
 ┌─────────────────────┐
-│   预决策              │  检测仓库模式，推荐工作流类型
+│   清单种子            │  选择领域分解知识
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L0: 项目代理         │  选择工作流，排序阶段    (~3K tokens)
+│  L0: Project Agent   │  锚定清单，管理轮次      (~5K tokens)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L1: 阶段代理         │  分解为批次，运行质量门  (~5K tokens)
+│  L1: Wave Agent      │  分派任务，聚合证据      (~5K tokens)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L2: 批次代理         │  分派并行任务            (~4K tokens)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L3: 任务代理         │  **执行实际工作**        (~8K tokens)
+│  L2: Task Agent      │  **执行实际工作**        (~8K tokens)
 └─────────────────────┘
 ```
 
-**关键不变量**：只有 L3（任务代理）执行实际工作 — 编写代码、运行测试、审查代码、撰写文档。L0–L2 只负责分派、监控和汇报。
+**关键不变量**：只有 L2 Task Agent 执行实际工作，包括编写代码、运行测试、审查和撰写文档。L0 Project 与 L1 Wave 只负责分派、监控、核验证据和汇报。
 
-## 4 层层级
+## 三层层级
 
 | 层级 | 角色 | 上下文预算 | 委托给 | 不可以 |
 |------|------|-----------|--------|--------|
-| **L0: 项目** | 选择工作流，排序阶段 | ~3K tokens | 阶段代理 | 写代码、读源文件 |
-| **L1: 阶段** | 分解为批次，运行收敛循环 | ~5K tokens | 批次代理 | 写代码、执行测试 |
-| **L2: 批次** | 分派并行任务，检查冲突 | ~4K tokens | 任务代理 | 修改任务输出 |
-| **L3: 任务** | 执行单个原子工作单元 | ~8K tokens | 无（叶节点） | 派生子代理 |
+| **L0: Project** | 锚定 goal/checklist/preflight、每轮取项、核验证据与门控 | ~5K tokens | L1 Wave | 实施或修改 Task 产出 |
+| **L1: Wave** | 分派并行 Task、检查文件冲突、聚合证据提案 | ~5K tokens | L2 Task | 执行任何 Task 的工作 |
+| **L2: Task** | 执行单一原子清单任务并报告证据 | ~8K tokens | 无（叶节点） | 派生子 Agent 或写出 owned set |
 
-## 13 个阶段原语
+升级链始终向上：**Task → Wave → Project → Human**。
 
-每个工作流由 13 个通用原语组合而成：
+## 清单轮次运行时
+
+`change-driven` 是唯一可执行运行时：
+
+1. **Propose**：L0 与用户锚定编号目标和可测清单。
+2. **Preflight**：用户一次性签署项目决策与卡点预授权。
+3. **Round**：L0 选取最高优先级未完成项，划分波次，并把计划写入 `stage.md`。
+4. **Execute**：L1 每波最多向五个隔离的 L2 Task 下发任务。
+5. **Verify**：Task 报告证据，L1 聚合，L0 核验后才可勾选。
+6. **Repeat or archive**：本轮取项全部有证据地勾选且无 blocker 才通过；完整清单与 archive gate 均通过后才能归档。
+
+轮次中的合成分只用于趋势观测，不能替代主合同：有有效证据的已勾选断言与零 blocker。
+
+## 23 个清单种子与原语来源
+
+注册表包含 **23 个不可执行的清单种子**，外加唯一的 `change-driven` 运行时。种子提供意图关键词、清单分区、可测断言模板和验证建议，不提供运行时 DAG。
+
+种子中的 `source_stages` **只记录来源**。它保留历史来源 ID 与 14 种原语标签之一；列表顺序仅供展示，不决定执行顺序：
 
 | 类别 | 原语 | 用途 |
 |------|------|------|
 | **发现** | `research`, `analyze` | 收集信息，评估现状 |
 | **塑形** | `design`, `plan` | 定义架构，分解为任务 |
 | **构建** | `implement`, `refine` | 编写代码，修复问题 |
-| **验证** | `review`, `test`, `validate` | 检查质量，运行测试 |
+| **验证** | `review`, `test`, `validate`, `verify` | 检查质量，运行测试 |
 | **交付** | `release`, `deploy`, `monitor` | 打包，发布，观测 |
 | **控制** | `gate` | 阻断推进的质量检查点 |
 
@@ -1374,19 +1245,21 @@ composite = test_quality × 0.30 + code_review × 0.30
 ```
 
 **通过条件**（全部必须满足）：
-1. `composite_score >= 85`
-2. 零阻断问题
-3. `coverage >= 80%`
+1. 本轮取出的每个清单项都有有效证据并已勾选
+2. 零 blocker 且零 MUST 优先级违规
+3. 归档时还须达到配置的合成分与覆盖率阈值
 
-**失败时**：触发收敛循环（审查 → 修复 → 测试 → 复查），最多 3 轮。仍失败则升级到人工。
+**失败时**：未完成项和发现会作为 reinforcement 进入下一个有界轮次。进度停滞或达到轮次上限时，按 Task → Wave → Project → Human 升级。
 
 ## 人类交互界面
 
-除了仅供 Agent 使用的 `.local/.agent/` 工作区之外，DevolaFlow 还维护一个持久化的 **`.local/human/`** 界面（v14.0.0+）—— 一个三区目录树，将 **不可变的 INPUT**（人类想要什么）与 **简洁的 OUTPUT**（Agent 回报什么）清晰分离：
+除了仅供 Agent 使用的 `.local/.agent/` 工作区之外，DevolaFlow 还维护持久化的 **`.local/human/`** 界面（v14.0.0+）。这个三区目录树将 **不可变的 INPUT**（人类想要什么）与 **简洁的 OUTPUT**（Agent 回报什么）分离：
 
-- **`input/`** —— 由人类拥有，一经批准即不可变：包含 `constitution.md`、以 REQ-ID 为键的 `requirements.md`（+ 可选的 `requirements/<domain>.md` 分片），以及只追加的 `amendments/<date>-<slug>.md` 账本。该区由 git 跟踪，并由 `check_human_input_append_only` 钩子守护。
-- **`output/`** —— 由 Agent 写入且简洁：包含 `DIGEST.md` 以及 `convergence/<version>-convergence.md` 报告（作为可再生工件保持 gitignored）。
-- **`archive/`** —— 已被取代的工件。
+| 区域 | 所有权与内容 |
+|------|--------------|
+| **`input/`** | 由人类拥有，一经批准即不可变：constitution、以 REQ-ID 为键的需求，以及只追加的修订账本 |
+| **`output/`** | 由 Agent 写入且简洁：`DIGEST.md` 与收敛报告 |
+| **`archive/`** | 已被取代的工件 |
 
 每个工件都有 TOKEN 预算以保持精简。可用 `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"` 验证。
 
@@ -1398,7 +1271,7 @@ composite = test_quality × 0.30 + code_review × 0.30
 | 规则层 | 涵盖内容 |
 |---------|---------|
 | `soul.mdc`（S-1 到 S-10，P0） | 不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能、无静默失败、保护分支 |
-| `architecture.mdc`（A-1 到 A-7，P1） | 4 层 Agent 体系、缓存布局治理、令牌预算、单一事实源注册表 |
+| `architecture.mdc`（A-1 到 A-7，P1） | 三层 Agent 体系、缓存布局治理、令牌预算、单一事实源注册表 |
 | `conventions.mdc`（C-1 到 C-9，P2；C-8 已退役） | 行数预算、前置元数据、版本一致性、精简消息、逐字提取 |
 | `workflow.mdc`（W-1 到 W-24，P3） | 迭代规划、基准守护、版本升级协议、环境变量复用策略 |
 | `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
@@ -1411,150 +1284,74 @@ v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process
 
 def _zh_workflow_types() -> str:
     return """\
-## 工作流选择
+## 种子选择
 
-DevolaFlow 根据你的提示词自动选择合适的工作流。你也可以显式指定。
+DevolaFlow 根据提示词意图匹配清单种子，也可以直接指定种子名。执行前，所选种子会实体化为用户确认的目标和可测清单断言。
 
-**选择策略：**
-- 紧急信号（"紧急"、"生产环境故障"）→ `hotfix`
-- "从零开始" / "新项目" → `full-pipeline`
-- 问题形式（"什么"、"如何"、"哪个"）→ `research-only`
-- 显式指定类型 → 直接匹配（最高优先级）
+| 信号 | 选择的种子 |
+|------|------------|
+| “紧急”“生产环境故障” | `hotfix` |
+| “从零开始”“新项目” | `full-pipeline` |
+| “什么”“如何”“哪个”等问题形式 | `research-only` |
+| 显式指定种子名 | 直接匹配 |
 
-## 全部 23 种内置工作流类型
+## 23 个内置清单种子
 
-### 发现类工作流
+全部 23 个种子都是 **不可执行的分解知识**。下表中的原语列表只记录来源：它说明领域知识从何而来，但列表顺序与来源 ID 都不规定运行时顺序。
 
-#### `research-only`
-**适用场景**：调研先例、比较方案、评估选项。
-**阶段**：research → compare → report
-**示例**：`"调研最适合我们 Python 项目的 ORM — 对比 SQLAlchemy、Peewee 和 Tortoise"`
+| 种子 | 适用场景 | 原语来源（不可执行） |
+|------|----------|----------------------|
+| `hotfix` | 紧急缺陷诊断与有界修复 | analyze, implement, test, release |
+| `research-only` | 对比方案并给出有证据的建议 | research, analyze, validate |
+| `design-only` | 产出带审查证据的架构、API 或 Schema | research, design, review |
+| `documentation-only` | 调研、编写并审查文档 | research, implement, review |
+| `spike-poc` | 通过有界的一次性原型验证可行性 | research, implement, validate |
+| `refactoring` | 在保持行为的前提下重构代码 | analyze, plan, implement, test, review |
+| `feature-enhancement` | 扩展现有功能并形成发布证据 | design, plan, implement, review, test, release |
+| `full-pipeline` | 构建全新或端到端能力 | design, plan, implement, review, test, refine, gate, release |
+| `performance-optimization` | 改善已测量的延迟、内存或吞吐问题 | analyze, design, implement, test, validate |
+| `security-audit` | 威胁建模、扫描、修复并验证安全性 | research, analyze, implement, validate |
+| `research-design-review-refine` | 迭代调研驱动的设计 | research, design, review, refine |
+| `dependency-setup` | 配置环境、依赖或工具链 | research, plan, implement, verify |
+| `onboarding` | 帮助贡献者理解并验证仓库环境 | analyze, implement, verify |
+| `demo-showcase` | 构建展示级演示 | research, design, implement, review, refine, release |
+| `product-verification` | 验证视觉、交互、无障碍与验收质量 | analyze, design, implement, test, verify, review, validate |
+| `entropy-cleanup` | 发现并修复过期文档或漂移 | analyze, plan, review, implement |
+| `migration` | 在具备回滚准备的前提下升级或迁移系统 | analyze, plan, implement, validate, deploy |
+| `skill-optimization` | 分析并改进 Agent Skill | research, analyze, implement, test, refine |
+| `self-update` | 调研并集成参考资料更新 | research, plan, implement, test, validate |
+| `nines-assisted` | 保留历史 NineS 评估领域知识 | research, design, plan, implement, review, test, refine, validate, release |
+| `repo-init` | 初始化仓库工作区与治理面 | analyze, implement, validate |
+| `change-driven` | 实体化有证据的变更生命周期清单 | design, implement, verify, deploy |
+| `web-design` | 设计、精修并确定性验证前端 | design, implement, refine, verify |
 
-#### `onboarding`
-**适用场景**：新成员加入、了解陌生代码库、恢复休眠项目。
-**阶段**：analyze → document → setup → verify
-**示例**：`"我是这个项目的新人 — 帮我了解代码库并设置开发环境"`
+## 种子如何转化为工作
 
-### 优化类工作流
+1. 意图匹配选出一个种子。
+2. L0 将分区和断言模板渲染为 `goal.md` 与 `checklist.md`。
+3. 用户确认措辞、P0/P1/P2 优先级、人工检查项和 preflight 决策。
+4. `change-driven` 运行时以有界轮次执行已确认清单。
 
-#### `skill-optimization`
-**适用场景**：优化 Agent 技能、基准测试上下文密度、改进信息路由。
-**阶段**：survey → profile → optimize → benchmark → iterate → document
-**示例**：`"优化 DevolaFlow 技能 — 基准测试上下文密度并减少噪声"`
+建议优先级仅供参考。种子不包含 checkbox、证据、轮次状态或运行时依赖；这些信息只属于实体化后的变更工作区。
 
-### 塑形类工作流
+## 唯一可执行运行时
 
-#### `design-only`
-**适用场景**：架构决策、API 设计、Schema 设计。
-**阶段**：research → design → review
-**示例**：`"设计多租户通知服务的 API"`
+`change-driven` 是唯一可执行模板，其生命周期为：
 
-#### `RDRR`（调研-设计-审查-精炼）
-**适用场景**：需要调研支撑的迭代设计。
-**阶段**：research → design → review → refine（循环）
-**示例**：`"设计缓存架构 — 先调研选项，然后迭代设计"`
+```
+propose → preflight → 有界清单轮次 → archive
+```
 
-### 构建类工作流
+每轮由 L0 取项，L1 Wave 向隔离的 L2 Task 分派任务，Task 报告证据，L0 只勾选核验通过的断言。23 个种子共用这一运行时。
 
-#### `hotfix`
-**适用场景**：生产 bug、紧急修复、安全补丁。
-**阶段**：triage → fix → test → release
-**示例**：`"修复登录超时 bug — 用户 30 秒后报 500 错误"`
+## 示例提示词
 
-#### `refactoring`
-**适用场景**：技术债务、代码重构、简化。
-**阶段**：scope → plan → implement → test → review
-**示例**：`"将支付模块重构为策略模式"`
-
-#### `migration`
-**适用场景**：升级框架、系统迁移、数据库迁移。
-**阶段**：assess → plan → implement → validate → cutover
-**示例**：`"从 Express.js 迁移到 Fastify — 保留所有现有端点"`
-
-#### `performance-optimization`
-**适用场景**：应用慢、延迟高、内存问题、构建时间优化。
-**阶段**：profile → design → optimize → benchmark → validate
-**示例**：`"我们的 API 响应时间超过 2 秒 — 分析并优化热路径"`
-
-#### `dependency-setup`
-**适用场景**：搭建开发环境、添加依赖、配置工具链。
-**阶段**：research → plan → configure → verify
-**示例**：`"为我们的 Python API 搭建 Docker 开发环境，支持热重载"`
-
-#### `feature-enhancement`
-**适用场景**：扩展现有功能。
-**阶段**：scope → design → plan → implement → review → test → release
-**示例**：`"为设置页面添加暗色模式"`
-
-#### `full-pipeline`
-**适用场景**：全新功能、新项目、需要完整生命周期的任务。
-**阶段**：design → plan → implement → review → test → refine → gate → release
-**示例**：`"构建用户认证系统，支持 OAuth2、JWT 和角色权限"`
-
-### 验证类工作流
-
-#### `security-audit`
-**适用场景**：漏洞扫描、合规检查、CVE 修复。
-**阶段**：threat-model → scan → analyze → remediate → verify
-**示例**：`"对认证模块进行安全审计 — 检查 OWASP Top 10"`
-
-### 交付类工作流
-
-#### `documentation`
-**适用场景**：编写或更新文档、README、API 参考。
-**阶段**：survey → author → review
-**示例**：`"为支付模块编写完整的 API 文档"`
-
-#### `demo-showcase`
-**适用场景**：为利益相关者构建演示、交互式展示、会议演讲。
-**阶段**：research → storyboard → build-demo → demo-review → polish → package
-**示例**：`"构建一个交互式演示展示我们的新仪表板 — 要展示级别的质量"`
-
-### 复合工作流
-
-#### `spike-poc`
-**适用场景**：可行性测试、原型开发、评估新技术。
-**阶段**：research → prototype → evaluate
-**示例**：`"使用 CRDT 原型实现实时协作 — 在我们的规模下可行吗？"`
-
-#### `self-update`
-**适用场景**：跟踪外部参考依赖并集成改进。
-**阶段**：check-refs → research-updates → decompose → integrate → test → evaluate
-**示例**：`"update refs"`、`"self-update"`、`"check references"`
-
-#### `change-driven`
-**适用场景**：以结构化 `.local/.agent/active/<id>/` 工件（goal、acceptance、spec、tasks、STATUS、owned_files）管理在制品变更；成功后归档并自动生成 REPORT.md，向 source-of-truth 规范提议增量合并。
-**阶段**：propose → apply → verify → archive（mode: lite \\| full）
-**示例**：`"propose change to add dark mode"`、`"apply v8.3.0-pv09"`、`"archive add-auth-bug"`
-
-#### `web-design`
-**适用场景**：构建精致、非通用的前端界面。`ui-pro` 插件负责设计系统（风格、配色、排版、设计系统）；`impeccable` 负责精修（`/impeccable polish`、`critique`、`typeset`、`arrange`、`animate`）并通过无 LLM 的反模式扫描进行验证（`impeccable detect`；退出码 0 = 无问题，2 = 检出反模式）。
-**阶段**：design (ui-pro) → implement → refine (impeccable) → verify（`impeccable detect` 门控）；refine ↔ verify 收敛循环
-**示例**：`"design a landing page"`、`"polish the pricing page UI"`、`"用 ui-pro 和 impeccable 构建营销页面"`
-
-## 快速参考表
-
-| 类型 | 触发关键词 | 阶段数 | 门控配置 |
-|------|-----------|--------|---------|
-| `research-only` | 调研, 比较, 评估 | 3 | — |
-| `design-only` | 设计, 架构, API | 3 | standard |
-| `hotfix` | 修复, bug, 崩溃 | 4 | relaxed |
-| `refactoring` | 重构, 清理, 技术债 | 5 | standard |
-| `migration` | 迁移, 升级, 转换 | 5 | standard |
-| `spike-poc` | 原型, 实验, PoC | 3 | — |
-| `documentation` | 写文档, README | 3 | relaxed |
-| `security-audit` | 安全, 审计, CVE | 5 | strict |
-| `feature-enhancement` | 添加, 扩展, 增强 | 7 | standard |
-| `full-pipeline` | 从零开始, 新项目 | 8 | standard |
-| `RDRR` | 带调研的设计, ADR | 4 (循环) | standard |
-| `demo-showcase` | 演示, 展示, 演讲 | 6 | relaxed |
-| `performance-optimization` | 慢, 优化, 基准测试 | 5 | standard |
-| `dependency-setup` | 搭建, 安装, 配置环境 | 4 | relaxed |
-| `onboarding` | 新加入项目, 入门 | 4 | — |
-| `skill-optimization` | 优化技能, 基准测试上下文 | 6 | convergence |
-| `self-update` | 更新引用, 自更新, 检查参考 | 6 | standard |
-| `change-driven` | 变更, 提议, 应用, 归档, 生命周期, OpenSpec | 4 | convergence |
-| `web-design` | 网页设计, 前端, 落地页, 精修 UI, ui-pro, impeccable | 4 | convergence |
+- `hotfix`：`"修复登录超时 bug；用户 30 秒后收到 500"`
+- `security-audit`：`"按 OWASP Top 10 审计认证模块"`
+- `research-design-review-refine`：`"先调研缓存方案，再设计并根据审查精修"`
+- `product-verification`：`"从视觉和无障碍要求验证结账流程"`
+- `repo-init`：`"为这个仓库初始化 DevolaFlow"`
+- `web-design`：`"构建并精修一个非通用的价格页"`
 """
 
 
@@ -1566,51 +1363,55 @@ def _zh_hierarchy() -> str:
 1. **上下文溢出** — 它试图同时记住所有内容
 2. **范围蔓延** — 它在设计、实现和审查之间无序切换
 
-DevolaFlow 通过 4 层架构解决这个问题，每层都有严格的上下文预算和明确的角色。
+DevolaFlow 用三层架构约束上下文漂移，同时缩短分派链。
 
-## L0: 项目代理（~3K tokens）
+## L0: Project Agent（~5K tokens）
 
-项目代理是 **乐团指挥**。它：
-- 接收用户请求，选择工作流类型
-- 按顺序排列阶段并逐一分派
-- 评估质量门结果：推进、重试或升级
+Project Agent 是 **乐团指挥**。它选择清单种子，并与用户锚定 `goal.md`、`checklist.md`、`preflight.md`。此外，它还会：
+- 每个有界轮次按 P0/P1/P2 取项并划分波次
+- 核验 Task 证据后才勾选断言
+- 评估轮次门与 archive gate：推进、重试或升级
 - 向用户报告最终状态
 
-**绝不会**：读源代码、写文件、运行测试、审查代码。
+**绝不会**：实施、运行测试、撰写交付物或修改 Task 产出。
 
-## L1: 阶段代理（~5K tokens）
+## L1: Wave Agent（~5K tokens）
 
-每个阶段代理拥有工作流中的 **一个阶段**。它：
-- 接收阶段定义和前驱摘要
-- 将阶段分解为批次（并行任务组）
-- 在审查/测试发现问题时运行收敛循环
-- 评估阶段的质量门
+Wave Agent 协调一组有界并行 Task。它：
+- 接收清单项 ID、逐字断言、验证规则与文件所有权
+- 向最多五个 L2 Task 分派互不重叠的可写文件
+- 收集 StatusReport 并检查跨任务冲突
+- 聚合证据，向 L0 提交精简的勾选提案
 
-**约束**：每阶段最多 7 个批次。质量门评估是推进前的强制步骤。
+**绝不会**：执行任何 Task 的工作或修改其产出。
 
-## L2: 批次代理（~4K tokens）
+## L2: Task Agent（~8K tokens）
 
-批次代理在一个批次内分派 **并行任务**。它：
-- 为任务代理分配不相交的文件所有权
-- 收集结果并检查跨任务冲突
-- 向阶段代理报告批次完成状态
+Task Agent 是 **唯一实施层**。它：
+- 接收一个与清单项 ID 绑定的原子任务
+- 只在 owned files 内工作
+- 根据所给断言自证，但不自评分
+- 向 L1 报告工件、测试结果和逐字证据
 
-**约束**：每批次最多 5 个任务。并行任务的文件所有权不得重叠。
+**约束**：不得派生子 Agent，不得写出 owned set。
 
-## L3: 任务代理（~8K tokens）
+## 清单轮次流
 
-任务代理是 **唯一执行实际工作的层级**。它：
-- 接收一个原子任务，有明确的验收标准
-- 只在其所拥有的文件范围内工作（最多 6 个可写文件）
-- 产出制品（代码、测试、文档、报告）
-- 报告完成状态（测试通过数、覆盖率、发现的问题）
+```
+L0 取出未完成清单断言，并在 stage.md 记录本轮
+  └─ L1 Wave 向隔离的 L2 Task 分派任务
+       ├─ L2 Task 执行并报告证据
+       └─ L2 Task 执行并报告证据
+  └─ L1 聚合证据并提出勾选建议
+L0 核验证据、勾选通过项，然后结束或重复本轮
+```
 
-**约束**：实现类最长 30 分钟，调研类最长 45 分钟。不能派生子代理。
+`stage.md` 是轮次管控工件，不是 Agent 角色。清单种子中的 `source_stages` 只保留历史来源 ID 与原语来源，不具备可执行顺序语义。
 
 ## 升级链
 
 ```
-任务代理 → 批次代理 → 阶段代理 → 项目代理 → 人工
+Task Agent → Wave Agent → Project Agent → Human
 ```
 
 升级始终 **向上** 移动，绝不跳级。每个失败都有分类：
@@ -1619,7 +1420,7 @@ DevolaFlow 通过 4 层架构解决这个问题，每层都有严格的上下文
 |--------|------|
 | `AUTO_RECOVER` | 重试最多 3 次，指数退避 |
 | `PAUSE` | 暂停任务，排队提问，继续并行工作 |
-| `HUMAN_INTERVENE` | 停止阶段，向人工展示选项 |
+| `HUMAN_INTERVENE` | 停止轮次，向人工展示选项 |
 | `FULL_ROLLBACK` | 回滚到检查点，终止所有工作 |
 
 ## 通信协议
@@ -1634,19 +1435,15 @@ DevolaFlow 通过 4 层架构解决这个问题，每层都有严格的上下文
 
 ```
 用户："修复登录超时 bug"
-  └─ 项目代理：选择 hotfix 工作流
-       └─ 阶段代理（分诊）：分派 1 个批次
-            └─ 批次代理：分派 1 个任务
-                 └─ 任务代理：分析 bug，定位根因
-       └─ 阶段代理（修复）：分派 1 个批次
-            └─ 批次代理：分派 1 个任务
-                 └─ 任务代理：实现最小修复（修改 3 个文件）
-       └─ 阶段代理（测试）：分派 1 个批次
-            └─ 批次代理：分派 1 个任务
-                 └─ 任务代理：运行聚焦测试（42 通过，0 失败）
-       └─ 阶段代理（发布）：分派 1 个批次
-            └─ 任务代理：标记 v1.2.1，更新 changelog
-  └─ 项目代理：向用户报告 SUCCESS
+  └─ L0 Project：选择 hotfix 种子；用户确认清单与 preflight
+       └─ 第 1 轮 / L1 Wave
+            └─ L2 Task：复现缺陷并报告根因证据
+       └─ L0：核验证据并勾选诊断断言
+       └─ 第 2 轮 / L1 Wave
+            ├─ L2 Task：实现最小修复
+            └─ L2 Task：运行聚焦回归测试
+       └─ L1：聚合证据；L0 核验并勾选两项断言
+  └─ L0 Project：archive gate 通过，向用户报告 SUCCESS
 ```
 """
 
@@ -1657,7 +1454,7 @@ def _zh_faq() -> str:
 
 ### 什么是 DevolaFlow？
 
-一个用于 AI 辅助软件开发的可组合工作流元框架。它通过声明式 YAML 模板定义多阶段交付流水线，由 4 层代理层级和质量门机制进行编排。可以把它理解为一个你的 AI 编程工具会自动遵循的项目管理框架。
+一个用于 AI 辅助软件开发的可组合工作流元框架。它把 23 个领域清单种子之一转为用户确认的执行合同，再通过 Project → Wave → Task 三层架构和 `change-driven` 清单轮次运行时执行。
 
 ### 支持哪些 AI 工具？
 
@@ -1668,15 +1465,15 @@ def _zh_faq() -> str:
 
 ### 我需要学 YAML 才能使用 DevolaFlow 吗？
 
-不需要。DevolaFlow 根据你的自然语言提示词自动激活。说 "修复登录 bug" 它就选择 hotfix 工作流，说 "从零构建新功能" 它就选择 full-pipeline。只有创建自定义工作流模板时才需要 YAML。
+不需要。DevolaFlow 根据自然语言自动激活。说“修复登录 bug”会选择 `hotfix` 种子，说“从零构建新功能”会选择 `full-pipeline`。只有编写自定义清单种子时才需要 YAML。
 
 ### DevolaFlow 和直接提示 AI 工具有什么区别？
 
-没有 DevolaFlow 时，AI 工具在单轮中处理整个请求，经常丢失上下文或混淆关注点（一边设计一边编码一边测试）。有了 DevolaFlow，工作被分解为隔离的阶段并带有质量检查点，代理先设计，再规划，再实现，再审查 — 每个边界都有质量门确保质量。
+没有 DevolaFlow 时，AI 工具可能单轮处理整个请求，混淆设计、实现与验证。DevolaFlow 会与你锚定可测清单断言，每轮只执行一个有界集合，并且仅在证据核验后勾选。
 
 ## 工作流
 
-### Agent 如何选择工作流？
+### Agent 如何选择清单种子？
 
 DevolaFlow 使用提示词的 **意图匹配**：
 - "修复 bug" / "崩溃" → `hotfix`
@@ -1684,9 +1481,11 @@ DevolaFlow 使用提示词的 **意图匹配**：
 - "调研" / "对比" → `research-only`
 - "重构" / "清理" → `refactoring`
 
-你也可以显式指定："使用 migration 工作流从 React 17 升级到 18。"
+你也可以显式指定：“使用 migration 种子从 React 17 升级到 18。”
 
-### v3.0.0+ 的 5 种新工作流是什么？
+### 哪些种子来自 v3.0.0 的五个工作流新增项？
+
+从历史来源看，v3.0.0 曾把以下能力作为可执行工作流类型引入。现在它们以不可执行清单种子保留领域知识：
 
 - **demo-showcase**：构建展示级演示和交互式展示
 - **performance-optimization**：基于分析的性能优化，包含前后对比基准测试
@@ -1701,7 +1500,7 @@ DevolaFlow 使用提示词的 **意图匹配**：
 `.rules/` 中的 62 条规则，分为 5 层，编译输出到 `AGENTS.md` 与
 `.cursor/rules/repo-governance.mdc`（旧的 SF-/CP-/CO- 规则文件自 v14.2.1 起为弃用指针存根）：
 - **soul.mdc**（S-1 至 S-10）：不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能
-- **architecture.mdc**（A-1 至 A-7）：4 层体系、缓存布局、令牌预算
+- **architecture.mdc**（A-1 至 A-7）：三层体系、缓存布局、令牌预算
 - **conventions.mdc**（C-1 至 C-9，C-8 已退役）：SKILL.md 格式约束、版本一致性
 - **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
 - **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
@@ -1775,7 +1574,7 @@ curl -fsSL $INSTALLER | bash -s cursor --global
 
 ### 在 Cursor 中如何工作
 
-DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到代理上下文中。DevolaFlow 的工作流选择启发式规则根据你的意图关键词激活。
+DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到 Agent 上下文中。DevolaFlow 的种子选择启发式规则根据你的意图关键词激活。
 
 ### 示例会话：构建功能
 
@@ -1788,20 +1587,18 @@ DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提�
 ```
 
 4. DevolaFlow 激活，Agent 将：
-   - 选择 `full-pipeline` 工作流
-   - **设计阶段**：定义 API 端点、数据模型、认证流程
-   - **规划阶段**：分解为批次 — 认证模块（批次 1）、CRUD 端点（批次 2）、RBAC（批次 3）
-   - **实现阶段**：通过并行任务代理创建源文件和测试
-   - **审查阶段**：检查代码质量、安全性、风格
-   - **测试阶段**：运行单元 + 集成测试，测量覆盖率
-   - **质量门**：验证复合评分 ≥ 85、覆盖率 ≥ 80%
-   - **发布阶段**：更新 changelog，准备提交
+   - 选择 `full-pipeline` 清单种子
+   - 从原语来源实体化 API 设计、实现、审查、测试和发布断言
+   - 请你确认清单优先级与 preflight 决策
+   - 运行有界轮次：L0 Project 取项，L1 Wave 向并行 L2 Task 分派任务
+   - 核验证据后才勾选断言
+   - 在变更源真相前执行 archive gate
 
 ### Cursor 使用技巧
 
 - **手动附加 skill**：输入 `@devola-flow` 显式引用
 - **使用 Plan 模式**：Agent 会生成结构化计划而不执行
-- **子代理支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 Wave→Task 委托
+- **子 Agent 支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 L1 Wave → L2 Task 委托
 
 ## Claude Code — 详细设置
 
@@ -1830,10 +1627,10 @@ claude
 ```
 
 Claude Code 将：
-1. 检测 `full-pipeline` 意图
-2. 使用 `Task` 子代理进行并行实现
-3. 遵循收敛循环确保质量
-4. 最后报告任务质量评分
+1. 检测 `full-pipeline` 种子意图
+2. 锚定可测清单与已签署的 preflight
+3. 使用 L1 Wave 协调和 L2 Task 隔离实现
+4. 重复有证据的有界轮次，直到 archive gate 通过或需要升级
 
 ## GitHub Copilot — 详细设置
 
@@ -1881,97 +1678,73 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 def _zh_customization() -> str:
     return """\
-## 创建自定义工作流模板
+## 创建清单种子
 
-工作流模板是 `workflow-system/agent/templates/builtin/` 中的 YAML 文件。每个模板遵循 `schemas/workflow-template.schema.yaml` 中定义的架构。
+清单种子是 `workflow-system/agent/templates/seeds/` 下的 YAML 文件，遵循 `schemas/checklist-seed.schema.yaml`。它保存领域分解知识，但不会创建新的可执行运行时。
 
-### 模板结构
+唯一可执行模板是 `workflow-system/agent/templates/builtin/change-driven.yaml`。自定义种子会实体化到这个共享清单轮次运行时中。
 
-```yaml
-schema_version: "1.0"
-
-metadata:
-  name: my-workflow          # 唯一的 kebab-case id
-  version: "1.0.0"
-  display_name: "我的工作流"
-  description: "这个工作流的用途"
-  category: build            # discover | shape | build | deliver | composite
-  applicable_scenarios:
-    - "何时推荐这个工作流"
-  tags: [关键词1, 关键词2]
-
-stages:
-  - id: stage_id
-    primitive: implement     # 13 个原语之一
-    alias: friendly-name     # 可选显示名
-    description: "这个阶段的用途"
-    team: implement          # research | design | implement | test | review
-    duration_class: medium   # quick | medium | long
-    config:
-      test_strategy: tdd
-
-composition:
-  compose: sequence
-  stages:
-    - stage: stage_id
-    - compose: loop
-      ref: my_loop
-
-loops:
-  - name: my_loop
-    body_stages: [stage_a, stage_b]
-    until: "stage_b.pass_rate == 1.0"
-    max_iterations: 3
-    on_exhaustion: escalate
-
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
-```
-
-### 示例：自定义 "仅代码审查" 模板
+### 种子结构
 
 ```yaml
 schema_version: "1.0"
-
+kind: checklist-seed
 metadata:
   name: code-review
   version: "1.0.0"
-  display_name: "仅代码审查"
-  description: "独立的代码审查，不包含实现。"
-  category: verify
-  applicable_scenarios:
-    - "审查 PR 或代码提交"
-  tags: [review, quality, check]
+  description: "独立代码审查证据种子。"
+  category: composite
+  intent_keywords: [review, quality, pull-request]
+  source:
+    kind: composition
+    name: code-review
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "3.0"
 
-stages:
-  - id: review
-    primitive: review
-    description: "审查代码的质量、安全性和风格"
-    team: review
-    duration_class: medium
-    config:
-      review_type: code
-      pass_threshold: 0.80
+placeholders:
+  review_command:
+    description: "仓库批准的有界审查命令。"
+    required: true
+    example: "ruff check src/ tests/"
 
-composition:
-  compose: sequence
-  stages:
-    - stage: review
-
-loops: []
-gates: []
-
-environment_modes:
-  local:
-    skip_stages: []
-  github:
-    extra_stages: []
+partitions:
+  - key: review
+    title_template: "代码审查"
+    source_stages:                 # 只记录来源，绝不表示执行顺序
+      - {id: review, primitive: review}
+    assertions:
+      - key: findings-resolved
+        statement_template: "所有 blocker 与 critical 审查发现均已解决"
+        suggested_priority: P0
+        verify:
+          mode: metric
+          template: "open_blocker_count == 0 and open_critical_count == 0"
+      - key: checks-pass
+        statement_template: "批准的静态审查命令通过"
+        suggested_priority: P1
+        verify:
+          mode: command
+          template: "{{ review_command }}"
 ```
+
+### 种子可以表达什么
+
+- 意图关键词与可选场景
+- 面向用户的清单分区
+- 渲染后不超过 25 词的可测断言模板
+- 用户可以修改的 P0/P1/P2 建议优先级
+- 有界命令、指标或人工检查三种验证方式
+- `source_stages` 中仅含历史来源 ID 与 14 种原语标签之一
+
+### 种子禁止表达什么
+
+种子不是运行时 DAG。禁止顶层 `stages`、`composition`、`loops`、`gates`，也禁止 `team`、`duration_class`、`input_mapping`、`skip_condition` 等运行时字段。种子顺序仅供展示。
+
+checkbox、证据路径、轮次号、checked-by 元数据和运行时依赖也不属于种子。只有 L0 将种子实体化为用户确认的变更清单时，才会分配这些信息。
+
+## 注册种子
+
+在注册表中新增一个带 `seed:` 路径且不含可执行 `path:` 的条目。只有 `change-driven` 条目可以声明 `path: builtin/change-driven.yaml`。
 
 ## 自定义上下文配置
 
@@ -1987,7 +1760,7 @@ environment_modes:
 自定义后，务必验证：
 
 ```bash
-validate-template --all                # 模板有效
+validate-template --all                # 23 个种子 + 一个运行时有效
 python -m pytest tests/ -q             # 所有测试通过
 python -m benchmarks.devolaflow_context.runner --scenario all  # 无回退
 build-skill --all                      # 适配器构建成功
@@ -2046,17 +1819,17 @@ DevolaFlow 使用关键词匹配。让你的意图更明确：
 
 SKILL.md 必须保持在 500 行以内（规则 SF-1）。运行 `build-skill --all` 验证。
 
-### 模板验证失败
+### 种子或运行时验证失败
 
 ```bash
 validate-template path/to/template.yaml
 ```
 
 常见原因：
-- 缺少必需字段（`schema_version`、`metadata`、`stages`、`composition`）
-- `composition` 中的阶段引用与 `stages[].id` 不匹配
-- 循环引用与 `loops[].name` 不匹配
-- 无效的原语名称（必须是 13 个原语之一）
+- 缺少种子必需字段（`schema_version`、`kind`、`metadata`、`placeholders`、`partitions`）
+- 种子包含顶层 `stages`、`composition`、`loops` 或 `gates` 等可执行 DAG 字段
+- `source_stages` 没有保留 ID 与 14 种来源原语之一
+- command 或 metric 验证没有有界 `template`
 
 ## 基准测试问题
 

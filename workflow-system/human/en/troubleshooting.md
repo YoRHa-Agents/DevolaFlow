@@ -4,7 +4,7 @@ description: "Common issues and solutions for workflow execution."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
@@ -66,14 +66,16 @@ Run `python -m pytest tests/test_version.py -v` to check version consistency. Us
 
 SKILL.md must stay under 500 lines (rule SF-1). Check with `wc -l` and compress verbose sections. Run `build-skill --all` to verify after changes.
 
-### Template validation fails
+### Seed or runtime validation fails
 
 ```bash
 validate-template path/to/template.yaml
 ```
 
-Common causes: Missing required fields (`schema_version`, `metadata`, `stages`, `composition`)
-- Stage references in `composition` that don't match any `stages[].id`Loop references that don't match any`loops[].name`Invalid primitive names (must be one of the 13 primitives)
+Common causes: Missing seed fields (`schema_version`, `kind`, `metadata`, `placeholders`, `partitions`)
+- Executable DAG fields such as top-level `stages`, `composition`, `loops`, or `gates` in a seed
+- `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
+- Command or metric verification without a bounded `template`
 
 ## Benchmark Issues
 

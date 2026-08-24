@@ -1,45 +1,66 @@
-# -----------------------------------------------------------------------------
-# Stub authored under v7.5.0 P-07 Option α (per .local/research/v7.5.0_ghost_audit.md §5)
-# Project tracking dashboard — L0 Project Agent maintains this artifact across
-# the workflow lifecycle. Read by L1 Stage Agents as part of the predecessor
-# context bundle (P2 minimal context, ~3K-token slice).
-# -----------------------------------------------------------------------------
-# TODO(v7.6.x P-07 Option β): wire this template into a `devola-status` CLI
-# command that auto-refreshes from gate-report.schema.yaml instances.
-# TODO(v7.6.x P-07 Option β): add a `risks` section with severity/owner/eta
-# tracking, mirroring the gate findings_summary structure.
-
 template_kind: project-status
-template_version: "0.1.0"
+template_version: "1.0.0"
 
 project:
   name: "<project-name>"
-  workflow: "<workflow-template-id e.g. full-pipeline>"
+  change_id: "<change-id>"
+  checklist_seed: "<registry-v3 seed name>"
+  runtime: "change-driven"
   started_at: "<ISO8601>"
-  current_stage: "<stage_id>"
   current_round: 1
+  max_rounds: "<int>"
+  preflight:
+    authorized: false
+    authorized_at: null
+    project_config_hash: "<sha256 | null>"
 
-stages:
-  - id: "<stage_id>"
-    name: "<stage_name>"
-    status: pending     # pending | in_progress | gated | passed | failed | escalated
+checklist:
+  total: 0
+  checked: 0
+  reverted_open: 0
+  by_priority:
+    P0: {checked: 0, total: 0}
+    P1: {checked: 0, total: 0}
+    P2: {checked: 0, total: 0}
+
+rounds:
+  - round: 1
+    selected_items: ["<C-G1.1>"]
+    status: pending # pending | in_progress | passed | failed | escalated
+    waves:
+      - id: "R01-W01"
+        status: pending # pending | dispatching | aggregating | passed | failed | escalated
+        tasks_total: 0
+        tasks_completed: 0
+        conflict_status: pending # pending | clear | unresolved
+    evidence:
+      proposed_items: []
+      verified_items: []
+      rejected_items: []
+      artifact_refs: []
+    reinforcement:
+      carried_ids: []
+      closed_ids: []
+      deferred_ids: []
+    conflicts: []
+    blockers: []
     gate:
-      type: standard    # standard | convergence | passthrough
-      decision: null    # PASS | FAIL | ESCALATE | null (not yet evaluated)
-      composite_score: null
-
-waves: []
-# Each entry follows the wave-definition.schema.yaml shape:
-#   - id: W01
-#     stage_id: <stage_id>
-#     status: pending
-#     tasks_total: 0
-#     tasks_passed: 0
+      decision: null # PASS | FAIL | ESCALATE | null
+      checked_selected: 0
+      selected_total: 0
+      blocker_count: 0
+      unresolved_conflict_count: 0
+      composite_trend: null
 
 escalations: []
 # - escalation_id: <uuid>
-#   from_layer: task | wave | stage
+#   from_layer: task | wave | project
 #   reason: <one-line>
 #   resolved: false
+
+next_round:
+  candidate_items: []
+  reverted_blockers: []
+  estimated_rounds_remaining: null
 
 last_updated: "<ISO8601>"

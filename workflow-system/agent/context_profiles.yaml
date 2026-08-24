@@ -13,6 +13,10 @@ meta:
   skill_source: "workflow-system/agent/SKILL.md"
   default_profile: "feature"
   budget_hard_cap_tokens: 8000
+  layer_token_budgets:
+    l0_project: 5000
+    l1_wave: 5000
+    l2_task: 8000
   # v7.0.2+ — predecessor summariser trigger: when a single predecessor
   # artifact exceeds this % of the consuming layer's token_budget,
   # dispatchers MUST call `compressor.summarise_predecessor()` instead of
@@ -28,9 +32,7 @@ meta:
   # v7.1.0: tool_output_truncation + summariser default-on for 6 decomposition profiles; opt-out per profile.
   compression_defaults:
     l0_to_l1: standard
-    l1_to_l2: standard
-    l2_to_l3: minimal
-    l3_to_l2: aggressive
+    l1_to_l2: minimal
     l2_to_l1: aggressive
     l1_to_l0: aggressive
   # v7.2.1+ (P-04) — complexity-tier → model_hint routing. When callers
@@ -135,7 +137,7 @@ meta:
       - purposeful_motion
       - antipattern_detection
 
-  # v8.0.0 (P-08) — L3 behavioral guideline defaults per complexity tier.
+  # v8.0.0 (P-08) — L2 Task behavioral guideline defaults per complexity tier.
   # Profiles omitting their own ``behavioral_guidelines`` block fall back
   # to the matching tier. The 7 primitives map to BG-001..BG-007 in
   # ``references/behavioral-guidelines.md``: think_first /
@@ -444,7 +446,7 @@ section_anchors:
   # discoverability of the full template via the cross-link.
   plan_mode_template:
     file: "workflow-system/agent/SKILL.md"
-    heading: "### PLAN MODE — Design the Plan, Do NOT Execute"
+    heading: "### PLAN MODE — Draft the Contract, Do Not Execute"
   # convergence_loop resolves to the SKILL.md Wave Coordination Modes
   # section (which carries the Gen-Verify loop description). Full
   # convergence-loop mechanics + max_rounds defaults + stagnation
@@ -516,7 +518,7 @@ sections:
   # recomputed envelopes, and task_quality_score / operational_learnings
   # are re-anchored to their true sections (G-040-style drift fix).
   version_update:
-    lines: "36-38"
+    lines: "35-40"
     tokens_est: 232
     content_type: prose
 
@@ -534,32 +536,32 @@ sections:
   #   * lines 450+   : -10 (Task Quality Score collapse 25 → 3 lines +
   #     PV-04 nav row +1 - prior PV-02 + 12 = net -10)
   workspace_engagement:
-    lines: "48-63"
+    lines: "52-68"
     tokens_est: 240
     content_type: table
 
   quick_action_decision:
-    lines: "64-74"
+    lines: "69-79"
     tokens_est: 163
     content_type: table
 
   mode_detection:
-    lines: "75-83"
+    lines: "80-89"
     tokens_est: 91
     content_type: prose
 
   plan_mode_template:
-    lines: "84-87"
+    lines: "90-97"
     tokens_est: 116
     content_type: spec
 
   agent_mode_protocol:
-    lines: "88-114"
+    lines: "98-119"
     tokens_est: 397
     content_type: spec
 
   quick_start_workflows:
-    lines: "119-148"
+    lines: "127-161"
     tokens_est: 612
     content_type: table
 
@@ -577,27 +579,27 @@ sections:
   # row insertion (post-edit line 445). Slice CONTENT is preserved
   # byte-equal to the pre-edit state (deprecated fallback path only).
   hierarchy_table:
-    lines: "177-191"
+    lines: "180-193"
     tokens_est: 255
     content_type: table
 
   hierarchy_diagram:
-    lines: "177-191"
+    lines: "180-193"
     tokens_est: 255
     content_type: table
 
   wave_task_constraints:
-    lines: "187-191"
+    lines: "188-192"
     tokens_est: 132
     content_type: constraints
 
   rationalization_prevention:
-    lines: "194-205"
+    lines: "194-204"
     tokens_est: 210
     content_type: table
 
   wave_coordination:
-    lines: "207-224"
+    lines: "205-218"
     tokens_est: 226
     content_type: table
 
@@ -606,12 +608,12 @@ sections:
   # all primitive/purpose/team cells verbatim. Envelope recomputed to
   # the new content width; tokens_est re-estimated (~340 vs 413).
   stage_primitives:
-    lines: "226-245"
+    lines: "219-234"
     tokens_est: 340
     content_type: table
 
   gate_mechanism:
-    lines: "247-263"
+    lines: "235-251"
     tokens_est: 229
     content_type: formula
 
@@ -619,42 +621,42 @@ sections:
   # Reference" header (had drifted onto §### "Reinforcement Rules" since
   # v13.0.0); end recomputed per realign_section_anchors.py.
   agent_teams:
-    lines: "271-282"
+    lines: "260-271"
     tokens_est: 520
     content_type: table
 
   context_isolation:
-    lines: "280-297"
+    lines: "272-282"
     tokens_est: 230
     content_type: spec
 
   dispatch_report:
-    lines: "314-346"
+    lines: "291-303"
     tokens_est: 321
     content_type: spec
 
   lifecycle_hooks:
-    lines: "348-358"
+    lines: "304-316"
     tokens_est: 135
     content_type: table
 
   repo_mode:
-    lines: "360-369"
+    lines: "317-327"
     tokens_est: 148
     content_type: table
 
   reference_navigation:
-    lines: "371-415"
+    lines: "328-359"
     tokens_est: 343
     content_type: navigation
 
   rules_dispatchers:
-    lines: "371-415"
+    lines: "328-359"
     tokens_est: 343
     content_type: rules
 
   convergence_loop:
-    lines: "265-267"
+    lines: "205-218"
     tokens_est: 100
     content_type: spec
 
@@ -676,7 +678,7 @@ sections:
   # drift fix). Header-start range; realign_section_anchors.py now
   # maintains the end bound.
   task_quality_score:
-    lines: "424-427"
+    lines: "402-407"
     tokens_est: 60
     content_type: spec
 
@@ -699,7 +701,7 @@ sections:
   # per `.local/research/v12.4.0_l0_only_audit.md` §A.3 verdict). The
   # section content (pin_learning_for_session / consolidate_session /
   # decay_confidence API literals) is L0-only — only L0 mutates the
-  # operational.jsonl substrate. L1/L2/L3 only LOAD learnings via
+  # operational.jsonl substrate. L1/L2 only LOAD learnings via
   # `load_relevant_learnings`; they don't see the API-prose section.
   # Default priority below documents the L0-only contract; 23 profiles
   # carry an explicit `operational_learnings: skip` row per the audit
@@ -711,7 +713,7 @@ sections:
   # single-paragraph body stays in the slice (the realign script's
   # last-section recompute would otherwise truncate to the heading).
   operational_learnings:
-    lines: "429-429"
+    lines: "367-370"
     tokens_est: 150
     content_type: prose
     priority_default: skip
@@ -1723,18 +1725,18 @@ profiles:
     section_priorities:
       version_update: skip
       quick_action_decision: important
-      mode_awareness: skip
-      workflow_selection: critical
-      agent_hierarchy: important
+      mode_detection: skip
+      quick_start_workflows: critical
+      hierarchy_table: important
       rationalization_prevention: skip
       wave_coordination: skip
       stage_primitives: critical
       gate_mechanism: skip
       agent_teams: important
       context_isolation: skip
-      dispatch_protocol: important
+      dispatch_report: important
       lifecycle_hooks: important
-      repo_mode_detection: critical
+      repo_mode: critical
       reference_navigation: supplementary
       task_quality_score: skip
       operational_learnings: skip
@@ -1775,7 +1777,7 @@ profiles:
     rationale: "Product verification orchestrates multi-level testing (dev + user-facing), requires full gate understanding including extended dimensions, and convergence for iterative quality improvement."
 
   # v8.0.0 (P-11) — entropy_scan profile for the ``entropy-cleanup`` workflow
-  # template. Consumed by L3 Task Agents that execute DocFreshness /
+  # template. Consumed by L2 Task Agents that execute DocFreshness /
   # DeviationScanner / cleanup() passes defined in
   # ``src/devolaflow/entropy_manager.py``. Smaller budget than ``self_update``
   # (GC tasks don't need deep meta-framework context) and higher learnings

@@ -10,7 +10,7 @@ purpose: >
   Activation Contract), and W-23 (Domain Glossary Maintenance).
 tier: 2
 token_estimate: 3200
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Grill Mode — Operating Contract
@@ -45,8 +45,8 @@ first", the L0 enters BOTH modes concurrently — see §8.
 
 Grill mode is **NOT** the same as the existing `interview-protocol.md`
 (`workflow-system/agent/knowledge/interview-protocol.md`, Tier-3,
-81 lines). That file scopes to the **repo-init bootstrap workflow
-only** — it codifies the 8-phase interview an L3 agent runs when
+81 lines). That file scopes to the **repo-init bootstrap mode
+only** — it codifies the interview an L2 Task runs when
 scaffolding `.rules/` / `.local/memory/prefs.md` / skill bundles
 for a fresh repo. Grill mode is a **plan-time / design-time**
 stress test against an in-flight plan — it interviews the operator,
@@ -537,7 +537,7 @@ order:
    reference the resolved scenarios, qualifying ADR candidates
    surface as deliverable artifacts.
 3. **Approval gate** — operator approves; L0 transitions to
-   AGENT MODE and dispatches L1 / L2 / L3 per the plan.
+   AGENT MODE and dispatches L1 Waves / L2 Tasks per the plan.
 
 The transition is **one-directional** within a session — the L0
 does not re-enter grilling after beginning the plan template.
@@ -547,9 +547,9 @@ mode.
 
 ### 8.2 Reinforcement loop interaction (W-8 / SI-9)
 
-Grill mode does NOT participate in the convergence-round
-reinforcement loop. Reinforcement is a **stage-gate-failure
-recovery mechanism** operating on L3-produced artifacts. Grill
+Grill mode does NOT participate in the checklist-round
+reinforcement loop. Reinforcement is a **round-failure recovery
+mechanism** operating on L2-produced artifacts. Grill
 mode is an **operator-side** mechanism operating on operator
 utterances. The two compose freely but neither reduces to the
 other. The `applicable_rules.reinforcement` dispatch field is
@@ -560,7 +560,7 @@ NEVER populated by grill-mode logic.
 The Gen-Verify convergence loop (per
 `references/plan-mode-enforcement.md` §7) is the runtime topology
 of `gate_type: convergence` waves. Grill mode runs **at PLAN MODE
-entry, BEFORE the gen-verify loop dispatches L3 generators +
+entry, BEFORE a verification wave dispatches L2 generators +
 verifiers**. Grilling produces operator-confirmed inputs to the
 plan; the plan dispatches the gen-verify loop. Grill mode is
 upstream of the loop in the time dimension, not a participant
@@ -778,7 +778,7 @@ uses `pathlib.Path.exists()` only — no reads of file content.
 - `references/plan-mode-enforcement.md` — PLAN MODE contract
   (plan template, constraints checklist, reinforcement rules,
   convergence loop). Cross-load when both modes are active per §8.
-- `references/behavioral-guidelines.md` — L3 think_first /
+- `references/behavioral-guidelines.md` — L2 think_first /
   simplicity_check / surgical_scope / goal_loop primitives.
   Orthogonal axis to grill mode (operator-facing vs. dispatch-
   payload-facing); the two compose freely.

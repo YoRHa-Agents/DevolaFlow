@@ -171,11 +171,11 @@ def _detect_plan_mode() -> bool:
 
 _PLAN_MODE_OVERRIDES: dict[str, Any] = {
     "section_priority_overrides": {
-        "agent_hierarchy": "critical",
-        "decomposition_gate": "critical",
+        "hierarchy_table": "critical",
+        "gate_mechanism": "critical",
         "rationalization_prevention": "critical",
         "convergence_loop": "important",
-        "execution_protocol": "supplementary",
+        "agent_mode_protocol": "supplementary",
     },
     "compression_intensity": "minimal",
     "model_hint_override": "quality",
@@ -251,7 +251,7 @@ def resolve_decomposition_config(profile_config: dict[str, Any]) -> dict[str, An
 def resolve_compression_intensity(boundary: str, profiles_config: dict[str, Any]) -> str:
     """Resolve compression intensity for a given layer boundary.
 
-    boundary: one of l0_to_l1, l1_to_l2, l2_to_l3, l3_to_l2, l2_to_l1, l1_to_l0
+    boundary: one of l0_to_l1, l1_to_l2, l2_to_l1, l1_to_l0
     """
     defaults = profiles_config.get("meta", {}).get("compression_defaults", {})
     intensity = defaults.get(boundary, "standard")
@@ -787,7 +787,7 @@ def _integrate_learnings(
 
 
 # ---------------------------------------------------------------------------
-# v8.0.0 (P-08) — L3 behavioral guideline injection.
+# v8.0.0 (P-08) — L2 Task behavioral guideline injection.
 #
 # Behavioral guidelines are 4 Karpathy-derived primitives (think_first,
 # simplicity_check, surgical_scope, goal_loop) documented in
@@ -929,7 +929,7 @@ def _select_behavioral_sections(
     profiles_config: dict[str, Any],
     anchor_registry: SectionAnchorRegistry | None = None,
 ) -> dict[str, Any] | None:
-    """Resolve the L3 behavioral_guidelines for ``profile``.
+    """Resolve the L2 Task behavioral_guidelines for ``profile``.
 
     Lookup order:
       1. ``profile["behavioral_guidelines"]`` — explicit per-profile block.
@@ -976,7 +976,7 @@ def _select_behavioral_sections(
 def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> str:
     """Render the active behavioral guidelines into an injectable text block.
 
-    The block is a compact ``## Behavioral Guidelines (L3 active)`` markdown
+    The block is a compact ``## Behavioral Guidelines (L2 Task active)`` markdown
     section with one bullet per active rule. Inactive rules (those with a
     falsy flag) are NOT rendered so the token cost scales with the number
     of active rules. ``surgical_scope`` is always rendered (str field with
@@ -986,11 +986,11 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
     ``workflow-system/agent/references/behavioral-guidelines.md`` (Tier 3
     on-demand reference, loaded only when this block surfaces). This helper
     emits a 5-line summary block (~ 30-100 tokens depending on active
-    rules) intended for verbatim injection into the L3 dispatch context.
+    rules) intended for verbatim injection into the L2 Task dispatch context.
 
     v8.2.0 (PV-04): when ``surgical_scope='line'`` AND
     ``line_level_criteria`` is present, each criterion is rendered as an
-    indented sub-bullet under BG-003 so the L3 task agent sees the
+    indented sub-bullet under BG-003 so the L2 Task agent sees the
     line-diff validation rules verbatim. ``surgical_scope='function'`` /
     ``'module'`` paths emit output byte-identical to v8.0.0-p08
     (R5 backward-compat discipline).
@@ -1001,7 +1001,7 @@ def _compose_behavioral_block(behavioral_guidelines: dict[str, Any] | None) -> s
     if not behavioral_guidelines:
         return ""
 
-    lines = ["## Behavioral Guidelines (L3 active)"]
+    lines = ["## Behavioral Guidelines (L2 Task active)"]
     if behavioral_guidelines.get("think_first"):
         lines.append("- BG-001 think_first ENABLED — emit numbered plan before any source edit.")
     if behavioral_guidelines.get("simplicity_check"):
@@ -1100,7 +1100,7 @@ def _resolve_dispatch_overrides(
     if profile_overrides_applied and "compression_intensity" in profile:
         compression_intensity = profile["compression_intensity"]
     else:
-        compression_intensity = resolve_compression_intensity("l2_to_l3", config)
+        compression_intensity = resolve_compression_intensity("l1_to_l2", config)
 
     return model_hint, compression_intensity
 

@@ -1,0 +1,47 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: self-update
+  version: "1.0.0"
+  description: "Seed for researching and integrating upstream reference changes."
+  category: control
+  intent_keywords: [self-update, update, upgrade, refs, validate, meta]
+  source:
+    kind: template
+    name: self-update
+    path: workflow-system/agent/templates/builtin/self-update.yaml
+    schema_version: "1.0"
+placeholders: {}
+partitions:
+  - key: reference-delta
+    title_template: "Reference change analysis"
+    source_stages:
+      - {id: check-refs, primitive: analyze}
+      - {id: research-updates, primitive: research}
+      - {id: decompose, primitive: design}
+    assertions:
+      - key: deltas-actionable
+        statement_template: "Every changed reference has an evidence-backed relevance verdict and disjoint integration scope"
+        suggested_priority: P1
+        verify: {mode: manual}
+  - key: integration
+    title_template: "Integration and verification"
+    source_stages:
+      - {id: integrate, primitive: implement}
+      - {id: si_chip_gate, primitive: validate}
+      - {id: test, primitive: test}
+    assertions:
+      - key: integration-green
+        statement_template: "Approved changes pass tests, lint, coverage, and applicable iteration-delta checks"
+        suggested_priority: P0
+        verify: {mode: metric, template: "test_failures == 0 and lint_errors == 0 and coverage_pct >= 80"}
+  - key: evaluation
+    title_template: "Self-improvement evaluation"
+    source_stages:
+      - {id: self-improve, primitive: validate}
+      - {id: evaluate, primitive: validate}
+    assertions:
+      - key: verdicts-recorded
+        statement_template: "Every candidate has a go or no-go verdict and reference state is updated"
+        suggested_priority: P0
+        verify: {mode: metric, template: "unassigned_verdicts == 0"}

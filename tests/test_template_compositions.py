@@ -1,24 +1,9 @@
-"""v15.0.0 Phase B collapse — composition manifest + alias-layer contract.
-
-Pins the `v15-ADR-002` execution (template registry 23 → 7 survivors +
-16 named compositions, registry schema v1.0 → v2.0):
-
-1. The survivor set is EXACTLY the 7 yamls ratified by the ADR
-   (decision 1, per product review §2.1).
-2. registry.yaml carries schema v2.0 and a 16-entry `compositions:`
-   manifest that cross-validates cleanly.
-3. Every collapsed id resolves through the loader to a template
-   synthesized from the manifest's C-3 VERBATIM stage sequence (the
-   deleted yaml's `stages:` order, byte-equal ids + primitives).
-4. Alias resolution emits a DeprecationWarning (ADR decision 3 — no
-   silent rewrite; aliases guaranteed until at least v16.0.0); survivor
-   loads stay warning-free.
-5. `validate-template --all` walks templates + compositions with
-   derived (floating) counts.
-"""
+"""Registry-v3 checklist seed corpus and compatibility alias contracts."""
 
 from __future__ import annotations
 
+import copy
+import logging
 import warnings
 from pathlib import Path
 
@@ -26,39 +11,111 @@ import pytest
 import yaml
 
 from devolaflow.template_engine.compositions import (
-    REGISTRY_SCHEMA_V2,
+    CompositionEntry,
+    CompositionManifestError,
+    CompositionStep,
+    composition_to_template,
     load_composition_manifest,
     validate_composition_manifest,
 )
-from devolaflow.template_engine.registry import TemplateRegistry
+from devolaflow.template_engine.registry import (
+    ChecklistSeedAliasWarning,
+    TemplateRegistry,
+)
+from devolaflow.template_engine.seeds import (
+    REGISTRY_SCHEMA_V3,
+    ChecklistSeedError,
+    load_checklist_seed,
+    load_seed_registry,
+)
 from devolaflow.template_engine.validator import validate_all_templates
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _TEMPLATES_ROOT = _REPO_ROOT / "workflow-system" / "agent" / "templates"
 _REGISTRY_YAML = _TEMPLATES_ROOT / "registry.yaml"
 
-# v15-ADR-002 decision 1 — the ratified survivor set (product review §2.1).
-_ADR_002_SURVIVORS: frozenset[str] = frozenset(
-    {
-        "change-driven",
-        "repo-init",
-        "self-update",
-        "skill-optimization",
-        "migration",
-        "web-design",
-        "nines-assisted",
-    }
-)
-
-# C-3 verbatim witness: stage-id → primitive sequences extracted from the
-# deleted yamls at the pre-collapse tree (v14.5.0). The registry manifest
-# AND the loader-synthesized templates must reproduce these byte-equal.
-_VERBATIM_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
+_SOURCE_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
+    "change-driven": [
+        ("propose", "design"),
+        ("apply", "implement"),
+        ("verify", "verify"),
+        ("archive", "deploy"),
+    ],
+    "migration": [
+        ("assessment", "analyze"),
+        ("plan", "plan"),
+        ("implement", "implement"),
+        ("validate", "validate"),
+        ("cutover", "deploy"),
+    ],
+    "nines-assisted": [
+        ("precondition", "implement"),
+        ("research", "research"),
+        ("design", "design"),
+        ("plan", "plan"),
+        ("impl", "implement"),
+        ("review", "review"),
+        ("test", "test"),
+        ("refine", "refine"),
+        ("validate", "validate"),
+        ("release", "release"),
+    ],
+    "repo-init": [
+        ("analyze", "analyze"),
+        ("scaffold", "implement"),
+        ("compile", "implement"),
+        ("interview", "analyze"),
+        ("verify", "verify"),
+    ],
+    "self-update": [
+        ("check-refs", "analyze"),
+        ("research-updates", "research"),
+        ("decompose", "design"),
+        ("integrate", "implement"),
+        ("si_chip_gate", "validate"),
+        ("test", "test"),
+        ("self-improve", "validate"),
+        ("evaluate", "validate"),
+    ],
+    "skill-optimization": [
+        ("survey", "research"),
+        ("profile", "analyze"),
+        ("optimize", "implement"),
+        ("si_chip_dogfood", "validate"),
+        ("benchmark", "test"),
+        ("document", "release"),
+    ],
+    "web-design": [
+        ("design", "design"),
+        ("implement", "implement"),
+        ("refine", "refine"),
+        ("verify", "verify"),
+    ],
     "hotfix": [
         ("bug_triage", "analyze"),
         ("fix", "implement"),
         ("test", "test"),
         ("release", "release"),
+    ],
+    "research-only": [
+        ("research", "research"),
+        ("compare", "analyze"),
+        ("report", "validate"),
+    ],
+    "design-only": [
+        ("research", "research"),
+        ("design", "design"),
+        ("review", "review"),
+    ],
+    "documentation-only": [
+        ("survey", "research"),
+        ("author", "implement"),
+        ("review", "review"),
+    ],
+    "spike-poc": [
+        ("research", "research"),
+        ("prototype", "implement"),
+        ("evaluate", "validate"),
     ],
     "refactoring": [
         ("scope_analysis", "analyze"),
@@ -87,32 +144,12 @@ _VERBATIM_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("testgate", "validate"),
         ("release", "release"),
     ],
-    "documentation-only": [
-        ("survey", "research"),
-        ("author", "implement"),
-        ("review", "review"),
-    ],
-    "research-only": [
-        ("research", "research"),
-        ("compare", "analyze"),
-        ("report", "validate"),
-    ],
-    "design-only": [
-        ("research", "research"),
+    "performance-optimization": [
+        ("profile", "analyze"),
         ("design", "design"),
-        ("review", "review"),
-    ],
-    "research-design-review-refine": [
-        ("research", "research"),
-        ("design", "design"),
-        ("review", "review"),
-        ("refine", "refine"),
-        ("knowledge_gap_research", "research"),
-    ],
-    "spike-poc": [
-        ("research", "research"),
-        ("prototype", "implement"),
-        ("evaluate", "validate"),
+        ("optimize", "implement"),
+        ("benchmark", "test"),
+        ("validate", "validate"),
     ],
     "security-audit": [
         ("threat_model", "research"),
@@ -121,20 +158,12 @@ _VERBATIM_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("remediate", "implement"),
         ("verify", "validate"),
     ],
-    "demo-showcase": [
+    "research-design-review-refine": [
         ("research", "research"),
         ("design", "design"),
-        ("build", "implement"),
         ("review", "review"),
         ("refine", "refine"),
-        ("package", "release"),
-    ],
-    "performance-optimization": [
-        ("profile", "analyze"),
-        ("design", "design"),
-        ("optimize", "implement"),
-        ("benchmark", "test"),
-        ("validate", "validate"),
+        ("knowledge_gap_research", "research"),
     ],
     "dependency-setup": [
         ("research", "research"),
@@ -147,6 +176,14 @@ _VERBATIM_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
         ("document", "implement"),
         ("setup", "implement"),
         ("verify", "test"),
+    ],
+    "demo-showcase": [
+        ("research", "research"),
+        ("design", "design"),
+        ("build", "implement"),
+        ("review", "review"),
+        ("refine", "refine"),
+        ("package", "release"),
     ],
     "product-verification": [
         ("precondition", "implement"),
@@ -167,88 +204,149 @@ _VERBATIM_STAGE_SEQUENCES: dict[str, list[tuple[str, str]]] = {
     ],
 }
 
+_ALIASES = sorted(set(_SOURCE_STAGE_SEQUENCES) - {"change-driven"})
 
-def test_survivor_set_exact_match() -> None:
-    """v15-ADR-002 decision 1: the survivor set is EXACTLY the 7 ratified yamls."""
-    on_disk = {p.stem for p in (_TEMPLATES_ROOT / "builtin").glob("*.yaml")}
-    assert on_disk == _ADR_002_SURVIVORS, (
-        f"Survivor yamls on disk {sorted(on_disk)} != the v15-ADR-002 "
-        f"ratified set {sorted(_ADR_002_SURVIVORS)} (product review §2.1)"
-    )
+
+@pytest.mark.parametrize("name", sorted(_SOURCE_STAGE_SEQUENCES))
+def test_registry_schema_v3_and_seed_stage_provenance(name: str) -> None:
     raw = yaml.safe_load(_REGISTRY_YAML.read_text(encoding="utf-8"))
-    registry_templates = {e["name"] for e in raw["templates"]}
-    assert registry_templates == _ADR_002_SURVIVORS, (
-        f"registry.yaml templates {sorted(registry_templates)} != the "
-        f"v15-ADR-002 ratified survivor set"
+    assert raw["schema_version"] == REGISTRY_SCHEMA_V3
+    assert list(raw)[-1] == "templates"
+    assert len(raw["compositions"]) == 16
+    assert len(raw["templates"]) == 7
+    assert all(
+        set(entry) == {"name", "seed", "category", "tags", "description"}
+        for entry in raw["compositions"]
     )
+    assert sum("path" in entry for entry in raw["templates"]) == 1
+    assert next(entry for entry in raw["templates"] if "path" in entry)["name"] == "change-driven"
 
-
-def test_registry_schema_v2_validates() -> None:
-    """Schema v2.0 manifest: 16 cross-valid compositions, disjoint from templates."""
-    raw = yaml.safe_load(_REGISTRY_YAML.read_text(encoding="utf-8"))
-    assert raw["schema_version"] == REGISTRY_SCHEMA_V2, (
-        f"registry.yaml schema_version {raw['schema_version']!r} != "
-        f"{REGISTRY_SCHEMA_V2!r} (v15-ADR-002 v1.0 → v2.0 bump)"
-    )
-    manifest = load_composition_manifest(_REGISTRY_YAML)
-    assert set(manifest) == set(_VERBATIM_STAGE_SEQUENCES), (
-        "compositions manifest must carry exactly the 16 collapsed names"
-    )
-    errors = validate_composition_manifest(manifest, _ADR_002_SURVIVORS)
-    assert not errors, f"compositions manifest invalid: {errors}"
-
-
-@pytest.mark.parametrize("name", sorted(_VERBATIM_STAGE_SEQUENCES))
-def test_composition_resolution_preserves_verbatim_stage_sequence(name: str) -> None:
-    """C-3: each collapsed id resolves to its VERBATIM stage sequence.
-
-    The loader synthesizes the resolved template from the manifest's
-    `stages:` block — the deleted yaml's stage-id → primitive order must
-    survive byte-equal so legacy behavior stays reproducible.
-    """
+    manifest = load_seed_registry(_REGISTRY_YAML)
+    assert set(manifest) == set(_SOURCE_STAGE_SEQUENCES)
     registry = TemplateRegistry(_TEMPLATES_ROOT)
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        tpl = registry.load_template(name)
-    assert tpl is not None, f"composition {name!r} did not resolve"
-    assert tpl.metadata.name == name
-    assert [(s.id, s.primitive) for s in tpl.stages] == _VERBATIM_STAGE_SEQUENCES[name], (
-        f"composition {name!r} lost its C-3 verbatim stage sequence"
+        warnings.simplefilter("error")
+        seed = registry.load_seed(name)
+    assert seed is not None
+    assert seed.metadata.name == name
+    assert seed.source_stage_sequence() == _SOURCE_STAGE_SEQUENCES[name]
+
+
+@pytest.mark.parametrize("name", _ALIASES)
+def test_seed_alias_resolution_warns_once_and_clones_runtime(
+    name: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    registry = TemplateRegistry(_TEMPLATES_ROOT)
+    expected = (
+        f"TemplateRegistry.load_template('{name}') is deprecated for checklist "
+        f"seed '{name}' since v16.0.0; returning the 'change-driven' "
+        "checklist-round runtime with seed metadata attached. Use "
+        f"load_seed('{name}') and load_template('change-driven'); this "
+        "compatibility alias is scheduled for removal in v17.0.0."
     )
-    record = tpl.parameters["composition"]
-    assert record["alias_of"] in _ADR_002_SURVIVORS, (
-        f"composition {name!r} primary base {record['alias_of']!r} is not a survivor"
-    )
+    caplog.set_level(logging.WARNING)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        first = registry.load_template(name)
+        second = registry.load_template(name)
+    assert first is second
+    assert first is not None
+    assert [warning.category for warning in caught] == [ChecklistSeedAliasWarning]
+    assert str(caught[0].message) == expected
+    assert [record.message for record in caplog.records if record.message == expected] == [expected]
+    assert first.metadata.name == name
+    assert [stage.id for stage in first.stages] == ["propose", "preflight", "round", "archive"]
+    assert "composition" not in first.parameters
+    assert first.parameters["checklist_seed"] == {
+        "name": name,
+        "path": f"seeds/{name}.yaml",
+        "runtime": "change-driven",
+        "compatibility_alias": True,
+    }
 
 
-@pytest.mark.parametrize("name", sorted(_VERBATIM_STAGE_SEQUENCES))
-def test_alias_resolution_emits_deprecation_warning(name: str) -> None:
-    """v15-ADR-002 decision 3: alias resolution warns, never errors."""
-    registry = TemplateRegistry(_TEMPLATES_ROOT)  # fresh instance — no cache
-    with pytest.warns(DeprecationWarning, match="v15-ADR-002"):
-        tpl = registry.load_template(name)
-    assert tpl is not None
-
-
-@pytest.mark.parametrize("name", sorted(_ADR_002_SURVIVORS))
-def test_survivor_load_emits_no_deprecation_warning(name: str) -> None:
-    """Survivor templates load silently — the alias layer is operator-invisible."""
+def test_runtime_discovery_validator_and_legacy_failure(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     registry = TemplateRegistry(_TEMPLATES_ROOT)
     with warnings.catch_warnings():
-        warnings.simplefilter("error", DeprecationWarning)
-        tpl = registry.load_template(name)
-    assert tpl is not None
-    assert "composition" not in tpl.parameters
+        warnings.simplefilter("error")
+        runtime = registry.load_template("change-driven")
+        assert registry.load_template("unknown-mode") is None
+        assert registry.load_seed("unknown-mode") is None
+        discovered = registry.discover()
+    assert runtime is not None
+    assert runtime.metadata.name == "change-driven"
+    assert "checklist_seed" not in runtime.parameters
+    assert {metadata.name for metadata in discovered} == set(_SOURCE_STAGE_SEQUENCES)
+    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
+        load_composition_manifest(_REGISTRY_YAML)
+    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
+        registry.compositions()
+    legacy = CompositionEntry(name="legacy", steps=(CompositionStep(base="change-driven"),))
+    assert legacy.primary_base == "change-driven"
+    assert legacy.stage_sequence() == []
+    assert "synthesis is retired" in legacy.deprecation_note()
+    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
+        composition_to_template(legacy)
+    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
+        validate_composition_manifest({"legacy": legacy}, {"change-driven"})
+    assert validate_all_templates(True, _TEMPLATES_ROOT / "builtin")
+    assert "1 template + 23 seeds" in capsys.readouterr().out
 
 
-def test_validate_all_templates_walks_compositions(capsys: pytest.CaptureFixture[str]) -> None:
-    """`validate-template --all` derives floating counts from disk + manifest."""
-    assert validate_all_templates(True, templates_root=_TEMPLATES_ROOT / "builtin") is True
-    out = capsys.readouterr().out
-    n_disk = len(list((_TEMPLATES_ROOT / "builtin").glob("*.yaml")))
-    n_comp = len(load_composition_manifest(_REGISTRY_YAML))
-    assert f"{n_disk} templates + {n_comp} compositions" in out, (
-        f"validator summary must derive counts from disk + manifest; got: {out.splitlines()[-1]}"
+def test_malformed_seed_and_registry_fail_loudly(tmp_path: Path) -> None:
+    valid = yaml.safe_load(
+        (_TEMPLATES_ROOT / "seeds" / "change-driven.yaml").read_text(encoding="utf-8")
     )
-    for name in _VERBATIM_STAGE_SEQUENCES:
-        assert f"PASS: composition {name}" in out
+    mutations = [
+        lambda raw: raw.update(schema_version="2.0"),
+        lambda raw: raw.update(kind="workflow"),
+        lambda raw: raw.update(stages=[]),
+        lambda raw: raw["metadata"].update(name="Bad Name"),
+        lambda raw: raw["metadata"].update(version="1"),
+        lambda raw: raw["metadata"].update(category="unknown"),
+        lambda raw: raw["metadata"].update(intent_keywords=[]),
+        lambda raw: raw["metadata"].update(intent_keywords=["x", "x"]),
+        lambda raw: raw["metadata"]["source"].update(kind="runtime"),
+        lambda raw: raw["metadata"]["source"].update(name="other"),
+        lambda raw: raw["metadata"]["source"].update(path="/absolute"),
+        lambda raw: raw.update(placeholders={"Bad-Key": {"description": "x", "required": True}}),
+        lambda raw: raw.update(placeholders={"x": {"description": "x", "required": "yes"}}),
+        lambda raw: raw.update(partitions=[]),
+        lambda raw: raw["partitions"][0].update(key="Bad Key"),
+        lambda raw: raw["partitions"][0].update(source_stages=[]),
+        lambda raw: raw["partitions"][0]["source_stages"][0].update(primitive="execute"),
+        lambda raw: raw["partitions"][0].update(assertions=[]),
+        lambda raw: raw["partitions"][0]["assertions"][0].update(suggested_priority="P3"),
+        lambda raw: raw["partitions"][0]["assertions"][0].update(verify={"mode": "command"}),
+        lambda raw: raw["partitions"][0]["assertions"][0].update(
+            statement_template="{{ missing }}"
+        ),
+    ]
+    for mutate in mutations:
+        malformed = copy.deepcopy(valid)
+        mutate(malformed)
+        path = tmp_path / "change-driven.yaml"
+        path.write_text(yaml.safe_dump(malformed), encoding="utf-8")
+        with pytest.raises(ChecklistSeedError):
+            load_checklist_seed(path)
+
+    with pytest.raises(ChecklistSeedError, match="not found"):
+        load_checklist_seed(tmp_path / "missing.yaml")
+    bad_registry = tmp_path / "registry.yaml"
+    bad_registry.write_text('schema_version: "2.0"\n', encoding="utf-8")
+    with pytest.raises(ChecklistSeedError, match="requires schema_version"):
+        load_seed_registry(bad_registry)
+    assert load_composition_manifest(tmp_path / "missing-registry.yaml") == {}
+    bad_registry.write_text("- not-a-mapping\n", encoding="utf-8")
+    with pytest.raises(CompositionManifestError, match="root must be a mapping"):
+        load_composition_manifest(bad_registry)
+    with pytest.raises(CompositionManifestError, match="no steps"):
+        _ = CompositionEntry(name="empty", steps=()).primary_base
+    bad_registry.write_text(
+        'schema_version: "2.0"\ncompositions:\n  - name: old\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(CompositionManifestError, match="synthesis is retired"):
+        load_composition_manifest(bad_registry)

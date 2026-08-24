@@ -1,5 +1,5 @@
 ---
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Troubleshooting
@@ -75,16 +75,16 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   or a CI run fails on `tests/test_validate_owned_files.py`. The hook
   message names the offending file path and the change-id whose
   `owned_files.txt` lacks it.
-* **Root cause** (S-8): an L3 Task Agent attempted to write a file outside
+* **Root cause** (S-8): an L2 Task Agent attempted to write a file outside
   the union of (a) paths in `.local/.agent/active/<change-id>/owned_files.txt`,
   (b) the change folder itself, (c) `.local/.agent/handoff/`. STRICT mode
   blocks; lite mode warns.
 * **Fix**:
   1. Confirm the file SHOULD belong to this change. If yes — author a new
-     handoff envelope (`L3 → L2`, seq+1) requesting `owned_files.txt` to be
+     handoff envelope (`L2 → L1`, seq+1) requesting `owned_files.txt` to be
      extended; never edit the file outside the workflow.
-  2. If no — refactor the change so the file is owned by the producing
-     L3 (move the work to the correct dispatch boundary).
+  2. If no — refactor the change so the file is owned by the correct
+     L2 Task dispatch.
   3. For trivial single-file edits < 20 lines, the P1 waiver still
      applies; cite it explicitly in the dispatch report.
 * See `references/agent-workspace.md` §6 for the handoff protocol and
@@ -146,22 +146,17 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
   sequence number, and re-run the dispatch. The `audit_long_reference_usage.py`
   audit (D-D-2) confirms envelope creation patterns over time.
 
-#### 2.5 Gate FAIL diagnostics
+#### 2.5 Round-gate FAIL diagnostics
 
-* **Symptom A — composite ≥ threshold but gate FAILs**: usually means
-  zero blocker AND zero MUST-priority violations is NOT met (there's at
-  least one blocker), OR coverage < `coverage_threshold`. Check
-  `gate.report.findings_by_severity` and the coverage column.
-* **Symptom B — gate stagnation 2+ rounds**: per W-8, the L0 must
-  escalate to human (the reinforcement mechanism's max-5-rules cap is
-  insufficient). The escalation payload should cite the round-N
-  composite trajectory and the per-round severity histogram.
-* **Symptom C — gate threshold not met after max_rounds**: P4 bounded
-  retry — the round count exhausted; escalate Wave → Stage → Project →
-  Human via the standard escalation chain.
-* See `references/decomposition-gate.md` §3 for the full pass/fail
-  matrix and `references/plan-mode-enforcement.md` §"Reinforcement
-  Rules" for the W-8 / SI-9 contract.
+* **Symptom A — composite is high but round FAILs**: item evidence is missing,
+  a configured check failed, reinforcement is open, or a blocker/conflict
+  remains. Composite is trend-only for rounds.
+* **Symptom B — no checklist progress for 2 rounds**: L0 escalates with the
+  checked-item deltas, open items, and reinforcement trajectory.
+* **Symptom C — `max_rounds` reached**: P4 requires L0 to stop and escalate
+  to the human; the ceiling is never incremented silently.
+* See `references/decomposition-gate.md` §7 for the round gate and
+  `references/plan-mode-enforcement.md` §7 for reinforcement.
 
 #### 2.6 Version drift diagnostics
 
@@ -454,20 +449,19 @@ Each section follows a 3-block layout: **Symptom**, **Root cause**, **Fix**.
 ### 3. Escalation Patterns
 
 DevolaFlow's escalation chain (P4 Bounded Retry) is **always upward**:
-Task → Wave → Stage → Project → Human. Never skip levels.
+Task → Wave → Project → Human. Never skip levels.
 
 | Severity tag | Action | Receiver |
 |---|---|---|
 | `AUTO_RECOVER` | Retry up to 3× with exponential backoff | Same agent |
-| `PAUSE` | Pause task, queue question, continue parallel work | Wave / Stage |
-| `HUMAN_INTERVENE` | Stop stage, present options to human | Human |
+| `PAUSE` | Pause task, queue question, continue parallel work | Wave / Project |
+| `HUMAN_INTERVENE` | Stop the affected wave/round, present options | Human |
 | `FULL_ROLLBACK` | Rollback to checkpoint, halt all | Human (mandatory) |
 
-**Stagnation pattern (W-8 / SI-9)**: if the gate composite stagnates for
-2+ rounds despite the reinforcement payload (max 5 severity-filtered
-rules), the L0 escalates to Human regardless of `max_rounds`. The
-escalation report MUST cite the 2 trailing composites + the
-reinforcement-rule trajectory + the per-round finding histogram.
+**Stagnation pattern (W-8 / SI-9)**: if checklist progress is zero for two
+rounds despite at most five severity-filtered reinforcement rules, L0
+escalates regardless of `max_rounds`. Include checked deltas, open/reverted
+item IDs, reinforcement history, and composite trend as supporting context.
 
 **External-upstream pattern**: when the failure is in NineS A1 (cov
 timeout), Si-Chip MVP-8 (nested-key contract change), or any other
@@ -477,7 +471,7 @@ fallback (per §2.11) rather than blocking the cycle.
 
 ## Cross-References
 
-- `references/agent-hierarchy.md` — L0/L1/L2/L3 dispatcher contracts
+- `references/agent-hierarchy.md` — L0/L1/L2 layer contracts
   and the P1 dispatcher-not-implementer invariant.
 - `references/agent-workspace.md` — change-driven workspace, handoff
   envelopes (S-9), and the `.local/.agent/` tree.
@@ -491,8 +485,8 @@ fallback (per §2.11) rather than blocking the cycle.
   the standard escalation chain.
 - `references/message-schemas.md` — TaskDispatch / StatusReport /
   HandoffEnvelope shapes.
-- `references/meta-framework.md` — workflow primitives + alias
-  mapping.
+- `references/meta-framework.md` — checklist seeds, provenance, runtime, and
+  compatibility aliases.
 - `references/plan-mode-enforcement.md` — plan-mode L0 contract,
   reinforcement rules, convergence loop.
 - `references/shell-proxy.md` — RTK plugin, command mapping recipes,

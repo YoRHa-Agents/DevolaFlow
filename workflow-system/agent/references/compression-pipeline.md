@@ -17,7 +17,7 @@ triggers:
   - "diagnosing a byte-identity regression in the 6 canonical transforms"
   - "auditing R5 strict byte-identical pass-through invariants"
   - "choosing between NEST vs APPEND for a new compression primitive"
-  - "wiring a pipeline into an L0/L1/L2/L3 dispatcher call site"
+  - "wiring a pipeline into an L0/L1 dispatcher or L2 Task call site"
 tier: 2
 token_estimate: 6000
 dependencies:
@@ -25,7 +25,7 @@ dependencies:
   - "agent/references/env-flags.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/shell-proxy.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Compression Pipeline — CompressionStage Protocol + 6-Transform Unification
@@ -415,7 +415,7 @@ compression stage 'stage_name' raised ExceptionClass: error message (pipeline='p
 ```
 
 The original exception is preserved via `__cause__` so tracebacks stay
-useful. Callers that want to surface the failure upstream (L3 → L2) should
+useful. Callers that want to surface the failure upstream (L2 Task → L1 Wave) should
 catch `CompressionStageError` and convert it to a StatusReport exception
 per P4 bounded retry — the pipeline itself does NOT classify the failure.
 

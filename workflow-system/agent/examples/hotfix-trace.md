@@ -1,203 +1,159 @@
 ---
 id: "agent/examples/hotfix-trace"
-version: "1.0.0"
+version: "2.0.0"
 purpose: >
-  Hotfix workflow delegation trace demonstrating how the same 4-layer
-  hierarchy and message schemas handle a minimal 4-stage workflow for
-  a critical unicode path bug fix.
+  Hotfix checklist-round trace for a critical Unicode path bug, showing how a
+  hotfix seed materializes a compact contract without becoming a static
+  triage-fix-test-release DAG.
 triggers:
-  - "Need a hotfix workflow example"
+  - "Need a hotfix checklist example"
   - "How does hotfix delegation differ from full-pipeline"
-  - "Show me a minimal workflow trace"
+  - "Show me a minimal checklist-round trace"
 tier: 3
-token_estimate: 3000
-last_updated: "2026-04-04"
+token_estimate: 1900
+last_updated: "2026-08-25"
 ---
 
-# Hotfix Delegation Trace
+# Hotfix Checklist-Round Trace
 
 ## Scenario
 
-A user reports a critical bug: the sync engine corrupts files when the
-target directory contains unicode characters in its path. The Project Agent
-selects `hotfix` workflow with 4 stages: bug-triage → fix → test → release.
+The FileSync CLI corrupts files when a Windows target path contains non-ASCII
+characters.
 
-**Project:** `filesync` — the same Rust CLI tool from the full-pipeline example.
-**Bug:** `Path::new()` doesn't handle non-UTF8 paths on Windows (SEV2).
-**Workflow type:** `hotfix`
-**Gate profile:** `standard`
-
-## Full Delegation Trace
-
-```
-TIME  LAYER  AGENT              ACTION                           MESSAGE TYPE
-─────────────────────────────────────────────────────────────────────────────────
-T+0   L0   Project Agent       Receive bug report                —
-T+1   L0   Project Agent       Select workflow: hotfix            —
-T+2   L0   Project Agent       Dispatch Stage: Bug-Triage        StageDispatch
-
-      L1   Stage:BugTriage     Decompose → 1 wave, 1 task        —
-      L1   Stage:BugTriage     Dispatch Wave 1                   WaveDispatch
-      L2   Wave:BT-W1          Dispatch Task: Triage              TaskDispatch
-      L3   Task:Research       [WORK] Analyze error logs          —
-                               Identify root cause: Path::new()
-                               doesn't handle non-UTF8 on Windows
-                               Severity: SEV2
-                               Scope: sync_engine/path.rs L42-58
-      L3   Task:Research       Return triage report               StatusReport
-      L2   Wave:BT-W1          Collect results                   WaveReport
-      L1   Stage:BugTriage     Gate: PASS (root cause identified) —
-      L1   Stage:BugTriage     Report to Project                 StageReport(PASS)
-
-T+5   L0   Project Agent       Dispatch Stage: Fix               StageDispatch
-                               (includes triage report as predecessor artifact)
-
-      L1   Stage:Fix           Decompose → 1 wave, 2 tasks       —
-      L1   Stage:Fix           Dispatch Wave 1                   WaveDispatch
-      L2   Wave:F-W1           Dispatch 2 parallel tasks          TaskDispatch ×2
-      L3   Task:Impl-Fix       [WORK] Fix path handling           —  ┐
-                               Modify: sync_engine/path.rs        │ PARALLEL
-      L3   Task:Impl-Test      [WORK] Write regression test       —  ┘
-                               Create: tests/regression/
-                                       unicode_path_test.rs
-      L3   Task:Impl-Fix       Return patched code                StatusReport
-      L3   Task:Impl-Test      Return regression test             StatusReport
-      L2   Wave:F-W1           Conflict check: OK                WaveReport
-      L1   Stage:Fix           Gate: PASS (build passes)          —
-      L1   Stage:Fix           Report to Project                 StageReport(PASS)
-
-T+10  L0   Project Agent       Dispatch Stage: Test              StageDispatch
-
-      L1   Stage:Test          Decompose → 1 wave, 1 task        —
-      L1   Stage:Test          Dispatch Wave 1                   WaveDispatch
-      L2   Wave:T-W1           Dispatch Task: Run tests           TaskDispatch
-      L3   Task:Test           [WORK] Run:                        —
-                               - cargo test (all 59 pass)
-                               - regression test (PASS)
-                               - smoke test with unicode paths (PASS)
-      L3   Task:Test           Return test results                StatusReport
-      L2   Wave:T-W1           Collect results                   WaveReport
-      L1   Stage:Test          Gate: PASS (zero failures)         —
-      L1   Stage:Test          Report to Project                 StageReport(PASS)
-
-T+12  L0   Project Agent       Dispatch Stage: Release           StageDispatch
-
-      L1   Stage:Release       Decompose → 1 wave, 1 task        —
-      L1   Stage:Release       Dispatch Wave 1                   WaveDispatch
-      L2   Wave:R-W1           Dispatch Task: Release             TaskDispatch
-      L3   Task:Implement      [WORK] git tag v1.2.1              —
-                               Update CHANGELOG.md
-                               Create release commit
-      L3   Task:Implement      Return release artifacts           StatusReport
-      L2   Wave:R-W1           Collect results                   WaveReport
-      L1   Stage:Release       Gate: PASS                         —
-      L1   Stage:Release       Report to Project                 StageReport(PASS)
-
-T+14  L0   Project Agent       All 4 stages PASS                 —
-      L0   Project Agent       Produce hotfix report             —
-      L0   Project Agent       Present to user                   —
+```text
+Intent mode: hotfix
+Seed: TemplateRegistry.load_seed("hotfix")
+Runtime: TemplateRegistry.load_template("change-driven")
+Severity: SEV2
+Hierarchy: L0 Project → L1 Wave → L2 Task
 ```
 
-## Compact Message Examples
+The seed's historical triage/fix/test/release `source_stages` explain where
+its assertions came from. They are provenance, not a required execution
+sequence.
 
-### StageDispatch — Fix Stage
+## Confirmed Contract
+
+### `goal.md`
+
+```markdown
+# Unicode Path Hotfix
+
+## Goals
+- G1: Stop path corruption for supported Unicode path classes.
+- G2: Prove the fix and produce release-ready evidence.
+
+## Out of scope
+- A general filesystem abstraction rewrite.
+```
+
+### `checklist.md`
+
+```markdown
+### G1: Stop path corruption for supported Unicode path classes
+- [ ] C-G1.1 (P0) Root cause is reproduced with a failing regression test.
+      verify: cargo test unicode_path_regression
+      depends: []
+- [ ] C-G1.2 (P0) Path handling preserves CJK, emoji, combining-mark, and RTL paths.
+      verify: cargo test unicode_path_regression
+      depends: [C-G1.1]
+
+### G2: Prove the fix and produce release-ready evidence
+- [ ] C-G2.1 (P0) The full test suite passes with no regression.
+      verify: cargo test --all-targets
+      depends: [C-G1.2]
+- [ ] C-G2.2 (P1) Release notes describe the fixed behavior and evidence.
+      verify: user-check
+      depends: [C-G2.1]
+```
+
+L0 confirms the two P0 priorities and signs `preflight.md` with the user.
+
+## Round 1 — Reproduce
+
+```text
+L0 selects C-G1.1
+  → L1 Wave R01_W01
+    → L2 Task: add one owned regression-test file and run it
+    ← StatusReport: expected failing digest + test artifact
+  ← WaveReport: C-G1.1 evidence proposal
+L0 verifies the failure matches the reported corruption
+  → checks C-G1.1
+  → records round PASS in stage.md
+```
+
+The red test is positive evidence for this item because the signed assertion
+requires reproduction before the fix.
+
+## Round 2 — Fix
+
+L0 selects `C-G1.2`. The implementation and test files share behavior and
+must not be edited concurrently by separate Tasks, so L0 creates one cohesive
+Task rather than forcing parallelism.
 
 ```yaml
-task_dispatch:
-  header:
-    dispatch_id: "d-20260404-hf-002"
-    parent_id: "project-hotfix-001"
-    layer: "project"
-    timestamp: "2026-04-04T14:05:00Z"
-    timeout_seconds: 1800
-  task:
-    task_id: "S02-fix"
-    type: "stage"
-    title: "Fix Stage — Unicode Path Handling"
-    description: >
-      Apply fix for unicode path corruption in sync_engine/path.rs.
-      Write regression test covering the identified root cause.
-  context:
-    predecessor_artifacts:
-      - artifact_id: "triage-report-v1"
-        path: ".local/stages/S01_triage/triage_report.md"
-        summary: "Root cause: Path::new() on L42-58 of path.rs. SEV2. Scope: 1 file"
-    applicable_rules:
-      loading_strategy: "minimal"
-      language: "rust"
-      task_type: "bug_fix"
-      quality_focus: ["correctness"]
-  acceptance:
-    criteria:
-      - "cargo build succeeds"
-      - "Regression test for unicode paths passes"
-    quality_thresholds:
-      max_blocker_findings: 0
-    max_retry_rounds: 1
+hdr: { id: d-r02-w01-t01, parent: r02-w01, layer: wave, timeout: 600 }
+task: { id: R02_W01_T01, type: code, title: "Fix Unicode path handling" }
+goal: "Make C-G1.2 pass without filesystem redesign"
+pred:
+  - ref: ".local/.agent/active/unicode-path/evidence/R01_W01_T01.yaml"
+    key_facts: ["unicode_path_regression failed before fix", "scope: sync_engine/path.rs"]
+files:
+  - "sync_engine/path.rs"
+  - "tests/regression/unicode_path_test.rs"
+rules: { strategy: minimal, lang: rust, focus: [correctness, surgical-scope] }
+accept:
+  - "Unicode regression cases pass"
+  - "no unrelated path abstraction added"
+gate: { blockers: 0, retries: 1 }
+change_context:
+  change_id: unicode-path
+  active_folder: ".local/.agent/active/unicode-path"
+  state: IN_PROGRESS
+  owned_files_ref: ".local/.agent/active/unicode-path/owned_files.txt"
+  acceptance_ref: ".local/.agent/active/unicode-path/checklist.md#C-G1.2"
 ```
 
-### TaskDispatch — Regression Test
+The L2 Task self-verifies, reports exact test output, and does not mark the
+checklist. L1 checks ownership and aggregates; L0 adjudicates and checks
+`C-G1.2`.
 
-```yaml
-task_dispatch:
-  header:
-    dispatch_id: "d-20260404-hf-005"
-    parent_id: "d-20260404-hf-003"
-    layer: "wave"
-    timestamp: "2026-04-04T14:06:00Z"
-    timeout_seconds: 900
-  task:
-    task_id: "S02-W01-T02"
-    type: "test"
-    title: "Write Unicode Path Regression Test"
-    description: >
-      Create regression test covering unicode directory paths on all
-      platforms. Must test: CJK chars, emoji, combining marks, RTL.
-  context:
-    predecessor_artifacts:
-      - artifact_id: "triage-report-v1"
-        path: ".local/stages/S01_triage/triage_report.md"
-        summary: "Bug in Path::new() L42-58, fails on non-ASCII Windows paths"
-    owned_files:
-      - "tests/regression/unicode_path_test.rs"
-    applicable_rules:
-      loading_strategy: "minimal"
-      language: "rust"
-      task_type: "bug_fix"
-      quality_focus: ["correctness"]
-  acceptance:
-    criteria:
-      - "Test covers CJK, emoji, combining marks, and RTL paths"
-      - "Test fails against unfixed code, passes against fixed code"
-    max_retry_rounds: 1
+## Round 3 — Verification and Release Notes
+
+After the fix item passes, L0 selects `C-G2.1` and `C-G2.2`. They can run in
+one wave because their writable scopes are disjoint:
+
+| Task | Work | Writable scope |
+|---|---|---|
+| `R03_W01_T01` | Run full suite and record evidence | evidence file only |
+| `R03_W01_T02` | Draft release-note delta | `CHANGELOG.md` |
+
+The user-check for `C-G2.2` remains open until the operator approves the
+wording. An agent cannot self-attest a manual verification.
+
+## Failure Path
+
+If the fix fails after the single authorized retry:
+
+```text
+L2 Task → L1 Wave → L0 Project → Human
 ```
 
-## Comparison: Full-Pipeline vs Hotfix
+The escalation preserves the failing command digest, affected checklist item,
+and one bounded remediation option. No layer skips its immediate parent.
 
-| Dimension | Full Pipeline | Hotfix |
-|-----------|--------------|--------|
-| **Stages** | 7 (design → plan → impl → review → test → testgate → release) | 4 (triage → fix → test → release) |
-| **Total Task Agents** | ~18 | 5 |
-| **Max parallelism** | 4 tasks (impl wave 2) | 2 tasks (fix wave 1) |
-| **Convergence loops** | Yes (review-fix, test-fix cycles) | No (single pass per gate) |
-| **Design phase** | Full architecture + ADRs | None (scope known from triage) |
-| **Review depth** | 3 parallel reviewers (code, security, SOLID) | Implicit in test stage |
-| **Gate evaluations** | 7 gates (6 standard + 1 passthrough) | 4 gates (all standard) |
-| **Context per task** | ~8K tokens (full rule loading) | ~5K tokens (minimal rules) |
-| **Typical duration** | Hours to days | 30 min to 2 hours |
-| **Gate profile** | standard (composite ≥ 85) | standard (but fewer checks) |
+## Hotfix vs Full-Pipeline Seed
 
-## Structural Invariants
+| Dimension | Hotfix seed | Full-pipeline seed |
+|---|---|---|
+| Typical goal breadth | One urgent defect | End-to-end product outcome |
+| Suggested checklist | Reproduce, fix, regress, release evidence | Design, build, integrate, verify, release evidence |
+| Runtime | `change-driven` | `change-driven` |
+| Executable seed DAG | None | None |
+| Round bounds | Explicit in `stage.md` | Explicit in `stage.md` |
+| Hierarchy | Project → Wave → Task | Project → Wave → Task |
 
-Both workflows share identical structural properties:
-
-1. **Same 4-layer hierarchy:** Project → Stage → Wave → Task
-2. **Same message schemas:** StageDispatch, WaveDispatch, TaskDispatch, StatusReport
-3. **Same gate mechanism:** All stages evaluated before advancement
-4. **Same escalation chain:** Task → Wave → Stage → Project → Human
-5. **Same file ownership rules:** Disjoint writable files within each wave
-6. **Same context isolation:** Each Task Agent spawns with fresh context window
-
-The only difference is the workflow template — which stages are included and
-how many waves each stage produces. The architectural invariants (P1–P5) hold
-for both workflows without exception.
+Ceremony differs because the materialized checklist differs. The runtime,
+budgets (5K/5K/8K), wave/round limits, ownership, evidence, and escalation
+contracts remain identical.

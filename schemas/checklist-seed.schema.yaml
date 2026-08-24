@@ -1,0 +1,224 @@
+# -----------------------------------------------------------------------------
+# Design reference: checklist_iteration_design.md §10.2 / ADR-8
+# Checklist Seed — non-executable decomposition knowledge materialized into
+# the evidence-backed checklist contract.
+# -----------------------------------------------------------------------------
+
+design_reference: ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §10.2"
+schema_name: checklist-seed
+
+instance_top_level_required:
+  - schema_version
+  - kind
+  - metadata
+  - placeholders
+  - partitions
+
+fields:
+  schema_version:
+    type: string
+    required: true
+    enum: ["1.0"]
+
+  kind:
+    type: string
+    required: true
+    enum: [checklist-seed]
+
+  metadata:
+    type: map
+    required: true
+    required_fields:
+      - name
+      - version
+      - description
+      - category
+      - intent_keywords
+      - source
+    fields:
+      name:
+        type: string
+        pattern: "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        description: "Unique registry name in kebab-case."
+      version:
+        type: string
+        pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        description: "Semantic version of this seed definition."
+      description:
+        type: string
+      category:
+        type: string
+        enum: [discover, shape, build, deliver, composite, control]
+      intent_keywords:
+        type: list
+        minimum: 1
+        unique: true
+        item_type: string
+      applicable_scenarios:
+        type: list
+        optional: true
+        item_type: string
+      source:
+        type: map
+        required: true
+        required_fields: [kind, name, path, schema_version]
+        fields:
+          kind:
+            type: string
+            enum: [composition, template]
+          name:
+            type: string
+          path:
+            type: string
+            repo_relative: true
+          schema_version:
+            type: string
+
+  placeholders:
+    type: map
+    required: true
+    key_pattern: "^[a-z][a-z0-9_]*$"
+    value_required: [description, required]
+    value_optional: [example]
+    value_fields:
+      description:
+        type: string
+      required:
+        type: bool
+      example:
+        type: string
+        optional: true
+
+  partitions:
+    type: list
+    required: true
+    minimum: 1
+    maximum: 15
+    item_required: [key, title_template, source_stages, assertions]
+    item_fields:
+      key:
+        type: string
+        pattern: "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        unique: true
+      title_template:
+        type: string
+      source_stages:
+        type: list
+        minimum: 1
+        item_required: [id, primitive]
+        item_fields:
+          id:
+            type: string
+          primitive:
+            type: string
+            enum:
+              - research
+              - analyze
+              - design
+              - plan
+              - implement
+              - refine
+              - review
+              - test
+              - validate
+              - verify
+              - release
+              - deploy
+              - monitor
+              - gate
+      assertions:
+        type: list
+        minimum: 1
+        maximum: 15
+        item_required:
+          - key
+          - statement_template
+          - suggested_priority
+          - verify
+        item_fields:
+          key:
+            type: string
+            pattern: "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            unique_within_partition: true
+          statement_template:
+            type: string
+            max_words_after_render: 25
+            measurable: true
+          suggested_priority:
+            type: string
+            enum: [P0, P1, P2]
+          verify:
+            type: map
+            required_fields: [mode]
+            fields:
+              mode:
+                type: string
+                enum: [command, metric, manual]
+              template:
+                type: string
+                required_when: "mode in [command, metric]"
+                forbidden_when: "mode == manual"
+
+invariants:
+  - "A checklist seed is declarative decomposition knowledge and MUST NOT be executed directly."
+  - "Seed order is presentation-only; it MUST NOT imply execution order."
+  - "Top-level stages, composition, loops, and gates and runtime fields team, duration_class, input_mapping, and skip_condition are forbidden."
+  - "source_stages are C-3 provenance only; source ids and primitives are copied verbatim, and each source stage appears exactly once across partitions."
+  - "Total assertions are 1..60; each partition has 1..15."
+  - "Placeholder syntax is exactly `{{ snake_case }}`; every reference is declared, and no unresolved placeholder may enter checklist.md."
+  - "suggested_priority is advisory; the user confirms or changes priority."
+  - "Seed assertions contain no checkbox, checklist id, evidence, round, checked_by, reversion, or runtime dependency state."
+  - "Materialization assigns contiguous goal and checklist ids and may add item-level depends only with user confirmation."
+  - "Command and metric verification must materialize to the bounded change-checklist contract; manual items remain user-check-only."
+  - "All paths are repository-relative."
+  - "metadata.name equals the registry entry name."
+
+example:
+  schema_version: "1.0"
+  kind: checklist-seed
+  metadata:
+    name: security-audit
+    version: "1.0.0"
+    description: "Seed assertions for security review and remediation."
+    category: composite
+    intent_keywords: [security, audit, vulnerability, CVE, scan]
+    source:
+      kind: composition
+      name: security-audit
+      path: workflow-system/agent/templates/registry.yaml
+      schema_version: "2.0"
+  placeholders:
+    scan_command:
+      description: "Repository-approved bounded security scan command."
+      required: true
+      example: "python -m pip_audit"
+  partitions:
+    - key: threat-model
+      title_template: "Threat model"
+      source_stages:
+        - {id: threat_model, primitive: research}
+      assertions:
+        - key: boundaries-covered
+          statement_template: "Every in-scope trust boundary has an owner and documented abuse paths"
+          suggested_priority: P0
+          verify: {mode: manual}
+    - key: scan
+      title_template: "Security scan and analysis"
+      source_stages:
+        - {id: scan, primitive: analyze}
+        - {id: analyze, primitive: analyze}
+      assertions:
+        - key: blockers-clear
+          statement_template: "The approved scanner reports zero blocker or critical findings"
+          suggested_priority: P0
+          verify: {mode: command, template: "{{ scan_command }}"}
+    - key: remediation
+      title_template: "Remediation"
+      source_stages:
+        - {id: remediate, primitive: implement}
+        - {id: verify, primitive: validate}
+      assertions:
+        - key: criticals-resolved
+          statement_template: "Every confirmed critical finding is remediated or explicitly accepted by the user"
+          suggested_priority: P0
+          verify: {mode: metric, template: "open_critical_findings == 0"}

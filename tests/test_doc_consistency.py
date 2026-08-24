@@ -1,95 +1,49 @@
 """Tests that verify documentation numeric claims match actual repo state.
 
 Prevents drift where README, demo pages, or other docs claim stale counts
-for workflow types, benchmark scenarios, templates, tests, etc.
+for checklist seeds, runtime templates, benchmark scenarios, tests, etc.
 """
 
 import json
 import re
 from pathlib import Path
 
-# v8.3.0 PV-06 (v8.2.6) added the `change-driven` workflow template to the
-# registry + Python API surface. v8.2.9 closure: change-driven row added to
-# README + SKILL + workflow-skill.yaml + EN/ZH workflow-types guides in this
-# PV; the deferral set is now empty. Kept as a typed sentinel so future
-# deferrals can re-populate it without changing call-site shapes.
-_DEFERRED_DOC_TEMPLATES_V8_2_9: frozenset[str] = frozenset()
-
 
 def _registry_template_names(project_root: Path) -> set[str]:
-    """Return template names from registry.yaml — used to size the deferred-set
-    drift allowance precisely (so a stray template doesn't sneak in)."""
+    """Return the registry-v3 checklist-seed name universe."""
     import yaml
 
     raw = yaml.safe_load(
         (project_root / "workflow-system/agent/templates/registry.yaml").read_text()
     )
-    return {entry["name"] for entry in raw.get("templates", [])}
-
-
-def _registry_composition_names(project_root: Path) -> set[str]:
-    """Return composition names from registry.yaml (schema v2.0).
-
-    Since the v15.0.0 Phase B collapse (v15-ADR-002) the registered
-    workflow-type universe is `templates:` (survivor yamls on disk) plus
-    `compositions:` (the 16 collapsed legacy names) — doc surfaces that
-    enumerate workflow TYPES are checked against the union, while
-    surfaces that enumerate yaml FILES are checked against disk.
-    """
-    import yaml
-
-    raw = yaml.safe_load(
-        (project_root / "workflow-system/agent/templates/registry.yaml").read_text()
-    )
-    return {entry["name"] for entry in raw.get("compositions") or []}
+    entries = (raw.get("compositions") or []) + (raw.get("templates") or [])
+    return {entry["name"] for entry in entries}
 
 
 def test_readme_workflow_type_count(project_root: Path):
-    """README workflow types table rows must match template YAML file count.
-
-    Templates in ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` are excluded from this
-    check because their README rows are intentionally deferred to v8.2.9
-    (see module-level docstring); the table is permitted to lag the disk
-    count by exactly the size of the deferred set.
-    """
+    """README seed table must match the registry-v3 seed universe exactly."""
     readme = (project_root / "README.md").read_text()
-    templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
 
     section_match = re.search(
-        r"(?:### |\*\*|^)\d+ Built-in Workflow Types(?:\*\*)?\n(.*?)(?=\n### |\n## |\Z)",
+        r"(?:### |\*\*|^)\d+ Non-Executable Checklist Seeds \+ One Runtime"
+        r"(?:\*\*)?\n(.*?)(?=\n### |\n## |\Z)",
         readme,
         re.DOTALL | re.MULTILINE,
     )
-    assert section_match, "Could not find 'Built-in Workflow Types' section in README"
+    assert section_match, "Could not find current checklist-seed section in README"
     section = section_match.group(1)
-    table_lines = [line for line in section.splitlines() if line.startswith("|")]
-    table_rows = len(table_lines) - 2  # subtract header + separator
-
-    yaml_count = len(list(templates_dir.glob("*.yaml")))
-
-    # v7.4.2: 19 → 20 with repo-init added; v8.0.0 P-11: 20 → 21 with
-    # entropy-cleanup added; v8.2.6: 21 → 22 with change-driven added
-    # (README/SKILL rows deferred to v8.2.9 — see _DEFERRED_DOC_TEMPLATES_V8_2_9).
-    # v15.0.0 (v15-ADR-002 Phase B): 16 legacy yamls became named
-    # compositions; the README enumerates workflow TYPES, so the expected
-    # row count is survivors-on-disk + compositions (every name resolves
-    # via the alias layer).
-    composition_count = len(_registry_composition_names(project_root))
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
-    expected_table_rows = yaml_count + composition_count - len(deferred_present)
-    assert table_rows == expected_table_rows, (
-        f"README table has {table_rows} rows, disk has {yaml_count} templates "
-        f"+ {composition_count} compositions, expected {expected_table_rows} "
-        f"(- {len(deferred_present)} deferred to v8.2.9: {sorted(deferred_present)})"
+    documented = set(re.findall(r"^\|\s*`([^`]+)`\s*\|", section, re.MULTILINE))
+    registered = _registry_template_names(project_root)
+    assert documented == registered, (
+        f"README seed table drifted — missing: {sorted(registered - documented)}, "
+        f"extra: {sorted(documented - registered)}"
     )
 
 
 def test_readme_template_count_in_dev_setup(project_root: Path):
-    """Dev setup section template count must match actual template count
-    (modulo templates whose README integration is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module)."""
+    """Dev setup must claim the current seed count and sole runtime."""
     readme = (project_root / "README.md").read_text()
-    templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
+    templates_root = project_root / "workflow-system" / "agent" / "templates"
 
     section_match = re.search(
         r"(?:### |\*\*|^)Full Development Setup(?:\*\*)?\n(.*?)(?=\n## |\n### |\Z)",
@@ -97,22 +51,18 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
         re.DOTALL | re.MULTILINE,
     )
     assert section_match, "Could not find 'Full Development Setup' section in README"
-    match = re.search(r"(\d+)\s+templates", section_match.group(1))
-    assert match, "Could not find template count in dev setup section"
+    section = section_match.group(1)
+    match = re.search(r"(\d+)\s+non-executable seeds", section)
+    assert match, "Could not find non-executable seed count in dev setup section"
     claimed = int(match.group(1))
-    actual = len(list(templates_dir.glob("*.yaml")))
-
-    # v15.0.0 (v15-ADR-002 Phase B): the README count covers workflow
-    # TYPES = survivor yamls + named compositions (see
-    # _registry_composition_names docstring).
-    composition_count = len(_registry_composition_names(project_root))
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
-    expected_claim = actual + composition_count - len(deferred_present)
-    assert claimed == expected_claim, (
-        f"README dev setup claims {claimed} templates, disk has {actual} "
-        f"+ {composition_count} compositions, expected claim {expected_claim} "
-        f"(- {len(deferred_present)} deferred to v8.2.9)"
+    registered = _registry_template_names(project_root)
+    disk_seeds = {path.stem for path in (templates_root / "seeds").glob("*.yaml")}
+    assert claimed == len(registered) == len(disk_seeds), (
+        f"README claims {claimed} seeds; registry has {len(registered)} and "
+        f"disk has {len(disk_seeds)}"
     )
+    assert registered == disk_seeds
+    assert "sole runtime" in section
 
 
 def test_readme_design_docs_count(project_root: Path):
@@ -179,70 +129,51 @@ def test_demo_benchmark_sample_data_scenarios(project_root: Path):
 
 
 def test_workflow_skill_yaml_template_count(project_root: Path):
-    """workflow-skill.yaml workflow-type surface must match disk + registry
-    (modulo templates whose workflow-skill.yaml entry is deferred to v8.2.9 —
-    see ``_DEFERRED_DOC_TEMPLATES_V8_2_9`` at the top of this module).
-
-    v15.0.0 (v15-ADR-002 Phase B, doc-sync slice): `content.templates.builtin`
-    carries one `file: "templates/builtin/..."` entry per SURVIVOR yaml on
-    disk, and `content.templates.compositions.ids` mirrors the registry's
-    `compositions:` names 1:1. Count parity of the resolvable-name set
-    (survivors + compositions = 23) is what this test guards.
-    """
+    """workflow-skill.yaml must expose all seeds and the sole runtime."""
     import yaml
 
     skill_yaml_path = project_root / "workflow-system" / "agent" / "workflow-skill.yaml"
-    skill_yaml = skill_yaml_path.read_text()
-    templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
+    payload = yaml.safe_load(skill_yaml_path.read_text())
+    templates = payload["content"]["templates"]
+    declared_seeds = {entry["id"]: entry["file"] for entry in templates["seeds"]}
+    registered = _registry_template_names(project_root)
+    disk_seeds = {
+        path.stem
+        for path in (project_root / "workflow-system/agent/templates/seeds").glob("*.yaml")
+    }
 
-    yaml_entries = len(re.findall(r'file:\s*"templates/builtin/', skill_yaml))
-    disk_count = len(list(templates_dir.glob("*.yaml")))
-    deferred_present = _DEFERRED_DOC_TEMPLATES_V8_2_9 & _registry_template_names(project_root)
-    expected_entries = disk_count - len(deferred_present)
-    assert yaml_entries == expected_entries, (
-        f"workflow-skill.yaml has {yaml_entries} builtin file entries, disk has "
-        f"{disk_count} survivor yamls, expected {expected_entries} "
-        f"(- {len(deferred_present)} deferred to v8.2.9)"
-    )
-
-    payload = yaml.safe_load(skill_yaml)
-    composition_ids = set(
-        (payload.get("content", {}).get("templates", {}).get("compositions", {}) or {}).get(
-            "ids", []
-        )
-    )
-    registry_compositions = _registry_composition_names(project_root)
-    assert composition_ids == registry_compositions, (
-        f"workflow-skill.yaml content.templates.compositions.ids drifted from "
-        f"registry.yaml compositions — missing: "
-        f"{sorted(registry_compositions - composition_ids)}, extra: "
-        f"{sorted(composition_ids - registry_compositions)}"
-    )
+    assert set(declared_seeds) == registered == disk_seeds
+    assert set(declared_seeds.values()) == {f"templates/seeds/{name}.yaml" for name in registered}
+    runtime = templates["runtime"]
+    assert runtime["id"] == "change-driven"
+    assert runtime["file"] == "templates/builtin/change-driven.yaml"
+    assert "sole executable" in runtime["description"].lower()
 
 
 def test_registry_template_count(project_root: Path):
-    """registry.yaml template entries must match the on-disk yaml files.
-
-    Schema v2.0 (v15-ADR-002): the `templates:` list mirrors disk 1:1;
-    the `compositions:` manifest must not shadow any template name.
-    """
+    """Registry-v3 entries must map 1:1 to seeds and one runtime path."""
     import yaml
 
     raw = yaml.safe_load(
         (project_root / "workflow-system" / "agent" / "templates" / "registry.yaml").read_text()
     )
-    templates_dir = project_root / "workflow-system" / "agent" / "templates" / "builtin"
+    templates_root = project_root / "workflow-system" / "agent" / "templates"
+    entries = (raw.get("compositions") or []) + (raw.get("templates") or [])
+    registry_names = {entry["name"] for entry in entries}
+    disk_seeds = {path.stem for path in (templates_root / "seeds").glob("*.yaml")}
+    seed_paths = {entry["seed"] for entry in entries}
+    runtime_entries = [entry for entry in entries if "path" in entry]
+    disk_runtimes = {path.name for path in (templates_root / "builtin").glob("*.yaml")}
 
-    template_names = {entry["name"] for entry in raw.get("templates", [])}
-    composition_names = {entry["name"] for entry in raw.get("compositions", [])}
-    disk_names = {p.stem for p in templates_dir.glob("*.yaml")}
-
-    assert template_names == disk_names, (
-        f"registry.yaml templates {sorted(template_names)} != disk {sorted(disk_names)}"
-    )
-    assert not (template_names & composition_names), (
-        f"compositions shadow templates: {sorted(template_names & composition_names)}"
-    )
+    assert raw["schema_version"] == "3.0"
+    assert len(entries) == len(registry_names) == 23
+    assert registry_names == disk_seeds
+    assert seed_paths == {f"seeds/{name}.yaml" for name in registry_names}
+    assert runtime_entries == [
+        next(entry for entry in raw["templates"] if entry["name"] == "change-driven")
+    ]
+    assert runtime_entries[0]["path"] == "builtin/change-driven.yaml"
+    assert disk_runtimes == {"change-driven.yaml"}
 
 
 def test_context_profiles_count(project_root: Path):

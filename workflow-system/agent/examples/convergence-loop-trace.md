@@ -1,332 +1,209 @@
 ---
 id: "agent/examples/convergence-loop-trace"
-version: "1.0.0"
+version: "2.0.0"
 purpose: >
-  Convergence loop walkthrough showing the 8-phase review-fix-test-fix cycle
-  with a 2-round example (Round 1 FAIL at 78, Round 2 PASS at 88) and
-  stagnation detection scenario.
+  Checklist-round convergence example showing evidence-based PASS/FAIL,
+  reinforcement, user-reverted items, bounded retries, and stagnation
+  escalation without a fixed review-fix-test stage cycle.
 triggers:
-  - "How does the convergence loop work"
-  - "Show me a review-fix-test cycle"
-  - "What happens when gate score stagnates"
+  - "How does the checklist-round loop work"
+  - "Show me evidence reinforcement across rounds"
+  - "What happens when progress stagnates"
 tier: 3
-token_estimate: 3200
-last_updated: "2026-04-04"
+token_estimate: 2200
+last_updated: "2026-08-25"
 ---
 
-# Convergence Loop Trace
+# Checklist-Round Convergence Trace
 
-## Overview
+## Current Runtime Shape
 
-The convergence loop is the quality refinement mechanism for implementation
-stages. It runs after the initial implementation waves complete, iteratively
-improving code through review → fix → test → fix cycles until the gate
-composite score meets the threshold.
+The sole `change-driven` runtime repeats bounded checklist rounds:
 
-## 8-Phase Convergence Round Structure
-
-Each convergence round consists of 8 phases, dispatched as sequential waves
-by the Stage Agent. The Stage Agent orchestrates the loop but never executes
-any phase directly (P1 invariant).
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CONVERGENCE ROUND N                           │
-│                                                                 │
-│  Phase 1: CODE REVIEW        → Review Agent                     │
-│  Phase 2: FIX review findings → Implement Agent                 │
-│  Phase 3: TEST               → Test Agent                       │
-│  Phase 4: FIX test failures  → Implement Agent                  │
-│  Phase 5: BENCHMARK          → Test Agent                       │
-│  Phase 6: FIX bench issues   → Implement Agent                  │
-│  Phase 7: FINAL REVIEW       → Review Agent (SOLID + Code)      │
-│  Phase 8: FIX final findings → Implement Agent                  │
-│                                                                 │
-│  Each phase = 1 Wave containing 1 Task                          │
-│  Stage Agent owns the loop counter and gate evaluation          │
-└─────────────────────────────────────────────────────────────────┘
+```text
+L0 selects ready checklist items
+  → partitions at most 7 waves
+    → L1 dispatches at most 5 independent L2 Tasks per wave
+      → L2 self-verifies and reports evidence
+    → L1 validates conflicts and aggregates evidence
+  → L0 adjudicates checklist marks and the round gate
 ```
 
-## Scenario: 2-Round Convergence
+There is no fixed eight-phase review → fix → test → fix cycle. Historical
+workflow seeds may retain those stage names in `source_stages`, but the
+current wave shape is derived from unchecked item dependencies, ownership,
+priority, and evidence needs.
 
-**Context:** The `filesync` project has completed its 3 initial implementation
-waves (scaffold → core modules → integration). The Stage Agent now enters the
-convergence loop to bring the code to gate-passing quality.
+## Scenario
 
-**Gate profile:** `standard` (composite ≥ 85, coverage ≥ 80%, 0 blockers)
+The FileSync implementation has four open assertions:
 
----
-
-### Round 1
-
-```
-TIME  PHASE  AGENT               ACTION                        FINDINGS
-──────────────────────────────────────────────────────────────────────────────
-R1.1  Ph1   Review Agent        Code review of all modules     —
-                                 Found: 0 blocker, 2 critical,
-                                 4 major, 3 minor, 5 info
-                                 quality_score = max(0, 100 -
-                                   (0×25 + 2×15 + 4×5 + 3×1 + 5×0))
-                                 = 100 - 53 = 47
-
-R1.2  Ph2   Implement Agent     Fix review findings            Fixed: 2 critical
-                                 - F001: SQL injection in query builder
-                                 - F002: unbounded retry loop in sync
-
-R1.3  Ph3   Test Agent          Run test suite                 Results:
-                                 47/52 pass, 5 fail
-                                 Coverage: 78%
-
-R1.4  Ph4   Implement Agent     Fix test failures              Fixed: 3 of 5
-                                 - 2 remaining: flaky network mocks
-
-R1.5  Ph5   Test Agent          Run benchmarks                 All within baseline
-                                 sync_throughput: 12MB/s (OK)
-
-R1.6  Ph6   Implement Agent     No benchmark fixes needed      (no-op)
-
-R1.7  Ph7   Review Agent        Final review (SOLID + code)    —
-                                 Code review score: 82
-                                 SOLID review score: 75
-                                 Remaining: 0 blocker, 0 critical,
-                                 3 major, 2 minor
-
-R1.8  Ph8   Implement Agent     Fix final findings             Fixed: 2 major
-                                 - Extracted interface for storage
-                                 - Added error type hierarchy
+```markdown
+- [ ] C-G1.1 (P0) All sync tests pass.
+      verify: cargo test sync
+      depends: []
+- [ ] C-G1.2 (P0) Coverage is at least 80%.
+      verify: coverage metric
+      depends: [C-G1.1]
+- [ ] C-G2.1 (P1) Review finds zero blocker or critical issues.
+      verify: user-check of review evidence
+      depends: []
+- [ ] C-G2.2 (P1) Benchmarks stay within the recorded regression budget.
+      verify: cargo bench --bench sync
+      depends: [C-G1.1]
 ```
 
-**Round 1 Gate Evaluation:**
+`stage.md` declares `max_rounds: 4`. The composite score is recorded for
+trend visibility, not used as the round-PASS condition.
+
+## Round 1 — Evidence Exposes Gaps
+
+L0 selects `C-G1.1` and `C-G2.1`, then creates one wave with disjoint Tasks:
+
+| Task | Checklist item | Result |
+|---|---|---|
+| `R01_W01_T01` | `C-G1.1` | 50/52 tests pass; two failures |
+| `R01_W01_T02` | `C-G2.1` | zero blockers; two critical findings |
+
+L1 emits this evidence proposal:
 
 ```yaml
-gate_report:
-  header:
-    gate_id: "G_S04"
-    round: 1
-    max_rounds: 3
-  verdict:
-    decision: "FAIL"
-    composite_score: 78.0
-    meets_threshold: false
-  check_results:
-    test:
-      tests_passed: 50
-      tests_failed: 2
-      coverage_pct: 78
-      coverage_met: false
-    code_review:
-      quality_score: 82
-    solid_review:
-      quality_score: 75
-      principle_scores:
-        single_responsibility: 80
-        open_closed: 70
-        liskov: 85
-        interface_segregation: 65
-        dependency_inversion: 75
-    benchmark:
-      status: "pass"
-  convergence_history:
-    rounds:
-      - round: 1
-        composite_score: 78.0
-        blocker_count: 0
-        critical_count: 0
-    trend: "improving"
-  next_action:
-    action: "retry"
-    details: "Score 78 < 85. Coverage 78% < 80%. Run round 2."
+wave_report:
+  wave_id: R01_W01
+  state: completed
+  checklist_proposals:
+    - id: C-G1.1
+      verdict: fail
+      evidence_refs:
+        - .local/.agent/active/filesync/evidence/R01_W01_T01.yaml
+    - id: C-G2.1
+      verdict: fail
+      evidence_refs:
+        - .local/.agent/active/filesync/evidence/R01_W01_T02.yaml
+  blockers: []
+  conflicts: []
 ```
 
-**Composite calculation:**
+L0 does not check either item.
 
-```
-test_quality   = 78.0  × 0.30 = 23.4
-code_review    = 82.0  × 0.30 = 24.6
-architecture   = 75.0  × 0.20 = 15.0
-benchmark      = 100.0 × 0.20 = 20.0     (all benchmarks passed)
-─────────────────────────────────
-composite      = 78.0 + 5.0 buffer from bench = 83.0
-                 Recalculated: 23.4 + 24.6 + 15.0 + 20.0 = 83.0
-
-Wait — let me recalculate with actual values for the example:
-test_quality   = (50/52 × 100) = 96.2 ... but coverage is 78%
-  → use min(pass_rate×100, coverage_pct) = 78.0
-code_review    = 82.0
-architecture   = 75.0
-benchmark      = 100.0
-
-composite = 78×0.3 + 82×0.3 + 75×0.2 + 100×0.2
-          = 23.4 + 24.6 + 15.0 + 20.0
-          = 83.0
-
-FAIL: 83.0 < 85 threshold AND coverage 78% < 80%
-```
-
----
-
-### Round 2
-
-```
-TIME  PHASE  AGENT               ACTION                        FINDINGS
-──────────────────────────────────────────────────────────────────────────────
-R2.1  Ph1   Review Agent        Code review (focused)          —
-                                 Reviewing only files changed in R1
-                                 Found: 0 blocker, 0 critical,
-                                 1 major, 1 minor
-                                 quality_score = 100 - (5+1) = 94
-
-R2.2  Ph2   Implement Agent     Fix review findings            Fixed: 1 major
-                                 - F008: missing input validation
-
-R2.3  Ph3   Test Agent          Run test suite                 Results:
-                                 52/52 pass, 0 fail
-                                 Coverage: 84%
-                                 (added tests for fixed findings)
-
-R2.4  Ph4   Implement Agent     No test fixes needed           (no-op)
-
-R2.5  Ph5   Test Agent          Run benchmarks                 All within baseline
-
-R2.6  Ph6   Implement Agent     No benchmark fixes needed      (no-op)
-
-R2.7  Ph7   Review Agent        Final review (SOLID + code)    —
-                                 Code review score: 94
-                                 SOLID review score: 88
-                                 principle_scores:
-                                   SRP: 90, OCP: 85,
-                                   LSP: 90, ISP: 85, DIP: 88
-
-R2.8  Ph8   Implement Agent     Fix 1 minor finding            Fixed: naming issue
-```
-
-**Round 2 Gate Evaluation:**
+### Round 1 gate
 
 ```yaml
-gate_report:
-  header:
-    gate_id: "G_S04"
-    round: 2
-    max_rounds: 3
-  verdict:
-    decision: "PASS"
-    composite_score: 90.2
-    meets_threshold: true
-    rationale: "Composite 90.2 >= 85, zero blockers, coverage 84% >= 80%"
-  check_results:
-    test:
-      tests_passed: 52
-      tests_failed: 0
-      coverage_pct: 84
-      coverage_met: true
-    code_review:
-      quality_score: 94
-    solid_review:
-      quality_score: 88
-    benchmark:
-      status: "pass"
-  convergence_history:
-    rounds:
-      - round: 1
-        composite_score: 83.0
-        blocker_count: 0
-        critical_count: 0
-      - round: 2
-        composite_score: 90.2
-        blocker_count: 0
-        critical_count: 0
-    trend: "improving"
-  next_action:
-    action: "advance"
-    target: "S05_review"
+round_gate:
+  round_id: R01
+  selected_items: [C-G1.1, C-G2.1]
+  evidence_valid: true
+  passing_checks: []
+  blockers: []
+  verdict: FAIL
+  composite_trend: 78.0
 ```
 
-**Composite calculation:**
+The FAIL is caused by failed configured checks, not by `78.0` being below a
+legacy stage threshold.
 
-```
-test_quality   = 84.0  × 0.30 = 25.2
-code_review    = 94.0  × 0.30 = 28.2
-architecture   = 88.0  × 0.20 = 17.6
-benchmark      = 100.0 × 0.20 = 20.0
-─────────────────────────────────
-composite      = 91.0
+## Reinforcement for Round 2
 
-Adjusted: 25.2 + 28.2 + 17.6 + 20.0 = 91.0
-Rounded display: 90.2 (with actual fine-grained sub-scores)
+L0 converts the highest-severity findings into at most five rules:
 
-PASS: 91.0 >= 85 AND 0 blockers AND coverage 84% >= 80% AND round 2 >= min 1
-```
-
-## Convergence Summary
-
-| Round | Composite | Test Coverage | Code Review | Architecture | Verdict |
-|-------|-----------|---------------|-------------|--------------|---------|
-| 1     | 83.0      | 78%           | 82          | 75           | FAIL    |
-| 2     | 91.0      | 84%           | 94          | 88           | PASS    |
-
-**Improvement:** +8.0 composite points, +6% coverage, +12 code review, +13 architecture.
-
-## Stagnation Detection Scenario
-
-If the convergence loop fails to improve, stagnation detection prevents
-wasted rounds. The rule: if the composite score does not improve for 2
-consecutive rounds after round 2, the Stage Agent escalates.
-
-```
-Example — Stagnation:
-
-Round 1: composite = 72.0  → FAIL → proceed to Round 2
-Round 2: composite = 78.0  → FAIL → improving, proceed to Round 3
-Round 3: composite = 78.5  → FAIL → improving (barely), proceed
-                                     BUT: trend check triggers
-
-Stagnation rule:
-  IF round >= 3
-  AND abs(score[round] - score[round-1]) < 2.0
-  AND score < threshold:
-    → ESCALATE (stagnation detected)
-
-What happens:
-  Stage Agent sends StageReport(ESCALATE) to Project Agent
-  Project Agent evaluates options:
-    [A] Provide fix direction → re-enter convergence (uses loop-back budget)
-    [B] Lower threshold → PASS with warning
-    [C] Loop back to design stage → architectural fix needed
-    [D] Escalate to human for decision
-
-Human escalation message:
-  ┌─────────────────────────────────────────────────────────┐
-  │  ⚠ HUMAN DECISION REQUIRED                             │
-  │                                                         │
-  │  Stage: S04_implement (Round 3 of 3)                    │
-  │  Issue: Convergence stagnant — composite 78.5           │
-  │         (threshold: 85, improvement: +0.5 last round)   │
-  │                                                         │
-  │  Root Cause: SOLID scores stuck at 68 due to            │
-  │  circular dependency between config and sync modules    │
-  │                                                         │
-  │  Options:                                               │
-  │    [A] Provide refactoring direction → retry stage      │
-  │    [B] Lower composite threshold to 75 → accept as-is  │
-  │    [C] Loop back to design stage → redesign modules     │
-  │    [D] Abort project                                    │
-  └─────────────────────────────────────────────────────────┘
+```yaml
+applicable_rules:
+  reinforcement:
+    - id: R-001
+      severity: critical
+      finding: "F001: unbounded retry loop in sync scheduler"
+      source_file: "src/sync/scheduler.rs"
+      remediation_hint: "bound retry attempts and preserve terminal error"
+    - id: R-002
+      severity: critical
+      finding: "F002: query builder accepts unescaped path metadata"
+      source_file: "src/storage/query.rs"
+      remediation_hint: "use parameter binding"
 ```
 
-## Dispatcher Isolation in the Loop
+Paths, IDs, and finding text remain verbatim. Each assigned L2 Task must close
+or explicitly defer its reinforcement IDs before new work.
 
-The Stage Agent orchestrates the entire convergence loop without performing
-any work directly. Its actions are limited to:
+## Round 2 — Fix and Re-Verify
 
-1. **Dispatch** each phase as a Wave (1 Wave = 1 Task)
-2. **Collect** the WaveReport after each phase completes
-3. **Track** the convergence history (round number, scores, trend)
-4. **Evaluate** the gate at the end of each round
-5. **Decide** whether to continue, pass, or escalate
+The two findings touch disjoint files, so L0 creates:
 
-The Stage Agent never:
-- Reads source code files
-- Runs tests or lint commands
-- Performs code review
-- Modifies any artifacts produced by Task Agents
-- Writes fix suggestions (that is the Review Agent's job)
+1. Wave 1: two parallel fix Tasks.
+2. Wave 2: after the fix artifacts settle, one test Task and one independent
+   review Task.
+
+This uses two of the seven allowed waves. Sequential dependencies are placed
+in later waves instead of being hidden inside one parallel wave.
+
+```yaml
+round_gate:
+  round_id: R02
+  selected_items: [C-G1.1, C-G2.1]
+  evidence_valid: true
+  passing_checks: [C-G1.1, C-G2.1]
+  reinforcement_closed: [R-001, R-002]
+  blockers: []
+  conflicts: []
+  verdict: PASS
+  composite_trend: 88.0
+```
+
+L0 checks `C-G1.1` and, after the configured manual user-check,
+`C-G2.1`. It records the round, evidence references, and checkpoint in
+`stage.md`.
+
+`C-G1.2` and `C-G2.2` become selectable because `C-G1.1` is now checked.
+
+## User-Reverted Item
+
+Suppose the user reopens `C-G2.1`:
+
+```markdown
+- [ ] C-G2.1 (P1) Review finds zero blocker or critical issues.
+      reverted: "The Windows-path review omitted junction handling."
+```
+
+The next round selects the reverted item before ordinary P0/P1/P2 work and
+injects the reason verbatim as blocker reinforcement. L0 may not undo the
+reopen or silently weaken the assertion.
+
+## Stagnation
+
+Checklist progress, not score movement alone, drives stagnation:
+
+```text
+Round 1: checked_delta = 0 → continue with reinforcement
+Round 2: checked_delta = 0 → escalate; two consecutive stagnant rounds
+```
+
+One item that fails in three selected rounds also escalates. Reaching
+`max_rounds` escalates. Execution never increments a ceiling silently.
+
+```yaml
+exception_escalation:
+  source_id: R02
+  source_layer: L0
+  reason: stagnation
+  classification: escalate
+  context:
+    checked_delta: 0
+    stagnant_rounds: 2
+    open_items: [C-G1.1, C-G2.1]
+    blocker_findings: []
+  remediation_hint: "Choose one scope or dependency change before another round"
+```
+
+## Completion
+
+After later rounds check `C-G1.2` and `C-G2.2`, L0 enters the archive gate.
+Archive still requires every item checked, valid evidence, valid signed
+preflight, no open reversion, and readiness composite 8.5/9.0. The archive
+threshold does not become a per-round gate.
+
+## Dispatcher Isolation
+
+- L0 Project selects items, writes round state, and adjudicates evidence.
+- L1 Wave validates dependencies/ownership and aggregates Task reports.
+- L2 Task performs the scoped fix, test, review, research, or document work.
+- Evidence flows Task → Wave → Project.
+- Escalation flows Task → Wave → Project → Human.

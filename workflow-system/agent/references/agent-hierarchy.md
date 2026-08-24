@@ -2,266 +2,263 @@
 id: "agent/references/agent-hierarchy"
 version: "1.0.0"
 purpose: >
-  Defines the 4-layer agent hierarchy (Project → Stage → Wave → Task) with full
-  specifications per layer, delegation rules, prohibited actions, context budgets,
-  and message flow. Use this when setting up agents, debugging delegation failures,
-  or understanding layer responsibilities.
+  Defines the three-layer Project → Wave → Task hierarchy, including each
+  layer's responsibilities, context budget, delegation contract, evidence
+  flow, ownership boundaries, and bounded escalation behavior.
 triggers:
   - "setting up agent hierarchy"
   - "debugging delegation"
   - "understanding layer roles"
 tier: 2
-token_estimate: 3200
+token_estimate: 2400
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Agent Hierarchy Reference
 
 ## 1. Architecture Overview
-From §2.1:
 
-```
-  Human
-    │
-    ▼
-  [L0 Project Agent]  ──dispatch──►  [L1 Stage Agent]
-                                          │
-                                     dispatch
-                                          ▼
-                                     [L2 Wave Agent]
-                                          │
-                                     dispatch (parallel)
-                                     ┌────┼────┐
-                                     ▼    ▼    ▼
-                                   [L3] [L3] [L3]   ◄── Task Agents (do work)
-                                     │    │    │
-                                     report report
-                                     └────┼────┘
-                                          ▼
-                               [L2] ──report──► [L1] ──report──► [L0]
+DevolaFlow uses three layers. No intermediate orchestration layer or fixed
+workflow DAG sits between Project and Wave.
+
+```text
+Human
+  │ goals, priorities, approvals
+  ▼
+L0 Project Agent ── round/wave dispatch ──► L1 Wave Agent
+  ▲                                             │
+  │ evidence proposal                           │ parallel task dispatch
+  │                                             ▼
+  └────────────────────────────────────── L2 Task Agents
+                                                  │
+                                           implementation + evidence
 ```
 
-**Invariant P1 — Dispatcher-Not-Implementer:** Layers 0–2 dispatch, monitor,
-and report. Only Layer 3 Task Agents execute actual work.
+**P1 — Dispatcher-Not-Implementer:** L0 Project and L1 Wave dispatch,
+coordinate, and report. Only L2 Task performs implementation, test execution,
+research, review, or document authoring.
 
-## 2. Layer Specification Table
-From §2.2–2.5:
+**P5 — Artifacts as Contracts:** layers exchange typed dispatches, reports,
+and repository-relative artifact references. They do not share conversation
+memory.
 
-| Aspect | L0 Project | L1 Stage | L2 Wave | L3 Task |
-|--------|-----------|----------|---------|---------|
-| **Role** | Top-level orchestrator | Single-stage owner | Parallel task coordinator | Leaf worker |
-| **Count** | 1 per project | 3–8 per project | 1–7 per stage | 1–5 per wave |
-| **Lifespan** | Entire run | Per stage | Per wave | Per task |
-| **Does work?** | NO | NO | NO | **YES** |
-| **Context budget** | ~3K tokens | ~5K tokens | ~4K tokens | ~8K tokens |
-| **Receives** | User request, workflow type | StageDispatch | WaveDispatch | TaskDispatch |
-| **Produces** | Final project report | StageReport (PASS/FAIL) | WaveReport | TaskReport |
-| **Reports to** | Human user | Project Agent | Stage Agent | Wave Agent |
-| **Delegates to** | Stage Agents | Wave Agents | Task Agents | Nothing (leaf) |
-| **State owned** | `project_status.yaml` | `stage_{id}/README.md` | In-memory only | Task-scoped files |
-| **Tools** | TodoWrite, file R/W | TodoWrite, file R/W | TodoWrite, Task tool | ALL tools |
+## 2. Layer Contract Summary
 
-## 3. Per-Layer Behavioral Contracts
-From §2.2–2.5:
+| Aspect | L0 Project | L1 Wave | L2 Task |
+|---|---|---|---|
+| Role | Round orchestrator and evidence adjudicator | Parallel task coordinator | Leaf implementer |
+| Lifespan | Entire change | One wave | One task |
+| Does task work? | No | No | **Yes** |
+| Context budget | ~5K tokens | ~5K tokens | ~8K tokens |
+| Receives | User goal, seed, lifecycle state, round reports | Wave plan, task specs, dependency state | TaskDispatch, owned files, rules, AC |
+| Produces | Goal/checklist/preflight contracts, round decisions, final report | WaveReport and checklist-evidence proposal | StatusReport and task artifacts |
+| Reports to | Human | L0 Project | L1 Wave |
+| Delegates to | L1 Wave | L2 Task | Nothing |
 
-### L0 — Project Agent
+The total dispatch budget is approximately 18K tokens per full cascade:
+5K Project + 5K Wave + 8K Task. Budgets are ceilings, not fill targets.
 
-1. Determine workflow type from user request (heuristics from SKILL.md §Quick Start)
-2. Instantiate workflow template — resolve stage list, gate conditions, loop-back rules
-3. Dispatch stages sequentially (or parallel where template allows)
-4. After each stage: evaluate gate. PASS → advance. FAIL → loop-back per template
-5. On completion: produce final report
-6. On unrecoverable failure: halt + divergence report for human
+## 3. L0 Project Agent
 
-### L1 — Stage Agent
+L0 owns the user-visible change contract and the checklist-round loop.
 
-1. Receive StageDispatch; analyze scope; decompose into waves
-2. For each wave: determine parallel tasks (file ownership + dependency constraints)
-3. Dispatch waves sequentially — Wave N+1 starts only after Wave N completes
-4. After all waves: aggregate results; evaluate stage gate
-5. If convergence loop applies: run review→fix→test→fix cycle as waves
-6. Report StageReport upward
+### 3.1 Before execution
 
-**Wave decomposition rules:**
-- Tasks within a wave MUST be independent (no shared writable files, no data deps)
-- Maximum 5 tasks per wave
-- Each task MUST own a disjoint set of files
+1. Scan the workspace and classify complexity.
+2. Select a registered checklist seed from user intent with
+   `TemplateRegistry.load_seed(name)`.
+3. Load the sole executable runtime with
+   `TemplateRegistry.load_template("change-driven")`.
+4. Draft `goal.md`, `checklist.md`, and `preflight.md`.
+5. Confirm goal wording, P0/P1/P2 priorities, verification recipes,
+   dependencies, ownership scope, and preflight authorization with the user.
+6. Refuse to start the first round until preflight is signed and valid.
 
-### L2 — Wave Agent
+Seed order and `source_stages` are provenance only. L0 MUST NOT synthesize a
+fixed execution DAG from them.
 
-1. Validate all task specifications (task_id, description, owned_files, acceptance_criteria)
-2. Dispatch all tasks in parallel using Task tool
-3. Monitor completion; record status and artifacts per task
-4. On recoverable task failure: retry once; on second failure: mark failed, continue
-5. After all tasks: aggregate results; check cross-task conflicts
-6. Report WaveReport upward
+### 3.2 Every round
 
-### L3 — Task Agent
+1. Read unchecked checklist items.
+2. Sort: reverted blockers first, then P0 → P1 → P2, then satisfied
+   dependencies, then stable checklist order.
+3. Select bounded items and partition them into at most 7 waves, at most
+   5 tasks per wave.
+4. Assign pairwise-disjoint writable ownership within each wave.
+5. Dispatch each wave to L1.
+6. Verify the aggregated evidence and checks against checklist item IDs.
+7. Mark eligible checklist items complete; L2 never self-checks an item.
+8. Evaluate the round gate:
+   - every selected item has valid evidence and a passing check;
+   - zero blocker findings;
+   - composite score is recorded as trend-only context.
+9. On FAIL, build up to 5 severity-filtered reinforcement rules for the next
+   round. On PASS, checkpoint and select the next round.
+10. Refresh progress state and report material changes to the user.
 
-1. Receive TaskDispatch with context injection
-2. Execute the assigned work using ALL available tools
-3. Produce TaskReport even on failure (with error details)
-4. Follow applicable code-rules loaded per context injection
+### 3.3 Completion and archive
 
-**Task Agent type specializations:**
+L0 may archive only when every checklist item is checked, no reverted item is
+open, evidence references validate, and readiness composite meets 8.5 for
+lite/minor changes or 9.0 for full/major changes.
 
-| Task Type | Primary Tools | Typical Output |
-|-----------|--------------|----------------|
-| `code` | Read, Write, StrReplace, Shell | Modified/new source files |
-| `test` | Shell, Read, Write | Test results, coverage report |
-| `review` | Read, Grep, SemanticSearch | Severity-classified findings |
-| `research` | WebSearch, WebFetch, Read | Research report, comparison matrix |
-| `design` | Read, Write, SemanticSearch | Design document section |
-| `benchmark` | Shell, Read | Benchmark results, baseline comparison |
+### 3.4 MUST NOT
 
-## 4. MUST / MUST NOT Rules
-From §1 (P1), §2.2–2.5:
+- Implement task outputs, run implementation tests, or perform a delegated
+  review.
+- Treat seed presentation order as execution order.
+- Advance a failed round by using a composite score as a substitute for
+  checklist evidence.
+- Change a signed checklist assertion or priority without user confirmation.
+- Revert a checked item; `[x] → [ ]` belongs to the user.
 
-| Layer | MUST | MUST NOT |
-|-------|------|----------|
-| **L0 Project** | Dispatch stages, track status, enforce gates, report to human | Write code, run tests/shell, read source files, author designs, skip gates, reorder stages |
-| **L1 Stage** | Dispatch waves, aggregate wave results, run gate evaluations | Write code, run tests, perform reviews, author content, dispatch >5 tasks/wave |
-| **L2 Wave** | Dispatch tasks in parallel, collect results, report to Stage | Do any task's work, modify task outputs, retry >1 time, wait indefinitely |
-| **L3 Task** | Execute assigned work, produce TaskReport, follow code-rules | Spawn sub-agents, delegate work, modify files outside owned set, exceed timeout |
+L0 may update lifecycle-control artifacts such as `stage.md`, checklist state,
+gate verdicts, and STATUS. Those are orchestration records, not task outputs.
 
-## 5. Delegation Rules
-From §2, §7:
+## 4. L1 Wave Agent
 
-### Delegation Direction
+L1 receives one bounded wave and coordinates its L2 tasks.
 
-```
-Dispatch flows DOWN:    L0 → L1 → L2 → L3
-Reports flow UP:        L3 → L2 → L1 → L0
-Escalation flows UP:    L3 → L2 → L1 → L0 → Human
-```
+### 4.1 Dispatch contract
 
-### Constraints
+1. Validate every task has an ID, checklist item IDs, description,
+   acceptance criteria, dependency state, owned files, read-only files,
+   timeout, and output format.
+2. Reject a wave with unresolved task dependencies or overlapping writable
+   ownership.
+3. Dispatch independent tasks in parallel. Sequential dependencies belong in
+   different waves.
+4. Apply explicit timeouts and bounded retry classification.
 
-| Rule | Value |
-|------|-------|
-| Max tasks per wave | 5 |
-| Max waves per stage | 7 |
-| Max files per task (writable) | 6 |
-| Max files per task (readable) | 15 |
-| Max lines changed per task | ~300 net |
-| Max task duration (impl) | 30 min |
-| Max task duration (research) | 45 min |
-| File ownership within wave | Disjoint (strict) |
-| Read-only file sharing within wave | Allowed |
+### 4.2 Aggregation contract
 
-### Fail-Forward Protocol
-From §SKILL.md, Appendix:
+After all tasks settle, L1:
 
-```
-1. Task fails → Wave retries once with error context
-     → still fails → escalate to Stage
+- records completion, failure, and escalation state per task;
+- checks cross-task file and interface conflicts;
+- preserves verbatim paths, errors, metric values, and command evidence;
+- aggregates `ac_results` by checklist item ID;
+- emits a lean WaveReport with an evidence-backed checklist proposal;
+- never marks `checklist.md` itself and never alters task artifacts.
 
-2. Wave fails → Stage retries failed tasks only
-     → still fails → escalate to Project
+The evidence summary SHOULD remain within 600 tokens. Full evidence stays in
+referenced artifacts.
 
-3. Stage gate fails → Project evaluates:
-     loop-back (max 2 retries per stage) or escalate to human
+### 4.3 Failure handling
 
-4. Project loop-back budget: 3 total across all stages
-     → exceeded → halt with divergence report
-```
+L1 may retry a transient task once when the round budget permits. Deterministic
+failure, ownership conflict, exhausted retry, or an unresolvable dependency is
+reported to L0 with a classified `ExceptionEscalation`.
 
-**Escalation chain:** Task → Wave → Stage → Project → Human.
-Always upward, never skip levels. Every loop has `max_iterations`.
-Every failure is classified (retry / escalate / abort). No infinite loops.
+## 5. L2 Task Agent
 
-## 6. Context Budget Details
-From §1 (P2), §6.5:
+L2 is the only implementation layer and always receives a fresh context.
 
-| Layer | Strategy | Budget | Loaded Content |
-|-------|----------|--------|----------------|
-| L0 Project | Minimal | ~3K tokens | Workflow template, project config, stage status dashboard |
-| L1 Stage | Standard | ~5K tokens | Stage definition, predecessor artifact summaries, wave plan |
-| L2 Wave | Minimal | ~4K tokens | Wave task list, task status tracking |
-| L3 Task | Standard–Full | ~8K tokens | Task spec, owned files, code-rules, design excerpt |
+1. Read the TaskDispatch and confirm scope before work.
+2. Implement exactly the assigned atomic task.
+3. Modify only `owned_files`; shared dependencies are read-only.
+4. Run bounded self-verification against every assigned checklist assertion.
+5. Report `ac_results` keyed by checklist item ID, command/metric evidence,
+   artifacts, diff statistics, and unresolved findings.
+6. Close applicable reinforcement before new work.
+7. Emit a StatusReport on success, failure, or escalation.
 
-**Context injection breakdown for L3 Task Agents:**
+L2 MUST NOT spawn subagents, modify lifecycle contracts, self-award a quality
+score, mark checklist items complete, or write outside its owned set.
 
-| Section | Token Range | Content |
-|---------|-------------|---------|
-| Identity | ~100 | role, task_id, team |
-| Task spec | 500–1500 | title, description, acceptance_criteria |
-| Scoped context | 1000–3000 | predecessor_summary, design_excerpt, interfaces |
-| File scope | 200–500 | owned files (create/modify), read_only files |
-| Rules | 2000–5000 | loading_strategy, language, quality_focus |
-| Behavioral | ~200 | timeout, max_files, output_format, escalation |
+Typical task specializations:
 
-## 7. Layer Comparison Summary
-From §2.6:
+| Type | Typical work | Required evidence |
+|---|---|---|
+| code/config | Implement scoped change | diff + bounded tests/lint |
+| test/benchmark | Execute and record checks | command + exit status + metrics |
+| review/security | Inspect artifacts | severity-classified findings |
+| research/design/docs | Author scoped artifact | source/criteria self-check |
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        DELEGATION DIRECTION (↓)                        │
-│                        REPORTING DIRECTION (↑)                         │
-├──────────┬────────────┬──────────────┬──────────────┬─────────────────┤
-│  Layer   │   Count    │   Lifespan   │  Does Work?  │  Context Size   │
-├──────────┼────────────┼──────────────┼──────────────┼─────────────────┤
-│ Project  │     1      │ Entire run   │     NO       │   ~3K tokens    │
-│ Stage    │   3–8      │ Per stage    │     NO       │   ~5K tokens    │
-│ Wave     │   1–7/stg  │ Per wave     │     NO       │   ~4K tokens    │
-│ Task     │  1–5/wave  │ Per task     │    YES       │   ~8K tokens    │
-└──────────┴────────────┴──────────────┴──────────────┴─────────────────┘
+## 6. Delegation and Escalation
+
+```text
+Dispatch:   Project → Wave → Task
+Reports:    Task → Wave → Project
+Escalation: Task → Wave → Project → Human
 ```
 
-## 8. File System Layout
-From §Appendix B:
+Escalation always moves upward and never skips a layer. Every loop declares a
+ceiling and classifies failure as retry, escalate, or abort.
 
-```
-.local/
-├── project_status.yaml                # L0: Project Agent dashboard
-├── workflow_config.yaml               # Workflow template + config
-├── stages/
-│   ├── overview.md                    # Stage tracking summary
-│   ├── S01_design/
-│   │   ├── README.md                  # Stage scope, wave plan
-│   │   ├── dispatch.yaml              # StageDispatch message
-│   │   ├── report.yaml                # StageReport produced
-│   │   ├── waves/
-│   │   │   ├── W01/
-│   │   │   │   ├── dispatch.yaml      # WaveDispatch
-│   │   │   │   ├── report.yaml        # WaveReport
-│   │   │   │   └── tasks/
-│   │   │   │       ├── T01_dispatch.yaml
-│   │   │   │       └── T01_report.yaml
-│   │   │   └── W02/ ...
-│   │   ├── gate_report.yaml           # Gate decision record
-│   │   └── artifacts/                 # Stage deliverables
-│   └── S02_plan/ ...
-├── handoffs/                          # Handoff deliverable envelopes
-│   ├── research_to_design.yaml
-│   └── design_to_implement.yaml
-└── escalations/
-    └── ESC_001.yaml                   # Exception escalation records
+| Constraint | Limit |
+|---|---|
+| Tasks per wave | 5 |
+| Waves per round | 7 |
+| Writable files per task | 6 |
+| Readable files per task | 15 |
+| Implementation task target | ≤30 minutes |
+| Research/design task target | ≤45 minutes |
+| Writable overlap inside a wave | Forbidden |
+
+## 7. Evidence Handshake
+
+The completion path is deliberately two-step:
+
+```text
+L2 StatusReport evidence
+  → L1 validates and aggregates an item-level proposal
+    → L0 verifies evidence and checks
+      → L0 records checklist completion
 ```
 
-## 9. Convergence Loop
-From §Appendix C:
+This prevents self-certification. A Task may state that a command passed; it
+cannot decide that the user contract is complete.
 
-8-phase loop for implementation stages, each phase dispatched as a wave:
+Minimum Task evidence:
 
+- checklist item ID;
+- verification mode and executed command or metric;
+- exit status or measured value;
+- artifact path and digest where applicable;
+- self-check result;
+- explicit unresolved or deferred findings.
+
+## 8. Context and Message Boundaries
+
+| Layer | Context contents |
+|---|---|
+| L0 Project | seed metadata, goal/checklist/preflight state, current round, prior WaveReports |
+| L1 Wave | current task list, dependency map, ownership map, compact predecessor evidence |
+| L2 Task | one task spec, owned/read-only files, applicable rules, relevant interfaces |
+
+Use typed TaskDispatch, StatusReport, WaveReport, and ExceptionEscalation
+messages. Paths are repository-relative. Preserve exact file paths, error
+messages, metric values, and command output facts.
+
+## 9. Active Change Layout
+
+```text
+.local/.agent/active/<change-id>/
+├── goal.md
+├── checklist.md
+├── stage.md
+├── preflight.md
+├── spec.md
+├── STATUS.yaml
+├── owned_files.txt
+└── evidence/
 ```
-Round N:
-  Phase 1: CODE REVIEW        (Review Agent)
-  Phase 2: FIX review findings (Implement Agent)
-  Phase 3: TEST               (Test Agent)
-  Phase 4: FIX test failures   (Implement Agent)
-  Phase 5: BENCHMARK           (Test Agent)
-  Phase 6: FIX bench issues    (Implement Agent)
-  Phase 7: FINAL REVIEW        (Review Agent)
-  Phase 8: FIX final findings  (Implement Agent)
 
-  Gate Decision:
-    composite ≥ 85 AND round ≥ min AND 0 blockers → PASS
-    composite < 85 AND round < max              → NEXT ROUND
-    round ≥ max                                  → ESCALATE
-```
+`stage.md` is a round-control artifact, not an agent layer. It records round
+selection, wave partitioning, gate results, checkpoints, and priority changes.
 
-Defaults: min_rounds=1, max_rounds=3 (configurable, range 1–6).
-Stage Agent orchestrates the loop — never executes any phase directly.
+## 10. Self-Audit
+
+Before a cascade begins, confirm:
+
+- L0 Project, L1 Wave, and L2 Task are the only active layers.
+- All implementation work is assigned to L2.
+- Context budgets are 5K/5K/8K.
+- Every wave has at most 5 tasks and disjoint writable ownership.
+- Every round has at most 7 waves.
+- Evidence flows Task → Wave → Project before a checklist mark changes.
+- Escalation is Task → Wave → Project → Human.
+- No fixed workflow DAG was inferred from checklist-seed provenance.

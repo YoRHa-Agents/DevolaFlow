@@ -18,7 +18,7 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
     """W-18 v14.3.0: the artifact-quality evidence rubric (G-004) has coverage.
 
     Discharges the W-18 precondition for the v14.3.0 CHANGELOG entry on the
-    T2 slice (evidence rubric + L3 self-verify protocol per v15-ADR-007).
+    T2 slice (evidence rubric + L2 Task self-verify protocol per v15-ADR-007).
     The stanza asserts the load-bearing surfaces:
 
     (a) references/artifact-quality.md exists with all 5 sections + the
@@ -28,7 +28,7 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
         pointer (C-7 places 1+3 of the four-place sync).
     (d) scripts/sync_cursor_skill.py MIRRORED_FILES carries the entry
         (C-7 place 4).
-    (e) references/execution-protocol.md carries §15 "L3 Self-Verify"
+    (e) references/execution-protocol.md carries §15 "L2 Task Self-Verify"
         (G-005 protocol slice: AC-v2 consumption + max-2-iteration bound).
     (f) references/task-quality-score.md cross-references the rubric split.
 
@@ -41,7 +41,7 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
         "W-18 v14.3.0 violation: references/artifact-quality.md missing — release blocker."
     )
     ref_text = ref_path.read_text(encoding="utf-8")
-    assert "L3 MUST NOT compute or report numeric quality scores" in ref_text, (
+    assert "L2 MUST NOT compute or report numeric quality scores" in ref_text, (
         "W-18 v14.3.0 violation: artifact-quality.md missing the §1 doctrine guard line."
     )
     assert "reject_subagent_quality_score" in ref_text, (
@@ -69,7 +69,8 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
         "W-18 v14.3.0 violation: SKILL.md Tier-2 nav table missing the artifact-quality.md row."
     )
     assert "L0 verifies evidence, not vibes" in skill_text, (
-        "W-18 v14.3.0 violation: SKILL.md VERIFY step missing the L3 self-verify pointer."
+        "W-18 v14.3.0 violation: SKILL.md VERIFY step missing the L2 Task "
+        "evidence-verification pointer."
     )
 
     # --- (d) mirror manifest entry ------------------------------------
@@ -84,16 +85,20 @@ def test_v14_3_0_artifact_quality_rubric_registered(project_root: Path) -> None:
         "missing references/artifact-quality.md."
     )
 
-    # --- (e) execution-protocol §15 L3 Self-Verify --------------------
+    # --- (e) execution-protocol §15 L2 Task Self-Verify ---------------
     proto_text = (
         project_root / "workflow-system/agent/references/execution-protocol.md"
     ).read_text(encoding="utf-8")
-    assert "## 15. L3 Self-Verify (v14.3.0+)" in proto_text, (
-        "W-18 v14.3.0 violation: execution-protocol.md missing §15 L3 Self-Verify."
+    assert "## 15. L2 Task Self-Verify (v14.3.0+)" in proto_text, (
+        "W-18 v14.3.0 violation: execution-protocol.md missing §15 L2 Task Self-Verify."
     )
     assert "acceptance_criteria_v2" in proto_text and "2 self-fix iterations" in proto_text, (
         "W-18 v14.3.0 violation: §15 must consume acceptance_criteria_v2."
         " with the max-2-self-fix-iteration P4 bound."
+    )
+    assert "Task → Wave → Project → Human" in proto_text, (
+        "W-18 v14.3.0 violation: §15 must preserve bounded-retry escalation "
+        "through Task → Wave → Project → Human."
     )
 
     # --- (f) task-quality-score.md rubric-split cross-ref -------------

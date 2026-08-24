@@ -15,7 +15,6 @@ import logging
 from pathlib import Path
 
 import pytest
-import yaml
 
 from devolaflow.codegraph.markers import (
     FAILED_MARKER,
@@ -28,11 +27,10 @@ from devolaflow.codegraph.markers import (
     mark_ready,
     read_marker_state,
 )
+from devolaflow.template_engine.registry import TemplateRegistry
 
 _REPO_ROOT: Path = Path(__file__).resolve().parent.parent
-_REPO_INIT_PATH: Path = (
-    _REPO_ROOT / "workflow-system" / "agent" / "templates" / "builtin" / "repo-init.yaml"
-)
+_TEMPLATES_ROOT = _REPO_ROOT / "workflow-system/agent/templates"
 
 
 class TestMarkerTransitions:
@@ -108,15 +106,21 @@ class TestCrashLeftoverPrecedence:
 
 class TestTemplateParity:
     def test_repo_init_markers_match_module_constants(self) -> None:
-        """repo-init.yaml's declared marker paths mirror the module constants."""
-        template = yaml.safe_load(_REPO_INIT_PATH.read_text(encoding="utf-8"))
-        scaffold = next(s for s in template["stages"] if s.get("id") == "scaffold")
-        declared = scaffold["config"]["codegraph_init"]["markers"]
-        assert declared == {
-            "indexing": f"{MARKER_DIR}/{INDEXING_MARKER}",
-            "ready": f"{MARKER_DIR}/{READY_MARKER}",
-            "failed": f"{MARKER_DIR}/{FAILED_MARKER}",
-        }
+        """Marker constants stay documented while repo-init retains provenance."""
+        reference = (_REPO_ROOT / "workflow-system/agent/references/codegraph.md").read_text(
+            encoding="utf-8"
+        )
+        for marker in (INDEXING_MARKER, READY_MARKER, FAILED_MARKER):
+            assert f"{MARKER_DIR}/{marker}" in reference
+
+        seed = TemplateRegistry(_TEMPLATES_ROOT).load_seed("repo-init")
+        assert seed is not None
+        assert ("scaffold", "implement") in seed.source_stage_sequence()
+        assert any(
+            "codegraph availability" in assertion.statement_template
+            for partition in seed.partitions
+            for assertion in partition.assertions
+        )
 
     def test_package_exports_marker_surface(self) -> None:
         """The marker protocol is reachable from the package root (no probe duplicate)."""

@@ -1,0 +1,35 @@
+schema_version: "1.0"
+kind: checklist-seed
+metadata:
+  name: entropy-cleanup
+  version: "1.0.0"
+  description: "Seed for stale-content and drift cleanup."
+  category: control
+  intent_keywords: [entropy, gc, cleanup, freshness, drift, maintenance, meta, documentation]
+  source:
+    kind: composition
+    name: entropy-cleanup
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "2.0"
+placeholders: {}
+partitions:
+  - key: drift-inventory
+    title_template: "Drift scan and proposal"
+    source_stages:
+      - {id: scan, primitive: analyze}
+      - {id: propose, primitive: design}
+    assertions:
+      - key: findings-classified
+        statement_template: "Stale, duplicate, and conflicting artifacts have evidence-backed proposed dispositions"
+        suggested_priority: P1
+        verify: {mode: manual}
+  - key: cleanup
+    title_template: "Cleanup review and application"
+    source_stages:
+      - {id: review, primitive: review}
+      - {id: apply, primitive: implement}
+    assertions:
+      - key: drift-reduced
+        statement_template: "Approved cleanup removes targeted drift without deleting active contracts or immutable history"
+        suggested_priority: P0
+        verify: {mode: metric, template: "remaining_targeted_drift == 0"}

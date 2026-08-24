@@ -241,9 +241,12 @@ From §6:
 3. Ask for confirmation or override
 4. Collect mode-specific configuration
 
-### Mode-Aware Stage Behavior
+### Mode-Aware Checklist Behavior
 
-| Stage | Local Mode | GitHub Mode | Other-Git Mode |
+These rows are task/checklist capabilities, not a required execution
+sequence. L0 selects only the capabilities needed by the current goal.
+
+| Capability | Local Mode | GitHub Mode | Other-Git Mode |
 |-------|-----------|-------------|----------------|
 | **Implement** | Local build/test gate | Local + CI trigger | Local + CI trigger |
 | **Review** | Self-review checklist | PR creation + reviewer | MR/PR creation |

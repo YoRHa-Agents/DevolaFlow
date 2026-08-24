@@ -1,949 +1,430 @@
 ---
 id: "agent/references/agent-workspace"
-version: "1.0.0"
+version: "2.0.0"
 purpose: >
-  Defines the `.local/.agent/` change-driven workspace tree (active changes,
-  handoff envelopes, archived changes, source-of-truth specs) introduced in
-  DevolaFlow v8.3.0. Covers per-artifact token budgets, lifecycle FSM, the
-  Python API surface (`devolaflow.agent_workspace`), append-only handoff
-  semantics (Rule S-9), file-ownership constraint (Rule S-8), the OpenSpec-
-  inspired delta-spec format, and the auto-generated REPORT.md surface.
-  Use this when authoring `change-driven` workflows, debugging handoffs,
-  archiving completed changes, or proposing source-of-truth spec mutations.
+  Current agent-workspace contract for checklist-driven changes: canonical
+  goal/checklist/stage/preflight/evidence artifacts, three-layer ownership,
+  resume, append-only handoffs, source-of-truth deltas, archive, and budgets.
 triggers:
-  - "change-driven workflow execution"
-  - "scaffolding a new active change folder"
-  - "writing a handoff envelope"
-  - "archiving a completed change"
-  - "debugging file-ownership violations"
-  - "merging delta specs into source-of-truth"
-  - "auto-generating REPORT.md surface"
+  - "opening or resuming an active change"
+  - "writing checklist-round artifacts"
+  - "using append-only handoff envelopes"
+  - "archiving a source-of-truth spec delta"
 tier: 2
-token_estimate: 6500
+token_estimate: 3600
 dependencies:
   - "agent/SKILL.md"
-  - "agent/references/agent-hierarchy.md"
-  - "agent/references/message-schemas.md"
-  - "agent/references/decomposition-gate.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Agent Workspace Reference
 
-The agent workspace is DevolaFlow's machine-parseable, lightweight,
-change-scoped substrate for OpenSpec-inspired in-flight work. Every
-in-flight change owns a folder under `.local/.agent/active/<change-id>/`
-with strict per-artifact token budgets, escalates via append-only
-handoff envelopes under `.local/.agent/handoff/`, and is preserved
-verbatim in `.local/.agent/archive/<YYYY-MM-DD>-<change-id>/` after the
-gate passes.
+## 1. When to Engage
 
-## 1. When to Load This Reference
+At session start, L0 calls
+`devolaflow.workspace_context.scan_workspace(repo_root)` and inspects:
 
-Load when the task involves any of:
+| Signal | L0 action |
+|---|---|
+| `.local/.agent/active/<id>/` exists | Resume its STATUS/checklist state unless the user explicitly opts out |
+| `.local/memory/specs/<domain>/spec.md` exists | Treat it as source-of-truth; active `spec.md` is a delta |
+| `.local/human/input/` exists | Read REQ IDs and constitution as binding human input |
+| `.rules/*.mdc` + `AGENTS.md` exist | Trust the compiled corpus; slice only for the receiving Task |
 
-| Trigger | What you'll be doing |
-|---------|----------------------|
-| Authoring a `change-driven` workflow dispatch | Need scaffold layout + STATUS.yaml schema |
-| Writing or replying to a handoff envelope | Need append-only seq rules + envelope_kind variants |
-| Archiving a completed change | Need archive directory layout + REPORT.md template |
-| Lint-checking artifact token budgets | Need Rule C-9 budget table + `lint_change` API |
-| Proposing a delta merge into source-of-truth | Need ADDED/MODIFIED/REMOVED format + A-4 ADR |
-| Hydrating L3 context from an active change | Need `hydrate_change_context()` API |
-| Wiring shell-proxy / memory-router into a change | Cross-link to `references/shell-proxy.md` + `references/execution-protocol.md` §10/§11 |
-| Composing change-driven with the convergence loop | Cross-link to `references/decomposition-gate.md` §6 + `references/execution-protocol.md` §12 |
+Workspace scanning is read-only. Auto-scaffolding is R5-strict default-OFF
+and engages only when `DEVOLAFLOW_AGENT_WORKSPACE=1`.
 
-If the task is a generic feature/bugfix that does NOT touch
-`.local/.agent/`, this reference is OPTIONAL — load only when the
-delegation chain explicitly opts into the `change-driven` workflow
-template (registered in `templates/registry.yaml` since v8.2.6).
+For STANDARD/COMPLEX work, L0 selects a checklist seed, loads the sole
+`change-driven` runtime, and creates the active-change contract before the
+first L1 Wave dispatch. Seed `source_stages` remain non-executable provenance.
 
-### When to Engage (v9.1.1+)
+## 2. Current Layout
 
-The SKILL.md §"Workspace Engagement (Read at Session Start)" section is
-the canonical entry point: every L0 dispatcher MUST call
-`devolaflow.workspace_context.scan_workspace(repo_root)` at session
-start to obtain a frozen `WorkspaceContext` snapshot, then route per
-the activation matrix below. The scan itself is read-only (S-2 / S-7
-relative-paths-only) and ALWAYS performed; auto-write side effects are
-gated by `DEVOLAFLOW_AGENT_WORKSPACE=1` per W-20 (REUSED env-flag —
-no new variable per the cycle plan §"Two-axis activation").
-
-| Workspace surface (snapshot field) | Complexity ≤ Simple | Standard | Complex |
-|---|---|---|---|
-| `has_local=False` AND `has_rules=False` | proceed without engagement | scaffold via `devola-init local` then re-scan | scaffold + `--with-examples` (v9.2.0+) |
-| `recent_feedbacks` non-empty | optional read | READ latest 3, surface themes in plan | READ latest 3 + cite verbatim in design ADR |
-| `source_of_truth_specs` non-empty | inherit as ground truth | TREAT each as A-4 contract; per-change `spec.md` writes deltas | same + `propose_merge` at archive time |
-| `active_changes` non-empty | inspect `STATUS.yaml.state` | RESUME the change unless user explicitly opts out (`--no-change`) | MUST resume; opening a parallel change is a S-8 violation |
-| `rules_layer_set` non-empty + `compiled_corpora` complete | trust the compiled corpus | same + opt-in `agents_md_slice` for L3 task slices | same + cite layer headings in dispatch context |
-| `has_human_dir=True` (v14.0.0) | READ `human_requirements` + `human_constitution` as authoritative | same — the REQ-ID set is the binding scope contract the plan MUST cover | same + cite REQ-IDs verbatim in the design + emit the §4 convergence report at close (see `references/human-surface.md`) |
-
-**Default-OFF auto-write contract** (R5 strict): even when
-`scan_workspace` reports `has_agent_dir=True`, NO handoff envelope is
-written automatically until `DEVOLAFLOW_AGENT_WORKSPACE=1`. The
-v9.1.3 `pre_handoff` hook (PV-03 of this cycle) is the production
-caller that flips on under the env-flag; v9.1.1 PV-01 ships the
-discovery API as the prerequisite.
-
-**Envelope policy clarification (S-9 reminder)**: every envelope under
-`.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml` is
-append-only. To convey new information, author a NEW envelope at
-`seq+1`. NEVER edit or delete an existing envelope. The append-only
-ledger is the contract that prevents silent overwrites between agents
-operating in parallel; mirrors P5 (Artifacts as Contracts). CI enforces
-immutability via `tests/test_handoff_envelope_immutable.py` (lands with
-the v8.2.4 schema package).
-
-## 2. The `.local/.agent/` Tree Layout
-
-Verbatim from `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §1.1:
-
-```
-.local/
-├── feedbacks/                     # (existing) Per-version user feedback
-│   ├── TRACKER.md                 # feedback resolution status
-│   └── feedback_for_vX.Y.Z.md
-├── memory/                        # (existing → newly populated)
-│   ├── MEMORY.md                  # index loaded at session start
-│   ├── REPORT.md                  # human-readable knowledge state
-│   ├── prefs.md                   # personal preferences
-│   ├── operational.jsonl          # operational learnings
-│   ├── session_state.json         # unified session state
-│   └── specs/                     # (M-004) source-of-truth specs
-│       └── <domain>/spec.md       # per-domain behavior contract
-├── tasks/                         # (existing) Task overviews + YAML specs
-├── research/                      # (existing) Free-form research artifacts
-├── .agent/                        # NEW — agent-facing workspace
-│   ├── config.yaml                # per-project DevolaFlow config
-│   ├── REPORT.md                  # running dashboard of active + recent archives
-│   ├── active/                    # In-flight changes
-│   │   └── <change-id>/
-│   │       ├── goal.md            # (≤ 200 tokens) intent statement
-│   │       ├── acceptance.md      # (≤ 400 tokens) testable AC checklist
-│   │       ├── spec.md            # (≤ 1500 tokens) operation spec — ADDED/MODIFIED/REMOVED
-│   │       ├── tasks.md           # (≤ 800 tokens) impl checklist with [ ] checkboxes
-│   │       ├── STATUS.yaml        # (≤ 100 tokens) machine-readable status block
-│   │       ├── owned_files.txt    # (≤ 50 tokens) file ownership manifest
-│   │       └── learnings.jsonl    # (capped 50 KB) per-change learnings
-│   ├── handoff/                   # Cross-agent handoff envelopes
-│   │   └── <from>__<to>__<change-id>__<seq>.yaml
-│   └── archive/                   # Completed/merged changes
-│       └── <YYYY-MM-DD>-<change-id>/
-│           ├── goal.md            # frozen at archive time
-│           ├── acceptance.md
-│           ├── spec.md
-│           ├── tasks.md           # all checkboxes ticked
-│           ├── STATUS.yaml        # state: archived
-│           ├── owned_files.txt
-│           ├── learnings.jsonl    # final per-change learnings (consolidated)
-│           ├── REPORT.md          # auto-generated human-readable change report
-│           └── handoff_chain.yaml # frozen handoff history
-└── index.md                       # auto-regenerated listing
+```text
+.local/.agent/
+├── active/
+│   └── <change-id>/
+│       ├── goal.md
+│       ├── checklist.md
+│       ├── stage.md
+│       ├── preflight.md
+│       ├── spec.md
+│       ├── STATUS.yaml
+│       ├── owned_files.txt
+│       └── evidence/
+├── handoff/
+│   └── <from>__<to>__<change-id>__<seq>.yaml
+└── archive/
+    └── <YYYY-MM-DD>-<change-id>/
+        ├── goal.md
+        ├── checklist.md
+        ├── stage.md
+        ├── preflight.md
+        ├── spec.md
+        ├── STATUS.yaml
+        ├── owned_files.txt
+        ├── evidence/
+        ├── REPORT.md
+        └── handoff_chain.yaml
 ```
 
-### Path conventions
+All paths are repository-relative. Change IDs are lowercase kebab-case.
+Handoff sequence numbers start at `0001` and increase monotonically.
 
-- All paths are relative to repo root (Rule S-2 / Soul invariant). Never absolute.
-- **change-id** = lowercase-kebab-case (`add-dark-mode`, `fix-auth-bug`,
-  `v8.3.0-pv09-skill-references-bench`). For DevolaFlow's own iteration cycles,
-  use `<version>-pv<NN>-<topic>` for traceability.
-- **Date prefix** for archives uses ISO-8601 `YYYY-MM-DD` (sorts chronologically).
-- **Sequence numbers** for handoff envelopes are monotonic integers starting at 1,
-  zero-padded to 4 digits (`0001`, `0002`, ...) for sort-correct directory listing.
+### Legacy layout compatibility
 
-## 3. Lifecycle FSM
+`acceptance.md` and `tasks.md` are retired current-authoring surfaces.
+Schema-v1 change folders containing them remain read-compatible for one
+migration window and are never rewritten merely to migrate. A folder mixing
+legacy files with `checklist.md` is invalid. New changes use only the layout
+above.
 
-Verbatim from `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` §1.3:
+## 3. Three-Layer Ownership
 
-```
-[NEW IDEA / FEEDBACK]
-        │
-        │  /devola:propose <topic>           (deferred to v8.4.0+; today: manual scaffold)
-        ▼
-[active/<id>/ created]
-  ├─ goal.md         ← scaffolded
-  ├─ acceptance.md   ← scaffolded
-  ├─ spec.md         ← scaffolded
-  ├─ tasks.md        ← scaffolded (empty checklist)
-  ├─ STATUS.yaml     ← state: PROPOSED
-  └─ owned_files.txt ← scaffolded
-        │
-        │  L0 dispatches L3 task agents per W-9 SI-10
-        ▼
-        │  /devola:apply        (loop until tasks.md all ticked)
-        ▼
-[active/<id>/ in progress]
-  ├─ STATUS.yaml     ← state: IN_PROGRESS, percent_complete: ...
-  ├─ tasks.md        ← checkboxes ticked as work completes
-  └─ learnings.jsonl ← per-task reflections appended
-        │
-        │  /devola:verify       (optional gate)
-        ▼
-[STATUS.yaml state: VERIFYING]
-  └─ verification report appended to STATUS.yaml
-        │
-        │  /devola:archive      (REQUIRES gate composite ≥ threshold per W-3 SI-3)
-        ▼
-[active/<id>/ → archive/<YYYY-MM-DD>-<id>/]
-  ├─ All artifacts frozen
-  ├─ REPORT.md auto-generated
-  ├─ Delta merge to .local/memory/specs/<domain>/spec.md PROPOSED (NOT auto-applied)
-  └─ STATUS.yaml     ← state: ARCHIVED
-        │
-        ▼
-[Aggregate REPORTs auto-regenerated]
-  ├─ .local/.agent/REPORT.md          ← active-vs-archived dashboard
-  ├─ .local/memory/REPORT.md          ← knowledge state report
-  └─ .rules/REPORT.md                 ← rules-coverage report
+```text
+L0 Project → L1 Wave → L2 Task
+reports:     L2 Task → L1 Wave → L0 Project
+escalation:  L2 Task → L1 Wave → L0 Project → Human
 ```
 
-### State transitions
+| Layer | Workspace responsibility | Budget |
+|---|---|---:|
+| L0 Project | Materialize contracts, select rounds, adjudicate evidence, archive | ~5K |
+| L1 Wave | Validate dependency/ownership maps, dispatch Tasks, aggregate evidence | ~5K |
+| L2 Task | Perform one scoped task, self-verify, emit StatusReport/evidence | ~8K |
 
-Machine-enforced via `STATUS.yaml` `state` field:
+Only L2 performs implementation, test execution, research, review, or
+deliverable authoring. L2 cannot mark checklist items or mutate lifecycle
+contracts.
 
-| From | To | Trigger |
-|------|----|---------|
-| `PROPOSED` | `IN_PROGRESS` | First L3 dispatch starts |
-| `IN_PROGRESS` | `VERIFYING` | `/devola:verify` invoked (or manual STATUS.yaml edit) |
-| `VERIFYING` | `IN_PROGRESS` | Verify FAIL → bounded retry (P4) |
-| `VERIFYING` | `ARCHIVED` | Verify PASS + `/devola:archive` invoked + gate PASS |
-| `IN_PROGRESS` | `ESCALATED` | P4 bounded retry exhausted; human intervention required |
-| `ARCHIVED` | (terminal) | No further transitions |
-| `ESCALATED` | (terminal) | Human resolves out-of-band |
+## 3.6 Resume After Pause
 
-**Note**: Slash commands (`/devola:propose`, `/devola:apply`, `/devola:verify`,
-`/devola:archive`) are deferred to v8.4.0+ per Q-3 in design.md §11.2. In v8.3.0,
-the same lifecycle is driven by manual scaffolding plus `change-driven` workflow
-template stages (`propose → apply → verify → archive`).
+Before any returning-session dispatch, L0:
 
-## 3.6 Resume After Pause (v10.5.0 PV-03)
+1. scans workspace state;
+2. reads `STATUS.yaml` and rejects terminal `ARCHIVED`/`ESCALATED` changes;
+3. validates `preflight.md` authorization and project-config hash;
+4. reconciles `last_handoff_seq` with the append-only envelope ledger;
+5. reads `goal.md`, `checklist.md`, `stage.md`, and `preflight.md`;
+6. selects only open/reverted items whose dependencies are checked;
+7. resumes at the next bounded round coordinate.
 
-Documentation only — no new code, no new schema, no new template.
-This subsection answers: **what does L0 do when returning to an
-active change folder ≥ 24 h later, in a new session, after the
-operator has been off-task?** All machinery cited below already
-exists at v10.4.0 (STATUS.yaml, append-only handoff envelopes,
-change_context dispatch field). Cross-references: `STATUS.yaml`
-schema §4 (this file), handoff envelope append-only S-9, W-19
-cycle-archive boundary, `references/execution-protocol.md` §2
-checkpoint mechanism.
+Resume planning performs zero writes. Checked items are never selected again.
+A user-reopened item retains its verbatim `reverted:` reason and enters the
+next round before ordinary P0/P1/P2 work.
 
-### Pre-resume checklist (5 steps)
+`force_no_change=True` on `activation_verdict()` remains the explicit
+operator escape hatch for an ad-hoc dispatch.
 
-L0 MUST execute these steps in order BEFORE invoking any L1 / L2 /
-L3 dispatch on a returning session:
+## 4. Artifact Contracts
 
-1. **Scan workspace.** Call
-   `devolaflow.workspace_context.scan_workspace(repo_root)` —
-   returns frozen `WorkspaceContext` snapshot. If `active_changes`
-   is empty, no resume protocol applies; proceed to fresh dispatch.
-2. **Pick the candidate active change.** When `active_changes`
-   contains > 1 entry, prefer the one whose `last_updated` is most
-   recent. The append-only handoff store guarantees `last_updated`
-   is monotonic per change, so "most recent" is unambiguous.
-3. **Read STATUS.yaml.** The fields needed are:
-   - `state` ∈ {PROPOSED, IN_PROGRESS, VERIFYING} → resume-eligible.
-     `state == PROPOSED` is stale-OK (work hasn't started).
-     `state == ESCALATED` requires human review BEFORE resume.
-     `state == ARCHIVED` is terminal — never resume.
-   - `last_updated` (ISO-8601). Compute staleness:
-     `now() - last_updated`. If `> 7 days`, emit a warning;
-     if `> 30 days`, recommend operator review (see "Stale-change
-     pruning" below).
-   - `last_handoff_seq` (int). The append-only seq counter the
-     resume dispatch must respect.
-4. **Reconcile handoff envelopes.** Read `.local/.agent/handoff/`
-   and compute `max_seq = max(seq for envelope where change-id
-   matches)`. Cross-check vs `STATUS.yaml.last_handoff_seq`:
-   - `max_seq == last_handoff_seq` → in sync; resume normally.
-   - `max_seq == last_handoff_seq + 1` → an envelope was written
-     but STATUS.yaml was not updated (e.g. crash between writes).
-     Re-read the latest envelope; `STATUS.yaml.last_handoff_seq`
-     is treated as authoritative and bumped to `max_seq`.
-   - `max_seq > last_handoff_seq + 1` → multiple unrecorded
-     envelopes. EMIT a `ReconciliationWarning` and treat the
-     latest envelope as the resume entry point.
-5. **Read goal.md + acceptance.md + spec.md + tasks.md.** Per
-   C-9 token budgets, all 4 fit in ~2K tokens combined. Identify
-   the first un-checked task in `tasks.md` as the resume entry
-   point — that's the first L3 dispatch target.
+### `goal.md`
 
-### Resume dispatch contract — `change_context` field
-
-The next dispatch payload MUST include the `change_context` field
-at canonical position 16 (per A-2.2 append-only tail), populated
-from STATUS.yaml + the active folder:
-
-```yaml
-change_context:
-  change_id: <STATUS.yaml.change_id>
-  active_folder: ".local/.agent/active/<change_id>"
-  state: <STATUS.yaml.state>           # IN_PROGRESS | VERIFYING
-  spec_delta_target: <spec.md frontmatter delta_target>
-  owned_files_ref: ".local/.agent/active/<change_id>/owned_files.txt"
-  acceptance_ref: ".local/.agent/active/<change_id>/acceptance.md"
-  resume_from_seq: <STATUS.yaml.last_handoff_seq + 1>
-  resume_rationale: "resume after pause; idle <duration>"
-```
-
-The `resume_from_seq` field is the dispatch's prescribed seq for
-the L0->L? handoff envelope it authors. Convergence-round counters
-in `STATUS.yaml.gate_score` / round metadata are preserved
-across resume — the round number is keyed by `change_id`, not
-session_id.
-
-### Concurrency-safe resume — O_EXCL semantics
-
-`HandoffStore.write_envelope()` opens with `O_EXCL` (per §6 envelope
-schema and §5 Python API), so two parallel resume attempts in
-different sessions cannot collide on the same seq. The losing
-attempt raises `EnvelopeImmutableError` and the operator can either:
-
-1. Retry with `seq+2` (the audit trail records both attempts), or
-2. Abort and re-scan workspace to pick up the winning attempt's
-   handoff envelope as the new `last_handoff_seq`.
-
-Either path preserves S-9 append-only — never modifies an existing
-envelope. Both paths are logged (S-5 — explicit error states).
-
-### Stale-change pruning (operator-facing recommendation)
-
-When staleness threshold > 30 days AND `state == IN_PROGRESS`, the
-resume protocol's recommendation is:
-
-| Operator decision | Action |
-|--------|--------|
-| Continue | Proceed with normal resume (the staleness is just informational) |
-| Archive | Run `/devola:verify` then `/devola:archive` per §3 lifecycle FSM transitions; A-4 source-of-truth merge proposal flows from there |
-| Escalate | Set `STATUS.yaml.state = ESCALATED` and document the rationale in a NEW handoff envelope (`seq+1`) — preserves the audit trail |
-
-The threshold (30 days) is documentation-only; operators may
-override based on project context. The 7-day softer threshold
-("emit warning") is the cross-week interruption signal; the
-30-day harder threshold suggests abandonment or re-prioritization.
-
-### Cross-references
-
-- `STATUS.yaml` schema (§4 above; v8.2.4 — fields `state`,
-  `last_updated`, `last_handoff_seq` are the resume-protocol
-  contract).
-- Handoff envelope append-only — Soul rule S-9
-  (`.cursor/rules/repo-governance.mdc`).
-- `change_context` dispatch field at canonical position 16
-  (§12 below; v9.7.0 PV-02; A-2.2 append-only-tail invariant).
-- `references/execution-protocol.md` §2 Checkpoint/Resume
-  Mechanism — covers stage-gate-level resume (different scope:
-  cycle vs change vs session).
-- W-19 cycle-archive boundary — resume protocol applies to
-  ACTIVE changes; archived changes are TERMINAL and cannot be
-  resumed (re-archival is a no-op per §1 lifecycle FSM).
-- A-4 source-of-truth merge rule — stale-change pruning's
-  archive path goes through the gate per A-4.
-- `src/devolaflow/skills/change_activation.py::activation_verdict`
-  with `force_no_change=True` (v10.5.0 PV-03 D-A-4) — operator
-  override on resume when ad-hoc dispatch is preferred over the
-  full scaffold.
-
-## 4. Per-Artifact Schemas
-
-Each artifact in `active/<id>/` and `archive/<date>-<id>/` is governed by a
-schema in `schemas/agent-workspace/` (v8.2.4). Token budgets are enforced
-by Rule C-9 + `python -m devolaflow.agent_workspace.lint <change-id>` (v8.2.5).
-
-### `goal.md` (≤ 200 tokens)
+The stable user goal contract:
 
 ```markdown
----
-id: <change-id>
-created: <YYYY-MM-DDTHH:MM:SSZ>
-priority: P1|P2|P3|P4
-intent_class: feature|bugfix|refactor|migration|spike|docs|ops
----
-
-# Goal: <one-line title>
+# Goal: <title>
 
 ## Why
-<1–2 sentences: problem being solved>
+<problem and desired outcome>
 
-## In scope
-- <bullet>
+## Goals
+- G1: <verifiable outcome>
+- G2: <verifiable outcome>
 
 ## Out of scope
-- <bullet>
+- <explicit exclusion>
 ```
 
-Schema: `schemas/agent-workspace/change-goal.yaml`
+Goal IDs and titles must match checklist partitions.
+Schema: `schemas/agent-workspace/change-goal.yaml`.
 
-### `acceptance.md` (≤ 400 tokens)
+### `checklist.md`
+
+The acceptance and progress truth:
 
 ```markdown
 ---
 parent: <change-id>
-ac_count: <int>
+schema_version: 1
+total_items: 2
+checked: 0
+priority_dist: {P0: 1, P1: 1, P2: 0}
+reverted_open: 0
 ---
 
-# Acceptance Criteria
+# Checklist
 
-## Functional
-- [ ] AC-1: <verifiable condition with metric where applicable>
-- [ ] AC-2: ...
-
-## Quality
-- [ ] AC-N: tests pass — `<exact pytest command>`
-- [ ] AC-N+1: lint clean — `ruff check src/ tests/`
-- [ ] AC-N+2: format clean — `ruff format --check src/ tests/`
-
-## Backward-compat
-- [ ] AC-N+M: <byte-identical preservation claim, if applicable>
+## G1: <goal title copied verbatim>
+- [ ] C-G1.1 (P0) <measurable assertion, at most 25 words>
+      verify: `<bounded command>`
+      depends: []
+- [ ] C-G1.2 (P1) <measurable assertion>
+      verify: metric: <machine-evaluable expression>
+      depends: [C-G1.1]
 ```
 
-Schema: `schemas/agent-workspace/change-acceptance.yaml`
+Rules:
 
-### `spec.md` (≤ 1500 tokens) — OpenSpec delta format
+- priorities are P0/P1/P2 and user-confirmed;
+- dependencies reference checklist item IDs;
+- command/metric checks finish within 300 seconds;
+- manual checks are user-only;
+- L2 reports evidence, L1 aggregates, L0 or the user checks an item;
+- only the user may reopen `[x] → [ ]`;
+- checked items reference `evidence/C-Gn.m.txt`.
+
+Schema: `schemas/agent-workspace/change-checklist.yaml`.
+
+### `stage.md`
+
+`stage.md` is a round-control artifact, not an agent layer:
 
 ```markdown
 ---
 parent: <change-id>
-delta_target: <domain>           # e.g., "agent_workspace", "plugins", "rules"
-delta_kind: lite|full
+schema_version: 1
+current_round: 0
+max_rounds: 5
+capacity_per_round: 5
 ---
 
-# Operation Spec for <change-id>
+# Stage — Round Control
 
-## Purpose
-<2–4 sentences: what this change does to the existing system>
+## Priority Settings
+<append-only user priority history>
 
+## Round History
+| Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |
+
+## Next Round Plan
+- Candidates: [...]
+- Estimated remaining rounds: ...
+```
+
+Selection order is: user-reverted items, P0, P1, P2, satisfied dependencies,
+then stable checklist order. Each round has at most 7 waves; each wave has at
+most 5 Tasks. Composite is recorded as trend-only per round.
+
+Schema: `schemas/agent-workspace/change-stage.yaml`.
+
+### `preflight.md`
+
+The sole pre-execution confirmation surface. It contains:
+
+1. eight project-configuration sections;
+2. exhaustive stop cards linked to checklist IDs;
+3. user authorization records;
+4. the closed permitted-stop list;
+5. the latest progress snapshot.
+
+No round starts while `authorized_at` is null, the authorization hash is
+invalid, or `.local/project_config.yaml` differs from its signed hash.
+Sections 0–3 freeze after signature; progress snapshot updates do not
+invalidate authorization.
+
+Schema: `schemas/agent-workspace/change-preflight.yaml`.
+
+### `spec.md`
+
+Per-change behavioral delta relative to
+`.local/memory/specs/<domain>/spec.md`:
+
+```markdown
 ## ADDED Requirements
-
-### Requirement: <Stable heading>
-The system MUST <RFC 2119 verb> <observable behavior>.
-
-#### Scenario: <when this applies>
-- GIVEN <precondition>
-- WHEN <trigger>
-- THEN <observable outcome>
+### Requirement: <stable heading>
+The system MUST <observable behavior>.
 
 ## MODIFIED Requirements
-
-### Requirement: <Existing heading from .local/memory/specs/<domain>/spec.md>
-The system <new behavior>.
-(Previously: <old behavior>)
+### Requirement: <existing heading>
+<new behavior>
 
 ## REMOVED Requirements
-
-### Requirement: <Existing heading>
-(Reason for removal.)
+### Requirement: <existing heading>
+<reason>
 ```
 
-Schema: `schemas/agent-workspace/change-spec.yaml`
+Source-of-truth changes only at archive time after mergeability and readiness
+gates pass. Archive proposes the merge; it does not silently auto-apply it.
 
-### `tasks.md` (≤ 800 tokens)
+Schema: `schemas/agent-workspace/change-spec.yaml`.
 
-Hierarchical numbered checkboxes (1.1, 1.2, 2.1, ...). Each task < 30 min,
-owned files ≤ 6 (per Wave constraints in `references/decomposition-gate.md`).
+### `STATUS.yaml`
 
-Schema: `schemas/agent-workspace/change-tasks.yaml`
-
-### `STATUS.yaml` (≤ 100 tokens)
+Machine-readable lifecycle state:
 
 ```yaml
-schema_version: 1
+schema_version: 2
 change_id: <id>
-state: PROPOSED|IN_PROGRESS|VERIFYING|ARCHIVED|ESCALATED
-percent_complete: <0-100>
-owner_layer: L0|L1|L2|L3
+state: PROPOSED
+percent_complete: 0
+owner_layer: L0
 owner_session_id: <uuid>
 last_updated: <ISO-8601>
-last_handoff_seq: <int>
-gate_score: <float|null>
-verify_pass: <bool|null>
-last_handoff_summary:           # v10.7.0 D-P-3 — OPTIONAL NEST demo
-  from_layer: L0|L1|L2|L3|operator|human
-  to_layer:   L0|L1|L2|L3|operator|human
-  ts:         <ISO-8601>
-  seq:        <int>              # MUST equal last_handoff_seq at write time
+last_handoff_seq: 0
+gate_score: null
+verify_pass: null
+checklist_checked: 0
+checklist_total: 2
+current_round: 0
+next_blockers: []
 ```
 
-Schema: `schemas/agent-workspace/change-status.yaml`
+Current owner layers are `L0|L1|L2`. Schema-v1 `L0|L1|L2|L3` values are
+read-time compatibility data normalized in memory and never rewritten.
 
-**`last_handoff_summary` (v10.7.0 D-P-3 — OPTIONAL).** Demonstrates the
-A-2.3 NEST-vs-APPEND decision rule on the agent-workspace surface. The
-four diagnostic sub-attributes (`from_layer` / `to_layer` / `ts` / `seq`)
-are NESTED inside ONE dict-shaped optional key rather than spawned as
-four sibling top-level scalars. Absent in v8.3.0..v10.6.x STATUS.yaml
-files (those continue to validate cleanly at schema_version 1). When
-present, `last_handoff_summary.seq` MUST equal `last_handoff_seq` at
-write time (both refresh atomically). The Python accessor is
-`Change.last_handoff_summary` (returns `dict | None`).
+`last_handoff_summary` is the optional **v10.7.0 D-P-3** NEST demonstration:
+its `from_layer`, `to_layer`, timestamp, and sequence remain nested under one
+field. Historical L3 values in that optional diagnostic are preserved as
+compatibility bytes.
 
-### `owned_files.txt`
+Schema: `schemas/agent-workspace/change-status.yaml`.
 
-One path per line. Max 6 paths. All relative to repo root.
+### `owned_files.txt` and `evidence/`
 
-```
-src/devolaflow/plugins/installer.py
-src/devolaflow/plugins/__init__.py
-tests/test_plugins.py
-workflow-system/agent/knowledge/runtime-plugins.yaml
-```
+`owned_files.txt` lists repository-relative writable paths. Within a wave,
+Task writable sets are pairwise disjoint.
 
-Schema: `schemas/agent-workspace/owned-files.yaml`
+Each checked checklist item maps to one evidence file containing:
 
-### `learnings.jsonl` (capped 50 KB file size)
+- the exact command or metric expression;
+- exit status or measured value;
+- a verbatim final output line plus digest;
+- verdict and UTC timestamp.
 
-Same JSONL schema as `.local/memory/operational.jsonl` (`Learning` dataclass,
-v8.2.2 PV-03 SessionState shape). Per-change scoping prevents cross-change
-pollution. Captured by `capture_session_reflection(..., change_id=<id>)`
-(extended in v8.2.8 — H-006).
+Evidence files are at most 10 KB each; the directory is at most 50 KB.
 
-### Handoff envelope (≤ 600 tokens)
+## 5. Lifecycle
 
-See §6 below for full schema.
-
-Schema: `schemas/agent-workspace/handoff-envelope.yaml`
-
-### `.local/.agent/config.yaml` (per-project DevolaFlow config)
-
-OpenSpec `openspec.yaml` analog. Sets default workflow, mode, plugin runtime.
-
-Schema: `schemas/agent-workspace/agent-config.yaml`
-
-## 5. Python API Surface
-
-`src/devolaflow/agent_workspace/` (v8.2.5 + v8.2.7 + v8.2.8) — public symbols
-re-exported from `devolaflow.agent_workspace.__init__.__all__`.
-
-### Change folders
-
-| Symbol | Description |
-|--------|-------------|
-| `Change` | Dataclass representing one `active/<id>/` folder; carries change_id, state, paths |
-| `ChangeStore` | Repository for `active/` + `archive/` — list/get/move semantics |
-| `ChangeNotFoundError` | Raised when a referenced change-id has no folder |
-| `ChangeStoreError` | Base exception for ChangeStore operations |
-
-### Handoff envelopes (Rule S-9 enforcement)
-
-| Symbol | Description |
-|--------|-------------|
-| `HandoffEnvelope` | Dataclass for one envelope file (envelope_kind discriminator + variant payload) |
-| `HandoffStore` | Append-only ledger; `write_envelope()` raises if seq would overwrite |
-| `EnvelopeImmutableError` | Raised by `HandoffStore.write_envelope()` on seq collision |
-| `HandoffStoreError` | Base exception for HandoffStore operations |
-
-### Archive operations
-
-| Symbol | Description |
-|--------|-------------|
-| `ArchiveManager` | Moves `active/<id>/` → `archive/<date>-<id>/`, freezes artifacts, calls `consolidate_session()`, PROPOSES delta merge to source-of-truth |
-| `ArchiveError` | Base exception for ArchiveManager operations |
-| `MergeConflict` | Raised when proposed delta merge cannot be safely applied (e.g., ADDED requirement collides with existing source-of-truth heading) |
-
-### Delta-spec parsing (M-003 closure)
-
-| Symbol | Description |
-|--------|-------------|
-| `DeltaSpec` | Parsed `spec.md` with `added`, `modified`, `removed` requirement lists |
-| `DeltaRequirement` | Single ADDED/MODIFIED/REMOVED requirement with heading, body, scenarios |
-| `parse_delta_spec(text) -> DeltaSpec` | Extract OpenSpec-style sections from a `spec.md` body |
-| `serialize_delta_spec(spec) -> str` | Round-trip serialize a DeltaSpec back to OpenSpec format |
-| `DeltaSpecParseError` | Raised when `spec.md` body lacks the expected delta sections |
-
-### Token-budget linting (Rule C-9 enforcement)
-
-| Symbol | Description |
-|--------|-------------|
-| `lint_change(change_id) -> BudgetReport` | Estimate token counts per artifact, classify against soft/hard ceilings |
-| `BudgetReport` | Per-artifact result with `actual_tokens`, `budget`, `verdict` (PASS/WARN/FAIL) |
-| `BudgetViolation` | Single artifact's overage record |
-| `estimate_tokens(text) -> int` | Heuristic token counter (~4 chars/token) shared with `_estimate_tokens` in `local/compiler.py` |
-
-### Memory bridge (v8.2.8 — closes H-006)
-
-| Symbol | Description |
-|--------|-------------|
-| `consolidate_change_on_archive(change_id, ...) -> dict` | At archive time, promote durable per-change learnings into global `.local/memory/operational.jsonl` |
-| `hydrate_change_context(change_id) -> dict` | Load all artifacts for an active change (capped to hard ceilings) for L0/L1/L2/L3 context injection |
-| `MemoryBridgeError` | Base exception for memory_bridge operations |
-
-### REPORT.md surface (v8.2.7 — closes H-005, opt-in per I-PV07-A)
-
-| Symbol | Description |
-|--------|-------------|
-| `render_change_report(change_id, ...) -> str` | Per-archive REPORT.md (what changed / why / how / verification / files / learnings / handoff chain) |
-| `render_workspace_report(...) -> str` | `.local/.agent/REPORT.md` aggregate (active changes + recently archived) |
-| `render_memory_report(...) -> str` | `.local/memory/REPORT.md` (learnings counts, top high-confidence, external source reviews) |
-| `render_rules_report(...) -> str` | `.rules/REPORT.md` (per-layer rule counts, compile target status) |
-| `regenerate_all(repo_root) -> dict[str, Path]` | Regenerate all 4 REPORT.md files; returns `{report_kind: path_written}` |
-
-CLI: `python -m devolaflow.agent_workspace.reporter --all` (or
-`--change <id>` / `--workspace` / `--memory` / `--rules`). Opt-in only —
-no auto-trigger from existing workflows yet.
-
-### Backward-compat invariants (R5)
-
-- This package adds NO new public symbol to `devolaflow.__init__`.
-- `learnings.py`'s 14 existing public functions stay byte-identical
-  (verified by `tests/test_learnings.py` — invariant I-PV05-B).
-- `compressor.py::assert_dispatch_layout` accepts BOTH v4 (15 keys) AND v5
-  (16 keys, `change_context` appended at position 16) payloads — invariant
-  I-PV05-C.
-
-## 6. Handoff Protocol
-
-The `.local/.agent/handoff/` directory is the ONLY supported channel for
-inter-agent messaging in DevolaFlow's 4-layer hierarchy. Replaces the
-previous in-memory dispatch path; persists across sessions; survives
-restarts; auditable.
-
-### File naming
-
-```
-.local/.agent/handoff/<from>__<to>__<change-id>__<seq>.yaml
+```text
+PROPOSED
+  → signed preflight
+  → IN_PROGRESS
+      → bounded checklist rounds
+      → all items checked, no open reversion
+  → VERIFYING
+      → archive gate PASS
+  → ARCHIVED
 ```
 
-- `<from>`, `<to>`: layer identifiers — `L0` / `L1` / `L2` / `L3`
-- `<change-id>`: lowercase-kebab-case, identifies the active change
-- `<seq>`: monotonic integer starting at 1, zero-padded to 4 digits
+Any exhausted bounded retry may enter `ESCALATED`. `ARCHIVED` and
+`ESCALATED` are terminal.
 
-Example: `L0__L2__add-dark-mode__0001.yaml` (first dispatch from Project to Wave).
+The sole executable template is:
 
-### Envelope schema
+```python
+registry.load_template("change-driven")
+```
 
-Discriminator: `envelope_kind` selects one of three variants:
+Intent modes are loaded separately with `registry.load_seed(name)`.
+Historical `load_template(seed_name)` calls are compatibility aliases, not
+separate runtimes.
 
-| `envelope_kind` | Direction | Variant body |
-|-----------------|-----------|--------------|
-| `TaskDispatch` | parent → child | `dispatch:` block (task_id, type, acceptance_criteria_ref, owned_files_ref, predecessor_artifact_refs) |
-| `StatusReport` | child → parent | `report:` block (task_id, state, artifacts, metrics with tests_passed / coverage_pct / findings_by_severity) |
-| `EscalationEvent` | child → parent (or upward) | `escalation:` block (severity, trigger, proposed_action) |
+Round PASS requires all selected items to have valid passing evidence and
+zero blockers. Archive additionally requires all items checked, no open
+reversion, valid evidence references, valid signed preflight, mergeability,
+and readiness composite 8.5 (lite/minor) or 9.0 (full/major).
 
-Full YAML envelope schema: `schemas/agent-workspace/handoff-envelope.yaml`.
+## 6. Append-Only Handoff Envelopes
 
-### Append-only invariant (Rule S-9, Soul P0)
+The handoff directory is the artifact-mediated inter-agent channel. Current
+schema-v2 directions use only `L0`, `L1`, and `L2`.
 
-Once a `<from>__<to>__<change-id>__<seq>.yaml` envelope exists, it MUST NOT
-be modified or deleted by any agent. To convey new information, the agent
-MUST author a new envelope with `seq+1`.
+```text
+L0__L1__<change-id>__0001.yaml
+L1__L2__<change-id>__0002.yaml
+L2__L1__<change-id>__0003.yaml
+L1__L0__<change-id>__0004.yaml
+```
 
-Rationale: append-only ledger prevents silent overwrites between agents
-operating in parallel. Mirrors P5 (Artifacts as Contracts) and the message-
-schemas P3 contract in `references/message-schemas.md`.
+Every envelope has exactly one discriminated payload:
 
-Enforcement:
+- `TaskDispatch`;
+- `StatusReport`;
+- `EscalationEvent`.
 
-- `tests/test_handoff_envelope_immutable.py` (v8.2.4) — CI lint
-- `lifecycle/check_envelope_append_only` hook (v8.2.5) — write-time block in STRICT mode
-- `HandoffStore.write_envelope()` raises `EnvelopeImmutableError` on seq collision
+Once written, an envelope is immutable and undeletable. New information uses
+`seq+1`. Schema-v1 files with legacy L3 tokens remain readable with explicit
+legacy provenance and are never migrated in place.
 
-### Inbox/outbox semantics
-
-For an agent operating at layer `Lk`:
-
-- **Inbox** = envelopes where `<to> == Lk` AND `<change-id>` matches active change
-- **Outbox** = envelopes where `<from> == Lk` AND `<change-id>` matches active change
-
-`HandoffStore.list_inbox(layer, change_id)` and `list_outbox(layer, change_id)`
-return envelopes sorted by ascending `seq`. To compute the next seq for
-authoring an outgoing envelope: `next_seq = max(existing_seqs) + 1`, atomic
-under file-write race conditions via `O_EXCL` open.
+Schema: `schemas/agent-workspace/handoff-envelope.yaml`.
 
 ### Handoff Envelope L0-only Metadata Stripping (v12.4.0 PV-05)
 
-The handoff envelope's `predecessor_summary` block is a verbatim
-extraction from the upstream layer's output (per C-3). However, three
-L0-only literal classes leak operator-facing chrome into subagent
-contexts when copied wholesale; the writer MUST strip them at
-envelope-author time so downstream L1/L2/L3 dispatchers see no
-decorative banners:
+Before authoring a lower-layer envelope, strip operator-only session banners,
+Task Quality Score footers, and operational-learning management prose from
+`predecessor_summary`. The runtime guard
+`reject_subagent_banner_emission` rejects newly emitted banner literals; it
+does not rewrite historical evidence nested in predecessor artifacts.
 
-| Direction | Literal class | Source | Strip rule |
-|---|---|---|---|
-| L0 → L1 / L0 → L2 | `🌸 DevolaFlow vX.Y.Z active · …` (Session Banner workflow-start) | SKILL.md §"Session Banner Contract" line 1 | Drop the whole line from `predecessor_summary` |
-| L0 → L1 / L0 → L2 | `🌸 DevolaFlow vX.Y.Z complete · <stages> stages · <waves> waves · <tasks> tasks` (Session Banner workflow-end) | SKILL.md §"Session Banner Contract" line 2 | Drop the whole line |
-| L0 → L1 / L0 → L2 | `📊 Task Quality Score: <composite>/100 · <dimensions>` (TQS 📊 footer) + the `🌸 DevolaFlow vX.Y.Z · scored at workflow close` tail | `references/task-quality-score.md` template | Drop both lines |
-| L1 → L2 / L1 → L3 | `pin_learning_for_session(...)` / `consolidate_session(...)` / `decay_confidence()` literals from §"Operational Learnings" | SKILL.md lines 484-485 | L1 has no operational.jsonl contract — strip session-pinned references entirely |
+## 7. File Ownership (S-8)
 
-Subagents that receive the bannerless `predecessor_summary` perform
-identical work — banner content is decorative operator chat output,
-NOT load-bearing context per CO-2 / Rule C-2 (Lean Message Format).
+An L2 Task in an active `change-driven` change may write only:
 
-**Runtime enforcement** (PV-05 baseline): the `pre_dispatch` lifecycle
-hook `reject_subagent_banner_emission` (registered as an opt-in extra
-via `register_pre_dispatch_extra()` in
-`src/devolaflow/lifecycle/reject_subagent_banner_emission.py`) flags
-NEW emissions of the `🌸 DevolaFlow vX.Y.Z` literal in dispatch
-payloads whose `target_layer ∈ {L1, L2, L3}`. Historical evidence
-inside `predecessor_artifacts[*].summary` carried forward from prior
-rounds is NOT flagged (top-level-only discipline mirrors the v12.2.0
-`reject_subagent_quality_score` precedent). Permissive default per
-S-5 (warn + log); strict mode raises `HookViolation` per the
-lifecycle dispatcher's strict contract.
+1. its dispatched paths from `owned_files.txt`;
+2. the active change folder;
+3. its own append-only handoff outbox.
 
-**Auto-strip runtime helper telegraphed to v12.5.0+**: the
-`src/devolaflow/agent_workspace/handoff.py` writer will gain a
-`strip_l0_only_metadata(envelope)` helper that performs the table
-above's strip rules in-place before the `O_EXCL` write. At v12.4.0
-PV-05 the rule is **normative-only** (this subsection + the runtime
-hook); auto-strip lands once the v12.5.0+ SI-1 plans the
-backward-compat windowing.
+In full/STRICT mode, a violation blocks and escalates. In lite mode, it warns
+and logs. L0/L1 read-only planning remains unrestricted.
 
-Source: `docs/cycle-archive/v12.4.0/other/v12.4.0_l0_only_audit.md` §§B.1-B.3 (banner +
-TQS + operational_learnings literal enumeration) + cycle plan §3 PV-05
-D-4 closure (L0-only surfaces leak cluster).
+## 8. Bounded Rounds and Escalation
 
-## 7. Source-of-Truth Specs (M-004 / Rule A-4)
+| Limit | Contract |
+|---|---|
+| Tasks per wave | ≤5 |
+| Waves per round | ≤7 |
+| Writable files per Task | ≤6 |
+| No net checklist progress | 2 rounds → escalate |
+| Same open item selected | 3 rounds → item escalation |
+| Reinforcement rules | ≤5 per failed round |
 
-`.local/memory/specs/<domain>/spec.md` is the source-of-truth for current
-system behavior. Per-change `.local/.agent/active/<id>/spec.md` files contain
-DELTAS (ADDED/MODIFIED/REMOVED Requirements) relative to source-of-truth.
+Escalation is Task → Wave → Project → Human and never skips a layer.
 
-### Why deltas, not full specs
+## 9. Token Budgets (C-9)
 
-- **Lifecycle separation**: in-flight proposals (active/) and agreed contracts
-  (memory/specs/) have different governance windows. A proposal can be
-  rejected without contaminating the contract.
-- **Audit trail**: every change archive preserves the proposed delta, so the
-  archive log answers "what did we add to spec X across all of v8.3.0?"
-- **Token economy**: a delta is dramatically smaller than re-stating the
-  whole spec, fitting comfortably in the 1500-token soft budget.
+| File | Soft | Hard |
+|---|---:|---:|
+| `goal.md` | 200 | 400 |
+| `checklist.md` | 1200 | 2400 |
+| `stage.md` | 400 | 800 |
+| `preflight.md` | 600 | 1200 |
+| `spec.md` | 1500 | 3000 |
+| `STATUS.yaml` | 150 | 300 |
+| `owned_files.txt` | 50 | 100 |
+| Handoff envelope | 600 | 1200 |
+| `evidence/` | no token limit | 10 KB/file; 50 KB/directory |
 
-### Archive-time merge proposal (NOT auto-applied)
-
-Source-of-truth is mutated ONLY at archive time, after the gate has PASSED
-(W-3 / SI-3 composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The gate
-runs the explicit `mergeability_check` (v8.2.5 reporter module) before
-allowing the merge.
-
-`ArchiveManager.propose_merge(change_id) -> MergeProposal` returns a structured
-proposal that a human (or downstream automation) explicitly applies — never
-auto-merged. This preserves W-3 / SI-3 + W-4 / SI-4 invariants.
-
-### ADDED / MODIFIED / REMOVED semantics
-
-| Section | Effect on source-of-truth |
-|---------|---------------------------|
-| `## ADDED Requirements` | Append new headings to source-of-truth spec; collision with existing heading raises `MergeConflict` |
-| `## MODIFIED Requirements` | Replace existing heading body in source-of-truth (heading must already exist) |
-| `## REMOVED Requirements` | Delete heading from source-of-truth (heading must already exist) |
-
-Each requirement uses RFC 2119 keywords (MUST / MUST NOT / SHOULD / MAY) and
-optional Scenario blocks (GIVEN / WHEN / THEN). Format borrowed verbatim from
-OpenSpec — adopted in v8.3.0 per `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md`.
-
-## 8. REPORT.md Surface
-
-Auto-generated, human-readable reports at four locations. Generator API in
-`src/devolaflow/agent_workspace/reporter.py` (v8.2.7).
-
-### `archive/<date>-<id>/REPORT.md` (per-change)
-
-Auto-generated at `/devola:archive` time (or manual `render_change_report()`
-call). Template:
-
-```markdown
-# Change Report: <change-id>
-> Archived <YYYY-MM-DD> | Author: <session_id> | Duration: <hh:mm:ss>
-
-## What changed
-<Auto-extracted from spec.md ADDED/MODIFIED/REMOVED sections>
-
-## Why
-<Verbatim from goal.md `## Why` section>
-
-## How
-<Auto-extracted from spec.md `## Purpose` + tasks.md `## N. <group>` headings>
-
-## Verification
-- AC pass rate: <X/Y>
-- Tests passed: <int>
-- Coverage: <pct>%
-- Lint: <pass|fail>
-- Format: <pass|fail>
-- Gate score: <float>/10
-
-## Files touched
-<owned_files.txt verbatim>
-
-## Learnings extracted
-- <insight 1> (confidence: 0.X)
-- <insight 2> (confidence: 0.Y)
-
-## Handoff chain summary
-- L0 → L2 (T01 dispatch) → L3 (T01 work) → L2 (T01 report) → L0 (gate eval)
-```
-
-### `.local/.agent/REPORT.md` (workspace aggregate)
-
-Active vs. archived dashboard. Tables: Active changes (id, state, %, owner,
-last touch), Recently archived (last 7 days; id, archived date, duration,
-gate score). Auto-regenerates on every state transition.
-
-### `.local/memory/REPORT.md` (memory aggregate)
-
-Learnings counts by task type, top 10 high-confidence learnings (last 30
-days), recent external-source reviews from `reference-dependencies.yaml`.
-
-### `.rules/REPORT.md` (rules-coverage aggregate)
-
-Per-layer rule counts, always-apply flags, token estimates. Compile-target
-status (cursor `repo-governance.mdc` last compile date + drift verdict;
-agents_md `AGENTS.md` last compile date + drift verdict).
-
-### CLI invocation
+Verify:
 
 ```bash
-python -m devolaflow.agent_workspace.reporter --all                # all 4 reports
-python -m devolaflow.agent_workspace.reporter --change add-dark-mode
-python -m devolaflow.agent_workspace.reporter --workspace
-python -m devolaflow.agent_workspace.reporter --memory
-python -m devolaflow.agent_workspace.reporter --rules
+python -m devolaflow.agent_workspace.lint <change-id>
 ```
 
-Opt-in semantics (I-PV07-A): no existing workflow auto-triggers reporter;
-explicit invocation only. Plays nicely with W-9 SI-10 — adding the reporter
-to a developer's pre-commit hook is OPTIONAL.
+Soft breaches warn; hard breaches fail.
 
-## 9. Token Budgets (Rule C-9)
+## 10. APIs
 
-Verbatim from `.cursor/rules/repo-governance.mdc` C-9:
+| API | Use |
+|---|---|
+| `scan_workspace(repo_root)` | Read workspace engagement state |
+| `activation_verdict(...)` | Decide whether to open a change |
+| `hydrate_change_context(change_id)` | Load bounded active-change context |
+| `lint_change(change_id)` | Validate artifacts and budgets |
+| `ArchiveManager.propose_merge(change_id)` | Prepare and validate archive-time SoT delta |
+| `ArchiveManager.apply_merge(...)` | Apply an approved merge proposal |
+| `consolidate_change_on_archive(...)` | Promote durable learnings |
 
-| File | Soft budget | Hard ceiling | Rationale |
-|------|-------------|--------------|-----------|
-| `goal.md` | 200 tokens | 400 | Single-paragraph intent; verbose prose forbidden |
-| `acceptance.md` | 400 tokens | 800 | Checkbox list; one AC per line |
-| `spec.md` | 1500 tokens | 3000 | ADDED/MODIFIED/REMOVED sections; OpenSpec-style |
-| `tasks.md` | 800 tokens | 1500 | Hierarchical numbered checkboxes |
-| `STATUS.yaml` | 100 tokens | 200 | YAML frontmatter only; no prose |
-| `owned_files.txt` | 50 tokens | 100 | One path per line; max 6 writable per task |
-| `learnings.jsonl` | (no token limit) | 50 KB file size | Bounded by JSONL line count + decay |
-| `REPORT.md` (per archive) | 1500 tokens | 3000 | Auto-generated; templated |
-| Handoff envelope | 600 tokens | 1200 | YAML envelope with `key_facts` (verbatim per CO-2) |
+## 11. References
 
-The `.local/human/` surface (v14.0.0) carries its own C-9 rows, linted in
-TOKENS only (the line/word figures in `references/human-surface.md` §4c
-are authoring guidance, NOT a second linted axis):
-
-| File | Soft budget | Hard ceiling | Rationale |
-|------|-------------|--------------|-----------|
-| `.local/human/input/constitution.md` | 800 tokens | 1500 | Durable principles; opinionated, terse |
-| `.local/human/input/requirements.md` | 1200 tokens | 2500 | REQ list + matrix + out-of-scope; thins to an index once sharded |
-| `.local/human/input/requirements/<domain>.md` (shard) | 1200 tokens | 2500 | PER-FILE cap; one `REQ-<DOMAIN>-*` family per file |
-| `.local/human/input/amendments/<date>-<slug>.md` | 400 tokens | 800 | One delta + WHY per file (append-only) |
-| `.local/human/output/DIGEST.md` | 600 tokens | 1000 | Read-first skim surface (~100 lines) |
-| `.local/human/output/convergence/<version>-convergence.md` | 700 tokens | 1000 | Decide-in-3-min, conclusion-first (~500 words) |
-
-Verify with:
-
-```bash
-python -m devolaflow.agent_workspace.lint <change-id>            # agent-workspace artifacts
-python -c "from devolaflow.agent_workspace import lint_human; lint_human()"  # .local/human/ surface
-```
-
-Soft budget over → warn (lite mode). Hard ceiling over → fail commit (full
-mode and STRICT). Couples with W-9 SI-10 step 1 (pytest) when the change-id
-is enrolled in the `change-driven` workflow's pre-commit gate.
-
-## 10. File-Ownership Constraint (Rule S-8)
-
-When an L3 Task Agent is operating inside a `change-driven` workflow with
-an active change folder, it MUST NOT modify any file outside the union of:
-
-1. paths listed in `.local/.agent/active/<change-id>/owned_files.txt`
-2. the change folder itself (`active/<change-id>/`)
-3. its own outbox in `.local/.agent/handoff/` (append-only — see §6)
-
-Violations:
-
-- Detected at file-write time via `lifecycle/check_file_ownership` hook
-- In `mode: lite` — warn + log
-- In `mode: full` (or STRICT) — block + escalate per P4
-
-Exceptions:
-
-- Trivial single-file edits < 20 lines (P1 trivial waiver also applies here)
-- L0/L1/L2 dispatcher reads (Read/Glob/Grep/SemanticSearch) are unrestricted
-
-Source: Rule S-8 in `.cursor/rules/repo-governance.mdc`.
-
-## 11. Workflow Template Integration
-
-The `change-driven` workflow template (`workflow-system/agent/templates/builtin/
-change-driven.yaml`, v8.2.6) wires the lifecycle FSM (§3) into DevolaFlow's
-stage primitives (`references/meta-framework.md`):
-
-| Stage | Primitive | Description |
-|-------|-----------|-------------|
-| `propose` | `design` | Scaffold `active/<id>/` with goal+acceptance+spec+tasks+STATUS+owned_files |
-| `apply` | `implement` | Loop L3 dispatches until tasks.md all checkboxes ticked |
-| `verify` | `verify` | Run AC checklist; gate composite must PASS per W-3 |
-| `archive` | `deploy` | Move active → archive; auto-generate REPORT.md; consolidate per-change learnings to global memory; PROPOSE delta merge to source-of-truth (NOT auto-apply) |
-
-Composition: `sequence(propose → loop(apply, verify) → archive)`.
-Loop terminates when `verify.pass_rate == 1.0 AND verify.gate_score >= verify.threshold`,
-max 5 iterations, on-exhaustion = escalate.
-
-The `archive_gate` runs BEFORE the `archive` stage with criteria
-`verify.pass_rate == 1.0 AND verify.gate_score >= 8.5`; failure escalates
-and requires human override.
-
-Mode parameter:
-
-| Mode | Pre-commit gate steps |
-|------|----------------------|
-| `lite` (default) | Steps 1–3 of W-9 SI-10 (tests, lint, format) — single-author, low-risk |
-| `full` | All 6 steps of W-9 SI-10 — multi-author or high-risk |
-
-Set in `.local/.agent/config.yaml` `mode:` field, or override per-dispatch
-via the workflow's `parameters.mode` config.
-
-## 12. Cache Layout v5 (M-006)
-
-Dispatch payloads in change-driven mode optionally include a `change_context`
-top-level field at canonical position 16 (schema v5):
-
-```yaml
-change_context:
-  change_id: <id>
-  active_folder: ".local/.agent/active/<id>"
-  state: PROPOSED|IN_PROGRESS|VERIFYING
-  spec_delta_target: <domain>
-  owned_files_ref: ".local/.agent/active/<id>/owned_files.txt"
-  acceptance_ref: ".local/.agent/active/<id>/acceptance.md"
-```
-
-Per Rule 6 (P6 Preserve Cached Prefix), positions 1–15 remain byte-identical
-to v4 — `change_context` is appended at the end. `assert_dispatch_layout()`
-accepts BOTH v4 (15 keys) AND v5 (16 keys) payloads (invariant I-PV05-C).
-When `change_context` is absent, dispatch is a "free-floating" workflow
-(current v4 behavior preserved).
-
-## 13. References
-
-### Internal
-
-- `schemas/agent-workspace/change-goal.yaml` — goal.md schema
-- `schemas/agent-workspace/change-acceptance.yaml` — acceptance.md schema
-- `schemas/agent-workspace/change-spec.yaml` — spec.md schema (delta format)
-- `schemas/agent-workspace/change-tasks.yaml` — tasks.md schema
-- `schemas/agent-workspace/change-status.yaml` — STATUS.yaml schema
-- `schemas/agent-workspace/owned-files.yaml` — owned_files.txt schema
-- `schemas/agent-workspace/handoff-envelope.yaml` — handoff envelope schema
-- `schemas/agent-workspace/agent-config.yaml` — `.local/.agent/config.yaml` schema
-- `schemas/agent-workspace/source-of-truth-spec.yaml` — `.local/memory/specs/<domain>/spec.md` schema
-- `schemas/lean-dispatch.yaml#layout_invariant` — cache layout v5 with `change_context` at position 16
-- `workflow-system/agent/templates/builtin/change-driven.yaml` — workflow template binding
-- `docs/cycle-archive/v8.3.0/design/v8.3.0_design.md` — full design (this reference is the SKILL-surface summary)
-- `docs/cycle-archive/v8.3.0/other/v8.3.0_openspec_deep_analysis.md` — OpenSpec patterns adopted/adapted/rejected
-- `docs/cycle-archive/v8.3.0/v8.3.0_gap_analysis.md` — gap inventory (C-002, C-003, H-002, H-003, H-004, H-005, H-006, M-003, M-004, M-005)
-- `.cursor/rules/repo-governance.mdc` — S-8 (file ownership), S-9 (handoff append-only), C-9 (token budgets), A-4 (source-of-truth ADR)
-- `references/agent-hierarchy.md` — 4-layer agent hierarchy this workspace serves
-- `references/decomposition-gate.md` — wave/task constraints that determine `owned_files.txt` shape
-- `references/message-schemas.md` — TaskDispatch / StatusReport / Escalation schemas wrapped by handoff envelope
-
-### External
-
-- OpenSpec source: `https://github.com/Fission-AI/OpenSpec` — origin of the
-  ADDED/MODIFIED/REMOVED delta format and the propose → apply → verify →
-  archive lifecycle. Adopted in v8.3.0 per the deep-analysis artifact.
-- DevolaFlow source: `https://github.com/YoRHa-Agents/DevolaFlow` (per S-7).
+- `schemas/agent-workspace/change-{goal,checklist,stage,preflight,spec,status}.yaml`
+- `schemas/agent-workspace/handoff-envelope.yaml`
+- `schemas/agent-workspace/owned-files.yaml`
+- `schemas/lean-dispatch.yaml#layout_invariant`
+- `workflow-system/agent/templates/builtin/change-driven.yaml`
+- `references/agent-hierarchy.md`
+- `references/decomposition-gate.md`
+- `references/meta-framework.md`
+- `references/message-schemas.md`
+- Historical OpenSpec origin:
+  <https://github.com/Fission-AI/OpenSpec>

@@ -1,56 +1,56 @@
-"""Template registry — discovery, loading, and caching.
-
-Design ref: design_meta_framework.md §5.1-§5.3
-
-Discovery priority:  custom > derived > builtin  (§5.3)
-
-v15.0.0 (v15-ADR-002 Phase B): names absent from disk additionally
-resolve through the ``compositions:`` manifest of ``registry.yaml``
-(schema v2.0) — the alias layer for the 16 collapsed legacy templates.
-"""
+"""Template and checklist-seed registry discovery, loading, and caching."""
 
 from __future__ import annotations
 
+import copy
 import logging
 import warnings
+from dataclasses import replace
 from pathlib import Path
 
 from devolaflow.template_engine.compositions import (
     CompositionEntry,
-    CompositionManifestError,
-    composition_to_template,
     load_composition_manifest,
 )
 from devolaflow.template_engine.models import TemplateMetadata, WorkflowTemplate
 from devolaflow.template_engine.parser import TemplateParseError, parse_template
+from devolaflow.template_engine.seeds import (
+    ChecklistSeed,
+    ChecklistSeedError,
+    RegistrySeedEntry,
+    load_checklist_seed,
+    load_seed_registry,
+)
 
 log = logging.getLogger(__name__)
 
 _TIER_PRIORITY = {"custom": 0, "derived": 1, "builtin": 2}
+_ALIAS_WARNING = (
+    "TemplateRegistry.load_template('{name}') is deprecated for checklist "
+    "seed '{name}' since v16.0.0; returning the 'change-driven' "
+    "checklist-round runtime with seed metadata attached. Use "
+    "load_seed('{name}') and load_template('change-driven'); this "
+    "compatibility alias is scheduled for removal in v17.0.0."
+)
+
+
+class ChecklistSeedAliasWarning(DeprecationWarning):
+    """Warn that a historical workflow name now selects a checklist seed."""
 
 
 class TemplateRegistry:
-    """Central store for discovering and loading workflow templates.
-
-    Default layout::
-
-        <root>/
-            builtin/   — shipped with framework (read-only)
-            custom/    — user-defined
-            derived/   — templates derived via inheritance
-    """
+    """Central store for executable templates and declarative checklist seeds."""
 
     def __init__(self, templates_root: Path | None = None) -> None:
-        """Initialize the registry with a root directory for template discovery."""
-        if templates_root is None:
-            templates_root = Path("workflow-system/agent/templates")
-        self._root = templates_root
+        """Initialize the registry with a root directory for discovery."""
+        self._root = templates_root or Path("workflow-system/agent/templates")
         self._cache: dict[str, WorkflowTemplate] = {}
+        self._seed_cache: dict[str, ChecklistSeed] = {}
         self._index: list[_IndexEntry] = []
         self._indexed = False
+        self._seed_entries: dict[str, RegistrySeedEntry] | None = None
         self._compositions: dict[str, CompositionEntry] | None = None
-
-    # ── public API ────────────────────────────────────────────────
+        self._alias_warnings_emitted: set[str] = set()
 
     def discover(
         self,
@@ -58,13 +58,8 @@ class TemplateRegistry:
         tags: list[str] | None = None,
         category: str | None = None,
     ) -> list[TemplateMetadata]:
-        """Find templates matching the given filters.
-
-        Returns metadata entries sorted by discovery priority
-        (custom > derived > builtin).
-        """
+        """Find executable templates and seed modes without emitting warnings."""
         self._ensure_indexed()
-
         results: list[_IndexEntry] = []
         for entry in self._index:
             if name and entry.meta.name != name:
@@ -74,8 +69,7 @@ class TemplateRegistry:
             if tags and not set(tags) & set(entry.meta.tags):
                 continue
             results.append(entry)
-
-        results.sort(key=lambda e: _TIER_PRIORITY.get(e.tier, 99))
+        results.sort(key=lambda entry: _TIER_PRIORITY.get(entry.tier, 99))
 
         seen: set[str] = set()
         deduped: list[TemplateMetadata] = []
@@ -83,144 +77,175 @@ class TemplateRegistry:
             if entry.meta.name not in seen:
                 seen.add(entry.meta.name)
                 deduped.append(entry.meta)
-
         return deduped
 
-    def load_template(self, name: str) -> WorkflowTemplate | None:
-        """Load a template by name, checking cache first.
+    def load_seed(self, name: str) -> ChecklistSeed | None:
+        """Load a registered checklist seed; unknown names return ``None``."""
+        if name in self._seed_cache:
+            return self._seed_cache[name]
+        entry = self._seed_manifest().get(name)
+        if entry is None:
+            return None
+        seed_path = self._root / entry.seed
+        seed = load_checklist_seed(seed_path)
+        if seed.metadata.name != entry.name:
+            raise ChecklistSeedError(
+                f"{seed_path}: metadata.name {seed.metadata.name!r} does not match "
+                f"registry name {entry.name!r}"
+            )
+        if seed.metadata.category != entry.category:
+            raise ChecklistSeedError(
+                f"{seed_path}: metadata.category {seed.metadata.category!r} does not "
+                f"match registry category {entry.category!r}"
+            )
+        self._seed_cache[name] = seed
+        return seed
 
-        Resolution order: cache → on-disk yaml (custom > derived >
-        builtin) → compositions manifest (the v15-ADR-002 alias layer for
-        collapsed legacy names). Unknown names return ``None`` (the
-        registry's explicit-miss contract); malformed manifests raise
-        :class:`CompositionManifestError` (S-5: fail loudly).
-        """
+    def load_template(self, name: str) -> WorkflowTemplate | None:
+        """Load the canonical runtime or a v16 checklist-seed compatibility alias."""
         if name in self._cache:
             return self._cache[name]
 
-        tpl = self._load_concrete(name)
-        if tpl is not None:
-            return tpl
+        concrete = self._load_concrete(name)
+        if concrete is not None:
+            return concrete
 
-        return self._resolve_composition(name)
+        seed = self.load_seed(name)
+        if seed is None or name == "change-driven":
+            return None
+        runtime = self._load_concrete("change-driven")
+        if runtime is None:
+            raise ChecklistSeedError(
+                "Checklist seed compatibility aliases require executable template "
+                "'change-driven', but it could not be loaded"
+            )
+
+        resolved = copy.deepcopy(runtime)
+        resolved.metadata = replace(
+            resolved.metadata,
+            name=name,
+            description=seed.metadata.description,
+            category=seed.metadata.category,
+            applicable_scenarios=list(seed.metadata.applicable_scenarios),
+            tags=list(seed.metadata.intent_keywords),
+        )
+        resolved.parameters = copy.deepcopy(runtime.parameters)
+        seed_entry = self._seed_manifest()[name]
+        resolved.parameters["checklist_seed"] = {
+            "name": name,
+            "path": seed_entry.seed,
+            "runtime": "change-driven",
+            "compatibility_alias": True,
+        }
+        self._emit_alias_warning(name)
+        self._cache[name] = resolved
+        return resolved
 
     def compositions(self) -> dict[str, CompositionEntry]:
-        """Return the compositions manifest (empty for pre-v2.0 layouts)."""
+        """Expose only legacy v2 manifests; registry v3 fails explicitly."""
         if self._compositions is None:
             self._compositions = load_composition_manifest(self._root / "registry.yaml")
         return self._compositions
 
     def register(self, path: Path, tier: str = "custom") -> TemplateMetadata | None:
-        """Manually register a template file."""
+        """Manually register one executable workflow template file."""
         try:
-            tpl = parse_template(path)
+            template = parse_template(path)
         except TemplateParseError:
             log.exception("Failed to parse template at %s", path)
             return None
-
-        entry = _IndexEntry(meta=tpl.metadata, path=path, tier=tier)
+        entry = _IndexEntry(meta=template.metadata, path=path, tier=tier, executable=True)
         self._index.append(entry)
-        self._cache[tpl.metadata.name] = tpl
-        return tpl.metadata
+        self._cache[template.metadata.name] = template
+        return template.metadata
 
-    # ── private ───────────────────────────────────────────────────
+    def _seed_manifest(self) -> dict[str, RegistrySeedEntry]:
+        if self._seed_entries is None:
+            self._seed_entries = load_seed_registry(self._root / "registry.yaml")
+        return self._seed_entries
+
+    def _emit_alias_warning(self, name: str) -> None:
+        if name in self._alias_warnings_emitted:
+            return
+        message = _ALIAS_WARNING.format(name=name)
+        warnings.warn(message, ChecklistSeedAliasWarning, stacklevel=3)
+        log.warning(message)
+        self._alias_warnings_emitted.add(name)
 
     def _load_concrete(self, name: str) -> WorkflowTemplate | None:
-        """Load an on-disk template by name (no composition fallback)."""
         self._ensure_indexed()
-
-        for entry in sorted(self._index, key=lambda e: _TIER_PRIORITY.get(e.tier, 99)):
-            if entry.meta.name == name:
-                try:
-                    tpl = parse_template(entry.path)
-                    self._cache[name] = tpl
-                    return tpl
-                except TemplateParseError:
-                    log.exception("Failed to load template '%s'", name)
-                    return None
-
+        for entry in sorted(
+            self._index, key=lambda candidate: _TIER_PRIORITY.get(candidate.tier, 99)
+        ):
+            if entry.meta.name != name or not entry.executable or entry.path is None:
+                continue
+            try:
+                template = parse_template(entry.path)
+            except TemplateParseError:
+                log.exception("Failed to load template '%s'", name)
+                return None
+            self._cache[name] = template
+            return template
         return None
 
-    def _resolve_composition(self, name: str) -> WorkflowTemplate | None:
-        """Resolve a collapsed legacy name via the compositions manifest.
-
-        Synthesizes the template from the entry's C-3 verbatim stage
-        sequence (see :func:`composition_to_template`) after confirming
-        the primary base resolves to an on-disk survivor. Emits a
-        :class:`DeprecationWarning` + WARNING log on first resolution
-        (v15-ADR-002 decision 3 — no silent rewrite). ``None`` when the
-        name is not a composition either.
-        """
-        entry = self.compositions().get(name)
-        if entry is None:
-            return None
-
-        # Fail loudly (S-5) if the declared base chain is broken.
-        self._resolve_base(entry.primary_base, visited=(name,))
-
-        resolved = composition_to_template(entry)
-        warnings.warn(entry.deprecation_note(), DeprecationWarning, stacklevel=3)
-        log.warning(
-            "Template '%s' is a deprecated composition alias — resolved via "
-            "base '%s' (v15-ADR-002; alias guaranteed until at least v16.0.0)",
-            name,
-            entry.primary_base,
-        )
-        self._cache[name] = resolved
-        return resolved
-
-    def _resolve_base(self, base: str, visited: tuple[str, ...]) -> WorkflowTemplate:
-        """Resolve a composition base to a concrete template, loudly.
-
-        A base may itself be another composition (e.g. ``onboarding`` →
-        ``documentation-only`` → ``change-driven``); cycles and unknown
-        bases raise :class:`CompositionManifestError` per S-5.
-        """
-        tpl = self._load_concrete(base)
-        if tpl is not None:
-            return tpl
-
-        if base in visited:
-            chain = " -> ".join((*visited, base))
-            raise CompositionManifestError(f"composition base cycle: {chain}")
-
-        entry = self.compositions().get(base)
-        if entry is None:
-            chain = " -> ".join(visited)
-            raise CompositionManifestError(
-                f"composition '{chain}' references unknown base '{base}' "
-                f"(neither an on-disk template nor a composition)"
-            )
-        return self._resolve_base(entry.primary_base, visited=(*visited, base))
-
     def _ensure_indexed(self) -> None:
-        """Trigger directory scanning if not already indexed."""
         if self._indexed:
             return
         self._indexed = True
         self._scan_directory()
+        self._index_registry_seeds()
 
     def _scan_directory(self) -> None:
-        """Walk builtin/custom/derived tiers and index all parseable YAML templates."""
         for tier in ("builtin", "custom", "derived"):
             tier_dir = self._root / tier
             if not tier_dir.is_dir():
                 continue
             for yaml_path in sorted(tier_dir.glob("*.yaml")):
                 try:
-                    tpl = parse_template(yaml_path)
-                    self._index.append(_IndexEntry(meta=tpl.metadata, path=yaml_path, tier=tier))
+                    template = parse_template(yaml_path)
                 except Exception:
                     log.warning("Skipping unparseable template: %s", yaml_path)
+                    continue
+                self._index.append(
+                    _IndexEntry(
+                        meta=template.metadata,
+                        path=yaml_path,
+                        tier=tier,
+                        executable=True,
+                    )
+                )
+
+    def _index_registry_seeds(self) -> None:
+        for entry in self._seed_manifest().values():
+            self._index.append(
+                _IndexEntry(
+                    meta=TemplateMetadata(
+                        name=entry.name,
+                        version="1.0.0",
+                        description=entry.description,
+                        category=entry.category,
+                        tags=list(entry.tags),
+                    ),
+                    path=self._root / entry.seed,
+                    tier="builtin",
+                    executable=False,
+                )
+            )
 
 
 class _IndexEntry:
-    """Store metadata, file path, and tier for a discovered template."""
+    """Store discovery metadata and whether a path is executable."""
 
-    __slots__ = ("meta", "path", "tier")
+    __slots__ = ("meta", "path", "tier", "executable")
 
-    def __init__(self, meta: TemplateMetadata, path: Path, tier: str) -> None:
-        """Initialize an index entry with metadata, path, and tier."""
+    def __init__(
+        self,
+        meta: TemplateMetadata,
+        path: Path | None,
+        tier: str,
+        executable: bool,
+    ) -> None:
         self.meta = meta
         self.path = path
         self.tier = tier
+        self.executable = executable

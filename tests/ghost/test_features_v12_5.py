@@ -388,19 +388,10 @@ def test_v12_5_0_codegraph_plugin_registered(project_root: Path) -> None:
 # .local/research/v12.5.0_codegraph_benefit_analysis.md §3 surface 5 +
 # §6.2 PV-04 acceptance criteria.
 # ---------------------------------------------------------------------------
-_V12_5_0_PV04_REPO_INIT_FILE: Path = Path("workflow-system/agent/templates/builtin/repo-init.yaml")
+_V12_5_0_PV04_TEMPLATES_DIR: Path = Path("workflow-system/agent/templates")
 
 
-# v15.0.0 (v15-ADR-002 Phase B): the 3 sister yamls (onboarding /
-# security-audit / product-verification) were deleted; their analyze-stage
-# codegraph_commands recipes are carried over verbatim as
-# params.codegraph_commands on the corresponding composition entries in
-# templates/registry.yaml#compositions. The (b)-(d) pins below are
-# retargeted to the manifest (provenance: v15-ADR-002 decision 2).
-_V12_5_0_PV04_REGISTRY_FILE: Path = Path("workflow-system/agent/templates/registry.yaml")
-
-
-_V12_5_0_PV04_SISTER_COMPOSITIONS: tuple[str, ...] = (
+_V12_5_0_PV04_SISTER_SEEDS: tuple[str, ...] = (
     "onboarding",
     "security-audit",
     "product-verification",
@@ -411,19 +402,15 @@ _V12_5_0_PV04_CONTEXT_PROFILES_FILE: Path = Path("workflow-system/agent/context_
 
 
 def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
-    """W-18 v12.5.0 PV-04 D-1.2: codegraph wired across 4 templates + context profile.
+    """W-18 v12.5.0 PV-04 D-1.2: codegraph intent survives registry v3.
 
     Discharges the W-18 precondition for the v12.5.0 CHANGELOG entry
     mentioning the codegraph workflow wiring. The stanza asserts six
     load-bearing surfaces:
 
-    (a) repo-init.yaml carries 3 codegraph surfaces (analyze hint +
-        scaffold init sub-step + verify smoke check).
-    (b) onboarding composition carries params.codegraph_commands.
-    (c) security-audit composition carries params.codegraph_commands.
-    (d) product-verification composition carries params.codegraph_commands.
-        ((b)-(d) retargeted from the deleted sister yamls to the
-        registry.yaml compositions manifest per v15-ADR-002 Phase B.)
+    (a) repo-init seed retains analyze/scaffold/verify provenance and an
+        explicit codegraph-degraded-behavior assertion.
+    (b)-(d) sister seeds retain analyze provenance plus codegraph intent.
     (e) context_profiles.yaml carries meta.codegraph_integration block.
     (f) Companion test file tests/test_codegraph_workflow_wiring.py exists
         with the 12 structural assertion tests.
@@ -431,42 +418,37 @@ def test_v12_5_0_codegraph_workflow_wired(project_root: Path) -> None:
     Source: .local/research/v12.5.0_gap_analysis.md §2 D-1.2.
     """
 
-    # --- (a) repo-init.yaml — 3 codegraph surfaces -------------------
-    repo_init_text = (project_root / _V12_5_0_PV04_REPO_INIT_FILE).read_text(encoding="utf-8")
-    for literal in (
-        "codegraph_commands:",
-        "codegraph_init:",
-        "codegraph init {project_root}",
-        ".codegraph/",
-        "codegraph_smoke:",
-    ):
-        assert literal in repo_init_text, (
-            f"W-18 v12.5.0 PV-04 violation: {_V12_5_0_PV04_REPO_INIT_FILE} "
-            f"missing required literal {literal!r}. The 3 codegraph "
-            "surfaces (analyze hint + scaffold init + verify smoke) MUST "
-            "be present per the cycle plan §PV-04 deliverable list."
-        )
+    from devolaflow.plugins.installer import load_registry, resolve_plugin
+    from devolaflow.template_engine.registry import TemplateRegistry
 
-    # --- (b)-(d) sister compositions — params.codegraph_commands -----
-    # Retargeted at v15.0.0 (v15-ADR-002 Phase B): the sister yamls were
-    # deleted; the wiring lives on the composition manifest entries.
-    registry_payload = yaml.safe_load(
-        (project_root / _V12_5_0_PV04_REGISTRY_FILE).read_text(encoding="utf-8")
+    registry = TemplateRegistry(project_root / _V12_5_0_PV04_TEMPLATES_DIR)
+    repo_init = registry.load_seed("repo-init")
+    assert repo_init is not None
+    assert {"analyze", "scaffold", "verify"} <= {
+        stage_id for stage_id, _ in repo_init.source_stage_sequence()
+    }
+    assert any(
+        "codegraph availability" in assertion.statement_template
+        for partition in repo_init.partitions
+        for assertion in partition.assertions
     )
-    compositions = {c["name"]: c for c in registry_payload.get("compositions", [])}
-    for name in _V12_5_0_PV04_SISTER_COMPOSITIONS:
-        entry = compositions.get(name)
-        assert entry is not None, (
-            f"W-18 v12.5.0 PV-04 violation (v15-ADR-002 carry-over): "
-            f"composition {name!r} missing from "
-            f"templates/registry.yaml#compositions."
+
+    for name in _V12_5_0_PV04_SISTER_SEEDS:
+        seed = registry.load_seed(name)
+        assert seed is not None
+        assert "analyze" in {stage_id for stage_id, _ in seed.source_stage_sequence()}
+        assert any(
+            "codegraph" in assertion.statement_template.lower()
+            for partition in seed.partitions
+            for assertion in partition.assertions
         )
-        assert (entry.get("params") or {}).get("codegraph_commands"), (
-            f"W-18 v12.5.0 PV-04 violation (v15-ADR-002 carry-over): "
-            f"composition {name!r} missing `params.codegraph_commands` — "
-            f"the sister-template codegraph wiring MUST survive the "
-            f"Phase B collapse per the cycle plan §PV-04 deliverable list."
-        )
+        assert not hasattr(seed, "composition")
+
+    plugin_registry = load_registry(
+        project_root / "workflow-system/agent/knowledge/runtime-plugins.yaml"
+    )
+    codegraph = resolve_plugin("codegraph", plugin_registry)
+    assert set(_V12_5_0_PV04_SISTER_SEEDS) | {"repo-init"} <= set(codegraph.invoked_by_workflows)
 
     # --- (e) context_profiles.yaml — meta.codegraph_integration block
     cp_path = project_root / _V12_5_0_PV04_CONTEXT_PROFILES_FILE
@@ -620,10 +602,11 @@ def test_v12_5_0_codegraph_docs_landed(project_root: Path) -> None:
     # The stanza keeps pinning that the repo-init row MENTIONS codegraph
     # (the PV-05 deliverable); the current wording is pinned by the v15
     # stanza (test_v15_0_x_codegraph_backgrounding_registered).
-    assert "codegraph suggest-tier" in skill_text, (
-        f"W-18 v12.5.0 PV-05 violation: {_V12_5_0_PV05_SKILL_FILE} "
-        "§Quick Start repo-init row lost its codegraph note "
-        "(suggest-tier wording per Track C-3 D-11)."
+    assert "codegraph availability" in (
+        project_root / "workflow-system/agent/templates/seeds/repo-init.yaml"
+    ).read_text(encoding="utf-8"), (
+        "W-18 v12.5.0 PV-05 violation: repo-init seed lost its explicit "
+        "codegraph availability/degraded-behavior checklist assertion."
     )
 
     # --- (e) companion test file -------------------------------------

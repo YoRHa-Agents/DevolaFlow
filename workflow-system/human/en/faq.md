@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
@@ -14,9 +14,9 @@ Frequently asked questions about the workflow system.
 
 ## General
 
-### What is DevolaFlow?
+What is DevolaFlow?
 
-A composable workflow meta-framework for AI-assisted software development. It defines multi-stage delivery pipelines as declarative YAML templates and orchestrates them through a 4-layer agent hierarchy with quality gates. Think of it as a project management framework that your AI coding tool follows automatically.
+A composable workflow meta-framework for AI-assisted software development. It turns one of 23 domain checklist seeds into a user-confirmed execution contract, then runs that contract through a three-layer Project → Wave → Task hierarchy and the `change-driven` checklist-round runtime.
 
 ### What AI tools does it support?
 
@@ -26,29 +26,31 @@ A composable workflow meta-framework for AI-assisted software development. It de
 
 A single source (`workflow-skill.yaml`) is adapted to each tool's format via the `build-skill` pipeline.
 
-### Do I need to learn YAML to use DevolaFlow?
+Do I need to learn YAML to use DevolaFlow?
 
-No. DevolaFlow activates automatically based on your natural language prompts. Say "fix the login bug" and it selects the hotfix workflow. Say "build a new feature from scratch" and it selects full-pipeline. You only need YAML if you want to create custom workflow templates.
+No. DevolaFlow activates automatically from natural language. Say "fix the login bug" and it selects the `hotfix` seed. Say "build a new feature from scratch" and it selects `full-pipeline`. You only need YAML to author custom checklist seeds.
 
 ### How does DevolaFlow differ from just prompting my AI tool?
 
-Without DevolaFlow, your AI tool processes the entire request in a single pass, often losing context or mixing concerns (designing while coding while testing). With DevolaFlow, work is decomposed into isolated stages with quality checkpoints, so the agent designs first, then plans, then implements, then reviews, with gates ensuring quality at each boundary.
+Without DevolaFlow, your AI tool may process the whole request in one pass and mix design, implementation, and verification. DevolaFlow anchors measurable checklist assertions with you, executes a bounded set each round, and checks an item only after evidence is verified.
 
 ## Workflows
 
-### How does the agent choose a workflow?
+### How does the agent choose a checklist seed?
 
-DevolaFlow uses **intent matching** on your prompt keywords: "fix bug" / "broken" / "crash" →`hotfix`"from scratch" / "new project" →`full-pipeline`"research" / "compare" →`research-only`"refactor" / "clean up" →`refactoring`And so on for all 23 types
+DevolaFlow uses **intent matching** on your prompt keywords: "fix bug" / "broken" / "crash" →`hotfix`"from scratch" / "new project" →`full-pipeline`"research" / "compare" →`research-only`"refactor" / "clean up" →`refactoring`And so on for all 23 seeds
 
-You can also specify explicitly: "Use the migration workflow to upgrade from React 17 to 18."
+You can also specify one explicitly: "Use the migration seed to upgrade from React 17 to 18."
 
-Can I skip stages?
+Can I reduce the ceremony?
 
 Yes, in two ways:
-1. **Complexity scaling**: For trivial tasks (< 20 lines, single file), DevolaFlow skips the workflow entirely
-2. **Environment modes**: In `local` mode, release stages are typically skipped
+1. **Complexity scaling**: A trivial task (< 20 lines, single file) can use the direct-execution waiver
+2. **Seed materialization**: Only relevant assertions are materialized; provenance primitives never force unnecessary runtime work
 
-### What are the 5 new workflow types in v3.0.0+?
+### Which seeds came from the five v3.0.0 workflow additions?
+
+Historically, v3.0.0 introduced these as executable workflow types. They now preserve that domain knowledge as non-executable checklist seeds:
 
 - **demo-showcase**: Build presentation-ready demos and interactive showcases
 - **performance-optimization**: Profile-driven performance improvement with before/after benchmarks
@@ -64,7 +66,7 @@ Yes, in two ways:
 `AGENTS.md` + `.cursor/rules/repo-governance.mdc` (the legacy SF-/CP-/CO- rule
 files are deprecated pointer stubs since v14.2.1):
 - **soul.mdc** (S-1 to S-10): immutable invariants, test coverage floor (≥80%), no ghost features
-- **architecture.mdc** (A-1 to A-7): 4-layer hierarchy, cache layout, token budgets
+- **architecture.mdc** (A-1 to A-7): three-layer hierarchy, cache layout, token budgets
 - **conventions.mdc** (C-1 to C-9, C-8 retired): SKILL.md line budget, frontmatter, version consistency
 - **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
 - **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness

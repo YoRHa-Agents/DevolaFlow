@@ -5,13 +5,13 @@ name: "documentation_guide"
 task_type: "write docs"
 description: "Write comprehensive API documentation with usage examples and quickstart guide"
 
+# v16.0.0: task_quality_score is L0-only; documentation L2 context must not expect it.
 expected_sections:
   - quick_action_decision
   - hierarchy_table
   - agent_teams
   - context_isolation
   - dispatch_report
-  - task_quality_score
 
 unwanted_sections:
   - frontmatter

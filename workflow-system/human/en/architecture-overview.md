@@ -1,71 +1,81 @@
 ---
 title: "Architecture Overview"
-description: "System architecture: 4-layer hierarchy, stage primitives, gate mechanism."
+description: "Three-layer checklist-round architecture, provenance primitives, and quality gates."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-19T22:10:42Z"
+last_synced: "2026-08-24T18:04:48Z"
 source_version: "15.2.0"
 ---
 
 # Architecture Overview
 
-System architecture: 4-layer hierarchy, stage primitives, gate mechanism.
+Three-layer checklist-round architecture, provenance primitives, and quality gates.
 
 ## System Overview
 
-DevolaFlow orchestrates complex software tasks through a **4-layer agent hierarchy** with **quality gates** at every stage boundary. Instead of one agent trying to do everything, work is decomposed into isolated tasks executed by specialized agents.
+DevolaFlow orchestrates complex software work through **checklist rounds** and a **three-layer agent hierarchy**. A user-approved checklist is the execution contract: every item is measurable, every completion has evidence, and every loop is bounded.
 
 ```
 User Request
     │
     ▼
 ┌─────────────────────┐
-│   Pre-Decision       │  Detect repo mode, recommend workflow type
+│  Checklist Seed      │  Select domain decomposition knowledge
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L0: Project Agent   │  Select workflow, sequence stages    (~3K tok)
+│  L0: Project Agent   │  Anchor checklist, manage rounds     (~5K tok)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L1: Stage Agent     │  Decompose into waves, run gates     (~5K tok)
+│  L1: Wave Agent      │  Dispatch tasks, aggregate evidence  (~5K tok)
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
-│  L2: Wave Agent      │  Dispatch parallel tasks              (~4K tok)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L3: Task Agent      │  **Execute actual work**              (~8K tok)
+│  L2: Task Agent      │  **Execute actual work**              (~8K tok)
 └─────────────────────┘
 ```
 
-**Key invariant**: Only Layer 3 (Task Agents) perform actual work — writing code, running tests, reviewing, authoring documents. Layers 0–2 exclusively dispatch, monitor, and report.
+**Key invariant**: Only L2 Task Agents perform actual work — writing code, running tests, reviewing, or authoring documents. L0 Project and L1 Wave agents only dispatch, monitor, verify evidence, and report.
 
-## The 4-Layer Hierarchy
+## The Three-Layer Hierarchy
 
 | Layer | Role | Context Budget | Delegates To | Must NOT |
 |-------|------|---------------|-------------|----------|
-| **L0: Project** | Selects workflow, sequences stages, tracks status | ~3K tokens | Stage Agents | Write code, read source files |
-| **L1: Stage** | Decomposes stage into waves, runs convergence loops | ~5K tokens | Wave Agents | Write code, execute tests |
-| **L2: Wave** | Dispatches parallel tasks, checks for conflicts | ~4K tokens | Task Agents | Modify any task's output |
-| **L3: Task** | Executes a single atomic unit of work | ~8K tokens | Nothing (leaf) | Spawn sub-agents |
+| **L0: Project** | Anchors goal/checklist/preflight, picks each round, evaluates evidence and gates | ~5K tokens | L1 Wave | Implement or alter Task output |
+| **L1: Wave** | Dispatches parallel Tasks, checks ownership conflicts, aggregates evidence proposals | ~5K tokens | L2 Task | Perform any Task's work |
+| **L2: Task** | Executes one atomic checklist assignment and reports evidence | ~8K tokens | Nothing (leaf) | Spawn sub-agents or write outside its owned set |
 
-## 13 Stage Primitives
+The escalation chain is always upward: **Task → Wave → Project → Human**.
 
-Every workflow is composed from 13 universal primitives organized into 6 categories:
+## Checklist-Round Runtime
+
+`change-driven` is the sole executable runtime:
+
+1. **Propose**: L0 and the user anchor numbered goals and a measurable checklist.
+2. **Preflight**: The user signs project decisions and blocker pre-authorizations once.
+3. **Round**: L0 picks the highest-priority open items, partitions them into waves, and records the plan in `stage.md`.
+4. **Execute**: L1 dispatches up to five isolated L2 Tasks per wave.
+5. **Verify**: Tasks report evidence; L1 aggregates it; L0 verifies it before checking any item.
+6. **Repeat or archive**: A round passes when its picked items are checked with evidence and no blockers remain. Once the full checklist and archive gate pass, the change can be archived.
+
+Composite gate scores remain a trend signal during rounds. They do not replace the primary contract: checked assertions with valid evidence and zero blockers.
+
+## 23 Checklist Seeds and Primitive Provenance
+
+The registry contains **23 non-executable checklist seeds** plus the one `change-driven` runtime. A seed supplies intent keywords, checklist partitions, measurable assertion templates, and verification suggestions. It never supplies a runtime DAG.
+
+Each seed's `source_stages` field is **provenance only**. It preserves the historical source ID and one of 14 primitive labels; list order is presentation-only and must not determine execution order:
 
 | Category | Primitives | Purpose |
 |----------|-----------|---------|
 | **Discover** | `research`, `analyze` | Gather information, assess current state |
 | **Shape** | `design`, `plan` | Define architecture, decompose into tasks |
 | **Build** | `implement`, `refine` | Write code, fix issues |
-| **Verify** | `review`, `test`, `validate` | Check quality, run tests, aggregate results |
+| **Verify** | `review`, `test`, `validate`, `verify` | Check quality, run tests, aggregate results |
 | **Deliver** | `release`, `deploy`, `monitor` | Package, ship, observe |
 | **Control** | `gate` | Quality checkpoint blocking progression |
-
-Primitives compose via 5 operators: **sequence** (→), **parallel** (||), **choice** (⊕), **loop** (↻), **gate** (⊣).
 
 ## Task-Adaptive Context Selection
 
@@ -79,7 +89,7 @@ Profiles are defined in `workflow-system/agent/context_profiles.yaml`.
 
 ## Quality Gate Mechanism
 
-Gates are quality checkpoints between stages. Every gate evaluates a **composite score**:
+Gates are quality checkpoints at round and archive boundaries. Every gate can evaluate a **composite score**:
 
 ```
 composite = test_quality × 0.30 + code_review × 0.30
@@ -87,11 +97,11 @@ composite = test_quality × 0.30 + code_review × 0.30
 ```
 
 **Pass conditions** (all required):
-1. `composite_score >= threshold` (default: 85)
-2. Zero blocker findings AND zero MUST-priority violations
-3. `coverage >= coverage_threshold` (default: 80%)
+1. Every checklist item picked for the round has valid evidence and is checked
+2. Zero blocker findings and zero MUST-priority violations
+3. Archive additionally satisfies its configured composite and coverage thresholds
 
-**On failure**: The gate triggers a convergence loop (review → fix → test → recheck), up to 3 rounds. If still failing, it escalates to the human.
+**On failure**: Open items and findings enter the next bounded round as reinforcement. If progress stagnates or the round limit is reached, escalation follows Task → Wave → Project → Human.
 
 **Gate profiles**:
 
@@ -107,7 +117,7 @@ composite = test_quality × 0.30 + code_review × 0.30
 Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
 
 - **Identity**: role, task_id, team assignment
-- **Task spec**: title, description, acceptance criteria
+- **Task spec**: checklist item IDs, assertions, verification criteria
 - **Context**: predecessor summaries, design excerpts, interface contracts
 - **Files**: owned files (create/modify) + read-only references
 - **Rules**: coding conventions, quality focus areas
@@ -117,9 +127,13 @@ Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
 
 ## Human Interaction Surface
 
-Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+) — a three-zone tree that separates **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
+Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+). Its three zones separate **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
 
-**`input/`** — human-owned and immutable once ratified: a `constitution.md`, REQ-ID-keyed `requirements.md` (+ optional `requirements/<domain>.md` shards), and an append-only `amendments/<date>-<slug>.md` ledger. This zone is git-tracked and guarded by the `check_human_input_append_only` hook — **.`output/`**, agent-written and concise: a `DIGEST.md` plus `convergence/<version>-convergence.md` reports (kept gitignored as regenerable artifacts) — **.`archive/`**, superseded artifacts.
+| Zone | Ownership and contents |
+|------|------------------------|
+| **`input/`** | Human-owned and immutable once ratified: constitution, REQ-ID-keyed requirements, and an append-only amendment ledger |
+| **`output/`** | Agent-written and concise: `DIGEST.md` plus convergence reports |
+| **`archive/`** | Superseded artifacts |
 
 Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
 
@@ -130,13 +144,13 @@ source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
 
 | Rule Layer | Covers |
 |-----------|--------|
-| `soul.mdc` (S-1 to S-10, P0) | Immutable invariants, test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
-| `architecture.mdc` (A-1 to A-7, P1) | 4-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
+| `soul.mdc` (S-1 to S-10, P0) | Immutable invariants — test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
+| `architecture.mdc` (A-1 to A-7, P1) | Three-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
 | `conventions.mdc` (C-1 to C-9, P2; C-8 retired) | Line budgets, frontmatter, version consistency, lean messages, verbatim extraction |
 | `workflow.mdc` (W-1 to W-24, P3) | Iteration planning, benchmark guards, version bump protocol, env-flag policy |
 | `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
 
 The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
 `change-process-rules.mdc`, `context-optimization-rules.mdc`, …) were demoted
-to deprecated pointer stubs and retired in v15.0.0, their SF-/CP-/CO- content
+to deprecated pointer stubs and retired in v15.0.0 — their SF-/CP-/CO- content
 was absorbed into the layers above.

@@ -858,8 +858,8 @@ def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
         (mark_indexing / mark_ready / mark_failed / read_marker_state /
         MarkerState) and does NOT duplicate the CLI probe (A-5 — the
         probe stays `devolaflow.codegraph.is_codegraph_available`).
-    (b) `repo-init.yaml` declares codegraph_init as tier: suggest +
-        execution: background with the marker paths.
+    (b) the repo-init seed retains codegraph/scaffold provenance while the
+        codegraph reference owns suggest-tier/background marker behavior.
     (c) The agent-facing docs no longer promise a synchronous ALL-modes
         install (SKILL.md workflow row + references/codegraph.md §4.2).
 
@@ -884,19 +884,17 @@ def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
         "devolaflow.codegraph.is_codegraph_available per A-5."
     )
 
-    # --- (b) template declares suggest-tier + background + markers -------
-    import yaml as _yaml
+    # --- (b) seed provenance + reference-owned background contract -------
+    from devolaflow.template_engine.registry import TemplateRegistry
 
-    template = _yaml.safe_load(
-        (project_root / "workflow-system/agent/templates/builtin/repo-init.yaml").read_text(
-            encoding="utf-8"
-        )
+    seed = TemplateRegistry(project_root / "workflow-system/agent/templates").load_seed("repo-init")
+    assert seed is not None
+    assert ("scaffold", "implement") in seed.source_stage_sequence()
+    assert any(
+        "codegraph availability" in assertion.statement_template
+        for partition in seed.partitions
+        for assertion in partition.assertions
     )
-    scaffold = next(s for s in template["stages"] if s.get("id") == "scaffold")
-    codegraph_init = scaffold["config"]["codegraph_init"]
-    assert codegraph_init.get("tier") == "suggest"
-    assert codegraph_init.get("execution") == "background"
-    assert set(codegraph_init.get("markers", {})) == {"indexing", "ready", "failed"}
 
     # --- (c) docs no longer promise synchronous ALL-modes install --------
     skill_text = (project_root / "workflow-system/agent/SKILL.md").read_text(encoding="utf-8")
@@ -910,6 +908,7 @@ def test_v15_0_x_codegraph_backgrounding_registered(project_root: Path) -> None:
     assert "§4.6" in ref_text and ".codegraph/.indexing" in ref_text, (
         "W-18 C-3 violation: references/codegraph.md lost the §4.6 marker protocol."
     )
+    assert "SUGGEST-tier" in ref_text and "BACKGROUND task" in ref_text
 
 
 def test_v15_0_x_init_dependency_tiering_registered(project_root: Path) -> None:

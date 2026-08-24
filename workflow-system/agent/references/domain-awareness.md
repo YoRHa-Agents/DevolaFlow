@@ -16,7 +16,7 @@ triggers:
   - "format-checking a v11.3.0+ ADR before commit"
 tier: 2
 token_estimate: 4200
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Domain Awareness — CONTEXT.md and ADR Authoring Reference
@@ -77,13 +77,19 @@ These surfaces **DO NOT overlap**. A grill-mode interview that resolves a term (
 
 **A-4 — Source-of-Truth Spec Location ADR** (per `AGENTS.md` §A-4 / `.cursor/rules/repo-governance.mdc`): `.local/memory/specs/<domain>/spec.md` is the source-of-truth for current system behaviour. Per-change `.local/.agent/active/<id>/spec.md` files contain DELTAS (ADDED/MODIFIED/REMOVED Requirements) relative to source-of-truth. Source-of-truth is mutated ONLY at archive time, after the gate has PASSED (W-3 / SI-3 composite ≥ 8.5 for minor changes, ≥ 9.0 for major). The full A-4 contract — including the `mergeability_check` + `propose_merge` mechanics that gate archive-time mutations — is documented in `references/agent-workspace.md` §7 (Source-of-Truth Specs).
 
-**Why the strict separation matters.** A glossary that mixes behaviour with vocabulary becomes a "code glossary" that drifts from the running system every time the runtime changes. A spec.md that mixes vocabulary with behaviour becomes a 2× longer document that is harder for an L1/L2/L3 to scan against. Each artifact has a single concern and a single update cadence: glossary churn matches the rate at which domain experts refine their language; spec churn matches the rate at which the runtime adds operations. Coupling them inflates both.
+**Why the strict separation matters.** A glossary that mixes behaviour with
+vocabulary becomes a "code glossary" that drifts from the running system.
+A spec.md that mixes vocabulary with behaviour is harder for L0/L1/L2 to
+scan. Each artifact keeps one concern and one update cadence.
 
 ### §2.3 — Distinction from L0 dispatch's `behavioral_guidelines` field
 
 `behavioral_guidelines` is a top-level dispatch-payload field at canonical_order **position 14** per A-2.4 (the multi-baseline byte test pins the v8.0.0 P-08 baseline at position 14). It carries per-task BEHAVIOUR modifiers (BG-001 `think_first`, BG-002 `simplicity_check`, BG-003 `surgical_scope`, BG-004 `goal_loop` — see `references/behavioral-guidelines.md` for the full BG-001..BG-004 spec).
 
-This field is **NOT** a domain vocabulary surface. It does not carry term/relationship/example-dialogue content; it carries booleans + scope levels that nudge an L3 task agent's working style for the duration of a single dispatch. A grill-mode interview that resolves a term writes to `CONTEXT.md` — never to `behavioral_guidelines`. Conversely, a grill-mode interview never asks the operator to set `surgical_scope: line` — that is a downstream L0/L1 dispatcher concern.
+This field is **NOT** a domain vocabulary surface. It carries booleans and
+scope levels that nudge an L2 Task's working style for one dispatch. A
+grill-mode interview that resolves a term writes to `CONTEXT.md`, never to
+`behavioral_guidelines`.
 
 | Surface | Scope | Lifetime | Concern |
 |---|---|---|---|
@@ -138,7 +144,10 @@ _Avoid_: Client, buyer, account
 3. `## Example dialogue` — blockquote conversation between a developer and a domain expert that demonstrates how the terms interact naturally.
 4. `## Flagged ambiguities` — bullet list of terms that were used ambiguously in the past, with the resolution recorded inline.
 
-The 3 sample terms (Order / Invoice / Customer) and their `_Avoid_` lines are the **canonical demonstration** the upstream skill ships with — they are reproduced verbatim above. When authoring a new `CONTEXT.md`, an L3 task agent SHOULD use these 3 entries as the structural template (replacing the term names + bodies with the project's own canonical terms).
+The 3 sample terms (Order / Invoice / Customer) and their `_Avoid_` lines are
+the canonical demonstration the upstream skill ships with. When authoring a
+new `CONTEXT.md`, an L2 Task SHOULD use the structure while replacing the
+sample terms with project-specific vocabulary.
 
 The remaining 4 upstream rules (`CONTEXT-FORMAT.md` lines 41–48; verbatim) round out the structural contract:
 
@@ -154,7 +163,10 @@ Verbatim from `CONTEXT-FORMAT.md` line 41 (first bullet of the upstream "## Rule
 
 > **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
 
-This is the F-2 format primitive (per `docs/cycle-archive/v11.3.0/v11.3.0_gap_analysis.md` §2.3). The glossary is **opinionated by contract** — it does not tolerate "Customer / Client / Buyer / Account all mean the same thing"; it picks ONE canonical term and lists the others under `_Avoid_`. The opinionated stance is what gives downstream L3 task agents a deterministic substring to match against when they detect fuzzy terminology in a plan.
+This is the F-2 format primitive (per the historical v11.3.0 gap analysis).
+The glossary is opinionated by contract: it picks one canonical term and
+lists the others under `_Avoid_`. Downstream L2 Tasks then have a
+deterministic substring to match.
 
 ### §4.1 — Worked example
 
@@ -166,7 +178,11 @@ A person or organization that places orders.
 _Avoid_: Client, buyer, account
 ```
 
-An L3 task agent that drafts a plan body containing "the buyer should receive an email" gets a fuzzy-term hit via `detect_fuzzy_terms(plan_text, glossary)` (the function path is `src/devolaflow/skills/grill_mode.py::detect_fuzzy_terms`; see §10.2 cross-references). The function scans the plan body for substrings matching any `_Avoid_` alias and returns a list of `FuzzyTerm` records. The L3 task agent SHOULD then propose the canonical "Customer" via `src/devolaflow/skills/grill_mode.py::propose_canonical_term`, which returns a `CanonicalTermSuggestion` with the canonical term + the source `_Avoid_` line that triggered the suggestion.
+When L0 drafts a plan containing "the buyer should receive an email",
+`detect_fuzzy_terms(plan_text, glossary)` returns a `FuzzyTerm` for the
+Avoid-listed alias. L0 SHOULD propose "Customer" through
+`propose_canonical_term`, which returns the canonical term and triggering
+`_Avoid_` line.
 
 The agent's surface response: *"You wrote 'the buyer should receive an email'. The glossary lists 'buyer' as an alias to avoid; the canonical term is 'Customer'. Do you mean Customer here, or is 'buyer' a distinct concept that needs its own glossary entry?"*
 

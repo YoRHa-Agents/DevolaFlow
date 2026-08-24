@@ -2,13 +2,13 @@
 id: "agent/references/behavioral-guidelines"
 version: "1.0.0"
 purpose: >
-  L3 Task Agent behavioral guidelines (think_first, simplicity_check,
+  L2 Task Agent behavioral guidelines (think_first, simplicity_check,
   surgical_scope, goal_loop) — the 4 Karpathy-derived primitives that
-  shape Agent execution discipline. Loaded selectively into the L3
+  shape Agent execution discipline. Loaded selectively into the L2
   dispatch payload via the top-level ``behavioral_guidelines`` field
   declared in ``schemas/lean-dispatch.yaml`` (canonical position 14).
 triggers:
-  - "L3 Task Agent execution"
+  - "L2 Task Agent execution"
   - "behavioral guideline injection"
   - "Karpathy behavioral primitives"
   - "code quality discipline"
@@ -16,15 +16,15 @@ tier: 2
 token_estimate: 1100
 dependencies:
   - "agent/SKILL.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
-# Behavioral Guidelines (L3 Task Agent)
+# Behavioral Guidelines (L2 Task Agent)
 
-L3 Task Agents inherit four behavioral primitives from the dispatch payload's
+L2 Task Agents inherit four behavioral primitives from the dispatch payload's
 top-level ``behavioral_guidelines`` field. The four rules are derived from the
 Karpathy nano-agent skill set (https://github.com/forrestchang/andrej-karpathy-skills)
-and adapted to DevolaFlow's 4-layer hierarchy. Each rule is opt-in per profile
+and adapted to DevolaFlow's three-layer hierarchy. Each rule is opt-in per profile
 (see ``workflow-system/agent/context_profiles.yaml``), severity-classified, and
 self-checkable so a Task Agent can verify compliance without invoking Review.
 
@@ -41,11 +41,11 @@ behavioral_guidelines:
   convention_first: bool         # v12.2.0 — match existing pattern (Mnimiy Rule 11)
 ```
 
-The field is OPTIONAL in the dispatch payload. When absent, L3 agents fall
+The field is OPTIONAL in the dispatch payload. When absent, L2 agents fall
 back to the v7.x default (no behavioral injection — byte-identical to the
 v7.x dispatch shape and preserves the v7.0.0 cache-layout golden baseline).
 When present, the dispatcher's ``select_context()`` helper selectively loads
-the matching rule sections from this file into the L3 task agent context.
+the matching rule sections from this file into the L2 Task context.
 
 ## Rule Application Matrix
 
@@ -64,7 +64,7 @@ keys inherit the matrix above per complexity tier classification.
 
 **id**: `BG-001` | **severity**: warn | **applies when**: `think_first=true`
 
-Before producing any code edit, the L3 Task Agent MUST surface an explicit
+Before producing any code edit, the L2 Task Agent MUST surface an explicit
 plan to the dispatcher. The plan is captured in the StatusReport's
 ``self_check.plan_artifact`` field (≤ 5 bullets, each ≤ 20 words) and
 rendered before the first ``Write`` / ``StrReplace`` / ``Shell`` tool call.
@@ -72,7 +72,7 @@ rendered before the first ``Write`` / ``StrReplace`` / ``Shell`` tool call.
 **Evidence**: ``self_check.plan_artifact`` — path-or-inline plan digest, per
 ``schemas/lean-report.yaml#lean_format_spec.self_check`` (v14.3.0 G-002).
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Before any source modification, emit a numbered plan describing: target
 > files, key abstractions you will introduce or change, the acceptance
@@ -92,11 +92,11 @@ rendered before the first ``Write`` / ``StrReplace`` / ``Shell`` tool call.
 
 **id**: `BG-002` | **severity**: warn | **applies when**: `simplicity_check=true`
 
-Before merging a candidate solution, the L3 Task Agent MUST run a 3-question
+Before merging a candidate solution, the L2 Task Agent MUST run a 3-question
 over-engineering audit. Each YES is a candidate WARNING in the StatusReport
 findings list (severity=major if 2+ YES, blocker if all 3 YES).
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Audit your solution against three over-engineering smells before commit:
 > (1) Did I introduce abstractions (classes, factories, registries) for a
@@ -120,7 +120,7 @@ findings list (severity=major if 2+ YES, blocker if all 3 YES).
 
 **id**: `BG-003` | **severity**: blocker | **applies when**: `surgical_scope` set
 
-Limits the file-system blast radius of a single L3 task. The value is one
+Limits the file-system blast radius of a single L2 task. The value is one
 of three tiers; violation classifies as blocker because it directly breaches
 the wave-level disjoint-ownership invariant (P2).
 
@@ -136,7 +136,7 @@ the wave-level disjoint-ownership invariant (P2).
 `register_surgical_scope_hook` opts the checker into `task_stop` (default
 chain unchanged until the v15.0.0 strict graduation).
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Your edits MUST stay within the declared ``surgical_scope`` tier. A
 > diff hunk that escapes the tier is a blocker finding, not a stylistic
@@ -162,12 +162,12 @@ behaviour stays byte-identical to v8.0.0-p08 (R5 discipline).
 
 **id**: `BG-004` | **severity**: warn | **applies when**: `goal_loop=true`
 
-In multi-round convergence work the L3 Task Agent MUST re-anchor each round
+In multi-round convergence work the L2 Task Agent MUST re-anchor each round
 to the original user goal verbatim before consuming the prior round's
 findings. This counters "goal drift" where successive rounds optimise for
 findings instead of intent.
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > At the head of each round (round_num >= 2), restate the original user
 > request VERBATIM in your StatusReport's ``self_check.goal_anchor``
@@ -197,7 +197,7 @@ Deterministic decisions — retry policies, routing thresholds, escalation
 boundaries, validation rules, fixed constants — MUST live in deterministic
 code, NOT in LLM-driven prompts. The model decides differently each run
 because the prompt context shifts; coding the decision behind a pure
-function gives the L3 Task Agent a stable contract to call.
+function gives the L2 Task Agent a stable contract to call.
 
 Added in v12.2.0 PV-03 per the Mnimiy May-2026 X article §4 Rule 5
 ([article cross-walk](docs/cycle-archive/v12.2.0/v12.2.0_gap_analysis.md) §2 D-2).
@@ -206,7 +206,7 @@ call worked for two weeks, then started flaking because the model began
 reading the request body as context for the decision. The retry policy
 went random because the prompt was effectively random."*
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Before adding any LLM call inside your implementation, audit whether
 > the decision is DETERMINISTIC (same inputs → same outputs by spec) or
@@ -235,7 +235,7 @@ deterministic code, not about model usage in the generative core.
 **id**: `BG-006` | **severity**: major | **applies when**: `surface_conflicts=true`
 
 When two parts of the codebase disagree on a pattern (error handling,
-async style, state management, naming convention), the L3 Task Agent
+async style, state management, naming convention), the L2 Task Agent
 MUST surface the disagreement as a `ConflictFinding` entry in the
 StatusReport's ``self_check.conflicts`` list rather than producing code
 that combines both patterns. The "averaged"
@@ -249,7 +249,7 @@ patterns — async/await with try/catch and a global error boundary.
 Claude wrote code that did both. Errors got swallowed twice. 30
 minutes to figure out."*
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Before writing code that touches a pattern with multiple existing
 > implementations in the codebase, run a 2-step audit: (1) Did I
@@ -278,7 +278,7 @@ be empty), per ``schemas/lean-report.yaml#lean_format_spec.self_check``.
 
 **id**: `BG-007` | **severity**: major | **applies when**: `convention_first=true`
 
-In an established codebase, the L3 Task Agent MUST match the existing
+In an established codebase, the L2 Task Agent MUST match the existing
 pattern even when a "better" pattern is available in the broader
 ecosystem. The cost of introducing a second pattern (cognitive split,
 testing harness duplication, onboarding tax) almost always exceeds
@@ -292,7 +292,7 @@ class-component codebase. The hooks worked. They also broke the
 codebase's testing patterns, which assumed `componentDidMount`. Half
 a day to remove and rewrite."*
 
-**Rendered guidance** (injected into L3 dispatch when active):
+**Rendered guidance** (injected into L2 dispatch when active):
 
 > Before introducing a new pattern (a library, an abstraction style,
 > a state-management primitive, a test harness, a build tool), audit
@@ -323,7 +323,7 @@ is verifiably broken — but that conclusion requires a `ConflictFinding`
 ## Token Cost
 
 Each rule's rendered guidance is bounded at ≈ 30 lines / ≈ 120 tokens. All
-seven rules together total ≈ 840 tokens — under 10 % of the L3 8 K budget,
+seven rules together total ≈ 840 tokens — under 10 % of the L2 8K budget,
 sized so they never displace `critical` SKILL.md sections (verified by
 ``tests/test_behavioral_guidelines.py::test_behavioral_block_token_bounds``).
 v12.2.0 PV-03 added BG-005..BG-007 as 1-line dispatch bullets (~ 20-30
@@ -345,7 +345,7 @@ and the v7.3.0 baseline (``...v7.3.0.yaml``). The schema bump
 Added in v8.2.0 PV-04. Loaded verbatim by
 `_select_behavioral_sections` whenever the resolved behavioural block
 sets `surgical_scope='line'`. Each criterion below is a self-checkable
-rule that the L3 Task Agent MUST audit per touched line before commit;
+rule that the L2 Task Agent MUST audit per touched line before commit;
 violations classify as a finding (severity follows BG-003 = blocker).
 
 - LL-001 per-line max length: every touched line stays at or below the
@@ -377,7 +377,7 @@ any criterion is a blocker finding per the BG-003 severity classification.
 `surgical_scope` (BG-003) interacts directly with Soul Rule **S-8** ("No
 Writes Outside Active Change Owned Files" per `AGENTS.md`). When the
 dispatch payload carries BOTH a `change_context.owned_files_ref` AND a
-`behavioral_guidelines.surgical_scope` value, the L3 Task Agent MUST
+`behavioral_guidelines.surgical_scope` value, the L2 Task Agent MUST
 honour the **stricter** of the two:
 
 | `surgical_scope` | `change_context.owned_files_ref` present | Effective constraint |
@@ -414,7 +414,7 @@ waived for trivial edits.
 | LL-005 | verbatim-line preservation | blocker | (line tier) Halt commit |
 | S-8 | owned_files write | blocker (mode: full) / warn (mode: lite) | Block + escalate per P4 |
 
-The matrix is the single-source-of-truth for L3 self-audit; agents MUST
+The matrix is the single-source-of-truth for L2 self-audit; agents MUST
 classify findings using this exact severity wording (no inflation, no
 deflation per CO-2 verbatim-extraction discipline).
 
@@ -438,7 +438,7 @@ backs the prompt-side guidance:
 
 Operators triaging behavioral-rule violations consult the runtime surface
 for the canonical implementation; the prompt-side guidance documented
-above is the L3 contract surface.
+above is the L2 contract surface.
 
 ## See Also
 
