@@ -189,15 +189,15 @@ class TestSchemaAdditivity:
     def test_layout_invariant_v7_0_0_baseline_still_passes(self) -> None:
         """v7.0.0 byte-baseline is unaffected by P-10 (additivity proof
         across THREE schema generations: v7.2.6 → P-08 → P-10)."""
-        from tests.test_benchmarks import TestLayoutInvariantBaseline
+        from tests.test_layout_invariant_multi_baseline import TestMultiBaselineByteStability
 
-        TestLayoutInvariantBaseline().test_layout_invariant_baseline()
+        TestMultiBaselineByteStability().test_v7_0_0_baseline_byte_identical()
 
     def test_layout_invariant_v7_3_0_baseline_still_passes(self) -> None:
         """v7.3.0 byte-baseline is unaffected by P-10."""
-        from tests.test_benchmarks import TestLayoutInvariantBaseline
+        from tests.test_layout_invariant_multi_baseline import TestMultiBaselineByteStability
 
-        TestLayoutInvariantBaseline().test_layout_invariant_baseline_v7_3_0()
+        TestMultiBaselineByteStability().test_v7_3_0_baseline_byte_identical()
 
 
 # ---------------------------------------------------------------------------
@@ -354,12 +354,12 @@ class TestACGeneratorGenerate:
         criteria = gen.generate("performance audit of gate scorer")
         assert criteria[0].verification_type == "metric"
 
-    def test_improve_performance_emits_evobench_companion(self, gen: ACGenerator) -> None:
+    def test_improve_performance_emits_regression_companion(self, gen: ACGenerator) -> None:
         criteria = gen.generate("optimize latency in gate evaluator")
         assert len(criteria) >= 2
         companion = criteria[1]
         assert "regression" in companion.description.lower()
-        assert "test_benchmarks" in companion.verification_cmd
+        assert companion.verification_cmd == DEFAULT_TEST_COMMAND
 
     def test_implement_feature_returns_test(self, gen: ACGenerator) -> None:
         criteria = gen.generate("implement feature X for billing module")
@@ -810,7 +810,7 @@ _G006_AC_EXEMPT_PROFILES: tuple[str, ...] = (
 _G006_REPRESENTATIVE_DESCRIPTIONS: dict[str, str] = {
     "hotfix": "fix bug in auth middleware causing SEV1 crash",
     "design": "design API schema for the dispatch envelope",
-    "skill-optimization": "compress skill context to improve EvoBench density",
+    "skill-optimization": "compress skill context using built-in harness evaluation",
     "migration": "migrate database layer to postgres 16",
     "security-audit": "audit src/ for CVE exposure and remediate findings",
     "documentation": "write docs for the selector module README",

@@ -13,6 +13,8 @@
 # Gap IDs reference Section 2 of S01-T06-synthesis.md (H1-H7, M1-M11, L1-L8)
 # v9.6.0 PV-04: bulk-refreshed last_checked → 2026-05-02 across all 21 entries
 # (D-R-5); primelocus-hydra graduated to frozen_reference (D-R-9).
+# Pre-v16 analysis-tool notes below are historical provenance only. Live
+# evaluation depends solely on `python -m devolaflow.harness evaluate`.
 
 active_tracking:
 
@@ -162,7 +164,7 @@ active_tracking:
       - convergence loop (progressive recovery stages)
       - team permissions enforcement
     gap_ids: [M3, L2, L5]
-    note: "v9.6.0 PV-03 historical freshness record — no local clone was available at PV-01 harness time, so deep NineS analysis was deferred per W-2 fallback. Edict's external 4-stage progressive-recovery taxonomy remains analogous to W-8/SI-9 reinforcement; current DevolaFlow escalation is Task→Wave→Project→Human. The institutional-review gate type from Menxia remains a future `pre_dispatch` hook candidate."
+    note: "v9.6.0 PV-03 historical freshness record — no local clone was available at PV-01 harness time, so deep external analysis was deferred. This is provenance only, not a live W-2 fallback. Edict's external 4-stage progressive-recovery taxonomy remains analogous to W-8/SI-9 reinforcement; current DevolaFlow escalation is Task→Wave→Project→Human. The institutional-review gate type from Menxia remains a future `pre_dispatch` hook candidate."
 
   - id: karpathy-llm-wiki
     repo_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
@@ -251,10 +253,10 @@ active_tracking:
       - "plugin architecture changes"
     devolaflow_integration_points:
       - "research stage: codebase analysis methodology"
-      - "NineS analyze: complementary deep analysis"
+      - "built-in harness fixtures: complementary contract analysis"
       - "skill format: plugin/skill architecture patterns"
       - "workflow-system/agent/references/meta-framework.md §2.2.1 (multi-team codebase analysis pattern, v9.6.0)"
-    note: "Claude Code plugin for codebase understanding via knowledge graphs. Analyzed via NineS v2.0.0 (22 findings) and re-analyzed via NineS v3.3.0 in v9.6.0 PV-01 (23 findings: 4 error / 13 info / 6 warning — error/warning are upstream complexity issues, not blockers for DevolaFlow integration)."
+    note: "Claude Code plugin for codebase understanding via knowledge graphs. Historical pre-v16 external analyses produced 22 findings, then 23 findings in v9.6.0 PV-01 (4 error / 13 info / 6 warning — error/warning are upstream complexity issues, not blockers for DevolaFlow integration). Current evaluation uses the built-in harness."
 
   - id: openspec
     repo_url: https://github.com/Fission-AI/OpenSpec
@@ -291,7 +293,7 @@ active_tracking:
       DevolaFlow v8.4.0+ per Q-3 in design.md §11.2. Current DevolaFlow
       materializes goal/checklist/stage/preflight/evidence artifacts and
       executes them through the sole change-driven runtime.
-      v9.6.0 PV-01 deep re-analysis (NineS v3.3.0): confirmed 11 in-repo
+      v9.6.0 PV-01 historical deep re-analysis confirmed 11 in-repo
       specs catalog; DevolaFlow's parallel surface is
       `.local/memory/specs/<domain>/spec.md` (A-4 source-of-truth).
 
@@ -333,7 +335,7 @@ active_tracking:
       EXPANSION MINOR cycle. Codegraph is a 100% local, MCP-first
       pre-indexed code knowledge graph (tree-sitter + SQLite FTS5)
       published as `@colbymchenry/codegraph` on npm. The DevolaFlow
-      integration mirrors the NineS shape: plugin catalog block +
+      integration follows the runtime-plugin shape: plugin catalog block +
       runtime registry entry + reference-dependencies entry + Python
       wrapper package + seed provenance across 4 analyze primitives
       + context_profiles top-level codegraph_integration
@@ -601,7 +603,7 @@ tracking_policy:
       - Anthropic advisor tool exits beta or changes API shape
       - "new repo with >5K stars and relevance >=4/5 in agent orchestration space"
       - DevolaFlow version bump changes overlap analysis (re-classify gaps)
-      - EvoBench regression detected after context profile changes
+      - built-in harness regression detected after context profile changes
     review_actions:
       - read changed files/docs from tracked source
       - re-evaluate relevance_score against current DevolaFlow version

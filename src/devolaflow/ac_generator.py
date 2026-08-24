@@ -586,12 +586,11 @@ class ACGenerator:
             return [
                 _CompanionTemplate(
                     description=(
-                        f"Regression guard for '{original}': existing "
-                        f"`pytest tests/test_benchmarks.py -v` shows 0 scenarios "
-                        f"regressed > 5pp"
+                        f"Regression guard for '{original}': "
+                        f"`{DEFAULT_TEST_COMMAND}` exits 0 (no NEW failures vs main)"
                     ),
                     verification_type="test",
-                    verification_cmd="pytest tests/test_benchmarks.py -v",
+                    verification_cmd=DEFAULT_TEST_COMMAND,
                 )
             ]
         if hit.label == "migration":

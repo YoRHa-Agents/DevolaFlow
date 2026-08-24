@@ -46,7 +46,7 @@ class TestDependencyTierTable:
 
     def test_optional_tier_covers_the_r5_f4_inventory(self) -> None:
         optional = {d.name for d in INIT_DEPENDENCIES if d.tier == "optional"}
-        assert optional == {"node", "npm", "codegraph", "nines"}
+        assert optional == {"node", "npm", "codegraph"}
         situational = {d.name for d in INIT_DEPENDENCIES if d.tier == "situational"}
         assert situational == {"curl"}
 

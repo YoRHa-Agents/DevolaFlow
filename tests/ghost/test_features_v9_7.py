@@ -51,9 +51,9 @@ _V9_7_0_NEW_CANONICAL_KEY: str = "predecessor_dedup_ledger"
 # cumulative perf gain pins these files. The W-18 contract requires them
 # to be present + parseable.
 _V9_7_0_BASELINE_PATHS: tuple[Path, ...] = (
-    Path("benchmarks/devolaflow_context/baselines/v9.7.0_latency.json"),
-    Path("benchmarks/devolaflow_context/baselines/v9.7.0_baseline.json"),
-    Path("benchmarks/devolaflow_context/baselines/v9.7.0_latency_intermediate.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v9.7.0_latency.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v9.7.0_baseline.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v9.7.0_latency_intermediate.json"),
     Path("benchmarks/devolaflow_context/baselines/layout_invariant_v9.7.0.yaml"),
 )
 
@@ -165,12 +165,8 @@ def test_v9_7_0_new_symbols_have_coverage(project_root: Path) -> None:
     for baseline_rel in _V9_7_0_BASELINE_PATHS:
         baseline_path = project_root / baseline_rel
         assert baseline_path.is_file(), (
-            f"W-18 v9.7.0 violation: PV-05 baseline {baseline_rel} "
-            f"missing. Run `python -m benchmarks.devolaflow_context."
-            f"latency_harness --iterations 100 --output {baseline_rel}` "
-            f"(for the latency JSON) OR `python -m benchmarks."
-            f"devolaflow_context.generate_baseline` (for the composite JSON) "
-            f"OR copy the v9.6.0 layout-invariant witness (for the YAML)."
+            f"W-18 v9.7.0 violation: archived PV-05 evidence or layout "
+            f"witness {baseline_rel} is missing."
         )
         if baseline_path.suffix == ".json":
             import json as _json

@@ -11,8 +11,11 @@ import pytest
 from devolaflow.harness.__main__ import main
 from devolaflow.harness.evaluator import (
     DIMENSION_WEIGHTS,
+    HISTORICAL_COMPANION_METHOD,
     SIGNAL_KEYS,
+    EvaluationError,
     collect_signals,
+    compare_historical_companion,
     evaluate_harness,
     render_evaluation,
 )
@@ -119,6 +122,49 @@ def test_exact_six_dimension_rubric_and_composite(tmp_path: Path) -> None:
         "compatibility",
         "performance_impact",
     ]
+
+    companion = {
+        "schema_version": 1,
+        "method": HISTORICAL_COMPANION_METHOD,
+        "sampled_at": "2026-06-12T00:39:01Z",
+        "metric_count": 6,
+        "methodology": "hybrid historical W-3 judgment with archived NineS companions",
+        "limitation": "This is not a raw NineS six-dimensional output.",
+        "sources": [{"path": "docs/evaluation.md", "sha256": "0" * 64}],
+        "scores": [{"id": entry["id"], "score": entry["score"]} for entry in result["scores"]],
+    }
+    companion["scores"][0]["score"] += 1.0
+    comparisons = [compare_historical_companion(result, companion) for _ in range(3)]
+    comparison_bytes = [render_evaluation(item).encode() for item in comparisons]
+    assert comparison_bytes[0] == comparison_bytes[1] == comparison_bytes[2]
+    assert comparisons[0]["comparisons"][0]["abs_delta"] == 1.0
+    assert comparisons[0]["verdict"] == "PASS"
+
+    over_limit = json.loads(json.dumps(companion))
+    over_limit["scores"][0]["score"] += 0.01
+    failed = compare_historical_companion(result, over_limit)
+    assert failed["comparisons"][0]["abs_delta"] == 1.01
+    assert failed["verdict"] == "FAIL"
+
+    invalid_ids = json.loads(json.dumps(companion))
+    invalid_ids["scores"][0]["id"] = "scoring_accuracy"
+    with pytest.raises(EvaluationError, match="ids must exactly match"):
+        compare_historical_companion(result, invalid_ids)
+
+    invalid_score = json.loads(json.dumps(companion))
+    invalid_score["scores"][0]["score"] = float("nan")
+    with pytest.raises(EvaluationError, match="finite number in"):
+        compare_historical_companion(result, invalid_score)
+
+    partial = json.loads(json.dumps(result))
+    partial["auto_fill_rate"] = 0.99
+    with pytest.raises(EvaluationError, match="auto_fill_rate must equal 1.0"):
+        compare_historical_companion(partial, companion)
+
+    insufficient = json.loads(json.dumps(result))
+    insufficient["verdict"] = "INSUFFICIENT"
+    with pytest.raises(EvaluationError, match="verdict must be READY or NOT_READY"):
+        compare_historical_companion(insufficient, companion)
 
 
 def test_unavailable_or_timed_out_signal_is_insufficient(tmp_path: Path) -> None:
@@ -249,6 +295,81 @@ def test_module_cli_pins_fixture_style_envelope_and_exit_codes(
     assert len(ready["scores"]) == 6
     assert all(set(score) == {"id", "score", "weight", "metadata"} for score in ready["scores"])
     assert "scoring_accuracy" not in {score["id"] for score in ready["scores"]}
+
+    companion_path = tmp_path / "historical-companion.json"
+    companion = {
+        "schema_version": 1,
+        "method": HISTORICAL_COMPANION_METHOD,
+        "sampled_at": "2026-06-12T00:39:01Z",
+        "metric_count": 6,
+        "methodology": "hybrid historical W-3 judgment with archived NineS companions",
+        "limitation": "This is not a raw NineS six-dimensional output.",
+        "sources": [{"path": "docs/evaluation.md", "sha256": "0" * 64}],
+        "scores": [{"id": entry["id"], "score": entry["score"]} for entry in ready["scores"]],
+    }
+    companion["scores"][0]["score"] -= 1.0
+    companion_path.write_text(json.dumps(companion), encoding="utf-8")
+    cross_validation_output = tmp_path / "cross-validation.json"
+    cross_validation_exit = main(
+        [
+            "cross-validate",
+            "--evaluation",
+            str(ready_output),
+            "--companion",
+            str(companion_path),
+            "--output",
+            str(cross_validation_output),
+        ]
+    )
+    cross_validation = json.loads(cross_validation_output.read_text(encoding="utf-8"))
+    assert cross_validation_exit == 0
+    assert cross_validation["verdict"] == "PASS"
+    assert cross_validation["comparisons"][0]["abs_delta"] == 1.0
+    assert cross_validation_output.read_text(encoding="utf-8") == render_evaluation(
+        cross_validation
+    )
+
+    companion["scores"][0]["score"] -= 0.01
+    companion_path.write_text(json.dumps(companion), encoding="utf-8")
+    failed_cross_validation_output = tmp_path / "failed-cross-validation.json"
+    failed_cross_validation_exit = main(
+        [
+            "cross-validate",
+            "--current",
+            str(ready_output),
+            "--historical",
+            str(companion_path),
+            "--output",
+            str(failed_cross_validation_output),
+        ]
+    )
+    failed_cross_validation = json.loads(failed_cross_validation_output.read_text(encoding="utf-8"))
+    assert failed_cross_validation_exit == 1
+    assert failed_cross_validation["verdict"] == "FAIL"
+    assert failed_cross_validation["comparisons"][0]["abs_delta"] == 1.01
+
+    insufficient_path = tmp_path / "insufficient.json"
+    insufficient_path.write_text(
+        json.dumps({**ready, "verdict": "INSUFFICIENT"}),
+        encoding="utf-8",
+    )
+    invalid_cross_validation_output = tmp_path / "invalid-cross-validation.json"
+    assert (
+        main(
+            [
+                "cross-validate",
+                "--evaluation",
+                str(insufficient_path),
+                "--companion",
+                str(companion_path),
+                "--output",
+                str(invalid_cross_validation_output),
+            ]
+        )
+        == 2
+    )
+    assert "verdict must be READY or NOT_READY" in capsys.readouterr().err
+    assert not invalid_cross_validation_output.exists()
 
     not_ready_exit = main(
         [

@@ -32,7 +32,7 @@ Dispatch payloads MUST honour the canonical layout declared in `schemas/lean-dis
 
 ### A-2.1 — Frozen Prefix (positions 1-12)
 
-Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2/L3 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
+Per `docs/cycle-archive/adr/v9-ADR-002-cache-layout-governance-v2.md` D1, the first 12 positions of `canonical_order` are the **FROZEN PREFIX** (the v7.0.0 baseline). Their byte-stable rendering is the LLM cache prefix every L0/L1/L2 dispatcher keys on; reordering / renaming / removing ANY of these 12 keys invalidates the cache and is a release blocker. Enforced by `devolaflow.compressor.assert_layout_spec_invariant` (and indirectly by `assert_dispatch_layout` which calls it pre-validation by default).
 
 ### A-2.2 — Append-Only Tail (positions 13+)
 
@@ -61,9 +61,9 @@ Per v9-ADR-002 D4, CI enforcement runs `tests/test_layout_invariant_multi_baseli
 
 Baseline retention is TIERED per v15-ADR-005 (G-014), replacing the former keep-all-forever wording:
 
-* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test. IMMUTABLE — never moved, renamed, or pruned; they cannot be regenerated from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
-* **Tier B — rolling window (in CI)**: per-minor `v*_baseline.json` EvoBench JSONs for the current + previous 2 cycles (W-16's comparison window) stay in `benchmarks/devolaflow_context/baselines/`. The newest-baseline pin convention (`_newest_baseline_path`) is unaffected.
-* **Tier C — archived (out of CI)**: per-minor JSONs older than the Tier-B window move via `git mv` to `docs/cycle-archive/<cycle>/baselines/` (W-19's committed-archive surface) — history preserved, never deleted. Files still loaded by in-repo tests stay in place until their readers are re-wired.
+* **Tier A — permanent byte-witnesses**: the `layout_invariant_v*.yaml` goldens loaded by the multi-baseline test at their historical `benchmarks/devolaflow_context/baselines/` paths. IMMUTABLE — never moved, renamed, regenerated, or pruned; they cannot be reconstructed from history with confidence and are the A-2 governance itself. Pruning or relocating a Tier-A witness is a release blocker.
+* **Tier B — active harness window**: W-16 settlement artifacts named `harness_baseline_<cycle>.json` for the current + previous 2 cycles stay under `.local/telemetry/baselines/` as the active comparison window. They are derived from aggregated harness telemetry; they are not schema witnesses and MUST NOT be copied into the Tier-A directory.
+* **Tier C — archived harness evidence**: harness baselines older than the Tier-B window move to `docs/cycle-archive/<cycle>/harness/` (W-19's committed-archive surface) — history preserved, never deleted. Retired pre-v16 benchmark JSON remains historical archive evidence only and never returns to a live reader.
 
 ## A-3 — Context Token Budgets
 

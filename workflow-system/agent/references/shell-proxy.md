@@ -28,17 +28,19 @@ dependencies:
   - "agent/references/execution-protocol.md"
   - "agent/references/decomposition-gate.md"
   - "agent/references/message-schemas.md"
-last_updated: "2026-08-19"
+last_updated: "2026-08-25"
 ---
 
 # Shell-Proxy + Memory-Router Reference
 
-The v8.4.0 cycle ships a 4-layer **RTK + memory-router stack** that
+The v8.4.0 cycle shipped a four-surface **RTK + memory-router stack** that
 opportunistically compresses Shell-tool dispatch output and short-circuits
 L0/L1 planning when prior cycles have already shaped the workflow:
 
-1. **RTK plugin entry** (`v8.3.1` PV-01) — registers the [`rtk`](https://github.com/rtk-ai/rtk)
-   binary as the third runtime plugin alongside `nines` + `ui-pro`.
+1. **RTK plugin entry** (`v8.3.1` PV-01) — registered the
+   [`rtk`](https://github.com/rtk-ai/rtk) binary after the two plugin entries
+   that existed in that historical release. The v16 registry no longer
+   includes NineS.
 2. **Shell-proxy + lifecycle hook** (`v8.3.2` PV-02) — adds the
    `src/devolaflow/shell_proxy/` package + the new `pre_shell_call` lifecycle
    event that wraps Shell-tool calls in `rtk rewrite` for whitelisted commands.
@@ -107,14 +109,16 @@ bundling already do).
 
 ---
 
-## 3. Layer 1 — RTK Plugin Entry (v8.3.1 PV-01, closes R-001)
+## 3. Surface 1 — RTK Plugin Entry (v8.3.1 PV-01, closes R-001)
 
 ### 3.1 Registry row
 
 `workflow-system/agent/knowledge/runtime-plugins.yaml` carries the canonical
-plugin definitions. v8.3.1 grew the registry from 2 plugins (`nines` + `ui-pro`)
-to 3 by appending RTK and bumped `schema_version` 1 → 2 to introduce the new
-optional `verify_distinguish_cmd` field + the `curl_install_script` backend.
+current plugin definitions. Historically, v8.3.1 grew the then-current registry
+from 2 entries to 3 by appending RTK and bumped `schema_version` 1 → 2 to
+introduce the new optional `verify_distinguish_cmd` field +
+the `curl_install_script` backend. This lineage does not recommend retired
+plugins.
 
 ```yaml
 schema_version: 2
@@ -134,11 +138,13 @@ plugins:
 
 ### 3.2 Backward compatibility (R5 strict)
 
-The `nines` and `ui-pro` entries are byte-identical pre/post v8.3.1. Their
-`verify_distinguish_cmd` is unset (`None` after parse) so `_verify_distinguish()`
-is a no-op for them. `_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2})` accepts
-both v1 and v2 fixtures so existing test fixtures continue to load without
-modification.
+In the historical v8.3.1 transition, the pre-existing entries were
+byte-identical before and after the schema bump. Their
+`verify_distinguish_cmd` was unset (`None` after parse), so
+`_verify_distinguish()` remained a no-op. `_SUPPORTED_SCHEMA_VERSIONS =
+frozenset({1, 2})` accepted both v1 and v2 fixtures. NineS is absent from the
+current v16 runtime registry; `devolaflow.nines` remains compatibility-only
+until v17.
 
 ### 3.3 The `curl_install_script` backend
 
@@ -167,7 +173,7 @@ non-zero, the wrong package is installed. The check runs at BOTH preinstall
 
 ---
 
-## 4. Layer 2 — Shell-Proxy + `pre_shell_call` Hook (v8.3.2 PV-02, closes R-002)
+## 4. Surface 2 — Shell-Proxy + `pre_shell_call` Hook (v8.3.2 PV-02, closes R-002)
 
 ### 4.1 Module layout
 
@@ -282,7 +288,7 @@ own Claude Code hook behavior in `hooks/claude/rtk-rewrite.sh` lines 21-24.
 
 ---
 
-## 5. Layer 3 — Fast-Path Memory Router (v8.3.3 PV-03, closes M-001)
+## 5. Surface 3 — Fast-Path Memory Router (v8.3.3 PV-03, closes M-001)
 
 ### 5.1 Module layout
 
@@ -395,15 +401,15 @@ fields per `schemas/memory-case.yaml` `item_required_fields`: `case_id`,
 ### 5.7 Operator-local seed kit
 
 The `.local/memory/cases/` tree is **gitignored** under `.local/*` per the
-v8.3.0 PV-04 Q-5 policy. The 3 seeded recipes that ship with v8.4.0 are
-extracted from the cycle's own PVs (`rtk-plugin-entry.md`,
-`shell-proxy-registry.md`, `evobench-doc-coupling.md`) but are not part of
-the committed source — operators populate their own library lazily via
-`consolidate_session()` learnings substrate.
+v8.3.0 PV-04 Q-5 policy. The 3 recipe IDs documented by that historical cycle
+were `rtk-plugin-entry.md`, `shell-proxy-registry.md`, and the historically
+named `evobench-doc-coupling.md`; they were never committed source. The last ID
+does not denote a live benchmark integration in v16. Operators populate their
+own library lazily via the `consolidate_session()` learnings substrate.
 
 ---
 
-## 6. Layer 4 — RTK-Pattern Command Mapping (v8.3.4 PV-04, closes M-002)
+## 6. Surface 4 — RTK-Pattern Command Mapping (v8.3.4 PV-04, closes M-002)
 
 ### 6.1 Module + schema layout
 
@@ -488,7 +494,7 @@ path catches it inside `load_command_mappings` and degrades to recipe-skip.
 `_match_recipe(cmd, mappings)` iterates the loaded mappings in
 **length-descending** order so `git commit --amend` matches `git commit`
 before falling through to `git`. Anchored at start-of-line so trailing
-arguments like `pytest tests/test_benchmarks.py -v` correctly match the
+arguments like `pytest tests/harness/ -v` correctly match the
 `pytest` recipe.
 
 ### 6.7 Integration with `ShellProxy.apply_recipe_to_output`
@@ -569,17 +575,12 @@ that don't invoke it see no behavior change.
 tests across 4 PVs (slight +5 over the +100 cycle cap, documented in
 `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evaluation.md`).
 
-### 8.2 EvoBench scenarios
+### 8.2 Built-in harness lineage
 
-| Scenario | PV | Composite | Floor | Asserts |
-|----------|----|----------:|------:|---------|
-| `shell_proxy_disabled.yaml` | v8.3.2 PV-02 | 91.21 | 90 | R5 strict zero-overhead in dispatch path |
-| `memory_router_fastpath.yaml` | v8.3.3 PV-03 | 99.73 | 90 | Router lifecycle integration adds zero overhead |
-| `command_mapping_density.yaml` | v8.3.4 PV-04 | 99.73 | 90 | Recipe layer lifecycle integration adds zero overhead |
-
-EvoBench grew 45 → 48 baseline scenarios across the cycle; **0 regressions
-> 5pp** vs `v8.3.0_baseline.json` per W-4 / SI-4. The v8.4.0 rollup
-regenerates `v8.4.0_baseline.json` for the post-cycle baseline.
+The retired `shell_proxy_disabled`, `memory_router_fastpath`, and
+`command_mapping_density` scenario identities remain as historical
+`legacy-evobench:` provenance in `tests/fixtures/harness/`. Live behavior is
+pinned by the unit tests in §8.1 plus `tests/harness/test_fixtures.py`.
 
 ### 8.3 R5 strict triple codification
 
@@ -590,8 +591,8 @@ The R5 strict default-off contract is codified at THREE layers per PV:
    asserting no `Path.read_text()` call is reached when the env-flag is off.
 2. **Integration test** — full `pytest tests/` PASS with all baseline tests
    byte-identical when env-flag off.
-3. **EvoBench scenario** — `*_disabled.yaml` or `*_fastpath.yaml` proves
-   dispatch-surface composite is byte-identical (within scenario tolerance).
+3. **Harness fixture** — deterministic dispatch and report contracts preserve
+   the relevant historical scenario lineage without a live benchmark runtime.
 
 ---
 
@@ -656,28 +657,27 @@ causes are:
 | `tests/test_shell_proxy_disabled_is_noop.py` fails | Someone added an unconditional code path in `proxy.py` that runs even when `enabled=False` |
 | `tests/test_memory_router.py::TestLookupCaseR5StrictOff` fails | `lookup_case()` no longer short-circuits before constructing the router or reading the index |
 | `tests/test_shell_proxy_commands.py::TestLoadR5StrictOff::test_env_off_does_not_touch_path_read_text` fails | `load_command_mappings()` no longer short-circuits before `Path.read_text()` |
-| EvoBench `shell_proxy_disabled.yaml` composite drops > 5pp | Lifecycle hook now adds non-trivial cost in the dispatch path |
+| Harness fixture or R5 unit contract fails | Lifecycle hook changed the default-off dispatch path |
 
 In all cases the fix is to reinstate the early-return at the top of the
-function before any IO / subprocess / parse work. The R5 strict contract
-is codified BOTH at the unit-test layer AND at the EvoBench layer — fixing
-the unit test alone is insufficient.
+function before any IO / subprocess / parse work. The R5 strict contract is
+codified at both the focused unit-test layer and the built-in harness layer.
 
 ---
 
 ## 10. Cross-References
 
 - **SI-1 gap analysis:** `docs/cycle-archive/v8.4.0/v8.4.0_gap_analysis.md` (R-001 / R-002 / M-001 / M-002 in §2.1; D-001 split decision in §3; cycle invariants in §5)
-- **SI-2 NineS analysis on RTK:** `docs/cycle-archive/v8.4.0/nines/v8.4.0_rtk_nines_analysis.md` (§4.1 single-source-of-truth pattern; §4.3 RTK `[filters.<name>]` schema; §6.1 Tier 1/Tier 2 whitelist; §6.2 hook delegator; §5.2 collision-warning enforcement)
+- **Historical SI-2 analysis on RTK:** `docs/cycle-archive/v8.4.0/nines/v8.4.0_rtk_nines_analysis.md` (§4.1 single-source-of-truth pattern; §4.3 RTK `[filters.<name>]` schema; §6.1 Tier 1/Tier 2 whitelist; §6.2 hook delegator; §5.2 collision-warning enforcement)
 - **Per-PV evaluations (W-3 / SI-3):**
   - `docs/cycle-archive/v8.3.0/evaluation/v8.3.1_evaluation.md` (PV-01 RTK plugin) — composite 9.10/10
   - `docs/cycle-archive/v8.3.0/evaluation/v8.3.2_evaluation.md` (PV-02 shell-proxy) — composite 9.10/10
   - `docs/cycle-archive/v8.3.0/evaluation/v8.3.3_evaluation.md` (PV-03 memory router) — composite 9.10/10
   - `docs/cycle-archive/v8.3.0/evaluation/v8.3.4_evaluation.md` (PV-04 command mapping) — composite 9.10/10
-- **Per-PV NineS:** `.local/research/v8.3.{1,2,3,4}_nines.{json,md}` (composite 0.9050 byte-stable across all 4 PVs)
+- **Historical per-PV external evaluations:** `.local/research/v8.3.{1,2,3,4}_nines.{json,md}` (composite 0.9050 byte-stable across all 4 PVs)
 - **Rollup evaluation:** `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evaluation.md` (cycle composite ≥ 8.5)
-- **Rollup NineS:** `.local/research/v8.4.0_nines.{json,md}`
-- **EvoBench summary:** `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evobench_summary.md` (per-scenario delta vs v8.3.0_baseline.json)
+- **Historical rollup external evaluation:** `.local/research/v8.4.0_nines.{json,md}`
+- **Historical benchmark summary:** `docs/cycle-archive/v8.4.0/evaluation/v8.4.0_evobench_summary.md` (per-scenario delta vs v8.3.0_baseline.json)
 - **Source:**
   - `src/devolaflow/plugins/installer.py` (PV-01)
   - `src/devolaflow/shell_proxy/{__init__,proxy,registry,commands}.py` (PV-02 + PV-04)
@@ -693,7 +693,7 @@ the unit test alone is insufficient.
 - **External (per S-7 — canonical URL only):**
   - RTK: https://github.com/rtk-ai/rtk
   - DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-  - NineS: https://github.com/YoRHa-Agents/NineS
+  - NineS (historical evidence tool; not a v16 plugin): https://github.com/YoRHa-Agents/NineS
 
 ---
 
@@ -702,7 +702,7 @@ the unit test alone is insufficient.
 Per Architecture Rule **A-5 — Single-Source-of-Truth Registry Pattern**
 (`AGENTS.md` §"A-5"; `.cursor/rules/repo-governance.mdc` §A-5;
 `.rules/architecture.mdc` §A-5), the shell-proxy + memory-router stack
-ships **3 of the 5 domain-SSOT registries** in DevolaFlow. Each surface
+ships **3 of the 4 domain-SSOT registries** in DevolaFlow. Each surface
 has exactly one owner module — cross-cutting consumers import from the
 owner; they never re-declare the registration data locally.
 
@@ -712,10 +712,10 @@ owner; they never re-declare the registration data locally.
 | 2 | `MemoryCase` (frozen dataclass) | `src/devolaflow/memory_router/cache.py` | `src/devolaflow/memory_router/router.py::MemoryRouter.lookup_case` (constructs via `build_case_from_dict` + invalidates via `is_ttl_expired` / `is_version_stale`) |
 | 3 | `CommandMapping` (frozen dataclass) | `src/devolaflow/shell_proxy/commands.py` | `src/devolaflow/shell_proxy/commands.py::apply_local_recipe` (sibling-module consumer; loads + matches recipes against `WHITELIST` heads via `_match_recipe`) |
 
-The remaining 2 SSOT registries live outside this stack:
-`workflow-system/agent/plugins.yaml` (loaded by `devolaflow.plugins.loader`)
-and `workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by
-`devolaflow.plugins.installer.load_registry`).
+The remaining SSOT registry lives outside this stack:
+`workflow-system/agent/knowledge/runtime-plugins.yaml` (loaded by
+`devolaflow.plugins.installer.load_registry`). `workflow-system/agent/plugins.yaml`
+is its derived capability/role/stage-mapping view, not a second owner.
 
 **A-5 enforcement (CI guards)**
 

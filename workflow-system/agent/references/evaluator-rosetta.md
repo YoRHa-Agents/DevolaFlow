@@ -2,504 +2,232 @@
 last_updated: "2026-08-25"
 ---
 
-# Evaluator Rosetta — SI-3 × NineS × Si-Chip Cross-Walk
+# Evaluator Rosetta — SI-3 × Built-in Harness Cross-Walk
 
 ## Purpose
 
-DevolaFlow ships **three concurrently active cycle evaluators** that
-all surface in every cycle close. Operators reading per-cycle
-`v*_evaluation.md` artifacts cannot tell which axes of the three
-signals measure overlapping phenomena vs orthogonal phenomena. This
-reference is the **canonical 6 × 9 mapping table** between the three
-evaluators, with verbatim citations to per-cell sources of authority.
+This reference is the canonical **6 × 9** mapping between the six W-3
+evaluation dimensions and nine built-in harness signal bundles. It tells an
+evaluation author which machine evidence is canonical (**C**), supporting
+(**O**), or unrelated (**·**) for each dimension.
 
-The rosetta is a **reading-time artifact**: an L2 Task agent authoring
-a `.local/research/vX.Y.Z_evaluation.md` looks up the row for the
-SI-3 dimension being scored, follows the canonical (**C**-cell)
-column to the NineS or Si-Chip metric that is the authoritative
-quantitative input, and cites the metric verbatim per Rule C-3
-(verbatim extraction).
+The only live evaluation authority is:
 
-External tool URLs (Rule S-7 — never hard-code local paths):
+```bash
+python -m devolaflow.harness evaluate \
+  --ledger .local/telemetry/harness.jsonl \
+  --repo . \
+  --base HEAD~1 \
+  --output .local/research/<cycle>_harness_evaluation.json
+```
 
-* **DevolaFlow / EvoBench:** [https://github.com/YoRHa-Agents/DevolaFlow](https://github.com/YoRHa-Agents/DevolaFlow)
-* **NineS:** [https://github.com/YoRHa-Agents/NineS](https://github.com/YoRHa-Agents/NineS)
-* **Si-Chip:** [https://github.com/YoRHa-Agents/Si-Chip](https://github.com/YoRHa-Agents/Si-Chip)
+The command reads repository telemetry, collects bounded local signals, and
+emits deterministic JSON. No external evaluator is a runtime dependency and
+there is no manual fallback for missing machine evidence.
 
 ## When to Load
 
 Load this reference when:
 
-* **Authoring an SI-3 evaluation report** (`.local/research/vX.Y.Z_evaluation.md`).
-  Every per-dimension justification cites the rosetta cell that
-  identifies the canonical authority metric.
-* **Triaging an evaluator disagreement** — e.g., NineS reports
-  `code_coverage: 0.0` but `pytest --cov` reports 93%. The rosetta
-  documents which evaluator owns the dimension's authority and what
-  the fallback path is.
-* **Preparing a cycle retrospective** (W-7 / SI-8). The rosetta lists
-  cross-evaluator deltas you should report.
-* **Building a new cycle gate** that cites multi-evaluator
-  composite — the rosetta keeps the citations honest.
+* authoring `.local/research/vX.Y.Z_evaluation.md`;
+* explaining a dimension score or unavailable subcomponent;
+* comparing a cycle with the active W-16 harness baseline;
+* updating `src/devolaflow/harness/evaluator.py` signal composition; or
+* validating `scripts/generate_evaluator_rosetta.py` output.
 
-The reference is `important`-tier for most task types and
-`critical`-tier for `nines-assisted` and `self-update` workflows where
-multi-evaluator reconciliation is the primary deliverable.
+## 1. Binding Evaluation Contract
 
-## Body
+The built-in evaluator emits:
 
-### 1. The three evaluators
-
-| Evaluator | Scale | Composite formula | Authority | Run frequency |
-|---|---|---|---|---|
-| **SI-3** | 1–10 (weighted composite) | `0.20·CQ + 0.20·Arch + 0.20·Tests + 0.15·Maint + 0.10·Compat + 0.15·Perf` | Binding ACCEPT/REJECT verdict (≥ 8.5 MINOR / ≥ 9.0 MAJOR) | Every pre-release |
-| **NineS** | 0.0–1.0 (per-axis); composite = weighted mean | `0.70·capability_mean + 0.30·hygiene_mean` | Advisory research snapshot (Part B of the C-04 split) | Every cycle close + retrospective input |
-| **Si-Chip** | scalar `iteration_delta` | `Σ(per-pass score) — N·threshold` | 7th SI-10 step (binding pre-commit gate) | Pre-commit + iteration close |
-
-The C-04 split (`scripts/generate_si3_evaluation.py` lines 9–24)
-explicitly separates the binding **Quality Gate** block (SI-3 + EvoBench,
-Part A) from the advisory **Research Snapshot** block (NineS, Part B).
-Si-Chip's iteration_delta is the v10.2.0+ post-cycle pre-commit gate
-codified at `Makefile::release-preflight` line 147.
-
-### 2. Per-evaluator dimension catalog
-
-#### 2.1 SI-3 dimensions (6)
-
-Per `.cursor/rules/repo-governance.mdc` §W-3 and `AGENTS.md` §W-3:
-
-| # | Dimension | Weight | What is measured |
-|---|---|:---:|---|
-| 1 | **Code quality** | 0.20 | Lint cleanliness (ruff), complexity metrics (radon CC), error-handling discipline (S-5), no-silent-failure compliance |
-| 2 | **Architecture rationality** | 0.20 | Separation of concerns, layering, P1–P5 dispatcher invariants, ADR coverage, A-2 cache-prefix invariant, A-5 SSOT-registry invariant |
-| 3 | **Test adequacy** | 0.20 | Coverage ≥ 80% (CP-2 floor), edge cases, regression tests, R5 byte-identical contracts, W-17 +30/PV cap honoured |
-| 4 | **Maintainability** | 0.15 | Readability, docstring coverage, naming clarity, S-2 / SF-5 path discipline, W-19 cycle-archive presence |
-| 5 | **Compatibility** | 0.10 | Schema versions, multi-baseline byte tests passing, cross-platform behaviour, W-20 env-flag reuse-first compliance |
-| 6 | **Performance impact** | 0.15 | EvoBench composite delta vs baseline (no > 5% regression), latency budgets, Si-Chip iteration_delta gate |
-
-#### 2.2 NineS dimensions (20 capability + 5 hygiene)
-
-Per `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 28–67 (NineS V3.3.0 schema):
-
-**Capability sub-scores (20 axes; weight 0.70):** scoring_accuracy,
-eval_coverage, scoring_reliability, report_quality, scorer_agreement,
-source_coverage, source_freshness, change_detection, data_completeness,
-collection_throughput, decomposition_coverage, abstraction_quality,
-code_review_accuracy, index_recall, structure_recognition,
-pipeline_latency, sandbox_isolation, convergence_rate,
-cross_vertex_synergy, agent_analysis_quality.
-
-**Hygiene sub-scores (5 axes; weight 0.30):** code_coverage,
-test_count, module_count, docstring_coverage, lint_cleanliness.
-
-For the rosetta we group the 20 capability axes into three
-**capability sub-bundles** based on what they measure:
-
-| Sub-bundle | Axes |
+| Field | Contract |
 |---|---|
-| **scoring/eval** | scoring_accuracy, eval_coverage, scoring_reliability, report_quality, scorer_agreement, scorer agreement, scoring_throughput |
-| **decomposition/abstraction** | abstraction_quality, code_review_accuracy, decomposition_coverage, structure_recognition, cross_vertex_synergy, agent_analysis_quality, change_detection |
-| **infra/sandbox** | sandbox_isolation, pipeline_latency, index_recall, convergence_rate, source_coverage, source_freshness, data_completeness, collection_throughput |
+| `scores` | Six ordered W-3 dimensions with score, weight, and subcomponents |
+| `composite` | Weighted sum of the six dimension scores |
+| `auto_fill_rate` | Available machine slots divided by all required slots |
+| `verdict` | `READY`, `NOT_READY`, or `INSUFFICIENT` |
+| `harness_summary` | Token, constraint-tier, round, change, and model telemetry |
+| `suggestions` | Dimension-keyed unavailable or below-threshold findings |
 
-The grouping is not part of NineS itself — it's a DevolaFlow-side
-reading aid for the rosetta.
+Verdict mapping:
 
-#### 2.3 Si-Chip dimensions (per-pass scalars)
+* `READY` → SI-3 `ACCEPT`; command exit `0`.
+* `NOT_READY` → SI-3 `REJECT`; iterate or escalate; command exit `1`.
+* `INSUFFICIENT` → release `BLOCKED`; resolve or escalate missing evidence;
+  command exit `2`.
 
-Per `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` lines 24, 55, 60–62 +
-`tests/test_sichip_iteration_delta_gate.py`:
+`INSUFFICIENT` is not a low score. It means at least one required machine
+subcomponent is unavailable. An estimate, prose assertion, or unrelated test
+result cannot replace it.
 
-* **`iteration_delta`** — the cycle-level performance-improvement
-  scalar. Computed as the weighted sum of per-pass scores for the
-  cycle's commit set; threshold is configured per cycle. Reported as
-  a single APPLY / DEFER / REJECT verdict in the cycle close.
-* Si-Chip's per-pass scoring runs a battery of probes (probe.toml
-  fixtures) and aggregates with policy weights. In the rosetta we
-  treat Si-Chip as **one column** because its output to SI-3 is the
-  scalar — the per-probe breakdown lives in the Si-Chip raw artifact
-  (`.local/research/vX.Y.Z_sichip.{json,md}`), not in the SI-3
-  composite.
+## 2. SI-3 Dimensions
 
-### 3. The 6 × 9 rosetta table (the meat of D-O-1)
-
-**Rows (N=6):** SI-3 dimensions (W-3 weighted composite).
-**Columns (M=9):** 5 NineS hygiene axes + 3 NineS capability sub-bundles + Si-Chip `iteration_delta` scalar.
-
-**Cell legend:**
-
-* **C** = `covers` — the column metric is the canonical authority for
-  the row dimension's QUANTITATIVE sub-component. Use the column's
-  value verbatim.
-* **O** = `overlaps` — the column metric measures a related-but-
-  different aspect of the row dimension. Cite as supporting evidence;
-  not the authority.
-* **·** = `orthogonal` — the column metric measures an unrelated
-  phenomenon. Do not cite under this row.
-
-| SI-3 dim ↓ | NineS `code_coverage` | NineS `lint_cleanliness` | NineS `docstring_coverage` | NineS `test_count` | NineS `module_count` | NineS cap. `scoring/eval` | NineS cap. `decomp/abstract` | NineS cap. `infra/sandbox` | Si-Chip `iteration_delta` |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Code quality (0.20)**            | O | **C** | O | · | · | · | O | · | O |
-| **Architecture rationality (0.20)** | · | · | · | · | O | · | **C** | O | O |
-| **Test adequacy (0.20)**           | **C** | · | · | **C** | · | O | · | O | · |
-| **Maintainability (0.15)**          | · | O | **C** | · | O | · | O | · | · |
-| **Compatibility (0.10)**            | · | · | · | · | · | · | · | **C** | · |
-| **Performance impact (0.15)**       | · | · | · | · | · | O | · | O | **C** |
-
-**C-cell coverage by dimension:**
-
-| Dimension | Canonical authority cell(s) | Rationale |
-|---|---|---|
-| Code quality | NineS `lint_cleanliness` | Both metrics emit from the same `ruff check` invocation; NineS is the authority surface. |
-| Architecture | NineS capability `decomp/abstract` | Captures `abstraction_quality`, `decomposition_coverage`, `code_review_accuracy`, `structure_recognition`. |
-| Test adequacy | NineS `code_coverage` + NineS `test_count` (dual) | `code_coverage` for the percentage, `test_count` for the W-17 cap audit. |
-| Maintainability | NineS `docstring_coverage` | The single hygiene axis that maps cleanly. |
-| Compatibility | NineS capability `infra/sandbox` (specifically `structure_recognition` + `sandbox_isolation`) | Byte-stability axes tied to A-2 + A-5 invariants. |
-| Performance impact | Si-Chip `iteration_delta` | The scalar IS the cycle-level performance-improvement gate. |
-
-### 4. Per-cell justifications (verbatim source citations)
-
-Each justification below is the operator's reading guide to the
-authority — copy it into the SI-3 evaluation per-dim rationale field
-verbatim per Rule C-3.
-
-#### 4.1 Code quality C-cell — NineS `lint_cleanliness`
-
-**Source 1:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` line 64:
-"lint_cleanliness | 1.0000 | `ruff check src/ tests/` All checks passed!"
-
-**Source 2:** `docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md` §2.1 line 33:
-"ruff check src/ tests/ — All checks passed!"
-
-Both metrics are emitted by the same `ruff check` invocation. NineS
-captures it under `lint_cleanliness`; SI-3 reuses the value verbatim.
-The cell is **C** because the metric IS the SI-3 sub-component.
-
-When `lint_cleanliness < 1.0`, the SI-3 deduction prose MUST cite the
-specific ruff rule(s) reported in NineS's `details` field — never
-paraphrase.
-
-#### 4.2 Code quality O-cells
-
-* **NineS `code_coverage`** — overlaps because high coverage often
-  correlates with more disciplined error handling (S-5 compliance),
-  but coverage % is owned by **Test adequacy**, not Code quality.
-* **NineS `docstring_coverage`** — overlaps because docstring
-  presence proxies for thoughtful API design (a code-quality signal),
-  but the canonical authority is **Maintainability**.
-* **NineS capability `decomp/abstract`** — overlaps via
-  `abstraction_quality` (1.0000 in `v10.0.0_nines.md` line 43)
-  proxying code structure, but the dimension is **Architecture**.
-* **Si-Chip `iteration_delta`** — overlaps because cycles that ship
-  cleaner code typically advance the iteration_delta scalar, but the
-  scalar is the **Performance impact** authority.
-
-#### 4.3 Architecture rationality C-cell — NineS capability `decomp/abstract`
-
-**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 41–44:
-
-```
-abstraction_quality        | 1.0000
-code_review_accuracy       | 1.0000
-decomposition_coverage     | 1.0000
-structure_recognition      | 1.0000
-```
-
-Together these axes are NineS's canonical architectural signal. SI-3
-*Architecture rationality* scoring should cite the worst of the four
-when authoring a deduction (e.g., "decomposition_coverage = 0.97 →
-−0.3 architecture deduction").
-
-#### 4.4 Architecture O-cells
-
-* **NineS `module_count`** — overlaps as a structural growth
-  indicator; large module-count cycles often surface architectural
-  drift, but the metric does not measure rationality.
-* **NineS capability `infra/sandbox`** — overlaps via
-  `structure_recognition` (architecture-byte-stability) but the
-  primary authority for that axis is **Compatibility** (A-2 frozen
-  prefix invariant).
-* **Si-Chip `iteration_delta`** — overlaps because architectural
-  improvements usually convert to forward iteration_delta, but the
-  Si-Chip scalar's authority is **Performance**.
-
-#### 4.5 Test adequacy DUAL C-cells — NineS `code_coverage` + NineS `test_count`
-
-**Source 1 (coverage):** `docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md`
-§2.3 line 64: "Coverage 93.13%" + `v10.0.0_nines.md` line 60:
-"test_count | 1.0000 | 3906 tests"
-
-**W-2 manual fallback:** when `code_coverage: 0.0` due to the
-upstream NineS timeout artifact (per `v10.0.0_nines.md` lines 78–90),
-the SI-3 *Test adequacy* score uses `pytest --cov=devolaflow`
-directly. The fallback IS the SI-3 authority surface in that
-degraded-NineS regime; the rosetta cell stays **C** (the surface
-hasn't moved — the fallback computes the same number).
-
-**Source 2 (test count):** the W-17 cap audit (≤ +30 NEW tests per
-PV; ≤ +150 cumulative cycle delta) is computed from the
-`test_count` delta vs the prior cycle.
-
-When both surfaces conflict (e.g., NineS reports `test_count: 3906`
-but `pytest --collect-only -q | tail -1` reports a different number),
-trust the local pytest output — NineS's index may be stale; refresh
-with `make nines-index-rebuild`.
-
-#### 4.6 Maintainability C-cell — NineS `docstring_coverage`
-
-**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` line 62:
-"docstring_coverage | 0.9808"
-
-**Cycle citation:** `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` line 22
-cites docstring drift as a `−0.7` deduction in maintainability.
-NineS is the canonical authority; SI-3 cites the rate verbatim and
-applies the deduction prose.
-
-#### 4.7 Maintainability O-cells
-
-* **NineS `lint_cleanliness`** — overlaps because clean lint
-  correlates with maintainable code, but the canonical authority for
-  lint is **Code quality**.
-* **NineS `module_count`** — overlaps as a growth indicator that
-  affects per-file maintainability load, but does not directly
-  measure maintainability.
-* **NineS capability `decomp/abstract`** — overlaps via
-  `abstraction_quality` (well-abstracted code is easier to maintain),
-  but its primary authority is **Architecture**.
-
-#### 4.8 Compatibility C-cell — NineS capability `infra/sandbox` (`structure_recognition` + `sandbox_isolation`)
-
-**Source:** `docs/cycle-archive/v10.0.0/nines/v10.0.0_nines.md` lines 46, 48:
-"structure_recognition | 1.0000" + "sandbox_isolation | 1.0000"
-
-`structure_recognition` is the **byte-stability axis** explicitly tied
-to the A-2 frozen-prefix invariant (`tests/test_layout_invariant_multi_baseline.py`
-must stay 10/10 PASS). `sandbox_isolation` covers the cross-
-environment behaviour (R5 strict env-flag isolation; W-20 reuse-first
-compliance).
-
-SI-3 *Compatibility* dimension scoring at
-`docs/cycle-archive/v10.0.0/evaluation/v10.0.0_evaluation.md` §2.5 lines 96–104 enumerates
-"10 historical multi-baseline byte tests" — exactly the surface
-NineS measures.
-
-#### 4.9 Performance impact C-cell — Si-Chip `iteration_delta`
-
-**Source:** `docs/cycle-archive/v10.3.0/evaluation/v10.3.0_evaluation.md` line 24:
-"EvoBench composite scores stable" + line 55: "Si-Chip dogfood
-verdict | DEFER → APPLY (passes #3 + #4 = +0.9 each)"
-
-The iteration_delta scalar is the cycle-level performance-improvement
-authority post-v10.2.0. Before v10.2.0, SI-3 §2.6 used the EvoBench
-composite directly. The v10.2.0 D-V-1 patch promoted `iteration_delta`
-to the 7th SI-10 step (`Makefile::release-preflight` line 147).
-
-#### 4.10 Performance impact O-cells
-
-* **NineS `pipeline_latency`** (capability axis 16) — `v10.0.0_nines.md`
-  line 47 reports "pipeline_latency | 0.9999". This is an internal
-  NineS execution metric (NineS's own pipeline took ~30s), not a
-  DevolaFlow performance signal. **Overlaps but not authoritative**.
-* **NineS capability `scoring/eval`** — `collection_throughput` and
-  related axes are advisory inputs to performance discussion, but
-  the cycle-level authority is Si-Chip.
-
-### 5. Evaluator weighting recommendation (R-10 of v11.0.0 cycle plan)
-
-When a future evaluation needs to fuse the three evaluators into a
-single composite (currently NOT used — SI-3 is the sole binding gate;
-NineS is advisory; Si-Chip iteration_delta is a separate pre-commit
-gate), the recommended starting weighting is:
-
-| Composite | Weight | Justification |
+| Dimension | Weight | Built-in score components |
 |---|:---:|---|
-| Objective (auto-collected) | 0.6 | The 19/22 sub-components D-O-2 auto-fills are objective signals (ruff exit, coverage %, baseline pass count) free of Task-author judgment variance. |
-| Subjective (L2 deduction prose) | 0.4 | The 3/22 subjective sub-components (architecture rationale, edge-case adequacy, naming clarity) require judgment that auto-collection cannot replace. |
+| **Code quality** | 0.20 | code hygiene + coverage |
+| **Architecture rationality** | 0.20 | layout invariant + constraint quantifiability |
+| **Test adequacy** | 0.20 | test execution + coverage + W-17 test growth |
+| **Maintainability** | 0.15 | formatting hygiene + docstring coverage |
+| **Compatibility** | 0.10 | layout invariant + compatibility suite |
+| **Performance impact** | 0.15 | token-budget compliance + p95 token headroom |
 
-This 0.6 / 0.4 weighting is the **starting point** per the v11.0.0
-cycle plan §6 R-10 risk mitigation and the D-O-2 §2.1 decision. If
-a cycle's reproducibility variance σ exceeds 0.30 across two L2 Task
-authors, escalate to W-7 retrospective for cycle-lead recalibration.
+The weights and component composition mirror
+`src/devolaflow/harness/evaluator.py::DIMENSION_WEIGHTS` and
+`evaluate_harness`.
 
-The weighting only applies WHEN auto-collection is in use (D-O-2
-shipped); v10.7.0 ships the collector + this weighting recommendation,
-but cycle-close composites continue to use the SI-3 binding 6-dim
-formula unchanged. The 0.6/0.4 split lives **inside each dim's score
-cell** (auto-fill = 0.6 weight, Task prose = 0.4 weight) — not on top
-of the dim weights.
+## 3. Nine Built-in Signal Bundles
 
-### 6. Reading workflow for an SI-3 evaluation report
+| # | Bundle | Machine source | Included signal keys |
+|---:|---|---|---|
+| 1 | **Harness code hygiene** | bounded local Ruff probes | `ruff_lint`, `ruff_format` |
+| 2 | **Harness test execution** | bounded local Pytest probe | `test_suite` |
+| 3 | **Harness coverage** | coverage line parsed from the test probe | `coverage_pct` |
+| 4 | **Harness layout invariant** | immutable layout witness suite | `layout_invariant` |
+| 5 | **Harness compatibility** | version and compatibility suite | `compatibility_suite` |
+| 6 | **Harness W-17 test growth** | bounded Git diff probe | `w17_new_tests` |
+| 7 | **Harness docstring coverage** | in-process AST scan | `docstring_coverage_pct` |
+| 8 | **Harness constraint quantifiability** | aggregated ledger constraint tiers | `constraints.quantifiable_ratio` |
+| 9 | **Harness token budget** | aggregated measured token telemetry | `tokens.budget_compliance_ratio`, `tokens.p95_budget_utilization` |
 
-Step-by-step procedure for the L2 evaluation Task authoring
-`.local/research/vX.Y.Z_evaluation.md`:
+Bundles group signals by evaluation concern; they do not change the evaluator's
+underlying JSON keys. Evaluation reports cite exact key paths and values.
 
-1. **Run the auto-collector** (D-O-2):
+## 4. The 6 × 9 Rosetta
+
+**Cell legend**
+
+* **C** — canonical built-in signal for the row's quantitative score.
+* **O** — supporting signal that overlaps but does not own the score.
+* **·** — orthogonal; do not cite as evidence for that row.
+
+| SI-3 dim ↓ | Harness code hygiene | Harness test execution | Harness coverage | Harness layout invariant | Harness compatibility | Harness W-17 test growth | Harness docstring coverage | Harness constraint quantifiability | Harness token budget |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Code quality (0.20)** | **C** | O | **C** | · | · | · | O | O | · |
+| **Architecture rationality (0.20)** | O | · | · | **C** | · | · | · | **C** | O |
+| **Test adequacy (0.20)** | · | **C** | **C** | · | O | **C** | · | · | · |
+| **Maintainability (0.15)** | **C** | · | · | · | · | · | **C** | O | · |
+| **Compatibility (0.10)** | · | · | · | **C** | **C** | · | · | · | · |
+| **Performance impact (0.15)** | · | O | · | · | · | · | · | O | **C** |
+
+### 4.1 C-cell rationale
+
+**Code quality.** `ruff_lint` and `ruff_format` directly measure source
+hygiene; `coverage_pct` contributes the evaluator's coverage score. Cite the
+subcomponent envelopes verbatim, including `available`, `value`, and `error`
+when present.
+
+**Architecture rationality.** `layout_invariant` protects the frozen dispatch
+contract. `harness_summary.constraints.quantifiable_ratio` measures how much
+injected governance is machine-verifiable. These are the two exact components
+used by the dimension.
+
+**Test adequacy.** `test_suite`, `coverage_pct`, and `w17_new_tests` jointly
+cover execution success, exercised code, and test-growth discipline. All three
+are required; one unavailable component makes the overall verdict
+`INSUFFICIENT`.
+
+**Maintainability.** Formatting hygiene is the `ruff_format` half of the code
+hygiene bundle. `docstring_coverage_pct` is the AST-derived documentation
+signal. The evaluator averages those two components.
+
+**Compatibility.** `layout_invariant` covers byte-stable dispatch witnesses;
+`compatibility_suite` covers version and compatibility contracts. Both must be
+available.
+
+**Performance impact.** The harness ledger records measured injected tokens
+and declared budgets for every dispatch. The evaluator scores
+`budget_compliance_ratio` and p95 headroom derived from
+`p95_budget_utilization`.
+
+### 4.2 O-cell discipline
+
+An O-cell can explain context but cannot replace a C-cell:
+
+* Test execution supports code-quality confidence but does not replace hygiene
+  or coverage.
+* Code hygiene can support architectural or maintainability discussion, but it
+  does not replace layout or quantifiability evidence.
+* Compatibility execution supports test confidence, while test adequacy still
+  owns its three C-cells.
+* Token and constraint telemetry can reveal architectural overhead, but only
+  the exact configured dimension components determine the machine score.
+
+## 5. Evaluation Authoring Workflow
+
+1. Run the built-in evaluator with the release threshold:
 
    ```bash
-   python scripts/auto_collect_si3_metrics.py \
-       --output .local/research/v<X.Y.Z>_si3_metrics.yaml
+   python -m devolaflow.harness evaluate \
+     --ledger .local/telemetry/harness.jsonl \
+     --repo . \
+     --base <cycle-base-ref> \
+     --threshold <8.5-or-9.0> \
+     --output .local/research/<cycle>_harness_evaluation.json
    ```
 
-2. **Generate the skeleton** with auto-cells filled:
+2. Preserve the command exit code and JSON bytes as evidence.
+3. For each dimension, copy `score`, `weight`, and
+   `metadata.subcomponents` verbatim.
+4. Use the C-cells in §4 to explain why those values belong to the dimension.
+5. Copy `composite`, `auto_fill_rate`, and `verdict` verbatim.
+6. Compare `harness_summary.tokens` and `harness_summary.constraints` with the
+   active W-16 baseline.
+7. Close or escalate every `suggestions` entry. Do not rewrite
+   `INSUFFICIENT` as a passing judgment.
 
-   ```bash
-   python scripts/generate_si3_evaluation.py <X.Y.Z> \
-       --metrics .local/research/v<X.Y.Z>_si3_metrics.yaml
-   ```
+For a MAJOR release use threshold `9.0`; for a MINOR or PATCH release use
+`8.5`, unless the operator sets a stricter bar.
 
-3. **For each of the 6 SI-3 dimensions**, look up its row in §3 above.
-   The **C**-cell column tells you the canonical authority metric.
-   For each dimension:
-   * If the auto-collector populated the cell → use the verbatim value.
-   * If the auto-collector returned `(unavailable: <reason>)` → fall
-     back to the W-2 manual path (typically a direct `pytest --cov`
-     or `ruff check` invocation).
-   * Cite the source artifact path verbatim in the rationale field
-     (per Rule C-3).
+## 6. Signal Failure Handling
 
-4. **Author the deduction prose** for each dimension. The 0.4
-   subjective weight (per §5 above) lives here. Aim for ≥ 50 words
-   of justification per dim — the v10.7.0 D-O-2 §6 R-1 mitigation
-   forbids "rubber-stamp" subjective scoring.
+| Condition | Required disposition |
+|---|---|
+| A local probe fails | Preserve `available: false` and its error; verdict remains `INSUFFICIENT` |
+| Ledger missing or malformed | Command exits `2`; repair or recover the append-only telemetry |
+| Composite below threshold | `NOT_READY`; iterate from W-1 or escalate |
+| Baseline regression exceeds W-4 tolerance | Release blocker even if current composite is otherwise ready |
+| Report prose conflicts with JSON | JSON is authoritative; correct the prose |
 
-5. **Compute the composite** using the W-3 formula:
+There is no external-tool or manual bypass. Direct commands may diagnose why a
+signal failed, but the built-in evaluator must be rerun successfully before
+release.
 
-   ```
-   composite = 0.20·CQ + 0.20·Arch + 0.20·Tests + 0.15·Maint + 0.10·Compat + 0.15·Perf
-   ```
+## 7. Historical Provenance
 
-6. **Verdict**: composite ≥ 8.5 → ACCEPT (MINOR/PATCH); composite ≥ 9.0
-   → ACCEPT (MAJOR). Below threshold → iterate (loop back to W-1
-   planning gate) or escalate to human.
+The 6 × 9 format originated as a cross-evaluator reading aid in pre-v16 cycle
+artifacts. Those documents remain historical evidence only. Their metrics,
+commands, and fallback rules are not live dependencies and must not be copied
+into a current evaluation.
 
-7. **Cite this rosetta** in the evaluation report header so future
-   cycle-N+1 reviewers can replay the scoring.
+The current Rosetta keeps the stable six-row shape while replacing every
+column with a bundle sourced from `devolaflow.harness`. This preserves the
+machine generator and test identities without preserving retired runtime
+coupling.
 
-### 7. Common evaluator-disagreement patterns
+## 8. Maintenance Contract
 
-Three patterns surface repeatedly in DevolaFlow's cycle history:
+When `src/devolaflow/harness/evaluator.py` changes:
 
-#### 7.1 NineS `code_coverage: 0.0` with pytest reporting healthy %
+1. update the bundle catalog in §3;
+2. update the §4 C/O/· matrix;
+3. update `scripts/generate_evaluator_rosetta.py::COLUMNS` and `CELLS`;
+4. update existing assertions in `tests/test_generate_evaluator_rosetta.py`;
+5. run the JSON and markdown generators; and
+6. run focused reference, ghost, line-budget, Ruff, and format checks.
 
-**Symptom.** `.local/research/vX.Y.Z_nines.json` shows `code_coverage:
-0.0` while `pytest --cov=devolaflow` reports 93%.
+Do not add a tenth column for a new raw key when it belongs naturally inside an
+existing bundle. Add a column only for an orthogonal evaluation concern.
 
-**Cause.** NineS's `pytest --cov` invocation timed out (default 60s
-budget); the timeout artifact is documented in `v10.0.0_nines.md`
-lines 78–90.
+## 9. Cross-References
 
-**Resolution.** Apply the W-2 manual fallback. Re-run NineS with the
-180s budget per the A1 closure target (still being chased upstream
-in NineS V3.4.0). Until then, SI-3 cites the local `pytest --cov`
-output verbatim and notes the NineS timeout in the deduction prose.
-
-**Authority disposition.** SI-3 owns the dimension; NineS is advisory.
-The fallback path is canonical (Rule W-2 explicit).
-
-#### 7.2 NineS index staleness (`index_recall < 0.85`)
-
-**Symptom.** `index_recall` reports < 0.85 for multiple consecutive
-cycles; per-axis scores look stable but overall composite drifts.
-
-**Cause.** The NineS index (`docs/cycle-archive/misc/nines_codebase_analysis.md`)
-is stale — golden_test_set or src/devolaflow/ changed since the last
-index rebuild.
-
-**Resolution.** Run `make nines-index-rebuild` (the v8.5.0 PV-05 A3
-closure target). This refreshes the index without affecting SI-3's
-binding score (NineS is advisory).
-
-**Authority disposition.** Operator-side maintenance; SI-3 unaffected.
-
-#### 7.3 Si-Chip `iteration_delta` DEFER vs SI-3 ACCEPT
-
-**Symptom.** SI-3 composite says ACCEPT (≥ 8.5) but the Si-Chip
-iteration_delta gate (`make iteration-delta-gate`) reports DEFER.
-
-**Cause.** Si-Chip's per-pass weighted scoring deemed the cycle's
-performance/iteration delta insufficient (e.g., regression on probe
-#5 that wasn't bad enough to fail SI-3's Performance impact dim but
-was bad enough to fail Si-Chip's threshold).
-
-**Resolution.** Two parallel gates trump composite — both must PASS
-for cycle close. If Si-Chip says DEFER, the cycle iterates (loop back
-to W-1). The Si-Chip gate is configured at
-`tests/test_sichip_iteration_delta_gate.py` and the threshold at the
-cycle-specific Si-Chip baseline.
-
-**Authority disposition.** Both gates are binding; SI-3 doesn't
-override Si-Chip.
-
-### 8. Reference utilization expectations
-
-Once D-O-1 lands, future evaluations are expected to:
-
-* Cite this rosetta at least once per dim (so 6 cite sites per
-  evaluation report). Verifiable via `rg "evaluator-rosetta\.md"
-  .local/research/v*_evaluation.md`.
-* Reference rate ≥ 80% within the first MINOR after landing.
-* L2 evaluation authoring time drops from ~90 min (manual) to ~50
-  min (rosetta-assisted) per the D-O-1 §4 expected delta.
-
-The D-O-3 mid-cycle research index (`scripts/index_mid_cycle_research.py`)
-will surface `evaluator-rosetta.md` as a Tier-2 reference; the
-audit `scripts/generate_evaluator_rosetta.py` (D-O-1 companion)
-emits a sanity-check rosetta CSV that operators can diff against
-this reference's §3 table.
-
-### 9. Maintenance contract
-
-When upstream evaluators add or rename axes, this reference MUST be
-refreshed in the **same PR** that bumps the upstream version pin.
-Specifically:
-
-* If NineS V3.4.0 renames `lint_cleanliness` → `lint_health`:
-  update §3 column header + §4.1 source citation in the same PR
-  that bumps the NineS dependency.
-* If Si-Chip MVP-9 changes `iteration_delta` shape (e.g., promotes
-  the scalar to a dict): update §2.3 + §3 + §4.9 in the same PR
-  that bumps the Si-Chip dependency.
-* If SI-3 weights change in `repo-governance.mdc` §W-3: update
-  §1 / §2.1 / §6 in the same PR that compiles `.rules/workflow.mdc`.
-
-A CI-time lint at `tests/test_evaluator_rosetta_currency.py`
-(deferred to v10.8.x — the lint surface lands when an upstream
-version bump first triggers a refresh need; for v10.7.0 the rosetta
-ships fresh with no drift to lint against) will eventually pin
-this maintenance contract; until then, the W-18 ghost-audit refresh
-(`tests/test_no_ghost_features.py::test_v10_7_0_new_symbols_have_coverage`)
-asserts the file's presence + frontmatter.
-
-### 10. Cross-references
-
-* `references/decomposition-gate.md` — gate evaluation flow that
-  consumes SI-3 composite as the binding ACCEPT input.
-* `references/agent-workspace.md` §STATUS.yaml — `gate_score` field
-  carries the SI-3 composite in the FSM machine-readable state.
-* `references/env-flags.md` — DEVOLAFLOW_* flags that gate the
-  auto-collector (none added by v10.7.0; W-20 reuse-first PASS).
-* `scripts/auto_collect_si3_metrics.py` (D-O-2) — populates the
-  rosetta's C-cells automatically.
-* `scripts/generate_evaluator_rosetta.py` (D-O-1 companion) —
-  emits a CSV sanity-check matching §3.
-* `scripts/generate_si3_evaluation.py` — generates the SI-3
-  evaluation report skeleton (with the C-04 split that this rosetta
-  cross-walks).
-* `Makefile` targets: `iteration-delta-gate` (Si-Chip), `nines-index-rebuild`
-  (NineS), `gen-evaluator-rosetta` (D-O-1).
-* External: NineS V3.3.0 schema reference at the NineS GitHub repo;
-  Si-Chip MVP-8 reference at the Si-Chip GitHub repo.
-
-### 11. Glossary
-
-* **C-04 split** — `scripts/generate_si3_evaluation.py` lines 9–24 —
-  the binding (Part A) vs advisory (Part B) split codified in
-  v8.5.0 PV-05 to prevent NineS hygiene timeouts from leaking into
-  SI-3 ACCEPT/REJECT.
-* **iteration_delta** — Si-Chip's per-cycle scalar (positive →
-  improvement, negative → regression).
-* **W-2 manual fallback** — `repo-governance.mdc` §W-2 — the rule
-  that lets SI-3 use direct `pytest --cov` / `ruff check` output
-  when the upstream NineS surface is unavailable.
-* **rosetta** — the 6 × 9 cross-walk table at §3 above; the term
-  comes from the Rosetta Stone analogy for translating between the
-  three evaluator vocabularies.
+* `src/devolaflow/harness/evaluator.py` — six-dimension scoring and verdicts.
+* `src/devolaflow/harness/aggregator.py` — strict telemetry aggregation.
+* `src/devolaflow/harness/probe.py` — bounded model-compliance probes.
+* `scripts/generate_si3_evaluation.py` — current SI-3 report skeleton.
+* `scripts/generate_evaluator_rosetta.py` — machine renderer for §4.
+* `tests/harness/test_evaluator.py` — deterministic score and exit-code
+  contracts.
+* `tests/test_generate_evaluator_rosetta.py` — 6 × 9 shape and renderer tests.
+* `AGENTS.md` §W-2 — built-in evaluator and no-fallback rule.
+* `AGENTS.md` §W-3 — six dimensions and release thresholds.
+* `AGENTS.md` §W-4 — harness regression guard.
+* `AGENTS.md` §W-16 — baseline settlement.

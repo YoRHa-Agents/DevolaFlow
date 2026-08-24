@@ -1,4 +1,4 @@
-"""Async dispatch executor for L2-wave parallel L3 task dispatch.
+"""Async dispatch executor for L1-wave parallel L2 task dispatch.
 
 v9.3.0 PV-05 — RE-TARGETED per `.local/research/v9.3.0_perf_research.md`
 §4.3 (echoed in the v9.3.0 gap analysis §3.4). The original cycle-plan
@@ -9,13 +9,14 @@ per call — *microseconds* — which is 5-10× SMALLER than the
 anti-improvement at the per-dispatch level.
 
 The high-leverage parallelism opportunity surfaced by the same profile
-data is the L2-wave fan-out: when a wave declares 4 parallel tasks,
+data is the L1-wave fan-out: when a wave declares 4 parallel tasks,
 the current synchronous dispatcher pays
 ``sum(per-task-dispatch-prep)`` of latency where parallel asyncio
-would pay only ``max(per-task-dispatch-prep)``. With each L3 task's
+would pay only ``max(per-task-dispatch-prep)``. With each L2 task's
 ``select_context`` averaging 200 ms pre-PV-03 (now ~2 ms post-PV-03 —
-see ``benchmarks/devolaflow_context/baselines/v9.3.0_latency.json``),
-the L2-wave saving compounds with PV-03's LRU cache: a 4-task wave
+see the archived v9.3.0 latency evidence under
+``docs/cycle-archive/v15.2.0/``), the L1-wave saving compounds with
+PV-03's LRU cache: a 4-task wave
 dispatch that pre-PV-03 paid 4 × 200 ms = 800 ms in serial dispatch
 prep now pays 4 × 2 ms = 8 ms in serial OR ``max(2 ms) = 2 ms`` in
 parallel. The post-PV-03 absolute saving per wave is small (6 ms),
@@ -26,7 +27,7 @@ performs its own `select_context` + advisor + memory_router probe).
 
 P1 invariant — Dispatcher-Not-Implementer (Soul Rule S-1):
 :class:`AsyncDispatchExecutor` MUST NOT itself perform any work. It
-only schedules CALLABLES provided by the caller; the actual L3 Task
+only schedules CALLABLES provided by the caller; the actual L2 Task
 work happens inside each callable's own context (typically a
 ``Task`` tool invocation or a cached `select_context` call). The
 executor is a pure orchestration layer — it has zero domain
@@ -51,7 +52,7 @@ Public API:
 * :class:`TaskOutcome` — typed result envelope per dispatched task.
 * :class:`ExecutorError` — raised for invalid construction args.
 
-Source: v9.3.0 PV-05 spec — closes D-E-3 (4-parallel-task L2 wave
+Source: v9.3.0 PV-05 spec — closes D-E-3 (4-parallel-task L1 wave
 currently pays ``4 × 220 ms = 880 ms`` of dispatch prep) from the
 PV-01 gap analysis §1.4.
 """
@@ -77,7 +78,7 @@ __all__ = [
 
 
 DEFAULT_MAX_CONCURRENCY: int = 4
-"""Default upper bound on simultaneous in-flight L3 tasks.
+"""Default upper bound on simultaneous in-flight L2 tasks.
 
 Picked to match the canonical 4-parallel-task wave shape documented in
 ``workflow-system/agent/SKILL.md`` §"Wave Dispatch". A future PV that
@@ -128,7 +129,7 @@ class TaskOutcome:
 
 
 class AsyncDispatchExecutor:
-    """Orchestrate parallel L3 Task dispatches via :func:`asyncio.gather`.
+    """Orchestrate parallel L2 Task dispatches via :func:`asyncio.gather`.
 
     Two execution modes:
 

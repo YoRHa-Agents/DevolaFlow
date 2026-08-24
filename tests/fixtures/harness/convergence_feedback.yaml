@@ -1,0 +1,84 @@
+schema_version: 1
+id: convergence_feedback
+provenance:
+  - legacy-evobench:convergence_noise_filter
+feature_tags:
+  - reinforcement
+  - bounded_retry
+  - noise_tolerance
+dispatch:
+  hdr:
+    id: harness-convergence-feedback
+    parent: harness-root
+    layer: wave
+    timeout: 900
+  task:
+    id: CF-01
+    type: code
+    title: Close actionable convergence findings
+  goal: Apply blocker feedback while excluding stale, duplicate, and informational noise.
+  pred:
+    - ref: .local/.agent/active/convergence-fixture/evidence/round-1-review.yaml
+      key_facts:
+        - F-101 is the only unresolved blocker.
+        - F-088 was closed in round one.
+        - Informational notes do not become mandates.
+  files:
+    - src/devolaflow/gate/reinforcement.py
+    - tests/test_reinforcement.py
+  rules:
+    strategy: standard
+    lang: python
+    focus:
+      - actionable-findings
+      - bounded-retry
+  shared: Reinforcement carries unresolved actionable findings only.
+  accept:
+    - Duplicate and closed findings do not re-enter reinforcement.
+    - Retry count never exceeds the declared ceiling.
+  reinforce:
+    round: 2
+    prior: 7.9
+    target: 8.5
+    rules:
+      - id: F-101
+        sev: blocker
+        mandate: MUST preserve unresolved blocker identity and evidence.
+        file: src/devolaflow/gate/reinforcement.py
+        tier: guard
+  gate:
+    blockers: 0
+    retries: 2
+    intra_task_convergence: true
+    intra_task_max_rounds: 2
+  acceptance_criteria_v2:
+    - id: CF-AC-1
+      description: Reinforcement filtering and bounded retry tests pass.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_reinforcement.py -q --no-cov
+    - id: CF-AC-2
+      description: Duplicate and closed findings do not re-enter reinforcement.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_reinforcement.py::TestFindingsToReinforcement::test_severity_floor_filters tests/test_feedback_emit.py::test_emit_no_findings_path_skips_merge_but_fires_chain -q --no-cov
+    - id: CF-AC-3
+      description: Retry count never exceeds the declared ceiling.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_agent_workspace_round_engine.py::test_stop_guard_enforces_all_three_bounded_reasons -q --no-cov
+expected:
+  guard_ids:
+    - CF-AC-1
+    - CF-AC-2
+    - CF-AC-3
+  report_required_keys:
+    - hdr
+    - state
+    - artifacts
+    - ac_results
+    - diff_stats
+  report_forbidden_keys:
+    - quality_score
+  required_literals:
+    - F-101
+    - bounded retry
+    - unresolved blocker
+  fold_sensitive: false

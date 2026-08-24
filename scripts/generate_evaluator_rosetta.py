@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
-"""Emit the canonical 6 × 9 evaluator rosetta as machine-consumable CSV / markdown.
+"""Emit the canonical 6 × 9 built-in harness rosetta.
 
-Implements the v10.7.0 D-O-1 companion deliverable per
-`.local/research/v11.0.0_patches/D-O-1.md`. The script is the
-machine-readable counterpart to
-``workflow-system/agent/references/evaluator-rosetta.md`` §3:
+The script is the machine-readable counterpart to
+``workflow-system/agent/references/evaluator-rosetta.md``:
 
 * The reference (markdown, human-facing) is the **source of truth** for
-  per-cell justification prose + verbatim citations.
+  per-cell justification prose and signal-bundle definitions.
 * This script (CSV, machine-facing) is the **sanity-check artifact** —
   operators run it during cycle close to confirm the rosetta cells
-  haven't drifted relative to the reference (e.g., a future PR that
-  edits §3 without refreshing the script would surface a diff).
+  have not drifted relative to the reference.
 
-Algorithm (per PDS §2 + §6 admission verdict):
+Algorithm:
 
 1. Encode the 6 × 9 cell table as a Python data structure (rows = SI-3
-   dims; columns = NineS hygiene + capability sub-bundles + Si-Chip).
+   dimensions; columns = built-in harness signal bundles).
 2. Render as CSV (``--csv``, default), markdown table (``--markdown``),
    or JSON (``--json``).
 3. The output may be written to ``--output PATH`` or stdout.
 4. The script is **DERIVATIVE-ONLY**: the reference is canonical. If the
    reference is updated, this script's data structure MUST be updated in
-   the same PR — enforced by the W-18 ghost-audit refresh
-   (``tests/test_no_ghost_features.py::test_v10_7_0_new_symbols_have_coverage``).
+   the same change.
 
 Public API:
 
@@ -38,8 +34,8 @@ Public API:
 Entry point: ``python scripts/generate_evaluator_rosetta.py
 [--csv | --markdown | --json] [--output PATH]``
 
-Source: v10.7.0 D-O-1 — codified per
-`.local/research/v11.0.0_patches/D-O-1.md` §2.
+Live signal authority:
+``src/devolaflow/harness/evaluator.py::evaluate_harness``.
 """
 
 from __future__ import annotations
@@ -64,7 +60,7 @@ __all__ = [
     "run",
 ]
 
-# Cell codes per evaluator-rosetta.md §3 legend.
+# Cell codes per evaluator-rosetta.md §4 legend.
 #   C = canonical authority for the row dim's quantitative sub-component
 #   O = overlaps (related but not authoritative)
 #   . = orthogonal (not cited under this row)
@@ -80,35 +76,35 @@ SI3_DIMENSIONS: tuple[tuple[str, float], ...] = (
     ("Performance impact", 0.15),
 )
 
-# 9 columns: 5 NineS hygiene + 3 NineS capability sub-bundles + Si-Chip.
+# 9 columns: the built-in evaluator's objective signals grouped by concern.
 COLUMNS: tuple[str, ...] = (
-    "NineS code_coverage",
-    "NineS lint_cleanliness",
-    "NineS docstring_coverage",
-    "NineS test_count",
-    "NineS module_count",
-    "NineS cap.scoring/eval",
-    "NineS cap.decomp/abstract",
-    "NineS cap.infra/sandbox",
-    "Si-Chip iteration_delta",
+    "Harness code hygiene",
+    "Harness test execution",
+    "Harness coverage",
+    "Harness layout invariant",
+    "Harness compatibility",
+    "Harness W-17 test growth",
+    "Harness docstring coverage",
+    "Harness constraint quantifiability",
+    "Harness token budget",
 )
 
-# 6 × 9 cell matrix — must mirror evaluator-rosetta.md §3 verbatim.
-# Edit this table only when you also edit the reference's §3 in the
+# 6 × 9 cell matrix — must mirror evaluator-rosetta.md §4 verbatim.
+# Edit this table only when you also edit the reference's §4 in the
 # same PR (W-18 ghost-audit precondition).
 CELLS: tuple[tuple[CellCode, ...], ...] = (
     # Code quality
-    ("O", "C", "O", ".", ".", ".", "O", ".", "O"),
+    ("C", "O", "C", ".", ".", ".", "O", "O", "."),
     # Architecture rationality
-    (".", ".", ".", ".", "O", ".", "C", "O", "O"),
+    ("O", ".", ".", "C", ".", ".", ".", "C", "O"),
     # Test adequacy
-    ("C", ".", ".", "C", ".", "O", ".", "O", "."),
+    (".", "C", "C", ".", "O", "C", ".", ".", "."),
     # Maintainability
-    (".", "O", "C", ".", "O", ".", "O", ".", "."),
+    ("C", ".", ".", ".", ".", ".", "C", "O", "."),
     # Compatibility
-    (".", ".", ".", ".", ".", ".", ".", "C", "."),
+    (".", ".", ".", "C", "C", ".", ".", ".", "."),
     # Performance impact
-    (".", ".", ".", ".", ".", "O", ".", "O", "C"),
+    (".", "O", ".", ".", ".", ".", ".", "O", "C"),
 )
 
 
@@ -151,7 +147,7 @@ def _validate_table_shape() -> None:
     assert len(SI3_DIMENSIONS) == 6, (
         f"SI-3 dimensions must be exactly 6 (W-3 weighted formula); got {len(SI3_DIMENSIONS)}"
     )
-    assert len(COLUMNS) == 9, f"rosetta columns must be exactly 9 (D-O-1 §3); got {len(COLUMNS)}"
+    assert len(COLUMNS) == 9, f"rosetta columns must be exactly 9; got {len(COLUMNS)}"
     assert len(CELLS) == len(SI3_DIMENSIONS), (
         f"CELLS row count {len(CELLS)} != SI-3 dim count {len(SI3_DIMENSIONS)}"
     )
@@ -164,9 +160,7 @@ def _validate_table_shape() -> None:
                 f"CELLS[{idx}][{cell_idx}] = {code!r}; expected one of C / O / ."
             )
     weight_sum = sum(weight for _, weight in SI3_DIMENSIONS)
-    assert abs(weight_sum - 1.0) < 1e-6, (
-        f"SI-3 dimension weights must sum to 1.0; got {weight_sum}"
-    )
+    assert abs(weight_sum - 1.0) < 1e-6, f"SI-3 dimension weights must sum to 1.0; got {weight_sum}"
 
 
 def render_csv() -> str:
@@ -196,23 +190,21 @@ def render_markdown() -> str:
     lines.append("")
     lines.append(
         "This table is the machine-rendered counterpart of "
-        "`workflow-system/agent/references/evaluator-rosetta.md` §3. "
+        "`workflow-system/agent/references/evaluator-rosetta.md`. "
         "If this output drifts from the reference, refresh BOTH in the "
-        "same PR (W-18 ghost-audit precondition)."
+        "same change."
     )
     lines.append("")
     header = "| SI-3 dim ↓ | " + " | ".join(COLUMNS) + " |"
     lines.append(header)
     lines.append("|---|" + "|".join([":---:"] * len(COLUMNS)) + "|")
     for (dim_name, weight), row in zip(SI3_DIMENSIONS, CELLS, strict=True):
-        cells = " | ".join(
-            "**C**" if c == "C" else c if c == "O" else "·" for c in row
-        )
+        cells = " | ".join("**C**" if c == "C" else c if c == "O" else "·" for c in row)
         lines.append(f"| **{dim_name} ({weight:.2f})** | {cells} |")
     lines.append("")
     lines.append("**Cell legend:**")
     lines.append("")
-    lines.append("- **C** = canonical authority for the row dim (use verbatim).")
+    lines.append("- **C** = canonical built-in signal for the row dim (use verbatim).")
     lines.append("- O = overlaps (related but not authoritative).")
     lines.append("- · = orthogonal (do not cite).")
     lines.append("")
@@ -223,29 +215,21 @@ def render_json() -> str:
     """Render the rosetta as JSON (the most machine-consumable form)."""
     _validate_table_shape()
     payload = {
-        "si3_dimensions": [
-            {"name": name, "weight": weight} for name, weight in SI3_DIMENSIONS
-        ],
+        "si3_dimensions": [{"name": name, "weight": weight} for name, weight in SI3_DIMENSIONS],
         "columns": list(COLUMNS),
         "cells": [list(row) for row in CELLS],
         "summary": {
             "row_count": len(SI3_DIMENSIONS),
             "column_count": len(COLUMNS),
-            "canonical_cell_count": sum(
-                1 for row in CELLS for code in row if code == "C"
-            ),
-            "overlap_cell_count": sum(
-                1 for row in CELLS for code in row if code == "O"
-            ),
-            "orthogonal_cell_count": sum(
-                1 for row in CELLS for code in row if code == "."
-            ),
+            "canonical_cell_count": sum(1 for row in CELLS for code in row if code == "C"),
+            "overlap_cell_count": sum(1 for row in CELLS for code in row if code == "O"),
+            "orthogonal_cell_count": sum(1 for row in CELLS for code in row if code == "."),
         },
     }
     return json.dumps(payload, indent=2)
 
 
-def run(*, format: str, output: Path | None) -> int:
+def run(*, format: str, output: Path | None) -> int:  # noqa: A002
     """Top-level driver — emit the rosetta in the requested format."""
     renderers = {
         "csv": render_csv,

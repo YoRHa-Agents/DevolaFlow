@@ -6,7 +6,7 @@ Usage:
   devola-init claude                Install for Claude Code only
   devola-init claude --global       Install Claude Code globally
   devola-init <tool> --global       Global skill install ALSO installs all
-                                    runtime plugins (nines/ui-pro/rtk/si-chip/
+                                    runtime plugins (ui-pro/rtk/si-chip/
                                     codegraph/impeccable) by default; per-plugin
                                     failures are warn-not-fatal (S-5)
   devola-init <tool> --global --no-plugins
@@ -422,7 +422,7 @@ def install_local(
     (:data:`devolaflow.init_probe.INIT_DEPENDENCIES`) and printing the
     capability table. Missing REQUIRED dependencies (git) exit 1 with
     one explicit message BEFORE any filesystem write; missing optional
-    dependencies (node/npm/codegraph/nines) each surface exactly one
+    dependencies (node/npm/codegraph) each surface exactly one
     degradation hint and the install continues.
     """
     print(f"\n  Local workspace -> {cwd / '.local/'}")

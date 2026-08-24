@@ -85,18 +85,32 @@ def test_segmented_ledger_exact_rollup(tmp_path: Path) -> None:
             model="budget",
         ),
     ]
-    _write_jsonl(tmp_path / "harness.jsonl", [base_record])
+    event = {
+        "schema_version": 1,
+        "event": "proposal_applied",
+        "event_id": f"proposal_applied:{'a' * 64}",
+        "ts": "2026-08-25T00:00:01+00:00",
+        "proposal_id": "a" * 64,
+        "proposal_ref": ".local/research/proposal.yaml",
+        "approval_ref": ".local/research/proposal.approval.yaml",
+        "proposal_sha256": "b" * 64,
+        "target_digest": "c" * 64,
+    }
+    _write_jsonl(tmp_path / "harness.jsonl", [base_record, event])
     _write_jsonl(tmp_path / "harness.1.jsonl", segment_records)
 
-    assert [record["dispatch_id"] for record in load_ledger_records(tmp_path)] == [
+    loaded = load_ledger_records(tmp_path)
+    assert [record["dispatch_id"] for record in loaded if "dispatch_id" in record] == [
         "base-first",
         "segment-l0",
         "segment-l1",
     ]
+    assert loaded[1] == event
     summary = aggregate_ledger(tmp_path)
 
     assert summary["schema_version"] == 1
     assert summary["records"] == 3
+    assert summary["events"] == [event]
     assert summary["changes"] == ["alpha", "beta"]
     assert summary["rounds"] == {"min": 1, "max": 2, "distinct": 2}
     assert summary["tokens"]["total"] == 290
@@ -117,7 +131,16 @@ def test_segmented_ledger_exact_rollup(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "case",
-    ["empty", "json", "missing", "ratio", "tier-sum", "segment-gap", "segment-name"],
+    [
+        "empty",
+        "json",
+        "missing",
+        "ratio",
+        "tier-sum",
+        "segment-gap",
+        "segment-name",
+        "event",
+    ],
 )
 def test_empty_or_malformed_ledger_fails_explicitly(tmp_path: Path, case: str) -> None:
     base = tmp_path / "harness.jsonl"
@@ -138,9 +161,26 @@ def test_empty_or_malformed_ledger_fails_explicitly(tmp_path: Path, case: str) -
     elif case == "segment-gap":
         _write_jsonl(base, [record])
         _write_jsonl(tmp_path / "harness.2.jsonl", [record])
-    else:
+    elif case == "segment-name":
         _write_jsonl(base, [record])
         _write_jsonl(tmp_path / "harness.01.jsonl", [record])
+    else:
+        _write_jsonl(
+            base,
+            [
+                {
+                    "schema_version": 1,
+                    "event": "proposal_applied",
+                    "event_id": "proposal_applied:not-a-hash",
+                    "ts": "2026-08-25T00:00:00+00:00",
+                    "proposal_id": "not-a-hash",
+                    "proposal_ref": "../proposal.yaml",
+                    "approval_ref": "approval.yaml",
+                    "proposal_sha256": "b" * 64,
+                    "target_digest": "c" * 64,
+                }
+            ],
+        )
 
     with pytest.raises(AggregationError) as caught:
         aggregate_ledger(tmp_path)

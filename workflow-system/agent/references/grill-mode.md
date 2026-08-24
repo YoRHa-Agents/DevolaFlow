@@ -822,8 +822,9 @@ Future grill-mode dispatch metadata NESTS under
 
 ### 11.7 External
 
-- DevolaFlow / EvoBench: `https://github.com/YoRHa-Agents/DevolaFlow`
-- NineS: `https://github.com/YoRHa-Agents/NineS`
+- DevolaFlow repository: `https://github.com/YoRHa-Agents/DevolaFlow`
+- Built-in evaluation authority: `python -m devolaflow.harness evaluate`;
+  grill evidence has no external evaluator dependency.
 - Upstream `grill-with-docs`:
   `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`
   (source of the 7 primitives + 7 format primitives this

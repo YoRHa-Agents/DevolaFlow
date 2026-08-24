@@ -6,8 +6,7 @@ Pins the codegraph integration surfaces in:
   provenance only and materializable assertions retain codegraph intent;
 * the codegraph reference — suggest-tier/background/marker behavior;
 * ``workflow-system/agent/context_profiles.yaml`` — NEW
-  ``meta.codegraph_integration`` block parallel to ``nines_integration``
-  with 5 commands recipes + 6 triggers.
+  ``meta.codegraph_integration`` block with 5 command recipes + 6 triggers.
 
 Source: ``.local/research/v12.5.0_gap_analysis.md`` §2 D-1.2 +
 ``.local/research/v12.5.0_codegraph_benefit_analysis.md`` §3 surface 5
@@ -151,8 +150,7 @@ class TestContextProfilesCodegraphIntegration:
         meta = payload.get("meta") or {}
         block = meta.get("codegraph_integration")
         assert block is not None, (
-            "v12.5.0 PV-04 D-1.2: context_profiles.yaml missing "
-            "meta.codegraph_integration block (parallel to nines_integration)."
+            "v12.5.0 PV-04 D-1.2: context_profiles.yaml missing meta.codegraph_integration block."
         )
         assert block.get("auto_detect") is True
         assert "install_hint" in block
@@ -187,15 +185,3 @@ class TestContextProfilesCodegraphIntegration:
             f"{sorted(missing)}; expected the 6 capability triggers from "
             "plugins.yaml::plugins.codegraph.capabilities."
         )
-
-    def test_nines_integration_block_unchanged(self) -> None:
-        """Sibling block byte-stable — codegraph wiring is purely additive."""
-        payload = _load_yaml(_CONTEXT_PROFILES_PATH)
-        meta = payload.get("meta") or {}
-        nines = meta.get("nines_integration")
-        assert nines is not None
-        assert nines.get("auto_detect") is True
-        # Spot-check a known recipe to ensure the codegraph addition did
-        # not perturb the nines block.
-        commands = nines.get("commands") or {}
-        assert "self_eval" in commands

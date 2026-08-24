@@ -16,22 +16,15 @@ the SI → canonical mapping:
 | Legacy | Canonical | Carrier |
 |--------|-----------|---------|
 | SI-1   | W-1       | ``.rules/workflow.mdc`` |
-| SI-2   | W-2       | ``.rules/workflow.mdc`` (NineS analyze + self-eval invocations) |
+| SI-2   | W-2       | ``.rules/workflow.mdc`` (built-in harness evaluation) |
 | SI-3   | W-3       | ``.rules/workflow.mdc`` |
-| SI-4   | W-4       | ``.rules/workflow.mdc`` (EvoBench regression guard) |
+| SI-4   | W-4       | ``.rules/workflow.mdc`` (harness regression guard) |
 | SI-5   | W-5       | ``.rules/workflow.mdc`` |
 | SI-6   | W-6       | ``.rules/workflow.mdc`` (token-budget table also at A-3) |
 | SI-7   | S-7       | ``.rules/soul.mdc`` (generic external-URL policy) |
 | SI-8   | W-7       | ``.rules/workflow.mdc`` |
 | SI-9   | W-8       | ``.rules/workflow.mdc`` (reinforcement module path) |
 | SI-10  | W-9       | ``.rules/workflow.mdc`` |
-
-The explicit canonical URLs the legacy SI-7 enumerated now live at
-machine-readable carriers: NineS at
-``workflow-system/agent/knowledge/runtime-plugins.yaml`` (the A-5 SSOT
-runtime plugin registry, ``canonical_url`` field) and DevolaFlow /
-EvoBench at ``benchmarks/devolaflow_context/__init__.py`` (the
-benchmark suite's own repository pointer).
 
 Complementary lints (NOT duplicated here): the retired stub's
 must-not-resurrect reverse lint lives in
@@ -47,8 +40,6 @@ import pytest
 
 WORKFLOW_REL_PATH = ".rules/workflow.mdc"
 SOUL_REL_PATH = ".rules/soul.mdc"
-RUNTIME_PLUGINS_REL_PATH = "workflow-system/agent/knowledge/runtime-plugins.yaml"
-EVOBENCH_INIT_REL_PATH = "benchmarks/devolaflow_context/__init__.py"
 
 # SI rule id → (canonical rule id, carrier rel-path). SI-7 landed at the
 # Soul layer (external-URL policy); the other nine landed at Workflow.
@@ -188,43 +179,28 @@ class TestNoAbsolutePaths:
 
 
 class TestContentQuality:
-    def test_references_github_urls(self, project_root: Path, soul_content: str):
-        """S-7 carries the URL policy; explicit URLs live at SSOT carriers.
-
-        The legacy SI-7 enumerated the two canonical URLs inline. The
-        compiled S-7 keeps the policy generic; the explicit URLs survive
-        at machine-readable carriers — NineS at the A-5 runtime-plugin
-        registry's ``canonical_url`` field, DevolaFlow/EvoBench at the
-        benchmark suite's own repository pointer.
-        """
+    def test_references_github_urls(self, soul_content: str):
+        """S-7 carries the generic external-resource URL policy."""
         assert "remote GitHub URL" in soul_content, "S-7 must state the external-URL policy"
         assert "MUST NOT be hardcoded" in soul_content, (
             "S-7 must forbid hardcoded local clone paths"
         )
-        runtime_plugins = (project_root / RUNTIME_PLUGINS_REL_PATH).read_text(encoding="utf-8")
-        assert "https://github.com/YoRHa-Agents/NineS" in runtime_plugins, (
-            f"NineS canonical URL missing from {RUNTIME_PLUGINS_REL_PATH} "
-            f"(the A-5 SSOT runtime plugin registry)"
-        )
-        evobench_init = (project_root / EVOBENCH_INIT_REL_PATH).read_text(encoding="utf-8")
-        assert "https://github.com/YoRHa-Agents/DevolaFlow" in evobench_init, (
-            f"DevolaFlow/EvoBench canonical URL missing from {EVOBENCH_INIT_REL_PATH}"
-        )
 
-    def test_references_evobench(self, workflow_content: str):
-        assert "test_benchmarks.py" in workflow_content, (
-            "W-4 (ex-SI-4) must cite the EvoBench verification suite"
+    def test_references_harness(self, workflow_content: str):
+        assert "make test-harness" in workflow_content, (
+            "W-4 (ex-SI-4) must cite the built-in harness verification suite"
         )
+        assert "active W-16 harness baseline" in workflow_content
 
     def test_references_reinforcement(self, workflow_content: str):
         assert "src/devolaflow/gate/reinforcement.py" in workflow_content, (
             "W-8 (ex-SI-9) must cite the reinforcement mechanism module path"
         )
 
-    def test_references_nines(self, workflow_content: str):
-        assert "nines -f json" in workflow_content, (
-            "W-2 (ex-SI-2) must carry the canonical NineS invocation"
+    def test_references_built_in_evaluator(self, workflow_content: str):
+        assert "python -m devolaflow.harness evaluate" in workflow_content, (
+            "W-2 (ex-SI-2) must carry the built-in harness evaluation invocation"
         )
-        assert "self-eval" in workflow_content, (
-            "W-2 (ex-SI-2) must carry the NineS self-eval invocation"
+        assert "There is no external-tool or manual" in workflow_content, (
+            "W-2 must forbid a fallback that bypasses the built-in evaluator"
         )

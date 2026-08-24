@@ -25,7 +25,7 @@ from tests.ghost.test_registries import _SF4_REFERENCE_SET
 #     reference (per-plugin upstream-unreachable fallback contract)
 #     + `tests/test_degraded_mode.py` regression suite (8 tests).
 #  2. D-C-2 — `tests/integration/` package (conftest + 4 shape
-#     contract files + 8 captured fixtures) + `scripts/refresh_bridge_fixtures.py`
+#     contract files + captured fixtures) + `scripts/refresh_bridge_fixtures.py`
 #     + `.github/workflows/bridge-fixture-refresh.yml` weekly cron.
 #  3. D-C-3 — `lifecycle/pre_plugin_invocation_install.py` +
 #     `lifecycle/pre_plugin_invocation_upgrade.py` (DEFAULT_EVENTS 10 → 12
@@ -49,7 +49,6 @@ _V10_8_0_INTEGRATION_CONFTEST: Path = Path("tests/integration/conftest.py")
 
 _V10_8_0_INTEGRATION_TESTS: tuple[Path, ...] = (
     Path("tests/integration/test_si_chip_shape_contract.py"),
-    Path("tests/integration/test_nines_shape_contract.py"),
     Path("tests/integration/test_rtk_shape_contract.py"),
     Path("tests/integration/test_ui_pro_shape_contract.py"),
 )
@@ -97,7 +96,7 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
       D-C-1 §9 R1 mitigation).
     * NEW `tests/test_degraded_mode.py` (D-C-1 regression suite).
     * NEW `tests/integration/` package (D-C-2 bridge shape contract
-      tests) + 4 contract test files + fixture package.
+      tests) + retained contract test files + fixture package.
     * NEW `scripts/refresh_bridge_fixtures.py` (D-C-2 fixture refresh).
     * NEW `.github/workflows/bridge-fixture-refresh.yml` (D-C-2 weekly
       cron).
@@ -136,7 +135,7 @@ def test_v10_8_0_new_symbols_have_coverage(project_root: Path) -> None:
     for contract_test in _V10_8_0_INTEGRATION_TESTS:
         assert (project_root / contract_test).is_file(), (
             f"W-18 v10.8.0 violation: bridge contract test missing at "
-            f"{contract_test} — D-C-2 ships 4 contract test files."
+            f"{contract_test} — D-C-2 retains this contract test file."
         )
     assert (project_root / _V10_8_0_REFRESH_SCRIPT).is_file(), (
         f"W-18 v10.8.0 violation: fixture refresh script missing at "

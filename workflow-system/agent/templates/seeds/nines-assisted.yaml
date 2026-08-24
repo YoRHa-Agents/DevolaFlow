@@ -3,14 +3,14 @@ kind: checklist-seed
 metadata:
   name: nines-assisted
   version: "1.0.0"
-  description: "Historical seed for research-assisted full lifecycle delivery."
+  description: "Opaque historical compatibility seed ID; assertions use built-in harness evidence."
   category: composite
-  intent_keywords: [nines, evaluation, analysis, pipeline, self-eval, review, assisted, full]
+  intent_keywords: [nines-assisted, historical, compatibility]
   source:
-    kind: template
+    kind: composition
     name: nines-assisted
-    path: workflow-system/agent/templates/builtin/nines-assisted.yaml
-    schema_version: "1.0"
+    path: workflow-system/agent/templates/registry.yaml
+    schema_version: "3.0"
 placeholders: {}
 partitions:
   - key: assisted-discovery
@@ -22,7 +22,7 @@ partitions:
       - {id: plan, primitive: plan}
     assertions:
       - key: assistance-accounted
-        statement_template: "Research assistance availability, findings, architecture, and implementation plan are explicitly recorded"
+        statement_template: "Built-in harness evidence, findings, architecture, and implementation plan are explicitly recorded"
         suggested_priority: P1
         verify: {mode: manual}
   - key: delivery

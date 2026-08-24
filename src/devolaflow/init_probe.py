@@ -1,8 +1,8 @@
 """Init-chain dependency tiering + unified capability probe (Track C-4).
 
 R5 F4 root cause (full_review_and_improve): the init/scaffold chain
-implicitly depended on external tools (node/npm for codegraph, curl for
-remote install, nines) and surfaced their absence DEEP in the flow with
+implicitly depended on external tools (node/npm for codegraph and curl for
+remote install) and surfaced their absence DEEP in the flow with
 low-signal errors — the user-visible symptom was "固定脚本无法生成".
 
 This module is the SINGLE OWNER (A-5 discipline) of the init-chain
@@ -17,8 +17,7 @@ dependency tier table and the unified pre-flight probe:
   for the remote ``install.sh`` path); absence is informational.
 
 Per-plugin RICH probes stay in their owner modules
-(:func:`devolaflow.codegraph.is_codegraph_available`,
-:mod:`devolaflow.nines.detector`) — this module performs a uniform
+(:func:`devolaflow.codegraph.is_codegraph_available`) — this module performs a uniform
 ``$PATH`` presence scan for the init capability table only; it never
 invokes any binary (zero subprocess, hot-path safe).
 
@@ -73,12 +72,6 @@ INIT_DEPENDENCIES: tuple[DependencySpec, ...] = (
         tier="optional",
         purpose="pre-indexed code knowledge graph (suggest-tier per Track C-3 D-11)",
         absent_hint="skipping codegraph init — `npm i -g @colbymchenry/codegraph` to enable",
-    ),
-    DependencySpec(
-        name="nines",
-        tier="optional",
-        purpose="NineS deep analysis / self-eval (W-2)",
-        absent_hint="NineS analysis degrades to manual mode (note it as manual per W-2)",
     ),
     DependencySpec(
         name="curl",

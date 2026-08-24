@@ -15,9 +15,9 @@ Design constraints (per :mod:`devolaflow.codegraph` package docstring):
 * W-20 (env-flag reuse) — codegraph reuses
   ``DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1``; NO new env flag.
 
-The module mirrors the design of :mod:`devolaflow.nines._cli` but the
-contract is stricter: codegraph's CLI exit code is the source-of-truth
-for availability + per-invocation success, and the wrapper distinguishes
+The module follows the project's established thin-CLI-wrapper pattern.
+Codegraph's CLI exit code is the source-of-truth for availability +
+per-invocation success, and the wrapper distinguishes
 ``"path_missing"`` (CLI not on ``$PATH``) from ``"nonzero_exit"`` (CLI
 present but the specific subcommand failed).
 """
@@ -134,8 +134,8 @@ def run_codegraph_cli(
             :func:`shlex.split`) or a pre-split list. The leading
             ``codegraph`` token is REQUIRED — callers pass e.g.
             ``"codegraph context 'foo' --max-nodes 20"`` rather than
-            ``"context 'foo' --max-nodes 20"``. This mirrors
-            :func:`devolaflow.nines._cli.run_nines_cli`'s contract.
+            ``"context 'foo' --max-nodes 20"``. This keeps argv validation
+            explicit at the wrapper boundary.
         cwd: Working directory for the subprocess. When ``None``, runs
             from the current process cwd. Tests pass ``tmp_path`` for
             isolation.

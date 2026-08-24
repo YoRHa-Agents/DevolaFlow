@@ -49,12 +49,14 @@ def _dest(tmp_path: Path, leaf: str) -> Path:
 
 
 def test_subdir_recursion_preserves_structure(archiver, tmp_path: Path) -> None:
-    """Research subdirs archive whole-tree under their original name."""
+    """Subdirs and evaluator artifacts route without flattening or history loss."""
     research = _research(tmp_path)
     (research / "v9.9.0_patches" / "nested").mkdir(parents=True)
     (research / "v9.9.0_patches" / "p1.md").write_text("patch-1", encoding="utf-8")
     (research / "v9.9.0_patches" / "nested" / "p2.md").write_text("patch-2", encoding="utf-8")
     (research / "v9.9.0_gap_analysis.md").write_text("gap", encoding="utf-8")
+    (research / "v9.9.0_harness_evaluation.json").write_text("{}", encoding="utf-8")
+    (research / "v9.9.0_nines.json").write_text("{}", encoding="utf-8")
 
     assert archiver.archive("9.9.0") == 0
 
@@ -62,10 +64,15 @@ def test_subdir_recursion_preserves_structure(archiver, tmp_path: Path) -> None:
     assert (dest / "v9.9.0_patches" / "p1.md").read_text(encoding="utf-8") == "patch-1"
     assert (dest / "v9.9.0_patches" / "nested" / "p2.md").read_text(encoding="utf-8") == "patch-2"
     assert (dest / "v9.9.0_gap_analysis.md").read_text(encoding="utf-8") == "gap"
+    assert (dest / "harness" / "v9.9.0_harness_evaluation.json").is_file()
+    # Legacy NineS artifacts keep their historical route for archive compatibility.
+    assert (dest / "nines" / "v9.9.0_nines.json").is_file()
     # The README index lists the subdir (trailing slash), NOT its contents
     # flattened into the flat buckets.
     readme = (dest / "README.md").read_text(encoding="utf-8")
     assert "* `v9.9.0_patches/`" in readme
+    assert "### harness" in readme
+    assert "### nines" in readme
     assert not (dest / "other" / "p1.md").exists()
 
 

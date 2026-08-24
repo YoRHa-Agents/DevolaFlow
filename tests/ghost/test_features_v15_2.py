@@ -52,7 +52,7 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     assert 4 in _SUPPORTED_SCHEMA_VERSIONS
     assert frozenset({"require", "suggest"}) == _SUPPORTED_TIERS
     plugin_ids = [e["id"] for e in raw["plugins"]]
-    assert len(plugin_ids) >= 6
+    assert plugin_ids == ["ui-pro", "rtk", "si-chip", "codegraph", "impeccable"]
     for entry in raw["plugins"]:
         assert entry.get("tier") == "suggest", (
             f"B-6: plugin {entry.get('id')!r} must ship tier: suggest "
@@ -61,10 +61,10 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
     assert raw["defaults"]["auto_install"] is False
 
     # ── (b) spec parse + tier lookup ──
-    spec = resolve_plugin("nines", raw)
+    spec = resolve_plugin("ui-pro", raw)
     assert spec.tier == "suggest"
     assert RuntimePluginSpec.__dataclass_fields__["tier"].default == "suggest"
-    assert plugin_tier("nines", registry_path=registry_path) == "suggest"
+    assert plugin_tier("ui-pro", registry_path=registry_path) == "suggest"
     # absent-key default (v1..v3 entries pass v4 unchanged)
     legacy = {
         "plugins": [
@@ -106,7 +106,6 @@ def test_v15_2_0_b6_dependency_suggestion_registered(project_root: Path) -> None
         assert registry.load_seed(entry["name"]) is not None
 
     expected_workflows = {
-        "nines": {"nines-assisted", "skill-optimization"},
         "si-chip": {"skill-optimization", "self-update", "nines-assisted"},
         "ui-pro": {"product-verification", "web-design"},
         "impeccable": {"web-design"},

@@ -4,14 +4,12 @@
 #   - .local/memory/commands/<repo-or-tool>/<cmd>.yaml   (per-command recipe)
 # Design refs:
 #   - .local/research/v8.4.0_gap_analysis.md §2.1 M-002
-#   - .local/research/v8.4.0_rtk_nines_analysis.md §4.3 (RTK [filters.<name>] schema)
 #   - cycle plan §3 PV-04 row + §6 R3 (cache-poisoning mitigation analog)
 # Patch slot: v8.3.4 (PV-04 — RTK-pattern command-output mapping layer)
 # Token budget (per recipe file): soft 800 / hard 1500 (mirrors memory-case.yaml)
 # -----------------------------------------------------------------------------
 # A "command mapping" is a repo-specific compression recipe for one shell
-# command, modeled on RTK's `[filters.<name>]` TOML schema (per the SI-2 NineS
-# analysis §4.3 reuse). The recipe is consumed by
+# command, modeled on RTK's `[filters.<name>]` TOML schema. The recipe is consumed by
 # `src/devolaflow/shell_proxy/commands.py::apply_local_recipe()` AFTER the
 # shell-proxy wrapper has decided whether to rewrite the command via
 # `rtk <cmd>` (PV-02). The local recipe layers ON TOP of RTK's built-in 100+
@@ -25,11 +23,11 @@
 #   │   ├── pytest.yaml                 # one recipe per command (basename)
 #   │   ├── ruff.yaml
 #   │   └── git-diff.yaml
-#   └── <other-repo>/<cmd>.yaml         # cluster-by-repo per NineS §3 finding
+#   └── <other-repo>/<cmd>.yaml         # cluster by repository or tool
 #
 # The directory level (`<repo-or-tool>`) lets operators namespace recipes —
 # e.g. `devolaflow/pytest.yaml` (recipe for THIS repo's `pytest`) coexists with
-# `nines/pytest.yaml` (different filter for NineS' `pytest` output shape).
+# `service-a/pytest.yaml` (a different filter for another repository's output).
 # The `commands.py::load_command_mappings(repo_signal=...)` loader narrows to
 # a single namespace when `repo_signal` is supplied.
 #
@@ -61,15 +59,13 @@
 design_reference: .local/research/v8.4.0_gap_analysis.md §2.1 M-002
 schema_name: command-mapping
 schema_version: 2
-last_updated: "2026-04-24"
+last_updated: "2026-08-25"
 patch_slot: v8.5.1
 gap_ids: [M-002, T3]
 governing_rules: [S-2, S-5, S-7, P5, C-9, R5, A-2]
 
 # Reference RTK's filter-format documentation by canonical URL only (per S-7).
-# The local clone path /home/agent/reference/rtk/.rtk/filters.toml was used
-# for SI-2 NineS analysis (see .local/research/v8.4.0_rtk_nines_analysis.md
-# §4.3) but MUST NOT be hardcoded in agent-facing files.
+# Local clone paths MUST NOT be hardcoded in agent-facing files.
 external_reference:
   rtk_filter_format_url: "https://github.com/rtk-ai/rtk#custom-filters"
   rtk_canonical_url: "https://github.com/rtk-ai/rtk"
@@ -297,36 +293,31 @@ invariants:
   - "Per the M-002 ask, local recipes extend RTK's built-in 100+ command rewrites (precedence: local > RTK > passthrough). They do NOT replace `rtk rewrite` — they layer ON TOP of it."
 
 # -----------------------------------------------------------------------------
-# Worked example — drop verbose pytest DeprecationWarning blocks
+# Worked example — compact built-in harness pytest output
 # -----------------------------------------------------------------------------
 examples:
   recipe_yaml: |
-    schema_version: 1
+    schema_version: 2
     command: "pytest"
-    description: "Drop verbose DeprecationWarning blocks visible in v8.3.3 PV-03 test output."
+    description: "Compact repeated harness fixture diagnostics while preserving failures."
     repo_signal: "DevolaFlow"
-    version_stamp: "8.3.4"
-    last_updated: "2026-04-23"
+    version_stamp: "15.2.0"
+    last_updated: "2026-08-25"
     ttl_days: 30
     strip_ansi: true
     pre_filters:
-      - pattern: "^\\s*DeprecationWarning:.*$"
-        replacement: ""
-      - pattern: "^={3,} warnings summary ={3,}.*?(?=^={3,}|\\Z)"
+      - pattern: "^tests/fixtures/harness/.* PASSED$"
         replacement: ""
     post_filters:
       - pattern: "\\n{3,}"
         replacement: "\n\n"
     truncate_lines: 200
-    on_empty: "pytest: ok (DevolaFlow recipe)"
-    tags: [pytest, deprecation-filter, devolaflow]
+    on_empty: "built-in harness: all fixture checks passed"
+    tags: [pytest, harness, devolaflow]
     tests:
-      - name: drops-single-deprecation
+      - name: drops-passing-fixture-noise
         input: |
-          test_foo PASSED
-          DeprecationWarning: this is noisy
-          test_bar PASSED
+          tests/fixtures/harness/compression_layered.yaml PASSED
+          tests/harness/test_fixtures.py::test_rejects_invalid_guard FAILED
         expected: |
-          test_foo PASSED
-
-          test_bar PASSED
+          tests/harness/test_fixtures.py::test_rejects_invalid_guard FAILED

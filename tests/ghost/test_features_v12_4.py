@@ -18,88 +18,56 @@ from pathlib import Path
 # CHANGELOG entry mentioning the tooling fix items. This stanza pins
 # the v12.4.0 PV-02 surface (closes v12.3.0 retrospective §6 items 2 + 3):
 #
-# * benchmarks/devolaflow_context/generate_baseline.py carries the literal
-#   ``sys.modules["tiktoken"] = None`` at module-import scope (Option B
-#   from tests/conftest.py docstring). Without this pin, standalone
-#   baseline regens diverge from pytest scoring by ~7pp on composite
-#   — see v12.3.0 retrospective §4.2 for the 3-attempt regen story.
+# * The retired EvoBench baseline generator and its dedicated tiktoken test
+#   are absent from the live tree; their historical rationale remains in the
+#   v12.4.0 archive.
 # * scripts/realign_section_anchors.py exists with the documented
 #   ``def realign_anchors(skill_md_path, profiles_yaml_path, *, dry_run=False)``
 #   signature + CLI ``--dry-run`` / ``--apply`` flags. Closes v12.3.0
 #   retrospective §4.3 (the ~15 min/cycle of manual context_profiles.yaml
 #   section_anchors edits).
-# * tests/test_generate_baseline_tiktoken_disabled.py exists and pins the
-#   tiktoken-pin contract.
 # * tests/test_realign_section_anchors.py exists and pins the realign
 #   tool's idempotency + drift-detection + dry-run + S-5 contracts.
 #
 # Source: ``.local/research/v12.4.0_gap_analysis.md`` §2 D-1 +
 # ``.local/research/v12.3.0_retrospective.md`` §§4.2 + 4.3 + 6.
 # ---------------------------------------------------------------------------
-_V12_4_0_GENERATE_BASELINE_FILE: Path = Path("benchmarks/devolaflow_context/generate_baseline.py")
-
-
-_V12_4_0_TIKTOKEN_PIN_LITERAL: str = 'sys.modules["tiktoken"] = None'
-
-
 _V12_4_0_REALIGN_SCRIPT: Path = Path("scripts/realign_section_anchors.py")
 
 
 _V12_4_0_REALIGN_SIGNATURE_LITERAL: str = "def realign_anchors("
 
 
-_V12_4_0_TIKTOKEN_TEST_FILE: Path = Path("tests/test_generate_baseline_tiktoken_disabled.py")
-
-
 _V12_4_0_REALIGN_TEST_FILE: Path = Path("tests/test_realign_section_anchors.py")
+
+
+_V12_4_0_RETIRED_EVOBENCH_FILES: tuple[Path, ...] = (
+    Path("benchmarks/devolaflow_context/generate_baseline.py"),
+    Path("tests/test_generate_baseline_tiktoken_disabled.py"),
+)
 
 
 def test_v12_4_0_tooling_fixes(project_root: Path) -> None:
     """W-18 v12.4.0 PV-02 D-1: tooling fixes from v12.3.0 retro §6 items 2 + 3.
 
     Discharges the W-18 precondition for the v12.4.0 CHANGELOG entry
-    mentioning the two tooling fixes:
-
-    * ``benchmarks/devolaflow_context/generate_baseline.py`` pins
-      ``sys.modules["tiktoken"] = None`` at module top so standalone
-      regens match pytest scoring (closes v12.3.0 retro §4.2).
-    * ``scripts/realign_section_anchors.py`` exists and exposes the
+    mentioning the tooling fixes. The retired EvoBench generator and its
+    dedicated tiktoken test stay absent from the live tree, while
+    ``scripts/realign_section_anchors.py`` exists and exposes the
       documented ``realign_anchors(...)`` signature so per-cycle
       section-anchor edits become a 1-command operation (closes
       v12.3.0 retro §4.3).
 
-    Plus the two NEW test files MUST exist:
-
-    * ``tests/test_generate_baseline_tiktoken_disabled.py`` pins the
-      tiktoken-pin contract (PV-02 owned-files manifest item 3).
-    * ``tests/test_realign_section_anchors.py`` pins the realign tool
+    ``tests/test_realign_section_anchors.py`` pins the realign tool
       idempotency + drift-detection contracts (PV-02 owned-files
       manifest item 4).
 
     Source: ``.local/research/v12.4.0_gap_analysis.md`` §2 D-1.
     """
-    generate_baseline_path = project_root / _V12_4_0_GENERATE_BASELINE_FILE
-    assert generate_baseline_path.is_file(), (
-        f"W-18 v12.4.0 PV-02 violation: {_V12_4_0_GENERATE_BASELINE_FILE} "
-        "missing — release blocker. The tiktoken pin lives at module top of "
-        "this file per the PV-02 owned-files manifest item 1."
-    )
-    generate_baseline_text = generate_baseline_path.read_text(encoding="utf-8")
-    assert _V12_4_0_TIKTOKEN_PIN_LITERAL in generate_baseline_text, (
-        f"W-18 v12.4.0 PV-02 violation: {_V12_4_0_GENERATE_BASELINE_FILE} "
-        f"missing literal {_V12_4_0_TIKTOKEN_PIN_LITERAL!r}. The pin MUST land "
-        "at module-import scope before any devolaflow/benchmarks import — "
-        "without it, standalone regens diverge from pytest scoring by ~7pp on "
-        "composite per v12.3.0 retrospective §4.2."
-    )
-    # Cross-check: docstring credits the v12.3.0 retro learning so future
-    # readers can trace the design rationale.
-    assert "v12.3.0 retro" in generate_baseline_text, (
-        f"W-18 v12.4.0 PV-02 violation: {_V12_4_0_GENERATE_BASELINE_FILE} "
-        "must credit ``v12.3.0 retro`` in its docstring per the PV-02 "
-        "owned-files manifest. The docstring is the source-of-truth "
-        "explanation for the Option B pin."
-    )
+    for retired_path in _V12_4_0_RETIRED_EVOBENCH_FILES:
+        assert not (project_root / retired_path).exists(), (
+            f"Retired EvoBench surface returned to the live tree: {retired_path}"
+        )
 
     realign_script_path = project_root / _V12_4_0_REALIGN_SCRIPT
     assert realign_script_path.is_file(), (
@@ -125,24 +93,6 @@ def test_v12_4_0_tooling_fixes(project_root: Path) -> None:
         "``--apply`` CLI flag. The operator opts-in to mutation via --apply; "
         "default-OFF dry-run is the safety contract."
     )
-
-    tiktoken_test_path = project_root / _V12_4_0_TIKTOKEN_TEST_FILE
-    assert tiktoken_test_path.is_file(), (
-        f"W-18 v12.4.0 PV-02 violation: {_V12_4_0_TIKTOKEN_TEST_FILE} missing — "
-        "release blocker. The 3-test contract for the generate_baseline "
-        "tiktoken pin MUST exist per PV-02 owned-files manifest item 3."
-    )
-    tiktoken_test_text = tiktoken_test_path.read_text(encoding="utf-8")
-    for expected_test in (
-        "test_tiktoken_disabled_at_import",
-        "test_baseline_regen_deterministic",
-        "test_no_regression_vs_pytest",
-    ):
-        assert f"def {expected_test}" in tiktoken_test_text, (
-            f"W-18 v12.4.0 PV-02 violation: {_V12_4_0_TIKTOKEN_TEST_FILE} "
-            f"missing test function ``{expected_test}``. The 3-test contract "
-            "is documented in the PV-02 owned-files manifest item 3."
-        )
 
     realign_test_path = project_root / _V12_4_0_REALIGN_TEST_FILE
     assert realign_test_path.is_file(), (
@@ -182,10 +132,8 @@ def test_v12_4_0_tooling_fixes(project_root: Path) -> None:
 # * src/devolaflow/gate/scorer.py keeps the ``evaluate_gate`` public
 #   signature byte-identical to the pre-refactor form documented at
 #   ``.local/research/v12.4.0_gap_analysis.md`` §2 D-2. The CO-2 / C-3
-#   no-API-break invariant is what allows the 101 ``tests/test_gate.py``
-#   callers + the 36 ``tests/test_benchmarks.py`` scenarios + downstream
-#   consumers (W-3 SI-3 harness, PV-06 self-eval) to keep working without
-#   modification.
+#   no-API-break invariant is what allows the gate callers and downstream
+#   W-3 harness consumers to keep working without modification.
 # * tests/test_evaluate_gate_complexity.py exists and pins the per-symbol
 #   cc ceilings via stdlib ``ast`` walker (no ``radon`` dev-dep added).
 #
@@ -255,8 +203,7 @@ def test_v12_4_0_evaluate_gate_refactor(project_root: Path) -> None:
     the entire pinned parameter list verbatim (whitespace included;
     v15.0.0 R1 appended ``artifact_evidence`` per the additive rule).
     Any reorder / rename / default-change is a release blocker that
-    would break all 101 ``tests/test_gate.py`` callers + the 36
-    ``tests/test_benchmarks.py`` scenarios + downstream W-3 SI-3 harness.
+    would break gate callers and the downstream W-3 harness.
 
     (c) The companion test file ``tests/test_evaluate_gate_complexity.py``
     exists with the three cc-pin tests (the orchestrator cc ≤ 10 pin,

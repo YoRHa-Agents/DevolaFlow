@@ -27,6 +27,19 @@ _REQUIRED_FIELDS: Final[tuple[str, ...]] = (
     "advisory_folded",
     "model_hint",
 )
+_EVENT_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "schema_version",
+        "event",
+        "event_id",
+        "ts",
+        "proposal_id",
+        "proposal_ref",
+        "approval_ref",
+        "proposal_sha256",
+        "target_digest",
+    }
+)
 
 
 class AggregationError(ValueError):
@@ -124,6 +137,44 @@ def _validate_timestamp(value: object, *, path: Path, line: int) -> str:
 def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise _error(path, line, "record must be a JSON object")
+    if "event" in record:
+        if set(record) != _EVENT_FIELDS:
+            missing = sorted(_EVENT_FIELDS - record.keys())
+            extra = sorted(record.keys() - _EVENT_FIELDS)
+            raise _error(
+                path,
+                line,
+                f"proposal event keys mismatch; missing={missing}, extra={extra}",
+            )
+        if record["schema_version"] != 1:
+            raise _error(path, line, "proposal event schema_version must equal 1")
+        if record["event"] != "proposal_applied":
+            raise _error(path, line, "event must equal proposal_applied")
+        _validate_timestamp(record["ts"], path=path, line=line)
+        proposal_id = _non_empty_string(
+            record["proposal_id"],
+            path=path,
+            line=line,
+            field="proposal_id",
+        )
+        if not re.fullmatch(r"[0-9a-f]{64}", proposal_id):
+            raise _error(path, line, "proposal_id must be a lowercase SHA-256 value")
+        if record["event_id"] != f"proposal_applied:{proposal_id}":
+            raise _error(path, line, "event_id must equal proposal_applied:<proposal_id>")
+        for field in ("proposal_ref", "approval_ref"):
+            reference = _non_empty_string(record[field], path=path, line=line, field=field)
+            reference_path = Path(reference)
+            if (
+                reference_path.is_absolute()
+                or reference.startswith("~")
+                or ".." in reference_path.parts
+            ):
+                raise _error(path, line, f"{field} must be repository-relative")
+        for field in ("proposal_sha256", "target_digest"):
+            digest = _non_empty_string(record[field], path=path, line=line, field=field)
+            if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise _error(path, line, f"{field} must be a lowercase SHA-256 value")
+        return record
     missing = [field for field in _REQUIRED_FIELDS if field not in record]
     if missing:
         raise _error(path, line, f"missing required field(s): {', '.join(missing)}")
@@ -254,33 +305,50 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
 
     if not records:
         raise AggregationError("cannot aggregate an empty ledger")
-    rounds = [record["round"] for record in records]
-    token_metrics = _token_metrics(records)
-    token_metrics["by_layer"] = {
-        layer: {
-            "records": sum(record["layer"] == layer for record in records),
-            **_token_metrics([record for record in records if record["layer"] == layer]),
+    events = [record for record in records if record.get("event") == "proposal_applied"]
+    dispatch_records = [record for record in records if "event" not in record]
+    rounds = [record["round"] for record in dispatch_records]
+    if dispatch_records:
+        token_metrics = _token_metrics(dispatch_records)
+        token_metrics["by_layer"] = {
+            layer: {
+                "records": sum(record["layer"] == layer for record in dispatch_records),
+                **_token_metrics(
+                    [record for record in dispatch_records if record["layer"] == layer]
+                ),
+            }
+            for layer in _LAYER_ORDER
+            if any(record["layer"] == layer for record in dispatch_records)
         }
-        for layer in _LAYER_ORDER
-        if any(record["layer"] == layer for record in records)
-    }
+    else:
+        token_metrics = {
+            "total": 0,
+            "mean": 0.0,
+            "p50": 0,
+            "p95": 0,
+            "budget_compliance_ratio": 0.0,
+            "p95_budget_utilization": 0.0,
+            "by_layer": {},
+        }
 
     tier_breakdown = {
-        tier: sum(record["tier_breakdown"][tier] for record in records) for tier in _TIER_ORDER
+        tier: sum(record["tier_breakdown"][tier] for record in dispatch_records)
+        for tier in _TIER_ORDER
     }
     constraint_count = sum(tier_breakdown.values())
     quantifiable = tier_breakdown["invariant"] + tier_breakdown["guard"]
     models: dict[str, int] = {}
-    for model_hint in sorted({record["model_hint"] for record in records}):
-        models[model_hint] = sum(record["model_hint"] == model_hint for record in records)
+    for model_hint in sorted({record["model_hint"] for record in dispatch_records}):
+        models[model_hint] = sum(record["model_hint"] == model_hint for record in dispatch_records)
 
     return {
         "schema_version": 1,
-        "records": len(records),
-        "changes": sorted({record["change_id"] for record in records}),
+        "records": len(dispatch_records),
+        "events": events,
+        "changes": sorted({record["change_id"] for record in dispatch_records}),
         "rounds": {
-            "min": min(rounds),
-            "max": max(rounds),
+            "min": min(rounds) if rounds else None,
+            "max": max(rounds) if rounds else None,
             "distinct": len(set(rounds)),
         },
         "tokens": token_metrics,
@@ -289,7 +357,10 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "tier_breakdown": tier_breakdown,
             "quantifiable_ratio": quantifiable / constraint_count if constraint_count else 0.0,
             "advisory_folded_ratio": (
-                sum(record["advisory_folded"] for record in records) / len(records)
+                sum(record["advisory_folded"] for record in dispatch_records)
+                / len(dispatch_records)
+                if dispatch_records
+                else 0.0
             ),
         },
         "models": models,

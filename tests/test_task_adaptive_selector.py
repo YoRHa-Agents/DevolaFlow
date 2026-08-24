@@ -984,9 +984,9 @@ class TestComplexityTierRouting:
     every existing selector test (verified by the rest of this test module
     plus the explicit baseline-equality assertion below).
 
-    Locks in the EvoBench v2.2.0 operational guidance (eb220 §"Model
-    Interaction" + §"Recommended Focus"): "route by tier — opus4.7/max for
-    Complex+, sonnet4.6/high for Simple/Medium" (5.6× cost-efficiency win).
+    Locks in the built-in harness evaluation guidance for model interaction:
+    route Complex+ work to the quality tier and Simple/Medium work to the
+    budget/balanced tiers.
     """
 
     PROFILE_WITH_ROUTING = {
@@ -1209,10 +1209,10 @@ class TestComplexityTierRouting:
 
 
 # ---------------------------------------------------------------------------
-# v14.4.0 (G-026) — overlay-refactor byte-equivalence harness.
+# v14.4.0 (G-026) — overlay-refactor exact-hash harness.
 #
 # context_profiles.yaml was restructured from 24 fully-expanded profiles
-# into ``defaults:`` (one canonical 26-key section_priorities map + shared
+# into ``defaults:`` (one canonical section_priorities map + shared
 # knob anchors) + per-profile DELTA overlays composed via YAML merge keys
 # (``<<:``), and the 4 orphan top-level keys (complex_feature /
 # abstractive_llm / legibility_audit / session_state) were relocated under
@@ -1236,72 +1236,78 @@ class TestComplexityTierRouting:
 # the explicit-map profiles keep their original pre-refactor hashes except
 # repo-init, whose five retired section IDs were migrated to current SKILL
 # anchors by M4-W4-A1 without changing their priorities.
+# v16.0.0 intentional re-pin: all 19 default-overlay profiles were
+# mechanically re-hashed after the retired external-advisor section was
+# removed from their resolved maps. The skill-optimization profile also
+# replaced its obsolete evaluator hint and prose with built-in harness
+# evaluation. The 5 explicit-map profiles retain their prior hashes. No
+# additional fields are excluded and the exact key/order/value assertions
+# remain unchanged in strength.
 # Canonicalisation:
 #   * section-priority hash  = sha256(json.dumps([[k, v], ...],
 #     ensure_ascii=False)) over the profile's ordered
 #     section_priorities items — pins keys AND insertion order AND
 #     values (order feeds `_build_priority_buckets` bucket ordering).
 #   * profile hash = sha256(json.dumps({k: v for k, v in profile if
-#     k != "ac_generation"}, sort_keys=True, ensure_ascii=False)) —
-#     pins every other profile knob. ``ac_generation`` is excluded
-#     because v14.4.0 G-006 deliberately extends it to all impl-class
-#     profiles in the same change.
+#     k not in {"ac_generation", "timeout_class"}}, sort_keys=True,
+#     ensure_ascii=False)) — pins every other profile knob. The two
+#     exclusions are the existing documented G-006/G-037 deltas.
 #   * orphan hash = sha256(json.dumps(block, sort_keys=True,
 #     ensure_ascii=False)) over each relocated top-level block.
 # ---------------------------------------------------------------------------
 
 _PRE_G026_SECTION_PRIORITY_HASHES: dict[str, str] = {
-    "hotfix": "54cdc1620d41258355571e8f6fd7828c76ab3216ab9827820c0e6fd4c2aca853",
-    "feature": "ddfc2d15ac99af5acacb9689972645b12bf8675a48574269cb90c053efcec1c8",
-    "research": "b42e10f5f4dd3a55222053a3feb57e4a9b84f93dee7e4009c17c0339d1ccec98",
-    "refactor": "18b0857fd9599ee51d7b6dd12f4684a31d93bfd981b77609b981e297fd4a9aa0",
-    "review": "ecadfeb072d4a4cc65e032bf66e2bfb3240f35d2137c3c54ae5df4911d93e6d9",
-    "design": "a84a36a16e1c471c5b8b765d882ab186f7fdd45955958a87b8f227af4bd6b672",
-    "skill-optimization": "e22282d89cbe00c9d9a97a43812ab24420327b213b1b622148a365916f9f297a",
-    "migration": "ff7a21c16bff7677a8c539bade64abbd5b61c3d195d16e88e5985c11f6c48f86",
-    "security-audit": "729e2c0c61868203d681ac176a46f0cc7941eb52e57df438e4129c89831acda3",
-    "documentation": "70d633c4e1fb20bd97a76ab6e13c6414e87f81bf22c6a43778b4f4f919256fcb",
-    "spike-poc": "1a249b622423e5d4812ca4e06c5657ae0b402abf6c1d8adfa68f3f2d057555d0",
-    "rdrr": "628701651214586fcf4efaa62fd75485661d8f423ee2d7938f528345d30d5cfb",
-    "demo-showcase": "f21f8adbd7d7f001984733f2f39cd0ee89432f3b04a73ce765e66e691fcaccdc",
-    "perf-optimization": "362971a65349e91f50356ea124b6c87cb1899bc3af7d8163af9af5a62da1bf3f",
-    "dependency-setup": "95f7d86c27cf58d96ea163128e20d4d765ead544bd5875012071eb16921ebdb3",
-    "onboarding": "6c8682a46c39a9f3b45ce2b9130397560ce4d87e7d7faf5d6dd956c4cc72a75c",
-    "self_update": "837ba0335eb22075f15f8e743b12f4f6f1ccd193c4f6b9c7b4e84961500c0cc3",
-    "feedback": "4c5bdd6152477f17004749cc595cb20b883bed170cc5b466dea83b8253a68540",
+    "hotfix": "5d334f1dd6c268c8ced9555064082a6a19b355b6053d9841bfed27d95d06bf26",
+    "feature": "bc7d429f177ee3807728cedb1b204a16f88a6a1b0515f2e698fa9966424335c6",
+    "research": "7c0b3d0b924dd04066a255e212cbbbb8e0d4c2ecd046fdf72cc486355eb8ac88",
+    "refactor": "b25a0c22241c5cf4f314886d425697a41c9376829e5096a507a755cfda88c999",
+    "review": "0ee38a92308fc4fa0ee9a48ccda5349bfa63e2a06b08883b2127d465d15aa3a3",
+    "design": "6c845943836baf46fed2577acbe77c3decb077cf8870b1546dc96865eba9fec7",
+    "skill-optimization": "ed84abd68cf573a854c856daec4eda18d5b97fe5d8c694654b61204564634dae",
+    "migration": "3cdb6215db21fed11486c8ad9a2e8954b6ab760b76ae834a23d4e8c29a075635",
+    "security-audit": "a7a78a86f0f5e72a4f0a43892e5dc554ab3a272c9c617424338f59e50c50cf7c",
+    "documentation": "f6eec9575d23932ad677add8a479b35b0ed37b86941002c5a44d1f7bfc35ea54",
+    "spike-poc": "e9525fef863eba3ca9564d2db2fef46551ac38ddb3b8128b94b9924cb38f1a3f",
+    "rdrr": "143d67c95e7f8bcbc2bb580de32110f19acf5de42c83d4a47cca92b3c1e18b7f",
+    "demo-showcase": "035dc881398af4225013d4fa0f091d6ca5d0d673af2cbd8f046a0e030384c4f5",
+    "perf-optimization": "5f49f3db14b2e37cdb4839a22807b01a3dfe2195697dd781f39f672065fdf396",
+    "dependency-setup": "c6c6236637000d626c6a1618c959092d7df31a11b298c5abdffc03a50c662724",
+    "onboarding": "8c6f3da35f2de0118066d52e889c872c56bda092478b69b9d86d87b8d01547c1",
+    "self_update": "d03a43115877ea8fe347b441dd2a6728f1cc1602892627ac4679896b6fd320ed",
+    "feedback": "ce6873ffd92b102cffb651ded97f4279bf29db2f00e2e2315aa8e8ecd9a8a700",
     "verify_visual": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_acceptance": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "verify_interaction": "8f8a54b6773b9712138f680810a583c67b5d904fe9feaf9a5cf3cc654d4ccc2d",
     "repo-init": "2858037d83647ce0e067cf92f57ed6e712b2086bec2861401c46fe10d07c4b3d",
     "product_verification": "00af0cba5de0131906444e4420b1fd89a0fa3d6c42c5ba4ea22bf74db4962ec8",
-    "entropy_scan": "d98b2e974eb5498793b1ba9495c9dbe2eaf0cc49874a9bf7206b0ff75fb94d41",
+    "entropy_scan": "d3c3c1ba7a0eda531da681ed34d9a85df124c32f079c435b369302426f750391",
 }
 
 _PRE_G026_PROFILE_HASHES: dict[str, str] = {
-    "hotfix": "26bc1ab7df04f3263f301396a5e2e3c3995e6feeb8f92da2d32b73c2217c04e1",
-    "feature": "1dd5285922482a7c35dc7b34aafb2e02b97707fd957f9d92640d07c85a2d34db",
-    "research": "49bda8c497d811fdd4ebcfa226be9efbfde3fe3d2b72047248480f95812bab99",
-    "refactor": "783af82426decb0f51f7de62279b885cfcdabf1b90c816aa4f57c975c5142120",
-    "review": "56f5a57a8c699de960d3079a23e072474c5d1fb7b0a60f865fdb7317fe83c4aa",
-    "design": "a96ddf00d88ec555292c7b574ecfe4b9765e660cfbecf0fa24e7551a093b719d",
-    "skill-optimization": "7619948e4ffb8bf78bec902b9ef374be4c680d04dfa6f5bf5ea5fd33120d1d8c",
-    "migration": "394e525bce061f11c1e8df8d9aa8fb62067c830f610074fdb8235f5fe19b8c4b",
-    "security-audit": "c4c314576b5b3de25fabfbe31033dd31d9cf063ef4549e4cf7f9bfbad2576c25",
-    "documentation": "416b8b3073e4b03938e3e80b114da725687258b80bebc047aeeb3bcd380c7ede",
-    "spike-poc": "c2dbf1701626b7e6a73b2955f95aced20656480698afa92546e59c86a150fe66",
-    "rdrr": "2e8d291ecea5af941ec828a785b35ff1493eb9f35dacca93668c565bfb83b2e2",
-    "demo-showcase": "a0090575c92c14aa999b7a7e026a19a425b7491c64ca998147ec5b20305989c9",
-    "perf-optimization": "d4dc3e858b67782d18d5955ee0b5cc53a084789853dd025958a9cd2da098c46a",
-    "dependency-setup": "15eecf6be60727b2db977b97ba0e016535708624290e249c2ad7aba68cb8ae9d",
-    "onboarding": "aab2448c00e5f8ad9d525e1ef85c92642d90e64c771a87c11190202255caa177",
-    "self_update": "80916fed120542e78a4344741d333132be98f2f2750a048249f62062ec2f984c",
-    "feedback": "bc4210e0730bbc4d17c856552e84ffed01fa98808ba191c7567766fe8a12a9b7",
+    "hotfix": "f5a93d34208bdc61dd3f1a474ed94cda36f4f802cd30a1c8bc413614e0e63511",
+    "feature": "051b581c5f571270baf1b83ae069dd36645c0c68b7f6ec515cbd98af83a35b7d",
+    "research": "2aad51d0d14f4db9cbc6787402d651efed2fc1ba53e2a7b6fed4de9f629507ba",
+    "refactor": "30d218a4e8054cd2872b249681180b8983dd95c811b473ad1ced318d6356c2b6",
+    "review": "580efcc076b26095658ff8682aecb24055b97898d78124a632c071c462a2c860",
+    "design": "fb579d80d2297eb06cc12e90f95ee723b67bd0d63425b3ea889560154cc40786",
+    "skill-optimization": "f75c916a5675c8f80366644d3894e6e3bec491e3d9762b787b63acde6d217940",
+    "migration": "afb3408095d64fc33b3cf6740793c6a0733cae108a3224fd922304d5a020e155",
+    "security-audit": "9478934af4994c5fd5d694770da0b57a9d1db56d788df6fc66de609ec5556dfc",
+    "documentation": "3d950d1607620797ff55b03f6908f8ad6ed0c0be613c889a8054d22345684eb8",
+    "spike-poc": "195590f18508868726a752742aa3f873b1a313a7a63e6421d712b2a57e90e46b",
+    "rdrr": "a043dfec3cf163e5145fdb8b4ba0ee3e1beb846d50c3f457f2e61b0aa105f8f3",
+    "demo-showcase": "384cf0652bab748f51fc15235cd4c89c5b10c8e78094db9743507bb3a67f006d",
+    "perf-optimization": "e5c66e2e0af195f3ca9154bac20c46e64a59a2c0d9c8b63b0437f4449e8690a2",
+    "dependency-setup": "b1bc884cfff3e5775ba2c459096797d2ec2504427a6c347853564774cef88969",
+    "onboarding": "3f9b06561da6a78b175fff480b9a4108928c5e3f1f7a8486a349eead27e80ba3",
+    "self_update": "852b56113f2b2fe0a2c916f5aa29290433cd0a0e86f0d8f7d304bb0547ada8be",
+    "feedback": "19d016d086f04c2d3c89610ce22c7fd1a0f84a94ed7166fb4a33b05fcf2a68ba",
     "verify_visual": "48c63ae115031c1d9f587c48e75288700c070cb68f5f5d58b51b715b38c0e09d",
     "verify_acceptance": "d6ff6666f67dab86b3f70bae867d05ba100400fdb6c6c7bd33563a1dd43fa70b",
     "verify_interaction": "afb7d6b50d887ca392af0ab01e3800e857c149a672d525672a1403ecb40667ac",
     "repo-init": "82dfa7335f3175dc69079ab6286eb6391e02cb19c675ad7c0e0088a72867aa46",
     "product_verification": "d929fe08d2a66615205281514aa9df15bb1c1c7aff1adf2cd5371b29a7ac92dd",
-    "entropy_scan": "97129fec03741c6ea0eb506accb216602101a5742e240bc94d5ab9210b95d46c",
+    "entropy_scan": "1d68da96923c67dbe7004447b946aa3c42c72194076439729e71fd68473ca101",
 }
 
 _PRE_G026_ORPHAN_HASHES: dict[str, str] = {
@@ -1330,7 +1336,7 @@ def _sha256_json(payload: object, *, sort_keys: bool = False) -> str:
 
 
 class TestG026OverlayEquivalence:
-    """W-6-guarded proof that the G-026 overlay refactor is byte-equivalent."""
+    """W-6 exact-hash guard for the resolved G-026 overlay contract."""
 
     @pytest.fixture(scope="class")
     def config(self) -> dict:
@@ -1339,12 +1345,12 @@ class TestG026OverlayEquivalence:
     def test_g026_section_priorities_match_pre_refactor_snapshot(self, config: dict) -> None:
         """Every profile's RESOLVED section_priorities map (keys + insertion
         order + values, post merge-key expansion) must hash-match the
-        vendored pre-refactor expansion. Order matters behaviorally: the
+        mechanically pinned exact snapshot. Order matters behaviorally: the
         ``_build_priority_buckets`` buckets preserve insertion order, which
         decides which same-tier section wins the budget race."""
         profiles = config["profiles"]
         assert set(profiles) == set(_PRE_G026_SECTION_PRIORITY_HASHES), (
-            "G-026 contract: profile SET must be unchanged by the overlay refactor"
+            "G-026 exact contract: profile SET changed unexpectedly"
         )
         mismatches = []
         for name, expected in _PRE_G026_SECTION_PRIORITY_HASHES.items():
@@ -1352,15 +1358,15 @@ class TestG026OverlayEquivalence:
             if _sha256_json(pairs) != expected:
                 mismatches.append(f"{name}: resolved map drifted -> {pairs}")
         assert not mismatches, (
-            "G-026 violation — resolved section_priorities diverged from the "
-            "pre-refactor expansion for:\n  " + "\n  ".join(mismatches)
+            "G-026 exact-hash violation — resolved section_priorities drifted for:\n  "
+            + "\n  ".join(mismatches)
         )
 
     def test_g026_profiles_equivalent_modulo_ac_generation(self, config: dict) -> None:
         """Every OTHER profile knob (budgets, model_hints, learnings,
         advisor, decomposition, tool_output_truncation, summary,
         behavioral_guidelines, goal_hints, extra_context, rationale, ...)
-        must be value-identical to the pre-refactor expansion.
+        must be value-identical to the mechanically pinned exact snapshot.
 
         Two keys are DELIBERATE deltas excluded from the hash:
           * ``ac_generation`` — v14.4.0 G-006 impl-class extension.
@@ -1378,9 +1384,8 @@ class TestG026OverlayEquivalence:
             if _sha256_json(rest, sort_keys=True) != expected:
                 mismatches.append(name)
         assert not mismatches, (
-            "G-026 violation — profile knobs (outside the documented "
-            "ac_generation / timeout_class deltas) diverged from the "
-            f"pre-refactor expansion for: {mismatches}"
+            "G-026 exact-hash violation — profile knobs outside the documented "
+            f"ac_generation / timeout_class deltas drifted for: {mismatches}"
         )
 
     def test_g026_orphan_keys_relocated_with_identical_content(self, config: dict) -> None:

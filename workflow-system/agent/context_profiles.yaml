@@ -61,21 +61,6 @@ meta:
       budget: haiku
       inherit: inherit
 
-  nines_integration:
-    auto_detect: true
-    install_hint: "uv pip install git+https://github.com/YoRHa-Agents/NineS.git"
-    plugin_registry: "workflow-system/agent/plugins.yaml"
-    commands:
-      collect: "nines -f json collect --source github --query \"{query}\" --max-results {limit}"
-      analyze: "nines -f json analyze --target-path {target} --depth deep --agent-impact --keypoints"
-      self_eval: "nines -f json self-eval --project-root {root}"
-      iterate: "nines -f json iterate --max-rounds {max_rounds} --threshold {threshold} --project-root {root}"
-    triggers:
-      - research_collection
-      - knowledge_analysis
-      - skill_iteration
-      - self_evaluation
-
   ui_integration:
     auto_detect: true
     install_hint: "npm install -g uipro-cli && uipro init --ai cursor"
@@ -89,9 +74,8 @@ meta:
       - design_system
       - landing_page
 
-  # v12.5.0 PV-04 D-1.2 — codegraph integration block (parallel to
-  # nines_integration). READ-ONLY metadata surfaced at workflow-stage
-  # entry; the runner never auto-executes these recipes — the agent
+  # v12.5.0 PV-04 D-1.2 — codegraph integration block. READ-ONLY metadata
+  # surfaced at workflow-stage entry; the runner never auto-executes these recipes — the agent
   # invokes them on demand against the project-local .codegraph/ index.
   # tokens_est: 200. Source: v12.5.0_gap_analysis.md §2 D-1.2.
   codegraph_integration:
@@ -379,7 +363,7 @@ meta:
 # and ``task_adaptive_selector._resolve_section_text``. Establishes the
 # canonical decoupling layer for section discovery so SKILL.md edits no
 # longer cascade through ``sections:`` line ranges and trigger unrelated
-# EvoBench scenario drift (closes gap analysis B1 / R7 per
+# built-in harness fixture drift (closes gap analysis B1 / R7 per
 # ``.local/research/v8.1.0_gap_analysis.md`` §3.2). The ``sections:``
 # block below is kept as the deprecated fallback for sections not yet
 # migrated; lookups for those sections emit a one-shot
@@ -397,8 +381,8 @@ meta:
 # criteria injection in ``_load_line_level_criteria``.
 #
 # v8.2.0 (PV-05) intentionally migrates the EXTERNAL reference doc only;
-# SKILL.md sections remain on the line-based fallback this cycle so the
-# 36+ EvoBench scenarios stay byte-identical (PV-05 invariant per
+# SKILL.md sections remain on the line-based fallback this cycle pending
+# built-in harness evaluation of section-budget drift (PV-05 invariant per
 # ``.local/research/v8.2.0_patch_plan.md`` §1.1 hard constraint #4).
 # Future v8.2.x cycles will incrementally migrate SKILL.md sections by
 # pairing each migration with a fresh baseline regen + `<5pp drift`
@@ -424,8 +408,8 @@ section_anchors:
   # out of the per-profile section_budget allocator and break
   # ``tests/test_behavioral_guidelines.py::test_behavioral_block_does_not_displace_critical_sections``.
   # Full migration is deferred to a future PV that pairs each anchor
-  # bump with a per-profile budget recalibration + EvoBench wholesale
-  # baseline regen — out of scope for PV-01 (R7 narrowed to "warning
+  # bump with a per-profile budget recalibration + built-in harness
+  # evaluation — out of scope for PV-01 (R7 narrowed to "warning
   # cleanup + content-move-driven anchors only").
   #
   # Per S-5 the legacy fall-through path still emits a DeprecationWarning
@@ -690,11 +674,6 @@ sections:
   # priority was `skip` in ALL 24 profiles (defaults map only; zero
   # per-profile deltas), so no dispatch context ever carried it.
 
-  nines_advisor:
-    lines: "N/A"
-    tokens_est: 150
-    content_type: integration
-
   # v12.4.0 PV-05 (D-4) — explicit registration of the §"Operational
   # Learnings" section so the runtime stops emitting per-profile
   # DeprecationWarning on first lookup (S-5 silent-fallback cleanup
@@ -725,18 +704,19 @@ sections:
 # Profiles compose via YAML anchors/merge keys (``<<:``) and override
 # ONLY the keys that differ (delta overlay). PyYAML resolves the merge
 # at parse time, so every consumer of the PARSED config — the selector,
-# the EvoBench harness, every yaml.safe_load test — sees per-profile
-# maps identical (keys, order, values) to the pre-refactor expansion.
-# Equivalence is pinned by tests/test_task_adaptive_selector.py
-# ::TestG026OverlayEquivalence against the vendored pre-refactor
-# snapshot. The 5 non-canonical profiles (verify_visual /
+# the built-in harness evaluator, every yaml.safe_load test — sees the same
+# resolved profile maps. Exact keys, order, and values are pinned by
+# tests/test_task_adaptive_selector.py::TestG026OverlayEquivalence against
+# mechanically re-pinned contract snapshots. The 5 non-canonical profiles
+# (verify_visual /
 # verify_acceptance / verify_interaction / product_verification /
 # repo-init) keep explicit maps — their key sets/orders differ, and a
 # merge would ADD default keys their resolved maps never carried.
 defaults:
-  # Canonical 25-key section-priority map (26 → 25 at v14.5.0 G-019:
+  # Canonical 24-key section-priority map (26 → 25 at v14.5.0 G-019:
   # `template_quick_ref` removed with the SKILL.md section demotion to
-  # references/meta-framework.md §4 — it was `skip` in all 24 profiles).
+  # references/meta-framework.md §4; 25 → 24 at v16.0.0 when the external
+  # advisor section retired in favor of built-in harness evaluation).
   # Per-key default = the most common value across the 19
   # canonical-order profiles. L0-only rows
   # (version_update / task_quality_score / operational_learnings) are
@@ -768,7 +748,6 @@ defaults:
     convergence_loop: skip
     task_quality_score: skip
     operational_learnings: skip
-    nines_advisor: supplementary
 
   # Operational-learnings injection knobs (v7.x baseline).
   learnings: &learnings_standard
@@ -1025,7 +1004,6 @@ profiles:
       dispatch_report: important
       reference_navigation: important
       rules_dispatchers: supplementary
-      nines_advisor: critical
     learnings:
       <<: *learnings_standard
       max_entries: 3
@@ -1107,7 +1085,6 @@ profiles:
       agent_teams: critical
       repo_mode: supplementary
       convergence_loop: supplementary
-      nines_advisor: skip
     learnings: *learnings_standard
     extra_context:
       - "references/decomposition-gate.md"
@@ -1167,14 +1144,14 @@ profiles:
     ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   skill-optimization:
-    description: "Agent skill optimization — benchmark context, density improvement"
+    description: "Agent skill optimization — built-in harness evaluation, density improvement"
     goal_hints:
       - "optimize skill"
       - "benchmark context"
       - "context density"
       - "compress skill"
       - "skill iteration"
-      - "EvoBench"
+      - "built-in harness evaluation"
       - "skill-optimization"
     token_budget: 4200
     model_hints:
@@ -1194,7 +1171,6 @@ profiles:
       lifecycle_hooks: supplementary
       reference_navigation: skip
       convergence_loop: critical
-      nines_advisor: critical
     learnings: *learnings_standard
     extra_context:
       - "references/decomposition-gate.md"
@@ -1203,10 +1179,10 @@ profiles:
     tool_output_truncation: *tool_output_truncation_default
     summary: *summary_extractive
     rationale: >
-      Skill optimization focuses on measuring and improving context density.
-      Gate mechanism is critical for evaluating optimization results. Context
-      isolation and dispatch protocol matter because they define what agents
-      actually receive. Convergence loop is important for the iterate cycle.
+      Skill optimization uses built-in harness evaluation to measure and
+      improve context density. Gate mechanism validates optimization results.
+      Context isolation and dispatch protocol matter because they define what
+      agents actually receive. Convergence loop is important for iteration.
     ac_generation: *ac_generation_impl  # v14.4.0 G-006 — impl-class auto-AC
 
   migration:
@@ -1550,7 +1526,6 @@ profiles:
       agent_teams: supplementary
       lifecycle_hooks: critical
       reference_navigation: critical
-      nines_advisor: important
     learnings:
       <<: *learnings_standard
       max_entries: 3

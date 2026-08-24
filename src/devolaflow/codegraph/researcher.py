@@ -267,9 +267,9 @@ def get_affected_tests(
     a list of repo-relative test file paths on success, ``[]`` on
     degraded mode.
 
-    The W-4 EvoBench harness can opt into running ONLY the affected
-    tests on CI for selective-test-run optimisation (telegraphed for
-    v12.6.0+ ADR per the cycle plan §5 open-question parking).
+    The built-in harness can opt into running only affected tests on CI
+    for selective-test-run optimisation (telegraphed for v12.6.0+ ADR
+    per the cycle plan §5 open-question parking).
 
     Args:
         changed_files: A list of repo-relative paths to changed files.

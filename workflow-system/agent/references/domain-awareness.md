@@ -495,6 +495,6 @@ This reference does **not** introduce any new dispatch payload field. The dispat
 
 ### §10.6 — External
 
-* DevolaFlow / EvoBench: `https://github.com/YoRHa-Agents/DevolaFlow` (per S-7 — local clone paths are operator-provided at runtime; never hardcoded in any agent-facing file).
+* DevolaFlow repository: `https://github.com/YoRHa-Agents/DevolaFlow` (per S-7 — local clone paths are operator-provided at runtime; never hardcoded in any agent-facing file).
 * Upstream grill-with-docs skill (the verbatim source for §3, §4, §5, §6, §8): `https://github.com/mattpocock/skills/tree/main/skills/engineering/grill-with-docs`. The 3 verbatim-source files copied into `docs/cycle-archive/v11.3.0/v11.3.0_grill_with_docs_source/` (`SKILL.md`, `CONTEXT-FORMAT.md`, `ADR-FORMAT.md`; 204 lines combined) are the in-repo cycle-research snapshot — they are NOT the source of truth (the upstream remote is) but they preserve the exact content this reference quotes from.
-* NineS evaluator (used for SI-2 self-eval; see W-2 / SI-2): `https://github.com/YoRHa-Agents/NineS`.
+* Built-in evaluation authority: `python -m devolaflow.harness evaluate` (see W-2 / SI-2). Domain and grill evidence never requires an external evaluator.

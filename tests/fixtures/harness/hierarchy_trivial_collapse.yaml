@@ -1,0 +1,65 @@
+schema_version: 1
+id: hierarchy_trivial_collapse
+provenance:
+  - legacy-evobench:collapse_l0_l3_simple
+  - legacy-evobench:collapse_l0_l3_trivial
+feature_tags:
+  - inline_dispatch
+  - trivial_waiver
+  - absence_canonical
+dispatch:
+  hdr:
+    id: harness-hierarchy-trivial
+    parent: harness-root
+    layer: project
+    timeout: 300
+  task:
+    id: HT-01
+    type: code
+    title: Apply trivial isolated edit
+  goal: Complete one isolated under-twenty-line edit without unnecessary cascade fields.
+  files:
+    - src/devolaflow/cli.py
+  rules:
+    strategy: minimal
+    lang: python
+    focus:
+      - surgical-scope
+  shared: Single-file trivial waiver; no shared writable state.
+  accept:
+    - One file changes by fewer than twenty lines.
+    - Optional cascade fields remain absent.
+  gate:
+    blockers: 0
+    retries: 1
+    subagent_pattern: INLINE
+  acceptance_criteria_v2:
+    - id: HT-AC-1
+      description: CLI regression tests pass after the isolated edit.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_cli.py -q --no-cov
+    - id: HT-AC-2
+      description: One file changes by fewer than twenty lines.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_change_activation_heuristic.py::test_classify_complexity_trivial -q --no-cov
+    - id: HT-AC-3
+      description: Optional cascade fields remain absent.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_cascade_enforcement.py::test_legacy_dispatch_without_cascade_fields_passes_byte_identically -q --no-cov
+expected:
+  guard_ids:
+    - HT-AC-1
+    - HT-AC-2
+    - HT-AC-3
+  report_required_keys:
+    - hdr
+    - state
+    - artifacts
+    - ac_results
+    - diff_stats
+  report_forbidden_keys:
+    - quality_score
+  required_literals:
+    - CASCADE_OPTIONAL
+    - INLINE
+  fold_sensitive: false

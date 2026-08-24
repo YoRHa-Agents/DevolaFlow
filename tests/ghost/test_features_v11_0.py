@@ -468,7 +468,9 @@ _V11_0_2_PV02_CASCADE_TESTS: Path = Path("tests/test_cascade_enforcement.py")
 
 
 # W-16 wholesale baseline regen (cycle-anchor for PV-03..PV-07).
-_V11_0_2_PV02_BASELINE: Path = Path("benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json")
+_V11_0_2_PV02_BASELINE: Path = Path(
+    "docs/cycle-archive/v15.2.0/evobench-baselines/v11.1.0_baseline.json"
+)
 
 
 # Decision memo (gitignored under .local/; presence-checked when local).
@@ -533,8 +535,8 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     * 5 NEW minimal-stub tests in `tests/test_cascade_enforcement.py`
       (4 active + 1 `pytest.skip` PV-04 telegraph; the full ≥10-test
       surface lands at PV-05 G-TEST-1).
-    * NEW `benchmarks/devolaflow_context/baselines/v11.1.0_baseline.json`
-      (W-16 wholesale baseline regen at v11.1.0 cycle-start).
+    * Archived `v11.1.0_baseline.json` evidence from the W-16 wholesale
+      regen at v11.1.0 cycle-start.
     * SKILL.md Quick Action Decision sub-table cites the
       `CASCADE_REQUIRED` verdict literal in the Standard + Complex rows.
     * Decision memo at `.local/research/v11.1.0_pv02_decision.md`
@@ -617,9 +619,8 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
         f"missing at {_V11_0_2_PV02_BASELINE}. v11.1.0 cycle-start "
         f"MUST regenerate the wholesale baseline per W-16."
     )
-    # Schema sanity: top-level keys are scenario names, each entry has
-    # the canonical fields per BASELINE_FIELDS in
-    # benchmarks/devolaflow_context/generate_baseline.py.
+    # Historical schema sanity: top-level keys are scenario names and each
+    # entry retains the retired baseline record fields.
     import json as _json
 
     baseline_data = _json.loads(baseline_path.read_text(encoding="utf-8"))
@@ -640,9 +641,7 @@ def test_v11_0_2_pv02_new_surfaces_have_coverage(project_root: Path) -> None:
     ):
         assert required_field in sample_entry, (
             f"W-18 v11.0.2 PV-02 violation: v11.1.0_baseline.json entry "
-            f"missing required field {required_field!r} per "
-            f"benchmarks/devolaflow_context/generate_baseline.py "
-            f"BASELINE_FIELDS."
+            f"missing archived record field {required_field!r}."
         )
 
     # SKILL.md must cite the current CASCADE_REQUIRED/default-3 contract.
@@ -956,12 +955,23 @@ _V11_0_5_PV05_AUDIT_SCRIPT_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
 )
 
 
-# 4 NEW EvoBench scenarios under benchmarks/devolaflow_context/scenarios/.
-_V11_0_5_PV05_EVOBENCH_SCENARIOS: tuple[Path, ...] = (
-    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_standard.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/cascade_l0_l1_l2_l3_complex.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_simple.yaml"),
-    Path("benchmarks/devolaflow_context/scenarios/collapse_l0_l3_trivial.yaml"),
+# The built-in harness preserves the four retired cascade/collapse scenario
+# identities as explicit historical provenance.
+_V11_0_5_PV05_HARNESS_FIXTURES: tuple[tuple[Path, tuple[str, ...]], ...] = (
+    (
+        Path("tests/fixtures/harness/hierarchy_complex_cascade.yaml"),
+        (
+            "legacy-evobench:cascade_l0_l1_l2_l3_standard",
+            "legacy-evobench:cascade_l0_l1_l2_l3_complex",
+        ),
+    ),
+    (
+        Path("tests/fixtures/harness/hierarchy_trivial_collapse.yaml"),
+        (
+            "legacy-evobench:collapse_l0_l3_simple",
+            "legacy-evobench:collapse_l0_l3_trivial",
+        ),
+    ),
 )
 
 
@@ -1020,12 +1030,9 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
       returns 1 when ``total_dispatch > 0`` AND ``cascade_ratio < N``.
     * ``tests/test_audit_layer_usage.py`` 4 NEW tests pinning the strict
       flag + cascade_ratio field per G-AUDIT-1 acceptance criteria.
-    * ``benchmarks/devolaflow_context/scenarios/`` gains 4 NEW G-BENCH-1
-      cascade-vs-collapse scenario YAMLs (cascade_l0_l1_l2_l3_standard,
-      cascade_l0_l1_l2_l3_complex, collapse_l0_l3_simple,
-      collapse_l0_l3_trivial). Auto-discovered by ``discover_scenarios()``;
-      W-17 +0 NEW test functions (parametrize expansion over data per
-      W-17 carve-out).
+    * Two built-in harness fixtures preserve the four retired G-BENCH-1
+      cascade-vs-collapse scenario identities as ``legacy-evobench:``
+      provenance; W-17 adds no test function.
     * ``.rules/architecture.mdc`` gains §A-7 ("Cascade-Depth Invariant
       for Standard+ Dispatches") with 4 sub-rules (A-7.1 Conditional
       strict enforcement / A-7.2 Trivial waiver / A-7.3 Operator override
@@ -1053,8 +1060,8 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
       * A-2.4 multi-baseline byte test: 32/32 PASS unchanged
       * S-10 hook-chain byte-id: 10/10 PASS unchanged
       * CP-4 gate suite: 108/108 PASS unchanged
-      * EvoBench: 36/36 PASS, max scenario drift 0.09pp (well under 5pp
-        W-4 SI-4 envelope)
+      * Historical EvoBench evidence is retained in the cycle archive;
+        live cascade/collapse contracts are carried by harness fixtures.
     """
     cascade_path = project_root / _V11_0_5_PV05_CASCADE_TESTS
     assert cascade_path.is_file(), (
@@ -1085,13 +1092,18 @@ def test_v11_0_5_pv05_new_surfaces_have_coverage(project_root: Path) -> None:
             f"{new_test!r} missing from tests/test_audit_layer_usage.py."
         )
 
-    for scenario_path in _V11_0_5_PV05_EVOBENCH_SCENARIOS:
-        full_path = project_root / scenario_path
+    for fixture_path, provenance in _V11_0_5_PV05_HARNESS_FIXTURES:
+        full_path = project_root / fixture_path
         assert full_path.is_file(), (
-            f"W-18 v11.0.5 PV-05 violation: NEW EvoBench scenario "
-            f"{scenario_path} missing per G-BENCH-1; cycle plan §3 "
-            f"PV-05 W02 T01_evobench_fixtures."
+            f"W-18 v11.0.5 PV-05 violation: harness fixture {fixture_path} "
+            f"missing for the retired G-BENCH-1 contract."
         )
+        fixture_text = full_path.read_text(encoding="utf-8")
+        for source in provenance:
+            assert source in fixture_text, (
+                f"W-18 v11.0.5 PV-05 violation: {fixture_path} lost "
+                f"historical provenance {source!r}."
+            )
 
     architecture_text = (project_root / _V11_0_5_PV05_ARCHITECTURE_RULES).read_text(
         encoding="utf-8"

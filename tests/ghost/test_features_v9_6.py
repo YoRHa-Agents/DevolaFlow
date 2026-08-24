@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 # ============================================================================
 # v9.6.0 — Reference Library Refresh (PV-01..PV-05).
 # ============================================================================
@@ -54,24 +52,6 @@ _V9_6_0_REFERENCE_DOC_ANCHORS: tuple[tuple[str, str], ...] = (
 )
 
 
-# v9.6.0 PV-01 harness public-symbol contract — the harness ships as a
-# top-level script, not a package, so we verify its module-level symbols
-# load cleanly via spec_from_file_location.
-_V9_6_0_HARNESS_SCRIPT: str = "scripts/nines_refresh_references.py"
-
-
-_V9_6_0_HARNESS_PUBLIC_SYMBOLS: tuple[str, ...] = (
-    "RefResult",
-    "CLONE_NAME_OVERRIDES",
-    "_load_refs",
-    "_resolve_clone",
-    "_run_nines",
-    "analyze_one",
-    "render_synthesis",
-    "main",
-)
-
-
 def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
     """W-18 v9.6.0: every NEW v9.6.0 surface has presence + structural coverage.
 
@@ -92,10 +72,6 @@ def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
        audit field.
     4. **Reference-doc anchors (PV-02 deliverable)** — the 4 NEW
        subsection headings appear verbatim in their owning files.
-    5. **Harness public surface (PV-01 deliverable)** — the
-       nines_refresh_references.py script loads cleanly and exposes
-       every symbol cited by the W-2 SI-2 contract.
-
     Failure modes:
       * "yaml ref count drift" → either an entry was added/removed
         outside the v9.6.0 PV chain OR yaml header comment regressed;
@@ -106,12 +82,7 @@ def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
         re-apply the tracking_status flip.
       * "missing reference-doc anchor" → PV-02 reference doc edit was
         reverted; re-author the §X subsection per gap_analysis §3.1.
-      * "harness symbol missing" → scripts/nines_refresh_references.py
-        regressed; re-author the public surface.
     """
-    import importlib.util
-    import sys
-
     import yaml as yaml_lib
 
     yaml_path = (
@@ -175,25 +146,4 @@ def test_v9_6_0_new_symbols_have_coverage(project_root: Path) -> None:
         assert anchor in text, (
             f"W-18 v9.6.0 violation: {rel_path} missing v9.6.0 anchor "
             f"{anchor!r}; PV-02 integration regressed"
-        )
-
-    # §5 — Harness public surface.
-    script_path = project_root / _V9_6_0_HARNESS_SCRIPT
-    assert script_path.is_file(), (
-        f"W-18 v9.6.0 violation: PV-01 harness {_V9_6_0_HARNESS_SCRIPT} missing"
-    )
-    spec = importlib.util.spec_from_file_location("_v9_6_0_w18_harness_probe", script_path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["_v9_6_0_w18_harness_probe"] = module
-    try:
-        spec.loader.exec_module(module)
-    except Exception as exc:  # pragma: no cover — import smoke
-        pytest.fail(f"W-18 v9.6.0 violation: harness module failed to import: {exc}")
-    finally:
-        sys.modules.pop("_v9_6_0_w18_harness_probe", None)
-    for sym in _V9_6_0_HARNESS_PUBLIC_SYMBOLS:
-        assert hasattr(module, sym), (
-            f"W-18 v9.6.0 violation: harness missing public symbol {sym!r}; "
-            f"the W-2 SI-2 contract cites this symbol"
         )

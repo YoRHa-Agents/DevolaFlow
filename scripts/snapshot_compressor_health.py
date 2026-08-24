@@ -1,47 +1,24 @@
 #!/usr/bin/env python3
-"""Snapshot the post-v9.3.0-split health of ``src/devolaflow/compressor/``.
+"""Snapshot deterministic local health metrics for ``src/devolaflow/compressor/``.
 
-Implements the v10.6.0 PV-03 D-Q-4 deliverable per
-`.local/research/v11.0.0_patches/D-Q-4.md`. The audit answers a simple
-quantitative question: **across the 4 modules in
-``src/devolaflow/compressor/`` (``__init__.py``, ``layout.py``,
-``patterns.py``, ``transforms.py``), what is the cyclomatic-complexity
-distribution today, and how many warning-class findings (CC > 10) does
-the surface carry?**
+The audit answers a bounded quantitative question: across the Python modules
+currently present in ``src/devolaflow/compressor/``, what are the line-count,
+function-count, and cyclomatic-complexity distributions, and how many
+warning-class findings (CC > 10) does the surface carry?
 
-Why this matters: the v10.2.2 PV-03 NineS deep-analysis explicitly
-EXCLUDED ``compressor/`` from its scope. The most recent NineS data on
-this surface is the v9.3.0 PV-04 pre-split monolith (avg_complexity
-4.98 + 2 warning-class CC findings). Since v9.3.0 the compressor was
-split 4-way, has been touched by v9.4 / v9.6 / v9.7 / v10.0 / v10.2,
-and the largest file (`transforms.py` at 2,198 LOC) is the largest
-single Python file in the entire ``src/devolaflow/`` tree. D-Q-4
-closes the 547-day NineS-coverage gap by emitting a fresh snapshot.
+The script is observability-only and performs no source mutations. It emits
+Markdown by default or JSON with ``--json``. All primary measurements come
+from the checked-out repository. The optional historical v9.3.0 pre-split
+comparison is retained only as labeled legacy context.
 
-D-Q-4 is **observability-only**: zero source mutations. The output is a
-markdown synthesis (default) or JSON (``--json``). Operators read it
-alongside the v11.0.0 SI-1 gap analysis to decide whether
-``transforms.py`` needs sub-decomposition (S/M effort) or whether the
-v9.3.0 PV-04 4-way split is structurally sound as-is.
+Algorithm:
 
-Algorithm (per PDS §2 + §6 admission_verdict):
-
-1. Glob ``src/devolaflow/compressor/*.py``; record per-file LOC.
-2. Invoke ``radon cc -nB`` against the package (one subprocess call).
-   When ``radon`` is unreachable, fall back to a pure-Python LOC-only
-   report and note "manual fallback per W-2" in the synthesis preamble
-   (NineS / radon both being unavailable is the W-2 documented edge
-   case; the synthesis still emits a §1 + §3 surface).
-3. Parse the radon output (``F <line>:<col> <name> - <rank>``); group
-   by file; compute:
-   * Per-file: function count, average rank-as-int, max rank, count of
-     functions at each rank (A..F histogram).
-   * Aggregate: total functions, avg complexity (rank float average),
-     warning-class count (rank C+ ⇒ CC > 10 per radon convention).
-4. Render markdown report mirroring the
-   ``v10.2.2_nines.md`` schema (§1 per-package summary, §2 top
-   findings, §3 keypoints, §4 hygiene sub-scoring, §5 PV candidates,
-   §6 references).
+1. Glob ``src/devolaflow/compressor/*.py`` and record per-file LOC.
+2. Invoke ``radon cc -nB`` once. If radon is unavailable or fails, emit an
+   explicit degraded LOC/function-count-only report.
+3. Parse local radon output and compute per-file and aggregate rank metrics.
+4. Render a stable six-section report suitable for current research and
+   harness evidence archives.
 
 Public API:
 
@@ -55,8 +32,6 @@ Public API:
 Entry point: ``python scripts/snapshot_compressor_health.py
 [--repo-root .] [--json] [--verbose] [--output PATH]``
 
-Source: v10.6.0 PV-03 — codified per
-`.local/research/v11.0.0_patches/D-Q-4.md` §2.
 External tool reference (S-7): https://radon.readthedocs.io/
 """
 
@@ -94,9 +69,8 @@ DEFAULT_COMPRESSOR_PACKAGE: str = "src/devolaflow/compressor"
 #   E: 31-40  (high risk)
 #   F: >40    (very high risk)
 #
-# Per D-Q-4 §1, the v9.3.0 baseline reported "warning-class" at
-# CC=11 (rank C); we adopt the same threshold so the snapshot
-# is directly comparable to the v9.3.0 PV-04 datum.
+# The legacy v9.3.0 baseline used CC=11 (rank C) as "warning-class";
+# retain that threshold so historical comparisons remain meaningful.
 _RANK_TO_BUCKET: dict[str, str] = {
     "A": "A",
     "B": "B",
@@ -120,11 +94,8 @@ _RADON_FILE_HEADER_RE = re.compile(
     re.MULTILINE,
 )
 
-# v9.3.0 baseline metrics from .local/research/v9.3.0_nines_compressor.json
-# (per D-Q-4 §1) — included verbatim so the snapshot can compute the
-# delta inline. These are the pre-split monolith numbers; the post-split
-# package may show DIFFERENT (lower OR higher) values depending on how
-# the v9.3.0 PV-04 split + subsequent v9.4-v10.2 patches landed.
+# Legacy v9.3.0 pre-split metrics retained for historical comparison only.
+# Current health is always measured from the checked-out repository.
 V9_3_0_BASELINE_AVG_COMPLEXITY: float = 4.98
 V9_3_0_BASELINE_WARNING_COUNT: int = 2
 
@@ -153,7 +124,7 @@ class CompressorHealth:
     per_file_loc: dict[str, int]
     per_file_function_count: dict[str, int]
     per_file_warning_findings: dict[str, list[FunctionMetric]]
-    used_radon: bool  # False when manual fallback was triggered (W-2)
+    used_radon: bool  # False when the explicit degraded LOC-only path was used
 
 
 # Conservative midpoint estimates per radon's documented thresholds —
@@ -218,19 +189,18 @@ def run_radon_cc(
         ``radon`` is unavailable OR when ``files`` is empty.
       * ``used_radon``: ``True`` when radon was successfully invoked,
         ``False`` when ``shutil.which("radon")`` returned ``None`` or
-        the subprocess failed (the W-2 manual-fallback path).
+        the subprocess failed (the explicit degraded path).
 
-    Per S-5 (no-silent-failures): a subprocess failure logs to stderr
-    AND falls back to ``used_radon=False`` so the caller can switch to
-    the LOC-only synthesis. The fallback is documented inline in the
-    rendered markdown.
+    Per S-5 (no-silent-failures), a subprocess failure logs to stderr and
+    returns ``used_radon=False`` so the report marks missing complexity
+    measurements explicitly.
     """
     if not files:
         return "", True
     if shutil.which("radon") is None:
         print(
             "[snapshot_compressor_health] radon unavailable on PATH; "
-            "falling back to manual LOC-only mode (W-2)",
+            "emitting degraded LOC-only measurements",
             file=sys.stderr,
         )
         return "", False
@@ -253,14 +223,14 @@ def run_radon_cc(
     except (subprocess.TimeoutExpired, OSError) as exc:
         print(
             f"[snapshot_compressor_health] radon invocation failed ({exc}); "
-            "falling back to LOC-only mode (W-2)",
+            "emitting degraded LOC-only measurements",
             file=sys.stderr,
         )
         return "", False
     if proc.returncode != 0:
         print(
             f"[snapshot_compressor_health] radon exited {proc.returncode} "
-            f"(stderr={proc.stderr[:200]!r}); falling back to LOC-only mode (W-2)",
+            f"(stderr={proc.stderr[:200]!r}); emitting degraded LOC-only measurements",
             file=sys.stderr,
         )
         return "", False
@@ -333,8 +303,8 @@ def _count_functions(path: Path) -> int:
 
     Used when radon is unavailable. Conservatively over-counts by 0
     (won't catch lambdas, but compresses to ``def `` line literal so
-    nested functions ARE included). Good enough for the W-2 manual
-    fallback path; precise counts come from radon when available.
+    nested functions ARE included). Good enough for the degraded path;
+    precise complexity ranks come from radon when available.
     """
     try:
         text = path.read_text(encoding="utf-8")
@@ -355,10 +325,10 @@ def compute_health_summary(
     Args:
       files: Sorted list of Python files in the package.
       per_file_metrics: Output of :func:`parse_radon_cc`. Empty when
-        radon was unavailable (manual fallback).
+        radon was unavailable (degraded local measurement).
       used_radon: ``True`` when radon was successfully invoked. When
         ``False``, the rank histogram + warning count + avg complexity
-        are all ZERO (the LOC-only fallback emits ``[manual fallback]``
+        are all ZERO (the LOC-only path emits ``[degraded measurement]``
         markers in the rendered markdown).
       repo_root: Repository root (used to relativize file paths in the
         per_file_loc dict).
@@ -425,13 +395,10 @@ def compute_health_summary(
 
 
 def render_markdown_report(health: CompressorHealth) -> str:
-    """Render :class:`CompressorHealth` as a markdown synthesis.
+    """Render :class:`CompressorHealth` as a stable local-measurement report.
 
-    Mirrors the schema of ``.local/research/v10.2.2_nines.md`` per
-    D-Q-4 §2 patch_design (§1 per-package summary, §2 top findings,
-    §3 keypoints, §4 hygiene sub-scoring, §5 PV candidates, §6
-    references) so the output drops directly into the cycle-archive
-    nines/ subdirectory at v11.0.0 cycle close (W-19).
+    The six-section shape is retained for historical readers, while current
+    artifacts route with built-in harness and local research evidence.
 
     Args:
       health: Aggregated metrics from
@@ -439,10 +406,10 @@ def render_markdown_report(health: CompressorHealth) -> str:
 
     Returns:
       Markdown string ready to write to
-      ``.local/research/v10.6.X_compressor_health.md``.
+      ``.local/research/v<cycle>_compressor_health.md``.
     """
     fallback_note = (
-        " *(manual fallback per W-2 — radon unavailable; rank histogram"
+        " *(degraded local measurement — radon unavailable; rank histogram"
         " and warning count omitted, LOC + function-count stats only)*"
         if not health.used_radon
         else ""
@@ -457,10 +424,10 @@ def render_markdown_report(health: CompressorHealth) -> str:
     )
 
     lines: list[str] = [
-        "# v10.6.X compressor/ Post-Split Health Snapshot",
+        "# Compressor Health Snapshot",
         "",
-        "> Generated by `scripts/snapshot_compressor_health.py` per",
-        "> `.local/research/v11.0.0_patches/D-Q-4.md` §2.",
+        "> Generated from deterministic repository-local measurements by",
+        "> `scripts/snapshot_compressor_health.py`.",
         f">{fallback_note}" if fallback_note else "",
         "",
         "## §1 — Per-package summary",
@@ -477,13 +444,13 @@ def render_markdown_report(health: CompressorHealth) -> str:
             f"{_max_severity(health)} |"
         ),
         "",
-        "Comparison vs v9.3.0 PV-04 pre-split baseline "
-        "(`.local/research/v9.3.0_nines_compressor.json`):",
+        "Legacy comparison vs v9.3.0 PV-04 pre-split baseline "
+        "(`.local/research/v9.3.0_nines_compressor.json`, historical only):",
         "",
         f"- Avg complexity: v9.3.0 = {V9_3_0_BASELINE_AVG_COMPLEXITY} → "
-        f"v10.6.X = {health.avg_complexity_estimate} (Δ {delta_avg_str})",
+        f"current = {health.avg_complexity_estimate} (Δ {delta_avg_str})",
         f"- Warning-class count: v9.3.0 = {V9_3_0_BASELINE_WARNING_COUNT} → "
-        f"v10.6.X = {health.warning_count} (Δ {delta_warn_str})",
+        f"current = {health.warning_count} (Δ {delta_warn_str})",
         "",
         "## §2 — Top findings (severity-sorted, warning-class only)",
         "",
@@ -524,14 +491,16 @@ def render_markdown_report(health: CompressorHealth) -> str:
         warn_str = (
             f"{warning_total} warning-class finding(s)"
             if health.used_radon and warning_total > 0
-            else ("no warning-class findings" if health.used_radon else "n/a (manual fallback)")
+            else (
+                "no warning-class findings" if health.used_radon else "n/a (degraded measurement)"
+            )
         )
         lines.append(f"- **`{rel_path}`** — {loc} LOC, {fn_count} functions; {warn_str}.")
 
     lines.extend(
         [
             "",
-            "## §4 — Agent-impact / hygiene sub-scoring",
+            "## §4 — Deterministic health summary",
             "",
             "| Package | Warning ratio | Avg CC (est.) | Synthesis score (informal) |",
             "|---|---:|---:|---:|",
@@ -549,22 +518,18 @@ def render_markdown_report(health: CompressorHealth) -> str:
     lines.extend(
         [
             "",
-            "## §5 — Findings flagged for v11.0.x+ self-iteration",
+            "## §5 — Findings flagged for follow-up",
             "",
         ]
     )
     if not all_warnings:
-        lines.append(
-            "_No PV candidates surfaced — the audit confirms the v9.3.0 PV-04 "
-            "split + subsequent v9.4-v10.5 patches kept the compressor surface "
-            "structurally healthy. No v11.0.x compressor refactor PV is required._"
-        )
+        lines.append("_No follow-up candidates surfaced from the current local measurements._")
     else:
         for metric in all_warnings[:10]:
             lines.append(
                 f"- PV candidate — `{metric.file}:{metric.line}` "
                 f"`{metric.name}` rank {metric.rank} → propose helper "
-                f"extraction analogous to v10.6.0 PV-01 D-Q-1 row template."
+                "extraction and verify it with focused tests."
             )
 
     lines.extend(
@@ -572,11 +537,10 @@ def render_markdown_report(health: CompressorHealth) -> str:
             "",
             "## §6 — References",
             "",
-            "- v9.3.0 baseline: `.local/research/v9.3.0_nines_compressor.json`",
-            "- D-Q-4 PDS: `.local/research/v11.0.0_patches/D-Q-4.md`",
-            "- v10.2.2 NineS schema reference: `.local/research/v10.2.2_nines.md`",
+            "- Current source: `src/devolaflow/compressor/`",
+            "- Current verification: `tests/test_compressor.py`",
+            "- Legacy baseline: `.local/research/v9.3.0_nines_compressor.json`",
             "- External tools (S-7): radon https://radon.readthedocs.io/",
-            "- External tools (S-7): NineS https://github.com/YoRHa-Agents/NineS",
             "",
         ]
     )
@@ -586,7 +550,7 @@ def render_markdown_report(health: CompressorHealth) -> str:
 def _max_severity(health: CompressorHealth) -> str:
     """Return the highest-severity bucket present (or "info" when empty)."""
     if not health.used_radon:
-        return "n/a (manual fallback)"
+        return "n/a (degraded measurement)"
     for rank in ("F", "E", "D", "C"):
         if health.rank_histogram.get(rank, 0) > 0:
             return f"warning ×{health.rank_histogram[rank]} ({rank})"
@@ -604,16 +568,16 @@ def _severity_label(rank: str) -> str:
 
 
 def _informal_synthesis_score(health: CompressorHealth) -> str:
-    """Compute an informal synthesis score (1-10) similar to NineS §4 hygiene.
+    """Compute a deterministic local summary score from warning count.
 
-    Rough heuristic — NOT the rigorous NineS scoring; this is just a
-    quick-glance health indicator. 10 = no warnings; subtract 0.5 per
-    warning, capped at 5.0 minimum. Manual-fallback returns "n/a".
+    This is a quick-glance heuristic, not an SI-3 verdict. Ten means no
+    warnings; subtract 0.5 per warning, capped at 5.0. The degraded path
+    returns ``"n/a"``.
     """
     if not health.used_radon:
         return "n/a"
     score = max(5.0, 10.0 - (health.warning_count * 0.5))
-    return f"{score:.1f}/10 (informal — NOT NineS-grade)"
+    return f"{score:.1f}/10 (local heuristic)"
 
 
 def run(
@@ -699,9 +663,7 @@ def run(
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point — parse args, dispatch to :func:`run`."""
     parser = argparse.ArgumentParser(
-        description=(
-            "Snapshot the post-v9.3.0-split health of src/devolaflow/compressor/ (D-Q-4 audit)."
-        ),
+        description="Snapshot deterministic local health metrics for the compressor package.",
     )
     parser.add_argument(
         "--repo-root",

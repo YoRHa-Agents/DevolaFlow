@@ -168,7 +168,7 @@ class TestDisabledIsNoopByteIdentical:
 
     def test_disabled_returns_clean_hook_result(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(ENV_FLAG, raising=False)
-        result = pre_plugin_invocation({"plugin_id": "nines"})
+        result = pre_plugin_invocation({"plugin_id": "si-chip"})
         assert isinstance(result, HookResult)
         assert result.passed is True
         assert result.violations == []
@@ -193,9 +193,9 @@ class TestDisabledIsNoopByteIdentical:
             side_effect=watcher,
         ):
             for payload in (
-                {"plugin_id": "nines"},
-                {"plugin_ids": ["nines", "ui-pro", "rtk"]},
-                {"plugin_id": "nines", "plugin_ids": ["ui-pro"]},
+                {"plugin_id": "si-chip"},
+                {"plugin_ids": ["si-chip", "ui-pro", "rtk"]},
+                {"plugin_id": "si-chip", "plugin_ids": ["ui-pro"]},
             ):
                 result = pre_plugin_invocation(payload)
                 assert result.passed is True
@@ -257,8 +257,8 @@ class TestActiveDelegation:
                 return_value=False,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
-        assert invocations == ["nines"]
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
+        assert invocations == ["si-chip"]
         assert result.passed is True
         assert result.violations == []
 
@@ -282,8 +282,8 @@ class TestActiveDelegation:
                 return_value=False,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_ids": ["nines", "ui-pro", "rtk"]})
-        assert invocations == ["nines", "ui-pro", "rtk"], (
+            result = pre_plugin_invocation({"plugin_ids": ["si-chip", "ui-pro", "rtk"]})
+        assert invocations == ["si-chip", "ui-pro", "rtk"], (
             "list iteration must preserve insertion order"
         )
         assert result.passed is True
@@ -308,9 +308,9 @@ class TestActiveDelegation:
             ),
         ):
             pre_plugin_invocation(
-                {"plugin_ids": ["nines", "ui-pro", "nines"], "plugin_id": "ui-pro"}
+                {"plugin_ids": ["si-chip", "ui-pro", "si-chip"], "plugin_id": "ui-pro"}
             )
-        assert invocations == ["nines", "ui-pro"], (
+        assert invocations == ["si-chip", "ui-pro"], (
             f"duplicates must be removed while preserving first-seen order; got {invocations!r}"
         )
 
@@ -336,18 +336,18 @@ class TestFailureHandling:
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=boom,
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
         assert result.passed is False
         assert len(result.violations) == 1
         violation = result.violations[0]
         assert violation.code == "PPI001"
-        # v15.2.0 B-6 — nines is suggest-tier: PPI001 degrades to warning
+        # v15.2.0 B-6 — si-chip is suggest-tier: PPI001 degrades to warning
         # severity (tier recorded in context; one-time hint appended).
         assert violation.severity == "warning"
         assert violation.context["tier"] == "suggest"
-        assert "nines" in violation.message
+        assert "si-chip" in violation.message
         assert "PluginInstallError" in violation.message
-        assert violation.context["plugin_id"] == "nines"
+        assert violation.context["plugin_id"] == "si-chip"
 
     def test_plugin_not_found_error_becomes_ppi001(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
@@ -368,7 +368,7 @@ class TestFailureHandling:
     def test_schema_violation_becomes_ppi002_warning(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_FLAG, ENV_FLAG_TRUTHY)
         # plugin_ids must be a list, not a string
-        result = pre_plugin_invocation({"plugin_ids": "nines"})
+        result = pre_plugin_invocation({"plugin_ids": "si-chip"})
         assert result.passed is False
         ppi002 = [v for v in result.violations if v.code == "PPI002"]
         assert len(ppi002) == 1
@@ -391,9 +391,9 @@ class TestFailureHandling:
             "devolaflow.plugins.installer.ensure_plugin",
             side_effect=maybe_boom,
         ):
-            result = pre_plugin_invocation({"plugin_ids": ["nines", "ui-pro", "rtk"]})
+            result = pre_plugin_invocation({"plugin_ids": ["si-chip", "ui-pro", "rtk"]})
         # All three plugins were attempted, even after ui-pro failed.
-        assert seen == ["nines", "ui-pro", "rtk"]
+        assert seen == ["si-chip", "ui-pro", "rtk"]
         assert result.passed is False
         ppi001 = [v for v in result.violations if v.code == "PPI001"]
         assert len(ppi001) == 1
@@ -414,9 +414,9 @@ class TestFailureHandling:
             ),
             pytest.raises(HookViolation) as exc_info,
         ):
-            pre_plugin_invocation({"plugin_id": "nines"}, strict=True)
+            pre_plugin_invocation({"plugin_id": "si-chip"}, strict=True)
         assert exc_info.value.code == "PPI001"
-        # v15.2.0 B-6 — nines is suggest-tier so the severity is warning,
+        # v15.2.0 B-6 — si-chip is suggest-tier so the severity is warning,
         # but finalize's strict contract is unchanged: strict=True re-raises
         # the TOP violation regardless of severity (strict is strict).
         assert exc_info.value.severity == "warning"
@@ -435,7 +435,7 @@ class TestFailureHandling:
             ),
             pytest.raises(OSError, match="disk full"),
         ):
-            pre_plugin_invocation({"plugin_id": "nines"})
+            pre_plugin_invocation({"plugin_id": "si-chip"})
 
 
 # ---------------------------------------------------------------------------
@@ -564,10 +564,10 @@ class TestDailyUpgradeIntegration:
                 side_effect=fake_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
 
-        assert ensure_calls == ["nines"]
-        assert upgrade_calls == ["nines"], (
+        assert ensure_calls == ["si-chip"]
+        assert upgrade_calls == ["si-chip"], (
             "D-P-2 violation: stale plugin did NOT trigger upgrade_plugin"
         )
         assert result.passed is True
@@ -599,7 +599,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=fake_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
 
         assert upgrade_calls == [], (
             f"D-P-2 idempotency violation: fresh plugin triggered "
@@ -638,7 +638,7 @@ class TestDailyUpgradeIntegration:
             ),
         ):
             # Permissive default — must NOT raise.
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
 
         ppi003 = [v for v in result.violations if v.code == "PPI003"]
         assert len(ppi003) == 1, (
@@ -646,7 +646,7 @@ class TestDailyUpgradeIntegration:
             f"PPI003 warning; got {[v.code for v in result.violations]!r}"
         )
         assert ppi003[0].severity == "warning"
-        assert "nines" in ppi003[0].message
+        assert "si-chip" in ppi003[0].message
         assert ppi003[0].context["stage"] == "daily_upgrade"
         # PPI003 is a warning, not error → permissive HookResult.passed
         # depends on the dispatcher's pass_if floor; we assert no PPI001
@@ -690,7 +690,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=watcher_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
 
         assert ensure_calls == [], "R5 strict: ensure_plugin must not fire when env flag is OFF"
         assert upgrade_calls == [], (
@@ -734,7 +734,7 @@ class TestDailyUpgradeIntegration:
                 side_effect=watcher_upgrade,
             ),
         ):
-            result = pre_plugin_invocation({"plugin_id": "nines"})
+            result = pre_plugin_invocation({"plugin_id": "si-chip"})
 
         assert upgrade_calls == [], (
             "Stale probe failure must skip the upgrade attempt for that plugin"
@@ -751,8 +751,7 @@ class TestRunInstallThenUpgradeHelper:
     """Pin :func:`_run_install_then_upgrade_for_plugin` signature + contract.
 
     Helper extracted in v10.2.3 PV-04 from :func:`pre_plugin_invocation`
-    to address the NineS PV-03 deep-analysis CC=18 finding at
-    `.local/research/v10.2.2_nines.md` §2 row #2. Behaviour is byte-
+    to address the v10.2.3 deep-analysis CC=18 finding. Behaviour is byte-
     identical to the v10.2.1 baseline; this class proves the extraction
     preserves the public contract by exercising the helper directly.
     """
@@ -800,7 +799,7 @@ class TestRunInstallThenUpgradeHelper:
             ),
         ):
             violations = _run_install_then_upgrade_for_plugin(
-                "nines",
+                "si-chip",
                 threshold_hours=24,
             )
         assert violations == [], (
@@ -816,7 +815,7 @@ class TestRunInstallThenUpgradeHelper:
         with (
             patch(
                 "devolaflow.plugins.installer.ensure_plugin",
-                side_effect=PluginInstallError("nines: boom"),
+                side_effect=PluginInstallError("si-chip: boom"),
             ),
             patch(
                 "devolaflow.plugins.installer.is_plugin_stale",
@@ -824,7 +823,7 @@ class TestRunInstallThenUpgradeHelper:
             ),
         ):
             violations = _run_install_then_upgrade_for_plugin(
-                "nines",
+                "si-chip",
                 threshold_hours=24,
             )
         assert len(violations) == 1

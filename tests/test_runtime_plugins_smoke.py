@@ -1,4 +1,4 @@
-"""Registry-walk smoke tests for the 4 registered runtime plugins.
+"""Registry-walk smoke tests for the registered runtime plugins.
 
 Closes D-P-4 from `.local/research/v10.2.0_gap_analysis.md` §3.1:
 v9.4.0 PV-04 wired schema v3 + 4 plugins; v10.1.0 added zero plugin
@@ -8,7 +8,7 @@ cleanly via `resolve_plugin` until this smoke file landed.
 Test surface (pure registry walk + dataclass shape; NO subprocess):
 
 §1 — schema_version is 4 (v15.2.0 B-6 bump); `defaults.upgrade_check_frequency_hours` is 24.
-§2 — all 4 expected plugin IDs (nines, ui-pro, rtk, si-chip) are present.
+§2 — the 5 expected plugin IDs are present in canonical order.
 §3 — every `resolve_plugin(p["id"], registry)` returns a
      RuntimePluginSpec whose backend is one of the 3 supported values
      (pip / npm_then_init / curl_install_script).
@@ -25,8 +25,10 @@ External tool reference (S-7): https://github.com/YoRHa-Agents/DevolaFlow
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,8 +36,12 @@ import pytest
 from devolaflow.plugins import load_registry, resolve_plugin
 from devolaflow.plugins.installer import _SUPPORTED_BACKENDS, RuntimePluginSpec
 
-_EXPECTED_PLUGIN_IDS: frozenset[str] = frozenset(
-    {"nines", "ui-pro", "rtk", "si-chip", "codegraph", "impeccable"}
+_EXPECTED_PLUGIN_IDS: tuple[str, ...] = (
+    "ui-pro",
+    "rtk",
+    "si-chip",
+    "codegraph",
+    "impeccable",
 )
 
 
@@ -64,17 +70,13 @@ def test_registry_upgrade_check_frequency_defaults_24h() -> None:
 
 
 def test_registry_contains_expected_6_plugin_ids() -> None:
-    """6 plugins ship in v13.0.0 (nines, ui-pro, rtk, si-chip, codegraph, impeccable)."""
+    """The active registry contains exactly five plugins in canonical order."""
     registry = load_registry()
-    registered = {p["id"] for p in registry["plugins"]}
-    missing = _EXPECTED_PLUGIN_IDS - registered
-    assert not missing, (
-        f"runtime-plugins.yaml missing expected plugin IDs {sorted(missing)!r}; "
-        f"registered = {sorted(registered)!r}. v13.0.0 smoke requires all 6."
-    )
+    registered = tuple(p["id"] for p in registry["plugins"])
+    assert registered == _EXPECTED_PLUGIN_IDS
 
 
-@pytest.mark.parametrize("plugin_id", sorted(_EXPECTED_PLUGIN_IDS))
+@pytest.mark.parametrize("plugin_id", _EXPECTED_PLUGIN_IDS)
 def test_resolve_plugin_returns_valid_spec(plugin_id: str) -> None:
     """`resolve_plugin` yields a well-formed RuntimePluginSpec with a
     supported backend + non-empty canonical_url (S-7 compliance)."""
@@ -99,26 +101,6 @@ def test_resolve_plugin_returns_valid_spec(plugin_id: str) -> None:
         f"plugin {plugin_id!r} has empty version_check_cmd — would make _probe_version unusable"
     )
     assert spec.min_version, f"plugin {plugin_id!r} has empty min_version"
-
-
-def test_nines_install_cmd_uses_git_source_not_pypi() -> None:
-    """Issue #152: the `nines` distribution is NOT published on PyPI, so the
-    install/upgrade commands MUST point at the canonical GitHub source
-    (`git+https://github.com/YoRHa-Agents/NineS`) per S-7. A plain
-    `pip install nines` fails with "from versions: none" — this pin
-    prevents regression to the phantom PyPI name.
-    """
-    registry = load_registry()
-    nines = resolve_plugin("nines", registry)
-    assert "git+https://github.com/YoRHa-Agents/NineS" in nines.install_cmd, (
-        f"Issue #152 regression: nines install_cmd must install from the "
-        f"canonical GitHub source (no `nines` package exists on PyPI); "
-        f"actual: {nines.install_cmd!r}"
-    )
-    assert nines.upgrade_cmd == nines.install_cmd, (
-        "nines upgrade_cmd should equal install_cmd (pip git installs are "
-        "idempotent and self-upgrading with --upgrade)"
-    )
 
 
 def test_si_chip_version_check_cmd_no_longer_hardcoded() -> None:
@@ -173,6 +155,12 @@ def test_si_chip_version_check_cmd_executes_cleanly_when_installed(
     registry = load_registry()
     si_chip = resolve_plugin("si-chip", registry)
     repo_root = Path(__file__).resolve().parent.parent
+    # The registry command targets `python3` on a >=3.11 operator machine
+    # (pyproject requires-python). Prepend the running interpreter's dir so
+    # dev machines whose system python3 predates 3.11 resolve a valid one —
+    # same environment fix as tests/test_install_sh.py.
+    env = dict(os.environ)
+    env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
     proc = subprocess.run(
         ["bash", "-c", si_chip.version_check_cmd],
         cwd=str(repo_root),
@@ -180,6 +168,7 @@ def test_si_chip_version_check_cmd_executes_cleanly_when_installed(
         text=True,
         timeout=30,
         check=False,
+        env=env,
     )
     assert proc.returncode == 0, (
         f"si-chip version_check_cmd failed (returncode={proc.returncode}); "

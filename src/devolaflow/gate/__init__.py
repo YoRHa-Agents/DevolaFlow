@@ -15,6 +15,7 @@ from devolaflow.gate.budget import (
     from_profile_name,
 )
 from devolaflow.gate.complexity_detector import (
+    COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
     CRITICAL_CC_THRESHOLD,
     NINES_BINARY,
     NINES_TIMEOUT_SECONDS,
@@ -22,8 +23,10 @@ from devolaflow.gate.complexity_detector import (
     WARNING_CC_THRESHOLD,
     ComplexityDetector,
     ComplexityEvaluation,
+    ComplexityProbeResult,
     NinesWrapResult,
     TierBudgets,
+    inspect_complexity_path,
     wrap_nines_complexity,
 )
 from devolaflow.gate.convergence import (
@@ -120,10 +123,12 @@ __all__ = [
     "BudgetAction",
     "BudgetDecision",
     "BudgetRecommendation",
+    "COMPLEXITY_INSPECTION_TIMEOUT_SECONDS",
     "CRITICAL_CC_THRESHOLD",
     "CYCLE_DEFAULT_SEVERITY",
     "ComplexityDetector",
     "ComplexityEvaluation",
+    "ComplexityProbeResult",
     "ComplexitySignals",
     "ComplexityVerdict",
     "CycleDetector",
@@ -196,6 +201,7 @@ __all__ = [
     "generate_markdown_report",
     "generate_yaml_report",
     "hash_payload",
+    "inspect_complexity_path",
     "merge_reinforcement_into_dispatch",
     "quality_score",
     "record_round_with_ratchet",

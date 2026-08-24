@@ -17,15 +17,10 @@ import yaml
 # ---------------------------------------------------------------------------
 
 
-# v9.3.0 Performance Overhaul #1 NEW symbols (PV-02..PV-06). Each entry is the
-# minimum import-smoke contract that must hold for the symbol to be
-# considered "alive" — i.e. the CHANGELOG cites it AND it imports cleanly.
+# v9.3.0 Performance Overhaul #1 retained symbols (PV-03..PV-05). The PV-02
+# EvoBench latency harness was intentionally retired; its JSON evidence remains
+# in the v15.2.0 cycle archive and must not be imported as live code.
 _V9_3_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
-    # PV-02 latency harness
-    ("benchmarks.devolaflow_context.latency_harness", "capture_latency"),
-    ("benchmarks.devolaflow_context.latency_harness", "measure_function"),
-    ("benchmarks.devolaflow_context.latency_harness", "MEASURED_FUNCTIONS"),
-    ("benchmarks.devolaflow_context.latency_harness", "SCHEMA_VERSION"),
     # PV-03 LRU cache
     ("devolaflow.task_adaptive_selector", "_load_profiles_cached"),
     ("devolaflow.task_adaptive_selector", "_load_skill_md_cached"),
@@ -57,8 +52,8 @@ _V9_3_0_NEW_SYMBOL_SURFACES: tuple[tuple[str, str], ...] = (
 # numerical perf gain pins these files. The W-18 contract requires them
 # to be present + parseable.
 _V9_3_0_LATENCY_BASELINE_PATHS: tuple[Path, ...] = (
-    Path("benchmarks/devolaflow_context/baselines/v9.3.0_latency.json"),
-    Path("benchmarks/devolaflow_context/baselines/v9.3.0_baseline.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v9.3.0_latency.json"),
+    Path("docs/cycle-archive/v15.2.0/evobench-baselines/v9.3.0_baseline.json"),
     Path("benchmarks/devolaflow_context/baselines/layout_invariant_v9.3.0.yaml"),
 )
 
@@ -86,8 +81,9 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
 
     v9.3.0 PV-07 cycle close pins:
 
-    1. Every NEW public symbol from PV-02..PV-05 imports cleanly from
-       its canonical module path (the PV-06 simple-task auto-shortcut
+    1. Every retained public symbol from PV-03..PV-05 imports cleanly
+       from its canonical module path (the PV-02 EvoBench latency harness
+       and the PV-06 simple-task auto-shortcut are retired; the latter's
        symbols are RETIRED at v12.0.0 PV-03 D-2 per the v11.1.0
        retrospective §3 D-2 telegraph; the negative-pin lives in the
        sister test ``test_v12_0_0_pv03_d2_shortcut_simple_retirement``).
@@ -111,8 +107,8 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     Failure modes:
       * "symbol import failed" → the CHANGELOG cites a feature that
         doesn't exist; either land the feature or remove the entry.
-      * "missing baseline file" → run the PV-02 harness CLI to
-        regenerate; OR the cycle didn't honour W-16 (mandatory).
+      * "missing baseline file" → restore the archived evidence or the
+        immutable layout witness; do not regenerate retired EvoBench data.
       * "compressor package member count drift" → either accept the
         new structure (and update this test in the same PR) OR
         restore the v9.3.0 PV-04 4-file shape.
@@ -142,12 +138,8 @@ def test_v9_3_0_new_symbols_have_coverage(project_root: Path) -> None:
     for baseline_rel in _V9_3_0_LATENCY_BASELINE_PATHS:
         baseline_path = project_root / baseline_rel
         assert baseline_path.is_file(), (
-            f"W-18 v9.3.0 violation: PV-02 W-16 baseline {baseline_rel} "
-            f"missing. Run `python -m benchmarks.devolaflow_context."
-            f"latency_harness --iterations 100 --output {baseline_rel}` "
-            f"(for the latency JSON) OR `python -m benchmarks."
-            f"devolaflow_context.generate_baseline` (for the composite JSON) "
-            f"OR copy the v9.2.0 layout-invariant witness (for the YAML)."
+            f"W-18 v9.3.0 violation: archived PV-02 evidence or layout "
+            f"witness {baseline_rel} is missing."
         )
         # Smoke-parse to catch corrupt files.
         if baseline_path.suffix == ".json":

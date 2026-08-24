@@ -304,7 +304,7 @@ the in-memory `RepoModeProfile`) rather than re-running detection.
 | `shell_proxy` | Enables `gh` command recipes only in `github` mode; enables `glab` recipes in `other-git` `gitlab` variant | Skip platform-specific recipes |
 | `mergeability_check` | Probes `gh pr view` / `glab mr show` / `tea pr list` based on mode variant | Reject the probe (no remote API) |
 | Adapter build | Selects default release channel per mode (`github` → GitHub Releases; `other-git gitlab` → GitLab Package Registry; `local` → artifact archive only) | Fall through to archive-only |
-| EvoBench harness | Enables `--upload-baseline` only in `github` mode with CI token; local runs keep baselines on disk | Disk-only mode |
+| Built-in harness | Runs fixture, telemetry, evaluation, and bounded probe contracts without remote upload | Local evidence only |
 
 Plugins MUST degrade gracefully when mode detection returns `local` or when
 a mode-specific tool (`gh`, `glab`, `tea`) is unavailable — per Soul rule

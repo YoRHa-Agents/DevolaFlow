@@ -1,11 +1,10 @@
-"""Tests for ``scripts/generate_evaluator_rosetta.py`` (v10.7.0 D-O-1 companion).
+"""Tests for the built-in harness evaluator rosetta generator.
 
-Pins the 6 × 9 rosetta invariants per
-`.local/research/v11.0.0_patches/D-O-1.md` §3:
+Pins the 6 × 9 rosetta invariants:
 
 * The cell matrix is exactly 6 rows × 9 columns.
-* Every C-cell is on a row whose canonical authority is documented in
-  the reference; every dim has at least one C-cell.
+* The columns are the nine built-in harness signal bundles.
+* Every dimension has at least one canonical C-cell.
 * SI-3 dimension weights sum to 1.0.
 * The CSV / markdown / JSON renderers all produce non-empty,
   parseable output that round-trips to the same shape.
@@ -39,9 +38,19 @@ _ROSETTA = _load_rosetta_module()
 
 
 def test_table_shape_is_6_by_9() -> None:
-    """The 6 × 9 rosetta dimension is the D-O-1 §3 invariant."""
+    """The rosetta is six SI-3 dimensions by nine harness bundles."""
     assert len(_ROSETTA.SI3_DIMENSIONS) == 6
-    assert len(_ROSETTA.COLUMNS) == 9
+    assert _ROSETTA.COLUMNS == (
+        "Harness code hygiene",
+        "Harness test execution",
+        "Harness coverage",
+        "Harness layout invariant",
+        "Harness compatibility",
+        "Harness W-17 test growth",
+        "Harness docstring coverage",
+        "Harness constraint quantifiability",
+        "Harness token budget",
+    )
     assert len(_ROSETTA.CELLS) == 6
     for idx, row in enumerate(_ROSETTA.CELLS):
         assert len(row) == 9, f"row {idx} has {len(row)} cells"
@@ -56,10 +65,8 @@ def test_si3_weights_sum_to_one() -> None:
 def test_every_dim_has_at_least_one_canonical_cell() -> None:
     """Every SI-3 dim MUST have ≥ 1 C-cell (a canonical authority).
 
-    Per evaluator-rosetta.md §3 closing note: "C-cell coverage by
-    dimension" — the rosetta is a reading aid; a dim without a C-cell
-    has no documented authority and the rosetta cannot serve its
-    purpose for that dim.
+    The rosetta is a reading aid; a dimension without a C-cell has no
+    documented built-in signal authority.
     """
     for (dim_name, _), row in zip(_ROSETTA.SI3_DIMENSIONS, _ROSETTA.CELLS, strict=True):
         canonical_count = sum(1 for c in row if c == "C")
@@ -95,6 +102,7 @@ def test_render_json_carries_summary_block() -> None:
     assert summary["orthogonal_cell_count"] == expected_orthogonal
     assert summary["row_count"] == 6
     assert summary["column_count"] == 9
+    assert payload["columns"] == list(_ROSETTA.COLUMNS)
     # Sanity: total cells equals 54.
     assert (
         summary["canonical_cell_count"]

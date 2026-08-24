@@ -467,8 +467,8 @@ def _resolve_section_text(
     per anchor (S-5 — never silently swallow the deprecation signal).
 
     Returns ``""`` when neither path resolves to content (the caller
-    treats this as a deliberate skip — e.g. ``nines_advisor`` whose
-    legacy ``lines: "N/A"`` value never extracted any content).
+    treats this as a deliberate skip — e.g. a legacy advisory profile
+    whose ``lines: "N/A"`` value never extracted any content).
     """
     if registry.has(section_name):
         text = discover_section_content(section_name, registry)
@@ -797,7 +797,7 @@ def _integrate_learnings(
 # version 3 — added by P-08, P6 additive). The two helpers below resolve
 # per-profile defaults and render the injectable text block. They are
 # extracted from ``select_context`` so the parent function's cyclomatic
-# complexity stays ≤ 8 (NineS finding ``[CC-448821-0000]`` closure).
+# complexity stays ≤ 8 (historical complexity-finding closure).
 #
 # Backward compatibility: when a profile omits ``behavioral_guidelines``
 # AND ``meta.behavioral_guidelines_defaults`` is unset, both helpers
@@ -1079,7 +1079,7 @@ def _resolve_active_profile(
 
     Extracted from the legacy ``select_context`` body in v8.0.0 (P-08) to
     bring the parent function's cyclomatic complexity from 16 down to ≤ 8
-    (NineS finding ``[CC-448821-0000]``). Returns
+    after a historical complexity finding. Returns
     ``(profile_name, resolved_profile, active_plan_mode)``.
 
     Plan-mode is auto-detected via :func:`_detect_plan_mode` when *plan_mode*
@@ -1226,7 +1226,8 @@ def select_context(
     + :func:`_compose_behavioral_block`, optional-block concatenation to
     :func:`_append_optional_blocks`, and override resolution to
     :func:`_resolve_dispatch_overrides`. This brings the cyclomatic
-    complexity from 16 (NineS finding ``[CC-448821-0000]``) down to ≤ 8.
+    complexity from 16 down to ≤ 8, closing the historical complexity
+    finding.
     The dispatch-payload contract is preserved bytewise for the v7.x
     return key set; the new ``behavioral_guidelines`` key is purely
     additive (``None`` when the profile omits the block).
@@ -1349,8 +1350,8 @@ _ROUND_ESCALATION_DEFAULTS: dict[int, dict[str, Any]] = {
 
 
 # ---------------------------------------------------------------------------
-# v8.0.0 (P-07) — apply_round_escalation refactor (NineS [CC-448821-0001]
-# closure). The legacy single-function body had cyclomatic complexity 11;
+# v8.0.0 (P-07) — apply_round_escalation refactor (historical complexity
+# finding closure). The legacy single-function body had cyclomatic complexity 11;
 # splitting into 3 named helpers (``select_round_result`` /
 # ``apply_severity_filter`` / ``escalate_round``) brings every leaf
 # function's cc to ≤ 6 (per ``patch_plan §3 P-07 AC #6``) while keeping
@@ -1450,8 +1451,8 @@ def apply_round_escalation(
     v8.0.0 (P-07) refactor: delegates lookup to :func:`select_round_result`,
     priority + model-hint overrides to :func:`apply_severity_filter`, and
     compression + budget escalation to :func:`escalate_round`. Legacy
-    cyclomatic complexity 11 (NineS finding ``[CC-448821-0001]``) drops
-    to ≤ 4 on the wrapper and ≤ 6 on every helper. Return contract is
+    cyclomatic complexity 11 drops to ≤ 4 on the wrapper and ≤ 6 on every
+    helper, closing the historical complexity finding. Return contract is
     byte-identical to v7.x (verified by
     ``tests/test_feedback_reinforcement.py::TestApplyRoundEscalation``
     and ``tests/test_compressor.py::TestRoundEscalationBudget``).
@@ -1490,10 +1491,9 @@ WARMUP_TASK_TYPES: tuple[str, ...] = (
 
 These match the canonical task-type set declared in
 ``workflow-system/agent/context_profiles.yaml#profiles`` and the
-``select_context`` matrix used by
-``benchmarks/devolaflow_context/latency_harness.py``. A future PV that
-adds / renames task_types SHOULD update this tuple in the same PR
-(silent drift would mean warmup misses entries the harness measures)."""
+``select_context`` matrix exercised by selector and harness tests. A future
+PV that adds or renames task types SHOULD update this tuple in the same PR
+(silent drift would mean warmup misses supported entries)."""
 
 WARMUP_ROUND_NUMS: tuple[int, ...] = (1, 2, 3)
 """Round numbers pre-populated by :func:`warmup_selector_cache`.

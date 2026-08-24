@@ -7,8 +7,8 @@ in ``.local/research/v8.1.0_gap_analysis.md`` §3.2. Replaces the
 line-anchored section registry used by the v8.0.0 task adaptive selector
 with a symbolic anchor → file path mapping. Decouples section references
 from concrete line numbers so SKILL.md edits no longer cascade through
-``workflow-system/agent/context_profiles.yaml`` and trigger
-unrelated EvoBench scenario drift.
+``workflow-system/agent/context_profiles.yaml`` and trigger unrelated
+built-in harness fixture drift.
 
 Design contract (per ``.local/research/v8.2.0_patch_plan.md`` §3 PV-05
 AC #1/#3/#4):
@@ -204,8 +204,8 @@ def _heading_indices(lines: list[str]) -> list[tuple[int, int, str]]:
     structure. Without this guard, code samples like SKILL.md's
     plan-mode-template fenced block (which contains ``## Overview``
     examples) would prematurely terminate the parent ``### PLAN MODE``
-    section and starve downstream EvoBench scenarios of expected
-    content (this was the root cause of the v8.2.0 PV-05 first-iteration
+    section and starve downstream harness fixtures of expected content
+    (this was the root cause of the v8.2.0 PV-05 first-iteration
     composite drift before the fix).
     """
     out: list[tuple[int, int, str]] = []

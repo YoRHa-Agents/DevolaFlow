@@ -1,14 +1,13 @@
 """Pre-Shell-call lifecycle hook — RTK shell-proxy thin delegator (v8.3.2 PV-02).
 
 Closes the lifecycle integration half of ``R-002`` from
-``.local/research/v8.4.0_gap_analysis.md`` §2.1: when an L3 Task
+``.local/research/v8.4.0_gap_analysis.md`` §2.1: when an L2 Task
 Agent is about to dispatch a Shell-tool call, this hook gives the
 :mod:`devolaflow.shell_proxy` package a chance to rewrite the command
 through ``rtk <cmd>`` for token compression.
 
 Mirrors the thin-delegator pattern of RTK's own Claude hook
-(``hooks/claude/rtk-rewrite.sh``) per
-``.local/research/v8.4.0_rtk_nines_analysis.md`` §4.1: this module
+(``hooks/claude/rtk-rewrite.sh``) per the historical analysis: this module
 contains NO rewrite logic; it parses the payload, calls
 :meth:`ShellProxy.wrap_command`, and stuffs the result into
 ``HookResult.metadata["wrapped_cmd"]`` so downstream consumers can
@@ -26,7 +25,7 @@ Contract (payload schema):
 * ``cwd: str | None`` (optional) — the requested working directory;
   passed through opaque to the proxy (the proxy currently does not
   consult cwd; reserved for future per-cwd rewrites a la RTK's
-  ``[filters.<name>]`` schema cited in NineS analysis §4.3)
+  ``[filters.<name>]`` schema from the historical analysis)
 
 Result:
 

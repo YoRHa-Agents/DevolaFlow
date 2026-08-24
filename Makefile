@@ -1,7 +1,7 @@
 # DevolaFlow Build System
 # Design ref: design_dual_system.md §4.5
 
-.PHONY: all test test-core test-version test-benchmarks lint build-skill sync-human-docs \
+.PHONY: all test test-core test-version test-harness lint build-skill sync-human-docs \
        check-drift validate-templates clean install \
        build-site release-preflight release-dry-run scaffold-agent agent-reports \
        compile-rules check-rules-drift precommit precommit-fast precommit-full \
@@ -38,29 +38,29 @@ test-cov:
 #   gate 2  lint (ruff check)     no lint errors
 #   gate 3  lint (ruff format)    formatting correct
 #   gate 4  test-version          version consistency (standalone)
-#   gate 5  test-benchmarks       EvoBench regression guard (standalone)
+#   gate 5  test-harness          harness domain guard (standalone)
 #   gate 6  check-cursor-skill    cursor-skill mirror in sync
 #   gate 7  iteration-delta-gate  Si-Chip iteration_delta (standalone)
 #
 # Single-execution design (chosen over no-op-with-note): gates 4, 5 and 7
 # run their test files standalone, and gate 1 `--ignore`s exactly those
 # three files, so no test executes twice in one chain run. Failure
-# isolation stays meaningful — a version-consistency or benchmark
+# isolation stays meaningful — a version-consistency or harness
 # regression fails its OWN named gate, not a generic step-1 failure
 # (a no-op gate 4/5 would report green without attributable evidence).
 # Each gate remains individually invocable; `make test` keeps the
 # undeduplicated full suite for developer convenience.
 test-core:
 	pytest tests/ -q --tb=short \
+		--ignore=tests/harness \
 		--ignore=tests/test_version.py \
-		--ignore=tests/test_benchmarks.py \
 		--ignore=tests/test_sichip_iteration_delta_gate.py
 
 test-version:
 	python -m pytest tests/test_version.py -v
 
-test-benchmarks:
-	python -m pytest tests/test_benchmarks.py -v
+test-harness:
+	python -m pytest tests/harness/ -v
 
 validate-templates:
 	validate-template --all
@@ -132,18 +132,6 @@ scaffold-agent:
 agent-reports:
 	python -m devolaflow.agent_workspace.reporter --all
 
-# v8.5.0 PV-05 (T8 NineS Hygiene A3 closure) — rebuild NineS index.
-# Wraps `nines analyze --target-path . --depth deep --agent-impact --keypoints`
-# via `devolaflow.nines.researcher.rebuild_index`. Refreshes the NineS
-# index so `index_recall` recovers from the v8.4.x baseline of 0.8 to
-# the cycle target 0.85+ (per .local/research/v9.0.0_pv05_design.md §1.2).
-# Re-run after a `data/golden_test_set/` refresh or a fresh checkout.
-.PHONY: nines-index-rebuild
-nines-index-rebuild:
-	python -c "from devolaflow.nines.researcher import rebuild_index; \
-import json; r = rebuild_index(project_root='.', src_dir='src/devolaflow', timeout=300); \
-print(json.dumps({'ok': True, 'keys': sorted(r.keys()) if isinstance(r, dict) else 'non-dict'}))"
-
 check-drift:
 	check-drift
 
@@ -182,7 +170,7 @@ build-site:
 
 # v10.2.1 PV-02 (D-S-3 / D-V-1) — 7th SI-10 step: Si-Chip iteration_delta gate.
 # The 6 base SI-10 gates are codified at .cursor/rules/repo-governance.mdc §W-9
-# (pytest / ruff check / ruff format / test_version / test_benchmarks /
+# (pytest / ruff check / ruff format / test_version / test-harness /
 # check-cursor-skill). v10.2.1 adds the Si-Chip iteration_delta gate as the
 # 7th step; this Makefile target is the canonical wire so the cycle-wide
 # pre-commit protocol fires deterministically per `.local/research/v10.2.0_cycle_plan.md`
@@ -202,9 +190,9 @@ iteration-delta-gate:
 #                        sync-human-docs, compile-rules, check-drift,
 #                        check-rules-drift
 #
-# SI-10 core:           test-core lint test-version test-benchmarks
+# SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
-release-preflight: test-core lint test-version test-benchmarks check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift
+release-preflight: test-core lint test-version test-harness check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift
 	@echo "--- Release preflight PASSED ---"
 	@echo "Next: python scripts/bump_version.py <version> --tag"
 	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"
@@ -305,7 +293,7 @@ index-research:
 		--output .local/research/v10.7.4_research_index.md
 
 # v10.8.0 D-C-2 — re-capture bridge shape-contract fixtures from live
-# plugin binaries (NineS / Si-Chip / RTK / ui-pro). Gracefully skips
+# plugin binaries (Si-Chip / RTK / ui-pro). Gracefully skips
 # plugins that are missing (logs WARNING, returns exit 0 per D-C-2 §9
 # R2). Per-PR pytest uses CHECKED-IN fixtures from
 # `tests/integration/fixtures/` — this target is operator-pull for
@@ -316,7 +304,7 @@ refresh-bridge-fixtures:
 	@python scripts/refresh_bridge_fixtures.py
 
 # v10.6.0 PV-03 (D-Q-4) — compressor/ post-split health snapshot.
-# Closes the v9.3.0 PV-04 → v10.6.0 NineS coverage gap on the largest
+# Closes the v9.3.0 PV-04 → v10.6.0 coverage gap on the largest
 # Python file in the tree (`transforms.py` at 2,198 LOC). Pure-audit
 # observability — runs `radon cc -nB` against the 4-file package and
 # emits a markdown synthesis; no source modifications. When radon is

@@ -145,7 +145,7 @@ L0 materializes only the needed checklist assertions; execution stays in
 
 ### §4.3 — Context profile
 
-`workflow-system/agent/context_profiles.yaml::meta.codegraph_integration` declares the 5 commands recipes (`repo_init`, `analyze`, `research`, `impact`, `affected`) + 6 capability triggers (`smart_context_building`, `full_text_search`, `impact_analysis`, `callers_callees_trace`, `file_structure_lookup`, `test_impact_selection`). The block is parallel to `meta.nines_integration` and `meta.ui_integration`.
+`workflow-system/agent/context_profiles.yaml::meta.codegraph_integration` declares the 5 commands recipes (`repo_init`, `analyze`, `research`, `impact`, `affected`) + 6 capability triggers (`smart_context_building`, `full_text_search`, `impact_analysis`, `callers_callees_trace`, `file_structure_lookup`, `test_impact_selection`). The block is parallel to the active `meta.ui_integration` and `meta.impeccable_integration` blocks.
 
 ### §4.4 — Python wrapper
 
@@ -165,7 +165,7 @@ The thin subprocess wrapper at `devolaflow.codegraph._cli.run_codegraph_cli` is 
 
 ### §4.5 — Env flag (per W-20 reuse-first)
 
-NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with `nines` + `ui-pro` + `rtk` + `si-chip` (the 4 existing v10.2.0 baseline plugins).
+NO new `DEVOLAFLOW_*` env flag is introduced. Codegraph reuses the existing `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` flag for opt-in runtime installation through `devolaflow.lifecycle.pre_plugin_invocation`. The W-20 orthogonality test passed because codegraph shares the runtime-installer activation surface with the other registered plugins. NineS is not a v16 runtime-plugin dependency; `devolaflow.nines` is deprecated compatibility only.
 
 Operators who want codegraph auto-installed AND don't want manual `npm install`:
 

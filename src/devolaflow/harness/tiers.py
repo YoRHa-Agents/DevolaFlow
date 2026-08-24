@@ -276,6 +276,7 @@ def _summarize_reinforcement(payload: Mapping[str, Any], breakdown: dict[str, in
 
 def _summarize_acceptance(payload: Mapping[str, Any], breakdown: dict[str, int]) -> None:
     structured = payload.get("acceptance_criteria_v2")
+    mirrored_descriptions: dict[str, ConstraintTier] = {}
     if isinstance(structured, list):
         for criterion in structured:
             machine = (
@@ -290,11 +291,23 @@ def _summarize_acceptance(payload: Mapping[str, Any], breakdown: dict[str, int])
                 else SOURCE_TIERS["manual_or_legacy_acceptance"]
             )
             _add(breakdown, tier)
+            if isinstance(criterion, Mapping):
+                description = criterion.get("description")
+                if isinstance(description, str) and (normalized := description.strip()):
+                    prior = mirrored_descriptions.get(normalized)
+                    mirrored_descriptions[normalized] = (
+                        "advisory" if prior == "advisory" or tier == "advisory" else "guard"
+                    )
 
     for field in ("accept", "acceptance_criteria"):
         legacy = payload.get(field)
         if isinstance(legacy, list):
-            _add(breakdown, SOURCE_TIERS["manual_or_legacy_acceptance"], len(legacy))
+            for criterion in legacy:
+                normalized = criterion.strip() if isinstance(criterion, str) else None
+                if normalized and normalized in mirrored_descriptions:
+                    # The exact AC-v2 mirror already contributed its machine-derived tier.
+                    continue
+                _add(breakdown, SOURCE_TIERS["manual_or_legacy_acceptance"])
 
     acceptance = payload.get("acceptance")
     if isinstance(acceptance, Mapping) and isinstance(acceptance.get("criteria"), list):

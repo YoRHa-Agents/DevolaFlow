@@ -156,12 +156,11 @@ def test_v14_5_0_baseline_tiering_registered(project_root: Path) -> None:
 
     (a) [MIGRATED — clean_repo Phase C1-3, decision D4] the exact
         baselines/ listing lint moved to tests/ghost/test_registries.py::
-        test_baselines_dir_matches_tier_a_pin_and_derived_tier_b — the
+        test_baselines_dir_matches_strict_tier_a_pin_and_archive — the
         Tier-A witness pin moved there VERBATIM (still hand-frozen per
-        A-2.4) and the hand-pinned ``_KEPT_BASELINE_JSONS`` frozenset was
-        retired in favour of the derived Tier-B window
-        (``_tier_b_window`` ∪ ``_TEST_LOADED_KEEPS`` ∪ newest). Single
-        authority per A-5 — no listing assertion remains here.
+        A-2.4). The retired EvoBench JSON set is now pinned at its v15.2.0
+        cycle-archive location; the live baselines directory is witness-only.
+        Single authority per A-5 — no listing assertion remains here.
     (b) The write-only ``backward_compat`` boolean block is GONE from
         schemas/lean-dispatch.yaml#layout_invariant.enforcement.
     (c) The compiled A-2.4 rule text carries the Tier-A/B/C tiered
@@ -184,8 +183,8 @@ def test_v14_5_0_baseline_tiering_registered(project_root: Path) -> None:
         for fragment in (
             "Tiered Retention per v15-ADR-005",
             "**Tier A — permanent byte-witnesses**",
-            "**Tier B — rolling window (in CI)**",
-            "**Tier C — archived (out of CI)**",
+            "**Tier B — active harness window**",
+            "**Tier C — archived harness evidence**",
         ):
             assert fragment in corpus_text, (
                 f"W-18 v14.5.0 violation: {corpus} A-2.4 missing the tiered-"
@@ -282,7 +281,7 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
     core_body = makefile.split("\ntest-core:", 1)[1].split("\n\n", 1)[0]
     ignores = [ln.strip().rstrip(" \\") for ln in core_body.splitlines() if "--ignore=" in ln]
     assert sorted(ignores) == [
-        "--ignore=tests/test_benchmarks.py",
+        "--ignore=tests/harness",
         "--ignore=tests/test_sichip_iteration_delta_gate.py",
         "--ignore=tests/test_version.py",
     ], (
@@ -297,7 +296,7 @@ def test_v14_5_0_si10_chain_reorg_registered(project_root: Path) -> None:
         "test-core",
         "lint",
         "test-version",
-        "test-benchmarks",
+        "test-harness",
         "check-cursor-skill",
         "iteration-delta-gate",
     ]

@@ -1,13 +1,12 @@
 """Degraded-mode contract tests — every plugin has an unreachable-scenario test.
 
-Pins the v10.8.0 D-C-1 contract: each of the 4 registered plugins (NineS,
-Si-Chip, RTK, ui-pro) has an EXPLICIT regression test that documents what
+Pins the v10.8.0 D-C-1 contract: each registered plugin with a local degraded
+path has an EXPLICIT regression test that documents what
 happens when the plugin is unreachable. The reference doc
 `workflow-system/agent/references/degraded-mode.md` codifies the per-plugin
 contract; THIS test file is the executable proof that DevolaFlow honors it.
 
-Source: `.local/research/v11.0.0_patches/D-C-1.md` §2 patch_design step 3
-(four simulated scenarios: NineS / Si-Chip / RTK / ui-pro).
+Source: `.local/research/v11.0.0_patches/D-C-1.md` §2 patch_design step 3.
 
 Per R1 mitigation (D-C-1 §9), the reference doc MUST open with a
 "Degraded ≠ Full" warning in the first 500 characters; this file pins that
@@ -15,7 +14,6 @@ invariant to catch future edits that might dilute the warning.
 
 External canonical URLs (S-7 compliance):
     * DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-    * NineS: https://github.com/YoRHa-Agents/NineS
     * Si-Chip: https://github.com/YoRHa-Agents/Si-Chip
     * RTK: https://github.com/rtk-ai/rtk
     * ui-pro: https://github.com/YoRHa-Agents/ui-pro
@@ -89,58 +87,15 @@ class TestDegradedNotFullWarning:
         # Body assertions (merged from deleted tests to keep W-17 tight):
         text = _degraded_mode_doc_text()
         assert "What STOPS working" in text
-        for plugin in ("NineS", "Si-Chip", "RTK", "ui-pro"):
+        for plugin in ("Si-Chip", "RTK", "ui-pro", "codegraph", "impeccable"):
             assert plugin in text
         # S-7 external URL contract — canonical GitHub URL for every plugin.
-        assert "https://github.com/YoRHa-Agents/NineS" in text
         assert "https://github.com/YoRHa-Agents/Si-Chip" in text
         assert "https://github.com/rtk-ai/rtk" in text
         # S-2 no-absolute-paths in any committed reference.
         assert "/home/" not in text
         assert "/Users/" not in text
         assert "/root/" not in text
-
-
-# ---------------------------------------------------------------------------
-# §1 — NineS unreachable → W-2 manual fallback
-# ---------------------------------------------------------------------------
-
-
-class TestNineSUnreachableFallsBackToManualW2:
-    """NineS degraded path: documented in repo-governance.mdc::W-2.
-
-    DF does not actually INVOKE nines at dispatch-time (W-2 is a governance
-    rule that operators discover at SI-1 planning / SI-2 analysis). The
-    'degraded' contract here is: the W-2 rule TEXT declares the fallback
-    exists AND the cycle-retrospective / evaluation template tolerates
-    missing NineS JSON inputs.
-    """
-
-    def test_nines_unreachable_falls_back_to_manual_w2(self) -> None:
-        """W-2 governance rule declares manual fallback when NineS absent.
-
-        Verbatim from `.cursor/rules/repo-governance.mdc::W-2`: "When NineS
-        is unavailable, manual analysis following the same dimensions is
-        acceptable but must be explicitly noted as manual."
-
-        This test pins the TEXT of the governance contract AND the
-        degraded-mode reference documentation — if someone tries to delete
-        the manual-fallback clause from either, this test fails.
-        """
-        governance = (_project_root() / ".cursor/rules/repo-governance.mdc").read_text(
-            encoding="utf-8"
-        )
-        assert "manual analysis" in governance, (
-            "W-2 governance rule must retain 'manual analysis' clause per "
-            "D-C-1 degraded-mode contract."
-        )
-        assert "must be noted as manual" in governance or ("noted as manual" in governance), (
-            "W-2 governance rule must retain the 'noted as manual' requirement."
-        )
-        # degraded-mode.md §1 must cite the W-2 fallback path.
-        text = _degraded_mode_doc_text()
-        assert "W-2" in text
-        assert "manual" in text.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -390,15 +345,13 @@ class TestUiProUnreachableEmitsPPI001PermissiveContinues:
 
 
 class TestDegradedModeCoverageAudit:
-    """Pin the 4-of-4 plugin coverage invariant from D-C-1 §5 benefit_metrics."""
+    """Pin degraded-scenario coverage for the remaining bridge-backed plugins."""
 
     def test_all_four_plugins_have_an_unreachable_scenario_test(self) -> None:
-        """D-C-1 §5 metric: plugins with a network-install path have an
-        unreachable scenario test. v13.0.0 adds impeccable (mirrors ui-pro)."""
+        """Plugins with executable degraded paths have an unreachable scenario test."""
         test_text = Path(__file__).read_text(encoding="utf-8")
         # Each plugin's dedicated test function must exist in THIS file.
         expected_tests = (
-            "test_nines_unreachable_falls_back_to_manual_w2",
             "test_si_chip_unreachable_emits_pse001_and_defers",
             "test_rtk_unreachable_bypasses_to_native_shell",
             "test_ui_pro_unreachable_emits_ppi001_permissive_continues",
@@ -407,7 +360,7 @@ class TestDegradedModeCoverageAudit:
         for name in expected_tests:
             assert name in test_text, (
                 f"D-C-1 §5 coverage audit: missing scenario test {name!r}. "
-                f"Every registered plugin (NineS/Si-Chip/RTK/ui-pro/impeccable) "
+                f"Every covered plugin (Si-Chip/RTK/ui-pro/impeccable) "
                 f"MUST have an explicit unreachable-scenario test."
             )
 

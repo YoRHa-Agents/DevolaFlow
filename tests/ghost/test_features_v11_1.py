@@ -404,38 +404,11 @@ _V11_1_2_CHANGELOG_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
 )
 
 
-# v11.1.3 PATCH (D-3 in the v11.1.x stability-patch series; the third v11.1.x
-# cycle-observed risk telegraphed at v11.1.0 cycle close): tiktoken determinism
-# documentation. Third and final of 3 staged stability patches (v11.1.1 +
-# v11.1.2 + v11.1.3) closing the cycle-observed risks documented in
-# `docs/cycle-archive/v11.1.0/retrospective.md`.
-#
-# This is a PURE-DOCUMENTATION patch — zero code/test logic change. The
-# `tests/conftest.py::_force_fallback_token_estimator` autouse fixture forces
-# `sys.modules["tiktoken"] = None` for every `test_benchmarks.py` test so the
-# fallback `len(text) // 4` token estimator runs uniformly across CI / dev /
-# fresh-clone environments. This is INTENTIONAL — pinning to fallback keeps
-# pytest-side composites comparable across machines. The bug it surfaces is
-# operator-side: regen scripts that import `devolaflow.benchmarks` OUTSIDE
-# the pytest harness do NOT see the fixture fire, so the resulting baselines
-# diverge from pytest scoring by ~7pp on the composite axis.
-#
-# v11.1.3 D-3 closes the documentation gap on three surfaces:
-#
-#   1. tests/conftest.py::_force_fallback_token_estimator — docstring
-#      expanded with WHY (deterministic scoring), EFFECT (~7pp divergence
-#      between pytest and raw scoring), and 3 fallback options for
-#      reproducing pytest scoring outside pytest (Option A: invoke under
-#      pytest; Option B: pre-set sys.modules["tiktoken"] = None; Option C:
-#      uninstall tiktoken). Body of the fixture preserved BYTE-IDENTICAL
-#      (W-20 contract preservation — no runtime surface change).
-#   2. workflow-system/agent/references/troubleshooting.md — NEW §2.16
-#      "Token-estimation determinism (W-16 baseline regen)" subsection
-#      with the same 3-option fallback summary, plus a §1 Quick Lookup
-#      Index row and `last_updated` bump to "2026-05-08".
-#   3. CHANGELOG.md ## [11.1.3] entry citing the PATCH scope, the
-#      v11.1.0 retrospective source, and the v11.1.x stability-patch
-#      series close.
+# v11.1.3 PATCH historical pins. The benchmark-only tiktoken fixture and
+# regeneration guidance were retired with EvoBench. The ghost audit now
+# asserts that the fixture stays absent, the troubleshooting tombstone points
+# at archived evidence and the built-in harness, and the historical CHANGELOG
+# entry remains intact.
 _V11_1_3_CONFTEST_FILE: Path = Path("tests/conftest.py")
 
 
@@ -445,33 +418,12 @@ _V11_1_3_REFERENCE_FILE: Path = Path("workflow-system/agent/references/troublesh
 _V11_1_3_CHANGELOG: Path = Path("CHANGELOG.md")
 
 
-# Substrings required in tests/conftest.py to evidence the docstring
-# expansion. The docstring MUST cite tiktoken + W-16 + deterministic
-# (the three load-bearing concepts) AND the cycle-archive citation.
-_V11_1_3_CONFTEST_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
-    "tiktoken",
-    "W-16 baseline regen",
-    "deterministic",
-    'sys.modules["tiktoken"] = None',
-    "Option A",
-    "Option B",
-    "Option C",
-    "v11.1.3 D-3",
-    "docs/cycle-archive/v11.1.0/retrospective.md",
-)
-
-
-# Substrings required in references/troubleshooting.md to evidence the
-# new §2.16 section. The reference MUST carry the section header AND the
-# same 3-option fallback summary.
+# Substrings required in the retired-EvoBench troubleshooting tombstone.
 _V11_1_3_REFERENCE_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
-    "#### 2.16 Token-estimation determinism (W-16 baseline regen)",
-    "_force_fallback_token_estimator",
-    "Option A",
-    "Option B",
-    "Option C",
-    'sys.modules["tiktoken"] = None',
-    "v11.1.3 D-3",
+    "#### 2.16 Retired EvoBench baseline regeneration",
+    "docs/cycle-archive/v15.2.0/evobench-baselines/",
+    "benchmarks/devolaflow_context/baselines/",
+    "python -m pytest tests/harness/",
 )
 
 
@@ -486,7 +438,7 @@ _V11_1_3_CHANGELOG_POSITIVE_SUBSTRINGS: tuple[str, ...] = (
 
 
 def test_v11_1_3_new_surfaces_have_coverage(project_root: Path) -> None:
-    """W-18 v11.1.3 PATCH: D-3 tiktoken determinism documentation.
+    """W-18 v11.1.3 PATCH history remains auditable after EvoBench retirement.
 
     Discharges the W-18 precondition for the v11.1.3 PATCH CHANGELOG
     entry. Per W-18 sequencing the documentation refresh MUST land
@@ -495,29 +447,11 @@ def test_v11_1_3_new_surfaces_have_coverage(project_root: Path) -> None:
     Surfaces pinned (v11.1.3 D-3 patch scope; THIRD AND FINAL of 3
     staged v11.1.x stability patches — sister patches v11.1.1 + v11.1.2):
 
-    * ``tests/conftest.py::_force_fallback_token_estimator`` carries
-      the expanded docstring covering WHY (deterministic benchmark
-      scoring across environments), EFFECT (~7pp divergence between
-      pytest scoring and raw subprocess scoring), and 3 OPTIONS for
-      reproducing pytest scoring outside pytest:
-
-      - Option A (preferred): invoke regen under the pytest harness so
-        the autouse fixture fires automatically.
-      - Option B: pre-set ``sys.modules["tiktoken"] = None`` BEFORE
-        importing any devolaflow modules in the regen script.
-      - Option C: uninstall tiktoken from the venv (heavy-handed —
-        affects every workflow in the env).
-
-      The fixture BODY is preserved byte-identically — only the
-      docstring changed (W-20 contract preservation; no runtime
-      surface delta).
-
-    * ``workflow-system/agent/references/troubleshooting.md`` carries
-      a NEW §2.16 "Token-estimation determinism (W-16 baseline regen)"
-      subsection with the same 3-option fallback summary, a
-      cross-reference to the conftest fixture, and a §1 Quick Lookup
-      Index row pointing at §2.16. The file's frontmatter
-      ``last_updated`` field is bumped to "2026-05-08".
+    * ``tests/conftest.py::_force_fallback_token_estimator`` is absent
+      because the fixture served only the retired benchmark suite.
+    * ``workflow-system/agent/references/troubleshooting.md`` carries a
+      §2.16 retirement tombstone that points at archived JSON evidence,
+      the immutable layout witnesses, and the built-in harness tests.
 
     * ``CHANGELOG.md`` carries the ``## [11.1.3] - 2026-05-08`` PATCH
       entry mentioning ``PATCH`` + ``tiktoken`` + ``W-16`` +
@@ -541,9 +475,7 @@ def test_v11_1_3_new_surfaces_have_coverage(project_root: Path) -> None:
     * v11.1.2 D-2 audit_layer_usage regex: 19/19 PASS unchanged
     * W-21 Soul-set freeze preserved at 10 entries
     * W-20 reuse-first preserved at 8 env flags
-    * conftest fixture body preserved BYTE-IDENTICAL (only docstring
-      changed; the ``monkeypatch.setitem(sys.modules, "tiktoken",
-      None)`` body is untouched)
+    * benchmark-only conftest fixture remains absent
 
     Source: ``docs/cycle-archive/v11.1.0/retrospective.md`` cycle-
     close summary (the v11.1.0 PV-02 W-16 wholesale baseline regen
@@ -554,34 +486,24 @@ def test_v11_1_3_new_surfaces_have_coverage(project_root: Path) -> None:
     conftest_path = project_root / _V11_1_3_CONFTEST_FILE
     assert conftest_path.is_file(), (
         f"W-18 v11.1.3 violation: conftest file {_V11_1_3_CONFTEST_FILE} missing. "
-        "The docstring expansion MUST land in the same commit as "
-        "the CHANGELOG entry per W-18 sequencing."
+        "Shared fixture discovery requires this file."
     )
 
     conftest_text = conftest_path.read_text(encoding="utf-8")
-    for sub in _V11_1_3_CONFTEST_POSITIVE_SUBSTRINGS:
-        assert sub in conftest_text, (
-            f"W-18 v11.1.3 violation: {_V11_1_3_CONFTEST_FILE} missing "
-            f"positive substring {sub!r} — the v11.1.3 D-3 docstring "
-            "expansion MUST cite the load-bearing concepts (tiktoken + "
-            "W-16 + deterministic + the 3 fallback options + the "
-            "cycle-archive retrospective citation)."
-        )
+    assert "_force_fallback_token_estimator" not in conftest_text
+    assert 'sys.modules["tiktoken"] = None' not in conftest_text
 
     reference_path = project_root / _V11_1_3_REFERENCE_FILE
     assert reference_path.is_file(), (
         f"W-18 v11.1.3 violation: reference file {_V11_1_3_REFERENCE_FILE} missing. "
-        "The new §2.16 subsection MUST land in the same commit as "
-        "the CHANGELOG entry per W-18 sequencing."
+        "The §2.16 retirement tombstone must remain available."
     )
 
     reference_text = reference_path.read_text(encoding="utf-8")
     for sub in _V11_1_3_REFERENCE_POSITIVE_SUBSTRINGS:
         assert sub in reference_text, (
             f"W-18 v11.1.3 violation: {_V11_1_3_REFERENCE_FILE} missing "
-            f"positive substring {sub!r} — the v11.1.3 D-3 §2.16 "
-            "subsection MUST carry the section header + the 3-option "
-            "fallback summary + the conftest cross-reference."
+            f"retirement substring {sub!r}."
         )
 
     # CHANGELOG entry — ALWAYS pinned (CHANGELOG.md IS tracked).

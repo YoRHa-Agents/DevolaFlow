@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Re-capture bridge fixtures from live plugin binaries.
 
-v10.8.0 D-C-2 closure. This script invokes each of the 4 registered plugins
-(NineS / Si-Chip / RTK / ui-pro) and captures their live stdout / yaml /
+v10.8.0 D-C-2 closure. This script invokes the 3 bridge-backed plugins
+(Si-Chip / RTK / ui-pro) and captures their live stdout / yaml /
 json output into ``tests/integration/fixtures/<plugin>/``. Every captured
 file carries the R1 ``captured_from_plugin_version: <version>`` header
 mandated by D-C-2 §9 R1 mitigation.
@@ -17,7 +17,7 @@ Behaviour contract:
   cron job at ``.github/workflows/bridge-fixture-refresh.yml`` diffs the
   result against HEAD and opens a draft PR if drift detected.
 * **Operator on fresh clone without plugins installed**: runs to
-  completion with 4 skip warnings; exits 0 — the fixture directory is
+  completion with 3 skip warnings; exits 0 — the fixture directory is
   already populated from the last refresh.
 
 Usage:
@@ -27,13 +27,11 @@ Usage:
 
     # Refresh ONE plugin:
     python scripts/refresh_bridge_fixtures.py --plugin si-chip
-    python scripts/refresh_bridge_fixtures.py --plugin nines
     python scripts/refresh_bridge_fixtures.py --plugin rtk
     python scripts/refresh_bridge_fixtures.py --plugin ui-pro
 
 External canonical URLs (S-7 compliance):
     * DevolaFlow: https://github.com/YoRHa-Agents/DevolaFlow
-    * NineS: https://github.com/YoRHa-Agents/NineS
     * Si-Chip: https://github.com/YoRHa-Agents/Si-Chip
     * RTK: https://github.com/rtk-ai/rtk
     * ui-pro: https://github.com/YoRHa-Agents/ui-pro
@@ -46,8 +44,8 @@ import logging
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,7 +56,7 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES_DIR = REPO_ROOT / "tests" / "integration" / "fixtures"
 
-PLUGINS: tuple[str, ...] = ("nines", "si-chip", "rtk", "ui-pro")
+PLUGINS: tuple[str, ...] = ("si-chip", "rtk", "ui-pro")
 
 
 def _probe_binary(binary: str) -> str | None:
@@ -99,7 +97,7 @@ def _write_fixture_with_header(
     """Write *body* to *out_path* with the R1 version header prepended.
 
     header_format:
-      * "yaml" → ``# captured_from_plugin_version: <ver>\\ncaptured_from_plugin_version: "<ver>"\\n<body>``
+      * "yaml" → comment header, version field, then body.
       * "json" → ``{"captured_from_plugin_version": "<ver>", ... <body-top-level-keys>}``
       * "text" → ``# captured_from_plugin_version: <ver>\\n<body>``
     """
@@ -119,28 +117,6 @@ def _write_fixture_with_header(
         raise ValueError(f"unknown header_format={header_format!r}")
     out_path.write_text(payload, encoding="utf-8")
     logger.info("wrote fixture %s (v%s)", out_path.relative_to(REPO_ROOT), version)
-
-
-def refresh_nines() -> bool:
-    """Re-capture NineS fixtures; return True on success, False on skip."""
-    binary = _probe_binary("nines")
-    if binary is None:
-        logger.warning(
-            "nines binary not found on PATH; skipping NineS fixture refresh. "
-            "Install per https://github.com/YoRHa-Agents/NineS"
-        )
-        return False
-    version = _read_plugin_version(binary, ["--version"])
-    logger.info("capturing NineS v%s fixtures", version)
-    # Placeholder: real implementation would invoke `nines -f json analyze ...`
-    # and `nines -f json self-eval ...` and write outputs. We keep the existing
-    # committed fixtures untouched here — this script is infrastructure, the
-    # initial fixtures are committed as of v10.8.0 D-C-2.
-    logger.info(
-        "NineS fixtures preserved; re-capture path documented at "
-        "https://github.com/YoRHa-Agents/NineS"
-    )
-    return True
 
 
 def refresh_si_chip() -> bool:
@@ -203,8 +179,7 @@ def refresh_rtk() -> bool:
     # Placeholder: real implementation would invoke `rtk rewrite <cmd>` for
     # each canonical fixture command. Initial fixtures shipped in-tree.
     logger.info(
-        "RTK fixtures preserved; re-capture path documented at "
-        "https://github.com/rtk-ai/rtk"
+        "RTK fixtures preserved; re-capture path documented at https://github.com/rtk-ai/rtk"
     )
     return True
 
@@ -230,7 +205,6 @@ def refresh_ui_pro() -> bool:
 
 
 REFRESH_HANDLERS: dict[str, Callable[[], bool]] = {
-    "nines": refresh_nines,
     "si-chip": refresh_si_chip,
     "rtk": refresh_rtk,
     "ui-pro": refresh_ui_pro,
@@ -267,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     # Exit 0 even when plugins are skipped — this is the "gracefully skips"
     # contract per D-C-2 §2 step 4 + §9 R2. A weekly CI cron job with all
-    # 4 plugins pre-installed is the ground truth for full refreshes.
+    # 3 plugins pre-installed is the ground truth for full refreshes.
     return 0
 
 

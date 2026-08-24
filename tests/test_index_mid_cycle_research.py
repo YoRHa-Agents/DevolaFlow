@@ -2,7 +2,7 @@
 
 Pins the contract from `.local/research/v11.0.0_patches/D-O-3.md`:
 
-* ARTIFACT_PATTERN matches ``vX.Y.Z_<topic>.md`` strictly + rejects
+* ARTIFACT_PATTERN matches versioned Markdown/JSON artifacts strictly + rejects
   edge-cases like ``nines_v2_analysis.md`` or ``v10.0.0_evaluation_methodology.md``
   (the latter is OK; the former is NOT in the version-prefix grammar).
 * ``scan_research_artifacts`` returns the right shape on a synthetic
@@ -53,6 +53,7 @@ def test_artifact_pattern_strict_matching() -> None:
         "v10.0.0_evaluation_methodology.md",
         "v8.2.4_w8_stagnation_check.md",
         "v9.7.0_pv02_design.md",
+        "v16.0.0_harness_evaluation.json",
     ]
     rejects = [
         "nines_v2_analysis.md",  # no version prefix
@@ -60,6 +61,7 @@ def test_artifact_pattern_strict_matching() -> None:
         "v10.7.0.md",  # no underscore + topic
         "v10.7.0_Topic.md",  # uppercase rejected
         "v10.0_thing.md",  # missing patch digit
+        "v16.0.0_harness_evaluation.yaml",  # unsupported index format
     ]
     for ok in matches:
         assert _INDEX.ARTIFACT_PATTERN.match(ok) is not None, f"should match: {ok}"
@@ -68,22 +70,23 @@ def test_artifact_pattern_strict_matching() -> None:
 
 
 def test_scan_returns_artifacts_grouped_by_cycle(tmp_path: Path) -> None:
-    """Synthetic tree → 5 artifacts; group_by_cycle splits them correctly."""
+    """Synthetic tree includes current harness JSON and groups by cycle."""
     _make_research_dir(
         tmp_path,
         [
             "v10.7.0_retrospective.md",
             "v10.7.0_pv02_design.md",
             "v10.7.1_canonical_order_emptiness.md",  # patch-of-cycle
+            "v10.7.1_harness_evaluation.json",
             "v10.6.0_retrospective.md",
             "nines_v2_analysis.md",  # NOT versioned → excluded
         ],
     )
     artifacts = _INDEX.scan_research_artifacts(tmp_path / ".local" / "research")
-    assert len(artifacts) == 4
+    assert len(artifacts) == 5
     by_cycle = _INDEX.group_by_cycle(artifacts)
     assert set(by_cycle.keys()) == {"10.7.0", "10.6.0"}
-    assert len(by_cycle["10.7.0"]) == 3
+    assert len(by_cycle["10.7.0"]) == 4
     assert len(by_cycle["10.6.0"]) == 1
     # Within v10.7.0: descending version order — v10.7.1 first, then v10.7.0 entries.
     versions = [a.version for a in by_cycle["10.7.0"]]
@@ -98,13 +101,14 @@ def test_filter_by_cycle_and_category(tmp_path: Path) -> None:
             "v10.7.0_retrospective.md",
             "v10.7.0_evaluation.md",
             "v10.7.0_pv02_design.md",
+            "v10.7.0_harness_evaluation.json",
             "v10.6.0_retrospective.md",
         ],
     )
     artifacts = _INDEX.scan_research_artifacts(tmp_path / ".local" / "research")
     only_107 = _INDEX.filter_artifacts(artifacts, cycle="v10.7.0")
     assert all(a.cycle == "10.7.0" for a in only_107)
-    assert len(only_107) == 3
+    assert len(only_107) == 4
 
     only_retro = _INDEX.filter_artifacts(artifacts, category="retrospective")
     assert all(a.category == "retrospective" for a in only_retro)
@@ -113,6 +117,8 @@ def test_filter_by_cycle_and_category(tmp_path: Path) -> None:
     composed = _INDEX.filter_artifacts(artifacts, cycle="v10.7.0", category="retrospective")
     assert len(composed) == 1
     assert composed[0].path.name == "v10.7.0_retrospective.md"
+    only_harness = _INDEX.filter_artifacts(artifacts, category="harness")
+    assert [artifact.path.name for artifact in only_harness] == ["v10.7.0_harness_evaluation.json"]
 
 
 def test_render_markdown_handles_empty_and_populated(tmp_path: Path) -> None:
@@ -169,7 +175,8 @@ def test_categorize_handles_documented_kinds(tmp_path: Path) -> None:
             "v10.7.0_cycle_plan.md",  # → cycle_plan
             "v10.7.0_evaluation.md",  # → evaluation
             "v10.7.0_pv02_design.md",  # → pds
-            "v10.7.0_nines.md",  # → nines
+            "v10.7.0_harness_evaluation.json",  # → current harness
+            "v10.7.0_nines.md",  # → legacy nines compatibility
             "v10.7.0_canonical_order_emptiness.md",  # → audit
             "v10.7.0_random_topic.md",  # → other
         ],
@@ -181,6 +188,7 @@ def test_categorize_handles_documented_kinds(tmp_path: Path) -> None:
     assert cat_by_topic["cycle_plan"] == "cycle_plan"
     assert cat_by_topic["evaluation"] == "evaluation"
     assert cat_by_topic["pv02_design"] == "pds"
+    assert cat_by_topic["harness_evaluation"] == "harness"
     assert cat_by_topic["nines"] == "nines"
     assert cat_by_topic["canonical_order_emptiness"] == "audit"
     assert cat_by_topic["random_topic"] == "other"

@@ -105,8 +105,8 @@ templates:
   - name: nines-assisted
     seed: seeds/nines-assisted.yaml
     category: composite
-    tags: [nines, evaluation, analysis, pipeline, self-eval, review, assisted, full]
-    description: "Historical NineS-assisted research and iteration decomposition knowledge."
+    tags: [harness, evaluation, analysis, pipeline, self-eval, review, assisted, full]
+    description: "Built-in harness-backed historical research and iteration decomposition knowledge."
   - name: repo-init
     seed: seeds/repo-init.yaml
     category: discover

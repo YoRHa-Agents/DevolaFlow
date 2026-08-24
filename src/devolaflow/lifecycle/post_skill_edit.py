@@ -103,8 +103,8 @@ ENV_FLAG_TRUTHY: str = "1"
 # Skill-corpus file prefix — touches under this path trigger the hook.
 # Mirrors `runtime-plugins.yaml#plugins[*].invoked_by_workflows` in spirit:
 # the v9.5.0 PV-03 templates declare si-chip for skill-optimization +
-# self-update + nines-assisted; this hook is the cross-cutting catch-all
-# for any direct skill-corpus edit (commits made outside those workflows).
+# self-update plus the opaque historical seed ID `nines-assisted`; this hook
+# is the cross-cutting catch-all for direct skill-corpus edits.
 SKILL_CORPUS_PREFIX: str = "workflow-system/agent/"
 
 # Default ability name for DevolaFlow's own skill corpus (the dogfood pass).
@@ -213,7 +213,7 @@ def _compute_fingerprint(
     """Compute a deterministic SHA-256 fingerprint of DEFER content.
 
     Idiomatic helper introduced in v10.2.3 PV-04 alongside the parent-
-    function CC reduction (NineS PV-03 deep-analysis row #7,
+    function CC reduction (historical analysis row #7,
     `post_skill_edit` CC=13). Argument order (skill_files, verdict,
     notes) matches the natural English reading order ("for these
     skill_files and this verdict, hash these notes").
@@ -610,11 +610,9 @@ def _run_si_chip_evaluation(
 ) -> tuple[Any, list[HookViolation], str | None]:
     """Run :func:`run_dogfood_cycle` and classify the outcome.
 
-    Helper extracted in v10.2.3 PV-04 to address the NineS PV-03 deep-
-    analysis finding at
-    `.local/research/v10.2.2_nines.md` §2 row #7 (CC=13 in
-    :func:`post_skill_edit`). The parent function's three exception
-    branches (SiChipUnavailable / SiChipError / unexpected) plus the
+    Helper extracted in v10.2.3 PV-04 to address a historical complexity
+    finding (CC=13 in :func:`post_skill_edit`). The parent function's three
+    exception branches (SiChipUnavailable / SiChipError / unexpected) plus the
     success path were the dominant complexity contributors; pulling
     them into this orchestrator drops the parent below the warn
     threshold.
@@ -748,7 +746,7 @@ def post_skill_edit(
     directly with ``{"touched_files": ["workflow-system/agent/SKILL.md"]}``.
 
     Implementation note: per the v10.2.3 PV-04 cyclomatic-complexity
-    reduction (NineS PV-03 deep-analysis row #7), the dogfood-cycle
+    reduction (historical analysis row #7), the dogfood-cycle
     invocation + exception-classification body lives in
     :func:`_run_si_chip_evaluation`. Behaviour is byte-identical to
     v10.2.1 baseline.

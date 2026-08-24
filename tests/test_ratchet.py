@@ -799,7 +799,7 @@ class TestSchemaInvariantP6Preserved:
     schema (P-08 → length 14 / version 3, P-10 → length 15 / version 4),
     these assertions track the LATEST canonical state — additivity is
     proven by the v7.0.0 + v7.3.0 byte-baseline tests in
-    ``tests/test_benchmarks.py::TestLayoutInvariantBaseline``.
+    ``tests/test_layout_invariant_multi_baseline.py::TestMultiBaselineByteStability``.
     """
 
     def test_layout_invariant_canonical_order_length_is_17(self) -> None:

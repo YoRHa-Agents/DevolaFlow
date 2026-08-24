@@ -1,0 +1,70 @@
+schema_version: 1
+id: hierarchy_complex_cascade
+provenance:
+  - legacy-evobench:cascade_l0_l1_l2_l3_standard
+  - legacy-evobench:cascade_l0_l1_l2_l3_complex
+feature_tags:
+  - cascade_required
+  - cascade_min_layers
+  - fan_out
+  - complex_dispatch
+dispatch:
+  hdr:
+    id: harness-hierarchy-complex
+    parent: harness-root
+    layer: wave
+    timeout: 1200
+  task:
+    id: HC-01
+    type: code
+    title: Implement bounded cascade task
+  goal: Preserve the required three-layer cascade while implementing one isolated task.
+  files:
+    - src/devolaflow/gate/cascade.py
+    - tests/test_cascade_enforcement.py
+  rules:
+    strategy: full
+    lang: python
+    focus:
+      - hierarchy
+      - bounded-retry
+  shared: Three-layer dispatch with independent task ownership.
+  accept:
+    - Standard and complex work → cascade depth is at least three.
+    - Independent task partitions → FAN_OUT with bounded workers.
+  gate:
+    blockers: 0
+    retries: 2
+    cascade_required: true
+    cascade_min_layers: 3
+    subagent_pattern: FAN_OUT
+  acceptance_criteria_v2:
+    - id: HC-AC-1
+      description: Strict cascade enforcement tests pass.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_cascade_enforcement.py -q --no-cov
+    - id: HC-AC-2
+      description: Standard and complex work → cascade depth is at least three.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_cascade_enforcement.py::test_validate_cascade_gate_fields_returns_none_on_pass -q --no-cov
+    - id: HC-AC-3
+      description: Independent task partitions → FAN_OUT with bounded workers.
+      verification_type: test
+      verification_cmd: python -m pytest tests/test_subagent_patterns.py::test_select_pattern_fan_out_for_parallel_independent_tasks tests/test_async_dispatch_executor.py::test_dispatch_parallel_respects_max_concurrency -q --no-cov
+expected:
+  guard_ids:
+    - HC-AC-1
+    - HC-AC-2
+    - HC-AC-3
+  report_required_keys:
+    - hdr
+    - state
+    - artifacts
+    - ac_results
+    - diff_stats
+  report_forbidden_keys:
+    - quality_score
+  required_literals:
+    - CASCADE_REQUIRED
+    - FAN_OUT
+  fold_sensitive: false

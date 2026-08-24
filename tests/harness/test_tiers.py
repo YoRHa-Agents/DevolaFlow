@@ -166,6 +166,39 @@ def test_mixed_payload_count_ratio_and_reinforcement_deduplication() -> None:
         0.0,
     )
 
+    mirrored_payload = {
+        "acceptance_criteria_v2": [
+            {
+                "id": "AC-MACHINE",
+                "description": "Machine mirror",
+                "verification_type": "test",
+                "verification_cmd": "pytest -q",
+            },
+            {
+                "id": "AC-MANUAL",
+                "description": "Manual mirror",
+                "verification_type": "manual",
+            },
+            {
+                "id": "AC-NONSTRING-DESCRIPTION",
+                "description": 17,
+                "verification_type": "test",
+                "verification_cmd": "pytest -q",
+            },
+            "malformed structured criterion",
+        ],
+        "accept": [" Machine mirror ", "distinct lean criterion", 17, ""],
+        "acceptance_criteria": ["Manual mirror", "machine mirror", None],
+        "acceptance": {"criteria": ["nested legacy criterion"]},
+    }
+    mirrored_summary = summarize_constraints(mirrored_payload)
+    assert mirrored_summary == (
+        10,
+        {"invariant": 0, "guard": 2, "advisory": 8},
+        pytest.approx(2 / 10),
+    )
+    assert summarize_constraints(deepcopy(mirrored_payload)) == mirrored_summary
+
 
 def test_invalid_unknown_and_fold_trigger_semantics() -> None:
     annotated = annotate_behavioral_guidelines({"tier": "standard", "unknown_future_rule": True})

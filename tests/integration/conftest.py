@@ -33,7 +33,6 @@ FIXTURES_DIR: Path = Path(__file__).resolve().parent / "fixtures"
 # Canonical plugin registry (name → path under fixtures/).
 _PLUGIN_DIRS: dict[str, str] = {
     "si-chip": "si-chip",
-    "nines": "nines",
     "rtk": "rtk",
     "ui-pro": "ui-pro",
 }

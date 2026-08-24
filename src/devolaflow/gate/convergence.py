@@ -35,8 +35,8 @@ def detect_stagnation(
     earlier releases: stagnation requires ``len(history) >= 2`` and the last
     two rounds showing no score increase.
 
-    With ``noise_tolerance_pct > 0`` (added in v7.2.2 P-01 — convergence-loop
-    noise filter, EvoBench v2.2.0 Tier 1 #2):
+    With ``noise_tolerance_pct > 0`` (added in v7.2.2 P-01 from the
+    convergence-loop noise-filter historical benchmark analysis):
 
     * deltas strictly above ``+tolerance_band`` → not stagnant (clear lift),
     * deltas strictly below ``-tolerance_band`` → stagnant (clear regression

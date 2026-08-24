@@ -288,15 +288,10 @@ A v1 recipe (schema_version: 1) is byte-identical to a v2 recipe whose
 | Lenient mode logs + continues | `test_lenient_mode_logs_and_continues` |
 | Every shipped transform wraps the protocol | `test_all_stages_implement_protocol` |
 
-Plus the per-primitive `_disabled.yaml` EvoBench scenarios (composite ≥ 90
-floor) that pin the byte-identical-when-opted-out invariant for the 5
-v8.0.0 gate primitives flipped default-ON in v8.5.1:
-
-* `benchmarks/devolaflow_context/scenarios/token_budget_disabled.yaml`
-* `benchmarks/devolaflow_context/scenarios/verification_ladder_disabled.yaml`
-* `benchmarks/devolaflow_context/scenarios/ratchet_disabled.yaml`
-* `benchmarks/devolaflow_context/scenarios/complexity_detector_disabled.yaml`
-* `benchmarks/devolaflow_context/scenarios/ac_generator_disabled.yaml`
+The retired per-primitive EvoBench identities remain as
+`legacy-evobench:` provenance in the built-in harness fixtures. Live
+byte-identical opt-out behavior is pinned by
+`tests/test_pv06_primitive_flip.py` and `tests/harness/test_fixtures.py`.
 
 ---
 
