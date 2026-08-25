@@ -262,6 +262,7 @@ class TestSelectContext:
             "plan_mode",
             "plan_mode_applied",
             "behavioral_guidelines",
+            "agents_md_slice",  # v17.0.0 R3 G17-B3 — additive slice account
         }
         assert set(result.keys()) == expected_keys
 
@@ -1559,3 +1560,73 @@ class TestG037TimeoutClassResolution:
             assert not dropped, (
                 f"W-6 violation for {task_type}: critical sections dropped: {sorted(dropped)}"
             )
+
+
+# ---------------------------------------------------------------------------
+# v17.0.0 R3 (G17-B3 / D-R3-1) — additive ``agents_md_slice`` return key
+# ---------------------------------------------------------------------------
+
+
+class TestAgentsMdSliceAccount:
+    """select_context attaches the compact AGENTS.md-slice account (D-R3-1).
+
+    The key is purely ADDITIVE — the pre-existing return-key pins
+    (``TestSelectContext::test_result_structure`` and the assembled-text /
+    total-tokens assertions across this suite) verify the legacy contract
+    is untouched; these tests pin the new account's own shape.
+    """
+
+    _COMPACT_KEYS = frozenset(
+        {
+            "profile_name",
+            "slice_enabled",
+            "total_tokens",
+            "full_tokens",
+            "slice_savings_pct",
+            "included_rules_count",
+        }
+    )
+
+    @pytest.mark.parametrize("task_type", ["hotfix", "research"])
+    def test_sliceable_task_types_carry_positive_savings(self, task_type: str) -> None:
+        result = select_context(task_type, profiles_path=PROFILES_YAML)
+        account = result["agents_md_slice"]
+        assert set(account) == self._COMPACT_KEYS
+        assert account["profile_name"] == task_type
+        assert account["slice_enabled"] is True
+        assert account["slice_savings_pct"] > 0
+        assert 0 < account["total_tokens"] < account["full_tokens"]
+        assert account["included_rules_count"] > 0
+
+    def test_env_opt_out_normalizes_included_rules_all_to_minus_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """R5 strict env opt-out: the literal ``"all"`` fast path is
+        normalized to the ``-1`` sentinel in ``included_rules_count``."""
+        monkeypatch.setenv("DEVOLAFLOW_AGENTS_MD_SLICE", "0")
+        result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        account = result["agents_md_slice"]
+        assert account["slice_enabled"] is False
+        assert account["slice_savings_pct"] == 0.0
+        assert account["included_rules_count"] == -1
+        assert account["total_tokens"] == account["full_tokens"] > 0
+
+    def test_unreadable_agents_md_yields_empty_account_and_warns(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """S-5: a missing AGENTS.md degrades the account to ``{}`` with a
+        WARNING — selection itself never crashes and the legacy keys stay
+        fully populated."""
+        import devolaflow.agents_md_slice as agents_md_slice
+
+        monkeypatch.setattr(agents_md_slice, "_AGENTS_MD_PATH", tmp_path / "missing" / "AGENTS.md")
+        with caplog.at_level("WARNING", logger="devolaflow.agents_md_slice"):
+            result = select_context("hotfix", profiles_path=PROFILES_YAML)
+        assert result["agents_md_slice"] == {}
+        assert "AGENTS.md" in caplog.text
+        assert result["profile_name"] == "hotfix"
+        assert result["total_tokens"] > 0
+        assert result["assembled_text"]

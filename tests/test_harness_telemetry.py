@@ -12,6 +12,7 @@ import pytest
 import yaml
 
 import devolaflow.harness.telemetry as telemetry
+from devolaflow.agents_md_slice import cached_slice_summary
 from devolaflow.harness import (
     HARNESS_SEGMENT_MAX_BYTES,
     LAYER_TOKEN_BUDGETS,
@@ -19,6 +20,7 @@ from devolaflow.harness import (
     build_dispatch_record,
     record_dispatch_telemetry,
 )
+from devolaflow.harness.aggregator import aggregate_ledger
 from devolaflow.lifecycle import (
     POST_DISPATCH_EVENT,
     list_handlers,
@@ -39,7 +41,16 @@ EXPECTED_RECORD_KEYS = [
     "tier_breakdown",
     "advisory_folded",
     "model_hint",
+    # v17.0.0 R3 (G17-B3 / D-R3-2) — host-injection accounting fields.
+    "host_rule_tokens",
+    "slice_savings_pct",
 ]
+
+# The full AGENTS.md corpus estimate on this checkout (12,267 tokens as of
+# v17.0.0 R3) — resolved dynamically so AGENTS.md recompiles don't break
+# the exact-record pin below. env={} isolates from the process env, the
+# same contract `_slice_injection_metrics` uses.
+FULL_AGENTS_MD_TOKENS = cached_slice_summary("", env={})["full_tokens"]
 
 
 def _payload(
@@ -106,6 +117,10 @@ def test_build_dispatch_record_uses_exact_schema_and_stable_yaml(monkeypatch) ->
         "tier_breakdown": {"invariant": 0, "guard": 2, "advisory": 0},
         "advisory_folded": False,
         "model_hint": "quality",
+        # No task.type in the payload → unresolvable task type: savings 0.0
+        # with host_rule_tokens still the full AGENTS.md estimate (D-R3-2).
+        "host_rule_tokens": FULL_AGENTS_MD_TOKENS,
+        "slice_savings_pct": 0.0,
     }
     assert rendered == [
         yaml.safe_dump(
@@ -277,6 +292,86 @@ def test_attribution_and_io_failures_warn_without_blocking(
     assert not (folder / "harness.jsonl").exists()
     assert "attribution failed" in caplog.text
     assert "disk unavailable" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# v17.0.0 R3 (G17-B3 / D-R3-2) — host-injection accounting fields
+# ---------------------------------------------------------------------------
+
+
+def test_slice_accounting_e2e_real_ledger_carries_positive_savings(tmp_path: Path) -> None:
+    """R3 gate e2e: a real ledger record for a sliceable task type carries
+    ``host_rule_tokens > 0`` AND ``slice_savings_pct > 0``, and the
+    aggregator surfaces both means from the written JSONL."""
+    folder = _active_folder(tmp_path, "slice-e2e")
+    payload = _payload(change_id="slice-e2e")
+    payload["task"]["type"] = "research"
+
+    result = record_dispatch_telemetry(payload, repo_root=tmp_path)
+
+    assert result.passed is True
+    records = [json.loads(line) for line in (folder / "harness.jsonl").read_text().splitlines()]
+    assert len(records) == 1
+    record = records[0]
+    assert record["host_rule_tokens"] > 0
+    assert record["slice_savings_pct"] > 0
+
+    summary = aggregate_ledger(folder)
+    assert summary["tokens"]["host_rule_tokens_mean"] == record["host_rule_tokens"]
+    assert summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(record["slice_savings_pct"])
+
+
+@pytest.mark.parametrize(
+    ("task_type", "applicable_task_type", "resolved_task_type"),
+    [
+        ("research", None, "research"),  # 1. task.type wins outright
+        ("research", "hotfix", "research"),  # 1 beats 2 when both present
+        (None, "hotfix", "hotfix"),  # 2. context.applicable_rules.task_type
+        (None, None, ""),  # unresolvable → full corpus + 0.0 savings
+    ],
+)
+def test_slice_task_type_resolution_order(
+    task_type: str | None,
+    applicable_task_type: str | None,
+    resolved_task_type: str,
+) -> None:
+    payload = _payload(change_id="slice-resolution")
+    if task_type is not None:
+        payload["task"]["type"] = task_type
+    if applicable_task_type is not None:
+        payload["context"] = {"applicable_rules": {"task_type": applicable_task_type}}
+    expected = cached_slice_summary(resolved_task_type, env={})
+
+    record = build_dispatch_record(payload, change_id="slice-resolution")
+
+    assert record["host_rule_tokens"] == expected["full_tokens"] == FULL_AGENTS_MD_TOKENS > 0
+    assert record["slice_savings_pct"] == pytest.approx(expected["slice_savings_pct"])
+    if resolved_task_type:
+        assert record["slice_savings_pct"] > 0
+    else:
+        assert record["slice_savings_pct"] == 0.0
+
+
+def test_slice_accounting_failure_zeroes_fields_and_warns(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """S-5: a slice failure keeps BOTH fields present (zeroed) with a
+    WARNING — the record is still built and the dispatch never blocks."""
+
+    def boom(*_args, **_kwargs):
+        raise OSError("AGENTS.md unavailable")
+
+    monkeypatch.setattr(telemetry, "cached_slice_summary", boom)
+    payload = _payload(change_id="slice-failure")
+
+    with caplog.at_level("WARNING", logger="devolaflow.harness.telemetry"):
+        record = build_dispatch_record(payload, change_id="slice-failure")
+
+    assert record["host_rule_tokens"] == 0
+    assert record["slice_savings_pct"] == 0.0
+    assert list(record) == EXPECTED_RECORD_KEYS
+    assert "slice accounting failed" in caplog.text
 
 
 def test_post_dispatch_telemetry_registration_is_default_first_and_idempotent() -> None:

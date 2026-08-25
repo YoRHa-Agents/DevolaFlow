@@ -429,3 +429,61 @@ def test_count_agents_md_rules_matches_layer_split(project_root: Path) -> None:
     assert census["total"] <= 60, (
         f"AGENTS.md rule count {census['total']} exceeds the 60 HARD cap (ADR-007 D5)"
     )
+
+
+def test_cached_slice_summary_reads_once_and_invalidates_on_mtime(
+    slice_enabled_profiles_path: Path,
+    project_root: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v17.0.0 R3 (D-R3-1/D-R3-2): the compact summary is served from the
+    module-level (path, mtime_ns, task_type)-keyed cache — repeat calls
+    never re-read AGENTS.md; an mtime bump invalidates; the projection
+    matches select_agents_md_slice verbatim."""
+    import os
+
+    import devolaflow.agents_md_slice as agents_md_slice
+    from devolaflow.agents_md_slice import cached_slice_summary
+
+    agents_md_copy = tmp_path / "AGENTS-cache-test.md"
+    agents_md_copy.write_text(
+        (project_root / "AGENTS.md").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    reads: list[Path | None] = []
+    real_read = agents_md_slice._read_agents_md
+
+    def counting_read(agents_md_path: Path | None = None) -> str:
+        reads.append(agents_md_path)
+        return real_read(agents_md_path)
+
+    monkeypatch.setattr(agents_md_slice, "_read_agents_md", counting_read)
+    kwargs = {
+        "profiles_path": slice_enabled_profiles_path,
+        "agents_md_path": agents_md_copy,
+        "env": {},
+    }
+
+    first = cached_slice_summary("hotfix", **kwargs)
+    second = cached_slice_summary("hotfix", **kwargs)
+    assert len(reads) == 1, "cache hit must not re-read AGENTS.md"
+    assert first == second
+
+    full = select_agents_md_slice("hotfix", **kwargs)
+    assert first == {
+        "profile_name": full["profile_name"],
+        "slice_enabled": full["slice_enabled"],
+        "total_tokens": full["total_tokens"],
+        "full_tokens": full["full_tokens"],
+        "slice_savings_pct": full["slice_savings_pct"],
+        "included_rules_count": len(full["included_rules"]),
+    }
+    assert first["slice_enabled"] is True
+    assert first["slice_savings_pct"] > 0
+
+    stat = agents_md_copy.stat()
+    os.utime(agents_md_copy, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    reads.clear()
+    cached_slice_summary("hotfix", **kwargs)
+    assert len(reads) >= 1, "mtime bump must invalidate the cache entry"

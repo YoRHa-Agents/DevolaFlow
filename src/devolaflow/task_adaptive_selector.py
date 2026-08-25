@@ -1200,6 +1200,8 @@ def select_context(
         Purely additive — callers ignoring the key see zero behavior
         change; the lean-dispatch schema already documents the
         ``header.timeout_seconds`` field this hint feeds.
+      - agents_md_slice (v17.0.0 R3 / G17-B3): additive compact account from
+        ``agents_md_slice.slice_account``; ``{}`` + WARNING on failure (S-5).
 
     When ``round_num > 1`` the resolved profile is routed through
     :func:`apply_round_escalation` so convergence rounds receive stricter
@@ -1261,7 +1263,8 @@ def select_context(
 
     resolved_behavioral = _select_behavioral_sections(profile, config, anchor_registry)
     behavioral_guidelines = annotate_behavioral_guidelines(resolved_behavioral)
-    advisory_folded = behavioral_guidelines is not None and should_fold_advisory(model_hint)
+    has_behavioral = behavioral_guidelines is not None
+    advisory_folded = has_behavioral and should_fold_advisory(model_hint, profiles_path)
     behavioral_text = _compose_behavioral_block(
         behavioral_guidelines,
         fold_advisory=advisory_folded,
@@ -1304,6 +1307,11 @@ def select_context(
     # rounds, and apply_round_escalation never touches ``timeout_class``.
     timeout_seconds = resolve_timeout_seconds(profile, config)
 
+    # v17.0.0 R3 (G17-B3/D-R3-1) — additive slice account (owner-cached; S-5 safe).
+    from devolaflow.agents_md_slice import slice_account
+
+    agents_md_slice = slice_account(task_type, profiles_path=profiles_path)
+
     return {
         "profile_name": profile_name,
         "description": profile.get("description", ""),
@@ -1326,6 +1334,7 @@ def select_context(
         "plan_mode": active_plan_mode,
         "plan_mode_applied": active_plan_mode,
         "behavioral_guidelines": behavioral_guidelines,
+        "agents_md_slice": agents_md_slice,
     }
 
 

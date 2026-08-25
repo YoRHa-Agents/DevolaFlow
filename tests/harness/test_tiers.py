@@ -240,6 +240,39 @@ def test_invalid_unknown_and_fold_trigger_semantics() -> None:
         assert should_fold_advisory(model_hint) is False
 
 
+def test_advisory_fold_tiers_are_config_driven_with_exact_match(tmp_path: Path) -> None:
+    """v17.0.0 R3 (D-R3-3 / G-TOK-3 minimal): ``meta.advisory_fold.model_tiers``
+    replaces the fold tier set when declared; exact-match stays
+    case-sensitive; a malformed value falls back to the default set with a
+    WARNING (S-5). Config-ABSENT behaviour (the shipped default — the
+    canonical YAML declares no ``advisory_fold``) is pinned byte-identical
+    by the assertions in the test above and the fold matrix in
+    ``tests/test_behavioral_guidelines.py``."""
+    configured = tmp_path / "profiles-advisory-fold.yaml"
+    configured.write_text(
+        yaml.safe_dump({"meta": {"advisory_fold": {"model_tiers": ["balanced"]}}}),
+        encoding="utf-8",
+    )
+    assert should_fold_advisory("balanced", configured) is True
+    assert should_fold_advisory("BALANCED", configured) is False
+    assert should_fold_advisory("quality", configured) is False
+    assert should_fold_advisory("frontier", configured) is False
+
+    absent = tmp_path / "profiles-no-advisory-fold.yaml"
+    absent.write_text(yaml.safe_dump({"meta": {}}), encoding="utf-8")
+    assert should_fold_advisory("quality", absent) is True
+    assert should_fold_advisory("frontier", absent) is True
+    assert should_fold_advisory("balanced", absent) is False
+
+    malformed = tmp_path / "profiles-malformed-advisory-fold.yaml"
+    malformed.write_text(
+        yaml.safe_dump({"meta": {"advisory_fold": {"model_tiers": "quality"}}}),
+        encoding="utf-8",
+    )
+    assert should_fold_advisory("quality", malformed) is True
+    assert should_fold_advisory("balanced", malformed) is False
+
+
 def test_schema_nests_and_layout_remain_version_6_length_17() -> None:
     lean = yaml.safe_load((REPO_ROOT / "schemas" / "lean-dispatch.yaml").read_text())
     full = yaml.safe_load((REPO_ROOT / "schemas" / "task-dispatch.schema.yaml").read_text())

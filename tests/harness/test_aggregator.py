@@ -190,6 +190,43 @@ def test_empty_or_malformed_ledger_fails_explicitly(tmp_path: Path, case: str) -
         assert ":1:" in str(caught.value)
 
 
+def test_optional_slice_metrics_are_none_when_absent_and_partial_mean_otherwise(
+    tmp_path: Path,
+) -> None:
+    """v17.0.0 R3 (D-R3-2): ``host_rule_tokens`` / ``slice_savings_pct``
+    stay OUT of the required field set — a pre-v17 ledger aggregates with
+    both means emitted as ``None`` (mirroring the ``rounds.min/max``
+    absent-metric style) — and a mixed ledger averages ONLY the records
+    that carry the fields."""
+    legacy = _record("legacy-record")
+    _write_jsonl(tmp_path / "harness.jsonl", [legacy])
+
+    legacy_summary = aggregate_ledger(tmp_path)
+    assert "host_rule_tokens_mean" in legacy_summary["tokens"]
+    assert "slice_savings_pct_mean" in legacy_summary["tokens"]
+    assert legacy_summary["tokens"]["host_rule_tokens_mean"] is None
+    assert legacy_summary["tokens"]["slice_savings_pct_mean"] is None
+
+    carrying_a = _record("carrying-a")
+    carrying_a["host_rule_tokens"] = 12_000
+    carrying_a["slice_savings_pct"] = 70.0
+    carrying_b = _record("carrying-b")
+    carrying_b["host_rule_tokens"] = 10_000
+    carrying_b["slice_savings_pct"] = 80.0
+    _write_jsonl(tmp_path / "harness.jsonl", [legacy, carrying_a, carrying_b])
+
+    mixed_summary = aggregate_ledger(tmp_path)
+    assert mixed_summary["records"] == 3
+    assert mixed_summary["tokens"]["host_rule_tokens_mean"] == pytest.approx(11_000)
+    assert mixed_summary["tokens"]["slice_savings_pct_mean"] == pytest.approx(75.0)
+
+    invalid = _record("invalid-savings")
+    invalid["slice_savings_pct"] = 150.0
+    _write_jsonl(tmp_path / "harness.jsonl", [invalid])
+    with pytest.raises(AggregationError, match="slice_savings_pct"):
+        aggregate_ledger(tmp_path)
+
+
 def test_aggregation_is_identical_across_three_runs(tmp_path: Path) -> None:
     _write_jsonl(
         tmp_path / "harness.jsonl",

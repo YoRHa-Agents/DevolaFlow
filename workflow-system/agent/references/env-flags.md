@@ -231,7 +231,7 @@ count.
 
 | Field | Value |
 |---|---|
-| **Owner** | `src/devolaflow/task_adaptive_selector.py::_AGENTS_MD_SLICE_ENV_FLAG` (helper: `_agents_md_slice_env_override`) |
+| **Owner** | `src/devolaflow/agents_md_slice.py::_AGENTS_MD_SLICE_ENV_FLAG` (helper: `_agents_md_slice_env_override`) |
 | **Introduced** | telegraphed v9.0.0 PV-07 ADR-007 D3; runtime read landed v9.1.5 PV-05 alongside the YAML default flip |
 | **Default** | unset → respect `meta.agents_md_slice.enabled` in `workflow-system/agent/context_profiles.yaml` (v9.1.5 canonical default: `true`) |
 | **Activation** | env value EXACTLY `"1"` → force opt-IN; EXACTLY `"0"` → force opt-OUT; otherwise YAML default wins |

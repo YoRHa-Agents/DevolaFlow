@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Final
 import yaml
 
 from devolaflow.agent_workspace.layers import LAYER_ATTRIBUTION_ALIASES
+from devolaflow.agents_md_slice import cached_slice_summary
 from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
 from devolaflow.task_adaptive_selector import estimate_tokens
 
@@ -159,6 +160,73 @@ def _model_hint(payload: dict[str, Any]) -> str:
     return "inherit"
 
 
+def _dispatch_task_type(payload: dict[str, Any]) -> str:
+    """Resolve the dispatch task type for AGENTS.md-slice accounting.
+
+    Resolution order (first non-empty string wins):
+      1. ``task.type`` — the canonical work-unit type of BOTH dispatch
+         formats (lean ``task: { id, type, title }`` at canonical position
+         2 and the verbose original format's ``task.type``; see
+         ``schemas/lean-dispatch.yaml#lean_format_spec.task``).
+      2. ``context.applicable_rules.task_type`` — the verbose format's
+         rule-loading hint (``schemas/lean-dispatch.yaml`` original
+         example; mirrored in ``task-dispatch.schema.yaml``).
+
+    Returns ``""`` when unresolvable — the slice module's ``fallback:
+    full`` semantics then yield ``slice_savings_pct == 0.0`` with
+    ``host_rule_tokens`` still carrying the full AGENTS.md estimate.
+    """
+
+    task = _mapping(payload, "task")
+    if task is not None:
+        value = task.get("type")
+        if isinstance(value, str) and value.strip():
+            return value
+    context = _mapping(payload, "context")
+    if context is not None:
+        applicable = context.get("applicable_rules")
+        if isinstance(applicable, dict):
+            value = applicable.get("task_type")
+            if isinstance(value, str) and value.strip():
+                return value
+    return ""
+
+
+def _slice_injection_metrics(payload: dict[str, Any]) -> tuple[int, float]:
+    """Return ``(host_rule_tokens, slice_savings_pct)`` for one dispatch.
+
+    v17.0.0 R3 (G17-B3 / D-R3-2) — host injection accounting:
+
+      * ``host_rule_tokens`` is the FULL AGENTS.md corpus estimate
+        (``full_tokens``), because hosts inject the unsliced corpus today;
+        the slice is configured but unwired on the host side.
+      * ``slice_savings_pct`` is the YAML-CONFIGURED slice's available
+        saving for this dispatch's task type. The computation passes
+        ``env={}`` so the R5 process-env opt-out
+        (``DEVOLAFLOW_AGENTS_MD_SLICE=0``) does NOT zero the ledger — the
+        account measures what the configuration offers, deterministically,
+        which also keeps the owner module's mtime-keyed cache valid
+        without an env component per record.
+
+    The summary comes from the module-level cache in
+    ``devolaflow.agents_md_slice`` (keyed on AGENTS.md path + mtime_ns +
+    task_type), so appending records never re-reads AGENTS.md. Any
+    failure degrades to ``(0, 0.0)`` with a WARNING per S-5 — telemetry
+    must never block a dispatch.
+    """
+
+    try:
+        summary = cached_slice_summary(_dispatch_task_type(payload), env={})
+        return summary["full_tokens"], float(summary["slice_savings_pct"])
+    except Exception as exc:  # noqa: BLE001 - telemetry stays nonblocking
+        logger.warning(
+            "harness telemetry AGENTS.md slice accounting failed: %s; "
+            "host_rule_tokens/slice_savings_pct zeroed",
+            exc,
+        )
+        return 0, 0.0
+
+
 def _stable_yaml(payload: dict[str, Any]) -> str:
     """Render deterministic measurement input independent of mapping order."""
 
@@ -205,7 +273,15 @@ def build_dispatch_record(
     change_id: str,
     timestamp: str | None = None,
 ) -> dict[str, Any]:
-    """Build one exact-schema harness record from a dispatch payload."""
+    """Build one exact-schema harness record from a dispatch payload.
+
+    v17.0.0 R3 (G17-B3 / D-R3-2) appended two host-injection accounting
+    fields: ``host_rule_tokens`` (full AGENTS.md corpus estimate — hosts
+    inject the unsliced corpus) and ``slice_savings_pct`` (the configured
+    slice's available saving for this dispatch's task type, resolved per
+    :func:`_dispatch_task_type` / :func:`_slice_injection_metrics`).
+    Both are OPTIONAL for the aggregator — old ledgers keep aggregating.
+    """
 
     if not isinstance(payload, dict):
         raise _AttributionError("payload must be a dict")
@@ -221,6 +297,7 @@ def build_dispatch_record(
     advisory_folded = behavioral is not None and behavioral.get("advisory_folded") is True
     model_hint = _model_hint(payload)
     measured = estimate_tokens(_stable_yaml(payload))
+    host_rule_tokens, slice_savings_pct = _slice_injection_metrics(payload)
     record_timestamp = timestamp or datetime.now(UTC).isoformat()
 
     record = {
@@ -236,6 +313,8 @@ def build_dispatch_record(
         "tier_breakdown": tier_breakdown,
         "advisory_folded": advisory_folded,
         "model_hint": model_hint,
+        "host_rule_tokens": host_rule_tokens,
+        "slice_savings_pct": slice_savings_pct,
     }
     if advisory_folded:
         record["fold_trace"] = {

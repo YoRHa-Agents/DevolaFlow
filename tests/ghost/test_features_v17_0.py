@@ -63,6 +63,32 @@ def test_v17_0_0_r2_dogfood_host_configs_present(project_root: Path) -> None:
     assert "tools/pre-execute" in dsh_plugin
 
 
+def test_v17_0_0_r3_host_injection_accounting_wired(project_root: Path) -> None:
+    """W-18 v17.0.0 R3: slice account + ledger fields + config-driven fold."""
+    from devolaflow.agents_md_slice import cached_slice_summary, slice_account
+    from devolaflow.harness.telemetry import build_dispatch_record
+    from devolaflow.harness.tiers import should_fold_advisory
+    from devolaflow.task_adaptive_selector import select_context
+
+    assert callable(cached_slice_summary) and callable(slice_account)
+
+    context = select_context("hotfix")
+    assert "agents_md_slice" in context
+    slice_keys = set(context["agents_md_slice"])
+    assert {"full_tokens", "slice_savings_pct"} <= slice_keys or not slice_keys
+
+    record = build_dispatch_record(
+        {"to_layer": "L2", "task": {"type": "hotfix"}, "dispatch_id": "ghost-r3"},
+        change_id="ghost-r3",
+    )
+    assert record["host_rule_tokens"] > 0
+    assert record["slice_savings_pct"] > 0
+
+    # Config-absent fold policy stays byte-identical to the v16 hardcoded set.
+    assert should_fold_advisory("quality") is True
+    assert should_fold_advisory("QUALITY") is False
+
+
 def test_v17_0_0_r2_layer_budget_assertion_wired() -> None:
     """W-18 v17.0.0 R2: ALB001 fires through the pre_dispatch extra chain."""
     from devolaflow import lifecycle
