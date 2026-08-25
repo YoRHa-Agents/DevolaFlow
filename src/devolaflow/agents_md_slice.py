@@ -327,6 +327,127 @@ def _filter_agents_md_by_profile(
     return sliced_text, included, skipped
 
 
+# ---------------------------------------------------------------------------
+# v17.0.0 R3 (G17-B3 / D-R3-1, D-R3-2) — cached compact slice summary.
+#
+# One module-level cache shared by BOTH consumers (A-5 single-owner: this
+# module owns the slice computation, so it owns the cache too):
+#   * ``select_context`` attaches the summary as the additive
+#     ``agents_md_slice`` return key (D-R3-1) — the warmup path calls
+#     ``select_context`` 15×, so the summary must be O(1) after first hit.
+#   * ``harness.telemetry.build_dispatch_record`` derives
+#     ``host_rule_tokens`` / ``slice_savings_pct`` per record (D-R3-2) —
+#     the ledger appender must not re-read AGENTS.md per dispatch.
+#
+# Cache key: (agents_md path, mtime_ns, task_type, profiles path,
+# env-override state). mtime invalidation covers `make compile-rules`
+# regenerating AGENTS.md mid-session; the env-override component keeps
+# the R5 strict DEVOLAFLOW_AGENTS_MD_SLICE=0/1 escape hatches live.
+# ---------------------------------------------------------------------------
+
+_SLICE_SUMMARY_CACHE: dict[tuple[str, int, str, str, bool | None], dict[str, Any]] = {}
+_SLICE_SUMMARY_CACHE_MAX: int = 128
+
+
+def _included_rules_count(included_rules: list[str] | str) -> int:
+    """Normalize ``included_rules`` to an int count.
+
+    ``select_agents_md_slice`` returns the literal string ``"all"`` on the
+    slicing-OFF / full-fallback fast path; that is normalized to the
+    sentinel ``-1`` ("every rule — no slice applied") so the summary stays
+    a flat int-valued account. A real slice returns ``len(included_rules)``.
+    """
+    if included_rules == "all":
+        return -1
+    return len(included_rules)
+
+
+def cached_slice_summary(
+    task_type: str,
+    profiles_path: Path | None = None,
+    agents_md_path: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Compact, cached view of :func:`select_agents_md_slice`.
+
+    Returns a flat dict with EXACTLY these keys (no ``sliced_text`` — the
+    summary is an injection ACCOUNT, not an injection surface):
+
+      - ``profile_name``: matched slice-profile name ("" when unsliced).
+      - ``slice_enabled``: bool — True when a slice was actually applied.
+      - ``total_tokens``: estimated tokens of the (possibly sliced) text.
+      - ``full_tokens``: estimated tokens of the unsliced AGENTS.md
+        (0 when AGENTS.md is missing/unreadable).
+      - ``slice_savings_pct``: percentage reduction (0.0 when unsliced).
+      - ``included_rules_count``: int — rule count kept by the slice, or
+        the ``-1`` sentinel for the literal ``"all"`` fast path (see
+        :func:`_included_rules_count`).
+
+    Results are memoized module-level keyed on (AGENTS.md path, mtime_ns,
+    task_type, profiles path, env-override state); an AGENTS.md rewrite
+    (mtime bump) invalidates naturally. The cache is bounded at
+    ``_SLICE_SUMMARY_CACHE_MAX`` entries (cleared wholesale beyond that —
+    the key space is tiny in production: task types × one path pair).
+    """
+    resolved_agents_md = _resolve_agents_md_path(agents_md_path)
+    try:
+        mtime_ns = resolved_agents_md.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = -1
+    key = (
+        str(resolved_agents_md),
+        mtime_ns,
+        task_type,
+        str(profiles_path) if profiles_path is not None else "",
+        _agents_md_slice_env_override(env),
+    )
+    cached = _SLICE_SUMMARY_CACHE.get(key)
+    if cached is not None:
+        return dict(cached)
+
+    result = select_agents_md_slice(
+        task_type,
+        profiles_path=profiles_path,
+        agents_md_path=agents_md_path,
+        env=env,
+    )
+    summary = {
+        "profile_name": result["profile_name"],
+        "slice_enabled": result["slice_enabled"],
+        "total_tokens": result["total_tokens"],
+        "full_tokens": result["full_tokens"],
+        "slice_savings_pct": result["slice_savings_pct"],
+        "included_rules_count": _included_rules_count(result["included_rules"]),
+    }
+    if len(_SLICE_SUMMARY_CACHE) >= _SLICE_SUMMARY_CACHE_MAX:
+        _SLICE_SUMMARY_CACHE.clear()
+    _SLICE_SUMMARY_CACHE[key] = summary
+    return dict(summary)
+
+
+def slice_account(task_type: str, profiles_path: Path | None = None) -> dict[str, Any]:
+    """Selector-facing account: :func:`cached_slice_summary` or ``{}`` on failure.
+
+    v17.0.0 R3 (D-R3-1): ``select_context`` attaches this as its additive
+    ``agents_md_slice`` return key. Per S-5 the account NEVER raises — an
+    unreadable AGENTS.md (``_read_agents_md`` signals it as "" →
+    ``full_tokens == 0``) or any computation failure degrades to ``{}``
+    with one WARNING, and selection continues unaffected.
+    """
+    try:
+        summary = cached_slice_summary(task_type, profiles_path=profiles_path)
+        if summary["full_tokens"] == 0:
+            raise OSError("AGENTS.md could not be read (missing or empty)")
+        return summary
+    except Exception as exc:  # noqa: BLE001 - S-5: warn, never crash selection
+        logger.warning(
+            "agents_md_slice account unavailable for task_type=%r: %s",
+            task_type,
+            exc,
+        )
+        return {}
+
+
 def select_agents_md_slice(
     task_type: str,
     profiles_path: Path | None = None,

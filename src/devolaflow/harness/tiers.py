@@ -7,9 +7,15 @@ payloads remain byte-identical.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any, Final, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Final, Literal, TypeAlias
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 ConstraintTier: TypeAlias = Literal["invariant", "guard", "advisory"]
 
@@ -367,7 +373,67 @@ def summarize_constraints(
     return count, breakdown, quantifiable_ratio
 
 
-def should_fold_advisory(model_hint: object) -> bool:
-    """Return whether advisory prose may fold for this explicit model hint."""
+# v17.0.0 R3 (D-R3-3 / G-TOK-3 minimal) — the pre-v17 hardcoded fold tier
+# set, now the config-absent default. Byte-identical behaviour when
+# ``meta.advisory_fold`` is not declared in context_profiles.yaml (it is
+# NOT declared as of v17.0.0 R3 — the extension point ships dark).
+_DEFAULT_ADVISORY_FOLD_TIERS: Final[frozenset[str]] = frozenset({"quality", "frontier"})
 
-    return model_hint in {"quality", "frontier"}
+
+def _advisory_fold_tiers(profiles_path: Path | None = None) -> frozenset[str]:
+    """Resolve the advisory-fold tier set from context_profiles.yaml.
+
+    Reads ``meta.advisory_fold.model_tiers`` (a list of exact-match,
+    case-sensitive model-hint strings). Absent key → the hardcoded
+    :data:`_DEFAULT_ADVISORY_FOLD_TIERS` (canonical absence-as-default —
+    no YAML edit ships with this extension point). A present-but-malformed
+    value or a profiles-load failure also falls back to the default, with
+    a WARNING per S-5. The YAML read is served by the selector's
+    LRU-cached ``load_profiles`` (imported at call boundary to avoid the
+    harness ↔ selector module-initialization cycle), so per-call cost
+    after first load is dictionary lookups only.
+    """
+
+    from devolaflow.task_adaptive_selector import load_profiles
+
+    try:
+        config = load_profiles(profiles_path)
+    except Exception as exc:  # noqa: BLE001 - fold policy must never crash dispatch
+        logger.warning(
+            "advisory-fold tier config load failed (%s); falling back to default tiers %s",
+            exc,
+            sorted(_DEFAULT_ADVISORY_FOLD_TIERS),
+        )
+        return _DEFAULT_ADVISORY_FOLD_TIERS
+
+    meta = config.get("meta") if isinstance(config, dict) else None
+    advisory_fold = meta.get("advisory_fold") if isinstance(meta, dict) else None
+    if advisory_fold is None:
+        return _DEFAULT_ADVISORY_FOLD_TIERS
+    tiers = advisory_fold.get("model_tiers") if isinstance(advisory_fold, Mapping) else None
+    if not isinstance(tiers, list) or not all(isinstance(tier, str) for tier in tiers):
+        logger.warning(
+            "meta.advisory_fold.model_tiers must be a list of strings; "
+            "got %r — falling back to default tiers %s",
+            tiers,
+            sorted(_DEFAULT_ADVISORY_FOLD_TIERS),
+        )
+        return _DEFAULT_ADVISORY_FOLD_TIERS
+    return frozenset(tiers)
+
+
+def should_fold_advisory(model_hint: object, profiles_path: Path | None = None) -> bool:
+    """Return whether advisory prose may fold for this explicit model hint.
+
+    v17.0.0 R3 (D-R3-3): the fold tier set is config-driven via
+    ``meta.advisory_fold.model_tiers`` in context_profiles.yaml
+    (exact-match, case-sensitive — ``"QUALITY"`` never folds unless
+    explicitly listed). When the config key is absent — the shipped
+    default — behaviour is byte-identical to the pre-v17 hardcoded
+    ``{"quality", "frontier"}`` set. The optional *profiles_path*
+    parameter preserves the legacy single-argument call shape for
+    existing callers while letting tmp-profile fixtures exercise the
+    config path.
+    """
+
+    return model_hint in _advisory_fold_tiers(profiles_path)

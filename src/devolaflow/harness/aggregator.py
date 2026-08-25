@@ -244,6 +244,27 @@ def _validate_record(record: object, *, path: Path, line: int) -> dict[str, Any]
     if type(record["advisory_folded"]) is not bool:
         raise _error(path, line, "advisory_folded must be a boolean")
     _non_empty_string(record["model_hint"], path=path, line=line, field="model_hint")
+    # v17.0.0 R3 (G17-B3 / D-R3-2) — OPTIONAL host-injection accounting
+    # fields. Deliberately NOT in _REQUIRED_FIELDS: pre-v17 ledgers keep
+    # aggregating. When present they are validated strictly like every
+    # other telemetry value.
+    if "host_rule_tokens" in record:
+        _integer(
+            record["host_rule_tokens"],
+            path=path,
+            line=line,
+            field="host_rule_tokens",
+            minimum=0,
+        )
+    if "slice_savings_pct" in record:
+        savings = record["slice_savings_pct"]
+        if (
+            isinstance(savings, bool)
+            or not isinstance(savings, (int, float))
+            or not math.isfinite(float(savings))
+            or not 0.0 <= float(savings) <= 100.0
+        ):
+            raise _error(path, line, "slice_savings_pct must be a finite number in [0, 100]")
     return record
 
 
@@ -282,6 +303,21 @@ def nearest_rank(values: list[float | int], percentile: float) -> float | int:
     return ordered[math.ceil(percentile * len(ordered)) - 1]
 
 
+def _optional_mean(records: list[dict[str, Any]], field: str) -> float | None:
+    """Mean of ``field`` over the records that carry it; ``None`` when none do.
+
+    v17.0.0 R3 (D-R3-2): ``host_rule_tokens`` / ``slice_savings_pct`` are
+    optional record fields, so their means are computed only over carrying
+    records. The ``None``-when-absent convention mirrors the existing
+    ``rounds.min`` / ``rounds.max`` absent-metric style.
+    """
+
+    values = [record[field] for record in records if field in record]
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
 def _token_metrics(records: list[dict[str, Any]]) -> dict[str, float | int]:
     measured = [record["tokens_injected_measured"] for record in records]
     utilizations = [
@@ -310,6 +346,12 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     rounds = [record["round"] for record in dispatch_records]
     if dispatch_records:
         token_metrics = _token_metrics(dispatch_records)
+        token_metrics["host_rule_tokens_mean"] = _optional_mean(
+            dispatch_records, "host_rule_tokens"
+        )
+        token_metrics["slice_savings_pct_mean"] = _optional_mean(
+            dispatch_records, "slice_savings_pct"
+        )
         token_metrics["by_layer"] = {
             layer: {
                 "records": sum(record["layer"] == layer for record in dispatch_records),
@@ -328,6 +370,8 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "p95": 0,
             "budget_compliance_ratio": 0.0,
             "p95_budget_utilization": 0.0,
+            "host_rule_tokens_mean": None,
+            "slice_savings_pct_mean": None,
             "by_layer": {},
         }
 
