@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -75,6 +76,22 @@ def test_generate_human_docs_version_matches(project_root: Path):
     assert match, "SOURCE_VERSION not found in generate_human_docs.py"
     assert match.group(1) == canonical, (
         f"generate_human_docs.py SOURCE_VERSION {match.group(1)} != {canonical}"
+    )
+
+
+def test_npm_package_json_version_matches(project_root: Path):
+    """packages/npm/package.json version must match __init__.py (C-6, v17 R6).
+
+    The npm package version doubles as the default download ref (v<version>
+    tag) in packages/npm/bin/devola-flow.js, so drift here would make
+    `npx @yorha-agents/devola-flow install` fetch the wrong skill set.
+    Managed by scripts/bump_version.py.
+    """
+    canonical = _read_version_from_init(project_root)
+    pkg_path = project_root / "packages" / "npm" / "package.json"
+    pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
+    assert pkg["version"] == canonical, (
+        f"packages/npm/package.json version {pkg['version']} != {canonical}"
     )
 
 
