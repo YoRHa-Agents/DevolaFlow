@@ -15,6 +15,82 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
+
+def test_v17_0_0_safe_release_tag_contract_wired(tmp_path: Path) -> None:
+    """W-18 v17.0.0 alignment: release tags are a safe second phase."""
+    from scripts.bump_version import _check_version_tag_readiness, _create_version_tag, bump
+
+    pkg = tmp_path / "src" / "devolaflow"
+    pkg.mkdir(parents=True)
+    init = pkg / "__init__.py"
+    init.write_text('__version__ = "17.0.0"\n', encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('version = "17.0.0"\n', encoding="utf-8")
+    before = init.read_bytes()
+
+    with pytest.raises(SystemExit):
+        bump("17.0.1", tag=True, root=tmp_path)
+
+    assert init.read_bytes() == before
+    assert callable(_check_version_tag_readiness)
+    assert callable(_create_version_tag)
+    source = (Path(__file__).parents[2] / "scripts" / "bump_version.py").read_text(encoding="utf-8")
+    for safe_tag_marker in (
+        "must be created from main",
+        "does not match origin/main",
+        "git fetch origin main",
+        "not committed at current HEAD",
+        "--untracked-files=no",
+        "already exists; refusing to replace it",
+        "created at current HEAD",
+    ):
+        assert safe_tag_marker in source
+
+    workflows = Path(__file__).parents[2] / ".github" / "workflows"
+    release_source = (workflows / "release.yml").read_text(encoding="utf-8")
+    npm_source = (workflows / "npm-publish.yml").read_text(encoding="utf-8")
+    assert "verify-release-ref:" in release_source
+    assert 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' in release_source
+    assert "uses: ./.github/workflows/ci-checks.yml" in npm_source
+    assert 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' in npm_source
+
+
+def test_v17_0_0_r4_web_experience_shell_wired(project_root: Path) -> None:
+    """W-18 v17.0.0 R4: five-destination shell and Harness I/O are present."""
+    demo_root = project_root / "workflow-system" / "human" / "demo"
+    page_markers = {
+        "index.html": ("Five destinations, one current story", "23 seeds, one generated catalog"),
+        "framework-chain/index.html": ("Canonical system model", "Project → Wave → Task"),
+        "context-flow/index.html": ("Canonical I/O", "TaskDispatch", "StatusReport"),
+        "benchmark-results/index.html": (
+            "Built-in evaluation authority",
+            "Evidence inputs",
+            "Six W-3 dimensions",
+            "INSUFFICIENT",
+        ),
+        "version-timeline/index.html": (
+            "Sole release archive",
+            "Current contract vs Historical record",
+        ),
+        "workflow-visualizer/index.html": ("Checklist Seed Library",),
+    }
+    for relative_path, markers in page_markers.items():
+        source = (demo_root / relative_path).read_text(encoding="utf-8")
+        for marker in markers:
+            assert marker in source, f"{relative_path} missing v17 web marker {marker!r}"
+
+    nav_source = (demo_root / "shared" / "nav.js").read_text(encoding="utf-8")
+    for key, href in (
+        ("nav.home", "index.html"),
+        ("nav.system", "framework-chain/index.html"),
+        ("nav.io", "context-flow/index.html"),
+        ("nav.harness", "benchmark-results/index.html"),
+        ("nav.timeline", "version-timeline/index.html"),
+    ):
+        assert f"key: '{key}'" in nav_source
+        assert f"href: prefix('{href}')" in nav_source
+
 
 def test_v17_0_0_r2_hostbridge_surface_registered(project_root: Path) -> None:
     """W-18 v17.0.0 R2: the five-host bridge core and its flag are wired."""

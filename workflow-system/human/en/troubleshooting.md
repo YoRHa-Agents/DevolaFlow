@@ -1,98 +1,102 @@
 ---
 title: "Troubleshooting"
-description: "Common issues and solutions for workflow execution."
+description: "Diagnose installation channels, local scaffolds, copied skills, and host bridges."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T10:02:23Z"
+last_synced: "2026-08-25T12:29:02Z"
 source_version: "17.0.0"
 ---
 
 # Troubleshooting
 
-Common issues and solutions for workflow execution.
+Diagnose installation channels, local scaffolds, copied skills, and host bridges.
 
-## Installation Issues
+## Identify the installation channel first
 
-**`devola-init` command not found**
+**npm user install**
 
-The CLI tools require pip installation:
 ```bash
-pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-# Or for development:
+node --version
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update cursor
+```
+
+Node must be 18 or newer. npm targets only user-level Cursor and Claude.
+Check `DEVOLA_FLOW_REF` when the installed ref is unexpected.
+
+### curl install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s help
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update --force
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
+```
+
+Every snippet is self-contained. curl has `update` and `uninstall`, but no
+doctor. Its `update` scans supported host skill-copy locations only, not the
+`local` workspace or `standalone` file; rerun either explicit install target
+for those surfaces. Use `devola-init-doctor --skills` only when the Python
+package is also installed and you want to audit known skill paths.
+
+### pip or wheel install
+
+```bash
+python -c "import devolaflow; print(devolaflow.__version__)"
+devola-init local --mode=core
+devola-init-doctor
+```
+
+Wheel-only installs support the local scaffold. If `devola-init cursor` (or
+another non-local target) reports that the agent source tree is missing, clone
+the repository and install editable:
+
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
 pip install -e ".[dev]"
+devola-init cursor
 ```
 
-**Installer fails with "permission denied"**
-
-The installer needs write access to the target directory. For global installs:
-```bash
-# Cursor global
-curl -fsSL $INSTALLER | bash -s cursor --global
-# This writes to ~/.cursor/skills/ which should be user-writable
-```
-
-## Workflow Issues
-
-### Agent doesn't select the right workflow
-
-DevolaFlow uses keyword matching. Make your intent explicit:
-- Instead of: "Help me with the login page"
-- Try: "Fix the bug in the login page" (→ hotfix) or "Redesign the login page UI" (→ design-only)
-
-You can also specify directly: "Use the refactoring workflow to clean up auth module."
-
-**Agent tries to do everything in one pass**
-
-This usually means the skill file isn't loaded. Verify:
-1. Check the skill file exists: `ls .cursor/skills/devola-flow/SKILL.md`
-2. In Cursor, verify the skill appears in settings
-3. Try explicitly attaching: `@devola-flow implement a user system`
-
-**Convergence loop runs too many times**
-
-The default max is 3 iterations. If the agent keeps looping:
-1. Check if acceptance criteria are too strict
-2. Look for conflicting requirements that prevent convergence
-3. The agent will escalate to you after max iterations — review the divergence report
-
-## Test & Build Issues
-
-**Tests fail after SKILL.md changes**
-
-Run `python -m pytest tests/test_version.py -v` to check version consistency. Use `scripts/bump_version.py` for consistent updates across all version locations.
-
-**`build-skill` reports budget exceeded**
-
-SKILL.md must stay under 500 lines (rule SF-1). Check with `wc -l` and compress verbose sections. Run `build-skill --all` to verify after changes.
-
-### Seed or runtime validation fails
+## Local scaffold recovery
 
 ```bash
-validate-template path/to/template.yaml
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init-doctor
+sync-rules
 ```
 
-Common causes: Missing seed fields (`schema_version`, `kind`, `metadata`, `placeholders`, `partitions`)
-- Executable DAG fields such as top-level `stages`, `composition`, `loops`, or `gates` in a seed
-- `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
-- Command or metric verification without a bounded `template`
+`core` intentionally skips rule compilation. `standard` compiles without
+examples. `full` compiles and seeds examples. Compilation repair is
+`sync-rules` (or `make compile-rules` in a clone).
 
-## Harness Issues
-
-**Harness contracts fail**
+For global skill installation without the default plugin attempts:
 
 ```bash
-python -m pytest tests/harness/ -v
+devola-init cursor --global --no-plugins
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor --global --no-plugins
 ```
 
-1. Check the failing fixture, telemetry, evaluation, or probe contract
-2. Review the reported schema, path, or guard mismatch
-3. Fix the source contract; archived baselines remain historical evidence
+## Skill copy versus host bridge
 
-**Context profiles not loading**
+If the skill is visible but an out-of-scope host write is not blocked, verify
+the optional bridge separately. Follow the [host bridge matrix](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md),
+confirm the host-specific config and event matcher, trust Codex hooks when
+applicable, then test one event before persisting
+`DEVOLAFLOW_HOST_ENFORCE=1`. Unsupported hosts remain skill-only.
 
-Verify `context_profiles.yaml` exists at `workflow-system/agent/context_profiles.yaml` and its section line ranges match the current SKILL.md structure.
+## Workflow symptoms
 
-## Getting Help
+- Wrong seed: state the intent explicitly or name a seed.
+- One-pass execution: verify the skill is loaded and request a bounded
+  multi-step change with measurable checks.
+- Repeated convergence: inspect unresolved checklist assertions and blockers;
+  bounded retries eventually escalate.
 
-**GitHub Issues**:[https://github.com/YoRHa-Agents/DevolaFlow/issues](https://github.com/YoRHa-Agents/DevolaFlow/issues)**Interactive Demo**:[https://yorha-agents.github.io/DevolaFlow/](https://yorha-agents.github.io/DevolaFlow/)
+## Harness and archive evidence
+
+Run `make test-harness` for deterministic contracts. W-16 settlement and W-19
+cycle archive rollup are manual release-policy steps; there is no automatic
+archive hook. Do not diagnose a missing automatic archive as a runtime failure.

@@ -1,141 +1,150 @@
 ---
 title: "Quick Start Guide"
-description: "Getting started with DevolaFlow in under 10 minutes."
+description: "Install DevolaFlow, verify the correct channel, and run a first checklist workflow."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T10:02:23Z"
+last_synced: "2026-08-25T12:29:02Z"
 source_version: "17.0.0"
 ---
 
 # Quick Start Guide
 
-Getting started with DevolaFlow in under 10 minutes.
+Install DevolaFlow, verify the correct channel, and run a first checklist workflow.
 
-## Prerequisites
+## 1. Choose an installation channel
 
-- Python 3.11+
-- pip
-- One of: Cursor, Claude Code, GitHub Copilot, or OpenAI Codex
+The channels do not have identical scope.
 
-## Step 1: Install DevolaFlow
+### npm / npx: user-level Cursor and Claude
 
-Choose the method that fits your setup:
-
-**Option A — npm / npx (recommended; works on Windows, no Python needed):**
+Requires Node 18 or newer and works on Windows. The npm meaning of `all` is
+only the two user-level targets supported by this package: Cursor and Claude.
 
 ```bash
-# Install into the user-level skill directory (Node >= 18)
-npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
-npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
-npx @yorha-agents/devola-flow install all       # both
-
-# Later: health check and update
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install all
 npx @yorha-agents/devola-flow doctor
-npx @yorha-agents/devola-flow update all
 ```
 
-Skill files are downloaded from GitHub at the tag matching the package version
-(`DEVOLA_FLOW_REF` overrides the ref). Targets: Cursor and Claude Code,
-user-level directories only — for project-local, Copilot, or Codex installs
-use Option B.
+Downloads default to the tag matching the npm package version. Set
+`DEVOLA_FLOW_REF` only when you intentionally need a branch, tag, or SHA.
 
-**Option B, One-liner (curl; all tools, project-local or global):**
+### curl: broader project/global target set
+
+The curl installer defaults to project scope and supports every target listed
+by its `help`, including Cursor, Claude, Codex, Copilot, KimiCode, Windsurf,
+Zed, Cline, Roo, `local`, and `standalone`.
 
 ```bash
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-
-# Install for Cursor (project-local)
-curl -fsSL $INSTALLER | bash -s cursor
-
-# Or install for all tools at once
-curl -fsSL $INSTALLER | bash -s all
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s all
 ```
 
-**Option C, pip install:**
+The curl `all` target installs every supported host target plus the `local`
+scaffold; it excludes `standalone`. Some hosts are project-only even when
+`--global` is requested. A global install also attempts the registered runtime
+plugins; add `--no-plugins` for skill files only. The curl installer has no
+doctor command.
+
+### pip or wheel: Python runtime and local scaffold
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-cd your-project/
-devola-init cursor       # Cursor only
-devola-init all          # all tools
+cd your-project
+devola-init local --mode=standard
 ```
 
-**Option D, Manual (single file):**
+A wheel provides the Python runtime, CLIs, and `devola-init local`. It does not
+bundle `workflow-system/agent/`, so wheel-only installs cannot copy non-local
+host skills.
 
-Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
-
-| Tool | Path |
-|------|------|
-| Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
-| Copilot | `.github/copilot-instructions.md` |
-| Codex | `~/.codex/skills/devola-flow/SKILL.md` |
-
-## Step 2: Verify Installation
+For `devola-init cursor`, `claude`, `copilot`, `codex`, or `all`, use a source
+checkout plus an editable install:
 
 ```bash
-devola-version   # should print current DevolaFlow version
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+devola-init cursor
 ```
 
-## Step 3: Try Your First Workflow
+The Python meaning of `all` is Cursor, Claude, Copilot, and Codex; it excludes
+the local scaffold. With `--global`, plugin installation is attempted unless
+`--no-plugins` is present.
 
-Open your AI tool and try one of these prompts:
+**Manual fallback**
 
-### Example: Fix a Bug (Hotfix Workflow)
+Copying only
+[`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md)
+can make basic instructions visible, but it omits the manifest-declared
+references and examples. Prefer a channel above for a complete profile.
 
-```
-Fix the login timeout bug — users report 500 errors after 30 seconds of inactivity
-```
-
-What happens behind the scenes:
-1. DevolaFlow matches the **hotfix checklist seed** from "fix" + "bug"
-2. L0 anchors the goal, materialized checklist, and signed preflight with you
-3. L0 picks the highest-priority checklist items and groups them into a wave
-4. L1 Wave dispatches isolated L2 Tasks for diagnosis, remediation, and evidence
-5. L0 verifies the evidence, checks completed assertions, and opens another bounded round if needed
-
-### Example: Build a New Feature (Full Pipeline)
-
-```
-Implement a user notification system with email and in-app channels
-```
-
-What happens:
-1. DevolaFlow selects the **full-pipeline checklist seed**
-2. The seed's historical primitive provenance helps materialize measurable design, implementation, review, test, and release assertions; it does not prescribe execution order
-3. You confirm the checklist priorities and preflight decisions
-4. L0 runs bounded checklist rounds through L1 Waves and isolated L2 Tasks
-5. Each checked item carries evidence; unresolved blockers remain open
-6. The archive gate requires the checklist contract to pass before source truth changes
-
-Example: Quick Research (No Code)
-
-```
-Research the best approach for real-time notifications — compare WebSocket vs SSE vs polling
-```
-
-What happens:
-1. DevolaFlow selects the **research-only checklist seed**
-2. The materialized checklist asks for a structured, evidenced comparison, no code written
-
-## Step 4: Explore More
-
-See all 23 checklist seeds:[Checklist Seed Catalog](workflow-types.md)Understand the architecture:[Architecture Overview](architecture-overview.md)Set up for your specific tool:[Integration Guide](integration-guide.md)Customize workflows:[Customization Guide](customization-guide.md)
-
-## Checking for Updates
-
-Ask your AI agent: `"update devola"`, it checks GitHub for newer versions and provides the exact update command.
-
-Or from the terminal:
+## 2. Verify the right surface
 
 ```bash
-# npm installer update (user-level Cursor/Claude installs)
+# npm-supported user installs and manifest parity
+npx @yorha-agents/devola-flow doctor
+
+# Python local workspace structure
+devola-init-doctor
+
+# Python audit of known copied-skill locations
+devola-init-doctor --skills
+```
+
+Skill-copy success does not prove host bridge wiring. Host bridges are an
+optional, separate enforcement layer; see the [host bridge reference](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md).
+Install the host-specific bridge, verify one supported event reaches the
+bridge, and only then persist `DEVOLAFLOW_HOST_ENFORCE=1`.
+
+## 3. Run the first checklist workflow
+
+Open the installed AI host and make a natural-language request:
+
+```text
+Fix the login timeout bug and verify the regression.
+```
+
+Expected flow:
+
+1. DevolaFlow selects one of the 23 registry-derived
+   checklist seeds as decomposition knowledge.
+2. You confirm the goal, measurable checklist, P0/P1/P2 priorities, and
+   preflight decisions.
+3. The sole `change-driven` runtime executes bounded rounds through
+   L0 Project → L1 Wave → L2 Task.
+4. Tasks return evidence in StatusReports; L0 checks items only after
+   verification.
+
+No workflow runner CLI is required.
+
+## 4. Update by channel
+
+```bash
+# npm user-level Cursor/Claude copies
 npx @yorha-agents/devola-flow update all
 
-# Installer update
+# curl-supported host skill copies; --force re-downloads matching stamps
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 
-# pip update
+# local workspace and standalone file: rerun the explicit install target
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s local
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s standalone
+
+# Python runtime or wheel
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init local --mode=standard
+
+# source checkout and copied host skills
+git pull
+pip install -e ".[dev]"
+devola-init cursor
 ```
+
+curl `update` scans supported host skill-copy locations only. It does not scan
+the `local` workspace or `standalone` file; rerun the explicit install target
+for either surface. Updating the Python package does not silently refresh
+previously copied host skills.

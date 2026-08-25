@@ -19,6 +19,7 @@ Category F SF-4 reference compliance) are pinned with NO xfail.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,12 @@ def _registry_names(project_root: Path) -> set[str]:
     raw = _load_yaml(project_root / "workflow-system/agent/templates/registry.yaml")
     entries = (raw.get("compositions") or []) + (raw.get("templates") or [])
     return {entry["name"] for entry in entries}
+
+
+def _guide_registry_names(project_root: Path, language: str) -> set[str]:
+    """Return seed names from one generated workflow-types registry table."""
+    guide = _read(project_root / f"workflow-system/human/{language}/workflow-types.md")
+    return set(re.findall(r"^\|\s*`([a-z][a-z0-9_-]+)`\s*\|", guide, re.MULTILINE))
 
 
 # ── Category A: workflow templates ──────────────────────────────────
@@ -431,41 +438,34 @@ def test_init_creates_compile_config_template(project_root: Path, tmp_path: Path
 
 
 def test_readme_template_count_in_project_structure(project_root: Path) -> None:
-    """G-K1 pin: README names 23 seed files and one runtime."""
+    """G-K1 pin: README documents the live seed and runtime loading routes."""
     readme = _read(project_root / "README.md")
-    seed_match = re.search(r"templates/seeds/\s+#\s+(\d+)\s+non-executable checklist seeds", readme)
-    assert seed_match, "README project structure must count checklist seeds"
+    assert "TemplateRegistry.load_seed(<name>)" in readme
+    assert 'TemplateRegistry.load_template("change-driven")' in readme
+
     seed_dir = project_root / "workflow-system/agent/templates/seeds"
     disk_seeds = {path.stem for path in seed_dir.glob("*.yaml")}
-    assert int(seed_match.group(1)) == len(disk_seeds) == len(_registry_names(project_root))
-    assert "templates/builtin/" in readme and "sole change-driven runtime" in readme
+    assert disk_seeds == _registry_names(project_root)
+    assert (project_root / "workflow-system/agent/templates/builtin/change-driven.yaml").is_file()
 
 
 def test_readme_test_count_and_coverage_current(project_root: Path) -> None:
-    """G-K5 pin: README test-suite numerics aren't egregiously stale."""
+    """G-K5 pin: README test command and configured coverage floor stay current."""
     readme = _read(project_root / "README.md")
-    matches = re.findall(
-        r"tests/\s+#\s*pytest suite \((\d+)[+]?\s+tests,\s+([0-9.]+)%\s+coverage\)",
-        readme,
-    )
-    assert matches, "README must include 'pytest suite (N tests, X% coverage)'"
-    test_count, coverage = int(matches[0][0]), float(matches[0][1])
-    assert test_count >= 1300, (
-        f"README claims {test_count} tests, expected >= 1300 — G-K5 regressed"
-    )
-    assert coverage >= 90.0, f"README claims {coverage}% coverage, expected >= 90 — G-K5 regressed"
+    assert "python -m pytest tests/ -q" in readme
+
+    pyproject = tomllib.loads(_read(project_root / "pyproject.toml"))
+    assert pyproject["tool"]["coverage"]["report"]["fail_under"] == 80
 
 
 def test_readme_workflow_type_count_bilingual(project_root: Path) -> None:
-    """G-K2/K3 pin: EN+ZH guide rows agree on the seed count."""
-    readme = _read(project_root / "README.md")
+    """G-K2/K3 pin: generated EN/ZH catalogs match the registry exactly."""
     expected = len(_registry_names(project_root))
-    en = re.search(r"All\s+(\d+)\s+non-executable seeds", readme)
-    assert en, "README EN guide must state the non-executable seed count"
-    assert int(en.group(1)) == expected
-    zh = re.search(r"(\d+)\s*个非执行清单种子", readme)
-    assert zh, "README ZH guide must state the non-executable seed count"
-    assert int(zh.group(1)) == expected
+    en_names = _guide_registry_names(project_root, "en")
+    zh_names = _guide_registry_names(project_root, "zh")
+    assert en_names == _registry_names(project_root)
+    assert zh_names == _registry_names(project_root)
+    assert len(en_names) == len(zh_names) == expected
 
 
 def test_workflow_skill_yaml_template_count_comment(project_root: Path) -> None:

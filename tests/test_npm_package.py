@@ -133,14 +133,19 @@ def test_npm_publish_workflow_contract() -> None:
     # YAML 1.1 parses a bare `on:` key as boolean True.
     triggers = workflow.get("on", workflow.get(True))
     assert triggers["push"]["tags"] == ["v*"]
-    assert workflow["permissions"]["id-token"] == "write"
+    assert workflow["permissions"] == {}
+    checks = workflow["jobs"]["checks"]
+    assert checks["permissions"] == {"contents": "read"}
+    assert checks["uses"] == "./.github/workflows/ci-checks.yml"
 
     publish = workflow["jobs"]["publish"]
+    assert publish["needs"] == "checks"
+    assert publish["permissions"] == {"contents": "read", "id-token": "write"}
     steps_blob = json.dumps(publish["steps"])
     assert "npm publish --provenance --access public" in steps_blob
     assert "NPM_TOKEN" in steps_blob
     verify_idx = next(
-        i for i, s in enumerate(publish["steps"]) if "Verify tag" in s.get("name", "")
+        i for i, s in enumerate(publish["steps"]) if "packages/npm/package.json" in s.get("run", "")
     )
     publish_idx = next(
         i for i, s in enumerate(publish["steps"]) if "npm publish" in s.get("run", "")

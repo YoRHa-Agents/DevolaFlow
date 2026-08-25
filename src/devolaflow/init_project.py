@@ -396,7 +396,8 @@ def install_local(
     config, ``install_local`` chains ``RuleCompiler.compile_all()`` so
     that fresh repos receive their compiled ``.cursor/rules/repo-governance.mdc``
     + ``AGENTS.md`` immediately, instead of leaving Cursor / Codex agents
-    without governance until the operator discovers ``devola-init sync-rules``.
+    without governance until the operator discovers ``sync-rules`` or
+    repository-local ``make compile-rules``.
 
     The compile step honours **S-5 (No Silent Failures)** with graceful
     degradation: any exception raised by ``RuleCompiler`` is caught,
@@ -498,8 +499,8 @@ def install_local(
             # S-5 graceful degradation: log + continue. Init must still
             # succeed even when the compiler hits a read-only FS, a
             # malformed user-edited compile-config.yaml, or any other
-            # non-fatal issue. Operators can re-run `devola-init sync-rules`
-            # to retry the compile step in isolation.
+            # non-fatal issue. Operators can re-run `sync-rules` (or
+            # repository-local `make compile-rules`) to retry in isolation.
             print(f"  WARN compile failed (non-fatal): {exc}")
 
     _verify_local_install_health(cwd)

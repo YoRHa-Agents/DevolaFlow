@@ -1,8 +1,16 @@
 # Workflow Meta-Framework Design
 
+> [!WARNING]
+> **Historical design — superseded before v16.** This document preserves
+> rationale and evolution evidence; it is not a runtime instruction. For the
+> current three-layer Project → Wave → Task and checklist-round contracts, see
+> [SKILL](../../workflow-system/agent/SKILL.md), [agent hierarchy](../../workflow-system/agent/references/agent-hierarchy.md),
+> [execution protocol](../../workflow-system/agent/references/execution-protocol.md), [meta-framework](../../workflow-system/agent/references/meta-framework.md),
+> [schemas](../../schemas/), and [runtime implementation](../../src/devolaflow/).
+
 > **Scope**: Composable stage primitive system, workflow template schema, template registry, and auto-recommendation engine.
 > **Date**: 2026-04-04
-> **Status**: Design Complete
+> **Status**: Historical / Superseded
 > **Depends on**: wp1_frameworks_research.md (framework patterns), wp3_workflow_types.md (workflow type catalog)
 
 ---
@@ -2128,4 +2136,4 @@ The meta-framework is designed for extension without modification:
 
 ---
 
-*Document generated: 2026-04-04 | Design status: Complete | This document defines the core meta-framework: stage primitives, composition model, template schema, registry, and auto-recommendation. It serves as the authoritative reference for workflow template authoring and runtime implementation.*
+*Document generated: 2026-04-04 | Historical design status: Complete | Preserves the pre-v16 stage-primitives, composition, template-schema, registry, and auto-recommendation rationale; not a runtime contract.*

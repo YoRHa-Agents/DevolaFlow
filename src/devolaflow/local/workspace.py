@@ -644,7 +644,7 @@ def generate_dir_readme(dir_path: Path, dir_name: str) -> Path:
 #   scaffold.
 # - The most-recent audit result is cached at module level so callers
 #   that need programmatic access (test fixtures, CI hooks, the
-#   `devola-init doctor` surface) can read it without re-walking the
+#   `devola-init-doctor` surface) can read it without re-walking the
 #   disk via :func:`last_gitignore_audit`.
 #
 # Source: v12.2.0 PV-02 dispatch + `.local/feedbacks/feedback_for_v12.1.0.md`.
@@ -1018,7 +1018,7 @@ def last_gitignore_audit() -> list[Path]:
     the most recent invocation found no matching paths. Provides a
     programmatic surface for callers that need the audit result without
     re-walking the disk (test fixtures, CI hooks, the forthcoming
-    v9.3.0 ``devola-init doctor`` surface).
+    v9.3.0 ``devola-init-doctor`` surface).
     """
     return list(_LAST_GITIGNORE_AUDIT)
 

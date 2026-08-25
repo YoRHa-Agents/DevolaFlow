@@ -2231,5 +2231,55 @@
       "schema_version": "6",
       "soul_set_count": "10"
     }
+  },
+  {
+    "version": "16.0.0",
+    "date": "2026-08-25",
+    "era": "checklist-harness",
+    "headline": "MAJOR — checklist-anchored iteration: Project → Wave → Task, priority-driven rounds, signed preflight, one change-driven runtime, and the built-in harness replace the fixed Stage DAG, four-layer hierarchy, EvoBench, and NineS",
+    "summary": "v16.0.0 moves DevolaFlow to its current product model. checklist.md replaces tasks.md plus acceptance.md; priority-driven checklist rounds replace fixed stage pipelines; 23 workflow definitions become non-executable checklist seeds behind one change-driven runtime; the hierarchy becomes L0 Project → L1 Wave → L2 Task; signed preflight gates execution; and the built-in harness becomes the deterministic six-dimension evaluation domain. EvoBench is retired to historical archives and NineS remains only as a one-major compatibility package scheduled for v17 removal.",
+    "highlights": [
+      "3-layer hierarchy — L0 Project → L1 Wave → L2 Task; legacy L3 and stage tokens normalize only through explicit schema-provenance compatibility mapping",
+      "checklist.md replaces tasks.md plus acceptance.md; goal, checklist, stage, preflight, status, owned-files, and evidence form the seven-artifact change set",
+      "Priority-driven checklist rounds replace fixed Stage DAGs, with bounded capacity, stagnation detection, single-item escalation, and reverted-item reinforcement",
+      "23 workflow definitions become checklist seeds; builtin/change-driven.yaml is the sole executable runtime loop",
+      "Built-in harness adds telemetry, constraint tiers, deterministic six-dimension evaluation, aggregate/propose/apply/probe/cross-validate commands, and 10 canonical fixtures",
+      "EvoBench runner, evaluator, scenarios, and active JSON baselines retire; immutable Tier-A layout witnesses remain byte-identical; NineS is deprecated for v17 removal"
+    ],
+    "metrics": {
+      "agent_layers": "3 (L0 Project → L1 Wave → L2 Task)",
+      "checklist_seeds": "23",
+      "executable_runtimes": "1",
+      "harness_fixtures": "10",
+      "harness_composite": "9.70 READY",
+      "cross_validation_max_delta": "0.92",
+      "new_test_functions": "≤148 after 3 rename/signature-move exemptions",
+      "canonical_order_length": "17"
+    }
+  },
+  {
+    "version": "17.0.0",
+    "date": "2026-08-25",
+    "era": "checklist-harness",
+    "headline": "MAJOR — deprecation sweep, five-host runtime boundary enforcement, host-injection accounting, session resume, configurable model boundaries, and a zero-dependency npm installation surface",
+    "summary": "v17.0.0 removes the v16 compatibility layer and strengthens the current checklist-and-harness runtime. The deprecated NineS package, legacy change layout, composition APIs, 23 module shims, legacy cascade reinterpretation, and repo-wide L3 naming are removed. Five host bridges route tool events into lifecycle enforcement; dispatches assert layer token budgets; host-rule injection is measured; session resume detects goal drift; model capacity boundaries become configurable; and the npm thin installer adds the first Windows-usable install path.",
+    "highlights": [
+      "v16-deprecated NineS package, legacy tasks.md/acceptance.md layout, composition APIs, 23 ADR-006 shims, legacy cascade fold, and L3 naming retire",
+      "Five-host boundary bridge covers Cursor, Claude Code, Codex, KimiCode, and DSH; owned-file violations map to host-protocol deny while shell handling remains advisory",
+      "Layer-token-budget assertion enforces L0 5000 / L1 5000 / L2 8000 dispatch budgets without mutating payloads",
+      "Host-injection accounting records full AGENTS.md tokens and per-task slice savings; cycle-close mean slice saving is 49.6%",
+      "Session-start resume reports compact checklist state and GOAL_DRIFT; checkpoint_round_pass persists round completion in one composition call",
+      "Capacity profiles configure round capacity, concurrency, stagnation, and unsuccessful-item windows; probe model tables support bounded sweeps",
+      "Zero-runtime-dependency npm installer supports install, update, and doctor for Cursor and Claude, with tag/version fail-fast publication"
+    ],
+    "metrics": {
+      "host_bridges": "5",
+      "harness_composite": "9.84 READY",
+      "host_rule_tokens": "12,430",
+      "slice_savings_pct_mean": "49.6%",
+      "new_test_functions": "78",
+      "npm_runtime_dependencies": "0",
+      "canonical_order_length": "17"
+    }
   }
 ]

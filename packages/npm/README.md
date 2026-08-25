@@ -1,40 +1,53 @@
 # @yorha-agents/devola-flow
 
-Thin npm installer for the [DevolaFlow](https://github.com/YoRHa-Agents/DevolaFlow)
-agent skill. Runs anywhere Node.js >= 18 runs — including Windows, where the
-historical `curl | bash` installer (`scripts/install.sh`) is unusable.
+Thin, zero-dependency npm installer for the
+[DevolaFlow](https://github.com/YoRHa-Agents/DevolaFlow) agent skill. It
+requires Node 18 or newer and works on Windows.
 
-## Usage
+## Scope
+
+This package installs only user-level Cursor and Claude skill profiles:
+
+- Cursor: `~/.cursor/skills/devola-flow/`
+- Claude: `~/.claude/skills/devola-flow/`
+
+npm `all` means those two targets. It does not mean the broader target set
+supported by the repository's curl installer.
+
+## Install, update, and doctor
 
 ```bash
-npx @yorha-agents/devola-flow install cursor   # -> ~/.cursor/skills/devola-flow/
-npx @yorha-agents/devola-flow install claude   # -> ~/.claude/skills/devola-flow/
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
 npx @yorha-agents/devola-flow install all
 
-npx @yorha-agents/devola-flow update all       # overwrite + report previous -> new version
-npx @yorha-agents/devola-flow doctor           # report installs, versions, manifest parity
+npx @yorha-agents/devola-flow update cursor
+npx @yorha-agents/devola-flow update all
+npx @yorha-agents/devola-flow doctor
 ```
 
-Skill files are **not bundled** in this package. The installer downloads them
-from GitHub raw at the tag matching the package version
-(`https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/v<version>/...`),
-so `npx @yorha-agents/devola-flow@16.0.0 install cursor` always installs the
-v16.0.0 skill set. Set the `DEVOLA_FLOW_REF` environment variable to download
-from another git ref (branch / tag / SHA) instead — useful for CI smoke tests.
+`doctor` reports both supported user locations, installed version stamps, and
+file parity against `workflow-system/agent/manifest.yaml`.
 
-## Windows support
+## Download ref and file list
 
-Fully supported: the installer uses only Node built-ins (`fetch`, `fs`,
-`path`, `os`) and resolves the user-level skill directories from the OS home
-directory (`%USERPROFILE%\.cursor\skills\devola-flow` and
-`%USERPROFILE%\.claude\skills\devola-flow` on Windows).
+Skill files are not bundled in the npm tarball. By default, the installer
+downloads from the git tag matching the package version. Set
+`DEVOLA_FLOW_REF` to intentionally use another branch, tag, or SHA:
 
-## Relationship to scripts/install.sh
+```bash
+DEVOLA_FLOW_REF=main npx @yorha-agents/devola-flow install cursor
+```
 
-`scripts/install.sh` (the curl+bash installer) and this package are two
-entrypoints over the **same file-list source of truth**:
-`workflow-system/agent/manifest.yaml` (repo rules A-5 / C-7). Both fetch the
-manifest at install time and download exactly what the target's install
-profile declares — neither hardcodes file lists. `install.sh` covers more
-targets (codex, zed, cline, roo, ...); this package covers `cursor` and
-`claude` on every OS.
+The target file list is derived from the manifest at that same ref. This keeps
+the npm package, curl installer, and source checkout on one profile contract.
+
+## More targets and Python tooling
+
+For project-local installation, Codex, Copilot, KimiCode, Windsurf, Zed,
+Cline, Roo, local workspace scaffolding, or Python doctor commands, use the
+canonical repository guides:
+
+- [Quickstart](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/quickstart.md)
+- [Integration guide](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/integration-guide.md)
+- [Troubleshooting](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/human/en/troubleshooting.md)

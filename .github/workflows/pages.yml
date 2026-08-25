@@ -8,27 +8,33 @@ on:
   push:
     branches: [main]
     paths:
-      - "workflow-system/human/**"
+      - "workflow-system/human/demo/**"
+      - "workflow-system/human/en/**"
+      - "workflow-system/human/zh/**"
       - "workflow-system/agent/SKILL.md"
       - "workflow-system/agent/templates/builtin/**"
+      - "workflow-system/agent/templates/registry.yaml"
+      - "workflow-system/agent/templates/seeds/**"
       - "docs/designs/**"
       - "scripts/build-site.sh"
+      - "scripts/generate_human_docs.py"
+      - "scripts/generate_demo_seed_catalog.py"
       - ".github/workflows/pages.yml"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
@@ -43,6 +49,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

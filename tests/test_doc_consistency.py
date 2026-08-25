@@ -19,6 +19,35 @@ def _registry_template_names(project_root: Path) -> set[str]:
     return {entry["name"] for entry in entries}
 
 
+def test_curl_all_and_update_scope_is_explicit(project_root: Path):
+    """curl all excludes standalone; update scans host skill copies only."""
+    readme = (project_root / "README.md").read_text()
+    skill = (project_root / "workflow-system/agent/SKILL.md").read_text()
+    human_root = project_root / "workflow-system/human"
+    en_quickstart = (human_root / "en/quickstart.md").read_text()
+    zh_quickstart = (human_root / "zh/quickstart.md").read_text()
+    en_integration = (human_root / "en/integration-guide.md").read_text()
+    zh_integration = (human_root / "zh/integration-guide.md").read_text()
+
+    for source in (readme, skill, en_quickstart, en_integration):
+        assert re.search(r"excludes\s+`standalone`", source)
+        assert "runs every curl target" not in source
+    for source in (zh_quickstart, zh_integration):
+        assert re.search(r"不包含\s+`standalone`", source)
+        assert "运行全部 curl 目标" not in source
+
+    assert "curl `update` scans supported host skill-copy locations only" in readme
+    assert "scans supported host skill copies only" in skill
+    assert "curl `update` scans supported host skill-copy locations" in en_integration
+    assert "curl `update` 只扫描受支持的宿主 skill" in zh_integration
+    for source in (readme, en_quickstart, en_integration):
+        assert "bash -s local" in source
+        assert "bash -s standalone" in source
+    for source in (zh_quickstart, zh_integration):
+        assert "bash -s local" in source
+        assert "bash -s standalone" in source
+
+
 def test_readme_workflow_type_count(project_root: Path):
     """README seed table must match the registry-v3 seed universe exactly."""
     readme = (project_root / "README.md").read_text()
@@ -64,18 +93,80 @@ def test_readme_template_count_in_dev_setup(project_root: Path):
     assert "sole runtime" in section
 
 
-def test_readme_design_docs_count(project_root: Path):
-    """README project structure design doc count must match disk."""
+def test_readme_links_design_docs_without_brittle_count(project_root: Path):
+    """README points to the design index without freezing a volatile count."""
     readme = (project_root / "README.md").read_text()
-    design_dir = project_root / "docs" / "designs"
+    assert "[Design documents](docs/designs/)" in readme
+    assert not re.search(r"\d+\s+design\s+(?:documents?|specs?)", readme, re.IGNORECASE)
 
-    matches = re.findall(r"(\d+)\s+design\s+(?:documents?|specs?)", readme, re.IGNORECASE)
-    assert matches, "Could not find design docs count in README"
-    actual = len(list(design_dir.glob("*.md")))
 
-    for claimed_str in matches:
-        claimed = int(claimed_str)
-        assert claimed == actual, f"README claims {claimed} design docs, disk has {actual}"
+def test_design_index_classifies_current_and_historical_documents(project_root: Path):
+    """Every design-directory document is classified without blurring runtime truth."""
+    design_root = project_root / "docs" / "designs"
+    index = (design_root / "README.md").read_text()
+    current, historical = index.split("## Historical Design and Research", 1)
+    current = current.split("## Current Operational Design", 1)[1]
+
+    local_link = re.compile(r"\]\(([a-z0-9_]+\.md)\)")
+    current_documents = set(local_link.findall(current))
+    historical_documents = set(local_link.findall(historical))
+    disk_documents = {path.name for path in design_root.glob("*.md")} - {"README.md"}
+
+    assert current_documents == {"design_release_workflow.md"}
+    assert historical_documents == disk_documents - current_documents
+    assert not current_documents & historical_documents
+    assert "not runtime instructions" in index
+    for normative_path in (
+        "../../workflow-system/agent/SKILL.md",
+        "../../workflow-system/agent/references/agent-hierarchy.md",
+        "../../workflow-system/agent/references/execution-protocol.md",
+        "../../workflow-system/agent/references/meta-framework.md",
+        "../../schemas/",
+        "../../src/devolaflow/",
+    ):
+        assert normative_path in current
+
+
+def test_superseded_designs_banner_current_checklist_round_contract(project_root: Path):
+    """Retired architecture designs lead with a current-contract warning."""
+    design_root = project_root / "docs" / "designs"
+    superseded = (
+        "workflow_specification.md",
+        "design_agent_hierarchy.md",
+        "design_meta_framework.md",
+        "design_delivery_architecture.md",
+        "design_dual_system.md",
+        "design_decomposition_gate.md",
+        "design_execution_protocol.md",
+        "design_repo_modes.md",
+    )
+    current_links = (
+        "../../workflow-system/agent/SKILL.md",
+        "../../workflow-system/agent/references/agent-hierarchy.md",
+        "../../workflow-system/agent/references/execution-protocol.md",
+        "../../workflow-system/agent/references/meta-framework.md",
+        "../../schemas/",
+        "../../src/devolaflow/",
+    )
+
+    for filename in superseded:
+        source = (design_root / filename).read_text()
+        leading_lines = source.splitlines()[:12]
+        leading = "\n".join(leading_lines)
+        normalized_leading = leading.replace("\n> ", " ")
+        assert leading_lines[2] == "> [!WARNING]", f"{filename} warning is not prominent"
+        assert "**Historical design — superseded before v16.**" in normalized_leading
+        assert "preserves rationale and evolution evidence" in normalized_leading
+        assert "not a runtime instruction" in normalized_leading
+        assert "current three-layer Project → Wave → Task" in normalized_leading
+        assert "checklist-round contracts" in normalized_leading
+        for link in current_links:
+            assert link in leading, f"{filename} banner does not link {link}"
+
+    for filename in ("workflow_specification.md", "design_meta_framework.md"):
+        source = (design_root / filename).read_text()
+        assert "> **Status**: Historical / Superseded" in source
+        assert "authoritative reference" not in source.casefold()
 
 
 def test_workflow_skill_yaml_template_count(project_root: Path):
@@ -126,6 +217,136 @@ def test_registry_template_count(project_root: Path):
     assert disk_runtimes == {"change-driven.yaml"}
 
 
+def test_demo_seed_catalogs_match_registry(project_root: Path):
+    """Demo routes must consume the generated registry catalog, not duplicate it."""
+    registered = _registry_template_names(project_root)
+    demo_root = project_root / "workflow-system" / "human" / "demo"
+
+    home_text = (demo_root / "index.html").read_text(encoding="utf-8")
+    generated_text = (demo_root / "shared" / "seed-catalog.js").read_text(encoding="utf-8")
+    seed_library_text = (demo_root / "workflow-visualizer" / "visualizer.js").read_text(
+        encoding="utf-8"
+    )
+    explorer_text = (demo_root / "stage-explorer" / "explorer.js").read_text(encoding="utf-8")
+    generated_names = set(re.findall(r'^\s{6}"name": "([^"]+)",$', generated_text, re.MULTILINE))
+
+    assert len(registered) == 23
+    assert generated_names == registered
+    assert "window.DEVOLAFLOW_SEED_CATALOG" in home_text
+    assert "window.DEVOLAFLOW_SEED_CATALOG" in seed_library_text
+    assert "window.DEVOLAFLOW_SEED_CATALOG" in explorer_text
+    assert not re.search(r"<li><code>[a-z0-9-]+</code></li>", home_text)
+    assert "const SEEDS = [" not in seed_library_text
+    assert not re.search(r"\bseeds\s*:\s*\[", explorer_text)
+
+
+def test_demo_pages_load_shared_assets(project_root: Path):
+    """Every demo HTML entry point must load shared assets at its route depth."""
+    demo_root = project_root / "workflow-system" / "human" / "demo"
+    favicon_path = demo_root / "shared" / "favicon.svg"
+    favicon = favicon_path.read_text(encoding="utf-8")
+    assert "<svg" in favicon
+    assert {"#B8860B", "#9B4444", "DevolaFlow"} <= set(
+        re.findall(r"#[A-Fa-f0-9]{6}|DevolaFlow", favicon)
+    )
+
+    for page_path in sorted(demo_root.rglob("index.html")):
+        source = page_path.read_text(encoding="utf-8")
+        relative_path = page_path.relative_to(demo_root)
+        for asset in ("styles.css", "i18n.js", "nav.js"):
+            pattern = rf'(?:href|src)="(?:\.\./)*shared/{re.escape(asset)}"'
+            assert re.search(pattern, source), f"{relative_path} does not load shared/{asset}"
+        route_prefix = "../" * len(relative_path.parent.parts)
+        favicon_link = (
+            f'<link rel="icon" type="image/svg+xml" href="{route_prefix}shared/favicon.svg">'
+        )
+        assert source.count(favicon_link) == 1, (
+            f"{relative_path} must load shared/favicon.svg with route prefix {route_prefix!r}"
+        )
+
+
+def test_demo_shared_css_excludes_orphans_and_harness_css_is_external(project_root: Path):
+    """Managed zero-reference families stay absent and Harness owns its CSS."""
+    demo_root = project_root / "workflow-system" / "human" / "demo"
+    shared_css = (demo_root / "shared/styles.css").read_text(encoding="utf-8")
+    orphan_families = (
+        "gate-badge",
+        "wave-strip",
+        "task-dot",
+        "metric-micro",
+        "dispatch-dot",
+        "cf-aside",
+        "era-filter",
+        "tl-card",
+        "tl-rail",
+        "tl-dot",
+        "tl-expand",
+    )
+    present = [selector for selector in orphan_families if selector in shared_css]
+    assert not present, f"shared/styles.css retains orphan selector families: {present}"
+
+    harness_html = (demo_root / "benchmark-results/index.html").read_text(encoding="utf-8")
+    harness_css = demo_root / "benchmark-results/styles.css"
+    shared_link = harness_html.index('href="../shared/styles.css"')
+    page_link = harness_html.index('href="styles.css"')
+    assert shared_link < page_link
+    assert "<style" not in harness_html
+    assert harness_css.is_file()
+    assert ".harness-version" in harness_css.read_text(encoding="utf-8")
+
+
+def test_harness_page_pins_dimensions_verdicts_and_version_source(project_root: Path):
+    """Harness documents six dimensions, explicit verdicts, and Timeline version derivation."""
+    harness_path = (
+        project_root / "workflow-system" / "human" / "demo" / "benchmark-results" / "index.html"
+    )
+    source = harness_path.read_text(encoding="utf-8")
+
+    dimension_keys = set(re.findall(r'<h3 data-i18n="(harness\.dimension[A-Z][A-Za-z]+)">', source))
+    assert dimension_keys == {
+        "harness.dimensionCode",
+        "harness.dimensionArchitecture",
+        "harness.dimensionTests",
+        "harness.dimensionMaintainability",
+        "harness.dimensionCompatibility",
+        "harness.dimensionPerformance",
+    }
+    assert set(re.findall(r"<h3><code>(READY|NOT_READY|INSUFFICIENT)</code></h3>", source)) == {
+        "READY",
+        "NOT_READY",
+        "INSUFFICIENT",
+    }
+    assert "fetch('../version-timeline/versions.json'" in source
+    assert "versionElement.textContent = 'v' + newest.version" in source
+    assert "STATIC FALLBACK" in source
+
+
+def test_active_demo_copy_excludes_precise_retired_claims(project_root: Path):
+    """Current pages reject obsolete claims while Timeline and Blog retain history."""
+    demo_root = project_root / "workflow-system" / "human" / "demo"
+    obsolete_phrases = (
+        "EvoBench Results",
+        "Project Agent (dispatches stages)",
+        "17 Workflow Templates",
+        "22 workflow types",
+        "13 stage primitives",
+        "NineS evaluator",
+        "NineS plugin",
+        "fixed Stage DAG",
+        "ordered stage pipeline",
+        "L3 Task Agent",
+        "composite score is the gate",
+    )
+    active_sources = sorted((*demo_root.rglob("*.html"), *demo_root.rglob("*.js")))
+    for source_path in active_sources:
+        relative_path = source_path.relative_to(demo_root)
+        if relative_path.parts[0] in {"version-timeline", "blog"}:
+            continue
+        source = source_path.read_text(encoding="utf-8").casefold()
+        stale = [phrase for phrase in obsolete_phrases if phrase.casefold() in source]
+        assert not stale, f"{relative_path} contains obsolete active-copy phrases: {stale}"
+
+
 def test_context_profiles_count(project_root: Path):
     """Context profile count in YAML must match demo page references."""
     profiles_yaml = (
@@ -169,20 +390,20 @@ def test_architecture_js_skill_lines(project_root: Path):
     )
 
 
-def test_bump_version_location_count(project_root: Path):
-    """VERSION_LOCATIONS count must match README reference."""
+def test_bump_version_locations_match_seven_sync_locations_across_eight_files(
+    project_root: Path,
+):
+    """README describes distinct files, not the script's replacement-pattern count."""
     bump_script = (project_root / "scripts" / "bump_version.py").read_text()
     readme = (project_root / "README.md").read_text()
 
-    locations = len(re.findall(r'"path":', bump_script))
-
-    match = re.search(r"all\s+(\d+)\s+version\s+locations?", readme)
-    assert match, "Could not find version location count in README"
-    claimed = int(match.group(1))
-
-    assert locations == claimed, (
-        f"bump_version.py has {locations} VERSION_LOCATIONS, README claims {claimed}"
-    )
+    paths = set(re.findall(r'"path":\s*"([^"]+)"', bump_script))
+    source = "src/devolaflow/__init__.py"
+    assert source in paths
+    assert len(paths) == 8
+    assert len(paths - {source}) == 7
+    assert "Seven canonical sync\nlocations across eight files" in readme
+    assert not re.search(r"all\s+\d+\s+version\s+locations?", readme)
 
 
 def test_demo_index_rules_count(project_root: Path):

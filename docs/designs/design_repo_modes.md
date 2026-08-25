@@ -1,5 +1,13 @@
 # Repository Mode System Design
 
+> [!WARNING]
+> **Historical design — superseded before v16.** This document preserves
+> rationale and evolution evidence; it is not a runtime instruction. For the
+> current three-layer Project → Wave → Task and checklist-round contracts, see
+> [SKILL](../../workflow-system/agent/SKILL.md), [agent hierarchy](../../workflow-system/agent/references/agent-hierarchy.md),
+> [execution protocol](../../workflow-system/agent/references/execution-protocol.md), [meta-framework](../../workflow-system/agent/references/meta-framework.md),
+> [schemas](../../schemas/), and [runtime implementation](../../src/devolaflow/).
+
 > Defines three repository modes (Local, GitHub, Other-Git), their feature sets, a mode × feature toggle matrix, auto-detection logic, and deployment pipeline templates.
 
 ---

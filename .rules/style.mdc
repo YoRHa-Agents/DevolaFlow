@@ -12,12 +12,13 @@ alwaysApply: false
 
 On any iteration that affects users, reviewers, or the public site, review or explicitly confirm N/A for every path in the content registry:
 - Primary docs: `README.md`, `CHANGELOG.md`
-- Web demo: `workflow-system/human/demo/` (landing + 4 sub-pages)
+- Web demo primary IA: Home (`workflow-system/human/demo/index.html`), System (`framework-chain/`), I/O (`context-flow/`), Harness (`benchmark-results/`), Timeline (`version-timeline/`)
+- Web demo compatibility routes: `design-system/`, `framework-chain/`, `context-flow/`, `version-timeline/`, `design-architecture/`, `workflow-visualizer/`, `stage-explorer/`, `benchmark-results/`, `blog/` (historical/editorial only; not current product truth)
 - User guides EN: `workflow-system/human/en/` (8 files)
 - User guides ZH: `workflow-system/human/zh/` (8 files)
 - Design system: `workflow-system/human/demo/shared/` (styles.css, nav.js, i18n.js)
-- CI/CD: `.github/workflows/` (ci.yml, pages.yml, release.yml)
-- Build pipeline: `scripts/build-site.sh`, `scripts/generate_human_docs.py`
+- CI/CD: `.github/workflows/*.yml`
+- Build and demo-data pipeline: `scripts/build-site.sh`, `scripts/generate_human_docs.py`, `scripts/generate_demo_seed_catalog.py`
 
 ### ST-2 — NieR: Automata Visual Identity (DS-2)
 

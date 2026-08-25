@@ -40,6 +40,11 @@ def _load_skill_md() -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _load_execution_protocol() -> str:
+    path = REPO_ROOT / "workflow-system/agent/references/execution-protocol.md"
+    return path.read_text(encoding="utf-8")
+
+
 def _extract_canonical_table_rows(skill_text: str) -> list[str]:
     """Extract path cells from the canonical manifest table in SKILL.md."""
     start = skill_text.find("Repo-Init Pre-Dispatch Contract")
@@ -119,11 +124,48 @@ def test_skill_md_mentions_vof001_blocker():
     assert [(v.code, v.severity) for v in result.violations] == [("VOF001", "blocker")]
 
 
-def test_skill_md_mentions_doctor_command():
+def test_skill_md_mentions_valid_operator_commands():
     skill_text = _load_skill_md()
-    assert "devola-init doctor" in skill_text, (
-        "SKILL.md must reference 'devola-init doctor' post-init verification command"
-    )
+    init_source = (REPO_ROOT / "src/devolaflow/init_project.py").read_text(encoding="utf-8")
+
+    for command in (
+        "devola-init-doctor",
+        "devola-init-doctor --skills",
+        "npx @yorha-agents/devola-flow doctor",
+        "npx @yorha-agents/devola-flow update <cursor|claude|all>",
+        "scripts/install.sh | bash -s update",
+        "pip install --upgrade",
+        "sync-rules",
+        "make compile-rules",
+    ):
+        assert command in skill_text
+    assert "copied skills" in skill_text
+    for invalid in ("devola-init doctor", "devola-init sync-rules"):
+        assert invalid not in skill_text
+        assert invalid not in init_source
+
+
+def test_execution_protocol_uses_three_layer_normative_vocabulary():
+    protocol = _load_execution_protocol()
+
+    for current_contract in (
+        "L0 Project → L1 Wave → L2 Task",
+        "Task → Wave → Project → Human",
+        "Project and Wave are dispatchers",
+        "only implementation layer",
+    ):
+        assert current_contract in protocol
+    for stale_pattern in (
+        r"L3 Task",
+        r"L1 Stage",
+        r"L2 Wave",
+        r"L0.?L1.?L2.?L3",
+        r"Wave → Stage",
+        r"Stage → Project",
+    ):
+        assert re.search(stale_pattern, protocol) is None
+    assert "source_stages" in protocol
+    assert "contribute no progress weight" in protocol
 
 
 def test_repo_init_yaml_mode_description_mentions_canonical():

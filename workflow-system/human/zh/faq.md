@@ -1,103 +1,47 @@
 ---
 title: "常见问题"
-description: "关于工作流系统的常见问题解答。"
+description: "关于清单轮次、安装范围、更新与发布证据的常见问题。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T10:02:23Z"
+last_synced: "2026-08-25T12:29:02Z"
 source_version: "17.0.0"
 ---
 
 # 常见问题
 
-关于工作流系统的常见问题解答。
+关于清单轮次、安装范围、更新与发布证据的常见问题。
 
-## 常规问题
+## DevolaFlow 执行什么？
 
-什么是 DevolaFlow？
+它从注册表派生的 23 个清单种子中选择分解知识，将其实体化为
+用户确认的清单，并通过唯一的 `change-driven` 运行时执行该合同。
 
-一个用于 AI 辅助软件开发的可组合工作流元框架。它把 23 个领域清单种子之一转为用户确认的执行合同，再通过 Project → Wave → Task 三层架构和 `change-driven` 清单轮次运行时执行。
+## 三个 `all` 含义相同吗？
 
-支持哪些 AI 工具？
+不同。npm 的 `all` 是用户级 Cursor 加 Claude；Python 的 `devola-init all`
+是 Cursor、Claude、Copilot、Codex，不包含 `local`；curl 的 `all` 会安装所有
+受支持宿主目标和 `local`，但不包含 `standalone`。
 
-**Cursor** — 作为 Cursor Skill 加载, and **Claude Code**, 作为 Claude Code Skill 加载（`.claude/skills/devola-flow/SKILL.md`）
-- **GitHub Copilot**, 作为 `copilot-instructions.md` 加载
-- **OpenAI Codex**, 作为 Codex Skill 加载
+## 应运行哪个 doctor？
 
-我需要学 YAML 才能使用 DevolaFlow 吗？
+- `npx @yorha-agents/devola-flow doctor`：npm 支持的用户级安装。
+- `devola-init-doctor`：当前 Python 本地工作区。
+- `devola-init-doctor --skills`：已知 skill 副本位置。
 
-不需要。DevolaFlow 根据自然语言自动激活。说“修复登录 bug”会选择 `hotfix` 种子，说“从零构建新功能”会选择 `full-pipeline`。只有编写自定义清单种子时才需要 YAML。
+curl 安装器没有 doctor。
 
-DevolaFlow 和直接提示 AI 工具有什么区别？
+## 更新 Python 会更新已复制 skill 吗？
 
-没有 DevolaFlow 时，AI 工具可能单轮处理整个请求，混淆设计、实现与验证。DevolaFlow 会与你锚定可测清单断言，每轮只执行一个有界集合，并且仅在证据核验后勾选。
+不会。更新包后，为本地脚手架重新运行 `devola-init local`；非 local skill 请从
+源码 checkout 重新运行对应宿主目标。npm 与 curl 各有自己的 update 命令。
 
-## 工作流
+## host bridge 会自动执行吗？
 
-Agent 如何选择清单种子？
+不会。skill 安装与 host bridge 接线是独立状态。设置
+`DEVOLAFLOW_HOST_ENFORCE=1` 前必须验证一个受支持的宿主 bridge。
 
-DevolaFlow 使用提示词的 **意图匹配**：
-- "修复 bug" / "崩溃" → `hotfix`"从零开始" / "新项目" →`full-pipeline`"调研" / "对比" →`research-only`"重构" / "清理" →`refactoring`
+## harness 归档汇总会自动执行吗？
 
-你也可以显式指定：“使用 migration 种子从 React 17 升级到 18。”
-
-哪些种子来自 v3.0.0 的五个工作流新增项？
-
-从历史来源看，v3.0.0 曾把以下能力作为可执行工作流类型引入。现在它们以不可执行清单种子保留领域知识：
-
-- **demo-showcase**：构建展示级演示和交互式展示
-- **performance-optimization**：基于分析的性能优化，包含前后对比基准测试
-- **dependency-setup**：配置开发环境，安装依赖，设置工具链
-- **onboarding**：帮助新贡献者了解代码库并设置环境
-- **skill-optimization**：优化 Agent 技能，包括上下文分析、基准测试和迭代改进
-
-## 质量与门控
-
-### 什么是仓库规则？
-
-`.rules/` 中的 62 条规则，分为 5 层，编译输出到 `AGENTS.md` 与
-`.cursor/rules/repo-governance.mdc`（旧的 SF-/CP-/CO- 规则文件自 v14.2.1 起为弃用指针存根）：
-- **soul.mdc**（S-1 至 S-10）：不可违背的红线, 测试覆盖率底线（≥80%）、无幽灵功能
-- **architecture.mdc**（A-1 至 A-7）：三层体系、缓存布局、令牌预算
-- **conventions.mdc**（C-1 至 C-9，C-8 已退役）：SKILL.md 格式约束、版本一致性
-- **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
-- **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
-
-内建评估如何运作？
-
-内置 harness 负责验证确定性 fixture、dispatch 约束、遥测聚合与有界模型合规探测。
-运行：`python -m pytest tests/harness/ -v`
-
-质量门失败时会发生什么？
-
-门控触发 **收敛循环**：审查发现 → 修复问题 → 重新测试 → 复查门控。最多 3 轮。如果仍然失败，升级到人工并附上差异报告。
-
-## 更新与版本
-
-如何检查更新？
-
-在 AI 工具中输入 `"update devola"`, 或在终端运行 `devola-version`。
-要一次性审计所有已安装副本，运行 `devola-init-doctor --skills`：它会扫描
-全部已知安装位置，并将每个安装标记为 `current` / `stale` / `unknown-version`。
-
-### 如何更新？
-
-```bash
-# npm（用户级 Cursor/Claude 安装；doctor 可做健康检查）
-npx @yorha-agents/devola-flow update all
-
-# pip
-pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
-
-# 安装器（已是最新版本的安装会跳过；--force 强制重新下载）
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
-```
-
-如何卸载？
-
-```bash
-# 先预览将删除的内容，再实际删除
-# （npm 安装的副本也在同一目录，同样被覆盖到）
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
-```
+不会。基线结算与归档保留是周期关闭时人工执行的发布政策；当前运行时没有自动归档
+hook。

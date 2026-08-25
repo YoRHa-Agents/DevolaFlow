@@ -51,6 +51,11 @@ Gap analysis: `.local/research/v17.0.0_gap_analysis.md` (W-1/SI-1). Round design
 - **Publish CI** `.github/workflows/npm-publish.yml` triggers on `v*` tags (fail-fast on tag ≠ npm version; `npm publish --provenance --access public`); `ci-checks.yml` gains a parallel `npm-package` job.
 - **C-6 version location 7**: `packages/npm/package.json` joins the canonical sync set (`scripts/bump_version.py` + `tests/test_version.py` parity).
 
+### Changed — web experience
+
+- **Five-destination public site rebuild**: Home, System, I/O, Harness, and Timeline replace implementation-page primary navigation; compatibility URLs remain, and `benchmark-results/` now presents built-in Harness inputs and outputs instead of retired EvoBench results.
+- **Merged-commit release safety**: version bumps now plan every canonical replacement before the first write and replace complete stable/prerelease tokens. Tag finalization follows bump → mandatory preflight → commit/PR merge → refreshed `main`; it requires a clean tracked tree at `origin/main` (when that ref exists), ignores untracked files, and refuses existing tags. Both release workflows reject tag SHAs not reachable from `origin/main`; npm publication also waits for the reusable CI checks.
+
 ### Evidence & governance accounting (R7)
 
 - W-2/W-16: v17 cycle ledger settled as `harness_baseline_v17.0.0.json`; W-3 evaluation composite 9.84 (verdict READY) (MAJOR threshold 9.0); cross-validation vs the v16 W-3 companion max delta 1.0 (PASS, boundary-inclusive criterion).

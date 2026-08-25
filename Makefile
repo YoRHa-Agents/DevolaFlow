@@ -3,7 +3,8 @@
 
 .PHONY: all test test-core test-version test-harness lint build-skill sync-human-docs \
        check-drift validate-templates clean install \
-       build-site release-preflight release-dry-run scaffold-agent agent-reports \
+       generate-demo-seed-catalog check-demo-seed-catalog build-site \
+       release-preflight release-dry-run scaffold-agent agent-reports \
        compile-rules check-rules-drift precommit precommit-fast precommit-full \
        scaffold-template scaffold-reference audit-references audit-long-references
 
@@ -165,6 +166,12 @@ check-rules-drift:
 detect-repo-mode:
 	bash scripts/detect-repo-mode.sh
 
+generate-demo-seed-catalog:
+	python scripts/generate_demo_seed_catalog.py
+
+check-demo-seed-catalog:
+	python scripts/generate_demo_seed_catalog.py --check
+
 build-site:
 	bash scripts/build-site.sh
 
@@ -190,13 +197,24 @@ iteration-delta-gate:
 #                        sync-human-docs, compile-rules, check-drift,
 #                        check-rules-drift
 #
+#   post-prerequisite:   check-demo-seed-catalog, then build-site
+#                       (the recipe keeps these after generated docs/rules)
+#
 # SI-10 core:           test-core lint test-version test-harness
 #                       check-cursor-skill iteration-delta-gate
 release-preflight: test-core lint test-version test-harness check-cursor-skill iteration-delta-gate validate-templates build-skill sync-human-docs compile-rules check-drift check-rules-drift
+	$(MAKE) check-demo-seed-catalog
+	$(MAKE) build-site
 	@echo "--- Release preflight PASSED ---"
-	@echo "Next: python scripts/bump_version.py <version> --tag"
-	@echo "Then: git add -A && git commit -m 'chore: bump version to <version>'"
-	@echo "Then: git push origin main --tags"
+	@echo "Release sequence (start on a feature branch before this target):"
+	@echo "1. python scripts/bump_version.py <version>"
+	@echo "2. make release-preflight  # mandatory on the bumped tree"
+	@echo "3. Commit the verified bump, open a PR, and merge it into main"
+	@echo "4. git checkout main"
+	@echo "5. git fetch origin main && git pull --ff-only origin main"
+	@echo "6. python scripts/bump_version.py <version> --tag --dry-run"
+	@echo "7. python scripts/bump_version.py <version> --tag  # clean main HEAD == origin/main"
+	@echo "8. git push origin v<version>  # push the tag only"
 
 # v10.4.0 PV-05 (D-X-3) — SI-10 fast-path / full-path split.
 #

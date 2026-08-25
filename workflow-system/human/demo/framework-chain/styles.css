@@ -1,534 +1,558 @@
-/* ============================================================
-   Framework Chain — page-local styles
-   Page-specific layout, widgets, and per-page extensions.
-   The shared component primitives (LayerNode, GateBadge,
-   WaveStrip, TaskDot, MessageEnvelope, RouteTrack, DispatchDot,
-   CfAside, motion keyframes) live in workflow-system/human/demo/
-   shared/styles.css under the "v6.3 Redesign" block; we extend
-   them here without redefining tokens.
-   ============================================================ */
+/* Canonical System page — restrained editorial layout. */
 
-/* --- Hero --- */
-header h1 .accent { color: var(--accent); }
-.cta-cluster {
-  display: flex;
-  gap: .75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
+.system-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(16rem, .85fr);
+  gap: 2rem 3rem;
+  align-items: end;
+  text-align: left;
+  padding: 4rem 0 2.5rem;
 }
 
-/* --- Section helpers --- */
-section h3 {
+.system-hero h1 {
+  margin-bottom: .75rem;
+  font-size: clamp(2.3rem, 6vw, 4.75rem);
+  line-height: 1;
+}
+
+.system-hero .accent {
+  color: var(--accent);
+}
+
+.system-lede {
+  max-width: 44rem;
+  color: var(--fg);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.55;
+}
+
+.system-guardrail {
+  max-width: 42rem;
+  margin-top: 1rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--secondary);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .82rem;
+}
+
+.system-facts {
+  border-top: 1px solid var(--border);
+}
+
+.system-facts > div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 1rem;
+  padding: .8rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.system-facts dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.system-facts dd {
+  color: var(--fg);
+  font-size: .9rem;
+}
+
+.system-cta {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  margin-top: 0;
+}
+
+.system-companion-nav {
+  gap: .25rem;
+}
+
+.system-companion-nav strong {
+  margin-right: .5rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.section-intro {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+
+.section-intro h2 {
+  margin-bottom: .45rem;
+}
+
+.section-intro .desc {
+  max-width: 48rem;
+  margin-bottom: 0;
+}
+
+.section-index {
+  padding-top: .35rem;
+  color: var(--secondary);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+/* Layer ledger */
+.layer-ledger {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.layer-entry {
+  border-bottom: 1px solid var(--border);
+}
+
+.layer-control {
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 1fr) auto auto;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  padding: 1rem .75rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.layer-control:hover,
+.layer-control[aria-expanded="true"] {
+  background: var(--accent-light);
+}
+
+.layer-control[aria-expanded="true"] .layer-action {
+  color: var(--accent);
+}
+
+.layer-identity {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+
+.layer-identity strong {
   font-family: var(--font-heading);
-  font-size: 1.1rem;
-  margin: 1.5rem 0 .75rem;
+  font-size: 1.05rem;
   letter-spacing: .02em;
 }
 
-/* ============================================================
-   #fc-hierarchy — LayerNode cascade extensions
-   ============================================================ */
-.hierarchy-controls {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
+.layer-identity small {
+  color: var(--muted);
+  font-size: .82rem;
 }
 
-.layer-cascade {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  max-width: 560px;
-  margin: 0 auto;
+.layer-action {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
 }
 
-/* Page-only LayerNode extensions: clickable affordance + delegates row.
-   Shared owns the box, badge, role, and budget styling. */
-.layer-cascade .layer-node {
-  cursor: pointer;
+.layer-action::after {
+  content: ' +';
 }
-.layer-cascade .layer-node:hover,
-.layer-cascade .layer-node:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--accent);
-  outline: none;
+
+.layer-control[aria-expanded="true"] .layer-action::after {
+  content: ' −';
 }
-.layer-delegates {
-  grid-column: 2 / -1;
-  font-size: .78rem;
+
+.layer-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  padding: .25rem .75rem 1.25rem 4.5rem;
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.layer-detail[hidden] {
+  display: none;
+}
+
+.layer-detail p:last-child {
+  padding-left: 1rem;
+  border-left: 2px solid var(--secondary);
+}
+
+.layer-detail strong {
+  color: var(--secondary);
+}
+
+.boundary-note {
+  display: grid;
+  grid-template-columns: minmax(13rem, .75fr) minmax(0, 1.5fr);
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+  padding: 1rem 0;
+  border-top: 2px solid var(--accent);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.boundary-note strong {
   color: var(--accent);
   font-family: var(--font-mono);
-  margin: .15rem 0 0;
+  font-size: .8rem;
+  letter-spacing: .04em;
 }
 
-/* JS-enabled cascade reveal. Without JS the layers stay visible (the
-   .fc-js prefix is added by an inline <head> script before paint). */
-.fc-js .layer-cascade .layer-node {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-.fc-js .layer-cascade .layer-node.flow-cascade {
-  animation: flow-down 0.6s ease-out both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .fc-js .layer-cascade .layer-node {
-    opacity: 1 !important;
-    transform: none !important;
-    animation: none !important;
-  }
+/* Checklist-round lifecycle */
+.round-rail {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
 }
 
-/* Route-track ornament (small chevron) — shared owns the rail itself. */
-.layer-cascade .route-track {
-  min-height: 36px;
-  margin: .25rem auto;
-}
-.layer-cascade .route-track::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  width: 0;
-  height: 0;
-  margin-left: -5px;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid var(--accent);
-  opacity: .55;
-}
-@media (prefers-reduced-motion: reduce) {
-  .layer-cascade .route-track {
-    background: linear-gradient(to bottom, var(--accent), var(--rail-track));
-  }
-  .layer-cascade .dispatch-dot { display: none; }
+.round-rail > li {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--border);
 }
 
-/* --- LayerNode aside contents (.cf-aside owns its own container in shared) --- */
-.cf-aside .cf-aside-close {
-  position: absolute;
-  top: .75rem;
-  right: .75rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
+.round-number {
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.round-rail h3 {
+  margin: 0 0 .25rem;
   color: var(--fg);
-  font-size: .82rem;
-  border-radius: var(--radius-sm);
-  padding: .25rem .55rem;
-  cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s;
+  font-family: var(--font-heading);
+  font-size: 1rem;
 }
-.cf-aside .cf-aside-close:hover {
-  border-color: var(--accent);
+
+.round-rail p {
+  max-width: 48rem;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+/* Bounded interactive round */
+.round-simulator {
+  border-top: 2px solid var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0;
+}
+
+.simulator-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.simulator-status {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .8rem;
+}
+
+.state-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  list-style: none;
+}
+
+.state-step {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-height: 6.5rem;
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+
+.state-step:last-child {
+  border-right: 0;
+}
+
+.state-step span {
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  letter-spacing: .08em;
+}
+
+.state-step strong {
+  margin-top: auto;
+  font-family: var(--font-heading);
+  font-size: .9rem;
+  letter-spacing: .03em;
+}
+
+.state-step.is-complete {
+  color: var(--success);
+}
+
+.state-step.is-current {
   background: var(--accent-light);
   color: var(--accent);
 }
-.cf-aside h3 {
-  font-family: var(--font-heading);
-  font-size: 1.1rem;
-  margin: 0 0 .5rem;
-  color: var(--accent);
-  padding-right: 4rem;
-}
-.cf-aside .cf-aside-deleg {
-  font-size: .82rem;
-  color: var(--muted);
-  margin: 0 0 1rem;
-}
-.cf-aside .cf-aside-deleg code {
-  font-family: var(--font-mono);
-  background: var(--code-bg);
-  padding: .1rem .4rem;
-  border-radius: 3px;
-}
-.cf-aside h4 {
-  font-family: var(--font-heading);
-  font-size: .85rem;
-  letter-spacing: .08em;
-  color: var(--ember-red);
-  text-transform: uppercase;
-  margin: 1rem 0 .5rem;
-}
-.cf-aside ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.cf-aside ul li {
-  padding: .4rem .5rem .4rem .9rem;
-  font-size: .9rem;
-  color: var(--fg);
-  border-left: 3px solid var(--ember-red);
-  margin-bottom: .35rem;
-  background: color-mix(in srgb, var(--ember-red) 6%, transparent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
 
-/* ============================================================
-   #fc-teams — extra metadata layout inside .card
-   ============================================================ */
-.team-card .team-resp {
-  font-size: .9rem;
-  color: var(--muted);
-  margin-bottom: 0;
-}
-.team-meta {
+.simulator-readout {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: .55rem;
-  margin-top: .85rem;
-  font-size: .85rem;
-}
-.team-meta .meta-row {
-  display: flex;
-  flex-direction: column;
-  gap: .15rem;
-}
-.team-meta .meta-row strong {
-  font-size: .7rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-.team-meta .meta-row span {
-  color: var(--fg);
-}
-.team-meta .meta-row code {
-  font-size: .8rem;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1.5rem;
+  min-height: 5.5rem;
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-/* ============================================================
-   #fc-gate — composite, segmented control, badges, profiles
-   ============================================================ */
-.composite-formula {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  padding: .75rem 1rem;
-  border-radius: var(--radius-sm);
-  margin-bottom: 1rem;
+.readout-label {
+  color: var(--accent);
   font-family: var(--font-mono);
-  font-size: .95rem;
-  color: var(--fg);
-  text-align: center;
-}
-
-.gate-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 1.5rem;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.segmented {
-  display: inline-flex;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 2px;
-}
-.segmented .seg-btn {
-  background: transparent;
-  border: none;
-  padding: .4rem .85rem;
-  font-size: .85rem;
+  font-size: .76rem;
   font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background .15s, color .15s;
-  font-family: var(--font-body);
+  letter-spacing: .05em;
+  text-transform: uppercase;
 }
-.segmented .seg-btn:hover { color: var(--fg); }
-.segmented .seg-btn.is-active {
-  background: var(--accent);
-  color: #FFFDF5;
-}
-.dark .segmented .seg-btn.is-active { color: var(--bg); }
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  font-size: .85rem;
+#simulator-readout {
+  max-width: 44rem;
   color: var(--fg);
-  cursor: pointer;
-}
-.toggle input[type="checkbox"] {
-  width: 2.4rem;
-  height: 1.3rem;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  position: relative;
-  cursor: pointer;
-  transition: background .15s, border-color .15s;
-  margin: 0;
-}
-.toggle input[type="checkbox"]::before {
-  content: '';
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 1.05rem;
-  height: 1.05rem;
-  border-radius: 50%;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  transition: transform .15s, background .15s;
-}
-.toggle input[type="checkbox"]:checked {
-  background: var(--ember-red);
-  border-color: var(--ember-red);
-}
-.toggle input[type="checkbox"]:checked::before {
-  transform: translateX(1.1rem);
-  background: #FFFDF5;
+  font-size: .92rem;
 }
 
-.composite-display {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: .9rem 1.25rem;
+.simulator-controls {
   display: flex;
-  align-items: baseline;
   gap: .75rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  padding-top: 1rem;
 }
-.composite-display .composite-label {
-  font-family: var(--font-mono);
-  font-size: .8rem;
-  text-transform: uppercase;
-  color: var(--muted);
-  letter-spacing: .06em;
+
+.simulator-controls button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }
-.composite-display .composite-value {
+
+/* Gate truth */
+.gate-ledger {
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+
+.gate-ledger > div {
+  display: grid;
+  grid-template-columns: minmax(10rem, .6fr) minmax(0, 1.6fr);
+  gap: 2rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.gate-ledger dt {
+  color: var(--accent);
   font-family: var(--font-heading);
-  font-size: 2.2rem;
   font-weight: 700;
-  color: var(--accent);
-  line-height: 1;
-  min-width: 4ch;
-  text-align: center;
-}
-.composite-display .composite-threshold {
-  font-family: var(--font-mono);
-  font-size: .85rem;
-  color: var(--muted);
-}
-.composite-display .composite-state {
-  margin-left: auto;
-  padding: .25rem .7rem;
-  border-radius: 999px;
-  font-size: .78rem;
-  font-weight: 700;
-  letter-spacing: .06em;
-}
-.composite-display .composite-state.is-pass {
-  background: color-mix(in srgb, var(--success) 18%, transparent);
-  color: var(--success);
-}
-.composite-display .composite-state.is-fail {
-  background: color-mix(in srgb, var(--error) 18%, transparent);
-  color: var(--error);
 }
 
-/* GateBadge layout override — for this page each badge shows a 3-line
-   detail (dim / weight / threshold). Shared owns the pill primitive +
-   pass/fail color treatment; we expand the layout for pedagogy. */
-.gate-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
-  margin-bottom: 1.5rem;
-}
-.gate-strip .gate-badge {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: .15rem;
-  padding: .55rem .8rem;
-  border-radius: var(--radius-sm);
-  min-width: 9rem;
-}
-.gate-strip .gate-badge .gate-dim {
-  text-transform: none;
-  font-family: var(--font-mono);
+.gate-ledger dd {
+  max-width: 48rem;
   color: var(--fg);
-  font-size: .82rem;
-  font-weight: 600;
-  letter-spacing: 0;
+  font-size: .92rem;
 }
-.gate-strip .gate-badge .gate-weight {
-  font-family: var(--font-mono);
-  color: var(--accent);
-  font-size: .78rem;
+
+.bounded-note {
+  display: grid;
+  grid-template-columns: minmax(12rem, .7fr) minmax(0, 1.6fr);
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-left: 4px solid var(--secondary);
+  background: color-mix(in srgb, var(--secondary) 5%, transparent);
 }
-.gate-strip .gate-badge .gate-threshold {
-  font-family: var(--font-mono);
+
+.bounded-note strong {
+  color: var(--secondary);
+  font-family: var(--font-heading);
+}
+
+.bounded-note span {
   color: var(--muted);
-  font-size: .72rem;
-}
-.gate-strip .gate-badge.is-pass {
-  animation: verify-gate-glow 2.0s ease-in-out infinite;
-}
-
-.gate-profiles { margin-bottom: 1rem; }
-.gate-profiles td code {
-  background: var(--code-bg);
-  padding: .1rem .4rem;
-  border-radius: 3px;
-}
-
-.pass-conditions {
-  margin: 0 0 0 1.25rem;
-  padding: 0;
-}
-.pass-conditions li {
-  margin-bottom: .4rem;
-  color: var(--fg);
   font-size: .9rem;
 }
-.pass-conditions li code {
-  background: var(--code-bg);
-  padding: .05rem .35rem;
-  border-radius: 3px;
+
+/* Secondary views */
+.companion-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
 }
 
-/* ============================================================
-   #fc-loops — Gen-Verify diagram
-   ============================================================ */
-.genverify-diagram {
-  display: flex;
-  flex-direction: column;
-  gap: .65rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem 1.25rem;
-}
-.genverify-diagram .round {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: .85rem;
-}
-.genverify-diagram .round-label {
-  min-width: 6rem;
-  font-family: var(--font-mono);
-  font-size: .82rem;
-  color: var(--muted);
-  letter-spacing: .04em;
-}
-.genverify-diagram .round-verdict {
-  font-family: var(--font-mono);
-  font-size: .75rem;
-  font-weight: 700;
-  padding: .15rem .55rem;
-  border-radius: 3px;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.genverify-diagram .round-verdict.is-fail {
-  color: var(--error);
-  background: color-mix(in srgb, var(--error) 14%, transparent);
-}
-.genverify-diagram .round-verdict.is-pass {
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 14%, transparent);
-}
-/* "running" task-dot pulse animation (page-specific addition; shared
-    leaves running as a static accent fill). */
-.genverify-diagram .task-dot[data-state="running"] {
-  animation: pulse-running 1.2s ease-in-out infinite;
-}
-@keyframes pulse-running {
-  0%, 100% { opacity: .55; }
-  50%      { opacity: 1; }
+.companion-list li {
+  border-bottom: 1px solid var(--border);
 }
 
-/* ============================================================
-   #fc-rationalization — 8 cards in 2-col grid
-   ============================================================ */
-.rationalization-grid {
+.companion-list a {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-.rationalization-grid .card {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-  border-left: 3px solid var(--ember-red);
-}
-.rationalization-grid .card .rat-quote {
-  font-family: var(--font-heading);
-  font-size: 1rem;
-  color: var(--ember-red);
-  font-style: italic;
-  margin: 0;
-}
-.rationalization-grid .card .rat-quote::before { content: '\201C'; }
-.rationalization-grid .card .rat-quote::after  { content: '\201D'; }
-.rationalization-grid .card .rat-reality {
-  margin: 0;
+  grid-template-columns: minmax(13rem, .8fr) minmax(0, 1.5fr);
+  gap: 2rem;
+  align-items: center;
+  min-height: 4.75rem;
+  padding: .9rem .75rem;
   color: var(--fg);
+  text-decoration: none;
+  transition: background .15s, color .15s;
+}
+
+.companion-list a:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.companion-list strong {
+  font-family: var(--font-heading);
+}
+
+.companion-list span {
+  color: var(--muted);
   font-size: .88rem;
 }
-.rationalization-grid .card .rat-reality code {
-  background: var(--code-bg);
-  padding: .05rem .35rem;
-  border-radius: 3px;
-  font-size: .82rem;
+
+footer p {
+  margin-top: 1.25rem;
 }
 
-/* ============================================================
-   Footer cross-page CTA
-   ============================================================ */
-.fc-footer-cta {
-  display: flex;
-  gap: .75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin: 1rem 0 0;
+@media (max-width: 780px) {
+  .system-hero {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding-top: 3rem;
+  }
+
+  .system-cta {
+    grid-column: auto;
+  }
+
+  .section-intro {
+    grid-template-columns: 1fr;
+    gap: .35rem;
+  }
+
+  .layer-control {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .layer-action {
+    grid-column: 2 / -1;
+  }
+
+  .layer-detail {
+    grid-template-columns: 1fr;
+    padding-left: 4.5rem;
+  }
+
+  .state-track {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .state-step:nth-child(2) {
+    border-right: 0;
+  }
+
+  .state-step:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
 }
 
-/* ============================================================
-   Motion vocabulary (spec §3.3)
-   The keyframes are also defined in shared/styles.css; the spec
-   instructed to define them in page-local until S02-T05 migrates
-   them. Names match shared so the helper classes (.has-pulse-
-   dispatch, .has-flow-down, .has-verify-glow) work uniformly.
-   ============================================================ */
-@keyframes pulse-dispatch {
-  0%   { transform: translate(-50%, 0%);                  opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translate(-50%, calc(100% - 12px));   opacity: 0; }
-}
-@keyframes flow-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ============================================================
-   Responsive
-   ============================================================ */
 @media (max-width: 640px) {
-  .layer-cascade { max-width: 100%; }
-  .gate-controls { flex-direction: column; align-items: flex-start; }
-  .composite-display .composite-state { margin-left: 0; }
-  .gate-strip .gate-badge { min-width: 0; flex: 1 1 calc(50% - .25rem); }
-  .rationalization-grid { grid-template-columns: 1fr; }
-  .genverify-diagram .round { flex-wrap: wrap; }
-  .genverify-diagram .round-label { min-width: 0; }
-  .cf-aside h3 { padding-right: 3rem; }
+  .system-hero {
+    padding-top: 2.5rem;
+  }
+
+  .system-hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .system-cta .btn,
+  .simulator-controls .btn {
+    flex: 1 1 100%;
+  }
+
+  .system-companion-nav strong {
+    display: none;
+  }
+
+  .layer-control {
+    grid-template-columns: auto 1fr;
+    gap: .65rem .75rem;
+    padding: .9rem .25rem;
+  }
+
+  .layer-budget,
+  .layer-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .layer-detail {
+    padding: .25rem .25rem 1rem 3.25rem;
+  }
+
+  .boundary-note,
+  .gate-ledger > div,
+  .bounded-note,
+  .companion-list a,
+  .simulator-readout {
+    grid-template-columns: 1fr;
+    gap: .65rem;
+  }
+
+  .round-rail > li {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: .75rem;
+  }
+
+  .simulator-topline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .state-step {
+    min-height: 5.5rem;
+    padding: .75rem;
+  }
+
+  .simulator-controls {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-control,
+  .state-step,
+  .companion-list a {
+    transition: none;
+  }
 }

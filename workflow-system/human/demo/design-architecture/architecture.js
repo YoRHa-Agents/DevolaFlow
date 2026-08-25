@@ -1,450 +1,381 @@
-// DevolaFlow Framework Architecture Data
-// Maps current agent surfaces to their tier and runtime role.
+/**
+ * Design Architecture companion.
+ * Registers complete page-local EN/ZH copy and exposes one finite,
+ * keyboard-accessible selector for the three current agent layers.
+ */
+(function () {
+  'use strict';
 
-const reference = (id, purpose, triggers) => ({
-  id,
-  path: `workflow-system/agent/references/${id}.md`,
-  tier: 2,
-  tokenEstimate: 2500,
-  purpose,
-  designSource: "Current agent contract",
-  designSections: "Load the named reference only when its trigger applies.",
-  triggers,
-  relatedWorkflows: ["all 23 checklist seeds; sole change-driven runtime"],
-});
-
-const FRAMEWORK = {
-  // ─── Tier 1: Entry Point ───────────────────────────────────────
-  entry: {
-    id: "SKILL.md",
-    path: "workflow-system/agent/SKILL.md",
-    tier: 1,
-    lines: 425,
-    tokenEstimate: 6000,
-    purpose: "Tier-1 checklist-round entry point: 23 non-executable seeds, one change-driven runtime, and a three-layer Project → Wave → Task hierarchy.",
-    designSource: "workflow-system/agent/SKILL.md",
-    sections: [
-      "Version & Update", "Workspace Engagement", "Quick Action Decision",
-      "Mode Awareness", "Quick Start — Workflow Selection",
-      "Repo-Init Pre-Dispatch Contract", "3-Layer Agent Hierarchy",
-      "Seed Provenance Labels", "Gate Mechanism", "AgentTeam Quick Reference",
-      "Context Isolation", "Subagent Hang Prevention",
-      "Dispatch & Report Protocol", "Lifecycle Hooks", "Repo Mode Detection",
-      "Reference Navigation Guide", "Task Quality Score"
-    ],
-    triggers: ["implement feature", "build from scratch", "fix bug", "refactor code", "migrate system", "full pipeline", "hotfix", "workflow orchestration"],
-  },
-
-  // ─── Tier 2: Domain References ─────────────────────────────────
-  references: [
-    reference("agent-hierarchy", "Three-layer Project → Wave → Task responsibilities and escalation.", ["delegating work", "checking layer boundaries"]),
-    reference("agent-workspace", "Active-change folders, handoffs, archive, and ownership.", ["opening or resuming a change"]),
-    reference("artifact-quality", "L2 evidence rubric; numeric scoring remains L0-only.", ["building or checking task evidence"]),
-    reference("behavioral-guidelines", "Task behavior primitives and evidence attestations.", ["dispatching implementation or review"]),
-    reference("codegraph", "Suggest-tier indexed discovery and degraded behavior.", ["exploring symbols or impact"]),
-    reference("compression-pipeline", "Context compression and preservation rules.", ["building a bounded dispatch"]),
-    reference("context-isolation", "5K/5K/8K budgets and leak prevention.", ["isolating task context"]),
-    reference("decomposition-gate", "Checklist round, wave, task, convergence, and evidence gates.", ["partitioning or gating work"]),
-    reference("degraded-mode", "Explicit fallback when optional capabilities are absent.", ["handling missing tools"]),
-    reference("domain-awareness", "Glossary, contexts, and ADR decision boundaries.", ["resolving domain language"]),
-    reference("env-flags", "Canonical runtime-flag inventory and reuse-first checks.", ["adding or inspecting a flag"]),
-    reference("evaluator-rosetta", "Cross-walk among evaluator outputs.", ["interpreting evaluation evidence"]),
-    reference("execution-protocol", "Preflight, checkpoints, failures, and bounded execution.", ["running or resuming work"]),
-    reference("grill-mode", "One-question-at-a-time plan stress testing.", ["challenging a plan"]),
-    reference("host-bridges", "Five-host boundary bridge, enforcement flag, and audit ledger.", ["wiring host hooks", "debugging a host-side deny"]),
-    reference("human-surface", "Human-authored input and generated output contracts.", ["reading or writing human surfaces"]),
-    reference("impeccable", "Visual-quality refinement and verification.", ["polishing user-facing design"]),
-    reference("message-schemas", "Typed TaskDispatch, StatusReport, and escalation fields.", ["constructing inter-layer messages"]),
-    reference("meta-framework", "Registry-v3 checklist seeds and sole runtime selection.", ["selecting a seed"]),
-    reference("plan-mode-enforcement", "Goal, checklist, preflight, and approval contract.", ["planning before implementation"]),
-    reference("repo-modes", "Repository capability detection and behavior.", ["detecting repository mode"]),
-    reference("shell-proxy", "Shell routing and allowlist behavior.", ["routing bounded shell commands"]),
-    reference("subagent-patterns", "Inline, fan-out, and forward-only pool selection.", ["choosing delegation topology"]),
-    reference("task-quality-score", "L0-only, user-requested post-workflow request scoring.", ["scoring the completed request"]),
-    reference("team-roles", "L2 research, design, implementation, test, and review roles.", ["assigning task specialization"]),
-    reference("troubleshooting", "Installation and workflow failure diagnostics.", ["diagnosing a failure"]),
-  ],
-
-  // ─── Tier 3: On-Demand (Examples, Knowledge, Schemas) ─────────
-  examples: [
-    {
-      id: "full-pipeline-trace",
-      path: "workflow-system/agent/examples/full-pipeline-trace.md",
-      tier: 3, tokenEstimate: 4500,
-      purpose: "Checklist-round full-pipeline evidence walkthrough.",
-      designSource: "Current execution example",
-      relatedWorkflows: ["full-pipeline"],
-    },
-    {
-      id: "hotfix-trace",
-      path: "workflow-system/agent/examples/hotfix-trace.md",
-      tier: 3, tokenEstimate: 2200,
-      purpose: "Concise hotfix checklist and evidence walkthrough.",
-      designSource: "Current execution example",
-      relatedWorkflows: ["hotfix"],
-    },
-    {
-      id: "multi-stage-trace",
-      path: "workflow-system/agent/examples/multi-stage-trace.md",
-      tier: 3, tokenEstimate: 3500,
-      purpose: "Historical staged trace retained for provenance; not a current runtime.",
-      designSource: "Historical compatibility example",
-      relatedWorkflows: ["provenance only"],
-    },
-    {
-      id: "convergence-loop-trace",
-      path: "workflow-system/agent/examples/convergence-loop-trace.md",
-      tier: 3, tokenEstimate: 3500,
-      purpose: "Bounded convergence, evidence, and stagnation walkthrough.",
-      designSource: "Current execution example",
-      relatedWorkflows: ["implementation-class checklist items"],
-    },
-  ],
-
-  knowledge: [
-    {
-      id: "index",
-      path: "workflow-system/agent/knowledge/index.md",
-      tier: 3, tokenEstimate: 500,
-      purpose: "On-demand knowledge catalog.",
-      designSource: "Knowledge navigation",
-      relatedWorkflows: ["all"],
-    },
-    {
-      id: "interview-protocol",
-      path: "workflow-system/agent/knowledge/interview-protocol.md",
-      tier: 3, tokenEstimate: 1200,
-      purpose: "Bounded interview prompts and termination.",
-      designSource: "Planning support",
-      relatedWorkflows: ["plan and grill modes"],
-    },
-    {
-      id: "code-rules-mapping",
-      path: "workflow-system/agent/knowledge/code-rules-mapping.md",
-      tier: 3, tokenEstimate: 2800,
-      purpose: "How code rules load per language and task.",
-      designSource: "code-rules system integration",
-      relatedWorkflows: ["implementation and review tasks"],
-    },
-    {
-      id: "principle-mapping",
-      path: "workflow-system/agent/knowledge/principle-mapping.md",
-      tier: 3, tokenEstimate: 2600,
-      purpose: "Engineering principles mapped to checklist assertions and gate evidence.",
-      designSource: "Software engineering principles",
-      relatedWorkflows: ["implementation-class checklist items"],
-    },
-    {
-      id: "reference-dependencies",
-      path: "workflow-system/agent/knowledge/reference-dependencies.yaml",
-      tier: 3, tokenEstimate: 800,
-      purpose: "Machine-readable reference dependency map.",
-      designSource: "Knowledge navigation",
-      relatedWorkflows: ["all"],
-    },
-    {
-      id: "runtime-plugins",
-      path: "workflow-system/agent/knowledge/runtime-plugins.yaml",
-      tier: 3, tokenEstimate: 900,
-      purpose: "Canonical runtime plugin registration data.",
-      designSource: "Plugin registry",
-      relatedWorkflows: ["plugin-assisted tasks"],
-    },
-  ],
-
-  // ─── Checklist seeds + sole runtime ────────────────────────────
-  seeds: [
-    { id: "hotfix", category: "build", focus: "triage, minimal fix, focused checks" },
-    { id: "research-only", category: "discover", focus: "sources, comparison, report" },
-    { id: "design-only", category: "shape", focus: "research, decisions, review" },
-    { id: "documentation-only", category: "deliver", focus: "survey, authoring, review" },
-    { id: "spike-poc", category: "discover", focus: "bounded prototype and verdict" },
-    { id: "refactoring", category: "build", focus: "scope, regression safety, review" },
-    { id: "feature-enhancement", category: "composite", focus: "design, implementation, release evidence" },
-    { id: "full-pipeline", category: "composite", focus: "end-to-end delivery assertions" },
-    { id: "performance-optimization", category: "build", focus: "profile, optimize, benchmark" },
-    { id: "security-audit", category: "composite", focus: "threat model, scan, remediation" },
-    { id: "research-design-review-refine", category: "composite", focus: "research, design, review, refinement" },
-    { id: "dependency-setup", category: "build", focus: "setup and bounded verification" },
-    { id: "onboarding", category: "discover", focus: "analysis, docs, setup" },
-    { id: "demo-showcase", category: "composite", focus: "story, build, visual evidence" },
-    { id: "product-verification", category: "composite", focus: "visual, interaction, accessibility, UAT" },
-    { id: "entropy-cleanup", category: "control", focus: "scan, proposal, cleanup evidence" },
-    { id: "migration", category: "build", focus: "migration, cutover, rollback readiness" },
-    { id: "skill-optimization", category: "composite", focus: "measure, harness-evaluate, optimize" },
-    { id: "self-update", category: "control", focus: "research, integration, evaluation" },
-    { id: "nines-assisted", category: "composite", focus: "opaque historical compatibility ID; built-in harness evidence" },
-    { id: "repo-init", category: "discover", focus: "canonical scaffold assertions" },
-    { id: "change-driven", category: "composite", focus: "checklist knowledge plus runtime name" },
-    { id: "web-design", category: "composite", focus: "design, implementation, deterministic checks" },
-  ],
-  runtime: {
-    id: "change-driven",
-    path: "workflow-system/agent/templates/builtin/change-driven.yaml",
-    purpose: "Sole executable checklist-round lifecycle runtime.",
-  },
-
-  // ─── Adapters ──────────────────────────────────────────────────
-  adapters: [
-    { tool: "Cursor", format: "SKILL.md + references/ + rules.mdc", budget: "<500 lines", designSource: "design_delivery_architecture.md §4.4" },
-    { tool: "Codex", format: "SKILL.md (rules inlined) + openai.yaml", budget: "<500 lines", designSource: "design_delivery_architecture.md §4.4" },
-    { tool: "Claude Code", format: "CLAUDE.md (compressed)", budget: "<200 lines", designSource: "design_delivery_architecture.md §4.4" },
-    { tool: "Copilot", format: "copilot-instructions.md", budget: "<4000 chars", designSource: "design_delivery_architecture.md §4.4" },
-  ],
-
-  // ─── Design Documents (Source of Truth) ────────────────────────
-  designDocs: [
-    { id: "desires", file: "desires.md", lines: 25, purpose: "Original requirements (9 core + 5 product form)" },
-    { id: "wp1", file: "wp1_frameworks_research.md", lines: 704, purpose: "8 agent frameworks deep research" },
-    { id: "wp2", file: "wp2_local_patterns.md", lines: 610, purpose: "13 local plan pattern analysis" },
-    { id: "wp3", file: "wp3_workflow_types.md", lines: 993, purpose: "10 workflow type catalog" },
-    { id: "synthesis", file: "research_synthesis_report.md", lines: 374, purpose: "10 key findings, framework scoring matrix" },
-    { id: "hierarchy", file: "design_agent_hierarchy.md", lines: 1512, purpose: "Historical hierarchy research; current contract is Project → Wave → Task" },
-    { id: "decomposition", file: "design_decomposition_gate.md", lines: 1859, purpose: "Decomposition rules, gate mechanism, failure handling" },
-    { id: "execution", file: "design_execution_protocol.md", lines: 1613, purpose: "Pre-decision, checkpoint/resume, exception classification" },
-    { id: "meta", file: "design_meta_framework.md", lines: 2132, purpose: "Historical taxonomy source; current registry exposes non-executable seeds" },
-    { id: "repo", file: "design_repo_modes.md", lines: 838, purpose: "3 repo modes, feature matrix, CI/CD templates" },
-    { id: "delivery", file: "design_delivery_architecture.md", lines: 975, purpose: "4-tool comparison, multi-level index, adapter pipeline, MVP spec" },
-    { id: "dual", file: "design_dual_system.md", lines: 1097, purpose: "Agent/Human dual system, sync pipeline, VSCode plugin roadmap" },
-  ],
-};
-
-// ─── Rendering ─────────────────────────────────────────────────────
-
-const TIER_COLORS = { 1: "#9B4444", 2: "#B8860B", 3: "#5B7553" };
-const TIER_LABELS = { 1: "Tier 1 — Entry (always loaded)", 2: "Tier 2 — Reference (per need)", 3: "Tier 3 — On-Demand" };
-const CAT_COLORS = { discover: "#B8860B", shape: "#C49A3C", build: "#5B7553", verify: "#D4A843", deliver: "#9B4444", composite: "#495057", control: "#6c757d" };
-
-function renderFrameworkOverview() {
-  const el = document.getElementById("framework-diagram");
-  el.innerHTML = `<pre class="mermaid">
-graph TB
-  subgraph design ["Design Documents (Source of Truth)"]
-    desires["desires.md"]
-    wp["wp1 + wp2 + wp3 (Research)"]
-    synthesis["research_synthesis_report.md"]
-    hierarchy["design_agent_hierarchy.md"]
-    decomposition["design_decomposition_gate.md"]
-    execution["design_execution_protocol.md"]
-    meta["design_meta_framework.md"]
-    repo["design_repo_modes.md"]
-    delivery["design_delivery_architecture.md"]
-    dual["design_dual_system.md"]
-  end
-
-  subgraph agent ["Agent Skill System"]
-    skill["SKILL.md (Tier 1)"]
-    refs["25 References (Tier 2)"]
-    examples["4 Examples (Tier 3)"]
-    knowledge["6 Knowledge (Tier 3)"]
-    seeds["23 Non-Executable Seeds"]
-    runtime["1 Runtime: change-driven"]
-    schemas["7 Schemas"]
-  end
-
-  subgraph adapters ["Adapter Pipeline"]
-    build["build-skill.py"]
-    cursor["Cursor Output"]
-    codex["Codex Output"]
-    claude["Claude Output"]
-    copilot["Copilot Output"]
-  end
-
-  subgraph human ["Human System"]
-    en["EN Docs (8)"]
-    zh["ZH Docs (8)"]
-    demo["Interactive Demo"]
-  end
-
-  desires --> wp
-  wp --> synthesis
-  synthesis --> hierarchy
-  hierarchy --> decomposition
-  hierarchy --> execution
-  synthesis --> meta
-  hierarchy --> delivery
-  hierarchy --> repo
-  delivery --> dual
-
-  hierarchy --> skill
-  meta --> skill
-  decomposition --> refs
-  execution --> refs
-  repo --> refs
-
-  skill --> build
-  refs --> build
-  build --> cursor
-  build --> codex
-  build --> claude
-  build --> copilot
-
-  skill --> en
-  refs --> en
-  en --> zh
-  seeds --> runtime
-  runtime --> demo
-</pre>`;
-  if (window.mermaid) window.mermaid.run({ nodes: [el.querySelector(".mermaid")] });
-}
-
-function renderSkillFileList() {
-  const el = document.getElementById("skill-files");
-  let html = "";
-
-  // Tier 1
-  const e = FRAMEWORK.entry;
-  html += `<div class="file-card tier1" data-file="${e.id}">
-    <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[1]}">T1</span><strong>${e.id}</strong><span class="token-badge">${e.tokenEstimate} tok</span></div>
-    <p class="file-purpose">${e.purpose}</p>
-    <div class="file-meta"><span class="design-ref">Design: ${e.designSource}</span></div>
-    <div class="file-sections">${e.sections.map(s => `<span class="section-tag">${s}</span>`).join("")}</div>
-  </div>`;
-
-  // Tier 2
-  html += `<h3 class="tier-heading">Tier 2 — Domain References <span class="count">${FRAMEWORK.references.length} files</span></h3>`;
-  FRAMEWORK.references.forEach(r => {
-    html += `<div class="file-card tier2" data-file="${r.id}">
-      <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[2]}">T2</span><strong>${r.id}.md</strong><span class="token-badge">${r.tokenEstimate} tok</span></div>
-      <p class="file-purpose">${r.purpose}</p>
-      <div class="file-meta">
-        <span class="design-ref">Design: ${r.designSource}</span>
-        <span class="design-sections">${r.designSections}</span>
-      </div>
-      <div class="file-triggers">Load when: ${r.triggers.map(t => `<span class="trigger-tag">${t}</span>`).join("")}</div>
-      <div class="file-workflows">Workflows: <em>${r.relatedWorkflows.join(", ")}</em></div>
-    </div>`;
+  var sourceFacts = Object.freeze({
+    skill: Object.freeze({
+      path: 'workflow-system/agent/SKILL.md',
+      lines: 446
+    })
   });
 
-  // Tier 3
-  html += `<h3 class="tier-heading">Tier 3 — Examples <span class="count">${FRAMEWORK.examples.length} files</span></h3>`;
-  FRAMEWORK.examples.forEach(ex => {
-    html += `<div class="file-card tier3" data-file="${ex.id}">
-      <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span><strong>${ex.id}.md</strong><span class="token-badge">${ex.tokenEstimate} tok</span></div>
-      <p class="file-purpose">${ex.purpose}</p>
-      <div class="file-meta"><span class="design-ref">Design: ${ex.designSource}</span></div>
-      <div class="file-workflows">Workflows: <em>${ex.relatedWorkflows.join(", ")}</em></div>
-    </div>`;
-  });
-
-  html += `<h3 class="tier-heading">Tier 3 — Knowledge <span class="count">${FRAMEWORK.knowledge.length} files</span></h3>`;
-  FRAMEWORK.knowledge.forEach(k => {
-    const fileName = k.path.split("/").pop();
-    html += `<div class="file-card tier3" data-file="${k.id}">
-      <div class="file-header"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span><strong>${fileName}</strong><span class="token-badge">${k.tokenEstimate} tok</span></div>
-      <p class="file-purpose">${k.purpose}</p>
-      <div class="file-workflows">Workflows: <em>${k.relatedWorkflows.join(", ")}</em></div>
-    </div>`;
-  });
-
-  el.innerHTML = html;
-}
-
-function renderTemplateList() {
-  const el = document.getElementById("template-list");
-  let html = `<div class="template-card">
-    <div class="template-header"><span class="cat-badge" style="background:${CAT_COLORS.control}">runtime</span><strong>${FRAMEWORK.runtime.id}</strong></div>
-    <p>${FRAMEWORK.runtime.purpose}</p>
-    <div class="template-design">${FRAMEWORK.runtime.path}</div>
-  </div><div class="template-grid">`;
-  FRAMEWORK.seeds.forEach(seed => {
-    const color = CAT_COLORS[seed.category] || "#666";
-    html += `<div class="template-card">
-      <div class="template-header">
-        <span class="cat-badge" style="background:${color}">${seed.category}</span>
-        <strong>${seed.id}</strong>
-      </div>
-      <div class="template-meta">
-        <span>non-executable seed</span>
-      </div>
-      <div class="template-design">${seed.focus}</div>
-    </div>`;
-  });
-  html += `</div>`;
-  el.innerHTML = html;
-}
-
-function renderAdapterList() {
-  const el = document.getElementById("adapter-list");
-  let html = `<div class="adapter-grid">`;
-  FRAMEWORK.adapters.forEach(a => {
-    html += `<div class="adapter-card">
-      <strong>${a.tool}</strong>
-      <p>${a.format}</p>
-      <span class="budget-badge">Budget: ${a.budget}</span>
-      <div class="adapter-design">Design: ${a.designSource}</div>
-    </div>`;
-  });
-  html += `</div>`;
-  el.innerHTML = html;
-}
-
-function renderDesignDocList() {
-  const el = document.getElementById("design-doc-list");
-  let html = `<table><thead><tr><th>Document</th><th>Lines</th><th>Purpose</th></tr></thead><tbody>`;
-  FRAMEWORK.designDocs.forEach(d => {
-    html += `<tr><td><strong>${d.file}</strong></td><td>${d.lines}</td><td>${d.purpose}</td></tr>`;
-  });
-  html += `</tbody></table>`;
-  el.innerHTML = html;
-}
-
-function renderTokenBudget() {
-  const el = document.getElementById("token-budget");
-  const tier1 = FRAMEWORK.entry.tokenEstimate;
-  const tier2 = FRAMEWORK.references.reduce((s, r) => s + r.tokenEstimate, 0);
-  const tier3 = FRAMEWORK.examples.reduce((s, e) => s + e.tokenEstimate, 0) + FRAMEWORK.knowledge.reduce((s, k) => s + k.tokenEstimate, 0);
-  const total = tier1 + tier2 + tier3;
-
-  el.innerHTML = `
-    <div class="budget-breakdown">
-      <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[1]}">T1</span> Entry: <strong>${tier1}</strong> tokens (always loaded)</div>
-      <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[2]}">T2</span> References: <strong>${tier2}</strong> tokens total (loaded per need)</div>
-      <div class="budget-row"><span class="tier-badge" style="background:${TIER_COLORS[3]}">T3</span> On-Demand: <strong>${tier3}</strong> tokens total (loaded when needed)</div>
-      <div class="budget-total">Total knowledge base: <strong>${total}</strong> tokens across ${1 + FRAMEWORK.references.length + FRAMEWORK.examples.length + FRAMEWORK.knowledge.length} files</div>
-    </div>
-    <div class="budget-bar">
-      <div style="width:${(tier1/total*100).toFixed(0)}%;background:${TIER_COLORS[1]}" title="Tier 1: ${tier1}">T1</div>
-      <div style="width:${(tier2/total*100).toFixed(0)}%;background:${TIER_COLORS[2]}" title="Tier 2: ${tier2}">T2</div>
-      <div style="width:${(tier3/total*100).toFixed(0)}%;background:${TIER_COLORS[3]}" title="Tier 3: ${tier3}">T3</div>
-    </div>`;
-}
-
-// ─── Tab navigation ────────────────────────────────────────────────
-function showTab(tabId) {
-  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  document.getElementById(tabId).classList.add("active");
-  document.querySelector(`[data-tab="${tabId}"]`).classList.add("active");
-
-  if (tabId === "tab-overview" && !document.querySelector("#framework-diagram .mermaid svg")) {
-    renderFrameworkOverview();
+  function reference(stem) {
+    return Object.freeze({
+      stem: stem,
+      path: 'workflow-system/agent/references/' + stem + '.md'
+    });
   }
-}
 
-function syncPageCopy() {
-  const seedTab = document.querySelector('[data-tab="tab-templates"]');
-  const seedPanel = document.getElementById("tab-templates");
-  const skillPanel = document.getElementById("tab-skills");
-  const designPanel = document.getElementById("tab-design");
+  var referenceInventory = Object.freeze([
+    reference("agent-hierarchy"),
+    reference("agent-workspace"),
+    reference("artifact-quality"),
+    reference("behavioral-guidelines"),
+    reference("codegraph"),
+    reference("compression-pipeline"),
+    reference("context-isolation"),
+    reference("decomposition-gate"),
+    reference("degraded-mode"),
+    reference("domain-awareness"),
+    reference("env-flags"),
+    reference("evaluator-rosetta"),
+    reference("execution-protocol"),
+    reference("grill-mode"),
+    reference("host-bridges"),
+    reference("human-surface"),
+    reference("impeccable"),
+    reference("message-schemas"),
+    reference("meta-framework"),
+    reference("plan-mode-enforcement"),
+    reference("repo-modes"),
+    reference("shell-proxy"),
+    reference("subagent-patterns"),
+    reference("task-quality-score"),
+    reference("team-roles"),
+    reference("troubleshooting")
+  ]);
 
-  seedTab.textContent = "Checklist Seeds + Runtime";
-  seedPanel.querySelector("h2").textContent = "23 Non-Executable Seeds + One Runtime";
-  seedPanel.querySelector("p").textContent =
-    "Seeds retain decomposition knowledge and provenance only. change-driven is the sole executable checklist-round runtime.";
-  skillPanel.querySelector("p").textContent =
-    "Tier 1 is always loaded; the exact 25-reference Tier 2 catalog loads per need; Tier 3 knowledge and examples load on demand.";
-  designPanel.querySelector("h2").textContent = "Design Documents (Historical Sources)";
-  designPanel.querySelector("p").textContent =
-    "Historical research remains traceable here; current behavior is defined by the agent contracts and registry-v3 runtime surfaces.";
-}
+  var knowledgeInventory = Object.freeze([
+    { path: "workflow-system/agent/knowledge/index.md" },
+    { path: "workflow-system/agent/knowledge/interview-protocol.md" },
+    { path: "workflow-system/agent/knowledge/code-rules-mapping.md" },
+    { path: "workflow-system/agent/knowledge/principle-mapping.md" },
+    { path: "workflow-system/agent/knowledge/reference-dependencies.yaml" },
+    { path: "workflow-system/agent/knowledge/runtime-plugins.yaml" }
+  ]);
 
-document.addEventListener("DOMContentLoaded", () => {
-  syncPageCopy();
-  renderSkillFileList();
-  renderTemplateList();
-  renderAdapterList();
-  renderDesignDocList();
-  renderTokenBudget();
-  renderFrameworkOverview();
-});
+  var translations = {
+    en: {
+      'arch.hero.eyebrow': 'Current architecture companion',
+      'arch.hero.source': 'Source',
+      'arch.hero.title': 'to runtime',
+      'arch.hero.lede': 'A vertical map of what people author, what tooling compiles or distributes, what agents exchange, what the runtime controls, and what evidence returns.',
+      'arch.hero.guardrail': 'Read downward as a flow of authority. Generated surfaces point back to editable sources; they do not become new sources.',
+      'arch.fact.seeds': 'Checklist seeds',
+      'arch.fact.runtime': 'Executable runtime',
+      'arch.fact.layers': 'Agent layers',
+      'arch.fact.references': 'Domain references',
+      'arch.fact.budgets': 'Context budgets',
+      'arch.link.system': 'System',
+      'arch.link.seeds': 'Seed library ↗',
+      'arch.link.harness': 'Harness',
+      'arch.link.skill': 'Read SKILL ↗',
+      'arch.link.design': 'Design system',
+      'arch.link.visualizer': 'Workflow visualizer',
+      'arch.companions.label': 'System companions',
+      'arch.flow.title': 'The current source → contract → runtime → evidence flow',
+      'arch.flow.desc': 'The map groups responsibilities instead of listing every file. Each band names the authoritative input and the boundary it feeds.',
+      'arch.flow.authoring.kicker': 'Editable source',
+      'arch.flow.authoring.title': 'Authoring sources',
+      'arch.flow.authoring.body': 'SKILL defines operator-facing orchestration; the manifest owns the 26-reference install set; the registry owns 23 checklist seeds; context profiles own 5K / 5K / 8K layer budgets; schemas own message shapes; and .rules/*.mdc owns governance prose.',
+      'arch.inventory.summary': 'Browse 26 references + 6 knowledge files',
+      'arch.inventory.desc': 'This compact inventory is rendered from the same page data checked against the install manifest and the on-disk knowledge catalog.',
+      'arch.inventory.filterLabel': 'Filter source paths',
+      'arch.inventory.filterPlaceholder': 'Type a name or path',
+      'arch.inventory.references': 'Tier-2 references · 26',
+      'arch.inventory.knowledge': 'Tier-3 knowledge · 6',
+      'arch.inventory.status': 'Showing {shown} of {total} files',
+      'arch.flow.compiled.kicker': 'Generated and shipped',
+      'arch.flow.compiled.title': 'Compiled & distributed surfaces',
+      'arch.flow.compiled.body': 'The rule compiler renders .rules/ into AGENTS.md, the on-demand Cursor repo-governance surface, and the Style reference. The install manifest selects SKILL, 26 references, and examples for each host profile. These outputs are generated views, not editable rule sources.',
+      'arch.flow.contracts.kicker': 'Typed boundary',
+      'arch.flow.contracts.title': 'Contracts',
+      'arch.flow.contracts.body': 'Lean TaskDispatch carries goals, owned files, acceptance criteria, bounded gates, and optional change context downward. Lean StatusReport carries artifacts, item-keyed results, metrics, concerns, and self-check evidence upward. Paths, IDs, errors, and metrics remain verbatim.',
+      'arch.flow.contracts.down': 'Project → Wave → Task',
+      'arch.flow.contracts.up': 'Task → Wave → Project',
+      'arch.flow.runtime.kicker': 'Executable control',
+      'arch.flow.runtime.title': 'Runtime',
+      'arch.flow.runtime.body': 'TemplateRegistry.load_seed(name) turns one of 23 seeds into checklist decomposition knowledge. A seed’s source_stages field records provenance only: it does not schedule work. TemplateRegistry.load_template("change-driven") loads templates/builtin/change-driven.yaml, the sole executable lifecycle for signed preflight, bounded checklist rounds, evidence gates, and archive.',
+      'arch.runtime.propose': 'Propose',
+      'arch.runtime.preflight': 'Preflight',
+      'arch.runtime.round': 'Bounded round',
+      'arch.runtime.archive': 'Guarded archive',
+      'arch.flow.evidence.kicker': 'Measured return path',
+      'arch.flow.evidence.title': 'Evidence',
+      'arch.flow.harness.title': 'Harness',
+      'arch.flow.evidence.body': 'Dispatch telemetry records measured token use, budgets, constraint counts, quantifiable ratios, layer attribution, and round context in append-only JSONL. The built-in harness aggregates that ledger and deterministic repository signals into six W-3 dimensions, then emits READY, NOT_READY, or explicit INSUFFICIENT.',
+      'arch.flow.evidence.note': 'Tuning proposals remain immutable and hash-bound. Applying one requires a separate explicit approval artifact; evaluation alone never mutates runtime configuration.',
+      'arch.flow.human.kicker': 'Readable projection',
+      'arch.flow.human.title': 'Human output',
+      'arch.flow.human.body': 'People confirm goals, checklist assertions, preflight authorization, and proposal approvals. Human-facing digests, convergence reports, guides, and this demo project current contracts into reviewable output without becoming the runtime source of truth.',
+      'arch.layers.title': 'Select one runtime layer',
+      'arch.layers.desc': 'The selector has exactly three states. Each state shows the layer’s context budget, authority, evidence responsibility, and implementation boundary.',
+      'arch.layer.project': 'Project',
+      'arch.layer.wave': 'Wave',
+      'arch.layer.task': 'Task',
+      'arch.layer.receives': 'Receives',
+      'arch.layer.controls': 'Controls',
+      'arch.layer.boundary': 'Boundary',
+      'arch.layer.project.title': 'Owns the round decision',
+      'arch.layer.project.receives': 'User goal, checklist, preflight, round status, and bounded evidence summaries.',
+      'arch.layer.project.controls': 'Round selection, Wave partitioning, gates, reinforcement, checkpoints, archive, and human reporting.',
+      'arch.layer.project.boundary': 'Dispatches delegated work; never implements it or replaces item evidence with a score.',
+      'arch.layer.wave.title': 'Coordinates a bounded partition',
+      'arch.layer.wave.receives': 'A selected task list, dependency map, ownership map, and predecessor evidence summaries.',
+      'arch.layer.wave.controls': 'Conflict checks, pairwise-disjoint Task dispatch, and item-level evidence aggregation.',
+      'arch.layer.wave.boundary': 'May dispatch no more than five Tasks; never edits Task output or marks checklist items complete.',
+      'arch.layer.task.title': 'Implements one atomic assignment',
+      'arch.layer.task.receives': 'One TaskDispatch, owned and read-only paths, relevant contracts, rules, and bounded predecessor facts.',
+      'arch.layer.task.controls': 'Owned-file changes, bounded self-verification, and a lean evidence-bearing StatusReport.',
+      'arch.layer.task.boundary': 'Only implementation layer; never spawns agents, self-scores, or writes outside ownership.',
+      'arch.truths.title': 'Three distinctions that prevent drift',
+      'arch.truths.desc': 'The architecture stays understandable when knowledge, executable control, and generated projection remain separate.',
+      'arch.truth.seed.title': 'Seed ≠ runtime',
+      'arch.truth.seed.body': 'A seed contributes checklist decomposition knowledge. source_stages preserves where that knowledge came from; only change-driven executes the lifecycle.',
+      'arch.truth.rule.title': 'Compiled ≠ authored',
+      'arch.truth.rule.body': 'Governance edits begin in .rules/*.mdc. AGENTS.md, repo-governance.mdc, and STYLE-RULES.md are compiler outputs protected by drift checks.',
+      'arch.truth.evidence.title': 'Evidence ≠ verdict shortcut',
+      'arch.truth.evidence.body': 'Item-level checks and artifacts decide round completion. Harness dimensions and a composite support release readiness; unavailable inputs stay INSUFFICIENT.',
+      'arch.aria.facts': 'Current architecture facts',
+      'arch.aria.heroLinks': 'Architecture links',
+      'arch.aria.companions': 'System companions',
+      'arch.aria.authoringPaths': 'Authoring source paths',
+      'arch.aria.contractRoute': 'Contract direction',
+      'arch.aria.runtimeRail': 'Runtime lifecycle',
+      'arch.aria.layerSelection': 'Runtime layer selection',
+      'arch.aria.footerLinks': 'Architecture destinations'
+    },
+    zh: {
+      'arch.hero.eyebrow': '当前架构配套视图',
+      'arch.hero.source': '从源头',
+      'arch.hero.title': '到运行时',
+      'arch.hero.lede': '一张垂直地图：人编写什么，工具编译或分发什么，代理交换什么，运行时控制什么，以及证据如何返回。',
+      'arch.hero.guardrail': '请自上而下阅读权威流。生成面指回可编辑源，但不会成为新的事实源。',
+      'arch.fact.seeds': '清单种子',
+      'arch.fact.runtime': '可执行运行时',
+      'arch.fact.layers': '代理层级',
+      'arch.fact.references': '领域参考',
+      'arch.fact.budgets': '上下文预算',
+      'arch.link.system': '系统',
+      'arch.link.seeds': '种子库 ↗',
+      'arch.link.harness': '评估体系',
+      'arch.link.skill': '阅读 SKILL ↗',
+      'arch.link.design': '设计体系',
+      'arch.link.visualizer': '工作流可视化',
+      'arch.companions.label': '系统配套页面',
+      'arch.flow.title': '当前的源头 → 契约 → 运行时 → 证据流',
+      'arch.flow.desc': '本图按职责分组，而不是穷举文件。每一层都标出权威输入及其流向的边界。',
+      'arch.flow.authoring.kicker': '可编辑源',
+      'arch.flow.authoring.title': '编写源',
+      'arch.flow.authoring.body': 'SKILL 定义面向操作者的编排；manifest 拥有 26 个参考文件的安装集合；registry 拥有 23 个清单种子；context profiles 拥有 5K / 5K / 8K 分层预算；schemas 拥有消息形状；.rules/*.mdc 拥有治理规则正文。',
+      'arch.inventory.summary': '浏览 26 个参考 + 6 个知识文件',
+      'arch.inventory.desc': '这个紧凑清单由页面中的同一份数据渲染，并与安装 manifest 和磁盘上的知识目录进行一致性检查。',
+      'arch.inventory.filterLabel': '筛选源路径',
+      'arch.inventory.filterPlaceholder': '输入名称或路径',
+      'arch.inventory.references': '二级参考 · 26',
+      'arch.inventory.knowledge': '三级知识 · 6',
+      'arch.inventory.status': '正在显示 {shown}/{total} 个文件',
+      'arch.flow.compiled.kicker': '生成与分发',
+      'arch.flow.compiled.title': '编译与分发表面',
+      'arch.flow.compiled.body': '规则编译器把 .rules/ 渲染为 AGENTS.md、按需加载的 Cursor repo-governance 表面和 Style 参考文档。安装 manifest 为各宿主选择 SKILL、26 个参考与示例。这些输出是生成视图，不是可编辑的规则源。',
+      'arch.flow.contracts.kicker': '类型化边界',
+      'arch.flow.contracts.title': '契约',
+      'arch.flow.contracts.body': '精简 TaskDispatch 向下携带目标、文件所有权、验收标准、有边界的门控和可选变更上下文；精简 StatusReport 向上携带制品、逐项结果、指标、关注点和自检证据。路径、ID、错误与指标保持原文。',
+      'arch.flow.contracts.down': 'Project → Wave → Task',
+      'arch.flow.contracts.up': 'Task → Wave → Project',
+      'arch.flow.runtime.kicker': '可执行控制',
+      'arch.flow.runtime.title': '运行时',
+      'arch.flow.runtime.body': 'TemplateRegistry.load_seed(name) 把 23 个种子之一转成清单分解知识。种子的 source_stages 字段只记录来源，不安排工作。TemplateRegistry.load_template("change-driven") 加载 templates/builtin/change-driven.yaml；它是唯一可执行生命周期，负责签署预检、有边界清单轮次、证据门控与归档。',
+      'arch.runtime.propose': '提出变更',
+      'arch.runtime.preflight': '预检',
+      'arch.runtime.round': '有边界轮次',
+      'arch.runtime.archive': '受保护归档',
+      'arch.flow.evidence.kicker': '可测量返回路径',
+      'arch.flow.evidence.title': '证据',
+      'arch.flow.harness.title': '评估体系',
+      'arch.flow.evidence.body': '派发遥测在只追加 JSONL 中记录实测令牌、预算、约束数量、可量化比率、层级归属与轮次上下文。内置评估体系汇总台账和确定性的仓库信号，形成六个 W-3 维度，再输出 READY、NOT_READY 或明确的 INSUFFICIENT。',
+      'arch.flow.evidence.note': '调优提案保持不可变并由哈希绑定。应用提案需要独立、明确的批准制品；评估本身绝不会修改运行时配置。',
+      'arch.flow.human.kicker': '可读投影',
+      'arch.flow.human.title': '面向人的输出',
+      'arch.flow.human.body': '人确认目标、清单断言、预检授权和提案批准。面向人的摘要、收敛报告、指南和本演示把当前契约投影为可评审输出，但不会成为运行时事实源。',
+      'arch.layers.title': '选择一个运行时层级',
+      'arch.layers.desc': '选择器严格只有三个状态。每个状态展示该层的上下文预算、权限、证据责任与实现边界。',
+      'arch.layer.project': '项目层',
+      'arch.layer.wave': '波次层',
+      'arch.layer.task': '任务层',
+      'arch.layer.receives': '接收',
+      'arch.layer.controls': '控制',
+      'arch.layer.boundary': '边界',
+      'arch.layer.project.title': '拥有轮次决策权',
+      'arch.layer.project.receives': '用户目标、清单、预检、轮次状态与有边界的证据摘要。',
+      'arch.layer.project.controls': '轮次选择、Wave 分区、门控、强化、检查点、归档与面向人的汇报。',
+      'arch.layer.project.boundary': '派发已委派工作；绝不亲自实现，也不以分数替代逐项证据。',
+      'arch.layer.wave.title': '协调一个有边界的分区',
+      'arch.layer.wave.receives': '选定任务列表、依赖图、所有权图与前置证据摘要。',
+      'arch.layer.wave.controls': '冲突检查、写入范围互斥的 Task 派发，以及清单项级证据汇总。',
+      'arch.layer.wave.boundary': '最多派发五个 Task；绝不编辑 Task 输出，也不直接勾选清单项。',
+      'arch.layer.task.title': '实现一个原子任务',
+      'arch.layer.task.receives': '一份 TaskDispatch、可写与只读路径、相关契约、规则和有边界的前置事实。',
+      'arch.layer.task.controls': '授权文件变更、有边界的自检，以及携带证据的精简 StatusReport。',
+      'arch.layer.task.boundary': '唯一实现层；绝不派生代理、自行评分或越过文件所有权。',
+      'arch.truths.title': '防止漂移的三个区分',
+      'arch.truths.desc': '只有把知识、可执行控制与生成投影分开，架构才始终易懂。',
+      'arch.truth.seed.title': '种子 ≠ 运行时',
+      'arch.truth.seed.body': '种子贡献清单分解知识。source_stages 保留知识来源；只有 change-driven 执行生命周期。',
+      'arch.truth.rule.title': '编译 ≠ 编写',
+      'arch.truth.rule.body': '治理修改始于 .rules/*.mdc。AGENTS.md、repo-governance.mdc 与 STYLE-RULES.md 是受漂移检查保护的编译输出。',
+      'arch.truth.evidence.title': '证据 ≠ 判定捷径',
+      'arch.truth.evidence.body': '清单项级检查与制品决定轮次完成。评估维度与综合值支持发布就绪判断；输入缺失时保持 INSUFFICIENT。',
+      'arch.aria.facts': '当前架构事实',
+      'arch.aria.heroLinks': '架构链接',
+      'arch.aria.companions': '系统配套页面',
+      'arch.aria.authoringPaths': '编写源路径',
+      'arch.aria.contractRoute': '契约方向',
+      'arch.aria.runtimeRail': '运行时生命周期',
+      'arch.aria.layerSelection': '运行时层级选择',
+      'arch.aria.footerLinks': '架构目的地'
+    }
+  };
+
+  var layerOrder = ['project', 'wave', 'task'];
+
+  function translate(key) {
+    return typeof window.t === 'function' ? window.t(key) : key;
+  }
+
+  function registerTranslations() {
+    if (typeof window.addTranslations !== 'function') {
+      console.error('DevolaFlow Design Architecture could not register translations.');
+      return;
+    }
+    window.addTranslations('en', translations.en);
+    window.addTranslations('zh', translations.zh);
+  }
+
+  function applyAriaTranslations() {
+    document.querySelectorAll('[data-arch-aria]').forEach(function (element) {
+      element.setAttribute('aria-label', translate(element.dataset.archAria));
+    });
+  }
+
+  function renderInventoryList(container, entries, query) {
+    var shown = 0;
+    container.replaceChildren();
+
+    entries.forEach(function (entry) {
+      if (query && entry.path.toLowerCase().indexOf(query) === -1) {
+        return;
+      }
+      var item = document.createElement('li');
+      var path = document.createElement('code');
+      path.textContent = entry.path;
+      item.appendChild(path);
+      container.appendChild(item);
+      shown += 1;
+    });
+
+    return shown;
+  }
+
+  function renderInventory() {
+    var filter = document.getElementById('architecture-inventory-filter');
+    var references = document.getElementById('reference-inventory');
+    var knowledge = document.getElementById('knowledge-inventory');
+    var status = document.getElementById('architecture-inventory-status');
+    if (!filter || !references || !knowledge || !status) {
+      console.error('DevolaFlow Design Architecture inventory controls are incomplete.');
+      return;
+    }
+
+    var query = filter.value.trim().toLowerCase();
+    var shown = renderInventoryList(references, referenceInventory, query);
+    shown += renderInventoryList(knowledge, knowledgeInventory, query);
+    status.textContent = translate('arch.inventory.status')
+      .replace('{shown}', String(shown))
+      .replace('{total}', String(referenceInventory.length + knowledgeInventory.length));
+  }
+
+  function initInventory() {
+    var filter = document.getElementById('architecture-inventory-filter');
+    if (!filter) {
+      console.error('DevolaFlow Design Architecture inventory filter is unavailable.');
+      return;
+    }
+    filter.addEventListener('input', renderInventory);
+    renderInventory();
+  }
+
+  function selectLayer(layer) {
+    if (layerOrder.indexOf(layer) === -1) {
+      console.error('Unknown Design Architecture layer selection:', layer);
+      return;
+    }
+
+    document.querySelectorAll('[data-layer-select]').forEach(function (button) {
+      var selected = button.dataset.layerSelect === layer;
+      button.classList.toggle('is-active', selected);
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('[data-layer-panel]').forEach(function (panel) {
+      var selected = panel.dataset.layerPanel === layer;
+      panel.classList.toggle('is-active', selected);
+      panel.hidden = !selected;
+    });
+  }
+
+  function initLayerSelector() {
+    var buttons = Array.from(document.querySelectorAll('[data-layer-select]'));
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        selectLayer(button.dataset.layerSelect);
+      });
+
+      button.addEventListener('keydown', function (event) {
+        var currentIndex = layerOrder.indexOf(button.dataset.layerSelect);
+        var nextIndex = currentIndex;
+
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+          nextIndex = (currentIndex + 1) % layerOrder.length;
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+          nextIndex = (currentIndex - 1 + layerOrder.length) % layerOrder.length;
+        } else if (event.key === 'Home') {
+          nextIndex = 0;
+        } else if (event.key === 'End') {
+          nextIndex = layerOrder.length - 1;
+        } else {
+          return;
+        }
+
+        event.preventDefault();
+        selectLayer(layerOrder[nextIndex]);
+        buttons[nextIndex].focus();
+      });
+    });
+
+    selectLayer(layerOrder[0]);
+  }
+
+  function init() {
+    registerTranslations();
+    document.documentElement.dataset.skillSourceLines = String(sourceFacts.skill.lines);
+    applyAriaTranslations();
+    initInventory();
+    initLayerSelector();
+
+    document.addEventListener('devolaflow:languagechange', function () {
+      applyAriaTranslations();
+      renderInventory();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

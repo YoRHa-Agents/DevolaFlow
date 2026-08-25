@@ -1,707 +1,626 @@
 /**
- * DevolaFlow — Version Timeline page
+ * DevolaFlow release archive.
  *
- * Responsibilities:
- *   1. Register 22 spec-required i18n keys + page-supporting keys (EN + ZH)
- *      so every visible string survives the EN/ZH toggle.
- *   2. Fetch versions.json (try/catch — logs to console.error AND renders a
- *      visible error state per spec rule 12 / Rule "No Silent Failures").
- *   3. Render one TimelineCard per version into its era's .tl-rail.
- *   4. Wire era-filter chips (URL hash #vt-era-platforms deep-links to that
- *      filtered view on first load — AC-VT-5).
- *   5. Wire compact / detailed view toggle, persisted in localStorage under
- *      key "devolaflow-timeline-view" (AC-VT-6).
- *   6. Wire per-card expand / collapse (AC-VT-4).
- *   7. Era reveal cascade via IntersectionObserver — vt-flow-down keyframe is
- *      defined in styles.css and respects the global prefers-reduced-motion
- *      rule (shared/styles.css line 339; spec rule 10).
- *
- * No absolute paths anywhere (Rule SF-5 / CO-4).
+ * versions.json remains the release-data source of truth. Era controls and
+ * rails are derived from that data so a new era never requires new markup.
  */
 (function () {
   'use strict';
 
-  /* ==================================================================
-     i18n — 22 SPEC-REQUIRED page keys + supporting keys.
-     Registered for BOTH en and zh so the ZH toggle never falls back to a
-     key-shaped string.  shared/i18n.js init() runs on DOMContentLoaded;
-     this script tag loads synchronously after shared/i18n.js but BEFORE
-     DOMContentLoaded fires, so every key is registered before setLanguage.
-     ================================================================== */
+  var VIEW_KEY = 'devolaflow-timeline-view';
+  var CURRENT_MAJOR = 16;
+  var RETIRED_TERMS = [
+    { label: 'EvoBench', pattern: /\bEvoBench\b/i },
+    { label: 'NineS', pattern: /\bNineS\b/i },
+    { label: 'L3', pattern: /\bL3\b/i },
+    { label: 'Stage-DAG', pattern: /\b(?:fixed\s+)?Stage[- ]DAG\b/i }
+  ];
+  var ERA_LABELS_ZH = {
+    'foundations': '奠基',
+    'evobench': 'EvoBench 与加固（历史）',
+    'self-improve': '自我改进闭环',
+    'platforms': '平台与收口',
+    'rollup': '总集与稳定',
+    'compression': '分阶段上下文压缩',
+    'agent-workspace-trilogy': 'Agent 工作区三部曲',
+    'rule-rebalancing': '规则再平衡',
+    'performance-overhaul': '性能重构',
+    'self-improvement': '自我改进',
+    'major-rollup': '大版本总集',
+    'human-voice': '人类表达',
+    'plugin-review': '插件评审',
+    'developer-experience': '开发者体验',
+    'cascade-restoration': '级联恢复',
+    'article-synthesis': '文章综合',
+    'polish-cycle': '打磨周期',
+    'design-cycle': '设计周期',
+    'human-surface': '人类界面',
+    'init-reliability': '初始化可靠性',
+    'checklist-harness': '清单与内置评估'
+  };
+
+  var EN = {
+    'vt.eyebrow': 'Sole release archive',
+    'vt.subtitle': 'Every recorded DevolaFlow release, with current behavior separated from retired history.',
+    'vt.jump.current': 'Current releases',
+    'vt.jump.history': 'Historical archive',
+    'vt.boundary.eyebrow': 'Behavior boundary',
+    'vt.boundary.title': 'Current contract vs Historical record',
+    'vt.current': 'Current',
+    'vt.current.title': 'Checklist rounds + built-in harness',
+    'vt.current.body': 'v16.0.0 onward: Project → Wave → Task, one change-driven runtime, checklist evidence, and the built-in harness.',
+    'vt.historical': 'Historical',
+    'vt.historical.title': 'Retired systems stay archived',
+    'vt.historical.body': 'Pre-v16 EvoBench, NineS, L3, and fixed Stage-DAG references are historical release evidence, not current behavior.',
+    'vt.controls.eyebrow': 'Archive controls',
+    'vt.controls.title': 'Find a release',
+    'vt.search.label': 'Search releases',
+    'vt.search.placeholder': 'Version, headline, highlight, or metric',
+    'vt.scope.aria': 'Release status filter',
+    'vt.scope.all': 'All releases',
+    'vt.scope.current': 'Current',
+    'vt.scope.historical': 'Historical',
+    'vt.view.aria': 'Timeline density',
+    'vt.view.detailed': 'Detailed',
+    'vt.view.compact': 'Compact',
+    'vt.era.aria': 'Era filter',
+    'vt.era.all': 'All eras',
+    'vt.loading': 'Loading the release archive…',
+    'vt.status': 'Showing {visible} of {total} releases.',
+    'vt.error.title': 'The release archive could not be loaded',
+    'vt.error.body': 'Check the console for the explicit fetch or data-validation error.',
+    'vt.current.archive': 'Checklist + harness era',
+    'vt.current.archive.body': 'Releases on the active three-layer, checklist-anchored product model.',
+    'vt.historical.archive': 'Retired-system archive',
+    'vt.historical.archive.body': 'Release text is preserved as evidence. EvoBench, NineS, L3, and Stage-DAG language below is retired history.',
+    'vt.release.current': 'Current behavior',
+    'vt.release.historical': 'Historical release',
+    'vt.release.retired': 'Historical/retired terminology in this record: {terms}. These labels do not describe current behavior.',
+    'vt.card.expand': 'Show details',
+    'vt.card.collapse': 'Hide details',
+    'vt.card.highlights': 'Release highlights',
+    'vt.card.metrics': 'Recorded metrics',
+    'vt.card.links': 'Related pages',
+    'vt.era.count': '{count} releases · {range}',
+    'vt.section.empty': 'No matching releases in this part of the archive.',
+    'vt.empty.title': 'No releases match',
+    'vt.empty.body': 'Clear the search or choose a different era or status.',
+    'vt.empty.reset': 'Reset filters',
+    'vt.cta.eyebrow': 'Continue exploring',
+    'vt.cta.title': 'Current system companions',
+    'vt.cta.design': 'Design system',
+    'vt.cta.system': 'System / framework chain',
+    'vt.cta.io': 'I/O / context flow',
+    'vt.cta.skill': 'Read SKILL ↗',
+    'vt.cta.changelog': 'Source CHANGELOG ↗'
+  };
+
+  var ZH = {
+    'vt.eyebrow': '唯一发布档案',
+    'vt.subtitle': '收录 DevolaFlow 的每个已记录版本，并将当前行为与已退役历史清晰分开。',
+    'vt.jump.current': '当前版本',
+    'vt.jump.history': '历史档案',
+    'vt.boundary.eyebrow': '行为边界',
+    'vt.boundary.title': '当前契约与历史记录',
+    'vt.current': '当前',
+    'vt.current.title': '清单轮次 + 内置评估体系',
+    'vt.current.body': '从 v16.0.0 起：Project → Wave → Task、唯一 change-driven 运行时、清单证据与内置评估体系。',
+    'vt.historical': '历史',
+    'vt.historical.title': '已退役系统保留在档案中',
+    'vt.historical.body': 'v16 之前的 EvoBench、NineS、L3 与固定 Stage-DAG 仅是历史发布证据，不代表当前行为。',
+    'vt.controls.eyebrow': '档案控制',
+    'vt.controls.title': '查找版本',
+    'vt.search.label': '搜索版本',
+    'vt.search.placeholder': '版本、标题、亮点或指标',
+    'vt.scope.aria': '版本状态筛选',
+    'vt.scope.all': '全部版本',
+    'vt.scope.current': '当前',
+    'vt.scope.historical': '历史',
+    'vt.view.aria': '时间线密度',
+    'vt.view.detailed': '详细',
+    'vt.view.compact': '紧凑',
+    'vt.era.aria': '时代筛选',
+    'vt.era.all': '全部时代',
+    'vt.loading': '正在加载发布档案…',
+    'vt.status': '显示 {visible} / {total} 个版本。',
+    'vt.error.title': '无法加载发布档案',
+    'vt.error.body': '请在控制台查看明确的网络或数据校验错误。',
+    'vt.current.archive': '清单与内置评估时代',
+    'vt.current.archive.body': '采用当前三层、清单锚定产品模型的版本。',
+    'vt.historical.archive': '已退役系统档案',
+    'vt.historical.archive.body': '发布文本作为证据原样保留；下方 EvoBench、NineS、L3 与 Stage-DAG 均为已退役历史。',
+    'vt.release.current': '当前行为',
+    'vt.release.historical': '历史版本',
+    'vt.release.retired': '本记录中的历史/已退役术语：{terms}。这些标签不描述当前行为。',
+    'vt.card.expand': '显示详情',
+    'vt.card.collapse': '收起详情',
+    'vt.card.highlights': '版本亮点',
+    'vt.card.metrics': '已记录指标',
+    'vt.card.links': '相关页面',
+    'vt.era.count': '{count} 个版本 · {range}',
+    'vt.section.empty': '档案的这一部分没有匹配版本。',
+    'vt.empty.title': '没有匹配版本',
+    'vt.empty.body': '请清除搜索，或选择其他时代或状态。',
+    'vt.empty.reset': '重置筛选',
+    'vt.cta.eyebrow': '继续探索',
+    'vt.cta.title': '当前系统配套页面',
+    'vt.cta.design': '设计体系',
+    'vt.cta.system': '系统 / 框架链路',
+    'vt.cta.io': '输入输出 / 上下文流',
+    'vt.cta.skill': '阅读 SKILL ↗',
+    'vt.cta.changelog': '查看源 CHANGELOG ↗'
+  };
+
+  var state = {
+    all: [],
+    loaded: false,
+    scope: 'all',
+    era: 'all',
+    query: '',
+    view: readStoredView(),
+    expandedVersion: null
+  };
 
   if (typeof window.addTranslations !== 'function') {
-    /* shared/i18n.js failed to load — surface the error explicitly
-       rather than silently falling back to default text. */
-    console.error('[version-timeline] addTranslations unavailable; shared/i18n.js missing');
+    console.error('[version-timeline] shared i18n failed to load');
     return;
   }
-
-  /* ----- 22 SPEC-REQUIRED page-specific keys (EN) ----- */
-  var EN_REQUIRED = {
-    'vt.subtitle':              'From v0.1.0 to v7.1.0 — six eras of guarded change.',
-    'vt.era.foundations':       'Foundations',
-    'vt.era.evobench':          'EvoBench & Hardening',
-    'vt.era.selfImprove':       'Self-Improvement Loops',
-    'vt.era.platforms':         'Platforms & Closure',
-    'vt.era.compression':       'Staged Context Compression',
-    'vt.era.rollup':            'Rollup & Stabilization',
-    'vt.era.foundations.desc':  'v0.1.0 – v2.2.0: scaffolding, the first 11 templates, +93% information density.',
-    'vt.era.evobench.desc':     'v3.0.0 – v3.9.x: EvoBench, repository rules, full workflow coverage, P1 enforced.',
-    'vt.era.selfImprove.desc':  'v4.0.0 – v5.4.2: model routing, plugin registry, NineS, reinforcement infrastructure.',
-    'vt.era.platforms.desc':    'v6.0.0 – v6.1.5: 11 platforms, dead-wire closure, schema parity, plan-mode runtime.',
-    'vt.era.compression.desc':  'v7.0.0 → v7.1.0 — cache-layout invariant, tool-output truncation, hierarchical summariser, persistence probe, learnings v2.',
-    'vt.era.rollup.desc':       'v6.2.0 – v7.1.0: SI-3 9.47/10, 1100 tests, NineS 0.8805 stable, cycle closure.',
-    'vt.filter.all':            'All eras',
-    'vt.toggle.compact':        'Compact',
-    'vt.toggle.detailed':       'Detailed',
-    'vt.card.expand':           'Expand',
-    'vt.card.collapse':         'Collapse',
-    'vt.metric.tests':          'Tests',
-    'vt.metric.coverage':       'Coverage',
-    'vt.metric.nines':          'NineS',
-    'vt.metric.composite':      'Composite',
-    'vt.cta.changelog':         'Read CHANGELOG',
-    'vt.cta.releases':          'GitHub Releases'
-  };
-
-  /* ----- 22 SPEC-REQUIRED page-specific keys (ZH) ----- */
-  var ZH_REQUIRED = {
-    'vt.subtitle':              '从 v0.1.0 到 v7.1.0——六个时代、有守护的演进。',
-    'vt.era.foundations':       '奠基',
-    'vt.era.evobench':          'EvoBench 与加固',
-    'vt.era.selfImprove':       '自我改进闭环',
-    'vt.era.platforms':         '平台扩展与收口',
-    'vt.era.compression':       '分阶段上下文压缩',
-    'vt.era.rollup':            '总集与稳定',
-    'vt.era.foundations.desc':  'v0.1.0 – v2.2.0：脚手架、最初的 11 个模板、信息密度 +93%。',
-    'vt.era.evobench.desc':     'v3.0.0 – v3.9.x：EvoBench、仓库规则、全工作流覆盖、P1 真正落地。',
-    'vt.era.selfImprove.desc':  'v4.0.0 – v5.4.2：模型路由、插件注册、NineS、强化基础设施。',
-    'vt.era.platforms.desc':    'v6.0.0 – v6.1.5：11 个平台、死线接通、schema 对齐、Plan-mode 运行时。',
-    'vt.era.compression.desc':  'v7.0.0 → v7.1.0：缓存布局不变量、工具输出截断、层级化摘要、持久化探针、操作学习 v2。',
-    'vt.era.rollup.desc':       'v6.2.0 – v7.1.0：SI-3 9.47/10、1100 测试、NineS 0.8805 稳定、周期收口。',
-    'vt.filter.all':            '全部时代',
-    'vt.toggle.compact':        '简洁',
-    'vt.toggle.detailed':       '详细',
-    'vt.card.expand':           '展开',
-    'vt.card.collapse':         '折叠',
-    'vt.metric.tests':          '测试',
-    'vt.metric.coverage':       '覆盖率',
-    'vt.metric.nines':          'NineS',
-    'vt.metric.composite':      '综合分',
-    'vt.cta.changelog':         '查看 CHANGELOG',
-    'vt.cta.releases':          'GitHub 发布'
-  };
-
-  /* ----- Supporting keys: page title, CTAs, status / error / empty
-     messages, highlights heading, link cluster heading. Not part of the
-     22 required, but referenced by data-i18n in the markup or by the
-     renderer below; registered so EN/ZH toggle leaves nothing untranslated. */
-  var EN_SUPPORTING = {
-    'page.versionTimeline':     'R&D Timeline — DevolaFlow',
-    'vt.cta.designSystem':      'Design System →',
-    'vt.cta.frameworkChain':    'Framework Chain →',
-    'vt.status.loading':        'Loading versions…',
-    'vt.status.loaded':         '{n} versions across 6 eras.',
-    'vt.status.filtered':       'Showing {n} versions in “{era}”.',
-    'vt.error.title':           'Could not load versions.json',
-    'vt.error.detail':          'Open the browser console for the underlying network or parse error.',
-    'vt.empty.era':             'No versions match the current filter in this era.',
-    'vt.detail.highlights':     'Highlights',
-    'vt.detail.metrics':        'Metrics',
-    'vt.detail.links':          'Cross-links'
-  };
-  var ZH_SUPPORTING = {
-    'page.versionTimeline':     '研发演进 — DevolaFlow',
-    'vt.cta.designSystem':      '设计体系 →',
-    'vt.cta.frameworkChain':    '框架链路 →',
-    'vt.status.loading':        '正在加载版本…',
-    'vt.status.loaded':         '共 {n} 个版本，覆盖 6 个时代。',
-    'vt.status.filtered':       '在「{era}」中显示 {n} 个版本。',
-    'vt.error.title':           '无法加载 versions.json',
-    'vt.error.detail':          '请打开浏览器控制台查看具体的网络或解析错误。',
-    'vt.empty.era':             '当前筛选条件下，本时代没有匹配版本。',
-    'vt.detail.highlights':     '亮点',
-    'vt.detail.metrics':        '指标',
-    'vt.detail.links':          '跨页跳转'
-  };
-
-  /* Register all keys BEFORE setLanguage runs. */
-  window.addTranslations('en', EN_REQUIRED);
-  window.addTranslations('en', EN_SUPPORTING);
-  window.addTranslations('zh', ZH_REQUIRED);
-  window.addTranslations('zh', ZH_SUPPORTING);
-
-  /* ==================================================================
-     Constants / DOM helpers
-     ================================================================== */
-
-  var VIEW_KEY = 'devolaflow-timeline-view';   /* localStorage key per spec rule 8 */
-  var VIEW_DETAILED = 'detailed';
-  var VIEW_COMPACT  = 'compact';
-  var ERAS = ['foundations', 'evobench', 'self-improve', 'platforms', 'compression', 'rollup'];
-
-  /* Map era enum -> i18n key for the era label */
-  var ERA_LABEL_KEY = {
-    'foundations':  'vt.era.foundations',
-    'evobench':     'vt.era.evobench',
-    'self-improve': 'vt.era.selfImprove',
-    'platforms':    'vt.era.platforms',
-    'compression':  'vt.era.compression',
-    'rollup':       'vt.era.rollup'
-  };
+  window.addTranslations('en', EN);
+  window.addTranslations('zh', ZH);
 
   function t(key) {
-    return (typeof window.t === 'function') ? window.t(key) : key;
+    return typeof window.t === 'function' ? window.t(key) : key;
   }
 
-  function format(template, params) {
-    /* Tiny `{key}` interpolator — keeps the page from pulling in a
-       templating dependency just to fill 2 status strings. */
-    return String(template).replace(/\{(\w+)\}/g, function (_, k) {
-      return params[k] !== undefined ? params[k] : '{' + k + '}';
+  function interpolate(template, values) {
+    return String(template).replace(/\{(\w+)\}/g, function (_, key) {
+      return values[key] === undefined ? '{' + key + '}' : values[key];
     });
   }
 
-  /* --- Dynamic status line: holds a re-renderable record so the EN/ZH
-     toggle can refresh formatted strings (otherwise shared/i18n.js setLanguage
-     would overwrite them with the literal `{n}` template). --------------- */
-  var _statusState = { kind: 'loading', params: {} };
-
-  function setStatus(kind, params) {
-    _statusState = { kind: kind, params: params || {} };
-    paintStatus();
-  }
-
-  function paintStatus() {
-    var el = document.getElementById('vt-status');
-    if (!el) { return; }
-    el.classList.remove('is-error');
-    if (_statusState.kind === 'loading') {
-      el.setAttribute('data-i18n', 'vt.status.loading');
-      el.textContent = t('vt.status.loading');
-    } else if (_statusState.kind === 'loaded') {
-      el.removeAttribute('data-i18n'); /* prevent setLanguage from clobbering */
-      el.textContent = format(t('vt.status.loaded'), _statusState.params);
-    } else if (_statusState.kind === 'filtered') {
-      el.removeAttribute('data-i18n');
-      el.textContent = format(t('vt.status.filtered'), _statusState.params);
-    } else if (_statusState.kind === 'error') {
-      el.classList.add('is-error');
-      el.setAttribute('data-i18n', 'vt.error.title');
-      el.textContent = t('vt.error.title');
+  function readStoredView() {
+    try {
+      var stored = window.localStorage.getItem(VIEW_KEY);
+      return stored === 'compact' ? 'compact' : 'detailed';
+    } catch (error) {
+      console.warn('[version-timeline] could not read view preference:', error);
+      return 'detailed';
     }
   }
 
-  /* Wrap the shared setLanguage so that, after it processes static
-     data-i18n nodes, our dynamic strings (status line, expand-button labels
-     when their parameters depend on state) are re-painted with the new
-     locale. The status line is the only string with template parameters;
-     other dynamic-i18n nodes (era badge, expand button) carry data-i18n
-     and are handled by setLanguage natively. */
-  if (typeof window.setLanguage === 'function' && !window.__vt_setLanguageWrapped) {
-    var _origSetLanguage = window.setLanguage;
-    window.setLanguage = function (lang) {
-      _origSetLanguage(lang);
-      paintStatus();
-    };
-    window.__vt_setLanguageWrapped = true;
-  }
-
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function ready(fn) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', fn);
-    } else {
-      fn();
+  function writeStoredView(view) {
+    try {
+      window.localStorage.setItem(VIEW_KEY, view);
+    } catch (error) {
+      console.warn('[version-timeline] could not save view preference:', error);
     }
   }
 
-  /* ==================================================================
-     Headline-metric selection for the MetricMicroBar
-     ================================================================== */
-
-  /**
-   * Decide which single metric becomes the card's headline bar.
-   * Priority: composite (0-100) > coverage_pct (0-100) > nines (0-1)
-   *          > tests (relative to known max 1009).
-   * Returns null when no metric is available — card omits the bar row.
-   */
-  function pickHeadlineMetric(metrics) {
-    if (!metrics || typeof metrics !== 'object') { return null; }
-    if (typeof metrics.composite === 'number') {
-      return {
-        labelKey: 'vt.metric.composite',
-        value: metrics.composite,
-        valueText: metrics.composite.toFixed(metrics.composite >= 100 ? 0 : 2),
-        pct: clamp(metrics.composite, 0, 100)
-      };
-    }
-    if (typeof metrics.coverage_pct === 'number') {
-      return {
-        labelKey: 'vt.metric.coverage',
-        value: metrics.coverage_pct,
-        valueText: metrics.coverage_pct.toFixed(2) + '%',
-        pct: clamp(metrics.coverage_pct, 0, 100)
-      };
-    }
-    if (typeof metrics.nines === 'number') {
-      var ninesPct = metrics.nines * 100;
-      return {
-        labelKey: 'vt.metric.nines',
-        value: metrics.nines,
-        valueText: metrics.nines.toFixed(4),
-        pct: clamp(ninesPct, 0, 100)
-      };
-    }
-    if (typeof metrics.tests === 'number') {
-      var TESTS_MAX = 1009; /* repo's current test count, verbatim from CHANGELOG v6.2.0 */
-      return {
-        labelKey: 'vt.metric.tests',
-        value: metrics.tests,
-        valueText: String(metrics.tests),
-        pct: clamp((metrics.tests / TESTS_MAX) * 100, 0, 100)
-      };
-    }
-    return null;
+  function versionParts(version) {
+    return String(version).replace(/^v/, '').split(/[.-]/).map(function (part) {
+      return /^\d+$/.test(part) ? Number(part) : part;
+    });
   }
 
-  function clamp(n, lo, hi) {
-    return Math.max(lo, Math.min(hi, n));
-  }
-
-  /* ==================================================================
-     Rendering — versions.json -> .tl-rail innerHTML per era
-     ================================================================== */
-
-  function renderTimeline(versions) {
-    /* Group versions by era for stable per-era ordering. We render each
-       era's rail in CHANGELOG order (which is reverse-chronological inside
-       versions.json) but reversed to be chronological top-to-bottom on the
-       page so the timeline reads as a journey. */
-    var grouped = {};
-    ERAS.forEach(function (era) { grouped[era] = []; });
-
-    versions.forEach(function (v) {
-      if (grouped[v.era] === undefined) {
-        console.warn('[version-timeline] unknown era for v%s: %s', v.version, v.era);
-        return;
+  function compareVersions(left, right) {
+    var a = versionParts(left);
+    var b = versionParts(right);
+    var length = Math.max(a.length, b.length);
+    for (var index = 0; index < length; index += 1) {
+      var av = a[index] === undefined ? 0 : a[index];
+      var bv = b[index] === undefined ? 0 : b[index];
+      if (typeof av !== typeof bv) {
+        av = String(av);
+        bv = String(bv);
       }
-      grouped[v.era].push(v);
-    });
-
-    /* Reverse so the oldest version in an era appears at the top of the
-       rail and the newest at the bottom — matches reader expectation. */
-    ERAS.forEach(function (era) {
-      grouped[era].sort(function (a, b) {
-        /* Date-then-version sort, ascending. */
-        if (a.date < b.date) { return -1; }
-        if (a.date > b.date) { return 1; }
-        return compareVersions(a.version, b.version);
-      });
-    });
-
-    ERAS.forEach(function (era) {
-      var rail = document.getElementById('vt-rail-' + era);
-      if (!rail) {
-        console.warn('[version-timeline] rail not found for era:', era);
-        return;
-      }
-      var html = grouped[era].map(function (v, idx) {
-        return renderCard(v, idx);
-      }).join('');
-      rail.innerHTML = html;
-    });
-
-    /* Status line: how many versions loaded total */
-    setStatus('loaded', { n: versions.length });
-  }
-
-  function compareVersions(a, b) {
-    /* Lightweight semver-ish compare so v5.1.0-pre sorts before v5.2.0. */
-    var pa = String(a).split(/[.\-+]/).map(function (p) { return /^\d+$/.test(p) ? parseInt(p, 10) : p; });
-    var pb = String(b).split(/[.\-+]/).map(function (p) { return /^\d+$/.test(p) ? parseInt(p, 10) : p; });
-    var len = Math.max(pa.length, pb.length);
-    for (var i = 0; i < len; i++) {
-      var x = pa[i] === undefined ? 0 : pa[i];
-      var y = pb[i] === undefined ? 0 : pb[i];
-      if (typeof x !== typeof y) {
-        x = String(x); y = String(y);
-      }
-      if (x < y) { return -1; }
-      if (x > y) { return 1; }
+      if (av < bv) { return -1; }
+      if (av > bv) { return 1; }
     }
     return 0;
   }
 
-  function renderCard(v, idx) {
-    var headline   = pickHeadlineMetric(v.metrics);
-    var eraLabel   = t(ERA_LABEL_KEY[v.era] || '');
-    var summary    = escapeHtml(v.summary || '');
-    var headlineH  = escapeHtml(v.headline || '');
-    var versionStr = escapeHtml(v.version || '');
-    var dateStr    = escapeHtml(v.date || '');
-
-    var metricRowHTML = '';
-    if (headline) {
-      metricRowHTML =
-        '<div class="tl-metric-row" aria-label="' + escapeHtml(t(headline.labelKey)) + '">' +
-          '<span class="tl-metric-label" data-i18n="' + headline.labelKey + '">' +
-            escapeHtml(t(headline.labelKey)) +
-          '</span>' +
-          '<span class="metric-micro" role="img" aria-label="' + escapeHtml(t(headline.labelKey)) + ' ' + escapeHtml(headline.valueText) + '">' +
-            '<i class="metric-micro-fill" style="--pct:' + headline.pct.toFixed(2) + '%"></i>' +
-          '</span>' +
-          '<span class="tl-metric-value">' + escapeHtml(headline.valueText) + '</span>' +
-        '</div>';
-    }
-
-    var inlineSummary =
-      '<span class="tl-summary-inline" title="' + escapeHtml(v.summary || '') + '">' +
-        summary +
-      '</span>';
-
-    var eraLabelKey = ERA_LABEL_KEY[v.era] || '';
-
-    var head =
-      '<div class="tl-card-head">' +
-        '<span class="tl-version">v' + versionStr + '</span>' +
-        '<time datetime="' + dateStr + '">' + dateStr + '</time>' +
-        inlineSummary +
-        '<span class="tl-era-badge"' +
-          (eraLabelKey ? ' data-i18n="' + eraLabelKey + '"' : '') +
-        '>' + escapeHtml(eraLabel) + '</span>' +
-        '<button type="button" class="tl-expand"' +
-          ' aria-expanded="false" aria-controls="tl-detail-' + versionStr + '"' +
-          ' data-i18n="vt.card.expand">' +
-          escapeHtml(t('vt.card.expand')) +
-        '</button>' +
-        '<h3 class="tl-headline">' + headlineH + '</h3>' +
-        '<p class="tl-summary">' + summary + '</p>' +
-        metricRowHTML +
-      '</div>';
-
-    var highlightsHTML = '';
-    if (Array.isArray(v.highlights) && v.highlights.length > 0) {
-      highlightsHTML =
-        '<h4 data-i18n="vt.detail.highlights">' + escapeHtml(t('vt.detail.highlights')) + '</h4>' +
-        '<ul class="tl-highlights">' +
-          v.highlights.map(function (h) { return '<li>' + escapeHtml(h) + '</li>'; }).join('') +
-        '</ul>';
-    }
-
-    var metricsGridHTML = renderMetricsGrid(v.metrics);
-
-    var linksHTML = '';
-    if (Array.isArray(v.links) && v.links.length > 0) {
-      linksHTML =
-        '<h4 data-i18n="vt.detail.links">' + escapeHtml(t('vt.detail.links')) + '</h4>' +
-        '<div class="tl-links">' +
-          v.links.map(function (l) {
-            var href  = escapeHtml(l.href || '#');
-            var label = escapeHtml(l.label || href);
-            return '<a class="tl-link" href="' + href + '">' + label + '</a>';
-          }).join('') +
-        '</div>';
-    }
-
-    var detail =
-      '<div class="tl-detail" id="tl-detail-' + versionStr + '" hidden>' +
-        highlightsHTML +
-        metricsGridHTML +
-        linksHTML +
-      '</div>';
-
-    return (
-      '<li class="tl-card" data-version="' + versionStr + '"' +
-        ' data-era="' + escapeHtml(v.era) + '"' +
-        ' style="--vt-stagger:' + idx + ';">' +
-        '<span class="tl-dot" aria-hidden="true"></span>' +
-        head +
-        detail +
-      '</li>'
-    );
+  function isCurrentRelease(release) {
+    var major = Number(versionParts(release.version)[0]);
+    return Number.isFinite(major) && major >= CURRENT_MAJOR;
   }
 
-  function renderMetricsGrid(metrics) {
-    if (!metrics || typeof metrics !== 'object') { return ''; }
-    var entries = Object.keys(metrics);
-    if (entries.length === 0) { return ''; }
-
-    var cells = entries.map(function (k) {
-      var raw = metrics[k];
-      var val = (typeof raw === 'number')
-        ? (Number.isInteger(raw) ? String(raw) : raw.toFixed(raw < 1 ? 4 : 2))
-        : String(raw);
-      return (
-        '<div class="tl-metric-cell">' +
-          '<span class="k">' + escapeHtml(k) + '</span>' +
-          '<span class="v">' + escapeHtml(val) + '</span>' +
-        '</div>'
-      );
-    }).join('');
-
-    return (
-      '<h4 data-i18n="vt.detail.metrics">' + escapeHtml(t('vt.detail.metrics')) + '</h4>' +
-      '<div class="tl-metrics-grid">' + cells + '</div>'
-    );
-  }
-
-  /* ==================================================================
-     Era filter — chips + URL hash deep-link
-     ================================================================== */
-
-  function applyEraFilter(era) {
-    var validEra = era === 'all' || ERAS.indexOf(era) !== -1;
-    if (!validEra) { era = 'all'; }
-
-    /* Chip pressed-state */
-    document.querySelectorAll('.vt-era-chip').forEach(function (chip) {
-      var match = (chip.getAttribute('data-era') === era);
-      chip.classList.toggle('is-active', match);
-      chip.setAttribute('aria-pressed', match ? 'true' : 'false');
-    });
-
-    /* Section visibility */
-    document.querySelectorAll('.vt-era').forEach(function (sec) {
-      var match = (era === 'all') || (sec.getAttribute('data-era') === era);
-      sec.classList.toggle('is-hidden', !match);
-    });
-
-    /* Status line update — only after data has actually been rendered, so
-       the pre-fetch hash filter pass doesn't flash "Showing 0 versions". */
-    var totalCards = document.querySelectorAll('.tl-card').length;
-    if (totalCards === 0) { return; }
-
-    if (era !== 'all') {
-      var visibleCards = document.querySelectorAll(
-        '.vt-era[data-era="' + era + '"] .tl-card'
-      ).length;
-      setStatus('filtered', { n: visibleCards, era: t(ERA_LABEL_KEY[era] || era) });
-    } else {
-      setStatus('loaded', { n: totalCards });
+  function validateVersions(payload) {
+    if (!Array.isArray(payload)) {
+      throw new Error('versions.json root must be an array');
     }
-  }
-
-  function wireEraFilter() {
-    document.querySelectorAll('.vt-era-chip').forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        var era = chip.getAttribute('data-era') || 'all';
-        applyEraFilter(era);
-        /* Reflect to URL hash so deep-linking works.
-           Use replaceState so the back button doesn't accumulate filter spam. */
-        var hash = (era === 'all') ? '' : '#vt-era-' + era;
-        if (hash) {
-          history.replaceState(null, '', hash);
-          /* Programmatic scroll to anchor (avoids jump if user is mid-page) */
-          var target = document.getElementById('vt-era-' + era);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        } else {
-          history.replaceState(null, '', window.location.pathname + window.location.search);
+    var required = ['version', 'date', 'era', 'headline', 'summary', 'highlights', 'metrics'];
+    payload.forEach(function (release, index) {
+      if (!release || typeof release !== 'object') {
+        throw new Error('versions.json entry ' + index + ' must be an object');
+      }
+      required.forEach(function (field) {
+        if (!Object.prototype.hasOwnProperty.call(release, field)) {
+          throw new Error('versions.json entry ' + index + ' is missing "' + field + '"');
         }
       });
+      if (!Array.isArray(release.highlights)) {
+        throw new Error('versions.json entry ' + index + ' has non-array highlights');
+      }
+      if (!release.metrics || typeof release.metrics !== 'object' || Array.isArray(release.metrics)) {
+        throw new Error('versions.json entry ' + index + ' has invalid metrics');
+      }
+    });
+    return payload.slice().sort(function (left, right) {
+      var versionOrder = compareVersions(right.version, left.version);
+      return versionOrder || String(right.date).localeCompare(String(left.date));
     });
   }
 
-  function readEraFromHash() {
-    var hash = window.location.hash || '';
-    var match = hash.match(/^#vt-era-([a-z\-]+)$/);
-    if (!match) { return null; }
-    var candidate = match[1];
-    return ERAS.indexOf(candidate) !== -1 ? candidate : null;
-  }
-
-  /* ==================================================================
-     View toggle (compact / detailed) — persisted to localStorage
-     ================================================================== */
-
-  function readView() {
-    try {
-      var stored = localStorage.getItem(VIEW_KEY);
-      if (stored === VIEW_COMPACT || stored === VIEW_DETAILED) { return stored; }
-    } catch (e) {
-      /* localStorage may be denied (private mode, sandbox, etc.) — fall
-         through to the default and keep the page functional. */
-      console.warn('[version-timeline] localStorage read failed:', e);
+  function eraLabel(era) {
+    var lang = document.documentElement.getAttribute('data-lang') || 'en';
+    if (lang === 'zh' && ERA_LABELS_ZH[era]) {
+      return ERA_LABELS_ZH[era];
     }
-    return VIEW_DETAILED;
-  }
-
-  function writeView(view) {
-    try {
-      localStorage.setItem(VIEW_KEY, view);
-    } catch (e) {
-      console.warn('[version-timeline] localStorage write failed:', e);
+    if (era === 'evobench') {
+      return 'EvoBench & Hardening (Historical)';
     }
+    return String(era)
+      .split('-')
+      .map(function (part) {
+        return part ? part.charAt(0).toUpperCase() + part.slice(1) : '';
+      })
+      .join(' ');
   }
 
-  function applyView(view) {
-    if (view !== VIEW_COMPACT && view !== VIEW_DETAILED) { view = VIEW_DETAILED; }
-    document.body.classList.toggle('is-compact', view === VIEW_COMPACT);
+  function searchableText(release) {
+    return [
+      release.version,
+      release.date,
+      release.era,
+      release.headline,
+      release.summary,
+      release.highlights.join(' '),
+      JSON.stringify(release.metrics)
+    ].join(' ').toLowerCase();
+  }
 
-    document.querySelectorAll('.vt-view-btn').forEach(function (btn) {
-      var match = (btn.getAttribute('data-view') === view);
-      btn.classList.toggle('is-active', match);
-      btn.setAttribute('aria-pressed', match ? 'true' : 'false');
+  function filteredReleases() {
+    return state.all.filter(function (release) {
+      var current = isCurrentRelease(release);
+      if (state.scope === 'current' && !current) { return false; }
+      if (state.scope === 'historical' && current) { return false; }
+      if (state.era !== 'all' && release.era !== state.era) { return false; }
+      return !state.query || searchableText(release).indexOf(state.query) !== -1;
     });
   }
 
-  function wireViewToggle() {
-    document.querySelectorAll('.vt-view-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var view = btn.getAttribute('data-view') || VIEW_DETAILED;
-        applyView(view);
-        writeView(view);
-      });
+  function retiredTerms(release) {
+    if (isCurrentRelease(release)) { return []; }
+    var text = JSON.stringify(release);
+    return RETIRED_TERMS.filter(function (term) {
+      return term.pattern.test(text);
+    }).map(function (term) {
+      return term.label;
     });
   }
 
-  /* ==================================================================
-     Per-card expand / collapse
-     ================================================================== */
+  function element(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (text !== undefined) { node.textContent = text; }
+    return node;
+  }
 
-  function wireCardExpand(rootEl) {
-    var buttons = (rootEl || document).querySelectorAll('.tl-expand');
-    buttons.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var card = btn.closest('.tl-card');
-        if (!card) { return; }
-        var expanded = card.classList.toggle('is-expanded');
-        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  function renderEraFilters() {
+    var host = document.getElementById('vt-era-filters');
+    if (!host) { return; }
+    host.replaceChildren();
 
-        var nextLabelKey = expanded ? 'vt.card.collapse' : 'vt.card.expand';
-        btn.setAttribute('data-i18n', nextLabelKey);
-        btn.textContent = t(nextLabelKey);
+    var eras = [];
+    state.all.forEach(function (release) {
+      if (eras.indexOf(release.era) === -1) { eras.push(release.era); }
+    });
 
-        var detail = card.querySelector('.tl-detail');
-        if (detail) {
-          if (expanded) { detail.removeAttribute('hidden'); }
-          else          { detail.setAttribute('hidden', ''); }
-        }
-      });
+    addEraButton(host, 'all', t('vt.era.all'));
+    eras.forEach(function (era) {
+      addEraButton(host, era, eraLabel(era));
     });
   }
 
-  /* ==================================================================
-     Era reveal cascade — IntersectionObserver triggers vt-flow-down on
-     each era's cards once when the era first scrolls into view.
-     `prefers-reduced-motion: reduce` is honoured automatically by the
-     global rule in shared/styles.css line 339 (animation-duration → 0.01ms).
-     ================================================================== */
+  function addEraButton(host, era, label) {
+    var button = element('button', 'vt-era-filter' + (state.era === era ? ' is-active' : ''), label);
+    button.type = 'button';
+    button.dataset.era = era;
+    button.setAttribute('aria-pressed', state.era === era ? 'true' : 'false');
+    button.addEventListener('click', function () {
+      state.era = era;
+      state.expandedVersion = null;
+      render();
+    });
+    host.appendChild(button);
+  }
 
-  function wireRevealCascade() {
-    if (typeof IntersectionObserver !== 'function') {
-      /* Older browsers: just reveal everything immediately. */
-      document.querySelectorAll('.tl-card').forEach(function (card) {
-        card.classList.add('is-revealed');
+  function groupByEra(releases) {
+    var groups = [];
+    releases.forEach(function (release) {
+      var group = groups.find(function (candidate) {
+        return candidate.era === release.era;
       });
+      if (!group) {
+        group = { era: release.era, releases: [] };
+        groups.push(group);
+      }
+      group.releases.push(release);
+    });
+    return groups;
+  }
+
+  function renderArchive(hostId, releases, historical) {
+    var host = document.getElementById(hostId);
+    if (!host) { return; }
+    host.replaceChildren();
+
+    if (!releases.length) {
+      host.appendChild(element('p', 'vt-section-empty', t('vt.section.empty')));
       return;
     }
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) { return; }
-        var era = entry.target;
-        era.querySelectorAll('.tl-card').forEach(function (card) {
-          card.classList.add('is-revealed');
-        });
-        observer.unobserve(era);
-      });
-    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
 
-    document.querySelectorAll('.vt-era').forEach(function (era) {
-      observer.observe(era);
+    groupByEra(releases).forEach(function (group) {
+      var section = element('section', 'vt-era-group');
+      section.dataset.era = group.era;
+
+      var header = element('div', 'vt-era-heading');
+      header.appendChild(element('h3', '', eraLabel(group.era)));
+      var newest = group.releases[0].version;
+      var oldest = group.releases[group.releases.length - 1].version;
+      header.appendChild(element(
+        'p',
+        '',
+        interpolate(t('vt.era.count'), {
+          count: group.releases.length,
+          range: 'v' + oldest + (oldest === newest ? '' : ' → v' + newest)
+        })
+      ));
+      section.appendChild(header);
+
+      var rail = element('ol', 'vt-rail');
+      group.releases.forEach(function (release) {
+        rail.appendChild(renderCard(release, historical));
+      });
+      section.appendChild(rail);
+      host.appendChild(section);
     });
   }
 
-  /* ==================================================================
-     Error state — visible to the user (per spec rule 12 / "No Silent
-     Failures").  Renders a card-shaped block above the eras and replaces
-     the status line with a localised error message.
-     ================================================================== */
+  function renderCard(release, historical) {
+    var expanded = state.expandedVersion === release.version;
+    var card = element('li', 'vt-card' + (expanded ? ' is-expanded' : ''));
+    card.dataset.version = release.version;
 
-  function renderErrorState(err) {
-    console.error('[version-timeline] failed to load versions.json:', err);
-    setStatus('error', {});
+    var meta = element('div', 'vt-card-meta');
+    meta.appendChild(element('span', 'vt-version', 'v' + release.version));
+    var time = element('time', '', release.date);
+    time.dateTime = release.date;
+    meta.appendChild(time);
+    meta.appendChild(element(
+      'span',
+      'vt-release-badge ' + (historical ? 'is-historical' : 'is-current'),
+      historical ? t('vt.release.historical') : t('vt.release.current')
+    ));
+    card.appendChild(meta);
 
-    var existing = document.querySelector('.vt-error');
-    if (existing) { existing.remove(); }
+    card.appendChild(element('h4', 'vt-headline', release.headline));
+    card.appendChild(element('p', 'vt-summary', release.summary));
 
-    var errBlock = document.createElement('div');
-    errBlock.className = 'vt-error';
-    errBlock.setAttribute('role', 'alert');
-    errBlock.innerHTML =
-      '<h3 data-i18n="vt.error.title">' + escapeHtml(t('vt.error.title')) + '</h3>' +
-      '<p data-i18n="vt.error.detail">' + escapeHtml(t('vt.error.detail')) + '</p>' +
-      '<p><code>' + escapeHtml(String(err && err.message ? err.message : err)) + '</code></p>';
-
-    var firstEra = document.querySelector('.vt-era');
-    if (firstEra && firstEra.parentNode) {
-      firstEra.parentNode.insertBefore(errBlock, firstEra);
-    } else {
-      var container = document.querySelector('.container');
-      if (container) { container.appendChild(errBlock); }
+    var terms = retiredTerms(release);
+    if (terms.length) {
+      card.appendChild(element(
+        'p',
+        'vt-retired-note',
+        interpolate(t('vt.release.retired'), { terms: terms.join(', ') })
+      ));
     }
+
+    var detailId = 'vt-detail-' + String(release.version).replace(/[^a-z0-9]+/gi, '-');
+    var button = element(
+      'button',
+      'vt-expand',
+      expanded ? t('vt.card.collapse') : t('vt.card.expand')
+    );
+    button.type = 'button';
+    button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    button.setAttribute('aria-controls', detailId);
+    button.addEventListener('click', function () {
+      state.expandedVersion = expanded ? null : release.version;
+      renderArchives();
+      var refreshed = document.querySelector('[data-version="' + release.version + '"] .vt-expand');
+      if (refreshed) { refreshed.focus(); }
+    });
+    card.appendChild(button);
+
+    var detail = element('div', 'vt-detail');
+    detail.id = detailId;
+    detail.hidden = !expanded;
+
+    if (release.highlights.length) {
+      detail.appendChild(element('h5', '', t('vt.card.highlights')));
+      var highlights = element('ul', 'vt-highlights');
+      release.highlights.forEach(function (highlight) {
+        highlights.appendChild(element('li', '', highlight));
+      });
+      detail.appendChild(highlights);
+    }
+
+    var metricKeys = Object.keys(release.metrics);
+    if (metricKeys.length) {
+      detail.appendChild(element('h5', '', t('vt.card.metrics')));
+      var metrics = element('dl', 'vt-metrics');
+      metricKeys.forEach(function (key) {
+        var item = element('div', 'vt-metric');
+        item.appendChild(element('dt', '', key.replace(/_/g, ' ')));
+        item.appendChild(element('dd', '', String(release.metrics[key])));
+        metrics.appendChild(item);
+      });
+      detail.appendChild(metrics);
+    }
+
+    if (Array.isArray(release.links) && release.links.length) {
+      detail.appendChild(element('h5', '', t('vt.card.links')));
+      var links = element('div', 'vt-links');
+      release.links.forEach(function (link) {
+        var anchor = element('a', '', link.label || link.href || '');
+        anchor.href = safeHref(link.href);
+        links.appendChild(anchor);
+      });
+      detail.appendChild(links);
+    }
+
+    card.appendChild(detail);
+    return card;
   }
 
-  /* ==================================================================
-     Boot
-     ================================================================== */
+  function safeHref(href) {
+    var value = String(href || '');
+    if (/^(?:https:\/\/|\.{0,2}\/|#)/.test(value)) { return value; }
+    console.warn('[version-timeline] ignored unsafe release link:', value);
+    return '#';
+  }
 
-  ready(function () {
-    /* 1. Restore persisted view first so layout is stable before render. */
-    applyView(readView());
-    wireViewToggle();
-    wireEraFilter();
+  function renderArchives() {
+    if (!state.loaded) {
+      var loadingEmpty = document.getElementById('vt-empty');
+      var loadingStatus = document.getElementById('vt-status');
+      if (loadingEmpty) { loadingEmpty.hidden = true; }
+      if (loadingStatus) {
+        loadingStatus.setAttribute('data-i18n', 'vt.loading');
+        loadingStatus.textContent = t('vt.loading');
+      }
+      return;
+    }
 
-    /* 2. Apply hash filter on first load (AC-VT-5). */
-    var hashEra = readEraFromHash();
-    if (hashEra) { applyEraFilter(hashEra); }
+    var visible = filteredReleases();
+    var current = visible.filter(isCurrentRelease);
+    var historical = visible.filter(function (release) {
+      return !isCurrentRelease(release);
+    });
 
-    /* 3. Fetch versions.json and render.  Wrapped in try/catch — logs to
-       console.error AND renders a visible error state per spec rule 12. */
-    fetchVersions()
-      .then(function (versions) {
-        if (!Array.isArray(versions)) {
-          throw new Error('versions.json did not parse to an array');
+    renderArchive('vt-current-eras', current, false);
+    renderArchive('vt-historical-eras', historical, true);
+
+    var currentSection = document.getElementById('current-releases');
+    var historicalSection = document.getElementById('historical-releases');
+    if (currentSection) { currentSection.hidden = state.scope === 'historical'; }
+    if (historicalSection) { historicalSection.hidden = state.scope === 'current'; }
+
+    var empty = document.getElementById('vt-empty');
+    if (empty) { empty.hidden = visible.length !== 0; }
+    updateStatus(visible.length);
+  }
+
+  function updateStatus(visibleCount) {
+    var status = document.getElementById('vt-status');
+    if (!status) { return; }
+    status.removeAttribute('data-i18n');
+    status.textContent = interpolate(t('vt.status'), {
+      visible: visibleCount,
+      total: state.all.length
+    });
+  }
+
+  function render() {
+    document.body.classList.toggle('is-compact', state.view === 'compact');
+    document.querySelectorAll('.vt-filter').forEach(function (button) {
+      var active = button.dataset.scope === state.scope;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.vt-view').forEach(function (button) {
+      var active = button.dataset.view === state.view;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    renderEraFilters();
+    renderArchives();
+  }
+
+  function wireControls() {
+    var search = document.getElementById('vt-search');
+    if (search) {
+      search.addEventListener('input', function () {
+        state.query = search.value.slice(0, 80).trim().toLowerCase();
+        state.expandedVersion = null;
+        renderArchives();
+      });
+    }
+
+    document.querySelectorAll('.vt-filter').forEach(function (button) {
+      button.addEventListener('click', function () {
+        state.scope = button.dataset.scope || 'all';
+        state.expandedVersion = null;
+        render();
+      });
+    });
+
+    document.querySelectorAll('.vt-view').forEach(function (button) {
+      button.addEventListener('click', function () {
+        state.view = button.dataset.view === 'compact' ? 'compact' : 'detailed';
+        writeStoredView(state.view);
+        render();
+      });
+    });
+
+    var reset = document.getElementById('vt-reset');
+    if (reset) {
+      reset.addEventListener('click', function () {
+        state.scope = 'all';
+        state.era = 'all';
+        state.query = '';
+        state.expandedVersion = null;
+        if (search) { search.value = ''; }
+        render();
+        if (search) { search.focus(); }
+      });
+    }
+
+    document.addEventListener('devolaflow:languagechange', function () {
+      if (state.all.length) { render(); }
+    });
+  }
+
+  function showError(error) {
+    console.error('[version-timeline] failed to load versions.json:', error);
+    var status = document.getElementById('vt-status');
+    if (status) {
+      status.removeAttribute('data-i18n');
+      status.textContent = t('vt.error.title');
+      status.classList.add('is-error');
+    }
+    var panel = document.getElementById('vt-error');
+    var detail = document.getElementById('vt-error-detail');
+    if (panel) { panel.hidden = false; }
+    if (detail) { detail.textContent = error && error.message ? error.message : String(error); }
+    var current = document.getElementById('current-releases');
+    var historical = document.getElementById('historical-releases');
+    if (current) { current.hidden = true; }
+    if (historical) { historical.hidden = true; }
+  }
+
+  function boot() {
+    wireControls();
+    render();
+    fetch('versions.json', { cache: 'no-cache' })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status + ' ' + response.statusText + ' for versions.json');
         }
-        renderTimeline(versions);
-        wireCardExpand(document);
-        wireRevealCascade();
-
-        /* If the URL hash filter applied above, refresh the status count
-           now that the cards have been rendered. */
-        if (hashEra) { applyEraFilter(hashEra); }
-
-        /* If the user toggled language while we were fetching, re-bind
-           the freshly-injected data-i18n nodes. */
-        if (typeof window.setLanguage === 'function') {
-          var lang = document.documentElement.getAttribute('data-lang') || 'en';
-          window.setLanguage(lang);
-        }
+        return response.json();
       })
-      .catch(function (err) {
-        renderErrorState(err);
-      });
-  });
+      .then(function (payload) {
+        state.all = validateVersions(payload);
+        state.loaded = true;
+        render();
+      })
+      .catch(showError);
+  }
 
-  function fetchVersions() {
-    /* Keep the path RELATIVE so it works under file://, http://, and Pages.
-       Rule SF-5 / CO-4: never use absolute filesystem paths. */
-    return fetch('versions.json', { cache: 'no-cache' })
-      .then(function (res) {
-        if (!res.ok) {
-          throw new Error('HTTP ' + res.status + ' ' + res.statusText + ' for versions.json');
-        }
-        return res.json();
-      });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
 })();
