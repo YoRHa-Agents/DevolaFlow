@@ -191,6 +191,17 @@ There is no external-tool or manual bypass. Direct commands may diagnose why a
 signal failed, but the built-in evaluator must be rerun successfully before
 release.
 
+### 6.1 Model-Probe Model Table (operator note)
+
+`python -m devolaflow.harness probe` accepts an explicit `--provider` +
+`--model` pair, or — with both omitted — sweeps the operator-maintained
+`meta.probe_models` table in `workflow-system/agent/context_profiles.yaml`
+(one profile artifact per configured provider/model pair). Refresh stale
+model IDs by editing that table; the per-provider fallbacks hardcoded in
+`src/devolaflow/llm_client.py` are byte-compatibility defaults and are NOT
+the place to track current model releases. The table ships undeclared:
+with the key absent the CLI keeps its explicit single-model contract.
+
 ## 7. Historical Provenance
 
 The 6 × 9 format originated as a cross-evaluator reading aid in pre-v16 cycle

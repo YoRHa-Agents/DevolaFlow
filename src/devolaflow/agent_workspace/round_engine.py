@@ -3,6 +3,18 @@
 The engine deliberately depends on structural views instead of the Markdown
 parser.  Callers may pass parser records, test doubles, or other immutable
 snapshots as long as they expose the protocol attributes below.
+
+v17.0.0 R5 (D-R5-1): the round-capacity default and the stop-guard window
+widths resolve through :func:`devolaflow.harness.capacity.capacity_profile`
+(the A-5 owner of ``context_profiles.yaml#meta.capacity``) when the caller
+omits them. Explicit arguments keep every function pure; omitted arguments
+pay one cached YAML lookup. The module literals below (``_CAPACITY_MIN`` /
+``_CAPACITY_MAX`` and the 2/3 window defaults inside the capacity module)
+remain the pinned fallback — with the config key absent (the shipped
+default) behaviour is byte-identical to the pre-R5 hardcoded values.
+``_CAPACITY_MIN``/``_CAPACITY_MAX`` stay the HARD validation bounds
+regardless of config: ``meta.capacity.round_capacity`` moves the default,
+never the stage-schema cap.
 """
 
 from __future__ import annotations
@@ -10,7 +22,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Final, Protocol
+from typing import Any, Final, Protocol
 
 __all__ = [
     "BlockedItem",
@@ -42,6 +54,10 @@ __all__ = [
 _PRIORITY_RANK = {"P0": 0, "P1": 1, "P2": 2}
 _CAPACITY_MIN = 1
 _CAPACITY_MAX = 5
+# Sentinel meaning "caller did not pass capacity — resolve the default via
+# meta.capacity.round_capacity". Deliberately NOT ``None``: ``None`` stays a
+# pinned INVALID_CAPACITY input (S-5 — no silent coercion of caller bugs).
+_CAPACITY_FROM_CONFIG: Final[Any] = object()
 _ISO_UTC_RE: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 _COMPLETION_PREFIX: Final[str] = "      evidence:"
 
@@ -229,6 +245,21 @@ def _validate_inputs(
     return items_by_id
 
 
+def _capacity_defaults():
+    """Resolve configured capacity/window defaults (import at call boundary).
+
+    The lazy import avoids the agent_workspace ↔ harness module-init cycle
+    (``harness.telemetry`` imports ``agent_workspace.layers``). A declared
+    but invalid ``meta.capacity`` block raises ``CapacityConfigError``
+    loudly per S-5; an absent key or unreadable profiles file yields the
+    byte-identical hardcoded defaults (5 / 2 / 3).
+    """
+
+    from devolaflow.harness.capacity import capacity_profile
+
+    return capacity_profile()
+
+
 def _is_reverted(item: ChecklistItemView) -> bool:
     """Derive open-revert state directly from parser-compatible records.
 
@@ -245,7 +276,7 @@ def _is_reverted(item: ChecklistItemView) -> bool:
 def select_round(
     checklist: ChecklistView,
     stage: StageView,
-    capacity: int = 5,
+    capacity: int = _CAPACITY_FROM_CONFIG,
 ) -> RoundSelection:
     """Select up to ``capacity`` open, dependency-ready checklist items.
 
@@ -253,8 +284,16 @@ def select_round(
     block an item for this round. Reverted open items rank ahead of every
     non-reverted item; all other ordering is P0, P1, P2 with checklist source
     order as the stable tie-breaker.
+
+    An omitted ``capacity`` resolves through
+    ``meta.capacity.round_capacity`` per D-R5-1 — 5 when the config key is
+    absent (byte-identical pre-R5 default). Every explicitly passed value —
+    including ``None`` — is validated against the unchanged 1..5
+    stage-schema hard cap.
     """
 
+    if capacity is _CAPACITY_FROM_CONFIG:
+        capacity = _capacity_defaults().round_capacity
     items = tuple(checklist.items)
     changes = tuple(stage.priority_changes)
     items_by_id = _validate_inputs(items, changes, capacity)
@@ -456,14 +495,38 @@ def evaluate_round_pass(
     )
 
 
+def _consecutive(rounds: Sequence[RoundProgress]) -> bool:
+    return all(
+        rounds[index].round_num == rounds[index - 1].round_num + 1
+        for index in range(1, len(rounds))
+    )
+
+
+def _validate_window(value: int, *, name: str) -> None:
+    if type(value) is not int or value < 1:
+        raise RoundEngineError(
+            "INVALID_STOP_GUARD_WINDOW",
+            f"{name} must be a positive integer; got {value!r}",
+        )
+
+
 def evaluate_stop_guard(
     history: Sequence[RoundProgress],
     *,
     current_round: int,
     max_rounds: int,
     open_item_ids: Sequence[str],
+    stagnation_rounds: int | None = None,
+    unsuccessful_item_rounds: int | None = None,
 ) -> RoundStopResult:
-    """Evaluate all independent P4 stop guards from immutable round history."""
+    """Evaluate all independent P4 stop guards from immutable round history.
+
+    The two window widths default through ``meta.capacity.stop_guard`` per
+    D-R5-1 (2 and 3 when the config key is absent — byte-identical to the
+    pre-R5 hardcoded windows). The reason literals stay frozen regardless of
+    the configured widths: they are stable machine-readable codes, not
+    numeral mirrors.
+    """
 
     if type(current_round) is not int or current_round < 0:
         raise RoundEngineError(
@@ -475,6 +538,14 @@ def evaluate_stop_guard(
             "INVALID_MAX_ROUNDS",
             f"max_rounds must be a positive integer; got {max_rounds!r}",
         )
+    if stagnation_rounds is None or unsuccessful_item_rounds is None:
+        defaults = _capacity_defaults()
+        if stagnation_rounds is None:
+            stagnation_rounds = defaults.stagnation_rounds
+        if unsuccessful_item_rounds is None:
+            unsuccessful_item_rounds = defaults.unsuccessful_item_rounds
+    _validate_window(stagnation_rounds, name="stagnation_rounds")
+    _validate_window(unsuccessful_item_rounds, name="unsuccessful_item_rounds")
 
     rounds = tuple(history)
     open_items = frozenset(open_item_ids)
@@ -482,22 +553,15 @@ def evaluate_stop_guard(
     if open_items and current_round >= max_rounds:
         reasons.append(MAX_ROUNDS_REACHED)
 
-    if len(rounds) >= 2:
-        prior, latest = rounds[-2:]
-        if (
-            latest.round_num == prior.round_num + 1
-            and prior.net_delta <= 0
-            and latest.net_delta <= 0
-        ):
+    if len(rounds) >= stagnation_rounds:
+        recent = rounds[-stagnation_rounds:]
+        if _consecutive(recent) and all(progress.net_delta <= 0 for progress in recent):
             reasons.append(NET_STAGNATION_TWO_ROUNDS)
 
     unsuccessful_items: tuple[str, ...] = ()
-    if len(rounds) >= 3:
-        recent = rounds[-3:]
-        if all(
-            recent[index].round_num == recent[index - 1].round_num + 1
-            for index in range(1, len(recent))
-        ):
+    if len(rounds) >= unsuccessful_item_rounds:
+        recent = rounds[-unsuccessful_item_rounds:]
+        if _consecutive(recent):
             unsuccessful_sets = [
                 set(progress.picked_item_ids) - set(progress.checked_item_ids)
                 for progress in recent

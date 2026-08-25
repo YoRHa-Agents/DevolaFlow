@@ -1,4 +1,4 @@
-"""Subagent-pattern selection heuristic (v11.4.0 cycle, prep for v12.0.0).
+"""Subagent-pattern selection heuristic (landed v11.4.0; schema-graduated v12.0.0).
 
 Codifies the philschmid 4-pattern subagent taxonomy — **Inline Tool**,
 **Fan-Out**, **Agent Pool**, **Teams** — as pure-function selection
@@ -6,9 +6,17 @@ heuristics for L0 / L1 / L2 dispatchers. Reframes (subagent-lifecycle
 lens) the same architectural axis DevolaFlow already maps via the v7.x
 anthropic-coordination-blog mapping in
 ``workflow-system/agent/references/execution-protocol.md`` §7.3. Cited
-(forward-defined) by workflow rule **W-24** ("Subagent Pattern
-Selection") authored in v11.4.0 Wave 2 alongside the new Tier-2
-reference ``workflow-system/agent/references/subagent-patterns.md``.
+by workflow rule **W-24** ("Subagent Pattern Selection") alongside the
+Tier-2 reference ``workflow-system/agent/references/subagent-patterns.md``.
+
+Factual state per the v17.0.0 R5 verdict (W-24.2/W-24.5): v12.0.0
+landed the ``gate.subagent_pattern`` schema NEST with
+:func:`devolaflow.gate.cascade.populate_cascade_gate_fields` writing
+the :func:`select_pattern` verdict into dispatch payloads. The Pattern 3
+pool RUNTIME (a persistent-state pool executor path) remained deferred
+through v13–v17 — ``AGENT_POOL_FORWARD`` stays an advisory verdict with
+NO activating API path. Re-evaluation gate: v18+ SI-1 evidence plus a
+persistent-state schema design.
 
 Design (mirrors :mod:`devolaflow.skills.change_activation` and
 :mod:`devolaflow.skills.grill_mode`): pure functions, zero filesystem
@@ -165,11 +173,13 @@ def forbidden_pattern_rationale(pattern: PatternVerdict) -> str | None:
 
 
 # v11.4.0 PV-01 — non-import references for ``scripts/detect_dead_apis.py``.
-# The three new public functions have no in-repo production caller until
-# v12.0.0 wires them into the dispatcher pre-flight (per the gap-analysis
-# §7 NEST-vs-APPEND pre-staging recommendation). Mirrors the v11.3.0 PV-01
-# ``_grill_mode_dead_api_pins`` pattern in
-# ``src/devolaflow/skills/grill_mode.py`` lines 274-280.
+# Factual state (v17.0.0 R5 verdict): v12.0.0 DID wire ``select_pattern``
+# into production via ``gate/cascade.py::populate_cascade_gate_fields``
+# (the ``gate.subagent_pattern`` NEST); ``validate_inputs`` runs inside it.
+# ``forbidden_pattern_rationale`` remains operator-education-only (invoked
+# on demand, never from a dispatcher), so the pin tuple stays. Mirrors the
+# v11.3.0 PV-01 ``_grill_mode_dead_api_pins`` pattern in
+# ``src/devolaflow/skills/grill_mode.py``.
 _subagent_pattern_dead_api_pins = (
     select_pattern,
     validate_inputs,

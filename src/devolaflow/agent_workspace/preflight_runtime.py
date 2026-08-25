@@ -291,13 +291,20 @@ def _load_stage(path: Path, change_id: str, checklist_ids: frozenset[str]):
     frontmatter = document.artifact.frontmatter
     referenced_ids = {pick.item_id for pick in document.initial_priorities}
     referenced_ids.update(change.item_id for change in document.priority_changes)
+    # v17.0.0 R5 (D-R5-1): the upper bound follows
+    # meta.capacity.round_capacity (import at call boundary to avoid the
+    # agent_workspace ↔ harness init cycle). Dark config → 5, byte-identical
+    # to the pre-R5 literal; the reader validates 1..5 so the bound can
+    # never exceed the stage-schema hard cap.
+    from devolaflow.harness.capacity import capacity_profile
+
     if (
         frontmatter.get("parent") != change_id
         or frontmatter.get("schema_version") != 1
         or document.current_round < 0
         or document.max_rounds < 1
         or document.current_round > document.max_rounds
-        or not 1 <= document.capacity_per_round <= 5
+        or not 1 <= document.capacity_per_round <= capacity_profile().round_capacity
         or not referenced_ids.issubset(checklist_ids)
     ):
         _runtime_error(

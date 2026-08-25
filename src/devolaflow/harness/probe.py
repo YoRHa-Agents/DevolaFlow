@@ -1,4 +1,15 @@
-"""Bounded model-compliance probes over deterministic harness fixtures."""
+"""Bounded model-compliance probes over deterministic harness fixtures.
+
+v17.0.0 R5 (D-R5-2): this module is also the single owner (A-5) of the
+``context_profiles.yaml#meta.probe_models`` dark-config reader
+(:func:`load_probe_model_table`) — the operator-maintained (provider,
+model) table the CLI sweeps when ``--model`` is omitted. The reader lives
+here rather than in ``harness/capacity.py`` because the tiers precedent
+places each dark-config reader in its consuming domain module; capacity.py
+owns ``meta.capacity`` only. ``llm_client._DEFAULT_MODELS`` is untouched —
+it remains the byte-compatible per-provider fallback; refreshing model IDs
+is operator configuration via ``meta.probe_models``, never a hardcode.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +19,7 @@ from collections.abc import Iterable, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import yaml
 
@@ -22,6 +33,81 @@ from devolaflow.llm_client import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ProbeModel(NamedTuple):
+    """One configured probe target from ``meta.probe_models``."""
+
+    provider: str
+    model: str
+
+
+def sanitize_model_for_filename(model: str) -> str:
+    """Return the filesystem-safe form of a model identifier.
+
+    Shared by :func:`run_probe`'s default output naming and the CLI's
+    per-model sweep naming so both surfaces derive identical filenames.
+    """
+
+    safe_model = re.sub(r"[^A-Za-z0-9._-]+", "_", model)
+    while ".." in safe_model:
+        safe_model = safe_model.replace("..", "_")
+    return safe_model.strip("._-") or "model"
+
+
+def load_probe_model_table(profiles_path: str | Path | None = None) -> tuple[ProbeModel, ...]:
+    """Load the ``meta.probe_models`` table from context_profiles.yaml.
+
+    Key absent → empty tuple (canonical absence-as-default — the extension
+    point ships dark and the CLI keeps its single-model contract). A
+    present-but-malformed table raises :class:`ValueError` loudly per S-5:
+    every entry must be a mapping with exactly ``provider`` (one of
+    :data:`~devolaflow.llm_client.PROVIDER_CHOICES`) and ``model`` (a
+    non-empty string). A profiles-load failure falls back to the empty
+    table with a WARNING (tiers precedent) — the CLI then reports the
+    missing table explicitly.
+    """
+
+    from devolaflow.task_adaptive_selector import load_profiles
+
+    try:
+        config = load_profiles(Path(profiles_path) if profiles_path is not None else None)
+    except Exception as exc:  # noqa: BLE001 - unreadable profiles must not crash the CLI
+        logger.warning(
+            "probe model table config load failed (%s); treating table as absent",
+            exc,
+        )
+        return ()
+
+    meta = config.get("meta") if isinstance(config, dict) else None
+    table = meta.get("probe_models") if isinstance(meta, Mapping) else None
+    if table is None:
+        return ()
+    if not isinstance(table, list) or not table:
+        raise ValueError(
+            f"meta.probe_models must be a non-empty list of "
+            f"{{provider, model}} mappings; got {table!r}"
+        )
+    entries: list[ProbeModel] = []
+    for index, raw in enumerate(table):
+        if not isinstance(raw, Mapping) or set(raw) != {"provider", "model"}:
+            raise ValueError(
+                f"meta.probe_models[{index}] must be a mapping with exactly "
+                f"'provider' and 'model' keys; got {raw!r}"
+            )
+        provider = raw["provider"]
+        model = raw["model"]
+        if provider not in PROVIDER_CHOICES:
+            raise ValueError(
+                f"meta.probe_models[{index}].provider must be one of "
+                f"{sorted(PROVIDER_CHOICES)}; got {provider!r}"
+            )
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError(
+                f"meta.probe_models[{index}].model must be a non-empty string; got {model!r}"
+            )
+        entries.append(ProbeModel(provider=provider, model=model))
+    return tuple(entries)
 
 
 def build_probe_prompt(fixture: Mapping[str, Any], *, fold_mode: str = "folded") -> str:
@@ -256,10 +342,7 @@ def run_probe(
     if resolved_client.provider != provider:
         raise ValueError("injected client provider does not match requested provider")
 
-    safe_model = re.sub(r"[^A-Za-z0-9._-]+", "_", model)
-    while ".." in safe_model:
-        safe_model = safe_model.replace("..", "_")
-    safe_model = safe_model.strip("._-") or "model"
+    safe_model = sanitize_model_for_filename(model)
     output_path = (
         Path(output)
         if output is not None
@@ -449,4 +532,11 @@ def run_probe(
     return profile
 
 
-__all__ = ["build_probe_prompt", "score_probe_response", "run_probe"]
+__all__ = [
+    "ProbeModel",
+    "build_probe_prompt",
+    "load_probe_model_table",
+    "run_probe",
+    "sanitize_model_for_filename",
+    "score_probe_response",
+]

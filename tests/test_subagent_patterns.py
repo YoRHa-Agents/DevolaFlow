@@ -82,10 +82,13 @@ def test_select_pattern_agent_pool_forward_for_frontier_persistent() -> None:
 
     Pins gap-analysis §5.4 row "STANDARD or COMPLEX / any / any /
     frontier / True" → AGENT_POOL_FORWARD: the Pattern 3 forward-compat
-    verdict (v11.4.0 reference-only; v12.0.0+ landing surface). The
-    helper does NOT activate Pattern 3; it merely surfaces the verdict
-    so operators can fall back to INLINE round-robin via
-    ``change-driven`` workflow's ``apply ↔ verify`` convergence loop.
+    verdict. Factual state per the v17.0.0 R5 verdict (W-24.2): v12.0.0
+    landed the ``gate.subagent_pattern`` schema NEST, but the pool
+    RUNTIME remained deferred through v13–v17 — the helper does NOT
+    activate Pattern 3; it merely surfaces the advisory verdict so
+    operators can fall back to INLINE round-robin via ``change-driven``
+    workflow's ``apply ↔ verify`` convergence loop. Re-evaluation gate:
+    v18+ SI-1 evidence plus a persistent-state schema design.
     """
     assert (
         select_pattern("STANDARD", "frontier", 2, False, persistent_state_needed=True)

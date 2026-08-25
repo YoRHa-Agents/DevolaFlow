@@ -10,7 +10,9 @@ import yaml
 from devolaflow.harness.__main__ import main
 from devolaflow.harness.fixtures import load_harness_fixture
 from devolaflow.harness.probe import (
+    ProbeModel,
     build_probe_prompt,
+    load_probe_model_table,
     run_probe,
     score_probe_response,
 )
@@ -247,3 +249,155 @@ def test_run_probe_profiles_statuses_baseline_and_no_key(
     assert skipped["status"] == "SKIPPED_NO_KEY"
     assert skipped["calls"]["attempted"] == 0
     assert capsys.readouterr().out == "harness probe: SKIPPED_NO_KEY\n"
+
+
+# ---------------------------------------------------------------------------
+# v17.0.0 R5 (D-R5-2) — meta.probe_models config-table sweep.
+# ---------------------------------------------------------------------------
+
+
+def _write_probe_profiles(path: Path, probe_models: object) -> Path:
+    meta: dict = {"budget_hard_cap_tokens": 8000}
+    if probe_models is not None:
+        meta["probe_models"] = probe_models
+    path.write_text(yaml.safe_dump({"meta": meta}), encoding="utf-8")
+    return path
+
+
+def test_load_probe_model_table_dark_configured_and_malformed(tmp_path: Path) -> None:
+    """Absent key → empty tuple; declared entries load; malformed raise (S-5)."""
+    assert load_probe_model_table(_write_probe_profiles(tmp_path / "dark.yaml", None)) == ()
+    # The SHIPPED config declares no table — the extension point ships dark.
+    assert load_probe_model_table() == ()
+
+    configured = _write_probe_profiles(
+        tmp_path / "configured.yaml",
+        [
+            {"provider": "mock", "model": "mock-probe"},
+            {"provider": "openai", "model": "gpt-future"},
+        ],
+    )
+    table = load_probe_model_table(configured)
+    assert table == (
+        ProbeModel(provider="mock", model="mock-probe"),
+        ProbeModel(provider="openai", model="gpt-future"),
+    )
+
+    for malformed in (
+        [],
+        "mock",
+        [{"provider": "mock"}],
+        [{"provider": "mock", "model": "m", "extra": 1}],
+        [{"provider": "unknown", "model": "m"}],
+        [{"provider": "mock", "model": ""}],
+        [{"provider": "mock", "model": 7}],
+    ):
+        with pytest.raises(ValueError, match="probe_models"):
+            load_probe_model_table(_write_probe_profiles(tmp_path / "bad.yaml", malformed))
+
+
+def test_probe_cli_sweeps_configured_model_table(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Omitting --provider/--model sweeps the table, one profile per model.
+
+    Per-model artifact names derive from the single ``--output`` argument
+    via the shared filename sanitizer; the exit code is the worst per-model
+    verdict under the unchanged single-model mapping.
+    """
+    import devolaflow.task_adaptive_selector as selector
+
+    configured = _write_probe_profiles(
+        tmp_path / "profiles.yaml",
+        [
+            {"provider": "mock", "model": "mock-probe"},
+            {"provider": "mock", "model": "mock/alt:v2"},
+        ],
+    )
+    monkeypatch.setattr(selector, "PROFILES_PATH", configured)
+
+    output = tmp_path / "sweep.yaml"
+    assert (
+        main(
+            [
+                "probe",
+                "--cycle",
+                "v17.0.0",
+                "--fixtures",
+                str(FIXTURE_DIR),
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    assert capsys.readouterr().out == (
+        "harness probe [mock:mock-probe]: PASS\nharness probe [mock:mock/alt:v2]: PASS\n"
+    )
+    first = yaml.safe_load((tmp_path / "sweep__mock__mock-probe.yaml").read_text("utf-8"))
+    second = yaml.safe_load((tmp_path / "sweep__mock__mock_alt_v2.yaml").read_text("utf-8"))
+    assert set(first) == set(second) == PROFILE_KEYS
+    assert first["model"] == "mock-probe"
+    assert second["model"] == "mock/alt:v2"
+    assert not output.exists()
+
+    # Worst-verdict exit aggregation: a keyless real provider joins → 2.
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    mixed = _write_probe_profiles(
+        tmp_path / "mixed.yaml",
+        [
+            {"provider": "mock", "model": "mock-probe"},
+            {"provider": "openai", "model": "gpt-future"},
+        ],
+    )
+    monkeypatch.setattr(selector, "PROFILES_PATH", mixed)
+    assert (
+        main(
+            [
+                "probe",
+                "--cycle",
+                "v17.0.0",
+                "--fixtures",
+                str(FIXTURE_DIR),
+                "--output",
+                str(tmp_path / "mixed-sweep.yaml"),
+            ]
+        )
+        == 2
+    )
+    assert capsys.readouterr().out == (
+        "harness probe [mock:mock-probe]: PASS\nharness probe [openai:gpt-future]: SKIPPED_NO_KEY\n"
+    )
+
+
+def test_probe_cli_errors_without_model_or_table(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """S-5 explicit errors: empty table and mixed flag usage exit 2 loudly."""
+    import devolaflow.task_adaptive_selector as selector
+
+    dark = _write_probe_profiles(tmp_path / "dark.yaml", None)
+    monkeypatch.setattr(selector, "PROFILES_PATH", dark)
+
+    assert main(["probe", "--cycle", "v17.0.0", "--fixtures", str(FIXTURE_DIR)]) == 2
+    assert "meta.probe_models is not configured" in capsys.readouterr().err
+
+    assert (
+        main(
+            [
+                "probe",
+                "--provider",
+                "mock",
+                "--cycle",
+                "v17.0.0",
+                "--fixtures",
+                str(FIXTURE_DIR),
+            ]
+        )
+        == 2
+    )
+    assert "BOTH --provider and --model" in capsys.readouterr().err
