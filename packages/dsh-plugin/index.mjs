@@ -31,8 +31,11 @@ function toBridgePayload(exec) {
   const input = exec?.args ?? exec?.input ?? {};
   const path = input.path ?? input.file_path ?? input.target_file ?? null;
   const command = input.command ?? input.cmd ?? null;
+  // Only known WRITE tools become file_write: a bare `path` is NOT enough,
+  // because read-family tools also carry paths and must never be denied
+  // (S-8 governs writes only). Unrecognized tools stay "unknown" -> allow.
   let kind = 'unknown';
-  if (WRITE_TOOLS.has(tool) || (path && !command)) kind = 'file_write';
+  if (WRITE_TOOLS.has(tool)) kind = 'file_write';
   else if (SHELL_TOOLS.has(tool) || command) kind = 'shell';
   return { tool, kind, path, command };
 }
