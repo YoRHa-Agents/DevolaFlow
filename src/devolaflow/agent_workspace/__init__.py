@@ -119,6 +119,17 @@ from devolaflow.agent_workspace.preflight import (
     invalidate_preflight,
     sign_preflight,
 )
+from devolaflow.agent_workspace.progress import (
+    PROGRESS_BAR_CELLS,
+    PROGRESS_HEADING,
+    ProgressHeader,
+    ProgressHeaderError,
+    compute_progress_header,
+    extract_progress_line,
+    refresh_progress_header,
+    render_progress_block,
+    render_progress_line,
+)
 from devolaflow.agent_workspace.reporter import (
     regenerate_all,
     render_change_report,
@@ -255,6 +266,16 @@ __all__ = [
     "draft_preflight_section0",
     "invalidate_preflight",
     "sign_preflight",
+    # progress (v17.0.1 — pinned effort-weighted checklist progress header)
+    "PROGRESS_BAR_CELLS",
+    "PROGRESS_HEADING",
+    "ProgressHeader",
+    "ProgressHeaderError",
+    "compute_progress_header",
+    "extract_progress_line",
+    "refresh_progress_header",
+    "render_progress_block",
+    "render_progress_line",
     # reporter (v8.2.7 — opt-in REPORT.md surface; closes H-005)
     # + v14.0.0 Wave-2 FIFTH human flavour (render_human_report/_digest; design §4)
     "regenerate_all",

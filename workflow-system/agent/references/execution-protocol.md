@@ -473,22 +473,23 @@ Report progress with stable coordinates, not fixed lifecycle weights:
 | Evidence | valid/required plus missing item IDs |
 | Blockers | count plus repository-relative evidence references |
 
-An L2 StatusReport proposes evidence but cannot increase checked progress. L1
-aggregates; only L0 changes checklist state after validation. Seed
-`source_stages`, primitive order, and phase names contribute no progress weight.
+An L2 StatusReport proposes evidence but cannot increase checked progress. L1 aggregates;
+only L0 changes checklist state after validation. Seed `source_stages`, primitive order, and phase names contribute no progress weight.
+
+### Pinned Progress Header
+
+`checklist.md` pins a `## Progress` block directly under its H1:
+`` `[██▓░…] NN%` — done D | doing I | todo T | total N (effort-weighted) ``.
+done = checked items; doing = unchecked items picked in the in-flight
+stage.md round; the bar/percent weigh items by optional `effort: 1..8`
+metadata (default 1). L0 MUST re-render it on every checkbox flip, effort
+edit, item add/drop, or round transition; `ChangeStore` write paths
+(refresh/revert/round-boundary) re-align automatically and the C-9 linter
+fails on any byte drift (`PROGRESS_HEADER`).
 
 ### Status Icons
 
-| Icon | Meaning |
-|------|---------|
-| ✅ PASS | Completed successfully |
-| ❌ FAIL | Completed with failure |
-| 🔄 ACTIVE | Currently executing |
-| ⏳ PENDING | Not yet started |
-| ⏸ PAUSED | Waiting for input |
-| 🚫 BLOCKED | Cannot proceed |
-| ⏭ SKIPPED | Intentionally skipped |
-| ⏮ ROLLBACK | Rolled back |
+✅ PASS · ❌ FAIL · 🔄 ACTIVE · ⏳ PENDING · ⏸ PAUSED · 🚫 BLOCKED · ⏭ SKIPPED · ⏮ ROLLBACK
 
 ### Estimated Remaining Work
 
@@ -496,9 +497,8 @@ aggregates; only L0 changes checklist state after validation. Seed
 minimum_remaining_rounds = ceil(eligible_open_items / capacity_per_round)
 ```
 
-This is a capacity lower bound, not an ETA. Report blocked/reverted items and
-unresolved evidence separately. L0 may report a sampled closed-round duration
-range, but MUST NOT derive time from seed phases or a fixed DAG.
+This is a capacity lower bound, not an ETA. Report blocked/reverted items and unresolved evidence separately.
+L0 may report a sampled closed-round duration range, but MUST NOT derive time from seed phases or a fixed DAG.
 
 ## 7. Wave Coordination Mode Selection (v7.2.0+)
 

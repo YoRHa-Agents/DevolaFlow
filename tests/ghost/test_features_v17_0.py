@@ -253,3 +253,64 @@ def test_v17_0_0_r2_layer_budget_assertion_wired() -> None:
     small = {"to_layer": "L2", "payload": "tiny"}
     small_result = lifecycle.run_hooks("pre_dispatch", small, strict=False)
     assert "ALB001" not in {violation.code for violation in small_result.violations}
+
+
+def test_v17_0_1_checklist_progress_header_wired(tmp_path: Path, project_root: Path) -> None:
+    """W-18 v17.0.1: the pinned effort-weighted progress header is real.
+
+    Pins (a) the public ``agent_workspace.progress`` API, (b) the
+    ``effort:`` metadata parse path, (c) the ``PROGRESS_HEADER`` lint
+    family, (d) the scaffold + schema + workflow-doc injection surfaces
+    that force the header to stay updated and aligned.
+    """
+    from devolaflow.agent_workspace import (
+        compute_progress_header,
+        extract_progress_line,
+        refresh_progress_header,
+        render_progress_block,
+        render_progress_line,
+    )
+    from devolaflow.agent_workspace.lint import lint_change
+    from devolaflow.skills.slash_commands import scaffold_change_folder
+
+    for api in (
+        compute_progress_header,
+        extract_progress_line,
+        refresh_progress_header,
+        render_progress_block,
+        render_progress_line,
+    ):
+        assert callable(api)
+
+    folder = scaffold_change_folder("Ghost Progress Header", tmp_path)
+    checklist = (folder / "checklist.md").read_text(encoding="utf-8")
+    assert "## Progress" in checklist
+    assert "(effort-weighted)" in checklist
+    assert refresh_progress_header(checklist) == checklist  # idempotent when aligned
+    assert lint_change("ghost-progress-header", repo_root=tmp_path).exit_code == 0
+
+    # Enforcement drift: a stale header is a PROGRESS_HEADER lint failure.
+    (folder / "checklist.md").write_text(
+        checklist.replace("todo 1 | total 1", "todo 0 | total 1", 1),
+        encoding="utf-8",
+    )
+    stale_report = lint_change("ghost-progress-header", repo_root=tmp_path)
+    assert "PROGRESS_HEADER" in {
+        getattr(violation, "kind", None) for violation in stale_report.violations
+    }
+
+    schema_text = (
+        project_root / "schemas" / "agent-workspace" / "change-checklist.yaml"
+    ).read_text(encoding="utf-8")
+    assert "progress_header" in schema_text
+    assert "effort" in schema_text
+
+    for doc_path in (
+        "workflow-system/agent/references/agent-workspace.md",
+        "workflow-system/agent/references/execution-protocol.md",
+        "workflow-system/agent/references/plan-mode-enforcement.md",
+        "workflow-system/agent/SKILL.md",
+    ):
+        assert "## Progress" in (project_root / doc_path).read_text(encoding="utf-8"), (
+            f"W-18 v17.0.1: {doc_path} must inject the pinned progress-header duty"
+        )

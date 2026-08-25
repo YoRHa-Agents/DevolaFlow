@@ -977,7 +977,7 @@ def test_change_goal_v2_numbered_contract_and_legacy_compatibility() -> None:
                 "priority_dist",
                 "reverted_open",
             },
-            ["# Checklist"],
+            ["# Checklist", "## Progress"],
         ),
         (
             "change-stage",

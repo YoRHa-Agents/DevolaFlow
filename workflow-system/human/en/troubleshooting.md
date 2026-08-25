@@ -4,8 +4,8 @@ description: "Diagnose installation channels, local scaffolds, copied skills, an
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T12:29:02Z"
-source_version: "17.0.0"
+last_synced: "2026-08-25T19:37:27Z"
+source_version: "17.0.1"
 ---
 
 # Troubleshooting

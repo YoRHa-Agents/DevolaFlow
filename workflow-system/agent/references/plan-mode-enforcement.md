@@ -86,10 +86,14 @@ Out of scope:
 - [explicit exclusion]
 
 ## checklist.md draft
+### Progress
+`[░░░…] 0%` — done 0 | doing 0 | todo N | total N (effort-weighted)
+
 ### G1: [goal title copied verbatim]
 - [ ] C-G1.1 (P0) [assertion, <=25 words]
       verify: [bounded command or metric, or user-check]
       depends: []
+      effort: [optional workload weight 1..8; default 1]
       owned_files: [repository-relative writable paths]
       read_only: [repository-relative dependencies]
 - [ ] C-G1.2 (P1) [...]
@@ -143,8 +147,13 @@ Each item needs:
 | Assertion | Testable result, at most 25 words |
 | Verify | Bounded command, measurable threshold, or explicit user-check |
 | Depends | Item IDs only; empty when independent |
+| Effort | Optional workload weight 1..8 (default 1); drives the pinned progress header |
 | Owned files | Repository-relative writable scope |
 | Read-only | Repository-relative context dependencies |
+
+The scaffolded `checklist.md` pins a `## Progress` header directly under the
+H1; the checklist-round runtime re-renders it on every state change and the
+C-9 linter enforces byte alignment (`PROGRESS_HEADER`).
 
 Seed partitions and `source_stages` help L0 discover likely assertions. Their
 order is presentation-only and MUST NOT become an execution sequence.

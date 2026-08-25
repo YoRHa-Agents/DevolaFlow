@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+from devolaflow.agent_workspace import progress as progress_header
 from devolaflow.agent_workspace import round_parser
 from devolaflow.agent_workspace.change import (
     ACTIVE_DIR_DEFAULT,
@@ -598,6 +599,79 @@ def _check_evidence_paths(
             )
 
 
+def _check_progress_header(
+    body: str,
+    items: list[round_parser.ChecklistItem],
+    stage_text: str | None,
+    report: BudgetReport,
+) -> None:
+    """Require one pinned, byte-aligned effort-weighted ``## Progress`` header."""
+    for item in items:
+        for line in item.metadata:
+            if (
+                line.lstrip().startswith("effort:")
+                and round_parser._EFFORT_RE.fullmatch(line) is None  # noqa: SLF001
+            ):
+                report.violations.append(
+                    SemanticViolation(
+                        "checklist.md",
+                        "PROGRESS_HEADER",
+                        f"{item.item_id} effort metadata must be an integer between 1 and 8",
+                    )
+                )
+
+    lines = body.splitlines()
+    heading_indices = [
+        index for index, line in enumerate(lines) if line == progress_header.PROGRESS_HEADING
+    ]
+    if not heading_indices:
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "PROGRESS_HEADER",
+                "checklist.md must pin a '## Progress' section directly after '# Checklist'",
+            )
+        )
+        return
+    if len(heading_indices) > 1:
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "PROGRESS_HEADER",
+                "checklist.md must contain exactly one '## Progress' heading",
+            )
+        )
+        return
+    first_goal = next(
+        (index for index, line in enumerate(lines) if line.startswith("## G")),
+        None,
+    )
+    if first_goal is not None and heading_indices[0] > first_goal:
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "PROGRESS_HEADER",
+                "the '## Progress' section must precede the first goal partition",
+            )
+        )
+
+    expected = progress_header.render_progress_line(
+        progress_header.compute_progress_header(
+            items,
+            progress_header._lenient_stage(stage_text),  # noqa: SLF001
+        )
+    )
+    actual = progress_header.extract_progress_line(body)
+    if actual != expected:
+        report.violations.append(
+            SemanticViolation(
+                "checklist.md",
+                "PROGRESS_HEADER",
+                f"progress line is stale or malformed; the derived line is {expected!r}",
+            )
+        )
+
+
 def _check_preflight(
     text: str,
     *,
@@ -872,6 +946,9 @@ def _lint_checklist_semantics(
                     report,
                 )
         _check_evidence_paths(change_folder, items, report)
+        if checklist is not None:
+            stage_result = _read_artifact(change_folder, "stage.md", report, cache)
+            _check_progress_header(checklist.body, items, stage_result.text, report)
 
     if preflight is not None and preflight_result.text is not None:
         _check_preflight(

@@ -155,6 +155,10 @@ reverted_open: 0
 
 # Checklist
 
+## Progress
+
+`[░░░░░░░░░░░░░░░░░░░░] 0%` — done 0 | doing 0 | todo 2 | total 2 (effort-weighted)
+
 ## G1: <goal title copied verbatim>
 - [ ] C-G1.1 (P0) <measurable assertion, at most 25 words>
       verify: `<bounded command>`
@@ -162,6 +166,7 @@ reverted_open: 0
 - [ ] C-G1.2 (P1) <measurable assertion>
       verify: metric: <machine-evaluable expression>
       depends: [C-G1.1]
+      effort: 2
 ```
 
 Rules:
@@ -172,7 +177,15 @@ Rules:
 - manual checks are user-only;
 - L2 reports evidence, L1 aggregates, L0 or the user checks an item;
 - only the user may reopen `[x] → [ ]`;
-- checked items reference `evidence/C-Gn.m.txt`.
+- checked items reference `evidence/C-Gn.m.txt`;
+- the pinned `## Progress` header stays byte-aligned with derived state:
+  done = checked items, doing = unchecked items picked in the in-flight
+  stage.md round, todo = the rest; the bar and percentage weigh each item
+  by its optional `effort: 1..8` metadata (default 1). L0 re-renders the
+  header on every checkbox flip, effort change, item add/drop, or round
+  transition — `ChangeStore.refresh_progress_header`,
+  `revert_checklist_item`, and `reconcile_round_boundary` re-align it
+  automatically, and the C-9 linter fails on any drift (`PROGRESS_HEADER`).
 
 Schema: `schemas/agent-workspace/change-checklist.yaml`.
 

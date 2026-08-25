@@ -78,6 +78,10 @@ reverted_open: {reverted_open}
 
 # Checklist
 
+## Progress
+
+`[██████░░░░░░░░░░░░░░] 33%` — done 1 | doing 0 | todo 2 | total 3 (effort-weighted)
+
 ## G1: Validate evidence-backed completion
 - [x] C-G1.1 (P0) Focused checklist lint passes
       verify: `python -m pytest tests/test_agent_workspace_checklist_lint.py -q`
