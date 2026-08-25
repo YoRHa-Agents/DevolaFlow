@@ -38,6 +38,7 @@ _CHECKLIST_ITEM_RE: Final[re.Pattern[str]] = re.compile(
 )
 _VERIFY_RE: Final[re.Pattern[str]] = re.compile(r"^\s{6}verify: (.+)$")
 _DEPENDS_RE: Final[re.Pattern[str]] = re.compile(r"^\s{6}depends: \[(.*)\]\s*$")
+_EFFORT_RE: Final[re.Pattern[str]] = re.compile(r"^\s{6}effort: ([1-8])$")
 _ITEM_ID_RE: Final[re.Pattern[str]] = re.compile(r"^C-G(?:[1-9]|1[0-5])\.[1-9][0-9]*$")
 _REVERTED_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s{6}reverted: (.+) \| at: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"
@@ -105,6 +106,9 @@ class ChecklistItem:
     metadata: tuple[str, ...]
     reverted_reason: str | None
     source_index: int
+    # Optional workload estimate (``effort: 1..8`` metadata line); items
+    # without a declaration weigh 1 in the effort-weighted progress header.
+    effort: int = 1
 
 
 @dataclass(frozen=True)
@@ -244,10 +248,11 @@ def _parse_item_metadata(
     filename: str,
     *,
     strict_metadata: bool,
-) -> tuple[str, tuple[str, ...], str | None]:
+) -> tuple[str, tuple[str, ...], str | None, int]:
     verify = ""
     depends: tuple[str, ...] = ()
     reverted_reason: str | None = None
+    effort = 1
     for line in metadata:
         if match := _VERIFY_RE.fullmatch(line):
             verify = match.group(1)
@@ -261,6 +266,16 @@ def _parse_item_metadata(
                     candidate_ids = tuple(raw_items.split(", ")) if raw_items else ()
                     if all(_ITEM_ID_RE.fullmatch(item_id) for item_id in candidate_ids):
                         depends = candidate_ids
+        elif line.lstrip().startswith("effort:"):
+            match = _EFFORT_RE.fullmatch(line)
+            if match is not None:
+                effort = int(match.group(1))
+            elif strict_metadata:
+                raise RoundArtifactParseError(
+                    filename,
+                    "CHECKLIST_ITEM_PARSE",
+                    "effort metadata must be an integer between 1 and 8",
+                )
         elif line.lstrip().startswith("reverted:"):
             match = _REVERTED_RE.fullmatch(line)
             if match is not None:
@@ -271,7 +286,7 @@ def _parse_item_metadata(
                     "CHECKLIST_ITEM_PARSE",
                     "reverted metadata does not match the canonical syntax",
                 )
-    return verify, depends, reverted_reason
+    return verify, depends, reverted_reason, effort
 
 
 def _parse_checklist_items(
@@ -291,7 +306,7 @@ def _parse_checklist_items(
         if pending is not None:
             item_id, goal_id, checked, priority, assertion, source_index = pending
             parsed_metadata = tuple(metadata)
-            verify, depends, reverted_reason = _parse_item_metadata(
+            verify, depends, reverted_reason, effort = _parse_item_metadata(
                 parsed_metadata,
                 filename,
                 strict_metadata=strict_metadata,
@@ -308,6 +323,7 @@ def _parse_checklist_items(
                     metadata=parsed_metadata,
                     reverted_reason=reverted_reason,
                     source_index=source_index,
+                    effort=effort,
                 )
             )
         pending = None

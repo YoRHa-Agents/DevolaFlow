@@ -4,8 +4,8 @@ description: "关于清单轮次、安装范围、更新与发布证据的常见
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T12:29:02Z"
-source_version: "17.0.0"
+last_synced: "2026-08-25T19:37:27Z"
+source_version: "17.0.1"
 ---
 
 # 常见问题

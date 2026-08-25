@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "17.0.0"
+version: "17.0.1"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -28,12 +28,12 @@ description: >
   and auditable quality gates.
 ---
 
-> **Now Using DevolaFlow v17.0.0**
+> **Now Using DevolaFlow v17.0.1**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 17.0.0 — Check only on explicit update request:
+**Current version:** 17.0.1 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 
 Use the channel that created the installation:
@@ -143,6 +143,10 @@ Execution protocol:
 
 L0 verifies evidence, not vibes. Composite score is round trend only; it does
 not replace item evidence.
+
+`checklist.md` pins a `## Progress` header under its H1: an effort-weighted bar
+plus `done | doing | todo | total` counts. L0 MUST re-align it on every state
+change; `ChangeStore` write paths re-render it and C-9 lint fails on drift.
 
 ### GRILL MODE — Stress-Test the Contract
 

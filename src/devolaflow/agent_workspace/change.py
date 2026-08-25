@@ -470,8 +470,9 @@ def reconcile_round_boundary(
     """Return a checklist change with body-derived STATUS counters reconciled.
 
     The helper is side-effect free. An open user revert demotes VERIFYING to
-    IN_PROGRESS, while stage/checklist artifacts and prior round history remain
-    byte-identical.
+    IN_PROGRESS. The pinned ``## Progress`` header inside ``checklist.md`` is
+    re-aligned with the derived done/doing/todo state (the sole checklist
+    mutation); stage artifacts and prior round history remain byte-identical.
     """
 
     if change.layout is not ChangeLayout.CHECKLIST:
@@ -482,11 +483,13 @@ def reconcile_round_boundary(
             f"round-boundary timestamp must use YYYY-MM-DDTHH:MM:SSZ; got {timestamp!r}"
         )
 
+    from devolaflow.agent_workspace.progress import refresh_progress_header
     from devolaflow.agent_workspace.round_parser import parse_stage
 
     try:
         progress = derive_checklist_progress(change.checklist_md)
         stage = parse_stage(change.stage_md)
+        checklist_md = refresh_progress_header(change.checklist_md, change.stage_md)
     except ValueError as exc:
         raise ChangeStoreError(
             f"cannot reconcile checklist round boundary for {change.change_id!r}: {exc}"
@@ -507,7 +510,7 @@ def reconcile_round_boundary(
         new_status["gate_score"] = None
         new_status["verify_pass"] = None
     new_status["last_updated"] = timestamp
-    return replace(change, status=new_status)
+    return replace(change, status=new_status, checklist_md=checklist_md)
 
 
 def _fire_file_write_hook(
@@ -802,6 +805,7 @@ class ChangeStore:
         """
 
         change, folder = self._get_active(change_id)
+        from devolaflow.agent_workspace.progress import refresh_progress_header
         from devolaflow.agent_workspace.round_engine import (
             revert_checklist_item as render_revert,
         )
@@ -813,6 +817,8 @@ class ChangeStore:
             actor=actor,
             at=at or _now_iso(),
         )
+        # Keep the pinned progress header byte-aligned with the reopened item.
+        updated_text = refresh_progress_header(updated_text, change.stage_md)
         updated = replace(change, checklist_md=updated_text)
         self._write_artifact(updated, folder, "checklist.md", updated_text)
         return updated
@@ -823,13 +829,38 @@ class ChangeStore:
         *,
         at: str | None = None,
     ) -> Change:
-        """Persist body-derived counters and any required revert demotion."""
+        """Persist body-derived counters, header alignment, and any demotion."""
 
         change, folder = self._get_active(change_id)
         updated = reconcile_round_boundary(change, at=at)
         if updated is change:
             return change
+        if updated.checklist_md != change.checklist_md:
+            self._write_artifact(updated, folder, "checklist.md", updated.checklist_md)
         self._write_status(updated, folder)
+        return updated
+
+    def refresh_progress_header(self, change_id: str) -> Change:
+        """Re-align the pinned ``## Progress`` header and persist it.
+
+        The canonical L0 alignment call after checking items, adjusting
+        ``effort:`` estimates, or writing the in-flight round's stage.md
+        history row. Byte-identical checklists are not rewritten.
+        """
+
+        change, folder = self._get_active(change_id)
+        from devolaflow.agent_workspace.progress import refresh_progress_header
+
+        try:
+            updated_text = refresh_progress_header(change.checklist_md, change.stage_md)
+        except ValueError as exc:
+            raise ChangeStoreError(
+                f"cannot refresh progress header for {change_id!r}: {exc}"
+            ) from exc
+        if updated_text == change.checklist_md:
+            return change
+        updated = replace(change, checklist_md=updated_text)
+        self._write_artifact(updated, folder, "checklist.md", updated_text)
         return updated
 
     def move_to_archive(self, change_id: str, *, archive_date: str | None = None) -> Path:

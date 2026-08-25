@@ -72,6 +72,7 @@ from devolaflow.agent_workspace import (
     goal_content_hash,
     invalidate_preflight,
     plan_checklist_resume,
+    refresh_progress_header,
     sign_preflight,
     write_checkpoint,
 )
@@ -337,7 +338,7 @@ def scaffold_change_folder(
         owned_files=[],
         learnings_jsonl=None,
         layout=ChangeLayout.CHECKLIST,
-        checklist_md=(
+        checklist_md=refresh_progress_header(
             "---\n"
             f"parent: {slug}\n"
             "schema_version: 1\n"

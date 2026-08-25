@@ -598,6 +598,10 @@ reverted_open: 0
 
 # Checklist
 
+## Progress
+
+`[░░░░░░░░░░░░░░░░░░░░] 0%` — done 0 | doing 0 | todo 4 | total 4 (effort-weighted)
+
 ## G1: Ship the dark mode toggle
 - [ ] C-G1.1 (P0) Theme tokens + `body.theme-dark` overrides land in `src/styles/theme.ts`
       verify: manual review of the CSS layer

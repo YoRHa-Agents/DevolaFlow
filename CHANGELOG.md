@@ -5,6 +5,17 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.0.1] - 2026-08-26 — PATCH — Pinned Effort-Weighted Checklist Progress Header
+
+### Added — pinned `## Progress` header in `checklist.md`
+
+- **NEW module `devolaflow.agent_workspace.progress`**: every `checklist.md` now pins a `## Progress` block directly under its H1 — a 20-cell bar (`█` done / `▓` doing / `░` todo) plus `` `[bar] NN%` — done D | doing I | todo T | total N (effort-weighted) ``. `done` = checked items; `doing` = unchecked items picked by the stage.md Round History row for `current_round`; the bar and percentage weigh each item by its workload estimate. Public API: `compute_progress_header` / `render_progress_line` / `render_progress_block` / `extract_progress_line` / `refresh_progress_header` (+ `ProgressHeader`, `ProgressHeaderError`, `PROGRESS_HEADING`, `PROGRESS_BAR_CELLS`), all exported from `devolaflow.agent_workspace`.
+- **NEW optional `effort: 1..8` item metadata** (default 1) in the checklist item schema; `round_parser.ChecklistItem` gains the `effort` field (strict parse rejects out-of-range values).
+- **Workflow-wide alignment enforcement**: `ChangeStore.reconcile_round_boundary` and `ChangeStore.revert_checklist_item` re-render the header on every round transition and user reversion; new `ChangeStore.refresh_progress_header(change_id)` re-aligns on demand; `scaffold_change_folder` emits the header at scaffold time; the C-9 linter (`agent_workspace.lint`) derives the header from checklist + stage state and fails on missing/duplicate/misplaced headings or any byte drift (`PROGRESS_HEADER` findings). Malformed stage.md degrades loudly (WARNING, `doing=0`) per S-5.
+- **Operator-visible behaviour change**: active change folders scaffolded before v17.0.1 need a one-time `ChangeStore.refresh_progress_header(<change-id>)` (or any round boundary) to gain the header; until then the C-9 linter reports `PROGRESS_HEADER`. No new env flag (W-20: no new activation surface).
+- **Docs/schema injection**: `schemas/agent-workspace/change-checklist.yaml` (progress_header spec + effort metadata + invariants + example), `references/agent-workspace.md`, `references/execution-protocol.md` §6, `references/plan-mode-enforcement.md` §3.2, and SKILL.md AGENT MODE all carry the header duty.
+- W-17: +13 new test functions (`tests/test_agent_workspace_progress_header.py`) ≤ 30; W-18: symbols ghost-pinned in `tests/ghost/test_features_v17_0.py::test_v17_0_1_checklist_progress_header_wired` BEFORE this entry; A-2: dispatch `canonical_order` untouched.
+
 ## [17.0.0] - 2026-08-25 — MAJOR — Deprecation Sweep + Runtime Boundary Enforcement (five host bridges, layer budget assertion, session resume) + Host-Injection Accounting + Configurable Model Boundaries + npm Installation Surface
 
 Gap analysis: `.local/research/v17.0.0_gap_analysis.md` (W-1/SI-1). Round designs: `.local/research/v17.0.0_r[2-5,7]_design.md`. Evaluation: `.local/research/v17.0.0_evaluation.md` (W-3, MAJOR threshold ≥ 9.0). Rounds shipped as PRs #185 (R1 cleanup), #186 (R2 boundaries), #184 (R6 npm), #187 (R3 injection), #188 (R4 focus/loop), #189 (R5 model boundaries).

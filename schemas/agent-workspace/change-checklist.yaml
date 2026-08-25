@@ -13,7 +13,7 @@
 design_reference: ".local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §§4, 9.2"
 schema_name: change-checklist
 schema_version: 1
-last_updated: "2026-08-24"
+last_updated: "2026-08-26"
 governing_rules: [S-2, P4, C-3, C-9]
 
 instance_path_template: ".local/.agent/active/<change-id>/checklist.md"
@@ -78,6 +78,23 @@ body:
     - heading: "# Checklist"
       pattern: "^# Checklist\\s*$"
       description: "H1 must be the exact title `Checklist`."
+    - heading: "## Progress"
+      pattern: "^## Progress$"
+      description: "Pinned progress header; MUST directly follow the H1 and precede every goal partition."
+
+  progress_header:
+    heading: "## Progress"
+    placement: "Directly after `# Checklist`, before the first `## Gn:` partition; exactly one per file."
+    line_pattern: "^`\\[[█▓░]{20}\\] \\d{1,3}%` — done \\d+ \\| doing \\d+ \\| todo \\d+ \\| total \\d+ \\(effort-weighted\\)$"
+    derivation:
+      done: "Count of checked items."
+      doing: "Count of unchecked items picked by the stage.md Round History row whose round equals current_round."
+      todo: "Every remaining item (total - done - doing)."
+      bar_and_percent: "Weighted by each item's `effort:` value (default 1): done cells `█`, doing cells `▓`, todo cells `░`; percent = done_effort * 100 // total_effort."
+    update_obligation:
+      - "L0 MUST re-render the header whenever a checkbox flips, an `effort:` value changes, an item is added or dropped, or the in-flight round's stage.md row changes."
+      - "Canonical write paths re-align automatically: `ChangeStore.refresh_progress_header`, `ChangeStore.revert_checklist_item`, and `ChangeStore.reconcile_round_boundary`."
+    enforcement: "The C-9 linter derives the header from the checklist body + stage.md and fails on any byte drift (`PROGRESS_HEADER` findings)."
 
   goal_partitions:
     heading_pattern: "^## G([1-9]|1[0-5]): .+$"
@@ -131,6 +148,11 @@ body:
       required: false
       line_pattern: "^\\s{6}depends: \\[(C-G[1-9][0-9]*\\.[1-9][0-9]*(, )?)*\\]\\s*$"
       description: "Optional item ids; every dependency MUST be checked before selection."
+    effort:
+      required: false
+      line_pattern: "^\\s{6}effort: [1-8]$"
+      default: 1
+      description: "Estimated workload weight (1..8) driving the effort-weighted progress header; absent means 1."
     completion:
       required_when: "checkbox == `[x]`"
       forbidden_when: "checkbox == `[ ]`"
@@ -206,6 +228,8 @@ reinforcement_contract:
   close_requirement: "The Task result MUST list the item in closes_reinforcement before it may be checked again."
 
 invariants:
+  - "Exactly one `## Progress` header is pinned between the H1 and the first goal partition."
+  - "The progress line stays byte-aligned with the state derived from items, `effort:` weights, and the in-flight stage.md round; every state change re-renders it."
   - "There are 1..15 goal partitions, each with 1..15 items, and total_items is <= 60."
   - "Every assertion is <= 25 words and has exactly one required verify mode."
   - "Every command or metric verification is bounded to <= 300 seconds."
@@ -228,6 +252,10 @@ example: |
 
   # Checklist
 
+  ## Progress
+
+  `[██████████░░░░░░░░░░] 50%` — done 2 | doing 0 | todo 1 | total 3 (effort-weighted)
+
   ## G1: Make checklist completion evidence-backed
   - [x] C-G1.1 (P0) A passing report exists before L0 checks the item
         verify: `python -m pytest tests/test_agent_workspace.py -q`
@@ -235,6 +263,7 @@ example: |
   - [ ] C-G1.2 (P1) Every open item retains a machine-verifiable declaration
         verify: metric: undeclared_verify_count == 0
         depends: [C-G1.1]
+        effort: 2
 
   ## G2: Preserve user control
   - [x] C-G2.1 (P2) User confirms the preflight wording is clear and complete
