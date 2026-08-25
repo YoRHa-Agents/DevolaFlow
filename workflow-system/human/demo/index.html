@@ -50,7 +50,10 @@
     <section class="fade-in">
       <div class="card" style="background:var(--accent-light);padding:1.5rem 2rem;">
         <h3 style="font-size:1.15rem;margin-bottom:.75rem;" data-i18n="landing.install">Install in 1 command</h3>
-        <pre><code><span class="text-muted"># Cursor (project-local)</span>
+        <pre><code><span class="text-muted"># npm — Cursor / Claude Code, user-global (Node &gt;= 18; works on Windows)</span>
+npx @yorha-agents/devola-flow install all
+
+<span class="text-muted"># Cursor (project-local)</span>
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
 
 <span class="text-muted"># Cursor (user-global, shared across all projects)</span>
@@ -63,6 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update</code></pre>
         <p class="text-muted" style="font-size:.85rem;margin-top:.75rem;">
           Also:
+          <code>npx @yorha-agents/devola-flow doctor</code> &middot;
           <code>... | bash -s claude</code> &middot;
           <code>... | bash -s claude --global</code> &middot;
           <code>... | bash -s copilot</code> &middot;

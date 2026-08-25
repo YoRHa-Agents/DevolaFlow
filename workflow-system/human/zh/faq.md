@@ -4,7 +4,7 @@ description: "关于工作流系统的常见问题解答。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -80,9 +80,12 @@ DevolaFlow 使用提示词的 **意图匹配**：
 要一次性审计所有已安装副本，运行 `devola-init-doctor --skills`：它会扫描
 全部已知安装位置，并将每个安装标记为 `current` / `stale` / `unknown-version`。
 
-如何更新？
+### 如何更新？
 
 ```bash
+# npm（用户级 Cursor/Claude 安装；doctor 可做健康检查）
+npx @yorha-agents/devola-flow update all
+
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
@@ -94,6 +97,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 # 先预览将删除的内容，再实际删除
+# （npm 安装的副本也在同一目录，同样被覆盖到）
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```

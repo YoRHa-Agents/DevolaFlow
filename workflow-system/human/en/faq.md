@@ -4,7 +4,7 @@ description: "Frequently asked questions about the workflow system."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -91,9 +91,12 @@ To audit every installed copy at once, run `devola-init-doctor --skills`: it
 scans all known install locations and reports each install as `current`,
 `stale`, or `unknown-version`.
 
-How do I update?
+### How do I update?
 
 ```bash
+# npm (user-level Cursor/Claude installs; also: doctor for a health check)
+npx @yorha-agents/devola-flow update all
+
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
@@ -105,6 +108,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 # preview what would be removed, then remove for real
+# (covers npm-installed copies too — same directories)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```

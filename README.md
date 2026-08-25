@@ -30,6 +30,21 @@ User Request
 
 ## Quick Install (Pick One)
 
+### npm / npx (no clone, no Python — works on Windows)
+
+```bash
+npx @yorha-agents/devola-flow install cursor    # Cursor  (~/.cursor/skills/devola-flow/)
+npx @yorha-agents/devola-flow install claude    # Claude  (~/.claude/skills/devola-flow/)
+npx @yorha-agents/devola-flow install all       # both
+npx @yorha-agents/devola-flow doctor            # health check (stamp version + manifest parity)
+npx @yorha-agents/devola-flow update all        # update to the package's tagged version
+```
+
+Requires Node ≥ 18. Skill files download from GitHub at the tag matching the
+package version (`DEVOLA_FLOW_REF` overrides). User-level Cursor/Claude
+targets only — for project-local, Copilot, or Codex installs use the
+one-liner below.
+
 ### One-liner (no clone needed)
 
 ```bash
@@ -407,6 +422,9 @@ Just type `"update devola"` or `"/update-devola"`. The agent checks GitHub for t
 **From the terminal:**
 
 ```bash
+# If installed via npm/npx
+npx @yorha-agents/devola-flow update all
+
 # If installed via pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 

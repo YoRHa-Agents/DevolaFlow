@@ -166,7 +166,25 @@ def _en_quickstart() -> str:
 
 Choose the method that fits your setup:
 
-**Option A — One-liner (recommended for most users):**
+**Option A — npm / npx (recommended; works on Windows, no Python needed):**
+
+```bash
+# Install into the user-level skill directory (Node >= 18)
+npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
+npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
+npx @yorha-agents/devola-flow install all       # both
+
+# Later: health check and update
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update all
+```
+
+Skill files are downloaded from GitHub at the tag matching the package version
+(`DEVOLA_FLOW_REF` overrides the ref). Targets: Cursor and Claude Code,
+user-level directories only — for project-local, Copilot, or Codex installs
+use Option B.
+
+**Option B — One-liner (curl; all tools, project-local or global):**
 
 ```bash
 INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
@@ -178,7 +196,7 @@ curl -fsSL $INSTALLER | bash -s cursor
 curl -fsSL $INSTALLER | bash -s all
 ```
 
-**Option B — pip install:**
+**Option C — pip install:**
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
@@ -187,7 +205,7 @@ devola-init cursor       # Cursor only
 devola-init all          # all tools
 ```
 
-**Option C — Manual (single file):**
+**Option D — Manual (single file):**
 
 Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
 
@@ -259,6 +277,9 @@ Ask your AI agent: `"update devola"` — it checks GitHub for newer versions and
 Or from the terminal:
 
 ```bash
+# npm installer update (user-level Cursor/Claude installs)
+npx @yorha-agents/devola-flow update all
+
 # Installer update
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 
@@ -671,6 +692,9 @@ scans all known install locations and reports each install as `current`,
 ### How do I update?
 
 ```bash
+# npm (user-level Cursor/Claude installs; also: doctor for a health check)
+npx @yorha-agents/devola-flow update all
+
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
@@ -682,6 +706,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 # preview what would be removed, then remove for real
+# (covers npm-installed copies too — same directories)
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```
@@ -713,6 +738,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # Or user-global (applies to all projects)
 curl -fsSL $INSTALLER | bash -s cursor --global
+
+# Or user-global via npm (Node >= 18; no curl/bash needed)
+npx @yorha-agents/devola-flow install cursor
 ```
 
 This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`):
@@ -766,6 +794,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # User-global (applies to all sessions)
 curl -fsSL $INSTALLER | bash -s claude --global
+
+# Or user-global via npm (Node >= 18; no curl/bash needed)
+npx @yorha-agents/devola-flow install claude
 ```
 
 This installs the skill package into `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (with `--global`): `SKILL.md` plus the `references/` and `examples/` trees, per the `claude` profile in `workflow-system/agent/manifest.yaml`.
@@ -1058,7 +1089,24 @@ def _zh_quickstart() -> str:
 
 选择适合你的安装方式：
 
-**方式 A — 一键安装（推荐）：**
+**方式 A — npm / npx（推荐；Windows 可用，无需 Python）：**
+
+```bash
+# 安装到用户级 skill 目录（需 Node >= 18）
+npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
+npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
+npx @yorha-agents/devola-flow install all       # 两者
+
+# 之后：健康检查与更新
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update all
+```
+
+skill 文件从 GitHub 按包版本对应的 tag 下载（`DEVOLA_FLOW_REF` 可覆写 ref）。
+目标仅限 Cursor 与 Claude Code 的用户级目录——项目级安装、Copilot 或 Codex
+请使用方式 B。
+
+**方式 B — 一键安装（curl；全部工具，项目级或全局）：**
 
 ```bash
 INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
@@ -1070,7 +1118,7 @@ curl -fsSL $INSTALLER | bash -s cursor
 curl -fsSL $INSTALLER | bash -s all
 ```
 
-**方式 B — pip 安装：**
+**方式 C — pip 安装：**
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
@@ -1079,7 +1127,7 @@ devola-init cursor       # 仅 Cursor
 devola-init all          # 所有工具
 ```
 
-**方式 C — 手动安装（单文件）：**
+**方式 D — 手动安装（单文件）：**
 
 下载 [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) 并放置到：
 
@@ -1151,6 +1199,9 @@ devola-version   # 应输出当前 DevolaFlow 版本
 或在终端中：
 
 ```bash
+# npm 安装器更新（用户级 Cursor/Claude 安装）
+npx @yorha-agents/devola-flow update all
+
 # 安装器更新
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 
@@ -1523,6 +1574,9 @@ DevolaFlow 使用提示词的 **意图匹配**：
 ### 如何更新？
 
 ```bash
+# npm（用户级 Cursor/Claude 安装；doctor 可做健康检查）
+npx @yorha-agents/devola-flow update all
+
 # pip
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
 
@@ -1534,6 +1588,7 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 ```bash
 # 先预览将删除的内容，再实际删除
+# （npm 安装的副本也在同一目录，同样被覆盖到）
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
 ```
@@ -1564,6 +1619,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # 或用户全局安装
 curl -fsSL $INSTALLER | bash -s cursor --global
+
+# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
+npx @yorha-agents/devola-flow install cursor
 ```
 
 安装内容（依 `workflow-system/agent/manifest.yaml` 的 `cursor` profile）：
@@ -1609,6 +1667,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # 用户全局
 curl -fsSL $INSTALLER | bash -s claude --global
+
+# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
+npx @yorha-agents/devola-flow install claude
 ```
 
 将 skill 包安装到 `.claude/skills/devola-flow/`（项目级）或 `~/.claude/skills/devola-flow/`（`--global`）：`SKILL.md` 加上 `references/` 与 `examples/` 目录树，依 `workflow-system/agent/manifest.yaml` 的 `claude` profile。

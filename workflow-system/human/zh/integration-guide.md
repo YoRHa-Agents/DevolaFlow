@@ -4,7 +4,7 @@ description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -34,6 +34,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # 或用户全局安装
 curl -fsSL $INSTALLER | bash -s cursor --global
+
+# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
+npx @yorha-agents/devola-flow install cursor
 ```
 
 安装内容（依 `workflow-system/agent/manifest.yaml` 的 `cursor` profile）：
@@ -79,6 +82,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # 用户全局
 curl -fsSL $INSTALLER | bash -s claude --global
+
+# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
+npx @yorha-agents/devola-flow install claude
 ```
 
 将 skill 包安装到 `.claude/skills/devola-flow/`（项目级）或 `~/.claude/skills/devola-flow/`（`--global`）：`SKILL.md` 加上 `references/` 与 `examples/` 目录树，依 `workflow-system/agent/manifest.yaml` 的 `claude` profile。
