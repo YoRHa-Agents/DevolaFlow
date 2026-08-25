@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Agent Workspace Schemas — Index
 # -----------------------------------------------------------------------------
-# Index of the 12 schema files that govern the agent workspace artifacts under
+# Index of the 10 schema files that govern the agent workspace artifacts under
 # `.local/.agent/` and `.local/memory/specs/`. Source of truth: every schema
 # listed here MUST exist as a file in this directory.
 #
@@ -12,22 +12,24 @@
 #   - .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md
 #     §§4-9 (v16 checklist iteration artifact contracts)
 #
-# Patch slot: v16.0.0 M1 — checklist-anchored artifact schema registry
-# History: v8.2.4 introduced the registry; v16.0.0 M1 extends it additively.
+# Patch slot: v17.0.0 R1 — legacy dual-track removal (G17-A2)
+# History: v8.2.4 introduced the registry; v16.0.0 M1 extended it additively;
+# v17.0.0 removed the deprecated legacy acceptance/tasks schemas at their
+# declared removal_target (replacement: change-checklist).
 # -----------------------------------------------------------------------------
 
 design_reference: .local/research/v8.3.0_design.md §2
 iteration_design_reference: .local/tasks/plan_mode_full_update/design/checklist_iteration_design.md §§4-9
 schema_name: agent-workspace-index
 schema_version: 1
-last_updated: "2026-08-24"
-release: "16.0.0"
-milestone: M1
-patch_slot: "v16.0.0 M1"
-gap_ids: [C-002, M-003, M-005]
+last_updated: "2026-08-25"
+release: "17.0.0"
+milestone: R1
+patch_slot: "v17.0.0 R1"
+gap_ids: [C-002, M-003, M-005, G17-A2]
 governing_rules: [S-8, S-9, C-9, A-4]
 
-# 12 schema files declaring the artifact contracts. Registry entries MUST be
+# 10 schema files declaring the artifact contracts. Registry entries MUST be
 # unique and resolve every non-index YAML file in this directory.
 schemas:
   - id: change-goal
@@ -38,17 +40,6 @@ schemas:
     summary: "Numbered goal contract for an in-flight change — each G<n> goal links to the same-numbered checklist.md partition."
     token_budget: { soft: 200, hard: 400, units: tokens }
 
-  - id: change-acceptance
-    file: change-acceptance.yaml
-    target_path_template: ".local/.agent/active/<change-id>/acceptance.md"
-    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/acceptance.md"
-    format: markdown_with_frontmatter
-    summary: "Testable acceptance criteria checklist (AC-N) — Functional / Quality / Backward-compat sections."
-    token_budget: { soft: 400, hard: 800, units: tokens }
-    deprecated_since: "16.0.0"
-    replacement: change-checklist
-    removal_target: "17.0.0"
-
   - id: change-spec
     file: change-spec.yaml
     target_path_template: ".local/.agent/active/<change-id>/spec.md"
@@ -57,17 +48,6 @@ schemas:
     delta_format: openspec
     summary: "Operation spec in OpenSpec delta format — ADDED/MODIFIED/REMOVED Requirements relative to source-of-truth."
     token_budget: { soft: 1500, hard: 3000, units: tokens }
-
-  - id: change-tasks
-    file: change-tasks.yaml
-    target_path_template: ".local/.agent/active/<change-id>/tasks.md"
-    archive_path_template: ".local/.agent/archive/<YYYY-MM-DD>-<change-id>/tasks.md"
-    format: markdown_with_frontmatter
-    summary: "Hierarchical numbered checklist (1.1, 1.2, 2.1, ...) — implementation TODOs."
-    token_budget: { soft: 800, hard: 1500, units: tokens }
-    deprecated_since: "16.0.0"
-    replacement: change-checklist
-    removal_target: "17.0.0"
 
   - id: change-checklist
     file: change-checklist.yaml

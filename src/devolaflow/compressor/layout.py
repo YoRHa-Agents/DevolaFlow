@@ -63,7 +63,7 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     #     state: str                          # PROPOSED | IN_PROGRESS | VERIFYING
     #     spec_delta_target: str              # source-of-truth domain
     #     owned_files_ref: str                # ".local/.agent/active/<id>/owned_files.txt"
-    #     acceptance_ref: str                 # ".local/.agent/active/<id>/acceptance.md"
+    #     acceptance_ref: str                 # ".local/.agent/active/<id>/checklist.md"
     #
     # Field is OPTIONAL — when absent, the dispatch is a "free-floating"
     # workflow (current v4 behaviour preserved). assert_dispatch_layout
@@ -98,7 +98,7 @@ DEFAULT_DISPATCH_LAYOUT: list[str] = [
     # round N-1; matching summaries are replaced by ``"@round-N-1:pred-K"``
     # references and the ledger records the dedup hit. Per the v15.0.0
     # G-007 self-containment contract, references resolve INTRA-PAYLOAD
-    # (``pred[i].summary == ref`` → ``entries[j].digest``) — a fresh L3
+    # (``pred[i].summary == ref`` → ``entries[j].digest``) — a fresh L2
     # receiver (Context Isolation: empty context at spawn) never needs the
     # round-N-1 dispatch it never saw. ``digest`` is REQUIRED on every
     # entry the emitter produces as of v15.0.0; it is OPTIONAL in the

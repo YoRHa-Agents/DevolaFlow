@@ -10,9 +10,9 @@ concern, per
 ``docs/cycle-archive/adr/v15-ADR-006-scorer-selector-module-split.md`` decision
 item 1 ("the module the v14.4.0 metric runners then extend in place").
 
-PERMANENT identity-preserving re-export shims live at the old
-``devolaflow.gate.scorer`` path per the ADR's shim clause. Pinned by
-``tests/test_module_split_shims.py``.
+The ADR-006 re-export shims at the old ``devolaflow.gate.scorer`` path were
+retired in v17.0.0 after call-site migration; this module is the sole import
+surface. Absence pinned by ``tests/test_module_split_shims.py``.
 """
 
 from __future__ import annotations

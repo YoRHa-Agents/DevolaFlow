@@ -9,9 +9,9 @@ row + §6 R-1):
   (``intra_task_convergence: bool`` + ``intra_task_max_rounds: int``,
   default 2 per execution-protocol §15.4). Mirrors the v11.1.0 cascade
   NEST precedent EXACTLY: opt-in populate helper
-  (:func:`devolaflow.feedback.populate_intra_task_convergence`,
+  (:func:`devolaflow.gate.cascade.populate_intra_task_convergence`,
   deep-copy, absence-canonical) + permissive-by-default validator
-  (:func:`devolaflow.gate.scorer.validate_intra_task_convergence_fields`,
+  (:func:`devolaflow.gate.cascade.validate_intra_task_convergence_fields`,
   warning list; ``strict=True`` raises
   :class:`IntraTaskConvergenceViolationError`). canonical_order LENGTH
   STAYS 17 and schema version STAYS 6 — the R-1 sentinel test below
@@ -48,10 +48,16 @@ import pytest
 import yaml
 
 from devolaflow.compressor import DEFAULT_DISPATCH_LAYOUT, assert_dispatch_layout
-from devolaflow.feedback import (
+from devolaflow.gate.acceptance_v2 import (
+    CommandRunResult,
+    evaluate_acceptance_criteria_v2,
+)
+from devolaflow.gate.cascade import (
     INTRA_TASK_CONVERGENCE_TASK_TYPES,
     INTRA_TASK_MAX_ROUNDS_DEFAULT,
+    IntraTaskConvergenceViolationError,
     populate_intra_task_convergence,
+    validate_intra_task_convergence_fields,
 )
 from devolaflow.gate.models import (
     AcceptanceCriterion,
@@ -60,13 +66,7 @@ from devolaflow.gate.models import (
     GateInput,
 )
 from devolaflow.gate.profiles import AUDIT, RELAXED, STANDARD, STRICT
-from devolaflow.gate.scorer import (
-    CommandRunResult,
-    IntraTaskConvergenceViolationError,
-    evaluate_acceptance_criteria_v2,
-    evaluate_gate,
-    validate_intra_task_convergence_fields,
-)
+from devolaflow.gate.scorer import evaluate_gate
 from devolaflow.legibility import LegibilityScorer
 
 _SCHEMA_PATH = Path(__file__).parent.parent / "schemas/lean-dispatch.yaml"

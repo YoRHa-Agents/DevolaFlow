@@ -17,17 +17,13 @@ from devolaflow.gate.budget import (
 from devolaflow.gate.complexity_detector import (
     COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
     CRITICAL_CC_THRESHOLD,
-    NINES_BINARY,
-    NINES_TIMEOUT_SECONDS,
     TIER_BUDGETS,
     WARNING_CC_THRESHOLD,
     ComplexityDetector,
     ComplexityEvaluation,
     ComplexityProbeResult,
-    NinesWrapResult,
     TierBudgets,
     inspect_complexity_path,
-    wrap_nines_complexity,
 )
 from devolaflow.gate.convergence import (
     compute_trend,
@@ -147,9 +143,6 @@ __all__ = [
     "MAX_REINFORCEMENT_RULES",
     "MIN_HISTORY_FOR_DETECTION",
     "MonotonicRatchet",
-    "NINES_BINARY",
-    "NINES_TIMEOUT_SECONDS",
-    "NinesWrapResult",
     "ORACLE_WEIGHT_BUILD",
     "ORACLE_WEIGHT_LINT",
     "ORACLE_WEIGHT_TEST",
@@ -208,5 +201,4 @@ __all__ = [
     "reinforcement_to_dict",
     "run_gate_cli",
     "score_acceptance_readiness",
-    "wrap_nines_complexity",
 ]

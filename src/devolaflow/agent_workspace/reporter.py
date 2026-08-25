@@ -141,8 +141,8 @@ RULES_LAYERS: Final[tuple[tuple[str, str], ...]] = (
 _RULE_HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^#+ [A-Z]{1,3}-\d+\b")
 # `## Why` block extractor for goal.md.
 _WHY_HEADING_RE: Final[re.Pattern[str]] = re.compile(r"^##\s+Why\s*$")
-# `## N. <title>` task group extractor for tasks.md.
-_TASK_GROUP_RE: Final[re.Pattern[str]] = re.compile(r"^##\s+(\d+\.\s+.+)$")
+# `## G<n>: <title>` goal-group extractor for checklist.md.
+_TASK_GROUP_RE: Final[re.Pattern[str]] = re.compile(r"^##\s+(G\d+:\s+.+)$")
 # Archive folder date prefix.
 _ARCHIVE_DATE_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r"^(\d{4}-\d{2}-\d{2})-")
 
@@ -193,7 +193,7 @@ def render_change_report(
     delta_sections = _extract_delta_sections(change.spec_md)
     goal_why = _extract_goal_why(change.goal_md) or "_Not stated._"
     purpose = _extract_purpose(change.spec_md)
-    task_groups = _extract_task_groups(change.tasks_md)
+    task_groups = _extract_task_groups(change.checklist_md)
     learnings = _parse_learnings_jsonl(change.learnings_jsonl)
     handoff_chain = _summarise_handoff_chain(change_id, change_folder, root)
 
@@ -1131,12 +1131,12 @@ def _extract_purpose(spec_md: str) -> str:
     return delta.purpose.strip()
 
 
-def _extract_task_groups(tasks_md: str) -> list[str]:
-    """Return the list of ``## N. <group title>`` headings from tasks.md."""
-    if not tasks_md:
+def _extract_task_groups(checklist_md: str) -> list[str]:
+    """Return the list of ``## G<n>: <title>`` goal headings from checklist.md."""
+    if not checklist_md:
         return []
     groups: list[str] = []
-    for line in tasks_md.splitlines():
+    for line in checklist_md.splitlines():
         m = _TASK_GROUP_RE.match(line)
         if m:
             groups.append(m.group(1).strip())

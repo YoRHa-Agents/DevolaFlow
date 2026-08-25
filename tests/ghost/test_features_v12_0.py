@@ -28,11 +28,10 @@ import yaml
 # (PV-07 owns the bump).
 # v14.5.0 (ADR-006 G-025) ghost-pin update: CascadeViolationError +
 # validate_cascade_gate_fields moved VERBATIM from gate/scorer.py to the
-# new owner module gate/cascade.py; the historical
-# devolaflow.gate.scorer import path keeps working via a permanent
-# identity-preserving re-export shim (pinned by
-# tests/test_module_split_shims.py). The AST pins below follow the
-# re-export truth's owner module.
+# new owner module gate/cascade.py. v17.0.0 retired the historical
+# devolaflow.gate.scorer re-export shim after call-site migration
+# (absence pinned by tests/test_module_split_shims.py); the owner module
+# is now the sole import surface. The AST pins below follow it.
 _V12_0_0_PV02_SCORER_FILE: Path = Path("src/devolaflow/gate/cascade.py")
 
 
@@ -161,7 +160,7 @@ def test_v12_0_0_pv02_d1_strict_promotion(project_root: Path) -> None:
         f"W-18 v12.0.0 PV-02 violation: {_V12_0_0_PV02_SCORER_FILE} missing "
         "``CascadeViolationError`` class definition. Per the v12.0.0 PV-02 "
         "D-1 STRICT graduation, the exception class MUST be defined at "
-        "module scope so callers can ``from devolaflow.gate.scorer import "
+        "module scope so callers can ``from devolaflow.gate.cascade import "
         "CascadeViolationError``."
     )
 

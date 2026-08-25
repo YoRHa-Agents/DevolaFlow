@@ -10,7 +10,7 @@ reported here matches the AGENTS.md ``5857/6000`` and ``cursor 6889/8000``
 figures the operator sees from ``sync-rules``.
 
 **Definition of "agent context overhead"** (per v9.0.0 PV-05 design.md
-§Risk R-11): the sum of estimated tokens across the files an L0/L1/L2/L3
+§Risk R-11): the sum of estimated tokens across the files an L0/L1/L2
 dispatcher loads UNCONDITIONALLY on every invocation. This excludes
 Tier-2 references (``workflow-system/agent/references/*.md``) and Tier-3
 examples (``workflow-system/agent/examples/*.md``) which are loaded

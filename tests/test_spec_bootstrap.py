@@ -104,37 +104,26 @@ def _scaffold_archived_change(
         ),
         encoding="utf-8",
     )
-    (folder / "acceptance.md").write_text(
-        textwrap.dedent(
-            f"""\
-            ---
-            parent: {change_id}
-            ac_count: 1
-            ---
-
-            # Acceptance Criteria
-
-            ## Functional
-            - [x] AC-1: Seeded
-            """
-        ),
-        encoding="utf-8",
-    )
     (folder / "spec.md").write_text(spec_md, encoding="utf-8")
-    (folder / "tasks.md").write_text(
+    (folder / "checklist.md").write_text(
         textwrap.dedent(
             f"""\
             ---
             parent: {change_id}
-            total_tasks: 1
+            schema_version: 1
+            total_items: 1
             checked: 1
+            priority_dist: {{P0: 1, P1: 0, P2: 0}}
+            reverted_open: 0
             ---
 
-            # Tasks
+            # Checklist
 
-            ## 1. Implementation
-            - [x] 1.1 Done
-            """
+            ## G1: Bootstrap fixture
+            - [x] C-G1.1 (P0) Seeded
+                  verify: manual
+                  evidence: evidence/C-G1.1.txt | checked_by: user | round: 1 """
+            "| at: 2026-04-30T11:00:00Z\n"
         ),
         encoding="utf-8",
     )

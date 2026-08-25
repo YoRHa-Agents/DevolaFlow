@@ -9,10 +9,12 @@ item 2. Mechanical import fix only: ``main`` imports ``select_context`` /
 module-level cycles.
 
 ``python -m devolaflow.task_adaptive_selector <task_type>`` keeps working
-unchanged — the selector re-exports ``main`` and keeps its
-``if __name__ == "__main__"`` guard. PERMANENT identity-preserving re-export
-shims live at the old ``devolaflow.task_adaptive_selector`` path per the
-ADR's shim clause. Pinned by ``tests/test_module_split_shims.py``.
+unchanged — the selector's ``if __name__ == "__main__"`` guard imports
+:func:`main` from this module at run time. The ADR-006 module-level
+re-export shims at the old ``devolaflow.task_adaptive_selector`` path were
+retired in v17.0.0 after call-site migration; import ``main`` from
+``devolaflow.selector_cli``. Absence pinned by
+``tests/test_module_split_shims.py``.
 """
 
 from __future__ import annotations

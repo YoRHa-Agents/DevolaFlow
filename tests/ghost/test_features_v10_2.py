@@ -159,13 +159,12 @@ _V10_2_1_NEW_TEST_FILES: tuple[Path, ...] = (
 )
 
 
-# v10.2.1 PV-02 D-S-2 new public symbol on devolaflow.feedback.
+# v10.2.1 PV-02 D-S-2 new public symbol (originally on devolaflow.feedback).
 # v14.5.0 (ADR-006 G-025) ghost-pin update: the symbol's DEFINITION moved
-# to the new owner module src/devolaflow/dispatch.py; the historical
-# devolaflow.feedback import path keeps working via a permanent
-# identity-preserving re-export shim (pinned by
-# tests/test_module_split_shims.py). The AST def pin below follows the
-# re-export truth's owner module.
+# to the new owner module src/devolaflow/dispatch.py. v17.0.0 retired the
+# historical devolaflow.feedback re-export shim after call-site migration
+# (absence pinned by tests/test_module_split_shims.py); the owner module
+# is now the sole import surface. The AST def pin below follows it.
 _V10_2_1_FEEDBACK_NEW_SYMBOL: str = "dispatch_dogfood_cycle"
 
 
@@ -210,7 +209,8 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
     1. **3 NEW test files** — every file in `_V10_2_1_NEW_TEST_FILES`
        must exist on disk (D-S-2 / D-S-3 / D-S-5 closures).
     2. **`dispatch_dogfood_cycle` symbol** — defined in
-       `src/devolaflow/feedback.py` (D-S-2 closure).
+       `src/devolaflow/dispatch.py` (D-S-2 closure; moved there by the
+       v14.5.0 ADR-006 split).
     3. **`EVENT_TRIGGERS_DAILY_UPGRADE` constant** — defined in
        `src/devolaflow/lifecycle/pre_plugin_invocation.py` (D-P-2
        closure introspection contract).
@@ -237,7 +237,7 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
         )
 
     # v14.5.0 (ADR-006 G-025): definition moved feedback.py → dispatch.py;
-    # the old import path is shimmed (see _V10_2_1_FEEDBACK_NEW_SYMBOL note).
+    # v17.0.0 retired the old-path shim (see _V10_2_1_FEEDBACK_NEW_SYMBOL note).
     feedback_path = project_root / _V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER
     assert feedback_path.is_file(), (
         f"W-18 v10.2.1 violation: {_V10_2_1_FEEDBACK_NEW_SYMBOL_OWNER} missing."
@@ -256,11 +256,11 @@ def test_v10_2_1_new_symbols_have_coverage(project_root: Path) -> None:
         f"mention of D-S-2."
     )
     from devolaflow import dispatch as _dispatch_module
-    from devolaflow import feedback as _feedback_module
 
-    assert _feedback_module.dispatch_dogfood_cycle is _dispatch_module.dispatch_dogfood_cycle, (
-        "W-18 v10.2.1 violation: the devolaflow.feedback re-export shim for "
-        "dispatch_dogfood_cycle must stay identity-preserving (ADR-006)."
+    assert callable(_dispatch_module.dispatch_dogfood_cycle), (
+        "W-18 v10.2.1 violation: devolaflow.dispatch.dispatch_dogfood_cycle "
+        "is missing or not callable — the D-S-2 wrapper lives on the ADR-006 "
+        "owner module (the feedback.py shim was retired in v17.0.0)."
     )
 
     pre_plugin_path = project_root / "src/devolaflow/lifecycle/pre_plugin_invocation.py"

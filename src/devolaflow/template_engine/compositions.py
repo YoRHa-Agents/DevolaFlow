@@ -1,8 +1,10 @@
 """Retired executable-composition compatibility surface.
 
 Registry schema v3 stores declarative checklist seeds.  The historical
-dataclasses remain importable for one major so callers receive a classified
-error instead of an import failure, but no helper synthesizes executable DAGs.
+dataclasses remain importable for name resolution and legacy diagnostics so
+callers receive a classified error instead of an import failure, but no
+helper synthesizes or validates executable DAGs (the v16 always-raise stubs
+were removed in v17.0.0).
 """
 
 from __future__ import annotations
@@ -97,18 +99,3 @@ def load_composition_manifest(registry_yaml: Path) -> dict[str, CompositionEntry
     if raw.get("schema_version") == REGISTRY_SCHEMA_V2 and raw.get("compositions"):
         _retired()
     return {}
-
-
-def composition_to_template(entry: CompositionEntry) -> NoReturn:
-    """Reject historical DAG synthesis."""
-    del entry
-    _retired()
-
-
-def validate_composition_manifest(
-    manifest: dict[str, CompositionEntry],
-    template_names: set[str],
-) -> NoReturn:
-    """Reject validation of the retired executable manifest model."""
-    del manifest, template_names
-    _retired()

@@ -1,7 +1,7 @@
-"""v15.0.0 T4 — L0-side artifact scoring from L3 evidence blocks.
+"""v15.0.0 T4 — L0-side artifact scoring from L2 evidence blocks.
 
 Pins ``src/devolaflow/gate/artifact_score.py`` — the SCORING PHASE of
-the v15-ADR-007 evidence-vs-scoring doctrine split: L3 emits evidence
+the v15-ADR-007 evidence-vs-scoring doctrine split: L2 emits evidence
 only (v14.3.0 ``self_check`` / ``ac_results`` / ``diff_stats`` blocks
 per ``schemas/lean-report.yaml``); L0 computes the artifact quality
 score FROM the evidence per the ``references/artifact-quality.md`` §2

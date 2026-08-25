@@ -44,6 +44,7 @@ from devolaflow.gate.cycle_detector import (
     _no_cycle,
     _stringify,
 )
+from devolaflow.gate.ladder import evaluate_ladder
 from devolaflow.gate.models import (
     CYCLE_DEFAULT_SEVERITY,
     CheckResult,
@@ -59,7 +60,7 @@ from devolaflow.gate.reinforcement import (
     _format_cycle_mandate,
     cycle_to_instruction,
 )
-from devolaflow.gate.scorer import _attach_cycle_report, evaluate_gate, evaluate_ladder
+from devolaflow.gate.scorer import _attach_cycle_report, evaluate_gate
 
 # ---------------------------------------------------------------------------
 # helpers — tiny fixtures shared across the suite

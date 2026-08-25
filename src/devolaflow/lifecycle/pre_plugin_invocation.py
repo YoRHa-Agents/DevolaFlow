@@ -56,7 +56,7 @@ In permissive mode the handler NEVER crashes the dispatch — install
 failures are aggregated into the result envelope and emitted via
 WARNING-level logs by :func:`finalize`. The dispatcher (in v9.4.0
 PV-03 wiring) receives the populated :class:`HookResult` and may
-inspect ``result.violations`` to decide whether to abort the L3
+inspect ``result.violations`` to decide whether to abort the L2
 dispatch or proceed in best-effort mode.
 
 A genuinely unexpected exception (e.g. ``OSError`` on disk full,

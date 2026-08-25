@@ -1573,25 +1573,18 @@ def warmup_selector_cache(
 
 
 # ---------------------------------------------------------------------------
-# v14.5.0 (ADR-006 / gap G-025) — PERMANENT re-export shims for the module
-# split. ``task_adaptive_selector.py`` keeps the selection core (the
-# CP-6 / W-13 benchmark-coupled surface); the extracted concerns live in:
+# v17.0.0 shim retirement (ADR-006 revisit): the v14.5.0 re-export shims
+# that lived here were DELETED after every in-repo call site migrated to
+# the owner modules. Import from:
 #
-#   * ``agents_md_slice.py`` — the v9.0.0 PV-07 AGENTS.md-slicing subsystem
-#     (select_agents_md_slice + count_agents_md_rules + private helpers)
+#   * ``agents_md_slice.py`` — select_agents_md_slice + count_agents_md_rules
 #   * ``selector_cli.py``    — the CLI block (main + _print_cli_* helpers)
 #
-# Deprecation note: prefer the new owner-module paths in NEW code. These
-# shims are PERMANENT (lifetime >= v16.0.0, revisit then — per the ADR's
-# shim clause). Every re-export below is identity-preserving
-# (``old_path.symbol is new_path.symbol``), pinned by
+# ``python -m devolaflow.task_adaptive_selector`` keeps working via the
+# run-time import in the guard below. Absence pinned by
 # ``tests/test_module_split_shims.py``.
 # ---------------------------------------------------------------------------
-from devolaflow.agents_md_slice import (  # noqa: E402, F401
-    count_agents_md_rules,
-    select_agents_md_slice,
-)
-from devolaflow.selector_cli import main  # noqa: E402, F401
-
 if __name__ == "__main__":
+    from devolaflow.selector_cli import main
+
     main()

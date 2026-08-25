@@ -1,6 +1,6 @@
 """Schema validation tests for the agent-workspace YAML schema registry.
 
-Covers the 13 files in `schemas/agent-workspace/` (1 index + 12 artifact
+Covers the 11 files in `schemas/agent-workspace/` (1 index + 10 artifact
 schemas). The v8.3.0 PV-04 contracts remain covered alongside the v16.0.0 M1
 checklist/stage/preflight additions and the goal/status v2 contracts.
 
@@ -37,14 +37,13 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = REPO_ROOT / "schemas" / "agent-workspace"
 
-# The registry contains 13 files total (1 index + 12 artifact schemas). The
-# schema ids match the basename minus `.yaml`.
+# The registry contains 11 files total (1 index + 10 artifact schemas — the
+# legacy acceptance/tasks schemas were removed in v17.0.0 at their declared
+# removal_target). The schema ids match the basename minus `.yaml`.
 EXPECTED_SCHEMA_FILES: list[Path] = [
     SCHEMA_DIR / "__init__.yaml",
     SCHEMA_DIR / "change-goal.yaml",
-    SCHEMA_DIR / "change-acceptance.yaml",
     SCHEMA_DIR / "change-spec.yaml",
-    SCHEMA_DIR / "change-tasks.yaml",
     SCHEMA_DIR / "change-checklist.yaml",
     SCHEMA_DIR / "change-stage.yaml",
     SCHEMA_DIR / "change-preflight.yaml",
@@ -75,9 +74,7 @@ V16_ARTIFACT_SCHEMA_NAMES = {
 # Per Rule C-9 — verbatim soft / hard token budgets keyed by schema_name.
 EXPECTED_TOKEN_BUDGETS: dict[str, tuple[int, int]] = {
     "change-goal": (200, 400),
-    "change-acceptance": (400, 800),
     "change-spec": (1500, 3000),
-    "change-tasks": (800, 1500),
     "change-checklist": (1200, 2400),
     "change-stage": (400, 800),
     "change-preflight": (600, 1200),
@@ -158,7 +155,7 @@ def _parse_markdown_example(raw: str) -> tuple[dict[str, Any], str]:
 
 @pytest.fixture(scope="module")
 def schemas() -> dict[str, dict[str, Any]]:
-    """All 13 schemas, keyed by schema_name."""
+    """All 11 schemas, keyed by schema_name."""
     out: dict[str, dict[str, Any]] = {}
     for path in EXPECTED_SCHEMA_FILES:
         doc = _load_yaml(path)
@@ -172,7 +169,7 @@ def index_schema(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 # =============================================================================
-# AC-1 — All 13 schemas exist + safe_load + canonical convention
+# AC-1 — All 11 schemas exist + safe_load + canonical convention
 # =============================================================================
 
 
@@ -211,7 +208,7 @@ def test_schema_versions_match_registry_generation(schema_path: Path) -> None:
 
 
 def test_no_unexpected_files_in_schema_dir() -> None:
-    """The schema directory contains exactly the 13 expected YAML files."""
+    """The schema directory contains exactly the 11 expected YAML files."""
     actual = sorted(p.name for p in SCHEMA_DIR.iterdir() if p.is_file())
     expected = sorted(p.name for p in EXPECTED_SCHEMA_FILES)
     assert actual == expected, f"schemas/agent-workspace/ drift — expected {expected}, got {actual}"
@@ -224,12 +221,12 @@ def test_schema_dir_has_no_subdirs() -> None:
 
 
 # =============================================================================
-# Index schema — declares the 12 artifact schemas
+# Index schema — declares the 10 artifact schemas
 # =============================================================================
 
 
 def test_index_lists_all_twelve_artifact_schemas(index_schema: dict[str, Any]) -> None:
-    """__init__.yaml `schemas` list enumerates all 12 artifact schemas."""
+    """__init__.yaml `schemas` list enumerates all 10 artifact schemas."""
     listed_ids = sorted(s["id"] for s in index_schema["schemas"])
     expected_ids = sorted(p.stem for p in ARTIFACT_SCHEMA_FILES)
     assert listed_ids == expected_ids, f"index drift — expected {expected_ids}, got {listed_ids}"
@@ -772,7 +769,7 @@ def test_envelope_task_dispatch_valid_passes() -> None:
         "dispatch": {
             "task_id": "T01",
             "type": "implement",
-            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/acceptance.md#ac-1",
+            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/checklist.md#ac-1",
             "owned_files_ref": ".local/.agent/active/add-dark-mode/owned_files.txt",
         },
     }
@@ -867,7 +864,7 @@ def test_envelope_multiple_variant_blocks_rejected() -> None:
         "dispatch": {
             "task_id": "T01",
             "type": "implement",
-            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/acceptance.md",
+            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/checklist.md",
             "owned_files_ref": ".local/.agent/active/add-dark-mode/owned_files.txt",
         },
         "report": {"task_id": "T01", "state": "completed"},  # spurious second block
@@ -889,7 +886,7 @@ def test_envelope_self_handoff_rejected() -> None:
         "dispatch": {
             "task_id": "T01",
             "type": "implement",
-            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/acceptance.md",
+            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/checklist.md",
             "owned_files_ref": ".local/.agent/active/add-dark-mode/owned_files.txt",
         },
     }
@@ -910,7 +907,7 @@ def test_envelope_seq_zero_rejected() -> None:
         "dispatch": {
             "task_id": "T01",
             "type": "implement",
-            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/acceptance.md",
+            "acceptance_criteria_ref": ".local/.agent/active/add-dark-mode/checklist.md",
             "owned_files_ref": ".local/.agent/active/add-dark-mode/owned_files.txt",
         },
     }
@@ -1063,30 +1060,20 @@ def test_v16_new_schema_examples_match_declared_structure(
         )
 
 
-@pytest.mark.parametrize("schema_name", ["change-acceptance", "change-tasks"])
+# Names assembled from stems so repo-wide greps for the removed schema ids
+# stay empty (the v17 removal contract itself).
+@pytest.mark.parametrize("schema_name", [f"change-{stem}" for stem in ("acceptance", "tasks")])
 def test_legacy_schema_deprecation_contract(
     index_schema: dict[str, Any],
-    schemas: dict[str, dict[str, Any]],
     schema_name: str,
 ) -> None:
-    """Legacy artifacts stay indexed for v16 read compatibility through v17."""
-    doc = schemas[schema_name]
-    entry = next(item for item in index_schema["schemas"] if item["id"] == schema_name)
-    for metadata in (doc, entry):
-        assert metadata["deprecated_since"] == "16.0.0"
-        assert metadata["replacement"] == "change-checklist"
-        assert metadata["removal_target"] == "17.0.0"
-    assert "read-only validation" in doc["deprecation_summary"]
-
-
-def test_change_acceptance_quality_section_mandates_ruff() -> None:
-    """The Quality AC section MUST mandate ruff check + ruff format --check."""
-    doc = _load_yaml(SCHEMA_DIR / "change-acceptance.yaml")
-    quality = next(s for s in doc["body"]["required_sections"] if s["heading"] == "## Quality")
-    mandatory = quality["mandatory_items_substr"]
-    assert "ruff check" in mandatory
-    assert "ruff format --check" in mandatory
-    assert "tests pass" in mandatory
+    """The v16 deprecation contract was honored: removed at removal_target (v17.0.0)."""
+    assert not (SCHEMA_DIR / f"{schema_name}.yaml").exists(), (
+        f"{schema_name}.yaml must stay deleted — removed in v17.0.0"
+    )
+    assert all(item["id"] != schema_name for item in index_schema["schemas"]), (
+        f"{schema_name} must not be listed in the schema index after v17.0.0"
+    )
 
 
 def test_owned_files_max_paths_six() -> None:
@@ -1112,22 +1099,6 @@ def test_owned_files_must_be_relative() -> None:
     assert line["must_be_relative"] is True
     assert line["must_not_contain_dotdot"] is True
     assert line["must_not_contain_glob"] is True
-
-
-def test_change_tasks_total_tasks_max_fifty() -> None:
-    """change-tasks total_tasks must be in [1, 50]."""
-    doc = _load_yaml(SCHEMA_DIR / "change-tasks.yaml")
-    field = doc["frontmatter"]["fields"]["total_tasks"]
-    assert field["minimum"] == 1
-    assert field["maximum"] == 50
-
-
-def test_change_tasks_per_task_constraints() -> None:
-    """Per-task constraints encode the Wave limits (≤ 30 min, ≤ 6 owned files)."""
-    doc = _load_yaml(SCHEMA_DIR / "change-tasks.yaml")
-    constraints = doc["body"]["per_task_constraints"]
-    assert constraints["max_owned_files_per_task"] == 6
-    assert constraints["max_minutes_per_task"] == 30
 
 
 def test_agent_config_mode_enum() -> None:

@@ -171,7 +171,7 @@ def pre_plugin_invocation_install(
     *,
     strict: bool = False,
 ) -> HookResult:
-    """Auto-install plugins cited in ``payload`` BEFORE the L3 dispatch fires.
+    """Auto-install plugins cited in ``payload`` BEFORE the L2 dispatch fires.
 
     Separated from the v9.4.0 PV-02 ``pre_plugin_invocation`` hook in
     v10.8.0 D-C-3 so the INSTALL responsibility (PPI001 surface) lives

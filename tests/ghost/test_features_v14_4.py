@@ -23,12 +23,15 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
     T1 slice (gate-domain NEST sub-fields + SOFT validator + AC-v2 metric
     runners). The stanza pins:
 
-    (a) devolaflow.feedback: populate_intra_task_convergence + the
+    (a) devolaflow.gate.cascade: populate_intra_task_convergence + the
         INTRA_TASK_CONVERGENCE_TASK_TYPES / INTRA_TASK_MAX_ROUNDS_DEFAULT
         constants, including the warrant-rule behaviour (impl-class +
         non-empty acceptance_criteria_v2 → populate; else absence-canonical).
-    (b) devolaflow.gate.scorer: validate_intra_task_convergence_fields
+        (Owner module since the v14.5.0 ADR-006 split; the historical
+        devolaflow.feedback re-export shims were retired in v17.0.0.)
+    (b) devolaflow.gate.cascade: validate_intra_task_convergence_fields
         (SOFT default, strict=True raises) + IntraTaskConvergenceViolationError.
+        (The historical devolaflow.gate.scorer shim likewise retired v17.0.0.)
     (c) The AC-v2 metric-runner path: METRIC_KIND_{COVERAGE,LINT,NUMBER}
         constants + the schema per-entry fields metric_kind / comparison.
     (d) schemas/lean-dispatch.yaml NEST sub-fields gate.intra_task_convergence
@@ -38,8 +41,8 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
 
     Source: .local/research/v14.2.0_gap_analysis.md §2.1 G-005 (NEST slice).
     """
-    # --- (a) feedback helper + constants + warrant rule -----------------
-    from devolaflow.feedback import (
+    # --- (a) cascade populate helper + constants + warrant rule ---------
+    from devolaflow.gate.cascade import (
         INTRA_TASK_CONVERGENCE_TASK_TYPES,
         INTRA_TASK_MAX_ROUNDS_DEFAULT,
         populate_intra_task_convergence,
@@ -68,7 +71,7 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
     )
 
     # --- (b) SOFT validator + strict-mode error --------------------------
-    from devolaflow.gate.scorer import (
+    from devolaflow.gate.cascade import (
         IntraTaskConvergenceViolationError,
         validate_intra_task_convergence_fields,
     )
@@ -84,7 +87,7 @@ def test_v14_4_0_intra_task_convergence_registered(project_root: Path) -> None:
         validate_intra_task_convergence_fields({"intra_task_max_rounds": 0}, strict=True)
 
     # --- (c) AC-v2 metric-runner kinds + schema fields --------------------
-    from devolaflow.gate.scorer import (
+    from devolaflow.gate.acceptance_v2 import (
         METRIC_KIND_COVERAGE,
         METRIC_KIND_LINT,
         METRIC_KIND_NUMBER,

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 import yaml
 
+from devolaflow.agent_workspace.layers import LAYER_ATTRIBUTION_ALIASES
 from devolaflow.harness.tiers import annotate_rule_surfaces, summarize_constraints
 from devolaflow.task_adaptive_selector import estimate_tokens
 
@@ -36,16 +37,8 @@ _ACTIVE_ROOT = Path(".local") / ".agent" / "active"
 _BASE_LEDGER_NAME = "harness.jsonl"
 _BEHAVIORAL_GUIDELINES_REF = "workflow-system/agent/references/behavioral-guidelines.md"
 _SEGMENT_RE = re.compile(r"^harness\.(?P<index>[1-9]\d*)\.jsonl$")
-_LAYER_ALIASES: Final[dict[str, str]] = {
-    "L0": "L0",
-    "L1": "L1",
-    "L2": "L2",
-    "L3": "L2",
-    "project": "L0",
-    "stage": "L0",
-    "wave": "L1",
-    "task": "L2",
-}
+# Alias table owned by agent_workspace.layers (A-5 single-owner; merged v17).
+_LAYER_ALIASES: Final[dict[str, str]] = LAYER_ATTRIBUTION_ALIASES
 
 logger = logging.getLogger(__name__)
 
