@@ -63,6 +63,9 @@ Public API
 from __future__ import annotations
 
 from devolaflow.harness.telemetry import record_dispatch_telemetry
+from devolaflow.lifecycle.assert_layer_budget import (
+    assert_layer_token_budget,
+)
 from devolaflow.lifecycle.auto_write_handoff import (
     EVENT as _PRE_HANDOFF_EVENT,
 )
@@ -270,6 +273,17 @@ register_hook(_PRE_DISPATCH_EVENT, reject_subagent_quality_score)
 # (tests/test_dispatch_emission_runs_hooks.py). Documented opt-out:
 # `reject_subagent_banner_emission.unregister_pre_dispatch_extra()`.
 register_hook(_PRE_DISPATCH_EVENT, reject_subagent_banner_emission)
+
+# v17.0.0 R2 (G17-B2 / D-R2-5) — layer-token-budget assertion. Registered
+# as the LAST pre_dispatch extra (after validate_owned_files +
+# reject_subagent_quality_score + reject_subagent_banner_emission) so the
+# content validators run first. Non-mutating (S-10 byte-identity preserved);
+# measures estimate_tokens(stable_yaml(payload)) against
+# harness.telemetry.LAYER_TOKEN_BUDGETS and surfaces ALB001 on overrun —
+# blocks under the strict pre_dispatch emission default, warns in lite mode.
+# Payloads without telemetry-resolvable layer attribution PASS (backward
+# compatible with legacy dispatches).
+register_hook(_PRE_DISPATCH_EVENT, assert_layer_token_budget)
 
 PRE_DISPATCH_EVENT: str = _PRE_DISPATCH_EVENT
 POST_DISPATCH_EVENT: str = _POST_DISPATCH_EVENT

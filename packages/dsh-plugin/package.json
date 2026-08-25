@@ -1,0 +1,26 @@
+{
+  "name": "@yorha-agents/devola-flow-dsh",
+  "version": "0.1.0",
+  "description": "DevolaFlow boundary bridge for DeepSeek Harness (DSH) — routes tools/pre-execute events through `python -m devolaflow.hostbridge --host dsh` for S-8 owned-files enforcement.",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "keywords": [
+    "devolaflow",
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "boundary"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -384,6 +384,7 @@ Override with `repo_mode` in `.workflow/config.yaml`. See
 | `references/evaluator-rosetta.md` | Evaluation cross-walk |
 | `references/execution-protocol.md` | Task lifecycle and checkpoints |
 | `references/grill-mode.md` | Plan stress-testing |
+| `references/host-bridges.md` | wiring host-agent tool events (Cursor/Claude/Codex/Kimi/DSH hooks) into boundary enforcement, or configuring DEVOLAFLOW_HOST_ENFORCE |
 | `references/human-surface.md` | Human input/output contracts |
 | `references/impeccable.md` | Design refinement checks |
 | `references/message-schemas.md` | Typed dispatch/report fields |

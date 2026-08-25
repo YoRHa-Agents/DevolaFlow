@@ -170,6 +170,13 @@ def _stable_yaml(payload: dict[str, Any]) -> str:
     )
 
 
+# v17.0.0 R2 (G17-B2 / D-R2-5) — public alias so the pre_dispatch
+# layer-budget assertion (`lifecycle.assert_layer_budget`) measures
+# dispatch payloads with the EXACT serializer telemetry records with
+# (A-5: one measurement pipeline, one owner).
+stable_yaml = _stable_yaml
+
+
 def _constraint_summary_view(payload: dict[str, Any]) -> dict[str, Any]:
     """Return an annotated copy without advisory-fold metadata."""
 
@@ -406,4 +413,5 @@ __all__ = [
     "append_harness_record",
     "build_dispatch_record",
     "record_dispatch_telemetry",
+    "stable_yaml",
 ]

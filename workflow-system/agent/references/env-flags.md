@@ -347,6 +347,21 @@ count.
 | **R5 strict?** | N/A (no Python read site to hold to the zero-IO contract) |
 | **Reference** | SKILL.md §"Workspace Engagement (Read at Session Start)"; `src/devolaflow/memory_router/cache.py` W-20 reuse note |
 
+### 2.18 `DEVOLAFLOW_HOST_ENFORCE` — v17.0.0 R2 host-bridge boundary enforcement
+
+| Field | Value |
+|---|---|
+| **Owner** | `src/devolaflow/hostbridge/decision.py::ENV_FLAG` (helper: `is_host_enforce_active`) |
+| **Introduced** | v17.0.0 R2 (G17-B1 closure per the v17 R2 design §D-R2-2) |
+| **Default** | unset (= disabled — the host bridge allows everything with ZERO filesystem IO) |
+| **Activation** | env value EXACTLY `"1"` (R5 strict — rejects `"true"`, `"yes"`, `"on"`, `"01"`, `"1\n"`, `""`); pure env-var read with no IO, no subprocess, no `shutil.which` lookup |
+| **Effect when active** | `python -m devolaflow.hostbridge --host {cursor,claude,codex,kimi,dsh}` enforces the S-8 owned-files boundary on HOST tool events: `file_write` events are checked against the union of active-change `.local/.agent/active/*/owned_files.txt` manifests (+ S-8 §2/§3 exemptions) via `run_hooks("file_write", ...)` — a `CFO006` blocker denies in the host's own block protocol; `shell` events are advisory-only (allowed; `pre_shell_call` rewrite metadata is ledgered). Every enforced decision appends a JSONL line to `.local/telemetry/hostbridge.jsonl`. The committed `.cursor/hooks.json` / `.claude/settings.json` / `.codex/hooks.json` bash wrappers fast-path to allow in pure bash (no Python startup) when the flag is not `"1"` |
+| **Effect when opted out** | Byte-identical to a host with no bridge installed: the wrappers allow without starting Python; `decide()` allows with zero filesystem IO and writes NO audit ledger |
+| **Why a NEW flag (W-20 §3 justification)** | Behavioural orthogonality test: HOST_ENFORCE activates a different runtime surface (interception of HOST-agent tool events — Cursor/Claude/Codex/Kimi/DSH pre-tool-use hooks) than every existing flag. `DEVOLAFLOW_AGENT_WORKSPACE` (§2.15) activates workspace scaffolding + the framework-internal `fire_file_write` / `fire_task_stop` write adapters — framework code paths, not host tool events. The two compose meaningfully on BOTH diagonals: `HOST_ENFORCE=1` alone = enforce host boundaries without workspace auto-scaffolding; `AGENT_WORKSPACE=1` alone = scaffold + framework adapters with hosts unbridged (the pre-v17 behaviour). REUSING `AGENT_WORKSPACE` would have conflated the two surfaces and made host enforcement inseparable from scaffolding. No other flag is remotely adjacent (RTK_PROXY is shell-rewrite compression; the plugin flags gate installer hooks) |
+| **R5 strict?** | YES — `is_host_enforce_active` is a pure `os.environ.get` comparison; the OFF path performs zero filesystem IO and zero `run_hooks` dispatch, codified by `tests/test_hostbridge_disabled_is_noop.py` (Path watcher + nonexistent-repo-root probes) |
+| **Fail-open contract** | Internal bridge errors NEVER block the host tool call: verdict `error_allow` + an audit-ledger line (S-5 — logged, not silent). Host configs set no fail-closed option |
+| **Reference** | `references/host-bridges.md` (five-host matrix, install guide, ledger schema); `tests/test_hostbridge.py`; §7 checklist walk below |
+
 ## 3. Test-fixture flags (NOT runtime flags)
 
 These flags are read ONLY by tests (`tests/`) and never by production
@@ -512,6 +527,18 @@ or document the orthogonality argument explicitly.
 > v12.5.0). This is the canonical W-20 reuse-first reference case
 > alongside the v8.3.4 PV-04 command-mapping precedent cited in test
 > 2 above.
+
+> **v17.0.0 R2 new-flag reference case — host-bridge enforcement.** The
+> v17.0.0 R2 host bridge walked this checklist and authored
+> `DEVOLAFLOW_HOST_ENFORCE` (§2.18) as a justified NEW flag: step 1
+> found no existing flag covering host tool-event interception; step 2
+> established behavioural orthogonality vs `DEVOLAFLOW_AGENT_WORKSPACE`
+> (host hooks vs framework write adapters + scaffolding — both
+> compose independently); step 3 shipped the zero-IO watcher test
+> `tests/test_hostbridge_disabled_is_noop.py` in the same PR; step 4
+> is the §2.18 row itself; step 5 is cited in the v17.0.0 CHANGELOG
+> entry. Contrast with the v12.5.0 codegraph REUSE case above — the
+> checklist admits both outcomes when the evidence supports them.
 
 ## 7.A Lifecycle event taxonomy (v11.0.0 PV-02 D-Q-3 PURE-ALIAS rename)
 

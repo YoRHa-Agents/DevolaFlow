@@ -51,6 +51,7 @@ const FRAMEWORK = {
     reference("evaluator-rosetta", "Cross-walk among evaluator outputs.", ["interpreting evaluation evidence"]),
     reference("execution-protocol", "Preflight, checkpoints, failures, and bounded execution.", ["running or resuming work"]),
     reference("grill-mode", "One-question-at-a-time plan stress testing.", ["challenging a plan"]),
+    reference("host-bridges", "Five-host boundary bridge, enforcement flag, and audit ledger.", ["wiring host hooks", "debugging a host-side deny"]),
     reference("human-surface", "Human-authored input and generated output contracts.", ["reading or writing human surfaces"]),
     reference("impeccable", "Visual-quality refinement and verification.", ["polishing user-facing design"]),
     reference("message-schemas", "Typed TaskDispatch, StatusReport, and escalation fields.", ["constructing inter-layer messages"]),

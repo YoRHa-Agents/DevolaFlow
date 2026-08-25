@@ -46,6 +46,7 @@ references:
   - references/evaluator-rosetta.md
   - references/execution-protocol.md
   - references/grill-mode.md
+  - references/host-bridges.md
   - references/human-surface.md
   - references/impeccable.md
   - references/message-schemas.md

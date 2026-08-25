@@ -1,0 +1,54 @@
+{
+  "host": "cursor",
+  "cases": [
+    {
+      "name": "write_path_key_precedence",
+      "input": {
+        "tool": "Write",
+        "tool_input": {
+          "path": "src/demo.py",
+          "file_path": "src/loser_a.py",
+          "target_file": "src/loser_b.py",
+          "content": "print('hi')"
+        }
+      },
+      "expected": {"kind": "file_write", "path": "src/demo.py"}
+    },
+    {
+      "name": "strreplace_target_file",
+      "input": {
+        "tool": "StrReplace",
+        "tool_input": {"target_file": "src/demo.py", "old_string": "a", "new_string": "b"}
+      },
+      "expected": {"kind": "file_write", "path": "src/demo.py"}
+    },
+    {
+      "name": "write_hook_event_name_style",
+      "input": {
+        "hook_event_name": "preToolUse",
+        "tool": "Write",
+        "tool_input": {"file_path": "src/demo.py"}
+      },
+      "expected": {"kind": "file_write", "path": "src/demo.py"}
+    },
+    {
+      "name": "before_shell_execution",
+      "input": {
+        "hook_event_name": "beforeShellExecution",
+        "command": "pytest tests/ -q",
+        "cwd": "/workspace"
+      },
+      "expected": {"kind": "shell", "command": "pytest tests/ -q"}
+    },
+    {
+      "name": "event_override_forces_shell",
+      "event_override": "shell",
+      "input": {
+        "tool": "Write",
+        "command": "echo hi",
+        "tool_input": {"path": "src/demo.py"}
+      },
+      "expected": {"kind": "shell", "command": "echo hi"}
+    }
+  ]
+}
