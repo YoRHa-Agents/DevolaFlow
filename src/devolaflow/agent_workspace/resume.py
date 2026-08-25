@@ -10,7 +10,11 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
-from devolaflow.agent_workspace.checkpoint import CheckpointError, load_checkpoint
+from devolaflow.agent_workspace.checkpoint import (
+    CheckpointError,
+    goal_content_hash,
+    load_checkpoint,
+)
 from devolaflow.agent_workspace.round_engine import (
     RoundEngineError,
     RoundSelection,
@@ -45,6 +49,9 @@ class ResumeDisposition(StrEnum):
     COMPLETE = "COMPLETE"
     CONFIG_DRIFT = "CONFIG_DRIFT"
     ACTIVE_ESCALATIONS = "ACTIVE_ESCALATIONS"
+    # v17.0.0 R4 (additive): the checkpoint's recorded goal_hash no longer
+    # matches the current goal.md — human review required before resuming.
+    GOAL_DRIFT = "GOAL_DRIFT"
 
 
 class ResumePlanningError(RuntimeError):
@@ -82,6 +89,7 @@ class _CheckpointRound:
     checked_ids: tuple[str, ...]
     all_checkpoint_checked_ids: tuple[str, ...]
     expected_config_hash: str
+    expected_goal_hash: str
     active_escalations: tuple[object, ...]
 
 
@@ -171,6 +179,17 @@ def _checkpoint_round(checkpoint: dict[str, object]) -> _CheckpointRound:
             "INVALID_CONFIG_HASH",
             "project_state.config_hash must use sha256:<64 lowercase hex>",
         )
+    # v17.0.0 R4 additive goal binding: absent field → "" → drift check
+    # skipped (pre-R4 checkpoints stay fully resumable). Present but
+    # malformed → loud per S-5.
+    expected_goal_hash = project_state.get("goal_hash", "")
+    if not isinstance(expected_goal_hash, str) or (
+        expected_goal_hash and _CONFIG_HASH_RE.fullmatch(expected_goal_hash) is None
+    ):
+        raise ResumePlanningError(
+            "INVALID_GOAL_HASH",
+            "project_state.goal_hash must be empty or use sha256:<64 lowercase hex>",
+        )
     escalations = checkpoint.get("active_escalations")
     if not isinstance(escalations, list):
         raise ResumePlanningError(
@@ -184,6 +203,7 @@ def _checkpoint_round(checkpoint: dict[str, object]) -> _CheckpointRound:
         checked_ids=tuple(latest_checked),
         all_checkpoint_checked_ids=tuple(all_checked),
         expected_config_hash=expected_hash,
+        expected_goal_hash=expected_goal_hash,
         active_escalations=tuple(deepcopy(escalations)),
     )
 
@@ -290,6 +310,15 @@ def _config_matches(repo_root: Path, expected_hash: str) -> bool:
     return actual_hash == expected_hash
 
 
+def _goal_matches(repo_root: Path, change_id: str, expected_goal_hash: str) -> bool:
+    """v17 R4 goal binding: compare the recorded hash against goal.md today."""
+
+    try:
+        return goal_content_hash(repo_root, change_id) == expected_goal_hash
+    except CheckpointError as exc:
+        raise ResumePlanningError("GOAL_READ_FAILED", str(exc)) from exc
+
+
 def plan_checklist_resume(
     repo_root: Path,
     change_id: str,
@@ -319,6 +348,11 @@ def plan_checklist_resume(
     if not _config_matches(root, state.expected_config_hash):
         return ChecklistResumePlan(
             disposition=ResumeDisposition.CONFIG_DRIFT,
+            **base,
+        )
+    if state.expected_goal_hash and not _goal_matches(root, change_id, state.expected_goal_hash):
+        return ChecklistResumePlan(
+            disposition=ResumeDisposition.GOAL_DRIFT,
             **base,
         )
     if state.active_escalations:

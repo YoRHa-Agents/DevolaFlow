@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,8 @@ import yaml
 
 from devolaflow.agent_workspace import (
     CheckpointError,
+    checkpoint_round_pass,
+    goal_content_hash,
     load_checkpoint,
     write_checkpoint,
 )
@@ -192,3 +196,117 @@ def test_load_fails_loudly_for_missing_malformed_or_unsafe_state(
     explicit = _arrange_bad_load(tmp_path, case)
     with pytest.raises(CheckpointError):
         load_checkpoint(tmp_path, explicit)
+
+
+# ── v17.0.0 R4 — round PASS → auto checkpoint (D-R4-2) + goal hash (D-R4-3) ──
+
+
+@dataclass(frozen=True)
+class _StageStub:
+    current_round: int = 1
+    max_rounds: int = 3
+
+
+@dataclass(frozen=True)
+class _PassStub:
+    passed: bool = True
+
+
+def _arrange_round_pass_workspace(root: Path, *, goal_text: str | None) -> None:
+    (root / ".local").mkdir(parents=True)
+    (root / ".local" / "project_config.yaml").write_bytes(b"quality:\n  max_rounds: 3\n")
+    change_folder = root / ".local" / ".agent" / "active" / "r4-demo"
+    change_folder.mkdir(parents=True)
+    if goal_text is not None:
+        (change_folder / "goal.md").write_text(goal_text, encoding="utf-8")
+
+
+def test_goal_content_hash_normalizes_newlines_and_missing_file(tmp_path: Path) -> None:
+    _arrange_round_pass_workspace(tmp_path, goal_text=None)
+    assert goal_content_hash(tmp_path, "r4-demo") == ""
+
+    goal_path = tmp_path / ".local" / ".agent" / "active" / "r4-demo" / "goal.md"
+    goal_path.write_bytes(b"# Goal\r\nShip R4.\r")
+    crlf_hash = goal_content_hash(tmp_path, "r4-demo")
+    normalized_bytes = b"# Goal\nShip R4.\n"
+    goal_path.write_bytes(normalized_bytes)
+    assert goal_content_hash(tmp_path, "r4-demo") == crlf_hash
+    assert crlf_hash == f"sha256:{hashlib.sha256(normalized_bytes).hexdigest()}"
+
+    with pytest.raises(CheckpointError, match="invalid change_id"):
+        goal_content_hash(tmp_path, "../escape")
+
+
+def test_checkpoint_round_pass_composes_valid_resumable_checkpoint(tmp_path: Path) -> None:
+    goal_text = "# Goal\nShip the composition API.\n"
+    _arrange_round_pass_workspace(tmp_path, goal_text=goal_text)
+
+    result = checkpoint_round_pass(
+        tmp_path,
+        "r4-demo",
+        _PassStub(),
+        # Deliberately unordered + duplicated: the API canonicalizes.
+        ["C-G1.3", "C-G1.1", "C-G1.3", "C-G2.1"],
+        stage_view=_StageStub(current_round=1, max_rounds=3),
+        score=90.0,
+    )
+
+    assert result.checkpoint_id == "cp_r4-demo_round_1"
+    assert result.stage_reference == ".local/checkpoints/cp_r4-demo_round_1.yaml"
+    assert result.path == tmp_path / ".local" / "checkpoints" / "cp_r4-demo_round_1.yaml"
+    assert result.goal_hash == goal_content_hash(tmp_path, "r4-demo") != ""
+
+    loaded = load_checkpoint(tmp_path)  # latest symlink resolves to it
+    metadata = loaded["metadata"]
+    assert isinstance(metadata, dict)
+    assert metadata["trigger"] == "convergence_round_complete"
+    project_state = loaded["project_state"]
+    assert isinstance(project_state, dict)
+    assert project_state["goal_hash"] == result.goal_hash
+    assert project_state["config_hash"].startswith("sha256:")
+    assert _latest_checked_ids(loaded) == ["C-G1.1", "C-G1.3", "C-G2.1"]
+
+    # Same round twice → no-clobber (loud, never overwrites).
+    with pytest.raises(CheckpointError, match="refusing overwrite"):
+        checkpoint_round_pass(
+            tmp_path,
+            "r4-demo",
+            _PassStub(),
+            ["C-G1.1"],
+            stage_view=_StageStub(current_round=1, max_rounds=3),
+        )
+
+
+@pytest.mark.parametrize(
+    ("case", "message"),
+    [
+        ("failed_round", "requires a PASS verdict"),
+        ("missing_config", "project config is missing"),
+        ("bad_change_id", "invalid change_id"),
+        ("round_exceeds_max", "exceeds max_rounds"),
+        ("bad_checked_id", "expected C-Gn.m"),
+    ],
+)
+def test_checkpoint_round_pass_rejects_invalid_inputs(
+    tmp_path: Path, case: str, message: str
+) -> None:
+    _arrange_round_pass_workspace(tmp_path, goal_text="# Goal\nR4.\n")
+    if case == "missing_config":
+        (tmp_path / ".local" / "project_config.yaml").unlink()
+
+    kwargs: dict[str, object] = {
+        "pass_result": _PassStub(passed=case != "failed_round"),
+        "checked_ids": ["not-an-id"] if case == "bad_checked_id" else ["C-G1.1"],
+        "stage_view": _StageStub(current_round=4 if case == "round_exceeds_max" else 1),
+    }
+    change_id = "Bad_ID" if case == "bad_change_id" else "r4-demo"
+
+    with pytest.raises(CheckpointError, match=message):
+        checkpoint_round_pass(
+            tmp_path,
+            change_id,
+            kwargs["pass_result"],
+            kwargs["checked_ids"],  # type: ignore[arg-type]
+            stage_view=kwargs["stage_view"],
+        )
+    assert not (tmp_path / ".local" / "checkpoints").exists()

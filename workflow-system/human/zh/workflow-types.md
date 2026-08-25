@@ -4,7 +4,7 @@ description: "23 个内置清单种子与 change-driven 运行时。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T06:50:57Z"
+last_synced: "2026-08-25T07:21:59Z"
 source_version: "16.0.0"
 ---
 

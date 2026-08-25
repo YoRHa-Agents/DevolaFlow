@@ -67,7 +67,9 @@ from devolaflow.agent_workspace import (
     ChangeStore,
     ChangeStoreError,
     PreflightDraftError,
+    checkpoint_round_pass,
     draft_preflight_section0,
+    goal_content_hash,
     invalidate_preflight,
     plan_checklist_resume,
     sign_preflight,
@@ -139,11 +141,19 @@ _SLUGIFY_TRIM_RE = re.compile(r"^-+|-+$")
 _VALID_CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*[a-z0-9]$")
 _PROPOSE_OWNER_SESSION_ID = "00000000-0000-4000-8000-000000000000"
 
-# These public M3 control APIs are intentionally operator-invoked rather than
-# auto-run by slash commands. Non-import references keep their liveness
-# explicit without adding an unsafe implicit sign, checkpoint, or resume step.
+# These public M3 control APIs are operator-invoked rather than auto-run
+# by slash commands. Since v17.0.0 R4 the checkpoint surface is available
+# via the one-step composition API `checkpoint_round_pass` (round PASS →
+# auto checkpoint, carrying the `goal_content_hash` binding) and the
+# resume surface via the session-start adapter (`python -m
+# devolaflow.hostbridge resume`) when DEVOLAFLOW_AGENT_WORKSPACE=1; the
+# slash commands themselves still never implicitly sign, checkpoint, or
+# resume. Non-import references keep liveness explicit for the dead-API
+# detector.
 _M3_OPERATOR_API_PINS = (
     write_checkpoint,
+    checkpoint_round_pass,
+    goal_content_hash,
     sign_preflight,
     invalidate_preflight,
     evaluate_permitted_stops,

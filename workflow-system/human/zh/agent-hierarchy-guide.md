@@ -4,7 +4,7 @@ description: "理解 Project、Wave、Task 三层委托架构。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T06:50:57Z"
+last_synced: "2026-08-25T07:21:59Z"
 source_version: "16.0.0"
 ---
 

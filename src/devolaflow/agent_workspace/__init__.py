@@ -68,6 +68,9 @@ from devolaflow.agent_workspace.change import (
 )
 from devolaflow.agent_workspace.checkpoint import (
     CheckpointError,
+    RoundCheckpointResult,
+    checkpoint_round_pass,
+    goal_content_hash,
     load_checkpoint,
     write_checkpoint,
 )
@@ -204,7 +207,11 @@ __all__ = [
     "detect_change_layout",
     "reconcile_round_boundary",
     # checkpoint (v16.0.0 M3 — immutable round-boundary resume state)
+    # + v17.0.0 R4 round-PASS composition API + goal_loop hash binding
     "CheckpointError",
+    "RoundCheckpointResult",
+    "checkpoint_round_pass",
+    "goal_content_hash",
     "load_checkpoint",
     "write_checkpoint",
     # delta_parser

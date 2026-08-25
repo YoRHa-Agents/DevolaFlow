@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import secrets
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
 import yaml
 
-__all__ = ["CheckpointError", "load_checkpoint", "write_checkpoint"]
+__all__ = [
+    "CheckpointError",
+    "RoundCheckpointResult",
+    "checkpoint_round_pass",
+    "goal_content_hash",
+    "load_checkpoint",
+    "write_checkpoint",
+]
 
 
 CHECKPOINT_ROOT: Final[Path] = Path(".local") / "checkpoints"
@@ -31,6 +41,10 @@ _CHECKPOINT_ID_RE: Final[re.Pattern[str]] = re.compile(r"^cp_[A-Za-z0-9][A-Za-z0
 _CHECKLIST_ID_RE: Final[re.Pattern[str]] = re.compile(
     r"^C-G(?P<goal>[1-9][0-9]*)\.(?P<item>[1-9][0-9]*)$"
 )
+_ACTIVE_ROOT: Final[Path] = Path(".local") / ".agent" / "active"
+_PROJECT_CONFIG: Final[Path] = Path(".local") / "project_config.yaml"
+# Mirrors ``schemas/agent-workspace/change-status.yaml#fields.change_id.pattern``.
+_CHANGE_ID_RE: Final[re.Pattern[str]] = re.compile(r"^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
 
 
 class CheckpointError(RuntimeError):
@@ -274,3 +288,179 @@ def load_checkpoint(
         expected_id = _checkpoint_id(checkpoint_id)
         target = _target_path(folder, expected_id)
     return _read_checkpoint(target, expected_id=expected_id)
+
+
+# ── v17.0.0 R4 — round PASS → auto checkpoint (composition API) ────────
+
+
+def goal_content_hash(repo_root: Path, change_id: str) -> str:
+    """Hash the active change's ``goal.md`` for goal-drift detection.
+
+    Returns ``sha256:<64 lowercase hex>`` over the goal bytes after
+    newline normalization (``\\r\\n`` and lone ``\\r`` both become
+    ``\\n``), mirroring the ``project_state.config_hash`` format. A
+    missing ``goal.md`` returns ``""`` (no goal on record → no drift
+    check possible); an unreadable one raises loudly per S-5.
+    """
+
+    if not isinstance(change_id, str) or _CHANGE_ID_RE.fullmatch(change_id) is None:
+        raise CheckpointError(f"invalid change_id {change_id!r}")
+    goal_path = Path(repo_root) / _ACTIVE_ROOT / change_id / "goal.md"
+    try:
+        raw = goal_path.read_bytes()
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        raise CheckpointError(f"goal.md is unreadable: {goal_path}") from exc
+    normalized = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return f"sha256:{hashlib.sha256(normalized).hexdigest()}"
+
+
+@dataclass(frozen=True)
+class RoundCheckpointResult:
+    """Durable references produced by :func:`checkpoint_round_pass`.
+
+    ``stage_reference`` is the repo-relative checkpoint path
+    (``.local/checkpoints/<id>.yaml``) the caller MUST cite in the
+    corresponding ``stage.md`` round-history row so that
+    :func:`devolaflow.agent_workspace.resume.plan_checklist_resume`
+    can cross-validate the round later.
+    """
+
+    checkpoint_id: str
+    path: Path
+    stage_reference: str
+    goal_hash: str
+
+
+def _config_hash(repo_root: Path) -> str:
+    config_path = Path(repo_root) / _PROJECT_CONFIG
+    try:
+        config_bytes = config_path.read_bytes()
+    except OSError as exc:
+        raise CheckpointError(
+            f"project config is missing or unreadable (resume requires it): {config_path}"
+        ) from exc
+    return f"sha256:{hashlib.sha256(config_bytes).hexdigest()}"
+
+
+def _ordered_checked_ids(checked_ids: Sequence[str]) -> list[str]:
+    """Dedupe and canonically order ids ascending by (goal, item)."""
+
+    keyed: dict[str, tuple[int, int]] = {}
+    for checked_id in checked_ids:
+        if not isinstance(checked_id, str):
+            raise CheckpointError("checked_ids entries must be C-Gn.m strings")
+        match = _CHECKLIST_ID_RE.fullmatch(checked_id)
+        if match is None:
+            raise CheckpointError(f"invalid checked_ids entry {checked_id!r}; expected C-Gn.m")
+        keyed.setdefault(checked_id, (int(match.group("goal")), int(match.group("item"))))
+    return sorted(keyed, key=keyed.__getitem__)
+
+
+def checkpoint_round_pass(
+    repo_root: Path,
+    change_id: str,
+    pass_result: object,
+    checked_ids: Sequence[str],
+    *,
+    stage_view: object,
+    score: float | None = None,
+    workflow_run_id: str | None = None,
+    prior_round_history: Sequence[Mapping[str, object]] = (),
+) -> RoundCheckpointResult:
+    """Assemble and persist the ``convergence_round_complete`` checkpoint for one round PASS.
+
+    One-step composition API for L0 after
+    :func:`devolaflow.agent_workspace.round_engine.evaluate_round_pass`
+    returns a PASS — replaces hand-assembling the checkpoint payload.
+
+    Args:
+      repo_root: Repository root containing ``.local/``.
+      change_id: Active change whose round just passed.
+      pass_result: The round-gate verdict; anything exposing a
+        ``passed`` attribute (e.g. ``RoundPassResult``). MUST be a
+        PASS — checkpointing a failed round raises.
+      checked_ids: Checklist ids checked in this round, in any order;
+        deduped and canonically ordered (ascending C-Gn.m) here.
+      stage_view: Structural stage snapshot exposing ``current_round``
+        (the round that just passed) and ``max_rounds`` — e.g. a
+        parsed ``StageDocument``.
+      score: Optional round score recorded in the history row.
+      workflow_run_id: Optional run id (defaults to ``run-<change_id>``).
+      prior_round_history: Closed earlier-round rows to carry forward
+        so the checkpoint's ``round_history`` stays cumulative.
+
+    Returns:
+      :class:`RoundCheckpointResult` with the checkpoint id, path, the
+      ``stage.md`` cross-reference string, and the recorded goal hash.
+
+    Raises:
+      CheckpointError: failed round, invalid inputs, missing project
+        config, or any persistence failure (all loud per S-5).
+    """
+
+    if getattr(pass_result, "passed", None) is not True:
+        raise CheckpointError(
+            "checkpoint_round_pass requires a PASS verdict; refusing to checkpoint "
+            f"a non-passing round (pass_result={pass_result!r})"
+        )
+    if not isinstance(change_id, str) or _CHANGE_ID_RE.fullmatch(change_id) is None:
+        raise CheckpointError(f"invalid change_id {change_id!r}")
+
+    round_num = getattr(stage_view, "current_round", None)
+    max_rounds = getattr(stage_view, "max_rounds", None)
+    for field_name, value in (("current_round", round_num), ("max_rounds", max_rounds)):
+        if type(value) is not int or value < 1:
+            raise CheckpointError(f"stage_view.{field_name} must be a positive integer")
+    assert isinstance(round_num, int) and isinstance(max_rounds, int)
+    if round_num > max_rounds:
+        raise CheckpointError(
+            f"round {round_num} exceeds max_rounds {max_rounds}; a passing round "
+            "cannot close beyond the bounded-retry ceiling"
+        )
+
+    checkpoint_id = f"cp_{change_id.replace('.', '-')}_round_{round_num}"
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    goal_hash = goal_content_hash(repo_root, change_id)
+
+    latest_row: dict[str, object] = {
+        "round": round_num,
+        "timestamp": timestamp,
+        "checked_ids": _ordered_checked_ids(checked_ids),
+    }
+    if score is not None:
+        latest_row["score"] = score
+
+    checkpoint: dict[str, object] = {
+        "metadata": {
+            "checkpoint_id": checkpoint_id,
+            "timestamp": timestamp,
+            "trigger": "convergence_round_complete",
+            "workflow_run_id": workflow_run_id or f"run-{change_id}",
+            "schema_version": "1.0",
+        },
+        "project_state": {
+            "workflow_type": "checklist_rounds",
+            "project_name": change_id,
+            "config_hash": _config_hash(repo_root),
+            "goal_hash": goal_hash,
+        },
+        "stage_progress": {},
+        "wave_state": {},
+        "convergence_state": {
+            "current_round": round_num,
+            "max_rounds": max_rounds,
+            "round_history": [*(deepcopy(dict(row)) for row in prior_round_history), latest_row],
+        },
+        "quality_snapshot": {},
+        "deferred_items": [],
+        "active_escalations": [],
+    }
+    path = write_checkpoint(repo_root, checkpoint)
+    return RoundCheckpointResult(
+        checkpoint_id=checkpoint_id,
+        path=path,
+        stage_reference=f".local/checkpoints/{checkpoint_id}.yaml",
+        goal_hash=goal_hash,
+    )
