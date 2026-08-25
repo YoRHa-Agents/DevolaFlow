@@ -1,6 +1,6 @@
 ---
 id: "agent/SKILL"
-version: "16.0.0"
+version: "17.0.0"
 purpose: >
   Entry point for DevolaFlow checklist-round orchestration using a three-layer
   Project → Wave → Task hierarchy, evidence-backed completion, bounded retry,
@@ -28,12 +28,12 @@ description: >
   and auditable quality gates.
 ---
 
-> **Now Using DevolaFlow v16.0.0**
+> **Now Using DevolaFlow v17.0.0**
 
 # DevolaFlow
 
 ## Version & Update
-**Current version:** 16.0.0 — Check only on explicit update request:
+**Current version:** 17.0.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
 If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`.
 Wheel-only limits: `references/troubleshooting.md` §2.17.

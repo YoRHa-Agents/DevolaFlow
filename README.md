@@ -392,7 +392,7 @@ DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__i
 Checking your version
 
 ```bash
-devola-version                   # prints "DevolaFlow v16.0.0"
+devola-version                   # prints "DevolaFlow v17.0.0"
 python -c "import devolaflow; print(devolaflow.__version__)"
 ```
 

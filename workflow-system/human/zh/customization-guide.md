@@ -4,8 +4,8 @@ description: "创建不可执行的清单种子与派生配置。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:09:16Z"
-source_version: "16.0.0"
+last_synced: "2026-08-25T08:45:55Z"
+source_version: "17.0.0"
 ---
 
 # 自定义指南
