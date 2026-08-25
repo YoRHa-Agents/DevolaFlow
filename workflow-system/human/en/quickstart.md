@@ -4,7 +4,7 @@ description: "Getting started with DevolaFlow in under 10 minutes."
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -22,7 +22,25 @@ Getting started with DevolaFlow in under 10 minutes.
 
 Choose the method that fits your setup:
 
-**Option A — One-liner (recommended for most users):**
+**Option A — npm / npx (recommended; works on Windows, no Python needed):**
+
+```bash
+# Install into the user-level skill directory (Node >= 18)
+npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
+npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
+npx @yorha-agents/devola-flow install all       # both
+
+# Later: health check and update
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update all
+```
+
+Skill files are downloaded from GitHub at the tag matching the package version
+(`DEVOLA_FLOW_REF` overrides the ref). Targets: Cursor and Claude Code,
+user-level directories only — for project-local, Copilot, or Codex installs
+use Option B.
+
+**Option B, One-liner (curl; all tools, project-local or global):**
 
 ```bash
 INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
@@ -34,7 +52,7 @@ curl -fsSL $INSTALLER | bash -s cursor
 curl -fsSL $INSTALLER | bash -s all
 ```
 
-**Option B — pip install:**
+**Option C, pip install:**
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
@@ -43,7 +61,7 @@ devola-init cursor       # Cursor only
 devola-init all          # all tools
 ```
 
-**Option C, Manual (single file):**
+**Option D, Manual (single file):**
 
 Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
 
@@ -112,6 +130,9 @@ Ask your AI agent: `"update devola"`, it checks GitHub for newer versions and pr
 Or from the terminal:
 
 ```bash
+# npm installer update (user-level Cursor/Claude installs)
+npx @yorha-agents/devola-flow update all
+
 # Installer update
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 

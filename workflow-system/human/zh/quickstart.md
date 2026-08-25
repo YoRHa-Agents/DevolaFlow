@@ -4,7 +4,7 @@ description: "10 分钟内开始使用 DevolaFlow。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -22,7 +22,24 @@ source_version: "17.0.0"
 
 选择适合你的安装方式：
 
-**方式 A — 一键安装（推荐）：**
+**方式 A — npm / npx（推荐；Windows 可用，无需 Python）：**
+
+```bash
+# 安装到用户级 skill 目录（需 Node >= 18）
+npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
+npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
+npx @yorha-agents/devola-flow install all       # 两者
+
+# 之后：健康检查与更新
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update all
+```
+
+skill 文件从 GitHub 按包版本对应的 tag 下载（`DEVOLA_FLOW_REF` 可覆写 ref）。
+目标仅限 Cursor 与 Claude Code 的用户级目录—, 项目级安装、Copilot 或 Codex
+请使用方式 B。
+
+**方式 B — 一键安装（curl；全部工具，项目级或全局）：**
 
 ```bash
 INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
@@ -34,7 +51,7 @@ curl -fsSL $INSTALLER | bash -s cursor
 curl -fsSL $INSTALLER | bash -s all
 ```
 
-**方式 B — pip 安装：**
+**方式 C — pip 安装：**
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
@@ -43,7 +60,7 @@ devola-init cursor       # 仅 Cursor
 devola-init all          # 所有工具
 ```
 
-**方式 C — 手动安装（单文件）：**
+**方式 D — 手动安装（单文件）：**
 
 下载 [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) 并放置到：
 
@@ -112,6 +129,9 @@ devola-version   # 应输出当前 DevolaFlow 版本
 或在终端中：
 
 ```bash
+# npm 安装器更新（用户级 Cursor/Claude 安装）
+npx @yorha-agents/devola-flow update all
+
 # 安装器更新
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 

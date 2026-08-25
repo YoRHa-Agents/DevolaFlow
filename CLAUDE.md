@@ -8,7 +8,8 @@ description: >
 # DevolaFlow Repository
 
 Use the **devola-flow** skill (`/devola-flow` or auto-activated) for workflow orchestration.
-Install the skill via: `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude`
+Install the skill via: `npx @yorha-agents/devola-flow install claude` (user-global, Node >= 18)
+or `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude` (project-local)
 
 ## Build & Test
 

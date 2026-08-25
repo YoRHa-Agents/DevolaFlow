@@ -4,7 +4,7 @@ description: "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Code
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:45:55Z"
+last_synced: "2026-08-25T10:02:23Z"
 source_version: "17.0.0"
 ---
 
@@ -35,6 +35,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # Or user-global (applies to all projects)
 curl -fsSL $INSTALLER | bash -s cursor --global
+
+# Or user-global via npm (Node >= 18; no curl/bash needed)
+npx @yorha-agents/devola-flow install cursor
 ```
 
 This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`):
@@ -88,6 +91,9 @@ curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/script
 
 # User-global (applies to all sessions)
 curl -fsSL $INSTALLER | bash -s claude --global
+
+# Or user-global via npm (Node >= 18; no curl/bash needed)
+npx @yorha-agents/devola-flow install claude
 ```
 
 This installs the skill package into `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (with `--global`): `SKILL.md` plus the `references/` and `examples/` trees, per the `claude` profile in `workflow-system/agent/manifest.yaml`.
