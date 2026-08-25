@@ -15,8 +15,8 @@ CLI:
     $ python -m devolaflow.agent_workspace.lint <change-id>
     add-dark-mode/goal.md           OK    34/200 tokens (soft)  68/400 tokens (hard)
     add-dark-mode/spec.md           WARN  1620/1500 tokens (soft) 1620/3000 tokens (hard)
-    add-dark-mode/tasks.md          FAIL  1700/800 tokens (soft) 1700/1500 tokens (hard)
-    Exit: 1 (1 hard violation in tasks.md)
+    add-dark-mode/checklist.md      FAIL  2500/1200 tokens (soft) 2500/2400 tokens (hard)
+    Exit: 1 (1 hard violation in checklist.md)
 
 Exit codes:
 
@@ -50,6 +50,7 @@ from devolaflow.agent_workspace.change import (
     ACTIVE_DIR_DEFAULT,
     ARCHIVE_DIR_DEFAULT,
     ChangeLayout,
+    LegacyChangeLayoutError,
     detect_change_layout,
 )
 from devolaflow.agent_workspace.preflight import (
@@ -68,7 +69,6 @@ from devolaflow.agent_workspace.preflight import (
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ARTIFACT_BUDGETS",
     "CHECKLIST_ARTIFACT_BUDGETS",
     "EVIDENCE_DIRECTORY_MAX_BYTES",
     "EVIDENCE_FILE_MAX_BYTES",
@@ -88,17 +88,8 @@ __all__ = [
 # Per Rule C-9 — verbatim from
 # ``.cursor/rules/repo-governance.mdc#C-9`` +
 # ``schemas/agent-workspace/*.yaml#token_budget``.
-ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
-    "goal.md": (200, 400),
-    "acceptance.md": (400, 800),
-    "spec.md": (1500, 3000),
-    "tasks.md": (800, 1500),
-    "STATUS.yaml": (100, 200),
-    "owned_files.txt": (50, 100),
-    # Per design.md §1.1: handoff envelopes are 600/1200; per-change
-    # learnings.jsonl is bounded by file size (50 KB), not token count.
-}
-
+# Per design.md §1.1: handoff envelopes are 600/1200; per-change
+# learnings.jsonl is bounded by file size (50 KB), not token count.
 CHECKLIST_ARTIFACT_BUDGETS: Final[dict[str, tuple[int, int]]] = {
     "goal.md": (200, 400),
     "checklist.md": (1200, 2400),
@@ -902,9 +893,10 @@ def lint_change(
 ) -> BudgetReport:
     """Lint one active or archived change using its detected layout contract.
 
-    Legacy folders retain their original budgets and budget-only behavior.
     Checklist folders use the v16 budgets, evidence byte ceilings, strict
-    frontmatter parsing, and four semantic check families.
+    frontmatter parsing, and four semantic check families. Mixed folders
+    (checklist.md alongside legacy markers) get the checklist budgets plus
+    an ``INVALID_MIXED`` hard violation.
 
     Args:
       change_id: id of the active change to lint.
@@ -919,6 +911,8 @@ def lint_change(
     Raises:
       FileNotFoundError: when the change folder does not exist in either
         active or archive roots.
+      LegacyChangeLayoutError: when the folder still uses the removed
+        pre-v16 tasks.md/acceptance.md layout.
     """
     root = repo_root or Path.cwd()
     active_root = active_dir if active_dir is not None else Path(ACTIVE_DIR_DEFAULT)
@@ -943,17 +937,8 @@ def lint_change(
     report = BudgetReport(change_id=change_id, change_folder=change_folder)
     cache: dict[str, _ReadResult] = {}
     layout = detect_change_layout(change_folder)
-    if layout is ChangeLayout.LEGACY:
-        budgets = ARTIFACT_BUDGETS
-    elif layout is ChangeLayout.CHECKLIST:
-        budgets = CHECKLIST_ARTIFACT_BUDGETS
-    else:
-        budgets = {
-            **ARTIFACT_BUDGETS,
-            **CHECKLIST_ARTIFACT_BUDGETS,
-            "acceptance.md": ARTIFACT_BUDGETS["acceptance.md"],
-            "tasks.md": ARTIFACT_BUDGETS["tasks.md"],
-        }
+    budgets = CHECKLIST_ARTIFACT_BUDGETS
+    if layout is ChangeLayout.INVALID_MIXED:
         report.violations.append(
             SemanticViolation(
                 "checklist.md",
@@ -964,8 +949,7 @@ def lint_change(
 
     _lint_token_budgets(change_folder, budgets, report, cache)
     _lint_learnings_size(change_folder, report)
-    if layout is not ChangeLayout.LEGACY:
-        _lint_evidence_sizes(change_folder, report)
+    _lint_evidence_sizes(change_folder, report)
     if layout is ChangeLayout.CHECKLIST:
         _lint_checklist_semantics(
             change_folder,
@@ -1221,7 +1205,7 @@ def main(argv: list[str] | None = None) -> int:
                 active_dir=args.active_dir,
                 archive_dir=args.archive_dir,
             )
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, LegacyChangeLayoutError) as exc:
             print(f"lint: {exc}", file=sys.stderr)
             return 2
 

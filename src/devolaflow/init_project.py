@@ -546,7 +546,7 @@ def _verify_local_install_health(cwd: Path) -> None:
 # to author their own change folder:
 #
 # 1. ``.local/.agent/active/example-add-dark-mode/`` — full 7-artifact set
-#    (goal / acceptance / spec / tasks / STATUS / owned_files / README)
+#    (goal / checklist / stage / spec / STATUS / owned_files / README)
 #    demonstrating the change-driven workflow shape per Soul Rule S-8.
 # 2. ``.local/.agent/handoff/L0__L2__example-add-dark-mode__0001.yaml`` —
 #    one TaskDispatch envelope showing the append-only ledger contract
@@ -585,20 +585,27 @@ Status: example fixture only — this folder ships via `devola-init local
 change-driven workflow before authoring their own change.
 """
 
-_EXAMPLE_ACCEPTANCE_MD: str = """\
-# Acceptance Criteria: example-add-dark-mode
+_EXAMPLE_CHECKLIST_MD: str = """\
+---
+parent: example-add-dark-mode
+schema_version: 1
+total_items: 4
+checked: 0
+priority_dist: {P0: 1, P1: 2, P2: 1}
+reverted_open: 0
+---
 
-1. **Toggle present**: a `<DarkModeToggle/>` component renders in the
-   header and is keyboard-accessible (Tab focus + Space/Enter activates).
-2. **Preference persists**: after toggling, the choice survives a full
-   page reload via `localStorage["devola-theme"]`.
-3. **OS preference respected**: on first load with no stored preference,
-   the toggle initialises from `prefers-color-scheme: dark` media query.
-4. **No visual regression in light mode**: existing visual snapshots
-   under `tests/visual/` remain byte-identical when the user is in light
-   mode (the new dark theme is additive, not replacing).
-5. **Coverage**: `src/components/DarkModeToggle.tsx` reaches >= 80%
-   per S-3 / Rule CP-2.
+# Checklist
+
+## G1: Ship the dark mode toggle
+- [ ] C-G1.1 (P0) Theme tokens + `body.theme-dark` overrides land in `src/styles/theme.ts`
+      verify: manual review of the CSS layer
+- [ ] C-G1.2 (P1) Keyboard-accessible `<DarkModeToggle/>` renders in the header
+      verify: unit — toggle click flips class + writes `localStorage["devola-theme"]`
+- [ ] C-G1.3 (P1) Preference persists across reloads; OS preference is the first-load default
+      verify: integration — hydration picks OS preference when storage is empty
+- [ ] C-G1.4 (P2) Light-mode snapshots stay byte-identical; toggle coverage >= 80% (S-3)
+      verify: `npm test -- --coverage`
 """
 
 _EXAMPLE_SPEC_MD: str = """\
@@ -647,32 +654,27 @@ preference exists.
 - THEN the body class is `theme-dark`
 """
 
-_EXAMPLE_TASKS_MD: str = """\
-# Tasks: example-add-dark-mode
+_EXAMPLE_STAGE_MD: str = """\
+---
+parent: example-add-dark-mode
+schema_version: 1
+current_round: 0
+max_rounds: 3
+capacity_per_round: 5
+---
 
-> Worked-trace fixture — reflects a typical change-driven task list.
-> See `goal.md` + `acceptance.md` + `spec.md` for full context.
+# Stage — Round Control
 
-## T1 — Theme tokens + body classes
-- Add `--color-bg-dark` / `--color-fg-dark` to `src/styles/theme.ts`.
-- Wire `body.theme-dark` overrides into the existing CSS layer.
-- Owners: `src/styles/theme.ts`.
+## Priority Settings
+- 2026-05-01T00:00:00Z initial: P0=[C-G1.1] P1=[C-G1.2, C-G1.3] P2=[C-G1.4]
 
-## T2 — Toggle component
-- Implement `src/components/DarkModeToggle.tsx` with controlled state
-  + keyboard handler.
-- Render in `src/layouts/Header.tsx`; add `aria-label`.
-- Owners: `src/components/DarkModeToggle.tsx`, `src/layouts/Header.tsx`.
+## Round History
+| Round | Picked | Waves | Result | Blockers | Checkpoint | Gate trend |
+|---|---|---|---|---|---|---|
 
-## T3 — Persistence + OS-preference bootstrap
-- Read `localStorage["devola-theme"]` on mount; fall back to
-  `window.matchMedia("(prefers-color-scheme: dark)").matches`.
-- Hydrate body class BEFORE first paint to avoid FOUC.
-
-## T4 — Tests
-- Unit: toggle click flips class + writes localStorage.
-- Integration: hydration path picks OS preference when storage empty.
-- Visual: light mode snapshots remain byte-identical (AC #4).
+## Next Round Plan
+- Candidates: [C-G1.1, C-G1.2]
+- Estimated remaining rounds: 2
 """
 
 _EXAMPLE_STATUS_YAML: str = """\
@@ -699,14 +701,15 @@ _EXAMPLE_README_MD: str = """\
 # example-add-dark-mode
 
 Worked-trace fixture seeded by `devola-init local --with-examples`
-(v9.2.0 PV-06). Demonstrates the 7-artifact `change-driven` shape:
+(v9.2.0 PV-06; checklist layout since v17.0.0). Demonstrates the
+7-artifact `change-driven` shape:
 
 | File | Role |
 |---|---|
 | `goal.md` | 100-word intent statement |
-| `acceptance.md` | testable AC checklist |
+| `checklist.md` | evidence-backed AC + implementation checklist |
+| `stage.md` | round-control ledger |
 | `spec.md` | OpenSpec ADDED Requirements (A-4 delta) |
-| `tasks.md` | implementation checklist |
 | `STATUS.yaml` | machine-readable FSM state |
 | `owned_files.txt` | S-8 ownership manifest |
 | `README.md` | this file |
@@ -731,7 +734,7 @@ envelope_kind: TaskDispatch
 dispatch:
   task_id: T1-theme-tokens
   type: implement
-  acceptance_criteria_ref: .local/.agent/active/example-add-dark-mode/acceptance.md
+  acceptance_criteria_ref: .local/.agent/active/example-add-dark-mode/checklist.md
   owned_files_ref: .local/.agent/active/example-add-dark-mode/owned_files.txt
   note: example fixture envelope seeded by `devola-init local --with-examples`
 """
@@ -767,12 +770,13 @@ example of the A-4 contract before authoring their first real domain.
 
 
 _EXAMPLE_ARTIFACT_BUDGETS: dict[str, tuple[int, int]] = {
-    # (soft_tokens, hard_tokens) — verbatim from C-9 / lint.ARTIFACT_BUDGETS.
+    # (soft_tokens, hard_tokens) — verbatim from C-9 /
+    # lint.CHECKLIST_ARTIFACT_BUDGETS.
     "goal.md": (200, 400),
-    "acceptance.md": (400, 800),
+    "checklist.md": (1200, 2400),
+    "stage.md": (400, 800),
     "spec.md": (1500, 3000),
-    "tasks.md": (800, 1500),
-    "STATUS.yaml": (100, 200),
+    "STATUS.yaml": (150, 300),
     "owned_files.txt": (50, 100),
     # Handoff envelope is bounded at 600 / 1200 per design.md §1.1.
     "L0__L2__example-add-dark-mode__0001.yaml": (600, 1200),
@@ -843,9 +847,9 @@ def _seed_example_artifacts(cwd: Path) -> None:
 
     artifacts: dict[str, str] = {
         "goal.md": _EXAMPLE_GOAL_MD,
-        "acceptance.md": _EXAMPLE_ACCEPTANCE_MD,
+        "checklist.md": _EXAMPLE_CHECKLIST_MD,
+        "stage.md": _EXAMPLE_STAGE_MD,
         "spec.md": _EXAMPLE_SPEC_MD,
-        "tasks.md": _EXAMPLE_TASKS_MD,
         "STATUS.yaml": _EXAMPLE_STATUS_YAML,
         "owned_files.txt": _EXAMPLE_OWNED_FILES_TXT,
         "README.md": _EXAMPLE_README_MD,

@@ -10,6 +10,7 @@ import pytest
 
 import devolaflow.agent_workspace.preflight as preflight_module
 from devolaflow.agent_workspace import (
+    LegacyChangeLayoutError,
     PreflightAuthorization,
     PreflightAuthorizationError,
     PreflightConfigBaseline,
@@ -18,7 +19,6 @@ from devolaflow.agent_workspace import (
     sign_preflight,
 )
 from devolaflow.agent_workspace.lint import (
-    ARTIFACT_BUDGETS,
     CHECKLIST_ARTIFACT_BUDGETS,
     EVIDENCE_DIRECTORY_MAX_BYTES,
     EVIDENCE_FILE_MAX_BYTES,
@@ -802,68 +802,15 @@ def test_preflight_sections_and_seal_emit_stable_findings(
 @pytest.mark.parametrize(
     "case",
     [
-        "under-budget",
-        "soft-warning",
-        "hard-breach",
-        "learnings-at-limit",
-        "learnings-over-limit",
-        "nonregular-artifact",
-        "invalid-utf8",
-    ],
-)
-def test_legacy_layout_remains_budget_only(tmp_path: Path, case: str) -> None:
-    folder = tmp_path / ".local" / ".agent" / "active" / "legacy-lint"
-    folder.mkdir(parents=True)
-    artifacts = {
-        "goal.md": "legacy goal without frontmatter\n",
-        "acceptance.md": "legacy acceptance without structured sections\n",
-        "spec.md": "legacy spec\n",
-        "tasks.md": {
-            "soft-warning": "x" * 3204,
-            "hard-breach": "x" * 6004,
-        }.get(case, "legacy tasks without counters\n"),
-        "STATUS.yaml": "legacy: true\n",
-        "owned_files.txt": "tests/test_agent_workspace_checklist_lint.py\n",
-    }
-    for filename, text in artifacts.items():
-        if case == "nonregular-artifact" and filename == "goal.md":
-            (folder / filename).mkdir()
-            continue
-        (folder / filename).write_text(text, encoding="utf-8")
-    if case == "invalid-utf8":
-        (folder / "goal.md").write_bytes(b"\xff")
-    if case in {"learnings-at-limit", "learnings-over-limit"}:
-        extra_byte = case == "learnings-over-limit"
-        (folder / "learnings.jsonl").write_bytes(b"x" * (LEARNINGS_JSONL_MAX_BYTES + extra_byte))
-
-    report = lint_change("legacy-lint", repo_root=tmp_path)
-
-    assert set(ARTIFACT_BUDGETS) <= set(report.checked_files)
-    if case in {"nonregular-artifact", "invalid-utf8"}:
-        assert report.exit_code == 1
-        assert _semantic_kinds(report) == ["READ_ERROR"]
-    else:
-        assert not any(isinstance(v, SemanticViolation) for v in report.violations)
-        assert report.exit_code == int(case in {"hard-breach", "learnings-over-limit"})
-    if case in {"soft-warning", "hard-breach"}:
-        violation = next(v for v in report.violations if v.filename == "tasks.md")
-        assert isinstance(violation, BudgetViolation)
-        assert violation.severity == ("WARN" if case == "soft-warning" else "FAIL")
-    if case.startswith("learnings-"):
-        assert ("learnings.jsonl" in {v.filename for v in report.violations}) is (
-            case == "learnings-over-limit"
-        )
-
-
-@pytest.mark.parametrize(
-    "case",
-    [
         "mixed-api",
         "cli-pass",
         "cli-quiet-semantic-fail",
         "cli-hard-budget-fail",
         "cli-soft-budget-warn",
+        "cli-learnings-over-limit",
         "cli-missing",
+        "legacy-api",
+        "cli-legacy",
     ],
 )
 def test_mixed_layout_reports_explicit_failure(
@@ -876,13 +823,28 @@ def test_mixed_layout_reports_explicit_failure(
         assert "no folder for 'not-found'" in capsys.readouterr().err
         return
 
-    if case in {"cli-hard-budget-fail", "cli-soft-budget-warn"}:
-        change_id = case.removeprefix("cli-").removesuffix("-fail").removesuffix("-warn")
-        folder = tmp_path / ".local" / ".agent" / "active" / change_id
+    if case in {"legacy-api", "cli-legacy"}:
+        # v17.0.0 removal: a tasks.md/acceptance.md folder is a loud error,
+        # never a silently-linted layout (S-5).
+        folder = tmp_path / ".local" / ".agent" / "active" / "legacy-lint"
         folder.mkdir(parents=True)
-        size = 6004 if case == "cli-hard-budget-fail" else 3204
-        (folder / "tasks.md").write_text("x" * size, encoding="utf-8")
-        rc = lint_main(["--repo-root", str(tmp_path), change_id])
+        (folder / "acceptance.md").write_text("legacy acceptance\n", encoding="utf-8")
+        (folder / "tasks.md").write_text("legacy tasks\n", encoding="utf-8")
+        if case == "legacy-api":
+            with pytest.raises(LegacyChangeLayoutError, match=r"removed in v17\.0\.0"):
+                lint_change("legacy-lint", repo_root=tmp_path)
+        else:
+            assert lint_main(["--repo-root", str(tmp_path), "legacy-lint"]) == 2
+            assert "removed in v17.0.0" in capsys.readouterr().err
+        return
+
+    folder = _scaffold_checklist(tmp_path)
+    if case in {"cli-hard-budget-fail", "cli-soft-budget-warn"}:
+        # spec.md is budget-linted but not semantically parsed, so the
+        # scaffold stays semantics-green while the budget tier trips.
+        size = 12004 if case == "cli-hard-budget-fail" else 6100
+        (folder / "spec.md").write_text("x" * size, encoding="utf-8")
+        rc = lint_main(["--repo-root", str(tmp_path), CHANGE_ID])
         stderr = capsys.readouterr().err
         if case == "cli-hard-budget-fail":
             assert rc == 1
@@ -890,9 +852,20 @@ def test_mixed_layout_reports_explicit_failure(
         else:
             assert rc == 0
             assert "soft budget warning(s)" in stderr
+        report = lint_change(CHANGE_ID, repo_root=tmp_path)
+        assert not any(isinstance(v, SemanticViolation) for v in report.violations)
+        violation = next(v for v in report.violations if v.filename == "spec.md")
+        assert isinstance(violation, BudgetViolation)
+        assert violation.severity == ("FAIL" if case == "cli-hard-budget-fail" else "WARN")
         return
 
-    folder = _scaffold_checklist(tmp_path)
+    if case == "cli-learnings-over-limit":
+        (folder / "learnings.jsonl").write_bytes(b"x" * (LEARNINGS_JSONL_MAX_BYTES + 1))
+        rc = lint_main(["--repo-root", str(tmp_path), CHANGE_ID])
+        assert rc == 1
+        assert "learnings.jsonl" in capsys.readouterr().err
+        return
+
     if case in {"mixed-api", "cli-quiet-semantic-fail"}:
         (folder / "tasks.md").write_text("# Legacy tasks\n", encoding="utf-8")
 

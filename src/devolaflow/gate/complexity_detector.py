@@ -41,10 +41,6 @@ Honors S-5 (No Silent Failures): every classifier branch returns one of
 the three verdicts (never ``None``). Missing, unreadable, or unparsable
 paths return a logged result with ``mode="degraded"`` rather than failing
 silently.
-
-The historical ``NinesWrapResult``, ``wrap_nines_complexity``,
-``NINES_*``, and ``nines_*`` surfaces remain deprecated compatibility
-aliases. They never resolve or execute an external binary.
 """
 
 from __future__ import annotations
@@ -106,12 +102,12 @@ def is_complexity_detector_active(
 # Verdict thresholds — see ``patch_plan §3 P-09 AC #1-#3``.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Cyclomatic complexity ceiling for the WARNING path (per L3 dispatch
+# Cyclomatic complexity ceiling for the WARNING path (per L2 dispatch
 # work scope: "WARNING (cc>10 in any new module)"). Functions whose
 # maximum cc strictly exceeds this trigger WARNING.
 WARNING_CC_THRESHOLD: int = 10
 
-# Cyclomatic complexity ceiling for the CRITICAL path (per L3 dispatch
+# Cyclomatic complexity ceiling for the CRITICAL path (per L2 dispatch
 # work scope: "CRITICAL (cc>15 OR ERROR finding)"). Functions whose
 # maximum cc strictly exceeds this trigger CRITICAL — overrides any
 # WARNING the same signal bundle would otherwise produce.
@@ -184,15 +180,11 @@ WARN_REASON_NESTING: str = "nesting_depth_max"
 WARN_REASON_RATIO: str = "ratio_to_minimal"
 WARN_REASON_CC: str = "cyclomatic_complexity"
 WARN_REASON_WARNING_FINDINGS: str = "warning_findings"
-# Deprecated compatibility alias.
-WARN_REASON_NINES_WARN: str = WARN_REASON_WARNING_FINDINGS
 
 
 # Critical reasons (non-tier-dependent — apply across all tiers).
 CRITICAL_REASON_CC: str = "cyclomatic_complexity"
 CRITICAL_REASON_ERROR_FINDINGS: str = "error_findings"
-# Deprecated compatibility alias.
-CRITICAL_REASON_NINES_ERROR: str = CRITICAL_REASON_ERROR_FINDINGS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,15 +192,8 @@ CRITICAL_REASON_NINES_ERROR: str = CRITICAL_REASON_ERROR_FINDINGS
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-# Deprecated compatibility constant. Local inspection never resolves or
-# executes this value.
-NINES_BINARY: str = "nines"
-
-# The local inspection is synchronous and performs no subprocess call. This
-# neutral name is canonical; the historical NineS name remains an alias so
-# existing call signatures and imports continue to work.
+# The local inspection is synchronous and performs no subprocess call.
 COMPLEXITY_INSPECTION_TIMEOUT_SECONDS: int = 120
-NINES_TIMEOUT_SECONDS: int = COMPLEXITY_INSPECTION_TIMEOUT_SECONDS
 
 
 def _zero_complexity_signals() -> ComplexitySignals:
@@ -256,10 +241,6 @@ class ComplexityProbeResult:
     def is_mock(self) -> bool:
         """Deprecated alias for :attr:`is_degraded`."""
         return self.is_degraded
-
-
-# Deprecated class alias. Identity is intentional for compatibility.
-NinesWrapResult = ComplexityProbeResult
 
 
 _FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
@@ -374,7 +355,7 @@ def inspect_complexity_path(
     target_path: str | Path,
     *,
     binary: str | None = None,
-    timeout: int = NINES_TIMEOUT_SECONDS,
+    timeout: int = COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
     runner: object | None = None,
 ) -> ComplexityProbeResult:
     """Inspect Python sources under ``target_path`` without external tools.
@@ -395,7 +376,7 @@ def inspect_complexity_path(
     ComplexityProbeResult
         Local measurements, stable file order, and explicit degraded errors.
     """
-    if binary is not None or timeout != NINES_TIMEOUT_SECONDS or runner is not None:
+    if binary is not None or timeout != COMPLEXITY_INSPECTION_TIMEOUT_SECONDS or runner is not None:
         logger.debug(
             "Deprecated external-probe arguments ignored: binary=%r timeout=%r runner=%s",
             binary,
@@ -458,10 +439,6 @@ def inspect_complexity_path(
         errors=tuple(errors),
     )
 
-
-# Deprecated function alias. It intentionally resolves to the local inspector
-# and therefore can never execute a binary.
-wrap_nines_complexity = inspect_complexity_path
 
 # Private legacy helper retained for source-compatible tests and callers.
 _conservative_mock_signals = _zero_complexity_signals
@@ -598,7 +575,7 @@ class ComplexityDetector:
         task_complexity: TaskComplexityTier | str,
         *,
         binary: str | None = None,
-        timeout: int = NINES_TIMEOUT_SECONDS,
+        timeout: int = COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
         runner: object | None = None,
     ) -> ComplexityEvaluation:
         """Convenience: inspect ``target_path`` locally then :meth:`evaluate`.
@@ -645,7 +622,7 @@ class ComplexityDetector:
         if signals.cyclomatic_complexity > self.critical_cc_threshold:
             reasons.append(CRITICAL_REASON_CC)
         if signals.error_findings > 0:
-            reasons.append(CRITICAL_REASON_NINES_ERROR)
+            reasons.append(CRITICAL_REASON_ERROR_FINDINGS)
         return reasons
 
     def _collect_warning_reasons(
@@ -668,7 +645,7 @@ class ComplexityDetector:
         if signals.cyclomatic_complexity > self.warning_cc_threshold:
             reasons.append(WARN_REASON_CC)
         if signals.warning_findings > 0:
-            reasons.append(WARN_REASON_NINES_WARN)
+            reasons.append(WARN_REASON_WARNING_FINDINGS)
         return reasons
 
     def _format_critical_rationale(
@@ -680,7 +657,7 @@ class ComplexityDetector:
         parts: list[str] = []
         if CRITICAL_REASON_CC in reasons:
             parts.append(f"cc={signals.cyclomatic_complexity} > {self.critical_cc_threshold}")
-        if CRITICAL_REASON_NINES_ERROR in reasons:
+        if CRITICAL_REASON_ERROR_FINDINGS in reasons:
             parts.append(f"errors={signals.error_findings}")
         return f"CRITICAL — {', '.join(parts)} (reasons={reasons})."
 
@@ -707,7 +684,7 @@ class ComplexityDetector:
             parts.append(f"ratio={signals.ratio_to_minimal:.2f} >= {budgets.ratio_threshold:.2f}")
         if WARN_REASON_CC in reasons:
             parts.append(f"cc={signals.cyclomatic_complexity} > {self.warning_cc_threshold}")
-        if WARN_REASON_NINES_WARN in reasons:
+        if WARN_REASON_WARNING_FINDINGS in reasons:
             parts.append(f"warnings={signals.warning_findings}")
         return f"WARNING (tier={tier!r}) — {', '.join(parts)}."
 
@@ -716,14 +693,10 @@ __all__ = [
     "CRITICAL_CC_THRESHOLD",
     "CRITICAL_REASON_ERROR_FINDINGS",
     "CRITICAL_REASON_CC",
-    "CRITICAL_REASON_NINES_ERROR",
     "COMPLEXITY_INSPECTION_TIMEOUT_SECONDS",
     "ComplexityDetector",
     "ComplexityEvaluation",
     "ComplexityProbeResult",
-    "NINES_BINARY",
-    "NINES_TIMEOUT_SECONDS",
-    "NinesWrapResult",
     "TIER_BUDGETS",
     "TierBudgets",
     "WARN_REASON_ABSTRACTIONS",
@@ -731,10 +704,8 @@ __all__ = [
     "WARN_REASON_FILES",
     "WARN_REASON_LINES",
     "WARN_REASON_NESTING",
-    "WARN_REASON_NINES_WARN",
     "WARN_REASON_RATIO",
     "WARN_REASON_WARNING_FINDINGS",
     "WARNING_CC_THRESHOLD",
     "inspect_complexity_path",
-    "wrap_nines_complexity",
 ]

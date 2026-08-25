@@ -5,7 +5,7 @@ Bound to the ``pre_dispatch`` event by :mod:`devolaflow.lifecycle.__init__`.
 
 Contract: a dispatch payload (lean format per
 ``schemas/lean-dispatch.yaml``) MUST carry at least one **testable**
-acceptance criterion before being released to an L3 task agent. The
+acceptance criterion before being released to an L2 task agent. The
 hook recognises both the lean ``accept`` key and the verbose
 ``acceptance_criteria`` key for backward compatibility.
 

@@ -114,7 +114,7 @@ def select_pattern(
       downgrade to Pattern 1).
     * ``task_count >= 2`` AND ``parallel_independence`` → ``FAN_OUT``
       (Pattern 2 — L2 wave dispatch with disjoint owned files).
-    * else → ``INLINE`` (Pattern 1 — single L3 dispatch via ``Task``).
+    * else → ``INLINE`` (Pattern 1 — single L2 dispatch via ``Task``).
 
     **Never returns** ``"TEAMS_FORBIDDEN"`` — that verdict is reserved
     for :func:`forbidden_pattern_rationale` (operator-education path).

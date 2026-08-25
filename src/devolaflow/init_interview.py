@@ -2,18 +2,18 @@
 
 Provides detection and suggestion logic for the 8-phase interview that
 runs during the ``interview`` stage of the repo-init workflow. The actual
-user interaction is driven by the L3 task agent via AskQuestion; this
+user interaction is driven by the L2 task agent via AskQuestion; this
 module supplies the analysis and generation functions.
 
 Phase mapping:
-  P1 — ask intent (handled by L3 prompt)
+  P1 — ask intent (handled by L2 prompt)
   P2 — explore codebase (reuse analyze stage output)
-  P3 — fill gaps (handled by L3 prompt)
-  P4 — generate .rules/ source (handled by L3 + RuleCompiler)
-  P5 — generate .local/memory/prefs.md (handled by L3 + this module)
+  P3 — fill gaps (handled by L2 prompt)
+  P4 — generate .rules/ source (handled by L2 + RuleCompiler)
+  P5 — generate .local/memory/prefs.md (handled by L2 + this module)
   P6 — suggest and create skills (this module)
   P7 — suggest and configure hooks (this module)
-  P8 — summary (handled by L3 prompt)
+  P8 — summary (handled by L2 prompt)
 """
 
 from __future__ import annotations

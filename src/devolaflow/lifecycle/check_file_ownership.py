@@ -3,7 +3,7 @@
 Documented in ``workflow-system/agent/SKILL.md`` §"Lifecycle Hooks".
 Bound to the ``file_write`` event by :mod:`devolaflow.lifecycle.__init__`.
 
-Contract: when an L3 task agent attempts to write a file, the target
+Contract: when an L2 task agent attempts to write a file, the target
 ``path`` MUST be in the dispatch payload's ``owned_files`` list. This
 elevates Invariant **P1** (Dispatcher-Not-Implementer / disjoint-scope
 ownership) from a prompt-only constraint to a deterministic check when

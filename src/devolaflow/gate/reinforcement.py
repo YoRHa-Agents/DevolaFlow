@@ -1,7 +1,7 @@
 """Convergence round rule reinforcement — dispatch-level findings injection.
 
 Converts gate findings into reinforcement rules for the next convergence
-round's dispatch, enabling L3 Task Agents to receive explicit mandates
+round's dispatch, enabling L2 Task Agents to receive explicit mandates
 about what MUST be fixed.  Zero file I/O, platform-agnostic (Approach B).
 
 v8.0.0 (P-04) — adds deterministic fence expansion via
@@ -360,7 +360,7 @@ def fence_to_instruction(
 # Converts a :class:`devolaflow.gate.models.CycleReport` produced by
 # :class:`devolaflow.gate.cycle_detector.CycleDetector` into a
 # :class:`ReinforcementRule` whose ``mandate`` starts with the literal
-# token ``MUST NOT repeat`` so L3 Task Agents recognise it as a hard
+# token ``MUST NOT repeat`` so L2 Task Agents recognise it as a hard
 # prohibition for the next round (per ``patch_plan §3 P-06 AC #4``).
 # ─────────────────────────────────────────────────────────────────────────────
 

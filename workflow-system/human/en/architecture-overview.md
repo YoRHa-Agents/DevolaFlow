@@ -4,7 +4,7 @@ description: "Three-layer checklist-round architecture, provenance primitives, a
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-24T23:40:32Z"
+last_synced: "2026-08-25T04:33:10Z"
 source_version: "16.0.0"
 ---
 

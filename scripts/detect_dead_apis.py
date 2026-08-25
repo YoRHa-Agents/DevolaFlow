@@ -54,6 +54,8 @@ CLI_ENTRY_NAMES: frozenset[str] = frozenset({"main", "cli"})
 CLI_ENTRY_SUFFIX: str = "_cmd"
 
 
+# v17.0.0 R1 audit (G17-A6): purged 48 stale entries whose symbols gained
+# in-repo production callers; see docs/cycle-archive for history.
 DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
     {
         # v9.0.0 PV-07 (ADR-007 D5) — count_agents_md_rules is the canonical
@@ -67,23 +69,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `count_agents_md_rules` is a pure read-only helper that walks the
         # compiled AGENTS.md file.
         "devolaflow.agents_md_slice:count_agents_md_rules",
-        # v9.0.0 PV-07 (ADR-007 D3) — select_agents_md_slice is the OPERATOR-
-        # FACING per-task-type AGENTS.md slicing entry point. Default behavior
-        # (`meta.agents_md_slice.enabled: false`) returns the full AGENTS.md
-        # byte-identical to v8.5.1. When operators flip the YAML knob to
-        # `true`, the function filters AGENTS.md per the per-profile layer
-        # mapping. Currently consumed by `tests/test_pv07_agents_md_slice.py`
-        # and the `--show-slice` CLI flag in `task_adaptive_selector.main()`;
-        # the L0/L1/L2/L3 dispatch wiring is intentionally OPT-IN per ADR-007
-        # D3 (the OPERATOR-VISIBLE breaking-change facet of v9.0.0 MAJOR
-        # semver — see CHANGELOG `## [9.0.0]` "Adoption notes"). NOT a
-        # domain-SSOT registry symbol per A-5.2 — pure read-only filter.
-        "devolaflow.agents_md_slice:select_agents_md_slice",
-        # Legacy external-only compatibility API. The former Makefile caller
-        # no longer exists, but downstream operators may still import this
-        # wrapper while historical NineS integrations age out. This pin makes
-        # that status explicit without claiming an in-repo production caller.
-        "devolaflow.nines.researcher:rebuild_index",
         # v10.2.0 PV-01 (D-P-3 closure) — read_installed_si_chip_version is
         # invoked by the si-chip entry's `version_check_cmd` in
         # `workflow-system/agent/knowledge/runtime-plugins.yaml`, which
@@ -125,16 +110,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registration data of its own.
         "devolaflow.dispatch:dispatch_dogfood_cycle",
         # ---- Lifecycle hooks public API (P-05 in v7.4.8) ----
-        # Per the v7.5.0 ghost-audit §3.C G-C1 closure design and the
-        # P-05 dispatch directive, the lifecycle package is intentionally
-        # NOT wired into existing dispatch / write / status flows in this
-        # patch — integration is deferred to a future iteration. The four
-        # public entry-points below are advertised in
-        # ``workflow-system/agent/SKILL.md`` §"Lifecycle Hooks" and consumed
-        # by external orchestrators (and ``tests/test_lifecycle_hooks.py``)
-        # in lieu of an in-repo production call site.
-        "devolaflow.lifecycle.dispatcher:run_hooks",
-        "devolaflow.lifecycle.dispatcher:register_hook",
+        # ``clear_hooks`` and ``registered_events`` are test-harness /
+        # introspection helpers with no production caller by design:
+        # test fixtures reset handler state via ``clear_hooks``, and
+        # external orchestrators enumerate the wired event set via
+        # ``registered_events``. Their siblings ``run_hooks`` /
+        # ``register_hook`` gained in-repo production callers when S-10
+        # wired the hook chain into every dispatch, and were purged in
+        # the v17.0.0 R1 audit.
         "devolaflow.lifecycle.dispatcher:clear_hooks",
         "devolaflow.lifecycle.dispatcher:registered_events",
         # v12.4.0 PV-05 (D-4 L0-only surfaces hardening) —
@@ -165,18 +148,17 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # registry symbol per A-5.2 — pure transformation helper.
         "devolaflow.agent_workspace.handoff:strip_l0_only_metadata",
         # v12.5.0 PV-03 D-1.1 closure — codegraph researcher Python
-        # wrapper. The 5 helpers are the L3-task-agent surface for
+        # wrapper. The 5 helpers are the L2-task-agent surface for
         # invoking codegraph CLI (the 9 MCP tools wrapped as Python
         # subprocess calls). Each wraps a distinct codegraph CLI
         # subcommand: ``build_context`` → ``codegraph context``,
         # ``search_symbols`` → ``codegraph search``, ``get_impact`` →
         # ``codegraph impact``, ``get_callers`` → ``codegraph callers``,
-        # ``get_affected_tests`` → ``codegraph affected``. Mirrors the
-        # ``devolaflow.nines.researcher`` module shape per A-5 SSOT
-        # registry pattern (the Python wrapper IS the canonical entry
-        # surface for L3 agents; the in-repo "production caller" is the
-        # L3 task agent invocation contract documented in
-        # ``workflow-system/agent/references/codegraph.md``).
+        # ``get_affected_tests`` → ``codegraph affected``. The Python
+        # wrapper IS the canonical entry surface for L2 agents per the
+        # A-5 SSOT registry pattern; the in-repo "production caller" is
+        # the L2 task agent invocation contract documented in
+        # ``workflow-system/agent/references/codegraph.md``.
         # NOT domain-SSOT registry symbols per A-5.2 — pure subprocess
         # wrappers with no registration data.
         "devolaflow.codegraph.researcher:build_context",
@@ -194,20 +176,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # use ``proxy_command``). External orchestrators that just need
         # a single rewrite call without retaining the config can use this.
         "devolaflow.shell_proxy.proxy:proxy_command",
-        # ---- Adapter base API — subclassed/instantiated externally ----
-        "devolaflow.adapters.base:BaseAdapter",
-        "devolaflow.adapters.base:AdapterResult",
-        "devolaflow.adapters.base:load_workflow_skill",
-        # ---- Registry factories — entry points for external consumers ----
-        "devolaflow.adapters.registry:create_default_registry",
-        "devolaflow.plugins.loader:create_default_registry",
-        # ---- CLI entry-point modules (also caught by name patterns) ----
-        "devolaflow.build_skill:build_all",
-        # ---- MIGRATION-v6.md recommended stable public API ----
-        # The documented stable replacements for v6.0 removals. Allowlisted
-        # even when an in-repo caller exists, so a future refactor that
-        # drops the caller does not silently break the public contract.
-        "devolaflow.gate.scorer:evaluate_gate",
         # v8.0.0 P-05 verification ladder — opt-in entry point exposed via
         # devolaflow.gate.__all__ for external L0/L1/L2 dispatchers that
         # want to short-circuit the 6-rung R1..R6 ladder. Activated when
@@ -241,9 +209,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ``evaluate_acceptance_criteria_v2`` above. Verified by
         # ``tests/test_ac_generator.py::TestACGeneratorGenerate``.
         "devolaflow.ac_generator:ACGenerator",
-        "devolaflow.gate.reinforcement:findings_to_reinforcement",
-        "devolaflow.gate.reinforcement:merge_reinforcement_into_dispatch",
-        "devolaflow.gate.reinforcement:reinforcement_to_dict",
         # v8.0.0 P-07 monotonic ratchet — convergence-loop bridge helpers.
         # Both are exposed via devolaflow.gate.__all__ for external L0/L1/L2
         # orchestrators that need to thread the new ratchet into their
@@ -257,19 +222,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # evaluate_ladder allowlisting precedent above).
         "devolaflow.gate.convergence:record_round_with_ratchet",
         "devolaflow.gate.convergence:detect_ratchet_escalation",
-        "devolaflow.task_adaptive_selector:apply_round_escalation",
-        "devolaflow.task_adaptive_selector:apply_plan_mode_overrides",
-        "devolaflow.task_adaptive_selector:select_context",
-        # v8.0.0 P-07 apply_round_escalation refactor (NineS [CC-448821-0001]
-        # closure). The three named helpers (``select_round_result`` /
-        # ``apply_severity_filter`` / ``escalate_round``) are intentionally
-        # public so external dispatchers can compose round-level overrides
-        # piecemeal without re-running ``apply_round_escalation`` end-to-end.
-        # Verified by ``tests/test_ratchet.py::TestApplyRoundEscalationRefactor``.
-        "devolaflow.task_adaptive_selector:select_round_result",
-        "devolaflow.task_adaptive_selector:apply_severity_filter",
-        "devolaflow.task_adaptive_selector:escalate_round",
-        "devolaflow.nines.advisor:get_research_advice",
         # ---- Compressor module — runtime lean format validators (CO-1) ----
         # Public APIs remain exported from ``devolaflow.compressor`` for
         # callers, but their definitions moved to ``compressor.transforms``
@@ -279,49 +231,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # transformations with no registration data.
         "devolaflow.compressor.transforms:compress_message",
         "devolaflow.compressor.transforms:validate_lean_format",
-        # v7.0.0 cache-layout invariant validators — consumed by external
-        # workflow agents before sending lean dispatches; mandated by A-2
-        # (P6 Preserve Cached Prefix, .rules/architecture.mdc — ex
-        # devola-flow-rules.mdc Rule 6) and ADR v7-ADR-001.
-        "devolaflow.compressor:assert_dispatch_layout",
-        "devolaflow.compressor:compute_dispatch_lcp_pct",
-        "devolaflow.compressor:DispatchLayoutError",
-        # v7.0.1 tool-output truncation primitives — consumed by external
-        # runtimes (L3 task agents producing StatusReports, L2 wave agents
-        # composing predecessor context) per ADR-002 §2.1. The dataclass +
-        # two helpers are opted in via context_profiles.yaml's per-profile
-        # `tool_output_truncation:` block (default disabled at v7.0.1 cut).
-        "devolaflow.compressor:truncate_tool_output",
-        "devolaflow.compressor:clear_old_tool_uses",
-        "devolaflow.compressor:ToolUseTruncation",
-        # v7.0.2 hierarchical predecessor summariser primitives — consumed by
-        # external dispatchers (L0/L1/L2) before composing pred[*].key_facts
-        # (per ADR-003 §2.4 trigger threshold). The persistence probe planned
-        # in v7.0.3 (ADR-004) re-uses extract_named_entities for entity
-        # carry-through scoring.
-        "devolaflow.compressor:summarise_predecessor",
-        "devolaflow.compressor:extract_named_entities",
-        # P-02 v7.2.4 envelope helpers — surface API for v7.3.x dispatcher
-        # integration; not yet wired into compress_message but exported for
-        # L0 dispatcher consumption per execution-protocol.md §8. The
-        # helpers wrap predecessor key_facts and tool outputs in
-        # <data channel="..."> ... </data> envelopes so L3 agents can
-        # syntactically refuse imperatives that arrive via the data channel
-        # (mitigation for arXiv:2604.02837v1 prompt-injection variants).
-        "devolaflow.compressor:wrap_data_envelope",
-        "devolaflow.compressor:unwrap_data_envelope",
-        "devolaflow.compressor:detect_data_channel_instructions",
-        # v8.0.0 P-02 directed compaction — Layer-3 of the layered compression
-        # pipeline. Public API exported for L0/L1/L2 dispatchers that consume
-        # `pred[*].compact_directive` (NESTED schema field added to
-        # schemas/lean-dispatch.yaml in v8.0.0 P-02). The dispatcher consumer
-        # calls directed_compact(text, focus_keywords, max_drop_pct=0.20)
-        # on the predecessor's key_facts block before rendering the lean
-        # dispatch payload. Not yet wired into compressor.compress_message
-        # at v8.0.0 cut — opt-in via per-pred directive only (see
-        # context_profiles.yaml#meta.recency_decay_factor for the
-        # complementary Layer-2 overlay default of 0.9).
-        "devolaflow.compressor:directed_compact",
         # ---- Self-improving feedback loop (S02-T08 §5) ----
         # Public class hierarchy exposed via devolaflow.feedback.*; documented
         # in SKILL.md (ProposalGenerator.generate_round_dispatch is wired in
@@ -331,11 +240,11 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.feedback:FeedbackCollector",
         "devolaflow.feedback:FeedbackAnalyzer",
         "devolaflow.feedback:ProposalGenerator",
-        # v9.7.0 PV-03 — auto-wired L2-wave async dispatch entry point.
+        # v9.7.0 PV-03 — auto-wired L1-wave async dispatch entry point.
         # Wraps the v9.3.0 PV-05 ``AsyncDispatchExecutor`` (also a public
         # API surface that's pinned via ``_dispatch_executor_dead_api_pins``
         # in ``src/devolaflow/agent_workspace/__init__.py``). This is the
-        # canonical caller for L2 Wave dispatchers in repos that opt into
+        # canonical caller for L1 Wave dispatchers in repos that opt into
         # the Python-driven dispatch path; LLM-orchestrated workflows
         # invoke the Task tool directly without going through this helper,
         # so the in-repo "production caller" IS the ``Task`` tool surface
@@ -361,68 +270,37 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # Exposed via devolaflow.learnings.*; called by self-update workflow
         # template (workflow-system/agent/templates/builtin/self-update.yaml)
         # and by external workflow agents for learnings management. v7.0.3
-        # (ADR-005) adds consolidate_session / decay_confidence /
-        # pin_learning_for_session — consumed by L1/L0 session-end hooks and
-        # by dispatchers that need cross-round pinning. v7.2.0 (C-007 / CCT-3)
-        # adds dedup_learnings — dormant in v7.2.0; promoted to a writer in
-        # v7.3 via C-009 (reflective reflex) per the explicit two-phase plan.
-        # v7.2.3 (P-03 / C-009) adds capture_session_reflection — the writer
-        # that activates the dormant operational.jsonl substrate; called by
-        # L1/L0 status-report consumers that persist L3 task-completion
-        # reflections (read-side already wired via load_relevant_learnings).
+        # (ADR-005) adds decay_confidence / pin_learning_for_session —
+        # consumed by L1/L0 session-end hooks and by dispatchers that need
+        # cross-round pinning. v7.2.3 (P-03 / C-009) adds
+        # capture_session_reflection — the writer that activates the dormant
+        # operational.jsonl substrate; called by L1/L0 status-report
+        # consumers that persist L2 task-completion reflections (read-side
+        # already wired via load_relevant_learnings). The siblings
+        # consolidate_session / dedup_learnings gained in-repo production
+        # callers and were purged in the v17.0.0 R1 audit.
         "devolaflow.learnings:prune_learnings",
         "devolaflow.learnings:promote_learning",
         "devolaflow.learnings:get_learnings_stats",
         "devolaflow.learnings:log_external_source_review",
-        "devolaflow.learnings:consolidate_session",
         "devolaflow.learnings:decay_confidence",
         "devolaflow.learnings:pin_learning_for_session",
-        "devolaflow.learnings:dedup_learnings",
         "devolaflow.learnings:capture_session_reflection",
-        # ---- NineS subsystem — research, analysis, advisor APIs ----
-        # All exported via devolaflow.nines.__all__ for external research
-        # workflows; the NineS CLI integration is invoked by the user via
-        # W-2 / SI-2 (.rules/workflow.mdc — ex self-improve-iteration-rules.mdc)
-        # and not from in-repo production code.
-        "devolaflow.nines.commands:build_command",
-        "devolaflow.nines.commands:build_stage_command",
-        "devolaflow.nines.detector:ensure_nines",
-        "devolaflow.nines.detector:get_nines_capabilities",
-        "devolaflow.nines.researcher:NinesResearchConfig",
-        "devolaflow.nines.researcher:collect_research",
-        "devolaflow.nines.researcher:analyze_target",
-        "devolaflow.nines.researcher:run_self_evaluation",
-        "devolaflow.nines.researcher:run_skill_iteration",
-        "devolaflow.nines.researcher:run_nines_benchmark",
-        "devolaflow.nines.researcher:run_nines_update",
-        "devolaflow.nines.researcher:run_self_improve_loop",
-        "devolaflow.nines.researcher:refresh_reference_dependency",
-        "devolaflow.nines.scorer:nines_dimension_scores",
         # ---- Agent workspace public API (v8.2.5 PV-05) ----
-        # New in v8.3.0 PV-05 per .local/research/v8.3.0_design.md §1.1 + §4
-        # and .local/research/v8.3.0_patch_plan.md §v8.2.5. The package
-        # implements C-003 + M-005 (Python half) + M-006 closures from the
-        # gap analysis. Production callers land in:
-        #
-        #   - v8.2.6 (`change-driven` workflow template) — invokes
-        #     ChangeStore + ArchiveManager via the workflow runtime.
-        #   - v8.2.7 (reporter module) — invokes serialize_delta_spec +
-        #     ArchiveManager.propose_merge to render REPORT.md surfaces.
-        #   - v8.2.8 (memory_bridge.py) — invokes ChangeStore + HandoffStore
-        #     to hydrate change context for L0/L1/L2/L3 dispatch.
-        #
-        # Allowlisting these for v8.2.5 unblocks the patch ledger; the
-        # production callers ship in subsequent PVs per the cycle plan.
-        "devolaflow.agent_workspace.archive:ArchiveManager",
+        # `serialize_delta_spec` renders a delta-spec structure back to the
+        # per-change spec.md DELTA format (A-4). It remains external-facing:
+        # REPORT.md rendering tools and external orchestrators consume it,
+        # with no in-repo production call site. The sibling v8.2.5 entries
+        # (ArchiveManager / HandoffStore / make_envelope) gained in-repo
+        # production callers in later cycles and were purged in the
+        # v17.0.0 R1 audit.
         "devolaflow.agent_workspace.delta_parser:serialize_delta_spec",
-        "devolaflow.agent_workspace.handoff:HandoffStore",
-        "devolaflow.agent_workspace.handoff:make_envelope",
         # ---- Memory bridge public API (v8.2.8 PV-08 — H-006 closure) ----
         # Per .local/research/v8.3.0_design.md §4 and
         # .local/research/v8.3.0_patch_plan.md §"v8.2.8 — Memory Bridge +
         # Change-Aware Learnings". The two functions exposed by
         # devolaflow.agent_workspace.memory_bridge are intentionally public
-        # so the v8.2.9 /devola:archive command (and L0/L1/L2/L3 dispatch
+        # so the v8.2.9 /devola:archive command (and L0/L1/L2 dispatch
         # context-injection in subsequent PVs of the v8.3.0 cycle) can
         # invoke them without reaching into the package internals.
         # Same allowlist pattern as the v8.2.5 PV-05 entries above —
@@ -432,22 +310,12 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ---- Pre-decision phase API ----
         # Exposed via devolaflow.pre_decision.__all__; called by detect-repo-mode
         # console_script and external pre-flight workflow agents.
-        "devolaflow.pre_decision.checklist:auto_detect",
         "devolaflow.pre_decision.freeze:freeze_config",
         "devolaflow.pre_decision.recommend:recommend_workflow",
         # ---- Template engine — composer, models, parser, registry ----
         # All exported via devolaflow.template_engine.__all__ for external
         # template authoring tools and the validate-template CLI.
         "devolaflow.template_engine.composer:collect_all_refs",
-        # v16 registry-v3 compatibility window — these two public helpers
-        # remain importable so legacy callers receive the classified
-        # CompositionManifestError retirement message instead of an import
-        # failure. They intentionally have no production caller because
-        # executable composition synthesis/validation is retired; remove
-        # both compatibility APIs and these pins in v17.0.0. NOT domain-SSOT
-        # registry symbols per A-5.2 — they hold no registration data.
-        "devolaflow.template_engine.compositions:composition_to_template",
-        "devolaflow.template_engine.compositions:validate_composition_manifest",
         "devolaflow.template_engine.models:JoinStrategy",
         "devolaflow.template_engine.models:OnExhaustion",
         "devolaflow.template_engine.models:GateFailAction",
@@ -466,7 +334,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # production call site.
         "devolaflow.template_engine.runtime:select_stages_for_runtime",
         # ---- init_interview module (v7.7 — interview stage for repo-init) ----
-        # Public API consumed by L3 task agents during the interview stage
+        # Public API consumed by L2 task agents during the interview stage
         # of repo-init (mode=full). Not called from in-repo production code.
         "devolaflow.init_interview:detect_project_tools",
         "devolaflow.init_interview:suggest_skills",
@@ -481,14 +349,14 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # :class:`devolaflow.session.SessionState` from the JSONL substrate
         # without forcing an eager import (avoids circular import between
         # ``devolaflow.learnings`` and ``devolaflow.session.state``).
-        # Consumed by L3 Task Agents and external orchestrators that opt
+        # Consumed by L2 Task Agents and external orchestrators that opt
         # into the unified session model; not wired into in-repo
         # production at the v8.2.0 cut. Same allowlist pattern as
         # ``devolaflow.entropy_manager:cleanup`` above.
         "devolaflow.learnings:build_session_state_for",
         # ---- Entropy manager GC entrypoint (v8.0.0 P-11) ----
         # Public GC dispatcher exported via ``devolaflow.entropy_manager.__all__``
-        # and consumed by L3 Task Agents executing the ``entropy-cleanup``
+        # and consumed by L2 Task Agents executing the ``entropy-cleanup``
         # workflow template (``workflow-system/agent/templates/builtin/
         # entropy-cleanup.yaml``). Not yet wired into in-repo production at the
         # v8.0.0 cut — opt-in via the template's ``apply`` stage only. Same
@@ -496,7 +364,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         "devolaflow.entropy_manager:cleanup",
         # ---- Token-budget breaker factory (v8.0.0 P-03) ----
         # Public factory exported via ``devolaflow.gate.__init__`` and
-        # ``devolaflow.gate.budget.__all__``. Consumed by L3 Task Agents and
+        # ``devolaflow.gate.budget.__all__``. Consumed by L2 Task Agents and
         # CLI tooling that resolves a profile name string into a
         # ``TokenBudgetBreaker`` (mirrors the policy in
         # ``devolaflow.gate.scorer.run_gate_cli``). Direct construction via
@@ -505,48 +373,19 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # ergonomic API. Same allowlist pattern as v8.0.0 P-11 above.
         "devolaflow.gate.budget:from_profile_name",
         # ---- Progressive merge (v7.7 — diff-suggest for existing files) ----
-        "devolaflow.local.merge:propose_merge",
         "devolaflow.local.merge:apply_merge",
         "devolaflow.local.merge:format_diff_for_review",
-        # ---- NineS internal helper exposed in private _cli module ----
-        # Public name (no underscore) inside private module; documented in
-        # CHANGELOG v5.x as a public helper for callers needing nines.toml
-        # auto-discovery before invoking run_nines_cli(config_path=...).
-        "devolaflow.nines._cli:find_nines_config",
-        # ---- v8.2.1 runtime plugin auto-install (H-001 / design.md §6) ----
-        # Entry points of the new runtime plugin surface. They are consumed
-        # declaratively by workflow YAML precondition stages
-        # (``workflow-system/agent/templates/builtin/nines-assisted.yaml``
-        # and ``product-verification.yaml`` now both start with a
-        # ``config.ensure_plugins: [...]`` stage per PV-01) and invoked
-        # externally by the workflow runner. A production Python caller
-        # lands in v8.2.6 when the ``change-driven`` template wires
-        # ``ensure_plugins`` config into dispatch — allowlisted here until
-        # that caller exists, matching the same pattern used by the
-        # lifecycle hooks block at the top of this allowlist (P-05 v7.4.8).
-        # Verified by ``tests/test_plugins.py`` TestEnsurePluginFailureModes
-        # (8 failure-mode scenarios per design.md §6.5) + TestEnsurePluginNpmBackend
-        # (ui-pro 2-step install) + smoke test against /home/agent/workspace/NineS.
-        "devolaflow.plugins.installer:ensure_plugin",
-        "devolaflow.plugins.installer:load_registry",
-        "devolaflow.plugins.installer:resolve_plugin",
-        "devolaflow.plugins.installer:RuntimePluginSpec",
-        # ---- v9.0.0 PV-06 (v8.5.1) — CompressionPipeline unification ----
-        # The CompressionStage protocol + CompressionPipeline orchestrator
-        # ship as the canonical composition layer for the 6 pre-existing
-        # text-side transforms. The 5 stage-factory entry points
-        # (compression_pipeline_stages in compressor.py;
-        # compression_pipeline_stage in shell_proxy.commands +
-        # llm_client) wrap the existing functions for the unified
-        # pipeline; production callers (L0/L1 dispatchers using
-        # ``CompressionPipeline.run`` directly) ship in v9.x cycle PVs
-        # per docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
-        # §"Migration". Allowlisted here until the dispatcher integration
-        # PV lands — matches the pattern used for v8.2.5 ChangeStore +
-        # v8.2.8 memory_bridge entries above. Tests exercise every entry
-        # point (tests/test_compression_pipeline.py).
-        "devolaflow.compression_pipeline:BYPASS_ALWAYS",
-        "devolaflow.compressor:compression_pipeline_stages",
+        # ---- v9.0.0 PV-06 (v8.5.1) — CompressionPipeline stage factories ----
+        # The two surviving stage-factory entry points wrap the shell-proxy
+        # command-mapping and llm_client transforms for the unified
+        # CompressionPipeline; external L0/L1 dispatchers compose them via
+        # ``CompressionPipeline.run`` per
+        # docs/cycle-archive/adr/v9-ADR-006-compression-pipeline-and-b3-flip.md
+        # §"Migration" — no in-repo production call site. Tests exercise
+        # both entry points (tests/test_compression_pipeline.py). The
+        # siblings ``compression_pipeline_stages`` / ``BYPASS_ALWAYS``
+        # gained in-repo production callers and were purged in the
+        # v17.0.0 R1 audit.
         "devolaflow.shell_proxy.commands:compression_pipeline_stage",
         "devolaflow.llm_client:compression_pipeline_stage",
         # ---- v9.0.0 PV-06 (v8.5.1) — Theme T5 5-primitive default-on
@@ -558,7 +397,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # are the canonical "should this primitive run" predicate that
         # downstream orchestrators consult before instantiating
         # TokenBudgetBreaker / MonotonicRatchet / ComplexityDetector /
-        # ACGenerator / evaluate_ladder. Production callers (L0/L1/L2/L3
+        # ACGenerator / evaluate_ladder. Production callers (L0/L1/L2
         # gate-evaluation orchestrators) ship in subsequent v9.x PVs per
         # the cycle plan (Theme T5 closure). Allowlisted here until those
         # callers exist — verified by tests/test_pv06_primitive_flip.py
@@ -579,9 +418,9 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # (memory_router.consult_for_dispatch + plan-mode feedback ingestion
         # per the v9.2.0 cycle plan §PV-04); v9.1.1 PV-01 ships the
         # discovery API only as the prerequisite. NOT a domain-SSOT registry
-        # symbol per A-5.2 — pure read-only filesystem-walk helper, mirrors
-        # the `lifecycle.run_hooks` / `directed_compact` allowlist precedent
-        # above (public surface advertised in SKILL.md, in-repo caller lands
+        # symbol per A-5.2 — pure read-only filesystem-walk helper following
+        # the established forward-looking allowlist pattern (public surface
+        # advertised in SKILL.md, in-repo caller lands
         # in a subsequent PV per the cycle plan). Verified by
         # `tests/test_workspace_context_scan.py` (6 tests covering
         # presence/detection/sort/freeze contract) +
@@ -589,7 +428,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # (W-18 ghost-audit refresh: presence + import-smoke + frozen
         # dataclass invariant).
         "devolaflow.workspace_context:scan_workspace",
-        "devolaflow.workspace_context:WorkspaceContext",
         # ---- v9.1.2 PV-02 (cycle v9.2.0) — change-driven activation skill ----
         # `classify_complexity(files_count, loc_estimate, is_cross_cutting=False)
         # -> Complexity` and `activation_verdict(complexity, env_agent_workspace,
@@ -694,28 +532,18 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # `workflow-system/agent/references/agent-workspace.md` companion
         # docs once the v9.3.0 doctor surface lands).
         "devolaflow.local.workspace:last_gitignore_audit",
-        # ---- v9.5.0 PV-02 — Si-Chip bridge subprocess wrappers ----
+        # ---- v9.5.0 PV-02 — Si-Chip bridge subprocess wrapper ----
         # `count_tokens(skill_md, ...)` runs `count_tokens.py --file <skill_md>
-        # --both` and returns `(metadata_tokens, body_tokens)`. The cheap
-        # pre-check before the heavier `evaluate()` (which involves
-        # baseline + with-ability runs). Production caller lands in v9.5.0
-        # PV-04 — the new `lifecycle/post_skill_edit.py` hook calls
-        # `count_tokens()` to verify the touched skill file fits the
-        # 100/5000 budget BEFORE invoking the more expensive `run_dogfood_cycle`.
-        # `run_dogfood_cycle(ability_name, skill_md, ...)` is the top-level
-        # orchestrator: profile → evaluate (twice) → delta → verdict.
-        # Production caller lands in v9.5.0 PV-04 (the same lifecycle hook)
-        # AND in PV-05 (the self-application dogfood pass). Mirrors the
-        # v8.2.1 plugin-installer entry-point allowlist precedent above
-        # (public surface used declaratively by the lifecycle hook chain
-        # before its first in-repo Python production caller PV ships).
-        # Verified by `tests/test_si_chip_bridge.py` (14 NEW test functions
-        # covering public API surface + install resolver + apply/defer
-        # threshold + subprocess error modes + dogfood orchestration) and
-        # by `tests/test_no_ghost_features.py::test_v9_5_0_new_symbols_have_coverage`
-        # (W-18 ghost-audit refresh shipping in PV-06 cycle close).
+        # --both` and returns `(metadata_tokens, body_tokens)` — the cheap
+        # budget pre-check exposed for external Si-Chip tooling and
+        # operator opt-in flows; no in-repo Python production call site.
+        # Verified by `tests/test_si_chip_bridge.py` and by
+        # `tests/test_no_ghost_features.py::test_v9_5_0_new_symbols_have_coverage`
+        # (W-18 ghost-audit refresh). The sibling `run_dogfood_cycle`
+        # gained an in-repo production caller
+        # (`devolaflow.dispatch.dispatch_dogfood_cycle`) and was purged in
+        # the v17.0.0 R1 audit.
         "devolaflow.si_chip_bridge.runner:count_tokens",
-        "devolaflow.si_chip_bridge.runner:run_dogfood_cycle",
         # ---- v9.5.0 PV-04 — post_skill_edit operator-facing convenience ----
         # `metadata_to_json(result)` serialises the HookResult.metadata
         # to a deterministic single-line JSON string. Used by operators
@@ -726,7 +554,7 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # post_dispatch convenience pattern). Tests cover it indirectly
         # via the W-18 ghost-audit refresh in PV-06 cycle close.
         "devolaflow.lifecycle.post_skill_edit:metadata_to_json",
-        # ---- v10.1.0 PV-02 — writing_style region helpers ----
+        # ---- v10.1.0 PV-02 — writing_style region helper ----
         # `prose_only(text)` returns the text with all protected regions
         # (fenced code, inline code, markdown links, version strings,
         # html tags, bare URLs) replaced by single spaces. Used by the
@@ -738,16 +566,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # Ghost-audit refresh lands in v10.1.0 PV-06 with
         # `test_v10_1_0_new_symbols_have_coverage`.
         "devolaflow.writing_style.regions:prose_only",
-        # `apply_to_prose(text, transform)` walks the region sequence,
-        # applies `transform` to each prose span, and preserves
-        # protected spans byte-for-byte. This IS the production
-        # integration point for the five SAFE transforms in PV-03
-        # (emdash / bullets / signposts / headers / clichés). It is
-        # public so that third-party humanizer authors can hook their
-        # own transform callable into the same region-safety boundary.
-        # Covered by
-        # `tests/test_writing_style_scorer.py::test_apply_to_prose_does_not_touch_code`.
-        "devolaflow.writing_style.regions:apply_to_prose",
         # ---- v11.1.0 PV-05 (cycle v11.1.0) — Architecture rule A-7 cascade
         # depth invariant helpers ----
         # `populate_cascade_gate_fields(base_dispatch, complexity)` is the
@@ -790,22 +608,6 @@ DEFAULT_ALLOWLIST: frozenset[str] = frozenset(
         # symbols per A-5.2 — pure functions with zero module-level state.
         "devolaflow.gate.cascade:populate_intra_task_convergence",
         "devolaflow.gate.cascade:validate_intra_task_convergence_fields",
-        # v12.2.0 PV-04 — per-task-type timeout default helper -----------
-        # `default_timeout_for(task_type)` is the dispatcher-side helper that
-        # operators invoke when constructing the optional ``timeouts={}``
-        # kwarg for `AsyncDispatchExecutor.dispatch_parallel` / `dispatch_sequential`.
-        # The library-only landing discipline (no env flag, no auto-wire)
-        # from v9.3.0 PV-05 is preserved — there is intentionally NO
-        # in-repo production call site in v12.2.0; callers opt in by
-        # invoking the helper. Same allowlist pattern as
-        # `populate_cascade_gate_fields` above (forward-looking helper
-        # that lands wired-but-unused at the cycle that introduces it;
-        # actual production call sites land in a future v12.x patch or
-        # v13.0.0+ when an L0/L1/L2 dispatcher build path adopts the
-        # SKILL.md §"Subagent Hang Prevention" per-task-type default
-        # contract). NOT a domain-SSOT registry symbol per A-5.2 —
-        # pure function with zero module-level state.
-        "devolaflow.task_adaptive_selector:default_timeout_for",
         # v16.0.0 M5b — single-file harness fixture loader. The probe runtime
         # uses the bounded directory loader, while external harness tooling
         # and focused fixture diagnostics use this public one-file entry

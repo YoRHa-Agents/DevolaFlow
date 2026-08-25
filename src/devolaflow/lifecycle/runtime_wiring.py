@@ -14,7 +14,7 @@ events their FIRST production call sites:
   set (owned_files manifest from the active change context, plus the
   S-8 §2/§3 directory exemptions materialised for the exact-match hook)
   and dispatches ``run_hooks("file_write", payload)``.
-* :func:`fire_task_stop` — invoked at the L3 report emission surface
+* :func:`fire_task_stop` — invoked at the L2 report emission surface
   (:meth:`devolaflow.agent_workspace.handoff.HandoffStore.write_envelope`
   for ``StatusReport`` envelopes) with the report block as payload. The
   default ``test_on_complete`` handler consumes the report's in-memory
@@ -201,7 +201,7 @@ def fire_task_stop(
     *,
     strict: bool = True,
 ) -> HookResult | None:
-    """Fire the ``task_stop`` hook for a finalised L3 status report.
+    """Fire the ``task_stop`` hook for a finalised L2 status report.
 
     *report* is the StatusReport payload (lean top-level
     ``tests_passed`` / ``tests_failed`` / ``lint_status`` fields or the

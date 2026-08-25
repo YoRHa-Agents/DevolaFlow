@@ -17,6 +17,8 @@ from devolaflow.agent_workspace.handoff import (
 from devolaflow.agent_workspace.layers import (
     CURRENT_HANDOFF_SCHEMA_VERSION,
     CURRENT_LAYER_ROLES,
+    CURRENT_LAYER_TOKENS,
+    LAYER_ATTRIBUTION_ALIASES,
     LEGACY_HANDOFF_SCHEMA_VERSION,
     LEGACY_V1_LAYER_MAP,
     LegacyLayerWarning,
@@ -90,6 +92,19 @@ def test_layer_ssot_requires_explicit_provenance_and_bounded_warnings() -> None:
         normalize_layer("L9", schema_version=1, context="test.unknown.layer")
     with pytest.raises(ValueError, match="unknown"):
         normalize_hdr_layer("stage", schema_version=2, context="test.unknown.hdr")
+
+    # v17 SSOT merge: the telemetry-attribution alias table lives in layers.py
+    # and stays consistent with the provenance tables (A-5 single owner).
+    from devolaflow.harness import telemetry
+
+    assert telemetry._LAYER_ALIASES is LAYER_ATTRIBUTION_ALIASES
+    for token in CURRENT_LAYER_TOKENS:
+        assert LAYER_ATTRIBUTION_ALIASES[token] == token
+    assert LAYER_ATTRIBUTION_ALIASES["L3"] == LEGACY_V1_LAYER_MAP["L3"]
+    for token, role in CURRENT_LAYER_ROLES.items():
+        assert LAYER_ATTRIBUTION_ALIASES[role.lower()] == token
+    assert LAYER_ATTRIBUTION_ALIASES["stage"] == "L0"
+    assert set(LAYER_ATTRIBUTION_ALIASES.values()) == set(CURRENT_LAYER_TOKENS)
 
 
 def test_handoff_and_dispatch_preserve_explicit_layer_provenance(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-"""Focused dual-layout tests for v16 agent-workspace change storage."""
+"""Focused checklist-layout tests for v17 agent-workspace change storage."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ from devolaflow.agent_workspace import (
     ChangeNotFoundError,
     ChangeStore,
     ChangeStoreError,
+    LegacyChangeLayoutError,
     detect_change_layout,
     lint_change,
     parse_checklist,
 )
-from devolaflow.agent_workspace.change import ARTIFACT_FILES
 from devolaflow.agent_workspace.lint import (
     CHECKLIST_ARTIFACT_BUDGETS,
     EVIDENCE_DIRECTORY_MAX_BYTES,
@@ -27,15 +27,6 @@ from devolaflow.agent_workspace.lint import (
 )
 from devolaflow.skills.slash_commands import scaffold_change_folder
 
-LEGACY_ARTIFACTS = (
-    "goal.md",
-    "acceptance.md",
-    "spec.md",
-    "tasks.md",
-    "STATUS.yaml",
-    "owned_files.txt",
-    "learnings.jsonl",
-)
 CHECKLIST_ARTIFACTS = (
     "goal.md",
     "checklist.md",
@@ -171,9 +162,11 @@ capacity_per_round: 5
 @pytest.mark.parametrize(
     ("markers", "expected"),
     [
-        ((), ChangeLayout.LEGACY),
-        (("tasks.md",), ChangeLayout.LEGACY),
+        ((), ChangeLayout.CHECKLIST),
         (("checklist.md",), ChangeLayout.CHECKLIST),
+        (("tasks.md",), LegacyChangeLayoutError),
+        (("acceptance.md",), LegacyChangeLayoutError),
+        (("tasks.md", "acceptance.md"), LegacyChangeLayoutError),
         (("checklist.md", "tasks.md"), ChangeLayout.INVALID_MIXED),
         (("checklist.md", "acceptance.md"), ChangeLayout.INVALID_MIXED),
     ],
@@ -182,7 +175,11 @@ def test_detect_change_layout(marker_folder: Path, markers: tuple[str, ...], exp
     marker_folder.mkdir()
     for marker in markers:
         (marker_folder / marker).write_text("", encoding="utf-8")
-    assert detect_change_layout(marker_folder) is expected
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        with pytest.raises(expected, match=r"removed in v17\.0\.0"):
+            detect_change_layout(marker_folder)
+    else:
+        assert detect_change_layout(marker_folder) is expected
 
 
 @pytest.fixture
@@ -199,31 +196,23 @@ def test_detect_change_layout_rejects_non_directory(tmp_path: Path, kind: str) -
         detect_change_layout(target)
 
 
-def test_legacy_layout_and_positional_constructor_remain_unchanged(tmp_path: Path) -> None:
-    assert ARTIFACT_FILES == LEGACY_ARTIFACTS
+def test_legacy_layout_raises_removal_error(tmp_path: Path) -> None:
     assert [layout.value for layout in ChangeLayout] == [
-        "LEGACY",
         "CHECKLIST",
         "INVALID_MIXED",
     ]
-    change = Change(
-        "legacy-positional",
-        "goal",
-        "acceptance",
-        "spec",
-        "tasks",
-        _status("legacy-positional"),
-        ["src/devolaflow/agent_workspace/change.py"],
-        None,
-        None,
-    )
-    assert change.layout is ChangeLayout.LEGACY
+    assert Change("checklist-default").layout is ChangeLayout.CHECKLIST
 
-    target = tmp_path / "legacy-positional"
-    change.to_active_folder(target)
-    assert (target / "acceptance.md").read_text(encoding="utf-8") == "acceptance"
-    assert (target / "tasks.md").read_text(encoding="utf-8") == "tasks"
-    assert not (target / "checklist.md").exists()
+    folder = _write_legacy(tmp_path / "legacy-change", "legacy-change")
+    with pytest.raises(
+        LegacyChangeLayoutError,
+        match=r"tasks\.md/acceptance\.md dual-track removed in v17\.0\.0; "
+        r"migrate to\s+checklist\.md",
+    ):
+        detect_change_layout(folder)
+    with pytest.raises(LegacyChangeLayoutError, match="removed in v17"):
+        Change.from_active_folder(folder)
+    assert issubclass(LegacyChangeLayoutError, ChangeStoreError)
 
 
 def test_checklist_load_roundtrip_uses_only_v16_artifacts_and_verbatim_evidence(
@@ -238,8 +227,6 @@ def test_checklist_load_roundtrip_uses_only_v16_artifacts_and_verbatim_evidence(
 
     change = Change.from_active_folder(source)
     assert change.layout is ChangeLayout.CHECKLIST
-    assert change.acceptance_md == ""
-    assert change.tasks_md == ""
     assert change.evidence_files == evidence
     assert ARTIFACT_FILES_V16 == CHECKLIST_ARTIFACTS
 
@@ -289,15 +276,14 @@ def test_to_active_folder_refuses_implicit_layout_migration(tmp_path: Path) -> N
         checklist_md="# Checklist\n",
     )
 
-    with pytest.raises(ChangeStoreError, match="implicit migration"):
+    with pytest.raises(LegacyChangeLayoutError, match=r"removed in v17\.0\.0"):
         checklist.to_active_folder(target)
     assert (target / "tasks.md").read_text(encoding="utf-8") == "# Tasks\n"
     assert not (target / "checklist.md").exists()
 
 
-def test_with_state_and_store_preserve_both_layouts(tmp_path: Path) -> None:
+def test_with_state_and_store_preserve_checklist_layout(tmp_path: Path) -> None:
     active = tmp_path / ".local" / ".agent" / "active"
-    legacy_path = _write_legacy(active / "legacy-change", "legacy-change")
     checklist_path = _write_checklist(
         active / "checklist-change",
         "checklist-change",
@@ -305,12 +291,9 @@ def test_with_state_and_store_preserve_both_layouts(tmp_path: Path) -> None:
     )
     store = ChangeStore(repo_root=tmp_path)
 
-    legacy = store.get("legacy-change")
     checklist = store.get("checklist-change")
     updated = checklist.with_state("VERIFYING")
 
-    assert legacy.layout is ChangeLayout.LEGACY
-    assert legacy.source_folder == legacy_path
     assert checklist.layout is ChangeLayout.CHECKLIST
     assert checklist.source_folder == checklist_path
     assert updated.layout is ChangeLayout.CHECKLIST

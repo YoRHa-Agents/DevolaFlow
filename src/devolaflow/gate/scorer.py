@@ -837,7 +837,7 @@ def _attach_legibility_evaluation(
 # weight is 0.05 in STRICT/STANDARD/AUDIT, 0.0 in RELAXED.
 #
 # :class:`devolaflow.gate.artifact_score.EvidenceDoctrineError` raised by
-# a report that smuggles an L3-authored score PROPAGATES (S-5 — never
+# a report that smuggles an L2-authored score PROPAGATES (S-5 — never
 # silently accept a doctrine violation at gate time).
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1222,7 +1222,7 @@ def evaluate_gate(
         with zero evidence blocks is surfaced but never fabricated
         into the mean per ADR-007). Default weight is 0.05 in
         STRICT/STANDARD/AUDIT, 0.0 in RELAXED (per ``profiles.py``).
-        A report carrying a forbidden L3-authored ``quality_score`` /
+        A report carrying a forbidden L2-authored ``quality_score`` /
         ``quality`` field raises
         :class:`devolaflow.gate.artifact_score.EvidenceDoctrineError`
         — propagated per S-5.
@@ -1650,39 +1650,14 @@ def run_gate_cli(args: Sequence[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# v14.5.0 (ADR-006 / gap G-025) — PERMANENT re-export shims for the module
-# split. ``gate/scorer.py`` keeps pure scoring + ``evaluate_gate``
-# orchestration + the validate-gate CLI; the extracted concerns live in:
+# v17.0.0 shim retirement (ADR-006 revisit): the v14.5.0 re-export shims
+# that lived here (cascade validators, the 6-rung ladder surface, AC-v2
+# evaluation) were DELETED after every in-repo call site migrated to the
+# owner modules. Import from:
 #
 #   * ``gate/cascade.py``        — cascade + intra-task-convergence validators
 #   * ``gate/ladder.py``         — the 6-rung verification ladder
 #   * ``gate/acceptance_v2.py``  — AC-v2 evaluation incl. v14.4.0 metric runners
 #
-# Deprecation note: prefer the new owner-module paths in NEW code. These
-# shims are PERMANENT (lifetime >= v16.0.0, revisit then — per the ADR's
-# shim clause) because S-10 / W-11 / schema text cite the historical
-# ``devolaflow.gate.scorer`` paths verbatim. Every re-export below is
-# identity-preserving (``old_path.symbol is new_path.symbol``), pinned by
-# ``tests/test_module_split_shims.py``.
+# Absence pinned by ``tests/test_module_split_shims.py``.
 # ---------------------------------------------------------------------------
-from devolaflow.gate.acceptance_v2 import (  # noqa: E402, F401
-    METRIC_KIND_COVERAGE,
-    METRIC_KIND_LINT,
-    METRIC_KIND_NUMBER,
-    CommandRunner,
-    CommandRunResult,
-    aggregate_criterion_verdicts,
-    evaluate_acceptance_criteria_v2,
-)
-from devolaflow.gate.cascade import (  # noqa: E402, F401
-    CascadeViolationError,
-    IntraTaskConvergenceViolationError,
-    validate_cascade_gate_fields,
-    validate_intra_task_convergence_fields,
-)
-from devolaflow.gate.ladder import (  # noqa: E402, F401
-    VERIFICATION_LADDER_ENV_FLAG,
-    RungChecker,
-    evaluate_ladder,
-    is_verification_ladder_active,
-)

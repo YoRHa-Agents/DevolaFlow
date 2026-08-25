@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from devolaflow.selector_cli import main
 from devolaflow.task_adaptive_selector import (
     PRIORITY_ORDER,
     TASK_TYPE_TIMEOUT_DEFAULTS,
@@ -24,7 +25,6 @@ from devolaflow.task_adaptive_selector import (
     extract_section,
     load_profiles,
     load_skill_md,
-    main,
     match_profile,
     resolve_compression_intensity,
     resolve_decomposition_config,

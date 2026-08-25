@@ -16,6 +16,7 @@ __all__ = [
     "CURRENT_HDR_LAYER_TOKENS",
     "CURRENT_LAYER_ROLES",
     "CURRENT_LAYER_TOKENS",
+    "LAYER_ATTRIBUTION_ALIASES",
     "LEGACY_HANDOFF_SCHEMA_VERSION",
     "LEGACY_V1_HDR_LAYER_MAP",
     "LEGACY_V1_LAYER_MAP",
@@ -49,6 +50,25 @@ LEGACY_V1_HDR_LAYER_MAP: Final[dict[str, str]] = {
     "project": "project",
     "stage": "project",
     "wave": "wave",
+}
+
+# Telemetry-attribution aliases (v17 SSOT merge of the former
+# ``harness.telemetry._LAYER_ALIASES`` literal): every spelling a dispatch
+# record has ever carried in ``hdr.layer``/``meta.layer``, mapped to a
+# current token.  Unlike :data:`LEGACY_V1_LAYER_MAP` this table has no
+# schema-version context — a bare ``L1`` in a telemetry record is a current
+# Wave token, while the v1-only spellings (``L3``, role names, ``stage``)
+# resolve through their v16 fold.  Consistency with the provenance tables
+# above is pinned by ``tests/test_layer_normalization.py``.
+LAYER_ATTRIBUTION_ALIASES: Final[dict[str, str]] = {
+    "L0": "L0",
+    "L1": "L1",
+    "L2": "L2",
+    "L3": LEGACY_V1_LAYER_MAP["L3"],
+    "project": "L0",
+    "stage": "L0",
+    "wave": "L1",
+    "task": "L2",
 }
 
 

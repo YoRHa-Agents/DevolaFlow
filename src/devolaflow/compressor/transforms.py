@@ -49,7 +49,7 @@ def wrap_data_envelope(text: str, channel_id: str | None = None) -> str:
     ``</data\\u200B>`` (a zero-width space inside the closing tag) before the
     envelope is emitted. This prevents an envelope-escape attack where
     attacker-controlled content could close the envelope early and have the
-    L3 agent treat trailing text as authoritative dispatcher instructions.
+    L2 agent treat trailing text as authoritative dispatcher instructions.
     The visible glyph stream is unchanged for human reviewers; only the
     strict regex used by :func:`unwrap_data_envelope` is denied a match on
     the injected payload.
@@ -1996,7 +1996,7 @@ def compression_pipeline_stages() -> list[CompressionStage]:
 # SELF-CONTAINMENT contract. The original v9.7.0 wording ("…so the
 # receiver can decompress") was incoherent with the Context Isolation
 # contract (``workflow-system/agent/references/context-isolation.md``
-# §2 Mechanism 1): a fresh round-N L3 spawns with an EMPTY context and
+# §2 Mechanism 1): a fresh round-N L2 spawns with an EMPTY context and
 # has no round-N-1 dispatch to resolve ``@round-N-1:pred-K`` into.
 # The fix (ratified disposition: design fix, NOT an ADR — the field is
 # absence-canonical; the persistent-generator shape was explicitly NOT
@@ -2050,7 +2050,7 @@ DEDUP_DIGEST_MAX_CHARS: int = 320
 v15.0.0 G-007 design fix (F-P4-4): ~320 chars ≈ 80 tokens keeps the
 dedup profitable for the long summaries that motivated it (the
 hierarchical summariser emits 500–1200-token bodies per
-``context-isolation.md`` §12) while guaranteeing a fresh L3 receives a
+``context-isolation.md`` §12) while guaranteeing a fresh L2 receives a
 self-contained, informative stand-in for the replaced content. Short
 summaries (≤ the bound) travel verbatim in the digest — zero input-
 quality loss, per the single-task-excellence north star."""
@@ -2062,7 +2062,7 @@ _DEDUP_REF_RE = re.compile(r"^@round-[^\s:]+:pred-\d+$")
 Used by both the index builder (never index a ref-shaped summary — it
 carries no content) and the emitter (never re-deduplicate a ref-shaped
 summary — chaining references would produce a ref-shaped ``digest``,
-which is unresolvable for a fresh L3 and forbidden per G-007)."""
+which is unresolvable for a fresh L2 and forbidden per G-007)."""
 
 
 def _digest_summary(summary: str) -> str:
@@ -2144,7 +2144,7 @@ def _build_dedup_index(prior_round_payload: dict) -> dict[str, str]:
     prior-round payload that was itself deduplicated) are NEVER indexed:
     they carry no content, and indexing them would let a later round
     dedup against a reference and emit a ref-shaped ``digest`` —
-    unresolvable for a fresh L3 and forbidden per the G-007
+    unresolvable for a fresh L2 and forbidden per the G-007
     self-containment contract.
     """
     pred_list = prior_round_payload.get("pred")
@@ -2200,7 +2200,7 @@ def dedup_predecessor_summaries(
        The ``digest`` (v15.0.0 G-007 design fix, finding F-P4-4) is the
        self-contained verbatim key_facts digest of the replaced summary
        per :func:`_digest_summary` — the reference resolves
-       INTRA-PAYLOAD (``ref → entries[j].digest``) so a fresh L3 never
+       INTRA-PAYLOAD (``ref → entries[j].digest``) so a fresh L2 never
        needs the round-N-1 dispatch it never saw. The replacement and
        the digest emission happen in the SAME loop iteration: no code
        path can emit a reference without its same-payload digest
@@ -2286,7 +2286,7 @@ def dedup_predecessor_summaries(
             # Already a ledger reference (e.g. a deduplicated round-N-1
             # payload reused verbatim by the caller). Re-deduplicating
             # would chain references and yield a ref-shaped digest —
-            # unresolvable for a fresh L3, forbidden per G-007.
+            # unresolvable for a fresh L2, forbidden per G-007.
             new_pred.append(pred_entry)
             continue
         h = _hash_summary(summary)

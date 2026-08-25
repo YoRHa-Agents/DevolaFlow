@@ -113,7 +113,7 @@ TODO: 2-3 concrete examples or recipes.
 ## Cross-References
 
 - `references/meta-framework.md` — workflow primitives
-- `references/agent-hierarchy.md` — L0/L1/L2/L3 layering
+- `references/agent-hierarchy.md` — L0/L1/L2 layering
 
 ## History
 

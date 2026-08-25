@@ -24,7 +24,7 @@ Tier mapping (verbatim from BG-003's tier table):
   new-side line ranges. Dispatch-side population is a future slice.
 * ``line`` — currently aliased to ``function`` per the BG-003 tier
   table ("Future v8.2.0 work"); the prompt-side LL-001..LL-005
-  criteria remain L3 self-audit territory.
+  criteria remain L2 self-audit territory.
 
 Purity contract: every function is side-effect free EXCEPT the
 documented, bounded ``git`` subprocess (read-only ``git diff``

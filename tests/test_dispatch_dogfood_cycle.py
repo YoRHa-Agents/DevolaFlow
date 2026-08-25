@@ -1,6 +1,8 @@
 """Tests for the v10.2.1 PV-02 ``dispatch_dogfood_cycle`` wrapper.
 
-Pins the contract in :func:`devolaflow.feedback.dispatch_dogfood_cycle`:
+Pins the contract in :func:`devolaflow.dispatch.dispatch_dogfood_cycle`
+(owner module since the v14.5.0 ADR-006 split; the ``devolaflow.feedback``
+re-export shim was retired in v17.0.0):
 
 1. **Returns a SiChipResult** — the wrapper delegates to
    :func:`devolaflow.si_chip_bridge.runner.run_dogfood_cycle` and returns
@@ -28,7 +30,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from devolaflow import __version__
-from devolaflow.feedback import dispatch_dogfood_cycle
+from devolaflow.dispatch import dispatch_dogfood_cycle
 from devolaflow.si_chip_bridge import ApplyVerdict, SiChipResult
 
 
@@ -248,7 +250,7 @@ def test_dispatch_dogfood_cycle_signature_matches_runner_overlap() -> None:
         )
         assert name in runner_sig.parameters, (
             f"Runner missing expected param {name!r}; if removed, the "
-            "wrapper at devolaflow.feedback.dispatch_dogfood_cycle must "
+            "wrapper at devolaflow.dispatch.dispatch_dogfood_cycle must "
             "be updated in the same PV (D-S-2 contract)."
         )
 

@@ -17,7 +17,7 @@ so legacy v1 / v2 JSONL entries parse unchanged.
 
 v7.2.3 (P-03 / C-009) adds :func:`capture_session_reflection` — the writer
 that activates the dormant ``operational.jsonl`` substrate v7.2.0 PR-C
-shipped. Called at L3 task completion to persist a "pre-completion
+shipped. Called at L2 task completion to persist a "pre-completion
 reflection" Learning entry that the next session can load via
 :func:`load_relevant_learnings`. Read-side already wired via v7.0.3
 ADR-005 (the ``session_id`` argument is recorded in ``source_task_id``
@@ -480,11 +480,11 @@ def capture_session_reflection(
     key: str | None = None,
     change_id: str | None = None,
 ) -> Learning:
-    """Capture an L3-session reflective reflex into ``jsonl_path``.
+    """Capture an L2-session reflective reflex into ``jsonl_path``.
 
     Activates the dormant ``operational.jsonl`` substrate that v7.2.0 PR-C
     shipped (C-007 schema additions to :class:`Learning`: ``files``,
-    ``source``, plus :func:`dedup_learnings`). Called at L3 task completion
+    ``source``, plus :func:`dedup_learnings`). Called at L2 task completion
     to persist a "pre-completion reflection" Learning entry that the next
     session can load via :func:`load_relevant_learnings`.
 

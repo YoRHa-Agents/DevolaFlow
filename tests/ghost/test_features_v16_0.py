@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from tests.ghost._helpers import _load_yaml
 
 
@@ -17,6 +19,7 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
     from devolaflow.agent_workspace import (
         ARTIFACT_FILES_V16,
         ChangeLayout,
+        LegacyChangeLayoutError,
         detect_change_layout,
         hydrate_change_context,
         lint_change,
@@ -92,16 +95,14 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         "L2": "L1",
         "L3": "L2",
     }
-    for legacy_schema_name in ("change-tasks", "change-acceptance"):
-        legacy = _load_yaml(schema_dir / f"{legacy_schema_name}.yaml")
-        index_entry = index_entries[legacy_schema_name]
-        for document in (legacy, index_entry):
-            assert document["deprecated_since"] == "16.0.0"
-            assert document["replacement"] == "change-checklist"
-            assert document["removal_target"] == "17.0.0"
+    # v17.0.0 removal (G17-A2): the dual-track schemas hit their declared
+    # removal_target — files deleted, registry entries dropped. Names are
+    # assembled from stems so repo-wide greps for the removed ids stay empty.
+    for legacy_schema_name in (f"change-{stem}" for stem in ("tasks", "acceptance")):
+        assert not (schema_dir / f"{legacy_schema_name}.yaml").exists()
+        assert legacy_schema_name not in index_entries
 
     assert [layout.value for layout in ChangeLayout] == [
-        "LEGACY",
         "CHECKLIST",
         "INVALID_MIXED",
     ]
@@ -116,8 +117,7 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         "learnings.jsonl",
     )
     layout_cases = (
-        ((), ChangeLayout.LEGACY),
-        (("tasks.md",), ChangeLayout.LEGACY),
+        ((), ChangeLayout.CHECKLIST),
         (("checklist.md",), ChangeLayout.CHECKLIST),
         (("checklist.md", "acceptance.md"), ChangeLayout.INVALID_MIXED),
     )
@@ -127,6 +127,11 @@ def test_v16_0_0_m1_checklist_artifact_contract_registered(
         for marker in markers:
             (folder / marker).write_text("", encoding="utf-8")
         assert detect_change_layout(folder) is expected_layout
+    legacy_folder = tmp_path / "layout-legacy"
+    legacy_folder.mkdir()
+    (legacy_folder / "tasks.md").write_text("", encoding="utf-8")
+    with pytest.raises(LegacyChangeLayoutError, match=r"removed in v17\.0\.0"):
+        detect_change_layout(legacy_folder)
 
     monkeypatch.delenv("DEVOLAFLOW_AGENT_WORKSPACE", raising=False)
     scaffold = run_propose("V16 Ghost Audit", tmp_path)

@@ -7,7 +7,7 @@ Covers the patch_plan §3 P-09 acceptance criteria:
   (trivial / simple / standard / complex).
 - ``inspect_complexity_path()`` measures sorted local Python files without
   invoking an external binary.
-- Legacy NineS-named surfaces remain compatibility aliases only.
+- Legacy NineS-named aliases were removed in v17.0.0; absence is pinned.
 - ``complexity_detector=None`` keeps :func:`evaluate_gate` byte-identical
   to pre-P-09 behaviour (``patch_plan §3 P-09 AC #6``).
 
@@ -23,6 +23,8 @@ from typing import Any
 
 import pytest
 
+import devolaflow.gate as gate_namespace
+import devolaflow.gate.complexity_detector as complexity_detector_module
 from devolaflow.gate import (
     AUDIT,
     RELAXED,
@@ -35,26 +37,19 @@ from devolaflow.gate import (
     ComplexitySignals,
     ComplexityVerdict,
     GateInput,
-    NinesWrapResult,
     evaluate_gate,
     inspect_complexity_path,
-    wrap_nines_complexity,
 )
 from devolaflow.gate.complexity_detector import (
-    COMPLEXITY_INSPECTION_TIMEOUT_SECONDS,
     CRITICAL_CC_THRESHOLD,
     CRITICAL_REASON_CC,
     CRITICAL_REASON_ERROR_FINDINGS,
-    CRITICAL_REASON_NINES_ERROR,
-    NINES_BINARY,
-    NINES_TIMEOUT_SECONDS,
     TIER_BUDGETS,
     WARN_REASON_ABSTRACTIONS,
     WARN_REASON_CC,
     WARN_REASON_FILES,
     WARN_REASON_LINES,
     WARN_REASON_NESTING,
-    WARN_REASON_NINES_WARN,
     WARN_REASON_RATIO,
     WARN_REASON_WARNING_FINDINGS,
     WARNING_CC_THRESHOLD,
@@ -239,7 +234,7 @@ class TestComplexTier:
 
 
 # ===========================================================================
-# 5. CRITICAL paths — cc > 15 OR NineS ERROR
+# 5. CRITICAL paths — cc > 15 OR ERROR-severity finding
 # ===========================================================================
 
 
@@ -263,7 +258,7 @@ class TestCriticalPath:
         signals = _signals(nines_error_findings=1)
         result = detector.evaluate(signals, "complex")
         assert result.verdict is ComplexityVerdict.CRITICAL
-        assert CRITICAL_REASON_NINES_ERROR in result.reasons
+        assert CRITICAL_REASON_ERROR_FINDINGS in result.reasons
 
     def test_critical_takes_precedence_over_warning(self) -> None:
         detector = ComplexityDetector()
@@ -272,12 +267,12 @@ class TestCriticalPath:
         assert result.verdict is ComplexityVerdict.CRITICAL
         # Both critical reasons present; warn reasons NOT in result.reasons
         assert CRITICAL_REASON_CC in result.reasons
-        assert CRITICAL_REASON_NINES_ERROR in result.reasons
+        assert CRITICAL_REASON_ERROR_FINDINGS in result.reasons
         assert WARN_REASON_LINES not in result.reasons
 
 
 # ===========================================================================
-# 6. NineS warning findings → WARNING (not CRITICAL)
+# 6. Warning-severity findings → WARNING (not CRITICAL)
 # ===========================================================================
 
 
@@ -287,7 +282,7 @@ class TestNinesWarnFindings:
         signals = _signals(nines_warn_findings=3)
         result = detector.evaluate(signals, "standard")
         assert result.verdict is ComplexityVerdict.WARNING
-        assert WARN_REASON_NINES_WARN in result.reasons
+        assert WARN_REASON_WARNING_FINDINGS in result.reasons
 
 
 # ===========================================================================
@@ -401,13 +396,22 @@ class TestLocalInspectionDegraded:
         assert result.is_degraded is True
         assert "not a Python file" in result.errors[0]
 
-    def test_legacy_probe_names_are_identity_aliases(self) -> None:
-        assert wrap_nines_complexity is inspect_complexity_path
-        assert NinesWrapResult is ComplexityProbeResult
+    def test_legacy_probe_names_are_removed(self) -> None:
+        # v17.0.0: the deprecated NineS-named compatibility aliases are gone.
+        for removed in (
+            "wrap_nines_complexity",
+            "NinesWrapResult",
+            "NINES_BINARY",
+            "NINES_TIMEOUT_SECONDS",
+            "WARN_REASON_NINES_WARN",
+            "CRITICAL_REASON_NINES_ERROR",
+        ):
+            assert not hasattr(complexity_detector_module, removed)
+            assert not hasattr(gate_namespace, removed)
         assert _conservative_mock_signals is _zero_complexity_signals
 
     def test_degraded_result_keeps_verdict_ok(self, tmp_path: Path) -> None:
-        result = wrap_nines_complexity(tmp_path / "missing", binary="ignored")
+        result = inspect_complexity_path(tmp_path / "missing", binary="ignored")
         evaluation = ComplexityDetector().evaluate(result.signals, "trivial")
         assert evaluation.verdict is ComplexityVerdict.OK
 
@@ -465,13 +469,13 @@ class TestLocalInspectionMetrics:
             called = True
             raise AssertionError("legacy runner must never execute")
 
-        result = wrap_nines_complexity(tmp_path, runner=runner)
+        result = inspect_complexity_path(tmp_path, runner=runner)
         assert result.mode == "local"
         assert called is False
 
     def test_legacy_binary_and_timeout_arguments_are_ignored(self, tmp_path: Path) -> None:
         _write_python(tmp_path / "one.py", "value = 1\n")
-        result = wrap_nines_complexity(
+        result = inspect_complexity_path(
             tmp_path,
             binary="definitely-not-executable",
             timeout=1,
@@ -747,7 +751,7 @@ class TestEvaluateGateStrictIntegration:
 # ===========================================================================
 
 
-class TestNinesWrapResultSurface:
+class TestComplexityProbeResultSurface:
     def test_is_mock_property_live(self) -> None:
         signals = _zero_complexity_signals()
         result = ComplexityProbeResult(signals=signals, mode="local", rationale="ok")
@@ -756,7 +760,7 @@ class TestNinesWrapResultSurface:
 
     def test_is_mock_property_mock(self) -> None:
         signals = _zero_complexity_signals()
-        result = NinesWrapResult(signals=signals, mode="degraded", rationale="fallback")
+        result = ComplexityProbeResult(signals=signals, mode="degraded", rationale="fallback")
         assert result.is_degraded is True
         assert result.is_mock is True
 
@@ -824,15 +828,11 @@ class TestIntegrationSmoke:
         from devolaflow.gate import (
             inspect_complexity_path as public_inspect,
         )
-        from devolaflow.gate import (
-            wrap_nines_complexity as public_wrap,
-        )
 
         assert PublicDetector is ComplexityDetector
         assert PublicSignals is ComplexitySignals
         assert PublicVerdict is ComplexityVerdict
         assert public_inspect is inspect_complexity_path
-        assert public_wrap is public_inspect
 
     def test_round_trip_signals_to_verdict_to_evaluation(self) -> None:
         # Build, evaluate, inspect — happy path smoke test
@@ -844,16 +844,10 @@ class TestIntegrationSmoke:
 
 
 # ===========================================================================
-# 20. Default NINES_BINARY constant
+# 20. Threshold constants
 # ===========================================================================
 
 
-class TestNinesConstants:
-    def test_default_binary_name(self) -> None:
-        assert NINES_BINARY == "nines"
-        assert NINES_TIMEOUT_SECONDS == COMPLEXITY_INSPECTION_TIMEOUT_SECONDS
-
+class TestThresholdConstants:
     def test_critical_threshold_higher_than_warning(self) -> None:
         assert CRITICAL_CC_THRESHOLD > WARNING_CC_THRESHOLD
-        assert CRITICAL_REASON_NINES_ERROR == CRITICAL_REASON_ERROR_FINDINGS
-        assert WARN_REASON_NINES_WARN == WARN_REASON_WARNING_FINDINGS

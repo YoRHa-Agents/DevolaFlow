@@ -546,7 +546,7 @@ class CycleReport:
 
         ``patch_plan §3 P-06`` originally specified the field name
         ``detection_type``; the public surface uses ``cycle_type`` per the
-        L3 task contract. This alias keeps existing call sites that read
+        L2 task contract. This alias keeps existing call sites that read
         the patch plan name compiling without a rename.
         """
         return self.cycle_type

@@ -80,9 +80,9 @@ def _check_ignore(path: str) -> tuple[Literal["IGNORED", "TRACKED"], str]:
 LOCAL_PRIVATE_PATHS: list[str] = [
     ".local/.agent/config.yaml",
     ".local/.agent/active/test/goal.md",
-    ".local/.agent/active/test/acceptance.md",
+    ".local/.agent/active/test/checklist.md",
     ".local/.agent/active/test/spec.md",
-    ".local/.agent/active/test/tasks.md",
+    ".local/.agent/active/test/stage.md",
     ".local/.agent/active/test/STATUS.yaml",
     ".local/.agent/active/test/owned_files.txt",
     ".local/.agent/handoff/L0__L1__test__0001.yaml",

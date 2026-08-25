@@ -3,12 +3,13 @@
 v12.4.0 PV-05 closure for the v12.3.0 PV-02 Session Banner Contract
 runtime layer (the prompt-side guarantee was discharged in v12.3.0 via
 SKILL.md §"Version & Update" → "Session Banner Contract"; this PV adds
-the runtime-side enforcement that subagent (L1/L2/L3) dispatches MUST
+the runtime-side enforcement that subagent (L1/L2) dispatches MUST
 NOT carry banner literals, since banners are L0-only operator chat
 output per CO-2 / Rule C-2 Lean Message Format).
 
 Contract: a dispatch payload routed through the ``pre_dispatch`` event
-chain whose ``target_layer ∈ {"L1", "L2", "L3"}`` MUST NOT carry the
+chain whose ``target_layer ∈ {"L1", "L2"}`` (plus the legacy ``"L3"``
+spelling, tolerated for stray v1 payloads) MUST NOT carry the
 ``🌸 DevolaFlow vX.Y.Z`` literal pattern in any free-text field
 (``predecessor_artifacts[*].summary``, ``acceptance_criteria``,
 top-level ``summary`` / ``description``). When ``target_layer == "L0"``
@@ -77,11 +78,12 @@ _VIOLATION_MESSAGE_TEMPLATE = (
     "subagent_banner_emission_in_dispatch: dispatch to {target_layer!r} "
     "carries a '🌸 DevolaFlow vX.Y.Z' banner literal in {field!r}. "
     "Per SKILL.md §'Session Banner Contract', banners are L0-only "
-    "operator chat output — subagents (L1/L2/L3) MUST NOT receive "
+    "operator chat output — subagents (L1/L2) MUST NOT receive "
     "banner lines in dispatch context. Strip the banner from the "
     "upstream summary before re-dispatching."
 )
 
+# "L3" is the legacy v1 Task spelling — kept for stray legacy payloads.
 _SUBAGENT_TARGET_LAYERS: frozenset[str] = frozenset({"L1", "L2", "L3"})
 
 _TARGET_LAYER_KEY = "target_layer"

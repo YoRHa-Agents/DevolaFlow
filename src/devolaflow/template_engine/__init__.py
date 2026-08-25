@@ -19,9 +19,7 @@ from devolaflow.template_engine.compositions import (
     CompositionManifestError,
     CompositionStage,
     CompositionStep,
-    composition_to_template,
     load_composition_manifest,
-    validate_composition_manifest,
 )
 from devolaflow.template_engine.inheritance import (
     InheritanceError,
@@ -102,7 +100,6 @@ __all__ = [
     "WorkflowTemplate",
     "collect_all_refs",
     "collect_stage_refs",
-    "composition_to_template",
     "evaluate_skip_condition",
     "load_composition_manifest",
     "parse_composition",
@@ -111,6 +108,5 @@ __all__ = [
     "resolve_inheritance",
     "select_stages_for_runtime",
     "validate_all_templates",
-    "validate_composition_manifest",
     "validate_template",
 ]

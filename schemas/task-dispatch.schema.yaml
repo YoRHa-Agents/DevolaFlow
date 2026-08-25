@@ -30,7 +30,7 @@ fields:
         type: string
         enum: [single, sub_agents]
         default: single
-        description: "L3 task execution mode. single = v3.x leaf behavior. sub_agents = coordinator dispatches budget-tier micro-tasks."
+        description: "L2 task execution mode. single = v3.x leaf behavior. sub_agents = coordinator dispatches budget-tier micro-tasks."
       compression_intensity:
         type: string
         enum: [minimal, standard, aggressive]

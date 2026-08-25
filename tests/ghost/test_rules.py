@@ -142,7 +142,7 @@ def test_rule_count_under_cap(project_root: Path) -> None:
     protocol (deferral note in cycle N retrospective → SI-1 in cycle N+2 →
     SI-3 §3.2 ≥ 9.5/10 in cycle N+2) before bumping past 10.
     """
-    from devolaflow.task_adaptive_selector import count_agents_md_rules
+    from devolaflow.agents_md_slice import count_agents_md_rules
 
     agents_md = project_root / "AGENTS.md"
     assert agents_md.is_file(), (

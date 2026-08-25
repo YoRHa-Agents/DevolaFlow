@@ -9,9 +9,9 @@ Contract: a dispatch payload routed through the ``pre_dispatch`` event
 chain MUST NOT carry a ``quality_score`` (or bare ``quality``) field at
 the top level OR inside the ``metrics`` / ``self_check`` evidence
 blocks. The field is **L0-only** per SKILL.md §"Task Quality Score" —
-subagents (L1/L2/L3) MUST NOT score, and accidentally embedding a
+subagents (L1/L2) MUST NOT score, and accidentally embedding a
 ``quality_score`` in a mid-stage dispatch (e.g. L1 → L2 wave dispatch
-that propagates a stale L3 report scoring) is a contract violation. The
+that propagates a stale L2 report scoring) is a contract violation. The
 hook surfaces an **error-severity** violation per the v12.2.0 PV-04
 runtime layer.
 
@@ -78,7 +78,7 @@ _VIOLATION_MESSAGE_TEMPLATE = (
     "subagent_quality_score_in_dispatch: dispatch payload carries a "
     "{key!r} field at {location}. Per SKILL.md §'Task Quality Score "
     "(L0 ONLY)', scoring is an L0-only responsibility; subagents "
-    "(L1/L2/L3) MUST NOT produce a quality score. Strip the field from "
+    "(L1/L2) MUST NOT produce a quality score. Strip the field from "
     "the upstream report before re-dispatching (gate-dimension input "
     "evidence belongs in 'metrics.gate_input_score'). Strict by default "
     "since v15.0.0 — pass strict=False explicitly to downgrade this "

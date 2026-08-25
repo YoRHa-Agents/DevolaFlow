@@ -137,7 +137,7 @@ example: |
 
   ## Requirement: Per-artifact token budgets are declared in schema
   The system MUST declare soft and hard token budgets in every per-artifact
-  schema (change-goal, change-acceptance, change-spec, change-tasks,
+  schema (change-goal, change-checklist, change-spec, change-stage,
   change-status, owned-files, handoff-envelope) per Rule C-9.
 
   ### Scenario: Loading a schema for budget enforcement

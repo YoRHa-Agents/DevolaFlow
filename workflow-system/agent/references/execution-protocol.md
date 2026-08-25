@@ -810,13 +810,14 @@ class machinery (asyncio.gather + bounded `asyncio.Semaphore` +
 per-task `TaskOutcome` capture) was complete but no production caller
 actually invoked it. v9.7.0 PV-03 closes the gap by wiring it into a
 public dispatch entry point at the L2-wave boundary via
-`devolaflow.feedback.dispatch_wave_tasks(wave_definition,
-dispatch_factory)`.
+`devolaflow.dispatch.dispatch_wave_tasks(wave_definition,
+dispatch_factory)` (owner module since the v14.5.0 ADR-006 split; the
+`devolaflow.feedback` re-export shim was retired in v17.0.0).
 
 **Entry point**:
 
 ```python
-from devolaflow.feedback import dispatch_wave_tasks
+from devolaflow.dispatch import dispatch_wave_tasks
 
 outcomes = dispatch_wave_tasks(
     wave_definition,    # parsed wave-definition.schema.yaml dict

@@ -297,7 +297,7 @@ def _fire_task_stop_hook(envelope: HandoffEnvelope) -> None:
     :func:`devolaflow.lifecycle.runtime_wiring.fire_task_stop` per
     ADR-003 (``docs/cycle-archive/adr/v15-ADR-003-output-closure-
     enforcement-locus.md``): ``HandoffStore.write_envelope`` with
-    ``envelope_kind == "StatusReport"`` IS the L3 report emission
+    ``envelope_kind == "StatusReport"`` IS the L2 report emission
     surface. The payload is a shallow copy of the envelope's ``report``
     block (so a hook handler can never mutate the envelope about to be
     written); the default ``test_on_complete`` handler reads the
@@ -531,7 +531,7 @@ def _now_iso() -> str:
 # Companion to the v12.4.0 PV-05 ``reject_subagent_banner_emission``
 # lifecycle hook (``src/devolaflow/lifecycle/reject_subagent_banner_emission.py``).
 # The PV-05 hook DETECTS banner literals + ``quality_score`` keys in
-# subagent (L1/L2/L3) dispatch payloads and emits a WARNING via
+# subagent (L1/L2) dispatch payloads and emits a WARNING via
 # HookViolation; operators previously had to manually scrub these
 # literals before authoring an envelope. This helper closes the
 # auto-cleanup loop telegraphed in the v12.4.0 retrospective §3 row 4

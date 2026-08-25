@@ -56,6 +56,7 @@ from devolaflow.agent_workspace import (
 from devolaflow.agent_workspace.handoff import make_envelope
 from devolaflow.agent_workspace.layers import LegacyLayerWarning
 from devolaflow.agent_workspace.lint import main as lint_main
+from devolaflow.skills.slash_commands import scaffold_change_folder
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -105,24 +106,26 @@ def _scaffold_active(workspace: Path, change_id: str, **overrides) -> Path:
             """
         ),
     )
-    acceptance = overrides.get(
-        "acceptance_md",
+    checklist = overrides.get(
+        "checklist_md",
         textwrap.dedent(
             f"""\
             ---
             parent: {change_id}
-            ac_count: 4
+            schema_version: 1
+            total_items: 2
+            checked: 0
+            priority_dist: {{P0: 1, P1: 1, P2: 0}}
+            reverted_open: 0
             ---
 
-            # Acceptance Criteria
+            # Checklist
 
-            ## Functional
-            - [ ] AC-1: It works
-
-            ## Quality
-            - [ ] AC-2: tests pass — `pytest tests/test_x.py`
-            - [ ] AC-3: ruff check
-            - [ ] AC-4: ruff format --check
+            ## G1: Sample goal
+            - [ ] C-G1.1 (P0) Write code
+                  verify: `pytest tests/test_x.py`
+            - [ ] C-G1.2 (P1) Write tests
+                  verify: manual
             """
         ),
     )
@@ -153,24 +156,23 @@ def _scaffold_active(workspace: Path, change_id: str, **overrides) -> Path:
             """
         ),
     )
-    tasks = overrides.get(
-        "tasks_md",
+    stage = overrides.get(
+        "stage_md",
         textwrap.dedent(
             f"""\
             ---
             parent: {change_id}
-            total_tasks: 2
-            checked: 0
+            schema_version: 1
+            current_round: 1
+            max_rounds: 3
+            capacity_per_round: 5
             ---
 
-            # Tasks
-
-            ## 1. Implementation
-            - [ ] 1.1 Write code
-            - [ ] 1.2 Write tests
+            # Stage — Round Control
             """
         ),
     )
+    preflight = overrides.get("preflight_md", "# Preflight\n")
     status = overrides.get(
         "status",
         {
@@ -193,9 +195,10 @@ def _scaffold_active(workspace: Path, change_id: str, **overrides) -> Path:
     learnings_jsonl = overrides.get("learnings_jsonl")
 
     (folder / "goal.md").write_text(goal, encoding="utf-8")
-    (folder / "acceptance.md").write_text(acceptance, encoding="utf-8")
+    (folder / "checklist.md").write_text(checklist, encoding="utf-8")
+    (folder / "stage.md").write_text(stage, encoding="utf-8")
+    (folder / "preflight.md").write_text(preflight, encoding="utf-8")
     (folder / "spec.md").write_text(spec, encoding="utf-8")
-    (folder / "tasks.md").write_text(tasks, encoding="utf-8")
     (folder / "STATUS.yaml").write_text(
         yaml.safe_dump(status, sort_keys=False, default_flow_style=False),
         encoding="utf-8",
@@ -255,9 +258,10 @@ class TestChangeRoundTrip:
 
         for filename in (
             "goal.md",
-            "acceptance.md",
+            "checklist.md",
+            "stage.md",
+            "preflight.md",
             "spec.md",
-            "tasks.md",
             "owned_files.txt",
         ):
             src = (folder / filename).read_text(encoding="utf-8")
@@ -289,9 +293,10 @@ class TestChangeRoundTrip:
         # Compare every artifact byte-by-byte between out1 and out2.
         for artifact in (
             "goal.md",
-            "acceptance.md",
+            "checklist.md",
+            "stage.md",
+            "preflight.md",
             "spec.md",
-            "tasks.md",
             "STATUS.yaml",
             "owned_files.txt",
         ):
@@ -466,7 +471,29 @@ class TestChangeStore:
             store.get("missing-id")
 
     def test_transition_state_writes_status(self, workspace: Path):
-        _scaffold_active(workspace, "trans-write")
+        # IN_PROGRESS -> VERIFYING requires a fully-checked parsed checklist.
+        _scaffold_active(
+            workspace,
+            "trans-write",
+            checklist_md=(
+                "---\n"
+                "parent: trans-write\n"
+                "schema_version: 1\n"
+                "total_items: 1\n"
+                "checked: 1\n"
+                "priority_dist: {P0: 1, P1: 0, P2: 0}\n"
+                "reverted_open: 0\n"
+                "---\n"
+                "\n"
+                "# Checklist\n"
+                "\n"
+                "## G1: Sample goal\n"
+                "- [x] C-G1.1 (P0) Write code\n"
+                "      verify: manual\n"
+                "      evidence: evidence/C-G1.1.txt | checked_by: user | round: 1 "
+                "| at: 2026-04-22T11:00:00Z\n"
+            ),
+        )
         store = ChangeStore(repo_root=workspace)
         store.transition_state("trans-write", "VERIFYING")
         change = store.get("trans-write")
@@ -529,7 +556,7 @@ class TestHandoffEnvelope:
             payload={
                 "task_id": "T01",
                 "type": "implement",
-                "acceptance_criteria_ref": ".local/.agent/active/add-foo/acceptance.md",
+                "acceptance_criteria_ref": ".local/.agent/active/add-foo/checklist.md",
                 "owned_files_ref": ".local/.agent/active/add-foo/owned_files.txt",
             },
             created="2026-04-22T10:14:33Z",
@@ -576,7 +603,7 @@ class TestHandoffEnvelope:
                 payload={
                     "task_id": "T01",
                     "type": "implement",
-                    "acceptance_criteria_ref": ".local/.agent/active/add-foo/acceptance.md",
+                    "acceptance_criteria_ref": ".local/.agent/active/add-foo/checklist.md",
                     "owned_files_ref": ".local/.agent/active/add-foo/owned_files.txt",
                 },
                 created="2026-04-22T10:14:33Z",
@@ -651,7 +678,7 @@ class TestHandoffStore:
             payload={
                 "task_id": f"T{seq:02d}",
                 "type": "implement",
-                "acceptance_criteria_ref": f".local/.agent/active/{change_id}/acceptance.md",
+                "acceptance_criteria_ref": f".local/.agent/active/{change_id}/checklist.md",
                 "owned_files_ref": f".local/.agent/active/{change_id}/owned_files.txt",
             },
             created="2026-04-22T10:14:33Z",
@@ -944,7 +971,7 @@ class TestArchiveManager:
         # Snapshot artifacts (excluding STATUS.yaml which mutates state).
         snapshot = {
             name: (scaffold / name).read_bytes()
-            for name in ("goal.md", "acceptance.md", "spec.md", "tasks.md", "owned_files.txt")
+            for name in ("goal.md", "checklist.md", "stage.md", "spec.md", "owned_files.txt")
         }
         manager = ArchiveManager(store=ChangeStore(repo_root=workspace))
         result = manager.archive("preserve", archive_date="2026-04-22")
@@ -1259,7 +1286,8 @@ class TestProposeMerge:
 
 class TestLintChange:
     def test_clean_change_passes(self, workspace: Path):
-        _scaffold_active(workspace, "clean")
+        # The /devola:propose scaffold is the canonical lint-clean fixture.
+        scaffold_change_folder("clean", workspace)
         report = lint_change("clean", repo_root=workspace)
         assert isinstance(report, BudgetReport)
         assert report.exit_code == 0
@@ -1267,14 +1295,16 @@ class TestLintChange:
 
     def test_oversize_spec_fails_hard(self, workspace: Path):
         oversize = "x" * 13000  # 13000 / 4 ≈ 3250 tokens > 3000 hard
-        _scaffold_active(workspace, "oversize", spec_md=oversize)
+        folder = scaffold_change_folder("oversize", workspace)
+        (folder / "spec.md").write_text(oversize, encoding="utf-8")
         report = lint_change("oversize", repo_root=workspace)
         assert report.exit_code == 1
         assert any(v.severity == "FAIL" and v.filename == "spec.md" for v in report.violations)
 
     def test_soft_breach_warns_but_zero_exit(self, workspace: Path):
         soft = "x" * 6500  # 6500 / 4 ≈ 1625 tokens > 1500 soft, < 3000 hard
-        _scaffold_active(workspace, "softie", spec_md=soft)
+        folder = scaffold_change_folder("softie", workspace)
+        (folder / "spec.md").write_text(soft, encoding="utf-8")
         report = lint_change("softie", repo_root=workspace)
         assert report.exit_code == 0
         assert any(v.severity == "WARN" and v.filename == "spec.md" for v in report.violations)
@@ -1290,14 +1320,15 @@ class TestLintChange:
         assert estimate_tokens("a" * 16) == 4
 
     def test_cli_main_returns_zero_on_clean(self, workspace: Path, monkeypatch):
-        _scaffold_active(workspace, "cli-clean")
+        scaffold_change_folder("cli-clean", workspace)
         monkeypatch.chdir(workspace)
         rc = lint_main(["cli-clean"])
         assert rc == 0
 
     def test_cli_main_returns_one_on_hard_failure(self, workspace: Path, monkeypatch):
         oversize = "y" * 13000
-        _scaffold_active(workspace, "cli-fail", spec_md=oversize)
+        folder = scaffold_change_folder("cli-fail", workspace)
+        (folder / "spec.md").write_text(oversize, encoding="utf-8")
         monkeypatch.chdir(workspace)
         rc = lint_main(["cli-fail"])
         assert rc == 1

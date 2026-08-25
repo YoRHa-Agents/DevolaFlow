@@ -32,7 +32,7 @@ from :mod:`devolaflow.lifecycle.runtime_wiring`:
 * ``file_write`` fires from the framework's change-driven write surface
   (``agent_workspace.change.Change.to_active_folder``) via
   :func:`fire_file_write` BEFORE each artifact write.
-* ``task_stop`` fires from the L3 report emission surface
+* ``task_stop`` fires from the L2 report emission surface
   (``agent_workspace.handoff.HandoffStore.write_envelope`` for
   ``StatusReport`` envelopes) via :func:`fire_task_stop`.
 
@@ -317,7 +317,7 @@ CHECK_HUMAN_INPUT_WRITE_EVENT: str = _CHECK_HUMAN_INPUT_WRITE_EVENT
 # per D-P-1 closure (the `ensure_plugin()` dead-wire from
 # `.local/research/v9.4.0_gap_analysis.md` §3.1). The new slot is
 # wired to `pre_plugin_invocation.py` which auto-installs plugins
-# cited in the dispatch payload BEFORE the L3 dispatch fires when
+# cited in the dispatch payload BEFORE the L2 dispatch fires when
 # `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1`. The event is APPENDED at the
 # END of the tuple to preserve A-2.4 / cache-prefix invariants —
 # existing event positions 1-8 remain byte-stable. NEW env-flag

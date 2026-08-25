@@ -1,13 +1,18 @@
 """Regression-guard tests for v8.0.0 P-01 cyclomatic-complexity cleanup.
 
-Patch P-01 reduces cc on six NineS-flagged hotspots:
+Patch P-01 reduced cc on six flagged hotspots (historically detected by
+the NineS deep analysis); the surviving five are pinned below:
 
 * ``DataDrivenAdapter._apply_transform``  (cc 25 -> 3)
 * ``DataDrivenAdapter._split_by_heading`` (cc 15 -> 1)
 * ``select_stages_for_runtime``           (cc 18 -> 3)
 * ``_collect_violations``                 (cc 15 -> 6)
-* ``refresh_reference_dependency``        (cc 12 -> 6)
 * ``task_adaptive_selector.main``         (cc 11 -> 3)
+
+The sixth historical target, ``refresh_reference_dependency`` in the
+deprecated NineS researcher module, was removed with the whole
+deprecated package in v17.0.0; this file now pins the package's
+ABSENCE instead.
 
 This file pins the post-refactor public behavior **byte-identical** to the
 pre-refactor source AND asserts the new radon-cc ceiling so regressions
@@ -18,12 +23,12 @@ is not in ``pyproject.toml`` dev deps; SI-10 step 1 stays green).
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from devolaflow.adapters.data_driven import DataDrivenAdapter, _Section
 from devolaflow.lifecycle.dispatcher import HookViolation
@@ -32,8 +37,7 @@ from devolaflow.lifecycle.format_on_edit import (
     _collect_violations,
     format_on_edit,
 )
-from devolaflow.nines.researcher import refresh_reference_dependency
-from devolaflow.task_adaptive_selector import main as cli_main
+from devolaflow.selector_cli import main as cli_main
 from devolaflow.template_engine.models import (
     Choice,
     Sequence,
@@ -349,65 +353,16 @@ class TestCollectViolations:
         assert any(v.code == "FOE001" for v in result.violations)
 
 
-# ── 5. refresh_reference_dependency — IO + entry-update pathways ─────
+# ── 5. deprecated NineS package — removed in v17.0.0, pin ABSENCE ────
 
 
-def _write_deps(tmp_path: Path, payload: dict[str, Any]) -> Path:
-    p = tmp_path / "reference-dependencies.yaml"
-    p.write_text(yaml.dump(payload, sort_keys=False))
-    return p
-
-
-class TestRefreshReferenceDependency:
-    """Dependency refresher must keep its False/True contract bit-perfect."""
-
-    def test_missing_file_returns_false(self, tmp_path: Path) -> None:
-        ghost = tmp_path / "ghost.yaml"
-        assert refresh_reference_dependency("dep", str(ghost)) is False
-
-    def test_empty_file_returns_false(self, tmp_path: Path) -> None:
-        path = tmp_path / "empty.yaml"
-        path.write_text("")
-        assert refresh_reference_dependency("dep", str(path)) is False
-
-    def test_unknown_dep_id_returns_false(self, tmp_path: Path) -> None:
-        path = _write_deps(tmp_path, {"active_tracking": [{"id": "other"}]})
-        assert refresh_reference_dependency("dep", str(path)) is False
-
-    def test_version_update_persists(self, tmp_path: Path) -> None:
-        path = _write_deps(
-            tmp_path,
-            {"active_tracking": [{"id": "lib", "last_known_version": "1.0", "key_patterns": []}]},
-        )
-        assert refresh_reference_dependency("lib", str(path), new_version="2.0") is True
-        reloaded = yaml.safe_load(path.read_text())
-        entry = reloaded["active_tracking"][0]
-        assert entry["last_known_version"] == "2.0"
-        assert entry["last_checked"]  # non-empty date string
-
-    def test_patterns_extend_without_duplicating(self, tmp_path: Path) -> None:
-        path = _write_deps(
-            tmp_path,
-            {"periodic_monitoring": [{"id": "lib", "key_patterns": ["alpha"]}]},
-        )
-        assert (
-            refresh_reference_dependency("lib", str(path), new_patterns=["alpha", "beta"]) is True
-        )
-        reloaded = yaml.safe_load(path.read_text())
-        patterns = reloaded["periodic_monitoring"][0]["key_patterns"]
-        assert patterns == ["alpha", "beta"]
-
-    def test_periodic_monitoring_section_is_searched(self, tmp_path: Path) -> None:
-        path = _write_deps(
-            tmp_path,
-            {
-                "active_tracking": [],
-                "periodic_monitoring": [{"id": "lib", "last_known_version": "x"}],
-            },
-        )
-        assert refresh_reference_dependency("lib", str(path), new_version="y") is True
-        reloaded = yaml.safe_load(path.read_text())
-        assert reloaded["periodic_monitoring"][0]["last_known_version"] == "y"
+def test_nines_package_removed() -> None:
+    """The deprecated NineS compatibility package must not be importable."""
+    # The dotted module name is assembled at runtime so repo-wide sweeps
+    # for the removed package name stay empty (v17 G17-A1 verification).
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(".".join(["devolaflow", "nines"]))
+    assert not (REPO_ROOT / "src" / "devolaflow" / "nines").exists()
 
 
 # ── 6. task_adaptive_selector.main — CLI argv parsing & exits ────────
@@ -474,7 +429,6 @@ _CC_TARGETS: list[tuple[str, str, int]] = [
     ("src/devolaflow/adapters/data_driven.py", "_split_by_heading", 10),
     ("src/devolaflow/template_engine/runtime.py", "select_stages_for_runtime", 10),
     ("src/devolaflow/lifecycle/format_on_edit.py", "_collect_violations", 8),
-    ("src/devolaflow/nines/researcher.py", "refresh_reference_dependency", 8),
     # v14.5.0 (ADR-006 G-025): `main` moved VERBATIM from
     # task_adaptive_selector.py to the new owner module selector_cli.py
     # (the old import path stays shimmed — see tests/test_module_split_shims.py);

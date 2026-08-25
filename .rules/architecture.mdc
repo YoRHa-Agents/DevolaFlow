@@ -198,9 +198,10 @@ Strict enforcement is conditioned on `cascade_requirement(complexity)`:
 * `cascade_requirement == "CASCADE_REQUIRED"` (STANDARD/COMPLEX) →
   `validate_cascade_gate_fields` enforces the contract in STRICT mode:
   it returns `None` on pass and raises `CascadeViolationError` on the
-  first invalid field or depth violation. A legacy
-  `cascade_min_layers: 4` declaration emits a WARNING and is validated
-  against an effective minimum of 3 without mutating the input payload.
+  first invalid field or depth violation. Declared `cascade_min_layers`
+  values are validated at face value; the v16 compatibility
+  reinterpretation of a legacy `4` as effective `3` (WARNING + fold)
+  was removed in v17.0.0 (G17-A5).
 * `cascade_requirement == "CASCADE_OPTIONAL"` (SIMPLE/TRIVIAL) →
   validation is skipped; legacy v11.0.x dispatches with no L1/L2 trace
   pass byte-identically. Verified by
@@ -231,8 +232,8 @@ two independent axes per the v11.1.0 PV-02 decision memo §3 R-6.
 
 * CI-side: `tests/test_cascade_enforcement.py` covers strict mode,
   backward compatibility, skip paths, truth-table propagation, and the
-  legacy `cascade_min_layers: 4` WARNING + effective-minimum-3 behavior
-  without input mutation.
+  v17 face-value semantics for explicit `cascade_min_layers`
+  declarations (no legacy fold), all without input mutation.
 * Runtime: `validate_cascade_gate_fields` returns `None` on pass and
   raises `CascadeViolationError` on the first violation;
   `populate_cascade_gate_fields` writes the default minimum of 3 when
