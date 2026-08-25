@@ -4,8 +4,8 @@ description: "Creating non-executable checklist seeds and derived configurations
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T08:09:16Z"
-source_version: "16.0.0"
+last_synced: "2026-08-25T08:45:55Z"
+source_version: "17.0.0"
 ---
 
 # Customization Guide

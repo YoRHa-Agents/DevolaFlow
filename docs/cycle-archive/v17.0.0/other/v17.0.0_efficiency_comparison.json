@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "cycle": "v17.0.0",
+  "compared_against": "v16.0.0",
+  "generated_at": "2026-08-25T08:30:00+00:00",
+  "token_injection": {
+    "host_rule_tokens_full_estimate": 12430,
+    "slice_savings_pct_mean": 49.61538461538461,
+    "slice_savings_pct_by_task_type": {
+      "documentation": 83.0,
+      "feature": 35.8,
+      "refactor": 33.5
+    },
+    "note": "host_rule_tokens is the full AGENTS.md corpus estimate hosts inject today (estimate_tokens fallback, tiktoken absent in this venv; the R3 design quoted 12267 under a different AGENTS.md revision/estimator). slice_savings_pct is the YAML-configured slice's available saving per dispatch task type."
+  },
+  "test_suite": {
+    "v16": {
+      "passed": 5100,
+      "wall_seconds": 90,
+      "note": "recorded figure from the v16.0.0 cycle close"
+    },
+    "v17": {
+      "passed": 5148,
+      "skipped": 14,
+      "xfailed": 1,
+      "wall_seconds": 94.62,
+      "note": "python -m pytest tests/ -q on feat/v17-release HEAD (eff3392), single run 2026-08-25"
+    }
+  },
+  "code_delta_v16_to_v17": {
+    "src": {
+      "files_changed": 77,
+      "insertions": 2943,
+      "deletions": 1797
+    },
+    "tests": {
+      "files_changed": 64,
+      "insertions": 3217,
+      "deletions": 1901
+    },
+    "note": "git diff --stat v16.0.0..HEAD -- src/ and -- tests/ (last line each)"
+  },
+  "runtime_enforcement_surfaces": {
+    "v16_count": 0,
+    "v16_note": "prompt-side rules only; zero runtime host-boundary enforcement points",
+    "v17_count": 7,
+    "v17_surfaces": [
+      "Cursor host bridge: .cursor/hooks.json + .cursor/hooks/devola-boundary.sh (preToolUse Write|StrReplace + beforeShellExecution, deny JSON)",
+      "Claude Code host bridge: .claude/settings.json + .claude/hooks/devola-boundary.sh (PreToolUse Edit|Write|MultiEdit + Bash, exit 2)",
+      "Codex host bridge: .codex/hooks.json + .codex/hooks/devola-boundary.sh (PreToolUse Bash|apply_patch, exit 2; partial coverage)",
+      "KimiCode host bridge: user-level ~/.kimi-code/config.toml [[hooks]] snippet printed by python -m devolaflow.hostbridge install kimi",
+      "DSH host bridge: cordis plugin packages/dsh-plugin/ (npm @yorha-agents/devola-flow-dsh, tools/pre-execute waterfall deny)",
+      "Layer-budget assertion: src/devolaflow/lifecycle/assert_layer_budget.py pre_dispatch hook (A-3 budgets, telemetry.stable_yaml serializer)",
+      "Session-start resume adapter: src/devolaflow/hostbridge/session.py + .cursor/hooks/devola-session.sh + .claude/hooks/devola-session.sh (v17 R4)"
+    ],
+    "note": "surface inventory per workflow-system/agent/references/host-bridges.md sections 2, 5, 8"
+  },
+  "w3_composite": {
+    "v16": 9.7,
+    "v17": 9.84,
+    "note": "v16 from .local/research/v16.0.0_harness_evaluation.json (READY); v17 from .local/research/v17.0.0_harness_evaluation.json (READY, threshold 9.0, auto_fill_rate 1.0)"
+  },
+  "cross_validation": {
+    "max_abs_delta": 1.0,
+    "verdict": "PASS",
+    "note": "from .local/research/v17.0.0_harness_w3_cross_validation.json; criterion max_abs_delta_per_dimension 1.0 (default); test_adequacy and performance_impact sit exactly at the limit (10.0 vs the human 9.0 judgments)"
+  },
+  "sources": [
+    ".local/telemetry/baselines/harness_baseline_v17.0.0.json (tokens.host_rule_tokens_mean, tokens.slice_savings_pct_mean)",
+    ".local/telemetry/harness.jsonl (per-record slice_savings_pct by task type)",
+    "pytest run on feat/v17-release HEAD eff3392 (test_suite.v17)",
+    "git diff --stat v16.0.0..HEAD (code_delta_v16_to_v17)",
+    "workflow-system/agent/references/host-bridges.md (runtime_enforcement_surfaces)",
+    ".local/research/v16.0.0_harness_evaluation.json + .local/research/v17.0.0_harness_evaluation.json (w3_composite)",
+    ".local/research/v17.0.0_harness_w3_cross_validation.json (cross_validation)"
+  ]
+}
