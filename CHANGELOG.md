@@ -5,6 +5,13 @@ All notable changes to DevolaFlow will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Five-destination public site rebuild**: Home, System, I/O, Harness, and Timeline replace implementation-page primary navigation; compatibility URLs remain, and `benchmark-results/` now presents built-in Harness inputs and outputs instead of retired EvoBench results.
+- **Merged-commit release safety**: version bumps now plan every canonical replacement before the first write and replace complete stable/prerelease tokens. Tag finalization follows bump → mandatory preflight → commit/PR merge → refreshed `main`; it requires a clean tracked tree at `origin/main` (when that ref exists), ignores untracked files, and refuses existing tags. Both release workflows reject tag SHAs not reachable from `origin/main`; npm publication also waits for the reusable CI checks.
+
 ## [17.0.0] - 2026-08-25 — MAJOR — Deprecation Sweep + Runtime Boundary Enforcement (five host bridges, layer budget assertion, session resume) + Host-Injection Accounting + Configurable Model Boundaries + npm Installation Surface
 
 Gap analysis: `.local/research/v17.0.0_gap_analysis.md` (W-1/SI-1). Round designs: `.local/research/v17.0.0_r[2-5,7]_design.md`. Evaluation: `.local/research/v17.0.0_evaluation.md` (W-3, MAJOR threshold ≥ 9.0). Rounds shipped as PRs #185 (R1 cleanup), #186 (R2 boundaries), #184 (R6 npm), #187 (R3 injection), #188 (R4 focus/loop), #189 (R5 model boundaries).
@@ -50,11 +57,6 @@ Gap analysis: `.local/research/v17.0.0_gap_analysis.md` (W-1/SI-1). Round design
 - **npm thin installer `packages/npm/`** (`@yorha-agents/devola-flow`): `npx @yorha-agents/devola-flow install cursor|claude|all` downloads the skill file set from GitHub raw at the package-version tag; zero runtime dependencies (Node ≥ 18 built-ins); the file list derives at runtime from `workflow-system/agent/manifest.yaml` (A-5 install-manifest SSOT, JS resolution pinned byte-equal to `devolaflow.install_manifest.profile_files`). Also `update` and `doctor` subcommands; `DEVOLA_FLOW_REF` overrides the ref. First Windows-usable install path.
 - **Publish CI** `.github/workflows/npm-publish.yml` triggers on `v*` tags (fail-fast on tag ≠ npm version; `npm publish --provenance --access public`); `ci-checks.yml` gains a parallel `npm-package` job.
 - **C-6 version location 7**: `packages/npm/package.json` joins the canonical sync set (`scripts/bump_version.py` + `tests/test_version.py` parity).
-
-### Changed — web experience
-
-- **Five-destination public site rebuild**: Home, System, I/O, Harness, and Timeline replace implementation-page primary navigation; compatibility URLs remain, and `benchmark-results/` now presents built-in Harness inputs and outputs instead of retired EvoBench results.
-- **Merged-commit release safety**: version bumps now plan every canonical replacement before the first write and replace complete stable/prerelease tokens. Tag finalization follows bump → mandatory preflight → commit/PR merge → refreshed `main`; it requires a clean tracked tree at `origin/main` (when that ref exists), ignores untracked files, and refuses existing tags. Both release workflows reject tag SHAs not reachable from `origin/main`; npm publication also waits for the reusable CI checks.
 
 ### Evidence & governance accounting (R7)
 
