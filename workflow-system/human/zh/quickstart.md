@@ -1,140 +1,143 @@
 ---
 title: "快速入门指南"
-description: "10 分钟内开始使用 DevolaFlow。"
+description: "安装 DevolaFlow，按正确渠道验证，并运行第一个清单工作流。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T10:02:23Z"
+last_synced: "2026-08-25T12:29:02Z"
 source_version: "17.0.0"
 ---
 
 # 快速入门指南
 
-10 分钟内开始使用 DevolaFlow。
+安装 DevolaFlow，按正确渠道验证，并运行第一个清单工作流。
 
-## 前置条件
+## 1. 选择安装渠道
 
-- Python 3.11+
-- pip
-- 以下工具之一：Cursor、Claude Code、GitHub Copilot 或 OpenAI Codex
+各渠道的范围并不相同。
 
-## 第一步：安装 DevolaFlow
+### npm / npx：用户级 Cursor 与 Claude
 
-选择适合你的安装方式：
-
-**方式 A — npm / npx（推荐；Windows 可用，无需 Python）：**
+需要 Node 18 或更高版本，可在 Windows 使用。npm 中的 `all` 只表示该包支持
+的两个用户级目标：Cursor 与 Claude。
 
 ```bash
-# 安装到用户级 skill 目录（需 Node >= 18）
-npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
-npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
-npx @yorha-agents/devola-flow install all       # 两者
-
-# 之后：健康检查与更新
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install all
 npx @yorha-agents/devola-flow doctor
-npx @yorha-agents/devola-flow update all
 ```
 
-skill 文件从 GitHub 按包版本对应的 tag 下载（`DEVOLA_FLOW_REF` 可覆写 ref）。
-目标仅限 Cursor 与 Claude Code 的用户级目录—, 项目级安装、Copilot 或 Codex
-请使用方式 B。
+默认从与 npm 包版本相同的 tag 下载。只有明确需要分支、tag 或 SHA 时才设置
+`DEVOLA_FLOW_REF`。
 
-**方式 B — 一键安装（curl；全部工具，项目级或全局）：**
+### curl：更广的项目级/全局目标集合
+
+curl 安装器默认使用项目级范围，并支持 `help` 中列出的全部目标，包括 Cursor、
+Claude、Codex、Copilot、KimiCode、Windsurf、Zed、Cline、Roo、`local` 与
+`standalone`。
 
 ```bash
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-
-# 为 Cursor 安装（项目级）
-curl -fsSL $INSTALLER | bash -s cursor
-
-# 或为所有工具一次性安装
-curl -fsSL $INSTALLER | bash -s all
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s all
 ```
 
-**方式 C — pip 安装：**
+curl 的 `all` 会安装所有受支持宿主目标和 `local` 脚手架，但不包含
+`standalone`。即使传入 `--global`，部分宿主仍只支持项目级。全局安装还会尝试
+安装已注册运行时插件；只复制 skill 文件时添加 `--no-plugins`。curl 安装器没有
+doctor 命令。
+
+### pip 或 wheel：Python 运行时与本地脚手架
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-cd your-project/
-devola-init cursor       # 仅 Cursor
-devola-init all          # 所有工具
+cd your-project
+devola-init local --mode=standard
 ```
 
-**方式 D — 手动安装（单文件）：**
+wheel 提供 Python 运行时、CLI 与 `devola-init local`，但不打包
+`workflow-system/agent/`，因此仅有 wheel 时不能复制非 local 的宿主 skill。
 
-下载 [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) 并放置到：
-
-| 工具 | 路径 |
-|------|------|
-| Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
-| Copilot | `.github/copilot-instructions.md` |
-| Codex | `~/.codex/skills/devola-flow/SKILL.md` |
-
-## 第二步：验证安装
+要运行 `devola-init cursor`、`claude`、`copilot`、`codex` 或 `all`，请使用
+源码 checkout 与 editable 安装：
 
 ```bash
-devola-version   # 应输出当前 DevolaFlow 版本
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+devola-init cursor
 ```
 
-## 第三步：尝试你的第一个工作流
+Python 中的 `all` 表示 Cursor、Claude、Copilot 与 Codex，不包含 local
+脚手架。配合 `--global` 时会尝试安装插件，除非传入 `--no-plugins`。
 
-打开你的 AI 工具，尝试以下提示词：
+**手动回退**
 
-示例：修复一个 Bug（热修复工作流）
+只复制
+[`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md)
+可以让基础指令可见，但会缺少清单声明的 references 与 examples。完整安装应优先
+使用上述渠道。
 
-```
-修复登录超时 bug — 用户在 30 秒不活动后报告 500 错误
-```
-
-幕后发生了什么：
-1. DevolaFlow 从“修复”与“bug”匹配 **hotfix 清单种子**
-2. L0 与你共同锚定目标、实体化清单和已签署的 preflight
-3. L0 选取最高优先级清单项并划分波次
-4. L1 Wave 向隔离的 L2 Task 下发诊断、修复和取证工作
-5. L0 核验证据并勾选已通过的断言；如有未完成项，再开启一个有界轮次
-
-示例：构建新功能（完整流水线）
-
-```
-实现一个用户通知系统，支持邮件和应用内消息两种渠道
-```
-
-发生了什么：
-1. DevolaFlow 选择 **full-pipeline 清单种子**
-2. 种子依据历史原语来源实体化可测的设计、实现、审查、测试和发布断言；这些来源不规定执行顺序
-3. 你确认清单优先级和 preflight 决策
-4. L0 通过 L1 Wave 与隔离的 L2 Task 运行有界清单轮次
-5. 每个已勾选项都附带证据，未解决的 blocker 保持未勾选
-6. 只有清单合同通过 archive gate 后，源真相才可变更
-
-示例：快速调研（无代码）
-
-```
-调研实时通知的最佳方案 — 对比 WebSocket、SSE 和轮询
-```
-
-发生了什么：
-1. DevolaFlow 选择 **research-only 清单种子**
-2. 实体化后的清单要求产出有证据的结构化对比报告，不写代码
-
-## 第四步：深入探索
-
-查看全部 23 个清单种子：[清单种子目录](workflow-types.md)了解架构：[架构概述](architecture-overview.md)为你的工具进行设置：[集成指南](integration-guide.md)自定义工作流：[自定义指南](customization-guide.md)
-
-## 检查更新
-
-在 AI 工具中输入：`"update devola"` — 它会从 GitHub 检查新版本并提供更新命令。
-
-或在终端中：
+## 2. 验证正确的表面
 
 ```bash
-# npm 安装器更新（用户级 Cursor/Claude 安装）
+# npm 支持的用户级安装与清单一致性
+npx @yorha-agents/devola-flow doctor
+
+# Python 当前本地工作区结构
+devola-init-doctor
+
+# Python 已知 skill 副本位置审计
+devola-init-doctor --skills
+```
+
+skill 复制成功不代表 host bridge 已接线。host bridge 是可选且独立的执行边界层；
+请阅读 [host bridge 参考](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md)，安装宿主专用 bridge，先确认一个
+受支持事件确实到达 bridge，再持久启用 `DEVOLAFLOW_HOST_ENFORCE=1`。
+
+## 3. 运行第一个清单工作流
+
+打开已安装的 AI 宿主，输入自然语言请求：
+
+```text
+修复登录超时 bug，并验证回归测试。
+```
+
+预期流程：
+
+1. DevolaFlow 从注册表派生的 23 个清单种子中选择一个，
+   作为分解知识。
+2. 你确认目标、可测清单、P0/P1/P2 优先级与 preflight 决策。
+3. 唯一的 `change-driven` 运行时通过 L0 Project → L1 Wave → L2 Task 执行
+   有界轮次。
+4. Task 在 StatusReport 中返回证据；L0 仅在核验后勾选。
+
+不需要工作流 runner CLI。
+
+## 4. 按渠道更新
+
+```bash
+# npm 用户级 Cursor/Claude 副本
 npx @yorha-agents/devola-flow update all
 
-# 安装器更新
+# curl 支持的宿主 skill 副本；--force 可重新下载相同 stamp
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 
-# pip 更新
+# local 工作区与 standalone 文件：重新运行对应的显式安装目标
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s local
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s standalone
+
+# Python 运行时或 wheel
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init local --mode=standard
+
+# 源码 checkout 与已复制的宿主 skill
+git pull
+pip install -e ".[dev]"
+devola-init cursor
 ```
+
+curl `update` 只扫描受支持的宿主 skill 副本位置，不扫描 `local` 工作区或
+`standalone` 文件；这两类表面需重新运行对应的显式安装目标。更新 Python 包
+不会静默刷新之前复制的宿主 skill。

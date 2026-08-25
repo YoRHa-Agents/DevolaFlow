@@ -3,512 +3,277 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="page.contextFlow">Context Flow — DevolaFlow</title>
+  <title data-i18n="page.contextFlow">I/O — DevolaFlow</title>
+  <link rel="icon" type="image/svg+xml" href="../shared/favicon.svg">
   <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content" data-i18n="common.skip">Skip to main content</a>
   <div class="container">
-
-    <!-- ============================================================
-         Hero
-         ============================================================ -->
-    <header class="slide-up scan-flicker cf-hero">
-      <h1><span class="accent">Context</span> Flow</h1>
-      <p class="tagline" data-i18n="cf.subtitle">Watch the messages travel — dispatch down, report up, escalate up, reinforce on round 2+.</p>
-      <div class="cf-cta">
-        <a href="../framework-chain/index.html" class="btn btn-primary" data-i18n="cf.cta.frameworkChain">Framework Chain &rarr;</a>
-        <a href="../version-timeline/index.html" class="btn btn-primary" data-i18n="cf.cta.versionTimeline">Version Timeline &rarr;</a>
-        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"
-           class="btn btn-ghost"
-           target="_blank" rel="noopener"
-           data-i18n="cf.cta.readSkill">Read SKILL &#x2197;</a>
+    <header class="io-hero">
+      <p class="eyebrow" data-i18n="cf.hero.eyebrow">Canonical I/O</p>
+      <h1><span class="accent" data-i18n="cf.hero.inputs">Inputs</span> &rarr; <span data-i18n="cf.hero.runtime">Runtime I/O</span> &rarr; <span data-i18n="cf.hero.outputs">Outputs</span></h1>
+      <p class="tagline" data-i18n="cf.hero.tagline">See exactly what people author, what agents exchange, and what returns for a human decision.</p>
+      <p class="io-contract-note">
+        <span aria-hidden="true">&bull;</span>
+        <span data-i18n="cf.hero.note">Contract view · user-controlled · no live telemetry</span>
+      </p>
+      <div class="io-hero-actions" aria-label="Primary companion pages" data-i18n-aria="cf.aria.primaryCtas">
+        <a class="btn btn-primary" href="../framework-chain/index.html" data-i18n="cf.cta.system">Open System</a>
+        <a class="btn btn-outline" href="../benchmark-results/index.html" data-i18n="cf.cta.harness">Open Harness</a>
       </div>
     </header>
 
-    <!-- ============================================================
-         #cf-dispatch — TaskDispatch route (L0 -> L2)
-         ============================================================ -->
-    <section id="cf-dispatch" class="cf-section">
-      <h2 data-i18n="cf.section.dispatch">Dispatch (L0 &rarr; L2)</h2>
-      <p class="desc" data-i18n="cf.section.dispatch.desc">TaskDispatch envelopes travel down the route track from Project to Task.</p>
+    <main id="main-content" tabindex="-1">
+      <section id="io-boundaries" aria-labelledby="io-boundaries-title">
+        <h2 id="io-boundaries-title" data-i18n="cf.boundaries.title">Three boundaries, one auditable flow</h2>
+        <p class="desc" data-i18n="cf.boundaries.desc">Human intent enters once. Runtime artifacts and typed messages carry the work. Only bounded conclusions return.</p>
 
-      <div class="cf-route-wrap">
-
-        <!-- Vertical route diagram: 3 stacked LayerNodes + animated envelope -->
-        <div class="cf-route" data-direction="down" aria-label="Dispatch route, L0 to L2">
-          <ol class="layer-stack">
-            <li class="layer-node" data-layer="L0" style="--layer-index:0;">
-              <span class="layer-badge badge-l0">L0</span>
-              <strong class="layer-name">Project</strong>
-              <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Selects workflow, decomposes into waves, runs gates</p>
-            </li>
-            <li class="layer-node" data-layer="L1" style="--layer-index:1;">
-              <span class="layer-badge badge-l1">L1</span>
-              <strong class="layer-name">Wave</strong>
-              <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Dispatches parallel tasks, checks conflicts</p>
-            </li>
-            <li class="layer-node" data-layer="L2" style="--layer-index:2;">
-              <span class="layer-badge badge-l2">L2</span>
-              <strong class="layer-name">Task</strong>
-              <span class="layer-budget">~8K ctx</span>
-              <p class="layer-role">Only layer that does work</p>
-            </li>
-          </ol>
-
-          <div class="route-track" aria-hidden="true">
-            <span class="dispatch-dot has-pulse-dispatch"
-                  data-kind="dispatch"
-                  data-anim="pulse-dispatch"></span>
-          </div>
-        </div>
-
-        <!-- Play/Pause control -->
-        <aside class="cf-controls">
-          <button type="button"
-                  class="btn btn-outline cf-play-toggle"
-                  data-target="cf-dispatch"
-                  aria-pressed="false">
-            <span class="cf-play-label" data-i18n="cf.pause">Pause</span>
-          </button>
-          <p class="cf-note text-muted">
-            <span data-i18n="cf.dispatch.cadence">Loops every ~1.4s</span>
-          </p>
-        </aside>
-      </div>
-
-      <!-- Collapsible TaskDispatch envelope -->
-      <article class="msg-envelope" data-kind="dispatch" id="cf-envelope-dispatch">
-        <header class="msg-envelope-header" tabindex="0" role="button"
-                aria-expanded="true" aria-controls="cf-envelope-dispatch-body">
-          <span class="badge badge-accent">TaskDispatch</span>
-          <code>YAML</code>
-          <span class="msg-envelope-summary" data-i18n="cf.dispatch.envelopeSummary">12 required fields, schema in references/message-schemas.md</span>
-          <span class="msg-envelope-toggle" aria-hidden="true">&minus;</span>
-        </header>
-        <div class="msg-envelope-body" id="cf-envelope-dispatch-body">
-          <h4 data-i18n="cf.envelope.fields">Required fields</h4>
-          <ul class="msg-fields">
-            <li><code>task_id</code></li>
-            <li><code>type</code></li>
-            <li><code>title</code></li>
-            <li><code>description</code></li>
-            <li><code>predecessor_artifacts</code>: list of <code>{path, summary}</code> (3-5 sentence summaries only)</li>
-            <li><code>owned_files</code>: disjoint from parallel tasks</li>
-            <li><code>acceptance_criteria</code>: concrete pass conditions</li>
-            <li><code>timeout_seconds</code>: max execution time (default 7200)</li>
-            <li><code>model_hint</code>: quality | balanced | budget | inherit (default: inherit) &mdash; model tier suggestion</li>
-            <li><code>decomposition_mode</code>: single | sub_agents (default: single) &mdash; L2 execution strategy</li>
-            <li><code>compression_intensity</code>: minimal | standard | aggressive (default: standard) &mdash; dispatch message compression</li>
-            <li><code>verification_config</code>: visual/acceptance/interaction/accessibility test settings (optional)</li>
-          </ul>
-          <h4 data-i18n="cf.envelope.example">Example payload</h4>
-          <pre class="msg-example"><code>task_id: S02-T03-context-flow-page
-type: implement
-title: Build Context Flow demo page
-description: Render dispatch / report / escalation / reinforcement / isolation routes.
-predecessor_artifacts:
-  - path: .local/research/v6.3.0_web_redesign_spec.md
-    summary: "Design contract: 3-layer route, 26 i18n keys, AC-CF-1..6."
-owned_files:
-  - workflow-system/human/demo/context-flow/index.html
-  - workflow-system/human/demo/context-flow/styles.css
-  - workflow-system/human/demo/context-flow/context-flow.js
-acceptance_criteria:
-  - "AC-CF-1: page loads at context-flow/index.html"
-  - "AC-CF-2: 3 LayerNodes with TaskDispatch envelope traveling downward"
-timeout_seconds: 7200
-model_hint: inherit
-decomposition_mode: single
-compression_intensity: standard
-verification_config: null</code></pre>
-        </div>
-      </article>
-    </section>
-
-    <!-- ============================================================
-         #cf-report — StatusReport route (L2 -> L0)
-         ============================================================ -->
-    <section id="cf-report" class="cf-section">
-      <h2 data-i18n="cf.section.report">Status Report (L2 &rarr; L0)</h2>
-      <p class="desc" data-i18n="cf.section.report.desc">StatusReport envelopes travel up the route on completion or partial progress.</p>
-
-      <div class="cf-route-wrap">
-
-        <div class="cf-route" data-direction="up" aria-label="Status report route, L2 to L0">
-          <ol class="layer-stack">
-            <li class="layer-node" data-layer="L0" style="--layer-index:0;">
-              <span class="layer-badge badge-l0">L0</span>
-              <strong class="layer-name">Project</strong>
-              <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Aggregates wave reports, evaluates gate, decides next round</p>
-            </li>
-            <li class="layer-node" data-layer="L1" style="--layer-index:1;">
-              <span class="layer-badge badge-l1">L1</span>
-              <strong class="layer-name">Wave</strong>
-              <span class="layer-budget">~5K ctx</span>
-              <p class="layer-role">Aggregates task reports, checks conflicts</p>
-            </li>
-            <li class="layer-node" data-layer="L2" style="--layer-index:2;">
-              <span class="layer-badge badge-l2">L2</span>
-              <strong class="layer-name">Task</strong>
-              <span class="layer-budget">~8K ctx</span>
-              <p class="layer-role">Emits StatusReport on completion</p>
-            </li>
-          </ol>
-
-          <div class="route-track" aria-hidden="true">
-            <span class="dispatch-dot has-pulse-dispatch"
-                  data-kind="report"
-                  data-anim="pulse-dispatch"></span>
-          </div>
-        </div>
-
-        <aside class="cf-controls">
-          <button type="button"
-                  class="btn btn-outline cf-play-toggle"
-                  data-target="cf-report"
-                  aria-pressed="false">
-            <span class="cf-play-label" data-i18n="cf.pause">Pause</span>
-          </button>
-          <p class="cf-note text-muted">
-            <span data-i18n="cf.report.cadence">Loops every ~1.4s upward</span>
-          </p>
-        </aside>
-      </div>
-
-      <article class="msg-envelope" data-kind="report" id="cf-envelope-report">
-        <header class="msg-envelope-header" tabindex="0" role="button"
-                aria-expanded="true" aria-controls="cf-envelope-report-body">
-          <span class="badge badge-success">StatusReport</span>
-          <code>YAML</code>
-          <span class="msg-envelope-summary" data-i18n="cf.report.envelopeSummary">5 required fields, emitted on completion / failure / escalation</span>
-          <span class="msg-envelope-toggle" aria-hidden="true">&minus;</span>
-        </header>
-        <div class="msg-envelope-body" id="cf-envelope-report-body">
-          <h4 data-i18n="cf.envelope.fields">Required fields</h4>
-          <ul class="msg-fields">
-            <li><code>task_id</code></li>
-            <li><code>state</code> (completed/failed/escalated)</li>
-            <li><code>progress_pct</code></li>
-            <li><code>artifacts</code>: list of <code>{path, type, summary}</code></li>
-            <li><code>metrics</code>: <code>tests_passed</code>, <code>coverage_pct</code>, <code>findings_by_severity</code></li>
-          </ul>
-          <h4 data-i18n="cf.envelope.example">Example payload</h4>
-          <pre class="msg-example"><code>task_id: S02-T03-context-flow-page
-state: completed
-progress_pct: 100
-artifacts:
-  - path: workflow-system/human/demo/context-flow/index.html
-    type: html
-    summary: "Hero + 5 sections, 26 i18n keys registered."
-  - path: workflow-system/human/demo/context-flow/styles.css
-    type: css
-    summary: "Page-local tokens, keyframes, component classes."
-  - path: workflow-system/human/demo/context-flow/context-flow.js
-    type: js
-    summary: "Translations + interactive controllers."
-metrics:
-  tests_passed: null
-  coverage_pct: null
-  findings_by_severity:
-    blocker: 0
-    critical: 0
-    major: 0
-    minor: 0</code></pre>
-        </div>
-      </article>
-    </section>
-
-    <!-- ============================================================
-         #cf-escalation — Escalation chain (always upward)
-         ============================================================ -->
-    <section id="cf-escalation" class="cf-section">
-      <h2 data-i18n="cf.section.escalation">Escalation Chain</h2>
-      <p class="desc" data-i18n="cf.section.escalation.desc">Always upward, never skip levels &mdash; Task &rarr; Wave &rarr; Project &rarr; Human.</p>
-
-      <div class="cf-escalation-grid">
-
-        <!-- Severity table (verbatim from SKILL.md) -->
-        <div class="cf-escalation-table">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th data-i18n="cf.escalation.col.severity">Severity</th>
-                  <th data-i18n="cf.escalation.col.action">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr data-severity="AUTO_RECOVER">
-                  <td><code>AUTO_RECOVER</code></td>
-                  <td>Retry up to 3x with exponential backoff</td>
-                </tr>
-                <tr data-severity="PAUSE">
-                  <td><code>PAUSE</code></td>
-                  <td>Pause task, queue question, continue parallel work</td>
-                </tr>
-                <tr data-severity="HUMAN_INTERVENE">
-                  <td><code class="cf-ember">HUMAN_INTERVENE</code></td>
-                  <td>Stop the affected wave/round, present options to human</td>
-                </tr>
-                <tr data-severity="FULL_ROLLBACK">
-                  <td><code class="cf-ember">FULL_ROLLBACK</code></td>
-                  <td>Rollback to checkpoint, halt all</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Trigger buttons -->
-          <div class="cf-escalation-buttons" role="group" aria-label="Trigger escalation severity">
-            <button type="button" class="btn btn-outline cf-esc-btn"
-                    data-severity="AUTO_RECOVER"
-                    data-i18n="cf.escalation.severity.autoRecover">AUTO_RECOVER &mdash; retry up to 3x with exponential backoff</button>
-            <button type="button" class="btn btn-outline cf-esc-btn"
-                    data-severity="PAUSE"
-                    data-i18n="cf.escalation.severity.pause">PAUSE &mdash; pause task, queue question, continue parallel work</button>
-            <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
-                    data-severity="HUMAN_INTERVENE"
-                    data-i18n="cf.escalation.severity.humanIntervene">HUMAN_INTERVENE &mdash; stop the affected wave/round, present options to human</button>
-            <button type="button" class="btn btn-outline cf-esc-btn cf-esc-btn-ember"
-                    data-severity="FULL_ROLLBACK"
-                    data-i18n="cf.escalation.severity.fullRollback">FULL_ROLLBACK &mdash; rollback to checkpoint, halt all</button>
-          </div>
-        </div>
-
-        <!-- Vertical mini-route showing escalation traveling upward -->
-        <div class="cf-escalation-route">
-          <div class="cf-route cf-route-mini" data-direction="up" aria-label="Escalation route, never skips levels">
-            <ol class="layer-stack layer-stack-mini">
-              <li class="layer-node layer-node-mini" data-layer="L0">
-                <span class="layer-badge badge-l0">L0</span>
-                <strong class="layer-name">Project</strong>
-              </li>
-              <li class="layer-node layer-node-mini" data-layer="L1">
-                <span class="layer-badge badge-l1">L1</span>
-                <strong class="layer-name">Wave</strong>
-              </li>
-              <li class="layer-node layer-node-mini" data-layer="L2">
-                <span class="layer-badge badge-l2">L2</span>
-                <strong class="layer-name">Task</strong>
-              </li>
-            </ol>
-            <div class="route-track route-track-ember" aria-hidden="true">
-              <span class="dispatch-dot is-escalated"
-                    data-kind="escalation"
-                    data-severity="HUMAN_INTERVENE"
-                    aria-hidden="true"></span>
+        <div class="io-zone-grid">
+          <article class="io-zone io-zone-input">
+            <div class="io-zone-heading">
+              <span class="io-zone-index" aria-hidden="true">01</span>
+              <div>
+                <p class="io-zone-kind" data-i18n="cf.zone.input.kind">Human-authored INPUT</p>
+                <h3 data-i18n="cf.zone.input.title">Inputs</h3>
+              </div>
             </div>
-          </div>
-          <p class="cf-escalation-active text-muted" id="cf-escalation-active-label">
-            <span data-i18n="cf.escalation.activeLabel">Active severity</span>:
-            <code id="cf-escalation-active-code">&mdash;</code>
-          </p>
+            <p data-i18n="cf.zone.input.desc">Durable intent and constraints are binding context; they are not agent progress logs.</p>
+            <ul class="io-artifact-list">
+              <li><strong data-i18n="cf.zone.input.intent">Human intent</strong><span data-i18n="cf.zone.input.intentDesc">request, constraints, and approval</span></li>
+              <li><code>.local/human/input/constitution.md</code></li>
+              <li><code>.local/human/input/requirements.md</code></li>
+            </ul>
+            <div class="io-zone-subgroup">
+              <p class="io-zone-kind" data-i18n="cf.zone.input.anchorKind">Agent runtime anchors</p>
+              <ul class="io-code-list">
+                <li><code>goal.md</code></li>
+                <li><code>checklist.md</code></li>
+                <li><code>preflight.md</code></li>
+              </ul>
+              <p class="io-zone-footnote" data-i18n="cf.zone.input.anchorNote">L0 drafts these from confirmed intent. They are runtime artifacts, not human-authored INPUT.</p>
+            </div>
+          </article>
+
+          <article class="io-zone io-zone-runtime">
+            <div class="io-zone-heading">
+              <span class="io-zone-index" aria-hidden="true">02</span>
+              <div>
+                <p class="io-zone-kind" data-i18n="cf.zone.runtime.kind">Agent runtime artifacts</p>
+                <h3 data-i18n="cf.zone.runtime.title">Runtime I/O</h3>
+              </div>
+            </div>
+            <p data-i18n="cf.zone.runtime.desc">Typed, repository-relative messages cross layer boundaries; files carry durable evidence.</p>
+            <ul class="io-artifact-list">
+              <li><code>TaskDispatch</code><span data-i18n="cf.zone.runtime.dispatch">down Project → Wave → Task</span></li>
+              <li><code>StatusReport</code><span data-i18n="cf.zone.runtime.status">Task evidence returned to Wave</span></li>
+              <li><code>WaveReport</code><span data-i18n="cf.zone.runtime.wave">aggregated evidence returned to Project</span></li>
+              <li><code>EscalationEvent</code><span data-i18n="cf.zone.runtime.escalation">bounded failure routed upward</span></li>
+              <li><code>evidence/</code><span data-i18n="cf.zone.runtime.evidence">checks, command results, and artifact deltas</span></li>
+              <li><strong data-i18n="cf.zone.runtime.checkpoint">checkpoint</strong><span data-i18n="cf.zone.runtime.checkpointDesc">passing round state</span></li>
+              <li><strong data-i18n="cf.zone.runtime.ledger">harness ledger</strong><span data-i18n="cf.zone.runtime.ledgerDesc">cross-change evaluation input</span></li>
+            </ul>
+          </article>
+
+          <article class="io-zone io-zone-output">
+            <div class="io-zone-heading">
+              <span class="io-zone-index" aria-hidden="true">03</span>
+              <div>
+                <p class="io-zone-kind" data-i18n="cf.zone.output.kind">Bounded human OUTPUT</p>
+                <h3 data-i18n="cf.zone.output.title">Outputs</h3>
+              </div>
+            </div>
+            <p data-i18n="cf.zone.output.desc">The human receives a concise conclusion and only the decisions that require human authority.</p>
+            <ul class="io-artifact-list">
+              <li><code>.local/human/output/DIGEST.md</code><span data-i18n="cf.zone.output.digest">read-first state summary</span></li>
+              <li><code>output/convergence/&lt;version&gt;-convergence.md</code><span data-i18n="cf.zone.output.convergence">requirement-keyed evidence</span></li>
+              <li><strong data-i18n="cf.zone.output.decision">Decision request</strong><span data-i18n="cf.zone.output.decisionDesc">only after Project cannot resolve an escalation</span></li>
+              <li><strong data-i18n="cf.zone.output.completion">Completion summary</strong><span data-i18n="cf.zone.output.completionDesc">outcome, evidence, and next action</span></li>
+            </ul>
+          </article>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============================================================
-         #cf-reinforcement — Round-Reinforcement step machine
-         ============================================================ -->
-    <section id="cf-reinforcement" class="cf-section">
-      <h2 data-i18n="cf.section.reinforcement">Round-Reinforcement (v5.1+, wired v6.0.3)</h2>
-      <p class="desc" data-i18n="cf.section.reinforcement.desc">Gate FAIL &rarr; top 5 findings (&ge; major) &rarr; injected into next dispatch as MUST-fix.</p>
+      <section id="io-flow" aria-labelledby="io-flow-title">
+        <h2 id="io-flow-title" data-i18n="cf.flow.title">Follow the contract</h2>
+        <p class="desc" data-i18n="cf.flow.desc">Choose a finite step. Nothing advances on its own, and Reset always returns to the input boundary.</p>
 
-      <!-- Verbatim citations from SKILL.md (literal characters preserved) -->
-      <blockquote class="cf-cite">
-        <p>
-          <strong>Reinforcement Rules (v5.1+):</strong>
-          Gate FAIL → findings filtered by severity (≥ major) → top 5 rules → injected into next dispatch <code>applicable_rules.reinforcement</code> → L2 MUST address before other work.
-        </p>
-        <p>
-          <strong>Round-aware dispatch (v6.0.3+):</strong>
-          <code>select_context(task_type, round_num=N)</code> auto-applies escalation for N&gt;1 (critical-section bump, +20% budget on round 3, <code>model_hint → quality</code>).
-          <code>ProposalGenerator.generate_round_dispatch()</code> merges prior-round gate findings into <code>context.applicable_rules.reinforcement</code> as explicit MUST-fix mandates for L2.
-        </p>
-      </blockquote>
-
-      <!-- Step machine -->
-      <div class="cf-reinforcement-controls">
-        <button type="button" class="btn btn-primary" id="cf-reinforcement-step"
-                data-i18n="cf.reinforcement.step">Step &#9654;</button>
-        <button type="button" class="btn btn-outline" id="cf-reinforcement-reset"
-                data-i18n="cf.reinforcement.reset">Reset</button>
-        <span class="cf-reinforcement-status text-muted">
-          <span data-i18n="cf.reinforcement.stateLabel">State</span>:
-          <code id="cf-reinforcement-state-code">0</code> / 3
-        </span>
-      </div>
-
-      <div class="cf-reinforcement-stage" id="cf-reinforcement-stage" data-state="0">
-
-        <!-- Round 1 envelope (visible state >= 0) -->
-        <article class="msg-envelope cf-reinforcement-round1" data-round="1">
-          <header class="msg-envelope-header">
-            <span class="badge badge-accent" data-i18n="cf.reinforcement.round1">Round 1 dispatch</span>
-            <code>round_num=1</code>
-          </header>
-          <div class="msg-envelope-body">
-            <p class="text-muted">Initial dispatch &mdash; standard compression, no reinforcement rules attached.</p>
+        <div class="io-workbench" id="io-workbench" data-step="0">
+          <div class="io-tablist" role="tablist" aria-label="I/O contract steps" data-i18n-aria="cf.aria.steps">
+            <button type="button" role="tab" id="io-tab-input" aria-controls="io-panel-input" aria-selected="true" tabindex="0">
+              <span class="io-tab-index" aria-hidden="true">1</span>
+              <span data-i18n="cf.tab.input">Anchor inputs</span>
+            </button>
+            <button type="button" role="tab" id="io-tab-dispatch" aria-controls="io-panel-dispatch" aria-selected="false" tabindex="-1">
+              <span class="io-tab-index" aria-hidden="true">2</span>
+              <span data-i18n="cf.tab.dispatch">Dispatch down</span>
+            </button>
+            <button type="button" role="tab" id="io-tab-report" aria-controls="io-panel-report" aria-selected="false" tabindex="-1">
+              <span class="io-tab-index" aria-hidden="true">3</span>
+              <span data-i18n="cf.tab.report">Evidence up</span>
+            </button>
+            <button type="button" role="tab" id="io-tab-gate" aria-controls="io-panel-gate" aria-selected="false" tabindex="-1">
+              <span class="io-tab-index" aria-hidden="true">4</span>
+              <span data-i18n="cf.tab.gate">Gate &amp; checkpoint</span>
+            </button>
+            <button type="button" role="tab" id="io-tab-escalation" aria-controls="io-panel-escalation" aria-selected="false" tabindex="-1">
+              <span class="io-tab-index" aria-hidden="true">5</span>
+              <span data-i18n="cf.tab.escalation">Escalate upward</span>
+            </button>
+            <button type="button" role="tab" id="io-tab-output" aria-controls="io-panel-output" aria-selected="false" tabindex="-1">
+              <span class="io-tab-index" aria-hidden="true">6</span>
+              <span data-i18n="cf.tab.output">Return outputs</span>
+            </button>
           </div>
-        </article>
 
-        <!-- Gate FAIL badge (visible state >= 1) -->
-        <div class="cf-reinforcement-gate" id="cf-reinforcement-gate" hidden>
-          <span class="gate-badge is-fail" data-score="62">
-            <span class="gate-dim">composite</span>
-            <span class="gate-score">62</span>
-            <span class="gate-threshold">&ge;85</span>
-          </span>
-          <p class="text-muted cf-reinforcement-gate-note">
-            <span data-i18n="cf.reinforcement.gateFailNote">Gate FAIL &rarr; reinforcement extraction begins.</span>
-          </p>
-        </div>
-
-        <!-- Findings list (visible state >= 2) -->
-        <ol class="cf-reinforcement-findings" id="cf-reinforcement-findings" hidden>
-          <li>
-            <span class="cf-finding-num">1</span>
-            <span class="cf-finding-dot cf-finding-dot--blocker" aria-label="blocker"></span>
-            <span class="cf-finding-text">verification_config field missing from dispatch envelope</span>
-          </li>
-          <li>
-            <span class="cf-finding-num">2</span>
-            <span class="cf-finding-dot cf-finding-dot--critical" aria-label="critical"></span>
-            <span class="cf-finding-text">prefers-reduced-motion fallback not exercised</span>
-          </li>
-          <li>
-            <span class="cf-finding-num">3</span>
-            <span class="cf-finding-dot cf-finding-dot--critical" aria-label="critical"></span>
-            <span class="cf-finding-text">i18n key cf.escalation.severity.* not registered for ZH</span>
-          </li>
-          <li>
-            <span class="cf-finding-num">4</span>
-            <span class="cf-finding-dot cf-finding-dot--major" aria-label="major"></span>
-            <span class="cf-finding-text">--ember-red token shadowed by --secondary in dark mode</span>
-          </li>
-          <li>
-            <span class="cf-finding-num">5</span>
-            <span class="cf-finding-dot cf-finding-dot--major" aria-label="major"></span>
-            <span class="cf-finding-text">collapsible envelope missing aria-expanded toggle</span>
-          </li>
-        </ol>
-        <p class="text-muted cf-reinforcement-findings-note" id="cf-reinforcement-findings-note" hidden>
-          <span data-i18n="cf.reinforcement.findings">Findings filtered by severity</span> (&ge; major), top 5.
-        </p>
-
-        <!-- Round 2 envelope with is-reinforced styling (visible state >= 3) -->
-        <article class="msg-envelope is-reinforced cf-reinforcement-round2" data-round="2" id="cf-reinforcement-round2" hidden>
-          <header class="msg-envelope-header">
-            <span class="badge badge-accent" data-i18n="cf.reinforcement.round2">Round 2 dispatch (reinforced)</span>
-            <code>round_num=2</code>
-            <span class="msg-envelope-summary text-muted">model_hint &rarr; quality, +20% budget</span>
-          </header>
-          <div class="msg-envelope-body">
-            <div class="cf-reinforcement-ribbon" role="region" aria-label="Reinforcement rules">
-              <strong class="cf-reinforcement-ribbon-title">applicable_rules.reinforcement</strong>
-              <ol class="cf-reinforcement-rules">
-                <li>MUST add <code>verification_config</code> to TaskDispatch envelope</li>
-                <li>MUST verify <code>prefers-reduced-motion</code> fallback path</li>
-                <li>MUST register every <code>cf.escalation.severity.*</code> key in ZH</li>
-                <li>MUST resolve <code>--ember-red</code> shadowing in <code>.dark</code></li>
-                <li>MUST expose <code>aria-expanded</code> on envelope header</li>
+          <div class="io-panels">
+            <div class="io-panel" role="tabpanel" id="io-panel-input" aria-labelledby="io-tab-input" tabindex="0">
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.input.direction">INPUT · Human → L0 Project</p>
+                <h3 data-i18n="cf.panel.input.title">Confirm intent before runtime work</h3>
+                <p data-i18n="cf.panel.input.desc">L0 turns the request into a goal, checklist item IDs, and a signed preflight. The human owns intent; L0 owns the runtime anchors.</p>
+              </div>
+              <ol class="io-route io-route-horizontal" aria-label="Human intent enters Project" data-i18n-aria="cf.aria.inputRoute">
+                <li class="io-route-node"><span class="io-node-level" data-i18n="cf.node.author">Author</span><strong data-i18n="cf.node.human">Human</strong></li>
+                <li class="io-route-link"><span data-i18n="cf.route.intent">intent + approval</span><b aria-hidden="true">&rarr;</b></li>
+                <li class="io-route-node"><span class="io-node-level">L0</span><strong data-i18n="cf.node.project">Project</strong></li>
               </ol>
+              <div class="io-anchor-strip" aria-label="Runtime anchor artifacts" data-i18n-aria="cf.aria.anchors">
+                <code>goal.md</code>
+                <code>checklist.md · IO-1…IO-4</code>
+                <code>preflight.md</code>
+              </div>
+            </div>
+
+            <div class="io-panel" role="tabpanel" id="io-panel-dispatch" aria-labelledby="io-tab-dispatch" tabindex="0" hidden>
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.dispatch.direction">DISPATCH DOWN · L0 → L1 → L2</p>
+                <h3 data-i18n="cf.panel.dispatch.title">TaskDispatch narrows context at each boundary</h3>
+                <p data-i18n="cf.panel.dispatch.desc">Project selects a bounded wave; Wave sends atomic, disjoint work to Task. L2 receives only authorized files, relevant contracts, and checklist-derived acceptance.</p>
+              </div>
+              <div class="io-panel-split">
+                <ol class="io-route io-route-vertical" aria-label="Dispatch travels from Project through Wave to Task" data-i18n-aria="cf.aria.dispatchRoute">
+                  <li class="io-route-node"><span class="io-node-level">L0</span><strong data-i18n="cf.node.project">Project</strong></li>
+                  <li class="io-route-link"><span>TaskDispatch</span><b aria-hidden="true">&darr;</b></li>
+                  <li class="io-route-node"><span class="io-node-level">L1</span><strong data-i18n="cf.node.wave">Wave</strong></li>
+                  <li class="io-route-link"><span>TaskDispatch</span><b aria-hidden="true">&darr;</b></li>
+                  <li class="io-route-node"><span class="io-node-level">L2</span><strong data-i18n="cf.node.task">Task</strong></li>
+                </ol>
+                <div class="io-message">
+                  <p class="io-message-label"><span>TaskDispatch</span><span data-i18n="cf.message.lean">lean YAML · current concepts</span></p>
+                  <pre><code>hdr: {id: WEB-R2-T3, layer: wave, timeout: 1800}
+task: {id: WEB-R2-T3, type: code, title: "Rebuild canonical I/O"}
+goal: "Make context-flow the current I/O contract"
+files: ["workflow-system/human/demo/context-flow/index.html"]
+accept: ["IO-1", "IO-2", "IO-3", "IO-4"]
+gate: {blockers: 0, retries: 2}</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <div class="io-panel" role="tabpanel" id="io-panel-report" aria-labelledby="io-tab-report" tabindex="0" hidden>
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.report.direction">EVIDENCE &amp; REPORT UP · L2 → L1 → L0</p>
+                <h3 data-i18n="cf.panel.report.title">Evidence rises; implementation details stay scoped</h3>
+                <p data-i18n="cf.panel.report.desc">Task emits StatusReport with falsifiable evidence. Wave checks conflicts and aggregates a WaveReport. Project adjudicates checklist progress.</p>
+              </div>
+              <div class="io-panel-split">
+                <ol class="io-route io-route-vertical io-route-up" aria-label="Evidence and reports travel from Task through Wave to Project" data-i18n-aria="cf.aria.reportRoute">
+                  <li class="io-route-node"><span class="io-node-level">L2</span><strong data-i18n="cf.node.task">Task</strong></li>
+                  <li class="io-route-link"><span data-i18n="cf.route.taskEvidence">evidence + StatusReport</span><b aria-hidden="true">&uarr;</b></li>
+                  <li class="io-route-node"><span class="io-node-level">L1</span><strong data-i18n="cf.node.wave">Wave</strong></li>
+                  <li class="io-route-link"><span>WaveReport</span><b aria-hidden="true">&uarr;</b></li>
+                  <li class="io-route-node"><span class="io-node-level">L0</span><strong data-i18n="cf.node.project">Project</strong></li>
+                </ol>
+                <div class="io-message">
+                  <p class="io-message-label"><span>StatusReport</span><span data-i18n="cf.message.evidence">evidence, not self-scoring</span></p>
+                  <pre><code>hdr: {dispatch: WEB-R2-T3, task: WEB-R2-T3, layer: task}
+state: {s: completed, pct: 100}
+artifacts:
+  - {path: "workflow-system/human/demo/context-flow/index.html",
+     delta: "canonical I/O boundaries + finite stepper"}
+ac_results:
+  - {id: IO-1, verdict: pass, cmd_digest: "rg → exit 0"}
+diff_stats: {files: 3}</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <div class="io-panel" role="tabpanel" id="io-panel-gate" aria-labelledby="io-tab-gate" tabindex="0" hidden>
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.gate.direction">RUNTIME CONTROL · evidence → gate → checkpoint</p>
+                <h3 data-i18n="cf.panel.gate.title">A passing round requires item-level proof</h3>
+                <p data-i18n="cf.panel.gate.desc">L0 checks selected checklist IDs, configured commands, blocker closure, and ownership conflicts before writing a checkpoint or choosing a bounded next round.</p>
+              </div>
+              <ul class="io-evidence-sequence">
+                <li><span class="io-sequence-index">A</span><strong>evidence/</strong><span data-i18n="cf.panel.gate.evidence">verbatim command and artifact evidence</span></li>
+                <li><span class="io-sequence-index">B</span><strong data-i18n="cf.panel.gate.checklist">Checklist gate</strong><span data-i18n="cf.panel.gate.checklistDesc">IO-1…IO-4 checked independently</span></li>
+                <li><span class="io-sequence-index">C</span><strong data-i18n="cf.panel.gate.checkpoint">checkpoint</strong><span data-i18n="cf.panel.gate.checkpointDesc">only after the selected round passes</span></li>
+                <li><span class="io-sequence-index">D</span><strong data-i18n="cf.panel.gate.harness">harness ledger</strong><span data-i18n="cf.panel.gate.harnessDesc">telemetry retained for cross-change evaluation; not a fake live feed</span></li>
+              </ul>
+            </div>
+
+            <div class="io-panel" role="tabpanel" id="io-panel-escalation" aria-labelledby="io-tab-escalation" tabindex="0" hidden>
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.escalation.direction">ESCALATION UP · Task → Wave → Project → Human</p>
+                <h3 data-i18n="cf.panel.escalation.title">Failures are classified and routes never skip a layer</h3>
+                <p data-i18n="cf.panel.escalation.desc">Recoverable failures retry only within the declared ceiling. Blocking or fatal failures become an EscalationEvent and move upward until resolved.</p>
+              </div>
+              <ol class="io-route io-route-horizontal io-route-escalation" aria-label="Escalation travels from Task through Wave and Project to Human" data-i18n-aria="cf.aria.escalationRoute">
+                <li class="io-route-node"><span class="io-node-level">L2</span><strong data-i18n="cf.node.task">Task</strong></li>
+                <li class="io-route-link"><b aria-hidden="true">&rarr;</b></li>
+                <li class="io-route-node"><span class="io-node-level">L1</span><strong data-i18n="cf.node.wave">Wave</strong></li>
+                <li class="io-route-link"><b aria-hidden="true">&rarr;</b></li>
+                <li class="io-route-node"><span class="io-node-level">L0</span><strong data-i18n="cf.node.project">Project</strong></li>
+                <li class="io-route-link"><b aria-hidden="true">&rarr;</b></li>
+                <li class="io-route-node io-route-node-human"><span class="io-node-level" data-i18n="cf.node.authority">Authority</span><strong data-i18n="cf.node.human">Human</strong></li>
+              </ol>
+              <div class="io-escalation-classes">
+                <p><code>recoverable</code><span data-i18n="cf.panel.escalation.recoverable">bounded retry inside Task</span></p>
+                <p><code>blocking</code><span data-i18n="cf.panel.escalation.blocking">contract or dependency resolution through L1 and L0</span></p>
+                <p><code>fatal</code><span data-i18n="cf.panel.escalation.fatal">stop the round; Project requests human authority</span></p>
+              </div>
+            </div>
+
+            <div class="io-panel" role="tabpanel" id="io-panel-output" aria-labelledby="io-tab-output" tabindex="0" hidden>
+              <div class="io-panel-heading">
+                <p class="io-direction" data-i18n="cf.panel.output.direction">OUTPUT · L0 Project → Human</p>
+                <h3 data-i18n="cf.panel.output.title">Return a conclusion, not the agent transcript</h3>
+                <p data-i18n="cf.panel.output.desc">The output boundary compresses runtime evidence into a read-first digest, a requirement-keyed convergence report, and any unresolved decision.</p>
+              </div>
+              <div class="io-output-ledger">
+                <div><code>DIGEST.md</code><span data-i18n="cf.panel.output.digest">Where we are · blocking asks · requirement rollup · next report</span></div>
+                <div><code>&lt;version&gt;-convergence.md</code><span data-i18n="cf.panel.output.report">Verdict · requirement evidence · findings · next step</span></div>
+                <div><strong data-i18n="cf.panel.output.boundary">Human decision boundary</strong><span data-i18n="cf.panel.output.boundaryDesc">approve, clarify, or redirect only when authority is required</span></div>
+              </div>
             </div>
           </div>
-        </article>
-      </div>
-    </section>
 
-    <!-- ============================================================
-         #cf-isolation — Context Isolation
-         ============================================================ -->
-    <section id="cf-isolation" class="cf-section">
-      <h2 data-i18n="cf.section.isolation">Context Isolation</h2>
-      <p class="desc" data-i18n="cf.section.isolation.desc">What MUST NOT leak between agents, what IS shared via artifact summaries.</p>
-
-      <!-- context_injection budget table (verbatim from SKILL.md) -->
-      <div class="cf-injection-budget">
-        <h3 data-i18n="cf.isolation.budgetTitle">context_injection budgets</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th data-i18n="cf.isolation.col.section">Section</th>
-                <th data-i18n="cf.isolation.col.fields">Fields</th>
-                <th data-i18n="cf.isolation.col.budget">Budget</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>identity</code></td>
-                <td>role, task_id, team</td>
-                <td><span class="badge badge-muted">~100 tokens</span></td>
-              </tr>
-              <tr>
-                <td><code>task</code></td>
-                <td>title, description, acceptance_criteria</td>
-                <td><span class="badge badge-muted">~500-1500 tokens</span></td>
-              </tr>
-              <tr>
-                <td><code>context</code></td>
-                <td>predecessor_summary, design_excerpt, interfaces</td>
-                <td><span class="badge badge-muted">~1000-3000 tokens</span></td>
-              </tr>
-              <tr>
-                <td><code>files</code></td>
-                <td>owned (create/modify), read_only</td>
-                <td><span class="badge badge-muted">~200-500 tokens</span></td>
-              </tr>
-              <tr>
-                <td><code>rules</code></td>
-                <td>loading_strategy, language, quality_focus</td>
-                <td><span class="badge badge-muted">~2000-5000 tokens</span></td>
-              </tr>
-              <tr>
-                <td><code>behavioral</code></td>
-                <td>timeout, max_files, output_format, escalation</td>
-                <td><span class="badge badge-muted">~200 tokens</span></td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="io-step-controls">
+            <p id="io-step-status" class="io-step-status" aria-live="polite">Step 1 of 6 — Anchor inputs</p>
+            <div class="io-step-buttons">
+              <button type="button" class="btn btn-outline" id="io-step-prev" data-i18n="cf.control.previous">Previous</button>
+              <button type="button" class="btn btn-primary" id="io-step-next" data-i18n="cf.control.next">Next</button>
+              <button type="button" class="btn btn-ghost" id="io-step-reset" data-i18n="cf.control.reset">Reset</button>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Two-column lists -->
-      <div class="cf-isolation-grid">
-        <div class="cf-isolation-col cf-isolation-col--leak">
-          <h3 class="cf-isolation-col-title">
-            <span class="cf-isolation-dot cf-isolation-dot--leak" aria-hidden="true"></span>
-            <span data-i18n="cf.isolation.mustNotLeak">MUST NOT leak</span>
-          </h3>
-          <ul class="cf-isolation-list">
-            <li>conversation history</li>
-            <li>file contents from other tasks</li>
-            <li>full predecessor artifacts</li>
-            <li>error details from siblings</li>
-            <li>quality scores from unrelated tasks</li>
-          </ul>
-        </div>
-
-        <div class="cf-isolation-col cf-isolation-col--shared">
-          <h3 class="cf-isolation-col-title">
-            <span class="cf-isolation-dot cf-isolation-dot--shared" aria-hidden="true"></span>
-            <span data-i18n="cf.isolation.isShared">IS shared via artifact summaries</span>
-          </h3>
-          <ul class="cf-isolation-list">
-            <li>interface contracts</li>
-            <li>design decisions (ADRs)</li>
-            <li>naming conventions</li>
-            <li>quality thresholds</li>
-            <li>acceptance criteria</li>
-          </ul>
-        </div>
-      </div>
-    </section>
+      <section id="io-provenance" aria-labelledby="io-provenance-title">
+        <p class="eyebrow" data-i18n="cf.provenance.eyebrow">Secondary provenance I/O</p>
+        <h2 id="io-provenance-title" data-i18n="cf.provenance.title">Companion routes</h2>
+        <p class="desc" data-i18n="cf.provenance.desc">These routes explain design, system structure, and history. The primitive explorer preserves seed vocabulary provenance; it does not define current execution.</p>
+        <nav class="io-cta-cluster" aria-label="I/O companion routes" data-i18n-aria="cf.aria.companions">
+          <a href="../design-system/index.html"><strong data-i18n="cf.cta.designSystem">Design system</strong><span data-i18n="cf.cta.designSystemDesc">visual tokens and components</span></a>
+          <a href="../framework-chain/index.html"><strong data-i18n="cf.cta.framework">Framework chain</strong><span data-i18n="cf.cta.frameworkDesc">canonical System model</span></a>
+          <a href="../version-timeline/index.html"><strong data-i18n="cf.cta.timeline">Version timeline</strong><span data-i18n="cf.cta.timelineDesc">complete historical record</span></a>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" target="_blank" rel="noopener"><strong data-i18n="cf.cta.skill">Read SKILL.md ↗</strong><span data-i18n="cf.cta.skillDesc">source contract</span></a>
+          <a href="../stage-explorer/index.html"><strong data-i18n="cf.cta.explorer">Primitive provenance companion</strong><span><code>stage-explorer</code> · <span data-i18n="cf.cta.explorerDesc">historical seed vocabulary only</span></span></a>
+        </nav>
+      </section>
+    </main>
 
     <footer>
       <p>
@@ -517,7 +282,6 @@ metrics:
         <span data-i18n="footer.license">MIT License</span>
       </p>
     </footer>
-
   </div>
 
   <script src="../shared/i18n.js"></script>

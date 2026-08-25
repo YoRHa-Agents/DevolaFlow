@@ -3,94 +3,192 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EvoBench Results — DevolaFlow</title>
+  <title data-i18n="harness.pageTitle">Harness — DevolaFlow</title>
+  <link rel="icon" type="image/svg+xml" href="../shared/favicon.svg">
   <link rel="stylesheet" href="../shared/styles.css">
-  <style>
-    .delta-up { color: var(--success); font-weight: 600; }
-    .delta-down { color: var(--error); font-weight: 600; }
-    .delta-flat { color: var(--muted); }
-    .scenario-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      box-shadow: var(--shadow);
-      transition: border-color .2s, box-shadow .2s;
-    }
-    .scenario-card:hover {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-lg);
-    }
-    .scenario-card h3 { font-family: var(--font-heading); font-size: 1rem; margin-bottom: .75rem; }
-    .dim { margin-bottom: .55rem; }
-    .dim label {
-      display: flex; justify-content: space-between;
-      font-size: .8rem; margin-bottom: .2rem; color: var(--muted);
-    }
-    .bar {
-      height: 8px; background: var(--code-bg);
-      border-radius: 4px; overflow: hidden;
-    }
-    .bar > i {
-      display: block; height: 100%;
-      border-radius: 4px; background: var(--accent);
-    }
-    .bar.noise > i { background: var(--error); }
-    .scenarios-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-    section:nth-of-type(2) { animation-delay: .1s; }
-    section:nth-of-type(3) { animation-delay: .2s; }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content" data-i18n="common.skip">Skip to main content</a>
   <div class="container">
-    <header class="fade-in">
-      <h1><span class="accent">EvoBench</span> Results</h1>
-      <p class="tagline">Optimization round metrics and improvement tracking</p>
+    <header class="slide-up">
+      <p class="eyebrow" data-i18n="harness.eyebrow">Built-in evaluation authority</p>
+      <h1><span class="accent" data-i18n="harness.titleAccent">Harness</span> <span data-i18n="harness.titleSuffix">I/O</span></h1>
+      <p class="tagline" data-i18n="harness.tagline">From repository evidence to an explicit release verdict.</p>
+      <div class="harness-version">
+        <span data-i18n="harness.versionLabel">Source release</span>
+        <strong id="harness-version">v17.0.0</strong>
+        <span data-i18n="harness.versionContext">documentation metadata, not live telemetry</span>
+      </div>
+      <div class="truth-note">
+        <strong data-i18n="harness.truthTitle">Documentation view.</strong>
+        <span data-i18n="harness.truthBody"> This page does not load a telemetry ledger or claim a live evaluation. Run the local command against your repository to produce current evidence.</span>
+      </div>
     </header>
 
-    <section class="slide-up">
-      <h2 data-i18n="bench.overview">Overview</h2>
-      <p class="desc" data-i18n="bench.overview.desc">Aggregate stats from the latest optimization run.</p>
-      <div class="metrics">
-        <div class="metric">
-          <div class="k" data-i18n="bench.totalScenarios">Total scenarios</div>
-          <div class="v" id="m-scenarios">0</div>
+    <main id="main-content" tabindex="-1">
+      <section id="inputs" class="fade-in">
+        <h2 data-i18n="harness.inputsTitle">Evidence inputs</h2>
+        <p class="desc" data-i18n="harness.inputsDesc">The evaluator combines an append-only ledger, deterministic fixtures, and bounded repository-local signals. Model probes are optional.</p>
+        <div class="io-grid">
+          <article class="io-card">
+            <h3 data-i18n="harness.ledgerTitle">Telemetry ledger</h3>
+            <code>.local/telemetry/harness.jsonl</code>
+            <p data-i18n="harness.ledgerBody">Dispatch records supply measured token budgets, constraint tiers, rounds, changes, and model-profile references.</p>
+          </article>
+          <article class="io-card">
+            <h3 data-i18n="harness.fixturesTitle">Deterministic fixtures</h3>
+            <code>tests/fixtures/harness/</code>
+            <p data-i18n="harness.fixturesBody">Validated fixtures make contract checks repeatable. A model probe accepts at most ten fixtures.</p>
+          </article>
+          <article class="io-card">
+            <h3 data-i18n="harness.localTitle">Repository-local signals</h3>
+            <code>--repo . --base HEAD~1</code>
+            <p data-i18n="harness.localBody">Bounded local checks cover lint, formatting, tests, coverage, layout invariants, compatibility, test growth, and docstrings.</p>
+          </article>
+          <article class="io-card">
+            <h3 data-i18n="harness.probeTitle">Optional bounded probe</h3>
+            <code>python -m devolaflow.harness probe</code>
+            <p data-i18n="harness.probeBody">An explicit provider/model pair—or a configured model table—can test model compliance. Missing credentials produce SKIPPED_NO_KEY, never invented evidence.</p>
+          </article>
         </div>
-        <div class="metric">
-          <div class="k" data-i18n="common.version">Version</div>
-          <div class="v" id="m-version">0</div>
-        </div>
-        <div class="metric">
-          <div class="k" data-i18n="bench.rounds">Optimization rounds</div>
-          <div class="v" id="m-round">0</div>
-        </div>
-        <div class="metric">
-          <div class="k" data-i18n="bench.avgComposite">Avg composite</div>
-          <div class="v" id="m-avg">0</div>
-        </div>
-        <div class="metric">
-          <div class="k" data-i18n="bench.budgetUtil">Budget utilization</div>
-          <div class="v" id="m-budget">0</div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="slide-up">
-      <h2 data-i18n="bench.history">Optimization History</h2>
-      <p class="desc" data-i18n="bench.history.desc">Score progression across optimization rounds.</p>
-      <div class="table-wrap">
-        <table id="cmp-table"><thead></thead><tbody></tbody></table>
-      </div>
-    </section>
+      <section id="pipeline" class="slide-up">
+        <h2 data-i18n="harness.pipelineTitle">Evaluation pipeline</h2>
+        <p class="desc" data-i18n="harness.pipelineDesc">One built-in path preserves the evidence boundary from input to decision.</p>
+        <ol class="flow-list">
+          <li>
+            <strong data-i18n="harness.stepRecordTitle">Record</strong>
+            <span data-i18n="harness.stepRecordBody">Append dispatch telemetry without mutating the dispatch.</span>
+          </li>
+          <li>
+            <strong data-i18n="harness.stepAggregateTitle">Aggregate</strong>
+            <span data-i18n="harness.stepAggregateBody">Validate and summarize ledger records and settled baseline context.</span>
+          </li>
+          <li>
+            <strong data-i18n="harness.stepCollectTitle">Collect</strong>
+            <span data-i18n="harness.stepCollectBody">Run bounded local probes and preserve unavailable signals explicitly.</span>
+          </li>
+          <li>
+            <strong data-i18n="harness.stepEvaluateTitle">Evaluate</strong>
+            <span data-i18n="harness.stepEvaluateBody">Score the six W-3 dimensions and calculate the weighted composite.</span>
+          </li>
+          <li>
+            <strong data-i18n="harness.stepDecideTitle">Decide</strong>
+            <span data-i18n="harness.stepDecideBody">Emit READY, NOT_READY, or INSUFFICIENT with suggestions and evidence.</span>
+          </li>
+        </ol>
 
-    <section class="slide-up">
-      <h2 data-i18n="bench.scenarios">Scenario Breakdown</h2>
-      <div id="breakdown"></div>
-    </section>
+        <div class="command-group">
+          <article class="command-card">
+            <h3 data-i18n="harness.evaluateCommandTitle">Run the evaluator</h3>
+            <p data-i18n="harness.evaluateCommandBody">The command reads local evidence and writes deterministic JSON. It has no external evaluator dependency.</p>
+            <pre><code>python -m devolaflow.harness evaluate \
+  --ledger .local/telemetry/harness.jsonl \
+  --repo . \
+  --base HEAD~1 \
+  --output .local/research/v17.0.0_harness_evaluation.json</code></pre>
+          </article>
+          <article class="command-card">
+            <h3 data-i18n="harness.probeCommandTitle">Run an optional bounded probe</h3>
+            <p data-i18n="harness.probeCommandBody">This deterministic mock example keeps the fixture, token, and timeout bounds visible. Choose an approved provider and model only when model evidence is required.</p>
+            <pre><code>python -m devolaflow.harness probe \
+  --provider mock \
+  --model harness-demo \
+  --cycle v17.0.0 \
+  --fixtures tests/fixtures/harness \
+  --max-tokens 512 \
+  --timeout 30</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="dimensions" class="fade-in">
+        <h2 data-i18n="harness.dimensionsTitle">Six W-3 dimensions</h2>
+        <p class="desc" data-i18n="harness.dimensionsDesc">The composite is a weighted release-readiness output, not a replacement for underlying evidence.</p>
+        <div class="dimension-grid">
+          <article class="dimension-card">
+            <span class="dimension-weight">0.20</span>
+            <h3 data-i18n="harness.dimensionCode">Code quality</h3>
+            <p data-i18n="harness.dimensionCodeBody">Code hygiene and coverage.</p>
+          </article>
+          <article class="dimension-card">
+            <span class="dimension-weight">0.20</span>
+            <h3 data-i18n="harness.dimensionArchitecture">Architecture rationality</h3>
+            <p data-i18n="harness.dimensionArchitectureBody">Layout invariants and constraint quantifiability.</p>
+          </article>
+          <article class="dimension-card">
+            <span class="dimension-weight">0.20</span>
+            <h3 data-i18n="harness.dimensionTests">Test adequacy</h3>
+            <p data-i18n="harness.dimensionTestsBody">Test execution, coverage, and bounded test growth.</p>
+          </article>
+          <article class="dimension-card">
+            <span class="dimension-weight">0.15</span>
+            <h3 data-i18n="harness.dimensionMaintainability">Maintainability</h3>
+            <p data-i18n="harness.dimensionMaintainabilityBody">Formatting hygiene and docstring coverage.</p>
+          </article>
+          <article class="dimension-card">
+            <span class="dimension-weight">0.10</span>
+            <h3 data-i18n="harness.dimensionCompatibility">Compatibility</h3>
+            <p data-i18n="harness.dimensionCompatibilityBody">Layout witnesses and compatibility-suite results.</p>
+          </article>
+          <article class="dimension-card">
+            <span class="dimension-weight">0.15</span>
+            <h3 data-i18n="harness.dimensionPerformance">Performance impact</h3>
+            <p data-i18n="harness.dimensionPerformanceBody">Token-budget compliance and p95 token headroom.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="outcomes" class="slide-up">
+        <h2 data-i18n="harness.outcomesTitle">Explicit outcomes</h2>
+        <p class="desc" data-i18n="harness.outcomesDesc">Availability and threshold checks remain visible in the machine-readable result.</p>
+        <div class="outcome-grid">
+          <article class="outcome-card ready">
+            <h3><code>READY</code></h3>
+            <p data-i18n="harness.readyBody">All required machine subcomponents are available and the configured readiness threshold is met.</p>
+          </article>
+          <article class="outcome-card not-ready">
+            <h3><code>NOT_READY</code></h3>
+            <p data-i18n="harness.notReadyBody">Evidence is available, but the composite is below the configured threshold. Iterate or escalate.</p>
+          </article>
+          <article class="outcome-card insufficient">
+            <h3><code>INSUFFICIENT</code></h3>
+            <p data-i18n="harness.insufficientBody">At least one required machine subcomponent is unavailable. Prose or estimates cannot turn this into a pass.</p>
+          </article>
+          <article class="outcome-card">
+            <h3 data-i18n="harness.historicalTitle">Historical release reference</h3>
+            <p data-i18n="harness.historicalBody">The v17.0.0 release record reports a W-3 composite of 9.84 and READY. This is archived release evidence, not live telemetry from this page.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="proposals" class="fade-in">
+        <h2 data-i18n="harness.proposalsTitle">Approval-only proposals</h2>
+        <p class="desc" data-i18n="harness.proposalsDesc">Evaluation suggestions may inform a tuning proposal, but they never authorize mutation.</p>
+        <div class="approval-path">
+          <p data-i18n="harness.proposalPath"><code>evaluate</code> emits evidence and suggestions → <code>propose</code> creates an immutable candidate → <code>apply</code> requires both the proposal and an explicit approval artifact.</p>
+        </div>
+        <p class="truth-note">
+          <strong data-i18n="harness.noApprovalTitle">No approval, no change.</strong>
+          <span data-i18n="harness.noApprovalBody"> An unapproved proposal produces byte-zero parameter changes.</span>
+        </p>
+      </section>
+
+      <section id="references" class="slide-up">
+        <h2 data-i18n="harness.referencesTitle">Continue through the system</h2>
+        <p class="desc" data-i18n="harness.referencesDesc">Connect evaluation I/O to orchestration, typed messages, history, and the current source contracts.</p>
+        <ul class="source-list">
+          <li><a href="../framework-chain/index.html" data-i18n="harness.linkSystem">System</a></li>
+          <li><a href="../context-flow/index.html" data-i18n="harness.linkIo">I/O</a></li>
+          <li><a href="../version-timeline/index.html" data-i18n="harness.linkTimeline">Timeline</a></li>
+          <li><a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/src/devolaflow/harness" target="_blank" rel="noopener" data-i18n="harness.linkSource">Harness source</a></li>
+          <li><a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/evaluator-rosetta.md" target="_blank" rel="noopener" data-i18n="harness.linkReference">Evaluator reference</a></li>
+          <li><a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" target="_blank" rel="noopener" data-i18n="harness.linkSkill">Read SKILL</a></li>
+        </ul>
+      </section>
+    </main>
 
     <footer>
       <p><span data-i18n="footer.text">DevolaFlow</span> &middot; <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot; <span data-i18n="footer.license">MIT License</span></p>
@@ -100,155 +198,186 @@
   <script src="../shared/i18n.js"></script>
   <script src="../shared/nav.js"></script>
   <script>
-/* SAMPLE_DATA.version is a STATIC FALLBACK for file:// / offline contexts and
-   MAY LAG the canonical version. The displayed version is derived at load time
-   from ../version-timeline/versions.json (newest entry — see the fetch below),
-   so this literal is intentionally NOT pattern-managed by
-   scripts/bump_version.py (Rule C-6, v14.4.0 G-031). */
-const SAMPLE_DATA = {"version":"14.3.0","rounds":[{"round":0,"label":"baseline_v3.1.0","scenarios":{"design_workflow":{"composite":85.52,"section_relevance":1.0,"information_density":0.638,"noise_ratio":0.0,"budget_utilization":0.638},"feature_middleware":{"composite":79.63,"section_relevance":1.0,"information_density":0.4908,"noise_ratio":0.0,"budget_utilization":0.4908},"full_pipeline_auth":{"composite":79.63,"section_relevance":1.0,"information_density":0.4908,"noise_ratio":0.0,"budget_utilization":0.4908},"hotfix_jwt":{"composite":76.97,"section_relevance":1.0,"information_density":0.4242,"noise_ratio":0.0,"budget_utilization":0.4242},"refactor_tech_debt":{"composite":83.2,"section_relevance":1.0,"information_density":0.58,"noise_ratio":0.0,"budget_utilization":0.58},"skill_optimization":{"composite":77.75,"section_relevance":1.0,"information_density":0.4437,"noise_ratio":0.0,"budget_utilization":0.4437},"visual_regression_webapp":{"composite":96.5,"section_relevance":1.0,"information_density":0.93,"noise_ratio":0.02,"budget_utilization":0.98},"acceptance_verification_feature":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.03,"budget_utilization":0.97},"interaction_accessibility_test":{"composite":95.5,"section_relevance":1.0,"information_density":0.91,"noise_ratio":0.03,"budget_utilization":0.97},"product_verification_pipeline":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.02,"budget_utilization":0.98}}},{"round":3,"label":"full_workflow_coverage","scenarios":{"demo_showcase":{"composite":96.46,"section_relevance":1.0,"information_density":0.9116,"noise_ratio":0.0,"budget_utilization":0.9116},"dependency_setup":{"composite":91.78,"section_relevance":1.0,"information_density":0.7946,"noise_ratio":0.0,"budget_utilization":0.7946},"design_workflow":{"composite":90.33,"section_relevance":1.0,"information_density":0.7582,"noise_ratio":0.0,"budget_utilization":0.7582},"documentation_guide":{"composite":96.94,"section_relevance":1.0,"information_density":0.9234,"noise_ratio":0.0,"budget_utilization":0.9234},"feature_middleware":{"composite":85.24,"section_relevance":1.0,"information_density":0.6311,"noise_ratio":0.0,"budget_utilization":0.6311},"full_pipeline_auth":{"composite":85.24,"section_relevance":1.0,"information_density":0.6311,"noise_ratio":0.0,"budget_utilization":0.6311},"hotfix_jwt":{"composite":85.16,"section_relevance":1.0,"information_density":0.6289,"noise_ratio":0.0,"budget_utilization":0.6289},"migration_upgrade":{"composite":89.83,"section_relevance":1.0,"information_density":0.7458,"noise_ratio":0.0,"budget_utilization":0.7458},"onboarding_new":{"composite":97.91,"section_relevance":1.0,"information_density":0.9477,"noise_ratio":0.0,"budget_utilization":0.9477},"perf_optimization":{"composite":92.82,"section_relevance":1.0,"information_density":0.8204,"noise_ratio":0.0,"budget_utilization":0.8204},"rdrr_design_loop":{"composite":88.76,"section_relevance":1.0,"information_density":0.7191,"noise_ratio":0.0,"budget_utilization":0.7191},"refactor_tech_debt":{"composite":89.83,"section_relevance":1.0,"information_density":0.7458,"noise_ratio":0.0,"budget_utilization":0.7458},"research_survey":{"composite":95.76,"section_relevance":1.0,"information_density":0.894,"noise_ratio":0.0,"budget_utilization":0.894},"review_code_quality":{"composite":97.91,"section_relevance":1.0,"information_density":0.9477,"noise_ratio":0.0,"budget_utilization":0.9477},"security_audit":{"composite":92.82,"section_relevance":1.0,"information_density":0.8204,"noise_ratio":0.0,"budget_utilization":0.8204},"skill_optimization":{"composite":84.29,"section_relevance":1.0,"information_density":0.6073,"noise_ratio":0.0,"budget_utilization":0.6073},"spike_poc":{"composite":92.08,"section_relevance":1.0,"information_density":0.802,"noise_ratio":0.0,"budget_utilization":0.802},"self_update_reference_check":{"composite":95.2,"section_relevance":1.0,"information_density":0.88,"noise_ratio":0.0,"budget_utilization":0.88},"self_update_integration":{"composite":94.8,"section_relevance":1.0,"information_density":0.87,"noise_ratio":0.0,"budget_utilization":0.87},"feedback_analysis":{"composite":95.5,"section_relevance":1.0,"information_density":0.8875,"noise_ratio":0.0,"budget_utilization":0.8875},"model_routing_feature":{"composite":91.5,"section_relevance":1.0,"information_density":0.79,"noise_ratio":0.25,"budget_utilization":0.79},"decomposition_feature":{"composite":90.2,"section_relevance":1.0,"information_density":0.78,"noise_ratio":0.3,"budget_utilization":0.78},"compression_hotfix":{"composite":96.0,"section_relevance":1.0,"information_density":0.87,"noise_ratio":0.0,"budget_utilization":0.87},"visual_regression_webapp":{"composite":96.5,"section_relevance":1.0,"information_density":0.93,"noise_ratio":0.02,"budget_utilization":0.98},"acceptance_verification_feature":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.03,"budget_utilization":0.97},"interaction_accessibility_test":{"composite":95.5,"section_relevance":1.0,"information_density":0.91,"noise_ratio":0.03,"budget_utilization":0.97},"product_verification_pipeline":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.02,"budget_utilization":0.98}}},{"round":5,"label":"budget_tuning_final","scenarios":{"demo_showcase":{"composite":96.46,"section_relevance":1.0,"information_density":0.9116,"noise_ratio":0.0,"budget_utilization":0.9116},"dependency_setup":{"composite":93.71,"section_relevance":1.0,"information_density":0.8427,"noise_ratio":0.0,"budget_utilization":0.8427},"design_workflow":{"composite":93.7,"section_relevance":1.0,"information_density":0.8424,"noise_ratio":0.0,"budget_utilization":0.8424},"documentation_guide":{"composite":96.94,"section_relevance":1.0,"information_density":0.9234,"noise_ratio":0.0,"budget_utilization":0.9234},"feature_middleware":{"composite":93.48,"section_relevance":1.0,"information_density":0.8371,"noise_ratio":0.0,"budget_utilization":0.8371},"full_pipeline_auth":{"composite":93.48,"section_relevance":1.0,"information_density":0.8371,"noise_ratio":0.0,"budget_utilization":0.8371},"hotfix_jwt":{"composite":93.86,"section_relevance":1.0,"information_density":0.8465,"noise_ratio":0.0,"budget_utilization":0.8465},"migration_upgrade":{"composite":93.48,"section_relevance":1.0,"information_density":0.8371,"noise_ratio":0.0,"budget_utilization":0.8371},"onboarding_new":{"composite":97.91,"section_relevance":1.0,"information_density":0.9477,"noise_ratio":0.0,"budget_utilization":0.9477},"perf_optimization":{"composite":92.82,"section_relevance":1.0,"information_density":0.8204,"noise_ratio":0.0,"budget_utilization":0.8204},"rdrr_design_loop":{"composite":93.66,"section_relevance":1.0,"information_density":0.8415,"noise_ratio":0.0,"budget_utilization":0.8415},"refactor_tech_debt":{"composite":93.48,"section_relevance":1.0,"information_density":0.8371,"noise_ratio":0.0,"budget_utilization":0.8371},"research_survey":{"composite":95.76,"section_relevance":1.0,"information_density":0.894,"noise_ratio":0.0,"budget_utilization":0.894},"review_code_quality":{"composite":97.91,"section_relevance":1.0,"information_density":0.9477,"noise_ratio":0.0,"budget_utilization":0.9477},"security_audit":{"composite":92.82,"section_relevance":1.0,"information_density":0.8204,"noise_ratio":0.0,"budget_utilization":0.8204},"skill_optimization":{"composite":93.9,"section_relevance":1.0,"information_density":0.8474,"noise_ratio":0.0,"budget_utilization":0.8474},"spike_poc":{"composite":92.08,"section_relevance":1.0,"information_density":0.802,"noise_ratio":0.0,"budget_utilization":0.802},"self_update_reference_check":{"composite":99.3,"section_relevance":1.0,"information_density":0.983,"noise_ratio":0.0,"budget_utilization":0.983},"self_update_integration":{"composite":99.1,"section_relevance":1.0,"information_density":0.978,"noise_ratio":0.0,"budget_utilization":0.978},"feedback_analysis":{"composite":99.5,"section_relevance":1.0,"information_density":0.988,"noise_ratio":0.0,"budget_utilization":0.988},"model_routing_feature":{"composite":95.69,"section_relevance":1.0,"information_density":0.9994,"noise_ratio":0.2143,"budget_utilization":0.9994},"complexity_tier_routing":{"composite":99.08,"section_relevance":1.0,"information_density":0.9769,"noise_ratio":0.0,"budget_utilization":0.9769},"decomposition_feature":{"composite":94.26,"section_relevance":1.0,"information_density":0.9994,"noise_ratio":0.2857,"budget_utilization":0.9994},"compression_hotfix":{"composite":99.98,"section_relevance":1.0,"information_density":0.9996,"noise_ratio":0.0,"budget_utilization":0.9996},"feedback_regression":{"composite":99.3,"section_relevance":1.0,"information_density":0.9815,"noise_ratio":0.0,"budget_utilization":0.9815},"simple_impl_budget":{"composite":99.9,"section_relevance":1.0,"information_density":0.9969,"noise_ratio":0.0,"budget_utilization":0.9969},"visual_regression_webapp":{"composite":96.5,"section_relevance":1.0,"information_density":0.93,"noise_ratio":0.02,"budget_utilization":0.98},"acceptance_verification_feature":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.03,"budget_utilization":0.97},"interaction_accessibility_test":{"composite":95.5,"section_relevance":1.0,"information_density":0.91,"noise_ratio":0.03,"budget_utilization":0.97},"product_verification_pipeline":{"composite":96.0,"section_relevance":1.0,"information_density":0.92,"noise_ratio":0.02,"budget_utilization":0.98},"compression_tool_output":{"composite":98.33,"section_relevance":1.0,"information_density":0.9967,"noise_ratio":0.0769,"budget_utilization":0.9967},"compression_retention_easy":{"composite":99.62,"section_relevance":1.0,"information_density":0.9745,"noise_ratio":0.0,"budget_utilization":0.9745},"compression_retention_medium":{"composite":99.23,"section_relevance":1.0,"information_density":0.9802,"noise_ratio":0.0,"budget_utilization":0.9802},"compression_retention_hard":{"composite":98.55,"section_relevance":1.0,"information_density":0.9717,"noise_ratio":0.0,"budget_utilization":0.9717},"convergence_noise_filter":{"composite":98.09,"section_relevance":1.0,"information_density":0.9523,"noise_ratio":0.0,"budget_utilization":0.9523},"reflective_reflex_capture":{"composite":99.08,"section_relevance":1.0,"information_density":0.9769,"noise_ratio":0.0,"budget_utilization":0.9769},"adversarial_data_instruction":{"composite":99.49,"section_relevance":1.0,"information_density":0.9872,"noise_ratio":0.0,"budget_utilization":0.9872},"long_context_repo_qa":{"composite":98.47,"section_relevance":1.0,"information_density":0.9618,"noise_ratio":0.0,"budget_utilization":0.9618},"multi_repo_dispatch":{"composite":99.86,"section_relevance":1.0,"information_density":0.9964,"noise_ratio":0.0,"budget_utilization":0.9964}}},{"round":6,"label":"v7_staged_compression","scenarios":{"compression_tool_output":{"composite":98.33,"section_relevance":1.0,"information_density":0.9967,"noise_ratio":0.0769,"budget_utilization":0.9967},"compression_retention_easy":{"composite":99.62,"section_relevance":1.0,"information_density":0.9745,"noise_ratio":0.0,"budget_utilization":0.9745},"compression_retention_medium":{"composite":99.23,"section_relevance":1.0,"information_density":0.9802,"noise_ratio":0.0,"budget_utilization":0.9802},"compression_retention_hard":{"composite":98.55,"section_relevance":1.0,"information_density":0.9717,"noise_ratio":0.0,"budget_utilization":0.9717},"compression_persistence":{"composite":99.8,"section_relevance":1.0,"information_density":0.998,"noise_ratio":0.0,"budget_utilization":0.998}}},{"round":7,"label":"v8_layered_directed_compaction","scenarios":{"directed_compaction_focused":{"composite":99.69,"section_relevance":1.0,"information_density":0.9922,"noise_ratio":0.0,"budget_utilization":0.9922},"layered_recency_decay":{"composite":99.99,"section_relevance":1.0,"information_density":0.9998,"noise_ratio":0.0,"budget_utilization":0.9998},"abstractive_llm":{"composite":99.9,"section_relevance":1.0,"information_density":0.9974,"noise_ratio":0.0,"budget_utilization":0.9974},"r7_section_anchor_registry_no_drift":{"composite":91.0,"section_relevance":0.8889,"information_density":0.8593,"noise_ratio":0.0,"budget_utilization":0.9667},"agent_workspace_active":{"composite":98.81,"section_relevance":1.0,"information_density":0.9702,"noise_ratio":0.0,"budget_utilization":0.9702},"handoff_envelope_density":{"composite":98.81,"section_relevance":1.0,"information_density":0.9702,"noise_ratio":0.0,"budget_utilization":0.9702},"shell_proxy_disabled":{"composite":99.73,"section_relevance":1.0,"information_density":0.9932,"noise_ratio":0.0,"budget_utilization":0.9932},"memory_router_fastpath":{"composite":99.73,"section_relevance":1.0,"information_density":0.9932,"noise_ratio":0.0,"budget_utilization":0.9932},"command_mapping_density":{"composite":99.73,"section_relevance":1.0,"information_density":0.9932,"noise_ratio":0.0,"budget_utilization":0.9932},"token_budget_disabled":{"composite":96.05,"section_relevance":1.0,"information_density":0.9894,"noise_ratio":0.1765,"budget_utilization":0.9894},"verification_ladder_disabled":{"composite":96.05,"section_relevance":1.0,"information_density":0.9894,"noise_ratio":0.1765,"budget_utilization":0.9894},"ratchet_disabled":{"composite":96.05,"section_relevance":1.0,"information_density":0.9894,"noise_ratio":0.1765,"budget_utilization":0.9894},"complexity_detector_disabled":{"composite":96.05,"section_relevance":1.0,"information_density":0.9894,"noise_ratio":0.1765,"budget_utilization":0.9894},"ac_generator_disabled":{"composite":96.05,"section_relevance":1.0,"information_density":0.9894,"noise_ratio":0.1765,"budget_utilization":0.9894},"cascade_l0_l1_l2_l3_standard":{"composite":99.99,"section_relevance":1.0,"information_density":0.9998,"noise_ratio":0.0,"budget_utilization":0.9998},"cascade_l0_l1_l2_l3_complex":{"composite":99.99,"section_relevance":1.0,"information_density":0.9998,"noise_ratio":0.0,"budget_utilization":0.9998},"collapse_l0_l3_simple":{"composite":88.18,"section_relevance":0.8571,"information_density":0.8569,"noise_ratio":0.0,"budget_utilization":0.9492},"collapse_l0_l3_trivial":{"composite":97.97,"section_relevance":1.0,"information_density":0.9492,"noise_ratio":0.0,"budget_utilization":0.9492}}}]};
-(function () {
-  var data = SAMPLE_DATA;
-  var rounds = data.rounds.slice().sort(function (a, b) { return a.round - b.round; });
-  var scenSet = new Set();
-  rounds.forEach(function (r) { Object.keys(r.scenarios).forEach(function (k) { scenSet.add(k); }); });
-  var scenarios = Array.from(scenSet).sort();
-  var latest = rounds[rounds.length - 1];
+    window.addTranslations('en', {
+      'harness.pageTitle': 'Harness — DevolaFlow',
+      'harness.eyebrow': 'Built-in evaluation authority',
+      'harness.titleAccent': 'Harness',
+      'harness.titleSuffix': 'I/O',
+      'harness.tagline': 'From repository evidence to an explicit release verdict.',
+      'harness.versionLabel': 'Source release',
+      'harness.versionContext': 'documentation metadata, not live telemetry',
+      'harness.truthTitle': 'Documentation view.',
+      'harness.truthBody': ' This page does not load a telemetry ledger or claim a live evaluation. Run the local command against your repository to produce current evidence.',
+      'harness.inputsTitle': 'Evidence inputs',
+      'harness.inputsDesc': 'The evaluator combines an append-only ledger, deterministic fixtures, and bounded repository-local signals. Model probes are optional.',
+      'harness.ledgerTitle': 'Telemetry ledger',
+      'harness.ledgerBody': 'Dispatch records supply measured token budgets, constraint tiers, rounds, changes, and model-profile references.',
+      'harness.fixturesTitle': 'Deterministic fixtures',
+      'harness.fixturesBody': 'Validated fixtures make contract checks repeatable. A model probe accepts at most ten fixtures.',
+      'harness.localTitle': 'Repository-local signals',
+      'harness.localBody': 'Bounded local checks cover lint, formatting, tests, coverage, layout invariants, compatibility, test growth, and docstrings.',
+      'harness.probeTitle': 'Optional bounded probe',
+      'harness.probeBody': 'An explicit provider/model pair—or a configured model table—can test model compliance. Missing credentials produce SKIPPED_NO_KEY, never invented evidence.',
+      'harness.pipelineTitle': 'Evaluation pipeline',
+      'harness.pipelineDesc': 'One built-in path preserves the evidence boundary from input to decision.',
+      'harness.stepRecordTitle': 'Record',
+      'harness.stepRecordBody': 'Append dispatch telemetry without mutating the dispatch.',
+      'harness.stepAggregateTitle': 'Aggregate',
+      'harness.stepAggregateBody': 'Validate and summarize ledger records and settled baseline context.',
+      'harness.stepCollectTitle': 'Collect',
+      'harness.stepCollectBody': 'Run bounded local probes and preserve unavailable signals explicitly.',
+      'harness.stepEvaluateTitle': 'Evaluate',
+      'harness.stepEvaluateBody': 'Score the six W-3 dimensions and calculate the weighted composite.',
+      'harness.stepDecideTitle': 'Decide',
+      'harness.stepDecideBody': 'Emit READY, NOT_READY, or INSUFFICIENT with suggestions and evidence.',
+      'harness.evaluateCommandTitle': 'Run the evaluator',
+      'harness.evaluateCommandBody': 'The command reads local evidence and writes deterministic JSON. It has no external evaluator dependency.',
+      'harness.probeCommandTitle': 'Run an optional bounded probe',
+      'harness.probeCommandBody': 'This deterministic mock example keeps the fixture, token, and timeout bounds visible. Choose an approved provider and model only when model evidence is required.',
+      'harness.dimensionsTitle': 'Six W-3 dimensions',
+      'harness.dimensionsDesc': 'The composite is a weighted release-readiness output, not a replacement for underlying evidence.',
+      'harness.dimensionCode': 'Code quality',
+      'harness.dimensionCodeBody': 'Code hygiene and coverage.',
+      'harness.dimensionArchitecture': 'Architecture rationality',
+      'harness.dimensionArchitectureBody': 'Layout invariants and constraint quantifiability.',
+      'harness.dimensionTests': 'Test adequacy',
+      'harness.dimensionTestsBody': 'Test execution, coverage, and bounded test growth.',
+      'harness.dimensionMaintainability': 'Maintainability',
+      'harness.dimensionMaintainabilityBody': 'Formatting hygiene and docstring coverage.',
+      'harness.dimensionCompatibility': 'Compatibility',
+      'harness.dimensionCompatibilityBody': 'Layout witnesses and compatibility-suite results.',
+      'harness.dimensionPerformance': 'Performance impact',
+      'harness.dimensionPerformanceBody': 'Token-budget compliance and p95 token headroom.',
+      'harness.outcomesTitle': 'Explicit outcomes',
+      'harness.outcomesDesc': 'Availability and threshold checks remain visible in the machine-readable result.',
+      'harness.readyBody': 'All required machine subcomponents are available and the configured readiness threshold is met.',
+      'harness.notReadyBody': 'Evidence is available, but the composite is below the configured threshold. Iterate or escalate.',
+      'harness.insufficientBody': 'At least one required machine subcomponent is unavailable. Prose or estimates cannot turn this into a pass.',
+      'harness.historicalTitle': 'Historical release reference',
+      'harness.historicalBody': 'The v17.0.0 release record reports a W-3 composite of 9.84 and READY. This is archived release evidence, not live telemetry from this page.',
+      'harness.proposalsTitle': 'Approval-only proposals',
+      'harness.proposalsDesc': 'Evaluation suggestions may inform a tuning proposal, but they never authorize mutation.',
+      'harness.proposalPath': 'evaluate emits evidence and suggestions → propose creates an immutable candidate → apply requires both the proposal and an explicit approval artifact.',
+      'harness.noApprovalTitle': 'No approval, no change.',
+      'harness.noApprovalBody': ' An unapproved proposal produces byte-zero parameter changes.',
+      'harness.referencesTitle': 'Continue through the system',
+      'harness.referencesDesc': 'Connect evaluation I/O to orchestration, typed messages, history, and the current source contracts.',
+      'harness.linkSystem': 'System',
+      'harness.linkIo': 'I/O',
+      'harness.linkTimeline': 'Timeline',
+      'harness.linkSource': 'Harness source',
+      'harness.linkReference': 'Evaluator reference',
+      'harness.linkSkill': 'Read SKILL'
+    });
 
-  document.getElementById('m-scenarios').textContent = String(scenarios.length);
-  document.getElementById('m-version').textContent = data.version;
-  document.getElementById('m-round').textContent = String(latest.round) + ' (' + latest.label + ')';
+    window.addTranslations('zh', {
+      'harness.pageTitle': '评估体系 — DevolaFlow',
+      'harness.eyebrow': '内置评估权威',
+      'harness.titleAccent': '评估',
+      'harness.titleSuffix': '输入输出',
+      'harness.tagline': '从仓库证据得到明确的发布判定。',
+      'harness.versionLabel': '源码版本',
+      'harness.versionContext': '文档元数据，并非实时遥测',
+      'harness.truthTitle': '文档视图。',
+      'harness.truthBody': ' 本页不会加载遥测账本，也不声称展示实时评估。请在你的仓库中运行本地命令以生成当前证据。',
+      'harness.inputsTitle': '证据输入',
+      'harness.inputsDesc': '评估器组合只追加账本、确定性夹具与有界的仓库本地信号。模型探测为可选项。',
+      'harness.ledgerTitle': '遥测账本',
+      'harness.ledgerBody': '派发记录提供实测令牌预算、约束层级、轮次、变更和模型画像引用。',
+      'harness.fixturesTitle': '确定性夹具',
+      'harness.fixturesBody': '经过校验的夹具让契约检查可重复。一次模型探测最多接受十个夹具。',
+      'harness.localTitle': '仓库本地信号',
+      'harness.localBody': '有界本地检查覆盖代码检查、格式、测试、覆盖率、布局不变量、兼容性、测试增长与文档字符串。',
+      'harness.probeTitle': '可选有界探测',
+      'harness.probeBody': '显式的提供商/模型组合或已配置模型表可测试模型合规性。缺少凭据时返回 SKIPPED_NO_KEY，绝不虚构证据。',
+      'harness.pipelineTitle': '评估流水线',
+      'harness.pipelineDesc': '唯一内置路径从输入到判定始终守住证据边界。',
+      'harness.stepRecordTitle': '记录',
+      'harness.stepRecordBody': '在不修改派发消息的前提下追加遥测。',
+      'harness.stepAggregateTitle': '聚合',
+      'harness.stepAggregateBody': '校验并汇总账本记录与已结算基线上下文。',
+      'harness.stepCollectTitle': '采集',
+      'harness.stepCollectBody': '运行有界本地探测，并明确保留不可用信号。',
+      'harness.stepEvaluateTitle': '评估',
+      'harness.stepEvaluateBody': '对六个 W-3 维度评分并计算加权综合分。',
+      'harness.stepDecideTitle': '判定',
+      'harness.stepDecideBody': '输出 READY、NOT_READY 或 INSUFFICIENT，并附建议与证据。',
+      'harness.evaluateCommandTitle': '运行评估器',
+      'harness.evaluateCommandBody': '该命令读取本地证据并写入确定性 JSON，不依赖外部评估器。',
+      'harness.probeCommandTitle': '运行可选有界探测',
+      'harness.probeCommandBody': '这个确定性 mock 示例明确展示夹具、令牌与超时边界。仅在需要模型证据时选择已批准的提供商和模型。',
+      'harness.dimensionsTitle': '六个 W-3 维度',
+      'harness.dimensionsDesc': '综合分是加权的发布就绪输出，不能替代底层证据。',
+      'harness.dimensionCode': '代码质量',
+      'harness.dimensionCodeBody': '代码整洁度与覆盖率。',
+      'harness.dimensionArchitecture': '架构合理性',
+      'harness.dimensionArchitectureBody': '布局不变量与约束可量化性。',
+      'harness.dimensionTests': '测试充分性',
+      'harness.dimensionTestsBody': '测试执行、覆盖率与有界测试增长。',
+      'harness.dimensionMaintainability': '可维护性',
+      'harness.dimensionMaintainabilityBody': '格式整洁度与文档字符串覆盖率。',
+      'harness.dimensionCompatibility': '兼容性',
+      'harness.dimensionCompatibilityBody': '布局见证与兼容性测试套件结果。',
+      'harness.dimensionPerformance': '性能影响',
+      'harness.dimensionPerformanceBody': '令牌预算合规率与 p95 令牌余量。',
+      'harness.outcomesTitle': '明确判定',
+      'harness.outcomesDesc': '可用性和阈值检查会完整保留在机器可读结果中。',
+      'harness.readyBody': '所有必需的机器子组件均可用，且达到配置的就绪阈值。',
+      'harness.notReadyBody': '证据可用，但综合分低于配置阈值。继续迭代或升级。',
+      'harness.insufficientBody': '至少一个必需的机器子组件不可用。文字说明或估算不能把它改写为通过。',
+      'harness.historicalTitle': '历史发布参考',
+      'harness.historicalBody': 'v17.0.0 发布记录报告 W-3 综合分为 9.84，判定为 READY。这是归档发布证据，并非本页实时遥测。',
+      'harness.proposalsTitle': '仅批准后执行的提案',
+      'harness.proposalsDesc': '评估建议可用于形成调优提案，但绝不构成修改授权。',
+      'harness.proposalPath': 'evaluate 输出证据与建议 → propose 创建不可变候选 → apply 必须同时获得提案和显式批准制品。',
+      'harness.noApprovalTitle': '未批准，不变更。',
+      'harness.noApprovalBody': ' 未批准的提案产生零字节参数变更。',
+      'harness.referencesTitle': '继续了解系统',
+      'harness.referencesDesc': '把评估输入输出与编排、类型化消息、历史和当前源码契约连接起来。',
+      'harness.linkSystem': '系统',
+      'harness.linkIo': '输入输出',
+      'harness.linkTimeline': '时间线',
+      'harness.linkSource': '评估源码',
+      'harness.linkReference': '评估器参考',
+      'harness.linkSkill': '阅读 SKILL'
+    });
 
-  /* Load-time version derivation (v14.4.0 G-031): the canonical version is
-     read from the version-timeline data — a same-origin static asset deployed
-     with the site (scripts/build-site.sh copies demo/* to the site root, so
-     the ../version-timeline/ relative path holds in both layouts). Path is
-     RELATIVE per Rule S-2 / SF-5; fetch precedent:
-     ../version-timeline/version-timeline.js#fetchVersions. On failure
-     (file:// or offline) the SAMPLE_DATA fallback rendered above stays. */
-  function compareSemver(a, b) {
-    var pa = String(a).split('.').map(Number);
-    var pb = String(b).split('.').map(Number);
-    for (var i = 0; i < 3; i++) {
-      var da = pa[i] || 0;
-      var db = pb[i] || 0;
-      if (da !== db) { return da - db; }
+    /* SAMPLE_DATA is a STATIC FALLBACK for file:// and offline contexts.
+       It carries only a source-version label, never telemetry or results.
+       The displayed version is derived from versions.json when available. */
+    const SAMPLE_DATA = {"version":"17.0.0"};
+    const versionElement = document.getElementById('harness-version');
+    versionElement.textContent = 'v' + SAMPLE_DATA.version;
+
+    function compareSemver(a, b) {
+      var left = String(a).split('.').map(Number);
+      var right = String(b).split('.').map(Number);
+      for (var index = 0; index < 3; index += 1) {
+        var difference = (left[index] || 0) - (right[index] || 0);
+        if (difference !== 0) { return difference; }
+      }
+      return 0;
     }
-    return 0;
-  }
-  fetch('../version-timeline/versions.json', { cache: 'no-cache' })
-    .then(function (res) {
-      if (!res.ok) {
-        throw new Error('HTTP ' + res.status + ' ' + res.statusText + ' for versions.json');
-      }
-      return res.json();
-    })
-    .then(function (entries) {
-      if (!Array.isArray(entries) || entries.length === 0) {
-        throw new Error('versions.json is empty or not an array');
-      }
-      var newest = entries.reduce(function (best, e) {
-        return compareSemver(e.version, best.version) > 0 ? e : best;
+
+    fetch('../version-timeline/versions.json', { cache: 'no-cache' })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status + ' for versions.json');
+        }
+        return response.json();
+      })
+      .then(function (entries) {
+        if (!Array.isArray(entries) || entries.length === 0) {
+          throw new Error('versions.json is empty or not an array');
+        }
+        var newest = entries.reduce(function (best, entry) {
+          return compareSemver(entry.version, best.version) > 0 ? entry : best;
+        });
+        versionElement.textContent = 'v' + newest.version;
+      })
+      .catch(function (error) {
+        console.warn('Version derivation failed; showing STATIC FALLBACK label.', error);
       });
-      document.getElementById('m-version').textContent = newest.version;
-    })
-    .catch(function (err) {
-      /* Best-effort by design (S-5: logged, not suppressed): keep the
-         already-rendered SAMPLE_DATA fallback version. */
-      console.warn('versions.json derivation failed; showing static fallback version:', err);
-    });
-
-  var latestScens = Object.values(latest.scenarios);
-  var avgComp = latestScens.reduce(function (sum, s) { return sum + s.composite; }, 0) / latestScens.length;
-  var avgBudget = latestScens.reduce(function (sum, s) { return sum + s.budget_utilization; }, 0) / latestScens.length;
-  document.getElementById('m-avg').textContent = avgComp.toFixed(1);
-  document.getElementById('m-budget').textContent = (avgBudget * 100).toFixed(0) + '%';
-
-  var thead = document.querySelector('#cmp-table thead');
-  var hrow = document.createElement('tr');
-  hrow.appendChild(document.createElement('th')).textContent = 'Scenario';
-  rounds.forEach(function (r) {
-    var th = document.createElement('th');
-    th.innerHTML = 'R' + r.round + ' <span class="mono" style="font-weight:400;color:var(--muted)">' + r.label + '</span>';
-    hrow.appendChild(th);
-  });
-  thead.appendChild(hrow);
-
-  var tbody = document.querySelector('#cmp-table tbody');
-  scenarios.forEach(function (sid) {
-    var tr = document.createElement('tr');
-    tr.appendChild(document.createElement('td')).innerHTML = '<strong class="mono">' + sid + '</strong>';
-    var prev = null;
-    rounds.forEach(function (r) {
-      var td = document.createElement('td');
-      var sc = r.scenarios[sid];
-      if (!sc) { td.textContent = '\u2014'; tr.appendChild(td); return; }
-      var comp = sc.composite;
-      var spanScore = document.createElement('span');
-      spanScore.textContent = Number(comp).toFixed(1);
-      td.appendChild(spanScore);
-      if (prev !== null) {
-        var d = comp - prev;
-        var span = document.createElement('span');
-        span.className = 'mono';
-        if (d > 0.0001) { span.className += ' delta-up'; span.textContent = ' +' + d.toFixed(1); }
-        else if (d < -0.0001) { span.className += ' delta-down'; span.textContent = ' ' + d.toFixed(1); }
-        else { span.className += ' delta-flat'; span.textContent = ' 0'; }
-        td.appendChild(document.createTextNode(' '));
-        td.appendChild(span);
-      } else {
-        td.appendChild(document.createTextNode(' '));
-        var em = document.createElement('span');
-        em.className = 'delta-flat mono';
-        em.textContent = '\u2014';
-        td.appendChild(em);
-      }
-      prev = comp;
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-
-  var bd = document.getElementById('breakdown');
-  var cap = document.createElement('p');
-  cap.className = 'desc';
-  cap.textContent = 'Latest: round ' + latest.round + ' (' + latest.label + ')' + (latest.timestamp ? ' \u00b7 ' + latest.timestamp : '');
-  bd.appendChild(cap);
-
-  var grid = document.createElement('div');
-  grid.className = 'scenarios-grid';
-  bd.appendChild(grid);
-
-  var dims = [
-    { key: 'section_relevance', label: 'section_relevance', noise: false },
-    { key: 'information_density', label: 'information_density', noise: false },
-    { key: 'noise_ratio', label: 'noise_ratio', noise: true },
-    { key: 'budget_utilization', label: 'budget_utilization', noise: false }
-  ];
-  scenarios.forEach(function (sid) {
-    var s = latest.scenarios[sid];
-    if (!s) return;
-    var card = document.createElement('div');
-    card.className = 'scenario-card';
-    card.innerHTML = '<h3 class="mono">' + sid + '</h3>';
-    dims.forEach(function (d) {
-      var v = s[d.key];
-      var pct = Math.max(0, Math.min(1, v)) * 100;
-      var row = document.createElement('div');
-      row.className = 'dim';
-      var lab = document.createElement('label');
-      lab.innerHTML = '<span>' + d.label + '</span><span class="mono">' + v.toFixed(2) + '</span>';
-      row.appendChild(lab);
-      var bar = document.createElement('div');
-      bar.className = 'bar' + (d.noise ? ' noise' : '');
-      var inner = document.createElement('i');
-      inner.style.width = pct + '%';
-      bar.appendChild(inner);
-      row.appendChild(bar);
-      card.appendChild(row);
-    });
-    grid.appendChild(card);
-  });
-})();
   </script>
 </body>
 </html>

@@ -3,54 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="page.visualizer">Workflow Visualizer — DevolaFlow</title>
+  <title data-i18n="seed.pageTitle">Checklist Seed Library — DevolaFlow</title>
+  <link rel="icon" type="image/svg+xml" href="../shared/favicon.svg">
   <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1 data-i18n="viz.title">Workflow Visualizer</h1>
-      <p class="tagline" data-i18n="viz.subtitle">Select a workflow to visualize its stage pipeline</p>
+    <header class="seed-hero">
+      <p class="eyebrow" data-i18n="seed.eyebrow">System companion · editorial index</p>
+      <h1 data-i18n="seed.title">Checklist Seed Library</h1>
+      <p class="tagline" data-i18n="seed.subtitle">Browse 23 intent seeds that shape a checklist before execution.</p>
+      <nav class="secondary-nav" aria-label="System companions" data-i18n-aria-label="seed.companionsLabel">
+        <a href="../framework-chain/index.html" data-i18n="seed.systemLink">System</a>
+        <a href="../design-architecture/index.html" data-i18n="seed.architectureLink">Architecture map</a>
+        <a href="../stage-explorer/index.html" data-i18n="seed.primitivesLink">Primitive I/O companion</a>
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md"
+           target="_blank" rel="noopener" data-i18n="seed.skillLink">Read SKILL</a>
+      </nav>
     </header>
 
-    <section>
-      <label for="workflow-select" data-i18n="viz.selectWorkflow">Select workflow</label>
-      <select id="workflow-select"><option value="">Choose...</option></select>
+    <section class="runtime-note" aria-labelledby="runtime-title">
+      <div>
+        <p class="eyebrow" data-i18n="seed.runtimeEyebrow">Seed selection is not execution</p>
+        <h2 id="runtime-title" data-i18n="seed.runtimeTitle">One catalog, one sole runtime</h2>
+      </div>
+      <p data-i18n="seed.runtimeCopy">
+        The 23 entries are user-facing checklist seeds. change-driven keeps seed compatibility while its separate built-in template is the sole runtime for signed preflight, bounded checklist rounds, evidence gates, and guarded archive. The runtime is not a 24th catalog choice.
+      </p>
+      <p class="provenance-rule" data-i18n="seed.provenanceRule">
+        source_stages is provenance-only presentation metadata. Its sequence never creates dependencies, waves, loops, gates, or executable order.
+      </p>
+    </section>
 
-      <div class="info card">
-        <h3 id="wf-name">-</h3>
-        <p id="wf-desc" class="desc">-</p>
-        <div class="meta">
-          <div><strong data-i18n="common.category">Category</strong> <span id="wf-category">-</span></div>
-          <div><strong data-i18n="viz.stages">Stages</strong> <span id="wf-stages">-</span></div>
-          <div><strong data-i18n="viz.useWhen">Use when</strong> <span id="wf-use">-</span></div>
+    <main class="library-section" aria-labelledby="library-title">
+      <div class="library-heading">
+        <div>
+          <p class="eyebrow" data-i18n="seed.catalogEyebrow">Registry v3 catalog</p>
+          <h2 id="library-title" data-i18n="seed.catalogTitle">Find a checklist starting point</h2>
         </div>
-        <div class="meta">
-          <div><strong data-i18n="viz.teams">Teams</strong> <span id="wf-teams">-</span></div>
-          <div><strong data-i18n="viz.loops">Loops</strong> <span id="wf-loops">-</span></div>
+        <p id="result-summary" class="result-summary" aria-live="polite"></p>
+      </div>
+
+      <div class="library-controls" role="search">
+        <div class="control-field">
+          <label for="seed-search" data-i18n="seed.searchLabel">Search name or intent</label>
+          <input id="seed-search" type="search" autocomplete="off"
+                 data-i18n-placeholder="seed.searchPlaceholder"
+                 placeholder="Try “security”, “documentation”, or “frontend”">
+        </div>
+        <div class="control-field">
+          <label for="category-filter" data-i18n="seed.categoryLabel">Category</label>
+          <select id="category-filter"></select>
         </div>
       </div>
-    </section>
 
-    <section>
-      <h2 class="section-title" data-i18n="viz.pipelineDiagram">Stage Pipeline Diagram</h2>
-      <p class="section-hint" data-i18n="viz.pipelineHint">Shows the Project Agent orchestrating checklist rounds. Each round is decomposed into waves and executed by Task Agents.</p>
-      <div id="diagram"></div>
-      <div class="legend">
-        <strong data-i18n="viz.legendTitle">Diagram legend</strong>
-        <span><code>[[ ]]</code> = <span data-i18n="viz.legendConvergence">convergence gate (multi-round review-fix loop)</span></span>
-        <span><code>[ ]</code> = <span data-i18n="viz.legendStandard">standard gate (single pass/fail)</span></span>
-        <span><code>( )</code> = <span data-i18n="viz.legendNoGate">no gate (intermediate)</span></span>
-        <span><code>{ }</code> = <span data-i18n="viz.legendCheckpoint">gate checkpoint</span></span>
+      <div class="library-grid">
+        <aside class="seed-index" aria-labelledby="index-title">
+          <h3 id="index-title" data-i18n="seed.indexTitle">Seed index</h3>
+          <p class="keyboard-hint" data-i18n="seed.keyboardHint">Tab to enter; use ↑ and ↓ to move through results.</p>
+          <ol id="seed-list" aria-label="Checklist seeds" data-i18n-aria-label="seed.listLabel"></ol>
+          <p id="empty-state" class="empty-state" hidden data-i18n="seed.empty">No seeds match these filters.</p>
+        </aside>
+
+        <article id="seed-detail" class="detail-pane" aria-labelledby="detail-name" aria-live="polite">
+          <div class="detail-heading">
+            <div>
+              <p class="detail-kicker" data-i18n="seed.detailKicker">Checklist seed</p>
+              <h2 id="detail-name"></h2>
+            </div>
+            <span id="detail-category" class="category-mark"></span>
+          </div>
+
+          <div class="intent-block">
+            <h3 data-i18n="seed.intentTitle">Intent</h3>
+            <p id="detail-description"></p>
+          </div>
+
+          <div class="detail-stats" aria-label="Seed summary" data-i18n-aria-label="seed.summaryLabel">
+            <span><strong id="partition-count">0</strong> <span data-i18n="seed.partitions">partitions</span></span>
+            <span><strong id="assertion-count">0</strong> <span data-i18n="seed.assertions">assertions</span></span>
+            <span><strong id="source-count">0</strong> <span data-i18n="seed.sources">provenance labels</span></span>
+          </div>
+
+          <div class="partition-heading">
+            <h3 data-i18n="seed.partitionTitle">Checklist partitions and assertions</h3>
+            <p data-i18n="seed.partitionHint">These are materialization prompts, not runtime steps.</p>
+          </div>
+          <div id="partition-list"></div>
+        </article>
       </div>
-    </section>
-
-    <section>
-      <h2 class="section-title" data-i18n="viz.agentHierarchy">Agent Hierarchy for This Workflow</h2>
-      <p class="section-hint" data-i18n="viz.agentHierarchyHint">How the 3-layer delegation works for this specific workflow. Upper layers dispatch; only L2 (Task Agent) does actual work.</p>
-      <div id="wf-hierarchy"></div>
-    </section>
+    </main>
 
     <footer>
       <span data-i18n="footer.text">DevolaFlow</span> &middot;
@@ -62,35 +105,100 @@
   <script src="../shared/i18n.js"></script>
   <script>
     addTranslations('en', {
-      'viz.title': 'Workflow Visualizer',
-      'viz.pipelineDiagram': 'Stage Pipeline Diagram',
-      'viz.pipelineHint': 'Shows the Project Agent orchestrating checklist rounds. Each round is decomposed into waves and executed by Task Agents.',
-      'viz.legendTitle': 'Diagram legend',
-      'viz.agentHierarchy': 'Agent Hierarchy for This Workflow',
-      'viz.agentHierarchyHint': 'How the 3-layer delegation works for this specific workflow. Upper layers dispatch; only L2 (Task Agent) does actual work.',
-      'viz.useWhen': 'Use when',
-      'viz.legendConvergence': 'convergence gate (multi-round review-fix loop)',
-      'viz.legendStandard': 'standard gate (single pass/fail)',
-      'viz.legendNoGate': 'no gate (intermediate)',
-      'viz.legendCheckpoint': 'gate checkpoint'
+      'seed.pageTitle': 'Checklist Seed Library — DevolaFlow',
+      'seed.eyebrow': 'System companion · editorial index',
+      'seed.title': 'Checklist Seed Library',
+      'seed.subtitle': 'Browse 23 intent seeds that shape a checklist before execution.',
+      'seed.companionsLabel': 'System companions',
+      'seed.systemLink': 'System',
+      'seed.architectureLink': 'Architecture map',
+      'seed.primitivesLink': 'Primitive I/O companion',
+      'seed.skillLink': 'Read SKILL',
+      'seed.runtimeEyebrow': 'Seed selection is not execution',
+      'seed.runtimeTitle': 'One catalog, one sole runtime',
+      'seed.runtimeCopy': 'The 23 entries are user-facing checklist seeds. change-driven keeps seed compatibility while its separate built-in template is the sole runtime for signed preflight, bounded checklist rounds, evidence gates, and guarded archive. The runtime is not a 24th catalog choice.',
+      'seed.provenanceRule': 'source_stages is provenance-only presentation metadata. Its sequence never creates dependencies, waves, loops, gates, or executable order.',
+      'seed.catalogEyebrow': 'Registry v3 catalog',
+      'seed.catalogTitle': 'Find a checklist starting point',
+      'seed.searchLabel': 'Search name or intent',
+      'seed.searchPlaceholder': 'Try “security”, “documentation”, or “frontend”',
+      'seed.categoryLabel': 'Category',
+      'seed.allCategories': 'All categories',
+      'seed.indexTitle': 'Seed index',
+      'seed.keyboardHint': 'Tab to enter; use ↑ and ↓ to move through results.',
+      'seed.listLabel': 'Checklist seeds',
+      'seed.empty': 'No seeds match these filters.',
+      'seed.detailKicker': 'Checklist seed',
+      'seed.intentTitle': 'Intent',
+      'seed.summaryLabel': 'Seed summary',
+      'seed.partitions': 'partitions',
+      'seed.assertions': 'assertions',
+      'seed.sources': 'provenance labels',
+      'seed.partitionTitle': 'Checklist partitions and assertions',
+      'seed.partitionHint': 'These are materialization prompts, not runtime steps.',
+      'seed.priority': 'Suggested priority',
+      'seed.verification': 'Verification',
+      'seed.sourceStages': 'source_stages · provenance only',
+      'seed.results': '{visible} of {total} seeds',
+      'seed.category.build': 'Build',
+      'seed.category.discover': 'Discover',
+      'seed.category.shape': 'Shape',
+      'seed.category.deliver': 'Deliver',
+      'seed.category.composite': 'Composite',
+      'seed.category.control': 'Control',
+      'seed.verify.manual': 'Manual evidence',
+      'seed.verify.metric': 'Metric assertion',
+      'seed.catalogError': 'The generated seed catalog is unavailable or malformed. Regenerate shared/seed-catalog.js before browsing seeds.'
     });
     addTranslations('zh', {
-      'viz.title': '工作流可视化',
-      'viz.pipelineDiagram': '阶段流水线图',
-      'viz.pipelineHint': '展示项目代理如何编排清单轮次。每个轮次被分解为波次，由任务代理执行。',
-      'viz.legendTitle': '图例说明',
-      'viz.agentHierarchy': '此工作流的代理层次结构',
-      'viz.agentHierarchyHint': '三层委派在此工作流中的具体运作方式。上层负责调度；只有 L2（任务代理）执行实际工作。',
-      'viz.useWhen': '适用场景',
-      'viz.legendConvergence': '收敛门控（多轮审查-修复循环）',
-      'viz.legendStandard': '标准门控（单次通过/失败）',
-      'viz.legendNoGate': '无门控（中间阶段）',
-      'viz.legendCheckpoint': '门控检查点'
+      'seed.pageTitle': '清单种子库 — DevolaFlow',
+      'seed.eyebrow': '系统配套页 · 编辑索引',
+      'seed.title': '清单种子库',
+      'seed.subtitle': '浏览 23 个意图种子，在执行前塑造清单。',
+      'seed.companionsLabel': '系统配套页面',
+      'seed.systemLink': '系统',
+      'seed.architectureLink': '架构地图',
+      'seed.primitivesLink': '原语输入输出配套页',
+      'seed.skillLink': '阅读 SKILL',
+      'seed.runtimeEyebrow': '选择种子不等于执行',
+      'seed.runtimeTitle': '一个目录，唯一运行时',
+      'seed.runtimeCopy': '这 23 个条目是面向用户的清单种子。change-driven 保留种子兼容入口；其独立内置模板是唯一运行时，负责签署预检、有界清单轮次、证据门控与受控归档。该运行时不是第 24 个目录选项。',
+      'seed.provenanceRule': 'source_stages 仅是来源追溯展示元数据。其顺序不会产生依赖、波次、循环、门控或可执行次序。',
+      'seed.catalogEyebrow': 'Registry v3 目录',
+      'seed.catalogTitle': '寻找清单起点',
+      'seed.searchLabel': '搜索名称或意图',
+      'seed.searchPlaceholder': '试试“安全”“文档”或“前端”',
+      'seed.categoryLabel': '类别',
+      'seed.allCategories': '全部类别',
+      'seed.indexTitle': '种子索引',
+      'seed.keyboardHint': '按 Tab 进入，用 ↑ 和 ↓ 在结果中移动。',
+      'seed.listLabel': '清单种子',
+      'seed.empty': '没有种子符合当前筛选条件。',
+      'seed.detailKicker': '清单种子',
+      'seed.intentTitle': '意图',
+      'seed.summaryLabel': '种子摘要',
+      'seed.partitions': '个分区',
+      'seed.assertions': '条断言',
+      'seed.sources': '个来源标签',
+      'seed.partitionTitle': '清单分区与断言',
+      'seed.partitionHint': '这些是清单物化提示，不是运行时步骤。',
+      'seed.priority': '建议优先级',
+      'seed.verification': '验证方式',
+      'seed.sourceStages': 'source_stages · 仅用于来源追溯',
+      'seed.results': '显示 {visible} / {total} 个种子',
+      'seed.category.build': '构建',
+      'seed.category.discover': '探索',
+      'seed.category.shape': '塑形',
+      'seed.category.deliver': '交付',
+      'seed.category.composite': '复合',
+      'seed.category.control': '控制',
+      'seed.verify.manual': '人工证据',
+      'seed.verify.metric': '指标断言',
+      'seed.catalogError': '生成的清单种子目录不可用或格式错误。请重新生成 shared/seed-catalog.js 后再浏览。'
     });
   </script>
   <script src="../shared/nav.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
+  <script src="../shared/seed-catalog.js"></script>
   <script src="visualizer.js"></script>
 </body>
 </html>

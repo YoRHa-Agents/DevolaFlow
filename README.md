@@ -7,598 +7,312 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
 [![Version](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FYoRHa-Agents%2FDevolaFlow%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version&color=green)](https://github.com/YoRHa-Agents/DevolaFlow/releases)
 
-**Checklist-round orchestration meta-framework** for AI-assisted software
-development. Select one of 23 non-executable checklist seeds for decomposition
-knowledge, then execute the sole `change-driven` runtime through a three-layer
-Project → Wave → Task hierarchy.
+DevolaFlow is a checklist-round orchestration meta-framework for AI-assisted
+software development. It selects non-executable decomposition knowledge, then
+executes a user-confirmed checklist through one `change-driven` runtime and a
+three-layer Project → Wave → Task hierarchy.
 
-```
-User Request
-    |
-    v
- [Project Agent] -> confirm goal, checklist, preflight, and seed
-    |
-    v
- [Round] -> select ready checklist items by priority/dependency
-    |
-    +-- [Wave Agent] -> dispatch <=5 ownership-safe tasks
-            +-- [Task Agent] -> implement, review, fix, re-review
-                               and return evidence
-    v
- [Evidence Gate] -> PASS: check items | FAIL: bounded reinforce/escalate
+```text
+natural-language request
+  → checklist seed
+  → goal + checklist + preflight
+  → bounded Project/Wave/Task rounds
+  → evidence-backed completion or escalation
 ```
 
-## Quick Install (Pick One)
+## Install
 
-### npm / npx (no clone, no Python — works on Windows)
+The installation channels have different scopes. In particular, `all` does
+not mean the same thing in npm, curl, and `devola-init`.
+
+### npm / npx: user-level Cursor and Claude
+
+Requires Node 18 or newer and works on Windows.
 
 ```bash
-npx @yorha-agents/devola-flow install cursor    # Cursor  (~/.cursor/skills/devola-flow/)
-npx @yorha-agents/devola-flow install claude    # Claude  (~/.claude/skills/devola-flow/)
-npx @yorha-agents/devola-flow install all       # both
-npx @yorha-agents/devola-flow doctor            # health check (stamp version + manifest parity)
-npx @yorha-agents/devola-flow update all        # update to the package's tagged version
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install all
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update all
 ```
 
-Requires Node ≥ 18. Skill files download from GitHub at the tag matching the
-package version (`DEVOLA_FLOW_REF` overrides). User-level Cursor/Claude
-targets only — for project-local, Copilot, or Codex installs use the
-one-liner below.
+npm `all` means the two user-level targets supported by the package: Cursor
+and Claude. Downloads default to the tag matching the npm package version;
+`DEVOLA_FLOW_REF` can intentionally select another branch, tag, or SHA.
 
-### One-liner (no clone needed)
+### curl: broad project/global installer
+
+The curl installer defaults to project scope and covers the target set
+implemented by [`scripts/install.sh`](scripts/install.sh): Cursor, Claude,
+Codex, Copilot, KimiCode, Windsurf, Zed, Cline, Roo, local workspace, and a
+standalone file.
 
 ```bash
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-
-curl -fsSL $INSTALLER | bash -s cursor             # Cursor (project-local .cursor/skills/devola-flow/)
-curl -fsSL $INSTALLER | bash -s cursor --global    # Cursor (user-global ~/.cursor/skills/devola-flow/)
-curl -fsSL $INSTALLER | bash -s claude             # Claude Code (project-local .claude/skills/devola-flow/)
-curl -fsSL $INSTALLER | bash -s claude --global    # Claude Code (user-global ~/.claude/skills/devola-flow/)
-curl -fsSL $INSTALLER | bash -s copilot            # Copilot (.github/copilot-instructions.md)
-curl -fsSL $INSTALLER | bash -s all                # all tools at once
-curl -fsSL $INSTALLER | bash -s update             # update installs (skips up-to-date; --force re-downloads)
-curl -fsSL $INSTALLER | bash -s uninstall          # remove detected installs (--dry-run to preview)
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s all
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
 ```
 
-The file list each target ships is declared in
-[`workflow-system/agent/manifest.yaml`](workflow-system/agent/manifest.yaml)
-(the install-manifest single source of truth). Pass `--base-url <mirror>` to
-download from a mirror instead of GitHub raw.
+curl `all` installs all supported host targets plus the local scaffold; it
+excludes `standalone`. Some hosts are project-only even when `--global` is
+requested. Global installation also attempts the registered runtime plugins;
+add `--no-plugins` to copy only skill files. curl supports `update` and
+`uninstall`, but has no doctor target.
 
-### pip install + init
+### pip or wheel: Python runtime and local scaffold
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-cd your-project/
-devola-init              # auto-detect tools and install
-devola-init cursor       # Cursor only (project-local)
-devola-init claude --global  # Claude Code only (user-global)
-devola-init all          # all tools
-
-# v9.2.3 mode shorthand (consolidates --no-compile / --with-examples)
-devola-init local --mode=core      # lean install — scaffolding only
-devola-init local --mode=standard  # default — compile rules, no examples
-devola-init local --mode=full      # full demo — compile + seed examples
+cd your-project
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init-doctor
 ```
 
-### Troubleshooting installs
+A wheel supplies the Python runtime, CLIs, and `devola-init local`. It does not
+bundle `workflow-system/agent/`, so wheel-only installs cannot copy Cursor,
+Claude, Copilot, or Codex skill files.
 
-**`pip install` failing on a corporate mirror?** Some internal mirrors
-(e.g. `https://*.baidubce.com/pypi/...`) ship `setuptools` versions older
-than the `>=68.0` floor required to install DevolaFlow's editable build
-backend. Override the index URL while keeping the corporate proxy active:
-
-```bash
-pip install --index-url https://pypi.org/simple/ \
-    git+https://github.com/YoRHa-Agents/DevolaFlow.git
-```
-
-**`devola-init` exits with `Error: Agent source not found ...` after a
-pip install?** Resolved in **v9.2.2** (I-001). `devola-init local` now
-succeeds on pip-wheel-only installs (the wheel does not bundle
-`workflow-system/` and `install_local` doesn't need it). The other
-targets (`cursor` / `claude` / `codex` / `copilot`) still require a
-clone install — `git clone https://github.com/YoRHa-Agents/DevolaFlow
-&& pip install -e ./DevolaFlow` — because they copy the
-`workflow-system/agent/` source tree into the consumer-side skill
-directory.
-
-**Want the shortest possible bootstrap?** `devola-init local --mode=core`
-is the lean recipe (skips rule compilation + example seeds; works on
-wheel-only installs from v9.2.3 onward).
-
-### Manual (copy one file)
-
-Download [`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and drop it in:
-
-| Tool | Project-local | User-global |
-|------|--------------|-------------|
-| **Cursor** | `.cursor/skills/devola-flow/SKILL.md` | `~/.cursor/skills/devola-flow/SKILL.md` |
-| **Codex** | — | `~/.codex/skills/devola-flow/SKILL.md` |
-| **Claude Code** | `.claude/skills/devola-flow/SKILL.md` | `~/.claude/skills/devola-flow/SKILL.md` |
-| **Copilot** | `.github/copilot-instructions.md` | — |
-
-Full Development Setup
+Use a clone plus editable install for non-local `devola-init` targets:
 
 ```bash
 git clone https://github.com/YoRHa-Agents/DevolaFlow.git
 cd DevolaFlow
 pip install -e ".[dev]"
-make test && make validate-templates   # tests pass; 23 non-executable seeds + sole runtime validate
-make build-skill                        # generate all 4 tool outputs
-devola-init all                         # install to all detected tools
+devola-init cursor
+devola-init all
 ```
 
-## Using DevolaFlow in Your Agent Tool
+Python `all` means Cursor, Claude, Copilot, and Codex; it excludes the local
+scaffold. With `--global`, registered plugin installation is attempted unless
+`--no-plugins` is passed.
 
-After installing, DevolaFlow activates automatically when you ask your AI tool to do multi-step work. Here's what to expect in each tool.
+### Manual fallback
 
-### Cursor
+You can copy
+[`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md)
+into a host instruction location, but a single-file copy omits
+manifest-declared references and examples. Use
+[`workflow-system/agent/manifest.yaml`](workflow-system/agent/manifest.yaml)
+or a supported installer for a complete host profile.
 
-DevolaFlow is loaded as a Cursor Skill. It triggers on intent-matched keywords like "implement", "fix bug", "refactor", "full pipeline".
+### Full Development Setup
 
-**Try these prompts:**
-
-```
-"Implement a user authentication system from scratch"
-  -> Agent loads the full-pipeline checklist seed
-  -> Confirms goal/checklist/preflight, then runs change-driven rounds
-
-"Fix the login timeout bug in production"
-  -> Agent loads the hotfix seed's concise assertions
-  -> Dispatches an ownership-bounded fix task with focused verification
-
-"Refactor the database layer to use repository pattern"
-  -> Agent loads refactoring decomposition knowledge
-
-"Research the best approach for real-time notifications"
-  -> Agent loads the research-only seed
-  -> Produces a report, no code
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+make test
+make validate-templates
 ```
 
-**What the agent does differently with DevolaFlow:**
+The validation covers 23 non-executable seeds and the sole runtime. The
+registry and on-disk seed files are parity-tested rather than copied into build
+scripts.
 
-1. **Dispatches instead of diving in** — L0 confirms a checklist and sends ready items through L1 waves to bounded L2 tasks
-2. **Uses subagents with isolated context**, each task gets its own subagent with only the files it needs (~8K token budget), preventing context pollution
-3. **Runs evidence gates** — a round passes only when selected items have valid evidence, configured checks pass, and blockers are zero
-4. **Follows bounded convergence** — implementation tasks run implement → review → fix → re-review before reporting
+## Doctor and Update Surfaces
 
-Claude Code
+Use the doctor that matches the installation surface:
 
-DevolaFlow is loaded as a Claude Code Skill from `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (user-global). The same prompts work. Claude Code will follow the hierarchy rules and workflow structure whenever the skill activates.
+```bash
+# npm-supported user-level Cursor/Claude copies and manifest parity
+npx @yorha-agents/devola-flow doctor
 
-GitHub Copilot
+# current Python local workspace structure
+devola-init-doctor
 
-DevolaFlow is loaded as `copilot-instructions.md` (applied to every request). Copilot follows the workflow selection heuristics and hierarchy constraints when generating code suggestions and chat responses.
-
-Codex CLI
-
-DevolaFlow is loaded as a Codex Skill. It activates on the same intent keywords. Codex will use subagents for parallel task execution within waves.
-
-### Checking for Updates
-
-DevolaFlow includes a built-in update check you can trigger from inside your AI tool. Just ask:
-
-```
-"update devola"
-"/update-devola"
-"update_devola"
+# known copied-skill locations and their version stamps
+devola-init-doctor --skills
 ```
 
-The agent will compare your installed version against the latest on GitHub and tell you if an update is available, along with the exact command to run. This check is **manual only** — it never runs automatically, so it won't consume context tokens unless you ask for it.
+Update through the same channel that owns the installed bytes:
 
-From the shell, `devola-init-doctor --skills` scans every known install
-location (project + user-global, all supported tools) and reports each
-found install's stamped version against the running package version
-(`current` / `stale` / `unknown-version`; exit 1 when anything is stale).
+```bash
+# npm
+npx @yorha-agents/devola-flow update all
 
-### Prompt Patterns
+# curl
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
 
-| Prompt pattern | What it triggers |
-|---------------|-----------------|
-| "Implement X from scratch" | `full-pipeline` — full lifecycle with design, plan, implementation, review, test, release |
-| "Fix bug in X" / "X is broken" | `hotfix` — concise triage, fix, verification, and release-readiness assertions |
-| "Refactor X" / "Clean up X" | `refactoring` — restructure with regression testing |
-| "Research X" / "Compare X vs Y" | `research-only` — structured report, no code |
-| "Design the architecture for X" | `design-only` or `RDRR` — research-backed design |
-| "Add X to existing Y" | `feature-enhancement` — extend existing system |
-| "Migrate from X to Y" | `migration` — assess, plan, implement, validate, cutover |
-| "Is X feasible?" / "Prototype X" | `spike-poc`, quick experiment |
-| "Write docs for X" | `documentation`, survey, author, review |
-| "Security audit of X" | `security-audit`, threat model, scan, remediate, verify |
-| "Build a demo of X" / "Showcase X" | `demo-showcase`, presentation-ready demo with polished UI |
-| "X is slow" / "Optimize X" | `performance-optimization`, profile, optimize, benchmark |
-| "Set up dev environment" / "Install X" | `dependency-setup`, research, configure, verify |
-| "I'm new to this project" | `onboarding`, codebase survey, docs, env setup |
-| "Optimize SKILL.md" / "harness evaluation" | `skill-optimization`, survey → measure → optimize → evaluate → iterate → document |
-| "update refs" / "check references" | `self-update`, track and integrate external reference changes |
-| "update devola" | Check for newer version and get update instructions |
+# curl local workspace or standalone file: rerun the explicit install target
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s local
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s standalone
 
-> **Historical release record (pre-v16):** The release narratives below are
-> retained verbatim as project history. Their NineS, plugin, benchmark, and
-> baseline references describe the releases that introduced them; they are not
-> current operating guidance. The v16 built-in harness documented under
-> [Built-in Harness Evaluation](#built-in-harness-evaluation) is the current
-> evaluation source of truth.
+# Python runtime or wheel
+pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init local --mode=standard
 
-## What's New in v10.3.0 (MINOR cycle close)
+# editable checkout and copied host skill
+git pull
+pip install -e ".[dev]"
+devola-init cursor
+```
 
-The v10.3.0 release closes the v10.2.0 cycle (5 PATCH PVs + this MINOR cycle close). The user mandate from `.local/feedbacks/feedback_for_v10.2.0.md` was: deep-review plugin mode + verify auto-install + daily auto-upgrade; formally integrate Si-Chip; NineS-analyse the self-repo + validate Si-Chip iteration effectiveness; multi-round self-iteration with one PATCH per round; bump MINOR to v10.3.0. All five bullets shipped with verbatim evidence. Headline numbers:
+curl `update` scans supported host skill-copy locations only. It does not scan
+the local workspace or standalone file; rerun the explicit install target for
+either surface. Updating the Python package does not silently refresh copied
+host skills.
+`sync-rules` (or repository-local `make compile-rules`) repairs rule
+compilation; it is not a `devola-init` target.
 
-| Area | v10.0.0 baseline | v10.3.0 | Delta |
-|------|---:|---:|---:|
-| Plugins registered | 4 | 4 | unchanged (deepened via plugin-infra deep review) |
-| Lifecycle events | 10 | 10 | unchanged (no new hooks this cycle) |
-| Si-Chip dogfood verdict | DEFER (v9.5.0 deferred) | **APPLY** (passes #3 + #4 = +0.9 each) | **first APPLY in DevolaFlow history** |
-| NineS-to-Si-Chip eval adapter | n/a | **412 LOC + 23 tests** | NEW; closes v9.5.0 OA-1 blocker |
-| iteration_delta CI gate | not in CI | wired as 7th SI-10 step | `Makefile::release-preflight` |
-| New env flags | n/a | **0** (W-20 reuse-first) | unchanged |
-| W-3 SI-3 composite | 9.20 (v10.0.0) | **9.39** | +0.19 (margin +0.39 over STRICT MINOR-cycle-close ≥9.0) |
+## First Workflow
 
-### What landed (per PV)
+After the appropriate doctor or visibility check passes, open the AI host and
+ask for a bounded multi-step change:
 
-1. **PV-01 (v10.2.0) — Plugin deep review + W-16 wholesale baseline regen.** Closes 4 plugin-infra gaps (D-P-1 end-to-end `refresh_all`, D-P-3 si-chip `version_check_cmd` real probe, D-P-4 registry-walk smoke, D-P-6 never-installed staleness). Ships 3 new test files + 1 install_resolver helper. W-16 wholesale `v10.2.0_baseline.json` byte-identical to v9.7.0 (zero drift since v10.0.0).
-2. **PV-02 (v10.2.1) — Formal Si-Chip integration + 7-step SI-10 + daily-upgrade scheduler.** Closes 5 gaps including D-P-2 BLOCKER. NEW `dispatch_dogfood_cycle` wrapper exposes Si-Chip at the L0/L1 dispatch surface. NEW Si-Chip `iteration_delta` CI gate is wired into `Makefile::release-preflight` as the 7th SI-10 step.
-3. **PV-03 (v10.2.2) — NineS deep self-analysis + Si-Chip eval adapter prototype.** Closes D-N-1 + D-N-3. NEW `scripts/nines_to_sichip_eval_adapter.py` (412 LOC, 23 tests) — adapter verdict APPROVE; v9.5.0 OA-1 blocker resolved. 3 NineS deep-analyses on `si_chip_bridge`, `plugins`, `lifecycle` (62 findings, 10 complexity warnings).
-4. **PV-04 (v10.2.3) — Self-iteration round 1.** Bridge defect FIX in `MetricsReport.from_yaml_dict` (MVP-8 nested-key support; legacy fallback preserved) unblocks the `iteration_delta` machinery — dogfood pass #3 verdict APPLY with `iteration_delta = +0.9` across all 4 probed files. Plus 2 mechanical CC reductions (`pre_plugin_invocation` 18→≤10, `post_skill_edit` 13→≤7) per PV-03 NineS hotspots.
-5. **PV-05 (v10.2.4) — Self-iteration round 2 + W-17 mid-cycle audit + W-8 stagnation predicate.** 1 mechanical CC reduction (`installer.read_last_checked` 15→8 via `_parse_log_event_timestamp` extraction) + dogfood pass #4 (+0.9 byte-identical to pass #3 — round-1 effects persist). W-8 stagnation predicate evaluated FALSE → CONTINUE. W-17 cycle-cumulative count 93/150 — well within cap.
-6. **PV-06 (v10.3.0) — Cycle close MINOR.** Version bump 10.2.4 → 10.3.0 across canonical 7 sync locations. NineS cycle-close self-eval (overall 0.906924; byte-stable vs v10.0.0 0.907332). W-3 SI-3 evaluation composite **9.385/10** (margin +0.385 over STRICT MINOR-cycle-close ≥9.00). W-7 SI-8 retrospective (4 mandatory sections + 8 explicit deferrals + 7 key learnings + W-21 v10.4.0 telegraph). W-19 cycle archive at `docs/cycle-archive/v10.3.0/` (25 files). PR `feat/v10.2.0-cycle` ready for review.
+```text
+Fix the login timeout bug and verify the regression.
+```
 
-### Breaking changes
+DevolaFlow will:
 
-**None.** Every change in the cycle is additive: NEW `dispatch_dogfood_cycle` (v10.2.1), NEW `iteration_delta_gate` test surface, NEW `dedup_feedback_doc` behaviour (idempotent — repeats are no-ops), NEW `read_installed_si_chip_version` helper, NEW MVP-8 nested-key support in `MetricsReport.from_yaml_dict` (legacy top-level shape preserved). Zero new env flags (W-20 §3 reuse-first applied — D-P-2 daily-upgrade integration REUSES `DEVOLAFLOW_AUTO_INSTALL_PLUGINS`). Schema v6 (17-position canonical_order) byte-stable across all 10 historical multi-baseline byte tests. Soul-set count remains at 10 (W-21 freeze; S-11 candidate "Parallel Wave Dispatch Invariant" re-telegraphed for v10.4.0).
+1. select a checklist seed as decomposition knowledge;
+2. confirm a goal, measurable checklist, P0/P1/P2 priorities, and preflight;
+3. execute the checklist through bounded `change-driven` rounds;
+4. dispatch L0 Project → L1 Wave → L2 Task;
+5. check items only after StatusReport evidence is verified.
 
-## What's New in v10.0.0 (MAJOR cycle close)
+No workflow runner CLI is required. `source_stages` entries in seed YAML
+preserve historical provenance only; priorities, dependencies, ownership, and
+round state determine execution order.
 
-The v10.0.0 release is the cycle-close MAJOR rollup of the 5-MINOR v10.0.0 cycle (v9.3 → v9.7 → v10.0.0). Headline numbers:
+## Optional Host Bridge
 
-| Area | v9.2.4 baseline | v10.0.0 | Delta |
-|------|---:|---:|---:|
-| `select_context.p95` | ~80,000 us | ~2,027 us | **-97.5%** (40× speedup) |
-| `full_dispatch.p95` | ~250,000 us | ~4,255 us | **-98.3%** |
-| pytest wall-clock | ~55 s | ~17 s | **3.3× faster** |
-| Lifecycle events | 8 | **10** | +2 (`pre_plugin_invocation`, `post_skill_edit`) |
-| Dispatch schema | v5 (16 keys) | **v6 (17 keys)** | +1 canonical position (`predecessor_dedup_ledger` APPEND) |
-| Plugins registered | 3 | **4** | +Si-Chip (BasicAbility optimisation factory) |
-| Tracked references | 19 (stale comment) | **21 (all NineS-refreshed)** | +2 catch-up + freshness sweep |
-| Feedback regression audit | n/a | **57 files / 0 FAILs** | 100% addressed-or-deferred |
+Skill installation and host bridge wiring are separate states. Copying
+Markdown makes DevolaFlow discoverable; it does not prove host tool events are
+connected to lifecycle boundary enforcement.
 
-### What landed (per MINOR)
+Follow the
+[host bridge reference](workflow-system/agent/references/host-bridges.md) for
+Cursor, Claude Code, Codex, KimiCode, or DSH. Confirm the host-specific config,
+exercise a known-allowed event, and inspect
+`.local/telemetry/hostbridge.jsonl` before persistently setting:
 
-1. **v9.3.0 Performance Overhaul #1**, `load_profiles` / `load_skill_md` / `estimate_tokens` LRU cache absorbed 96.6% of dispatch wall-clock (the big one). Compressor split into a 3-module package. AsyncDispatchExecutor library-only landing.
-2. **v9.4.0 Plugin Auto-Install & Daily Upgrade**, `pre_plugin_invocation` lifecycle hook + dispatcher wiring (closes the `ensure_plugin()` dead-wire). Schema v3 with per-plugin `upgrade_cmd` + new `devolaflow plugins refresh` CLI.
-3. **v9.5.0 Si-Chip DEEP Integration**, `si_chip_bridge` typed Python module (~1070 LOC across 4 sub-modules). `post_skill_edit` always-on lifecycle hook gated `DEVOLAFLOW_SI_CHIP_DEEP=1`. Apply-or-defer gate with +0.10 IEEE-754 epsilon. Dogfood pass DEFERRED per user requirement (real-LLM eval data out of scope).
-4. **v9.6.0 Reference Library Refresh**, ALL 21 tracked external references re-audited via NineS deep analysis (5 deep + 16 W-2 manual review). 4 NEW reference-doc subsections wired into `team-roles.md` / `decomposition-gate.md` / `execution-protocol.md` / `meta-framework.md`.
-5. **v9.7.0 Performance Overhaul #2**, Predecessor summary delta-compression (12-char sha256 hash; schema v6 APPEND at canonical position 17). Async L2-wave dispatch auto-wire. Selector cache pre-warmup (`DEVOLAFLOW_WARMUP=1`).
+```bash
+export DEVOLAFLOW_HOST_ENFORCE=1
+```
 
-### What landed in the v10.0.0 MAJOR rollup itself
-
-- **PV-01**, Version bump 9.7.0 → 10.0.0 across the canonical 7 sync locations (pattern-replace by `scripts/bump_version.py`) — **PV-02**, NEW.`scripts/audit_feedback_ac.py` (~370 LOC) + 31 NEW tests cross-checks 57 historical feedback files against the live repo state. Result: **0 FAILs, 100% addressed-or-deferred** (5 PASS + 49 SUPERSEDED + 2 DEGRADED + 1 DEFERRED). Closes the user's mandate to ensure no AC has regressed.
-- **PV-03**, Comprehensive human-docs refresh: 16 EN/ZH user guides regenerated; demo landing page top-of-page v10.0.0 What's New section; `version-timeline/versions.json` v10.0.0 entry; this README block.
-- **PV-04**, NineS self-eval + W-3 SI-3 evaluation (MAJOR-gate composite ≥9.0) + W-7 SI-8 retrospective + W-19 cycle-archive at `docs/cycle-archive/v10.0.0/` — **PV-05**,.`CHANGELOG.md` MAJOR entry + W-18 ghost-audit refresh + SI-10 6-gate green + final PR open.
-
-### New env flags (4, all R5-strict, all W-20 §3 orthogonality justified)
-
-- `DEVOLAFLOW_SIMPLE_SHORTCUT=1` (v9.3.0), opt-in skip L1+L2 for SIMPLE/TRIVIAL tasks (default-ON in v10.1+).
-- `DEVOLAFLOW_AUTO_INSTALL_PLUGINS=1` (v9.4.0), opt-in plugin auto-install on dispatch.
-- `DEVOLAFLOW_SI_CHIP_DEEP=1` (v9.5.0), DEEP Si-Chip dogfood always-on (`post_skill_edit` hook).
-- `DEVOLAFLOW_WARMUP=1` (v9.7.0), pre-populate selector cache on session start.
-
-### Breaking changes
-
-**None.** Every change in the cycle is additive: The`compressor` package re-exports all public symbols at the same import paths (`from devolaflow.compressor import ...` works byte-identically).
-- Schema v6 is append-only at canonical position 17 (A-2.2 invariant); all 9 historical multi-baseline byte tests pass byte-identically because the new field's absence is canonical.
-- Both new lifecycle events were appended at the tail (positions 9 + 10); positions 1-8 byte-stable since v9.1.3 — All new env flags are default-OFF; absent or any value other than literal.`"1"` preserves prior behaviour.
-
-## What's New in v7.4.3
-
-**Stale Doc Refs Closed (v7.4.3, P-02)**, 12 minor stale numeric/version references in `README.md`, `CLAUDE.md`, `workflow-system/agent/workflow-skill.yaml` aligned with v7.4.2 reality (template count `17→20`, scenario count `20→39`, test count `434+→1343`, rule count `19 process→9 .mdc files`, version-bump location count `11/16→7 canonical sync locations`) — **.`repo-init` Template Landed (v7.4.2)**, Closed v7.4.0's S-4 / CP-1 ghost-feature gap: new `workflow-system/agent/templates/builtin/repo-init.yaml` (4 stages: analyze → scaffold → compile → verify) with `parameters.mode: {minimal | standard | deep}` enum defaulted to `standard` for Claude Code `/init` parity (no heavy verify execution by default) — **CLI Coverage Restored (.v7.4.1)**, `tests/test_cli_local_commands.py` (+7 tests) lifted `src/devolaflow/cli.py` from 63% → 99% coverage; CP-2 / S-3 floor restored after the v7.4.0 staged work — **.`.rules/` 5-Layer Governance (v7.4.0)**, Soul Rules P0 → Architecture P1 → Conventions P2 → Workflow P3 → Style P4 model; rule compiler emits `.cursor/rules/repo-governance.mdc` and `AGENTS.md` from a single canonical source — **.`.local/` Workspace Scaffolding (v7.4.0)**, Structured local dev workspace with `.local/feedbacks/`, `.local/tasks/`, `.local/research/`, and `index.md` navigation; auto-detected by `devola-init` and the curl-installer one-liner.
+Unsupported hosts remain skill-only and must not be described as enforced.
 
 ## What's Inside
 
 ### 23 Non-Executable Checklist Seeds + One Runtime
 
-The registry exposes 23 checklist seeds through
-`TemplateRegistry.load_seed(<name>)`. Seeds carry decomposition knowledge and
-historical provenance only: they do not define ordering, gates, or executable
-pipelines. `TemplateRegistry.load_template("change-driven")` is the sole
-runtime.
+The registry exposes these seeds through `TemplateRegistry.load_seed(<name>)`.
+Seeds carry decomposition knowledge and provenance; they do not define an
+executable DAG. `TemplateRegistry.load_template("change-driven")` loads the
+sole runtime.
 
-| Seed | When to use | Decomposition knowledge |
-|------|-------------|-------------------------|
-| `hotfix` | Production bug, urgent fix | triage, minimal fix, focused checks |
-| `research-only` | Compare alternatives, survey | sources, comparison, report |
-| `design-only` | Architecture, API design | research, decisions, review |
-| `documentation-only` | Docs, guides, API refs | survey, authoring, review |
-| `spike-poc` | Prototype, experiment | bounded prototype, verdict |
-| `refactoring` | Tech debt, restructure | scope, regression safety, review |
-| `feature-enhancement` | Extend existing features | design, implementation, release evidence |
-| `full-pipeline` | New feature, greenfield project | end-to-end delivery assertions |
-| `performance-optimization` | Slow app, latency, profiling | profile, optimize, benchmark |
-| `security-audit` | Vulnerability scan, compliance | threat model, scan, remediation |
-| `research-design-review-refine` | Research-backed iterative design | research, design, review, refinement |
-| `dependency-setup` | Environment setup, tooling | setup and bounded verification |
-| `onboarding` | New contributor, codebase intro | analysis, docs, setup |
-| `demo-showcase` | Demos, presentations, showcases | story, build, visual evidence |
-| `product-verification` | Visual, interaction, accessibility, UAT | user-facing verification axes |
-| `entropy-cleanup` | Stale docs, drift, retention | scan, proposal, cleanup evidence |
-| `migration` | Upgrade, port systems | migration, cutover, rollback readiness |
-| `skill-optimization` | Skills, harness telemetry, context density | measure, optimize, evaluate |
-| `self-update` | External reference updates | research, integration, evaluation |
-| `nines-assisted` | Opaque historical compatibility ID; do not select for new work | built-in harness-backed quality evidence |
-| `repo-init` | Initialize workspace and governance | canonical scaffold assertions |
-| `change-driven` | In-flight change lifecycle | checklist assertions plus sole runtime name |
-| `web-design` | Frontend and visual polish | design, implementation, deterministic checks |
+| Seed | Use when |
+|---|---|
+| `hotfix` | Urgent defect diagnosis and bounded remediation |
+| `research-only` | Compare alternatives and produce an evidenced recommendation |
+| `design-only` | Create architecture, API, or schema decisions |
+| `documentation-only` | Survey, author, and review documentation |
+| `spike-poc` | Test feasibility with a bounded prototype |
+| `refactoring` | Restructure code while preserving behavior |
+| `feature-enhancement` | Extend an existing feature |
+| `full-pipeline` | Build a greenfield or end-to-end capability |
+| `performance-optimization` | Improve measured performance |
+| `security-audit` | Threat-model, scan, remediate, and verify |
+| `research-design-review-refine` | Iterate on research-backed design |
+| `dependency-setup` | Configure an environment or toolchain |
+| `onboarding` | Guide contributor setup and repository understanding |
+| `demo-showcase` | Build a presentation-ready demonstration |
+| `product-verification` | Verify visual, interaction, accessibility, and acceptance quality |
+| `entropy-cleanup` | Repair stale documentation or drift |
+| `migration` | Upgrade or port with rollback readiness |
+| `skill-optimization` | Profile and improve an agent skill |
+| `self-update` | Research and integrate reference updates |
+| `nines-assisted` | Opaque historical compatibility seed ID |
+| `repo-init` | Initialize workspace and governance surfaces |
+| `change-driven` | Materialize the evidence-backed change lifecycle |
+| `web-design` | Design, refine, and verify a frontend |
 
-### Three-Layer Agent Hierarchy
+### Three-Layer Hierarchy
 
-| Layer | Role | Context Budget | Key Rule |
-|-------|------|---------------|----------|
-| **Project (L0)** | Confirm contract, select rounds, adjudicate gates | ~5K tokens | Dispatches; does not implement |
-| **Wave (L1)** | Partition and aggregate ownership-safe tasks | ~5K tokens | Never edits task output |
-| **Task (L2)** | Implement, converge, and emit evidence | ~8K tokens | Never spawns sub-agents |
+| Layer | Responsibility | Boundary |
+|---|---|---|
+| Project (L0) | Confirm contract, select rounds, adjudicate gates | Does not implement |
+| Wave (L1) | Partition ownership-safe Tasks and aggregate evidence | Does not edit Task output |
+| Task (L2) | Implement, converge, and report evidence | Does not spawn agents |
 
-### Quality Gate Mechanism
+TaskDispatch moves down, StatusReport moves up, and escalation moves Task →
+Wave → Project → Human.
 
-Every round passes only when selected checklist assertions have valid evidence:
-
-```
-PASS: selected-item evidence valid, configured checks pass, blockers == 0
-FAIL: bounded reinforcement or escalation
-TREND: composite is recorded for direction; it does not replace item evidence
-ESCALATE: produce divergence report for human review
-```
-
-### Built-in Harness Evaluation
-
-DevolaFlow records real dispatch telemetry and evaluates token injection,
-constraint quantifiability, checklist completion, and quality signals through
-the built-in harness:
+### Built-in Harness
 
 ```bash
 make test-harness
 python -m devolaflow.harness aggregate --ledger .local/telemetry/harness.jsonl
 python -m devolaflow.harness evaluate --ledger .local/telemetry/harness.jsonl --repo .
-python -m devolaflow.harness probe --provider mock --model mock --cycle v16.0.0
 ```
 
-The built-in harness is the current source of truth for analysis, evaluation,
-model probes, and tuning proposals. `src/devolaflow/nines/` remains importable
-only as deprecated v16 compatibility for legacy callers and is scheduled for
-removal in v17; it is not a current evaluator or runtime-plugin recommendation.
-The `nines-assisted` string likewise remains only as an opaque historical seed
-ID.
+The built-in harness is the current evaluation source of truth. W-16 baseline
+settlement and W-19 cycle archive retention are release policy performed
+manually at cycle close; no automatic harness archive hook is implemented.
+Immutable A-2.4 layout witnesses are separate from harness baselines.
 
-W-16 settles one `harness_baseline_<cycle>.json` per MAJOR or MINOR cycle.
-The active comparison window lives under `.local/telemetry/baselines/`; older
-evidence is committed under the corresponding cycle archive. The
-`benchmarks/devolaflow_context/baselines/` directory is not a live benchmark
-suite—it contains only the ten immutable A-2.4 cache-layout byte witnesses.
+## Versioning
 
-### Task Quality Score
+The source version is `src/devolaflow/__init__.py`. Seven canonical sync
+locations across eight files are updated by `scripts/bump_version.py`:
 
-After a workflow completes, L0 can evaluate your original request on four
-dimensions (1–5 each, total /20) when you explicitly ask for a score:
+1. `workflow-system/agent/SKILL.md` (three patterns in one file)
+2. `workflow-system/agent/workflow-skill.yaml`
+3. `pyproject.toml`
+4. `scripts/generate_human_docs.py`
+5. `tests/test_smoke.py`
+6. `README.md`
+7. `packages/npm/package.json`
 
-- **Clarity**, Was the intent unambiguous?
-- **Scope**, Were boundaries defined?
-- **Success Criteria**, Were pass/fail conditions stated?
-- **Context**, Was relevant background provided?
-
-The rubric loads on demand after completion and never appears in L1/L2
-reports. Scoring is skipped for trivial tasks.
-
-### Repository Development Rules
-
-56 enforceable rules codifying iteration lessons. The canonical sources are the 5 layered `.rules/*.mdc` files, compiled (via `make compile-rules`) into three distribution surfaces — `AGENTS.md`, `.cursor/rules/repo-governance.mdc`, and `docs/STYLE-RULES.md`:
-
-| Rule Surface | Rules | What It Enforces |
-|--------------|-------|-----------------|
-| `.rules/` (canonical: soul, architecture, conventions, workflow, style) | S-1..S-10, A-1..A-7, C-1..C-7 + C-9, W-1..W-24, ST-1..ST-13 | Layered rule corpus: Soul invariants, architecture decisions, conventions, workflow process, style |
-| `.cursor/rules/repo-governance.mdc` + `AGENTS.md` | Compiled aggregate of the above | Same corpus rendered for Cursor (MDC) and AGENTS.md-aware tools — never hand-edit (drift-detected) |
-| `docs/STYLE-RULES.md` | ST-1..ST-13 (absorbing DS-1..5 + WX-1..8) | Compiled tool-agnostic view of the P4 Style layer (doc sync, web experience, bilingual completeness) — never hand-edit (drift-detected); AGENTS.md ends with a one-line pointer to it |
-
-The six fully-migrated legacy files (`workflow-rules.mdc`, `devola-flow-rules.mdc`, `skill-format-rules.mdc`, `change-process-rules.mdc`, `context-optimization-rules.mdc`, `self-improve-iteration-rules.mdc`) were demoted to deprecated pointer stubs (v9.0.0 / v14.2.1) and **retired in v15.0.0** (clean_repo C1-2, decision D1) — their rule content lives verbatim in the canonical `.rules/` layer sources + the compiled `repo-governance.mdc` corpus, and a reverse lint blocks resurrection (C-8 was removed in v14.2.1; rule ids are not renumbered). The two hand-maintained P4 Style on-demand copies (`web-experience-rules.mdc`, `documentation-sync-rules.mdc`) retired in the same v15.0.x series (clean_repo C2-1, decision D2) — their absorbed ST-1..ST-13 content now compiles to `docs/STYLE-RULES.md`.
-
-## Versioning & Updates
-
-DevolaFlow uses unified versioning, a single version number (`src/devolaflow/__init__.py`) synchronized across all skill files, templates, and docs.
-
-Checking your version
+The source plus those sync locations make eight files. The README badge reads
+`pyproject.toml` dynamically, and the Harness page reads the newest Timeline
+entry at load time.
 
 ```bash
-devola-version                   # prints "DevolaFlow v17.0.0"
-python -c "import devolaflow; print(devolaflow.__version__)"
+devola-version  # prints "DevolaFlow v17.0.0"
+python scripts/bump_version.py X.Y.Z --dry-run
+python -m pytest tests/test_version.py -v
 ```
 
-Or ask your AI agent: `"update devola"`, it will check and report the installed version.
-
-### Updating to the latest version
-
-**From inside your AI tool** (recommended):
-
-Just type `"update devola"` or `"/update-devola"`. The agent checks GitHub for the latest version and provides the right update command for your setup.
-
-**From the terminal:**
+## Repository Development
 
 ```bash
-# If installed via npm/npx
-npx @yorha-agents/devola-flow update all
-
-# If installed via pip
-pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
-
-# If installed via the one-liner installer
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-curl -fsSL $INSTALLER | bash -s update
-
-# If installed via devola-init
-cd DevolaFlow && git pull && pip install -e ".[dev]"
-devola-init cursor --global      # re-install updated skill files
-devola-init claude --global
+python -m pytest tests/ -q
+ruff check src/ tests/
+ruff format --check src/ tests/
+make test-harness
+make release-preflight
 ```
 
-Bumping version (for contributors)
+Governance sources live in `.rules/` and compile to `AGENTS.md`,
+`.cursor/rules/repo-governance.mdc`, and `docs/STYLE-RULES.md`. Edit the source
+layer and run `make compile-rules`; never hand-edit generated rule surfaces.
 
-```bash
-python scripts/bump_version.py 7.4.3            # updates all 10 version locations (7 canonical sync locations across 8 files incl. packages/npm/package.json; README badge + demo SAMPLE_DATA are render/load-time derived per C-6)
-python scripts/bump_version.py 7.4.3 --dry-run   # preview without writing
-```
+Release work uses a feature branch and Pull Request. After the release commit
+is merged, maintainers create and push the version tag; the tag workflow runs
+checks, creates the GitHub Release, and deploys Pages. See
+[Release Workflow Design](docs/designs/design_release_workflow.md).
 
-## CLI Tools
+## Documentation and History
 
-```bash
-devola-version                   # print current version
-validate-template --all          # validate all workflow templates
-validate-template path/to.yaml  # validate a single template
-validate-gate                    # evaluate a gate checkpoint
-detect-repo-mode                 # detect local / github / gitlab / etc.
-build-skill --all                # generate outputs for all 4 AI tools
-check-drift                      # verify human docs are in sync
-```
+- [English Quickstart](workflow-system/human/en/quickstart.md)
+- [中文快速入门](workflow-system/human/zh/quickstart.md)
+- [English Integration Guide](workflow-system/human/en/integration-guide.md)
+- [中文集成指南](workflow-system/human/zh/integration-guide.md)
+- [Interactive documentation](https://yorha-agents.github.io/DevolaFlow/)
+- [Timeline](https://yorha-agents.github.io/DevolaFlow/version-timeline/)
+- [CHANGELOG](CHANGELOG.md)
+- [Design documents](docs/designs/)
 
-## Project Structure
-
-```
-DevolaFlow/
-  src/devolaflow/             # Python package (engine code)
-    template_engine/          #   checklist-seed registry + sole runtime loader
-    pre_decision/             #   repo detection, checklist, seed recommender
-    gate/                     #   composite scorer, profiles, convergence
-    harness/                  #   telemetry aggregation, evaluation, proposals, probes
-    nines/                    #   deprecated v16 compatibility only; removal in v17
-    adapters/                 #   Cursor / Codex / Claude / Copilot output adapters
-    build_skill.py            #   adapter pipeline entry
-    cli.py                    #   CLI entry points
-  workflow-system/
-    agent/                    # Agent-consumed content (md + yaml only)
-      SKILL.md                #   Tier 1 entry point (<500 lines, self-contained)
-      references/             #   Tier 2: 25 domain references
-      templates/seeds/        #   23 non-executable checklist seeds
-      templates/builtin/      #   sole change-driven runtime
-      examples/               #   Tier 3: 4 trace walkthroughs
-      knowledge/              #   Tier 3: 6 on-demand knowledge files
-      workflow-skill.yaml     #   canonical source for adapter pipeline
-    human/                    # Human-readable documentation + demo
-      en/                     #   8 English docs
-      zh/                     #   8 Chinese docs
-      demo/                   #   interactive web demo (GitHub Pages)
-  benchmarks/
-    devolaflow_context/        # retired runtime location; byte witnesses only
-      baselines/               #   ten immutable A-2.4 layout witnesses
-  schemas/                    # All schema definitions (system + primitives)
-    *.schema.yaml             #   7 system schemas (template, dispatch, gate, etc.)
-    lean-dispatch.yaml        #   lean TaskDispatch format spec
-    lean-report.yaml          #   lean StatusReport format spec
-    primitives/               #   per-primitive I/O schemas (future)
-  docs/designs/               # 15 design documents (~12,700 lines)
-  scripts/                    # build/sync/detect shell helpers
-  tests/                      # pytest suite (3092+ tests, 94.76% coverage)
-  .github/workflows/          # CI + Release + Pages
-  .cursor/rules/              # always-on hard constraints (9 .mdc rule files)
-```
-
-## Interactive Demo
-
-Browse the framework architecture, checklist seeds, runtime, and historical
-provenance labels interactively:
-
-**[Live Demo](https://yorha-agents.github.io/DevolaFlow/)** (GitHub Pages)
-
-| Page | What it shows |
-|------|--------------|
-| [Design Architecture](https://yorha-agents.github.io/DevolaFlow/design-architecture/) | Complete framework map: every skill file, design source, tier, token budget, dependency graph |
-| [Workflow Visualizer](https://yorha-agents.github.io/DevolaFlow/workflow-visualizer/) | Checklist seed provenance projected as non-executable diagrams |
-| [Historical Benchmark Results](https://yorha-agents.github.io/DevolaFlow/benchmark-results/) | Archived pre-v16 scenario scores retained for release provenance |
-| [Provenance Explorer](https://yorha-agents.github.io/DevolaFlow/stage-explorer/) | Historical labels retained for seed traceability, not runtime ordering |
-
-Or open locally: `workflow-system/human/demo/index.html`
-
-## Documentation
-
-### User Guides (English)
-
-| Doc | Description |
-|-----|-------------|
-| [Quick Start](workflow-system/human/en/quickstart.md) | Install, verify, and run your first workflow in 10 minutes |
-| [Architecture Overview](workflow-system/human/en/architecture-overview.md) | Three-layer hierarchy, checklist rounds, gates, context isolation |
-| [Workflow Types](workflow-system/human/en/workflow-types.md) | All 23 non-executable seeds, the sole runtime, and selection guidance |
-| [Agent Hierarchy Guide](workflow-system/human/en/agent-hierarchy-guide.md) | Deep dive into each layer with escalation and communication |
-| [Integration Guide](workflow-system/human/en/integration-guide.md) | Per-tool setup: Cursor, Claude Code, Copilot, Codex with examples |
-| [Customization Guide](workflow-system/human/en/customization-guide.md) | Create custom templates, context profiles, derived configs |
-| [FAQ](workflow-system/human/en/faq.md) | Common questions about workflows, tools, gates, updates |
-| [Troubleshooting](workflow-system/human/en/troubleshooting.md) | Installation, workflow, test, and benchmark issues |
-
-### 用户指南（中文）
-
-| 文档 | 说明 |
-|------|------|
-| [快速入门](workflow-system/human/zh/quickstart.md) | 10 分钟内安装、验证并运行你的第一个工作流 |
-| [架构概述](workflow-system/human/zh/architecture-overview.md) | 三层层级、清单轮次、质量门、上下文隔离 |
-| [工作流类型](workflow-system/human/zh/workflow-types.md) | 23 个非执行清单种子、唯一运行时及选择指南 |
-| [Agent 层级指南](workflow-system/human/zh/agent-hierarchy-guide.md) | 每层详解，含升级链和通信协议 |
-| [集成指南](workflow-system/human/zh/integration-guide.md) | 逐工具设置：Cursor、Claude Code、Copilot、Codex 含示例 |
-| [自定义指南](workflow-system/human/zh/customization-guide.md) | 创建自定义模板、上下文配置 |
-| [常见问题](workflow-system/human/zh/faq.md) | 工作流、工具、质量门、更新相关问题 |
-| [故障排查](workflow-system/human/zh/troubleshooting.md) | 安装、工作流、测试和基准测试问题 |
-
-Design Documents
-
-| Doc | Description |
-|-----|-------------|
-| [Design Documents](docs/designs/) | 15 internal design specs (architecture, meta-framework, delivery, etc.) |
-
-## Contributing
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Make changes following the [repository rules](.rules/) (5 layered `.mdc` sources, compiled to `AGENTS.md` / `.cursor/rules/repo-governance.mdc` / `docs/STYLE-RULES.md`)
-4. Run `make all` to verify (tests, lint, templates, adapters, docs sync, drift check)
-5. Update `CHANGELOG.md` if your changes are user-visible
-6. Submit a Pull Request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md) (never push directly to `main`)
-
-Commit messages use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`
-
-### Editing rules
-
-Governance rules are sourced from `.rules/*.mdc` (5 layered files: soul, architecture, conventions, workflow,
-style) and compiled to three distribution targets, `AGENTS.md` (the canonical Markdown corpus loaded by Codex /
-Claude Code / KimiCode / Cline / Roo), `.cursor/rules/repo-governance.mdc` (the MDC rendering for Cursor), and
-`docs/STYLE-RULES.md` (the P4 Style layer alone, as a tool-agnostic on-demand view pointed to from the end of
-`AGENTS.md`). After editing any `.rules/*.mdc` source, refresh all targets with:
-
-```bash
-make compile-rules
-# or directly: sync-rules
-```
-
-`make all` and `make release-preflight` invoke `compile-rules` automatically. CI runs
-`tests/test_no_ghost_features.py::test_rule_surfaces_compile_only` to catch any drift between sources and
-compiled outputs (hash-based, pinned in `.rules/.compile-hashes.json`). See `.rules/index.md` for the full
-layer table and token-budget breakdown.
-
-### Release Process (Maintainers)
-
-```bash
-make release-preflight                          # run all quality gates
-python scripts/bump_version.py X.Y.Z --dry-run  # preview version bump
-python scripts/bump_version.py X.Y.Z --tag      # bump 6 canonical sync locations + create git tag
-git add -A && git commit -m "chore: bump version to X.Y.Z"
-git push origin main --tags                      # triggers release workflow
-```
-
-Pushing a `v*` tag triggers the [release workflow](.github/workflows/release.yml): test → GitHub Release → Pages deploy. See [Release Workflow Design](docs/designs/design_release_workflow.md) for full details.
+Release archaeology belongs in Timeline and CHANGELOG; this README describes
+the current product contract.
 
 ## License
 
-MIT, [LICENSE](LICENSE)
-
----
-
-<p align="center"><em>
-"...For the Glory of Mankind."
-<br>
-Named for <a href="https://nierautomata.wiki.fextralife.com/Devola">Devola</a>, who never stopped watching over others, even when the world forgot her purpose.
-</em></p>
+MIT, see [LICENSE](LICENSE).

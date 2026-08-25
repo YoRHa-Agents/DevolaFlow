@@ -5,8 +5,7 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write
+permissions: {}
 
 # OPT-3 (clean_repo PR-11): never cancel an in-flight release run.
 concurrency:
@@ -14,21 +13,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify-release-ref:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch main
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+      - name: Verify tag commit is reachable from main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag ${GITHUB_REF_NAME} targets ${GITHUB_SHA}, which is not reachable from origin/main"
+            exit 1
+          fi
+
   # OPT-1 / D7 (clean_repo PR-12): the release gate runs the SAME reusable
   # check suite as ci.yml — checkout inside ci-checks.yml resolves to this
   # tag ref, so the tagged SHA is actually re-tested (no status-reuse).
   # Release hereby also inherits the CHANGELOG lint its old inline test job
   # had drifted to omit.
   checks:
+    needs: verify-release-ref
     permissions:
       contents: read
     uses: ./.github/workflows/ci-checks.yml
 
-  # Release-only gate (not part of the shared per-PR suite): regenerate the
-  # human docs on the tagged SHA, then re-run the drift scan against the
-  # regenerated tree — preserves the old release test job's sync -> check
-  # ordering. The pristine-checkout drift scan runs in checks/validate.
+  # Release-only gate (not part of the shared per-PR suite): regenerate and
+  # verify committed outputs on the tagged SHA, then exercise the site build.
   release-extras:
+    needs: verify-release-ref
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -43,6 +60,12 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Regenerate human docs
         run: make sync-human-docs
+      - name: Verify generated human docs are committed
+        run: git diff --exit-code -- workflow-system/human/en workflow-system/human/zh
+      - name: Check generated demo seed catalog
+        run: make check-demo-seed-catalog
+      - name: Build Pages site
+        run: make build-site
       - name: Check drift
         run: make check-drift
 
@@ -50,6 +73,8 @@ jobs:
     needs: [checks, release-extras]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,3 +84,29 @@ jobs:
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           generate_release_notes: true
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Build site from tagged SHA
+        run: bash scripts/build-site.sh
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v5
+        id: deployment

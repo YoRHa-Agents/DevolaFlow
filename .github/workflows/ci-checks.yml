@@ -85,6 +85,14 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install project (dev)
         run: pip install -e ".[dev]"
+      - name: Regenerate human docs
+        run: make sync-human-docs
+      - name: Verify generated human docs are committed
+        run: git diff --exit-code -- workflow-system/human/en workflow-system/human/zh
+      - name: Check generated demo seed catalog
+        run: make check-demo-seed-catalog
+      - name: Build Pages site
+        run: make build-site
       - name: Validate workflow templates
         run: validate-template --all
       - name: Build skill adapters

@@ -1,336 +1,500 @@
 /**
- * DevolaFlow — Design System page
- *
- * Responsibilities:
- *   1. Register the 24 page-specific `ds.*` translations (EN + ZH) per
- *      spec §6.3, plus 3 supporting keys (page.designSystem,
- *      card.frameworkChain, card.contextFlow) so the title and the hero
- *      cross-page CTAs resolve until S02-T05 lands them in shared/i18n.js.
- *   2. Render the 19 palette swatches (14 inherited + 5 new) into
- *      #palette-grid.
- *   3. Wire swatch clicks → copy CSS-var name to clipboard +
- *      1.5s "copied" toast (with execCommand fallback).
- *   4. Wire each `.motion-replay` button → restart its animation by
- *      removing/re-adding the keyframe class (forced reflow).
- *   5. Re-call setLanguage() at the end of init so the dynamically
- *      injected swatches and the late-registered translations apply.
+ * DevolaFlow Design System showcase
+ * Renders live shared tokens, registers page-local EN/ZH copy, and wires
+ * keyboard-native copy and motion replay controls.
  */
 (function () {
   'use strict';
 
-  /* ====================================================================
-     §1  i18n registration
-        24 ds.* keys + 3 supporting keys (page.designSystem,
-        card.frameworkChain, card.contextFlow).
-     ==================================================================== */
+  var TRANSLATIONS = {
+    en: {
+      'page.designSystem': 'Design System — DevolaFlow',
+      'ds.skip': 'Skip to design system content',
+      'ds.hero.eyebrow': 'System companion · v17 visual foundation',
+      'ds.hero.title': 'Design System',
+      'ds.hero.tagline': 'A quiet, warm interface for evidence-backed software change.',
+      'ds.hero.note': 'One token source serves every demo route. Light and Dark values stay visible together below.',
+      'ds.aria.ctas': 'Design system companion pages',
+      'ds.cta.system': 'Open System',
+      'ds.cta.io': 'Open I/O',
+      'ds.cta.timeline': 'Open Timeline',
+      'ds.cta.skill': 'Read SKILL ↗',
+      'ds.tokens.title': 'Live Light / Dark tokens',
+      'ds.tokens.desc': 'Every value is read from the shared stylesheet at runtime. Select a TokenSwatch to copy its CSS variable name.',
+      'ds.tokens.loading': 'Reading shared tokens…',
+      'ds.theme.light': 'Warm parchment',
+      'ds.theme.light.desc': 'Gold guides action; Devola Red marks human attention.',
+      'ds.theme.dark': 'Quiet bunker',
+      'ds.theme.dark.desc': 'The same hierarchy and semantics hold without glow or novelty effects.',
+      'ds.preview.primary': 'Primary action',
+      'ds.foundations.title': 'Typography and layout policy',
+      'ds.foundations.desc': 'The system uses one deliberate type stack and a compact spacing, radius, and border vocabulary.',
+      'ds.type.heading': 'Editorial headings and the DevolaFlow wordmark · weights 400 / 700',
+      'ds.type.body': 'Body copy, navigation, forms, and controls · weights 400 / 500 / 600 / 700',
+      'ds.type.mono': 'Commands, paths, message names, tokens, and measured facts · weights 400 / 500',
+      'ds.policy.spacing': 'spacing · 4px base',
+      'ds.policy.spacing.desc': 'Use the six shared steps. Prefer whitespace over nested containers.',
+      'ds.policy.radius': 'radius · 3 / 6 / 10px',
+      'ds.policy.radius.desc': 'Controls stay compact; larger radii are reserved for broad preview surfaces.',
+      'ds.policy.border': 'border · 1px by default',
+      'ds.policy.border.desc': 'Borders carry hierarchy. Four-pixel left rules are reserved for semantic emphasis.',
+      'ds.policy.elevation': 'elevation · two restrained levels',
+      'ds.policy.elevation.desc': 'Shadows clarify overlays and active surfaces; they never simulate glow.',
+      'ds.states.title': 'Semantic states',
+      'ds.states.desc': 'Color is paired with explicit language and a stable border treatment. A scalar score is never the primary message.',
+      'ds.state.ready': 'Evidence available and threshold met',
+      'ds.state.ready.desc': 'Use success green only after required evidence is available.',
+      'ds.state.review': 'Attention without failure',
+      'ds.state.review.desc': 'Gold marks the current action, a bounded warning, or a decision in progress.',
+      'ds.state.insufficient': 'Required evidence is unavailable',
+      'ds.state.insufficient.desc': 'Devola Red signals a human-visible stop; prose cannot convert it into a pass.',
+      'ds.components.title': 'Shared component examples',
+      'ds.components.desc': 'Components stay shallow, rectangular, and evidence-first. These are live shared classes, not screenshots.',
+      'ds.component.confirm': 'Confirm',
+      'ds.component.inspect': 'Inspect',
+      'ds.component.defer': 'Defer',
+      'ds.component.button.desc': 'Three emphasis levels; all controls keep a 44px minimum target.',
+      'ds.component.task': 'Task',
+      'ds.component.task.desc': 'Implements one atomic assignment and returns criterion-level evidence.',
+      'ds.component.layer.desc': 'Layer identity, budget, and responsibility without decorative nesting.',
+      'ds.component.message.desc': 'Typed payloads use a border direction and verbatim field names.',
+      'ds.component.swatch.desc': 'A keyboard-operable token reference with copy feedback and failure recovery.',
+      'ds.motion.title': 'Motion restraint',
+      'ds.motion.desc': 'Motion is brief, finite, and explanatory: no looping glow, decorative scanlines, or hover transforms. Replay is always user-initiated.',
+      'ds.motion.replay': 'Replay motion',
+      'ds.motion.replayed': 'Motion replayed.',
+      'ds.motion.reduced': 'Motion is minimized by your reduced-motion preference.',
+      'ds.access.title': 'Accessibility is part of the component contract',
+      'ds.access.desc': 'The shared layer defines the baseline; page-local CSS may specialize layout without weakening it.',
+      'ds.access.focus': 'A high-contrast 3px focus ring appears for keyboard navigation.',
+      'ds.access.target': 'Buttons, links acting as controls, and navigation targets meet the minimum touch size.',
+      'ds.access.motion': 'Animation and transition duration collapses while content remains complete.',
+      'ds.access.theme': 'Semantic contrast is maintained in both themes; state meaning never relies on color alone.',
+      'ds.access.language': 'Navigation, interaction feedback, labels, and explanations switch together.',
+      'ds.access.keyboard': 'Native buttons power token copy and motion replay; no pointer-only interaction is required.',
+      'ds.access.try': 'Use Tab to inspect the shared focus treatment:',
+      'ds.access.link': 'Jump to tokens',
+      'ds.access.button': 'Focusable button',
+      'ds.access.input': 'Labeled input',
+      'ds.footer': 'DevolaFlow v17 visual foundation · warm, legible, and restrained.',
+      'ds.token.group.colors': 'Color and semantic roles',
+      'ds.token.group.colors.desc': 'Exact palette values for surfaces, text, action, and state.',
+      'ds.token.group.type': 'Typography',
+      'ds.token.group.type.desc': 'One family for editorial, interface, and code contexts.',
+      'ds.token.group.spacing': 'Spacing',
+      'ds.token.group.spacing.desc': 'A 4px-based scale shared by page and component layout.',
+      'ds.token.group.geometry': 'Radius, border, and focus',
+      'ds.token.group.geometry.desc': 'Small geometry choices keep the interface precise.',
+      'ds.token.group.behavior': 'Elevation, motion, and navigation',
+      'ds.token.group.behavior.desc': 'Restrained depth, finite timing, and one shared header height.',
+      'ds.token.light': 'Light',
+      'ds.token.dark': 'Dark',
+      'ds.token.copy': 'Copy CSS variable',
+      'ds.copy.success': 'Copied',
+      'ds.copy.failed': 'Copy failed. Select this token name manually:'
+    },
+    zh: {
+      'page.designSystem': '设计体系 — DevolaFlow',
+      'ds.skip': '跳到设计体系内容',
+      'ds.hero.eyebrow': '系统配套页 · v17 视觉基础',
+      'ds.hero.title': '设计体系',
+      'ds.hero.tagline': '为证据驱动的软件变更提供安静、温暖的界面。',
+      'ds.hero.note': '一套令牌服务全部演示路由；下方同时展示浅色与深色值。',
+      'ds.aria.ctas': '设计体系配套页面',
+      'ds.cta.system': '打开系统',
+      'ds.cta.io': '打开输入输出',
+      'ds.cta.timeline': '打开时间线',
+      'ds.cta.skill': '阅读 SKILL ↗',
+      'ds.tokens.title': '实时浅色 / 深色令牌',
+      'ds.tokens.desc': '所有值均在运行时从共享样式表读取。选择 TokenSwatch 可复制其 CSS 变量名。',
+      'ds.tokens.loading': '正在读取共享令牌…',
+      'ds.theme.light': '温暖羊皮纸',
+      'ds.theme.light.desc': '金色引导操作；Devola 红标记需要人关注之处。',
+      'ds.theme.dark': '安静地堡',
+      'ds.theme.dark.desc': '保持相同层级与语义，不使用光晕或猎奇效果。',
+      'ds.preview.primary': '主要操作',
+      'ds.foundations.title': '排版与布局策略',
+      'ds.foundations.desc': '系统只采用一套明确字型栈，以及紧凑的间距、圆角和边框词汇。',
+      'ds.type.heading': '编辑式标题与 DevolaFlow 字标 · 字重 400 / 700',
+      'ds.type.body': '正文、导航、表单与控件 · 字重 400 / 500 / 600 / 700',
+      'ds.type.mono': '命令、路径、消息名、令牌与实测事实 · 字重 400 / 500',
+      'ds.policy.spacing': '间距 · 以 4px 为基准',
+      'ds.policy.spacing.desc': '使用六个共享档位，以留白取代嵌套容器。',
+      'ds.policy.radius': '圆角 · 3 / 6 / 10px',
+      'ds.policy.radius.desc': '控件保持紧凑；较大圆角只用于宽阔预览表面。',
+      'ds.policy.border': '边框 · 默认 1px',
+      'ds.policy.border.desc': '边框承担层级表达；4px 左边线仅用于语义强调。',
+      'ds.policy.elevation': '层级 · 两档克制阴影',
+      'ds.policy.elevation.desc': '阴影只澄清浮层与活动表面，绝不模拟光晕。',
+      'ds.states.title': '语义状态',
+      'ds.states.desc': '颜色必须搭配明确文字与稳定边框；单一分数绝不成为主要信息。',
+      'ds.state.ready': '证据可用且达到阈值',
+      'ds.state.ready.desc': '仅当必需证据可用后才使用成功绿。',
+      'ds.state.review': '需要注意，但尚未失败',
+      'ds.state.review.desc': '金色标记当前操作、有界警告或进行中的决定。',
+      'ds.state.insufficient': '必需证据不可用',
+      'ds.state.insufficient.desc': 'Devola 红表示人可见的停止；文字说明不能把它改写为通过。',
+      'ds.components.title': '共享组件示例',
+      'ds.components.desc': '组件保持扁平、矩形且证据优先；这些是共享类的实时渲染，不是截图。',
+      'ds.component.confirm': '确认',
+      'ds.component.inspect': '检查',
+      'ds.component.defer': '暂缓',
+      'ds.component.button.desc': '三种强调级别；所有控件保留至少 44px 的目标尺寸。',
+      'ds.component.task': 'Task',
+      'ds.component.task.desc': '实现一个原子任务，并返回逐项验收证据。',
+      'ds.component.layer.desc': '呈现层级身份、预算与职责，不做装饰性嵌套。',
+      'ds.component.message.desc': '类型化载荷使用方向边线与原样字段名。',
+      'ds.component.swatch.desc': '支持键盘操作的令牌参考，提供复制反馈与失败恢复。',
+      'ds.motion.title': '克制动效',
+      'ds.motion.desc': '动效短暂、有限且用于解释：不循环发光，不使用装饰扫描线或悬停位移。重放始终由用户触发。',
+      'ds.motion.replay': '重放动效',
+      'ds.motion.replayed': '动效已重放。',
+      'ds.motion.reduced': '已按你的减少动态效果偏好最小化动效。',
+      'ds.access.title': '可访问性属于组件契约',
+      'ds.access.desc': '共享层定义基线；页面局部 CSS 可以专门化布局，但不能削弱基线。',
+      'ds.access.focus': '键盘导航时显示高对比度 3px 焦点环。',
+      'ds.access.target': '按钮、充当控件的链接和导航目标均满足最小触控尺寸。',
+      'ds.access.motion': '动画与过渡时长被压缩，内容仍保持完整。',
+      'ds.access.theme': '双主题均保持语义对比，状态含义从不只依赖颜色。',
+      'ds.access.language': '导航、交互反馈、标签与说明同步切换。',
+      'ds.access.keyboard': '令牌复制与动效重放均使用原生按钮，不要求仅指针操作。',
+      'ds.access.try': '使用 Tab 检查共享焦点样式：',
+      'ds.access.link': '跳到令牌',
+      'ds.access.button': '可聚焦按钮',
+      'ds.access.input': '有标签输入框',
+      'ds.footer': 'DevolaFlow v17 视觉基础 · 温暖、清晰、克制。',
+      'ds.token.group.colors': '颜色与语义角色',
+      'ds.token.group.colors.desc': '表面、文字、操作与状态的精确调色值。',
+      'ds.token.group.type': '排版',
+      'ds.token.group.type.desc': '分别服务编辑、界面与代码场景的三种字族。',
+      'ds.token.group.spacing': '间距',
+      'ds.token.group.spacing.desc': '页面和组件布局共享的 4px 基准比例。',
+      'ds.token.group.geometry': '圆角、边框与焦点',
+      'ds.token.group.geometry.desc': '小而明确的几何选择保持界面精确。',
+      'ds.token.group.behavior': '层级、动效与导航',
+      'ds.token.group.behavior.desc': '克制深度、有限时长与统一页头高度。',
+      'ds.token.light': '浅色',
+      'ds.token.dark': '深色',
+      'ds.token.copy': '复制 CSS 变量',
+      'ds.copy.success': '已复制',
+      'ds.copy.failed': '复制失败，请手动选择此令牌名：'
+    }
+  };
 
-  if (typeof window.addTranslations === 'function') {
-    window.addTranslations('en', {
-      'page.designSystem':              'Design System — DevolaFlow',
-      'card.frameworkChain':            'Framework Chain',
-      'card.contextFlow':               'Context Flow',
-
-      'ds.subtitle':                    'The Devola design language, on display.',
-      'ds.section.palette':             'Palette',
-      'ds.section.palette.desc':        '14 inherited tokens plus 5 new tokens for the v6.3 redesign — light + dark side-by-side.',
-      'ds.section.typography':          'Typography',
-      'ds.section.typography.desc':     'Cinzel for headings, Inter for body, JetBrains Mono for code.',
-      'ds.section.motion':              'Motion',
-      'ds.section.motion.desc':         'Three new patterns (pulse-dispatch / flow-down / verify-gate-glow) plus the existing scan-flicker reference — all reduce-motion safe.',
-      'ds.section.components':          'Components',
-      'ds.section.components.desc':     'Eight reusable building blocks the new pages depend on.',
-      'ds.section.states':              'States',
-      'ds.section.states.desc':         'How active / pass / fail / escalated / reinforced are styled.',
-      'ds.section.accessibility':       'Accessibility',
-      'ds.section.accessibility.desc':  'Reduced-motion fallbacks, WCAG contrast targets, keyboard focus, bilingual switching.',
-      'ds.swatch.copy':                 'Copy CSS var',
-      'ds.swatch.copied':               'Copied',
-      'ds.motion.replay':               'Replay',
-      'ds.motion.label.pulse':          'pulse-dispatch',
-      'ds.motion.label.flow':           'flow-down',
-      'ds.motion.label.gateGlow':       'verify-gate-glow',
-      'ds.motion.label.scanFlicker':    'scan-flicker (existing)',
-      'ds.a11y.reducedMotion':          'All animations honour `prefers-reduced-motion: reduce`.',
-      'ds.a11y.contrast':               'Body text meets WCAG AA on both themes; new tokens were chosen for AA.',
-      'ds.a11y.keyboard':               'Every interactive control is keyboard-focusable with visible focus ring.',
-      'ds.a11y.bilingual':              'EN/ZH switch is one click; preference persists in localStorage.'
-    });
-
-    window.addTranslations('zh', {
-      'page.designSystem':              '设计体系 — DevolaFlow',
-      'card.frameworkChain':            '框架链路',
-      'card.contextFlow':               '上下文流转',
-
-      'ds.subtitle':                    'Devola 设计语言全面陈列。',
-      'ds.section.palette':             '调色板',
-      'ds.section.palette.desc':        '14 个继承令牌加 5 个 v6.3 新增令牌——浅色与深色并列展示。',
-      'ds.section.typography':          '排版',
-      'ds.section.typography.desc':     '标题用 Cinzel，正文用 Inter，代码用 JetBrains Mono。',
-      'ds.section.motion':              '动效',
-      'ds.section.motion.desc':         '三种新动效（pulse-dispatch / flow-down / verify-gate-glow）外加现有的 scan-flicker 参考——全部支持 reduce-motion。',
-      'ds.section.components':          '组件',
-      'ds.section.components.desc':     '新页面依赖的八个可复用基础组件。',
-      'ds.section.states':              '状态',
-      'ds.section.states.desc':         'active / pass / fail / escalated / reinforced 的样式约定。',
-      'ds.section.accessibility':       '可访问性',
-      'ds.section.accessibility.desc':  '动效降级、WCAG 对比度、键盘焦点、双语切换的承诺。',
-      'ds.swatch.copy':                 '复制 CSS 变量',
-      'ds.swatch.copied':               '已复制',
-      'ds.motion.replay':               '重放',
-      'ds.motion.label.pulse':          'pulse-dispatch',
-      'ds.motion.label.flow':           'flow-down',
-      'ds.motion.label.gateGlow':       'verify-gate-glow',
-      'ds.motion.label.scanFlicker':    'scan-flicker（现有）',
-      'ds.a11y.reducedMotion':          '所有动效遵循 `prefers-reduced-motion: reduce`。',
-      'ds.a11y.contrast':               '正文在双主题下均满足 WCAG AA；新令牌均为此选定。',
-      'ds.a11y.keyboard':               '所有交互控件均可键盘聚焦，焦点可见。',
-      'ds.a11y.bilingual':              '一键切换中英文，偏好保存于 localStorage。'
-    });
-  }
-
-  /* ====================================================================
-     §2  Palette data
-        14 inherited tokens cited verbatim from
-        workflow-system/human/demo/shared/styles.css lines 8–26
-        (13 colour tokens + --shadow). 5 NEW tokens per spec §3.2.
-     ==================================================================== */
-
-  // 14 inherited (the 14th is --shadow, rendered specially).
-  var PALETTE_INHERITED = [
-    { name: '--bg',           light: '#F0EBE0',           dark: '#1A1714' },
-    { name: '--fg',           light: '#3D3429',           dark: '#E8DFD0' },
-    { name: '--card-bg',      light: '#FAF7F2',           dark: '#252018' },
-    { name: '--border',       light: '#D4CBB8',           dark: '#3D3628' },
-    { name: '--accent',       light: '#B8860B',           dark: '#D4A843' },
-    { name: '--accent-hover', light: '#9A7209',           dark: '#E8BC4E' },
-    { name: '--accent-light', light: '#F5EDD8',           dark: '#2A2418' },
-    { name: '--muted',        light: '#8A7E6D',           dark: '#968D7C' },
-    { name: '--success',      light: '#5B7553',           dark: '#7A9E70' },
-    { name: '--error',        light: '#B54040',           dark: '#D06060' },
-    { name: '--warning',      light: '#C49A3C',           dark: '#D4A843' },
-    { name: '--code-bg',      light: '#EAE4D4',           dark: '#2A2520' },
-    { name: '--secondary',    light: '#9B4444',           dark: '#C76B6B' },
-    { name: '--shadow',       light: 'rgba(61,52,41,.08)', dark: 'rgba(0,0,0,.3)', kind: 'shadow' }
+  var TOKEN_GROUPS = [
+    {
+      label: 'ds.token.group.colors',
+      description: 'ds.token.group.colors.desc',
+      kind: 'color',
+      tokens: [
+        '--bg', '--fg', '--card-bg', '--border', '--border-strong',
+        '--accent', '--accent-hover', '--accent-light', '--muted',
+        '--success', '--warning', '--error', '--secondary', '--code-bg',
+        '--rail-track', '--ink-deep'
+      ]
+    },
+    {
+      label: 'ds.token.group.type',
+      description: 'ds.token.group.type.desc',
+      kind: 'text',
+      tokens: ['--font-heading', '--font-body', '--font-mono']
+    },
+    {
+      label: 'ds.token.group.spacing',
+      description: 'ds.token.group.spacing.desc',
+      kind: 'text',
+      tokens: ['--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6']
+    },
+    {
+      label: 'ds.token.group.geometry',
+      description: 'ds.token.group.geometry.desc',
+      kind: 'text',
+      tokens: ['--radius-sm', '--radius', '--radius-lg', '--border-width', '--focus-ring']
+    },
+    {
+      label: 'ds.token.group.behavior',
+      description: 'ds.token.group.behavior.desc',
+      kind: 'text',
+      tokens: ['--shadow', '--shadow-lg', '--motion-fast', '--motion-standard', '--nav-height']
+    }
   ];
 
-  // 5 NEW (per spec §3.2; values inlined locally in styles.css :root/.dark).
-  var PALETTE_NEW = [
-    { name: '--ink-deep',       light: '#2A241B',                dark: '#0F0D0A' },
-    { name: '--gold-glow',      light: 'rgba(184,134,11,0.45)',  dark: 'rgba(212,168,67,0.55)' },
-    { name: '--scanline-alpha', light: '0.04',                   dark: '0.06', kind: 'alpha' },
-    { name: '--rail-track',     light: '#E5DCC4',                dark: '#2E2820' },
-    { name: '--ember-red',      light: '#7A2E2E',                dark: '#B85050' }
-  ];
-
-  /* ====================================================================
-     §3  Build a single swatch button
-     ==================================================================== */
-
-  function buildSwatch(tok, isNew) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'swatch' + (isNew ? ' swatch-new' : '');
-    btn.setAttribute('data-var', tok.name);
-    btn.setAttribute('aria-label', tok.name + ' — copy CSS variable name');
-    btn.setAttribute('data-i18n-title', 'ds.swatch.copy');
-    btn.style.setProperty('--swatch-light', tok.light);
-    btn.style.setProperty('--swatch-dark', tok.dark);
-
-    var halves = document.createElement('span');
-    halves.className = 'swatch-halves swatch-halves-' + (tok.kind || 'color');
-
-    var lh = document.createElement('span');
-    lh.className = 'swatch-half swatch-half-light';
-    var rh = document.createElement('span');
-    rh.className = 'swatch-half swatch-half-dark';
-
-    if (tok.kind === 'shadow') {
-      var lInner = document.createElement('i');
-      lInner.className = 'swatch-shadow-card';
-      lInner.style.boxShadow = '0 1px 4px ' + tok.light;
-      lh.appendChild(lInner);
-      var rInner = document.createElement('i');
-      rInner.className = 'swatch-shadow-card';
-      rInner.style.boxShadow = '0 1px 4px ' + tok.dark;
-      rh.appendChild(rInner);
-    } else if (tok.kind === 'alpha') {
-      lh.style.setProperty('--alpha-val', tok.light);
-      rh.style.setProperty('--alpha-val', tok.dark);
+  function translate(key) {
+    if (typeof window.t === 'function') {
+      return window.t(key);
     }
-
-    halves.appendChild(lh);
-    halves.appendChild(rh);
-
-    var meta = document.createElement('span');
-    meta.className = 'swatch-meta';
-    var code = document.createElement('code');
-    code.textContent = tok.name;
-    var values = document.createElement('small');
-    values.textContent = tok.light + ' / ' + tok.dark;
-    meta.appendChild(code);
-    meta.appendChild(values);
-
-    if (isNew) {
-      var newBadge = document.createElement('span');
-      newBadge.className = 'swatch-new-badge';
-      newBadge.textContent = 'NEW';
-      meta.appendChild(newBadge);
-    }
-
-    btn.appendChild(halves);
-    btn.appendChild(meta);
-    return btn;
+    return TRANSLATIONS.en[key] || key;
   }
 
-  function renderPalette() {
-    var grid = document.getElementById('palette-grid');
-    if (!grid) {
-      console.error('design-system: #palette-grid not found in DOM');
+  function registerTranslations() {
+    if (typeof window.addTranslations !== 'function') {
+      console.warn('design-system: shared i18n registration is unavailable');
       return;
     }
-    grid.innerHTML = '';
-    PALETTE_INHERITED.forEach(function (tok) {
-      grid.appendChild(buildSwatch(tok, false));
-    });
-    PALETTE_NEW.forEach(function (tok) {
-      grid.appendChild(buildSwatch(tok, true));
+    window.addTranslations('en', TRANSLATIONS.en);
+    window.addTranslations('zh', TRANSLATIONS.zh);
+  }
+
+  function readToken(probe, token) {
+    return window.getComputedStyle(probe).getPropertyValue(token).trim();
+  }
+
+  function createValue(themeKey, value, kind) {
+    var item = document.createElement('span');
+    item.className = 'token-value';
+
+    var label = document.createElement('span');
+    label.className = 'token-value-label';
+    label.textContent = translate(themeKey);
+    item.appendChild(label);
+
+    if (kind === 'color') {
+      var chip = document.createElement('i');
+      chip.className = 'token-color-chip';
+      chip.style.backgroundColor = value;
+      chip.setAttribute('aria-hidden', 'true');
+      item.appendChild(chip);
+    }
+
+    var output = document.createElement('span');
+    output.className = 'token-value-output';
+    output.textContent = value;
+    item.appendChild(output);
+    return item;
+  }
+
+  function createTokenCard(token, kind, lightValue, darkValue) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'token-card swatch';
+    button.setAttribute('data-copy-token', token);
+    button.setAttribute('aria-label', translate('ds.token.copy') + ': ' + token);
+
+    var header = document.createElement('span');
+    header.className = 'token-card-header';
+    var code = document.createElement('code');
+    code.textContent = token;
+    var hint = document.createElement('small');
+    hint.textContent = translate('ds.token.copy');
+    header.appendChild(code);
+    header.appendChild(hint);
+
+    var values = document.createElement('span');
+    values.className = 'token-values';
+    values.appendChild(createValue('ds.token.light', lightValue, kind));
+    values.appendChild(createValue('ds.token.dark', darkValue, kind));
+
+    button.appendChild(header);
+    button.appendChild(values);
+    return button;
+  }
+
+  function renderTokenGroups() {
+    var host = document.getElementById('ds-token-groups');
+    var lightProbe = document.getElementById('ds-light-probe');
+    var darkProbe = document.getElementById('ds-dark-probe');
+    if (!host || !lightProbe || !darkProbe) {
+      console.warn('design-system: token host or theme probes are unavailable');
+      return;
+    }
+
+    host.replaceChildren();
+    TOKEN_GROUPS.forEach(function (group) {
+      var section = document.createElement('section');
+      section.className = 'token-group';
+
+      var heading = document.createElement('div');
+      heading.className = 'token-group-heading';
+      var title = document.createElement('h3');
+      title.textContent = translate(group.label);
+      var description = document.createElement('p');
+      description.textContent = translate(group.description);
+      heading.appendChild(title);
+      heading.appendChild(description);
+
+      var grid = document.createElement('div');
+      grid.className = 'token-grid';
+      group.tokens.forEach(function (token) {
+        grid.appendChild(createTokenCard(
+          token,
+          group.kind,
+          readToken(lightProbe, token),
+          readToken(darkProbe, token)
+        ));
+      });
+
+      section.appendChild(heading);
+      section.appendChild(grid);
+      host.appendChild(section);
     });
   }
 
-  /* ====================================================================
-     §4  Clipboard + toast
-        Clipboard API → execCommand('copy') fallback. Errors are logged
-        and surfaced via the toast (per workspace rule "No Silent Failures").
-     ==================================================================== */
-
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
+  function legacyCopy(text) {
     return new Promise(function (resolve, reject) {
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      ta.style.pointerEvents = 'none';
-      document.body.appendChild(ta);
-      ta.select();
-      var err;
-      var ok = false;
+      var textarea = document.createElement('textarea');
+      var previousFocus = document.activeElement;
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      var copied = false;
+      var copyError = null;
       try {
-        ok = document.execCommand('copy');
-      } catch (e) {
-        err = e;
+        copied = document.execCommand('copy');
+      } catch (error) {
+        copyError = error;
       }
-      document.body.removeChild(ta);
-      if (ok) {
+      document.body.removeChild(textarea);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+
+      if (copied) {
         resolve();
       } else {
-        reject(err || new Error('execCommand("copy") returned false'));
+        reject(copyError || new Error('document.execCommand("copy") returned false'));
       }
     });
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        return Promise.resolve(navigator.clipboard.writeText(text)).catch(function (error) {
+          console.warn('design-system: Clipboard API failed; trying the selection fallback.', error);
+          return legacyCopy(text);
+        });
+      } catch (error) {
+        console.warn('design-system: Clipboard API threw; trying the selection fallback.', error);
+        return legacyCopy(text);
+      }
+    }
+    return legacyCopy(text);
   }
 
   var toastTimer = null;
-  function showToast(message) {
+  function showToast(message, duration) {
     var toast = document.getElementById('ds-toast');
-    if (!toast) { return; }
-    toast.textContent = message;
-    toast.classList.add('is-visible');
-    if (toastTimer) { clearTimeout(toastTimer); }
-    toastTimer = setTimeout(function () {
-      toast.classList.remove('is-visible');
-    }, 1500);
-  }
-
-  function copiedLabel() {
-    if (typeof window.t === 'function') {
-      return window.t('ds.swatch.copied');
-    }
-    return 'Copied';
-  }
-
-  function wireSwatches() {
-    document.querySelectorAll('.swatch').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var varName = btn.getAttribute('data-var');
-        if (!varName) { return; }
-        copyText(varName).then(function () {
-          showToast(copiedLabel() + ': ' + varName);
-          btn.classList.add('is-copied');
-          setTimeout(function () {
-            btn.classList.remove('is-copied');
-          }, 1500);
-        }).catch(function (err) {
-          // Surface the failure (no silent swallowing).
-          console.error('design-system: failed to copy CSS var', varName, err);
-          showToast('Could not copy ' + varName);
-        });
-      });
-    });
-  }
-
-  /* ====================================================================
-     §5  Motion replay
-        Maps each motion-id → its keyframe-binding class. Replay by
-        toggling the class with a forced reflow in between.
-     ==================================================================== */
-
-  var REPLAY_CLASS = {
-    'pulse-dispatch':   'has-pulse-dispatch',
-    'flow-down':        'has-flow-down',
-    'verify-gate-glow': 'has-verify-glow',
-    'scan-flicker':     'scan-flicker'
-  };
-
-  function replayMotion(target) {
-    var cls = REPLAY_CLASS[target];
-    if (!cls) {
-      console.error('design-system: unknown motion target', target);
+    if (!toast) {
+      console.warn('design-system: feedback toast is unavailable:', message);
       return;
     }
-    var stage = document.querySelector(
-      '.motion-demo[data-motion="' + target + '"] .motion-stage'
-    );
-    if (!stage) { return; }
-    var els = stage.querySelectorAll('.' + cls);
-    els.forEach(function (el) {
-      el.classList.remove(cls);
-      // Force a reflow so the browser commits the removed state before
-      // we re-add the class — this restarts the animation cleanly.
-      void el.offsetWidth;
-      el.classList.add(cls);
+    toast.textContent = message;
+    toast.classList.add('is-visible');
+    if (toastTimer) {
+      window.clearTimeout(toastTimer);
+    }
+    toastTimer = window.setTimeout(function () {
+      toast.classList.remove('is-visible');
+    }, duration || 2200);
+  }
+
+  function handleCopy(button) {
+    var token = button.getAttribute('data-copy-token');
+    if (!token) {
+      console.warn('design-system: copy control has no token name');
+      return;
+    }
+    copyText(token).then(function () {
+      button.classList.add('is-copied');
+      showToast(translate('ds.copy.success') + ': ' + token);
+      window.setTimeout(function () {
+        button.classList.remove('is-copied');
+      }, 1600);
+    }).catch(function (error) {
+      console.warn('design-system: clipboard and fallback copy both failed for ' + token, error);
+      showToast(translate('ds.copy.failed') + ' ' + token, 5000);
     });
   }
 
-  function wireMotionReplays() {
-    document.querySelectorAll('.motion-replay').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var target = btn.getAttribute('data-target');
-        if (target) { replayMotion(target); }
+  function wireCopyControls() {
+    document.querySelectorAll('[data-copy-token]').forEach(function (button) {
+      button.setAttribute(
+        'aria-label',
+        translate('ds.token.copy') + ': ' + button.getAttribute('data-copy-token')
+      );
+      if (button.getAttribute('data-copy-bound') === 'true') {
+        return;
+      }
+      button.setAttribute('data-copy-bound', 'true');
+      button.addEventListener('click', function () {
+        handleCopy(button);
       });
     });
   }
 
-  /* ====================================================================
-     §6  Init
-     ==================================================================== */
+  function reducedMotionRequested() {
+    return window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
 
-  function init() {
-    renderPalette();
-    wireSwatches();
-    wireMotionReplays();
-    // Re-apply translations now that addTranslations and the dynamically
-    // injected swatch DOM are both in place. Without this, shared/i18n.js's
-    // initial setLanguage (which ran before this script loaded) leaves the
-    // ds.* keys un-translated and the title showing the raw key.
-    if (typeof window.setLanguage === 'function') {
-      var lang = document.documentElement.getAttribute('data-lang') || 'en';
-      window.setLanguage(lang);
+  function setMotionStatus(message) {
+    var status = document.getElementById('ds-motion-status');
+    if (status) {
+      status.textContent = message;
     }
   }
 
+  function replayMotion(button) {
+    var className = button.getAttribute('data-motion-class');
+    var figure = button.closest('[data-motion]');
+    var target = figure && figure.querySelector('.motion-object');
+    if (!className || !target) {
+      console.warn('design-system: motion replay target is unavailable');
+      return;
+    }
+    target.classList.remove(className);
+    void target.offsetWidth;
+    target.classList.add(className);
+    setMotionStatus(translate(
+      reducedMotionRequested() ? 'ds.motion.reduced' : 'ds.motion.replayed'
+    ));
+  }
+
+  function wireMotionControls() {
+    document.querySelectorAll('.motion-replay').forEach(function (button) {
+      button.addEventListener('click', function () {
+        replayMotion(button);
+      });
+    });
+
+    if (reducedMotionRequested()) {
+      setMotionStatus(translate('ds.motion.reduced'));
+    }
+  }
+
+  function applyAriaLabels() {
+    document.querySelectorAll('[data-ds-aria]').forEach(function (element) {
+      element.setAttribute('aria-label', translate(element.getAttribute('data-ds-aria')));
+    });
+  }
+
+  function refreshLocalizedInteractions() {
+    renderTokenGroups();
+    wireCopyControls();
+    applyAriaLabels();
+    if (reducedMotionRequested()) {
+      setMotionStatus(translate('ds.motion.reduced'));
+    }
+  }
+
+  function init() {
+    refreshLocalizedInteractions();
+    wireMotionControls();
+    document.addEventListener('devolaflow:languagechange', refreshLocalizedInteractions);
+
+    if (typeof window.setLanguage === 'function') {
+      window.setLanguage(
+        document.documentElement.getAttribute('data-lang') || 'en'
+      );
+    }
+  }
+
+  registerTranslations();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

@@ -3,9 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="page.v3post">Design Philosophy &amp; R&amp;D Journey — DevolaFlow Blog</title>
+  <meta name="description" content="A historical DevolaFlow design note from the v10.1 era, preserved in its original period context.">
+  <title data-i18n="page.v3post">Historical Design Note — Design Philosophy &amp; R&amp;D Journey</title>
+  <link rel="icon" type="image/svg+xml" href="../../shared/favicon.svg">
   <link rel="stylesheet" href="../../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .historical-notice {
+      max-width: 860px;
+      margin: 2rem auto 2.5rem;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--secondary);
+      background: var(--card-bg);
+    }
+    .historical-notice .archive-label {
+      margin-bottom: .45rem;
+      color: var(--secondary);
+      font-family: var(--font-mono);
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .historical-notice h2 {
+      margin-bottom: .6rem;
+      font-size: 1.15rem;
+    }
+    .historical-notice p {
+      max-width: 48rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .historical-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    @media (max-width: 640px) {
+      .historical-notice { padding: 1rem; }
+      .historical-links .btn { width: 100%; }
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -21,8 +61,8 @@
       <p class="post-excerpt" data-i18n="post.excerpt">A retrospective written for a quiet 15 minutes. Five commit-grounded eras explain how the framework's two convictions (attention-as-budget, cache-prefix-as-bytes) compound into a four-layer dispatch hierarchy and six invariants that keep the framework honest. The third draft, rewritten after the second still felt machine-flavored.</p>
       <div class="cta-cluster">
         <a href="../index.html" class="btn btn-outline" data-i18n="post.cta.back">&larr; Back to Blog</a>
-        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.frameworkChain">Framework Chain &rarr;</a>
-        <a href="../../design-system/index.html" class="btn btn-outline" data-i18n="post.cta.designSystem">Design System &rarr;</a>
+        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.currentSystem">Current System &rarr;</a>
+        <a href="../../version-timeline/index.html" class="btn btn-outline" data-i18n="post.cta.timeline">Timeline &rarr;</a>
         <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="post.cta.skill">Read SKILL &uarr;</a>
       </div>
       <div class="lang-toggle" role="group" aria-label="Language view">
@@ -31,6 +71,16 @@
         <button type="button" data-lang-view="en" data-i18n="post.lang.en">EN</button>
       </div>
     </header>
+
+    <aside class="historical-notice" aria-labelledby="historical-notice-heading">
+      <p class="archive-label" data-i18n="post.history.kicker">Historical-era notice · written 2026-05-03</p>
+      <h2 id="historical-notice-heading" data-i18n="post.history.heading">Read this as a period artifact</h2>
+      <p data-i18n="post.history.copy">The essay body below is preserved as historical evidence from the v10.1 era. Its four-layer hierarchy, L3 terminology, evaluator references, fixed counts, and forward-looking roadmap describe that period; they are not current product documentation.</p>
+      <nav class="historical-links" aria-label="Current product documentation">
+        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.currentSystem">Current System &rarr;</a>
+        <a href="../../version-timeline/index.html" class="btn btn-outline" data-i18n="post.cta.timeline">Timeline &rarr;</a>
+      </nav>
+    </aside>
 
     <article class="article-body">
 
@@ -416,7 +466,8 @@
       <div class="cta-cluster">
         <a href="#sec-0" class="btn btn-outline" data-i18n="post.cta.top">&uarr; Back to Top</a>
         <a href="../index.html" class="btn btn-outline" data-i18n="post.cta.back">&larr; Back to Blog</a>
-        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.frameworkChain">Framework Chain &rarr;</a>
+        <a href="../../framework-chain/index.html" class="btn btn-outline" data-i18n="post.cta.currentSystem">Current System &rarr;</a>
+        <a href="../../version-timeline/index.html" class="btn btn-outline" data-i18n="post.cta.timeline">Timeline &rarr;</a>
         <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" class="btn btn-ghost" target="_blank" rel="noopener" data-i18n="post.cta.skill">Read SKILL &uarr;</a>
       </div>
       <p style="margin-top:1rem;">
@@ -436,16 +487,19 @@
        before i18n.js resolves; these keys cover only the chrome (heading,
        meta, CTAs, table column headers, language toggle). */
     addTranslations('en', {
-      'page.v3post':                    'Design Philosophy & R&D Journey — DevolaFlow Blog',
+      'page.v3post':                    'Historical Design Note — Design Philosophy & R&D Journey',
       'post.h1.dash':                   ' \u2014 ',
       'post.h1.title':                  'Design Philosophy & R&D Journey',
       'post.subtitle':                  '28 days, ~100 releases, two convictions, four layers, six invariants \u2014 read in 15 minutes.',
       'post.meta':                      'v3 \u00B7 2026-05-03 \u00B7 15 min read \u00B7 CN/EN bilingual',
       'post.excerpt':                   'A retrospective written for a quiet 15 minutes. Five commit-grounded eras explain how the framework\'s two convictions (attention-as-budget, cache-prefix-as-bytes) compound into a four-layer dispatch hierarchy and six invariants that keep the framework honest. The third draft, rewritten after the second still felt machine-flavored.',
+      'post.history.kicker':            'Historical-era notice \u00B7 written 2026-05-03',
+      'post.history.heading':           'Read this as a period artifact',
+      'post.history.copy':              'The essay body below is preserved as historical evidence from the v10.1 era. Its four-layer hierarchy, L3 terminology, evaluator references, fixed counts, and forward-looking roadmap describe that period; they are not current product documentation.',
       'post.cta.back':                  '\u2190 Back to Blog',
       'post.cta.top':                   '\u2191 Back to Top',
-      'post.cta.frameworkChain':        'Framework Chain \u2192',
-      'post.cta.designSystem':          'Design System \u2192',
+      'post.cta.currentSystem':         'Current System \u2192',
+      'post.cta.timeline':              'Timeline \u2192',
       'post.cta.skill':                 'Read SKILL \u2191',
       'post.lang.both':                 'CN + EN',
       'post.lang.cn':                   'CN',
@@ -463,16 +517,19 @@
       'post.sec6.col.appliedEN':        'Where it landed'
     });
     addTranslations('zh', {
-      'page.v3post':                    '设计理念与研发历程 — DevolaFlow 博客',
+      'page.v3post':                    '历史设计笔记 — 设计理念与研发历程',
       'post.h1.dash':                   ' \u2014 ',
       'post.h1.title':                  '设计理念与研发历程',
       'post.subtitle':                  '28 天 \u00B7 约 100 个版本 \u00B7 两条判断 \u00B7 四层调度 \u00B7 六条不变量 \u2014 15 分钟读完。',
       'post.meta':                      'v3 \u00B7 2026-05-03 \u00B7 15 \u5206\u949f\u9605\u8bfb \u00B7 \u4e2d\u82f1\u53cc\u8bed',
       'post.excerpt':                   '\u4e3a\u4e00\u4e2a\u5b89\u9759\u7684 15 \u5206\u949f\u5199\u7684\u590d\u76d8\u3002\u4e94\u4e2a\u6309 commit \u5207\u5206\u7684\u65f6\u4ee3\uff0c\u8bb2\u6e05\u6846\u67b6\u7684\u4e24\u6761\u8bbe\u8ba1\u5224\u65ad\uff08\u6ce8\u610f\u529b\u662f\u9884\u7b97\u3001\u7f13\u5b58\u524d\u7f00\u662f\u5b57\u8282\uff09\u5982\u4f55\u9010\u5c42\u590d\u5408\u6210\u56db\u5c42\u8c03\u5ea6\u3001\u516d\u6761\u4e0d\u53d8\u91cf\u3002',
+      'post.history.kicker':            '\u5386\u53f2\u65f6\u4ee3\u8bf4\u660e \u00B7 \u5199\u4e8e 2026-05-03',
+      'post.history.heading':           '\u8bf7\u5c06\u672c\u6587\u4f5c\u4e3a\u65f6\u4ee3\u6587\u732e\u9605\u8bfb',
+      'post.history.copy':              '\u4e0b\u65b9\u6587\u7ae0\u6b63\u6587\u4f5c\u4e3a v10.1 \u65f6\u4ee3\u7684\u5386\u53f2\u8bc1\u636e\u539f\u6837\u4fdd\u7559\u3002\u5176\u4e2d\u7684\u56db\u5c42 hierarchy\u3001L3 \u672f\u8bed\u3001\u8bc4\u4f30\u5668\u5f15\u7528\u3001\u56fa\u5b9a\u6570\u91cf\u4e0e\u672a\u6765\u8def\u7ebf\u56fe\u5747\u5c5e\u4e8e\u5f53\u65f6\u8bed\u5883\uff0c\u4e0d\u662f\u5f53\u524d\u4ea7\u54c1\u6587\u6863\u3002',
       'post.cta.back':                  '\u2190 \u8fd4\u56de\u535a\u5ba2',
       'post.cta.top':                   '\u2191 \u8fd4\u56de\u9876\u90e8',
-      'post.cta.frameworkChain':        '\u6846\u67b6\u94fe\u8def \u2192',
-      'post.cta.designSystem':          '\u8bbe\u8ba1\u4f53\u7cfb \u2192',
+      'post.cta.currentSystem':         '\u5f53\u524d\u7cfb\u7edf \u2192',
+      'post.cta.timeline':              '\u65f6\u95f4\u7ebf \u2192',
       'post.cta.skill':                 '\u9605\u8bfb SKILL \u2191',
       'post.lang.both':                 '\u4e2d + \u82f1',
       'post.lang.cn':                   '\u4e2d',

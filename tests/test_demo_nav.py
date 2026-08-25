@@ -50,6 +50,20 @@ def _extract_subpage_dirs(nav_js_text: str) -> list[str]:
     return re.findall(r"'([^']+)'", body)
 
 
+def _extract_nav_links(nav_js_text: str) -> list[tuple[str, str]]:
+    """Parse canonical key and href suffix pairs from NAV_LINKS."""
+    match = re.search(
+        r"var\s+NAV_LINKS\s*=\s*\[(.*?)\]\s*;",
+        nav_js_text,
+        re.DOTALL,
+    )
+    assert match, "NAV_LINKS not found in nav.js"
+    return re.findall(
+        r"\{\s*key:\s*'([^']+)'\s*,\s*href:\s*prefix\('([^']+)'\)[^}]*\}",
+        match.group(1),
+    )
+
+
 def _is_landing(url_path: str, subpage_dirs: list[str]) -> bool:
     """Python reimplementation of the ``isLanding`` IIFE in nav.js.
 
@@ -152,12 +166,30 @@ def test_subpage_dirs_match_disk_layout(project_root: Path) -> None:
 
 
 def test_subpage_dirs_count_is_nine(project_root: Path) -> None:
-    """SUBPAGE_DIRS must contain exactly 9 entries: the 8 v7.1.0 sub-pages
-    plus ``blog`` (added for the design-philosophy retrospective area at
-    workflow-system/human/demo/blog/). Bump this assertion when a new
-    sub-page directory ships under workflow-system/human/demo/."""
+    """SUBPAGE_DIRS preserves all nine deployed compatibility routes."""
     declared = _extract_subpage_dirs(_read_nav_js(project_root))
-    assert len(declared) == 9, f"Expected 9 sub-page directories, got {len(declared)}: {declared}"
+    assert declared == [
+        "design-system",
+        "framework-chain",
+        "context-flow",
+        "version-timeline",
+        "design-architecture",
+        "workflow-visualizer",
+        "stage-explorer",
+        "benchmark-results",
+        "blog",
+    ]
+
+
+def test_primary_nav_links_match_five_destination_ia(project_root: Path) -> None:
+    """NAV_LINKS must expose only the five canonical public destinations."""
+    assert _extract_nav_links(_read_nav_js(project_root)) == [
+        ("nav.home", "index.html"),
+        ("nav.system", "framework-chain/index.html"),
+        ("nav.io", "context-flow/index.html"),
+        ("nav.harness", "benchmark-results/index.html"),
+        ("nav.timeline", "version-timeline/index.html"),
+    ]
 
 
 def test_legacy_demo_only_detection_was_replaced(project_root: Path) -> None:
@@ -174,3 +206,55 @@ def test_legacy_demo_only_detection_was_replaced(project_root: Path) -> None:
         "predicate that 404'd on GitHub Pages — see "
         ".local/feedbacks/feedback_for_v7.1.0-pre.md"
     )
+
+
+def test_shared_i18n_owns_nav_and_control_labels(project_root: Path) -> None:
+    """Nav consumes shared translations without a second bilingual dictionary."""
+    nav_js = _read_nav_js(project_root)
+    i18n_js = (project_root / "workflow-system/human/demo/shared/i18n.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "LABELS_EN" not in nav_js
+    assert "LABELS_ZH" not in nav_js
+    assert "CONTROL_LABELS" not in nav_js
+    assert "typeof window.t" in nav_js
+
+    required_keys = {
+        *(key for key, _ in _extract_nav_links(nav_js)),
+        "control.navigation",
+        "control.menu",
+        "control.close",
+        "theme.toggle",
+        "control.language",
+    }
+    for key in sorted(required_keys):
+        assert i18n_js.count(f"'{key}':") == 2, (
+            f"shared/i18n.js must define {key!r} exactly once per language"
+        )
+
+
+def test_nav_theme_icons_and_direct_hooks_are_consistent(project_root: Path) -> None:
+    """Theme rendering uses one glyph pair and mobile-close naming is translated."""
+    nav_js = _read_nav_js(project_root)
+    i18n_js = (project_root / "workflow-system/human/demo/shared/i18n.js").read_text(
+        encoding="utf-8"
+    )
+
+    icon_function = re.search(
+        r"function\s+themeIcon\(theme\)\s*\{(.*?)\n\s*\}",
+        nav_js,
+        re.DOTALL,
+    )
+    assert icon_function, "nav.js must centralize theme glyph selection"
+    assert "'☀'" in icon_function.group(1)
+    assert "'☾'" in icon_function.group(1)
+    assert "☀️" not in nav_js
+    assert "🌙" not in nav_js
+    assert "themeIcon(preferredTheme)" in nav_js
+    assert "btn.textContent = themeIcon(theme)" in nav_js
+
+    assert "window.updateNavLabels" not in i18n_js
+    assert "window.updateNavLabels" not in nav_js
+    assert 'id="df-mobile-close"' in nav_js
+    assert "translated('control.close', 'Close navigation menu')" in nav_js

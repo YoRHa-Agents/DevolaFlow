@@ -4,11 +4,13 @@
 Usage:
     python scripts/bump_version.py 0.3.0
     python scripts/bump_version.py 0.3.0 --dry-run
-    python scripts/bump_version.py 0.3.0 --tag          # bump + create git tag
+    python scripts/bump_version.py 0.3.0 --tag          # tag committed current version
     python scripts/bump_version.py 0.3.0 --tag --dry-run
 
 Single source of truth: src/devolaflow/__init__.py (__version__).
 This script synchronizes all other locations to match.
+
+Safe release sequence: bump -> verify/preflight -> commit -> tag.
 """
 
 from __future__ import annotations
@@ -17,6 +19,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+SEMVER_TOKEN = r"\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?"
 
 VERSION_LOCATIONS = [
     {
@@ -41,7 +45,7 @@ VERSION_LOCATIONS = [
     },
     {
         "path": "workflow-system/agent/SKILL.md",
-        "pattern": r"\*\*Current version:\*\* \d+\.\d+\.\d+",
+        "pattern": rf"\*\*Current version:\*\* {SEMVER_TOKEN}",
         "replacement": "**Current version:** {version}",
     },
     # v14.4.0 G-031: two former pattern-managed surfaces are now DERIVED and
@@ -53,7 +57,7 @@ VERSION_LOCATIONS = [
     #     (newest entry; the in-file literal is a file:// fallback that may lag).
     {
         "path": "README.md",
-        "pattern": r'prints "DevolaFlow v\d+\.\d+\.\d+"',
+        "pattern": rf'prints "DevolaFlow v{SEMVER_TOKEN}"',
         "replacement": 'prints "DevolaFlow v{version}"',
     },
     {
@@ -83,7 +87,7 @@ VERSION_LOCATIONS = [
     },
 ]
 
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(-[\w.]+)?$")
+SEMVER_RE = re.compile(rf"^{SEMVER_TOKEN}$")
 
 
 def _find_root() -> Path:
@@ -103,6 +107,139 @@ def _get_current_version(root: Path) -> str:
     return match.group(1)
 
 
+def _tag_error(message: str) -> None:
+    print(f"ERROR: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def _run_git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    command = ["git", *args]
+    try:
+        return subprocess.run(
+            command,
+            cwd=str(root),
+            check=check,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        _tag_error("git executable not found; cannot create a release tag")
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip() or f"exit {exc.returncode}"
+        _tag_error(f"git command failed ({' '.join(command)}): {detail}")
+
+
+def _check_version_tag_readiness(root: Path, version: str) -> tuple[str, str]:
+    """Return the tag name and HEAD after read-only release-readiness checks."""
+    tag_name = f"v{version}"
+    head_sha = _run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+    branch = _run_git(root, "branch", "--show-current").stdout.strip()
+    if branch != "main":
+        branch_label = branch or "detached HEAD"
+        _tag_error(
+            "release tags must be created from main; "
+            f"current branch is {branch_label}. Merge the release PR, then run "
+            "`git checkout main` before tagging."
+        )
+
+    origin_main_ref = "refs/remotes/origin/main"
+    origin_main_probe = _run_git(
+        root,
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        origin_main_ref,
+        check=False,
+    )
+    if origin_main_probe.returncode == 0:
+        origin_main_sha = origin_main_probe.stdout.strip()
+        if head_sha != origin_main_sha:
+            _tag_error(
+                f"HEAD {head_sha} does not match origin/main {origin_main_sha}; "
+                "run `git fetch origin main`, update local main to the merged "
+                "remote commit, and retry."
+            )
+    elif origin_main_probe.returncode != 1:
+        detail = (origin_main_probe.stderr or origin_main_probe.stdout or "").strip()
+        _tag_error(
+            f"git command failed while checking {origin_main_ref}: "
+            f"{detail or f'exit {origin_main_probe.returncode}'}"
+        )
+
+    committed_source = _run_git(
+        root,
+        "show",
+        "HEAD:src/devolaflow/__init__.py",
+    ).stdout
+    committed_match = re.search(r'__version__\s*=\s*"([^"]+)"', committed_source)
+    if not committed_match:
+        _tag_error(
+            "cannot verify the package version committed at current HEAD; "
+            "src/devolaflow/__init__.py has no __version__ assignment"
+        )
+    committed_version = committed_match.group(1)
+    if committed_version != version:
+        _tag_error(
+            f"requested version {version} is not committed at current HEAD "
+            f"(HEAD contains {committed_version}); bump, verify, and commit first"
+        )
+
+    # Ignore untracked files, but reject every staged or unstaged tracked change.
+    status = _run_git(
+        root,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=no",
+    ).stdout.strip()
+    if status:
+        _tag_error(
+            "tracked worktree is not clean; "
+            "`git status --short --untracked-files=no` reported:\n"
+            f"{status}\nCommit staged and unstaged tracked changes before tagging."
+        )
+
+    tag_ref = f"refs/tags/{tag_name}"
+    tag_probe = _run_git(
+        root,
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        tag_ref,
+        check=False,
+    )
+    if tag_probe.returncode == 0:
+        _tag_error(f"git tag {tag_name} already exists; refusing to replace it")
+    if tag_probe.returncode != 1:
+        detail = (tag_probe.stderr or tag_probe.stdout or "").strip()
+        _tag_error(
+            f"git command failed while checking {tag_ref}: "
+            f"{detail or f'exit {tag_probe.returncode}'}"
+        )
+
+    return tag_name, head_sha
+
+
+def _create_version_tag(root: Path, version: str) -> None:
+    """Validate merged/clean readiness, then run git tag at current HEAD."""
+    tag_name, head_sha = _check_version_tag_readiness(root, version)
+    _run_git(
+        root,
+        "tag",
+        "-a",
+        "-m",
+        f"Release {tag_name}",
+        tag_name,
+        head_sha,
+    )
+    print(f"\n  TAG    {tag_name} created at current HEAD {head_sha}")
+    print(f"  Push with: git push origin {tag_name}")
+
+
 def bump(
     new_version: str,
     *,
@@ -114,6 +251,32 @@ def bump(
     current = _get_current_version(root)
     updated: list[str] = []
     missed: list[tuple[str, str]] = []
+    planned_text: dict[Path, str] = {}
+    matched_paths: list[str] = []
+
+    if tag and current == new_version:
+        tag_name = f"v{new_version}"
+        print(f"Preparing release tag for committed version: {new_version}")
+        if dry_run:
+            print("(dry run — no files or git refs will be modified)")
+            _, head_sha = _check_version_tag_readiness(root, new_version)
+            print(f"\n  READY  verified main at {head_sha}")
+            print(f"  WOULD  create annotated git tag {tag_name} at current HEAD")
+            print(
+                "  READY  requested version is committed, tracked worktree is "
+                "clean, main matches origin/main when present, and tag is absent"
+            )
+            return []
+        _create_version_tag(root, new_version)
+        return []
+
+    if tag and not dry_run:
+        _tag_error(
+            f"--tag is a finalization step, but current package version is "
+            f"{current} and requested version is {new_version}. Run without "
+            "--tag to bump, run release-preflight, verify and commit the "
+            "changes, then rerun the same version with --tag."
+        )
 
     print(f"Bumping version: {current} -> {new_version}")
     if dry_run:
@@ -128,22 +291,20 @@ def bump(
             print(f"  SKIP  {loc['path']} (not found)")
             continue
 
-        text = fpath.read_text()
+        text = planned_text.get(fpath)
+        if text is None:
+            text = fpath.read_text()
         pattern = re.compile(loc["pattern"], re.MULTILINE)
         replacement = loc["replacement"].format(version=new_version)
 
         new_text, count = pattern.subn(replacement, text, count=1)
         if count > 0:
-            if not dry_run:
-                fpath.write_text(new_text)
-            status = "OK" if not dry_run else "WOULD"
-            print(f"  {status:6s} {loc['path']}")
+            planned_text[fpath] = new_text
+            matched_paths.append(loc["path"])
             updated.append(loc["path"])
         else:
             print(f"  MISS  {loc['path']} (pattern not found: {loc['pattern']})")
             missed.append((loc["path"], loc["pattern"]))
-
-    print(f"\n{len(updated)} locations {'would be ' if dry_run else ''}updated.")
 
     if missed:
         # G-032 / S-5: a canonical-location regex that matches nothing means
@@ -162,23 +323,22 @@ def bump(
         )
         sys.exit(1)
 
+    if not dry_run:
+        for fpath, text in planned_text.items():
+            fpath.write_text(text)
+
+    status = "OK" if not dry_run else "WOULD"
+    for path in matched_paths:
+        print(f"  {status:6s} {path}")
+
+    print(f"\n{len(updated)} locations {'would be ' if dry_run else ''}updated.")
+
     if tag:
-        tag_name = f"v{new_version}"
-        if dry_run:
-            print(f"\n  WOULD  create git tag: {tag_name}")
-        else:
-            try:
-                subprocess.run(
-                    ["git", "tag", "-a", tag_name, "-m", f"Release {tag_name}"],
-                    cwd=str(root),
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                print(f"\n  TAG    {tag_name} created")
-                print(f"  Push with: git push origin {tag_name}")
-            except subprocess.CalledProcessError as e:
-                print(f"\n  FAIL   git tag: {e.stderr.strip()}")
+        print(
+            "\n  NEXT   this dry run previews version-file updates only. "
+            "Apply the bump without --tag, run release-preflight, commit, "
+            f"then rerun {new_version} with --tag."
+        )
 
     return updated
 
@@ -194,7 +354,7 @@ def main() -> None:
         print(f"Current version: {current}")
         print(f"\nUsage: {sys.argv[0]} <new-version> [--dry-run] [--tag]")
         print(f"Example: {sys.argv[0]} 0.3.0")
-        print(f"         {sys.argv[0]} 0.3.0 --tag  # also create git tag")
+        print(f"         {sys.argv[0]} 0.3.0 --tag  # tag committed current version")
         sys.exit(0)
 
     new_version = args[0]
@@ -202,7 +362,12 @@ def main() -> None:
         print(f"Error: '{new_version}' is not a valid semver (expected X.Y.Z)")
         sys.exit(1)
 
-    bump(new_version, dry_run=dry_run, tag=create_tag)
+    updated = bump(new_version, dry_run=dry_run, tag=create_tag)
+
+    # Final tag creation is intentionally write-free apart from the git ref.
+    # Cursor-skill synchronization belongs to the first (version-bump) phase.
+    if create_tag and not updated:
+        return
 
     # Keep the .cursor/skills/devola-flow/ project-local mirror in sync with the
     # freshly-bumped canonical skill under workflow-system/agent/. The mirror is

@@ -37,18 +37,12 @@ _V10_0_0_AUDIT_SCRIPT_PUBLIC_SYMBOLS: tuple[str, ...] = (
 )
 
 
-# v10.0.0 PV-03 human-facing docs surfaces.
-#
-# The SAMPLE_DATA literal in benchmark-results/index.html is updated by
-# every `bump_version.py` run (CP-3 canonical location), so pinning a
-# specific version number would fail right after the next bump. Keep
-# only historically-anchored literals here — the README "What's New"
-# header, the demo landing page heading, and the versions.json entry
-# (versions.json is append-only so the v10.0.0 entry persists).
+# v10.0.0 PV-03 historical human-doc surfaces. Timeline is append-only, and
+# the tracked cycle-archive README preserves the release contract without
+# requiring a retired release card on the current Home page.
 _V10_0_0_HUMAN_DOC_LITERALS: tuple[tuple[str, str], ...] = (
-    ("README.md", "## What's New in v10.0.0 (MAJOR cycle close)"),
-    ("workflow-system/human/demo/index.html", "What's New</span> in v10.0.0"),
     ("workflow-system/human/demo/version-timeline/versions.json", '"version": "10.0.0"'),
+    ("docs/cycle-archive/v10.0.0/README.md", "# Cycle Archive — v10.0.0"),
 )
 
 
@@ -79,11 +73,9 @@ def test_v10_0_0_new_symbols_have_coverage(project_root: Path) -> None:
        exists AND every named public symbol is present at module level. The
        MAJOR rollup CHANGELOG entry cites the audit's "57 files / 0 FAILs"
        headline number; missing script = unprovable claim.
-    2. **PV-03 human-doc literal contract** — the README v10.0.0 "What's New"
-       section header + the demo landing v10.0.0 What's New header + the
-       `versions.json` v10.0.0 entry + the benchmark-results SAMPLE_DATA
-       version string MUST all be present. These are the surfaces the
-       CHANGELOG cites for the "comprehensive human-docs refresh".
+    2. **PV-03 historical-doc contract** — the append-only `versions.json`
+       v10.0.0 entry and tracked cycle-archive README remain present. Current
+       Home and Harness pages do not carry retired release-specific cards.
     3. **PV-04 W-19 cycle archive surface** — the
        `docs/cycle-archive/v10.0.0/` tree exists with the README + the
        v10.0.0 retrospective + the v9.3 / v9.7 retrospectives (sample of
@@ -94,8 +86,8 @@ def test_v10_0_0_new_symbols_have_coverage(project_root: Path) -> None:
     Failure modes:
       * "audit script missing public symbol" → PV-02 surface decayed; restore
         the symbol OR remove the CHANGELOG mention.
-      * "human-doc literal missing" → PV-03 doc-refresh edit was reverted;
-        re-author the section.
+      * "historical-doc literal missing" → Timeline or tracked archive
+        evidence decayed; restore the durable historical contract.
       * "cycle archive file missing" → PV-04 W-19 archive run failed; re-run
         `python scripts/archive_research_artifacts.py 10.0.0 --extra-prefix
         v9.3. --extra-prefix v9.4. --extra-prefix v9.5. --extra-prefix v9.6.
@@ -132,8 +124,8 @@ def test_v10_0_0_new_symbols_have_coverage(project_root: Path) -> None:
         doc_text = doc_path.read_text(encoding="utf-8")
         assert literal in doc_text, (
             f"W-18 v10.0.0 violation: literal {literal!r} missing from "
-            f"{rel_path}. PV-03 ships this literal; either restore it OR "
-            f"remove the CHANGELOG mention of the human-docs refresh."
+            f"{rel_path}. PV-03 history must remain discoverable through "
+            f"Timeline and the tracked cycle archive."
         )
 
     # §3 — W-19 cycle archive surface.

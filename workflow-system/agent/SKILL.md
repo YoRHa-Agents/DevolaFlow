@@ -35,7 +35,26 @@ description: >
 ## Version & Update
 **Current version:** 17.0.0 — Check only on explicit update request:
 `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/src/devolaflow/__init__.py | grep '__version__'`.
-If newer: `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`.
+
+Use the channel that created the installation:
+
+- npm/npx copied skills:
+  `npx @yorha-agents/devola-flow update <cursor|claude|all>`;
+- curl-installer copied skills:
+  `curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update`
+  scans supported host skill copies only;
+- Python package:
+  `pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git`.
+
+curl `all` installs all supported host targets plus `local`; it excludes
+`standalone`. curl `update` does not scan local workspaces or standalone files;
+rerun the explicit `local` or `standalone` install target for those surfaces.
+Updating the Python package does not auto-refresh copied skills. Editable
+checkout users pull the checkout and rerun the relevant `devola-init` target.
+Workspace health is `devola-init-doctor`; copied-skill audit is
+`devola-init-doctor --skills`; npm-channel parity is
+`npx @yorha-agents/devola-flow doctor`. Repair rule compilation with
+`sync-rules` or repository-local `make compile-rules`.
 Wheel-only limits: `references/troubleshooting.md` §2.17.
 
 ### Session Banner Contract (v12.3.0+)
@@ -193,7 +212,8 @@ All depth modes create the canonical paths:
 
 L0 verifies the L2 scaffold task owns all eight paths. Missing or extra
 ownership fails `pre_dispatch` as blocker `VOF001`. Mode selects depth, not
-files. Post-init: `devola-init doctor`.
+files. Post-init workspace health: `devola-init-doctor`; installed copies:
+`devola-init-doctor --skills`.
 
 The repo-init seed marks codegraph suggest-tier; indexing runs in the
 background with explicit ready/failed markers. A missing CLI is a non-blocking

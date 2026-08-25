@@ -1,93 +1,249 @@
 #!/usr/bin/env python3
-"""Generate human-readable docs from agent system files.
+"""Generate deterministic EN/ZH human guides from repository sources.
 
-Design ref: design_dual_system.md section 4.1-4.2
-Simplified v0.1.0: generates structured docs with practical content.
-
-v10.1.0: pipes generated content through the writing-style humanizer
-before write-out. Opt-out via `--no-humanize`; default is ON for
-EN/ZH guides per Q-B (in-pipeline + `make humanize-docs` target).
+The generator owns every Markdown file under ``workflow-system/human/en`` and
+``workflow-system/human/zh``. Inventory values come from the seed registry,
+install manifest, context profiles, and canonical rule sources rather than
+being copied into prose.
 """
 
 from __future__ import annotations
 
+import os
+import re
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import yaml
+
 try:
-    from devolaflow.writing_style import (
-        apply_transforms,
-        profile_for_path,
-    )
+    from devolaflow.writing_style import apply_transforms, profile_for_path
 
     _HUMANIZE_AVAILABLE = True
-except ImportError:  # pragma: no cover — writing_style ships at v10.1.0
+except ImportError:  # pragma: no cover - the package supplies writing_style
     apply_transforms = None  # type: ignore[assignment]
     profile_for_path = None  # type: ignore[assignment]
     _HUMANIZE_AVAILABLE = False
+
+
+ROOT = Path(__file__).resolve().parent.parent
+SOURCE_FILES = ["SKILL.md"]
+SOURCE_VERSION = "17.0.0"
+INSTALLER_URL = "https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
+HOST_BRIDGE_URL = (
+    "https://github.com/YoRHa-Agents/DevolaFlow/blob/main/"
+    "workflow-system/agent/references/host-bridges.md"
+)
+_LAST_SYNCED_RE = re.compile(r'^last_synced:\s*"[^"]*"$', re.MULTILINE)
+_RULE_ID_RE = re.compile(r"^#{2,3} ((?:S|A|C|W|ST)-\d+) — ", re.MULTILINE)
+
+ZH_SEED_DESCRIPTIONS = {
+    "hotfix": "快速完成缺陷分诊、最小修复、聚焦测试与快速发布。",
+    "research-only": "开展纯研究与比较，并产出经验证的报告。",
+    "design-only": "基于研究完成设计与架构评审。",
+    "documentation-only": "调研、编写并评审文档。",
+    "spike-poc": "构建有边界的可丢弃原型，并给出明确评估结论。",
+    "refactoring": "以证据为依据重构技术债务。",
+    "feature-enhancement": "通过设计、实现与发布证据扩展现有功能。",
+    "full-pipeline": "为绿地项目或端到端交付提供分解知识。",
+    "performance-optimization": "分析性能、实施优化、运行基准并验证可测结果。",
+    "security-audit": "执行威胁建模、扫描、分析、修复与验证。",
+    "research-design-review-refine": "迭代完成研究、设计、评审、改进与知识缺口闭环。",
+    "dependency-setup": "配置环境与工具，并进行有界验证。",
+    "onboarding": "通过分析、文档、配置与验证完成贡献者入门。",
+    "demo-showcase": "以视觉质量证据支撑演示与展示分解。",
+    "product-verification": "从视觉、交互、无障碍与验收维度验证用户体验。",
+    "entropy-cleanup": "清理过期文档与漂移。",
+    "migration": "系统化迁移，并验证切换与回滚准备。",
+    "skill-optimization": "分析、优化、验证并记录 Agent skill。",
+    "self-update": "研究、集成、测试并评估引用依赖更新。",
+    "nines-assisted": "基于内置 harness 的历史研究与迭代分解知识。",
+    "repo-init": "初始化仓库工作区与治理。",
+    "change-driven": "唯一可执行的清单轮次生命周期运行时。",
+    "web-design": "前端设计、实现、改进与确定性验证知识。",
+}
+
+
+@dataclass(frozen=True)
+class Inventory:
+    """Derived catalog data used by generated prose."""
+
+    seeds: tuple[dict[str, object], ...]
+    primitives: tuple[str, ...]
+    profiles: tuple[tuple[str, str, tuple[str, ...]], ...]
+    reference_count: int
+    rule_count: int
+    context_profile_count: int
+
+
+def _read_yaml(path: Path) -> dict:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path.relative_to(ROOT)} must contain a YAML mapping")
+    return payload
+
+
+def _load_inventory(root: Path = ROOT) -> Inventory:
+    registry_path = root / "workflow-system/agent/templates/registry.yaml"
+    registry = _read_yaml(registry_path)
+    seeds = tuple((registry.get("compositions") or []) + (registry.get("templates") or []))
+    seed_names = {str(entry["name"]) for entry in seeds}
+    zh_names = set(ZH_SEED_DESCRIPTIONS)
+    if seed_names != zh_names:
+        missing = sorted(seed_names - zh_names)
+        extra = sorted(zh_names - seed_names)
+        raise ValueError(
+            "ZH seed description keys must match registry names exactly; "
+            f"missing={missing}, extra={extra}"
+        )
+
+    primitives: set[str] = set()
+    for entry in seeds:
+        seed_path = root / "workflow-system/agent/templates" / str(entry["seed"])
+        seed = _read_yaml(seed_path)
+        for partition in seed.get("partitions") or []:
+            for source_stage in partition.get("source_stages") or []:
+                primitive = source_stage.get("primitive")
+                if primitive:
+                    primitives.add(str(primitive))
+
+    manifest = _read_yaml(root / "workflow-system/agent/manifest.yaml")
+    profiles = tuple(
+        (
+            str(name),
+            str(profile["kind"]),
+            tuple(str(set_name) for set_name in profile["sets"]),
+        )
+        for name, profile in (manifest.get("install_profiles") or {}).items()
+    )
+    references = tuple(manifest.get("references") or ())
+
+    rule_ids: set[str] = set()
+    for rule_file in sorted((root / ".rules").glob("*.mdc")):
+        rule_ids.update(_RULE_ID_RE.findall(rule_file.read_text(encoding="utf-8")))
+
+    context_profiles = _read_yaml(root / "workflow-system/agent/context_profiles.yaml")
+    profile_count = len(context_profiles.get("profiles") or {})
+
+    return Inventory(
+        seeds=seeds,
+        primitives=tuple(sorted(primitives)),
+        profiles=profiles,
+        reference_count=len(references),
+        rule_count=len(rule_ids),
+        context_profile_count=profile_count,
+    )
+
+
+INVENTORY = _load_inventory()
 
 DOCS = [
     (
         "quickstart",
         "Quick Start Guide",
-        "Getting started with DevolaFlow in under 10 minutes.",
+        "Install DevolaFlow, verify the correct channel, and run a first checklist workflow.",
         "快速入门指南",
-        "10 分钟内开始使用 DevolaFlow。",
+        "安装 DevolaFlow，按正确渠道验证，并运行第一个清单工作流。",
     ),
     (
         "architecture-overview",
         "Architecture Overview",
-        "Three-layer checklist-round architecture, provenance primitives, and quality gates.",
+        "Three-layer checklist-round architecture, provenance primitives, and evidence gates.",
         "架构概述",
-        "三层清单轮次架构、来源原语与质量门机制。",
+        "三层清单轮次架构、来源原语与证据门。",
     ),
     (
         "workflow-types",
         "Checklist Seed Catalog",
-        "23 built-in checklist seeds plus the change-driven runtime.",
+        "Registry-derived checklist seeds and the sole change-driven runtime.",
         "清单种子目录",
-        "23 个内置清单种子与 change-driven 运行时。",
+        "从注册表派生的清单种子与唯一的 change-driven 运行时。",
     ),
     (
         "agent-hierarchy-guide",
         "Agent Hierarchy Guide",
-        "Understanding the three-layer Project, Wave, and Task hierarchy.",
+        "Project, Wave, and Task responsibilities and escalation.",
         "Agent 层级指南",
-        "理解 Project、Wave、Task 三层委托架构。",
+        "Project、Wave、Task 的职责与升级链。",
     ),
     (
         "customization-guide",
         "Customization Guide",
-        "Creating non-executable checklist seeds and derived configurations.",
+        "Customize seeds, context profiles, rules, and local scaffolds without forking runtime truth.",
         "自定义指南",
-        "创建不可执行的清单种子与派生配置。",
+        "在不分叉运行时事实源的前提下自定义种子、上下文配置、规则与本地脚手架。",
     ),
     (
         "integration-guide",
         "Integration Guide",
-        "Integrating DevolaFlow with Cursor, Claude Code, Copilot, and Codex.",
+        "Manifest-derived host profiles, installation channels, and optional host bridges.",
         "集成指南",
-        "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成。",
+        "从清单派生的宿主配置、安装渠道与可选 host bridge。",
     ),
     (
         "troubleshooting",
         "Troubleshooting",
-        "Common issues and solutions for workflow execution.",
+        "Diagnose installation channels, local scaffolds, copied skills, and host bridges.",
         "故障排查",
-        "工作流执行中的常见问题和解决方案。",
+        "诊断安装渠道、本地脚手架、已复制的 skill 与 host bridge。",
     ),
     (
         "faq",
         "FAQ",
-        "Frequently asked questions about the workflow system.",
+        "Common questions about checklist rounds, installation scope, updates, and release evidence.",
         "常见问题",
-        "关于工作流系统的常见问题解答。",
+        "关于清单轮次、安装范围、更新与发布证据的常见问题。",
     ),
 ]
 
-SOURCE_FILES = ["SKILL.md"]
-SOURCE_VERSION = "17.0.0"
+
+def _run_timestamp() -> str:
+    """Return one UTC timestamp for the current generator run."""
+    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if source_date_epoch is None:
+        instant = datetime.now(UTC)
+    else:
+        try:
+            instant = datetime.fromtimestamp(int(source_date_epoch), tz=UTC)
+        except (OverflowError, OSError, ValueError) as exc:
+            raise ValueError("SOURCE_DATE_EPOCH must be a valid integer Unix timestamp") from exc
+    return instant.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _semantic_text(content: str) -> str:
+    """Normalize only the generated clock field for semantic comparison."""
+    normalized, count = _LAST_SYNCED_RE.subn('last_synced: "<semantic-clock>"', content)
+    if count != 1:
+        raise ValueError("generated document must contain exactly one last_synced field")
+    return normalized
+
+
+def _render_doc(
+    slug: str,
+    title: str,
+    desc: str,
+    lang: str,
+    *,
+    synced_at: str,
+    humanize: bool,
+) -> str:
+    frontmatter = (
+        f'---\ntitle: "{title}"\ndescription: "{desc}"\nsource_files:\n'
+        + "".join(f'  - "{source_file}"\n' for source_file in SOURCE_FILES)
+        + "auto_generated: true\n"
+        + f'last_synced: "{synced_at}"\n'
+        + f'source_version: "{SOURCE_VERSION}"\n---\n\n'
+    )
+    body = _gen_en_content(slug) if lang == "en" else _gen_zh_content(slug)
+    content = frontmatter + f"# {title}\n\n{desc}\n\n" + body
+
+    if humanize and _HUMANIZE_AVAILABLE:
+        rel_path = f"workflow-system/human/{lang}/{slug}.md"
+        profile = profile_for_path(rel_path)
+        content = apply_transforms(content, profile).after
+    return content
 
 
 def _gen_doc(
@@ -98,1847 +254,1062 @@ def _gen_doc(
     output_dir: Path,
     *,
     humanize: bool = True,
-) -> None:
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    fm = f'---\ntitle: "{title}"\ndescription: "{desc}"\nsource_files:\n'
-    for sf in SOURCE_FILES:
-        fm += f'  - "{sf}"\n'
-    fm += f'auto_generated: true\nlast_synced: "{now}"\nsource_version: "{SOURCE_VERSION}"\n---\n\n'
-    content = fm + f"# {title}\n\n{desc}\n\n"
+    synced_at: str | None = None,
+) -> bool:
+    """Write one guide and return whether its bytes changed.
 
-    if lang == "en":
-        content += _gen_en_content(slug)
-    else:
-        content += _gen_zh_content(slug)
-
-    if humanize and _HUMANIZE_AVAILABLE:
-        rel_path = f"workflow-system/human/{lang}/{slug}.md"
-        profile = profile_for_path(rel_path)
-        result = apply_transforms(content, profile)
-        content = result.after
-
+    Existing bytes win when the rendered semantics differ only in
+    ``last_synced``. A real semantic change receives the supplied run-level
+    timestamp (or a fresh timestamp for direct callers).
+    """
+    timestamp = synced_at or _run_timestamp()
+    candidate = _render_doc(
+        slug,
+        title,
+        desc,
+        lang,
+        synced_at=timestamp,
+        humanize=humanize,
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / f"{slug}.md").write_text(content, encoding="utf-8")
+    target = output_dir / f"{slug}.md"
+    if target.exists():
+        existing = target.read_text(encoding="utf-8")
+        if _semantic_text(existing) == _semantic_text(candidate):
+            return False
+    target.write_text(candidate, encoding="utf-8", newline="\n")
+    return True
 
 
-def _gen_en_content(slug: str) -> str:
-    sections = {
-        "quickstart": _en_quickstart(),
-        "architecture-overview": _en_architecture(),
-        "workflow-types": _en_workflow_types(),
-        "agent-hierarchy-guide": _en_hierarchy(),
-        "faq": _en_faq(),
-        "integration-guide": _en_integration(),
-        "customization-guide": _en_customization(),
-        "troubleshooting": _en_troubleshooting(),
-    }
-    return sections.get(slug, f"## {slug.replace('-', ' ').title()}\n\nContent coming soon.\n")
+def generate_docs(
+    output_root: Path,
+    *,
+    languages: tuple[str, ...] = ("en", "zh"),
+    humanize: bool = True,
+    synced_at: str | None = None,
+) -> tuple[int, int]:
+    """Generate selected languages with one shared timestamp."""
+    timestamp = synced_at or _run_timestamp()
+    generated = 0
+    changed = 0
+    for slug, en_title, en_desc, zh_title, zh_desc in DOCS:
+        for lang in languages:
+            title, desc = (en_title, en_desc) if lang == "en" else (zh_title, zh_desc)
+            changed += int(
+                _gen_doc(
+                    slug,
+                    title,
+                    desc,
+                    lang,
+                    output_root / lang,
+                    humanize=humanize,
+                    synced_at=timestamp,
+                )
+            )
+            generated += 1
+    return generated, changed
 
 
-def _gen_zh_content(slug: str) -> str:
-    sections = {
-        "quickstart": _zh_quickstart(),
-        "architecture-overview": _zh_architecture(),
-        "workflow-types": _zh_workflow_types(),
-        "agent-hierarchy-guide": _zh_hierarchy(),
-        "faq": _zh_faq(),
-        "integration-guide": _zh_integration(),
-        "customization-guide": _zh_customization(),
-        "troubleshooting": _zh_troubleshooting(),
-    }
-    return sections.get(slug, f"## {slug.replace('-', ' ').title()}\n\n内容即将推出。\n")
+def _profile_rows(lang: str) -> str:
+    if lang == "en":
+        rows = ["| Target | Manifest kind | File sets |", "|---|---|---|"]
+    else:
+        rows = ["| 目标 | 清单类型 | 文件集合 |", "|---|---|---|"]
+    rows.extend(
+        f"| `{name}` | `{kind}` | {', '.join(f'`{item}`' for item in sets)} |"
+        for name, kind, sets in INVENTORY.profiles
+    )
+    return "\n".join(rows)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# English content generators
-# ═══════════════════════════════════════════════════════════════════
+def _seed_rows(lang: str) -> str:
+    if lang == "en":
+        rows = [
+            "| Seed ID | Category | Canonical description | Intent tags |",
+            "|---|---|---|---|",
+        ]
+        rows.extend(
+            f"| `{entry['name']}` | `{entry['category']}` | {entry['description']} | "
+            f"{', '.join(f'`{tag}`' for tag in entry.get('tags') or [])} |"
+            for entry in INVENTORY.seeds
+        )
+    else:
+        rows = ["| 种子 ID | 类别 | 本地化描述 | 意图标签 |", "|---|---|---|---|"]
+        rows.extend(
+            f"| `{entry['name']}` | `{entry['category']}` | "
+            f"{ZH_SEED_DESCRIPTIONS[str(entry['name'])]} | "
+            f"{', '.join(f'`{tag}`' for tag in entry.get('tags') or [])} |"
+            for entry in INVENTORY.seeds
+        )
+    return "\n".join(rows)
 
 
 def _en_quickstart() -> str:
-    return """\
-## Prerequisites
+    return f"""\
+## 1. Choose an installation channel
 
-- Python 3.11+
-- pip
-- One of: Cursor, Claude Code, GitHub Copilot, or OpenAI Codex
+The channels do not have identical scope.
 
-## Step 1: Install DevolaFlow
+### npm / npx: user-level Cursor and Claude
 
-Choose the method that fits your setup:
-
-**Option A — npm / npx (recommended; works on Windows, no Python needed):**
+Requires Node 18 or newer and works on Windows. The npm meaning of `all` is
+only the two user-level targets supported by this package: Cursor and Claude.
 
 ```bash
-# Install into the user-level skill directory (Node >= 18)
-npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
-npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
-npx @yorha-agents/devola-flow install all       # both
-
-# Later: health check and update
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install all
 npx @yorha-agents/devola-flow doctor
-npx @yorha-agents/devola-flow update all
 ```
 
-Skill files are downloaded from GitHub at the tag matching the package version
-(`DEVOLA_FLOW_REF` overrides the ref). Targets: Cursor and Claude Code,
-user-level directories only — for project-local, Copilot, or Codex installs
-use Option B.
+Downloads default to the tag matching the npm package version. Set
+`DEVOLA_FLOW_REF` only when you intentionally need a branch, tag, or SHA.
 
-**Option B — One-liner (curl; all tools, project-local or global):**
+### curl: broader project/global target set
+
+The curl installer defaults to project scope and supports every target listed
+by its `help`, including Cursor, Claude, Codex, Copilot, KimiCode, Windsurf,
+Zed, Cline, Roo, `local`, and `standalone`.
 
 ```bash
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-
-# Install for Cursor (project-local)
-curl -fsSL $INSTALLER | bash -s cursor
-
-# Or install for all tools at once
-curl -fsSL $INSTALLER | bash -s all
+curl -fsSL {INSTALLER_URL} | bash -s cursor
+curl -fsSL {INSTALLER_URL} | bash -s claude --global
+curl -fsSL {INSTALLER_URL} | bash -s all
 ```
 
-**Option C — pip install:**
+The curl `all` target installs every supported host target plus the `local`
+scaffold; it excludes `standalone`. Some hosts are project-only even when
+`--global` is requested. A global install also attempts the registered runtime
+plugins; add `--no-plugins` for skill files only. The curl installer has no
+doctor command.
+
+### pip or wheel: Python runtime and local scaffold
 
 ```bash
 pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-cd your-project/
-devola-init cursor       # Cursor only
-devola-init all          # all tools
+cd your-project
+devola-init local --mode=standard
 ```
 
-**Option D — Manual (single file):**
+A wheel provides the Python runtime, CLIs, and `devola-init local`. It does not
+bundle `workflow-system/agent/`, so wheel-only installs cannot copy non-local
+host skills.
 
-Download [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) and place it in:
-
-| Tool | Path |
-|------|------|
-| Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
-| Copilot | `.github/copilot-instructions.md` |
-| Codex | `~/.codex/skills/devola-flow/SKILL.md` |
-
-## Step 2: Verify Installation
+For `devola-init cursor`, `claude`, `copilot`, `codex`, or `all`, use a source
+checkout plus an editable install:
 
 ```bash
-devola-version   # should print current DevolaFlow version
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+devola-init cursor
 ```
 
-## Step 3: Try Your First Workflow
+The Python meaning of `all` is Cursor, Claude, Copilot, and Codex; it excludes
+the local scaffold. With `--global`, plugin installation is attempted unless
+`--no-plugins` is present.
 
-Open your AI tool and try one of these prompts:
+### Manual fallback
 
-### Example: Fix a Bug (Hotfix Workflow)
+Copying only
+[`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md)
+can make basic instructions visible, but it omits the manifest-declared
+references and examples. Prefer a channel above for a complete profile.
 
-```
-Fix the login timeout bug — users report 500 errors after 30 seconds of inactivity
-```
-
-What happens behind the scenes:
-1. DevolaFlow matches the **hotfix checklist seed** from "fix" + "bug"
-2. L0 anchors the goal, materialized checklist, and signed preflight with you
-3. L0 picks the highest-priority checklist items and groups them into a wave
-4. L1 Wave dispatches isolated L2 Tasks for diagnosis, remediation, and evidence
-5. L0 verifies the evidence, checks completed assertions, and opens another bounded round if needed
-
-### Example: Build a New Feature (Full Pipeline)
-
-```
-Implement a user notification system with email and in-app channels
-```
-
-What happens:
-1. DevolaFlow selects the **full-pipeline checklist seed**
-2. The seed's historical primitive provenance helps materialize measurable design, implementation, review, test, and release assertions; it does not prescribe execution order
-3. You confirm the checklist priorities and preflight decisions
-4. L0 runs bounded checklist rounds through L1 Waves and isolated L2 Tasks
-5. Each checked item carries evidence; unresolved blockers remain open
-6. The archive gate requires the checklist contract to pass before source truth changes
-
-### Example: Quick Research (No Code)
-
-```
-Research the best approach for real-time notifications — compare WebSocket vs SSE vs polling
-```
-
-What happens:
-1. DevolaFlow selects the **research-only checklist seed**
-2. The materialized checklist asks for a structured, evidenced comparison — no code written
-
-## Step 4: Explore More
-
-- See all 23 checklist seeds: [Checklist Seed Catalog](workflow-types.md)
-- Understand the architecture: [Architecture Overview](architecture-overview.md)
-- Set up for your specific tool: [Integration Guide](integration-guide.md)
-- Customize workflows: [Customization Guide](customization-guide.md)
-
-## Checking for Updates
-
-Ask your AI agent: `"update devola"` — it checks GitHub for newer versions and provides the exact update command.
-
-Or from the terminal:
+## 2. Verify the right surface
 
 ```bash
-# npm installer update (user-level Cursor/Claude installs)
+# npm-supported user installs and manifest parity
+npx @yorha-agents/devola-flow doctor
+
+# Python local workspace structure
+devola-init-doctor
+
+# Python audit of known copied-skill locations
+devola-init-doctor --skills
+```
+
+Skill-copy success does not prove host bridge wiring. Host bridges are an
+optional, separate enforcement layer; see the [host bridge reference]({HOST_BRIDGE_URL}).
+Install the host-specific bridge, verify one supported event reaches the
+bridge, and only then persist `DEVOLAFLOW_HOST_ENFORCE=1`.
+
+## 3. Run the first checklist workflow
+
+Open the installed AI host and make a natural-language request:
+
+```text
+Fix the login timeout bug and verify the regression.
+```
+
+Expected flow:
+
+1. DevolaFlow selects one of the {len(INVENTORY.seeds)} registry-derived
+   checklist seeds as decomposition knowledge.
+2. You confirm the goal, measurable checklist, P0/P1/P2 priorities, and
+   preflight decisions.
+3. The sole `change-driven` runtime executes bounded rounds through
+   L0 Project → L1 Wave → L2 Task.
+4. Tasks return evidence in StatusReports; L0 checks items only after
+   verification.
+
+No workflow runner CLI is required.
+
+## 4. Update by channel
+
+```bash
+# npm user-level Cursor/Claude copies
 npx @yorha-agents/devola-flow update all
 
-# Installer update
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
+# curl-supported host skill copies; --force re-downloads matching stamps
+curl -fsSL {INSTALLER_URL} | bash -s update
 
-# pip update
+# local workspace and standalone file: rerun the explicit install target
+curl -fsSL {INSTALLER_URL} | bash -s local
+curl -fsSL {INSTALLER_URL} | bash -s standalone
+
+# Python runtime or wheel
 pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init local --mode=standard
+
+# source checkout and copied host skills
+git pull
+pip install -e ".[dev]"
+devola-init cursor
 ```
+
+curl `update` scans supported host skill-copy locations only. It does not scan
+the `local` workspace or `standalone` file; rerun the explicit install target
+for either surface. Updating the Python package does not silently refresh
+previously copied host skills.
+"""
+
+
+def _zh_quickstart() -> str:
+    return f"""\
+## 1. 选择安装渠道
+
+各渠道的范围并不相同。
+
+### npm / npx：用户级 Cursor 与 Claude
+
+需要 Node 18 或更高版本，可在 Windows 使用。npm 中的 `all` 只表示该包支持
+的两个用户级目标：Cursor 与 Claude。
+
+```bash
+npx @yorha-agents/devola-flow install cursor
+npx @yorha-agents/devola-flow install claude
+npx @yorha-agents/devola-flow install all
+npx @yorha-agents/devola-flow doctor
+```
+
+默认从与 npm 包版本相同的 tag 下载。只有明确需要分支、tag 或 SHA 时才设置
+`DEVOLA_FLOW_REF`。
+
+### curl：更广的项目级/全局目标集合
+
+curl 安装器默认使用项目级范围，并支持 `help` 中列出的全部目标，包括 Cursor、
+Claude、Codex、Copilot、KimiCode、Windsurf、Zed、Cline、Roo、`local` 与
+`standalone`。
+
+```bash
+curl -fsSL {INSTALLER_URL} | bash -s cursor
+curl -fsSL {INSTALLER_URL} | bash -s claude --global
+curl -fsSL {INSTALLER_URL} | bash -s all
+```
+
+curl 的 `all` 会安装所有受支持宿主目标和 `local` 脚手架，但不包含
+`standalone`。即使传入 `--global`，部分宿主仍只支持项目级。全局安装还会尝试
+安装已注册运行时插件；只复制 skill 文件时添加 `--no-plugins`。curl 安装器没有
+doctor 命令。
+
+### pip 或 wheel：Python 运行时与本地脚手架
+
+```bash
+pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
+cd your-project
+devola-init local --mode=standard
+```
+
+wheel 提供 Python 运行时、CLI 与 `devola-init local`，但不打包
+`workflow-system/agent/`，因此仅有 wheel 时不能复制非 local 的宿主 skill。
+
+要运行 `devola-init cursor`、`claude`、`copilot`、`codex` 或 `all`，请使用
+源码 checkout 与 editable 安装：
+
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+devola-init cursor
+```
+
+Python 中的 `all` 表示 Cursor、Claude、Copilot 与 Codex，不包含 local
+脚手架。配合 `--global` 时会尝试安装插件，除非传入 `--no-plugins`。
+
+### 手动回退
+
+只复制
+[`SKILL.md`](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md)
+可以让基础指令可见，但会缺少清单声明的 references 与 examples。完整安装应优先
+使用上述渠道。
+
+## 2. 验证正确的表面
+
+```bash
+# npm 支持的用户级安装与清单一致性
+npx @yorha-agents/devola-flow doctor
+
+# Python 当前本地工作区结构
+devola-init-doctor
+
+# Python 已知 skill 副本位置审计
+devola-init-doctor --skills
+```
+
+skill 复制成功不代表 host bridge 已接线。host bridge 是可选且独立的执行边界层；
+请阅读 [host bridge 参考]({HOST_BRIDGE_URL})，安装宿主专用 bridge，先确认一个
+受支持事件确实到达 bridge，再持久启用 `DEVOLAFLOW_HOST_ENFORCE=1`。
+
+## 3. 运行第一个清单工作流
+
+打开已安装的 AI 宿主，输入自然语言请求：
+
+```text
+修复登录超时 bug，并验证回归测试。
+```
+
+预期流程：
+
+1. DevolaFlow 从注册表派生的 {len(INVENTORY.seeds)} 个清单种子中选择一个，
+   作为分解知识。
+2. 你确认目标、可测清单、P0/P1/P2 优先级与 preflight 决策。
+3. 唯一的 `change-driven` 运行时通过 L0 Project → L1 Wave → L2 Task 执行
+   有界轮次。
+4. Task 在 StatusReport 中返回证据；L0 仅在核验后勾选。
+
+不需要工作流 runner CLI。
+
+## 4. 按渠道更新
+
+```bash
+# npm 用户级 Cursor/Claude 副本
+npx @yorha-agents/devola-flow update all
+
+# curl 支持的宿主 skill 副本；--force 可重新下载相同 stamp
+curl -fsSL {INSTALLER_URL} | bash -s update
+
+# local 工作区与 standalone 文件：重新运行对应的显式安装目标
+curl -fsSL {INSTALLER_URL} | bash -s local
+curl -fsSL {INSTALLER_URL} | bash -s standalone
+
+# Python 运行时或 wheel
+pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
+devola-init local --mode=standard
+
+# 源码 checkout 与已复制的宿主 skill
+git pull
+pip install -e ".[dev]"
+devola-init cursor
+```
+
+curl `update` 只扫描受支持的宿主 skill 副本位置，不扫描 `local` 工作区或
+`standalone` 文件；这两类表面需重新运行对应的显式安装目标。更新 Python 包
+不会静默刷新之前复制的宿主 skill。
 """
 
 
 def _en_architecture() -> str:
-    return """\
-## System Overview
+    return f"""\
+## Three layers
 
-DevolaFlow orchestrates complex software work through **checklist rounds** and a **three-layer agent hierarchy**. A user-approved checklist is the execution contract: every item is measurable, every completion has evidence, and every loop is bounded.
+| Layer | Responsibility | Boundary |
+|---|---|---|
+| L0 Project | Confirm goal/checklist/preflight, select rounds, verify evidence | Does not implement |
+| L1 Wave | Partition ownership-safe tasks and aggregate reports | Does not alter Task output |
+| L2 Task | Implement one atomic assignment and self-verify | Does not spawn agents |
 
-```
-User Request
-    │
-    ▼
-┌─────────────────────┐
-│  Checklist Seed      │  Select domain decomposition knowledge
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L0: Project Agent   │  Anchor checklist, manage rounds     (~5K tok)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L1: Wave Agent      │  Dispatch tasks, aggregate evidence  (~5K tok)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L2: Task Agent      │  **Execute actual work**              (~8K tok)
-└─────────────────────┘
-```
+Escalation moves Task → Wave → Project → Human. Every retry loop is bounded.
 
-**Key invariant**: Only L2 Task Agents perform actual work — writing code, running tests, reviewing, or authoring documents. L0 Project and L1 Wave agents only dispatch, monitor, verify evidence, and report.
+## Seeds and runtime
 
-## The Three-Layer Hierarchy
+The registry currently supplies {len(INVENTORY.seeds)} non-executable checklist
+seeds. Their {len(INVENTORY.primitives)} primitive labels
+({", ".join(f"`{item}`" for item in INVENTORY.primitives)}) preserve historical
+decomposition provenance; list order is not runtime order. `change-driven` is
+the sole executable runtime.
 
-| Layer | Role | Context Budget | Delegates To | Must NOT |
-|-------|------|---------------|-------------|----------|
-| **L0: Project** | Anchors goal/checklist/preflight, picks each round, evaluates evidence and gates | ~5K tokens | L1 Wave | Implement or alter Task output |
-| **L1: Wave** | Dispatches parallel Tasks, checks ownership conflicts, aggregates evidence proposals | ~5K tokens | L2 Task | Perform any Task's work |
-| **L2: Task** | Executes one atomic checklist assignment and reports evidence | ~8K tokens | Nothing (leaf) | Spawn sub-agents or write outside its owned set |
+## Evidence contract
 
-The escalation chain is always upward: **Task → Wave → Project → Human**.
+A round passes only when selected checklist assertions have valid evidence,
+configured checks pass, reinforcement is closed, and blockers are zero.
+Composite scores remain trend signals; they do not replace item evidence.
 
-## Checklist-Round Runtime
+## Context and governance
 
-`change-driven` is the sole executable runtime:
+Task-adaptive selection derives from {INVENTORY.context_profile_count} profiles
+in `workflow-system/agent/context_profiles.yaml`. The canonical `.rules/`
+sources currently contain {INVENTORY.rule_count} rule IDs; generated surfaces
+must be compiled rather than hand-edited.
 
-1. **Propose**: L0 and the user anchor numbered goals and a measurable checklist.
-2. **Preflight**: The user signs project decisions and blocker pre-authorizations once.
-3. **Round**: L0 picks the highest-priority open items, partitions them into waves, and records the plan in `stage.md`.
-4. **Execute**: L1 dispatches up to five isolated L2 Tasks per wave.
-5. **Verify**: Tasks report evidence; L1 aggregates it; L0 verifies it before checking any item.
-6. **Repeat or archive**: A round passes when its picked items are checked with evidence and no blockers remain. Once the full checklist and archive gate pass, the change can be archived.
+Harness baseline settlement and cycle-archive retention are policy. Cycle leads
+perform the archive rollup manually at cycle close; no automatic archive hook
+is implemented.
+"""
 
-Composite gate scores remain a trend signal during rounds. They do not replace the primary contract: checked assertions with valid evidence and zero blockers.
 
-## 23 Checklist Seeds and Primitive Provenance
+def _zh_architecture() -> str:
+    return f"""\
+## 三层架构
 
-The registry contains **23 non-executable checklist seeds** plus the one `change-driven` runtime. A seed supplies intent keywords, checklist partitions, measurable assertion templates, and verification suggestions. It never supplies a runtime DAG.
+| 层级 | 职责 | 边界 |
+|---|---|---|
+| L0 Project | 确认 goal/checklist/preflight、选择轮次、核验证据 | 不实施 |
+| L1 Wave | 划分所有权安全的 Task 并聚合报告 | 不修改 Task 产出 |
+| L2 Task | 实施一个原子任务并自证 | 不派生 Agent |
 
-Each seed's `source_stages` field is **provenance only**. It preserves the historical source ID and one of 14 primitive labels; list order is presentation-only and must not determine execution order:
+升级链为 Task → Wave → Project → Human，每个重试循环都有上限。
 
-| Category | Primitives | Purpose |
-|----------|-----------|---------|
-| **Discover** | `research`, `analyze` | Gather information, assess current state |
-| **Shape** | `design`, `plan` | Define architecture, decompose into tasks |
-| **Build** | `implement`, `refine` | Write code, fix issues |
-| **Verify** | `review`, `test`, `validate`, `verify` | Check quality, run tests, aggregate results |
-| **Deliver** | `release`, `deploy`, `monitor` | Package, ship, observe |
-| **Control** | `gate` | Quality checkpoint blocking progression |
+## 种子与运行时
 
-## Task-Adaptive Context Selection
+注册表当前提供 {len(INVENTORY.seeds)} 个不可执行清单种子，其中
+{len(INVENTORY.primitives)} 个原语标签
+（{", ".join(f"`{item}`" for item in INVENTORY.primitives)}）只保存历史分解
+来源；列表顺序不是运行时顺序。`change-driven` 是唯一可执行运行时。
 
-Each task type has a **context profile** that selects only relevant SKILL.md sections, keeping the context window lean:
+## 证据合同
 
-- A **hotfix** agent receives: triage procedures, fix guidelines, test requirements — but skips design primitives
-- A **research** agent receives: research methodology, comparison frameworks — but skips convergence loops
-- A **design** agent receives: architecture patterns, ADR templates — but skips release procedures
+只有所选清单断言具备有效证据、配置检查通过、reinforcement 已关闭且 blocker 为零，
+轮次才通过。合成分只表示趋势，不能替代逐项证据。
 
-Profiles are defined in `workflow-system/agent/context_profiles.yaml`.
+## 上下文与治理
 
-## Quality Gate Mechanism
+任务自适应选择来自 `workflow-system/agent/context_profiles.yaml` 中派生的
+{INVENTORY.context_profile_count} 个 profile。规范 `.rules/` 源当前包含
+{INVENTORY.rule_count} 个规则 ID；生成面必须经编译，不得手改。
 
-Gates are quality checkpoints at round and archive boundaries. Every gate can evaluate a **composite score**:
-
-```
-composite = test_quality × 0.30 + code_review × 0.30
-          + architecture × 0.20 + benchmark × 0.20
-```
-
-**Pass conditions** (all required):
-1. Every checklist item picked for the round has valid evidence and is checked
-2. Zero blocker findings and zero MUST-priority violations
-3. Archive additionally satisfies its configured composite and coverage thresholds
-
-**On failure**: Open items and findings enter the next bounded round as reinforcement. If progress stagnates or the round limit is reached, escalation follows Task → Wave → Project → Human.
-
-**Gate profiles**:
-
-| Profile | Threshold | Coverage | Use When |
-|---------|-----------|----------|----------|
-| relaxed | ≥70 | ≥60% | Prototypes, spikes |
-| standard | ≥85 | ≥80% | Normal development |
-| strict | ≥90 | ≥90% | Production releases |
-| audit | ≥95 | ≥90% | Security, compliance |
-
-## Context Isolation
-
-Each Task Agent spawns with a fresh, isolated context (~8K tokens max):
-
-- **Identity**: role, task_id, team assignment
-- **Task spec**: checklist item IDs, assertions, verification criteria
-- **Context**: predecessor summaries, design excerpts, interface contracts
-- **Files**: owned files (create/modify) + read-only references
-- **Rules**: coding conventions, quality focus areas
-- **Behavioral**: timeout, max files, escalation policy
-
-**Never leaked between tasks**: conversation history, file contents from sibling tasks, error details from parallel work, quality scores from unrelated tasks.
-
-## Human Interaction Surface
-
-Alongside the agent-only `.local/.agent/` workspace, DevolaFlow maintains a durable **`.local/human/`** surface (v14.0.0+). Its three zones separate **immutable INPUT** (what humans want) from **concise OUTPUT** (what agents report back):
-
-| Zone | Ownership and contents |
-|------|------------------------|
-| **`input/`** | Human-owned and immutable once ratified: constitution, REQ-ID-keyed requirements, and an append-only amendment ledger |
-| **`output/`** | Agent-written and concise: `DIGEST.md` plus convergence reports |
-| **`archive/`** | Superseded artifacts |
-
-Per-artifact TOKEN budgets keep each file lean. Verify with `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"`.
-
-## Repository Rules
-
-62 enforceable rules codifying iteration lessons live in `.rules/` (5 layered
-source files), compiled to `AGENTS.md` and `.cursor/rules/repo-governance.mdc`:
-
-| Rule Layer | Covers |
-|-----------|--------|
-| `soul.mdc` (S-1 to S-10, P0) | Immutable invariants — test coverage floor (≥80%), no ghost features, no silent failures, protected branches |
-| `architecture.mdc` (A-1 to A-7, P1) | Three-layer agent hierarchy, cache-layout governance, token budgets, SSOT registries |
-| `conventions.mdc` (C-1 to C-9, P2; C-8 retired) | Line budgets, frontmatter, version consistency, lean messages, verbatim extraction |
-| `workflow.mdc` (W-1 to W-24, P3) | Iteration planning, benchmark guards, version bump protocol, env-flag policy |
-| `style.mdc` (ST-1 to ST-13, P4) | Documentation sync, web experience, bilingual completeness |
-
-The pre-v14.2.1 standalone files (`skill-format-rules.mdc`,
-`change-process-rules.mdc`, `context-optimization-rules.mdc`, …) were demoted
-to deprecated pointer stubs and retired in v15.0.0 — their SF-/CP-/CO- content
-was absorbed into the layers above.
+harness 基线结算与周期归档保留是政策。周期负责人在周期关闭时人工执行归档汇总；
+目前没有自动归档 hook。
 """
 
 
 def _en_workflow_types() -> str:
-    return """\
-## Seed Selection
+    return f"""\
+## Registry catalog
 
-DevolaFlow matches prompt intent to a checklist seed. You can also name a seed explicitly. The selected seed is materialized into user-confirmed goals and measurable checklist assertions before execution.
+The table is generated from `workflow-system/agent/templates/registry.yaml`;
+membership is not maintained in this guide.
 
-| Signal | Selected seed |
-|--------|---------------|
-| "urgent", "ASAP", "production down" | `hotfix` |
-| "from scratch", "new project" | `full-pipeline` |
-| Question-form phrasing such as "what", "how", "which" | `research-only` |
-| Explicit seed name | Direct match |
+{_seed_rows("en")}
 
-## The 23 Built-in Checklist Seeds
+## Selection and execution
 
-All 23 seeds are **non-executable decomposition knowledge**. The primitive lists below are source provenance only: they explain where each seed's domain knowledge came from, but neither list order nor source IDs prescribe runtime order.
+Intent selects decomposition knowledge. L0 then materializes a measurable
+goal/checklist/preflight contract. Priorities, satisfied dependencies, file
+ownership, and round state determine execution order; `source_stages` does not.
+Every seed runs through the sole `change-driven` runtime.
+"""
 
-| Seed | Use when | Primitive provenance (non-executable) |
-|------|----------|---------------------------------------|
-| `hotfix` | Urgent defect diagnosis and bounded remediation | analyze, implement, test, release |
-| `research-only` | Compare alternatives and produce an evidenced recommendation | research, analyze, validate |
-| `design-only` | Create an architecture, API, or schema with review evidence | research, design, review |
-| `documentation-only` | Survey, author, and review documentation | research, implement, review |
-| `spike-poc` | Test feasibility with a bounded throwaway prototype | research, implement, validate |
-| `refactoring` | Restructure code while preserving behavior | analyze, plan, implement, test, review |
-| `feature-enhancement` | Extend an existing feature through release evidence | design, plan, implement, review, test, release |
-| `full-pipeline` | Build a greenfield or end-to-end capability | design, plan, implement, review, test, refine, gate, release |
-| `performance-optimization` | Improve a measured latency, memory, or throughput problem | analyze, design, implement, test, validate |
-| `security-audit` | Threat-model, scan, remediate, and verify security | research, analyze, implement, validate |
-| `research-design-review-refine` | Iterate on research-backed design | research, design, review, refine |
-| `dependency-setup` | Configure an environment, dependency, or toolchain | research, plan, implement, verify |
-| `onboarding` | Help a contributor understand and verify a repository setup | analyze, implement, verify |
-| `demo-showcase` | Build a presentation-ready demonstration | research, design, implement, review, refine, release |
-| `product-verification` | Verify visual, interaction, accessibility, and acceptance quality | analyze, design, implement, test, verify, review, validate |
-| `entropy-cleanup` | Find and repair stale documentation or drift | analyze, plan, review, implement |
-| `migration` | Upgrade or port a system with rollback readiness | analyze, plan, implement, validate, deploy |
-| `skill-optimization` | Profile and improve an agent skill | research, analyze, implement, test, refine |
-| `self-update` | Research and integrate reference updates | research, plan, implement, test, validate |
-| `nines-assisted` | Apply built-in harness-backed evaluation knowledge | research, design, plan, implement, review, test, refine, validate, release |
-| `repo-init` | Initialize repository workspace and governance surfaces | analyze, implement, validate |
-| `change-driven` | Materialize an evidence-backed change lifecycle checklist | design, implement, verify, deploy |
-| `web-design` | Design, refine, and deterministically verify a frontend | design, implement, refine, verify |
 
-## How a Seed Becomes Work
+def _zh_workflow_types() -> str:
+    return f"""\
+## 注册表目录
 
-1. Intent matching selects one seed.
-2. L0 renders its partitions and assertion templates into `goal.md` and `checklist.md`.
-3. The user confirms wording, P0/P1/P2 priorities, manual checks, and preflight decisions.
-4. The `change-driven` runtime executes the confirmed checklist in bounded rounds.
+下表从 `workflow-system/agent/templates/registry.yaml` 生成；本指南不单独维护成员列表。
 
-Suggested priorities are advisory. A seed contains no checkboxes, evidence, round state, or runtime dependency state; those belong to the materialized change workspace.
+{_seed_rows("zh")}
 
-## The Sole Executable Runtime
+## 选择与执行
 
-`change-driven` is the only executable template. Its lifecycle is:
-
-```
-propose → preflight → bounded checklist rounds → archive
-```
-
-During each round, L0 picks open items, L1 Wave dispatches isolated L2 Tasks, Tasks report evidence, and L0 checks only verified assertions. The same runtime serves all 23 seeds.
-
-## Example Prompts
-
-- `hotfix`: `"Fix the login timeout bug; users get 500 errors after 30 seconds"`
-- `security-audit`: `"Audit the authentication module against OWASP Top 10"`
-- `research-design-review-refine`: `"Research caching options, design one, and refine it after review"`
-- `product-verification`: `"Verify the checkout flow visually and against accessibility requirements"`
-- `repo-init`: `"Initialize this repository for DevolaFlow"`
-- `web-design`: `"Build and polish a non-generic pricing page"`
+意图匹配选择分解知识，随后 L0 将其实体化为可测的 goal/checklist/preflight 合同。
+优先级、已满足依赖、文件所有权与轮次状态决定执行顺序；`source_stages` 不决定。
+所有种子都通过唯一的 `change-driven` 运行时执行。
 """
 
 
 def _en_hierarchy() -> str:
     return """\
-## Why a Hierarchy?
+## L0 Project
 
-A single AI agent attempting a complex task (e.g., "build an auth system") faces two problems:
-1. **Context overflow** — it tries to hold everything in memory at once
-2. **Scope creep** — it drifts between design, implementation, and review without structure
+Confirms the goal, checklist, priorities, preflight, and round selection with
+the human. It verifies evidence and decides advance, retry, escalate, or abort.
+It never performs delegated work.
 
-DevolaFlow uses three layers to constrain context drift while keeping the dispatch chain short.
+## L1 Wave
 
-## L0: Project Agent (~5K tokens)
+Dispatches at most five L2 Tasks with disjoint writable ownership, detects
+conflicts, and aggregates StatusReports. It never implements or edits Task
+output.
 
-The Project Agent is the **orchestra conductor**. It selects a checklist seed and anchors `goal.md`, `checklist.md`, and `preflight.md` with the user. It also:
-- Picks P0/P1/P2 items for each bounded round and partitions them into waves
-- Verifies Task evidence before checking assertions
-- Evaluates round and archive gates, then decides: advance, retry, or escalate
-- Reports final status to the human
+## L2 Task
 
-**Never does**: Implement, run tests, author deliverables, or modify Task output.
+Receives one atomic TaskDispatch, writes only owned files, runs bounded
+verification, and returns falsifiable evidence. It cannot spawn another agent.
 
-## L1: Wave Agent (~5K tokens)
+## Messages and escalation
 
-A Wave Agent coordinates a bounded group of parallel Tasks. It:
-- Receives checklist item IDs, verbatim assertions, verification rules, and file ownership
-- Dispatches up to five L2 Tasks with disjoint writable files
-- Collects StatusReports and checks for cross-task conflicts
-- Aggregates evidence and submits a concise check proposal to L0
-
-**Never does**: Perform any Task's work or modify its output.
-
-## L2: Task Agent (~8K tokens)
-
-The Task Agent is the **only implementation layer**. It:
-- Receives one atomic assignment tied to checklist item IDs
-- Works within its owned files only
-- Self-verifies against the supplied assertions without self-scoring
-- Reports artifacts, test results, and verbatim evidence to L1
-
-**Constraints**: It cannot spawn sub-agents or write outside the owned set.
-
-## Checklist-Round Flow
-
-```
-L0 picks open checklist assertions and records the round in stage.md
-  └─ L1 Wave dispatches isolated L2 Tasks
-       ├─ L2 Task executes and reports evidence
-       └─ L2 Task executes and reports evidence
-  └─ L1 aggregates evidence and proposes checks
-L0 verifies evidence, checks passing assertions, and closes or repeats the round
-```
-
-`stage.md` is a round-control artifact, not an agent role. In checklist seeds, `source_stages` stores only historical source IDs and primitive provenance; it has no executable ordering semantics.
-
-## Escalation Chain
-
-```
-Task Agent → Wave Agent → Project Agent → Human
-```
-
-Escalation always moves **upward**, never skips levels. Every failure is classified:
-
-| Severity | Action |
-|----------|--------|
-| `AUTO_RECOVER` | Retry up to 3× with exponential backoff |
-| `PAUSE` | Pause task, queue question, continue parallel work |
-| `HUMAN_INTERVENE` | Stop the round, present options to the human |
-| `FULL_ROLLBACK` | Rollback to checkpoint, halt everything |
-
-## Communication Protocol
-
-All inter-layer communication uses **typed YAML messages** (not free-form chat):
-
-- **TaskDispatch**: task_id, type, title, description, owned_files, acceptance_criteria, timeout
-- **StatusReport**: task_id, state, progress_pct, artifacts, metrics
-- **ExceptionEscalation**: severity, context, options for the next layer
-
-## Example: Hotfix Trace
-
-```
-Human: "Fix the login timeout bug"
-  └─ L0 Project: selects hotfix seed; user confirms checklist and preflight
-       └─ Round 1 / L1 Wave
-            └─ L2 Task: reproduces defect and reports root-cause evidence
-       └─ L0: verifies evidence and checks diagnosis assertion
-       └─ Round 2 / L1 Wave
-            ├─ L2 Task: implements the minimal fix
-            └─ L2 Task: runs focused regression tests
-       └─ L1: aggregates evidence; L0 verifies and checks both assertions
-  └─ L0 Project: archive gate passes; reports SUCCESS to human
-```
-"""
-
-
-def _en_faq() -> str:
-    return """\
-## General
-
-### What is DevolaFlow?
-
-A composable workflow meta-framework for AI-assisted software development. It turns one of 23 domain checklist seeds into a user-confirmed execution contract, then runs that contract through a three-layer Project → Wave → Task hierarchy and the `change-driven` checklist-round runtime.
-
-### What AI tools does it support?
-
-- **Cursor** — loaded as a Cursor Skill (`.cursor/skills/devola-flow/SKILL.md`)
-- **Claude Code** — loaded as a Claude Code Skill (`.claude/skills/devola-flow/SKILL.md`)
-- **GitHub Copilot** — loaded as `copilot-instructions.md`
-- **OpenAI Codex** — loaded as a Codex Skill
-
-A single source (`workflow-skill.yaml`) is adapted to each tool's format via the `build-skill` pipeline.
-
-### Do I need to learn YAML to use DevolaFlow?
-
-No. DevolaFlow activates automatically from natural language. Say "fix the login bug" and it selects the `hotfix` seed. Say "build a new feature from scratch" and it selects `full-pipeline`. You only need YAML to author custom checklist seeds.
-
-### How does DevolaFlow differ from just prompting my AI tool?
-
-Without DevolaFlow, your AI tool may process the whole request in one pass and mix design, implementation, and verification. DevolaFlow anchors measurable checklist assertions with you, executes a bounded set each round, and checks an item only after evidence is verified.
-
-## Workflows
-
-### How does the agent choose a checklist seed?
-
-DevolaFlow uses **intent matching** on your prompt keywords:
-- "fix bug" / "broken" / "crash" → `hotfix`
-- "from scratch" / "new project" → `full-pipeline`
-- "research" / "compare" → `research-only`
-- "refactor" / "clean up" → `refactoring`
-- And so on for all 23 seeds
-
-You can also specify one explicitly: "Use the migration seed to upgrade from React 17 to 18."
-
-### Can I reduce the ceremony?
-
-Yes, in two ways:
-1. **Complexity scaling**: A trivial task (< 20 lines, single file) can use the direct-execution waiver
-2. **Seed materialization**: Only relevant assertions are materialized; provenance primitives never force unnecessary runtime work
-
-### Which seeds came from the five v3.0.0 workflow additions?
-
-Historically, v3.0.0 introduced these as executable workflow types. They now preserve that domain knowledge as non-executable checklist seeds:
-
-- **demo-showcase**: Build presentation-ready demos and interactive showcases
-- **performance-optimization**: Profile-driven performance improvement with before/after benchmarks
-- **dependency-setup**: Configure dev environments, install dependencies, set up tooling
-- **onboarding**: Help new contributors understand a codebase and set up their environment
-- **skill-optimization**: Optimize agent skills with context profiling, benchmarking, and iterative improvement
-
-## Quality & Gates
-
-### What are the repository rules?
-
-62 enforceable rules in `.rules/` organized into 5 layers, compiled to
-`AGENTS.md` + `.cursor/rules/repo-governance.mdc` (the legacy SF-/CP-/CO- rule
-files are deprecated pointer stubs since v14.2.1):
-- **soul.mdc** (S-1 to S-10): immutable invariants — test coverage floor (≥80%), no ghost features
-- **architecture.mdc** (A-1 to A-7): three-layer hierarchy, cache layout, token budgets
-- **conventions.mdc** (C-1 to C-9, C-8 retired): SKILL.md line budget, frontmatter, version consistency
-- **workflow.mdc** (W-1 to W-24): iteration planning, benchmarks, version bump protocol
-- **style.mdc** (ST-1 to ST-13): documentation sync, web demo, bilingual completeness
-
-### How does built-in evaluation work?
-
-The built-in harness validates deterministic fixtures, dispatch constraints,
-telemetry aggregation, and bounded model-compliance probes.
-
-Run its contract suite with: `python -m pytest tests/harness/ -v`
-
-### What happens when a gate fails?
-
-The gate triggers a **convergence loop**: review findings → fix issues → re-test → re-check gate. This repeats up to 3 rounds. If the gate still fails after max rounds, it escalates to the human with a divergence report explaining what's blocking.
-
-## Updates & Versioning
-
-### How do I check for updates?
-
-Ask your AI agent: `"update devola"` — or run `devola-version` in the terminal.
-To audit every installed copy at once, run `devola-init-doctor --skills`: it
-scans all known install locations and reports each install as `current`,
-`stale`, or `unknown-version`.
-
-### How do I update?
-
-```bash
-# npm (user-level Cursor/Claude installs; also: doctor for a health check)
-npx @yorha-agents/devola-flow update all
-
-# pip
-pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
-
-# installer (skips installs already at the latest version; --force re-downloads)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
-```
-
-### How do I uninstall?
-
-```bash
-# preview what would be removed, then remove for real
-# (covers npm-installed copies too — same directories)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
-```
-"""
-
-
-def _en_integration() -> str:
-    return """\
-## Supported Platforms
-
-| Platform | Install Method | Skill Format | Scope |
-|----------|---------------|-------------|-------|
-| **Cursor** | `devola-init cursor` | SKILL.md + references/ + examples/ | Project or global |
-| **Claude Code** | `devola-init claude` | SKILL.md + references/ + examples/ | Project or global |
-| **Copilot** | `devola-init copilot` | copilot-instructions.md | Project only |
-| **Codex** | `devola-init codex` | SKILL.md + references/ | Global only |
-
-The per-tool file lists are declared in `workflow-system/agent/manifest.yaml`
-(the install-manifest single source of truth) — the table above mirrors its
-`install_profiles` section.
-
-## Cursor — Detailed Setup
-
-### Installation
-
-```bash
-# Project-local (recommended — per-project)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
-
-# Or user-global (applies to all projects)
-curl -fsSL $INSTALLER | bash -s cursor --global
-
-# Or user-global via npm (Node >= 18; no curl/bash needed)
-npx @yorha-agents/devola-flow install cursor
-```
-
-This installs (per the `cursor` profile in `workflow-system/agent/manifest.yaml`):
-- `.cursor/skills/devola-flow/SKILL.md` — the main skill file
-- `.cursor/skills/devola-flow/references/` — Tier-2 domain reference files
-- `.cursor/skills/devola-flow/examples/` — Tier-3 execution trace examples
-
-### How It Works in Cursor
-
-DevolaFlow is loaded as a **Cursor Skill**. When you send a prompt in Agent mode, Cursor loads the skill content into the agent's context. DevolaFlow's seed-selection heuristics then activate from your intent keywords.
-
-### Example Session: Building a Feature
-
-1. Open Cursor in your project
-2. Switch to **Agent mode** (Cmd+L / Ctrl+L)
-3. Type your request:
-
-```
-Implement a REST API for user management with CRUD operations, JWT auth, and role-based access
-```
-
-4. DevolaFlow activates and the agent:
-   - Selects the `full-pipeline` checklist seed
-   - Materializes API design, implementation, review, test, and release assertions from provenance primitives
-   - Asks you to confirm checklist priorities and preflight decisions
-   - Runs bounded rounds: L0 Project picks items, L1 Wave dispatches parallel L2 Tasks
-   - Verifies evidence before checking each assertion
-   - Applies the archive gate before changing source truth
-
-### Example Session: Hotfix
-
-```
-Fix: the /api/users endpoint returns 500 when the email field contains unicode characters
-```
-
-The agent selects the `hotfix` seed, materializes diagnosis and remediation assertions, and runs them through the shared checklist-round runtime. Primitive labels such as analyze, implement, test, and release are provenance for the seed; L0 chooses actual round order from confirmed priorities and dependencies.
-
-### Tips for Cursor
-
-- **Attach the skill manually** for complex tasks: Type `@devola-flow` to explicitly reference the skill
-- **Use Plan mode** for architectural decisions: The agent will produce a structured plan instead of executing
-- **Subagent support**: Cursor's Task tool maps naturally to DevolaFlow's L1 Wave → L2 Task delegation
-
-## Claude Code — Detailed Setup
-
-### Installation
-
-```bash
-# Project-local (applies to current directory)
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
-
-# User-global (applies to all sessions)
-curl -fsSL $INSTALLER | bash -s claude --global
-
-# Or user-global via npm (Node >= 18; no curl/bash needed)
-npx @yorha-agents/devola-flow install claude
-```
-
-This installs the skill package into `.claude/skills/devola-flow/` (project-local) or `~/.claude/skills/devola-flow/` (with `--global`): `SKILL.md` plus the `references/` and `examples/` trees, per the `claude` profile in `workflow-system/agent/manifest.yaml`.
-
-### How It Works in Claude Code
-
-DevolaFlow is loaded as a **Claude Code Skill**. It activates on intent-matched prompts (implement / fix / refactor / research), and Claude Code pulls in reference files on demand instead of loading everything into every session.
-
-### Example Session
-
-```bash
-claude
-
-> Implement a caching layer for our database queries with TTL support and cache invalidation
-```
-
-Claude Code will:
-1. Detect `full-pipeline` seed intent
-2. Anchor a measurable checklist and signed preflight
-3. Use L1 Wave coordination and L2 Tasks for isolated implementation
-4. Repeat bounded evidence-backed rounds until the archive gate passes or escalation is required
-
-### Tips for Claude Code
-
-- References and examples ship alongside SKILL.md — the skill loads them on demand
-- Works with Claude Code's native subagent support
-- Use `"update devola"` to trigger version checks within a session
-
-## GitHub Copilot — Detailed Setup
-
-### Installation
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
-```
-
-This installs:
-- `.github/copilot-instructions.md` — the full SKILL.md content as root instructions
-
-### How It Works in Copilot
-
-Copilot reads `copilot-instructions.md` for every request. The workflow heuristics guide Copilot's code suggestions and chat responses to follow structured patterns.
-
-### Example Session
-
-In Copilot Chat:
-```
-@workspace Refactor the payment processing module to use the strategy pattern
-```
-
-Copilot uses the `refactoring` seed's historical analyze/plan/implement/test/review primitives as provenance, materializes a checklist, and executes it through the shared round runtime.
-
-## OpenAI Codex — Detailed Setup
-
-### Installation
-
-```bash
-# Codex uses global skills
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex
-```
-
-This installs (per the `codex` profile in `workflow-system/agent/manifest.yaml`):
-- `~/.codex/skills/devola-flow/SKILL.md`
-- `~/.codex/skills/devola-flow/references/`
-
-### How It Works in Codex
-
-Codex loads the skill and uses its built-in agent system for task parallelism. DevolaFlow's L1 Wave → L2 Task structure maps to Codex's parallel execution model.
-
-## CI/CD Integration
-
-Add DevolaFlow validation to your CI pipeline:
-
-```yaml
-# .github/workflows/ci.yml
-- name: DevolaFlow Checks
-  run: |
-    pip install -e '.[dev]'
-    python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/
-    validate-template --all
-    build-skill --all
-    python -m pytest tests/harness/ -v
-```
-
-## Built-in harness in CI
-
-The harness suite validates fixture schemas, cache-layout compatibility,
-telemetry aggregation, evaluation, proposals, and bounded probe behavior.
-"""
-
-
-def _en_customization() -> str:
-    return """\
-## Creating Checklist Seeds
-
-Checklist seeds are YAML files under `workflow-system/agent/templates/seeds/`. They follow `schemas/checklist-seed.schema.yaml` and preserve domain decomposition knowledge without creating another executable runtime.
-
-The only executable template is `workflow-system/agent/templates/builtin/change-driven.yaml`. A custom seed is materialized into that shared checklist-round runtime.
-
-### Seed Structure
-
-```yaml
-schema_version: "1.0"
-kind: checklist-seed
-metadata:
-  name: code-review
-  version: "1.0.0"
-  description: "Seed for standalone code review evidence."
-  category: composite
-  intent_keywords: [review, quality, pull-request]
-  source:
-    kind: composition
-    name: code-review
-    path: workflow-system/agent/templates/registry.yaml
-    schema_version: "3.0"
-
-placeholders:
-  review_command:
-    description: "Repository-approved bounded review command."
-    required: true
-    example: "ruff check src/ tests/"
-
-partitions:
-  - key: review
-    title_template: "Code review"
-    source_stages:                 # provenance only; never execution order
-      - {id: review, primitive: review}
-    assertions:
-      - key: findings-resolved
-        statement_template: "Every blocker and critical review finding is resolved"
-        suggested_priority: P0
-        verify:
-          mode: metric
-          template: "open_blocker_count == 0 and open_critical_count == 0"
-      - key: checks-pass
-        statement_template: "The approved static review command passes"
-        suggested_priority: P1
-        verify:
-          mode: command
-          template: "{{ review_command }}"
-```
-
-### What a Seed May Express
-
-- Intent keywords and optional scenarios
-- User-facing checklist partitions
-- Measurable assertion templates, each no longer than 25 rendered words
-- Suggested P0/P1/P2 priorities that the user can change
-- Verification by bounded command, metric, or manual user check
-- `source_stages` entries containing only historical source IDs and one of 14 primitive labels
-
-### What a Seed Must Not Express
-
-A seed is not a runtime DAG. Top-level `stages`, `composition`, `loops`, and `gates` are forbidden, as are runtime fields such as `team`, `duration_class`, `input_mapping`, and `skip_condition`. Seed order is presentation-only.
-
-Checkboxes, evidence paths, round numbers, checked-by metadata, and runtime dependencies are also absent. They are assigned only when L0 materializes the seed into a user-confirmed change checklist.
-
-## Registering a Seed
-
-Add one registry entry with a `seed:` path and no executable `path:`. The `change-driven` entry is the only one allowed to declare `path: builtin/change-driven.yaml`.
-
-## Custom Context Profiles
-
-Edit `workflow-system/agent/context_profiles.yaml` to add profiles for new task types. Each profile specifies which SKILL.md sections to include at what priority:
-
-- **critical**: Always included, loaded first
-- **important**: Included if token budget allows
-- **supplementary**: Included only if space remains
-- **skip**: Never included for this task type
-
-## Validating Changes
-
-After customizing, always verify:
-
-```bash
-validate-template --all                # 23 seeds + one runtime are valid
-python -m pytest tests/ -q             # all tests pass
-python -m pytest tests/harness/ -v       # harness contracts pass
-build-skill --all                      # adapters build successfully
-```
-"""
-
-
-def _en_troubleshooting() -> str:
-    return """\
-## Installation Issues
-
-### `devola-init` command not found
-
-The CLI tools require pip installation:
-```bash
-pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-# Or for development:
-pip install -e ".[dev]"
-```
-
-### Installer fails with "permission denied"
-
-The installer needs write access to the target directory. For global installs:
-```bash
-# Cursor global
-curl -fsSL $INSTALLER | bash -s cursor --global
-# This writes to ~/.cursor/skills/ which should be user-writable
-```
-
-## Workflow Issues
-
-### Agent doesn't select the right workflow
-
-DevolaFlow uses keyword matching. Make your intent explicit:
-- Instead of: "Help me with the login page"
-- Try: "Fix the bug in the login page" (→ hotfix) or "Redesign the login page UI" (→ design-only)
-
-You can also specify directly: "Use the refactoring workflow to clean up auth module."
-
-### Agent tries to do everything in one pass
-
-This usually means the skill file isn't loaded. Verify:
-1. Check the skill file exists: `ls .cursor/skills/devola-flow/SKILL.md`
-2. In Cursor, verify the skill appears in settings
-3. Try explicitly attaching: `@devola-flow implement a user system`
-
-### Convergence loop runs too many times
-
-The default max is 3 iterations. If the agent keeps looping:
-1. Check if acceptance criteria are too strict
-2. Look for conflicting requirements that prevent convergence
-3. The agent will escalate to you after max iterations — review the divergence report
-
-## Test & Build Issues
-
-### Tests fail after SKILL.md changes
-
-Run `python -m pytest tests/test_version.py -v` to check version consistency. Use `scripts/bump_version.py` for consistent updates across all version locations.
-
-### `build-skill` reports budget exceeded
-
-SKILL.md must stay under 500 lines (rule SF-1). Check with `wc -l` and compress verbose sections. Run `build-skill --all` to verify after changes.
-
-### Seed or runtime validation fails
-
-```bash
-validate-template path/to/template.yaml
-```
-
-Common causes:
-- Missing seed fields (`schema_version`, `kind`, `metadata`, `placeholders`, `partitions`)
-- Executable DAG fields such as top-level `stages`, `composition`, `loops`, or `gates` in a seed
-- `source_stages` entries that do not preserve an ID plus one of the 14 provenance primitives
-- Command or metric verification without a bounded `template`
-
-## Harness Issues
-
-### Harness contracts fail
-
-```bash
-python -m pytest tests/harness/ -v
-```
-
-1. Check the failing fixture, telemetry, evaluation, or probe contract
-2. Review the reported schema, path, or guard mismatch
-3. Fix the source contract; archived baselines remain historical evidence
-
-### Context profiles not loading
-
-Verify `context_profiles.yaml` exists at `workflow-system/agent/context_profiles.yaml` and its section line ranges match the current SKILL.md structure.
-
-## Getting Help
-
-- **GitHub Issues**: [https://github.com/YoRHa-Agents/DevolaFlow/issues](https://github.com/YoRHa-Agents/DevolaFlow/issues)
-- **Interactive Demo**: [https://yorha-agents.github.io/DevolaFlow/](https://yorha-agents.github.io/DevolaFlow/)
-"""
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Chinese content generators
-# ═══════════════════════════════════════════════════════════════════
-
-
-def _zh_quickstart() -> str:
-    return """\
-## 前置条件
-
-- Python 3.11+
-- pip
-- 以下工具之一：Cursor、Claude Code、GitHub Copilot 或 OpenAI Codex
-
-## 第一步：安装 DevolaFlow
-
-选择适合你的安装方式：
-
-**方式 A — npm / npx（推荐；Windows 可用，无需 Python）：**
-
-```bash
-# 安装到用户级 skill 目录（需 Node >= 18）
-npx @yorha-agents/devola-flow install cursor    # ~/.cursor/skills/devola-flow/
-npx @yorha-agents/devola-flow install claude    # ~/.claude/skills/devola-flow/
-npx @yorha-agents/devola-flow install all       # 两者
-
-# 之后：健康检查与更新
-npx @yorha-agents/devola-flow doctor
-npx @yorha-agents/devola-flow update all
-```
-
-skill 文件从 GitHub 按包版本对应的 tag 下载（`DEVOLA_FLOW_REF` 可覆写 ref）。
-目标仅限 Cursor 与 Claude Code 的用户级目录——项目级安装、Copilot 或 Codex
-请使用方式 B。
-
-**方式 B — 一键安装（curl；全部工具，项目级或全局）：**
-
-```bash
-INSTALLER="https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh"
-
-# 为 Cursor 安装（项目级）
-curl -fsSL $INSTALLER | bash -s cursor
-
-# 或为所有工具一次性安装
-curl -fsSL $INSTALLER | bash -s all
-```
-
-**方式 C — pip 安装：**
-
-```bash
-pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-cd your-project/
-devola-init cursor       # 仅 Cursor
-devola-init all          # 所有工具
-```
-
-**方式 D — 手动安装（单文件）：**
-
-下载 [SKILL.md](https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/workflow-system/agent/SKILL.md) 并放置到：
-
-| 工具 | 路径 |
-|------|------|
-| Cursor | `.cursor/skills/devola-flow/SKILL.md` |
-| Claude Code | `.claude/skills/devola-flow/SKILL.md` |
-| Copilot | `.github/copilot-instructions.md` |
-| Codex | `~/.codex/skills/devola-flow/SKILL.md` |
-
-## 第二步：验证安装
-
-```bash
-devola-version   # 应输出当前 DevolaFlow 版本
-```
-
-## 第三步：尝试你的第一个工作流
-
-打开你的 AI 工具，尝试以下提示词：
-
-### 示例：修复一个 Bug（热修复工作流）
-
-```
-修复登录超时 bug — 用户在 30 秒不活动后报告 500 错误
-```
-
-幕后发生了什么：
-1. DevolaFlow 从“修复”与“bug”匹配 **hotfix 清单种子**
-2. L0 与你共同锚定目标、实体化清单和已签署的 preflight
-3. L0 选取最高优先级清单项并划分波次
-4. L1 Wave 向隔离的 L2 Task 下发诊断、修复和取证工作
-5. L0 核验证据并勾选已通过的断言；如有未完成项，再开启一个有界轮次
-
-### 示例：构建新功能（完整流水线）
-
-```
-实现一个用户通知系统，支持邮件和应用内消息两种渠道
-```
-
-发生了什么：
-1. DevolaFlow 选择 **full-pipeline 清单种子**
-2. 种子依据历史原语来源实体化可测的设计、实现、审查、测试和发布断言；这些来源不规定执行顺序
-3. 你确认清单优先级和 preflight 决策
-4. L0 通过 L1 Wave 与隔离的 L2 Task 运行有界清单轮次
-5. 每个已勾选项都附带证据，未解决的 blocker 保持未勾选
-6. 只有清单合同通过 archive gate 后，源真相才可变更
-
-### 示例：快速调研（无代码）
-
-```
-调研实时通知的最佳方案 — 对比 WebSocket、SSE 和轮询
-```
-
-发生了什么：
-1. DevolaFlow 选择 **research-only 清单种子**
-2. 实体化后的清单要求产出有证据的结构化对比报告，不写代码
-
-## 第四步：深入探索
-
-- 查看全部 23 个清单种子：[清单种子目录](workflow-types.md)
-- 了解架构：[架构概述](architecture-overview.md)
-- 为你的工具进行设置：[集成指南](integration-guide.md)
-- 自定义工作流：[自定义指南](customization-guide.md)
-
-## 检查更新
-
-在 AI 工具中输入：`"update devola"` — 它会从 GitHub 检查新版本并提供更新命令。
-
-或在终端中：
-
-```bash
-# npm 安装器更新（用户级 Cursor/Claude 安装）
-npx @yorha-agents/devola-flow update all
-
-# 安装器更新
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
-
-# pip 更新
-pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
-```
-"""
-
-
-def _zh_architecture() -> str:
-    return """\
-## 系统概述
-
-DevolaFlow 通过 **清单轮次** 与 **三层 Agent 架构** 编排复杂软件任务。经用户确认的 checklist 是执行合同：每项都可测、每次完成都有证据、每个循环都有上限。
-
-```
-用户请求
-    │
-    ▼
-┌─────────────────────┐
-│   清单种子            │  选择领域分解知识
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L0: Project Agent   │  锚定清单，管理轮次      (~5K tokens)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L1: Wave Agent      │  分派任务，聚合证据      (~5K tokens)
-└──────────┬──────────┘
-           ▼
-┌─────────────────────┐
-│  L2: Task Agent      │  **执行实际工作**        (~8K tokens)
-└─────────────────────┘
-```
-
-**关键不变量**：只有 L2 Task Agent 执行实际工作，包括编写代码、运行测试、审查和撰写文档。L0 Project 与 L1 Wave 只负责分派、监控、核验证据和汇报。
-
-## 三层层级
-
-| 层级 | 角色 | 上下文预算 | 委托给 | 不可以 |
-|------|------|-----------|--------|--------|
-| **L0: Project** | 锚定 goal/checklist/preflight、每轮取项、核验证据与门控 | ~5K tokens | L1 Wave | 实施或修改 Task 产出 |
-| **L1: Wave** | 分派并行 Task、检查文件冲突、聚合证据提案 | ~5K tokens | L2 Task | 执行任何 Task 的工作 |
-| **L2: Task** | 执行单一原子清单任务并报告证据 | ~8K tokens | 无（叶节点） | 派生子 Agent 或写出 owned set |
-
-升级链始终向上：**Task → Wave → Project → Human**。
-
-## 清单轮次运行时
-
-`change-driven` 是唯一可执行运行时：
-
-1. **Propose**：L0 与用户锚定编号目标和可测清单。
-2. **Preflight**：用户一次性签署项目决策与卡点预授权。
-3. **Round**：L0 选取最高优先级未完成项，划分波次，并把计划写入 `stage.md`。
-4. **Execute**：L1 每波最多向五个隔离的 L2 Task 下发任务。
-5. **Verify**：Task 报告证据，L1 聚合，L0 核验后才可勾选。
-6. **Repeat or archive**：本轮取项全部有证据地勾选且无 blocker 才通过；完整清单与 archive gate 均通过后才能归档。
-
-轮次中的合成分只用于趋势观测，不能替代主合同：有有效证据的已勾选断言与零 blocker。
-
-## 23 个清单种子与原语来源
-
-注册表包含 **23 个不可执行的清单种子**，外加唯一的 `change-driven` 运行时。种子提供意图关键词、清单分区、可测断言模板和验证建议，不提供运行时 DAG。
-
-种子中的 `source_stages` **只记录来源**。它保留历史来源 ID 与 14 种原语标签之一；列表顺序仅供展示，不决定执行顺序：
-
-| 类别 | 原语 | 用途 |
-|------|------|------|
-| **发现** | `research`, `analyze` | 收集信息，评估现状 |
-| **塑形** | `design`, `plan` | 定义架构，分解为任务 |
-| **构建** | `implement`, `refine` | 编写代码，修复问题 |
-| **验证** | `review`, `test`, `validate`, `verify` | 检查质量，运行测试 |
-| **交付** | `release`, `deploy`, `monitor` | 打包，发布，观测 |
-| **控制** | `gate` | 阻断推进的质量检查点 |
-
-## 任务自适应上下文选择
-
-每种任务类型有一个 **上下文配置**，只选择相关的 SKILL.md 段落：
-
-- **热修复** 代理接收：分诊流程、修复指南、测试要求 — 跳过设计原语
-- **调研** 代理接收：调研方法、对比框架 — 跳过收敛循环
-- **设计** 代理接收：架构模式、ADR 模板 — 跳过发布流程
-
-## 质量门机制
-
-```
-composite = test_quality × 0.30 + code_review × 0.30
-          + architecture × 0.20 + benchmark × 0.20
-```
-
-**通过条件**（全部必须满足）：
-1. 本轮取出的每个清单项都有有效证据并已勾选
-2. 零 blocker 且零 MUST 优先级违规
-3. 归档时还须达到配置的合成分与覆盖率阈值
-
-**失败时**：未完成项和发现会作为 reinforcement 进入下一个有界轮次。进度停滞或达到轮次上限时，按 Task → Wave → Project → Human 升级。
-
-## 人类交互界面
-
-除了仅供 Agent 使用的 `.local/.agent/` 工作区之外，DevolaFlow 还维护持久化的 **`.local/human/`** 界面（v14.0.0+）。这个三区目录树将 **不可变的 INPUT**（人类想要什么）与 **简洁的 OUTPUT**（Agent 回报什么）分离：
-
-| 区域 | 所有权与内容 |
-|------|--------------|
-| **`input/`** | 由人类拥有，一经批准即不可变：constitution、以 REQ-ID 为键的需求，以及只追加的修订账本 |
-| **`output/`** | 由 Agent 写入且简洁：`DIGEST.md` 与收敛报告 |
-| **`archive/`** | 已被取代的工件 |
-
-每个工件都有 TOKEN 预算以保持精简。可用 `python -c "from devolaflow.agent_workspace import lint_human; print(lint_human())"` 验证。
-
-## 仓库规则
-
-`.rules/` 中的 62 条可执行规则（5 个分层源文件），编译输出到 `AGENTS.md` 与
-`.cursor/rules/repo-governance.mdc`：
-
-| 规则层 | 涵盖内容 |
-|---------|---------|
-| `soul.mdc`（S-1 到 S-10，P0） | 不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能、无静默失败、保护分支 |
-| `architecture.mdc`（A-1 到 A-7，P1） | 三层 Agent 体系、缓存布局治理、令牌预算、单一事实源注册表 |
-| `conventions.mdc`（C-1 到 C-9，P2；C-8 已退役） | 行数预算、前置元数据、版本一致性、精简消息、逐字提取 |
-| `workflow.mdc`（W-1 到 W-24，P3） | 迭代规划、基准守护、版本升级协议、环境变量复用策略 |
-| `style.mdc`（ST-1 到 ST-13，P4） | 文档同步、Web 体验、双语完整性 |
-
-v14.2.1 之前的独立规则文件（`skill-format-rules.mdc`、`change-process-rules.mdc`、
-`context-optimization-rules.mdc` 等）曾转换为弃用指针存根，并已于 v15.0.0 退役，
-其 SF-/CP-/CO- 内容已并入上述各层。
-"""
-
-
-def _zh_workflow_types() -> str:
-    return """\
-## 种子选择
-
-DevolaFlow 根据提示词意图匹配清单种子，也可以直接指定种子名。执行前，所选种子会实体化为用户确认的目标和可测清单断言。
-
-| 信号 | 选择的种子 |
-|------|------------|
-| “紧急”“生产环境故障” | `hotfix` |
-| “从零开始”“新项目” | `full-pipeline` |
-| “什么”“如何”“哪个”等问题形式 | `research-only` |
-| 显式指定种子名 | 直接匹配 |
-
-## 23 个内置清单种子
-
-全部 23 个种子都是 **不可执行的分解知识**。下表中的原语列表只记录来源：它说明领域知识从何而来，但列表顺序与来源 ID 都不规定运行时顺序。
-
-| 种子 | 适用场景 | 原语来源（不可执行） |
-|------|----------|----------------------|
-| `hotfix` | 紧急缺陷诊断与有界修复 | analyze, implement, test, release |
-| `research-only` | 对比方案并给出有证据的建议 | research, analyze, validate |
-| `design-only` | 产出带审查证据的架构、API 或 Schema | research, design, review |
-| `documentation-only` | 调研、编写并审查文档 | research, implement, review |
-| `spike-poc` | 通过有界的一次性原型验证可行性 | research, implement, validate |
-| `refactoring` | 在保持行为的前提下重构代码 | analyze, plan, implement, test, review |
-| `feature-enhancement` | 扩展现有功能并形成发布证据 | design, plan, implement, review, test, release |
-| `full-pipeline` | 构建全新或端到端能力 | design, plan, implement, review, test, refine, gate, release |
-| `performance-optimization` | 改善已测量的延迟、内存或吞吐问题 | analyze, design, implement, test, validate |
-| `security-audit` | 威胁建模、扫描、修复并验证安全性 | research, analyze, implement, validate |
-| `research-design-review-refine` | 迭代调研驱动的设计 | research, design, review, refine |
-| `dependency-setup` | 配置环境、依赖或工具链 | research, plan, implement, verify |
-| `onboarding` | 帮助贡献者理解并验证仓库环境 | analyze, implement, verify |
-| `demo-showcase` | 构建展示级演示 | research, design, implement, review, refine, release |
-| `product-verification` | 验证视觉、交互、无障碍与验收质量 | analyze, design, implement, test, verify, review, validate |
-| `entropy-cleanup` | 发现并修复过期文档或漂移 | analyze, plan, review, implement |
-| `migration` | 在具备回滚准备的前提下升级或迁移系统 | analyze, plan, implement, validate, deploy |
-| `skill-optimization` | 分析并改进 Agent Skill | research, analyze, implement, test, refine |
-| `self-update` | 调研并集成参考资料更新 | research, plan, implement, test, validate |
-| `nines-assisted` | 使用内建 harness 支撑的评估知识 | research, design, plan, implement, review, test, refine, validate, release |
-| `repo-init` | 初始化仓库工作区与治理面 | analyze, implement, validate |
-| `change-driven` | 实体化有证据的变更生命周期清单 | design, implement, verify, deploy |
-| `web-design` | 设计、精修并确定性验证前端 | design, implement, refine, verify |
-
-## 种子如何转化为工作
-
-1. 意图匹配选出一个种子。
-2. L0 将分区和断言模板渲染为 `goal.md` 与 `checklist.md`。
-3. 用户确认措辞、P0/P1/P2 优先级、人工检查项和 preflight 决策。
-4. `change-driven` 运行时以有界轮次执行已确认清单。
-
-建议优先级仅供参考。种子不包含 checkbox、证据、轮次状态或运行时依赖；这些信息只属于实体化后的变更工作区。
-
-## 唯一可执行运行时
-
-`change-driven` 是唯一可执行模板，其生命周期为：
-
-```
-propose → preflight → 有界清单轮次 → archive
-```
-
-每轮由 L0 取项，L1 Wave 向隔离的 L2 Task 分派任务，Task 报告证据，L0 只勾选核验通过的断言。23 个种子共用这一运行时。
-
-## 示例提示词
-
-- `hotfix`：`"修复登录超时 bug；用户 30 秒后收到 500"`
-- `security-audit`：`"按 OWASP Top 10 审计认证模块"`
-- `research-design-review-refine`：`"先调研缓存方案，再设计并根据审查精修"`
-- `product-verification`：`"从视觉和无障碍要求验证结账流程"`
-- `repo-init`：`"为这个仓库初始化 DevolaFlow"`
-- `web-design`：`"构建并精修一个非通用的价格页"`
+TaskDispatch moves down; StatusReport moves up. Exception escalation follows
+Task → Wave → Project → Human. Free-form shared state is not an artifact
+contract.
 """
 
 
 def _zh_hierarchy() -> str:
     return """\
-## 为什么需要层级？
+## L0 Project
 
-单个 AI 代理处理复杂任务（如 "构建认证系统"）面临两个问题：
-1. **上下文溢出** — 它试图同时记住所有内容
-2. **范围蔓延** — 它在设计、实现和审查之间无序切换
+与用户确认目标、清单、优先级、preflight 与轮次选择，核验证据，并决定推进、重试、
+升级或终止。绝不执行已委托工作。
 
-DevolaFlow 用三层架构约束上下文漂移，同时缩短分派链。
+## L1 Wave
 
-## L0: Project Agent（~5K tokens）
+向最多五个可写所有权互斥的 L2 Task 分派任务，检测冲突并聚合 StatusReport。
+绝不实施，也不修改 Task 产出。
 
-Project Agent 是 **乐团指挥**。它选择清单种子，并与用户锚定 `goal.md`、`checklist.md`、`preflight.md`。此外，它还会：
-- 每个有界轮次按 P0/P1/P2 取项并划分波次
-- 核验 Task 证据后才勾选断言
-- 评估轮次门与 archive gate：推进、重试或升级
-- 向用户报告最终状态
+## L2 Task
 
-**绝不会**：实施、运行测试、撰写交付物或修改 Task 产出。
+接收一个原子 TaskDispatch，只写 owned files，执行有界验证并返回可证伪证据。
+不得派生另一个 Agent。
 
-## L1: Wave Agent（~5K tokens）
+## 消息与升级
 
-Wave Agent 协调一组有界并行 Task。它：
-- 接收清单项 ID、逐字断言、验证规则与文件所有权
-- 向最多五个 L2 Task 分派互不重叠的可写文件
-- 收集 StatusReport 并检查跨任务冲突
-- 聚合证据，向 L0 提交精简的勾选提案
-
-**绝不会**：执行任何 Task 的工作或修改其产出。
-
-## L2: Task Agent（~8K tokens）
-
-Task Agent 是 **唯一实施层**。它：
-- 接收一个与清单项 ID 绑定的原子任务
-- 只在 owned files 内工作
-- 根据所给断言自证，但不自评分
-- 向 L1 报告工件、测试结果和逐字证据
-
-**约束**：不得派生子 Agent，不得写出 owned set。
-
-## 清单轮次流
-
-```
-L0 取出未完成清单断言，并在 stage.md 记录本轮
-  └─ L1 Wave 向隔离的 L2 Task 分派任务
-       ├─ L2 Task 执行并报告证据
-       └─ L2 Task 执行并报告证据
-  └─ L1 聚合证据并提出勾选建议
-L0 核验证据、勾选通过项，然后结束或重复本轮
-```
-
-`stage.md` 是轮次管控工件，不是 Agent 角色。清单种子中的 `source_stages` 只保留历史来源 ID 与原语来源，不具备可执行顺序语义。
-
-## 升级链
-
-```
-Task Agent → Wave Agent → Project Agent → Human
-```
-
-升级始终 **向上** 移动，绝不跳级。每个失败都有分类：
-
-| 严重度 | 动作 |
-|--------|------|
-| `AUTO_RECOVER` | 重试最多 3 次，指数退避 |
-| `PAUSE` | 暂停任务，排队提问，继续并行工作 |
-| `HUMAN_INTERVENE` | 停止轮次，向人工展示选项 |
-| `FULL_ROLLBACK` | 回滚到检查点，终止所有工作 |
-
-## 通信协议
-
-所有层间通信使用 **类型化 YAML 消息**（非自由文本）：
-
-- **TaskDispatch**：task_id、type、title、description、owned_files、acceptance_criteria、timeout
-- **StatusReport**：task_id、state、progress_pct、artifacts、metrics
-- **ExceptionEscalation**：severity、context、options
-
-## 示例：热修复追踪
-
-```
-用户："修复登录超时 bug"
-  └─ L0 Project：选择 hotfix 种子；用户确认清单与 preflight
-       └─ 第 1 轮 / L1 Wave
-            └─ L2 Task：复现缺陷并报告根因证据
-       └─ L0：核验证据并勾选诊断断言
-       └─ 第 2 轮 / L1 Wave
-            ├─ L2 Task：实现最小修复
-            └─ L2 Task：运行聚焦回归测试
-       └─ L1：聚合证据；L0 核验并勾选两项断言
-  └─ L0 Project：archive gate 通过，向用户报告 SUCCESS
-```
+TaskDispatch 向下，StatusReport 向上。异常按 Task → Wave → Project → Human 升级。
+自由文本共享状态不是工件合同。
 """
 
 
-def _zh_faq() -> str:
+def _en_customization() -> str:
     return """\
-## 常规问题
+## Checklist seeds
 
-### 什么是 DevolaFlow？
+Add a seed under `workflow-system/agent/templates/seeds/` and register it once
+in `templates/registry.yaml`. Seeds may define intent, partitions, assertion
+templates, suggested priorities, verification, and provenance. They must not
+define another executable DAG; `change-driven` remains the runtime.
 
-一个用于 AI 辅助软件开发的可组合工作流元框架。它把 23 个领域清单种子之一转为用户确认的执行合同，再通过 Project → Wave → Task 三层架构和 `change-driven` 清单轮次运行时执行。
+## Context profiles
 
-### 支持哪些 AI 工具？
+Edit `workflow-system/agent/context_profiles.yaml`, keep critical sections
+within budget, and inspect affected selectors with
+`python -m devolaflow.task_adaptive_selector <task-type> --verbose`.
 
-- **Cursor** — 作为 Cursor Skill 加载
-- **Claude Code** — 作为 Claude Code Skill 加载（`.claude/skills/devola-flow/SKILL.md`）
-- **GitHub Copilot** — 作为 `copilot-instructions.md` 加载
-- **OpenAI Codex** — 作为 Codex Skill 加载
+## Rules
 
-### 我需要学 YAML 才能使用 DevolaFlow 吗？
+Edit `.rules/*.mdc`, then run `make compile-rules`. Never hand-edit generated
+`AGENTS.md`, `.cursor/rules/repo-governance.mdc`, or `docs/STYLE-RULES.md`.
 
-不需要。DevolaFlow 根据自然语言自动激活。说“修复登录 bug”会选择 `hotfix` 种子，说“从零构建新功能”会选择 `full-pipeline`。只有编写自定义清单种子时才需要 YAML。
+## Local scaffold depth
 
-### DevolaFlow 和直接提示 AI 工具有什么区别？
-
-没有 DevolaFlow 时，AI 工具可能单轮处理整个请求，混淆设计、实现与验证。DevolaFlow 会与你锚定可测清单断言，每轮只执行一个有界集合，并且仅在证据核验后勾选。
-
-## 工作流
-
-### Agent 如何选择清单种子？
-
-DevolaFlow 使用提示词的 **意图匹配**：
-- "修复 bug" / "崩溃" → `hotfix`
-- "从零开始" / "新项目" → `full-pipeline`
-- "调研" / "对比" → `research-only`
-- "重构" / "清理" → `refactoring`
-
-你也可以显式指定：“使用 migration 种子从 React 17 升级到 18。”
-
-### 哪些种子来自 v3.0.0 的五个工作流新增项？
-
-从历史来源看，v3.0.0 曾把以下能力作为可执行工作流类型引入。现在它们以不可执行清单种子保留领域知识：
-
-- **demo-showcase**：构建展示级演示和交互式展示
-- **performance-optimization**：基于分析的性能优化，包含前后对比基准测试
-- **dependency-setup**：配置开发环境，安装依赖，设置工具链
-- **onboarding**：帮助新贡献者了解代码库并设置环境
-- **skill-optimization**：优化 Agent 技能，包括上下文分析、基准测试和迭代改进
-
-## 质量与门控
-
-### 什么是仓库规则？
-
-`.rules/` 中的 62 条规则，分为 5 层，编译输出到 `AGENTS.md` 与
-`.cursor/rules/repo-governance.mdc`（旧的 SF-/CP-/CO- 规则文件自 v14.2.1 起为弃用指针存根）：
-- **soul.mdc**（S-1 至 S-10）：不可违背的红线 — 测试覆盖率底线（≥80%）、无幽灵功能
-- **architecture.mdc**（A-1 至 A-7）：三层体系、缓存布局、令牌预算
-- **conventions.mdc**（C-1 至 C-9，C-8 已退役）：SKILL.md 格式约束、版本一致性
-- **workflow.mdc**（W-1 至 W-24）：迭代规划、基准测试、版本升级协议
-- **style.mdc**（ST-1 至 ST-13）：文档同步、Web 演示、双语完整性
-
-### 内建评估如何运作？
-
-内置 harness 负责验证确定性 fixture、dispatch 约束、遥测聚合与有界模型合规探测。
-运行：`python -m pytest tests/harness/ -v`
-
-### 质量门失败时会发生什么？
-
-门控触发 **收敛循环**：审查发现 → 修复问题 → 重新测试 → 复查门控。最多 3 轮。如果仍然失败，升级到人工并附上差异报告。
-
-## 更新与版本
-
-### 如何检查更新？
-
-在 AI 工具中输入 `"update devola"` — 或在终端运行 `devola-version`。
-要一次性审计所有已安装副本，运行 `devola-init-doctor --skills`：它会扫描
-全部已知安装位置，并将每个安装标记为 `current` / `stale` / `unknown-version`。
-
-### 如何更新？
-
-```bash
-# npm（用户级 Cursor/Claude 安装；doctor 可做健康检查）
-npx @yorha-agents/devola-flow update all
-
-# pip
-pip install --upgrade git+https://github.com/YoRHa-Agents/DevolaFlow.git
-
-# 安装器（已是最新版本的安装会跳过；--force 强制重新下载）
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
-```
-
-### 如何卸载？
-
-```bash
-# 先预览将删除的内容，再实际删除
-# （npm 安装的副本也在同一目录，同样被覆盖到）
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall --dry-run
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s uninstall
-```
-"""
-
-
-def _zh_integration() -> str:
-    return """\
-## 支持的平台
-
-| 平台 | 安装方式 | Skill 格式 | 范围 |
-|------|---------|-----------|------|
-| **Cursor** | `devola-init cursor` | SKILL.md + references/ + examples/ | 项目或全局 |
-| **Claude Code** | `devola-init claude` | SKILL.md + references/ + examples/ | 项目或全局 |
-| **Copilot** | `devola-init copilot` | copilot-instructions.md | 仅项目 |
-| **Codex** | `devola-init codex` | SKILL.md + references/ | 仅全局 |
-
-各工具的安装文件清单声明在 `workflow-system/agent/manifest.yaml`
-（安装清单的单一事实源）— 上表与其 `install_profiles` 段保持一致。
-
-## Cursor — 详细设置
-
-### 安装
-
-```bash
-# 项目级安装（推荐）
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
-
-# 或用户全局安装
-curl -fsSL $INSTALLER | bash -s cursor --global
-
-# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
-npx @yorha-agents/devola-flow install cursor
-```
-
-安装内容（依 `workflow-system/agent/manifest.yaml` 的 `cursor` profile）：
-- `.cursor/skills/devola-flow/SKILL.md` — 主 skill 文件
-- `.cursor/skills/devola-flow/references/` — Tier-2 领域参考文件
-- `.cursor/skills/devola-flow/examples/` — Tier-3 执行追踪示例
-
-### 在 Cursor 中如何工作
-
-DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到 Agent 上下文中。DevolaFlow 的种子选择启发式规则根据你的意图关键词激活。
-
-### 示例会话：构建功能
-
-1. 在项目中打开 Cursor
-2. 切换到 **Agent 模式**（Cmd+L / Ctrl+L）
-3. 输入请求：
-
-```
-实现用户管理 REST API，包含 CRUD 操作、JWT 认证和基于角色的访问控制
-```
-
-4. DevolaFlow 激活，Agent 将：
-   - 选择 `full-pipeline` 清单种子
-   - 从原语来源实体化 API 设计、实现、审查、测试和发布断言
-   - 请你确认清单优先级与 preflight 决策
-   - 运行有界轮次：L0 Project 取项，L1 Wave 向并行 L2 Task 分派任务
-   - 核验证据后才勾选断言
-   - 在变更源真相前执行 archive gate
-
-### Cursor 使用技巧
-
-- **手动附加 skill**：输入 `@devola-flow` 显式引用
-- **使用 Plan 模式**：Agent 会生成结构化计划而不执行
-- **子 Agent 支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 L1 Wave → L2 Task 委托
-
-## Claude Code — 详细设置
-
-### 安装
-
-```bash
-# 项目级
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
-
-# 用户全局
-curl -fsSL $INSTALLER | bash -s claude --global
-
-# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
-npx @yorha-agents/devola-flow install claude
-```
-
-将 skill 包安装到 `.claude/skills/devola-flow/`（项目级）或 `~/.claude/skills/devola-flow/`（`--global`）：`SKILL.md` 加上 `references/` 与 `examples/` 目录树，依 `workflow-system/agent/manifest.yaml` 的 `claude` profile。
-
-### 在 Claude Code 中如何工作
-
-DevolaFlow 作为 **Claude Code Skill** 加载。它在意图匹配的提示词（实现 / 修复 / 重构 / 调研）上激活，Claude Code 按需读取参考文件，而非每个会话全量加载。
-
-### 示例会话
-
-```bash
-claude
-
-> 为数据库查询实现缓存层，支持 TTL 和缓存失效
-```
-
-Claude Code 将：
-1. 检测 `full-pipeline` 种子意图
-2. 锚定可测清单与已签署的 preflight
-3. 使用 L1 Wave 协调和 L2 Task 隔离实现
-4. 重复有证据的有界轮次，直到 archive gate 通过或需要升级
-
-## GitHub Copilot — 详细设置
-
-### 安装
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
-```
-
-安装内容：
-- `.github/copilot-instructions.md` — 完整 SKILL.md 内容作为根指令
-
-### 在 Copilot 中如何工作
-
-Copilot 为每个请求读取 `copilot-instructions.md`。工作流启发式规则引导 Copilot 的代码建议和聊天回复遵循结构化模式。
-
-## OpenAI Codex — 详细设置
-
-### 安装
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex
-```
-
-安装内容（依 `workflow-system/agent/manifest.yaml` 的 `codex` profile）：
-- `~/.codex/skills/devola-flow/SKILL.md`
-- `~/.codex/skills/devola-flow/references/`
-
-## CI/CD 集成
-
-在 CI 管线中添加 DevolaFlow 验证：
-
-```yaml
-# .github/workflows/ci.yml
-- name: DevolaFlow Checks
-  run: |
-    pip install -e '.[dev]'
-    python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/
-    validate-template --all
-    build-skill --all
-```
+`devola-init local --mode=core|standard|full` selects scaffolding depth.
+Individual `--no-compile`, `--with-examples`, and `--no-with-examples` flags
+override mode defaults. Re-running the scaffold is idempotent.
 """
 
 
 def _zh_customization() -> str:
     return """\
-## 创建清单种子
+## 清单种子
 
-清单种子是 `workflow-system/agent/templates/seeds/` 下的 YAML 文件，遵循 `schemas/checklist-seed.schema.yaml`。它保存领域分解知识，但不会创建新的可执行运行时。
+在 `workflow-system/agent/templates/seeds/` 下添加种子，并在
+`templates/registry.yaml` 中注册一次。种子可以定义意图、分区、断言模板、建议
+优先级、验证与来源，但不得定义另一个可执行 DAG；运行时仍是 `change-driven`。
 
-唯一可执行模板是 `workflow-system/agent/templates/builtin/change-driven.yaml`。自定义种子会实体化到这个共享清单轮次运行时中。
+## 上下文配置
 
-### 种子结构
+编辑 `workflow-system/agent/context_profiles.yaml`，确保 critical 段落不超预算，
+并运行 `python -m devolaflow.task_adaptive_selector <task-type> --verbose` 检查
+受影响的选择结果。
 
-```yaml
-schema_version: "1.0"
-kind: checklist-seed
-metadata:
-  name: code-review
-  version: "1.0.0"
-  description: "独立代码审查证据种子。"
-  category: composite
-  intent_keywords: [review, quality, pull-request]
-  source:
-    kind: composition
-    name: code-review
-    path: workflow-system/agent/templates/registry.yaml
-    schema_version: "3.0"
+## 规则
 
-placeholders:
-  review_command:
-    description: "仓库批准的有界审查命令。"
-    required: true
-    example: "ruff check src/ tests/"
+编辑 `.rules/*.mdc` 后运行 `make compile-rules`。不得手改生成的 `AGENTS.md`、
+`.cursor/rules/repo-governance.mdc` 或 `docs/STYLE-RULES.md`。
 
-partitions:
-  - key: review
-    title_template: "代码审查"
-    source_stages:                 # 只记录来源，绝不表示执行顺序
-      - {id: review, primitive: review}
-    assertions:
-      - key: findings-resolved
-        statement_template: "所有 blocker 与 critical 审查发现均已解决"
-        suggested_priority: P0
-        verify:
-          mode: metric
-          template: "open_blocker_count == 0 and open_critical_count == 0"
-      - key: checks-pass
-        statement_template: "批准的静态审查命令通过"
-        suggested_priority: P1
-        verify:
-          mode: command
-          template: "{{ review_command }}"
-```
+## 本地脚手架深度
 
-### 种子可以表达什么
+`devola-init local --mode=core|standard|full` 选择脚手架深度。单独传入的
+`--no-compile`、`--with-examples`、`--no-with-examples` 会覆盖 mode 默认值。
+重复运行保持幂等。
+"""
 
-- 意图关键词与可选场景
-- 面向用户的清单分区
-- 渲染后不超过 25 词的可测断言模板
-- 用户可以修改的 P0/P1/P2 建议优先级
-- 有界命令、指标或人工检查三种验证方式
-- `source_stages` 中仅含历史来源 ID 与 14 种原语标签之一
 
-### 种子禁止表达什么
+def _en_integration() -> str:
+    return f"""\
+## Manifest-derived install profiles
 
-种子不是运行时 DAG。禁止顶层 `stages`、`composition`、`loops`、`gates`，也禁止 `team`、`duration_class`、`input_mapping`、`skip_condition` 等运行时字段。种子顺序仅供展示。
+The profile names and file sets below come from
+`workflow-system/agent/manifest.yaml`. The `references` set currently contains
+{INVENTORY.reference_count} files; consumers derive the list from the manifest.
 
-checkbox、证据路径、轮次号、checked-by 元数据和运行时依赖也不属于种子。只有 L0 将种子实体化为用户确认的变更清单时，才会分配这些信息。
+{_profile_rows("en")}
 
-## 注册种子
+## Channel scope
 
-在注册表中新增一个带 `seed:` 路径且不含可执行 `path:` 的条目。只有 `change-driven` 条目可以声明 `path: builtin/change-driven.yaml`。
-
-## 自定义上下文配置
-
-编辑 `workflow-system/agent/context_profiles.yaml` 添加新任务类型的配置。每个配置指定 SKILL.md 段落的优先级：
-
-- **critical**：始终包含，优先加载
-- **important**：预算允许时包含
-- **supplementary**：仅剩余空间时包含
-- **skip**：对此任务类型永不包含
-
-## 验证更改
-
-自定义后，务必验证：
+| Channel | Scope and `all` meaning |
+|---|---|
+| npm/npx | User-level `cursor`, `claude`, or both via npm `all` |
+| curl | Project by default; supported host targets plus separate `local` and `standalone` targets; `--global` where supported; curl `all` installs all supported hosts plus `local` and excludes `standalone` |
+| pip/wheel | Runtime CLIs and `devola-init local`; non-local skill copy needs a clone plus editable install |
+| Python source | `devola-init all` means Cursor, Claude, Copilot, and Codex; it excludes `local` |
 
 ```bash
-validate-template --all                # 23 个种子 + 一个运行时有效
-python -m pytest tests/ -q             # 所有测试通过
-python -m pytest tests/harness/ -v       # harness 合约通过
-build-skill --all                      # 适配器构建成功
+# Complete, self-contained curl examples
+curl -fsSL {INSTALLER_URL} | bash -s cursor
+curl -fsSL {INSTALLER_URL} | bash -s claude --global --no-plugins
+curl -fsSL {INSTALLER_URL} | bash -s kimicode
+curl -fsSL {INSTALLER_URL} | bash -s zed
+curl -fsSL {INSTALLER_URL} | bash -s cline
+curl -fsSL {INSTALLER_URL} | bash -s roo
 ```
+
+## Local workspace modes and plugins
+
+```bash
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init cursor --global --no-plugins
+```
+
+`core` skips compilation and examples, `standard` compiles without examples,
+and `full` compiles and seeds examples. Global curl/Python installs attempt
+runtime plugins by default; `--no-plugins` keeps only skill files. Plugin
+installation is separate from whether the host can discover the copied skill.
+
+## Doctor and update boundaries
+
+```bash
+npx @yorha-agents/devola-flow doctor
+devola-init-doctor
+devola-init-doctor --skills
+npx @yorha-agents/devola-flow update all
+curl -fsSL {INSTALLER_URL} | bash -s update
+curl -fsSL {INSTALLER_URL} | bash -s local
+curl -fsSL {INSTALLER_URL} | bash -s standalone
+```
+
+The first doctor checks npm-supported user locations. The second checks the
+current Python workspace. The third scans known copied-skill locations. There
+is no curl doctor. curl `update` scans supported host skill-copy locations
+only; it does not scan the `local` workspace or `standalone` file. Rerun the
+explicit `local` or `standalone` install target for those surfaces.
+
+## Optional host bridge enforcement
+
+Skill copy makes Markdown discoverable. A host bridge separately routes
+Cursor, Claude Code, Codex, KimiCode, or DSH tool events through lifecycle
+boundary enforcement. Windsurf, Zed, Cline, Roo, and Copilot profiles do not
+claim bridge support.
+
+Follow the [host-specific bridge procedure]({HOST_BRIDGE_URL}). For example:
+
+```bash
+python -m devolaflow.hostbridge install cursor
+python -m devolaflow.hostbridge install claude
+python -m devolaflow.hostbridge install codex
+```
+
+Confirm the host config is active (including Codex `/hooks` trust), exercise
+one known-allowed event with a one-shot enforcement environment, and inspect
+`.local/telemetry/hostbridge.jsonl`. Only then persist:
+
+```bash
+export DEVOLAFLOW_HOST_ENFORCE=1
+```
+
+Unsupported hosts remain skill-only; do not describe them as enforced.
+"""
+
+
+def _zh_integration() -> str:
+    return f"""\
+## 从清单派生的安装 profile
+
+下列 profile 名称与文件集合来自 `workflow-system/agent/manifest.yaml`。
+`references` 集合当前包含 {INVENTORY.reference_count} 个文件；消费者从清单派生列表。
+
+{_profile_rows("zh")}
+
+## 渠道范围
+
+| 渠道 | 范围与 `all` 含义 |
+|---|---|
+| npm/npx | 用户级 `cursor`、`claude`，或 npm `all`（两者） |
+| curl | 默认项目级；提供受支持宿主目标以及独立的 `local`、`standalone` 目标；`--global` 仅在支持时生效；curl `all` 安装所有受支持宿主和 `local`，不包含 `standalone` |
+| pip/wheel | 运行时 CLI 与 `devola-init local`；非 local skill 复制需要 clone 加 editable 安装 |
+| Python 源码 | `devola-init all` 表示 Cursor、Claude、Copilot、Codex，不包含 `local` |
+
+```bash
+# 完整、自包含的 curl 示例
+curl -fsSL {INSTALLER_URL} | bash -s cursor
+curl -fsSL {INSTALLER_URL} | bash -s claude --global --no-plugins
+curl -fsSL {INSTALLER_URL} | bash -s kimicode
+curl -fsSL {INSTALLER_URL} | bash -s zed
+curl -fsSL {INSTALLER_URL} | bash -s cline
+curl -fsSL {INSTALLER_URL} | bash -s roo
+```
+
+## 本地工作区模式与插件
+
+```bash
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init cursor --global --no-plugins
+```
+
+`core` 跳过编译与示例，`standard` 编译但不生成示例，`full` 编译并播种示例。
+全局 curl/Python 安装默认尝试运行时插件；`--no-plugins` 只保留 skill 文件。
+插件安装与宿主能否发现已复制 skill 是两件事。
+
+## Doctor 与更新边界
+
+```bash
+npx @yorha-agents/devola-flow doctor
+devola-init-doctor
+devola-init-doctor --skills
+npx @yorha-agents/devola-flow update all
+curl -fsSL {INSTALLER_URL} | bash -s update
+curl -fsSL {INSTALLER_URL} | bash -s local
+curl -fsSL {INSTALLER_URL} | bash -s standalone
+```
+
+第一个 doctor 检查 npm 支持的用户级位置，第二个检查当前 Python 工作区，第三个
+扫描已知 skill 副本。curl 没有 doctor。curl `update` 只扫描受支持的宿主 skill
+副本位置，不扫描 `local` 工作区或 `standalone` 文件；这些表面需重新运行显式的
+`local` 或 `standalone` 安装目标。
+
+## 可选 host bridge 执行边界
+
+复制 skill 只让 Markdown 可发现。host bridge 另行把 Cursor、Claude Code、
+Codex、KimiCode 或 DSH 工具事件路由到生命周期边界执行。Windsurf、Zed、Cline、
+Roo 与 Copilot profile 不宣称 bridge 支持。
+
+按 [宿主专用 bridge 流程]({HOST_BRIDGE_URL}) 操作，例如：
+
+```bash
+python -m devolaflow.hostbridge install cursor
+python -m devolaflow.hostbridge install claude
+python -m devolaflow.hostbridge install codex
+```
+
+确认宿主配置已激活（Codex 还需 `/hooks` trust），在单次环境中执行一个已知允许事件，
+并检查 `.local/telemetry/hostbridge.jsonl`。确认后再持久启用：
+
+```bash
+export DEVOLAFLOW_HOST_ENFORCE=1
+```
+
+不支持 bridge 的宿主保持 skill-only，不应描述为已执行边界。
+"""
+
+
+def _en_troubleshooting() -> str:
+    return f"""\
+## Identify the installation channel first
+
+### npm user install
+
+```bash
+node --version
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update cursor
+```
+
+Node must be 18 or newer. npm targets only user-level Cursor and Claude.
+Check `DEVOLA_FLOW_REF` when the installed ref is unexpected.
+
+### curl install
+
+```bash
+curl -fsSL {INSTALLER_URL} | bash -s help
+curl -fsSL {INSTALLER_URL} | bash -s update --force
+curl -fsSL {INSTALLER_URL} | bash -s uninstall --dry-run
+```
+
+Every snippet is self-contained. curl has `update` and `uninstall`, but no
+doctor. Its `update` scans supported host skill-copy locations only, not the
+`local` workspace or `standalone` file; rerun either explicit install target
+for those surfaces. Use `devola-init-doctor --skills` only when the Python
+package is also installed and you want to audit known skill paths.
+
+### pip or wheel install
+
+```bash
+python -c "import devolaflow; print(devolaflow.__version__)"
+devola-init local --mode=core
+devola-init-doctor
+```
+
+Wheel-only installs support the local scaffold. If `devola-init cursor` (or
+another non-local target) reports that the agent source tree is missing, clone
+the repository and install editable:
+
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
+pip install -e ".[dev]"
+devola-init cursor
+```
+
+## Local scaffold recovery
+
+```bash
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init-doctor
+sync-rules
+```
+
+`core` intentionally skips rule compilation. `standard` compiles without
+examples. `full` compiles and seeds examples. Compilation repair is
+`sync-rules` (or `make compile-rules` in a clone).
+
+For global skill installation without the default plugin attempts:
+
+```bash
+devola-init cursor --global --no-plugins
+curl -fsSL {INSTALLER_URL} | bash -s cursor --global --no-plugins
+```
+
+## Skill copy versus host bridge
+
+If the skill is visible but an out-of-scope host write is not blocked, verify
+the optional bridge separately. Follow the [host bridge matrix]({HOST_BRIDGE_URL}),
+confirm the host-specific config and event matcher, trust Codex hooks when
+applicable, then test one event before persisting
+`DEVOLAFLOW_HOST_ENFORCE=1`. Unsupported hosts remain skill-only.
+
+## Workflow symptoms
+
+- Wrong seed: state the intent explicitly or name a seed.
+- One-pass execution: verify the skill is loaded and request a bounded
+  multi-step change with measurable checks.
+- Repeated convergence: inspect unresolved checklist assertions and blockers;
+  bounded retries eventually escalate.
+
+## Harness and archive evidence
+
+Run `make test-harness` for deterministic contracts. W-16 settlement and W-19
+cycle archive rollup are manual release-policy steps; there is no automatic
+archive hook. Do not diagnose a missing automatic archive as a runtime failure.
 """
 
 
 def _zh_troubleshooting() -> str:
-    return """\
-## 安装问题
+    return f"""\
+## 先识别安装渠道
 
-### `devola-init` 命令未找到
+### npm 用户级安装
 
-CLI 工具需要 pip 安装：
 ```bash
-pip install git+https://github.com/YoRHa-Agents/DevolaFlow.git
-# 或开发版：
+node --version
+npx @yorha-agents/devola-flow doctor
+npx @yorha-agents/devola-flow update cursor
+```
+
+Node 必须为 18 或更高版本。npm 只支持用户级 Cursor 与 Claude。安装 ref 异常时
+检查 `DEVOLA_FLOW_REF`。
+
+### curl 安装
+
+```bash
+curl -fsSL {INSTALLER_URL} | bash -s help
+curl -fsSL {INSTALLER_URL} | bash -s update --force
+curl -fsSL {INSTALLER_URL} | bash -s uninstall --dry-run
+```
+
+每段命令都可独立复制。curl 有 `update` 与 `uninstall`，但没有 doctor。
+`update` 只扫描受支持的宿主 skill 副本位置，不扫描 `local` 工作区或
+`standalone` 文件；这些表面需重新运行对应的显式安装目标。只有同时安装了
+Python 包，并需要审计已知 skill 路径时，才使用 `devola-init-doctor --skills`。
+
+### pip 或 wheel 安装
+
+```bash
+python -c "import devolaflow; print(devolaflow.__version__)"
+devola-init local --mode=core
+devola-init-doctor
+```
+
+仅 wheel 安装支持 local 脚手架。如果 `devola-init cursor`（或其他非 local 目标）
+报告缺少 agent 源码树，请 clone 仓库并 editable 安装：
+
+```bash
+git clone https://github.com/YoRHa-Agents/DevolaFlow.git
+cd DevolaFlow
 pip install -e ".[dev]"
+devola-init cursor
 ```
 
-### 安装器报 "权限拒绝"
-
-安装器需要对目标目录的写入权限。全局安装写入 `~/.cursor/skills/`，应该是用户可写的。
-
-## 工作流问题
-
-### Agent 没有选择正确的工作流
-
-DevolaFlow 使用关键词匹配。让你的意图更明确：
-- 不要说："帮我处理登录页面"
-- 改为说："修复登录页面的 bug"（→ hotfix）或 "重新设计登录页面 UI"（→ design-only）
-
-也可以直接指定："使用 refactoring 工作流清理认证模块。"
-
-### Agent 试图一次完成所有事情
-
-通常意味着 skill 文件未加载。检查：
-1. 确认 skill 文件存在：`ls .cursor/skills/devola-flow/SKILL.md`
-2. 在 Cursor 设置中确认 skill 可见
-3. 尝试显式附加：`@devola-flow 实现用户系统`
-
-### 收敛循环运行太多次
-
-默认最大 3 次迭代。如果持续循环：
-1. 检查验收标准是否过于严格
-2. 查找阻止收敛的冲突需求
-3. 达到最大迭代后 Agent 会升级到你 — 查看差异报告
-
-## 测试与构建问题
-
-### 修改 SKILL.md 后测试失败
-
-运行 `python -m pytest tests/test_version.py -v` 检查版本一致性。使用 `scripts/bump_version.py` 进行统一更新。
-
-### `build-skill` 报告超出预算
-
-SKILL.md 必须保持在 500 行以内（规则 SF-1）。运行 `build-skill --all` 验证。
-
-### 种子或运行时验证失败
+## 本地脚手架恢复
 
 ```bash
-validate-template path/to/template.yaml
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init-doctor
+sync-rules
 ```
 
-常见原因：
-- 缺少种子必需字段（`schema_version`、`kind`、`metadata`、`placeholders`、`partitions`）
-- 种子包含顶层 `stages`、`composition`、`loops` 或 `gates` 等可执行 DAG 字段
-- `source_stages` 没有保留 ID 与 14 种来源原语之一
-- command 或 metric 验证没有有界 `template`
+`core` 有意跳过规则编译，`standard` 编译但不生成示例，`full` 编译并播种示例。
+编译修复命令是 `sync-rules`（在 clone 内也可用 `make compile-rules`）。
 
-## Harness 问题
-
-### Harness 合约失败
+全局安装 skill 但不尝试默认插件：
 
 ```bash
-python -m pytest tests/harness/ -v
+devola-init cursor --global --no-plugins
+curl -fsSL {INSTALLER_URL} | bash -s cursor --global --no-plugins
 ```
 
-1. 检查失败的 fixture、遥测、评估或 probe 合约
-2. 审查报告中的 schema、路径或 guard 不匹配
-3. 修复源合约；归档基线继续作为历史证据保留
+## skill 复制与 host bridge
 
-## 获取帮助
+如果 skill 可见但宿主越界写入没有被阻止，请单独验证可选 bridge。按照
+[host bridge 矩阵]({HOST_BRIDGE_URL}) 检查宿主专用配置与事件 matcher；Codex
+还需信任 hooks。先测试一个事件，再持久设置 `DEVOLAFLOW_HOST_ENFORCE=1`。
+不支持的宿主保持 skill-only。
 
-- **GitHub Issues**: [https://github.com/YoRHa-Agents/DevolaFlow/issues](https://github.com/YoRHa-Agents/DevolaFlow/issues)
-- **交互式演示**: [https://yorha-agents.github.io/DevolaFlow/](https://yorha-agents.github.io/DevolaFlow/)
+## 工作流症状
+
+- 选错种子：明确表达意图或直接指定种子。
+- 单轮完成全部工作：确认 skill 已加载，并请求带可测检查的有界多步骤变更。
+- 反复收敛：检查未完成断言与 blocker；有界重试最终会升级。
+
+## Harness 与归档证据
+
+运行 `make test-harness` 验证确定性合同。W-16 结算与 W-19 周期归档汇总是人工发布
+政策步骤；没有自动归档 hook。不要把缺少自动归档诊断为运行时故障。
 """
 
 
+def _en_faq() -> str:
+    return f"""\
+## What does DevolaFlow execute?
+
+It selects one of {len(INVENTORY.seeds)} registry-derived checklist seeds as
+decomposition knowledge, materializes a user-confirmed checklist, and executes
+that contract through the sole `change-driven` runtime.
+
+## Do the three `all` targets mean the same thing?
+
+No. npm `all` is user-level Cursor plus Claude. Python `devola-init all` is
+Cursor, Claude, Copilot, and Codex and excludes `local`. curl `all` installs
+all supported host targets plus `local` and excludes `standalone`.
+
+## Which doctor should I run?
+
+- `npx @yorha-agents/devola-flow doctor`: npm-supported user installs.
+- `devola-init-doctor`: current Python local workspace.
+- `devola-init-doctor --skills`: known copied-skill locations.
+
+The curl installer has no doctor.
+
+## Does updating Python update copied skills?
+
+No. Update the package, then rerun `devola-init local` for a local scaffold or
+rerun the desired host target from a source checkout. npm and curl have their
+own update commands.
+
+## Is host bridge enforcement automatic?
+
+No. Skill installation and host bridge wiring are separate. Verify a supported
+host bridge before setting `DEVOLAFLOW_HOST_ENFORCE=1`.
+
+## Is harness archive rollup automatic?
+
+No. Baseline settlement and archive retention are release policy performed
+manually at cycle close. Current runtime does not provide an automatic archive
+hook.
+"""
+
+
+def _zh_faq() -> str:
+    return f"""\
+## DevolaFlow 执行什么？
+
+它从注册表派生的 {len(INVENTORY.seeds)} 个清单种子中选择分解知识，将其实体化为
+用户确认的清单，并通过唯一的 `change-driven` 运行时执行该合同。
+
+## 三个 `all` 含义相同吗？
+
+不同。npm 的 `all` 是用户级 Cursor 加 Claude；Python 的 `devola-init all`
+是 Cursor、Claude、Copilot、Codex，不包含 `local`；curl 的 `all` 会安装所有
+受支持宿主目标和 `local`，但不包含 `standalone`。
+
+## 应运行哪个 doctor？
+
+- `npx @yorha-agents/devola-flow doctor`：npm 支持的用户级安装。
+- `devola-init-doctor`：当前 Python 本地工作区。
+- `devola-init-doctor --skills`：已知 skill 副本位置。
+
+curl 安装器没有 doctor。
+
+## 更新 Python 会更新已复制 skill 吗？
+
+不会。更新包后，为本地脚手架重新运行 `devola-init local`；非 local skill 请从
+源码 checkout 重新运行对应宿主目标。npm 与 curl 各有自己的 update 命令。
+
+## host bridge 会自动执行吗？
+
+不会。skill 安装与 host bridge 接线是独立状态。设置
+`DEVOLAFLOW_HOST_ENFORCE=1` 前必须验证一个受支持的宿主 bridge。
+
+## harness 归档汇总会自动执行吗？
+
+不会。基线结算与归档保留是周期关闭时人工执行的发布政策；当前运行时没有自动归档
+hook。
+"""
+
+
+def _gen_en_content(slug: str) -> str:
+    sections = {
+        "quickstart": _en_quickstart,
+        "architecture-overview": _en_architecture,
+        "workflow-types": _en_workflow_types,
+        "agent-hierarchy-guide": _en_hierarchy,
+        "customization-guide": _en_customization,
+        "integration-guide": _en_integration,
+        "troubleshooting": _en_troubleshooting,
+        "faq": _en_faq,
+    }
+    return sections[slug]()
+
+
+def _gen_zh_content(slug: str) -> str:
+    sections = {
+        "quickstart": _zh_quickstart,
+        "architecture-overview": _zh_architecture,
+        "workflow-types": _zh_workflow_types,
+        "agent-hierarchy-guide": _zh_hierarchy,
+        "customization-guide": _zh_customization,
+        "integration-guide": _zh_integration,
+        "troubleshooting": _zh_troubleshooting,
+        "faq": _zh_faq,
+    }
+    return sections[slug]()
+
+
 def main() -> None:
-    root = Path(__file__).resolve().parent.parent
-    human_dir = root / "workflow-system" / "human"
+    if "--all" in sys.argv or "--lang" not in sys.argv:
+        languages = ("en", "zh") if "--all" in sys.argv else ("en",)
+    else:
+        try:
+            language = sys.argv[sys.argv.index("--lang") + 1]
+        except IndexError as exc:
+            raise SystemExit("--lang requires en or zh") from exc
+        if language not in {"en", "zh"}:
+            raise SystemExit("--lang requires en or zh")
+        languages = (language,)
 
-    do_en = (
-        "--all" in sys.argv
-        or "--lang" not in sys.argv
-        or ("--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "en")
-    )
-    do_zh = "--all" in sys.argv or (
-        "--lang" in sys.argv and sys.argv[sys.argv.index("--lang") + 1] == "zh"
-    )
-
-    # Humanize is ON by default per Q-B (in-pipeline humanization).
-    # `--no-humanize` opts out (useful for drift-lint diffs that want
-    # to inspect raw generator output).
     humanize = "--no-humanize" not in sys.argv
-
-    count = 0
-    for slug, en_title, en_desc, zh_title, zh_desc in DOCS:
-        if do_en:
-            _gen_doc(slug, en_title, en_desc, "en", human_dir / "en", humanize=humanize)
-            count += 1
-        if do_zh:
-            _gen_doc(slug, zh_title, zh_desc, "zh", human_dir / "zh", humanize=humanize)
-            count += 1
-
+    generated, changed = generate_docs(
+        ROOT / "workflow-system/human",
+        languages=languages,
+        humanize=humanize,
+    )
     suffix = "" if humanize else " (no-humanize)"
-    print(f"Generated {count} human doc files{suffix}.")
+    print(f"Generated {generated} human doc files; {changed} changed{suffix}.")
 
 
 if __name__ == "__main__":

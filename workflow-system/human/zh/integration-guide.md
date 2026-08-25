@@ -1,150 +1,102 @@
 ---
 title: "集成指南"
-description: "将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成。"
+description: "从清单派生的宿主配置、安装渠道与可选 host bridge。"
 source_files:
   - "SKILL.md"
 auto_generated: true
-last_synced: "2026-08-25T10:02:23Z"
+last_synced: "2026-08-25T12:29:02Z"
 source_version: "17.0.0"
 ---
 
 # 集成指南
 
-将 DevolaFlow 与 Cursor、Claude Code、Copilot 和 Codex 集成。
+从清单派生的宿主配置、安装渠道与可选 host bridge。
 
-## 支持的平台
+## 从清单派生的安装 profile
 
-| 平台 | 安装方式 | Skill 格式 | 范围 |
-|------|---------|-----------|------|
-| **Cursor** | `devola-init cursor` | SKILL.md + references/ + examples/ | 项目或全局 |
-| **Claude Code** | `devola-init claude` | SKILL.md + references/ + examples/ | 项目或全局 |
-| **Copilot** | `devola-init copilot` | copilot-instructions.md | 仅项目 |
-| **Codex** | `devola-init codex` | SKILL.md + references/ | 仅全局 |
+下列 profile 名称与文件集合来自 `workflow-system/agent/manifest.yaml`。
+`references` 集合当前包含 26 个文件；消费者从清单派生列表。
 
-各工具的安装文件清单声明在 `workflow-system/agent/manifest.yaml`
-（安装清单的单一事实源）— 上表与其 `install_profiles` 段保持一致。
+| 目标 | 清单类型 | 文件集合 |
+|---|---|---|
+| `cursor` | `skill-dir` | `core`, `references`, `examples` |
+| `claude` | `skill-dir` | `core`, `references`, `examples` |
+| `codex` | `skill-dir` | `core`, `references` |
+| `kimicode` | `skill-dir` | `core`, `references`, `examples` |
+| `copilot` | `rule-file` | `core` |
+| `windsurf` | `rule-file` | `core` |
+| `zed` | `rule-tree` | `core`, `references` |
+| `cline` | `rule-tree` | `core`, `references` |
+| `roo` | `rule-tree` | `core`, `references` |
 
-## Cursor — 详细设置
+## 渠道范围
 
-### 安装
+| 渠道 | 范围与 `all` 含义 |
+|---|---|
+| npm/npx | 用户级 `cursor`、`claude`，或 npm `all`（两者） |
+| curl | 默认项目级；提供受支持宿主目标以及独立的 `local`、`standalone` 目标；`--global` 仅在支持时生效；curl `all` 安装所有受支持宿主和 `local`，不包含 `standalone` |
+| pip/wheel | 运行时 CLI 与 `devola-init local`；非 local skill 复制需要 clone 加 editable 安装 |
+| Python 源码 | `devola-init all` 表示 Cursor、Claude、Copilot、Codex，不包含 `local` |
 
 ```bash
-# 项目级安装（推荐）
+# 完整、自包含的 curl 示例
 curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cursor
-
-# 或用户全局安装
-curl -fsSL $INSTALLER | bash -s cursor --global
-
-# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
-npx @yorha-agents/devola-flow install cursor
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude --global --no-plugins
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s kimicode
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s zed
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s cline
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s roo
 ```
 
-安装内容（依 `workflow-system/agent/manifest.yaml` 的 `cursor` profile）：
-- `.cursor/skills/devola-flow/SKILL.md`, 主 skill 文件
-- `.cursor/skills/devola-flow/references/`, Tier-2 领域参考文件
-- `.cursor/skills/devola-flow/examples/`, Tier-3 执行追踪示例
-
-在 Cursor 中如何工作
-
-DevolaFlow 作为 **Cursor Skill** 加载。当你在 Agent 模式中发送提示词时，Cursor 将 skill 内容加载到 Agent 上下文中。DevolaFlow 的种子选择启发式规则根据你的意图关键词激活。
-
-### 示例会话：构建功能
-
-1. 在项目中打开 Cursor
-2. 切换到 **Agent 模式**（Cmd+L / Ctrl+L）
-3. 输入请求：
-
-```
-实现用户管理 REST API，包含 CRUD 操作、JWT 认证和基于角色的访问控制
-```
-
-4. DevolaFlow 激活，Agent 将：
-   - 选择 `full-pipeline` 清单种子
-   - 从原语来源实体化 API 设计、实现、审查、测试和发布断言
-   - 请你确认清单优先级与 preflight 决策
-   - 运行有界轮次：L0 Project 取项，L1 Wave 向并行 L2 Task 分派任务
-   - 核验证据后才勾选断言
-   - 在变更源真相前执行 archive gate
-
-Cursor 使用技巧
-
-**手动附加 skill**：输入`@devola-flow` 显式引用
-- **使用 Plan 模式**：Agent 会生成结构化计划而不执行
-- **子 Agent 支持**：Cursor 的 Task 工具自然映射到 DevolaFlow 的 L1 Wave → L2 Task 委托
-
-## Claude Code, 详细设置
-
-### 安装
+## 本地工作区模式与插件
 
 ```bash
-# 项目级
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s claude
-
-# 用户全局
-curl -fsSL $INSTALLER | bash -s claude --global
-
-# 或经 npm 做用户全局安装（需 Node >= 18，无需 curl/bash）
-npx @yorha-agents/devola-flow install claude
+devola-init local --mode=core
+devola-init local --mode=standard
+devola-init local --mode=full
+devola-init cursor --global --no-plugins
 ```
 
-将 skill 包安装到 `.claude/skills/devola-flow/`（项目级）或 `~/.claude/skills/devola-flow/`（`--global`）：`SKILL.md` 加上 `references/` 与 `examples/` 目录树，依 `workflow-system/agent/manifest.yaml` 的 `claude` profile。
+`core` 跳过编译与示例，`standard` 编译但不生成示例，`full` 编译并播种示例。
+全局 curl/Python 安装默认尝试运行时插件；`--no-plugins` 只保留 skill 文件。
+插件安装与宿主能否发现已复制 skill 是两件事。
 
-在 Claude Code 中如何工作
-
-DevolaFlow 作为 **Claude Code Skill** 加载。它在意图匹配的提示词（实现 / 修复 / 重构 / 调研）上激活，Claude Code 按需读取参考文件，而非每个会话全量加载。
-
-示例会话
+## Doctor 与更新边界
 
 ```bash
-claude
-
-> 为数据库查询实现缓存层，支持 TTL 和缓存失效
+npx @yorha-agents/devola-flow doctor
+devola-init-doctor
+devola-init-doctor --skills
+npx @yorha-agents/devola-flow update all
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s update
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s local
+curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s standalone
 ```
 
-Claude Code 将：
-1. 检测 `full-pipeline` 种子意图
-2. 锚定可测清单与已签署的 preflight
-3. 使用 L1 Wave 协调和 L2 Task 隔离实现
-4. 重复有证据的有界轮次，直到 archive gate 通过或需要升级
+第一个 doctor 检查 npm 支持的用户级位置，第二个检查当前 Python 工作区，第三个
+扫描已知 skill 副本。curl 没有 doctor。curl `update` 只扫描受支持的宿主 skill
+副本位置，不扫描 `local` 工作区或 `standalone` 文件；这些表面需重新运行显式的
+`local` 或 `standalone` 安装目标。
 
-## GitHub Copilot, 详细设置
+## 可选 host bridge 执行边界
 
-安装
+复制 skill 只让 Markdown 可发现。host bridge 另行把 Cursor、Claude Code、
+Codex、KimiCode 或 DSH 工具事件路由到生命周期边界执行。Windsurf、Zed、Cline、
+Roo 与 Copilot profile 不宣称 bridge 支持。
+
+按 [宿主专用 bridge 流程](https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/references/host-bridges.md) 操作，例如：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s copilot
+python -m devolaflow.hostbridge install cursor
+python -m devolaflow.hostbridge install claude
+python -m devolaflow.hostbridge install codex
 ```
 
-安装内容：
-- `.github/copilot-instructions.md`, 完整 SKILL.md 内容作为根指令
-
-在 Copilot 中如何工作
-
-Copilot 为每个请求读取 `copilot-instructions.md`。工作流启发式规则引导 Copilot 的代码建议和聊天回复遵循结构化模式。
-
-## OpenAI Codex, 详细设置
-
-安装
+确认宿主配置已激活（Codex 还需 `/hooks` trust），在单次环境中执行一个已知允许事件，
+并检查 `.local/telemetry/hostbridge.jsonl`。确认后再持久启用：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YoRHa-Agents/DevolaFlow/main/scripts/install.sh | bash -s codex
+export DEVOLAFLOW_HOST_ENFORCE=1
 ```
 
-安装内容（依 `workflow-system/agent/manifest.yaml` 的 `codex` profile）：
-- `~/.codex/skills/devola-flow/SKILL.md`
-- `~/.codex/skills/devola-flow/references/`
-
-## CI/CD 集成
-
-在 CI 管线中添加 DevolaFlow 验证：
-
-```yaml
-# .github/workflows/ci.yml
-- name: DevolaFlow Checks
-  run: |
-    pip install -e '.[dev]'
-    python -m pytest tests/ --cov=devolaflow -q
-    ruff check src/ tests/
-    validate-template --all
-    build-skill --all
-```
+不支持 bridge 的宿主保持 skill-only，不应描述为已执行边界。

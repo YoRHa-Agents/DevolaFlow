@@ -7,8 +7,10 @@
   'use strict';
 
   var THEME_KEY = 'devolaflow-theme';
-  var GITHUB_URL = 'https://github.com/YoRHa-Agents/DevolaFlow';
+  var LANG_KEY = 'devolaflow-lang';
 
+  // Compatibility route registry. Keep this independent from primary navigation:
+  // every deployed directory must remain detectable even when it is not a nav item.
   var SUBPAGE_DIRS = [
     'design-system', 'framework-chain', 'context-flow',
     'version-timeline', 'design-architecture',
@@ -27,76 +29,97 @@
     });
   })();
 
-  function prefix(subPath) {
-    return isLanding ? subPath : '../' + subPath;
+  function rootPrefix() {
+    var parts = window.location.pathname.split('/').filter(function (part) {
+      return part.length > 0;
+    });
+    var routeIndex = parts.findIndex(function (part) {
+      return SUBPAGE_DIRS.indexOf(part) !== -1;
+    });
+    if (routeIndex === -1) { return ''; }
+    var routeParts = parts.slice(routeIndex);
+    if (routeParts.length && /\.[a-z0-9]+$/i.test(routeParts[routeParts.length - 1])) {
+      routeParts.pop();
+    }
+    return routeParts.map(function () { return '../'; }).join('');
   }
 
+  var ROOT_PREFIX = rootPrefix();
+
+  function prefix(subPath) {
+    return ROOT_PREFIX + subPath;
+  }
+
+  // The public information architecture has exactly five destinations.
   var NAV_LINKS = [
-    { key: 'nav.home',            href: isLanding ? 'index.html' : '../index.html' },
-    { key: 'nav.designSystem',    href: prefix('design-system/index.html') },
-    { key: 'nav.frameworkChain',  href: prefix('framework-chain/index.html') },
-    { key: 'nav.contextFlow',     href: prefix('context-flow/index.html') },
-    { key: 'nav.versionTimeline', href: prefix('version-timeline/index.html') },
-    { key: 'nav.architecture',    href: prefix('design-architecture/index.html') },
-    { key: 'nav.visualizer',      href: prefix('workflow-visualizer/index.html') },
-    { key: 'nav.explorer',        href: prefix('stage-explorer/index.html') },
-    { key: 'nav.benchmarks',      href: prefix('benchmark-results/index.html') },
-    { key: 'nav.blog',            href: prefix('blog/index.html') }
+    { key: 'nav.home',     href: prefix('index.html'), fallback: 'Home' },
+    { key: 'nav.system',   href: prefix('framework-chain/index.html'), fallback: 'System' },
+    { key: 'nav.io',       href: prefix('context-flow/index.html'), fallback: 'I/O' },
+    { key: 'nav.harness',  href: prefix('benchmark-results/index.html'), fallback: 'Harness' },
+    { key: 'nav.timeline', href: prefix('version-timeline/index.html'), fallback: 'Timeline' }
   ];
 
-  var LABELS_EN = {
-    'nav.home': 'Home',
-    'nav.designSystem': 'Design System',
-    'nav.frameworkChain': 'Framework Chain',
-    'nav.contextFlow': 'Context Flow',
-    'nav.versionTimeline': 'Timeline',
-    'nav.architecture': 'Architecture',
-    'nav.visualizer': 'Visualizer',
-    'nav.explorer': 'Explorer',
-    'nav.benchmarks': 'Benchmarks',
-    'nav.blog': 'Blog'
-  };
-  var LABELS_ZH = {
-    'nav.home': '首页',
-    'nav.designSystem': '设计体系',
-    'nav.frameworkChain': '框架链路',
-    'nav.contextFlow': '上下文流转',
-    'nav.versionTimeline': '版本演进',
-    'nav.architecture': '架构',
-    'nav.visualizer': '可视化',
-    'nav.explorer': '探索器',
-    'nav.benchmarks': '基准测试',
-    'nav.blog': '博客'
-  };
+  function translated(key, fallback) {
+    if (typeof window.t !== 'function') { return fallback; }
+    var value = window.t(key);
+    return value === key ? fallback : value;
+  }
+
+  function navLabel(link) {
+    return translated(link.key, link.fallback);
+  }
 
   function currentPageId() {
     var path = window.location.pathname;
-    if (path.match(/design-system/))    { return 'nav.designSystem'; }
-    if (path.match(/framework-chain/))  { return 'nav.frameworkChain'; }
-    if (path.match(/context-flow/))     { return 'nav.contextFlow'; }
-    if (path.match(/version-timeline/)) { return 'nav.versionTimeline'; }
-    if (path.match(/design-architecture/)) { return 'nav.architecture'; }
-    if (path.match(/workflow-visualizer/))  { return 'nav.visualizer'; }
-    if (path.match(/stage-explorer/))       { return 'nav.explorer'; }
-    if (path.match(/benchmark-results/))    { return 'nav.benchmarks'; }
-    if (path.match(/\/blog(\/|$)/))         { return 'nav.blog'; }
-    if (isLanding)                          { return 'nav.home'; }
+    if (/framework-chain|design-system|design-architecture|workflow-visualizer/.test(path)) {
+      return 'nav.system';
+    }
+    if (/context-flow|stage-explorer/.test(path)) { return 'nav.io'; }
+    if (/benchmark-results/.test(path)) { return 'nav.harness'; }
+    if (/version-timeline/.test(path)) { return 'nav.timeline'; }
+    if (isLanding || /\/blog(\/|$)/.test(path)) { return 'nav.home'; }
     return '';
   }
 
   /* ---- Theme ---- */
 
+  function readPreference(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (error) {
+      console.warn('DevolaFlow navigation could not read localStorage.', error);
+      return null;
+    }
+  }
+
+  function writePreference(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn('DevolaFlow navigation could not write localStorage.', error);
+    }
+  }
+
   function getPreferredTheme() {
-    var stored = localStorage.getItem(THEME_KEY);
+    var stored = readPreference(THEME_KEY);
     if (stored === 'dark' || stored === 'light') { return stored; }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
   function applyTheme(theme) {
     document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem(THEME_KEY, theme);
+    document.documentElement.style.colorScheme = theme;
+    writePreference(THEME_KEY, theme);
     var btn = document.getElementById('df-theme-toggle');
-    if (btn) { btn.textContent = theme === 'dark' ? '☀️' : '🌙'; }
+    if (btn) {
+      btn.textContent = themeIcon(theme);
+      btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    }
+  }
+
+  function themeIcon(theme) {
+    return theme === 'dark' ? '☀' : '☾';
   }
 
   function toggleTheme() {
@@ -116,10 +139,10 @@
     } else {
       document.documentElement.setAttribute('data-lang', next);
       document.documentElement.lang = next;
-      localStorage.setItem('devolaflow-lang', next);
+      writePreference(LANG_KEY, next);
+      updateNavLabels();
+      updateLangButton();
     }
-    updateNavLabels();
-    updateLangButton();
   }
 
   function updateLangButton() {
@@ -130,26 +153,99 @@
   }
 
   function updateNavLabels() {
-    var lang = currentLang();
-    var labels = lang === 'zh' ? LABELS_ZH : LABELS_EN;
     document.querySelectorAll('[data-nav-key]').forEach(function (el) {
       var key = el.getAttribute('data-nav-key');
-      if (labels[key]) { el.textContent = labels[key]; }
+      var link = NAV_LINKS.find(function (candidate) {
+        return candidate.key === key;
+      });
+      if (link) { el.textContent = navLabel(link); }
     });
+    var nav = document.querySelector('.site-nav');
+    var menu = document.getElementById('df-hamburger');
+    var close = document.getElementById('df-mobile-close');
+    var theme = document.getElementById('df-theme-toggle');
+    var language = document.getElementById('df-lang-toggle');
+    var mobile = document.getElementById('df-nav-mobile');
+    if (nav) {
+      nav.setAttribute('aria-label', translated('control.navigation', 'Primary navigation'));
+    }
+    if (menu) {
+      menu.setAttribute('aria-label', translated('control.menu', 'Open navigation menu'));
+    }
+    if (close) {
+      close.setAttribute('aria-label', translated('control.close', 'Close navigation menu'));
+    }
+    if (theme) {
+      var themeLabel = translated('theme.toggle', 'Toggle color theme');
+      theme.setAttribute('aria-label', themeLabel);
+      theme.title = themeLabel;
+    }
+    if (language) {
+      var languageLabel = translated('control.language', 'Switch language');
+      language.setAttribute('aria-label', languageLabel);
+      language.title = languageLabel;
+    }
+    if (mobile) {
+      mobile.setAttribute('aria-label', translated('control.navigation', 'Primary navigation'));
+    }
   }
 
   /* ---- Mobile Menu ---- */
 
+  var lastFocused = null;
+
   function openMobile() {
-    document.getElementById('df-nav-overlay').classList.add('open');
-    document.getElementById('df-nav-mobile').classList.add('open');
+    var overlay = document.getElementById('df-nav-overlay');
+    var mobile = document.getElementById('df-nav-mobile');
+    var menu = document.getElementById('df-hamburger');
+    if (!overlay || !mobile || !menu) { return; }
+    lastFocused = document.activeElement;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    mobile.classList.add('open');
+    mobile.setAttribute('aria-hidden', 'false');
+    menu.setAttribute('aria-expanded', 'true');
     document.body.style.overflow = 'hidden';
+    var close = document.getElementById('df-mobile-close');
+    if (close) { close.focus(); }
   }
 
   function closeMobile() {
-    document.getElementById('df-nav-overlay').classList.remove('open');
-    document.getElementById('df-nav-mobile').classList.remove('open');
+    var overlay = document.getElementById('df-nav-overlay');
+    var mobile = document.getElementById('df-nav-mobile');
+    var menu = document.getElementById('df-hamburger');
+    if (!overlay || !mobile || !menu) { return; }
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    mobile.classList.remove('open');
+    mobile.setAttribute('aria-hidden', 'true');
+    menu.setAttribute('aria-expanded', 'false');
     document.body.style.overflow = '';
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      lastFocused.focus();
+    }
+  }
+
+  function handleMenuKeydown(event) {
+    var mobile = document.getElementById('df-nav-mobile');
+    if (!mobile || !mobile.classList.contains('open')) { return; }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMobile();
+      return;
+    }
+    if (event.key !== 'Tab') { return; }
+    var focusable = mobile.querySelectorAll('a[href], button:not([disabled])');
+    if (!focusable.length) { return; }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   /* ---- Build DOM ---- */
@@ -157,47 +253,51 @@
   function buildNav() {
     var activeId = currentPageId();
     var lang = currentLang();
-    var labels = lang === 'zh' ? LABELS_ZH : LABELS_EN;
 
     var linksHTML = NAV_LINKS.map(function (l) {
       var cls = l.key === activeId ? ' class="active"' : '';
-      var label = labels[l.key] || l.key;
+      var current = l.key === activeId ? ' aria-current="page"' : '';
+      var label = navLabel(l);
       var target = l.href.startsWith('http') ? ' target="_blank" rel="noopener"' : '';
-      return '<li><a href="' + l.href + '"' + cls + target +
+      return '<li><a href="' + l.href + '"' + cls + current + target +
              ' data-nav-key="' + l.key + '">' + label + '</a></li>';
     }).join('');
 
     var mobileLinksHTML = NAV_LINKS.map(function (l) {
       var cls = l.key === activeId ? ' class="active"' : '';
-      var label = labels[l.key] || l.key;
+      var current = l.key === activeId ? ' aria-current="page"' : '';
+      var label = navLabel(l);
       var target = l.href.startsWith('http') ? ' target="_blank" rel="noopener"' : '';
-      return '<li><a href="' + l.href + '"' + cls + target +
+      return '<li><a href="' + l.href + '"' + cls + current + target +
              ' data-nav-key="' + l.key + '">' + label + '</a></li>';
     }).join('');
 
-    var themeIcon = getPreferredTheme() === 'dark' ? '☀️' : '🌙';
+    var preferredTheme = getPreferredTheme();
     var langActive = lang;
 
     var nav = document.createElement('nav');
     nav.className = 'site-nav';
+    nav.setAttribute('aria-label', translated('control.navigation', 'Primary navigation'));
     nav.innerHTML =
       '<div class="nav-inner">' +
-        '<a class="nav-logo" href="' + (isLanding ? 'index.html' : '../index.html') + '">' +
+        '<a class="nav-logo" href="' + prefix('index.html') + '">' +
           '<span class="logo-accent">Devola</span>Flow' +
         '</a>' +
         '<ul class="nav-links">' + linksHTML + '</ul>' +
         '<div class="nav-controls">' +
-          '<button class="theme-toggle" id="df-theme-toggle" title="Toggle dark mode">' +
-            themeIcon +
+          '<button type="button" class="theme-toggle" id="df-theme-toggle"' +
+          ' aria-pressed="false">' +
+            themeIcon(preferredTheme) +
           '</button>' +
-          '<button class="lang-btn" id="df-lang-toggle" title="Switch language">' +
+          '<button type="button" class="lang-btn" id="df-lang-toggle">' +
             '<span class="lang-option' + (langActive === 'en' ? ' active' : '') +
             '" data-lang="en">EN</span>' +
-            ' <span style="opacity:.3">|</span> ' +
+            ' <span class="lang-divider" aria-hidden="true">/</span> ' +
             '<span class="lang-option' + (langActive === 'zh' ? ' active' : '') +
             '" data-lang="zh">ZH</span>' +
           '</button>' +
-          '<button class="nav-hamburger" id="df-hamburger" aria-label="Menu">' +
+          '<button type="button" class="nav-hamburger" id="df-hamburger"' +
+          ' aria-expanded="false" aria-controls="df-nav-mobile">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
               '<line x1="3" y1="6" x2="21" y2="6"/>' +
               '<line x1="3" y1="12" x2="21" y2="12"/>' +
@@ -210,12 +310,18 @@
     var overlay = document.createElement('div');
     overlay.className = 'nav-overlay';
     overlay.id = 'df-nav-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
 
     var mobile = document.createElement('div');
     mobile.className = 'nav-mobile';
     mobile.id = 'df-nav-mobile';
+    mobile.setAttribute('role', 'dialog');
+    mobile.setAttribute('aria-modal', 'true');
+    mobile.setAttribute('aria-hidden', 'true');
     mobile.innerHTML =
-      '<button class="mobile-close" id="df-mobile-close">&times;</button>' +
+      '<button type="button" class="mobile-close" id="df-mobile-close"' +
+      ' aria-label="' + translated('control.close', 'Close navigation menu') +
+      '">&times;</button>' +
       '<ul class="mobile-links">' + mobileLinksHTML + '</ul>';
 
     document.body.prepend(mobile);
@@ -227,8 +333,22 @@
     document.getElementById('df-hamburger').addEventListener('click', openMobile);
     document.getElementById('df-mobile-close').addEventListener('click', closeMobile);
     overlay.addEventListener('click', closeMobile);
+    mobile.addEventListener('keydown', handleMenuKeydown);
+    mobile.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', closeMobile);
+    });
+    document.addEventListener('devolaflow:languagechange', function () {
+      updateNavLabels();
+      updateLangButton();
+    });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 640 && mobile.classList.contains('open')) {
+        closeMobile();
+      }
+    });
 
-    applyTheme(getPreferredTheme());
+    applyTheme(preferredTheme);
+    updateNavLabels();
   }
 
   /* ---- Init ---- */

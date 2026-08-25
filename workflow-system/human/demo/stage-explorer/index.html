@@ -3,99 +3,132 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="page.explorer">Stage Explorer — DevolaFlow</title>
+  <meta name="description" content="A bilingual companion for DevolaFlow's 14 historical primitive labels, conceptual I/O vocabulary, and checklist-seed provenance.">
+  <title data-i18n="page.explorer">Primitive Explorer — DevolaFlow</title>
+  <link rel="icon" type="image/svg+xml" href="../shared/favicon.svg">
   <link rel="stylesheet" href="../shared/styles.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
-
-    <header>
-      <h1>Stage <span class="accent">Explorer</span></h1>
-      <p class="tagline" data-i18n="exp.subtitle">Deep-dive into stage primitives</p>
+    <header class="primitive-hero">
+      <p class="eyebrow" data-i18n="exp.hero.eyebrow">Provenance I/O companion</p>
+      <h1><span class="accent" data-i18n="exp.hero.count">14 historical</span> <span data-i18n="exp.hero.title">primitive labels</span></h1>
+      <p class="tagline" data-i18n="exp.hero.tagline">A finite vocabulary reference for seed authors—not an execution view.</p>
+      <div class="provenance-contract" role="note" aria-labelledby="provenance-contract-title">
+        <p class="contract-kicker" id="provenance-contract-title" data-i18n="exp.contract.kicker">Read this boundary first</p>
+        <p data-i18n="exp.contract.body">These 14 historical labels are non-executable authoring vocabulary. They are not layers, not an ordered pipeline, and do not select teams or gates. The current runtime is change-driven with user-confirmed checklist rounds.</p>
+      </div>
+      <div class="cta-cluster" aria-label="Primary companion links" data-i18n-aria="exp.aria.heroLinks">
+        <a class="btn btn-primary" href="../context-flow/index.html" data-i18n="exp.link.io">Canonical I/O</a>
+        <a class="btn btn-outline" href="../framework-chain/index.html" data-i18n="exp.link.system">System</a>
+      </div>
     </header>
 
-    <section class="select-section">
-      <label for="stage-select" data-i18n="exp.selectStage">Select stage</label>
-      <select id="stage-select"><option value="">Choose a primitive…</option></select>
-    </section>
+    <main>
+      <section id="primitive-index" aria-labelledby="primitive-index-title">
+        <div class="section-heading-row">
+          <div>
+            <p class="eyebrow" data-i18n="exp.index.eyebrow">Historical taxonomy</p>
+            <h2 id="primitive-index-title" data-i18n="exp.index.title">Filter the vocabulary</h2>
+            <p class="desc" data-i18n="exp.index.desc">Category groups are for scanning only. Select one label to disclose its conceptual Input, Output, authoring meaning, and seed usage.</p>
+          </div>
+          <p class="result-count" id="primitive-count" aria-live="polite">14 of 14 labels</p>
+        </div>
 
-    <section>
-      <div class="card detail-card">
-        <h3 id="stage-name">-</h3>
-        <table>
-          <tr><th data-i18n="common.category">Category</th><td id="stage-category">-</td></tr>
-          <tr><th data-i18n="exp.defaultTeam">Default Team</th><td id="stage-team">-</td></tr>
-          <tr><th data-i18n="exp.durationClass">Duration Class</th><td id="stage-duration">-</td></tr>
-          <tr><th data-i18n="exp.purpose">Purpose</th><td id="stage-purpose">-</td></tr>
-          <tr><th data-i18n="exp.inputType">Input Type</th><td id="stage-input" class="mono">-</td></tr>
-          <tr><th data-i18n="exp.outputType">Output Type</th><td id="stage-output" class="mono">-</td></tr>
-          <tr><th data-i18n="exp.config">Config</th><td id="stage-config" class="mono">-</td></tr>
-          <tr><th data-i18n="exp.usedIn">Used In</th><td id="stage-workflows">-</td></tr>
-        </table>
-      </div>
-    </section>
+        <div class="primitive-filters" id="primitive-filters" role="group" aria-label="Filter primitive labels by category" data-i18n-aria="exp.aria.filters"></div>
+        <div class="primitive-layout">
+          <div class="primitive-grid" id="primitive-grid" aria-label="Historical primitive labels" data-i18n-aria="exp.aria.grid"></div>
 
-    <section>
-      <div class="card detail-card highlight">
-        <h3 data-i18n="exp.stageAgentRole">Project Agent Orchestration (L0)</h3>
-        <p class="hint" data-i18n="exp.stageAgentHint">How the Project Agent (L0) orchestrates this primitive: it decomposes work into waves and runs the gate — it never does the work itself.</p>
-        <div id="main-agent-role"></div>
-      </div>
-    </section>
+          <aside class="primitive-detail" id="primitive-detail" aria-labelledby="primitive-detail-name">
+            <div class="detail-heading">
+              <div>
+                <p class="detail-overline" id="primitive-detail-category">Discover</p>
+                <h3 id="primitive-detail-name" tabindex="-1">research</h3>
+              </div>
+              <span class="status-badge is-retired" data-i18n="exp.detail.status">Provenance only</span>
+            </div>
 
-    <section>
-      <div class="card detail-card">
-        <h3 data-i18n="exp.delegation">3-Layer Delegation Chain</h3>
-        <p class="hint" data-i18n="exp.delegationHint">Full dispatch path from Project Agent down to the Task Agent that executes work.</p>
-        <div id="delegation-chain"></div>
-      </div>
-    </section>
+            <p class="detail-meaning" id="primitive-detail-meaning"></p>
+            <p class="concept-note" data-i18n="exp.detail.contractNote">Conceptual authoring contract—not a live callable stage API.</p>
 
-    <section>
-      <div class="card detail-card">
-        <h3 data-i18n="exp.contextBudget">Context Budget Allocation</h3>
-        <p class="hint" data-i18n="exp.budgetHint">Token budget per layer. Upper layers get less context to enforce separation of concerns.</p>
-        <div id="budget-bar" class="budget-bar"></div>
-      </div>
-    </section>
+            <dl class="io-vocabulary">
+              <div class="io-vocabulary-row io-input">
+                <dt><span aria-hidden="true">IN</span><strong data-i18n="exp.detail.input">Input</strong></dt>
+                <dd id="primitive-detail-input"></dd>
+              </div>
+              <div class="io-vocabulary-row io-output">
+                <dt><span aria-hidden="true">OUT</span><strong data-i18n="exp.detail.output">Output</strong></dt>
+                <dd id="primitive-detail-output"></dd>
+              </div>
+            </dl>
+
+            <div class="seed-usage">
+              <div class="seed-usage-heading">
+                <h4 data-i18n="exp.detail.seedUsage">Seed usage</h4>
+                <span id="primitive-seed-count"></span>
+              </div>
+              <p id="primitive-seed-note"></p>
+              <ul class="seed-list" id="primitive-seed-list"></ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="runtime-boundary" aria-labelledby="runtime-boundary-title">
+        <p class="eyebrow" data-i18n="exp.runtime.eyebrow">Vocabulary versus runtime</p>
+        <h2 id="runtime-boundary-title" data-i18n="exp.runtime.title">Provenance informs authoring; checklist fields control execution</h2>
+        <p class="desc" data-i18n="exp.runtime.desc">A seed may record source_stages with an ID and primitive label. L0 materializes actual assertions, priorities, verification, dependencies, and file ownership before the sole runtime executes.</p>
+        <div class="boundary-grid">
+          <article>
+            <p class="boundary-label" data-i18n="exp.runtime.provenanceLabel">Historical seed provenance</p>
+            <code>source_stages: [{id, primitive}]</code>
+            <p data-i18n="exp.runtime.provenanceText">Preserves where decomposition knowledge came from. Sequence is presentation-only.</p>
+          </article>
+          <article>
+            <p class="boundary-label" data-i18n="exp.runtime.runtimeLabel">Current execution contract</p>
+            <code>change-driven + checklist rounds</code>
+            <p data-i18n="exp.runtime.runtimeText">Confirmed assertions, evidence checks, dependencies, and ownership determine work.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="companion-links" aria-labelledby="companion-links-title">
+        <p class="eyebrow" data-i18n="exp.links.eyebrow">Canonical sources</p>
+        <h2 id="companion-links-title" data-i18n="exp.links.title">Continue with the active contracts</h2>
+        <nav class="source-links" aria-label="Primitive companion and source links" data-i18n-aria="exp.aria.sourceLinks">
+          <a href="../context-flow/index.html">
+            <strong data-i18n="exp.link.io">Canonical I/O</strong>
+            <span data-i18n="exp.link.ioDesc">typed messages and artifact boundaries</span>
+          </a>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/tree/main/workflow-system/agent/templates/seeds" target="_blank" rel="noopener">
+            <strong data-i18n="exp.link.seeds">Seed Library ↗</strong>
+            <span data-i18n="exp.link.seedsDesc">23 declarative checklist seeds</span>
+          </a>
+          <a href="../framework-chain/index.html">
+            <strong data-i18n="exp.link.system">System</strong>
+            <span data-i18n="exp.link.systemDesc">current Project → Wave → Task model</span>
+          </a>
+          <a href="https://github.com/YoRHa-Agents/DevolaFlow/blob/main/workflow-system/agent/SKILL.md" target="_blank" rel="noopener">
+            <strong data-i18n="exp.link.skill">Read SKILL.md ↗</strong>
+            <span data-i18n="exp.link.skillDesc">canonical orchestration contract</span>
+          </a>
+        </nav>
+      </section>
+    </main>
 
     <footer>
-      <p><span data-i18n="footer.text">DevolaFlow</span> · <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> · <span data-i18n="footer.license">MIT License</span></p>
+      <p>
+        <span data-i18n="footer.text">DevolaFlow</span> &middot;
+        <a href="https://github.com/YoRHa-Agents/DevolaFlow" data-i18n="footer.github">GitHub</a> &middot;
+        <span data-i18n="footer.license">MIT License</span>
+      </p>
     </footer>
-
   </div>
 
   <script src="../shared/i18n.js"></script>
-  <script>
-    addTranslations('en', {
-      'exp.defaultTeam': 'Default Team',
-      'exp.durationClass': 'Duration Class',
-      'exp.purpose': 'Purpose',
-      'exp.inputType': 'Input Type',
-      'exp.outputType': 'Output Type',
-      'exp.config': 'Config',
-      'exp.usedIn': 'Used In',
-      'exp.stageAgentRole': 'Project Agent Orchestration (L0)',
-      'exp.stageAgentHint': 'How the Project Agent (L0) orchestrates this primitive: it decomposes work into waves and runs the gate — it never does the work itself.',
-      'exp.delegationHint': 'Full dispatch path from Project Agent down to the Task Agent that executes work.',
-      'exp.budgetHint': 'Token budget per layer. Upper layers get less context to enforce separation of concerns.'
-    });
-    addTranslations('zh', {
-      'exp.defaultTeam': '默认团队',
-      'exp.durationClass': '时长级别',
-      'exp.purpose': '用途',
-      'exp.inputType': '输入类型',
-      'exp.outputType': '输出类型',
-      'exp.config': '配置',
-      'exp.usedIn': '所属工作流',
-      'exp.stageAgentRole': '项目代理编排（L0）',
-      'exp.stageAgentHint': '项目代理（L0）如何编排此原语：它将工作分解为波次并运行门控——它自身不执行任何工作。',
-      'exp.delegationHint': '从项目代理到执行工作的任务代理的完整分派路径。',
-      'exp.budgetHint': '每层的 Token 预算。上层获得较少的上下文以强制关注点分离。'
-    });
-  </script>
   <script src="../shared/nav.js"></script>
+  <script src="../shared/seed-catalog.js"></script>
   <script src="explorer.js"></script>
 </body>
 </html>
