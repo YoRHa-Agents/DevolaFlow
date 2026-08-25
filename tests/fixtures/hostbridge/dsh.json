@@ -1,0 +1,35 @@
+{
+  "host": "dsh",
+  "cases": [
+    {
+      "name": "plugin_file_write",
+      "input": {
+        "tool": "write_file",
+        "kind": "file_write",
+        "path": "src/demo.py",
+        "command": null
+      },
+      "expected": {"kind": "file_write", "path": "src/demo.py"}
+    },
+    {
+      "name": "plugin_shell",
+      "input": {
+        "tool": "run_shell",
+        "kind": "shell",
+        "path": null,
+        "command": "npm test"
+      },
+      "expected": {"kind": "shell", "command": "npm test"}
+    },
+    {
+      "name": "plugin_unknown_kind",
+      "input": {
+        "tool": "web_search",
+        "kind": "browse",
+        "path": null,
+        "command": null
+      },
+      "expected": {"kind": "unknown"}
+    }
+  ]
+}

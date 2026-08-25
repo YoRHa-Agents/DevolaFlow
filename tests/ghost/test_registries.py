@@ -233,6 +233,20 @@ _SF4_REFERENCE_SET = frozenset(
         # OPERATOR-REQUEST rubric — the two never overlap). Numeric scoring
         # stays L0-side and lands v15.0.0 per the v15-ADR-007 phase split.
         "artifact-quality.md",
+        # v17.0.0 R2 — host-bridge operating contract (26th SF-4
+        # canonical). Five-host matrix (Cursor / Claude Code / Codex /
+        # KimiCode / DSH: config surface, intercepted events, block
+        # mechanism, degradation notes), per-host install guide, the
+        # DEVOLAFLOW_HOST_ENFORCE R5-strict enforcement-flag contract
+        # (W-20 §3-justified NEW flag, env-flags.md §2.18), decision
+        # semantics (S-8 owned-files union + exemptions; shell advisory-
+        # only), and the .local/telemetry/hostbridge.jsonl audit-ledger
+        # schema. Pairs with src/devolaflow/hostbridge/ (normalize /
+        # decision / audit / install), the committed .cursor/.claude/
+        # .codex hook configs, packages/dsh-plugin/, and
+        # tests/test_hostbridge*.py (G17-B1 closure per the v17 R2
+        # design §D-R2-1..§D-R2-4).
+        "host-bridges.md",
     }
 )
 

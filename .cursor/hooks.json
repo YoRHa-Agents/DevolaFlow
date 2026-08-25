@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "matcher": "Write|StrReplace",
+        "command": ".cursor/hooks/devola-boundary.sh"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/devola-boundary.sh"
+      }
+    ]
+  }
+}

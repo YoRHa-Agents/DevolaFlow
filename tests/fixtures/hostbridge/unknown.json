@@ -1,0 +1,20 @@
+{
+  "host": "cursor",
+  "cases": [
+    {
+      "name": "empty_object",
+      "input": {},
+      "expected": {"kind": "unknown"}
+    },
+    {
+      "name": "non_mapping_payload",
+      "input": ["not", "a", "mapping"],
+      "expected": {"kind": "unknown"}
+    },
+    {
+      "name": "unrecognised_tool_no_shape",
+      "input": {"tool_name": "WebFetch", "tool_input": {"url": "https://example.com"}},
+      "expected": {"kind": "unknown"}
+    }
+  ]
+}
